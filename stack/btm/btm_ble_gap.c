@@ -45,6 +45,7 @@
 #include "gattdefs.h"
 #include "l2c_int.h"
 #include "osi/include/log.h"
+#include "osi/include/time.h"
 
 #define BTM_BLE_NAME_SHORT                  0x01
 #define BTM_BLE_NAME_CMPL                   0x02
@@ -830,6 +831,11 @@ BOOLEAN BTM_BleConfigPrivacy(BOOLEAN privacy_mode)
 *******************************************************************************/
 extern UINT8  BTM_BleMaxMultiAdvInstanceCount(void)
 {
+    if (!controller_get_interface()->get_is_ready()) {
+        BTM_TRACE_ERROR("%s() controller interface not ready", __func__);
+        return 0;
+    }
+
     return controller_get_interface()->get_ble_adv_ext_size() < BTM_BLE_MULTI_ADV_MAX ?
         controller_get_interface()->get_ble_adv_ext_size() : BTM_BLE_MULTI_ADV_MAX;
 }
@@ -2459,28 +2465,32 @@ void btm_ble_cache_adv_data(tBTM_INQ_RESULTS *p_cur, UINT8 data_len, UINT8 *p, U
 {
     tBTM_BLE_INQ_DATA_CB     *p_le_inq_cb = &p_cur->inq_data;
     UINT8 *p_adv_data_cache;
+    tBTM_BLE_INQ_CB     *p_le_adv_data_cb = &btm_cb.ble_ctr_cb.inq_var;
 
     if(p_le_inq_cb->adv_len == 0)
     {
-        //if evt type is Extended and Complete data, then allocate 255 bytes of adv data
-        if(extended && ((evt_type & BTM_BLE_EXT_LEGACY_ADV_MASK) == 0) &&
-                ((evt_type & BTM_BLE_EXT_ADV_EVT_DATA_MASK) == 0))
+        if (controller_get_interface()->supports_ble_extended_advertisements())
         {
-            p_le_inq_cb->adv_data_cache = osi_calloc((sizeof(UINT8)) * (HCI_COMMAND_SIZE));
-        }
-        //if evt type is Extended and Incomplete data, then allocate controller's max supported bytes
-        else if(extended && ((evt_type & BTM_BLE_EXT_LEGACY_ADV_MASK) == 0) &&
-                ((evt_type & BTM_BLE_EXT_ADV_EVT_DATA_INCMPL_MASK) == BTM_BLE_EXT_ADV_EVT_DATA_INCMPL_MASK))
-        {
-            p_le_inq_cb->adv_data_cache = osi_calloc(sizeof(UINT8) * (btm_cb.ble_adv_ext_cb.adv_data_len_max));
+            //if evt type is Extended and Complete data, then allocate 255 bytes of adv data
+            if(extended && ((evt_type & BTM_BLE_EXT_LEGACY_ADV_MASK) == 0) &&
+                    ((evt_type & BTM_BLE_EXT_ADV_EVT_DATA_MASK) == 0))
+            {
+                p_le_inq_cb->adv_data_cache = osi_calloc((sizeof(UINT8)) * (HCI_COMMAND_SIZE));
+            }
+            //if evt type is Extended and Incomplete data, then allocate controller's max supported bytes
+            else if(extended && ((evt_type & BTM_BLE_EXT_LEGACY_ADV_MASK) == 0) &&
+                    ((evt_type & BTM_BLE_EXT_ADV_EVT_DATA_INCMPL_MASK) == BTM_BLE_EXT_ADV_EVT_DATA_INCMPL_MASK))
+            {
+                p_le_inq_cb->adv_data_cache = osi_calloc(sizeof(UINT8) * (btm_cb.ble_adv_ext_cb.adv_data_len_max));
+            }
+            else
+            {
+                p_le_inq_cb->adv_data_cache = osi_calloc((sizeof(UINT8)) * (BTM_BLE_CACHE_ADV_DATA_MAX));
+            }
         }
         else
-        {
-            p_le_inq_cb->adv_data_cache = osi_calloc((sizeof(UINT8)) * (BTM_BLE_CACHE_ADV_DATA_MAX));
-        }
+            p_le_inq_cb->adv_data_cache = p_le_adv_data_cb->adv_data_cache;
     }
-
-    p_adv_data_cache = &p_le_inq_cb->adv_data_cache[p_le_inq_cb->adv_len];
 
     /* cache adv report/scan response data ,check for only legacy adv's scan rsp evt*/
     if (((!extended && (evt_type != BTM_BLE_SCAN_RSP_EVT)) ||
@@ -2490,6 +2500,8 @@ void btm_ble_cache_adv_data(tBTM_INQ_RESULTS *p_cur, UINT8 data_len, UINT8 *p, U
         p_le_inq_cb->adv_len = 0;
         memset(p_le_inq_cb->adv_data_cache, 0, sizeof(UINT8) * (BTM_BLE_CACHE_ADV_DATA_MAX));
     }
+
+    p_adv_data_cache = &p_le_inq_cb->adv_data_cache[p_le_inq_cb->adv_len];
 
     if(data_len > 0)
     {
@@ -2756,7 +2768,10 @@ BOOLEAN btm_ble_update_inq_result(tINQ_DB_ENT *p_i, UINT8 addr_type, UINT16 evt_
     UINT16               periodic_adv_int;
     BD_ADDR              direct_bda;
     tBTM_BLE_INQ_DATA_CB  *p_le_inq_cb = &p_cur->inq_data;
-
+    UINT8 unused, data_status;
+    UINT8 *p_cache;
+    UINT8 length = 0;
+    UINT16 adv_data_size = 0;
 
     BTM_TRACE_EVENT("btm_ble_update_inq_result evt_type= %d", evt_type);
 
@@ -2789,11 +2804,12 @@ BOOLEAN btm_ble_update_inq_result(tINQ_DB_ENT *p_i, UINT8 addr_type, UINT16 evt_
     {
         BTM_TRACE_WARNING("Adv data for extended adv is truncated:: discard");
         p_le_inq_cb->adv_len = 0;
-        if(p_le_inq_cb->adv_data_cache)
+        if (controller_get_interface()->supports_ble_extended_advertisements() && p_le_inq_cb->adv_data_cache)
         {
             osi_free_and_reset((void **)&p_le_inq_cb->adv_data_cache);
             p_le_inq_cb->adv_data_cache = NULL;
         }
+
         return FALSE;
     }
     else if(extended && ((evt_type & BTM_BLE_EXT_ADV_EVT_DATA_MASK) == BTM_BLE_EXT_ADV_EVT_DATA_INCMPL_MASK))
@@ -2846,14 +2862,33 @@ BOOLEAN btm_ble_update_inq_result(tINQ_DB_ENT *p_i, UINT8 addr_type, UINT16 evt_
 
     p_i->inq_count = p_inq->inq_counter;   /* Mark entry for current inquiry */
 
-    if (p_le_inq_cb->adv_len != 0)
+    if(extended && ((evt_type & BTM_BLE_EXT_ADV_EVT_DATA_MASK) == BTM_BLE_EXT_ADV_EVT_DATA_INCMPL_MASK))
+        return FALSE;
+
+    /* Perform length check of each adv data */
+    if (p_le_inq_cb->adv_len > 0 && p_le_inq_cb->adv_data_cache)
+    {
+        p_cache = &p_le_inq_cb->adv_data_cache[0];
+
+        STREAM_TO_UINT8(length, p_cache);
+        while (length && ((adv_data_size + length + 1) <= p_le_inq_cb->adv_len))
+        {
+            adv_data_size += length+1;
+            p_cache += length;
+            if (adv_data_size < p_le_inq_cb->adv_len)
+            {
+                /* skip the length of data */
+                STREAM_TO_UINT8(length, p_cache);
+            }
+        }
+
+        p_le_inq_cb->adv_len = adv_data_size;
+    }
+
+    if (p_le_inq_cb->adv_len != 0 && p_le_inq_cb->adv_data_cache)
     {
         if ((p_flag = BTM_CheckAdvData(p_le_inq_cb->adv_data_cache, BTM_BLE_AD_TYPE_FLAG, &len, p_le_inq_cb->adv_len)) != NULL)
             p_cur->flag = * p_flag;
-    }
-
-    if (p_le_inq_cb->adv_len != 0)
-    {
         /* Check to see the BLE device has the Appearance UUID in the advertising data.  If it does
          * then try to convert the appearance value to a class of device value Bluedroid can use.
          * Otherwise fall back to trying to infer if it is a HID device based on the service class.
@@ -3144,6 +3179,8 @@ static void btm_ble_process_adv_pkt_cont(BD_ADDR bda, UINT8 addr_type, UINT16 ev
     }
     p_le_inq_cb = &p_i->inq_info.results.inq_data;
 
+    p_i->time_of_resp = time_get_os_boottime_ms();
+
     /* update the LE device information in inquiry database */
     if (!btm_ble_update_inq_result(p_i, addr_type, evt_type, p, extended))
         return;
@@ -3203,12 +3240,14 @@ static void btm_ble_process_adv_pkt_cont(BD_ADDR bda, UINT8 addr_type, UINT16 ev
         {
             (p_obs_results_cb)((tBTM_INQ_RESULTS *) &p_i->inq_info.results, p_le_inq_cb->adv_data_cache);
         }
+
         //Deallocate memory for adv data cache
-        if(p_le_inq_cb->adv_data_cache)
+        if(controller_get_interface()->supports_ble_extended_advertisements() && p_le_inq_cb->adv_data_cache)
         {
             osi_free_and_reset((void **)&p_le_inq_cb->adv_data_cache);
             p_le_inq_cb->adv_data_cache = NULL;
         }
+
         p_le_inq_cb->adv_len = 0;
     }
 }

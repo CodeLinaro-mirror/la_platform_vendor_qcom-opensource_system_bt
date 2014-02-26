@@ -375,7 +375,8 @@ typedef UINT8   tBTM_BLE_AD_TYPE;
 /*  Preferred maximum number of microseconds that the local Controller
     should use to transmit a single Link Layer Data Channel PDU. */
 #define BTM_BLE_DATA_TX_TIME_MIN     0x0148
-#define BTM_BLE_DATA_TX_TIME_MAX     0x0848
+#define BTM_BLE_DATA_TX_TIME_MAX_LEGACY     0x0848
+#define BTM_BLE_DATA_TX_TIME_MAX            0x4290
 
 /* adv tx power level */
 #define BTM_BLE_ADV_TX_POWER_MIN        0           /* minimum tx power */
@@ -384,6 +385,11 @@ typedef UINT8   tBTM_BLE_AD_TYPE;
 #define BTM_BLE_ADV_TX_POWER_UPPER      3           /* upper tx power   */
 #define BTM_BLE_ADV_TX_POWER_MAX        4           /* maximum tx power */
 typedef UINT8 tBTM_BLE_ADV_TX_POWER;
+
+/* Subevent code for LE Connection Complete event */
+#if (BLE_PRIVACY_SPT == TRUE )
+#define BTM_BLE_ENHC_CONN_SUB_CODE 0x0A
+#endif
 
 /* adv tx power in dBm */
 typedef struct
@@ -1732,6 +1738,21 @@ extern void BTM_BleUpdateAdvFilterPolicy(tBTM_BLE_AFP adv_policy);
 *******************************************************************************/
 void BTM_BleReceiverTest(UINT8 rx_freq, tBTM_CMPL_CB *p_cmd_cmpl_cback);
 
+/*******************************************************************************
+**
+** Function         BTM_BleEnhReceiverTest
+**
+** Description      This function is called to start the LE Enhanced Receiver
+**                  test
+**
+** Parameter        rx_freq - Frequency Range
+**                  phy - Phy to be used
+**                  mod_index - Modulation index
+**                  p_cmd_cmpl_cback - Command Complete callback
+**
+*******************************************************************************/
+void BTM_BleEnhReceiverTest(UINT8 rx_freq, UINT8 phy, UINT8 mod_index,
+                              tBTM_CMPL_CB *p_cmd_cmpl_cback);
 
 /*******************************************************************************
 **
@@ -1747,6 +1768,23 @@ void BTM_BleReceiverTest(UINT8 rx_freq, tBTM_CMPL_CB *p_cmd_cmpl_cback);
 *******************************************************************************/
 void BTM_BleTransmitterTest(UINT8 tx_freq, UINT8 test_data_len,
                                  UINT8 packet_payload, tBTM_CMPL_CB *p_cmd_cmpl_cback);
+
+/*******************************************************************************
+**
+** Function         BTM_BleEnhTransmitterTest
+**
+** Description      This function is called to start the LE Enhanced Transmitter test
+**
+** Parameter        tx_freq - Frequency Range
+**                  test_data_len - Length in bytes of payload data in each packet
+**                  packet_payload - Pattern to use in the payload
+**                  phy - Phy to be used
+**                  p_cmd_cmpl_cback - Command Complete callback
+**
+*******************************************************************************/
+void BTM_BleEnhTransmitterTest(UINT8 tx_freq, UINT8 test_data_len,
+                                 UINT8 packet_payload, UINT8 phy,
+                                 tBTM_CMPL_CB *p_cmd_cmpl_cback);
 
 /*******************************************************************************
 **

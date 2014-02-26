@@ -125,7 +125,9 @@ enum
     BTIF_DM_CB_HID_REMOTE_NAME,   /* Remote name callback for HID device */
     BTIF_DM_CB_BOND_STATE_BONDING,
     BTIF_DM_CB_LE_TX_TEST,    /* BLE Tx Test command complete callback */
+    BTIF_DM_CB_LE_ENH_TX_TEST,    /* BLE Enh Tx Test command complete callback */
     BTIF_DM_CB_LE_RX_TEST,    /* BLE Rx Test command complete callback */
+    BTIF_DM_CB_LE_ENH_RX_TEST,    /* BLE Enh Rx Test command complete callback */
     BTIF_DM_CB_LE_TEST_END,   /* BLE Test mode end callback */
 
     BTIF_HFP_CB_START  = BTIF_SIG_CB_START(BTIF_HFP),
@@ -137,6 +139,19 @@ enum
     BTIF_HF_CLIENT_CLIENT_CB_START  = BTIF_SIG_CB_START(BTIF_HF_CLIENT),
     BTIF_HF_CLIENT_CB_AUDIO_CONNECTING, /* AUDIO connect has been sent to BTA successfully */
 };
+
+/*
+ * Logger preference, based on which the Bluetooth logging is
+ * enabled.
+ */
+#ifdef BLUEDROID_DEBUG
+typedef enum {
+    CONFIG_PREFERENCE_FALSE = 0,
+    CONFIG_PREFERENCE_TRUE,
+    DEV_OPT_PREFERENCE,
+    NO_PREFERENCE,
+} logging_preference_t;
+#endif
 
 /* Macro definitions for BD ADDR persistence */
 

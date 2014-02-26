@@ -73,7 +73,7 @@
 // 20 * 512 is not sufficient size to smooth the variability for some BT devices,
 // resulting in mixer sleep and throttling. We increase this to 28 * 512 to help
 // reduce the effect of variable data consumption.
-#define AUDIO_STREAM_OUTPUT_BUFFER_SZ      (28*512)
+#define AUDIO_STREAM_OUTPUT_BUFFER_SZ     (28*1024)
 
 // AUDIO_STREAM_OUTPUT_BUFFER_PERIODS controls how the socket buffer is divided
 // for AudioFlinger data delivery. The AudioFlinger mixer delivers data in chunks
@@ -112,6 +112,7 @@ typedef enum {
     A2DP_CTRL_ACK_SUCCESS,
     A2DP_CTRL_ACK_FAILURE,
     A2DP_CTRL_ACK_INCALL_FAILURE, /* Failure when in Call*/
+    A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS, /* Ack when Disconnection in Progress */
     A2DP_CTRL_ACK_UNSUPPORTED
 } tA2DP_CTRL_ACK;
 

@@ -470,6 +470,31 @@ BOOLEAN bta_gattc_check_notif_registry(tBTA_GATTC_RCB  *p_clreg, tBTA_GATTC_SERV
     return FALSE;
 
 }
+
+/*******************************************************************************
+**
+** Function         bta_gattc_clear_notif_reg_on_disc
+**
+** Description      clear up the notification registration at disconnection.
+**
+** Returns          None.
+**
+*******************************************************************************/
+void bta_gattc_clear_notif_reg_on_disc(tBTA_GATTC_RCB *p_clreg, BD_ADDR bda) {
+    if (!p_clreg) {
+        APPL_TRACE_ERROR("%s, Invalid regiseration block", __func__);
+        return;
+    }
+
+    UINT8 i;
+    for (i = 0; i < BTA_GATTC_NOTIF_REG_MAX; i++) {
+        if (p_clreg->notif_reg[i].in_use &&
+                !bdcmp(p_clreg->notif_reg[i].remote_bda, bda)) {
+            memset(&p_clreg->notif_reg[i], 0, sizeof(tBTA_GATTC_NOTIF_REG));
+        }
+    }
+}
+
 /*******************************************************************************
 **
 ** Function         bta_gattc_clear_notif_registration
@@ -496,7 +521,7 @@ void bta_gattc_clear_notif_registration(tBTA_GATTC_SERV *p_srcb, UINT16 conn_id,
         if ((p_clrcb = bta_gattc_cl_get_regcb(gatt_if)) != NULL) {
             for (i = 0 ; i < BTA_GATTC_NOTIF_REG_MAX; i ++) {
                 if (p_clrcb->notif_reg[i].in_use &&
-                    !bdcmp(p_clrcb->notif_reg[i].remote_bda, remote_bda))
+                    !bdcmp(p_clrcb->notif_reg[i].remote_bda, remote_bda)) {
 
                     /* It's enough to get service or characteristic handle, as
                      * clear boundaries are always around service.
@@ -504,6 +529,7 @@ void bta_gattc_clear_notif_registration(tBTA_GATTC_SERV *p_srcb, UINT16 conn_id,
                     handle = p_clrcb->notif_reg[i].handle;
                     if (handle >= start_handle && handle <= end_handle)
                         memset(&p_clrcb->notif_reg[i], 0, sizeof(tBTA_GATTC_NOTIF_REG));
+                }
             }
         }
     } else {

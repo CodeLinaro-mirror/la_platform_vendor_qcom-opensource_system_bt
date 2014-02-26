@@ -64,6 +64,7 @@ BOOLEAN l2c_link_hci_conn_req (BD_ADDR bd_addr)
     tL2C_LCB        *p_lcb_cur;
     int             xx;
     BOOLEAN         no_links;
+    bt_bdaddr_t     remote_bdaddr;
 
     /* See if we have a link control block for the remote device */
     p_lcb = l2cu_find_lcb_by_bd_addr (bd_addr, BT_TRANSPORT_BR_EDR);
@@ -76,6 +77,7 @@ BOOLEAN l2c_link_hci_conn_req (BD_ADDR bd_addr)
         {
             btsnd_hcic_reject_conn (bd_addr, HCI_ERR_HOST_REJECT_RESOURCES);
             L2CAP_TRACE_ERROR ("L2CAP failed to allocate LCB");
+            GENERATE_VENDOR_LOGS();
             return FALSE;
         }
 
@@ -102,8 +104,8 @@ BOOLEAN l2c_link_hci_conn_req (BD_ADDR bd_addr)
             else
                 p_lcb->link_role = l2cu_get_conn_role(p_lcb);
         }
-
-        if ((p_lcb->link_role == BTM_ROLE_MASTER)&&(interop_database_match_addr(INTEROP_DISABLE_ROLE_SWITCH, (bt_bdaddr_t *)&bd_addr))) {
+        bdcpy(remote_bdaddr.address, bd_addr);
+        if ((p_lcb->link_role == BTM_ROLE_MASTER)&&(interop_database_match_addr(INTEROP_DISABLE_ROLE_SWITCH, (bt_bdaddr_t *)&remote_bdaddr))) {
             p_lcb->link_role = BTM_ROLE_SLAVE;
             L2CAP_TRACE_WARNING ("l2c_link_hci_conn_req:set link_role= %d",p_lcb->link_role);
         }
@@ -288,6 +290,7 @@ BOOLEAN l2c_link_hci_conn_comp (UINT8 status, UINT16 handle, BD_ADDR p_bda)
             {
                 /* we are in collision situation, wait for connecttion request from controller */
                 p_lcb->link_state = LST_CONNECTING;
+                GENERATE_VENDOR_LOGS();
             }
             else
             {
@@ -621,6 +624,9 @@ void l2c_link_timeout (tL2C_LCB *p_lcb)
 #endif
         /* Release the LCB */
         l2cu_release_lcb (p_lcb);
+
+        /*Generate logs for link timeout while connecting/disconnecting*/
+        GENERATE_VENDOR_LOGS();
     }
 
     /* If link is connected, check for inactivity timeout */
@@ -686,6 +692,9 @@ void l2c_link_timeout (tL2C_LCB *p_lcb)
                 l2cu_process_fixed_disc_cback(p_lcb);
                 p_lcb->link_state = LST_DISCONNECTING;
                 timeout_ms = L2CAP_LINK_DISCONNECT_TIMEOUT_MS;
+
+                /*Link timeout must not occur while bonding*/
+                GENERATE_VENDOR_LOGS();
             }
             else
             {

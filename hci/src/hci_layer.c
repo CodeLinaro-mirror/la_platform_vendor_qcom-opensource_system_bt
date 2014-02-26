@@ -361,6 +361,7 @@ static future_t *shut_down() {
   list_free(commands_pending_response);
   commands_pending_response = NULL;
   list_free(commands_pending_in_queue);
+  commands_pending_in_queue = NULL;
 
   pthread_mutex_destroy(&commands_pending_response_lock);
 
@@ -556,28 +557,30 @@ static void hardware_error_timer_expired(UNUSED_ATTR void *context) {
 
 static void send_cmd_to_lower(waiting_command_t *wait_entry) {
   // Move it to the list of commands awaiting response
-  pthread_mutex_lock(&commands_pending_response_lock);
-  list_append(commands_pending_response, wait_entry);
-  pthread_mutex_unlock(&commands_pending_response_lock);
+    pthread_mutex_lock(&commands_pending_response_lock);
+    list_append(commands_pending_response, wait_entry);
+    pthread_mutex_unlock(&commands_pending_response_lock);
 
-  // Send it off
-   if (LPM_CONFIG_TX == lpm_config) {
-       low_power_manager->stop_idle_timer();;
-   }
-   else {
-       low_power_manager->wake_assert();
-   }
+    // Send it off
+    if (LPM_CONFIG_TX == lpm_config) {
+        low_power_manager->stop_idle_timer();;
+    }
+    else {
+        low_power_manager->wake_assert();
+    }
 
-   if (LPM_CONFIG_TX == lpm_config) {
-       low_power_manager->start_idle_timer(false);
-   }
-   else {
-       low_power_manager->transmit_done();
-   }
-   packet_fragmenter->fragment_and_dispatch(wait_entry->command);
-   update_command_response_timer();
+    if (LPM_CONFIG_TX == lpm_config) {
+        low_power_manager->start_idle_timer(false);
+    }
+    else {
+        low_power_manager->transmit_done();
+    }
 
+    packet_fragmenter->fragment_and_dispatch(wait_entry->command);
+
+    update_command_response_timer();
 }
+
 // Command/packet transmitting functions
 
 static void event_command_ready(fixed_queue_t *queue, UNUSED_ATTR void *context) {

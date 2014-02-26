@@ -578,6 +578,7 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
     do
     {
         p_scb = bta_av_alloc_scb(registr.chnl);
+
         if(p_scb == NULL)
         {
             APPL_TRACE_ERROR("failed to alloc SCB");
@@ -806,7 +807,7 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
                 }
 
                 /* Fix for below klockwork Issues
-                 * Array 'seps' of size 2 may use index value(s) 2 */
+                 * Array 'seps' of size 4 may use index value(s) 4 */
                 if (((index - startIndex) < BTA_AV_MAX_SEPS) &&
                     (AVDT_CreateStream(&p_scb->seps[index - startIndex].av_handle, &cs) ==
                                                                              AVDT_SUCCESS))
@@ -1015,8 +1016,7 @@ static void bta_av_api_to_ssm(tBTA_AV_DATA *p_data)
      * streams are not yet started. We need to take care of this
      * during suspend to ensure we suspend both streams.
      */
-    if ((is_multicast_enabled == TRUE) ||
-        ((event == BTA_AV_AP_STOP_EVT) && (bta_av_multiple_streams_started() == TRUE)))
+    if (is_multicast_enabled == TRUE)
     {
         /* Send START request to all Open Stream connections.*/
         for(xx=0; xx<BTA_AV_NUM_STRS; xx++)

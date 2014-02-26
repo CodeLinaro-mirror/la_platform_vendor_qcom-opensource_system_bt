@@ -33,6 +33,8 @@
 #include "btm_api.h"
 #include "bt_common.h"
 #include "utl.h"
+#include "device/include/interop.h"
+//#include "osi/include/log.h"
 
 #ifndef BTA_AG_SCO_DEBUG
 #define BTA_AG_SCO_DEBUG FALSE
@@ -40,10 +42,11 @@
 
 /* Codec negotiation timeout */
 #ifndef BTA_AG_CODEC_NEGOTIATION_TIMEOUT_MS
-#define BTA_AG_CODEC_NEGOTIATION_TIMEOUT_MS (3 * 1000)          /* 3 seconds */
+#define BTA_AG_CODEC_NEGOTIATION_TIMEOUT_MS (5 * 1000)          /* 5 seconds */
 #endif
 
 extern fixed_queue_t *btu_bta_alarm_queue;
+extern void bta_dm_pm_set_sniff_policy_toggle(BD_ADDR peer_addr, BOOLEAN bDisable);
 
 #if BTA_AG_SCO_DEBUG == TRUE
 static char *bta_ag_sco_evt_str(UINT8 event);
@@ -304,6 +307,10 @@ static void bta_ag_sco_disc_cback(UINT16 sco_idx)
         p_buf->event = BTA_AG_SCO_CLOSE_EVT;
         p_buf->layer_specific = handle;
         bta_sys_sendmsg(p_buf);
+        if (interop_match_addr(INTEROP_DISABLE_SNIFF_POLICY_DURING_SCO,
+                        (const bt_bdaddr_t *)&bta_ag_cb.sco.p_curr_scb->peer_addr)) {
+            bta_dm_pm_set_sniff_policy_toggle(bta_ag_cb.sco.p_curr_scb->peer_addr, false);
+        }
     } else {
         /* no match found */
         APPL_TRACE_DEBUG("no scb for ag_sco_disc_cback");
@@ -691,6 +698,10 @@ BOOLEAN bta_ag_attempt_msbc_safe_settings(tBTA_AG_SCB *p_scb)
 static void bta_ag_codec_negotiation_timer_cback(void *data)
 {
     tBTA_AG_SCB *p_scb = (tBTA_AG_SCB *)data;
+
+    APPL_TRACE_IMP("codec negotiation timedout, aborting SCO/eSCO creation");
+
+    GENERATE_VND_LOGS();
 
     /* Announce that codec negotiation failed. */
     bta_ag_sco_codec_nego(p_scb, FALSE);

@@ -179,16 +179,19 @@ void bte_main_config_hci_logging(BOOLEAN enable, BOOLEAN bt_disabled);
 
 static void btif_context_switched(void *p_msg)
 {
-
-    BTIF_TRACE_VERBOSE("btif_context_switched");
-
     tBTIF_CONTEXT_SWITCH_CBACK *p = (tBTIF_CONTEXT_SWITCH_CBACK *) p_msg;
 
     /* each callback knows how to parse the data */
     if (p->p_cb)
+    {
+        BTIF_TRACE_VERBOSE("btif_context_switched for event: %u", p->event);
         p->p_cb(p->event, p->p_param);
+    }
+    else
+    {
+        BTIF_TRACE_ERROR("btif_context_switched with null callback");
+    }
 }
-
 
 /*******************************************************************************
 **

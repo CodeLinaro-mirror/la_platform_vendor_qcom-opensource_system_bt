@@ -301,6 +301,19 @@ extern int PORT_SetDataCOCallback (UINT16 port_handle, tPORT_DATA_CO_CALLBACK *p
 *******************************************************************************/
 extern int PORT_SetEventMask (UINT16 port_handle, UINT32 mask);
 
+/*******************************************************************************
+**
+** Function         PORT_GetRemoteMtu
+**
+** Description      This function feteches remote mtu from port
+**
+** Parameters:      handle     - Handle returned in the RFCOMM_CreateConnection
+**
+** Returns:         UINT16     - Maximum rfcomm frame size that can be
+**                               transmitted to the peer
+**
+*******************************************************************************/
+extern UINT16 PORT_GetRemoteMtu (UINT16 handle);
 
 /*******************************************************************************
 **

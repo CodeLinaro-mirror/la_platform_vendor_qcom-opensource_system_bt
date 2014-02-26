@@ -38,7 +38,6 @@
 #include "bta_api.h"
 #include "bt_common.h"
 #include "btif_av_api.h"
-#include "audio_a2dp_hw.h"
 #include "a2d_aac.h"
 
 /*******************************************************************************
@@ -312,15 +311,21 @@ BOOLEAN btif_a2dp_on_started(tBTA_AV_START *p_av, BOOLEAN pending_start, tBTA_AV
 #ifdef BTA_AV_SPLIT_A2DP_ENABLED
 void btif_media_on_stop_vendor_command();
 void btif_media_send_reset_vendor_state();
+BOOLEAN btif_media_send_vendor_start();
+void btif_media_start_vendor_command();
 #else
 #define btif_media_on_stop_vendor_command() (0)
 #define btif_media_send_reset_vendor_state() (0)
+#define btif_media_send_vendor_start() (0)
+#define btif_media_start_vendor_command() (0)
 #endif
+void btif_a2dp_on_remote_started();
 void btif_a2dp_ack_fail(void);
 void btif_a2dp_on_stop_req(void);
 void btif_a2dp_on_stopped(tBTA_AV_SUSPEND *p_av);
 void btif_a2dp_on_suspend(void);
 void btif_a2dp_on_suspended(tBTA_AV_SUSPEND *p_av);
+UINT8 btif_a2dp_get_pending_hal_command();
 void btif_a2dp_set_tx_flush(BOOLEAN enable);
 void btif_a2dp_set_rx_flush(BOOLEAN enable);
 void btif_media_check_iop_exceptions(UINT8 *peer_bda);

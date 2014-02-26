@@ -27,6 +27,7 @@
 #define HCI_PROTO_VERSION_4_0 0x06      /* Version for BT spec 4.0          */
 #define HCI_PROTO_VERSION_4_1 0x07      /* Version for BT spec 4.1          */
 #define HCI_PROTO_VERSION_4_2 0x08      /* Version for BT spec 4.2          */
+#define HCI_PROTO_VERSION_5_0 0x09      /* Version for BT spec 5.0          */
 
 /*
 **  Definitions for HCI groups
@@ -353,6 +354,9 @@
 
 #define HCI_BLE_SET_DEFAULT_PHY_RATE        (0x0031 | HCI_GRP_BLE_CMDS)
 #define HCI_BLE_SET_PHY_RATE                (0x0032 | HCI_GRP_BLE_CMDS)
+
+#define HCI_BLE_ENH_RECEIVER_TEST           (0x0033 | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_ENH_TRANSMITTER_TEST        (0x0034 | HCI_GRP_BLE_CMDS)
 
 /* BLE ADV EXTENSION COMMANDS */
 #define HCI_BLE_WRITE_EXTENDED_ADV_RPA      (0x0035 | HCI_GRP_BLE_CMDS)

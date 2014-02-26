@@ -52,6 +52,9 @@ typedef enum {
     BTIF_AV_SINK_FOCUS_REQ_EVT,
     BTIF_AV_CLEANUP_REQ_EVT,
     BTIF_AV_UPDATE_ENCODER_REQ_EVT,
+    BTIF_AV_REMOTE_SUSPEND_STREAM_REQ_EVT,
+    BTIF_AV_RESET_REMOTE_STARTED_FLAG_EVT,
+    BTIF_AV_RESET_REMOTE_STARTED_FLAG_UPDATE_AUDIO_STATE_EVT,
     BTIF_AV_INIT_REQ_EVT,
     BTIF_AV_SRC_CONFIG_REQ_EVT,
 } btif_av_sm_event_t;
@@ -254,6 +257,17 @@ BOOLEAN btif_av_any_br_peer(void);
 **
 *******************************************************************************/
 BOOLEAN btif_av_peer_supports_3mbps(void);
+
+/*******************************************************************************
+**
+** Function         btif_av_check_flag_remote_suspend
+**
+** Description      Check whether remote suspend flag is set or not
+**
+** Returns          TRUE if remote suspen flag set
+**
+*******************************************************************************/
+BOOLEAN btif_av_check_flag_remote_suspend(int index);
 
 #ifdef BTA_AV_SPLIT_A2DP_ENABLED
 /******************************************************************************

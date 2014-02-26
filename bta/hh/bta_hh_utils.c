@@ -22,6 +22,8 @@
 
 
 #include "bta_hh_int.h"
+#include "device/include/interop.h"
+#include "device/include/interop_config.h"
 
 /* if SSR max latency is not defined by remote device, set the default value
    as half of the link supervision timeout */
@@ -49,21 +51,6 @@ static const UINT8 bta_hh_mod_key_mask[BTA_HH_MOD_MAX_KEY] =
     BTA_HH_KB_GUI_MASK
 };
 
-/* hid_blacklist_addr_prefix_for_ssr & hid_ssr_max_lat_list_for_iot are used
-   to fix IOP issues of sniff subrate feature */
-static const UINT8 hid_blacklist_addr_prefix_for_ssr[][3] = {
-    {0x00, 0x1B, 0xDC} // ISSC
-    ,{0xdc, 0x2c, 0x26} // BORND
-    ,{0x54, 0x46, 0x6B} // JW MT002
-};
-
-static const UINT16 hid_ssr_max_lat_list_for_iot[] = {
-    0x0012 // ISSC
-    ,BTA_HH_SSR_MAX_LATENCY_ZERO // BORND
-    ,BTA_HH_SSR_DISABLE_SSR // JW MT002
-};
-
-
 /*******************************************************************************
 **      Function       blacklist_adjust_sniff_subrate
 **
@@ -75,17 +62,12 @@ static const UINT16 hid_ssr_max_lat_list_for_iot[] = {
 static void blacklist_adjust_sniff_subrate(BD_ADDR peer_dev, UINT16 *ssr_max_lat)
 {
     UINT16 old_ssr_max_lat = *ssr_max_lat;
-    const int blacklist_size =
-            sizeof(hid_blacklist_addr_prefix_for_ssr)/sizeof(hid_blacklist_addr_prefix_for_ssr[0]);
-    for (int i = 0; i < blacklist_size; i++) {
-        if (hid_blacklist_addr_prefix_for_ssr[i][0] == peer_dev[0] &&
-            hid_blacklist_addr_prefix_for_ssr[i][1] == peer_dev[1] &&
-            hid_blacklist_addr_prefix_for_ssr[i][2] == peer_dev[2]) {
-            *ssr_max_lat = hid_ssr_max_lat_list_for_iot[i];
-            APPL_TRACE_WARNING("%s: Device in blacklist for ssr, max latency changed "
-                "from %d to %d", __func__, old_ssr_max_lat, *ssr_max_lat);
-            return;
-        }
+    bt_bdaddr_t remote_bdaddr;
+    bdcpy(remote_bdaddr.address, peer_dev);
+    if (interop_match_addr_get_max_lat(INTEROP_UPDATE_HID_SSR_MAX_LAT, &remote_bdaddr,
+        ssr_max_lat)) {
+        APPL_TRACE_WARNING("%s: Device in blacklist for ssr, max latency changed "
+            "from %d to %d", __func__, old_ssr_max_lat, *ssr_max_lat);
     }
 }
 
@@ -227,7 +209,8 @@ void bta_hh_add_device_to_list(tBTA_HH_DEV_CB *p_cb, UINT8 handle,
                                UINT8 app_id)
 {
 #if BTA_HH_DEBUG
-    APPL_TRACE_DEBUG("subclass = 0x%2x", sub_class);
+    APPL_TRACE_DEBUG("subclass = 0x%2x, maxlat = 0x%2x, minto = 0x%2x",
+                     sub_class, ssr_max_latency, ssr_min_tout);
 #endif
 
     p_cb->hid_handle = handle;
@@ -282,7 +265,7 @@ BOOLEAN bta_hh_tod_spt(tBTA_HH_DEV_CB *p_cb,UINT8 sub_class)
         }
     }
 #if BTA_HH_DEBUG
-            APPL_TRACE_EVENT("bta_hh_tod_spt sub_class:0x%x NOT supported", sub_class);
+    APPL_TRACE_ERROR("bta_hh_tod_spt sub_class:0x%x NOT supported", sub_class);
 #endif
     return FALSE;
 }
@@ -465,11 +448,15 @@ tBTA_HH_STATUS bta_hh_read_ssr_param(BD_ADDR bd_addr, UINT16 *p_max_ssr_lat, UIN
 
                 BTM_GetLinkSuperTout(p_cb->kdev[i].addr, &ssr_max_latency) ;
                 ssr_max_latency = BTA_HH_GET_DEF_SSR_MAX_LAT(ssr_max_latency);
+                APPL_TRACE_DEBUG("ssr_max_latency: 0x%2x", ssr_max_latency);
 
                 /* per 1.1 spec, if the newly calculated max latency is greater than
                 BTA_HH_SSR_MAX_LATENCY_DEF which is 500ms, use BTA_HH_SSR_MAX_LATENCY_DEF */
-                if (ssr_max_latency > BTA_HH_SSR_MAX_LATENCY_DEF)
+                if (ssr_max_latency > BTA_HH_SSR_MAX_LATENCY_DEF) {
                     ssr_max_latency = BTA_HH_SSR_MAX_LATENCY_DEF;
+                    APPL_TRACE_DEBUG("Updating ssr_max_latency to: 0x%2x",
+                        BTA_HH_SSR_MAX_LATENCY_DEF);
+                }
 
                 * p_max_ssr_lat  = ssr_max_latency;
             }
@@ -481,6 +468,8 @@ tBTA_HH_STATUS bta_hh_read_ssr_param(BD_ADDR bd_addr, UINT16 *p_max_ssr_lat, UIN
             else
                 * p_min_ssr_tout = p_cb->kdev[i].dscp_info.ssr_min_tout;
 
+            APPL_TRACE_DEBUG("max_lat: 0x%2x, min to: 0x%2x", * p_max_ssr_lat,
+                                * p_min_ssr_tout);
             status           = BTA_HH_OK;
 
             break;
