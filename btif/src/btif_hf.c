@@ -25,6 +25,7 @@
  *
  ***********************************************************************************/
 
+#include "../../../../../gecko/dom/bluetooth2/bluedroid/b2g_bdroid_buildcfg.h"
 #include <hardware/bluetooth.h>
 #include <hardware/bt_hf.h>
 #include <stdlib.h>
