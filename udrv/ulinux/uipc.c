@@ -52,6 +52,9 @@
 #include "audio_a2dp_hw.h"
 #include "bt_utils.h"
 
+#define LOG_TAG "UIPC"
+#include <cutils/log.h>
+
 /*****************************************************************************
 **  Constants & Macros
 ******************************************************************************/
@@ -67,7 +70,7 @@
 #define UIPC_LOCK() /*BTIF_TRACE_EVENT(" %s lock", __FUNCTION__);*/ pthread_mutex_lock(&uipc_main.mutex);
 #define UIPC_UNLOCK() /*BTIF_TRACE_EVENT("%s unlock", __FUNCTION__);*/ pthread_mutex_unlock(&uipc_main.mutex);
 
-#define SAFE_FD_ISSET(fd, set) (((fd) == -1) ? FALSE : FD_ISSET((fd), (set)))
+#define MAX_FDS 128
 
 #define UIPC_FLUSH_BUFFER_SIZE 1024
 
@@ -95,9 +98,10 @@ typedef struct {
     int running;
     pthread_mutex_t mutex;
 
-    fd_set active_set;
-    fd_set read_set;
-    int max_fd;
+    struct pollfd active_set[MAX_FDS];
+    struct pollfd read_set[MAX_FDS];
+    int active_count;
+    int read_count;
     int signal_fds[2];
 
     tUIPC_CHAN ch[UIPC_CH_NUM];
@@ -140,6 +144,94 @@ const char* dump_uipc_event(tUIPC_EVENT event)
             return "UNKNOWN MSG ID";
     }
 }
+
+/*****************************************************************************
+**
+** Function
+**
+** Description
+**
+** Returns
+**
+*******************************************************************************/
+
+static void uipc_wait(tUIPC_CH_ID ch_id, tUIPC_EVENT wait_event_flags)
+{
+    int ret;
+    tUIPC_CHAN *p = &uipc_main.ch[ch_id];
+
+    //BTIF_TRACE_EVENT2("WAIT UIPC CH %d EVT %x BEGIN", ch_id, wait_event_flags);
+    pthread_mutex_lock(&p->cond_mutex);
+    p->cond_flags |= wait_event_flags;
+    ret = pthread_cond_wait(&p->cond, &p->cond_mutex);
+    pthread_mutex_unlock(&p->cond_mutex);
+    //BTIF_TRACE_EVENT2("WAIT UIPC CH %d EVT %x DONE", ch_id, wait_event_flags);
+}
+
+static void uipc_signal(tUIPC_CH_ID ch_id, tUIPC_EVENT event)
+{
+    int ret;
+    tUIPC_CHAN *p = &uipc_main.ch[ch_id];
+
+    //BTIF_TRACE_EVENT2("SIGNAL UIPC CH %d EVT %x BEGIN", ch_id, dump_uipc_event(event));
+    pthread_mutex_lock(&p->cond_mutex);
+
+    if (event & p->cond_flags)
+    {
+        //BTIF_TRACE_EVENT0("UNBLOCK");
+        ret = pthread_cond_signal(&p->cond);
+        p->cond_flags = 0;
+    }
+
+    pthread_mutex_unlock(&p->cond_mutex);
+}
+
+
+/*****************************************************************************
+**   pollfd helper functions
+*****************************************************************************/
+
+int pollfd_add(int fd, struct pollfd fds[], int *fdcount)
+{
+  if (*fdcount >= MAX_FDS) {
+    LOG_ALWAYS_FATAL("Attempt to add more than MAX_FDS to pollfd struct");
+    return -1;
+  } else {
+    fds[*fdcount].fd = fd;
+    fds[*fdcount].events = POLLIN;
+    return (*fdcount)++;
+  }
+}
+
+int pollfd_find(int fd, struct pollfd fds[], int fdcount)
+{
+  int i;
+  for (i = 0; i < fdcount; i++) {
+    if (fds[i].fd == fd) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+void pollfd_remove(int fd, struct pollfd fds[], int *fdcount)
+{
+  int i, fdindex;
+  fdindex = pollfd_find(fd, fds, *fdcount);
+  if (fdindex == -1) {
+    return;
+  }
+  for (i = fdindex; i < MAX_FDS; i++) {
+    if ((i + 1) < MAX_FDS) {
+      fds[i] = fds[i + 1];
+    } else {
+      fds[i].fd = 0;
+      fds[i].events = 0;
+    }
+  }
+  (*fdcount)--;
+}
+
 
 /*****************************************************************************
 **   socket helper functions
@@ -225,8 +317,7 @@ static int uipc_main_init(void)
         return -1;
     }
 
-    FD_SET(uipc_main.signal_fds[0], &uipc_main.active_set);
-    uipc_main.max_fd = MAX(uipc_main.max_fd, uipc_main.signal_fds[0]);
+    pollfd_add(uipc_main.signal_fds[0], uipc_main.active_set, &uipc_main.active_count);
 
     for (i=0; i< UIPC_CH_NUM; i++)
     {
@@ -280,13 +371,14 @@ static void uipc_check_task_flags_locked(void)
 
 static int uipc_check_fd_locked(tUIPC_CH_ID ch_id)
 {
+    int fdindex;
     if (ch_id >= UIPC_CH_NUM)
         return -1;
 
     //BTIF_TRACE_EVENT("CHECK SRVFD %d (ch %d)", uipc_main.ch[ch_id].srvfd, ch_id);
 
-    if (SAFE_FD_ISSET(uipc_main.ch[ch_id].srvfd, &uipc_main.read_set))
-    {
+    fdindex = pollfd_find(uipc_main.ch[ch_id].srvfd, uipc_main.read_set, uipc_main.read_count);
+    if ((fdindex != -1) && (uipc_main.read_set[fdindex].revents & POLLIN)) {
         BTIF_TRACE_EVENT("INCOMING CONNECTION ON CH %d", ch_id);
 
         uipc_main.ch[ch_id].fd = accept_server_socket(uipc_main.ch[ch_id].srvfd);
@@ -298,8 +390,7 @@ static int uipc_check_fd_locked(tUIPC_CH_ID ch_id)
             /*  if we have a callback we should add this fd to the active set
                 and notify user with callback event */
             BTIF_TRACE_EVENT("ADD FD %d TO ACTIVE SET", uipc_main.ch[ch_id].fd);
-            FD_SET(uipc_main.ch[ch_id].fd, &uipc_main.active_set);
-            uipc_main.max_fd = MAX(uipc_main.max_fd, uipc_main.ch[ch_id].fd);
+            pollfd_add(uipc_main.ch[ch_id].fd, uipc_main.active_set, &uipc_main.active_count);
         }
 
         if (uipc_main.ch[ch_id].fd < 0)
@@ -314,9 +405,9 @@ static int uipc_check_fd_locked(tUIPC_CH_ID ch_id)
 
     //BTIF_TRACE_EVENT("CHECK FD %d (ch %d)", uipc_main.ch[ch_id].fd, ch_id);
 
-    if (SAFE_FD_ISSET(uipc_main.ch[ch_id].fd, &uipc_main.read_set))
-    {
-        //BTIF_TRACE_EVENT("INCOMING DATA ON CH %d", ch_id);
+    fdindex = pollfd_find(uipc_main.ch[ch_id].fd, uipc_main.read_set, uipc_main.read_count);
+    if ((fdindex != -1) && (uipc_main.read_set[fdindex].revents & POLLIN)) {
+        //BTIF_TRACE_EVENT1("INCOMING DATA ON CH %d", ch_id);
 
         if (uipc_main.ch[ch_id].cback)
             uipc_main.ch[ch_id].cback(ch_id, UIPC_RX_DATA_READY_EVT);
@@ -326,8 +417,9 @@ static int uipc_check_fd_locked(tUIPC_CH_ID ch_id)
 
 static void uipc_check_interrupt_locked(void)
 {
-    if (SAFE_FD_ISSET(uipc_main.signal_fds[0], &uipc_main.read_set))
-    {
+    int fdindex;
+    fdindex = pollfd_find(uipc_main.signal_fds[0], uipc_main.read_set, uipc_main.read_count);
+    if ((fdindex != -1) && (uipc_main.read_set[fdindex].revents & POLLIN)) {
         char sig_recv = 0;
         //BTIF_TRACE_EVENT("UIPC INTERRUPT");
         recv(uipc_main.signal_fds[0], &sig_recv, sizeof(sig_recv), MSG_WAITALL);
@@ -362,8 +454,7 @@ static int uipc_setup_server_locked(tUIPC_CH_ID ch_id, char *name, tUIPC_RCV_CBA
     }
 
     BTIF_TRACE_EVENT("ADD SERVER FD TO ACTIVE SET %d", fd);
-    FD_SET(fd, &uipc_main.active_set);
-    uipc_main.max_fd = MAX(uipc_main.max_fd, fd);
+    pollfd_add(fd, uipc_main.active_set, &uipc_main.active_count);
 
     uipc_main.ch[ch_id].srvfd = fd;
     uipc_main.ch[ch_id].cback = cback;
@@ -449,7 +540,7 @@ static int uipc_close_ch_locked(tUIPC_CH_ID ch_id)
     {
         BTIF_TRACE_EVENT("CLOSE SERVER (FD %d)", uipc_main.ch[ch_id].srvfd);
         close(uipc_main.ch[ch_id].srvfd);
-        FD_CLR(uipc_main.ch[ch_id].srvfd, &uipc_main.active_set);
+        pollfd_remove(uipc_main.ch[ch_id].srvfd, uipc_main.active_set, &uipc_main.active_count);
         uipc_main.ch[ch_id].srvfd = UIPC_DISCONNECTED;
         wakeup = 1;
     }
@@ -458,7 +549,7 @@ static int uipc_close_ch_locked(tUIPC_CH_ID ch_id)
     {
         BTIF_TRACE_EVENT("CLOSE CONNECTION (FD %d)", uipc_main.ch[ch_id].fd);
         close(uipc_main.ch[ch_id].fd);
-        FD_CLR(uipc_main.ch[ch_id].fd, &uipc_main.active_set);
+        pollfd_remove(uipc_main.ch[ch_id].fd, uipc_main.active_set, &uipc_main.active_count);
         uipc_main.ch[ch_id].fd = UIPC_DISCONNECTED;
         wakeup = 1;
     }
@@ -491,7 +582,7 @@ void uipc_close_locked(tUIPC_CH_ID ch_id)
 
 static void uipc_read_task(void *arg)
 {
-    int ch_id;
+    int i, ch_id;
     int result;
     UNUSED(arg);
 
@@ -501,9 +592,12 @@ static void uipc_read_task(void *arg)
 
     while (uipc_main.running)
     {
-        uipc_main.read_set = uipc_main.active_set;
+        for (i = 0; i < MAX_FDS; i++) {
+            uipc_main.read_set[i] = uipc_main.active_set[i];
+        }
+        uipc_main.read_count = uipc_main.active_count;
 
-        result = select(uipc_main.max_fd+1, &uipc_main.read_set, NULL, NULL, NULL);
+        result = poll(uipc_main.read_set, uipc_main.read_count, -1);
 
         if (result == 0)
         {
@@ -868,7 +962,7 @@ extern BOOLEAN UIPC_Ioctl(tUIPC_CH_ID ch_id, UINT32 request, void *param)
             if (uipc_main.ch[ch_id].fd != UIPC_DISCONNECTED)
             {
                 /* remove this channel from active set */
-                FD_CLR(uipc_main.ch[ch_id].fd, &uipc_main.active_set);
+                pollfd_remove(uipc_main.ch[ch_id].fd, uipc_main.active_set, &uipc_main.active_count);
 
                 /* refresh active set */
                 uipc_wakeup_locked();
