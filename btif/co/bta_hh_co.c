@@ -43,7 +43,6 @@ const char *dev_path = "/dev/uhid";
 static tBTA_HH_RPT_CACHE_ENTRY sReportCache[BTA_HH_NV_LOAD_MAX];
 #endif
 
-
 #define REPORT_DESC_REPORT_ID           0x05
 #define REPORT_DESC_DIGITIZER_PAGE      0x0D
 #define REPORT_DESC_START_COLLECTION    0xA1
@@ -181,6 +180,19 @@ void uhid_set_non_blocking(int fd)
         APPL_TRACE_EVENT("%s() Setting non-blocking flag failed (%s)", __func__, strerror(errno));
 }
 
+static void lst_free_cb (void * rpt_id)
+{
+    UINT32 *p_rpt_id = (UINT32 *)rpt_id;
+
+    if (rpt_id == NULL)
+    return;
+
+    APPL_TRACE_DEBUG("%s: freeing report id %d",
+        __FUNCTION__, (int)*p_rpt_id);
+    free(rpt_id);
+    rpt_id = NULL;
+}
+
 /*Internal function to perform UHID write and error checking*/
 static int uhid_write(int fd, const struct uhid_event *ev)
 {
@@ -230,6 +242,7 @@ static int uhid_event(btif_hh_device_t *p_dev)
         }
     }
 
+    APPL_TRACE_DEBUG("uhid_event received = %d\n",ev.type );
     switch (ev.type) {
     case UHID_START:
         APPL_TRACE_DEBUG("UHID_START from uhid-dev\n");
@@ -280,7 +293,18 @@ static int uhid_event(btif_hh_device_t *p_dev)
         }
         APPL_TRACE_DEBUG("UHID_SET_REPORT: Report type = %d, report_size = %d"
                             ,ev.u.set_report.rtype, ev.u.set_report.size);
-        p_dev->set_rpt_snt++;
+        UINT32 *p_set_rpt_id = (UINT32 *)malloc(sizeof(UINT32));
+        if (!p_set_rpt_id) {
+          APPL_TRACE_ERROR("%s unable to allocate p_set_rpt_id", __FUNCTION__);
+          return -ENOMEM;
+        }
+        *p_set_rpt_id = ev.u.set_report.id;
+        if (p_dev->set_rpt_id_list) {
+            if (!list_append(p_dev->set_rpt_id_list, (void *)p_set_rpt_id)) {
+                APPL_TRACE_ERROR("%s: list_append failed", __FUNCTION__)
+                return -EFAULT;
+            }
+        }
         if (ev.u.set_report.rtype == UHID_FEATURE_REPORT)
             btif_hh_setreport(p_dev, BTHH_FEATURE_REPORT,
                               ev.u.set_report.size, ev.u.set_report.data);
@@ -512,6 +536,11 @@ void bta_hh_co_open(UINT8 dev_handle, UINT8 sub_class, tBTA_HH_ATTR_MASK attr_ma
     }
 
     p_dev->dev_status = BTHH_CONN_STATE_CONNECTED;
+    APPL_TRACE_DEBUG("%s: allocating the set_rpt_id_list", __FUNCTION__);
+    p_dev->set_rpt_id_list = list_new(lst_free_cb);
+    if (!p_dev->set_rpt_id_list) {
+        APPL_TRACE_ERROR("%s: unable to create list", __FUNCTION__);
+    }
     APPL_TRACE_DEBUG("%s: Return device status %d", __FUNCTION__, p_dev->dev_status);
 }
 
@@ -541,6 +570,11 @@ void bta_hh_co_close(UINT8 dev_handle, UINT8 app_id)
 
     for (i = 0; i < BTIF_HH_MAX_HID; i++) {
         p_dev = &btif_hh_cb.devices[i];
+        if (p_dev->set_rpt_id_list && list_length(p_dev->set_rpt_id_list)) {
+            APPL_TRACE_DEBUG("%s: freeing the set_rpt_id_list");
+            list_free(p_dev->set_rpt_id_list);
+            p_dev->set_rpt_id_list = NULL;
+        }
         if (p_dev->dev_status != BTHH_CONN_STATE_UNKNOWN && p_dev->dev_handle == dev_handle) {
             APPL_TRACE_WARNING("%s: Found an existing device with the same handle "
                                                         "dev_status = %d, dev_handle =%d"
@@ -594,7 +628,6 @@ void bta_hh_co_data(UINT8 dev_handle, UINT8 *p_rpt, UINT16 len, tBTA_HH_PROTO_MO
     }
 }
 
-
 /*******************************************************************************
 **
 ** Function         bta_hh_co_send_hid_info
@@ -645,7 +678,11 @@ void bta_hh_co_send_hid_info(btif_hh_device_t *p_dev, char *dev_name, UINT16 ven
     ev.u.create.product = product_id;
     ev.u.create.version = version;
     ev.u.create.country = ctry_code;
+    // block write to uhid driver until create completes
+    p_dev->ready_for_data = FALSE;
     result = uhid_write(p_dev->fd, &ev);
+    // unblock write to uhid driver now
+    p_dev->ready_for_data = TRUE;
 
     APPL_TRACE_WARNING("%s: wrote descriptor to fd = %d, dscp_len = %d, result = %d", __FUNCTION__,
                                                                     p_dev->fd, dscp_len, result);
@@ -682,9 +719,22 @@ void bta_hh_co_set_rpt_rsp(UINT8 dev_handle, UINT8 status)
         return;
     }
     // Send the HID report to the kernel.
-    if (p_dev->fd >= 0 && p_dev->set_rpt_snt--) {
+    if (p_dev->fd >= 0 && p_dev->set_rpt_id_list &&
+        list_length(p_dev->set_rpt_id_list)) {
         memset(&ev, 0, sizeof(ev));
         ev.type = UHID_SET_REPORT_REPLY;
+        /* get the report id from start of list */
+        UINT32 *set_report_reply_id = list_front(p_dev->set_rpt_id_list);
+        if (set_report_reply_id) {
+            ev.u.set_report_reply.id = *set_report_reply_id;
+            APPL_TRACE_VERBOSE("%s: set_report_reply_id = %d",
+                __FUNCTION__, *(set_report_reply_id));
+            /* remove the entry from list now */
+            if (!list_remove(p_dev->set_rpt_id_list, set_report_reply_id)) {
+                APPL_TRACE_ERROR("%s: unable to remove set_report_reply_id = %d",
+                    __FUNCTION__, *(set_report_reply_id));
+            }
+        }
         ev.u.set_report_reply.err = status;
         uhid_write(p_dev->fd, &ev);
     }
