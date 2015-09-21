@@ -549,9 +549,10 @@ tAVCT_LCB *avct_lcb_by_lcid(UINT16 lcid)
 
 tAVCT_BCB *avct_bcb_by_lcid(UINT16 lcid)
 {
-    AVCT_TRACE_DEBUG("avct_bcb_by_lcid :=%x",lcid);
     tAVCT_BCB  *p_bcb = &avct_cb.bcb[0];
     int         i;
+
+    AVCT_TRACE_DEBUG("avct_bcb_by_lcid :=%x",lcid);
 
     for (i = 0; i < AVCT_NUM_LINKS; i++, p_bcb++)
     {

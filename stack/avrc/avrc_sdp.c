@@ -50,7 +50,7 @@ const tSDP_PROTOCOL_ELEM  avrc_proto_list [] =
 #if SDP_AVCTP_1_4 == TRUE
     {UUID_PROTOCOL_AVCTP, 1, {AVCT_REV_1_4, 0}  }
 #else
-#if SDP_AVRCP_1_5 == TRUE
+#if (SDP_AVRCP_1_5 == TRUE || SDP_AVRCP_CT_1_6 == TRUE)
     {UUID_PROTOCOL_AVCTP, 1, {AVCT_REV_1_4, 0}  }
 #else
 #if SDP_AVRCP_1_4 == TRUE
@@ -265,7 +265,7 @@ UINT16 AVRC_AddRecord(UINT16 service_uuid, char *p_service_name,
         count = 2;
     }
 #else
-#if SDP_AVRCP_1_5 == TRUE
+#if (SDP_AVRCP_1_5 == TRUE || SDP_AVRCP_CT_1_6 == TRUE)
     if( service_uuid == UUID_SERVCLASS_AV_REMOTE_CONTROL )
     {
         class_list[1] = UUID_SERVCLASS_AV_REM_CTRL_CONTROL;
@@ -294,8 +294,19 @@ UINT16 AVRC_AddRecord(UINT16 service_uuid, char *p_service_name,
         result &= SDP_AddAdditionProtoLists( sdp_handle, AVRC_NUM_ADDL_PROTO_ELEMS,
                                         (tSDP_PROTO_LIST_ELEM *)avrc_add_proto_list);
     }
+    if( service_uuid == UUID_SERVCLASS_AV_REMOTE_CONTROL )
+    {
+#ifdef SDP_AVRCP_CT_1_6
+        result &= SDP_AddProfileDescriptorList(sdp_handle, UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_6);
+#else
+        result &= SDP_AddProfileDescriptorList(sdp_handle, UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_5);
+#endif
+    }
+    else
+    {
+        result &= SDP_AddProfileDescriptorList(sdp_handle, UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_5);
+    }
 
-    result &= SDP_AddProfileDescriptorList(sdp_handle, UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_5);
 #else
 #if SDP_AVRCP_1_4 == TRUE
     if (browse_supported)

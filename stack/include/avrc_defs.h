@@ -34,6 +34,7 @@
 #define AVRC_REV_1_3        0x0103
 #define AVRC_REV_1_4        0x0104
 #define AVRC_REV_1_5        0x0105
+#define AVRC_REV_1_6        0x0106
 
 #define AVRC_PACKET_LEN             512 /* Per the spec, you must support 512 byte RC packets */
 
@@ -211,6 +212,7 @@
 #define AVRC_PDU_CHANGE_PATH                    0x72
 #define AVRC_PDU_GET_ITEM_ATTRIBUTES            0x73
 #define AVRC_PDU_PLAY_ITEM                      0x74
+#define AVRC_PDU_GET_TOTAL_NUMBER_OF_ITEMS      0x75
 #define AVRC_PDU_SEARCH                         0x80
 #define AVRC_PDU_ADD_TO_NOW_PLAYING             0x90
 #define AVRC_PDU_GENERAL_REJECT                 0xA0
@@ -1151,7 +1153,7 @@ typedef struct
     tAVRC_STS   status;
     UINT8       opcode;         /* Op Code (assigned by AVRC_BldCommand according to pdu) */
     UINT8       scope;
-    tAVRC_UID   uid;
+    UINT64      uid;
     UINT16      uid_counter;
 } tAVRC_ADD_TO_PLAY_CMD;
 

@@ -131,6 +131,7 @@ else\
     case BTA_AV_VENDOR_CMD_EVT: \
     case BTA_AV_META_MSG_EVT: \
     case BTA_AV_BROWSE_MSG_EVT: \
+    case BTA_AV_RC_BROWSE_OPEN_EVT: \
     case BTA_AV_RC_FEAT_EVT: \
     case BTA_AV_REMOTE_RSP_EVT: \
     { \
@@ -167,6 +168,8 @@ extern void btif_rc_check_handle_pending_play (BD_ADDR peer_addr, BOOLEAN bSendT
 /*****************************************************************************
 ** Local helper functions
 ******************************************************************************/
+
+static void btif_av_handle_event(UINT16 event, char* p_param);
 
 const char *dump_av_sm_state_name(btif_av_state_t state)
 {
@@ -274,7 +277,6 @@ static void btif_initiate_av_open_tmr_hdlr(TIMER_LIST_ENT *tle)
     }
 
 }
-
 
 /*****************************************************************************
 **  Static functions
@@ -474,6 +476,7 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data)
         case BTA_AV_RC_FEAT_EVT:
         case BTA_AV_REMOTE_RSP_EVT:
         case BTA_AV_BROWSE_MSG_EVT:
+        case BTA_AV_RC_BROWSE_OPEN_EVT:
             btif_rc_handler(event, (tBTA_AV*)p_data);
             break;
 
@@ -1261,6 +1264,7 @@ static void bte_av_media_callback(tBTA_AV_EVT event, tBTA_AV_MEDIA *p_data)
                 APPL_TRACE_ERROR("ERROR dump_codec_info A2D_ParsSbcInfo fail:%d", a2d_status);
             }
             break;
+
 #if defined(AAC_DECODER_INCLUDED) && (AAC_DECODER_INCLUDED == TRUE)
         case BTA_AV_CODEC_M24:
             a2d_status = A2D_ParsAacInfo(&aac_cie, (UINT8 *)(p_data->avk_config.codec_info), FALSE);

@@ -193,7 +193,6 @@ static BT_HDR *avct_bcb_msg_asmbl(tAVCT_BCB *p_bcb, BT_HDR *p_buf)
     UINT8   *p;
     UINT8   pkt_type;
     BT_HDR  *p_ret;
-    UINT16  buf_len;
 
     /* parse the message header */
     AVCT_TRACE_DEBUG("bcb_msg_asmbl peer_mtu:%x, ch_lcid:%x",p_bcb->peer_mtu, \
@@ -268,8 +267,35 @@ void avct_lcb_chnl_open(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 *******************************************************************************/
 void avct_bcb_chnl_open(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 {
-    /*DUT does not initiate Browsing channel connect */
-    AVCT_TRACE_ERROR("###avct_bcb_chnl_open");
+    UINT16 result = AVCT_RESULT_FAIL;
+    tAVCT_LCB *p_lcb;
+    tL2CAP_ERTM_INFO ertm_info;
+    UNUSED(p_data);
+
+    p_lcb = avct_lcb_by_bcb(p_bcb);
+    if (p_lcb == NULL)
+    {
+        AVCT_TRACE_ERROR("%s No valid LCB", __FUNCTION__);
+        return;
+    }
+
+    BTM_SetOutService(p_lcb->peer_addr, BTM_SEC_SERVICE_AVCTP, 0);
+    /* call l2cap connect req */
+    p_bcb->ch_state = AVCT_CH_CONN;
+    ertm_info.preferred_mode    = L2CAP_FCR_ERTM_MODE;
+    ertm_info.allowed_modes     = L2CAP_FCR_CHAN_OPT_ERTM;
+    ertm_info.user_rx_pool_id   = HCI_ACL_POOL_ID;
+    ertm_info.user_tx_pool_id   = HCI_ACL_POOL_ID;
+    ertm_info.fcr_rx_pool_id    = HCI_ACL_POOL_ID;
+    ertm_info.fcr_tx_pool_id    = HCI_ACL_POOL_ID;
+
+    if ((p_bcb->ch_lcid = L2CA_ErtmConnectReq(AVCT_BR_PSM, p_lcb->peer_addr, &ertm_info)) == 0)
+    {
+        /* if connect req failed, send ourselves close event */
+        avct_bcb_event(p_bcb, AVCT_LCB_LL_CLOSE_EVT, (tAVCT_LCB_EVT *) &result);
+        AVCT_TRACE_ERROR("Browse conenction initiation failed");
+    }
+
 }
 
 
@@ -285,7 +311,6 @@ void avct_bcb_chnl_open(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 ******************************************************************************/
 void avct_close_bcb(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 {
-    int               i;
     tAVCT_BCB        *p_bcb = NULL;
 
     AVCT_TRACE_DEBUG("avct_close_bcb");
@@ -550,7 +575,7 @@ void avct_bcb_close_ind(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
         {
             //set avct_cb.bcb to 0
             memset(p_ccb->p_bcb, 0 ,sizeof(tAVCT_BCB));
-            p_ccb->p_bcb == NULL;
+            p_ccb->p_bcb = NULL;
             AVCT_TRACE_DEBUG("**close_ind");
         }
     }
@@ -838,7 +863,6 @@ void avct_lcb_cong_ind(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 *******************************************************************************/
 void avct_bcb_cong_ind(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 {
-    int           i;
     UINT8         event;
     BT_HDR       *p_buf;
 
@@ -1038,7 +1062,6 @@ void avct_bcb_send_msg(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
     UINT8           pkt_type;
     UINT8           *p;
     BT_HDR          *p_buf;
-    UINT8           nosp = 0; /* number of subsequent packets */
     UINT16          buf_size = p_bcb->peer_mtu + L2CAP_MIN_OFFSET + BT_HDR_SIZE;
     /* store msg len */
     curr_msg_len = p_data->ul_msg.p_buf->len;
@@ -1057,9 +1080,7 @@ void avct_bcb_send_msg(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
         p = (UINT8 *)(p_buf + 1) + p_buf->offset;
 
         /* build header */
-        p_data->ul_msg.cr = AVCT_RSP ;
         AVCT_BLD_HDR(p, p_data->ul_msg.label, pkt_type, p_data->ul_msg.cr);
-        //UINT8_TO_STREAM(p, nosp);
         p_data->ul_msg.p_ccb->cc.pid = 0x110E;
         UINT16_TO_BE_STREAM(p, p_data->ul_msg.p_ccb->cc.pid);
         if (p_bcb->cong == TRUE)

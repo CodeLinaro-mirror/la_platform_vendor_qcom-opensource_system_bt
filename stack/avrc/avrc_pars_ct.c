@@ -105,6 +105,56 @@ static tAVRC_STS avrc_pars_vendor_rsp(tAVRC_MSG_VENDOR *p_msg, tAVRC_RESPONSE *p
     return status;
 }
 #if (AVRC_ADV_CTRL_INCLUDED == TRUE)
+
+void avrc_parse_notification_rsp (UINT8 *p_stream, tAVRC_REG_NOTIF_RSP *p_rsp)
+{
+    UINT8 index;
+
+    BE_STREAM_TO_UINT8(p_rsp->event_id, p_stream);
+    switch (p_rsp->event_id)
+    {
+        case AVRC_EVT_PLAY_STATUS_CHANGE:
+            BE_STREAM_TO_UINT8(p_rsp->param.play_status, p_stream);
+            break;
+
+        case AVRC_EVT_TRACK_CHANGE:
+            BE_STREAM_TO_ARRAY(p_stream, p_rsp->param.track, 8);
+            break;
+
+        case AVRC_EVT_APP_SETTING_CHANGE:
+            BE_STREAM_TO_UINT8(p_rsp->param.player_setting.num_attr, p_stream);
+            for (index = 0; index < p_rsp->param.player_setting.num_attr; index++)
+            {
+                BE_STREAM_TO_UINT8(p_rsp->param.player_setting.attr_id[index], p_stream);
+                BE_STREAM_TO_UINT8(p_rsp->param.player_setting.attr_value[index], p_stream);
+            }
+            break;
+
+        case AVRC_EVT_NOW_PLAYING_CHANGE:
+            break;
+
+        case AVRC_EVT_AVAL_PLAYERS_CHANGE:
+            break;
+
+        case AVRC_EVT_ADDR_PLAYER_CHANGE:
+            BE_STREAM_TO_UINT16(p_rsp->param.addr_player.player_id, p_stream);
+            BE_STREAM_TO_UINT16(p_rsp->param.addr_player.uid_counter, p_stream);
+            break;
+
+        case AVRC_EVT_UIDS_CHANGE:
+            BE_STREAM_TO_UINT16(p_rsp->param.uid_counter, p_stream);
+            break;
+
+        case AVRC_EVT_TRACK_REACHED_END:
+        case AVRC_EVT_TRACK_REACHED_START:
+        case AVRC_EVT_PLAY_POS_CHANGED:
+        case AVRC_EVT_BATTERY_STATUS_CHANGE:
+        case AVRC_EVT_SYSTEM_STATUS_CHANGE:
+        default:
+            break;
+    }
+}
+
 /*******************************************************************************
 **
 ** Function         avrc_ctrl_pars_vendor_rsp
@@ -129,6 +179,7 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR *p_msg, tAVRC_RESPON
     BE_STREAM_TO_UINT16 (len, p);
     AVRC_TRACE_DEBUG("avrc_ctrl_pars_vendor_rsp() ctype:0x%x pdu:0x%x, len:%d",
                                          p_msg->hdr.ctype, p_result->pdu, len);
+    /* Todo: Issue in handling reject, check */
     if (p_msg->hdr.ctype == AVRC_RSP_REJ)
     {
         p_result->rsp.status = *p;
@@ -140,14 +191,8 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR *p_msg, tAVRC_RESPON
     /* case AVRC_PDU_REQUEST_CONTINUATION_RSP: 0x40 */
     /* case AVRC_PDU_ABORT_CONTINUATION_RSP:   0x41 */
 
-     case AVRC_PDU_REGISTER_NOTIFICATION:    /* 0x31 */
-        if (len <= 0)
-        {
-            buf_len = 0;
-            break;
-        }
-        memcpy(p_buf,p,len);
-        *buf_len = len;
+    case AVRC_PDU_REGISTER_NOTIFICATION:
+        avrc_parse_notification_rsp(p, &p_result->reg_notif);
         break;
 
     case AVRC_PDU_GET_CAPABILITIES:
@@ -157,95 +202,237 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR *p_msg, tAVRC_RESPON
             p_result->get_caps.capability_id = 0;
             break;
         }
-        BE_STREAM_TO_UINT8(p_result->get_caps.capability_id,p);
-        BE_STREAM_TO_UINT8(p_result->get_caps.count,p);
-        AVRC_TRACE_DEBUG("AVRC_PDU_GET_CAPABILITIES cap id =%d, cap_count = %d "
-                                     ,p_result->get_caps.capability_id,p_result->get_caps.count);
+        BE_STREAM_TO_UINT8(p_result->get_caps.capability_id, p);
+        BE_STREAM_TO_UINT8(p_result->get_caps.count, p);
+        AVRC_TRACE_DEBUG("cap id = %d, cap_count = %d ",
+                p_result->get_caps.capability_id, p_result->get_caps.count);
         if (p_result->get_caps.capability_id == AVRC_CAP_COMPANY_ID)
         {
-            for(xx =0; ((xx<=p_result->get_caps.count) && (xx <AVRC_CAP_MAX_NUM_COMP_ID)); xx++)
+            for(xx = 0; ((xx < p_result->get_caps.count) && (xx < AVRC_CAP_MAX_NUM_COMP_ID)); xx++)
             {
-                BE_STREAM_TO_UINT24(p_result->get_caps.param.company_id[xx],p);
+                BE_STREAM_TO_UINT24(p_result->get_caps.param.company_id[xx], p);
             }
         }
         else if (p_result->get_caps.capability_id == AVRC_CAP_EVENTS_SUPPORTED)
         {
-            for(xx =0; ((xx<=p_result->get_caps.count) && (xx <AVRC_CAP_MAX_NUM_EVT_ID)); xx++)
+            for(xx = 0; ((xx < p_result->get_caps.count) && (xx < AVRC_CAP_MAX_NUM_EVT_ID)); xx++)
             {
-                BE_STREAM_TO_UINT8(p_result->get_caps.param.event_id[xx],p);
+                BE_STREAM_TO_UINT8(p_result->get_caps.param.event_id[xx], p);
             }
         }
         break;
+
     case AVRC_PDU_LIST_PLAYER_APP_ATTR:
-        if (len <= 0)
+        if (len == 0)
         {
             p_result->list_app_attr.num_attr = 0;
             break;
         }
-        BE_STREAM_TO_UINT8(p_result->list_app_attr.num_attr,p);
-        AVRC_TRACE_DEBUG("AVRC_PDU_LIST_PLAYER_APP_ATTR count = %d ",
-                                           p_result->list_app_attr.num_attr);
-        for(xx = 0; xx < p_result->list_app_attr.num_attr;xx++)
+        BE_STREAM_TO_UINT8(p_result->list_app_attr.num_attr, p);
+        AVRC_TRACE_DEBUG("attr count = %d ", p_result->list_app_attr.num_attr);
+        for(xx = 0; xx < p_result->list_app_attr.num_attr; xx++)
         {
-            BE_STREAM_TO_UINT8(p_result->list_app_attr.attrs[xx],p);
+            BE_STREAM_TO_UINT8(p_result->list_app_attr.attrs[xx], p);
         }
         break;
+
     case AVRC_PDU_LIST_PLAYER_APP_VALUES:
-        if (len <= 0)
+        if (len == 0)
         {
             p_result->list_app_values.num_val = 0;
             break;
         }
-        BE_STREAM_TO_UINT8(p_result->list_app_values.num_val,p);
-        AVRC_TRACE_DEBUG("AVRC_PDU_LIST_PLAYER_APP_ATTR count = %d ",
-                                          p_result->list_app_attr.num_attr);
+        BE_STREAM_TO_UINT8(p_result->list_app_values.num_val, p);
+        AVRC_TRACE_DEBUG("value count = %d ", p_result->list_app_values.num_val);
         for(xx = 0; xx < p_result->list_app_values.num_val; xx++)
         {
-            BE_STREAM_TO_UINT8(p_result->list_app_values.vals[xx],p);
+            BE_STREAM_TO_UINT8(p_result->list_app_values.vals[xx], p);
         }
         break;
+
     case AVRC_PDU_GET_CUR_PLAYER_APP_VALUE:
     {
         tAVRC_APP_SETTING *app_sett;
-        if (len <= 0)
+        if (len == 0)
         {
             p_result->get_cur_app_val.num_val = 0;
             break;
         }
-        BE_STREAM_TO_UINT8(p_result->get_cur_app_val.num_val,p);
+        BE_STREAM_TO_UINT8(p_result->get_cur_app_val.num_val, p);
         app_sett =
             (tAVRC_APP_SETTING*)GKI_getbuf(p_result->get_cur_app_val.num_val*sizeof(tAVRC_APP_SETTING));
-        AVRC_TRACE_DEBUG("AVRC_PDU_GET_CUR_PLAYER_APP_VALUE count = %d "
-                                     ,p_result->get_cur_app_val.num_val);
+        AVRC_TRACE_DEBUG("attr count = %d ", p_result->get_cur_app_val.num_val);
         for (xx = 0; xx < p_result->get_cur_app_val.num_val; xx++)
         {
-            BE_STREAM_TO_UINT8(app_sett[xx].attr_id,p);
-            BE_STREAM_TO_UINT8(app_sett[xx].attr_val,p);
+            BE_STREAM_TO_UINT8(app_sett[xx].attr_id, p);
+            BE_STREAM_TO_UINT8(app_sett[xx].attr_val, p);
         }
         p_result->get_cur_app_val.p_vals = app_sett;
     }
         break;
+
+    case AVRC_PDU_GET_PLAYER_APP_ATTR_TEXT:
+    {
+        tAVRC_APP_SETTING_TEXT   *p_setting_text;
+        UINT8                    num_attrs;
+
+        if (len == 0)
+        {
+            p_result->get_app_attr_txt.num_attr = 0;
+            break;
+        }
+        BE_STREAM_TO_UINT8(num_attrs, p);
+        AVRC_TRACE_DEBUG("attr count = %d ", p_result->get_app_attr_txt.num_attr);
+        p_result->get_app_attr_txt.num_attr = num_attrs;
+        p_setting_text = (tAVRC_APP_SETTING_TEXT*)GKI_getbuf(num_attrs * sizeof(tAVRC_APP_SETTING_TEXT));
+        if (p_setting_text == NULL)
+        {
+            p_result->get_app_attr_txt.num_attr = 0;
+            AVRC_TRACE_ERROR("%s alloc fail", __FUNCTION__);
+            break;
+        }
+        for (xx = 0; xx < num_attrs; xx++)
+        {
+            UINT8 *p_str;
+
+            BE_STREAM_TO_UINT8(p_result->get_app_attr_txt.p_attrs[xx].attr_id, p);
+            BE_STREAM_TO_UINT16(p_result->get_app_attr_txt.p_attrs[xx].charset_id, p);
+            BE_STREAM_TO_UINT8(p_result->get_app_attr_txt.p_attrs[xx].str_len, p);
+            if (p_result->get_app_attr_txt.p_attrs[xx].str_len != 0)
+            {
+                p_str = (UINT8*)GKI_getbuf(p_result->get_app_attr_txt.p_attrs[xx].str_len);
+                if (p_str != NULL)
+                {
+                    BE_STREAM_TO_ARRAY(p, p_str, p_result->get_app_attr_txt.p_attrs[xx].str_len);
+                    p_result->get_app_attr_txt.p_attrs[xx].p_str = p_str;
+                }
+                else
+                {
+                    p_result->get_app_attr_txt.p_attrs[xx].str_len = 0;
+                    AVRC_TRACE_ERROR("%s alloc failed for text", __FUNCTION__);
+                }
+            }
+            else
+            {
+                p_result->get_app_attr_txt.p_attrs[xx].p_str = NULL;
+            }
+        }
+    }
+        break;
+
+    case AVRC_PDU_GET_PLAYER_APP_VALUE_TEXT:
+    {
+        tAVRC_APP_SETTING_TEXT   *p_setting_text;
+        UINT8                    num_vals;
+
+        if (len == 0)
+        {
+            p_result->get_app_val_txt.num_attr = 0;
+            break;
+        }
+        BE_STREAM_TO_UINT8(num_vals, p);
+        p_result->get_app_val_txt.num_attr = num_vals;
+        AVRC_TRACE_DEBUG("value count = %d ", p_result->get_app_val_txt.num_attr);
+
+        p_setting_text = (tAVRC_APP_SETTING_TEXT*)GKI_getbuf(num_vals * sizeof(tAVRC_APP_SETTING_TEXT));
+        if (p_setting_text == NULL)
+        {
+            p_result->get_app_attr_txt.num_attr = 0;
+            AVRC_TRACE_ERROR("%s alloc fail", __FUNCTION__);
+            break;
+        }
+        for (xx = 0; xx < num_vals; xx++)
+        {
+            UINT8 *p_str;
+
+            BE_STREAM_TO_UINT8(p_result->get_app_val_txt.p_attrs[xx].attr_id, p);
+            BE_STREAM_TO_UINT16(p_result->get_app_val_txt.p_attrs[xx].charset_id, p);
+            BE_STREAM_TO_UINT8(p_result->get_app_val_txt.p_attrs[xx].str_len, p);
+            if (p_result->get_app_val_txt.p_attrs[xx].str_len != 0)
+            {
+                p_str = (UINT8*)GKI_getbuf(p_result->get_app_val_txt.p_attrs[xx].str_len);
+                if (p_str != NULL)
+                {
+                    BE_STREAM_TO_ARRAY(p, p_str, p_result->get_app_val_txt.p_attrs[xx].str_len);
+                    p_result->get_app_val_txt.p_attrs[xx].p_str = p_str;
+                }
+                else
+                {
+                    p_result->get_app_val_txt.p_attrs[xx].str_len = 0;
+                    AVRC_TRACE_ERROR("%s alloc failed for value text", __FUNCTION__);
+                }
+            }
+            else
+            {
+                p_result->get_app_val_txt.p_attrs[xx].p_str = NULL;
+            }
+        }
+    }
+        break;
+
     case AVRC_PDU_SET_PLAYER_APP_VALUE:
         /* nothing comes as part of this rsp */
         break;
+
     case AVRC_PDU_GET_ELEMENT_ATTR:
+    {
+        tAVRC_ATTR_ENTRY    *p_attrs;
+        UINT8               num_attrs;
+
         if (len <= 0)
         {
             p_result->get_elem_attrs.num_attr = 0;
             break;
         }
-        BE_STREAM_TO_UINT8(p_result->get_elem_attrs.num_attr,p);
-        memcpy(p_buf,p,len-1); // 1 byte of len already read.
-        *buf_len = len-1;
-        break;
-    case AVRC_PDU_GET_PLAY_STATUS:
-        if (len <= 0)
+        BE_STREAM_TO_UINT8(num_attrs, p);
+        p_result->get_elem_attrs.num_attr = num_attrs;
+        if (num_attrs)
         {
-            buf_len = 0;
+            p_attrs = (tAVRC_ATTR_ENTRY*)GKI_getbuf(num_attrs * sizeof(tAVRC_ATTR_ENTRY));
+            for (xx = 0; xx < num_attrs; xx++)
+            {
+                BE_STREAM_TO_UINT32(p_attrs[xx].attr_id, p);
+                BE_STREAM_TO_UINT16(p_attrs[xx].name.charset_id, p);
+                BE_STREAM_TO_UINT16(p_attrs[xx].name.str_len, p);
+                if (p_attrs[xx].name.str_len > 0)
+                {
+                    p_attrs[xx].name.p_str = (UINT8*)GKI_getbuf(p_attrs[xx].name.str_len);
+                    if (p_attrs[xx].name.p_str != NULL)
+                    {
+                        BE_STREAM_TO_ARRAY(p, p_attrs[xx].name.p_str, p_attrs[xx].name.str_len);
+                    }
+                    else
+                    {
+                        p_attrs[xx].name.str_len = 0;
+                        AVRC_TRACE_ERROR("%s : alloc failed for attribute", __FUNCTION__);
+                    }
+                }
+            }
+            p_result->get_elem_attrs.p_attrs = p_attrs;
+        }
+    }
+        break;
+
+    case AVRC_PDU_GET_PLAY_STATUS:
+        if (len == 0)
+        {
             break;
         }
-        memcpy(p_buf,p,len);
-        *buf_len = len;
+        BE_STREAM_TO_UINT32(p_result->get_play_status.song_len, p);
+        BE_STREAM_TO_UINT32(p_result->get_play_status.song_pos, p);
+        BE_STREAM_TO_UINT8(p_result->get_play_status.status, p);
+        break;
+
+    case AVRC_PDU_PLAY_ITEM:
+        BE_STREAM_TO_UINT8(p_result->play_item.status, p);
+        break;
+
+    case AVRC_PDU_ADD_TO_NOW_PLAYING:
+        BE_STREAM_TO_UINT8(p_result->play_item.status, p);
+        break;
+
+    case AVRC_PDU_SET_ADDRESSED_PLAYER:
+        BE_STREAM_TO_UINT8(p_result->addr_player.status, p);
         break;
 
     default:

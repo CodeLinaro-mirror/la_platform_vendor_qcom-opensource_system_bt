@@ -75,6 +75,7 @@ enum
 {
     BTA_AV_DISABLE,
     BTA_AV_RC_OPENED,
+    BTA_AV_RC_BR_OPENED,
     BTA_AV_RC_REMOTE_CMD,
     BTA_AV_RC_VENDOR_CMD,
     BTA_AV_RC_VENDOR_RSP,
@@ -96,6 +97,7 @@ const tBTA_AV_ACTION bta_av_action[] =
 {
     bta_av_disable,
     bta_av_rc_opened,
+    bta_av_rc_br_opened,
     bta_av_rc_remote_cmd,
     bta_av_rc_vendor_cmd,
     bta_av_rc_vendor_rsp,
@@ -123,6 +125,7 @@ static const UINT8 bta_av_st_init[][BTA_AV_NUM_COLS] =
 /* API_META_RSP_EVT */      {BTA_AV_RC_FREE_RSP,    BTA_AV_INIT_ST },
 /* API_RC_CLOSE_EVT */      {BTA_AV_RC_CLOSE,       BTA_AV_INIT_ST },
 /* AVRC_OPEN_EVT */         {BTA_AV_RC_OPENED,      BTA_AV_OPEN_ST },
+/* AVRC_BROWSE_OPEN_EVT */  {BTA_AV_IGNORE,         BTA_AV_INIT_ST },
 /* AVRC_MSG_EVT */          {BTA_AV_RC_FREE_MSG,    BTA_AV_INIT_ST },
 /* AVRC_NONE_EVT */         {BTA_AV_IGNORE,         BTA_AV_INIT_ST },
 };
@@ -138,6 +141,7 @@ static const UINT8 bta_av_st_open[][BTA_AV_NUM_COLS] =
 /* API_META_RSP_EVT */      {BTA_AV_RC_META_RSP,    BTA_AV_OPEN_ST },
 /* API_RC_CLOSE_EVT */      {BTA_AV_RC_CLOSE,       BTA_AV_OPEN_ST },
 /* AVRC_OPEN_EVT */         {BTA_AV_RC_OPENED,      BTA_AV_OPEN_ST },
+/* AVRC_BROWSE_OPEN_EVT */  {BTA_AV_RC_BR_OPENED,   BTA_AV_OPEN_ST },
 /* AVRC_MSG_EVT */          {BTA_AV_RC_MSG,         BTA_AV_OPEN_ST },
 /* AVRC_NONE_EVT */         {BTA_AV_IGNORE,         BTA_AV_INIT_ST },
 };
