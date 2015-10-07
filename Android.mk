@@ -32,6 +32,11 @@ ifeq ($(BOARD_USES_APTX), true)
 bdroid_CFLAGS  += -DUSE_QTI_APTX_CODEC
 endif
 
+ifeq ($(strip $(AUDIO_FEATURE_ENABLED_SPLIT_A2DP)),true)
+  bdroid_CFLAGS += -DBTA_AV_SPLIT_A2DP_ENABLED
+  bdroid_CFLAGS += -DBTA_AV_SPLIT_A2DP_DEF_FREQ_48KHZ
+endif
+
 bdroid_CFLAGS += \
   -Wall \
   -Wno-unused-parameter \
