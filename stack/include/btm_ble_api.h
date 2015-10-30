@@ -1863,6 +1863,17 @@ extern tBTM_STATUS BTM_BleGetEnergyInfo(tBTM_BLE_ENERGY_INFO_CBACK *p_ener_cback
 *******************************************************************************/
 extern tBTM_STATUS BTM_SetBleDataLength(BD_ADDR bd_addr, UINT16 tx_pdu_length);
 
+/*******************************************************************************
+**
+** Function         BTM_SetBlePhy
+**
+** Description      This function is called to set BLE Tx and Rx Phy
+**
+** Returns          BTM_SUCCESS if success; otherwise failed.
+**
+*******************************************************************************/
+extern tBTM_STATUS BTM_SetBlePhy(BD_ADDR bd_addr, UINT8 all_phy, UINT8 tx_phy, UINT8 rx_phy);
+
 #ifdef __cplusplus
 }
 #endif
