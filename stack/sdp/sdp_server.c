@@ -307,17 +307,18 @@ BOOLEAN sdp_dev_blacklisted_for_hfp17 (BD_ADDR addr)
 
 /*************************************************************************************
 **
-** Function        sdp_fallback_hfp_version
+** Function        sdp_change_hfp_version
 **
 ** Description     Checks if UUID is AG_HANDSFREE, attribute id
 **                 is Profile descriptor list and remote BD address
-**                 matches device blacklist, change hfp version to 1.6
+**                 matches device blacklist, change hfp version to 1.7
 **
 ** Returns         BOOLEAN
 **
 ***************************************************************************************/
-BOOLEAN sdp_fallback_hfp_version (tSDP_ATTRIBUTE *p_attr, BD_ADDR remote_address)
+BOOLEAN sdp_change_hfp_version (tSDP_ATTRIBUTE *p_attr, BD_ADDR remote_address)
 {
+    bool is_blacklisted = FALSE;
     if ((p_attr->id == ATTR_ID_BT_PROFILE_DESC_LIST) &&
         (p_attr->len >= SDP_PROFILE_DESC_LENGTH))
     {
@@ -325,9 +326,12 @@ BOOLEAN sdp_fallback_hfp_version (tSDP_ATTRIBUTE *p_attr, BD_ADDR remote_address
         if (((p_attr->value_ptr[3] << 8) | (p_attr->value_ptr[4])) ==
                 UUID_SERVCLASS_HF_HANDSFREE)
         {
-            if (sdp_dev_blacklisted_for_hfp17 (remote_address))
+            is_blacklisted = is_device_present(IOT_HFP_1_7_BLACKLIST, remote_address);
+            SDP_TRACE_DEBUG("%s: HF version is 1.7 for BD addr: %x:%x:%x",\
+                           __func__, remote_address[0], remote_address[1], remote_address[2]);
+            if (is_blacklisted)
             {
-                p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x06; // Update HFP version as 1.6
+                p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x07; // Update HFP version as 1.7
                 SDP_TRACE_ERROR("SDP Change HFP Version = 0x%x",
                          p_attr->value_ptr[PROFILE_VERSION_POSITION]);
                 return TRUE;
@@ -702,7 +706,7 @@ static void process_service_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
             is_avrcp_browse_bit_reset = sdp_reset_avrcp_browsing_bit(
                         p_rec->attribute[1], p_attr, p_ccb->device_address);
 #endif
-            is_hfp_fallback = sdp_fallback_hfp_version (p_attr, p_ccb->device_address);
+            is_hfp_fallback = sdp_change_hfp_version (p_attr, p_ccb->device_address);
             /* Check if attribute fits. Assume 3-byte value type/length */
             rem_len = max_list_len - (INT16) (p_rsp - &p_ccb->rsp_list[0]);
 
@@ -771,9 +775,9 @@ static void process_service_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
             }
             if (is_hfp_fallback)
             {
-                SDP_TRACE_ERROR("Restore HFP version to 1.7");
-                /* Update HFP version back to 1.7 */
-                p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x07;
+                SDP_TRACE_ERROR("Restore HFP version to 1.6");
+                /* Update HFP version back to 1.6 */
+                p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x06;
                 is_hfp_fallback = FALSE;
             }
         }
@@ -794,9 +798,9 @@ static void process_service_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
     }
     if (is_hfp_fallback)
     {
-        SDP_TRACE_ERROR("Restore HFP version to 1.7");
-        /* Update HFP version back to 1.7 */
-        p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x07;
+        SDP_TRACE_ERROR("Restore HFP version to 1.6");
+        /* Update HFP version back to 1.6 */
+        p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x06;
         is_hfp_fallback = FALSE;
     }
     /* If all the attributes have been accomodated in p_rsp,
@@ -1046,7 +1050,7 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
                 is_avrcp_browse_bit_reset = sdp_reset_avrcp_browsing_bit(
                             p_rec->attribute[1], p_attr, p_ccb->device_address);
 #endif
-                is_hfp_fallback = sdp_fallback_hfp_version (p_attr, p_ccb->device_address);
+                is_hfp_fallback = sdp_change_hfp_version (p_attr, p_ccb->device_address);
                 /* Check if attribute fits. Assume 3-byte value type/length */
                 rem_len = max_list_len - (INT16) (p_rsp - &p_ccb->rsp_list[0]);
 
@@ -1120,9 +1124,9 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
                 }
                 if (is_hfp_fallback)
                 {
-                    SDP_TRACE_ERROR("Restore HFP version to 1.7");
-                    /* Update HFP version back to 1.7 */
-                    p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x07;
+                    SDP_TRACE_ERROR("Restore HFP version to 1.6");
+                    /* Update HFP version back to 1.6 */
+                    p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x06;
                     is_hfp_fallback = FALSE;
                 }
             }
@@ -1143,9 +1147,9 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
         }
         if (is_hfp_fallback)
         {
-            SDP_TRACE_ERROR("Restore HFP version to 1.7");
-            /* Update HFP version back to 1.7 */
-            p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x07;
+            SDP_TRACE_ERROR("Restore HFP version to 1.6");
+            /* Update HFP version back to 1.6 */
+            p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x06;
             is_hfp_fallback = FALSE;
         }
 
