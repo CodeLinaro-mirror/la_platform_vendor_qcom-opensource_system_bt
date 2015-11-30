@@ -1374,10 +1374,9 @@ Range: 2 octets
 #endif
 
 /* Number of simultaneous stream endpoints.
- * Audio*2 + Video*2 + 1 Additional
  */
 #ifndef AVDT_NUM_SEPS
-#define AVDT_NUM_SEPS               5
+#define AVDT_NUM_SEPS               3
 #endif
 
 /* Number of transport channels setup per media stream(audio or video) */
@@ -1634,10 +1633,9 @@ Range: 2 octets
 #define AVCT_NUM_LINKS              2
 #endif
 
-/* Number of simultaneous AVCTP connections.
- * Audio*2 + Video*2 + 1 Additional */
+/* Number of simultaneous AVCTP connections. */
 #ifndef AVCT_NUM_CONN
-#define AVCT_NUM_CONN               5
+#define AVCT_NUM_CONN               3
 #endif
 
 /******************************************************************************

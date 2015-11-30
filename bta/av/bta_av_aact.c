@@ -863,31 +863,10 @@ void bta_av_role_res (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     BOOLEAN         initiator = FALSE;
     tBTA_AV_START   start;
     tBTA_AV_OPEN    av_open;
-    tBTA_AV_ROLE_CHANGED role_changed;
-
-    UINT8 cur_role = BTM_ROLE_UNDEFINED;
 
     APPL_TRACE_DEBUG("bta_av_role_res q_tag:%d, wait:x%x, role:x%x", p_scb->q_tag, p_scb->wait, p_scb->role);
     if (p_scb->role & BTA_AV_ROLE_START_INT)
         initiator = TRUE;
-
-    /* Multicast: update BTIF about role switch
-     * If role switch succeeded, we need to update multicast state
-     * from BTIF.
-     */
-    if (p_data->role_res.hci_status == HCI_SUCCESS)
-    {
-        APPL_TRACE_DEBUG("bta_av_role_res: Master update upper layer");
-
-        bdcpy(role_changed.bd_addr, p_scb->peer_addr);
-        role_changed.hndl = p_scb->hndl;
-
-        if (BTM_GetRole (p_scb->peer_addr, &cur_role) == BTM_SUCCESS)
-        {
-            role_changed.new_role = cur_role;
-        }
-        (*bta_av_cb.p_cback)(BTA_AV_ROLE_CHANGED_EVT, (tBTA_AV *)&role_changed);
-    }
 
     if (p_scb->q_tag == BTA_AV_Q_TAG_START)
     {
@@ -926,11 +905,6 @@ void bta_av_role_res (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
                 bdcpy(av_open.bd_addr, p_scb->peer_addr);
                 av_open.chnl   = p_scb->chnl;
                 av_open.hndl   = p_scb->hndl;
-                // update Master/Slave Role for open event
-                if (BTM_GetRole (p_scb->peer_addr, &cur_role) == BTM_SUCCESS)
-                {
-                    av_open.role = cur_role;
-                }
                 start.status = BTA_AV_FAIL_ROLE;
                 if(p_scb->seps[p_scb->sep_idx].tsep == AVDT_TSEP_SRC )
                     av_open.sep = AVDT_TSEP_SNK;
@@ -1463,7 +1437,6 @@ void bta_av_str_opened (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     tBTA_AV_OPEN    open;
     UINT8 *p;
     UINT16 mtu;
-    UINT8 cur_role;
 
     msg.hdr.layer_specific = p_scb->hndl;
     msg.is_up = TRUE;
@@ -1508,11 +1481,6 @@ void bta_av_str_opened (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         open.status = BTA_AV_SUCCESS;
         open.starting = bta_av_chk_start(p_scb);
         open.edr    = 0;
-        // update Master/Slave Role for start
-        if (BTM_GetRole (p_scb->peer_addr, &cur_role) == BTM_SUCCESS)
-        {
-            open.role = cur_role;
-        }
         if( NULL != (p = BTM_ReadRemoteFeatures(p_scb->peer_addr)))
         {
             if(HCI_EDR_ACL_2MPS_SUPPORTED(p))
@@ -2555,23 +2523,7 @@ void bta_av_start_ok (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     else if ((new_role & BTA_AV_ROLE_AD_ACP) && (new_role & BTA_AV_ROLE_SUSPEND_OPT))
     {
 
-        if (bta_av_is_multicast_enabled() == TRUE &&
-            (BTM_GetRole (p_scb->peer_addr, &cur_role) == BTM_SUCCESS)
-            && (cur_role == BTM_ROLE_MASTER))
-        {
-            /* If playing on other stream, dont suspend this. */
-            if (bta_av_chk_start(p_scb))
-            {
-                suspend = FALSE;
-                APPL_TRACE_DEBUG("cur_role: %d suspend: %d", cur_role, suspend);
-            }
-        }
-        else
-        {
-            suspend = TRUE;
-            APPL_TRACE_DEBUG("cur_role: %d suspend: %d", cur_role, suspend);
-
-        }
+        suspend = TRUE;
     }
 
     if (!suspend)
@@ -2612,11 +2564,6 @@ void bta_av_start_ok (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         start.chnl   = p_scb->chnl;
         start.status = BTA_AV_SUCCESS;
         start.hndl   = p_scb->hndl;
-        // update Master/Slave Role for start event
-        if (BTM_GetRole (p_scb->peer_addr, &cur_role) == BTM_SUCCESS)
-        {
-            start.role = cur_role;
-        }
         (*bta_av_cb.p_cback)(BTA_AV_START_EVT, (tBTA_AV *) &start);
 
         if(suspend)

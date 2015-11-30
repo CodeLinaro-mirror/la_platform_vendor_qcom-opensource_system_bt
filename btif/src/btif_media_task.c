@@ -530,20 +530,7 @@ static void btif_recv_ctrl_data(void)
                 a2dp_cmd_acknowledge(A2DP_CTRL_ACK_INCALL_FAILURE);
                 break;
             }
-            /* In Dual A2dp, first check for started state of stream
-            * as we dont want to START again as while doing Handoff
-            * the stack state will be started, so it is not needed
-            * to send START again, just open the media socket
-            * and ACK the audio HAL.*/
-            if (btif_av_stream_started_ready())
-            {
-                /* already started, setup audio data channel listener
-                * and ack back immediately */
-                UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
-
-                a2dp_cmd_acknowledge(A2DP_CTRL_ACK_SUCCESS);
-            }
-            else if (btif_av_stream_ready() == TRUE)
+            if (btif_av_stream_ready() == TRUE)
             {
                 /* setup audio data channel listener */
                 UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
@@ -555,6 +542,14 @@ static void btif_recv_ctrl_data(void)
                 if (btif_media_cb.peer_sep == AVDT_TSEP_SRC)
                     a2dp_cmd_acknowledge(A2DP_CTRL_ACK_SUCCESS);
 #endif
+            }
+            else if (btif_av_stream_started_ready())
+            {
+                /* already started, setup audio data channel listener
+                   and ack back immediately */
+                UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
+
+                a2dp_cmd_acknowledge(A2DP_CTRL_ACK_SUCCESS);
             }
             else
             {

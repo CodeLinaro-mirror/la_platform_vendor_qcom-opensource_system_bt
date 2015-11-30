@@ -168,7 +168,6 @@ static void bta_av_sco_chg_cback(tBTA_SYS_CONN_STATUS status, UINT8 id, UINT8
                                  app_id, BD_ADDR peer_addr);
 static void bta_av_sys_rs_cback (tBTA_SYS_CONN_STATUS status,UINT8 id, UINT8 app_id, BD_ADDR peer_addr);
 
-static void bta_av_api_enable_multicast(tBTA_AV_DATA *p_data);
 
 /* action functions */
 const tBTA_AV_NSM_ACT bta_av_nsm_act[] =
@@ -192,7 +191,6 @@ const tBTA_AV_NSM_ACT bta_av_nsm_act[] =
 #endif
     bta_av_api_to_ssm,              /* BTA_AV_API_START_EVT */
     bta_av_api_to_ssm,              /* BTA_AV_API_STOP_EVT */
-    bta_av_api_enable_multicast,    /* BTA_AV_ENABLE_MULTICAST_EVT */
 };
 
 /*****************************************************************************
@@ -208,7 +206,6 @@ tBTA_AV_CB  bta_av_cb;
 static char *bta_av_st_code(UINT8 state);
 #endif
 
-static BOOLEAN is_multicast_enabled = FALSE;
 /*******************************************************************************
 **
 ** Function         bta_av_timer_cback
@@ -856,20 +853,6 @@ static void bta_av_rpc_conn(tBTA_AV_DATA *p_data)
 }
 #endif
 
-BOOLEAN bta_av_multiple_streams_started(void)
-{
-    int xx, stream_count = 0;
-
-    for(xx = 0; xx < BTA_AV_NUM_STRS; xx++)
-    {
-        if((bta_av_cb.p_scb[xx] != NULL) && bta_av_cb.p_scb[xx]->started == TRUE)
-        {
-            stream_count++;
-        }
-    }
-    return (stream_count > 1);
-}
-
 /*******************************************************************************
 **
 ** Function         bta_av_api_to_ssm
@@ -885,42 +868,10 @@ static void bta_av_api_to_ssm(tBTA_AV_DATA *p_data)
     int xx;
     UINT16 event = p_data->hdr.event - BTA_AV_FIRST_A2S_API_EVT + BTA_AV_FIRST_A2S_SSM_EVT;
 
-    /* Multicast: Corner case handling for multicast state getting
-     * updated for ACL connected during the stream start where both
-     * streams are not yet started. We need to take care of this
-     * during suspend to ensure we suspend both streams.
-     */
-    if ((is_multicast_enabled == TRUE) ||
-        ((event == BTA_AV_AP_STOP_EVT) && (bta_av_multiple_streams_started() == TRUE)))
+    for(xx=0; xx<BTA_AV_NUM_STRS; xx++)
     {
-        /* Send START request to all Open Stream connections.*/
-        for(xx=0; xx<BTA_AV_NUM_STRS; xx++)
-        {
-            bta_av_ssm_execute(bta_av_cb.p_scb[xx], event, p_data);
-        }
+       bta_av_ssm_execute(bta_av_cb.p_scb[xx], event, p_data);
     }
-    else
-    {
-        /*In Dual A2dp Handoff, process this fucntion on specific handles.*/
-        APPL_TRACE_DEBUG("bta_av_api_to_ssm: on Handle 0x%x",p_data->hdr.layer_specific);
-        bta_av_ssm_execute(bta_av_hndl_to_scb(p_data->hdr.layer_specific), event, p_data);
-    }
-}
-
-/*******************************************************************************
-**
-** Function         bta_av_api_enable_multicast
-**
-** Description      Enable/Disable Avdtp multicast
-**
-**
-** Returns          void
-**
-*******************************************************************************/
-static void bta_av_api_enable_multicast(tBTA_AV_DATA *p_data)
-{
-    is_multicast_enabled = p_data->multicast_state.is_multicast_enabled;
-    APPL_TRACE_DEBUG("is_multicast_enabled :%d", is_multicast_enabled);
 }
 
 /*******************************************************************************
@@ -952,16 +903,7 @@ BOOLEAN bta_av_chk_start(tBTA_AV_SCB *p_scb)
                 p_scbi = bta_av_cb.p_scb[i];
                 if(p_scbi && p_scbi->chnl == BTA_AV_CHNL_AUDIO && p_scbi->co_started)
                 {
-                    if (is_multicast_enabled == TRUE)
-                    {
-                        start = TRUE;
-                    }
-                    else
-                    {
-                        start = FALSE;
-                        APPL_TRACE_DEBUG("bta_av_chk_start: Already playing");
-                        break;
-                    }
+                    start = TRUE;
                     /* may need to update the flush timeout of this already started stream */
                     if(p_scbi->co_started != bta_av_cb.audio_open_cnt)
                     {
@@ -1070,17 +1012,10 @@ static void bta_av_sys_rs_cback (tBTA_SYS_CONN_STATUS status,UINT8 id, UINT8 app
         {
             APPL_TRACE_DEBUG ("bta_av_sys_rs_cback: rs_idx(%d), hndl:x%x q_tag: %d",
                 bta_av_cb.rs_idx, p_scb->hndl, p_scb->q_tag);
-            /* Multicast:
-             * As per Multicast feature implementation, fallback
-             * happens to soft hand-off when DUT is in scatternet
-             * scenario. Hence, don't fail the connection if
-             * role switch fails because of remote disallowing.
-             * Set switch_res to BTA_AV_RS_DONE on failure.
-             */
             if(HCI_SUCCESS == app_id || HCI_ERR_NO_CONNECTION == app_id)
                 p_scb->q_info.open.switch_res = BTA_AV_RS_OK;
             else
-                p_scb->q_info.open.switch_res = BTA_AV_RS_DONE;
+                p_scb->q_info.open.switch_res = BTA_AV_RS_FAIL;
 
             /* Continue av open process */
             bta_av_do_disc_a2d (p_scb, (tBTA_AV_DATA *)&(p_scb->q_info.open));
@@ -1435,20 +1370,6 @@ BOOLEAN bta_av_hdl_event(BT_HDR *p_msg)
     return TRUE;
 }
 
-/*******************************************************************************
-**
-** Function         bta_av_is_multicast_enabled
-**
-** Description      return status of Avdtp multicast
-**
-**
-** Returns          BOOLEAN
-**
-*******************************************************************************/
-BOOLEAN bta_av_is_multicast_enabled()
-{
-    return is_multicast_enabled;
-}
 /*****************************************************************************
 **  Debug Functions
 *****************************************************************************/
@@ -1548,7 +1469,6 @@ char *bta_av_evt_code(UINT16 evt_code)
 #endif
     case BTA_AV_API_START_EVT: return "API_START";
     case BTA_AV_API_STOP_EVT: return "API_STOP";
-    case BTA_AV_ENABLE_MULTICAST_EVT: return "MULTICAST_ENABLE";
     default:             return "unknown";
     }
 }

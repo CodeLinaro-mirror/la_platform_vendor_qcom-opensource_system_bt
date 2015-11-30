@@ -662,7 +662,7 @@ void BTA_AvEnable_Sink(int enable);
 ** Returns          void
 **
 *******************************************************************************/
-void BTA_AvStart(tBTA_AV_HNDL hndl);
+void BTA_AvStart(void);
 
 /*******************************************************************************
 **
@@ -675,18 +675,7 @@ void BTA_AvStart(tBTA_AV_HNDL hndl);
 ** Returns          void
 **
 *******************************************************************************/
-void BTA_AvStop(BOOLEAN suspend, tBTA_AV_HNDL handle);
-
-/*******************************************************************************
-**
-** Function         BTA_AvEnableMultiCast
-**
-** Description      Enable/disable Avdtp MultiCast
-**
-** Returns          void
-**
-*******************************************************************************/
-void BTA_AvEnableMultiCast(BOOLEAN state, tBTA_AV_HNDL handle);
+void BTA_AvStop(BOOLEAN suspend);
 
 /*******************************************************************************
 **
