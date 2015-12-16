@@ -64,6 +64,7 @@ typedef UINT8 tBTA_AV_STATUS;
 #define BTA_AV_FEAT_ADV_CTRL    0x0200  /* remote control Advanced Control command/response */
 #define BTA_AV_FEAT_DELAY_RPT   0x0400  /* allow delay reporting */
 #define BTA_AV_FEAT_ACP_START   0x0800  /* start stream when 2nd SNK was accepted   */
+#define BTA_AV_FEAT_COVER_ART   0x1000  /* cover art support */
 
 /* Internal features */
 #define BTA_AV_FEAT_AVRC_UI_UPDATE 0x4000 /* Update UI to show notification for browsing capable remote*/
@@ -255,12 +256,13 @@ typedef UINT8 tBTA_AV_ERR;
 #define BTA_AV_REJECT_EVT       18      /* incoming connection rejected */
 #define BTA_AV_RC_FEAT_EVT      19      /* remote control channel peer supported features update */
 #define BTA_AV_BROWSE_MSG_EVT   20      /* Browse MSG EVT */
-#define BTA_AV_MEDIA_SINK_CFG_EVT    21      /* command to configure codec */
+#define BTA_AV_MEDIA_SINK_CFG_EVT   21      /* command to configure codec */
 #define BTA_AV_MEDIA_DATA_EVT   22      /* sending data to Media Task */
 #define BTA_AV_ROLE_CHANGED_EVT     23
+#define BTA_AV_RC_BROWSE_OPEN_EVT   24       /* remote control channel open */
 
 /* Max BTA event */
-#define BTA_AV_MAX_EVT          24
+#define BTA_AV_MAX_EVT          25
 
 typedef UINT8 tBTA_AV_EVT;
 
@@ -357,6 +359,7 @@ typedef struct
     tBTA_AV_FEAT    peer_features;
     BD_ADDR         peer_addr;
     tBTA_AV_STATUS  status;
+    UINT16          cover_art_psm;
 } tBTA_AV_RC_OPEN;
 
 /* data associated with BTA_AV_RC_CLOSE_EVT */
@@ -371,6 +374,7 @@ typedef struct
 {
     UINT8           rc_handle;
     tBTA_AV_FEAT    peer_features;
+    UINT16          cover_art_psm;
     BD_ADDR         peer_addr;
 } tBTA_AV_RC_FEAT;
 
@@ -481,7 +485,7 @@ typedef union
 typedef struct
 {
     UINT8      *codec_info;
-    BD_ADDR         bd_addr;;
+    BD_ADDR         bd_addr;
 }tBTA_AVK_CONFIG;
 /* union of data associated with AV Media callback */
 typedef union
@@ -735,6 +739,20 @@ void BTA_AvRemoteCmd(UINT8 rc_handle, UINT8 label, tBTA_AV_RC rc_id,
 
 /*******************************************************************************
 **
+** Function         BTA_AvRemoteVendorUniqueCmd
+**
+** Description      Send a remote control command with Vendor Unique rc_id.
+**                  This function can only be used if AV is enabled with
+**                  feature BTA_AV_FEAT_RCCT.
+**
+** Returns          void
+**
+*******************************************************************************/
+void BTA_AvRemoteVendorUniqueCmd(UINT8 rc_handle, UINT8 label, tBTA_AV_STATE key_state,
+                                         UINT8* p_msg, UINT8 buf_len);
+
+/*******************************************************************************
+**
 ** Function         BTA_AvVendorCmd
 **
 ** Description      Send a vendor dependent remote control command.  This
@@ -816,6 +834,19 @@ void BTA_AvMetaRsp(UINT8 rc_handle, UINT8 label, tBTA_AV_CODE rsp_code,
 **
 *******************************************************************************/
 void BTA_AvMetaCmd(UINT8 rc_handle, UINT8 label, tBTA_AV_CMD cmd_code, BT_HDR *p_pkt);
+
+/*******************************************************************************
+**
+** Function         BTA_AvIsBrowsingSupported
+**
+** Description      Check to see if browsing is supported by local device.
+**                  This API does not result in any message being posted, it just
+**                  checks the local supported features for browsing support and
+**                  returns TRUE or FALSE.
+** Returns          TRUE/FALSE based on browse support in local device
+**
+*******************************************************************************/
+extern BOOLEAN BTA_AvIsBrowsingSupported(void);
 
 #ifdef __cplusplus
 }

@@ -47,6 +47,7 @@ enum
     BTA_AV_API_META_RSP_EVT,
     BTA_AV_API_RC_CLOSE_EVT,
     BTA_AV_AVRC_OPEN_EVT,
+    BTA_AV_AVRC_BROWSE_OPEN_EVT,
     BTA_AV_AVRC_MSG_EVT,
     BTA_AV_AVRC_NONE_EVT,
 
@@ -535,6 +536,7 @@ typedef struct
     UINT8   shdl;   /* stream handle (hdi + 1) */
     UINT8   lidx;   /* (index+1) to LCB */
     tBTA_AV_FEAT        peer_features;  /* peer features mask */
+    UINT16  cover_art_psm;
 } tBTA_AV_RCB;
 #define BTA_AV_NUM_RCB      (BTA_AV_NUM_STRS  + 2)
 
@@ -666,6 +668,8 @@ extern void bta_av_dereg_comp(tBTA_AV_DATA *p_data);
 /* sm action functions */
 extern void bta_av_disable (tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data);
 extern void bta_av_rc_opened (tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data);
+extern void bta_av_rc_br_opened (tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data);
+
 extern void bta_av_rc_remote_cmd (tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data);
 extern void bta_av_rc_vendor_cmd (tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data);
 extern void bta_av_rc_vendor_rsp (tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data);

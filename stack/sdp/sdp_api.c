@@ -841,6 +841,60 @@ BOOLEAN SDP_FindAddProtoListsElemInRec (tSDP_DISC_REC *p_rec, UINT16 layer_uuid,
     return(FALSE);
 }
 
+/*******************************************************************************
+**
+** Function         SDP_FindAvrcpCoverArtPSM
+**
+** Description      This function pull the cover art psm from the additional
+**                  protocol descriptor list attribute
+**
+** Returns          TRUE if found, FALSE if not
+**                  If found, the psm will be filled in p_psm.
+**
+*******************************************************************************/
+BOOLEAN SDP_FindAvrcpCoverArtPSM (tSDP_DISC_ATTR *p_attr, UINT16 *p_psm)
+{
+#if SDP_CLIENT_ENABLED == TRUE
+    tSDP_DISC_ATTR  *p_sattr;
+    BOOLEAN         ret = FALSE;
+    tSDP_PROTOCOL_ELEM elem;
+
+    /* Check if it is additional protocol descriptor list attribute */
+    if ((p_attr->attr_id == ATTR_ID_ADDITION_PROTO_DESC_LISTS)
+        && (SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) == DATA_ELE_SEQ_DESC_TYPE))
+    {
+        /* Pull the PSM first one by one. The last one should be the one for OBEX */
+        for (p_sattr = p_attr->attr_value.v.p_sub_attr; p_sattr; p_sattr = p_sattr->p_next_attr)
+        {
+            /* Safety check - each entry should itself be a sequence */
+            if (SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type) == DATA_ELE_SEQ_DESC_TYPE)
+            {
+                sdp_fill_proto_elem(p_sattr, UUID_PROTOCOL_L2CAP, &elem);
+                *p_psm = elem.params[0];
+            }
+        }
+        /* Now check if OBEX is present and then return result */
+        for (p_sattr = p_attr->attr_value.v.p_sub_attr; p_sattr; p_sattr = p_sattr->p_next_attr)
+        {
+            /* Safety check - each entry should itself be a sequence */
+            if (SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type) == DATA_ELE_SEQ_DESC_TYPE)
+            {
+                if (sdp_fill_proto_elem(p_sattr, UUID_PROTOCOL_OBEX, &elem) == TRUE)
+                {
+                    return TRUE;
+                }
+            }
+        }
+    }
+    else
+    {
+        return FALSE;
+    }
+#endif
+    /* If here, no match found */
+    return(FALSE);
+}
+
 
 /*******************************************************************************
 **

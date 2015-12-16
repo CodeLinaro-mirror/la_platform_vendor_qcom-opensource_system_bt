@@ -1663,6 +1663,15 @@ Range: 2 octets
 #ifndef AAC_DECODER_INCLUDED
 #define AAC_DECODER_INCLUDED        TRUE
 #endif
+#ifndef SDP_AVRCP_CT_1_6
+#define SDP_AVRCP_CT_1_6            TRUE
+
+#ifdef SDP_AVRCP_CT_1_6
+#ifndef SDP_AVRCP_CT_COVER_ART
+#define SDP_AVRCP_CT_COVER_ART      TRUE
+#endif
+#endif
+#endif
 
 #ifndef SDP_AVRCP_1_5
 #define SDP_AVRCP_1_5               TRUE

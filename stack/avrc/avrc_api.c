@@ -857,10 +857,12 @@ static void avrc_msg_cback(UINT8 handle, UINT8 label, UINT8 cr,
     }
     else
     {
-        opcode = p_data[0];
-        AVRC_TRACE_DEBUG("opcode:%x, length:%x",opcode, p_pkt->len);
-        /*Do sanity Check here*/
+        AVRC_TRACE_DEBUG("AVRC Browse %s: PDU :%x, length:%x",
+            (cr == AVCT_CMD) ? "CMD" : "RSP", p_data[0], p_pkt->len);
+#if 0
+        /*Do sanity Check here*/ Do we need this ?
         if ((avrc_cb.ccb[handle].control & AVRC_CT_TARGET) && (cr == AVCT_CMD))
+#endif
         {
             opcode  =  AVRC_OP_BROWSE;
             msg.browse.browse_len = p_pkt->len;
@@ -869,10 +871,12 @@ static void avrc_msg_cback(UINT8 handle, UINT8 label, UINT8 cr,
             msg.browse.p_browse_data = (UINT8 *)(p_pkt+1) + p_pkt->offset;
             (*avrc_cb.ccb[handle].p_msg_cback)(handle, label, opcode, &msg);
         }
+#if 0
         else
         {
             AVRC_TRACE_ERROR("Drop invalid Avrcp Browse message");
         }
+#endif
         /*Free the packet as the same already got copied in BTA*/
         GKI_freebuf(p_pkt);
     }
@@ -926,6 +930,7 @@ static BT_HDR  * avrc_pass_msg(tAVRC_MSG_PASS *p_msg)
             {
                 memcpy(p_data, p_msg->p_pass_data, p_msg->pass_len);
                 p_data += p_msg->pass_len;
+                GKI_freebuf(p_msg->p_pass_data);
             }
         }
         else /* set msg len to 0 for other op_id */
@@ -1007,6 +1012,24 @@ UINT16 AVRC_Open(UINT8 *p_handle, tAVRC_CONN_CB *p_ccb, BD_ADDR_PTR peer_addr)
                __FUNCTION__, cc.role, cc.control, status, *p_handle);
     return status;
 }
+
+UINT16 AVRC_OpenBrowseChannel (UINT8 handle)
+{
+    UINT16 status;
+
+    status = AVCT_CreateBrowse (handle, AVCT_INT);
+    if (status == AVCT_SUCCESS)
+    {
+        BTIF_TRACE_IMP(" %s handle: 0x%x ", __FUNCTION__, handle);
+    }
+    else
+    {
+        BTIF_TRACE_ERROR(" %s handle: 0x%x status 0x%d", __FUNCTION__,
+            handle, status);
+    }
+    return status;
+}
+
 
 /******************************************************************************
 **

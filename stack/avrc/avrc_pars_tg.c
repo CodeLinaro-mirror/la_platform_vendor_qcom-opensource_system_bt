@@ -41,8 +41,7 @@
 **                  Otherwise, the error code defined by AVRCP 1.4
 **
 *******************************************************************************/
-static tAVRC_STS avrc_ctrl_pars_vendor_cmd(tAVRC_MSG_VENDOR *p_msg, tAVRC_COMMAND *p_result,
-                                      UINT8 *p_buf, UINT16 buf_len)
+static tAVRC_STS avrc_ctrl_pars_vendor_cmd(tAVRC_MSG_VENDOR *p_msg, tAVRC_COMMAND *p_result)
 {
     tAVRC_STS  status = AVRC_STS_NO_ERROR;
     UINT8   *p = p_msg->p_vendor_data;
@@ -374,7 +373,7 @@ static tAVRC_STS avrc_pars_vendor_cmd(tAVRC_MSG_VENDOR *p_msg, tAVRC_COMMAND *p_
 **                  Otherwise, the error code defined by AVRCP 1.4
 **
 *******************************************************************************/
-tAVRC_STS AVRC_Ctrl_ParsCommand (tAVRC_MSG *p_msg, tAVRC_COMMAND *p_result, UINT8 *p_buf, UINT16 buf_len)
+tAVRC_STS AVRC_Ctrl_ParsCommand (tAVRC_MSG *p_msg, tAVRC_COMMAND *p_result)
 {
     tAVRC_STS  status = AVRC_STS_INTERNAL_ERR;
     UINT16  id;
@@ -384,7 +383,7 @@ tAVRC_STS AVRC_Ctrl_ParsCommand (tAVRC_MSG *p_msg, tAVRC_COMMAND *p_result, UINT
         switch (p_msg->hdr.opcode)
         {
         case AVRC_OP_VENDOR:     /*  0x00    Vendor-dependent commands */
-            status = avrc_ctrl_pars_vendor_cmd(&p_msg->vendor, p_result, p_buf, buf_len);
+            status = avrc_ctrl_pars_vendor_cmd(&p_msg->vendor, p_result);
             break;
 
         default:

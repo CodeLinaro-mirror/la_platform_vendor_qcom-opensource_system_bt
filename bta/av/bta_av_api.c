@@ -422,6 +422,34 @@ void BTA_AvRemoteCmd(UINT8 rc_handle, UINT8 label, tBTA_AV_RC rc_id, tBTA_AV_STA
 
 /*******************************************************************************
 **
+** Function         BTA_AvRemoteVendorUniqueCmd
+**
+** Description      Send a remote control command with Vendor Unique rc_id. This function can only
+**                  be used if AV is enabled with feature BTA_AV_FEAT_RCCT.
+**
+** Returns          void
+**
+*******************************************************************************/
+void BTA_AvRemoteVendorUniqueCmd(UINT8 rc_handle, UINT8 label, tBTA_AV_STATE key_state,
+                                                           UINT8* p_msg, UINT8 buf_len)
+{
+    tBTA_AV_API_REMOTE_CMD  *p_buf;
+
+    if ((p_buf = (tBTA_AV_API_REMOTE_CMD *) GKI_getbuf(sizeof(tBTA_AV_API_REMOTE_CMD))) != NULL)
+    {
+        p_buf->hdr.event = BTA_AV_API_REMOTE_CMD_EVT;
+        p_buf->hdr.layer_specific   = rc_handle;
+        p_buf->msg.op_id = AVRC_ID_VENDOR;
+        p_buf->msg.state = key_state;
+        p_buf->msg.p_pass_data = p_msg;
+        p_buf->msg.pass_len = buf_len;
+        p_buf->label = label;
+        bta_sys_sendmsg(p_buf);
+    }
+}
+
+/*******************************************************************************
+**
 ** Function         BTA_AvVendorCmd
 **
 ** Description      Send a vendor dependent remote control command.  This
@@ -604,6 +632,26 @@ void BTA_AvMetaCmd(UINT8 rc_handle, UINT8 label, tBTA_AV_CMD cmd_code, BT_HDR *p
 
         bta_sys_sendmsg(p_buf);
     }
+}
+
+/*******************************************************************************
+**
+** Function         BTA_AvIsBrowsingSupported
+**
+** Description      Check to see if browsing is supported by local device.
+**                  This API does not result in any message being posted, it just
+**                  checks the local supported features for browsing support and
+**                  returns TRUE or FALSE.
+** Returns          TRUE/FALSE based on browse support in local device
+**
+*******************************************************************************/
+BOOLEAN BTA_AvIsBrowsingSupported (void)
+{
+    if (p_bta_av_cfg->avrc_ct_cat & AVRC_SUPF_CT_BROWSE)
+    {
+        return TRUE;
+    }
+    return FALSE;
 }
 
 #endif /* BTA_AV_INCLUDED */

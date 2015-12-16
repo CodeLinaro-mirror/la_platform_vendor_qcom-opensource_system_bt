@@ -364,6 +364,18 @@ extern tSDP_DISC_REC *SDP_FindServiceInDb_128bit(tSDP_DISCOVERY_DB *p_db,
 
 /*******************************************************************************
 **
+** Function         SDP_FindAvrcpCoverArtPSM
+**
+** Description      This function pull the cover art psm from the additional
+**                  protocol descriptor list attribute
+**
+** Returns          TRUE if found, FALSE if not
+**                  If found, the psm will be filled in p_psm.
+**
+*******************************************************************************/
+BOOLEAN SDP_FindAvrcpCoverArtPSM (tSDP_DISC_ATTR *p_attr, UINT16 *p_psm);
+/*******************************************************************************
+**
 ** Function         SDP_FindProtocolListElemInRec
 **
 ** Description      This function looks at a specific discovery record for a

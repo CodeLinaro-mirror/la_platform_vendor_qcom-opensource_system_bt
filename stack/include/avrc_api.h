@@ -98,6 +98,9 @@
 #define AVRC_SUPF_CT_CAT3               0x0004      /* Category 3 */
 #define AVRC_SUPF_CT_CAT4               0x0008      /* Category 4 */
 #define AVRC_SUPF_CT_BROWSE             0x0040      /* Browsing */
+#define AVRC_SUPF_CT_COVER_ART_GET_IMAGE_PROP   0x0080  /* Cover Art, get image property */
+#define AVRC_SUPF_CT_COVER_ART_GET_IMAGE        0x0100  /* Cover Art, get image */
+#define AVRC_SUPF_CT_COVER_ART_GET_THUMBNAIL    0x0200  /* Cover Art, get Linked Thumbnail */
 
 #define AVRC_SUPF_TG_CAT1               0x0001      /* Category 1 */
 #define AVRC_SUPF_TG_CAT2               0x0002      /* Category 2 */
@@ -294,6 +297,7 @@ extern UINT16 AVRC_FindService(UINT16 service_uuid, BD_ADDR bd_addr,
 extern UINT16 AVRC_Open(UINT8 *p_handle, tAVRC_CONN_CB *p_ccb,
                         BD_ADDR_PTR peer_addr);
 
+UINT16 AVRC_OpenBrowseChannel (UINT8 handle);
 /******************************************************************************
 **
 ** Function         AVRC_Close
@@ -567,8 +571,7 @@ extern void AVRC_Init(void);
 **                  Otherwise, the error code defined by AVRCP 1.4
 **
 *******************************************************************************/
-extern tAVRC_STS AVRC_Ctrl_ParsCommand (tAVRC_MSG *p_msg, tAVRC_COMMAND *p_result,
-    UINT8 *p_buf, UINT16 buf_len);
+extern tAVRC_STS AVRC_Ctrl_ParsCommand (tAVRC_MSG *p_msg, tAVRC_COMMAND *p_result);
 
 /*******************************************************************************
 **
@@ -621,6 +624,7 @@ extern tAVRC_STS AVRC_Ctrl_ParsResponse (tAVRC_MSG *p_msg, tAVRC_RESPONSE *p_res
 *******************************************************************************/
 extern tAVRC_STS AVRC_BldCommand( tAVRC_COMMAND *p_cmd, BT_HDR **pp_pkt);
 
+tAVRC_STS AVRC_BldBrowseCommand( tAVRC_COMMAND *p_cmd, BT_HDR **pp_pkt);
 /*******************************************************************************
 **
 ** Function         AVRC_BldResponse

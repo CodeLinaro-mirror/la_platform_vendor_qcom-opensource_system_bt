@@ -47,7 +47,14 @@ const UINT32  bta_av_meta_caps_co_ids[] = {
 #endif
 
 #if (AVRC_CTLR_INCLUDED == TRUE)
+#if (SDP_AVRCP_CT_COVER_ART == TRUE)
+#define BTA_AVK_RC_SUPF_CT      (AVRC_SUPF_CT_CAT1 |\
+                                 AVRC_SUPF_CT_COVER_ART_GET_IMAGE_PROP |\
+                                 AVRC_SUPF_CT_COVER_ART_GET_IMAGE |\
+                                 AVRC_SUPF_CT_COVER_ART_GET_THUMBNAIL)
+#else
 #define BTA_AVK_RC_SUPF_CT       (AVRC_SUPF_CT_CAT1)
+#endif
 #define BTA_AVK_RC_SUPF_TG       (AVRC_SUPF_TG_CAT2)
 #endif
 
@@ -155,15 +162,15 @@ const tBTA_AV_CFG bta_avk_cfg =
     48,                     /* AVRCP MTU at L2CAP for control channel */
 #endif
     BTA_AV_MAX_RC_BR_MTU,   /* AVRCP MTU at L2CAP for browsing channel */
-    BTA_AVK_RC_SUPF_CT,      /* AVRCP controller categories */
-    BTA_AVK_RC_SUPF_TG,      /* AVRCP target categories */
+    BTA_AVK_RC_SUPF_CT,     /* AVRCP controller categories */
+    BTA_AVK_RC_SUPF_TG,     /* AVRCP target categories */
     672,                    /* AVDTP signaling channel MTU at L2CAP */
     BTA_AV_MAX_A2DP_MTU,    /* AVDTP audio transport channel MTU at L2CAP */
     bta_av_audio_flush_to,  /* AVDTP audio transport channel flush timeout */
     6,                      /* AVDTP audio channel max data queue size */
     BTA_AV_MAX_VDP_MTU,     /* AVDTP video transport channel MTU at L2CAP */
     600,                    /* AVDTP video transport channel flush timeout */
-    FALSE,                   /* TRUE, to accept AVRC 1.3 group nevigation command */
+    FALSE,                  /* TRUE, to accept AVRC 1.3 group nevigation command */
     2,                      /* company id count in p_meta_co_ids */
     BTA_AVK_NUM_RC_EVT_IDS, /* event id count in p_meta_evt_ids */
     BTA_AV_RC_PASS_RSP_CODE,/* the default response code for pass through commands */
