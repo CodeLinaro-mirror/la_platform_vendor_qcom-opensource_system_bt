@@ -97,6 +97,8 @@
 #define AVRC_SUPF_CT_CAT2               0x0002      /* Category 2 */
 #define AVRC_SUPF_CT_CAT3               0x0004      /* Category 3 */
 #define AVRC_SUPF_CT_CAT4               0x0008      /* Category 4 */
+#define AVRC_SUPF_CT_APP_SETTINGS       0x0010      /* Player Application Settings */
+#define AVRC_SUPF_CT_GROUP_NAVI         0x0020      /* Group Navigation */
 #define AVRC_SUPF_CT_BROWSE             0x0040      /* Browsing */
 #define AVRC_SUPF_CT_COVER_ART_GET_IMAGE_PROP   0x0080  /* Cover Art, get image property */
 #define AVRC_SUPF_CT_COVER_ART_GET_IMAGE        0x0100  /* Cover Art, get image */

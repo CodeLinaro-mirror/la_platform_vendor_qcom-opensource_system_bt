@@ -47,11 +47,20 @@ const UINT32  bta_av_meta_caps_co_ids[] = {
 #endif
 
 #if (AVRC_CTLR_INCLUDED == TRUE)
-#if (SDP_AVRCP_CT_COVER_ART == TRUE)
+#if (SDP_AVRCP_CT_COVER_ART == TRUE) && (SDP_AVRCP_CT_BROWSE == TRUE)
+#define BTA_AVK_RC_SUPF_CT      (AVRC_SUPF_CT_CAT1 |\
+                                 AVRC_SUPF_CT_BROWSE |\
+                                 AVRC_SUPF_CT_COVER_ART_GET_IMAGE_PROP |\
+                                 AVRC_SUPF_CT_COVER_ART_GET_IMAGE |\
+                                 AVRC_SUPF_CT_COVER_ART_GET_THUMBNAIL)
+#elif (SDP_AVRCP_CT_COVER_ART == TRUE)
 #define BTA_AVK_RC_SUPF_CT      (AVRC_SUPF_CT_CAT1 |\
                                  AVRC_SUPF_CT_COVER_ART_GET_IMAGE_PROP |\
                                  AVRC_SUPF_CT_COVER_ART_GET_IMAGE |\
                                  AVRC_SUPF_CT_COVER_ART_GET_THUMBNAIL)
+#elif (SDP_AVRCP_CT_BROWSE == TRUE)
+#define BTA_AVK_RC_SUPF_CT      (AVRC_SUPF_CT_CAT1 |\
+                                 AVRC_SUPF_CT_BROWSE)
 #else
 #define BTA_AVK_RC_SUPF_CT       (AVRC_SUPF_CT_CAT1)
 #endif

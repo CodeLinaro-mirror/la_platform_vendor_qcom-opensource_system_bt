@@ -762,13 +762,19 @@ void avct_l2c_disconnect_cfm_cback(UINT16 lcid, UINT16 result)
 void avct_l2c_br_disconnect_cfm_cback(UINT16 lcid, UINT16 result)
 {
     tAVCT_BCB      *p_bcb;
+    UINT16          res;
+
     AVCT_TRACE_DEBUG("avct_l2c_br_disconnect_cfm_cback lcid : %d ", lcid);
 
     if ((p_bcb = avct_bcb_by_lcid(lcid)) != NULL)
     {
         AVCT_TRACE_DEBUG("avct_l2c_disconnect_cfm_cback: 0x%x, ch_state: %d, res: %d",
             lcid, p_bcb->ch_state, result);
+        /* result value may be previously stored */
+        res = (p_bcb->ch_result != 0) ? p_bcb->ch_result : result;
         p_bcb->ch_result = 0;
+        avct_bcb_event(p_bcb, AVCT_LCB_LL_CLOSE_EVT, (tAVCT_LCB_EVT *) &res);
+        AVCT_TRACE_DEBUG("ch_state dc: %d ", p_bcb->ch_state);
     }
 }
 
