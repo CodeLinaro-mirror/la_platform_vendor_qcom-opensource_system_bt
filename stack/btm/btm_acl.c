@@ -1570,7 +1570,6 @@ void btm_blacklist_role_change_device (BD_ADDR bd_addr, UINT8 hci_status)
     if ((hci_status != HCI_SUCCESS) &&
         ((p->switch_role_state == BTM_ACL_SWKEY_STATE_SWITCHING) ||
          (p->switch_role_state == BTM_ACL_SWKEY_STATE_IN_PROGRESS)) &&
-        ((cod & COD_AUDIO_DEVICE) == COD_AUDIO_DEVICE) &&
         (!is_device_present(IOT_ROLE_CHANGE_BLACKLIST, bd_addr)))
     {
         p->switch_role_failed_attempts++;
