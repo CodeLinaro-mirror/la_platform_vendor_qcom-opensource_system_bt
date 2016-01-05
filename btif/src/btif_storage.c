@@ -215,7 +215,7 @@ static void btif_in_split_uuids_string_to_list(char *str, bt_uuid_t *p_uuid,
         p_needle = strchr(p_start, ' ');
         if (p_needle < p_start) break;
         memset(buf, 0, sizeof(buf));
-        strncpy(buf, p_start, (p_needle-p_start));
+        strlcpy(buf, p_start, (p_needle-p_start)+1);
         string_to_uuid(buf, p_uuid + num);
         num++;
         p_start = ++p_needle;
@@ -1590,6 +1590,7 @@ bt_status_t btif_storage_load_autopair_device_list() {
 BOOLEAN  btif_storage_is_device_autopair_blacklisted(bt_bdaddr_t *remote_bd_addr)
 {
     char *token;
+    char *saveptr;
     bdstr_t bdstr;
     char *dev_name_str;
     char value[BTIF_STORAGE_MAX_LINE_SZ];
@@ -1622,13 +1623,13 @@ BOOLEAN  btif_storage_is_device_autopair_blacklisted(bt_bdaddr_t *remote_bd_addr
         if(btif_config_get_str(BTIF_STORAGE_PATH_AUTOPAIR_BLACKLIST,
                     BTIF_STORAGE_KEY_AUTOPAIR_BLACKLIST_PARTIALNAME, value, &value_size))
         {
-            token = strtok(value, BTIF_AUTO_PAIR_CONF_VALUE_SEPARATOR);
+            token = strtok_r(value, BTIF_AUTO_PAIR_CONF_VALUE_SEPARATOR, &saveptr);
             while (token != NULL)
             {
                 if (strstr(dev_name_str, token) != NULL)
                     return TRUE;
 
-                token = strtok(NULL, BTIF_AUTO_PAIR_CONF_VALUE_SEPARATOR);
+                token = strtok_r(NULL, BTIF_AUTO_PAIR_CONF_VALUE_SEPARATOR, &saveptr);
             }
         }
     }
