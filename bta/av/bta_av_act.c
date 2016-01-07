@@ -1958,6 +1958,7 @@ tBTA_AV_FEAT bta_av_check_peer_features (UINT16 service_uuid)
                     }
                 }
             }
+#if SDP_AVRCP_1_5 == TRUE
             property_get("persist.service.bt.a2dp.sink", a2dp_role, "false");
             if (!strncmp("false", a2dp_role, 5)) {
                 if ((peer_rc_version >= AVRC_REV_1_4) &&
@@ -1979,6 +1980,7 @@ tBTA_AV_FEAT bta_av_check_peer_features (UINT16 service_uuid)
                     /*No need to update peer version as we send the default version as 1.3*/
                 }
             }
+#endif
         }
     }
     APPL_TRACE_DEBUG("peer_features:x%x", peer_features);
