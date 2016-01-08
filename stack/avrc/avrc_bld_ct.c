@@ -32,7 +32,7 @@
 
 /* Length: charset (2) + length (2)
  */
-#define GET_SEARCH_PDU_PARAM_SIZE 4
+#define SEARCH_PDU_PARAM_SIZE 4
 
 /* Length: scope(1) + uid(8) + uid counter(2)*/
 #define PLAY_ITEM_PARAM_SIZE 11
@@ -601,7 +601,7 @@ static tAVRC_STS avrc_bld_search_cmd (BT_HDR * p_pkt, tAVRC_SEARCH_CMD cmd)
     p_start = (UINT8 *)(p_pkt + 1) + p_pkt->offset;
     p_data = p_start + 1; /* PDU ID */
 
-    length = GET_SEARCH_PDU_PARAM_SIZE + cmd.string.str_len;
+    length = SEARCH_PDU_PARAM_SIZE + cmd.string.str_len;
     UINT16_TO_BE_STREAM(p_data, length);
     UINT16_TO_BE_STREAM(p_data, cmd.string.charset_id);
     UINT16_TO_BE_STREAM(p_data, cmd.string.str_len);
@@ -611,6 +611,33 @@ static tAVRC_STS avrc_bld_search_cmd (BT_HDR * p_pkt, tAVRC_SEARCH_CMD cmd)
     return AVRC_STS_NO_ERROR;
 }
 
+/*******************************************************************************
+**
+** Function         avrc_bld_get_total_item_count_cmd
+**
+** Description      This function builds the getTotalItemCount command.
+**
+** Returns          AVRC_STS_NO_ERROR, if the command is built successfully
+**                  Otherwise, the error code.
+**
+*******************************************************************************/
+static tAVRC_STS avrc_bld_get_total_item_count_cmd (BT_HDR * p_pkt, tAVRC_GET_TOTAL_ITEM_COUNT_CMD cmd)
+{
+    UINT8   *p_data, *p_start;
+    UINT16 length, index;
+
+    AVRC_TRACE_API("%s scope: %d", __FUNCTION__, cmd.scope);
+
+    p_start = (UINT8 *)(p_pkt + 1) + p_pkt->offset;
+    p_data = p_start + 1; /* PDU ID */
+
+    length = 1; /* param length */
+    UINT16_TO_BE_STREAM(p_data, length);
+    UINT8_TO_BE_STREAM(p_data, cmd.scope);
+
+    p_pkt->len = (p_data - p_start);
+    return AVRC_STS_NO_ERROR;
+}
 
 
 
@@ -858,6 +885,10 @@ tAVRC_STS AVRC_BldBrowseCommand( tAVRC_COMMAND *p_cmd, BT_HDR **pp_pkt)
             case AVRC_PDU_SEARCH:
                 status = avrc_bld_search_cmd(p_pkt, p_cmd->search);
                 break;
+            case AVRC_PDU_GET_TOTAL_NUMBER_OF_ITEMS:
+                status = avrc_bld_get_total_item_count_cmd(p_pkt, p_cmd->get_total_item_count);
+                break;
+
         }
 
         if (alloc && (status != AVRC_STS_NO_ERROR) )

@@ -65,7 +65,7 @@ typedef UINT8 tBTA_AV_STATUS;
 #define BTA_AV_FEAT_DELAY_RPT   0x0400  /* allow delay reporting */
 #define BTA_AV_FEAT_ACP_START   0x0800  /* start stream when 2nd SNK was accepted   */
 #define BTA_AV_FEAT_COVER_ART   0x1000  /* cover art support */
-
+#define BTA_AV_FEAT_APP_SETTING 0x2000  /* Player app setting support */
 /* Internal features */
 #define BTA_AV_FEAT_AVRC_UI_UPDATE 0x4000 /* Update UI to show notification for browsing capable remote*/
 #define BTA_AV_FEAT_NO_SCO_SSPD 0x8000  /* Do not suspend av streaming as to AG events(SCO or Call) */

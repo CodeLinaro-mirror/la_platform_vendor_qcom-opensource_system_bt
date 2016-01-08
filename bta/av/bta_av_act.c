@@ -2112,6 +2112,9 @@ tBTA_AV_FEAT bta_avk_check_peer_features (UINT16 service_uuid, UINT16 *p_psm)
                         categories = p_attr->attr_value.v.u16;
                         if (categories & AVRC_SUPF_CT_BROWSE)
                             peer_features |= (BTA_AV_FEAT_BROWSE);
+
+                        if (categories & AVRC_SUPF_CT_APP_SETTINGS)
+                            peer_features |= (BTA_AV_FEAT_APP_SETTING);
                     }
                 }
             }

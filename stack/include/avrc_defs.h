@@ -1135,6 +1135,15 @@ typedef struct
     tAVRC_FULL_NAME string;
 } tAVRC_SEARCH_CMD;
 
+/* GetTotalNumberOfItems */
+typedef struct
+{
+    UINT8       pdu;
+    tAVRC_STS   status;
+    UINT8       opcode;         /* Op Code (assigned by AVRC_BldCommand according to pdu) */
+    UINT8       scope;
+} tAVRC_GET_TOTAL_ITEM_COUNT_CMD;
+
 /* PlayItem */
 typedef struct
 {
@@ -1201,6 +1210,7 @@ typedef union
     tAVRC_SEARCH_CMD            search;                 /* Search */
     tAVRC_PLAY_ITEM_CMD         play_item;              /* PlayItem */
     tAVRC_ADD_TO_PLAY_CMD       add_to_play;            /* AddToNowPlaying */
+    tAVRC_GET_TOTAL_ITEM_COUNT_CMD  get_total_item_count; /* GetTotalItemCount */
 } tAVRC_COMMAND;
 
 /* GetCapability */
@@ -1380,6 +1390,16 @@ typedef struct
     UINT32              num_items;
 } tAVRC_SEARCH_RSP;
 
+/* GetTotalNumberOfItems */
+typedef struct
+{
+    UINT8               pdu;
+    tAVRC_STS           status;
+    UINT8               opcode;         /* Op Code (copied from avrc_cmd.opcode by AVRC_BldResponse user. invalid one to generate according to pdu) */
+    UINT16              uid_counter;
+    UINT32              num_items;
+} tAVRC_GET_TOTAL_NUMBER_OF_ITEMS_RSP;
+
 
 typedef struct
 {
@@ -1416,6 +1436,7 @@ typedef union
     tAVRC_SEARCH_RSP                search;                 /* Search */
     tAVRC_RSP                       play_item;              /* PlayItem */
     tAVRC_RSP                       add_to_play;            /* AddToNowPlaying */
+    tAVRC_GET_TOTAL_NUMBER_OF_ITEMS_RSP get_total_item_count; /* GetTotalNumberOfItems */
 } tAVRC_RESPONSE;
 
 

@@ -217,6 +217,8 @@ typedef struct {
     UINT64                      rc_playing_uid;
     BOOLEAN                     rc_procedure_complete;
     BOOLEAN                     rc_element_attr_app_req;
+    BOOLEAN                     rc_player_list_query_in_progress;
+    BOOLEAN                     rc_addressed_player_changed;
 } btif_rc_cb_t;
 
 typedef struct {
@@ -546,6 +548,10 @@ void handle_rc_ctrl_features()
             btif_rc_cb.rc_features_processed = TRUE;
             getcapabilities_cmd (AVRC_CAP_COMPANY_ID);
         }
+        if (btif_rc_cb.rc_features & BTA_AV_FEAT_BROWSE)
+        {
+            rc_features |= BTRC_FEAT_BROWSE;
+        }
         if (btif_rc_cb.rc_features & BTA_AV_FEAT_COVER_ART)
         {
             rc_features |= BTRC_FEAT_COVER_ART;
@@ -752,6 +758,8 @@ void handle_rc_disconnect (tBTA_AV_RC_CLOSE *p_rc_close)
         sizeof(btif_rc_player_app_settings_t));
     btif_rc_cb.rc_features_processed = FALSE;
     btif_rc_cb.rc_procedure_complete = FALSE;
+    btif_rc_cb.rc_player_list_query_in_progress = FALSE;
+    btif_rc_cb.rc_addressed_player_changed = FALSE;
     /* Check and stop play status timer */
     if (btif_rc_cb.tle_rc_play_status.in_use == TRUE)
     {
@@ -1378,6 +1386,10 @@ BOOLEAN handle_get_folder_items_rsp(tBTA_AV_BROWSE_MSG *pbrowse_msg, btrc_folder
     }
     BE_STREAM_TO_UINT16(p_entries->uid_counter, p_data);
     BE_STREAM_TO_UINT16(p_entries->item_count, p_data);
+    if (p_entries->item_count == 0)
+    {
+        return TRUE;
+    }
     p_entries->p_item_list = (btrc_folder_list_item_t *)GKI_getbuf(p_entries->item_count * sizeof(btrc_folder_list_item_t));
     if (p_entries->p_item_list == NULL)
     {
@@ -1405,7 +1417,7 @@ BOOLEAN handle_get_folder_items_rsp(tBTA_AV_BROWSE_MSG *pbrowse_msg, btrc_folder
                 BE_STREAM_TO_UINT16(p_item->u.player.name.str_len, p_data);
                 if (p_item->u.player.name.str_len != 0)
                 {
-                    p_item->u.player.name.p_str = (UINT8*)GKI_getbuf(p_item->u.player.name.str_len);
+                    p_item->u.player.name.p_str = (UINT8*)GKI_getbuf(p_item->u.player.name.str_len + 1);
                     if (p_item->u.player.name.p_str != NULL)
                     {
                         memset(p_item->u.player.name.p_str, 0, GKI_get_buf_size(p_item->u.player.name.p_str));
@@ -1429,7 +1441,7 @@ BOOLEAN handle_get_folder_items_rsp(tBTA_AV_BROWSE_MSG *pbrowse_msg, btrc_folder
                 BE_STREAM_TO_UINT16(p_item->u.folder.name.str_len, p_data);
                 if (p_item->u.folder.name.str_len != 0)
                 {
-                    p_item->u.folder.name.p_str = (UINT8*)GKI_getbuf(p_item->u.folder.name.str_len);
+                    p_item->u.folder.name.p_str = (UINT8*)GKI_getbuf(p_item->u.folder.name.str_len + 1);
                     if (p_item->u.folder.name.p_str != NULL)
                     {
                         memset(p_item->u.folder.name.p_str, 0, GKI_get_buf_size(p_item->u.folder.name.p_str));
@@ -1455,7 +1467,7 @@ BOOLEAN handle_get_folder_items_rsp(tBTA_AV_BROWSE_MSG *pbrowse_msg, btrc_folder
                 BE_STREAM_TO_UINT16(p_item->u.media.name.str_len, p_data);
                 if (p_item->u.media.name.str_len != 0)
                 {
-                    p_item->u.media.name.p_str = (UINT8*)GKI_getbuf(p_item->u.media.name.str_len);
+                    p_item->u.media.name.p_str = (UINT8*)GKI_getbuf(p_item->u.media.name.str_len + 1);
                     if (p_item->u.media.name.p_str != NULL)
                     {
                         memset(p_item->u.media.name.p_str, 0, GKI_get_buf_size(p_item->u.media.name.p_str));
@@ -1482,7 +1494,7 @@ BOOLEAN handle_get_folder_items_rsp(tBTA_AV_BROWSE_MSG *pbrowse_msg, btrc_folder
                     BE_STREAM_TO_UINT16(p_attr_entry[attr_index].name.str_len, p_data);
                     if (p_attr_entry[attr_index].name.str_len != 0)
                     {
-                        p_attr_entry[attr_index].name.p_str = (UINT8*)GKI_getbuf(p_attr_entry[attr_index].name.str_len);
+                        p_attr_entry[attr_index].name.p_str = (UINT8*)GKI_getbuf(p_attr_entry[attr_index].name.str_len + 1);
                         if (p_attr_entry[attr_index].name.p_str != NULL)
                         {
                             memset(p_attr_entry[attr_index].name.p_str, 0, GKI_get_buf_size(p_attr_entry[attr_index].name.p_str));
@@ -1535,7 +1547,7 @@ BOOLEAN handle_set_browsed_player_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg, tAVRC_RE
         for (index = 0; index < p_avrc_rsp->br_player.folder_depth; index++)
         {
             BE_STREAM_TO_UINT16(p_avrc_name[index].str_len, p_data);
-            p_avrc_name[index].p_str = (UINT8*)GKI_getbuf(p_avrc_name[index].str_len);
+            p_avrc_name[index].p_str = (UINT8*)GKI_getbuf(p_avrc_name[index].str_len + 1);
             if (p_avrc_name[index].p_str != NULL)
             {
                 memset(p_avrc_name[index].p_str, 0, GKI_get_buf_size(p_avrc_name[index].p_str));
@@ -1543,13 +1555,13 @@ BOOLEAN handle_set_browsed_player_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg, tAVRC_RE
             }
             else
             {
-                p_avrc_name[index].p_str = NULL;
+                p_avrc_name[index].str_len = 0;
                 BTIF_TRACE_ERROR("%s: Alloc failure for folder name", __FUNCTION__);
             }
         }
         return FALSE;
     }
-    else /* TODO: Handle return value differently */
+    else
     {
         return TRUE;
     }
@@ -1569,7 +1581,7 @@ BOOLEAN handle_change_path_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg, tAVRC_RESPONSE 
         BE_STREAM_TO_UINT32(p_avrc_rsp->chg_path.num_items, p_data);
         return FALSE;
     }
-    else /* TODO: Handle return value differently */
+    else
     {
         return TRUE;
     }
@@ -1594,9 +1606,16 @@ BOOLEAN handle_get_item_attributes_rsp(tBTA_AV_BROWSE_MSG *pbrowse_msg, tAVRC_RE
             BE_STREAM_TO_UINT32(p_attr_entry[attr_index].attr_id, p_data);
             BE_STREAM_TO_UINT16(p_attr_entry[attr_index].name.charset_id, p_data);
             BE_STREAM_TO_UINT16(p_attr_entry[attr_index].name.str_len, p_data);
-            p_attr_entry[attr_index].name.p_str = (UINT8*)GKI_getbuf(p_attr_entry[attr_index].name.str_len);
-            memset(p_attr_entry[attr_index].name.p_str, 0, GKI_get_buf_size(p_attr_entry[attr_index].name.p_str));
-            BE_STREAM_TO_ARRAY(p_data, p_attr_entry[attr_index].name.p_str, p_attr_entry[attr_index].name.str_len);
+            p_attr_entry[attr_index].name.p_str = (UINT8*)GKI_getbuf(p_attr_entry[attr_index].name.str_len + 1);
+            if (p_attr_entry[attr_index].name.p_str != NULL)
+            {
+                memset(p_attr_entry[attr_index].name.p_str, 0, GKI_get_buf_size(p_attr_entry[attr_index].name.p_str));
+                BE_STREAM_TO_ARRAY(p_data, p_attr_entry[attr_index].name.p_str, p_attr_entry[attr_index].name.str_len);
+            }
+            else
+            {
+                p_attr_entry[attr_index].name.str_len = 0;
+            }
         }
         p_avrc_rsp->get_attrs.p_attr_list = p_attr_entry;
         return FALSE;
@@ -1617,14 +1636,35 @@ BOOLEAN handle_search_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg, tAVRC_RESPONSE *p_av
     BE_STREAM_TO_UINT8(p_avrc_rsp->search.status, p_data);
     if (p_avrc_rsp->search.status == AVRC_STS_NO_ERROR)
     {
-        BE_STREAM_TO_UINT32(p_avrc_rsp->search.uid_counter, p_data);
+        BE_STREAM_TO_UINT16(p_avrc_rsp->search.uid_counter, p_data);
         BE_STREAM_TO_UINT32(p_avrc_rsp->search.num_items, p_data);
         return FALSE;
     }
-    else /* TODO: Handle return value differently */
+    else
     {
         return TRUE;
     }
+}
+
+BOOLEAN handle_get_total_number_of_items_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg, tAVRC_RESPONSE *p_avrc_rsp)
+{
+    UINT16 length, index;
+    UINT8 *p_data = pbrowse_msg->p_msg->browse.p_browse_data;
+
+    BE_STREAM_TO_UINT8(p_avrc_rsp->pdu, p_data);
+    BE_STREAM_TO_UINT16(length, p_data);
+    BE_STREAM_TO_UINT8(p_avrc_rsp->get_total_item_count.status, p_data);
+    if (p_avrc_rsp->get_total_item_count.status == AVRC_STS_NO_ERROR)
+    {
+        BE_STREAM_TO_UINT16(p_avrc_rsp->get_total_item_count.uid_counter, p_data);
+        BE_STREAM_TO_UINT32(p_avrc_rsp->get_total_item_count.num_items, p_data);
+        return FALSE;
+    }
+    else
+    {
+        return TRUE;
+    }
+
 }
 
 void handle_rc_browsemsg_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg)
@@ -1648,7 +1688,22 @@ void handle_rc_browsemsg_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg)
             btrc_folder_list_entries_t folder_entries;
 
             dropmsg = handle_get_folder_items_rsp(pbrowse_msg, &folder_entries);
-            if (dropmsg == FALSE)
+            if (dropmsg == TRUE)
+            {
+                if (btif_rc_cb.rc_player_list_query_in_progress == TRUE)
+                {
+                    btif_rc_cb.rc_player_list_query_in_progress = FALSE;
+                    BTIF_TRACE_EVENT("%s: list players failed 0x%02X", __FUNCTION__,
+                        folder_entries.status);
+                    break;
+                }
+                else
+                {
+                    HAL_CBACK(bt_rc_ctrl_callbacks, browse_folder_rsp_cb,
+                            &remote_addr, folder_entries.status, &folder_entries);
+                }
+            }
+            else
             {
                 BTIF_TRACE_EVENT("%s: Item count %d", __FUNCTION__, folder_entries.item_count);
 
@@ -1657,6 +1712,7 @@ void handle_rc_browsemsg_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg)
                     btrc_folder_list_item_player_t  *p_players;
 
                     BTIF_TRACE_EVENT("Item type: Player");
+                    btif_rc_cb.rc_player_list_query_in_progress = FALSE;
                     HAL_CBACK(bt_rc_ctrl_callbacks, available_players_update_cb,
                             &remote_addr, &folder_entries);
                     /* For browsing capable devices, this is treated as RC
@@ -1753,35 +1809,12 @@ void handle_rc_browsemsg_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg)
                     }
                 }
             }
-        break;
-
-        case AVRC_PDU_SET_ADDRESSED_PLAYER:
-            dropmsg = handle_set_browsed_player_rsp(pbrowse_msg, &avrc_rsp);
-            if (dropmsg == FALSE)
+            else
             {
-                BTIF_TRACE_EVENT("%s: Browsed player set: folder depth %d", __FUNCTION__,
-                        avrc_rsp.br_player.folder_depth);
+                BTIF_TRACE_EVENT("%s: set_browsed_player failed: status %d", __FUNCTION__,
+                        avrc_rsp.br_player.status);
                 HAL_CBACK(bt_rc_ctrl_callbacks, set_browsed_player_rsp_cb,
-                        &remote_addr, avrc_rsp.br_player.status,
-                        avrc_rsp.br_player.uid_counter);
-
-                if (avrc_rsp.br_player.folder_depth > 0)
-                {
-                    /* Free dynamically allocated memory after usage */
-                    for (index = 0; index < avrc_rsp.br_player.folder_depth; index++)
-                    {
-                        BTIF_TRACE_EVENT("%s: Folders: %s", __FUNCTION__,
-                            avrc_rsp.br_player.p_folders[index].p_str);
-                        if (avrc_rsp.br_player.p_folders[index].p_str != NULL)
-                        {
-                            GKI_freebuf(avrc_rsp.br_player.p_folders[index].p_str);
-                        }
-                    }
-                    if ((avrc_rsp.br_player.folder_depth) && (avrc_rsp.br_player.p_folders != NULL))
-                    {
-                        GKI_freebuf(avrc_rsp.br_player.p_folders);
-                    }
-                }
+                        &remote_addr, avrc_rsp.br_player.status, 0);
             }
         break;
 
@@ -1793,7 +1826,14 @@ void handle_rc_browsemsg_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg)
                     avrc_rsp.chg_path.num_items);
                 HAL_CBACK(bt_rc_ctrl_callbacks, change_path_rsp_cb,
                         &remote_addr, avrc_rsp.chg_path.status,
-                        avrc_rsp.chg_path.num_items)
+                        avrc_rsp.chg_path.num_items);
+            }
+            else
+            {
+                BTIF_TRACE_EVENT("%s: Change path failed, status 0x%02X", __FUNCTION__,
+                    avrc_rsp.chg_path.status);
+                HAL_CBACK(bt_rc_ctrl_callbacks, change_path_rsp_cb,
+                        &remote_addr, avrc_rsp.chg_path.status, 0);
             }
         break;
 
@@ -1860,10 +1900,41 @@ void handle_rc_browsemsg_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg)
                         avrc_rsp.search.uid_counter,
                         avrc_rsp.search.num_items);
             }
+            else
+            {
+                BTIF_TRACE_EVENT("%s: search failed: status 0x%02X", __FUNCTION__,
+                        avrc_rsp.search.status);
+
+                HAL_CBACK(bt_rc_ctrl_callbacks, serach_rsp_cb,
+                        &remote_addr, avrc_rsp.search.status,
+                        0, 0);
+            }
         }
         break;
 
         case AVRC_PDU_GET_TOTAL_NUMBER_OF_ITEMS:
+        {
+            dropmsg = handle_get_total_number_of_items_rsp(pbrowse_msg, &avrc_rsp);
+            if (dropmsg == FALSE)
+            {
+                BTIF_TRACE_EVENT("%s: total_num_items %d", __FUNCTION__,
+                        avrc_rsp.get_total_item_count.num_items);
+
+                HAL_CBACK(bt_rc_ctrl_callbacks, total_items_rsp_cb,
+                        &remote_addr, avrc_rsp.get_total_item_count.status,
+                        avrc_rsp.get_total_item_count.uid_counter,
+                        avrc_rsp.get_total_item_count.num_items);
+            }
+            else
+            {
+              BTIF_TRACE_EVENT("%s: get_total_num_items failed 0x%02X", __FUNCTION__,
+                      avrc_rsp.get_total_item_count.status);
+
+              HAL_CBACK(bt_rc_ctrl_callbacks, total_items_rsp_cb,
+                      &remote_addr, avrc_rsp.get_total_item_count.status,
+                      0, 0);
+            }
+        }
         break;
 
         default:
@@ -3659,6 +3730,7 @@ static bt_status_t list_media_players (bt_bdaddr_t *bd_addr)
         if (BT_STATUS_SUCCESS == tran_status)
         {
             BTA_AvMetaCmd(btif_rc_cb.rc_handle, p_transaction->lbl, 0, p_msg);
+            btif_rc_cb.rc_player_list_query_in_progress = TRUE;
             status = BT_STATUS_SUCCESS;
         }
         else
@@ -4003,6 +4075,11 @@ static bt_status_t search (bt_bdaddr_t *bd_addr, uint16_t charset_id, uint16_t l
     avrc_cmd.search.string.charset_id = charset_id;
     avrc_cmd.search.string.str_len = len;
     avrc_cmd.search.string.p_str = (UINT8*)GKI_getbuf (len);
+    if (avrc_cmd.search.string.p_str == NULL)
+    {
+        BTIF_TRACE_ERROR("%s: alloc failed", __FUNCTION__);
+        return BT_STATUS_FAIL;
+    }
     memset(avrc_cmd.search.string.p_str, 0, GKI_get_buf_size(avrc_cmd.search.string.p_str));
     memcpy(avrc_cmd.search.string.p_str, str, avrc_cmd.search.string.str_len);
 
@@ -4030,8 +4107,38 @@ static bt_status_t search (bt_bdaddr_t *bd_addr, uint16_t charset_id, uint16_t l
 
 static bt_status_t get_total_number_of_items (bt_bdaddr_t *bd_addr, uint8_t scope)
 {
-    BTIF_TRACE_DEBUG("%s ### Todo. Implement me ###", __FUNCTION__);
-    return BT_STATUS_FAIL;
+    bt_status_t status = BT_STATUS_UNSUPPORTED;
+    rc_transaction_t *p_transaction = NULL;
+    tAVRC_COMMAND avrc_cmd = {0};
+    BT_HDR *p_msg = NULL;
+
+    CHECK_RC_CONNECTED
+
+    BTIF_TRACE_DEBUG("%s: scope", __FUNCTION__, scope);
+
+    avrc_cmd.pdu = AVRC_PDU_GET_TOTAL_NUMBER_OF_ITEMS;
+    avrc_cmd.get_total_item_count.scope = scope;
+
+    if (AVRC_BldBrowseCommand(&avrc_cmd, &p_msg) == AVRC_STS_NO_ERROR)
+    {
+        bt_status_t tran_status = get_transaction(&p_transaction);
+        if (BT_STATUS_SUCCESS == tran_status)
+        {
+            BTA_AvMetaCmd(btif_rc_cb.rc_handle, p_transaction->lbl, 0, p_msg);
+            status = BT_STATUS_SUCCESS;
+        }
+        else
+        {
+            BTIF_TRACE_ERROR("%s Failed to get transaction label", __FUNCTION__);
+            status = BT_STATUS_FAIL;
+        }
+    }
+    else
+    {
+        BTIF_TRACE_ERROR("%s: failed to build command", __FUNCTION__);
+        status = BT_STATUS_FAIL;
+    }
+    return status;
 }
 
 /***************************************************************************
@@ -4587,7 +4694,6 @@ static void handle_get_capability_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_G
     {
         btif_rc_supported_event_t *p_event;
 
-        /* Todo: Check if list can be active when we hit here */
         btif_rc_cb.rc_supported_event_list = list_new(rc_supported_event_free);
         for (xx = 0; xx < p_rsp->count; xx++)
         {
@@ -4715,10 +4821,44 @@ static void handle_notification_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_REG
                      * Attributes will be fetched after the AVRCP procedure
                      */
                     BE_STREAM_TO_UINT64(btif_rc_cb.rc_playing_uid, p_data);
+                    if ((BTA_AvIsBrowsingSupported () == TRUE) &&
+                        (btif_rc_cb.rc_features & BTA_AV_FEAT_BROWSE) &&
+                        (btif_rc_cb.rc_playing_uid != 0))
+                    {
+                        /* Todo: UID counter to be used ? */
+                        get_item_attributes (btif_rc_cb.rc_addr,
+                                AVRC_SCOPE_NOW_PLAYING,
+                                0, btif_rc_cb.rc_playing_uid,
+                                0, NULL);
+                    }
+                    else
+                    {
+                        get_element_attribute_cmd (0, NULL);
+                    }
+                    break;
                 }
                 break;
 
             case AVRC_EVT_APP_SETTING_CHANGE:
+                /* After addressed player changes, update the Application settings
+                 * from the interim response for applications settings changed
+                 * notification.
+                 */
+                if (btif_rc_cb.rc_addressed_player_changed == TRUE)
+                {
+                    btrc_player_settings_t app_settings;
+                    UINT16 xx;
+
+                    btif_rc_cb.rc_addressed_player_changed = FALSE;
+                    app_settings.num_attr = p_rsp->param.player_setting.num_attr;
+                    for (xx = 0; xx < app_settings.num_attr; xx++)
+                    {
+                        app_settings.attr_ids[xx] = p_rsp->param.player_setting.attr_id[xx];
+                        app_settings.attr_values[xx] = p_rsp->param.player_setting.attr_value[xx];
+                    }
+                    HAL_CBACK(bt_rc_ctrl_callbacks, playerapplicationsetting_changed_cb,
+                        &rc_addr, &app_settings);
+                }
                 break;
 
             case AVRC_EVT_NOW_PLAYING_CHANGE:
@@ -4728,7 +4868,6 @@ static void handle_notification_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_REG
                 break;
 
             case AVRC_EVT_ADDR_PLAYER_CHANGE:
-                if (btif_rc_cb.rc_addressed_player_id != p_rsp->param.addr_player.player_id)
                 {
                     btif_rc_cb.rc_addressed_player_id = p_rsp->param.addr_player.player_id;
                     HAL_CBACK(bt_rc_ctrl_callbacks, addressed_player_update_cb,
@@ -4769,11 +4908,19 @@ static void handle_notification_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_REG
         /* Registered for all events, we can request application settings */
         if ((p_event == NULL) && (btif_rc_cb.rc_app_settings.query_started == false))
         {
-            /* Todo: Do we need to do this only if remote TG supports
-             * player application settings
+            /* We need to do this only if remote TG supports
+             * player application settings. Update RC procedure complete
+             * from here otherwise.
              */
             btif_rc_cb.rc_app_settings.query_started = TRUE;
-            list_player_app_setting_attrib_cmd();
+            if (btif_rc_cb.rc_features & BTA_AV_FEAT_APP_SETTING)
+            {
+                list_player_app_setting_attrib_cmd();
+            }
+            else
+            {
+                rc_ctrl_procedure_complete();
+            }
         }
     }
     else if (pmeta_msg->code == AVRC_RSP_CHANGED)
@@ -4862,12 +5009,14 @@ static void handle_notification_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_REG
                 break;
 
             case AVRC_EVT_AVAL_PLAYERS_CHANGE:
+                /* Query the available players */
+                list_media_players (&rc_addr);
                 break;
 
             case AVRC_EVT_ADDR_PLAYER_CHANGE:
-                if (btif_rc_cb.rc_addressed_player_id != p_rsp->param.addr_player.player_id)
                 {
                     btif_rc_cb.rc_addressed_player_id = p_rsp->param.addr_player.player_id;
+                    btif_rc_cb.rc_addressed_player_changed = TRUE;
                     HAL_CBACK(bt_rc_ctrl_callbacks, addressed_player_update_cb,
                         &rc_addr, p_rsp->param.addr_player.player_id,
                         p_rsp->param.addr_player.uid_counter);
@@ -4888,6 +5037,27 @@ static void handle_notification_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_REG
                 BTIF_TRACE_ERROR("%s  Unhandled completion response 0x%2X",
                     __FUNCTION__, p_rsp->event_id);
                 return;
+        }
+    }
+    else if ((pmeta_msg->code == AVRC_RSP_REJ) && (p_rsp->status == AVRC_STS_ADDR_PLAYER_CHG))
+    {
+        btif_rc_supported_event_t *p_event;
+        list_node_t *node;
+
+        BTIF_TRACE_DEBUG("%s Notification Rejected, addr player change : 0x%2X ", __FUNCTION__,
+            p_rsp->event_id);
+
+        node = list_begin(btif_rc_cb.rc_supported_event_list);
+        while (node != NULL)
+        {
+            p_event = (btif_rc_supported_event_t *)list_node(node);
+            if ((p_event != NULL) && (p_event->label == pmeta_msg->label))
+            {
+                p_event->status = eNOT_REGISTERED;
+                register_for_event_notification(p_event);
+                break;
+            }
+            node = list_next (node);
         }
     }
 }
@@ -4939,6 +5109,9 @@ static void handle_app_attr_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_LIST_AP
     }
     else
     {
+        /* Complete RC procedure from here */
+        rc_ctrl_procedure_complete();
+
         BTIF_TRACE_ERROR ("%s No Player application settings found",
                 __FUNCTION__);
     }
@@ -4963,7 +5136,6 @@ static void handle_app_val_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_LIST_APP
     btif_rc_player_app_settings_t *p_app_settings;
     bt_bdaddr_t rc_addr;
 
-    /* Todo: Do we need to retry on command timeout */
     if (p_rsp->status != AVRC_STS_NO_ERROR)
     {
         BTIF_TRACE_ERROR ("%s Error fetching attribute values 0x%02X",
@@ -5049,7 +5221,6 @@ static void handle_app_cur_val_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_GET_
     bt_bdaddr_t rc_addr;
     UINT16 xx;
 
-    /* Todo: Do we need to retry on command timeout */
     if (p_rsp->status != AVRC_STS_NO_ERROR)
     {
         BTIF_TRACE_ERROR ("%s Error fetching current settings: 0x%02X",
@@ -5098,7 +5269,6 @@ static void handle_app_attr_txt_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_GET
 
     bdcpy(rc_addr.address, btif_rc_cb.rc_addr);
 
-    /* Todo: Do we need to retry on command timeout */
     if (p_rsp->status != AVRC_STS_NO_ERROR)
     {
         UINT8 attrs[AVRC_MAX_APP_ATTR_SIZE];
@@ -5171,7 +5341,6 @@ static void handle_app_attr_val_txt_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC
     bdcpy(rc_addr.address, btif_rc_cb.rc_addr);
     p_app_settings = &btif_rc_cb.rc_app_settings;
 
-    /* Todo: Do we need to retry on command timeout */
     if (p_rsp->status != AVRC_STS_NO_ERROR)
     {
         UINT8 attrs[AVRC_MAX_APP_ATTR_SIZE];
@@ -5438,7 +5607,7 @@ static void handle_set_addressed_player_rsp (tBTA_AV_META_MSG *pmeta_msg, tAVRC_
 
     bdcpy(rc_addr.address, btif_rc_cb.rc_addr);
 
-    HAL_CBACK(bt_rc_ctrl_callbacks, add_to_now_playing_rsp_cb, &rc_addr, p_rsp->status);
+    HAL_CBACK(bt_rc_ctrl_callbacks, set_addressed_player_rsp_cb, &rc_addr, p_rsp->status);
 }
 
 

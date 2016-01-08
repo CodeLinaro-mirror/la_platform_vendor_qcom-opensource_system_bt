@@ -1673,6 +1673,10 @@ Range: 2 octets
 #endif
 #endif
 
+#ifndef SDP_AVRCP_CT_BROWSE
+#define SDP_AVRCP_CT_BROWSE         TRUE
+#endif
+
 #ifndef SDP_AVRCP_1_5
 #define SDP_AVRCP_1_5               TRUE
 
