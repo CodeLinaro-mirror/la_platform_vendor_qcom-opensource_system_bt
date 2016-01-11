@@ -997,6 +997,7 @@ tBTA_AV_EVT bta_av_proc_browse_cmd(tAVRC_RESPONSE  *p_rc_rsp, tBTA_AV_RC_MSG *p_
         case AVRC_PDU_CHANGE_PATH:
         case AVRC_PDU_GET_ITEM_ATTRIBUTES:
         case AVRC_PDU_SEARCH:
+        case AVRC_PDU_GET_TOTAL_NUMBER_OF_ITEMS:
             break;
         default:
             evt = 0;
