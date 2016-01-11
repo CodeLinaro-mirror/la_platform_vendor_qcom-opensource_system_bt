@@ -93,11 +93,14 @@
 #define AVRC_CMD_TIMEOUT_EVT           8
 
 /* Supported categories */
-#define AVRC_SUPF_CT_CAT1               0x0001      /* Category 1 */
-#define AVRC_SUPF_CT_CAT2               0x0002      /* Category 2 */
-#define AVRC_SUPF_CT_CAT3               0x0004      /* Category 3 */
-#define AVRC_SUPF_CT_CAT4               0x0008      /* Category 4 */
-#define AVRC_SUPF_CT_BROWSE             0x0040      /* Browsing */
+#define AVRC_SUPF_CT_CAT1                    0x0001      /* Category 1 */
+#define AVRC_SUPF_CT_CAT2                    0x0002      /* Category 2 */
+#define AVRC_SUPF_CT_CAT3                    0x0004      /* Category 3 */
+#define AVRC_SUPF_CT_CAT4                    0x0008      /* Category 4 */
+#define AVRC_SUPF_CT_BROWSE                  0x0040      /* Browsing */
+#define AVRC_SUPF_CT_CA_GET_IMAGE_PROP       0x0080      /* CA GetImageProperties */
+#define AVRC_SUPF_CT_CA_GET_IMAGE_FEAT       0x0100      /* CA GetImage Feature */
+#define AVRC_SUPF_CT_CA_GET_THUMBNAIL_FEAT   0x0200      /* CA GetLinked Thumbnail Feature */
 
 #define AVRC_SUPF_TG_CAT1               0x0001      /* Category 1 */
 #define AVRC_SUPF_TG_CAT2               0x0002      /* Category 2 */
