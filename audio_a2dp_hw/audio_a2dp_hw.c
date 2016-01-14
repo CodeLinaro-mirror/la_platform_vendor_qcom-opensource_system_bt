@@ -178,7 +178,7 @@ static int calc_audiotime(struct a2dp_config cfg, int bytes)
     ASSERTC(cfg.format == AUDIO_FORMAT_PCM_16_BIT,
             "unsupported sample sz", cfg.format);
 
-    return bytes*(1000000/(chan_count*2))/cfg.rate;
+    return (int)(((int64_t)bytes * (1000000 / (chan_count * 2))) / cfg.rate);
 }
 
 static void ts_error_log(char *tag, int val, int buff_size, struct a2dp_config cfg)
@@ -642,6 +642,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     #ifdef BT_AUDIO_SYSTRACE_LOG
     char trace_buf[512];
     #endif
+    int us_delay;
 
     DEBUG("write %zu bytes (fd %d)", bytes, out->common.audio_fd);
 
@@ -651,7 +652,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     {
         INFO("stream suspended");
         pthread_mutex_unlock(&out->common.lock);
-        return -1;
+        goto error;
     }
 
     /* only allow autostarting if we are in stopped or standby */
@@ -660,23 +661,15 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     {
         if (start_audio_datapath(&out->common) < 0)
         {
-            /* emulate time this write represents to avoid very fast write
-               failures during transition periods or remote suspend */
-
-            int us_delay = calc_audiotime(out->common.cfg, bytes);
-
-            ERROR("emulate a2dp write delay (%d us)", us_delay);
-
-            usleep(us_delay);
             pthread_mutex_unlock(&out->common.lock);
-            return -1;
+            goto error;
         }
     }
     else if (out->common.state != AUDIO_A2DP_STATE_STARTED)
     {
         ERROR("stream not in stopped or standby");
         pthread_mutex_unlock(&out->common.lock);
-        return -1;
+        goto error;
     }
     #ifdef BT_AUDIO_SAMPLE_LOG
     if (outputpcmsamplefile)
@@ -713,14 +706,21 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
             out->common.state = AUDIO_A2DP_STATE_STOPPED;
         else
             ERROR("write failed : stream suspended, avoid resetting state");
-    } else {
-        const size_t frames = bytes / audio_stream_out_frame_size(stream);
-        out->frames_rendered += frames;
-        out->frames_presented += frames;
+        goto error;
     }
 
-    DEBUG("wrote %d bytes out of %zu bytes", sent, bytes);
-    return sent;
+    const size_t frames = bytes / audio_stream_out_frame_size(stream);
+    out->frames_rendered += frames;
+    out->frames_presented += frames;
+    return bytes;
+
+error:
+    us_delay = calc_audiotime(out->common.cfg, bytes);
+
+    DEBUG("emulate a2dp write delay (%d us)", us_delay);
+
+    usleep(us_delay);
+    return bytes;
 }
 
 
