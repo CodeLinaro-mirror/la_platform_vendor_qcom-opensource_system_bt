@@ -1951,11 +1951,18 @@ tBTA_AV_FEAT bta_av_check_peer_features (UINT16 service_uuid)
                         peer_features |= (BTA_AV_FEAT_BROWSE);
                         APPL_TRACE_DEBUG("peer supports browsing");
                     }
+                    if (categories & AVRC_SUPF_CT_CA_GET_IMAGE_FEAT & AVRC_SUPF_CT_CA_GET_THUMBNAIL_FEAT)
+                    {
+                        peer_features |=  BTA_AV_FEAT_CA;
+                        APPL_TRACE_DEBUG("peer supports cover art");
+                    }
                 }
             }
+#if SDP_AVRCP_1_5 == TRUE
             property_get("persist.service.bt.a2dp.sink", a2dp_role, "false");
             if (!strncmp("false", a2dp_role, 5)) {
-                if ((peer_rc_version >= AVRC_REV_1_4) && (peer_features & BTA_AV_FEAT_BROWSE))
+                if ((peer_rc_version >= AVRC_REV_1_4) &&
+                        ((peer_features & BTA_AV_FEAT_BROWSE) || (peer_features & BTA_AV_FEAT_CA)))
                 {
                     BOOLEAN ret = FALSE;
                     APPL_TRACE_DEBUG("peer version to update: 0x%x", peer_rc_version);
@@ -1973,6 +1980,7 @@ tBTA_AV_FEAT bta_av_check_peer_features (UINT16 service_uuid)
                     /*No need to update peer version as we send the default version as 1.3*/
                 }
             }
+#endif
         }
     }
     APPL_TRACE_DEBUG("peer_features:x%x", peer_features);

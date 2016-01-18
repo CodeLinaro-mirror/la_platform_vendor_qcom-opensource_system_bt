@@ -1464,19 +1464,18 @@ tBTM_STATUS btm_ble_start_encrypt(BD_ADDR bda, BOOLEAN use_stk, BT_OCTET16 stk)
 ** Returns          void
 **
 *******************************************************************************/
-void btm_ble_link_encrypted(BD_ADDR bd_addr, UINT8 encr_enable, UINT8 status)
+void btm_ble_link_encrypted(BD_ADDR bd_addr, UINT8 encr_enable)
 {
     tBTM_SEC_DEV_REC    *p_dev_rec = btm_find_dev (bd_addr);
     BOOLEAN             enc_cback;
 
     if (!p_dev_rec)
     {
-        BTM_TRACE_WARNING ("btm_ble_link_encrypted (No Device Found!) encr_enable=%d, status=%d"
-                           , encr_enable, status);
+        BTM_TRACE_WARNING ("btm_ble_link_encrypted (No Device Found!) encr_enable=%d", encr_enable);
         return;
     }
 
-    BTM_TRACE_DEBUG ("btm_ble_link_encrypted encr_enable=%d, status=%d", encr_enable, status);
+    BTM_TRACE_DEBUG ("btm_ble_link_encrypted encr_enable=%d", encr_enable);
 
     enc_cback = (p_dev_rec->sec_state == BTM_SEC_STATE_ENCRYPTING);
 
@@ -1493,12 +1492,7 @@ void btm_ble_link_encrypted(BD_ADDR bd_addr, UINT8 encr_enable, UINT8 status)
         if (encr_enable)
             btm_sec_dev_rec_cback_event(p_dev_rec, BTM_SUCCESS, TRUE);
         else if (p_dev_rec->role_master)
-        {
-            if(status == HCI_ERR_KEY_MISSING)
-                btm_sec_dev_rec_cback_event(p_dev_rec, BTM_ERR_KEY_MISSING, TRUE);
-            else
-                btm_sec_dev_rec_cback_event(p_dev_rec, BTM_ERR_PROCESSING, TRUE);
-        }
+            btm_sec_dev_rec_cback_event(p_dev_rec, BTM_ERR_PROCESSING, TRUE);
 
     }
     /* to notify GATT to send data if any request is pending */
@@ -1554,7 +1548,7 @@ static void btm_enc_proc_slave_y(tSMP_ENC *p)
             BTM_TRACE_DEBUG ("LTK request failed - send negative reply");
             btsnd_hcic_ble_ltk_req_neg_reply(p_cb->enc_handle);
             if (p_dev_rec)
-                btm_ble_link_encrypted(p_dev_rec->bd_addr, 0, 0);
+                btm_ble_link_encrypted(p_dev_rec->bd_addr, 0);
 
         }
     }
@@ -2019,7 +2013,7 @@ UINT8 btm_proc_smp_cback(tSMP_EVT event, BD_ADDR bd_addr, tSMP_EVT_DATA *p_data)
                 if(event == SMP_COMPLT_EVT && !p_data->cmplt.smp_over_br)
                 {
                     if ((p_data->cmplt.reason == SMP_SUCCESS && p_data->cmplt.sec_level == 0)||
-                       (btm_cb.pairing_state == BTM_PAIR_STATE_IDLE))
+                       (btm_cb.pairing_state == BTM_PAIR_STATE_IDLE && p_data->cmplt.sec_level == 0))
                     {
                         BTM_TRACE_DEBUG("%s, SMP CMPL due to encryption", __func__);
                         skip_cmpl_cback = TRUE;

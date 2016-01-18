@@ -34,6 +34,7 @@
 #include <system/audio.h>
 #include "hardware/bt_av.h"
 #include "osi/include/allocator.h"
+#include <cutils/properties.h>
 
 #define LOG_TAG "bt_btif_av"
 
@@ -363,6 +364,8 @@ static void btif_report_audio_state(btav_audio_state_t state, bt_bdaddr_t *bd_ad
 
 static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, int index)
 {
+    char a2dp_role[PROPERTY_VALUE_MAX] = "false";
+
     BTIF_TRACE_IMP("%s event:%s flags %x on Index = %d", __FUNCTION__,
                      dump_av_sm_event_name(event), btif_av_cb[index].flags, index);
 
@@ -381,6 +384,14 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
             for (int i = 0; i < btif_max_av_clients; i++)
             {
                 btif_av_cb[i].dual_handoff = FALSE;
+            }
+            property_get("persist.service.bt.a2dp.sink", a2dp_role, "false");
+            if (!strncmp("false", a2dp_role, 5)) {
+                btif_av_cb[index].peer_sep = AVDT_TSEP_SNK;
+                btif_a2dp_set_peer_sep(AVDT_TSEP_SNK);
+            } else {
+                btif_av_cb[index].peer_sep = AVDT_TSEP_SRC;
+                btif_a2dp_set_peer_sep(AVDT_TSEP_SRC);
             }
             /* This API will be called twice at initialization
             ** Idle can be moved when device is disconnected too.
@@ -1589,12 +1600,33 @@ static void btif_av_handle_event(UINT16 event, char* p_param)
     tBTA_AV *p_bta_data = (tBTA_AV*)p_param;
     bt_bdaddr_t * bt_addr;
     UINT8 role;
+    int uuid;
 
     switch (event)
     {
         /*events from Upper layer and Media Task*/
         case BTIF_AV_CLEANUP_REQ_EVT: /*Clean up to be called on default index*/
             BTIF_TRACE_EVENT("%s: BTIF_AV_CLEANUP_REQ_EVT", __FUNCTION__);
+            uuid = (int)*p_param;
+            if (uuid == BTA_A2DP_SOURCE_SERVICE_ID)
+            {
+                if (bt_av_src_callbacks)
+                {
+                    bt_av_src_callbacks = NULL;
+                    if (bt_av_sink_callbacks != NULL)
+                        break;
+                }
+            }
+            else
+            {
+                if (bt_av_sink_callbacks)
+                {
+                    bt_av_sink_callbacks = NULL;
+                    if (bt_av_src_callbacks != NULL)
+                        break;
+                }
+            }
+
             btif_a2dp_stop_media_task();
             return;
         case BTIF_AV_CONNECT_REQ_EVT:
@@ -2375,7 +2407,8 @@ static void cleanup(int service_uuid)
     int i;
     BTIF_TRACE_IMP("AV %s", __FUNCTION__);
 
-    btif_transfer_context(btif_av_handle_event, BTIF_AV_CLEANUP_REQ_EVT, NULL, 0, NULL);
+    btif_transfer_context(btif_av_handle_event, BTIF_AV_CLEANUP_REQ_EVT,
+            (char*)&service_uuid, sizeof(int), NULL);
 
     btif_disable_service(service_uuid);
 
@@ -2389,24 +2422,12 @@ static void cleanup(int service_uuid)
 
 static void cleanup_src(void) {
     BTIF_TRACE_EVENT("%s", __FUNCTION__);
-
-    if (bt_av_src_callbacks)
-    {
-        bt_av_src_callbacks = NULL;
-        if (bt_av_sink_callbacks == NULL)
-            cleanup(BTA_A2DP_SOURCE_SERVICE_ID);
-    }
+    cleanup(BTA_A2DP_SOURCE_SERVICE_ID);
 }
 
 static void cleanup_sink(void) {
     BTIF_TRACE_EVENT("%s", __FUNCTION__);
-
-    if (bt_av_sink_callbacks)
-    {
-        bt_av_sink_callbacks = NULL;
-        if (bt_av_src_callbacks == NULL)
-            cleanup(BTA_A2DP_SINK_SERVICE_ID);
-    }
+    cleanup(BTA_A2DP_SINK_SERVICE_ID);
 }
 
 static void allow_connection(int is_valid, bt_bdaddr_t *bd_addr)
