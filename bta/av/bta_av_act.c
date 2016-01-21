@@ -1958,7 +1958,8 @@ tBTA_AV_FEAT bta_av_check_peer_features (UINT16 service_uuid)
                     }
                 }
             }
-#if SDP_AVRCP_1_5 == TRUE
+#if ((defined(SDP_AVRCP_1_6) && (SDP_AVRCP_1_6 == TRUE)) || \
+           (defined(SDP_AVRCP_1_5) && (SDP_AVRCP_1_5 == TRUE)))
             property_get("persist.service.bt.a2dp.sink", a2dp_role, "false");
             if (!strncmp("false", a2dp_role, 5)) {
                 if ((peer_rc_version >= AVRC_REV_1_4) &&

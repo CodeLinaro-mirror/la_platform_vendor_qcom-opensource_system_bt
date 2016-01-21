@@ -37,6 +37,9 @@
 #include <sys/ioctl.h>
 #endif
 
+
+#define EAGER_READER_THREAD_PRIORITY -19
+
 // Our interface and modules we import
 static const hci_hal_t interface;
 static const hci_hal_callbacks_t *callbacks;
@@ -112,6 +115,8 @@ static bool hal_open() {
   eager_reader_register(event_stream, thread_get_reactor(thread), event_event_stream_has_bytes, NULL);
   eager_reader_register(acl_stream, thread_get_reactor(thread), event_acl_stream_has_bytes, NULL);
 
+  thread_set_priority(eager_reader_get_read_thread(event_stream), EAGER_READER_THREAD_PRIORITY);
+  thread_set_priority(eager_reader_get_read_thread(acl_stream), EAGER_READER_THREAD_PRIORITY);
   return true;
 
 error:;
