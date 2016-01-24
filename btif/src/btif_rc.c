@@ -1715,6 +1715,12 @@ void handle_rc_browsemsg_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg)
                     btif_rc_cb.rc_player_list_query_in_progress = FALSE;
                     HAL_CBACK(bt_rc_ctrl_callbacks, available_players_update_cb,
                             &remote_addr, &folder_entries);
+                    if (btif_rc_cb.rc_addressed_player_id != 0)
+                    {
+                        HAL_CBACK(bt_rc_ctrl_callbacks, addressed_player_update_cb,
+                                  &remote_addr, btif_rc_cb.rc_addressed_player_id,
+                                  0); // TODO find out correct uid counter.
+                    }
                     /* For browsing capable devices, this is treated as RC
                      * procedure completion.
                      * For subsequent updates of available players, initialization
@@ -4868,6 +4874,7 @@ static void handle_notification_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_REG
                 break;
 
             case AVRC_EVT_ADDR_PLAYER_CHANGE:
+                if (btif_rc_cb.rc_addressed_player_id != p_rsp->param.addr_player.player_id)
                 {
                     btif_rc_cb.rc_addressed_player_id = p_rsp->param.addr_player.player_id;
                     HAL_CBACK(bt_rc_ctrl_callbacks, addressed_player_update_cb,
