@@ -250,7 +250,6 @@ static int  uinput_driver_check();
 static int  uinput_create(char *name);
 static int  init_uinput (void);
 static void close_uinput (void);
-static BOOLEAN dev_blacklisted_for_absolute_volume(BD_ADDR peer_dev);
 #if (AVRC_CTLR_INCLUDED == TRUE)
 static BOOLEAN conn_status = FALSE;
 #endif
@@ -582,12 +581,6 @@ void handle_rc_features()
         BTIF_TRACE_DEBUG("AVDTP Address : %s AVCTP address: %s",
                          bdaddr_to_string(&avdtp_addr, &addr1, sizeof(bdstr_t)),
                          bdaddr_to_string(&rc_addr, &addr2, sizeof(bdstr_t)) );
-
-        if (dev_blacklisted_for_absolute_volume(btif_rc_cb.rc_addr) ||
-            bdcmp(avdtp_addr.address, rc_addr.address))
-        {
-            btif_rc_cb.rc_features &= ~BTA_AV_FEAT_ADV_CTRL;
-        }
 
         if (btif_rc_cb.rc_features & BTA_AV_FEAT_BROWSE)
         {
@@ -6916,44 +6909,4 @@ void lbl_destroy()
         device.lbllock_destroyed = TRUE;
         BTIF_TRACE_EVENT(" %s: lbllock destroy success ", __FUNCTION__);
     }
-}
-
-/*******************************************************************************
-**      Function       dev_blacklisted_for_absolute_volume
-**
-**      Description    Blacklist Devices that donot handle absolute volume well
-**                     We are blacklisting all the devices that are not in whitelist
-**
-**      Returns        True if the device is in the list
-*******************************************************************************/
-static BOOLEAN dev_blacklisted_for_absolute_volume(BD_ADDR peer_dev)
-{
-    int i;
-    char *dev_name_str = NULL;
-    int whitelist_size = sizeof(rc_white_addr_prefix)/sizeof(rc_white_addr_prefix[0]);
-
-    for (i = 0; i < whitelist_size; i++) {
-        if (rc_white_addr_prefix[i][0] == peer_dev[0] &&
-            rc_white_addr_prefix[i][1] == peer_dev[1] &&
-            rc_white_addr_prefix[i][2] == peer_dev[2]) {
-            BTIF_TRACE_DEBUG("whitelist absolute volume for %02x:%02x:%02x",
-                              peer_dev[0], peer_dev[1], peer_dev[2]);
-            return FALSE;
-        }
-    }
-
-    dev_name_str = BTM_SecReadDevName(peer_dev);
-    whitelist_size = sizeof(rc_white_name)/sizeof(char*);
-    if (dev_name_str != NULL) {
-        for (i = 0; i < whitelist_size; i++) {
-            if (strcmp(dev_name_str, rc_white_name[i]) == 0) {
-                BTIF_TRACE_DEBUG("whitelist absolute volume for %s", dev_name_str);
-                return FALSE;
-            }
-        }
-    }
-
-    BTIF_TRACE_WARNING("blacklist absolute volume for %02x:%02x:%02x, name = %s",
-                        peer_dev[0], peer_dev[1], peer_dev[2], dev_name_str);
-    return TRUE;
 }
