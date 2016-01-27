@@ -194,6 +194,7 @@ enum {
 #define MAX_2MBPS_AVDTP_MTU         663
 
 #define USEC_PER_SEC 1000000L
+#define MSEC_PER_SEC 1000L
 #define TPUT_STATS_INTERVAL_US (3000*1000)
 
 /*
@@ -368,6 +369,13 @@ static UINT64 time_now_us()
     struct timespec ts_now;
     clock_gettime(CLOCK_BOOTTIME, &ts_now);
     return ((UINT64)ts_now.tv_sec * USEC_PER_SEC) + ((UINT64)ts_now.tv_nsec / 1000);
+}
+
+static UINT64 time_now_ms()
+{
+    struct timespec ts_now;
+    clock_gettime(CLOCK_BOOTTIME, &ts_now);
+    return ((UINT64)ts_now.tv_sec * MSEC_PER_SEC) + ((UINT64)ts_now.tv_nsec / 1000000);
 }
 
 static void log_tstamps_us(char *comment)
@@ -1192,6 +1200,8 @@ void btif_a2dp_set_audio_focus_state(btif_media_audio_focus_state state)
 #if defined(AAC_DECODER_INCLUDED) && (AAC_DECODER_INCLUDED == TRUE)
 static void process_aac_packets()
 {
+    UINT64 start_tick_ms = 0;
+    UINT64 elapsed_ms = 0;
     if (0 == GKI_queue_length(&btif_media_cb.RxAaQ))
     {
         APPL_TRACE_VERBOSE("Sink Rx Aaq Empty");
@@ -1200,6 +1210,7 @@ static void process_aac_packets()
     if (btif_media_cb.rx_flush == TRUE)
     {
         btif_media_flush_q(&(btif_media_cb.RxAaQ));
+        APPL_TRACE_ERROR(" Flushing packets ");
         return;
     }
 #ifdef USE_AUDIO_TRACK
@@ -1221,7 +1232,7 @@ static void process_aac_packets()
             break;
         }
 #endif
-
+    start_tick_ms = time_now_ms();
     do
     {
         BT_HDR *p_msg;
@@ -1250,7 +1261,8 @@ static void process_aac_packets()
             APPL_TRACE_ERROR("Sink decode: Residual data after decode");
             break;
         }
-    }while(GKI_queue_length(&btif_media_cb.RxAaQ));
+        elapsed_ms = time_now_ms() - start_tick_ms;
+    }while(GKI_queue_length(&btif_media_cb.RxAaQ) && (elapsed_ms < 40));
 }
 #endif
 
@@ -1298,26 +1310,6 @@ static void btif_media_task_avk_handle_timer(UNUSED_ATTR void *context)
             btif_media_flush_q(&(btif_media_cb.RxSbcQ));
             return;
         }
-
-#ifdef USE_AUDIO_TRACK
-        switch(btif_media_cb.rx_audio_focus_state)
-        {
-            /* Don't Do anything in case of Idle, Requested */
-            case BTIF_MEIDA_FOCUS_REQUESTED:
-            case BTIF_MEDIA_FOCUS_IDLE:
-                return;
-            break;
-            /* In case of Ready, request for focus and wait to move in granted */
-            case BTIF_MEIDA_FOCUS_READY:
-                btif_queue_focus_rquest();
-                btif_media_cb.rx_audio_focus_state = BTIF_MEIDA_FOCUS_REQUESTED;
-                return;
-            break;
-            /* play only in this case */
-            case BTIF_MEIDA_FOCUS_GRANTED:
-            break;
-        }
-#endif
 
         num_frames_to_process = btif_media_cb.frames_to_process;
         APPL_TRACE_DEBUG(" Process Frames + ");

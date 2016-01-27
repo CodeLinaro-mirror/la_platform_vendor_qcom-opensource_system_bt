@@ -1055,7 +1055,7 @@ void bta_av_rc_msg(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 #if (AVRC_CTLR_INCLUDED == TRUE)
             else if (((p_data->rc_msg.msg.pass.op_id == AVRC_ID_VOL_UP)||
                       (p_data->rc_msg.msg.pass.op_id == AVRC_ID_VOL_DOWN))&&
-                     ((property_get("bluetooth.pts.avrcp_ct.support", value, "false"))&&
+                     ((property_get("persist.bt.avrcp_ct.vol", value, "false"))&&
                       (!strcmp(value, "true"))))
             {
                 p_data->rc_msg.msg.hdr.ctype = BTA_AV_RSP_ACCEPT;
