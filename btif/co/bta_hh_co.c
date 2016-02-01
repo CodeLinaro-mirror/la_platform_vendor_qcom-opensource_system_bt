@@ -168,7 +168,6 @@ static void remove_digitizer_descriptor(UINT8 **data, UINT16 *length)
         }
     }
 }
-
 void uhid_set_non_blocking(int fd)
 {
     int opts = fcntl(fd, F_GETFL);

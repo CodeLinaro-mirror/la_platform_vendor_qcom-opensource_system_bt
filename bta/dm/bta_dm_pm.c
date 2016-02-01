@@ -317,6 +317,7 @@ static void bta_dm_pm_stop_timer_by_index(tBTA_PM_TIMER *p_timer,
 
     assert(p_timer->in_use && (p_timer->active > 0));
 
+    APPL_TRACE_DEBUG("%s: id: %d", __func__, timer_idx);
     bta_sys_stop_timer(&p_timer->timer[timer_idx]);
     p_timer->srvc_id[timer_idx] = BTA_ID_MAX;
     /* NOTE: pm_action[timer_idx] intentionally not reset */

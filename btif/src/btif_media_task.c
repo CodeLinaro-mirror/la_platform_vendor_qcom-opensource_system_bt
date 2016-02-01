@@ -438,7 +438,7 @@ static const char* dump_a2dp_ctrl_event(UINT8 event)
 
 static void btif_audiopath_detached(void)
 {
-    APPL_TRACE_EVENT("## AUDIO PATH DETACHED ##");
+    APPL_TRACE_IMP("## AUDIO PATH DETACHED ##");
 
     /*  send stop request only if we are actively streaming and haven't received
         a stop request. Potentially audioflinger detached abnormally */
@@ -453,7 +453,7 @@ static void a2dp_cmd_acknowledge(int status)
 {
     UINT8 ack = status;
 
-    APPL_TRACE_EVENT("## a2dp ack : %s, status %d ##",
+    APPL_TRACE_IMP("## a2dp ack : %s, status %d ##",
           dump_a2dp_ctrl_event(btif_media_cb.a2dp_cmd_pending), status);
 
     /* sanity check */
@@ -480,7 +480,7 @@ static void btif_recv_ctrl_data(void)
     /* detach on ctrl channel means audioflinger process was terminated */
     if (n == 0)
     {
-        APPL_TRACE_EVENT("CTRL CH DETACHED");
+        APPL_TRACE_IMP("CTRL CH DETACHED");
         UIPC_Close(UIPC_CH_ID_AV_CTRL);
         /* we can operate only on datachannel, if af client wants to
            do send additional commands the ctrl channel would be reestablished */
@@ -488,7 +488,7 @@ static void btif_recv_ctrl_data(void)
         return;
     }
 
-    APPL_TRACE_DEBUG("a2dp-ctrl-cmd : %s", dump_a2dp_ctrl_event(cmd));
+    APPL_TRACE_IMP("a2dp-ctrl-cmd : %s", dump_a2dp_ctrl_event(cmd));
 
     btif_media_cb.a2dp_cmd_pending = cmd;
 
@@ -602,14 +602,14 @@ static void btif_recv_ctrl_data(void)
             a2dp_cmd_acknowledge(A2DP_CTRL_ACK_FAILURE);
             break;
     }
-    APPL_TRACE_DEBUG("a2dp-ctrl-cmd : %s DONE", dump_a2dp_ctrl_event(cmd));
+    APPL_TRACE_IMP("a2dp-ctrl-cmd : %s DONE", dump_a2dp_ctrl_event(cmd));
 }
 
 static void btif_a2dp_ctrl_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event)
 {
     UNUSED(ch_id);
 
-    APPL_TRACE_DEBUG("A2DP-CTRL-CHANNEL EVENT %s", dump_uipc_event(event));
+    APPL_TRACE_IMP("A2DP-CTRL-CHANNEL EVENT %s", dump_uipc_event(event));
 
     switch(event)
     {
@@ -788,7 +788,7 @@ bool btif_a2dp_start_media_task(void)
         return false;
     }
 
-    APPL_TRACE_EVENT("## A2DP START MEDIA THREAD ##");
+    APPL_TRACE_IMP("## A2DP START MEDIA THREAD ##");
 
     btif_media_cmd_msg_queue = fixed_queue_new(SIZE_MAX);
 
@@ -804,7 +804,7 @@ bool btif_a2dp_start_media_task(void)
 
     thread_post(worker_thread, btif_media_thread_init, NULL);
 
-    APPL_TRACE_EVENT("## A2DP MEDIA THREAD STARTED ##");
+    APPL_TRACE_IMP("## A2DP MEDIA THREAD STARTED ##");
 
     return true;
 
@@ -815,7 +815,7 @@ bool btif_a2dp_start_media_task(void)
 
 void btif_a2dp_stop_media_task(void)
 {
-    APPL_TRACE_EVENT("## A2DP STOP MEDIA THREAD ##");
+    APPL_TRACE_IMP("## A2DP STOP MEDIA THREAD ##");
 
     // Stop timer
     alarm_free(btif_media_cb.media_alarm);
@@ -906,7 +906,7 @@ tBTIF_STATUS btif_a2dp_setup_codec(void)
 
 void btif_a2dp_on_idle(void)
 {
-    APPL_TRACE_EVENT("## ON A2DP IDLE ##");
+    APPL_TRACE_IMP("## ON A2DP IDLE ##");
     if (btif_media_cb.peer_sep == AVDT_TSEP_SNK)
     {
         /* Make sure media task is stopped */
@@ -941,7 +941,7 @@ void btif_a2dp_on_idle(void)
 
 void btif_a2dp_on_open(void)
 {
-    APPL_TRACE_EVENT("## ON A2DP OPEN ##");
+    APPL_TRACE_IMP("## ON A2DP OPEN ##");
 
     /* always use callback to notify socket events */
     UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
@@ -967,7 +967,8 @@ BOOLEAN btif_media_task_clear_track(void)
 
     p_buf->event = BTIF_MEDIA_AUDIO_SINK_CLEAR_TRACK;
 
-    fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
+    if (btif_media_cmd_msg_queue != NULL)
+        fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
     return TRUE;
 }
 
@@ -998,7 +999,8 @@ void btif_reset_decoder(UINT8 *p_av)
     memcpy(p_buf->codec_info,p_av, AVDT_CODEC_SIZE);
     p_buf->hdr.event = BTIF_MEDIA_AUDIO_SINK_CFG_UPDATE;
 
-    fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
+    if (btif_media_cmd_msg_queue != NULL)
+        fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
 }
 
 /*****************************************************************************
@@ -1015,7 +1017,7 @@ BOOLEAN btif_a2dp_on_started(tBTA_AV_START *p_av, BOOLEAN pending_start)
 {
     BOOLEAN ack = FALSE;
 
-    APPL_TRACE_EVENT("## ON A2DP STARTED ##");
+    APPL_TRACE_IMP("## ON A2DP STARTED ##");
 
     if (p_av == NULL)
     {
@@ -1066,7 +1068,7 @@ BOOLEAN btif_a2dp_on_started(tBTA_AV_START *p_av, BOOLEAN pending_start)
 
 void btif_a2dp_ack_fail(void)
 {
-    APPL_TRACE_EVENT("## A2DP_CTRL_ACK_FAILURE ##");
+    APPL_TRACE_IMP("## A2DP_CTRL_ACK_FAILURE ##");
     a2dp_cmd_acknowledge(A2DP_CTRL_ACK_FAILURE);
 }
 
@@ -1082,7 +1084,7 @@ void btif_a2dp_ack_fail(void)
 
 void btif_a2dp_on_stopped(tBTA_AV_SUSPEND *p_av)
 {
-    APPL_TRACE_EVENT("## ON A2DP STOPPED ##");
+    APPL_TRACE_IMP("## ON A2DP STOPPED ##");
     if (btif_media_cb.peer_sep == AVDT_TSEP_SRC) /*  Handling for A2DP SINK cases*/
     {
         btif_media_cb.rx_flush = TRUE;
@@ -1130,7 +1132,7 @@ void btif_a2dp_on_stopped(tBTA_AV_SUSPEND *p_av)
 
 void btif_a2dp_on_suspended(tBTA_AV_SUSPEND *p_av)
 {
-    APPL_TRACE_EVENT("## ON A2DP SUSPENDED ##");
+    APPL_TRACE_IMP("## ON A2DP SUSPENDED ##");
     if (btif_media_cb.peer_sep == AVDT_TSEP_SRC)
     {
         btif_media_cb.rx_flush = TRUE;
@@ -1390,6 +1392,7 @@ static void btif_media_task_aa_handle_uipc_rx_rdy(void)
 #endif
 
 static void btif_media_thread_init(UNUSED_ATTR void *context) {
+  APPL_TRACE_IMP(" btif_media_thread_init");
   memset(&btif_media_cb, 0, sizeof(btif_media_cb));
   UIPC_Init(NULL);
 
@@ -1402,6 +1405,7 @@ static void btif_media_thread_init(UNUSED_ATTR void *context) {
 }
 
 static void btif_media_thread_cleanup(UNUSED_ATTR void *context) {
+  APPL_TRACE_IMP(" btif_media_thread_cleanup");
   /* make sure no channels are restarted while shutting down */
   media_task_running = MEDIA_TASK_STATE_SHUTTING_DOWN;
 
@@ -1431,7 +1435,8 @@ BOOLEAN btif_media_task_send_cmd_evt(UINT16 Evt)
 
     p_buf->event = Evt;
 
-    fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
+    if (btif_media_cmd_msg_queue != NULL)
+        fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
     return TRUE;
 }
 
@@ -1455,7 +1460,7 @@ static void btif_media_flush_q(BUFFER_Q *p_q)
 static void btif_media_thread_handle_cmd(fixed_queue_t *queue, UNUSED_ATTR void *context)
 {
     BT_HDR *p_msg = (BT_HDR *)fixed_queue_dequeue(queue);
-    LOG_VERBOSE("btif_media_thread_handle_cmd : %d %s", p_msg->event,
+    APPL_TRACE_IMP("btif_media_thread_handle_cmd : %d %s", p_msg->event,
              dump_media_event(p_msg->event));
 
     switch (p_msg->event)
@@ -1508,7 +1513,7 @@ static void btif_media_thread_handle_cmd(fixed_queue_t *queue, UNUSED_ATTR void 
         APPL_TRACE_ERROR("ERROR in %s unknown event %d", __func__, p_msg->event);
     }
     GKI_freebuf(p_msg);
-    LOG_VERBOSE("%s: %s DONE", __func__, dump_media_event(p_msg->event));
+    APPL_TRACE_IMP("%s: %s DONE", __func__, dump_media_event(p_msg->event));
 }
 
 #if (BTA_AV_SINK_INCLUDED == TRUE)
@@ -1599,7 +1604,8 @@ BOOLEAN btif_media_task_enc_init_req(tBTIF_MEDIA_INIT_AUDIO *p_msg)
     memcpy(p_buf, p_msg, sizeof(tBTIF_MEDIA_INIT_AUDIO));
     p_buf->hdr.event = BTIF_MEDIA_SBC_ENC_INIT;
 
-    fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
+    if (btif_media_cmd_msg_queue != NULL)
+        fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
     return TRUE;
 }
 
@@ -1623,7 +1629,8 @@ BOOLEAN btif_media_task_enc_update_req(tBTIF_MEDIA_UPDATE_AUDIO *p_msg)
     memcpy(p_buf, p_msg, sizeof(tBTIF_MEDIA_UPDATE_AUDIO));
     p_buf->hdr.event = BTIF_MEDIA_SBC_ENC_UPDATE;
 
-    fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
+    if (btif_media_cmd_msg_queue != NULL)
+        fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
     return TRUE;
 }
 
@@ -1647,7 +1654,8 @@ BOOLEAN btif_media_task_audio_feeding_init_req(tBTIF_MEDIA_INIT_AUDIO_FEEDING *p
     memcpy(p_buf, p_msg, sizeof(tBTIF_MEDIA_INIT_AUDIO_FEEDING));
     p_buf->hdr.event = BTIF_MEDIA_AUDIO_FEEDING_INIT;
 
-    fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
+    if (btif_media_cmd_msg_queue != NULL)
+        fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
     return TRUE;
 }
 
@@ -1671,7 +1679,8 @@ BOOLEAN btif_media_task_start_aa_req(void)
 
     p_buf->event = BTIF_MEDIA_START_AA_TX;
 
-    fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
+    if (btif_media_cmd_msg_queue != NULL)
+        fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
     return TRUE;
 }
 
@@ -1736,7 +1745,8 @@ BOOLEAN btif_media_task_aa_rx_flush_req(void)
 
     p_buf->event = BTIF_MEDIA_FLUSH_AA_RX;
 
-    fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
+    if (btif_media_cmd_msg_queue != NULL)
+        fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
     return TRUE;
 }
 
@@ -2463,7 +2473,7 @@ static void btif_media_task_alarm_cb(UNUSED_ATTR void *context) {
  *******************************************************************************/
 static void btif_media_task_aa_start_tx(void)
 {
-    APPL_TRACE_DEBUG("btif_media_task_aa_start_tx is timer %d, feeding mode %d",
+    APPL_TRACE_IMP("btif_media_task_aa_start_tx is timer %d, feeding mode %d",
              btif_media_cb.is_tx_timer, btif_media_cb.feeding_mode);
 
     /* Use a timer to poll the UIPC, get rid of the UIPC call back */
@@ -2499,7 +2509,7 @@ static void btif_media_task_aa_start_tx(void)
  *******************************************************************************/
 static void btif_media_task_aa_stop_tx(void)
 {
-    APPL_TRACE_DEBUG("%s is_tx_timer: %d", __func__, btif_media_cb.is_tx_timer);
+    APPL_TRACE_IMP("%s is_tx_timer: %d", __func__, btif_media_cb.is_tx_timer);
 
     const bool send_ack = (btif_media_cb.is_tx_timer != FALSE);
 

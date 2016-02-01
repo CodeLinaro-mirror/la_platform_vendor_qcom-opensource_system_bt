@@ -1230,7 +1230,6 @@ static void bte_av_media_callback(tBTA_AV_EVT event, tBTA_AV_MEDIA *p_data)
 
     if (event == BTA_AV_MEDIA_DATA_EVT)/* Switch to BTIF_MEDIA context */
     {
-        state= btif_sm_get_state(btif_av_cb.sm_handle);
         if ( (state == BTIF_AV_STATE_STARTED) || /* send SBC packets only in Started State */
              (state == BTIF_AV_STATE_OPENED) )
         {
@@ -1319,7 +1318,6 @@ bt_status_t btif_av_init(int service_id)
 ** Function         init_src
 **
 ** Description      Initializes the AV interface for source mode
-**
 ** Returns          bt_status_t
 **
 *******************************************************************************/
@@ -1487,7 +1485,8 @@ static void cleanup(int service_uuid)
 {
     BTIF_TRACE_IMP("AV %s", __FUNCTION__);
 
-    btif_transfer_context(btif_av_handle_event, BTIF_AV_CLEANUP_REQ_EVT, NULL, 0, NULL);
+    btif_transfer_context(btif_av_handle_event, BTIF_AV_CLEANUP_REQ_EVT,
+            (char*)&service_uuid, sizeof(int), NULL);
 
     btif_disable_service(service_uuid);
 
@@ -1641,8 +1640,10 @@ BOOLEAN btif_av_stream_started_ready(void)
 void btif_dispatch_sm_event(btif_av_sm_event_t event, void *p_data, int len)
 {
     /* Switch to BTIF context */
+    BTIF_TRACE_IMP("%s: event: %d, len: %d", __FUNCTION__, event, len);
     btif_transfer_context(btif_av_handle_event, event,
                           (char*)p_data, len, NULL);
+    BTIF_TRACE_IMP("%s: event %d sent", __FUNCTION__, event);
 }
 
 /*******************************************************************************
