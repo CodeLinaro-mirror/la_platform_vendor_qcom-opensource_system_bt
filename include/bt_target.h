@@ -473,7 +473,10 @@
 
 /* The default scan mode */
 #ifndef BTM_DEFAULT_SCAN_TYPE
-#define BTM_DEFAULT_SCAN_TYPE       BTM_SCAN_TYPE_INTERLACED
+#define BTM_DEFAULT_SCAN_TYPE       BTM_SCAN_TYPE_STANDARD
+#else
+#undef BTM_DEFAULT_SCAN_TYPE
+#define BTM_DEFAULT_SCAN_TYPE       BTM_SCAN_TYPE_STANDARD
 #endif
 
 /* Should connections to unknown devices be allowed when not discoverable? */
