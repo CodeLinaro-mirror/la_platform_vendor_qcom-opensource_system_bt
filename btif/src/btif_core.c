@@ -654,6 +654,11 @@ bt_status_t btif_disable_bluetooth(void)
     btif_pan_cleanup();
     BTA_DisableBluetooth();
 
+#if (BLE_INCLUDED == TRUE)
+     BTA_VendorCleanup();
+     BTA_StopBleTimers();
+#endif
+
     return BT_STATUS_SUCCESS;
 }
 
@@ -679,11 +684,6 @@ void btif_disable_bluetooth_evt(void)
     }
 #if (defined(HCILP_INCLUDED) && HCILP_INCLUDED == TRUE)
     bte_main_enable_lpm(FALSE);
-#endif
-
-#if (BLE_INCLUDED == TRUE)
-     BTA_VendorCleanup();
-     BTA_StopBleTimers();
 #endif
 
      bte_main_disable();
