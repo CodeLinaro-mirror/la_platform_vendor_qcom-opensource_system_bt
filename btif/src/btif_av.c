@@ -1230,6 +1230,7 @@ static void bte_av_media_callback(tBTA_AV_EVT event, tBTA_AV_MEDIA *p_data)
 
     if (event == BTA_AV_MEDIA_DATA_EVT)/* Switch to BTIF_MEDIA context */
     {
+        state= btif_sm_get_state(btif_av_cb.sm_handle);
         if ( (state == BTIF_AV_STATE_STARTED) || /* send SBC packets only in Started State */
              (state == BTIF_AV_STATE_OPENED) )
         {
