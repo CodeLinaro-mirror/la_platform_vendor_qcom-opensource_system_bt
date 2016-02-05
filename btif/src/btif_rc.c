@@ -4732,6 +4732,11 @@ static void handle_get_capability_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_G
                     BTIF_TRACE_ERROR("%s Unknown event: 0x%02X", __FUNCTION__, p_rsp->param.event_id[xx]);
             }
         }
+        if (list_is_empty(btif_rc_cb.rc_supported_event_list))
+        {
+            BTIF_TRACE_IMP(" Supported event list Empty, returning");
+            return;
+        }
         p_event = list_front(btif_rc_cb.rc_supported_event_list);
         if (p_event != NULL)
         {
