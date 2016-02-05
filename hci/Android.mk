@@ -29,6 +29,7 @@ endif
 
 ifeq ($(TARGET_BUILD_VARIANT), userdebug)
     LOCAL_CFLAGS += -DBTSNOOP_DEFAULT=TRUE
+    LOCAL_CFLAGS += -DBT_NET_DEBUG=TRUE
 endif
 
 LOCAL_CFLAGS += -std=c99 $(bdroid_CFLAGS)
