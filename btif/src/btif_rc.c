@@ -5187,21 +5187,7 @@ static void handle_app_val_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_LIST_APP
         }
         attr_index++;
         p_app_settings->ext_attr_index++;
-        if (attr_index < p_app_settings->num_ext_attrs)
-        {
-            list_player_app_setting_value_cmd (p_app_settings->ext_attrs[p_app_settings->ext_attr_index].attr_id);
-        }
-        else
-        {
-            UINT8 attr[AVRC_MAX_APP_ATTR_SIZE];
-            UINT8 xx;
-
-            for (xx = 0; xx < p_app_settings->num_ext_attrs; xx++)
-            {
-                attr[xx] = p_app_settings->ext_attrs[xx].attr_id;
-            }
-            get_player_app_setting_attr_text_cmd(attr, xx);
-        }
+        list_player_app_setting_value_cmd (p_app_settings->ext_attrs[p_app_settings->ext_attr_index].attr_id);
     }
 }
 
@@ -6406,7 +6392,24 @@ static bt_status_t get_media_element_attributes (bt_bdaddr_t *bd_addr, uint8_t n
             uint32_t *p_attr_ids)
 {
     btif_rc_cb.rc_element_attr_app_req = TRUE;
-    return get_element_attribute_cmd(num_attrib, p_attr_ids);
+    char send_item[PROPERTY_VALUE_MAX] = "false";
+    property_get("persist.bt.avrcp_ct.sendItem", send_item, "false");
+    if (strncmp("false", send_item, 5))
+    {
+        BTIF_TRACE_ERROR("%s: num_id = %d ", __FUNCTION__, num_attrib);
+        if (num_attrib != 0) {
+            uint32_t attr_ids[2];
+            attr_ids[0] = 1;
+            attr_ids[0] = 8;
+            UINT64 uid = p_attr_ids[2]; uid = uid <<32; uid = uid | p_attr_ids[2];
+            get_item_attributes (btif_rc_cb.rc_addr,
+                    p_attr_ids[1],
+                    p_attr_ids[0], uid,
+                    2, attr_ids);
+            return BT_STATUS_SUCCESS;
+        }
+    }
+        return get_element_attribute_cmd(num_attrib, p_attr_ids);
 }
 
 /***************************************************************************
@@ -6639,7 +6642,7 @@ static bt_status_t send_passthrough_cmd(bt_bdaddr_t *bd_addr, uint8_t key_code, 
     char avrcp_pts[PROPERTY_VALUE_MAX] = "false";
     CHECK_RC_CONNECTED
 
-    property_get("persist.bt.avrcp.pts", avrcp_pts, "false");
+    property_get("persist.bt.avrcp_ct.ps.pts", avrcp_pts, "false");
     if (strncmp("false", avrcp_pts, 5))
     {
         // PTS property is set
