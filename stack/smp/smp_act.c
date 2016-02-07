@@ -1452,10 +1452,12 @@ void smp_pairing_cmpl(tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
 {
     if (p_cb->total_tx_unacked == 0)
     {
+        BD_ADDR bd_addr;
+        memcpy(bd_addr,p_cb->pairing_bda, BD_ADDR_LEN);
         /* process the pairing complete */
         smp_proc_pairing_cmpl(p_cb);
         /* update connection parameter to remote preferred */
-        L2CA_EnableUpdateBleConnParams(p_cb->pairing_bda, TRUE);
+        L2CA_EnableUpdateBleConnParams(bd_addr, TRUE);
     }
 }
 
