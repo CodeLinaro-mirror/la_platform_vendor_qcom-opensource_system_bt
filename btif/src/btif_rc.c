@@ -1790,7 +1790,8 @@ void handle_rc_browsemsg_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg)
                         &remote_addr, avrc_rsp.br_player.status,
                         avrc_rsp.br_player.uid_counter);
 
-                if (avrc_rsp.br_player.folder_depth > 0)
+                if ((avrc_rsp.br_player.folder_depth > 0) &&
+                                     (avrc_rsp.br_player.p_folders != NULL))
                 {
                     /* Free dynamically allocated memory after usage */
                     for (index = 0; index < avrc_rsp.br_player.folder_depth; index++)
@@ -5173,7 +5174,8 @@ static void handle_app_val_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_LIST_APP
         }
         else
         {
-            for (xx = 0; xx < p_app_settings->num_attrs; xx++)
+            for (xx = 0; ((xx < AVRC_MAX_APP_ATTR_SIZE)&&
+                                     (xx < p_app_settings->num_attrs)); xx++)
             {
                 attrs[xx] = p_app_settings->attrs[xx].attr_id;
             }
@@ -5277,7 +5279,8 @@ static void handle_app_attr_txt_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_GET
         }
         p_app_settings->ext_attr_index = 0;
 
-        for (xx = 0; xx < p_app_settings->num_attrs; xx++)
+        for (xx = 0; ((xx < AVRC_MAX_APP_ATTR_SIZE)&&
+                             (xx < p_app_settings->num_attrs)); xx++)
         {
             attrs[xx] = p_app_settings->attrs[xx].attr_id;
         }
@@ -5303,10 +5306,12 @@ static void handle_app_attr_txt_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_GET
         }
     }
 
-    for (xx = 0; xx < p_app_settings->ext_attrs[0].num_val; xx++)
+    for (xx = 0; ((xx < AVRC_MAX_APP_ATTR_SIZE) &&
+                           (xx < p_app_settings->ext_attrs[0].num_val)); xx++)
     {
         vals[xx] = p_app_settings->ext_attrs[0].ext_attr_val[xx].val;
     }
+
     get_player_app_setting_value_text_cmd(vals, xx);
 }
 
@@ -5358,7 +5363,8 @@ static void handle_app_attr_val_txt_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC
         }
         p_app_settings->ext_attr_index = 0;
 
-        for (xx = 0; xx < p_app_settings->num_attrs; xx++)
+        for (xx = 0; ((xx < AVRC_MAX_APP_ATTR_SIZE)&&
+                (xx < p_app_settings->num_attrs)); xx++)
         {
             attrs[xx] = p_app_settings->attrs[xx].attr_id;
         }
@@ -5390,7 +5396,8 @@ static void handle_app_attr_val_txt_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC
     if (p_app_settings->ext_val_index < p_app_settings->num_ext_attrs)
     {
         attr_index = p_app_settings->ext_val_index;
-        for (xx = 0; xx < p_app_settings->ext_attrs[attr_index].num_val; xx++)
+        for (xx = 0; ((xx < AVRC_MAX_APP_ATTR_SIZE)&&
+                  (xx < p_app_settings->ext_attrs[attr_index].num_val)); xx++)
         {
             vals[xx] = p_app_settings->ext_attrs[attr_index].ext_attr_val[xx].val;
         }
@@ -5400,11 +5407,13 @@ static void handle_app_attr_val_txt_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC
     {
         UINT8 x;
 
-        for (xx = 0; xx < p_app_settings->num_attrs; xx++)
+        for (xx = 0; ((xx < AVRC_MAX_APP_ATTR_SIZE) &&
+                               (xx < p_app_settings->num_attrs)); xx++)
         {
             attrs[xx] = p_app_settings->attrs[xx].attr_id;
         }
-        for (x = 0; x < p_app_settings->num_ext_attrs; x++)
+        for (x = 0; ((xx + x < AVRC_MAX_APP_ATTR_SIZE) &&
+                           (x < p_app_settings->num_ext_attrs)); x++)
         {
             attrs[xx+x] = p_app_settings->ext_attrs[x].attr_id;
         }
@@ -6175,7 +6184,7 @@ static bt_status_t get_player_app_setting_attr_text_cmd (UINT8 *attrs, UINT8 num
         avrc_cmd.get_app_attr_txt.attrs[count] = attrs[count];
     }
     status = AVRC_BldCommand(&avrc_cmd, &p_msg);
-    if (status == AVRC_STS_NO_ERROR)
+    if ((status == AVRC_STS_NO_ERROR)&&(p_msg != NULL))
     {
         UINT8* data_start = (UINT8*)(p_msg + 1) + p_msg->offset;
                 BTIF_TRACE_DEBUG("%s msgreq being sent out with label %d",
