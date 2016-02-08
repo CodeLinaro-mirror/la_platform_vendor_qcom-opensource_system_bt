@@ -2012,6 +2012,57 @@ void BTA_DmBleSetDataLength(BD_ADDR remote_device, UINT16 tx_data_length)
     }
 }
 
+/*******************************************************************************
+**
+** Function         BTA_DmBleSetPhy
+**
+** Description      This function is to set Tx and Rx Phy for a connection
+**
+** Returns          void
+**
+*******************************************************************************/
+void BTA_DmBleSetPhy(BD_ADDR remote_device, UINT8 all_phy, UINT8 tx_phy, UINT8 rx_phy)
+{
+    tBTA_DM_API_BLE_SET_PHY *p_msg;
+
+    if ((p_msg = (tBTA_DM_API_BLE_SET_PHY *)GKI_getbuf(sizeof(tBTA_DM_API_BLE_SET_PHY)))
+                  != NULL)
+    {
+        bdcpy(p_msg->remote_bda, remote_device);
+        p_msg->all_phy = all_phy;
+        p_msg->tx_phy = tx_phy;
+        p_msg->rx_phy = rx_phy;
+        p_msg->hdr.event = BTA_DM_API_SET_BLE_PHY_EVT;
+
+        bta_sys_sendmsg(p_msg);
+    }
+}
+
+/*******************************************************************************
+**
+** Function         BTA_DmBleSetDefaultPhy
+**
+** Description      This function is to set default Tx and Rx Phy
+**
+** Returns          void
+**
+*******************************************************************************/
+void BTA_DmBleSetDefaultPhy(UINT8 all_phy, UINT8 tx_phy, UINT8 rx_phy)
+{
+    tBTA_DM_API_BLE_SET_DEFAULT_PHY *p_msg;
+
+    if ((p_msg = (tBTA_DM_API_BLE_SET_DEFAULT_PHY *)GKI_getbuf(sizeof(tBTA_DM_API_BLE_SET_DEFAULT_PHY)))
+                  != NULL)
+    {
+        p_msg->all_phy = all_phy;
+        p_msg->tx_phy = tx_phy;
+        p_msg->rx_phy = rx_phy;
+        p_msg->hdr.event = BTA_DM_API_SET_DEFAULT_BLE_PHY_EVT;
+
+        bta_sys_sendmsg(p_msg);
+    }
+}
+
 #endif
 
 /*******************************************************************************
