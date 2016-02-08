@@ -4347,6 +4347,8 @@ static void rc_notification_interim_timout (UINT8 label)
     UINT32 cb_data;
 
     cb_data = label;
+    if(btif_rc_cb.rc_supported_event_list == NULL)
+        return;
     list_foreach_ext (btif_rc_cb.rc_supported_event_list,
                 iterate_supported_event_list_for_timeout, (void*)cb_data);
     /* Timeout happened for interim response for the registered event,
