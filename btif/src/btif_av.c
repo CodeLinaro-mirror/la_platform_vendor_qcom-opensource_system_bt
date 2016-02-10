@@ -1340,7 +1340,6 @@ bt_status_t btif_av_init(int service_id)
 ** Function         init_src
 **
 ** Description      Initializes the AV interface for source mode
-**
 ** Returns          bt_status_t
 **
 *******************************************************************************/
@@ -1651,8 +1650,10 @@ BOOLEAN btif_av_stream_started_ready(void)
 void btif_dispatch_sm_event(btif_av_sm_event_t event, void *p_data, int len)
 {
     /* Switch to BTIF context */
+    BTIF_TRACE_IMP("%s: event: %d, len: %d", __FUNCTION__, event, len);
     btif_transfer_context(btif_av_handle_event, event,
                           (char*)p_data, len, NULL);
+    BTIF_TRACE_IMP("%s: event %d sent", __FUNCTION__, event);
 }
 
 /*******************************************************************************

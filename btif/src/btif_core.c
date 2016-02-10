@@ -379,7 +379,6 @@ static bool fetch_vendor_addr (bt_bdaddr_t *local_addr)
     close(addr_fd);
     return status;
 }
-
 static bool btif_fetch_property(const char *key, bt_bdaddr_t *addr) {
     char val[PROPERTY_VALUE_MAX] = {0};
 
