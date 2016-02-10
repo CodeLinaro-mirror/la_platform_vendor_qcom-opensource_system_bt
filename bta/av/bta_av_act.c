@@ -2048,75 +2048,69 @@ tBTA_AV_FEAT bta_avk_check_peer_features (UINT16 service_uuid, UINT16 *p_psm)
 
     APPL_TRACE_DEBUG("bta_avk_check_peer_features service_uuid:x%x", service_uuid);
     /* loop through all records we found */
-    while (TRUE)
+    /* get next record; if none found, we're done */
+    if ((p_rec = SDP_FindServiceInDb(p_cb->p_disc_db, service_uuid, p_rec))
+          != NULL)
     {
-        /* get next record; if none found, we're done */
-        if ((p_rec = SDP_FindServiceInDb(p_cb->p_disc_db, service_uuid, p_rec)) == NULL)
-        {
-            break;
-        }
         APPL_TRACE_DEBUG(" found Service record for x%x", service_uuid);
+        if (service_uuid == UUID_SERVCLASS_AV_REMOTE_CONTROL)
+             peer_features |= BTA_AV_FEAT_RCCT;
+        else if(service_uuid == UUID_SERVCLASS_AV_REM_CTRL_TARGET)
+             peer_features |= BTA_AV_FEAT_RCTG;
 
-        if (( SDP_FindAttributeInRec(p_rec, ATTR_ID_SERVICE_CLASS_ID_LIST)) != NULL)
-        {
-            /* find peer features */
-            if (SDP_FindServiceInDb(p_cb->p_disc_db, UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL))
-            {
-                peer_features |= BTA_AV_FEAT_RCCT;
-            }
-            if (SDP_FindServiceInDb(p_cb->p_disc_db, UUID_SERVCLASS_AV_REM_CTRL_TARGET, NULL))
-            {
-                peer_features |= BTA_AV_FEAT_RCTG;
-            }
-        }
-        if (( p_attr = SDP_FindAttributeInRec(p_rec, ATTR_ID_ADDITION_PROTO_DESC_LISTS)) != NULL)
-        {
-            if (SDP_FindAvrcpCoverArtPSM (p_attr, p_psm) != TRUE)
-            {
-                *p_psm = 0;
-            }
-            APPL_TRACE_DEBUG("PSM for cover art obex l2cap channel 0x%04X", *p_psm);
-        }
+         if (( SDP_FindAttributeInRec(p_rec, ATTR_ID_BT_PROFILE_DESC_LIST))
+                       != NULL)
+         {
+             /*profile version (if failure, version parameter is not updated) */
+             val = SDP_FindProfileVersionInRec(p_rec,
+                       UUID_SERVCLASS_AV_REMOTE_CONTROL, &peer_rc_version);
+             APPL_TRACE_DEBUG("rc_version for TG 0x%x, profile_found %d",
+                                                     peer_rc_version, val);
 
-        if (( SDP_FindAttributeInRec(p_rec, ATTR_ID_BT_PROFILE_DESC_LIST)) != NULL)
-        {
-            /* get profile version (if failure, version parameter is not updated) */
-            val = SDP_FindProfileVersionInRec(p_rec, UUID_SERVCLASS_AV_REMOTE_CONTROL, &peer_rc_version);
-            APPL_TRACE_DEBUG("peer_rc_version for TG 0x%x, profile_found %d", peer_rc_version, val);
-
-            if (peer_rc_version >= AVRC_REV_1_3)
-                peer_features |= (BTA_AV_FEAT_VENDOR | BTA_AV_FEAT_METADATA);
-
-            if (*p_psm != 0)
-            {
-                peer_features |= BTA_AV_FEAT_COVER_ART;
-            }
-
-            /*
-             * Though Absolute Volume came after in 1.4 and above, but there are few devices
-             * in market which supports absolute Volume and they are still 1.3
-             * TO avoid IOT issuses with those devices, we check for 1.3 as minimum version
-             */
-            if (peer_rc_version >= AVRC_REV_1_3)
-            {
+             if ((peer_rc_version >= AVRC_REV_1_3) &&
+                    (service_uuid == UUID_SERVCLASS_AV_REM_CTRL_TARGET))
+             {
+                 peer_features |= (BTA_AV_FEAT_VENDOR | BTA_AV_FEAT_METADATA);
                 /* get supported categories */
-                if ((p_attr = SDP_FindAttributeInRec(p_rec,
-                                ATTR_ID_SUPPORTED_FEATURES)) != NULL)
-                {
-                    categories = p_attr->attr_value.v.u16;
-                    if (categories & AVRC_SUPF_CT_CAT2)
-                        peer_features |= (BTA_AV_FEAT_ADV_CTRL);
-                    /* get supported categories */
-                    if ((p_attr = SDP_FindAttributeInRec(p_rec,
-                                    ATTR_ID_SUPPORTED_FEATURES)) != NULL)
-                    {
-                        categories = p_attr->attr_value.v.u16;
-                        if (categories & AVRC_SUPF_CT_BROWSE)
+                 if ((p_attr = SDP_FindAttributeInRec(p_rec,
+                            ATTR_ID_SUPPORTED_FEATURES)) != NULL)
+                 {
+                     categories = p_attr->attr_value.v.u16;
+                     if (categories & AVRC_SUPF_CT_BROWSE)
                             peer_features |= (BTA_AV_FEAT_BROWSE);
-
-                        if (categories & AVRC_SUPF_CT_APP_SETTINGS)
+                     if (categories & AVRC_SUPF_CT_APP_SETTINGS)
                             peer_features |= (BTA_AV_FEAT_APP_SETTING);
-                    }
+                     if ((peer_rc_version >= AVRC_REV_1_6) &&
+                        (categories & AVRC_SUPF_TG_PLAYER_COVER_ART))
+                     {
+                        peer_features |= BTA_AV_FEAT_COVER_ART;
+                        if (( p_attr = SDP_FindAttributeInRec(p_rec, ATTR_ID_ADDITION_PROTO_DESC_LISTS)) != NULL)
+                        {
+                            if (SDP_FindAvrcpCoverArtPSM (p_attr, p_psm) != TRUE)
+                            {
+                                *p_psm = 0;
+                            }
+                            APPL_TRACE_DEBUG("PSM for cover art obex l2cap channel 0x%04X", *p_psm);
+                        }
+                     }
+                 }
+            }
+            /*
+             * Though Absolute Volume came after in 1.4 and above,
+             * but there are few devices in market which supports
+             * absoluteVolume and they are still 1.3 TO avoid IOT issuses with
+             * those devices, we check for 1.3 as minimum version
+             */
+            else if ((peer_rc_version >= AVRC_REV_1_3) &&
+                    (service_uuid == UUID_SERVCLASS_AV_REMOTE_CONTROL))
+            {
+                if ((p_attr = SDP_FindAttributeInRec(p_rec,
+                                    ATTR_ID_SUPPORTED_FEATURES)) != NULL) {
+                    categories = p_attr->attr_value.v.u16;
+                    if (categories & AVRC_SUPF_CT_CAT2) {
+                        APPL_TRACE_DEBUG(" Remote supports ABS Vol");
+                        peer_features |= (BTA_AV_FEAT_ADV_CTRL);
+                     }
                 }
             }
         }
@@ -2183,10 +2177,9 @@ void bta_av_rc_disc_done(tBTA_AV_DATA *p_data)
     if (p_cb->sdp_a2d_snk_handle)
     {
         /* This is Sink + CT + TG(Abs Vol) */
-        peer_features = bta_avk_check_peer_features(UUID_SERVCLASS_AV_REM_CTRL_TARGET, &cover_art_psm);
-        if (BTA_AV_FEAT_ADV_CTRL & bta_avk_check_peer_features(UUID_SERVCLASS_AV_REMOTE_CONTROL,
-                                                &cover_art_psm))
-            peer_features |= (BTA_AV_FEAT_ADV_CTRL|BTA_AV_FEAT_RCCT);
+        peer_features = bta_avk_check_peer_features(UUID_SERVCLASS_AV_REMOTE_CONTROL, &cover_art_psm);
+        peer_features |= bta_avk_check_peer_features(UUID_SERVCLASS_AV_REM_CTRL_TARGET, &cover_art_psm);
+        APPL_TRACE_DEBUG("final rc_features %x ", peer_features);
     }
     else if(p_cb->sdp_a2d_handle)
     {

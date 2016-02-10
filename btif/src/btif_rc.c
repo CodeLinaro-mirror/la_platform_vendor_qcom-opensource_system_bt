@@ -219,6 +219,7 @@ typedef struct {
     BOOLEAN                     rc_element_attr_app_req;
     BOOLEAN                     rc_player_list_query_in_progress;
     BOOLEAN                     rc_addressed_player_changed;
+    UINT16                      uid_counter;
 } btif_rc_cb_t;
 
 typedef struct {
@@ -522,6 +523,10 @@ void close_uinput (void)
 #if (AVRC_CTLR_INCLUDED == TRUE)
 void handle_rc_ctrl_features()
 {
+    APPL_TRACE_DEBUG(" handle_rc_ctrl_features rc_feat_processed = %d",
+                                        btif_rc_cb.rc_features_processed);
+    if (btif_rc_cb.rc_features_processed == TRUE)
+        return;
     if ((btif_rc_cb.rc_features & BTA_AV_FEAT_RCTG)||
        ((btif_rc_cb.rc_features & BTA_AV_FEAT_RCCT)&&
         (btif_rc_cb.rc_features & BTA_AV_FEAT_ADV_CTRL)))
@@ -535,8 +540,7 @@ void handle_rc_ctrl_features()
         {
             rc_features |= BTRC_FEAT_ABSOLUTE_VOLUME;
         }
-        if ((btif_rc_cb.rc_features_processed != TRUE) &&
-            (btif_rc_cb.rc_features & BTA_AV_FEAT_METADATA)&&
+        if ((btif_rc_cb.rc_features & BTA_AV_FEAT_METADATA)&&
             (btif_rc_cb.rc_features & BTA_AV_FEAT_VENDOR))
         {
             rc_features |= BTRC_FEAT_METADATA;
@@ -544,8 +548,11 @@ void handle_rc_ctrl_features()
              * the AVRCP procedure every time on receiving this
              * update.
              */
-            btif_rc_cb.rc_features_processed = TRUE;
-            getcapabilities_cmd (AVRC_CAP_COMPANY_ID);
+            if (btif_rc_cb.rc_features_processed == FALSE)
+            {
+                btif_rc_cb.rc_features_processed = TRUE;
+                getcapabilities_cmd (AVRC_CAP_COMPANY_ID);
+            }
         }
         if (btif_rc_cb.rc_features & BTA_AV_FEAT_BROWSE)
         {
@@ -749,6 +756,7 @@ void handle_rc_disconnect (tBTA_AV_RC_CLOSE *p_rc_close)
     /* Clean up AVRCP procedure flags */
     memset(&btif_rc_cb.rc_app_settings, 0,
         sizeof(btif_rc_player_app_settings_t));
+    btif_rc_cb.uid_counter = 0;
     btif_rc_cb.rc_features_processed = FALSE;
     btif_rc_cb.rc_procedure_complete = FALSE;
     btif_rc_cb.rc_player_list_query_in_progress = FALSE;
@@ -1705,6 +1713,7 @@ void handle_rc_browsemsg_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg)
                     btrc_folder_list_item_player_t  *p_players;
 
                     BTIF_TRACE_EVENT("Item type: Player");
+                    btif_rc_cb.uid_counter = folder_entries.uid_counter;
                     btif_rc_cb.rc_player_list_query_in_progress = FALSE;
                     HAL_CBACK(bt_rc_ctrl_callbacks, available_players_update_cb,
                             &remote_addr, &folder_entries);
@@ -1733,6 +1742,7 @@ void handle_rc_browsemsg_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg)
                 else if ((folder_entries.p_item_list[0].item_type == AVRC_ITEM_FOLDER) ||
                     (folder_entries.p_item_list[0].item_type == AVRC_ITEM_MEDIA))
                 {
+                    btif_rc_cb.uid_counter = folder_entries.uid_counter;
                     HAL_CBACK(bt_rc_ctrl_callbacks, browse_folder_rsp_cb,
                             &remote_addr, folder_entries.status, &folder_entries);
                     /* Free dynamically allocated memory after usage */
@@ -1786,6 +1796,7 @@ void handle_rc_browsemsg_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg)
             {
                 BTIF_TRACE_EVENT("%s: Browsed player set: folder depth %d", __FUNCTION__,
                         avrc_rsp.br_player.folder_depth);
+                btif_rc_cb.uid_counter = avrc_rsp.br_player.uid_counter;
                 HAL_CBACK(bt_rc_ctrl_callbacks, set_browsed_player_rsp_cb,
                         &remote_addr, avrc_rsp.br_player.status,
                         avrc_rsp.br_player.uid_counter);
@@ -1813,6 +1824,7 @@ void handle_rc_browsemsg_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg)
             {
                 BTIF_TRACE_EVENT("%s: set_browsed_player failed: status %d", __FUNCTION__,
                         avrc_rsp.br_player.status);
+                btif_rc_cb.uid_counter = 0;
                 HAL_CBACK(bt_rc_ctrl_callbacks, set_browsed_player_rsp_cb,
                         &remote_addr, avrc_rsp.br_player.status, 0);
             }
@@ -1894,7 +1906,7 @@ void handle_rc_browsemsg_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg)
             {
                 BTIF_TRACE_EVENT("%s: search: num_items %d", __FUNCTION__,
                         avrc_rsp.search.num_items);
-
+                btif_rc_cb.uid_counter = avrc_rsp.search.uid_counter;
                 HAL_CBACK(bt_rc_ctrl_callbacks, serach_rsp_cb,
                         &remote_addr, avrc_rsp.search.status,
                         avrc_rsp.search.uid_counter,
@@ -1919,7 +1931,8 @@ void handle_rc_browsemsg_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg)
             {
                 BTIF_TRACE_EVENT("%s: total_num_items %d", __FUNCTION__,
                         avrc_rsp.get_total_item_count.num_items);
-
+                btif_rc_cb.uid_counter = avrc_rsp.
+                               get_total_item_count.uid_counter;
                 HAL_CBACK(bt_rc_ctrl_callbacks, total_items_rsp_cb,
                         &remote_addr, avrc_rsp.get_total_item_count.status,
                         avrc_rsp.get_total_item_count.uid_counter,
@@ -2899,6 +2912,8 @@ static bt_status_t init(btrc_callbacks_t* callbacks)
     btif_rc_cb.rc_vol_label = MAX_LABEL;
     btif_rc_cb.rc_volume = MAX_VOLUME;
     btif_rc_cb.rc_handle = BTIF_RC_HANDLE_NONE;
+    btif_rc_cb.rc_features_processed = FALSE;
+    btif_rc_cb.uid_counter = 0;
 
     lbl_init();
 
@@ -2950,7 +2965,7 @@ static void rc_ctrl_procedure_complete ()
             /* Todo: UID counter to be used ? */
             get_item_attributes (btif_rc_cb.rc_addr,
                     AVRC_SCOPE_NOW_PLAYING,
-                    0, btif_rc_cb.rc_playing_uid,
+                    btif_rc_cb.uid_counter, btif_rc_cb.rc_playing_uid,
                     0, NULL);
         }
         else
@@ -4833,7 +4848,8 @@ static void handle_notification_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_REG
                         /* Todo: UID counter to be used ? */
                         get_item_attributes (btif_rc_cb.rc_addr,
                                 AVRC_SCOPE_NOW_PLAYING,
-                                0, btif_rc_cb.rc_playing_uid,
+                                btif_rc_cb.uid_counter,
+                                btif_rc_cb.rc_playing_uid,
                                 0, NULL);
                     }
                     else
@@ -4876,6 +4892,8 @@ static void handle_notification_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_REG
                 if (btif_rc_cb.rc_addressed_player_id != p_rsp->param.addr_player.player_id)
                 {
                     btif_rc_cb.rc_addressed_player_id = p_rsp->param.addr_player.player_id;
+                    btif_rc_cb.uid_counter =
+                                        p_rsp->param.addr_player.uid_counter;
                     HAL_CBACK(bt_rc_ctrl_callbacks, addressed_player_update_cb,
                         &rc_addr, p_rsp->param.addr_player.player_id,
                         p_rsp->param.addr_player.uid_counter);
@@ -4984,7 +5002,7 @@ static void handle_notification_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_REG
                     /* Todo: UID counter to be used ? */
                     get_item_attributes (btif_rc_cb.rc_addr,
                             AVRC_SCOPE_NOW_PLAYING,
-                            0, uid,
+                            btif_rc_cb.uid_counter, uid,
                             0, NULL);
                 }
                 else
@@ -5023,6 +5041,7 @@ static void handle_notification_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_REG
                 {
                     btif_rc_cb.rc_addressed_player_id = p_rsp->param.addr_player.player_id;
                     btif_rc_cb.rc_addressed_player_changed = TRUE;
+                    btif_rc_cb.uid_counter = p_rsp->param.addr_player.uid_counter;
                     HAL_CBACK(bt_rc_ctrl_callbacks, addressed_player_update_cb,
                         &rc_addr, p_rsp->param.addr_player.player_id,
                         p_rsp->param.addr_player.uid_counter);
@@ -5030,6 +5049,7 @@ static void handle_notification_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_REG
                 break;
 
             case AVRC_EVT_UIDS_CHANGE:
+                btif_rc_cb.uid_counter = p_rsp->param.uid_counter;
                 HAL_CBACK(bt_rc_ctrl_callbacks, uids_changed_cb,
                     &rc_addr, p_rsp->param.uid_counter);
                 break;
