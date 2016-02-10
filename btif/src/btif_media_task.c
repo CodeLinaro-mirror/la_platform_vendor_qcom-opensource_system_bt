@@ -977,7 +977,8 @@ BOOLEAN btif_media_task_clear_track(void)
 
     p_buf->event = BTIF_MEDIA_AUDIO_SINK_CLEAR_TRACK;
 
-    fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
+    if (btif_media_cmd_msg_queue != NULL)
+        fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
     return TRUE;
 }
 
@@ -1008,7 +1009,8 @@ void btif_reset_decoder(UINT8 *p_av)
     memcpy(p_buf->codec_info,p_av, AVDT_CODEC_SIZE);
     p_buf->hdr.event = BTIF_MEDIA_AUDIO_SINK_CFG_UPDATE;
 
-    fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
+    if (btif_media_cmd_msg_queue != NULL)
+        fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
 }
 
 /*****************************************************************************
@@ -1194,7 +1196,8 @@ void btif_a2dp_set_audio_focus_state(btif_media_audio_focus_state state)
 
     p_buf->focus_state = state;
     p_buf->hdr.event = BTIF_MEDIA_AUDIO_SINK_SET_FOCUS_STATE;
-    fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
+    if (btif_media_cmd_msg_queue != NULL)
+        fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
 }
 #endif
 #if (BTA_AV_SINK_INCLUDED == TRUE)
@@ -1425,7 +1428,8 @@ BOOLEAN btif_media_task_send_cmd_evt(UINT16 Evt)
 
     p_buf->event = Evt;
 
-    fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
+    if (btif_media_cmd_msg_queue != NULL)
+        fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
     return TRUE;
 }
 
@@ -1593,7 +1597,8 @@ BOOLEAN btif_media_task_enc_init_req(tBTIF_MEDIA_INIT_AUDIO *p_msg)
     memcpy(p_buf, p_msg, sizeof(tBTIF_MEDIA_INIT_AUDIO));
     p_buf->hdr.event = BTIF_MEDIA_SBC_ENC_INIT;
 
-    fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
+    if (btif_media_cmd_msg_queue != NULL)
+        fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
     return TRUE;
 }
 
@@ -1617,7 +1622,8 @@ BOOLEAN btif_media_task_enc_update_req(tBTIF_MEDIA_UPDATE_AUDIO *p_msg)
     memcpy(p_buf, p_msg, sizeof(tBTIF_MEDIA_UPDATE_AUDIO));
     p_buf->hdr.event = BTIF_MEDIA_SBC_ENC_UPDATE;
 
-    fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
+    if (btif_media_cmd_msg_queue != NULL)
+        fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
     return TRUE;
 }
 
@@ -1641,7 +1647,8 @@ BOOLEAN btif_media_task_audio_feeding_init_req(tBTIF_MEDIA_INIT_AUDIO_FEEDING *p
     memcpy(p_buf, p_msg, sizeof(tBTIF_MEDIA_INIT_AUDIO_FEEDING));
     p_buf->hdr.event = BTIF_MEDIA_AUDIO_FEEDING_INIT;
 
-    fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
+    if (btif_media_cmd_msg_queue != NULL)
+        fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
     return TRUE;
 }
 
@@ -1665,7 +1672,8 @@ BOOLEAN btif_media_task_start_aa_req(void)
 
     p_buf->event = BTIF_MEDIA_START_AA_TX;
 
-    fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
+    if (btif_media_cmd_msg_queue != NULL)
+        fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
     return TRUE;
 }
 
@@ -1730,7 +1738,8 @@ BOOLEAN btif_media_task_aa_rx_flush_req(void)
 
     p_buf->event = BTIF_MEDIA_FLUSH_AA_RX;
 
-    fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
+    if (btif_media_cmd_msg_queue != NULL)
+        fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
     return TRUE;
 }
 
