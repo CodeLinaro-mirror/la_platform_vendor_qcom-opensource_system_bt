@@ -102,7 +102,7 @@ typedef struct {
 #define STRING_VALUE_OF(x) #x
 
 static const uint32_t EPILOG_TIMEOUT_MS = 3000;
-static const uint32_t COMMAND_PENDING_TIMEOUT = 8000;
+static const uint32_t COMMAND_PENDING_TIMEOUT = 15000; //8000; -> 15 seconds delay now.
 
 // Our interface
 static bool interface_created;
