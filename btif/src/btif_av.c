@@ -162,7 +162,7 @@ static void btif_av_event_free_data(btif_sm_event_t event, void *p_data);
 *************************************************************************/
 extern void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV *p_data);
 extern BOOLEAN btif_rc_get_connected_peer(BD_ADDR peer_addr);
-extern UINT8 btif_rc_get_connected_peer_handle(void);
+extern UINT8 btif_rc_get_connected_peer_handle(BD_ADDR peer_addr);
 extern void btif_rc_check_handle_pending_play (BD_ADDR peer_addr, BOOLEAN bSendToApp);
 
 /*****************************************************************************
@@ -260,7 +260,7 @@ static void btif_initiate_av_open_tmr_hdlr(TIMER_LIST_ENT *tle)
            if(bdcmp(btif_av_cb.peer_bda.address, peer_addr))
            {
                BTIF_TRACE_WARNING(" Disconnecting AVRCP ");
-               BTA_AvCloseRc(btif_rc_get_connected_peer_handle());
+               BTA_AvCloseRc(btif_rc_get_connected_peer_handle(peer_addr));
                return;
            }
        }
@@ -564,7 +564,7 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
                      * conneciton failed, for any reason
                      */
                     BTIF_TRACE_WARNING(" Disconnecting AVRCP ");
-                    BTA_AvCloseRc(btif_rc_get_connected_peer_handle());
+                    BTA_AvCloseRc(btif_rc_get_connected_peer_handle(peer_addr));
                 }
                 state = BTAV_CONNECTION_STATE_DISCONNECTED;
                 av_state  = BTIF_AV_STATE_IDLE;
