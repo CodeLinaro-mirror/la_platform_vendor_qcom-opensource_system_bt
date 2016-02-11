@@ -63,6 +63,7 @@ static const UINT8 btm_role_switch_black_list_prefix1[][3] = {{0x00, 0x0d, 0xfd}
 /* Black listed car kits/headsets for outgoing role switch */
 static const UINT8 btm_role_switch_black_list_prefix2[][3] = {{0xfc, 0xc2, 0xde}  /* Toyota Prius 2015 */
                                                              ,{0x00, 0x04, 0x3e} /* OBU II Bluetooth dongle */
+                                                             ,{0x00, 0x23, 0x01}  /* Roman R9020 */
                                                             };
 
 /*******************************************************************************
@@ -560,41 +561,44 @@ void btm_acl_update_busy_level (tBTM_BLI_EVENT event)
     {
         case BTM_BLI_ACL_UP_EVT:
             BTM_TRACE_DEBUG ("BTM_BLI_ACL_UP_EVT");
+            busy_level = BTM_GetNumAclLinks();
             break;
         case BTM_BLI_ACL_DOWN_EVT:
             BTM_TRACE_DEBUG ("BTM_BLI_ACL_DOWN_EVT");
+            busy_level = BTM_GetNumAclLinks();
             break;
         case BTM_BLI_PAGE_EVT:
             BTM_TRACE_DEBUG ("BTM_BLI_PAGE_EVT");
             btm_cb.is_paging = TRUE;
             evt.busy_level_flags= BTM_BL_PAGING_STARTED;
+            busy_level = BTM_BL_PAGING_STARTED;
             break;
         case BTM_BLI_PAGE_DONE_EVT:
             BTM_TRACE_DEBUG ("BTM_BLI_PAGE_DONE_EVT");
             btm_cb.is_paging = FALSE;
             evt.busy_level_flags = BTM_BL_PAGING_COMPLETE;
+            busy_level = BTM_BL_PAGING_COMPLETE;
             break;
         case BTM_BLI_INQ_EVT:
             BTM_TRACE_DEBUG ("BTM_BLI_INQ_EVT");
             btm_cb.is_inquiry = TRUE;
             evt.busy_level_flags = BTM_BL_INQUIRY_STARTED;
+            busy_level = BTM_BL_INQUIRY_STARTED;
             break;
         case BTM_BLI_INQ_CANCEL_EVT:
             BTM_TRACE_DEBUG ("BTM_BLI_INQ_CANCEL_EVT");
             btm_cb.is_inquiry = FALSE;
             evt.busy_level_flags = BTM_BL_INQUIRY_CANCELLED;
+            busy_level = BTM_BL_INQUIRY_COMPLETE;
             break;
         case BTM_BLI_INQ_DONE_EVT:
             BTM_TRACE_DEBUG ("BTM_BLI_INQ_DONE_EVT");
             btm_cb.is_inquiry = FALSE;
             evt.busy_level_flags = BTM_BL_INQUIRY_COMPLETE;
+            busy_level = BTM_BL_INQUIRY_COMPLETE;
             break;
     }
 
-    if (btm_cb.is_paging || btm_cb.is_inquiry)
-        busy_level = 10;
-    else
-        busy_level = BTM_GetNumAclLinks();
 
     if ((busy_level != btm_cb.busy_level) ||(old_inquiry_state != btm_cb.is_inquiry))
     {
@@ -1006,15 +1010,16 @@ void btm_read_remote_version_complete (UINT8 *p)
     UINT16            handle;
     int               xx;
     BTM_TRACE_DEBUG ("btm_read_remote_version_complete");
-    STREAM_TO_UINT8  (status, p);
-    if (status == HCI_SUCCESS)
-    {
-        STREAM_TO_UINT16 (handle, p);
 
-        /* Look up the connection by handle and copy features */
-        for (xx = 0; xx < MAX_L2CAP_LINKS; xx++, p_acl_cb++)
+    STREAM_TO_UINT8  (status, p);
+    STREAM_TO_UINT16 (handle, p);
+
+    /* Look up the connection by handle and copy features */
+    for (xx = 0; xx < MAX_L2CAP_LINKS; xx++, p_acl_cb++)
+    {
+        if ((p_acl_cb->in_use) && (p_acl_cb->hci_handle == handle))
         {
-            if ((p_acl_cb->in_use) && (p_acl_cb->hci_handle == handle))
+            if (status == HCI_SUCCESS)
             {
                 STREAM_TO_UINT8  (p_acl_cb->lmp_version, p);
                 STREAM_TO_UINT16 (p_acl_cb->manufacturer, p);
@@ -1024,9 +1029,13 @@ void btm_read_remote_version_complete (UINT8 *p)
                              p_acl_cb->remote_addr[3], p_acl_cb->remote_addr[4], p_acl_cb->remote_addr[5]);
                 BTM_TRACE_WARNING ("btm_read_remote_version_complete lmp_version %d manufacturer %d lmp_subversion %d",
                                         p_acl_cb->lmp_version,p_acl_cb->manufacturer, p_acl_cb->lmp_subversion);
-                btm_read_remote_features (p_acl_cb->hci_handle);
-                break;
+                if (p_acl_cb->transport == BT_TRANSPORT_BR_EDR)
+                    btm_read_remote_features (p_acl_cb->hci_handle);
             }
+
+            if (p_acl_cb->transport == BT_TRANSPORT_LE)
+                l2cble_notify_le_connection (p_acl_cb->remote_addr);
+            break;
         }
     }
 }

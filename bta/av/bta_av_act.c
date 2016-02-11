@@ -1527,10 +1527,13 @@ void bta_av_disable(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
     UNUSED(p_data);
 
     p_cb->disabling = TRUE;
-
     bta_av_close_all_rc(p_cb);
 
-    utl_freebuf((void **) &p_cb->p_disc_db);
+    /*Cancel SDP if it had been started. */
+    if(p_cb->p_disc_db) {
+        (void)SDP_CancelServiceSearch (p_cb->p_disc_db);
+        utl_freebuf((void **) &p_cb->p_disc_db);
+    }
 
     /* disable audio/video - de-register all channels,
      * expect BTA_AV_DEREG_COMP_EVT when deregister is complete */
@@ -1958,7 +1961,8 @@ tBTA_AV_FEAT bta_av_check_peer_features (UINT16 service_uuid)
                     }
                 }
             }
-#if SDP_AVRCP_1_5 == TRUE
+#if ((defined(SDP_AVRCP_1_6) && (SDP_AVRCP_1_6 == TRUE)) || \
+           (defined(SDP_AVRCP_1_5) && (SDP_AVRCP_1_5 == TRUE)))
             property_get("persist.service.bt.a2dp.sink", a2dp_role, "false");
             if (!strncmp("false", a2dp_role, 5)) {
                 if ((peer_rc_version >= AVRC_REV_1_4) &&

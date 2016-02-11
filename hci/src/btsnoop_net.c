@@ -77,6 +77,7 @@ static int local_socket_create(void) {
 }
 
 void btsnoop_net_open() {
+
   listen_thread_valid_ = (pthread_create(&listen_thread_, NULL, listen_fn_, NULL) == 0);
   if (!listen_thread_valid_) {
     LOG_ERROR("%s pthread_create failed: %s", __func__, strerror(errno));
@@ -86,6 +87,7 @@ void btsnoop_net_open() {
 }
 
 void btsnoop_net_close() {
+
   if (listen_thread_valid_) {
 #if (defined(BT_NET_DEBUG) && (NET_DEBUG == TRUE))
     // Disable using network sockets for security reasons

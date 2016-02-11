@@ -25,7 +25,7 @@
 #include <stdint.h>
 #include "bta_hh_api.h"
 #include "btu.h"
-
+#include "list.h"
 
 /*******************************************************************************
 **  Constants & Macros
@@ -69,10 +69,11 @@ typedef struct
     UINT8                         sub_class;
     UINT8                         app_id;
     int                           fd;
+    BOOLEAN                       ready_for_data;
     pthread_t                     hh_poll_thread_id;
     UINT8                         hh_keep_polling;
     BOOLEAN                       vup_timer_active;
-    UINT8                         set_rpt_snt;
+    list_t                        *set_rpt_id_list; // Owns a collection of set_rpt_id objects.
     UINT8                         get_rpt_snt;
     TIMER_LIST_ENT                vup_timer;
     BOOLEAN                       local_vup; // Indicated locally initiated VUP

@@ -510,6 +510,13 @@ void btif_hh_remove_device(bt_bdaddr_t bd_addr)
     LOG_INFO("%s: bda = %02x:%02x:%02x:%02x:%02x:%02x", __FUNCTION__,
          bd_addr.address[0], bd_addr.address[1], bd_addr.address[2], bd_addr.address[3], bd_addr.address[4], bd_addr.address[5]);
 
+    /* Check if this is not received while hid host service is disabled */
+    if (btif_hh_cb.status == BTIF_HH_DISABLED)
+    {
+        BTIF_TRACE_WARNING("%s: HH service not enabled", __FUNCTION__);
+        return;
+    }
+
     for (i = 0; i < BTIF_HH_MAX_ADDED_DEV; i++) {
         p_added_dev = &btif_hh_cb.added_devices[i];
         if (memcmp(&(p_added_dev->bd_addr),&bd_addr, 6) == 0) {
@@ -533,6 +540,8 @@ void btif_hh_remove_device(bt_bdaddr_t bd_addr)
 
     p_dev->dev_status = BTHH_CONN_STATE_UNKNOWN;
     p_dev->dev_handle = BTA_HH_INVALID_HANDLE;
+    p_dev->ready_for_data = FALSE;
+
     if (btif_hh_cb.device_num > 0) {
         btif_hh_cb.device_num--;
     }
@@ -590,6 +599,12 @@ bt_status_t btif_hh_virtual_unplug(bt_bdaddr_t *bd_addr)
     BTIF_TRACE_DEBUG("%s", __FUNCTION__);
     btif_hh_device_t *p_dev;
     char bd_str[18];
+    /* Check if this is not received while hid host service is disabled */
+    if (btif_hh_cb.status == BTIF_HH_DISABLED)
+    {
+        BTIF_TRACE_WARNING("%s: HH service not enabled", __FUNCTION__);
+        return BT_STATUS_FAIL;
+    }
     sprintf(bd_str, "%02X:%02X:%02X:%02X:%02X:%02X",
             bd_addr->address[0],  bd_addr->address[1],  bd_addr->address[2],  bd_addr->address[3],
             bd_addr->address[4], bd_addr->address[5]);
@@ -629,6 +644,12 @@ bt_status_t btif_hh_connect(bt_bdaddr_t *bd_addr)
     int i;
     BD_ADDR *bda = (BD_ADDR*)bd_addr;
     CHECK_BTHH_INIT();
+    /* Check if this is not received while hid host service is disabled */
+    if (btif_hh_cb.status == BTIF_HH_DISABLED)
+    {
+        BTIF_TRACE_WARNING("%s: HH service not enabled", __FUNCTION__);
+        return BT_STATUS_FAIL;
+    }
     dev = btif_hh_find_dev_by_bda(bd_addr);
     BTIF_TRACE_DEBUG("Connect _hh");
     sprintf(bda_str, "%02X:%02X:%02X:%02X:%02X:%02X",
@@ -1311,6 +1332,11 @@ static bt_status_t init( bthh_callbacks_t* callbacks )
 *******************************************************************************/
 static bt_status_t connect( bt_bdaddr_t *bd_addr)
 {
+    if (btif_hh_cb.status == BTIF_HH_DISABLED)
+    {
+        BTIF_TRACE_WARNING("%s: HH service not enabled", __FUNCTION__);
+        return BT_STATUS_FAIL;
+    }
     if(btif_hh_cb.status != BTIF_HH_DEV_CONNECTING)
     {
         btif_transfer_context(btif_hh_handle_evt, BTIF_HH_CONNECT_REQ_EVT,

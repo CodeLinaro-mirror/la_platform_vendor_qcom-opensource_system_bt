@@ -56,6 +56,15 @@
 #define tBTA_DM_PM_TYPE_QUALIFIER
 #endif
 
+/* Reduce Idle timeout value due to intermediate timer */
+#ifndef BTA_JVS_IDLE_TO_SNIFF_DELAY_MS
+#define BTA_JVS_IDLE_TO_SNIFF_DELAY_MS BTA_FTS_OPS_IDLE_TO_SNIFF_DELAY_MS-BTA_JV_IDLE_TIMEOUT*1000
+#endif
+
+#ifndef BTA_JVC_IDLE_TO_SNIFF_DELAY_MS
+#define BTA_JVC_IDLE_TO_SNIFF_DELAY_MS 5000-BTA_JV_IDLE_TIMEOUT*1000
+#endif
+
 
 const tBTA_DM_CFG bta_dm_cfg =
 {
@@ -86,7 +95,11 @@ const tBTA_DM_CFG bta_dm_cfg =
 #define BTA_AV_ROLE BTA_MASTER_ROLE_PREF
 #endif
 
-#define BTA_DM_NUM_RM_ENTRY    4
+#ifndef BTA_PANU_ROLE
+/* By default, AV role (backward BTA_MASTER_ROLE_PREF) */
+#define BTA_PANU_ROLE BTA_SLAVE_ROLE_ONLY
+#endif
+#define BTA_DM_NUM_RM_ENTRY    6
 
 /* appids for PAN used by insight sample application
    these have to be same as defined in btui_int.h */
@@ -100,8 +113,10 @@ const tBTA_DM_CFG bta_dm_cfg =
 const tBTA_DM_RM bta_dm_rm_cfg[] =
 {
     {BTA_ID_SYS, BTA_DM_NUM_RM_ENTRY, BTA_DM_SCATTERNET},
-    {BTA_ID_PAN, BTUI_PAN_ID_NAP, BTA_MASTER_ROLE_ONLY},
-    {BTA_ID_PAN, BTUI_PAN_ID_GN, BTA_MASTER_ROLE_ONLY},
+    {BTA_ID_PAN, BTUI_PAN_ID_NAP, BTA_ANY_ROLE},
+    {BTA_ID_PAN, BTUI_PAN_ID_GN, BTA_ANY_ROLE},
+    {BTA_ID_PAN, BTA_APP_ID_PAN_MULTI, BTA_MASTER_ROLE_ONLY},
+    {BTA_ID_PAN, BTUI_PAN_ID_PANU, BTA_PANU_ROLE},
     {BTA_ID_HH,  BTA_ALL_APP_ID, BTA_HH_ROLE},
     {BTA_ID_AV,  BTA_ALL_APP_ID, BTA_AV_ROLE}
 };
@@ -278,7 +293,7 @@ tBTA_DM_PM_TYPE_QUALIFIER tBTA_DM_PM_SPEC bta_dm_pm_spec[BTA_DM_NUM_PM_SPEC] =
       {{BTA_DM_PM_NO_ACTION, 0},   {BTA_DM_PM_NO_ACTION, 0}},    /* app close */
       {{BTA_DM_PM_NO_ACTION, 0},   {BTA_DM_PM_NO_ACTION, 0}},    /* sco open  */
       {{BTA_DM_PM_NO_ACTION, 0},   {BTA_DM_PM_NO_ACTION, 0}},    /* sco close   */
-      {{BTA_DM_PM_SNIFF_A2DP_IDX, 5000},   {BTA_DM_PM_NO_ACTION, 0}},    /* idle */
+      {{BTA_DM_PM_SNIFF_A2DP_IDX, BTA_JVC_IDLE_TO_SNIFF_DELAY_MS},   {BTA_DM_PM_NO_ACTION, 0}},    /* idle */
       {{BTA_DM_PM_ACTIVE,    0},   {BTA_DM_PM_NO_ACTION, 0}},    /* busy */
       {{BTA_DM_PM_NO_ACTION, 0},   {BTA_DM_PM_NO_ACTION, 0}}     /* mode change retry */
   }
@@ -297,7 +312,7 @@ tBTA_DM_PM_TYPE_QUALIFIER tBTA_DM_PM_SPEC bta_dm_pm_spec[BTA_DM_NUM_PM_SPEC] =
       {{BTA_DM_PM_NO_ACTION, 0},   {BTA_DM_PM_NO_ACTION, 0}},    /* app close */
       {{BTA_DM_PM_NO_ACTION, 0},   {BTA_DM_PM_NO_ACTION, 0}},    /* sco open  */
       {{BTA_DM_PM_NO_ACTION, 0},   {BTA_DM_PM_NO_ACTION, 0}},    /* sco close   */
-      {{BTA_DM_PM_SNIFF_A2DP_IDX, BTA_FTS_OPS_IDLE_TO_SNIFF_DELAY_MS}, {BTA_DM_PM_NO_ACTION, 0}}, /* idle */
+      {{BTA_DM_PM_SNIFF_A2DP_IDX, BTA_JVS_IDLE_TO_SNIFF_DELAY_MS}, {BTA_DM_PM_NO_ACTION, 0}}, /* idle */
       {{BTA_DM_PM_ACTIVE,    0},   {BTA_DM_PM_NO_ACTION, 0}},    /* busy */
       {{BTA_DM_PM_NO_ACTION, 0},   {BTA_DM_PM_NO_ACTION, 0}}     /* mode change retry */
   }
