@@ -819,6 +819,7 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
 
     BTIF_TRACE_DEBUG("%s: p_remote_cmd->rc_id=%d", __FUNCTION__, p_remote_cmd->rc_id);
 
+    if (p_remote_cmd == NULL) return;
     /* If AVRC is open and peer sends PLAY but there is no AVDT, then we queue-up this PLAY */
     if (p_remote_cmd)
     {
@@ -1807,6 +1808,7 @@ void handle_rc_browsemsg_rsp (tBTA_AV_BROWSE_MSG *pbrowse_msg)
                     /* Free dynamically allocated memory after usage */
                     for (index = 0; index < avrc_rsp.br_player.folder_depth; index++)
                     {
+                        if(avrc_rsp.br_player.p_folders == NULL) break;
                         BTIF_TRACE_EVENT("%s: Folders: %s", __FUNCTION__,
                             avrc_rsp.br_player.p_folders[index].p_str);
                         if (avrc_rsp.br_player.p_folders[index].p_str != NULL)
@@ -4813,7 +4815,7 @@ static void handle_notification_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_REG
 
     if (pmeta_msg->code == AVRC_RSP_INTERIM)
     {
-        btif_rc_supported_event_t *p_event;
+        btif_rc_supported_event_t *p_event = NULL;
         list_node_t *node;
 
         BTIF_TRACE_DEBUG("%s Interim response : 0x%2X ", __FUNCTION__, p_rsp->event_id);
@@ -5201,7 +5203,15 @@ static void handle_app_val_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_LIST_APP
             {
                 attrs[xx] = p_app_settings->attrs[xx].attr_id;
             }
-            get_player_app_setting_cmd (p_app_settings->num_attrs, attrs);
+            if(p_app_settings->num_attrs > AVRC_MAX_APP_ATTR_SIZE)
+            {
+                get_player_app_setting_cmd (AVRC_MAX_APP_ATTR_SIZE, attrs);
+            }
+            else
+            {
+                get_player_app_setting_cmd (p_app_settings->num_attrs, attrs);
+            }
+
             HAL_CBACK (bt_rc_ctrl_callbacks, playerapplicationsetting_cb, &rc_addr,
                         p_app_settings->num_attrs, &p_app_settings->attrs, 0, NULL);
         }
@@ -5282,6 +5292,7 @@ static void handle_app_attr_txt_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_GET
     btif_rc_player_app_settings_t *p_app_settings;
     bt_bdaddr_t rc_addr;
 
+    p_app_settings = &btif_rc_cb.rc_app_settings;
     bdcpy(rc_addr.address, btif_rc_cb.rc_addr);
 
     if (p_rsp->status != AVRC_STS_NO_ERROR)
@@ -5442,7 +5453,14 @@ static void handle_app_attr_val_txt_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC
         HAL_CBACK (bt_rc_ctrl_callbacks, playerapplicationsetting_cb, &rc_addr,
                     p_app_settings->num_attrs, &p_app_settings->attrs,
                     p_app_settings->num_ext_attrs, &p_app_settings->ext_attrs);
-        get_player_app_setting_cmd (xx + x, attrs);
+        if(xx+x > AVRC_MAX_APP_ATTR_SIZE)
+        {
+            get_player_app_setting_cmd (AVRC_MAX_APP_ATTR_SIZE, attrs);
+        }
+        else
+        {
+            get_player_app_setting_cmd (xx + x, attrs);
+        }
 
         /* Free the application settings information after sending to
          * application.
