@@ -6447,7 +6447,9 @@ static bt_status_t get_media_element_attributes (bt_bdaddr_t *bd_addr, uint8_t n
 {
     btif_rc_cb.rc_element_attr_app_req = TRUE;
     char send_item[PROPERTY_VALUE_MAX] = "false";
+    char send_elem[PROPERTY_VALUE_MAX] = "false";
     property_get("persist.bt.avrcp_ct.sendItem", send_item, "false");
+    property_get("persist.bt.avrcp_ct.sendElem", send_elem, "false");
     if (strncmp("false", send_item, 5))
     {
         BTIF_TRACE_ERROR("%s: num_id = %d ", __FUNCTION__, num_attrib);
@@ -6462,8 +6464,12 @@ static bt_status_t get_media_element_attributes (bt_bdaddr_t *bd_addr, uint8_t n
                     2, attr_ids);
             return BT_STATUS_SUCCESS;
         }
-    }
+    } else if (!strncmp("true", send_elem, 4)) {
         return get_element_attribute_cmd(num_attrib, p_attr_ids);
+    }
+    if (btif_rc_cb.rc_procedure_complete == TRUE)
+        return get_element_attribute_cmd(num_attrib, p_attr_ids);
+    return BT_STATUS_SUCCESS;
 }
 
 /***************************************************************************
