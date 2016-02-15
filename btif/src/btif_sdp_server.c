@@ -39,6 +39,7 @@
 #include "bta_sys.h"
 #include "utl.h"
 #include "btif_sock_util.h"
+#include "stack_manager.h"
 
 static pthread_mutex_t sdp_lock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
@@ -291,6 +292,11 @@ bt_status_t create_sdp_record(bluetooth_sdp_record *record, int* record_handle) 
 
 bt_status_t remove_sdp_record(int record_id) {
     int handle;
+
+    if (!stack_manager_get_interface()->get_stack_is_running()) {
+        BTIF_TRACE_DEBUG("Sdp Server %s - Stack closed", __FUNCTION__);
+        return BT_STATUS_FAIL;
+    }
 
     /* Get the Record handle, and free the slot */
     handle = free_sdp_slot(record_id);
