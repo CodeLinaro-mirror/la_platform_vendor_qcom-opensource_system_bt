@@ -530,7 +530,7 @@
 
 /* The number of security records for services. */
 #ifndef BTM_SEC_MAX_SERVICE_RECORDS
-#define BTM_SEC_MAX_SERVICE_RECORDS 32
+#define BTM_SEC_MAX_SERVICE_RECORDS 64
 #endif
 
 /* If True, force a retrieval of remote device name for each bond in case it's changed */
@@ -897,6 +897,13 @@
 #define BLE_BATCH_SCAN_INCLUDED  TRUE
 #endif
 
+
+/*
+ * Enables or disables support for LE secure connections
+ */
+#ifndef BLE_SC_INCLUDED
+#define BLE_SC_INCLUDED         TRUE
+#endif
 /******************************************************************************
 **
 ** ATT/GATT Protocol/Profile Settings

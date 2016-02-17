@@ -824,6 +824,7 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
     UINT8 index;
     BD_ADDR address;
     bt_bdaddr_t remote_address;
+    BOOLEAN ignore_play_processed = FALSE;
 
     if (p_remote_cmd == NULL)
         return;
@@ -856,6 +857,7 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
                 (p_remote_cmd->key_state == AVRC_STATE_PRESS))
             {
                 APPL_TRACE_WARNING("Play again");
+                ignore_play_processed = TRUE;
             }
         }
         else
@@ -942,7 +944,7 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
     if (p_remote_cmd->rc_id == BTA_AV_RC_PLAY)
     {
         BTIF_TRACE_DEBUG("PLAY command on the Index: = %d", index);
-        if (p_remote_cmd->key_state == AVRC_STATE_PRESS)
+        if (p_remote_cmd->key_state == AVRC_STATE_PRESS && !ignore_play_processed)
             btif_rc_cb[index].rc_play_processed = TRUE;
     }
     for (i = 0; key_map[i].name != NULL; i++) {

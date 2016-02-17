@@ -318,11 +318,13 @@ static void bt_jni_msg_ready(void *context) {
 
 void btif_sendmsg(void *p_msg)
 {
-    thread_post(bt_jni_workqueue_thread, bt_jni_msg_ready, p_msg);
+    if(bt_jni_workqueue_thread != NULL)
+       thread_post(bt_jni_workqueue_thread, bt_jni_msg_ready, p_msg);
 }
 
 void btif_thread_post(thread_fn func, void *context) {
-    thread_post(bt_jni_workqueue_thread, func, context);
+    if(bt_jni_workqueue_thread != NULL)
+       thread_post(bt_jni_workqueue_thread, func, context);
 }
 
 static bool fetch_vendor_addr (bt_bdaddr_t *local_addr)
@@ -544,7 +546,12 @@ void btif_enable_bluetooth_evt(tBTA_STATUS status)
 
     BTIF_TRACE_DEBUG("%s: status %d, local bd [%s]", __FUNCTION__, status, bdstr);
 
-    ssr_triggered = FALSE;
+    if(ssr_triggered)
+    {
+       BTIF_TRACE_DEBUG("%s: Enable timeout happend", __FUNCTION__);
+       ssr_triggered = FALSE;
+       return;
+    }
 
     if (bdcmp(btif_local_bd_addr.address, controller->get_address()->address))
     {

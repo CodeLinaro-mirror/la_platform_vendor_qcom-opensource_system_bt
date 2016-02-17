@@ -213,15 +213,24 @@ void BTU_ShutDown(void) {
 
   fixed_queue_free(btu_bta_msg_queue, NULL);
 
+  pthread_mutex_lock(&btu_general_alarm_lock);
   hash_map_free(btu_general_alarm_hash_map);
+  pthread_mutex_unlock(&btu_general_alarm_lock);
+
   pthread_mutex_destroy(&btu_general_alarm_lock);
   fixed_queue_free(btu_general_alarm_queue, NULL);
 
+  pthread_mutex_lock(&btu_oneshot_alarm_lock);
   hash_map_free(btu_oneshot_alarm_hash_map);
+  pthread_mutex_unlock(&btu_oneshot_alarm_lock);
+
   pthread_mutex_destroy(&btu_oneshot_alarm_lock);
   fixed_queue_free(btu_oneshot_alarm_queue, NULL);
 
+  pthread_mutex_lock(&btu_l2cap_alarm_lock);
   hash_map_free(btu_l2cap_alarm_hash_map);
+  pthread_mutex_unlock(&btu_l2cap_alarm_lock);
+
   pthread_mutex_destroy(&btu_l2cap_alarm_lock);
   fixed_queue_free(btu_l2cap_alarm_queue, NULL);
 
