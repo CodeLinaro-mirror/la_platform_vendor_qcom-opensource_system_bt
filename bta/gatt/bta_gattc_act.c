@@ -733,8 +733,8 @@ void bta_gattc_conn(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
 
         else
         {
-            /* a pending service handle change indication */
-            if (p_clcb->p_srcb->srvc_hdl_chg)
+            /* a pending service handle change indication or a non-bonded dev */
+            if (p_clcb->p_srcb->srvc_hdl_chg || !btm_sec_is_a_bonded_dev(p_clcb->bda))
             {
                 p_clcb->p_srcb->srvc_hdl_chg = FALSE;
                 /* start discovery */
