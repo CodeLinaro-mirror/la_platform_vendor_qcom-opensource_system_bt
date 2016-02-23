@@ -1334,6 +1334,7 @@ void bta_gattc_read_cmpl(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_OP_CMPL *p_data)
     tBTA_GATTC          cb_data;
     tBTA_GATT_READ_VAL  read_value;
 
+    APPL_TRACE_ERROR("bta_gattc_read_cmpl::");
     memset(&cb_data, 0, sizeof(tBTA_GATTC));
     memset(&read_value, 0, sizeof(tBTA_GATT_READ_VAL));
 
@@ -1373,7 +1374,16 @@ void bta_gattc_read_cmpl(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_OP_CMPL *p_data)
                     BTA_GATTC_READ_CHAR_EVT: BTA_GATTC_READ_DESCR_EVT;
     cb_data.read.conn_id = p_clcb->bta_conn_id;
 
-    utl_freebuf((void **)&p_clcb->p_q_cmd);
+    if(p_clcb->p_q_cmd != NULL)
+    {
+        APPL_TRACE_ERROR("bta_gattc_read_cmpl::freeing memory");
+        utl_freebuf((void **)&p_clcb->p_q_cmd);
+    }
+    else
+    {
+        APPL_TRACE_ERROR("bta_gattc_read_cmpl::p_q_cmd memory is null");
+    }
+
     /* read complete, callback */
     ( *p_clcb->p_rcb->p_cback)(event, (tBTA_GATTC *)&cb_data);
 
@@ -1392,6 +1402,7 @@ void bta_gattc_write_cmpl(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_OP_CMPL *p_data)
     tBTA_GATTC      cb_data = {0};
     UINT8          event;
 
+    APPL_TRACE_ERROR("bta_gattc_write_cmpl::");
     memset(&cb_data, 0, sizeof(tBTA_GATTC));
 
     cb_data.write.status     = p_data->status;
@@ -1425,7 +1436,15 @@ void bta_gattc_write_cmpl(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_OP_CMPL *p_data)
     else
         event = BTA_GATTC_WRITE_DESCR_EVT;
 
-    utl_freebuf((void **)&p_clcb->p_q_cmd);
+    if(p_clcb->p_q_cmd != NULL)
+    {
+        APPL_TRACE_ERROR("bta_gattc_write_cmpl::freeing memory");
+        utl_freebuf((void **)&p_clcb->p_q_cmd);
+    }
+    else
+    {
+        APPL_TRACE_ERROR("bta_gattc_write_cmpl::p_q_cmd memory is null");
+    }
     cb_data.write.conn_id = p_clcb->bta_conn_id;
     /* write complete, callback */
     ( *p_clcb->p_rcb->p_cback)(event, (tBTA_GATTC *)&cb_data);
@@ -1444,7 +1463,16 @@ void bta_gattc_exec_cmpl(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_OP_CMPL *p_data)
 {
     tBTA_GATTC          cb_data;
 
-    utl_freebuf((void **)&p_clcb->p_q_cmd);
+    APPL_TRACE_ERROR("bta_gattc_exec_cmpl");
+    if(p_clcb->p_q_cmd != NULL)
+    {
+        APPL_TRACE_ERROR("bta_gattc_exec_cmpl::freeing memory");
+        utl_freebuf((void **)&p_clcb->p_q_cmd);
+    }
+    else
+    {
+        APPL_TRACE_ERROR("bta_gattc_exec_cmpl::p_q_cmd memory is null");
+    }
 
     p_clcb->status      = BTA_GATT_OK;
 
@@ -1469,7 +1497,16 @@ void bta_gattc_cfg_mtu_cmpl(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_OP_CMPL *p_data)
 {
     tBTA_GATTC          cb_data;
 
-    utl_freebuf((void **)&p_clcb->p_q_cmd);
+    APPL_TRACE_ERROR("bta_gattc_cfg_mtu_cmpl::");
+    if(p_clcb->p_q_cmd != NULL)
+    {
+        APPL_TRACE_ERROR("bta_gattc_cfg_mtu_cmpl::freeing memory");
+        utl_freebuf((void **)&p_clcb->p_q_cmd);
+    }
+    else
+    {
+        APPL_TRACE_ERROR("bta_gattc_cfg_mtu_cmpl::p_q_cmd memory is null");
+    }
 
 
     if (p_data->p_cmpl  &&  p_data->status == BTA_GATT_OK)
@@ -1534,6 +1571,7 @@ void  bta_gattc_op_cmpl(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
             p_data->op_cmpl.status = GATT_ERROR;
         }
 
+        APPL_TRACE_DEBUG("bta_gattc_op_cmpl before completing the gatt operation op = %d", op);
         /* service handle change void the response, discard it */
         if (op == GATTC_OPTYPE_READ)
             bta_gattc_read_cmpl(p_clcb, &p_data->op_cmpl);
@@ -1547,8 +1585,10 @@ void  bta_gattc_op_cmpl(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
         else if (op == GATTC_OPTYPE_CONFIG)
             bta_gattc_cfg_mtu_cmpl(p_clcb, &p_data->op_cmpl);
 
+        APPL_TRACE_DEBUG("bta_gattc_op_cmpl after completion of the gatt operation op = %d", op);
         if (p_clcb->auto_update == BTA_GATTC_DISC_WAITING)
         {
+            APPL_TRACE_DEBUG("bta_gattc_op_cmpl:: p_clcb->auto_update == BTA_GATTC_DISC_WAITING");
             p_clcb->auto_update = BTA_GATTC_REQ_WAITING;
             bta_gattc_sm_execute(p_clcb, BTA_GATTC_INT_DISCOVER_EVT, NULL);
         }
