@@ -274,7 +274,7 @@ extern void dump_codec_info(unsigned char *p_codec);
 
 bool btif_a2dp_start_media_task(void);
 void btif_a2dp_stop_media_task(void);
-
+bool btif_a2dp_is_media_task_stopped(void);
 void btif_a2dp_on_init(void);
 tBTIF_STATUS btif_a2dp_setup_codec(void);
 void btif_a2dp_on_idle(void);
