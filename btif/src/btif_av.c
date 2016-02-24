@@ -1604,9 +1604,14 @@ static void btif_av_handle_event(UINT16 event, char* p_param)
 
     switch (event)
     {
+        case BTIF_AV_INIT_REQ_EVT:
+            BTIF_TRACE_IMP("%s: BTIF_AV_INIT_REQ_EVT", __FUNCTION__);
+            if(btif_a2dp_start_media_task())
+                btif_a2dp_on_init();
+            break;
         /*events from Upper layer and Media Task*/
         case BTIF_AV_CLEANUP_REQ_EVT: /*Clean up to be called on default index*/
-            BTIF_TRACE_EVENT("%s: BTIF_AV_CLEANUP_REQ_EVT", __FUNCTION__);
+            BTIF_TRACE_IMP("%s: BTIF_AV_CLEANUP_REQ_EVT", __FUNCTION__);
             uuid = (int)*p_param;
             if (uuid == BTA_A2DP_SOURCE_SERVICE_ID)
             {
@@ -2079,8 +2084,8 @@ bt_status_t btif_av_init(int service_id)
     int i;
     if (btif_av_cb[0].sm_handle == NULL)
     {
-        BTIF_TRACE_EVENT(" Start Media Task");
-        if (!btif_a2dp_start_media_task())
+        BTIF_TRACE_IMP("%s", __FUNCTION__);
+        if(!btif_a2dp_is_media_task_stopped())
             return BT_STATUS_FAIL;
         btif_av_cb[0].service = service_id;
 
@@ -2091,8 +2096,10 @@ bt_status_t btif_av_init(int service_id)
                                                     BTIF_AV_STATE_IDLE, i);
         }
 
+        btif_transfer_context(btif_av_handle_event, BTIF_AV_INIT_REQ_EVT,
+                (char*)&service_id, sizeof(int), NULL);
+
         btif_enable_service(service_id);
-        btif_a2dp_on_init();
     }
 
     return BT_STATUS_SUCCESS;
