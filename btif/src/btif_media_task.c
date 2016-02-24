@@ -842,15 +842,26 @@ static void btif_a2dp_encoder_update(void)
     btif_media_task_enc_update_req(&msg);
 }
 
-bool btif_a2dp_start_media_task(void)
+bool btif_a2dp_is_media_task_stopped(void)
 {
     if (media_task_running != MEDIA_TASK_STATE_OFF)
     {
-        APPL_TRACE_ERROR("warning : media task already running");
+        APPL_TRACE_ERROR("btif_a2dp_is_media_task_stopped: %d",
+                                            media_task_running);
         return false;
     }
+    return true;
+}
 
+bool btif_a2dp_start_media_task(void)
+{
     APPL_TRACE_IMP("## A2DP START MEDIA THREAD ##");
+    if (media_task_running != MEDIA_TASK_STATE_OFF)
+    {
+        APPL_TRACE_ERROR("warning : media task state: %d",
+                                            media_task_running);
+        return false;
+    }
 
     btif_media_cmd_msg_queue = fixed_queue_new(SIZE_MAX);
 
@@ -878,6 +889,14 @@ bool btif_a2dp_start_media_task(void)
 void btif_a2dp_stop_media_task(void)
 {
     APPL_TRACE_IMP("## A2DP STOP MEDIA THREAD ##");
+    if (media_task_running != MEDIA_TASK_STATE_ON)
+    {
+        APPL_TRACE_ERROR("warning: media task cleanup state: %d",
+                                        media_task_running);
+        return;
+    }
+    /* make sure no channels are restarted while shutting down */
+    media_task_running = MEDIA_TASK_STATE_SHUTTING_DOWN;
 
     // Stop timer
     alarm_free(btif_media_cb.media_alarm);
@@ -891,6 +910,7 @@ void btif_a2dp_stop_media_task(void)
 
     worker_thread = NULL;
     btif_media_cmd_msg_queue = NULL;
+    APPL_TRACE_IMP("## A2DP MEDIA THREAD STOPPED ##");
 }
 
 /*****************************************************************************
@@ -1408,18 +1428,18 @@ static void btif_media_thread_init(UNUSED_ATTR void *context) {
 
   raise_priority_a2dp(TASK_HIGH_MEDIA);
   media_task_running = MEDIA_TASK_STATE_ON;
+  APPL_TRACE_IMP(" btif_media_thread_init complete");
 }
 
 static void btif_media_thread_cleanup(UNUSED_ATTR void *context) {
   APPL_TRACE_IMP(" btif_media_thread_cleanup");
-  /* make sure no channels are restarted while shutting down */
-  media_task_running = MEDIA_TASK_STATE_SHUTTING_DOWN;
 
   /* this calls blocks until uipc is fully closed */
   UIPC_Close(UIPC_CH_ID_ALL);
 
   /* Clear media task flag */
   media_task_running = MEDIA_TASK_STATE_OFF;
+  APPL_TRACE_IMP(" btif_media_thread_cleanup complete");
 }
 
 /*******************************************************************************
