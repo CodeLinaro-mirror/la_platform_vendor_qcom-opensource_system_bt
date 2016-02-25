@@ -120,6 +120,7 @@ static void bta_dm_ctrl_features_rd_cmpl_cback(tBTM_STATUS result);
 #endif
 #endif
 
+static void bta_dm_reset_sec_dev_pending(BD_ADDR remote_bd_addr);
 static void bta_dm_remove_sec_dev_entry(BD_ADDR remote_bd_addr);
 static void bta_dm_observe_results_cb(tBTM_INQ_RESULTS *p_inq, UINT8 *p_eir);
 static void bta_dm_observe_cmpl_cb(void * p_result);
@@ -2391,10 +2392,13 @@ static void bta_dm_discover_device(BD_ADDR remote_bd_addr)
             /* check whether connection already exists to the device
                if connection exists, we don't have to wait for ACL
                link to go down to start search on next device */
-            if (BTM_IsAclConnectionUp(bta_dm_search_cb.peer_bdaddr, BT_TRANSPORT_BR_EDR))
-                bta_dm_search_cb.wait_disc = FALSE;
-            else
-                bta_dm_search_cb.wait_disc = TRUE;
+            if (transport == BT_TRANSPORT_BR_EDR)
+            {
+                if (BTM_IsAclConnectionUp(bta_dm_search_cb.peer_bdaddr, BT_TRANSPORT_BR_EDR))
+                    bta_dm_search_cb.wait_disc = FALSE;
+                else
+                    bta_dm_search_cb.wait_disc = TRUE;
+            }
 
 #if (BLE_INCLUDED == TRUE && (defined BTA_GATT_INCLUDED) && (BTA_GATT_INCLUDED == TRUE))
             if ( bta_dm_search_cb.p_btm_inq_info )
@@ -2874,6 +2878,12 @@ static UINT8  bta_dm_new_link_key_cback(BD_ADDR bd_addr, DEV_CLASS dev_class,
 #endif
         if(bta_dm_cb.p_sec_cback)
             bta_dm_cb.p_sec_cback(event, &sec_event);
+
+        // Setting remove_dev_pending flag to FALSE, where it will avoid deleting the
+        // security device record when the ACL connection link goes down in case of
+        // reconnection.
+        if(bta_dm_cb.device_list.count)
+            bta_dm_reset_sec_dev_pending(p_auth_cmpl->bd_addr);
     }
     else
     {
@@ -3454,7 +3464,7 @@ void bta_dm_acl_change(tBTA_DM_MSG *p_data)
         conn.link_down.link_type = p_data->acl_change.transport;
 #endif
 
-        if(bta_dm_search_cb.wait_disc && !bdcmp(bta_dm_search_cb.peer_bdaddr, p_bda))
+        if((p_data->acl_change.transport == BT_TRANSPORT_BR_EDR) && bta_dm_search_cb.wait_disc && !bdcmp(bta_dm_search_cb.peer_bdaddr, p_bda))
         {
             bta_dm_search_cb.wait_disc = FALSE;
 
@@ -3623,6 +3633,31 @@ static void bta_dm_delay_role_switch_cback(TIMER_LIST_ENT *p_tle)
     UNUSED(p_tle);
     APPL_TRACE_EVENT("bta_dm_delay_role_switch_cback: initiating Delayed RS");
     bta_dm_adjust_roles (FALSE);
+}
+
+/*******************************************************************************
+**
+** Function         bta_dm_reset_sec_dev_pending
+**
+** Description      Setting the remove device pending status to FALSE from
+**                  security device DB, when the link key notification
+**                  event comes.
+**
+** Returns          void
+**
+*******************************************************************************/
+static void bta_dm_reset_sec_dev_pending(BD_ADDR remote_bd_addr)
+{
+    UINT16 index = 0;
+    for (index = 0; index < bta_dm_cb.device_list.count; index ++)
+    {
+        if (!bdcmp( bta_dm_cb.device_list.peer_device[index].peer_bdaddr, remote_bd_addr))
+            break;
+    }
+    if (index != bta_dm_cb.device_list.count)
+    {
+        bta_dm_cb.device_list.peer_device[index].remove_dev_pending = FALSE;
+    }
 }
 
 /*******************************************************************************
