@@ -2962,7 +2962,8 @@ static void rc_ctrl_procedure_complete ()
     if (btif_rc_cb.rc_playing_uid != RC_INVALID_TRACK_ID)
     {
         if ((BTA_AvIsBrowsingSupported () == TRUE) &&
-            btif_rc_cb.rc_features & BTA_AV_FEAT_BROWSE)
+            (btif_rc_cb.rc_features & BTA_AV_FEAT_BROWSE) &&
+            (btif_rc_cb.rc_playing_uid != 0))
         {
             /* Todo: UID counter to be used ? */
             get_item_attributes (btif_rc_cb.rc_addr,
@@ -4995,19 +4996,16 @@ static void handle_notification_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_REG
                 {
                     break;
                 }
+                UINT8 *p_data = p_rsp->param.track;
+                BE_STREAM_TO_UINT64(btif_rc_cb.rc_playing_uid, p_data);
                 if ((BTA_AvIsBrowsingSupported () == TRUE) &&
                     (btif_rc_cb.rc_features & BTA_AV_FEAT_BROWSE) &&
                     (btif_rc_cb.rc_playing_uid != 0))
                 {
-                    UINT64 uid;
-                    UINT8 *p_data = p_rsp->param.track;
-
-                    BE_STREAM_TO_UINT64(uid, p_data);
-
                     /* Todo: UID counter to be used ? */
                     get_item_attributes (btif_rc_cb.rc_addr,
                             AVRC_SCOPE_NOW_PLAYING,
-                            btif_rc_cb.uid_counter, uid,
+                            btif_rc_cb.uid_counter, btif_rc_cb.rc_playing_uid,
                             0, NULL);
                 }
                 else

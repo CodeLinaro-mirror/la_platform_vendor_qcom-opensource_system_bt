@@ -3147,8 +3147,13 @@ void bta_av_open_rc (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         }
         else
         {
-            /* use main SM for AVRC SDP activities */
-            bta_av_rc_disc((UINT8)(p_scb->hdi + 1));
+            APPL_TRACE_DEBUG(" bta_av_open_rc  rc_handle = %d",
+                                                    p_scb->rc_handle);
+            if (p_scb->rc_handle == BTA_AV_RC_HANDLE_NONE)
+            {
+                 /* use main SM for AVRC SDP activities */
+                 bta_av_rc_disc((UINT8)(p_scb->hdi + 1));
+            }
         }
     }
     else
