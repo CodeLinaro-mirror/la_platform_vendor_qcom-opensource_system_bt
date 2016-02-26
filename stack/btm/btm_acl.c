@@ -59,6 +59,7 @@ static const UINT8 btm_role_switch_black_list_prefix[][3] = {{0x00, 0x0d, 0xfd} 
                                                              ,{0x00, 0x1b, 0xdc} /* BSHSBE20 */
                                                              ,{0x00, 0x07, 0x04} /* Infiniti G37 2011 */
                                                              ,{0xa4, 0x15, 0x66} /* Motorola Whisper */
+                                                             ,{0x00, 0x15, 0x83} /* Gear circle */
                                                             };
 
 /*******************************************************************************
