@@ -190,7 +190,8 @@ static void reset_complete(void *result) {
 
   if(controller->supports_ble_two_mbps_rate()) {
       /* set 2mbps Tx and Rx if supported*/
-      btsnd_hcic_ble_set_default_data_rate(0, BTM_DATA_RATE_TWO, BTM_DATA_RATE_TWO);
+      btsnd_hcic_ble_set_default_data_rate(0, BTM_DATA_RATE_TWO|BTM_DATA_RATE_ONE,
+                                           BTM_DATA_RATE_TWO|BTM_DATA_RATE_ONE);
   }
 #endif
 

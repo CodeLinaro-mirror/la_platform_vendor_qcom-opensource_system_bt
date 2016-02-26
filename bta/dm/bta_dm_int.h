@@ -510,6 +510,7 @@ typedef struct
     UINT8       all_phy;
     UINT8       tx_phy;
     UINT8       rx_phy;
+    UINT16      phy_options;
 }tBTA_DM_API_BLE_SET_PHY;
 
 typedef struct

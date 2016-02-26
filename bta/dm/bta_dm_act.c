@@ -4991,7 +4991,8 @@ void bta_dm_ble_set_data_length(tBTA_DM_MSG *p_data)
 void bta_dm_ble_set_phy(tBTA_DM_MSG *p_data)
 {
     if (BTM_SetBlePhy(p_data->ble_set_phy.remote_bda, p_data->ble_set_phy.all_phy,
-                      p_data->ble_set_phy.tx_phy, p_data->ble_set_phy.rx_phy) != BTM_SUCCESS)
+                      p_data->ble_set_phy.tx_phy, p_data->ble_set_phy.rx_phy,
+                      p_data->ble_set_phy.phy_options) != BTM_SUCCESS)
     {
         APPL_TRACE_ERROR("%s failed", __func__);
     }

@@ -906,7 +906,8 @@ tBTM_STATUS BTM_SetBleDataLength(BD_ADDR bd_addr, UINT16 tx_pdu_length)
 ** Returns          BTM_SUCCESS if success; otherwise failed.
 **
 *******************************************************************************/
-tBTM_STATUS BTM_SetBlePhy(BD_ADDR bd_addr, UINT8 all_phy, UINT8 tx_phy, UINT8 rx_phy)
+tBTM_STATUS BTM_SetBlePhy(BD_ADDR bd_addr, UINT8 all_phy, UINT8 tx_phy,
+                          UINT8 rx_phy, UINT16 phy_options)
 {
     tACL_CONN *p_acl = btm_bda_to_acl(bd_addr, BT_TRANSPORT_LE);
     BTM_TRACE_DEBUG("%s: all_phy=0x%0x, tx_phy=0x%0x, rx_phy=0x%0x",
@@ -927,7 +928,7 @@ tBTM_STATUS BTM_SetBlePhy(BD_ADDR bd_addr, UINT8 all_phy, UINT8 tx_phy, UINT8 rx
     if (p_acl != NULL)
     {
         btsnd_hcic_ble_set_data_rate (p_acl->hci_handle, all_phy, tx_phy,
-                                      rx_phy);
+                                      rx_phy, phy_options);
         return BTM_SUCCESS;
     }
     else

@@ -2219,7 +2219,7 @@ extern void BTA_DmBleSetDataLength(BD_ADDR remote_device, UINT16 tx_data_length)
 **
 *******************************************************************************/
 extern void BTA_DmBleSetPhy(BD_ADDR remote_device, UINT8 all_phy,
-                            UINT8 tx_phy, UINT8 rx_phy);
+                            UINT8 tx_phy, UINT8 rx_phy, UINT16 phy_options);
 
 /*******************************************************************************
 **

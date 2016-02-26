@@ -2021,7 +2021,8 @@ void BTA_DmBleSetDataLength(BD_ADDR remote_device, UINT16 tx_data_length)
 ** Returns          void
 **
 *******************************************************************************/
-void BTA_DmBleSetPhy(BD_ADDR remote_device, UINT8 all_phy, UINT8 tx_phy, UINT8 rx_phy)
+void BTA_DmBleSetPhy(BD_ADDR remote_device, UINT8 all_phy, UINT8 tx_phy,
+                     UINT8 rx_phy, UINT16 phy_options)
 {
     tBTA_DM_API_BLE_SET_PHY *p_msg;
 
@@ -2032,6 +2033,7 @@ void BTA_DmBleSetPhy(BD_ADDR remote_device, UINT8 all_phy, UINT8 tx_phy, UINT8 r
         p_msg->all_phy = all_phy;
         p_msg->tx_phy = tx_phy;
         p_msg->rx_phy = rx_phy;
+        p_msg->phy_options = phy_options;
         p_msg->hdr.event = BTA_DM_API_SET_BLE_PHY_EVT;
 
         bta_sys_sendmsg(p_msg);

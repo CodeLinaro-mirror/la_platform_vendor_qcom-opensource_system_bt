@@ -1872,7 +1872,8 @@ extern tBTM_STATUS BTM_SetBleDataLength(BD_ADDR bd_addr, UINT16 tx_pdu_length);
 ** Returns          BTM_SUCCESS if success; otherwise failed.
 **
 *******************************************************************************/
-extern tBTM_STATUS BTM_SetBlePhy(BD_ADDR bd_addr, UINT8 all_phy, UINT8 tx_phy, UINT8 rx_phy);
+extern tBTM_STATUS BTM_SetBlePhy(BD_ADDR bd_addr, UINT8 all_phy, UINT8 tx_phy,
+                                 UINT8 rx_phy, UINT16 phy_options);
 
 #ifdef __cplusplus
 }
