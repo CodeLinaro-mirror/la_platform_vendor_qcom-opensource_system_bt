@@ -919,7 +919,7 @@ tBTM_STATUS BTM_SetBlePhy(BD_ADDR bd_addr, UINT8 all_phy, UINT8 tx_phy,
         return BTM_ILLEGAL_VALUE;
     }
 
-    if (!HCI_LE_TWO_MBPS_SUPPORTED(p_acl->peer_le_features))
+    if ((p_acl != NULL) && (!HCI_LE_TWO_MBPS_SUPPORTED(p_acl->peer_le_features)))
     {
         BTM_TRACE_ERROR("%s failed, peer does not support request", __func__);
         return BTM_ILLEGAL_VALUE;
