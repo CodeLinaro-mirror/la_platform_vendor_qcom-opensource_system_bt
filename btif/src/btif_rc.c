@@ -142,6 +142,8 @@ typedef struct
 #define BTIF_TIMEOUT_RC_INTERIM_RSP     2
 #define BTIF_TIMEOUT_RC_STATUS_CMD      2
 #define BTIF_TIMEOUT_RC_CONTROL_CMD     2
+#define BTIF_TIMEOUT_RC_BROWSE_CMD      3
+#define BTIF_TIMEOUT_RC_BROWSE_SEARCH_CMD  5
 #define BTIF_TIMEOUT_RC_BROWSE_DELAY    2
 
 
@@ -162,8 +164,9 @@ typedef struct {
 #define RC_TIMER_CONTROL_CMD    1
 #define RC_TIMER_PLAY_STATUS    2
 #define RC_TIMER_BROWSE_START   3
+#define RC_TIMER_BROWSE_CMD     4
 
-#define BTIF_RC_STS_TIMEOUT     0xFE
+#define BTIF_RC_STS_TIMEOUT     0x5E
 typedef struct {
     UINT8   label;
     UINT8   pdu_id;
@@ -175,10 +178,16 @@ typedef struct {
 } btif_rc_control_cmd_timer_t;
 
 typedef struct {
+    UINT8   label;
+    UINT8   pdu_id;
+} btif_rc_browse_cmd_timer_t;
+
+typedef struct {
     UINT8   timer_id;
     union {
         btif_rc_status_cmd_timer_t rc_status_cmd;
         btif_rc_control_cmd_timer_t rc_control_cmd;
+        btif_rc_browse_cmd_timer_t rc_browse_cmd;
     };
     TIMER_LIST_ENT  tle;
 } btif_rc_timer_context_t;
@@ -363,6 +372,11 @@ static bt_status_t getcapabilities_cmd (uint8_t cap_id);
 static bt_status_t list_player_app_setting_attrib_cmd(void);
 static bt_status_t list_player_app_setting_value_cmd(uint8_t attrib_id);
 static bt_status_t get_player_app_setting_cmd(uint8_t num_attrib, uint8_t* attrib_ids);
+static void start_browse_command_timer (UINT8 pdu_id, rc_transaction_t *p_txn);
+static void start_control_command_timer (UINT8 pdu_id, rc_transaction_t *p_txn);
+static void start_status_command_timer (UINT8 pdu_id, rc_transaction_t *p_txn);
+static void clear_cmd_timeout (UINT8 label);
+static void handle_set_addressed_player_rsp (tBTA_AV_META_MSG *pmeta_msg, tAVRC_RSP *p_rsp);
 #endif
 
 /*Added for Browsing Message Response */
@@ -2914,8 +2928,6 @@ static bt_status_t init(btrc_callbacks_t* callbacks)
     btif_rc_cb.rc_vol_label = MAX_LABEL;
     btif_rc_cb.rc_volume = MAX_VOLUME;
     btif_rc_cb.rc_handle = BTIF_RC_HANDLE_NONE;
-    btif_rc_cb.rc_features_processed = FALSE;
-    btif_rc_cb.uid_counter = 0;
 
     lbl_init();
 
@@ -2947,6 +2959,9 @@ static bt_status_t init_ctrl(btrc_ctrl_callbacks_t* callbacks )
     bt_rc_ctrl_callbacks = callbacks;
     memset (&btif_rc_cb, 0, sizeof(btif_rc_cb));
     btif_rc_cb.rc_vol_label = MAX_LABEL;
+    btif_rc_cb.rc_handle = BTIF_RC_HANDLE_NONE;
+    btif_rc_cb.rc_features_processed = FALSE;
+    btif_rc_cb.uid_counter = 0;
     lbl_init();
 
     return result;
@@ -3794,6 +3809,8 @@ static bt_status_t set_addressed_player (bt_bdaddr_t *bd_addr, uint16_t player_i
                                    __FUNCTION__,p_transaction->lbl);
                 BTA_AvMetaCmd(btif_rc_cb.rc_handle, p_transaction->lbl, AVRC_CMD_CTRL, p_msg);
                 status =  BT_STATUS_SUCCESS;
+                start_control_command_timer (AVRC_PDU_SET_ADDRESSED_PLAYER,
+                        p_transaction);
             }
             else
             {
@@ -3843,6 +3860,7 @@ static bt_status_t play_item (bt_bdaddr_t *bd_addr, uint8_t scope, uint16_t uid_
                                    __FUNCTION__,p_transaction->lbl);
                 BTA_AvMetaCmd(btif_rc_cb.rc_handle, p_transaction->lbl, AVRC_CMD_CTRL, p_msg);
                 status =  BT_STATUS_SUCCESS;
+                start_browse_command_timer(AVRC_PDU_PLAY_ITEM, p_transaction);
             }
             else
             {
@@ -3890,6 +3908,7 @@ static bt_status_t add_to_now_playing_list (bt_bdaddr_t *bd_addr, uint8_t scope,
                                    __FUNCTION__,p_transaction->lbl);
                 BTA_AvMetaCmd(btif_rc_cb.rc_handle, p_transaction->lbl, AVRC_CMD_CTRL, p_msg);
                 status =  BT_STATUS_SUCCESS;
+                start_browse_command_timer(AVRC_PDU_ADD_TO_NOW_PLAYING, p_transaction);
             }
             else
             {
@@ -3930,6 +3949,8 @@ static bt_status_t set_browsed_player (bt_bdaddr_t *bd_addr, uint16_t player_id)
         {
             BTA_AvMetaCmd(btif_rc_cb.rc_handle, p_transaction->lbl, 0, p_msg);
             status = BT_STATUS_SUCCESS;
+            start_browse_command_timer(AVRC_PDU_SET_BROWSED_PLAYER,
+                                                               p_transaction);
         }
         else
         {
@@ -3967,6 +3988,7 @@ static bt_status_t change_path (bt_bdaddr_t *bd_addr, uint16_t uid_counter, uint
         {
             BTA_AvMetaCmd(btif_rc_cb.rc_handle, p_transaction->lbl, 0, p_msg);
             status = BT_STATUS_SUCCESS;
+            start_browse_command_timer(AVRC_PDU_CHANGE_PATH, p_transaction);
         }
         else
         {
@@ -4012,6 +4034,7 @@ static bt_status_t browse_folder (bt_bdaddr_t *bd_addr, uint8_t scope, uint32_t 
         {
             BTA_AvMetaCmd(btif_rc_cb.rc_handle, p_transaction->lbl, 0, p_msg);
             status = BT_STATUS_SUCCESS;
+            start_browse_command_timer(AVRC_PDU_GET_FOLDER_ITEMS, p_transaction);
         }
         else
         {
@@ -4108,6 +4131,7 @@ static bt_status_t search (bt_bdaddr_t *bd_addr, uint16_t charset_id, uint16_t l
         {
             BTA_AvMetaCmd(btif_rc_cb.rc_handle, p_transaction->lbl, 0, p_msg);
             status = BT_STATUS_SUCCESS;
+            start_browse_command_timer(AVRC_PDU_SEARCH, p_transaction);
         }
         else
         {
@@ -4144,6 +4168,7 @@ static bt_status_t get_total_number_of_items (bt_bdaddr_t *bd_addr, uint8_t scop
         {
             BTA_AvMetaCmd(btif_rc_cb.rc_handle, p_transaction->lbl, 0, p_msg);
             status = BT_STATUS_SUCCESS;
+            start_browse_command_timer(AVRC_PDU_GET_TOTAL_NUMBER_OF_ITEMS, p_transaction);
         }
         else
         {
@@ -4500,6 +4525,9 @@ static void rc_timeout_handler (UINT16 event, char* p_data)
     btif_rc_timer_context_t *p_rc_timer_context;
     tAVRC_RESPONSE      avrc_response = {0};
     tBTA_AV_META_MSG    meta_msg;
+    bt_bdaddr_t rc_addr;
+    btrc_folder_list_entries_t folder_entries;
+    bdcpy(rc_addr.address, btif_rc_cb.rc_addr);
 
     p_rc_timer_context = (btif_rc_timer_context_t *)p_data;
     memset(&meta_msg, 0, sizeof(tBTA_AV_META_MSG));
@@ -4568,10 +4596,57 @@ static void rc_timeout_handler (UINT16 event, char* p_data)
                     avrc_response.set_app_val.status = BTIF_RC_STS_TIMEOUT;
                     handle_set_app_attr_val_response(&meta_msg, &avrc_response.set_app_val);
                     break;
+                case AVRC_PDU_SET_ADDRESSED_PLAYER:
+                    avrc_response.addr_player.status = BTIF_RC_STS_TIMEOUT;
+                    handle_set_addressed_player_rsp(&meta_msg,
+                                             &avrc_response.addr_player);
+                    break;
             }
             release_transaction (p_rc_timer_context->rc_control_cmd.label);
             break;
 
+        case RC_TIMER_BROWSE_CMD:
+
+            BTIF_TRACE_ERROR ("%s Timeout for browse command 0x%02X", __FUNCTION__,
+                    p_rc_timer_context->rc_browse_cmd.pdu_id);
+            switch (p_rc_timer_context->rc_browse_cmd.pdu_id)
+            {
+                case AVRC_PDU_SET_BROWSED_PLAYER:
+                    HAL_CBACK(bt_rc_ctrl_callbacks, set_browsed_player_rsp_cb,
+                            &rc_addr, BTIF_RC_STS_TIMEOUT, 0);
+                    break;
+                case AVRC_PDU_GET_FOLDER_ITEMS:
+                    folder_entries.uid_counter = btif_rc_cb.uid_counter;
+                    folder_entries.item_count = 0;
+                    folder_entries.status = BTIF_RC_STS_TIMEOUT;
+                    HAL_CBACK(bt_rc_ctrl_callbacks, browse_folder_rsp_cb,
+                            &rc_addr, BTIF_RC_STS_TIMEOUT, &folder_entries);
+                    break;
+                case AVRC_PDU_CHANGE_PATH:
+                    HAL_CBACK(bt_rc_ctrl_callbacks, change_path_rsp_cb,
+                            &rc_addr, BTIF_RC_STS_TIMEOUT, 0);
+                    break;
+                case AVRC_PDU_PLAY_ITEM:
+                    HAL_CBACK(bt_rc_ctrl_callbacks, play_item_rsp_cb, &rc_addr,
+                                                          BTIF_RC_STS_TIMEOUT);
+                    break;
+                case AVRC_PDU_GET_TOTAL_NUMBER_OF_ITEMS:
+                    HAL_CBACK(bt_rc_ctrl_callbacks, total_items_rsp_cb, &rc_addr,
+                            BTIF_RC_STS_TIMEOUT, btif_rc_cb.uid_counter, 0);
+                    break;
+                case AVRC_PDU_SEARCH:
+                    HAL_CBACK(bt_rc_ctrl_callbacks, serach_rsp_cb, &rc_addr,
+                                BTIF_RC_STS_TIMEOUT,btif_rc_cb.uid_counter, 0);
+                    break;
+                case AVRC_PDU_ADD_TO_NOW_PLAYING:
+                    HAL_CBACK(bt_rc_ctrl_callbacks, add_to_now_playing_rsp_cb,
+                                                &rc_addr, BTIF_RC_STS_TIMEOUT);
+                    break;
+            }
+            /* In case of browsing commands we are not releasing transaction labels, just
+             * stopping timer */
+            clear_cmd_timeout(p_rc_timer_context->rc_control_cmd.label);
+            break;
         case RC_TIMER_PLAY_STATUS:
             get_play_status_cmd();
             rc_start_play_status_timer();
@@ -4663,6 +4738,38 @@ static void start_status_command_timer (UINT8 pdu_id, rc_transaction_t *p_txn)
     }
 }
 
+static void start_browse_command_timer (UINT8 pdu_id, rc_transaction_t *p_txn)
+{
+    bt_status_t status;
+    btif_rc_timer_context_t *p_rc_timer_context;
+
+    p_rc_timer_context = (btif_rc_timer_context_t*)GKI_getbuf (sizeof(btif_rc_timer_context_t));
+    if (p_rc_timer_context != NULL)
+    {
+        p_rc_timer_context->timer_id = RC_TIMER_BROWSE_CMD;
+        p_rc_timer_context->rc_browse_cmd.label = p_txn->lbl;
+        p_rc_timer_context->rc_browse_cmd.pdu_id = pdu_id;
+
+        memset(&p_txn->tle_txn, 0, sizeof(TIMER_LIST_ENT));
+        p_txn->tle_txn.param = (UINT32)rc_timeout_callback;
+        p_txn->tle_txn.data = (UINT32)p_rc_timer_context;
+        if (pdu_id == AVRC_PDU_SEARCH)
+        {
+            btu_start_timer(&p_txn->tle_txn, BTU_TTYPE_USER_FUNC,
+              BTIF_TIMEOUT_RC_BROWSE_SEARCH_CMD);
+        }
+        else
+        {
+            btu_start_timer(&p_txn->tle_txn, BTU_TTYPE_USER_FUNC,
+              BTIF_TIMEOUT_RC_BROWSE_CMD);
+        }
+    }
+    else
+    {
+        BTIF_TRACE_ERROR ("%s Getbuf failed while starting command timer",
+            __FUNCTION__);
+    }
+}
 static void start_control_command_timer (UINT8 pdu_id, rc_transaction_t *p_txn)
 {
     bt_status_t status;
@@ -4956,6 +5063,7 @@ static void handle_notification_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_REG
     {
         btif_rc_supported_event_t *p_event;
         list_node_t *node;
+        UINT8 *p_data;
 
         BTIF_TRACE_DEBUG("%s Notification completed : 0x%2X ", __FUNCTION__,
             p_rsp->event_id);
@@ -4996,22 +5104,8 @@ static void handle_notification_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_REG
                 {
                     break;
                 }
-                UINT8 *p_data = p_rsp->param.track;
+                p_data = p_rsp->param.track;
                 BE_STREAM_TO_UINT64(btif_rc_cb.rc_playing_uid, p_data);
-                if ((BTA_AvIsBrowsingSupported () == TRUE) &&
-                    (btif_rc_cb.rc_features & BTA_AV_FEAT_BROWSE) &&
-                    (btif_rc_cb.rc_playing_uid != 0))
-                {
-                    /* Todo: UID counter to be used ? */
-                    get_item_attributes (btif_rc_cb.rc_addr,
-                            AVRC_SCOPE_NOW_PLAYING,
-                            btif_rc_cb.uid_counter, btif_rc_cb.rc_playing_uid,
-                            0, NULL);
-                }
-                else
-                {
-                    get_element_attribute_cmd (0, NULL);
-                }
                 break;
 
             case AVRC_EVT_APP_SETTING_CHANGE:
@@ -5874,6 +5968,7 @@ static void cleanup_ctrl(void)
     {
         bt_rc_ctrl_callbacks = NULL;
     }
+    init_all_transactions();
     memset(&btif_rc_cb, 0, sizeof(btif_rc_cb_t));
     lbl_destroy();
     BTIF_TRACE_EVENT("## %s ## completed", __FUNCTION__);
