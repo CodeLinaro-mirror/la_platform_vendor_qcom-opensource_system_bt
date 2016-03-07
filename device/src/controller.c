@@ -271,6 +271,7 @@ static future_t *start_up(void) {
 
 static future_t *shut_down(void) {
   readable = false;
+  ble_resolving_list_max_size = 0;
   return future_new_immediate(FUTURE_SUCCESS);
 }
 
