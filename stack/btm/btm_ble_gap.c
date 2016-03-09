@@ -3221,7 +3221,9 @@ void btm_ble_read_remote_features_complete(UINT8 *p)
             }
         }
         /* Set PHY for the connection to 2Mbps, no coding preference */
-        BTM_SetBlePhy(p_acl_cb->remote_addr, 0, BTM_DATA_RATE_TWO, BTM_DATA_RATE_TWO, 0);
+        BTM_SetBlePhy(p_acl_cb->remote_addr, 0,
+                      BTM_DATA_RATE_TWO|BTM_DATA_RATE_ONE,
+                      BTM_DATA_RATE_TWO|BTM_DATA_RATE_ONE, 0);
     }
 
 }
