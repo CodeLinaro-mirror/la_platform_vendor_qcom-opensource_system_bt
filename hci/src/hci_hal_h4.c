@@ -271,7 +271,7 @@ static bool stream_corrupted_during_le_scan_workaround(const uint8_t byte_read)
 #if (defined(REMOVE_EAGER_THREADS) && (REMOVE_EAGER_THREADS == TRUE))
 static void event_uart_has_bytes(void *context) {
   uint8_t type_byte;
-  size_t bytes_read;
+  int bytes_read;
   hci_reader_t *reader = (hci_reader_t *) context;
   bytes_read = read(reader->inbound_fd, reader->data_buffer + reader->wr_ptr, reader->buffer_size - reader->wr_ptr);
 
