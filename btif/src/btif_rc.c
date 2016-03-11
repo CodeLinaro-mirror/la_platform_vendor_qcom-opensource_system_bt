@@ -6444,7 +6444,6 @@ static bt_status_t get_element_attribute_cmd (uint8_t num_attribute, uint32_t *p
 static bt_status_t get_media_element_attributes (bt_bdaddr_t *bd_addr, uint8_t num_attrib,
             uint32_t *p_attr_ids)
 {
-    btif_rc_cb.rc_element_attr_app_req = TRUE;
     char send_item[PROPERTY_VALUE_MAX] = "false";
     char send_elem[PROPERTY_VALUE_MAX] = "false";
     property_get("persist.bt.avrcp_ct.sendItem", send_item, "false");
@@ -6464,10 +6463,25 @@ static bt_status_t get_media_element_attributes (bt_bdaddr_t *bd_addr, uint8_t n
             return BT_STATUS_SUCCESS;
         }
     } else if (!strncmp("true", send_elem, 4)) {
+        btif_rc_cb.rc_element_attr_app_req = TRUE;
         return get_element_attribute_cmd(num_attrib, p_attr_ids);
     }
-    if (btif_rc_cb.rc_procedure_complete == TRUE)
-        return get_element_attribute_cmd(num_attrib, p_attr_ids);
+    if (btif_rc_cb.rc_procedure_complete == TRUE) {
+        if ((BTA_AvIsBrowsingSupported () == TRUE) &&
+            (btif_rc_cb.rc_features & BTA_AV_FEAT_BROWSE) &&
+            (btif_rc_cb.rc_playing_uid != 0))
+        {
+            /* Todo: UID counter to be used ? */
+            get_item_attributes (btif_rc_cb.rc_addr,
+                    AVRC_SCOPE_NOW_PLAYING,
+                    btif_rc_cb.uid_counter, btif_rc_cb.rc_playing_uid,
+                    num_attrib, p_attr_ids);
+            return BT_STATUS_SUCCESS;
+        } else {
+            btif_rc_cb.rc_element_attr_app_req = TRUE;
+            return get_element_attribute_cmd(num_attrib, p_attr_ids);
+        }
+    }
     return BT_STATUS_SUCCESS;
 }
 
