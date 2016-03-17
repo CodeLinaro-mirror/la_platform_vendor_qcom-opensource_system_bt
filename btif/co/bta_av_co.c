@@ -79,10 +79,10 @@ const tA2D_SBC_CIE bta_av_co_sbc_caps =
 #else
     (A2D_SBC_IE_SAMP_FREQ_44), /* samp_freq */
 #endif
-    (A2D_SBC_IE_CH_MD_MONO | A2D_SBC_IE_CH_MD_STEREO | A2D_SBC_IE_CH_MD_JOINT | A2D_SBC_IE_CH_MD_DUAL), /* ch_mode */
-    (A2D_SBC_IE_BLOCKS_16 | A2D_SBC_IE_BLOCKS_12 | A2D_SBC_IE_BLOCKS_8 | A2D_SBC_IE_BLOCKS_4), /* block_len */
-    (A2D_SBC_IE_SUBBAND_4 | A2D_SBC_IE_SUBBAND_8), /* num_subbands */
-    (A2D_SBC_IE_ALLOC_MD_L | A2D_SBC_IE_ALLOC_MD_S), /* alloc_mthd */
+    (A2D_SBC_IE_CH_MD_JOINT), /* ch_mode */
+    (A2D_SBC_IE_BLOCKS_16), /* block_len */
+    (A2D_SBC_IE_SUBBAND_8), /* num_subbands */
+    (A2D_SBC_IE_ALLOC_MD_L), /* alloc_mthd */
     BTA_AV_CO_SBC_MAX_BITPOOL, /* max_bitpool */
     A2D_SBC_IE_MIN_BITPOOL /* min_bitpool */
 };
