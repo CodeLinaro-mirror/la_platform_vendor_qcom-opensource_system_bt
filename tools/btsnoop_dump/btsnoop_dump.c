@@ -359,24 +359,27 @@ int main (int argc, char * argv[])
         snoop_log("stack configuration loaded");
 #endif // __SNOOP_DUMP_DBG__
         snoop_file_prefix = config_get_string(config, CONFIG_DEFAULT_SECTION, BTSNOOP_LOG_PATH_KEY, "/data/media/0/hci_snoop");
-
-        snoop_log("Ext snoop prefix: %s", snoop_file_prefix);
-        if (strstr(snoop_file_prefix, "sdcard") != NULL)
-        {
-            char *tmp;
-
-            strcpy(ext_snoop_file_prefix, "/data/media/0/");
-            tmp = snoop_file_prefix + strlen("/sdcard/");
-            if (tmp != NULL)
+        if(snoop_file_prefix == NULL) {
+           snoop_log("Ext snnop prefix is NULL");
+        } else {
+            snoop_log("Ext snoop prefix: %s", snoop_file_prefix);
+            if (strstr(snoop_file_prefix, "sdcard") != NULL)
             {
-                strcat(ext_snoop_file_prefix, tmp);
+                char *tmp;
+
+                strcpy(ext_snoop_file_prefix, "/data/media/0/");
+                tmp = snoop_file_prefix + strlen("/sdcard/");
+                if (tmp != NULL)
+                {
+                    strcat(ext_snoop_file_prefix, tmp);
+                    snoop_log("path created %s", ext_snoop_file_prefix);
+                }
+            }
+            else
+            {
+                strcpy(ext_snoop_file_prefix, snoop_file_prefix);
                 snoop_log("path created %s", ext_snoop_file_prefix);
             }
-        }
-        else
-        {
-            strcpy(ext_snoop_file_prefix, snoop_file_prefix);
-            snoop_log("path created %s", ext_snoop_file_prefix);
         }
     }
 
