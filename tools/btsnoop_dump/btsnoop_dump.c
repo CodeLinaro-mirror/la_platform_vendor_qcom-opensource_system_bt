@@ -46,6 +46,8 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <android/log.h>
 
 #include <cutils/log.h>
+#include "osi/include/config.h"
+
 
 #define MAX_FILE_SIZE 1024*1024*20
 
@@ -57,6 +59,11 @@ uint32_t file_size = 0;
 #define LOCAL_SOCKET_NAME "bthcitraffic"
 #define BTSNOOP_PATH "/data/media/0"
 #define BTSOOP_PORT 8872
+
+static const char *BTSNOOP_LOG_PATH_KEY =  "ExtBtSnoopFileName";
+static const char *path = "/etc/bluetooth/bt_stack.conf";
+static config_t *config;
+static char ext_snoop_file_prefix[256];
 
 //#define __SNOOP_DUMP_DBG__
 
@@ -91,7 +98,8 @@ int btsnoop_file_name (char file_name[256])
         snoop_log("Error : strftime :");
         return -1;
     }
-    snprintf(file_name, 256, BTSNOOP_PATH"/hci_snoop%s.cfa", time_string);
+    snprintf(file_name, 256, "%s%s.cfa", ext_snoop_file_prefix, time_string);
+    snoop_log("file name created %s", ext_snoop_file_prefix);
     return 0;
 }
 
@@ -326,6 +334,7 @@ int snoop_process (int sk)
 int main (int argc, char * argv[])
 {
     int sk, ret, bytes_recv;
+    char *snoop_file_prefix = NULL;
 
     snoop_log ("btsnoop dump starting");
 
@@ -333,6 +342,46 @@ int main (int argc, char * argv[])
     umask(0111);
 
     sk = snoop_connect_to_source();
+
+    snoop_log("%s attempt to load stack conf from %s", __func__, path);
+
+    memset(ext_snoop_file_prefix, 0, sizeof(ext_snoop_file_prefix));
+
+    config = config_new(path);
+    if (!config)
+    {
+        snoop_log("%s file >%s< not found", __func__, path);
+        strcpy(ext_snoop_file_prefix, "/data/media/0/hci_snoop");
+    }
+    else
+    {
+#ifdef __SNOOP_DUMP_DBG__
+        snoop_log("stack configuration loaded");
+#endif // __SNOOP_DUMP_DBG__
+        snoop_file_prefix = config_get_string(config, CONFIG_DEFAULT_SECTION, BTSNOOP_LOG_PATH_KEY, "/data/media/0/hci_snoop");
+        if(snoop_file_prefix == NULL) {
+           snoop_log("Ext snnop prefix is NULL");
+        } else {
+            snoop_log("Ext snoop prefix: %s", snoop_file_prefix);
+            if (strstr(snoop_file_prefix, "sdcard") != NULL)
+            {
+                char *tmp;
+
+                strcpy(ext_snoop_file_prefix, "/data/media/0/");
+                tmp = snoop_file_prefix + strlen("/sdcard/");
+                if (tmp != NULL)
+                {
+                    strcat(ext_snoop_file_prefix, tmp);
+                    snoop_log("path created %s", ext_snoop_file_prefix);
+                }
+            }
+            else
+            {
+                strcpy(ext_snoop_file_prefix, snoop_file_prefix);
+                snoop_log("path created %s", ext_snoop_file_prefix);
+            }
+        }
+    }
 
 /*
        16 Bytes : Read and discard snoop file header
