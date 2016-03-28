@@ -80,6 +80,7 @@
 #define MAX_CMD_QUEUE_LEN 15
 #define ERR_PLAYER_NOT_ADDRESED 0x13
 #define BTRC_FEAT_AVRC_UI_UPDATE 0x08
+#define MAX_TRANS_LABEL 0xFF
 
 #define CHECK_RC_CONNECTED                                                                 \
     BTIF_TRACE_DEBUG("## %s ##", __FUNCTION__);                                            \
@@ -4854,6 +4855,7 @@ static void handle_get_capability_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_G
                     }
                     p_event->event_id = p_rsp->param.event_id[xx];
                     p_event->status = eNOT_REGISTERED;
+                    p_event->label = MAX_TRANS_LABEL; //initialize with highest value
                     list_append(btif_rc_cb.rc_supported_event_list, p_event);
                     break;
                 default:
