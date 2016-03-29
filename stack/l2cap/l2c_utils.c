@@ -96,6 +96,7 @@ tL2C_LCB *l2cu_allocate_lcb (BD_ADDR p_bd_addr, BOOLEAN is_bonding, tBT_TRANSPOR
 #if (BLE_INCLUDED == TRUE)
             p_lcb->transport       = transport;
             p_lcb->tx_data_len     = controller_get_interface()->get_ble_default_data_packet_length();
+            p_lcb->is_collision    = FALSE;
 
             if (transport == BT_TRANSPORT_LE)
             {
@@ -156,7 +157,7 @@ void l2cu_release_lcb (tL2C_LCB *p_lcb)
 
     p_lcb->in_use     = FALSE;
     p_lcb->is_bonding = FALSE;
-
+    p_lcb->is_collision = FALSE;
     /* Stop timers */
     btu_stop_timer (&p_lcb->timer_entry);
     btu_stop_timer (&p_lcb->info_timer_entry);
@@ -3993,3 +3994,15 @@ void l2cu_check_channel_congestion (tL2C_CCB *p_ccb)
     }
 }
 
+BOOLEAN  l2cu_is_collision  (BD_ADDR p_bd_addr)
+{
+    tL2C_LCB    *p_lcb = l2cu_find_lcb_by_bd_addr (p_bd_addr, BT_TRANSPORT_BR_EDR);
+    return ( p_lcb && p_lcb->is_collision );
+}
+
+void l2cu_reset_collision_state  (BD_ADDR p_bd_addr)
+{
+    tL2C_LCB    *p_lcb = l2cu_find_lcb_by_bd_addr (p_bd_addr, BT_TRANSPORT_BR_EDR);
+    if( p_lcb )
+        p_lcb->is_collision = FALSE;
+}

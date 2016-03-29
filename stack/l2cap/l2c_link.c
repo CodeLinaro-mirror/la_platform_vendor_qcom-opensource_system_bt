@@ -171,6 +171,7 @@ BOOLEAN l2c_link_hci_conn_req (BD_ADDR bd_addr)
         counter_add("l2cap.conn.accept", 1);
         btsnd_hcic_accept_conn (bd_addr, p_lcb->link_role);
 
+        p_lcb->is_collision = TRUE;
         p_lcb->link_state = LST_CONNECTING;
         return (TRUE);
     }
