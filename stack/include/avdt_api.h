@@ -1,4 +1,9 @@
 /******************************************************************************
+ *  Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ *
+ *  Not a contribution.
+ ******************************************************************************/
+/******************************************************************************
  *
  *  Copyright (C) 2002-2012 Broadcom Corporation
  *
@@ -46,6 +51,14 @@
 
 /* The index to access the codec type in codec_info[]. */
 #define AVDT_CODEC_TYPE_INDEX       2
+
+#ifdef USE_QTI_APTX_CODEC
+/* The index to access the vendorId in codec_info[]. */
+#define AVDT_VENDOR_ID_TYPE_INDEX    3
+
+/* The index to access the codecId in codec_info[]. */
+#define AVDT_CODEC_ID_TYPE_INDEX     7
+#endif /* USE_QTI_APTX_CODEC */
 
 /* The size in bytes of a Adaptation Layer header. */
 #define AVDT_AL_HDR_SIZE         3

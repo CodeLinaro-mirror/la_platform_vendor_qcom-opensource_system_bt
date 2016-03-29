@@ -110,5 +110,9 @@ LOCAL_C_INCLUDES+= . \
                    $(LOCAL_PATH)/../utils/include \
                    $(bdroid_C_INCLUDES) \
 
+ifeq ($(BOARD_USES_APTX), true)
+  LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/bt/hci_qcomm_init/aptX
+endif
+
 
 include $(BUILD_STATIC_LIBRARY)

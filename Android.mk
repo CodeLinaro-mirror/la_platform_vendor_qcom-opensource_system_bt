@@ -28,6 +28,10 @@ ifeq ($(BOARD_USES_WIPOWER), true)
 bdroid_CFLAGS  += -DWIPOWER_SUPPORTED
 endif
 
+ifeq ($(BOARD_USES_APTX), true)
+bdroid_CFLAGS  += -DUSE_QTI_APTX_CODEC
+endif
+
 bdroid_CFLAGS += \
   -Wall \
   -Wno-unused-parameter \

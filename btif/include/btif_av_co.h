@@ -1,4 +1,9 @@
 /******************************************************************************
+ *  Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ *
+ *  Not a contribution.
+ ******************************************************************************/
+/******************************************************************************
  *
  *  Copyright (C) 2009-2012 Broadcom Corporation
  *
@@ -28,6 +33,9 @@
 enum
 {
     BTIF_SV_AV_AA_SBC_INDEX = 0,
+#ifdef USE_QTI_APTX_CODEC
+    BTIF_SV_AV_AA_QTI_APTX_INDEX,
+#endif
     BTIF_SV_AV_AA_SBC_SINK_INDEX,
     BTIF_SV_AV_AA_SEP_INDEX  /* Last index */
 };
@@ -112,6 +120,41 @@ BOOLEAN bta_av_co_audio_codec_supported(tBTIF_STATUS *p_status);
  *******************************************************************************/
 BOOLEAN bta_av_co_audio_set_codec(const tBTIF_AV_MEDIA_FEEDINGS *p_feeding, tBTIF_STATUS *p_status);
 
+#ifdef USE_QTI_APTX_CODEC
+/*******************************************************************************
+ **
+ ** Function         bta_av_get_current_codec
+ **
+ ** Description      Get the current codec type.
+ **
+ ** Returns          Codec Type Value
+ **
+ *******************************************************************************/
+UINT8 bta_av_get_current_codec();
+
+/*******************************************************************************
+ **
+ ** Function         bta_av_get_current_codecInfo
+ **
+ ** Description      Get the current codec Info.
+ **
+ ** Returns          Returns  pointer to Info
+ **
+ *******************************************************************************/
+UINT8* bta_av_get_current_codecInfo();
+
+/*******************************************************************************
+ **
+ ** Function         bta_av_co_audio_get_codec_config
+ **
+ ** Description     Retrieves the current codec configuration.  On Failure return the default
+ **                      codec configuration.
+ **
+ ** Returns          TRUE if codec is SBC, FALSE otherwise
+ **
+ *******************************************************************************/
+BOOLEAN bta_av_co_audio_get_codec_config(UINT8 *p_sbc_config, UINT16 *p_minmtu, UINT8 type);
+#endif
 /*******************************************************************************
  **
  ** Function         bta_av_co_audio_get_sbc_config
@@ -170,5 +213,6 @@ BOOLEAN bta_av_co_peer_cp_supported(tBTA_AV_HNDL hndl);
  **
  *******************************************************************************/
 BOOLEAN bta_av_co_get_remote_bitpool_pref(UINT8 *min, UINT8 *max);
-
+//API added to fix dual handoff
+UINT8 bta_av_select_codec(tBTA_AV_HNDL hdl);
 #endif

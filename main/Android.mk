@@ -1,3 +1,10 @@
+ifeq ($(BOARD_USES_APTX), true)
+# version of main bluedroid source
+APTX_BLUEDROID_VERSION := 6.0.0
+# version of aptX encoder library
+APTX_ENCODER_VERSION := 1.0.0-rel
+endif
+
 LOCAL_PATH:= $(call my-dir)
 
 #
@@ -124,10 +131,15 @@ LOCAL_C_INCLUDES+= . \
 	$(LOCAL_PATH)/../utils/include \
 	$(bdroid_C_INCLUDES) \
 	external/tinyxml2 \
-	external/zlib
+        external/zlib \
+        $(call include-path-for, audio-utils)
 
 ifeq ($(BOARD_USES_WIPOWER), true)
     LOCAL_C_INCLUDES+= $(LOCAL_PATH)/../wipowerif/include
+endif
+
+ifeq ($(BOARD_USES_APTX), true)
+  LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/bt/hci_qcomm_init/aptX
 endif
 
 LOCAL_CFLAGS += -DBUILDCFG $(bdroid_CFLAGS) -Wno-error=maybe-uninitialized -Wno-error=uninitialized -Wno-error=unused-parameter
@@ -143,6 +155,15 @@ ifeq ($(TARGET_PRODUCT), full_maguro)
      LOCAL_CFLAGS += -DTARGET_MAGURO
 endif
 
+
+ifeq ($(BOARD_USES_APTX), true)
+# version of main bluedroid source modification
+LOCAL_CFLAGS += -DAPTX_BLUEDROID_VERSION="\"$(APTX_BLUEDROID_VERSION)\""
+
+# version of aptX encoder library
+LOCAL_CFLAGS += -DAPTX_ENCODER_VERSION="\"$(APTX_ENCODER_VERSION)\""
+endif
+
 LOCAL_SHARED_LIBRARIES := \
     libcutils \
     libdl \
@@ -151,6 +172,18 @@ LOCAL_SHARED_LIBRARIES := \
     libz \
     libmedia \
     libutils
+
+ifeq ($(BOARD_USES_APTX), true)
+    LOCAL_SHARED_LIBRARIES += libaudioutils
+    LOCAL_SHARED_LIBRARIES += libaptX-$(APTX_ENCODER_VERSION)-Android21-ARMv7A
+    LOCAL_SHARED_LIBRARIES += libaptXScheduler
+endif
+
+ifeq ($(SCMS_T), true)
+   $(info "SCMS-T content protection enabled")
+else
+  $(info "SCMS-T content protection not enabled")
+endif
 
 LOCAL_STATIC_LIBRARIES := \
     libtinyxml2 \

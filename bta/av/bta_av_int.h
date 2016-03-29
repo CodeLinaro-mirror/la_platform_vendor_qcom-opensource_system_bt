@@ -1,4 +1,9 @@
 /******************************************************************************
+ *  Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ *
+ *  Not a contribution.
+ ******************************************************************************/
+/******************************************************************************
  *
  *  Copyright (C) 2004-2012 Broadcom Corporation
  *
@@ -394,6 +399,8 @@ typedef struct
     tBTA_AV_CODEC       codec_type;        /* codec type */
     UINT8               tsep;              /* SEP type of local SEP */
     tBTA_AV_DATA_CBACK  *p_app_data_cback; /* Application callback for media packets */
+    UINT8               vendorId;          /* vendorId type */
+    UINT8               codecId;           /* codecId type */
 } tBTA_AV_SEP;
 
 
@@ -598,6 +605,9 @@ typedef struct
     BOOLEAN             sco_occupied;   /* TRUE if SCO is being used or call is in progress */
     UINT8               audio_streams;  /* handle mask of streaming audio channels */
     UINT8               video_streams;  /* handle mask of streaming video channels */
+#ifdef USE_QTI_APTX_CODEC
+    UINT8               codec_type;  /* p_scb->codec_type */
+#endif /* USE_QTI_APTX_CODEC */
 } tBTA_AV_CB;
 
 

@@ -1,4 +1,9 @@
 /******************************************************************************
+ *  Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ *
+ *  Not a contribution.
+ ******************************************************************************/
+/******************************************************************************
  *  Copyright (c) 2014, The Linux Foundation. All rights reserved.
  *  Not a Contribution.
  *
@@ -125,7 +130,7 @@ static btif_av_cb_t btif_av_cb[BTIF_AV_NUM_CB];
 static TIMER_LIST_ENT tle_av_open_on_rc;
 static btif_sm_event_t idle_rc_event;
 static tBTA_AV idle_rc_data;
-static int btif_max_av_clients = 1;
+int btif_max_av_clients = 1;
 static BOOLEAN enable_multicast = FALSE;
 static BOOLEAN is_multicast_supported = FALSE;
 static BOOLEAN multicast_disabled = FALSE;
@@ -982,7 +987,7 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
                 btif_av_cb[index].flags |= BTIF_AV_FLAG_PENDING_START;
                 break;
             }
-            status = btif_a2dp_setup_codec();
+            status = btif_a2dp_setup_codec(btif_av_cb[index].bta_handle);
             if (status == BTIF_SUCCESS)
             {
                 int idx = 0;
