@@ -64,6 +64,10 @@
 #define BTA_AV_ACP_SIG_TIME_VAL 2000
 #endif
 
+#ifndef BTA_AV_RC_BR_TIME_VAL
+#define BTA_AV_RC_BR_TIME_VAL 5000
+#endif
+
 #ifndef AVRC_MIN_META_CMD_LEN
 #define AVRC_MIN_META_CMD_LEN 20
 #endif
@@ -86,6 +90,7 @@ struct blacklist_entry
 };
 
 static void bta_av_acp_sig_timer_cback (TIMER_LIST_ENT *p_tle);
+static void bta_av_rc_br_timer_cback (TIMER_LIST_ENT *p_tle);
 
 /*******************************************************************************
 **
@@ -401,6 +406,7 @@ UINT8 bta_av_rc_create(tBTA_AV_CB *p_cb, UINT8 role, UINT8 shdl, UINT8 lidx)
     p_rcb->lidx = lidx;
     p_rcb->peer_features = 0;
     p_rcb->cover_art_psm = 0;
+    p_rcb->br_conn_timer.p_cback = NULL;
     if(lidx == (BTA_AV_NUM_LINKS + 1))
     {
         /* this LIDX is reserved for the AVRCP ACP connection */
@@ -596,6 +602,14 @@ void bta_av_rc_opened(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
     APPL_TRACE_ERROR("bta_av_rc_opened rcb[%d] shdl:%d lidx:%d/%d",
             i, shdl, p_cb->rcb[i].lidx, p_cb->lcb[BTA_AV_NUM_LINKS].lidx);
     p_cb->rcb[i].status |= BTA_AV_RC_CONN_MASK;
+    APPL_TRACE_DEBUG(" RC role ACP = %d",
+                                p_cb->rcb[i].status & BTA_AV_RC_ROLE_MASK);
+    if((p_cb->rcb[i].status & BTA_AV_RC_ROLE_MASK) != 0)
+    {
+        p_cb->rcb[i].br_conn_timer.param = (UINT32)i;
+        p_cb->rcb[i].br_conn_timer.p_cback = (TIMER_CBACK *)&bta_av_rc_br_timer_cback;
+        bta_sys_start_timer(&p_cb->rcb[i].br_conn_timer, 0, BTA_AV_RC_BR_TIME_VAL);
+    }
 
     if(!shdl && 0 == p_cb->lcb[BTA_AV_NUM_LINKS].lidx)
     {
@@ -641,6 +655,11 @@ void bta_av_rc_br_opened (tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
     tBTA_AV_RC_OPEN rc_open;
 
     rc_open.rc_handle = p_data->rc_conn_chg.handle;
+    if (bta_av_cb.rcb[rc_open.rc_handle].br_conn_timer.p_cback != NULL)
+    {
+        bta_sys_stop_timer(&bta_av_cb.rcb[rc_open.rc_handle].br_conn_timer);
+        bta_av_cb.rcb[rc_open.rc_handle].br_conn_timer.p_cback = NULL;
+    }
     bdcpy(rc_open.peer_addr, p_data->rc_conn_chg.peer_addr);
     (*p_cb->p_cback)(BTA_AV_RC_BROWSE_OPEN_EVT, (tBTA_AV *)&rc_open);
 }
@@ -1803,7 +1822,21 @@ void bta_av_sig_timer(tBTA_AV_DATA *p_data)
         }
     }
 }
-
+static void bta_av_rc_br_timer_cback (TIMER_LIST_ENT *p_tle)
+{
+    UINT8 handle = (UINT8)p_tle->param;
+    APPL_TRACE_DEBUG(" bta_av_rc_br_timer_cback handle %d ", handle);
+    if(!(bta_av_cb.rcb[handle].status & BTA_AV_RC_CONN_MASK))
+    {
+        APPL_TRACE_DEBUG(" Control channel disconnected, returning");
+        return;
+    }
+    bta_av_cb.rcb[handle].br_conn_timer.p_cback = NULL;
+    if (BTA_AvIsBrowsingSupported () && bta_av_cb.rcb[handle].peer_features & BTA_AV_FEAT_BROWSE)
+    {
+        AVRC_OpenBrowseChannel (handle);
+    }
+}
 /*******************************************************************************
 **
 ** Function         bta_av_acp_sig_timer_cback
@@ -2300,6 +2333,12 @@ void bta_av_rc_closed(tBTA_AV_DATA *p_data)
         {
             rc_close.rc_handle = i;
             p_rcb->status &= ~BTA_AV_RC_CONN_MASK;
+            if(p_rcb->br_conn_timer.p_cback != NULL)
+            {
+                APPL_TRACE_DEBUG(" stopping br connect timer ");
+                bta_sys_stop_timer(&p_rcb->br_conn_timer);
+                p_rcb->br_conn_timer.p_cback = NULL;
+            }
             p_rcb->peer_features = 0;
             APPL_TRACE_DEBUG("       shdl:%d, lidx:%d", p_rcb->shdl, p_rcb->lidx);
             if(p_rcb->shdl)
