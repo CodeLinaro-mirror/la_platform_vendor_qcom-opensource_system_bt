@@ -1032,7 +1032,7 @@ void bta_gattc_disc_cmpl(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
     tBTA_GATTC_DATA *p_q_cmd = p_clcb->p_q_cmd;
     UNUSED(p_data);
 
-    APPL_TRACE_DEBUG("bta_gattc_disc_cmpl conn_id=%d",p_clcb->bta_conn_id);
+    APPL_TRACE_DEBUG("%s conn_id=%d",__func__, p_clcb->bta_conn_id);
 
 #if BLE_INCLUDED == TRUE
     if(p_clcb->transport == BTA_TRANSPORT_LE)
@@ -1048,6 +1048,7 @@ void bta_gattc_disc_cmpl(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
         {
             while (!GKI_queue_is_empty(&p_clcb->p_srcb->cache_buffer))
             {
+                APPL_TRACE_DEBUG("%s freeing p_clcb p_srcb cache_buffer",__func__);
                 GKI_freebuf (GKI_dequeue (&p_clcb->p_srcb->cache_buffer));
             }
             p_clcb->p_srcb->p_srvc_cache = NULL;
@@ -1059,6 +1060,7 @@ void bta_gattc_disc_cmpl(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
     if(p_clcb->p_srcb && p_clcb->p_srcb->p_srvc_list)
     {
         /* release pending attribute list buffer */
+        APPL_TRACE_DEBUG("%s freeing p_clcb p_srcb p_srvc_list",__func__);
         utl_freebuf((void **)&p_clcb->p_srcb->p_srvc_list);
     }
 
@@ -1080,6 +1082,7 @@ void bta_gattc_disc_cmpl(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
          * referenced by p_clcb->p_q_cmd
          */
         if (p_q_cmd != p_clcb->p_q_cmd) {
+            APPL_TRACE_DEBUG("%s freeing p_q_cmd",__func__);
             utl_freebuf((void **)&p_q_cmd);
         }
     }
