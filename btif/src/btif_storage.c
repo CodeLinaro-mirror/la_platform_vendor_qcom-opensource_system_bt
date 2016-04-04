@@ -158,6 +158,8 @@
 #define BTIF_STORAGE_HL_APP_DATA     "hl_app_data_"
 #define BTIF_STORAGE_HL_APP_MDL_DATA "hl_app_mdl_data_"
 
+#define MAX_UUID_LEN 64
+
 /************************************************************************************
 **  Local type definitions
 ************************************************************************************/
@@ -215,10 +217,18 @@ static void btif_in_split_uuids_string_to_list(char *str, bt_uuid_t *p_uuid,
         //p_needle = strchr(p_start, ';');
         p_needle = strchr(p_start, ' ');
         if (p_needle < p_start) break;
-        memset(buf, 0, sizeof(buf));
-        strlcpy(buf, p_start, (p_needle-p_start)+1);
-        string_to_uuid(buf, p_uuid + num);
-        num++;
+        if ((p_needle - p_start) < MAX_UUID_LEN)
+        {
+            memset(buf, 0, sizeof(buf));
+            strlcpy(buf, p_start, (p_needle-p_start)+1);
+            string_to_uuid(buf, p_uuid + num);
+            num++;
+        }
+        else
+        {
+            //Invalid UUID length - skip the parsed data
+            BTIF_TRACE_WARNING("Invalid UUID length. Ignoring");
+        }
         p_start = ++p_needle;
 
     } while (*p_start != 0);

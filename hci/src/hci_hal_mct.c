@@ -185,8 +185,12 @@ static bool hal_dev_in_reset()
         dev_reset_done = 0;
       else
         dev_reset_done = 1;
-      if(retry_count == 6)
+      if(retry_count == 6) {
+        //treat it as ssr completed to kill the bt
+        // process
+        dev_reset_done = 1;
         break;
+      }
     }
   }
   return dev_reset_done;
@@ -275,7 +279,7 @@ static uint16_t transmit_data_on(int fd, uint8_t *data, uint16_t length) {
 
 #if (defined(REMOVE_EAGER_THREADS) && (REMOVE_EAGER_THREADS == TRUE))
 static void event_event_stream_has_bytes(void *context) {
-  size_t bytes_read;
+  int bytes_read;
   hci_reader_t *reader = (hci_reader_t *) context;
   bytes_read = read(reader->inbound_fd, reader->data_buffer+reader->wr_ptr,
                                     reader->buffer_size - reader->wr_ptr);
@@ -295,7 +299,7 @@ static void event_event_stream_has_bytes(UNUSED_ATTR eager_reader_t *reader, UNU
 #if (defined(REMOVE_EAGER_THREADS) && (REMOVE_EAGER_THREADS == TRUE))
 static void event_acl_stream_has_bytes(void *context) {
   // No real concept of incoming SCO typed data, just ACL
-  size_t bytes_read;
+  int bytes_read;
   hci_reader_t *reader = (hci_reader_t *) context;
   bytes_read = read(reader->inbound_fd, reader->data_buffer+reader->wr_ptr,
                                   reader->buffer_size - reader->wr_ptr);
