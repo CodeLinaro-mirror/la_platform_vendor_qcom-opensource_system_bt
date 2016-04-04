@@ -420,7 +420,7 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR *p_msg, tAVRC_RESPON
         }
         BE_STREAM_TO_UINT32(p_result->get_play_status.song_len, p);
         BE_STREAM_TO_UINT32(p_result->get_play_status.song_pos, p);
-        BE_STREAM_TO_UINT8(p_result->get_play_status.status, p);
+        BE_STREAM_TO_UINT8(p_result->get_play_status.play_status, p);
         break;
 
     case AVRC_PDU_PLAY_ITEM:
