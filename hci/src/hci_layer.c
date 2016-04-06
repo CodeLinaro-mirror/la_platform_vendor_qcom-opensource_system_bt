@@ -574,6 +574,7 @@ static void hal_says_data_ready(serial_data_type_t type) {
 #ifdef QCOM_WCN_SSR
     reset = hal->dev_in_reset();
     if (reset) {
+      incoming = &incoming_packets[PACKET_TYPE_TO_INBOUND_INDEX(type = DATA_TYPE_EVENT)];
       if(!create_hw_reset_evt_packet(incoming))
         break;
     } else
@@ -600,6 +601,7 @@ static void hal_says_data_ready(serial_data_type_t type) {
 
           if (buffer_size > GKI_MAX_BUF_SIZE) {
             LOG_ERROR("%s buffer_size(%d) exceeded allowed packet size, allocation not possible", __func__, buffer_size);
+            incoming = &incoming_packets[PACKET_TYPE_TO_INBOUND_INDEX(type = DATA_TYPE_EVENT)];
             if(create_hw_reset_evt_packet(incoming))
               break;
             else
@@ -879,9 +881,7 @@ static void init_layer_interface() {
 }
 
 static bool create_hw_reset_evt_packet(packet_receive_data_t *incoming) {
-  serial_data_type_t type;
   uint8_t dev_ssr_event[3] = { 0x10, 0x01, 0x0A };
-  incoming = &incoming_packets[PACKET_TYPE_TO_INBOUND_INDEX(type = DATA_TYPE_EVENT)];
   incoming->buffer = (BT_HDR *)buffer_allocator->alloc(BT_HDR_SIZE + 3);
   if (incoming->buffer) {
     LOG_ERROR("sending H/w error event to stack\n ");
