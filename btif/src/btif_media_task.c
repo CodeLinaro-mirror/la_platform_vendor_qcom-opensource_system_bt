@@ -1130,13 +1130,8 @@ BOOLEAN btif_a2dp_on_started(tBTA_AV_START *p_av, BOOLEAN pending_start)
             {
                 /* we were remotely started,  make sure codec
                    is setup before datapath is started */
-#ifdef BTA_AV_SPLIT_A2DP_ENABLED
-                if (btif_media_cb.peer_sep == AVDT_TSEP_SNK)
-                {
-                    APPL_TRACE_IMP("start VS command exchange on remote start");
-                    btif_media_on_start_vendor_command();
-                }
-#else
+                APPL_TRACE_IMP("ignore remote start");
+#ifndef BTA_AV_SPLIT_A2DP_ENABLED
                 btif_a2dp_setup_codec();
 #endif
             }
