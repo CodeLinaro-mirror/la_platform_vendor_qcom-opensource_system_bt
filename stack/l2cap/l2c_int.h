@@ -431,6 +431,8 @@ typedef struct t_l2c_linkcb
     UINT32              peer_ext_fea;               /* Peer's extended features mask    */
     list_t              *link_xmit_data_q;          /* Link transmit data buffer queue  */
 
+    BOOLEAN             is_collision;               /* TRUE during collision scenario   */
+
     UINT8               peer_chnl_mask[L2CAP_FIXED_CHNL_ARRAY_SIZE];
 #if (L2CAP_UCD_INCLUDED == TRUE)
     UINT16              ucd_mtu;                    /* peer MTU on UCD */
@@ -668,6 +670,9 @@ extern BOOLEAN l2c_link_send_to_lower (tL2C_LCB *p_lcb, BT_HDR *p_buf);
 extern BOOLEAN l2cu_initialize_fixed_ccb (tL2C_LCB *p_lcb, UINT16 fixed_cid, tL2CAP_FCR_OPTS *p_fcr);
 extern void    l2cu_no_dynamic_ccbs (tL2C_LCB *p_lcb);
 extern void    l2cu_process_fixed_chnl_resp (tL2C_LCB *p_lcb);
+
+extern BOOLEAN l2cu_is_collision  (BD_ADDR p_bd_addr);
+extern void    l2cu_reset_collision_state  (BD_ADDR p_bd_addr);
 
 /* Functions provided by l2c_ucd.c
 ************************************

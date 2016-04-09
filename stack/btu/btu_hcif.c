@@ -1074,8 +1074,13 @@ static void btu_hcif_hdl_command_status (UINT16 opcode, UINT8 status, UINT8 *p_c
                         {
                             p_cmd++;
                             STREAM_TO_BDADDR (bd_addr, p_cmd);
-                            btm_sec_connected (bd_addr, HCI_INVALID_HANDLE, status, 0);
-                            l2c_link_hci_conn_comp (status, HCI_INVALID_HANDLE, bd_addr);
+                            if ( !l2cu_is_collision(bd_addr) )
+                            {
+                                btm_sec_connected (bd_addr, HCI_INVALID_HANDLE, status, 0);
+                                l2c_link_hci_conn_comp (status, HCI_INVALID_HANDLE, bd_addr);
+                            }
+                            else
+                                l2cu_reset_collision_state(bd_addr);
                         }
                         break;
 
