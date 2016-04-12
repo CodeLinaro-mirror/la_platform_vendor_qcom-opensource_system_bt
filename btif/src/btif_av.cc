@@ -143,6 +143,7 @@ typedef struct {
 typedef struct {
   int sample_rate;
   int channel_count;
+  uint8_t codec_type;
   RawAddress peer_bd;
 } btif_av_sink_config_req_t;
 
@@ -776,7 +777,7 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
           __func__, req.sample_rate, req.channel_count);
       if (bt_av_sink_callbacks != NULL) {
         HAL_CBACK(bt_av_sink_callbacks, audio_config_cb, &(req.peer_bd),
-                  req.sample_rate, req.channel_count);
+                  req.sample_rate, req.channel_count, req.codec_type);
       }
     } break;
 
@@ -1062,7 +1063,7 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
       if (btif_av_cb[index].peer_sep == AVDT_TSEP_SRC &&
           bt_av_sink_callbacks != NULL) {
         HAL_CBACK(bt_av_sink_callbacks, audio_config_cb, &(btif_av_cb[index].peer_bda),
-                  req.sample_rate, req.channel_count);
+                  req.sample_rate, req.channel_count, req.codec_type);
       }
     } break;
 
@@ -2849,6 +2850,7 @@ static void bte_av_sink_media_callback(tBTA_AV_EVT event,
 
       /* send a command to BT Media Task */
       btif_a2dp_sink_update_decoder((uint8_t*)(p_data->avk_config.codec_info));
+
       /* Switch to BTIF context */
       config_req.sample_rate =
           A2DP_GetTrackSampleRate(p_data->avk_config.codec_info);
@@ -2856,6 +2858,7 @@ static void bte_av_sink_media_callback(tBTA_AV_EVT event,
         APPL_TRACE_ERROR("%s: cannot get the track frequency", __func__);
         break;
       }
+
       config_req.channel_count =
           A2DP_GetTrackChannelCount(p_data->avk_config.codec_info);
       if (config_req.channel_count == -1) {
@@ -2863,7 +2866,11 @@ static void bte_av_sink_media_callback(tBTA_AV_EVT event,
         break;
       }
 
+      config_req.codec_type =
+          A2DP_GetCodecType(p_data->avk_config.codec_info);
+
       config_req.peer_bd = p_data->avk_config.bd_addr;
+
       btif_transfer_context(btif_av_handle_event, BTIF_AV_SINK_CONFIG_REQ_EVT,
                             (char*)&config_req, sizeof(config_req), NULL);
       break;
