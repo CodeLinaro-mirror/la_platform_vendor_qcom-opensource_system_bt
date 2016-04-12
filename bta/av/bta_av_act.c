@@ -1960,7 +1960,10 @@ tBTA_AV_FEAT bta_av_check_peer_features (UINT16 service_uuid)
                 {
                     BOOLEAN ret = FALSE;
                     APPL_TRACE_DEBUG("peer version to update: 0x%x", peer_rc_version);
-                    ret = bta_av_check_store_avrc_tg_version(p_rec->remote_bd_addr, peer_rc_version);
+                    if (peer_rc_version > AVRC_REV_1_5)
+                        ret = bta_av_check_store_avrc_tg_version(p_rec->remote_bd_addr, AVRC_REV_1_5);
+                    else
+                        ret = bta_av_check_store_avrc_tg_version(p_rec->remote_bd_addr, peer_rc_version);
                     if (ret == TRUE)
                     {
                         peer_features |= BTA_AV_FEAT_AVRC_UI_UPDATE;
