@@ -104,38 +104,79 @@
         return BT_STATUS_NOT_READY;                                                        \
     }
 
-#define FILL_PDU_QUEUE(idx, ctype, label, pending, index)        \
-{                                                           \
-    btif_rc_cb[index].rc_pdu_info[idx].ctype = ctype;            \
-    btif_rc_cb[index].rc_pdu_info[idx].label = label;            \
-    btif_rc_cb[index].rc_pdu_info[idx].is_rsp_pending = pending; \
+#define TXN_LABEL_ENQUEUE(handle, label, front, rear, size, item, cmd)   \
+{                                                                        \
+    if (size == MAX_TRANSACTIONS_PER_SESSION)                            \
+    {                                                                    \
+        send_reject_response(handle, item, cmd, AVRC_STS_INTERNAL_ERR);  \
+        break;                                                           \
+    }                                                                    \
+    rear = (rear + 1) % MAX_TRANSACTIONS_PER_SESSION;                    \
+    label[rear] = item;                                                  \
+    size = size + 1;                                                     \
 }
 
-#define SEND_METAMSG_RSP(index, avrc_rsp, idx)                                                      \
-{                                                                                              \
-    if(btif_rc_cb[idx].rc_pdu_info[index].is_rsp_pending == FALSE)                                  \
-    {                                                                                          \
-        BTIF_TRACE_WARNING("%s Not sending response as no PDU was registered", __FUNCTION__); \
-        return BT_STATUS_UNHANDLED;                                                            \
-    }                                                                                          \
-    send_metamsg_rsp(btif_rc_cb[idx].rc_handle, btif_rc_cb[idx].rc_pdu_info[index].label,                \
-        btif_rc_cb[idx].rc_pdu_info[index].ctype, avrc_rsp);                                        \
-    btif_rc_cb[idx].rc_pdu_info[index].ctype = 0;                                                   \
-    btif_rc_cb[idx].rc_pdu_info[index].label = 0;                                                   \
-    btif_rc_cb[idx].rc_pdu_info[index].is_rsp_pending = FALSE;                                      \
+#define TXN_LABEL_DEQUEUE(label, front, rear, size)        \
+{                                                          \
+    if (size == 0)                                         \
+        return BT_STATUS_UNHANDLED;                        \
+    front = (front + 1) % MAX_TRANSACTIONS_PER_SESSION;    \
+    size = size - 1;                                       \
 }
 
-#define SEND_BROWSEMSG_RSP(index , avrc_rsp, rc_index)                                                   \
+#define FILL_PDU_QUEUE(idx, ctype, label, pending, index, cmd)                                 \
 {                                                                                              \
-    if(btif_rc_cb[rc_index].rc_pdu_info[index].is_rsp_pending == FALSE)                                  \
+    btif_rc_cb[index].rc_pdu_info[idx].ctype = ctype;                                          \
+    TXN_LABEL_ENQUEUE(btif_rc_cb[index].rc_handle, btif_rc_cb[index].rc_pdu_info[idx].label,   \
+            btif_rc_cb[index].rc_pdu_info[idx].front, btif_rc_cb[index].rc_pdu_info[idx].rear, \
+            btif_rc_cb[index].rc_pdu_info[idx].size, label, cmd);                              \
+    BTIF_TRACE_DEBUG("%s txn label %d enqueued to txn queue of pdu %s, queue size %d \n",      \
+            __FUNCTION__, label, dump_rc_pdu(cmd), btif_rc_cb[index].rc_pdu_info[idx].size);   \
+    btif_rc_cb[index].rc_pdu_info[idx].is_rsp_pending = pending;                               \
+}
+
+#define SEND_METAMSG_RSP(idx, avrc_rsp, index)                                                 \
+{                                                                                              \
+    UINT8 curr_label = btif_rc_cb[index].rc_pdu_info[idx].label[                               \
+            btif_rc_cb[index].rc_pdu_info[idx].front];                                         \
+    if(btif_rc_cb[index].rc_pdu_info[idx].is_rsp_pending == FALSE)                             \
     {                                                                                          \
-        BTIF_TRACE_WARNING("%s Not sending response as no PDU was registered", __FUNCTION__); \
+        BTIF_TRACE_WARNING("%s Not sending response as no PDU was registered", __FUNCTION__);  \
         return BT_STATUS_UNHANDLED;                                                            \
     }                                                                                          \
-    send_browsemsg_rsp(btif_rc_cb[rc_index].rc_handle, btif_rc_cb[rc_index].rc_pdu_info[index].label,              \
-        btif_rc_cb[rc_index].rc_pdu_info[index].ctype, avrc_rsp);                                        \
-    btif_rc_cb[rc_index].rc_pdu_info[index].ctype = 0;                                                   \
-    btif_rc_cb[rc_index].rc_pdu_info[index].label = 0;                                                   \
+    TXN_LABEL_DEQUEUE(btif_rc_cb[index].rc_pdu_info[idx].label,                                \
+            btif_rc_cb[index].rc_pdu_info[idx].front,                                          \
+            btif_rc_cb[index].rc_pdu_info[idx].rear,                                           \
+            btif_rc_cb[index].rc_pdu_info[idx].size);                                          \
+    send_metamsg_rsp(btif_rc_cb[index].rc_handle, curr_label,                                  \
+            btif_rc_cb[index].rc_pdu_info[idx].ctype, avrc_rsp);                               \
+    BTIF_TRACE_DEBUG("%s txn label %d dequeued from txn queue, queue sz %d \n", __FUNCTION__,  \
+            curr_label, btif_rc_cb[index].rc_pdu_info[idx].size);                              \
+    btif_rc_cb[index].rc_pdu_info[idx].ctype = 0;                                              \
+    if (btif_rc_cb[index].rc_pdu_info[idx].size == 0)                                          \
+        btif_rc_cb[index].rc_pdu_info[idx].is_rsp_pending = FALSE;                             \
+}
+
+#define SEND_BROWSEMSG_RSP(idx , avrc_rsp, index)                                              \
+{                                                                                              \
+    UINT8 curr_label = btif_rc_cb[index].rc_pdu_info[idx].label[                               \
+            btif_rc_cb[index].rc_pdu_info[idx].front];                                         \
+    if(btif_rc_cb[index].rc_pdu_info[idx].is_rsp_pending == FALSE)                             \
+    {                                                                                          \
+        BTIF_TRACE_WARNING("%s Not sending response as no PDU was registered", __FUNCTION__);  \
+        return BT_STATUS_UNHANDLED;                                                            \
+    }                                                                                          \
+    TXN_LABEL_DEQUEUE(btif_rc_cb[index].rc_pdu_info[idx].label,                                \
+            btif_rc_cb[index].rc_pdu_info[idx].front,                                          \
+            btif_rc_cb[index].rc_pdu_info[idx].rear,                                           \
+            btif_rc_cb[index].rc_pdu_info[idx].size);                                          \
+    send_browsemsg_rsp(btif_rc_cb[index].rc_handle, curr_label,                                \
+            btif_rc_cb[index].rc_pdu_info[idx].ctype, avrc_rsp);                               \
+    BTIF_TRACE_DEBUG("%s txn label %d dequeued from txn queue, queue sz %d \n", __FUNCTION__,  \
+            curr_label, btif_rc_cb[index].rc_pdu_info[idx].size);                              \
+    btif_rc_cb[index].rc_pdu_info[idx].ctype = 0;                                              \
+    if (btif_rc_cb[index].rc_pdu_info[idx].size == 0)                                          \
+        btif_rc_cb[index].rc_pdu_info[idx].is_rsp_pending = FALSE;                             \
 }
 
 /*****************************************************************************
@@ -148,7 +189,10 @@ typedef struct {
 
 typedef struct
 {
-    UINT8   label;
+    int front;
+    int rear;
+    int size;
+    UINT8 label[MAX_TRANSACTIONS_PER_SESSION];
     UINT8   ctype;
     BOOLEAN is_rsp_pending;
 } btif_rc_cmd_ctxt_t;
@@ -519,6 +563,25 @@ void handle_rc_features(int index)
 }
 
 /***************************************************************************
+ *  Function       btif_rc_init_txn_label_queue
+ *
+ *  - Argument:    index of rc control block
+ *
+ *  - Description: initializes the txn label queues for the rc index
+ *
+ ***************************************************************************/
+void btif_rc_init_txn_label_queue(int index)
+{
+    int j;
+    for (j = 0; j < MAX_CMD_QUEUE_LEN; j++)
+    {
+        btif_rc_cb[index].rc_pdu_info[j].front = 0;
+        btif_rc_cb[index].rc_pdu_info[j].size = 0;
+        btif_rc_cb[index].rc_pdu_info[j].rear = MAX_TRANSACTIONS_PER_SESSION - 1;
+    }
+}
+
+/***************************************************************************
  *  Function       btif_rc_get_connection_state
  *
  *  - Argument:    none
@@ -684,9 +747,9 @@ void handle_rc_connect (tBTA_AV_RC_OPEN *p_rc_open)
         btif_rc_cb[index].rc_features = p_rc_open->peer_features;
         btif_rc_cb[index].rc_vol_label = MAX_LABEL;
         btif_rc_cb[index].rc_volume = MAX_VOLUME;
-
         btif_rc_cb[index].rc_connected = TRUE;
         btif_rc_cb[index].rc_handle = p_rc_open->rc_handle;
+        btif_rc_init_txn_label_queue(index);
 
         if (bt_rc_callbacks)
         {
@@ -773,6 +836,7 @@ void handle_rc_disconnect (tBTA_AV_RC_CLOSE *p_rc_close)
     btif_rc_cb[index].rc_volume = MAX_VOLUME;
     btif_rc_cb[index].rc_play_processed = FALSE;
     btif_rc_cb[index].rc_pending_play = FALSE;
+    btif_rc_init_txn_label_queue(index);
 
     //CLose Uinput only when all RCs are disconnected
     is_connected = btif_rc_get_connection_state();
@@ -1957,14 +2021,14 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
         case AVRC_PDU_GET_PLAY_STATUS:
         {
             BTIF_TRACE_DEBUG("AVRC_PDU_GET_PLAY_STATUS ");
-            FILL_PDU_QUEUE(IDX_GET_PLAY_STATUS_RSP, ctype, label, TRUE, index)
+            FILL_PDU_QUEUE(IDX_GET_PLAY_STATUS_RSP, ctype, label, TRUE, index, pavrc_cmd->pdu)
             HAL_CBACK(bt_rc_callbacks, get_play_status_cb, &remote_addr);
         }
         break;
         case AVRC_PDU_LIST_PLAYER_APP_ATTR:
         {
             BTIF_TRACE_DEBUG("AVRC_PDU_LIST_PLAYER_APP_ATTR ");
-            FILL_PDU_QUEUE(IDX_LIST_APP_ATTR_RSP, ctype, label, TRUE, index)
+            FILL_PDU_QUEUE(IDX_LIST_APP_ATTR_RSP, ctype, label, TRUE, index, pavrc_cmd->pdu)
             HAL_CBACK(bt_rc_callbacks, list_player_app_attr_cb, &remote_addr);
         }
         break;
@@ -1977,7 +2041,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
                                     AVRC_STS_BAD_PARAM);
                 break;
             }
-            FILL_PDU_QUEUE(IDX_LIST_APP_VALUE_RSP, ctype, label, TRUE, index)
+            FILL_PDU_QUEUE(IDX_LIST_APP_VALUE_RSP, ctype, label, TRUE, index, pavrc_cmd->pdu)
             HAL_CBACK(bt_rc_callbacks, list_player_app_values_cb,
                     pavrc_cmd->list_app_values.attr_id,
                     &remote_addr);
@@ -2001,7 +2065,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
             {
                 player_attr[player_attr_num] = pavrc_cmd->get_cur_app_val.attrs[player_attr_num];
             }
-            FILL_PDU_QUEUE(IDX_GET_CURR_APP_VAL_RSP, ctype, label, TRUE, index)
+            FILL_PDU_QUEUE(IDX_GET_CURR_APP_VAL_RSP, ctype, label, TRUE, index, pavrc_cmd->pdu)
             HAL_CBACK(bt_rc_callbacks, get_player_app_value_cb ,
                     pavrc_cmd->get_cur_app_val.num_attr, player_attr, &remote_addr);
         }
@@ -2025,7 +2089,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
                     attr.attr_values[count]= pavrc_cmd->set_app_val.p_vals[count].attr_val;
                 }
                 attr.num_attr  =  pavrc_cmd->set_app_val.num_val ;
-                FILL_PDU_QUEUE(IDX_SET_APP_VAL_RSP, ctype, label, TRUE, index)
+                FILL_PDU_QUEUE(IDX_SET_APP_VAL_RSP, ctype, label, TRUE, index, pavrc_cmd->pdu)
                 HAL_CBACK(bt_rc_callbacks, set_player_app_value_cb, &attr, &remote_addr);
             }
         }
@@ -2045,7 +2109,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
                 {
                     player_attr_txt[count_txt] = pavrc_cmd->get_app_attr_txt.attrs[count_txt];
                 }
-                FILL_PDU_QUEUE(IDX_GET_APP_ATTR_TXT_RSP, ctype, label, TRUE, index)
+                FILL_PDU_QUEUE(IDX_GET_APP_ATTR_TXT_RSP, ctype, label, TRUE, index, pavrc_cmd->pdu)
                 HAL_CBACK(bt_rc_callbacks, get_player_app_attrs_text_cb,
                             pavrc_cmd->get_app_attr_txt.num_attr, player_attr_txt, &remote_addr);
             }
@@ -2065,7 +2129,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
             }
             else
             {
-                FILL_PDU_QUEUE(IDX_GET_APP_VAL_TXT_RSP, ctype, label, TRUE, index)
+                FILL_PDU_QUEUE(IDX_GET_APP_VAL_TXT_RSP, ctype, label, TRUE, index, pavrc_cmd->pdu)
                 HAL_CBACK(bt_rc_callbacks, get_player_app_values_text_cb,
                           pavrc_cmd->get_app_val_txt.attr_id, pavrc_cmd->get_app_val_txt.num_val,
                           pavrc_cmd->get_app_val_txt.vals, &remote_addr);
@@ -2124,7 +2188,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
                     }
                 }
             }
-            FILL_PDU_QUEUE(IDX_GET_ELEMENT_ATTR_RSP, ctype, label, TRUE, index);
+            FILL_PDU_QUEUE(IDX_GET_ELEMENT_ATTR_RSP, ctype, label, TRUE, index, pavrc_cmd->pdu);
             HAL_CBACK(bt_rc_callbacks, get_element_attr_cb, num_attr, element_attrs, &remote_addr);
         }
         break;
@@ -2162,7 +2226,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
         {
             btrc_status_t status_code = AVRC_STS_NO_ERROR;
             BTIF_TRACE_EVENT("%s() AVRC_PDU_SET_ADDRESSED_PLAYER", __FUNCTION__);
-            FILL_PDU_QUEUE(IDX_SET_ADDRESS_PLAYER_RSP, ctype, label, TRUE, index);
+            FILL_PDU_QUEUE(IDX_SET_ADDRESS_PLAYER_RSP, ctype, label, TRUE, index, pavrc_cmd->pdu);
             if (!btif_hf_is_call_idle())
             {
                 set_addrplayer_rsp(ERR_PLAYER_NOT_ADDRESED, &remote_addr); // send reject if call is in progress
@@ -2181,7 +2245,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
             UINT8 player[] = "MusicPlayer1";
             UINT8  idx, numAttr;
             BTIF_TRACE_EVENT("%s()AVRC_PDU_GET_FOLDER_ITEMS", __FUNCTION__);
-            FILL_PDU_QUEUE(IDX_GET_FOLDER_ITEMS_RSP,ctype, label, TRUE, index);
+            FILL_PDU_QUEUE(IDX_GET_FOLDER_ITEMS_RSP,ctype, label, TRUE, index, pavrc_cmd->pdu);
             BTIF_TRACE_EVENT("rc_connected: %d",btif_rc_cb[index].rc_connected);
             if (btif_rc_cb[index].rc_connected == TRUE)
             {
@@ -2226,7 +2290,8 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
             BTIF_TRACE_EVENT("%s() AVRC_PDU_SET_BROWSED_PLAYER", __FUNCTION__);
             if (btif_rc_cb[index].rc_connected == TRUE)
             {
-                FILL_PDU_QUEUE(IDX_SET_BROWSE_PLAYER_RSP, ctype, label, TRUE, index);
+                FILL_PDU_QUEUE(IDX_SET_BROWSE_PLAYER_RSP, ctype, label, TRUE, index,
+                        pavrc_cmd->pdu);
                 HAL_CBACK(bt_rc_callbacks, set_browsed_player_cb, pavrc_cmd->br_player.player_id, &remote_addr);
             }
         }
@@ -2236,7 +2301,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
             BTIF_TRACE_EVENT("%s() AVRC_PDU_CHANGE_PATH", __FUNCTION__);
             if (btif_rc_cb[index].rc_connected == TRUE)
             {
-                FILL_PDU_QUEUE(IDX_CHANGE_PATH_RSP, ctype, label, TRUE, index);
+                FILL_PDU_QUEUE(IDX_CHANGE_PATH_RSP, ctype, label, TRUE, index, pavrc_cmd->pdu);
                 HAL_CBACK(bt_rc_callbacks, change_path_cb, pavrc_cmd->chg_path.direction, \
                                                             pavrc_cmd->chg_path.folder_uid, &remote_addr);
             }
@@ -2287,7 +2352,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
 
             if (btif_rc_cb[index].rc_connected == TRUE)
             {
-                FILL_PDU_QUEUE(IDX_GET_ITEM_ATTR_RSP, ctype, label, TRUE, index);
+                FILL_PDU_QUEUE(IDX_GET_ITEM_ATTR_RSP, ctype, label, TRUE, index, pavrc_cmd->pdu);
                 HAL_CBACK(bt_rc_callbacks, get_item_attr_cb, pavrc_cmd->get_attrs.scope,
                         pavrc_cmd->get_attrs.uid, num_attr_requested, element_attrs,
                         AVCT_GetBrowseMtu(btif_rc_cb[index].rc_handle), &remote_addr);
@@ -2299,7 +2364,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
             BTIF_TRACE_EVENT("%s() AVRC_PDU_PLAY_ITEM", __FUNCTION__);
             if (btif_rc_cb[index].rc_connected == TRUE)
             {
-                FILL_PDU_QUEUE(IDX_PLAY_ITEM_RSP, ctype, label, TRUE, index);
+                FILL_PDU_QUEUE(IDX_PLAY_ITEM_RSP, ctype, label, TRUE, index, pavrc_cmd->pdu);
                 HAL_CBACK(bt_rc_callbacks, play_item_cb, pavrc_cmd->play_item.scope,
                 pavrc_cmd->play_item.uid, &remote_addr);
                 /*This command will trigger playback or
@@ -2337,7 +2402,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
             BTIF_TRACE_EVENT("%s() AVRC_PDU_GET_TOTAL_NUMBER_OF_ITEMS", __FUNCTION__);
             if (btif_rc_cb[index].rc_connected == TRUE)
             {
-                FILL_PDU_QUEUE(IDX_GET_TOTAL_ITEMS_RSP, ctype, label, TRUE, index);
+                FILL_PDU_QUEUE(IDX_GET_TOTAL_ITEMS_RSP, ctype, label, TRUE, index, pavrc_cmd->pdu);
                 HAL_CBACK(bt_rc_callbacks, get_tot_item_cb, pavrc_cmd->get_tot_item.scope,
                       &remote_addr);
             }
@@ -2638,7 +2703,7 @@ static void btif_rc_upstreams_rsp_evt(UINT16 event, tAVRC_RESPONSE *pavrc_resp, 
 //APP can pass the max conn value here too
 static bt_status_t init(btrc_callbacks_t* callbacks, int max_connections)
 {
-    BTIF_TRACE_EVENT("## %s ##", __FUNCTION__);
+    BTIF_TRACE_EVENT("## %s ##, max_connections = %d", __FUNCTION__, max_connections);
     bt_status_t result = BT_STATUS_SUCCESS;
     int i;
 
