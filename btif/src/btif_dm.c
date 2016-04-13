@@ -2656,7 +2656,7 @@ void btif_dm_hh_open_success(bt_bdaddr_t *bdaddr)
 
 void btif_dm_hh_open_failed(bt_bdaddr_t *bdaddr)
 {
-    if (pairing_cb.state == BT_BOND_STATE_BONDING &&
+    if (check_cod_hid(bdaddr, COD_HID_MAJOR) && (pairing_cb.state == BT_BOND_STATE_BONDING) &&
             bdcmp(bdaddr->address, pairing_cb.bd_addr) == 0)
     {
         bond_state_changed(BT_STATUS_FAIL, bdaddr, BT_BOND_STATE_NONE);
