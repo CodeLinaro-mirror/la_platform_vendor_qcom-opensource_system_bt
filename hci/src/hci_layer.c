@@ -83,7 +83,8 @@ typedef enum {
 typedef enum {
   HCI_SHUTDOWN,
   HCI_SSR_CLEANUP,
-  HCI_STARTED
+  HCI_STARTED,
+  HCI_READY
 } hci_layer_state;
 
 typedef struct {
@@ -360,7 +361,7 @@ static void transmit_command(
     command_complete_cb complete_callback,
     command_status_cb status_callback,
     void *context) {
-  if(hci_state != HCI_STARTED) {
+  if (hci_state < HCI_STARTED) {
     LOG_ERROR("%s Returning, hci_layer not ready", __func__);
     return;
   }
@@ -410,7 +411,7 @@ static void transmit_downward(data_dispatcher_type_t type, void *data) {
     transmit_command((BT_HDR *)data, NULL, NULL, NULL);
     LOG_WARN("%s legacy transmit of command. Use transmit_command instead.", __func__);
   } else {
-    if(hci_state != HCI_STARTED) {
+    if (hci_state < HCI_STARTED) {
       LOG_ERROR("%s Returning, hci_layer not ready", __func__);
       return;
     }
@@ -668,19 +669,29 @@ static void hal_says_data_ready(serial_data_type_t type) {
       btsnoop->capture(incoming->buffer, true);
 
       if (type != DATA_TYPE_EVENT) {
-        packet_fragmenter->reassemble_and_dispatch(incoming->buffer);
+        if(hci_state == HCI_READY) {
+          packet_fragmenter->reassemble_and_dispatch(incoming->buffer);
+        } else {
+          LOG_WARN("%s, Ignoring the ACL pkt received", __func__);
+          buffer_allocator->free(incoming->buffer);
+        }
       } else if (!filter_incoming_event(incoming->buffer)) {
-        // Dispatch the event by event code
-        uint8_t *stream = incoming->buffer->data;
-        uint8_t event_code;
-        STREAM_TO_UINT8(event_code, stream);
+        if (hci_state == HCI_READY) {
+          // Dispatch the event by event code
+          uint8_t *stream = incoming->buffer->data;
+          uint8_t event_code;
+          STREAM_TO_UINT8(event_code, stream);
 
-        LOG_VERBOSE("%s, dispatch packet", __func__);
-        data_dispatcher_dispatch(
-          interface.event_dispatcher,
-          event_code,
-          incoming->buffer
-        );
+          LOG_VERBOSE("%s, dispatch packet", __func__);
+          data_dispatcher_dispatch(
+            interface.event_dispatcher,
+            event_code,
+            incoming->buffer
+          );
+        } else {
+          LOG_WARN("%s, Ignoring the event pkt received", __func__);
+          buffer_allocator->free(incoming->buffer);
+        }
       }
 
       // We don't control the buffer anymore
@@ -712,6 +723,10 @@ static bool filter_incoming_event(BT_HDR *packet) {
   if (event_code == HCI_COMMAND_COMPLETE_EVT) {
     STREAM_TO_UINT8(command_credits, stream);
     STREAM_TO_UINT16(opcode, stream);
+
+    if (HCI_RESET == opcode) {
+      hci_state = HCI_READY;
+    }
 
     wait_entry = get_waiting_command(opcode);
     if (!wait_entry)
@@ -779,7 +794,7 @@ intercepted:;
 ** and turns off the chip*/
 void ssr_cleanup (int reason) {
    LOG_INFO("%s", __func__);
-   if(hci_state != HCI_STARTED) {
+   if (hci_state < HCI_STARTED) {
      LOG_ERROR("%s Returning, hci_layer already shut down", __func__);
      return;
    }
