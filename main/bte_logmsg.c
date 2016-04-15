@@ -65,10 +65,17 @@
 #include "smp_api.h"
 #endif
 
+#ifdef ANDROID
 #define LOGI0(t,s) __android_log_write(ANDROID_LOG_INFO, t, s)
 #define LOGD0(t,s) __android_log_write(ANDROID_LOG_DEBUG, t, s)
 #define LOGW0(t,s) __android_log_write(ANDROID_LOG_WARN, t, s)
 #define LOGE0(t,s) __android_log_write(ANDROID_LOG_ERROR, t, s)
+#else
+#define LOGI0(x,y) { fprintf(stderr, x,y); fprintf(stderr, "\n");}
+#define LOGD0(x,y) { fprintf(stderr, x,y); fprintf(stderr, "\n");}
+#define LOGW0(x,y) { fprintf(stderr, x,y); fprintf(stderr, "\n");}
+#define LOGE0(x,y) { fprintf(stderr, x,y); fprintf(stderr, "\n");}
+#endif
 
 #ifndef DEFAULT_CONF_TRACE_LEVEL
 #define DEFAULT_CONF_TRACE_LEVEL BT_TRACE_LEVEL_WARNING
@@ -190,6 +197,7 @@ static tBTTRC_FUNC_MAP bttrc_set_level_map[] = {
 
 static const UINT16 bttrc_map_size = sizeof(bttrc_set_level_map)/sizeof(tBTTRC_FUNC_MAP);
 
+#ifdef ANDROID
 void LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
   static char buffer[BTE_LOG_BUF_SIZE];
   int trace_layer = TRACE_GET_LAYER(trace_set_mask);
@@ -220,6 +228,7 @@ void LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
       break;
   }
 }
+#endif
 
 /* this function should go into BTAPP_DM for example */
 static uint8_t BTAPP_SetTraceLevel(uint8_t new_level) {

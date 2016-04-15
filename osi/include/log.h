@@ -18,10 +18,38 @@
 
 #pragma once
 
+#ifdef ANDROID
 #include <cutils/log.h>
 
 #define LOG_VERBOSE(...) ALOGV(__VA_ARGS__)
 #define LOG_DEBUG(...)   ALOGD(__VA_ARGS__)
-#define LOG_INFO(...)    ALOGI(__VA_ARGS__)
-#define LOG_WARN(...)    ALOGW(__VA_ARGS__)
+#define LOG_INFO(...)   ALOGI(__VA_ARGS__)
+#define LOG_WARN(...)   ALOGW(__VA_ARGS__)
 #define LOG_ERROR(...)   ALOGE(__VA_ARGS__)
+#else
+#include <errno.h>
+#include <limits.h>
+#include <stdio.h>
+
+#define LOG_TAG "bt_stack"
+
+#define PRI_INFO " I"
+#define PRI_WARN " W"
+#define PRI_ERROR " E"
+#define PRI_DEBUG " D"
+#define PRI_VERB " V"
+
+#define ALOG(pri, tag, fmt, arg...) fprintf(stderr, tag pri ": " fmt"\n", ##arg)
+#define ALOGV(fmt, arg...) ALOG(PRI_VERB, LOG_TAG, fmt, ##arg)
+#define ALOGD(fmt, arg...) ALOG(PRI_DEBUG, LOG_TAG, fmt, ##arg)
+#define ALOGI(fmt, arg...) ALOG(PRI_INFO, LOG_TAG, fmt, ##arg)
+#define ALOGW(fmt, arg...) ALOG(PRI_WARN, LOG_TAG, fmt, ##arg)
+#define ALOGE(fmt, arg...) ALOG(PRI_ERROR, LOG_TAG, fmt, ##arg)
+
+#define LOG_VERBOSE(fmt, arg...) ALOG(PRI_VERB, LOG_TAG, fmt, ##arg)
+#define LOG_DEBUG(fmt, arg...) ALOG(PRI_DEBUG, LOG_TAG, fmt, ##arg)
+#define LOG_INFO(fmt, arg...) ALOG(PRI_INFO, LOG_TAG, fmt, ##arg)
+#define LOG_WARN(fmt, arg...) ALOG(PRI_WARN, LOG_TAG, fmt, ##arg)
+#define LOG_ERROR(fmt, arg...) ALOG(PRI_ERROR, LOG_TAG, fmt, ##arg)
+#endif
+

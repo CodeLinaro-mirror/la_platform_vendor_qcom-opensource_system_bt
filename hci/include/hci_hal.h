@@ -24,6 +24,10 @@
 #include "thread.h"
 #include "vendor.h"
 
+#ifndef ANDROID
+#include <sys/ioctl.h>
+#endif
+
 typedef enum {
   DATA_TYPE_COMMAND = 1,
   DATA_TYPE_ACL     = 2,

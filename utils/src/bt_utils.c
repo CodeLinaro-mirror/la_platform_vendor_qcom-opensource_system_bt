@@ -35,8 +35,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#ifdef ANDROID
 #include <utils/ThreadDefs.h>
-
+#else
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <string.h>
+#include <sys/un.h>
+#include <sys/time.h>
+#include <fcntl.h>
+#define SOCKETNAME  "/etc/bluetooth/btprop"
+#endif
 #include "bt_types.h"
 #include "bt_utils.h"
 #include "btcore/include/module.h"
@@ -82,10 +91,33 @@ static pthread_mutex_t         gIdxLock;
 static int g_TaskIdx;
 static int g_TaskIDs[TASK_HIGH_MAX];
 #define INVALID_TASK_ID  (-1)
-
+#ifndef ANDROID
+static int bt_prop_socket;      /* This end of connection*/
+#endif
 static future_t *init(void) {
   int i;
   pthread_mutexattr_t lock_attr;
+
+#ifndef ANDROID
+  int len;    /* length of sockaddr */
+  struct sockaddr_un name;
+  if( (bt_prop_socket = socket(AF_UNIX, SOCK_STREAM, 0) ) < 0) {
+    perror("socket");
+    exit(1);
+  }
+  /*Create the address of the server.*/
+  ALOGE("connecting to %s, bt_prop_socket = %d", SOCKETNAME, bt_prop_socket);
+  memset(&name, 0, sizeof(struct sockaddr_un));
+  name.sun_family = AF_UNIX;
+  strncpy(name.sun_path, SOCKETNAME, strlen(SOCKETNAME));
+  printf("connecting to %s", SOCKETNAME);
+  len = sizeof(name.sun_family) + strlen(name.sun_path);
+  /*Connect to the server.*/
+  if (connect(bt_prop_socket, (struct sockaddr *) &name, len) < 0){
+      perror("connect");
+      exit(1);
+  }
+#endif
 
   for(i = 0; i < TASK_HIGH_MAX; i++) {
     g_DoSchedulingGroupOnce[i] = PTHREAD_ONCE_INIT;
@@ -100,8 +132,13 @@ static future_t *init(void) {
 }
 
 static future_t *clean_up(void) {
+  int i;
   pthread_mutex_destroy(&gIdxLock);
   pthread_mutex_destroy(&iot_mutex_lock);
+#ifndef ANDROID
+  shutdown(bt_prop_socket, SHUT_RDWR);
+  close(bt_prop_socket);
+#endif
   return NULL;
 }
 
@@ -137,6 +174,49 @@ static void check_do_scheduling_group(void) {
     }
 }
 
+#ifndef ANDROID
+int property_get(const char *key, char *value, const char *default_value)
+{
+    char prop_string[200];
+    int ret, bytes_read = 0, i = 0;
+    sprintf(prop_string, "get_property %s,", key);
+    ret = send(bt_prop_socket, prop_string, strlen(prop_string), 0);
+    memset(value, 0, sizeof(value));
+    do
+    {
+        bytes_read = recv(bt_prop_socket, &value[i], 1, 0);
+        if (bytes_read == 1)
+        {
+            if (value[i] == ',')
+            {
+                value[i] = '\0';
+                break;
+            }
+            i++;
+        }
+    } while(1);
+    ALOGD("property_get: key(%s) has value: %s", key, value);
+    if (bytes_read) {
+        return 0;
+    } else {
+        strncpy(value, default_value, strlen(default_value));
+        return 1;
+    }
+}
+
+/* property_set: returns 0 on success, < 0 on failure
+*/
+int property_set(const char *key, const char *value)
+{
+    char prop_string[200];
+    int ret;
+    sprintf(prop_string, "set_property %s %s,", key, value);
+    ALOGD("property_set: setting key(%s) to value: %s\n", key, value);
+    ret = send(bt_prop_socket, prop_string, strlen(prop_string), 0);
+    return 0;
+}
+#endif
+
 /*****************************************************************************
 **
 ** Function        raise_priority_a2dp
@@ -147,6 +227,7 @@ static void check_do_scheduling_group(void) {
 **
 *******************************************************************************/
 void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task) {
+#ifdef ANDROID
     int rc = 0;
     int tid = gettid();
     int priority = ANDROID_PRIORITY_AUDIO;
@@ -175,6 +256,7 @@ void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task) {
     if (setpriority(PRIO_PROCESS, tid, priority) < 0) {
         LOG_WARN("failed to change priority tid: %d to %d", tid, priority);
     }
+#endif
 }
 
 /*****************************************************************************
@@ -189,6 +271,7 @@ void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task) {
 **
 *******************************************************************************/
 void adjust_priority_a2dp(int start) {
+#ifdef ANDROID
     int priority = start ? ANDROID_PRIORITY_URGENT_AUDIO : ANDROID_PRIORITY_AUDIO;
     int tid;
     int i;
@@ -204,6 +287,7 @@ void adjust_priority_a2dp(int start) {
             }
         }
     }
+#endif
 }
 
 /*****************************************************************************

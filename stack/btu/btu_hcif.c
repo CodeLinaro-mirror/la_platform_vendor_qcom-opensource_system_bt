@@ -31,6 +31,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#ifndef ANDROID
+#include <signal.h>
+#endif
 
 #include "gki.h"
 #include "bt_types.h"

@@ -163,8 +163,12 @@ int sock_send_fd(int sock_fd, const uint8_t* buf, int len, int send_fd)
     return ret_len;
 }
 
-
+#ifdef ANDROID
 #define PRINT(s) __android_log_write(ANDROID_LOG_DEBUG, NULL, s)
+#else
+#define PRINT(s) fprintf(stderr, s)
+#endif
+
 static const char* hex_table = "0123456789abcdef";
 static inline void byte2hex(const char* data, char** str)
 {

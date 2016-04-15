@@ -39,8 +39,13 @@
 
 #include "bt_types.h"
 
+#ifdef ANDROID
 static const char *CONFIG_FILE_PATH = "/data/misc/bluedroid/bt_config.conf";
 static const char *LEGACY_CONFIG_FILE_PATH = "/data/misc/bluedroid/bt_config.xml";
+#else
+static const char *CONFIG_FILE_PATH = "/etc/data/misc/bluedroid/bt_config.conf";
+static const char *LEGACY_CONFIG_FILE_PATH = "/etc/data/misc/bluedroid/bt_config.xml";
+#endif
 static const period_ms_t CONFIG_SETTLE_PERIOD_MS = 3000;
 
 static void timer_config_save_cb(void *data);
@@ -94,9 +99,11 @@ static alarm_t *alarm_timer;
 static future_t *init(void) {
   pthread_mutex_init(&lock, NULL);
   config = config_new(CONFIG_FILE_PATH);
+#ifdef USE_TINYXML2
   if (!config) {
     LOG_WARN("%s unable to load config file; attempting to transcode legacy file.", __func__);
     config = btif_config_transcode(LEGACY_CONFIG_FILE_PATH);
+#endif
     if (!config) {
       LOG_WARN("%s unable to transcode legacy file, starting unconfigured.", __func__);
       config = config_new_empty();
@@ -108,7 +115,9 @@ static future_t *init(void) {
 
     if (config_save(config, CONFIG_FILE_PATH))
       unlink(LEGACY_CONFIG_FILE_PATH);
+#ifdef USE_TINYXML2
   }
+#endif
 
   btif_config_devcache_cleanup();
 

@@ -30,6 +30,9 @@
 #include <sys/prctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#ifndef ANDROID
+#include <sys/time.h>
+#endif
 
 #include "osi/include/osi.h"
 #include "osi/include/log.h"
@@ -56,14 +59,25 @@ static int listen_socket_local_ = -1;
 
 static int local_socket_create(void) {
   int conn_sk, length;
+#ifndef ANDROID
+  struct sockaddr_un addr;
+#endif
 
   listen_socket_local_ = socket(AF_LOCAL, SOCK_STREAM, 0);
   if(listen_socket_local_ < 0) {
     return -1;
   }
 
+#ifdef ANDROID
   if(socket_local_server_bind(listen_socket_local_, LOCAL_SOCKET_NAME,
       ANDROID_SOCKET_NAMESPACE_ABSTRACT) < 0) {
+#else
+  memset(&addr, 0, sizeof(addr));
+  addr.sun_family = AF_LOCAL;
+  strncpy(addr.sun_path, LOCAL_SOCKET_NAME, sizeof(addr.sun_path)-1);
+  unlink(LOCAL_SOCKET_NAME);
+  if (bind(listen_socket_local_, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+#endif
     LOG_ERROR("Failed to create Local Socket (%s)", strerror(errno));
     return -1;
   }

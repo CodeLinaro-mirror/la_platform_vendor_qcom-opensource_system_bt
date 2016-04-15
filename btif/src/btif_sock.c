@@ -87,12 +87,14 @@ bt_status_t btif_sock_init(void) {
     goto error;
   }
 
+#if (defined BTM_SCO_INCLUDED && BTM_SCO_INCLUDED == TRUE)
   status = btsock_sco_init(thread);
   if (status != BT_STATUS_SUCCESS) {
     LOG_ERROR("%s error initializing SCO sockets: %d", __func__, status);
     btsock_rfc_cleanup();
     goto error;
   }
+#endif
 
   return BT_STATUS_SUCCESS;
 
@@ -111,9 +113,12 @@ void btif_sock_cleanup(void) {
 
   thread_stop(thread);
   thread_join(thread);
-  btsock_thread_exit(thread_handle);
+  //TODO: Fixme
+  //btsock_thread_exit(thread_handle);
   btsock_rfc_cleanup();
+#if (defined BTM_SCO_INCLUDED && BTM_SCO_INCLUDED == TRUE)
   btsock_sco_cleanup();
+#endif
   btsock_l2cap_cleanup();
   thread_free(thread);
   thread_handle = -1;
@@ -136,11 +141,11 @@ static bt_status_t btsock_listen(btsock_type_t type, const char *service_name, c
     case BTSOCK_L2CAP:
       status = btsock_l2cap_listen(service_name, channel, sock_fd, flags);
       break;
-
+#if (defined BTM_SCO_INCLUDED && BTM_SCO_INCLUDED == TRUE)
     case BTSOCK_SCO:
       status = btsock_sco_listen(sock_fd, flags);
       break;
-
+#endif
     default:
       LOG_ERROR("%s unknown/unsupported socket type: %d", __func__, type);
       status = BT_STATUS_UNSUPPORTED;
@@ -166,9 +171,11 @@ static bt_status_t btsock_connect(const bt_bdaddr_t *bd_addr, btsock_type_t type
       status = btsock_l2cap_connect(bd_addr, channel, sock_fd, flags);
       break;
 
+#if (defined BTM_SCO_INCLUDED && BTM_SCO_INCLUDED == TRUE)
     case BTSOCK_SCO:
       status = btsock_sco_connect(bd_addr, sock_fd, flags);
       break;
+#endif
 
     default:
       LOG_ERROR("%s unknown/unsupported socket type: %d", __func__, type);
@@ -198,10 +205,12 @@ static bt_status_t btsock_get_sockopt(btsock_type_t type, int channel, btsock_op
             BTIF_TRACE_ERROR("bt l2cap socket type not supported, type:%d", type);
             status = BT_STATUS_UNSUPPORTED;
             break;
+#if (defined BTM_SCO_INCLUDED && BTM_SCO_INCLUDED == TRUE)
         case BTSOCK_SCO:
             BTIF_TRACE_ERROR("bt sco socket not supported, type:%d", type);
             status = BT_STATUS_UNSUPPORTED;
             break;
+#endif
         default:
             BTIF_TRACE_ERROR("unknown bt socket type:%d", type);
             status = BT_STATUS_UNSUPPORTED;
@@ -229,10 +238,12 @@ static bt_status_t btsock_set_sockopt(btsock_type_t type, int channel, btsock_op
             BTIF_TRACE_ERROR("bt l2cap socket type not supported, type:%d", type);
             status = BT_STATUS_UNSUPPORTED;
             break;
+#if (defined BTM_SCO_INCLUDED && BTM_SCO_INCLUDED == TRUE)
         case BTSOCK_SCO:
             BTIF_TRACE_ERROR("bt sco socket not supported, type:%d", type);
             status = BT_STATUS_UNSUPPORTED;
             break;
+#endif
         default:
             BTIF_TRACE_ERROR("unknown bt socket type:%d", type);
             status = BT_STATUS_UNSUPPORTED;

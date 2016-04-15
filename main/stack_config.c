@@ -69,7 +69,12 @@ const module_t stack_config_module = {
 // Interface functions
 
 static const char *get_btsnoop_log_path(void) {
-  return config_get_string(config, CONFIG_DEFAULT_SECTION, BTSNOOP_LOG_PATH_KEY, "/data/misc/bluedroid/btsnoop_hci.log");
+  return config_get_string(config, CONFIG_DEFAULT_SECTION, BTSNOOP_LOG_PATH_KEY,
+#ifdef ANDROID
+   "/data/misc/bluedroid/btsnoop_hci.log");
+#else
+   "/etc/data/misc/bluedroid/btsnoop_hci.log");
+#endif
 }
 
 static bool get_btsnoop_turned_on(void) {

@@ -48,7 +48,9 @@
 #include "port_api.h"
 #include "l2c_api.h"
 
+#ifdef ANDROID
 #include <cutils/log.h>
+#endif
 #include <hardware/bluetooth.h>
 #define asrt(s) if (!(s)) APPL_TRACE_ERROR("## %s assert %s failed at line:%d ##",__FUNCTION__, \
         #s, __LINE__)

@@ -129,8 +129,17 @@ static inline int create_server_socket(const char* name)
     int s = socket(AF_LOCAL, SOCK_STREAM, 0);
     if(s < 0)
         return -1;
+#ifdef ANDROID
     APPL_TRACE_DEBUG("covert name to android abstract name:%s", name);
     if(socket_local_server_bind(s, name, ANDROID_SOCKET_NAMESPACE_ABSTRACT) >= 0)
+#else
+    struct sockaddr_un addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_LOCAL;
+    strncpy(addr.sun_path, name, sizeof(addr.sun_path)-1);
+    unlink(name);
+    if (!(bind(s, (struct sockaddr*)&addr, sizeof(addr))))
+#endif
     {
         if(listen(s, 5) == 0)
         {
@@ -409,10 +418,12 @@ int btsock_thread_exit(int h)
     sock_cmd_t cmd = {CMD_EXIT, 0, 0, 0, 0};
     if(send(ts[h].cmd_fdw, &cmd, sizeof(cmd), 0) == sizeof(cmd))
     {
-        pthread_join(ts[h].thread_id, 0);
-        pthread_mutex_lock(&thread_slot_lock);
-        free_thread_slot(h);
-        pthread_mutex_unlock(&thread_slot_lock);
+        if (ts[h].thread_id > 0) {
+            pthread_join(ts[h].thread_id, NULL);
+            pthread_mutex_lock(&thread_slot_lock);
+            free_thread_slot(h);
+            pthread_mutex_unlock(&thread_slot_lock);
+        }
         return TRUE;
     }
     return FALSE;
