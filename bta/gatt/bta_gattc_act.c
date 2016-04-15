@@ -2083,6 +2083,12 @@ void bta_gattc_process_indicate(UINT16 conn_id, tGATTC_OPTYPE op, tGATT_CL_COMPL
         /* if non-service change indication/notification, forward to application */
         if (!bta_gattc_process_srvc_chg_ind(conn_id, p_clrcb, p_srcb, p_clcb, &notify, handle))
         {
+            /* Not a service change indication, check for an unallocated HID conn */
+            if (bta_hh_le_is_hh_gatt_if(gatt_if) && !p_clcb)
+            {
+                APPL_TRACE_ERROR("%s, ignore HID ind/notificiation", __func__);
+                return;
+            }
             /* if app registered for the notification */
             if (bta_gattc_check_notif_registry(p_clrcb, p_srcb, &notify))
             {
@@ -2136,17 +2142,15 @@ static void  bta_gattc_cmpl_cback(UINT16 conn_id, tGATTC_OPTYPE op, tGATT_STATUS
     tBTA_GATTC_CLCB     *p_clcb;
     APPL_TRACE_DEBUG("bta_gattc_cmpl_cback: conn_id = %d op = %d status = %d",
                       conn_id, op, status);
-    p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
-    tGATT_IF gatt_if = ((tGATT_IF)((UINT8) (conn_id)));
 
     /* notification and indication processed right away */
-    if ((op == GATTC_OPTYPE_NOTIFICATION || op == GATTC_OPTYPE_INDICATION) &&
-       (p_clcb || !bta_hh_le_is_hh_gatt_if(gatt_if)))
+    if (op == GATTC_OPTYPE_NOTIFICATION || op == GATTC_OPTYPE_INDICATION)
     {
         bta_gattc_process_indicate(conn_id, op, p_data);
         return;
     }
-    else if (p_clcb == NULL)
+    /* for all other operation, not expected if w/o connection */
+    else if ((p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id)) == NULL)
     {
         APPL_TRACE_ERROR("bta_gattc_cmpl_cback unknown conn_id =  %d, ignore data", conn_id);
         return;
