@@ -115,7 +115,8 @@ BOOLEAN btm_ble_deq_resolving_pending(BD_ADDR pseudo_addr)
 {
     tBTM_BLE_RESOLVE_Q *p_q = &btm_cb.ble_ctr_cb.resolving_list_pend_q;
 
-    if (p_q->q_next != p_q->q_pending)
+    if (p_q->q_next != p_q->q_pending &&
+                       controller_get_interface()->get_ble_resolving_list_max_size())
     {
         memcpy(pseudo_addr, p_q->resolve_q_random_pseudo[p_q->q_pending], BD_ADDR_LEN);
         memset(p_q->resolve_q_random_pseudo[p_q->q_pending], 0, BD_ADDR_LEN);
@@ -1017,7 +1018,6 @@ void btm_ble_resolving_list_cleanup(void)
     if (p_q->resolve_q_action)
        GKI_freebuf(p_q->resolve_q_action);
 
-    controller_get_interface()->set_ble_resolving_list_max_size(0);
     if (btm_cb.ble_ctr_cb.irk_list_mask)
        GKI_freebuf(btm_cb.ble_ctr_cb.irk_list_mask);
 
