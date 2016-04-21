@@ -60,7 +60,8 @@
  */
 static const UINT8 sdp_black_list_prefix[][3] = {};
 static const UINT8 sdp_hfp_black_list_prefix[][3] = {{0x94, 0x44, 0x44},  /* DUSTER carkit */
-                                                     {0x00, 0x0E, 0x9F}}; /* BMW 7 series carkit */
+                                                     {0x00, 0x0E, 0x9F},  /* BMW 7 series carkit */
+                                                     {0x00, 0x0d, 0x18}}; /* BUICK carkit */
 
 /********************************************************************************/
 /*              L O C A L    F U N C T I O N     P R O T O T Y P E S            */
