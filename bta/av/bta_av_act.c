@@ -50,6 +50,7 @@
 #if (AVRC_CTLR_INCLUDED == TRUE)
 #include <cutils/properties.h>
 #endif
+static const UINT8 browsing_sniff_black_list_prefix[][3] = {{0x34, 0xc0, 0x59}};
 /*****************************************************************************
 **  Constants
 *****************************************************************************/
@@ -655,6 +656,8 @@ void bta_av_rc_br_opened (tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
     tBTA_AV_RC_OPEN rc_open;
 
     rc_open.rc_handle = p_data->rc_conn_chg.handle;
+    bta_av_cb.rcb[rc_open.rc_handle].status |= BTA_AV_RC_CONN_BR_MASK;
+    APPL_TRACE_DEBUG("bta_av_rc_br_opened ");
     if (bta_av_cb.rcb[rc_open.rc_handle].br_conn_timer.p_cback != NULL)
     {
         bta_sys_stop_timer(&bta_av_cb.rcb[rc_open.rc_handle].br_conn_timer);
@@ -664,6 +667,51 @@ void bta_av_rc_br_opened (tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
     (*p_cb->p_cback)(BTA_AV_RC_BROWSE_OPEN_EVT, (tBTA_AV *)&rc_open);
 }
 
+BOOLEAN browsing_dev_blacklisted_for_sniff (BD_ADDR addr)
+{
+    int blacklistsize = 0;
+    int i =0;
+
+    blacklistsize = sizeof(browsing_sniff_black_list_prefix)/
+                    sizeof(browsing_sniff_black_list_prefix[0]);
+    for (i = 0; i < blacklistsize; i++)
+    {
+        if (0 == memcmp(browsing_sniff_black_list_prefix[i], addr, 3))
+        {
+            APPL_TRACE_DEBUG(" Device Blacklisted for Sniff ");
+            return true;
+        }
+    }
+    return false;
+}
+
+BOOLEAN bta_av_is_sniff_blocked(BD_ADDR addr)
+{
+    tBTA_AV_LCB *p_lcb;
+    int i = 0;
+    APPL_TRACE_DEBUG(" bta_av_is_sniff_blocked ");
+    if (!browsing_dev_blacklisted_for_sniff(addr))
+    {
+        APPL_TRACE_DEBUG(" bta_av_is_sniff_blocked dev not blacklisted");
+        return false;
+    }
+    p_lcb = bta_av_find_lcb(addr, BTA_AV_LCB_FIND);
+    if(p_lcb == NULL)
+    {
+        APPL_TRACE_ERROR(" bta_av_is_sniff_blocked Cannot find lCB ");
+        return false;
+    }
+    for (i=0; i<BTA_AV_NUM_RCB; i++)
+    {
+        if ((bta_av_cb.rcb[i].lidx == p_lcb->lidx) &&
+               (bta_av_cb.rcb[i].status & BTA_AV_RC_CONN_BR_MASK))
+        {
+            APPL_TRACE_DEBUG(" bta_av_is_sniff_blocked ,br channel connected ");
+            return true;
+        }
+    }
+    return false;
+}
 /*******************************************************************************
 **
 ** Function         bta_av_rc_remote_cmd
@@ -750,6 +798,7 @@ void bta_av_rc_meta_rsp(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
     tBTA_AV_RCB *p_rcb;
     BOOLEAN         do_free = TRUE;
     UINT8       cr;
+    tBTM_PM_MODE    mode = BTM_PM_MD_ACTIVE;
 
     if ((p_cb->features & BTA_AV_FEAT_METADATA) && (p_data->hdr.layer_specific < BTA_AV_NUM_RCB))
     {
@@ -774,6 +823,18 @@ void bta_av_rc_meta_rsp(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
         {
             p_rcb = &p_cb->rcb[p_data->hdr.layer_specific];
             if (p_rcb->handle != BTA_AV_RC_HANDLE_NONE) {
+                if (browsing_dev_blacklisted_for_sniff(
+                                             p_cb->lcb[p_rcb->lidx-1].addr) &&
+                    (p_data->api_meta_rsp.p_pkt->event == AVRC_OP_BROWSE) &&
+                    (cr == AVCT_CMD))
+                {
+                    if ((BTM_ReadPowerMode(p_cb->lcb[p_rcb->lidx-1].addr, &mode)
+                            == BTM_SUCCESS) && (mode == BTM_PM_MD_SNIFF))
+                    {
+                        APPL_TRACE_DEBUG(" AVRCP_BR: Sniff Mode, Exit Sniff ");
+                        bta_dm_pm_active(p_cb->lcb[p_rcb->lidx-1].addr);
+                    }
+                }
                 AVRC_MsgReq(p_rcb->handle, p_data->api_meta_rsp.label, cr,
                             p_data->api_meta_rsp.p_pkt);
                 do_free = FALSE;

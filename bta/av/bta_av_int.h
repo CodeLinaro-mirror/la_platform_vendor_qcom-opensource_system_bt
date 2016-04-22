@@ -526,6 +526,7 @@ typedef struct
 #define BTA_AV_RC_ROLE_ACP      0x10
 
 #define BTA_AV_RC_CONN_MASK     0x20
+#define BTA_AV_RC_CONN_BR_MASK  0x40
 
 /* type for AV RCP control block */
 /* index to this control block is the rc handle */
@@ -642,6 +643,7 @@ extern void bta_av_set_scb_sst_init (tBTA_AV_SCB *p_scb);
 extern BOOLEAN bta_av_is_scb_init (tBTA_AV_SCB *p_scb);
 extern void bta_av_set_scb_sst_incoming (tBTA_AV_SCB *p_scb);
 extern tBTA_AV_LCB * bta_av_find_lcb(BD_ADDR addr, UINT8 op);
+extern BOOLEAN bta_av_is_sniff_blocked(BD_ADDR addr);
 
 /* main functions */
 extern void bta_av_api_deregister(tBTA_AV_DATA *p_data);

@@ -823,6 +823,14 @@ static BOOLEAN bta_dm_pm_sniff(tBTA_DM_PEER_DEVICE *p_peer_dev, UINT8 index)
         /* if the current mode is not sniff, issue the sniff command.
          * If sniff, but SSR is not used in this link, still issue the command */
         memcpy(&pwr_md, &p_bta_dm_pm_md[index], sizeof (tBTM_PM_PWR_MD));
+
+        if ((pwr_md.mode == BTM_PM_MD_SNIFF) &&
+             bta_av_is_sniff_blocked(p_peer_dev->peer_bdaddr))
+        {
+            APPL_TRACE_DEBUG(" Browsing channel connected on this link ");
+            return TRUE;
+        }
+
         if (p_peer_dev->info & BTA_DM_DI_INT_SNIFF)
         {
             pwr_md.mode |= BTM_PM_MD_FORCE;
