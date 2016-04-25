@@ -2682,6 +2682,7 @@ void btif_dispatch_sm_event(btif_av_sm_event_t event, void *p_data, int len)
 bt_status_t btif_av_execute_service(BOOLEAN b_enable)
 {
     int i;
+    btif_sm_state_t state;
     BTIF_TRACE_IMP("%s: enable: %d", __FUNCTION__, b_enable);
     if (b_enable)
     {
@@ -2721,7 +2722,13 @@ bt_status_t btif_av_execute_service(BOOLEAN b_enable)
         {
             if (btif_av_cb[i].sm_handle != NULL)
             {
-                BTIF_TRACE_IMP("%s: shutting down AV SM", __FUNCTION__);
+                state = btif_sm_get_state(btif_av_cb[i].sm_handle);
+                if(state==BTIF_AV_STATE_OPENING)
+                {
+                    BTIF_TRACE_DEBUG("Moving State from Opening to Idle due to BT ShutDown");
+                    btif_sm_change_state(btif_av_cb[i].sm_handle, BTIF_AV_STATE_IDLE);
+                    btif_queue_advance();
+                }
                 btif_sm_shutdown(btif_av_cb[i].sm_handle);
                 btif_av_cb[i].sm_handle = NULL;
             }
