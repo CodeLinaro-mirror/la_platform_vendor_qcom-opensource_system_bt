@@ -1604,9 +1604,14 @@ static void btif_av_handle_event(UINT16 event, char* p_param)
 
     switch (event)
     {
+        case BTIF_AV_INIT_REQ_EVT:
+            BTIF_TRACE_IMP("%s: BTIF_AV_INIT_REQ_EVT", __FUNCTION__);
+            if(btif_a2dp_start_media_task())
+                btif_a2dp_on_init();
+            break;
         /*events from Upper layer and Media Task*/
         case BTIF_AV_CLEANUP_REQ_EVT: /*Clean up to be called on default index*/
-            BTIF_TRACE_EVENT("%s: BTIF_AV_CLEANUP_REQ_EVT", __FUNCTION__);
+            BTIF_TRACE_IMP("%s: BTIF_AV_CLEANUP_REQ_EVT", __FUNCTION__);
             uuid = (int)*p_param;
             if (uuid == BTA_A2DP_SOURCE_SERVICE_ID)
             {
@@ -2079,8 +2084,8 @@ bt_status_t btif_av_init(int service_id)
     int i;
     if (btif_av_cb[0].sm_handle == NULL)
     {
-        BTIF_TRACE_EVENT(" Start Media Task");
-        if (!btif_a2dp_start_media_task())
+        BTIF_TRACE_IMP("%s", __FUNCTION__);
+        if(!btif_a2dp_is_media_task_stopped())
             return BT_STATUS_FAIL;
         btif_av_cb[0].service = service_id;
 
@@ -2091,8 +2096,10 @@ bt_status_t btif_av_init(int service_id)
                                                     BTIF_AV_STATE_IDLE, i);
         }
 
+        btif_transfer_context(btif_av_handle_event, BTIF_AV_INIT_REQ_EVT,
+                (char*)&service_id, sizeof(int), NULL);
+
         btif_enable_service(service_id);
-        btif_a2dp_on_init();
     }
 
     return BT_STATUS_SUCCESS;
@@ -2411,18 +2418,12 @@ static void cleanup(int service_uuid)
             (char*)&service_uuid, sizeof(int), NULL);
 
     btif_disable_service(service_uuid);
-
-    /* Also shut down the AV state machine */
-    for (i = 0; i < btif_max_av_clients; i++ )
-    {
-        btif_sm_shutdown(btif_av_cb[i].sm_handle);
-        btif_av_cb[i].sm_handle = NULL;
-    }
 }
 
 static void cleanup_src(void) {
     BTIF_TRACE_EVENT("%s", __FUNCTION__);
     cleanup(BTA_A2DP_SOURCE_SERVICE_ID);
+    BTIF_TRACE_EVENT("%s completed", __FUNCTION__);
 }
 
 static void cleanup_sink(void) {
@@ -2662,6 +2663,7 @@ void btif_dispatch_sm_event(btif_av_sm_event_t event, void *p_data, int len)
 bt_status_t btif_av_execute_service(BOOLEAN b_enable)
 {
     int i;
+    BTIF_TRACE_IMP("%s: enable: %d", __FUNCTION__, b_enable);
     if (b_enable)
     {
         /* TODO: Removed BTA_SEC_AUTHORIZE since the Java/App does not
@@ -2698,10 +2700,17 @@ bt_status_t btif_av_execute_service(BOOLEAN b_enable)
     {
         for (i = 0; i < btif_max_av_clients; i++)
         {
+            if (btif_av_cb[i].sm_handle != NULL)
+            {
+                BTIF_TRACE_IMP("%s: shutting down AV SM", __FUNCTION__);
+                btif_sm_shutdown(btif_av_cb[i].sm_handle);
+                btif_av_cb[i].sm_handle = NULL;
+            }
             BTA_AvDeregister(btif_av_cb[i].bta_handle);
         }
         BTA_AvDisable();
     }
+    BTIF_TRACE_IMP("%s: enable: %d completed", __FUNCTION__, b_enable);
     return BT_STATUS_SUCCESS;
 }
 
