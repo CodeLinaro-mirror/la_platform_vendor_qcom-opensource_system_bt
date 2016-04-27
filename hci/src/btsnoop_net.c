@@ -46,6 +46,7 @@ static bool listen_thread_valid_ = false;
 static pthread_mutex_t client_socket_lock_ = PTHREAD_MUTEX_INITIALIZER;
 static int listen_socket_ = -1;
 int client_socket_btsnoop = -1;
+static volatile bool listen_thread_running_ = false;
 
 /*
     local socket for writing from different process
@@ -83,12 +84,14 @@ void btsnoop_net_open() {
     LOG_ERROR("%s pthread_create failed: %s", __func__, strerror(errno));
   } else {
     LOG_DEBUG("initialized");
+    listen_thread_running_ = true;
   }
 }
 
 void btsnoop_net_close() {
 
   if (listen_thread_valid_) {
+    listen_thread_running_ = false;
 #if (defined(BT_NET_DEBUG) && (NET_DEBUG == TRUE))
     // Disable using network sockets for security reasons
     shutdown(listen_socket_, SHUT_RDWR);
@@ -123,6 +126,11 @@ void btsnoop_net_write(const void *data, size_t length) {
 static void *listen_fn_(UNUSED_ATTR void *context) {
   fd_set sock_fds;
   int fd_max = -1, retval;
+
+  if (!listen_thread_running_) {
+    LOG_ERROR("%s: listen_thread has been stopped", __func__);
+    return NULL;
+  }
 
   prctl(PR_SET_NAME, (unsigned long)LISTEN_THREAD_NAME_, 0, 0, 0);
 
@@ -171,7 +179,7 @@ static void *listen_fn_(UNUSED_ATTR void *context) {
     return NULL;
   }
 
-  for (;;) {
+  while (listen_thread_running_) {
     int client_socket = -1;
 
     LOG_DEBUG("waiting for client connection");
