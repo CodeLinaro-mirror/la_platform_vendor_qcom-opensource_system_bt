@@ -29,6 +29,7 @@
 #include "bt_utils.h"
 #include "hcidefs.h"
 #include "btm_ble_api.h"
+#include "stack_manager.h"
 
 /************************************************************************************
 **  Constants & Macros
@@ -389,6 +390,12 @@ tBTM_STATUS btm_ble_multi_adv_write_rpa (tBTM_BLE_MULTI_ADV_INST *p_inst, BD_ADD
 *******************************************************************************/
 void btm_ble_multi_adv_gen_rpa_cmpl(tBTM_RAND_ENC *p)
 {
+    if (!stack_manager_get_interface()->get_stack_is_running())
+    {
+        BTM_TRACE_ERROR("btm_ble_multi_adv_gen_rpa_cmpl stack is not running!");
+        return;
+    }
+
 #if (SMP_INCLUDED == TRUE)
     tSMP_ENC    output;
     UINT8 index = 0;
