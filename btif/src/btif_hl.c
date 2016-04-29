@@ -4794,7 +4794,7 @@ void btif_hl_select_monitor_callback(fd_set *p_cur_set ,fd_set *p_org_set) {
                     btif_hl_free_buf((void **) &p_dcb->p_tx_pkt);
                 }
                 p_dcb->p_tx_pkt = btif_hl_get_buf (p_dcb->mtu);
-                if (p_dcb) {
+                if (p_dcb->p_tx_pkt) {
                     int r = (int)recv(p_scb->socket_id[1], p_dcb->p_tx_pkt,
                             p_dcb->mtu, MSG_DONTWAIT);
                     if (r > 0) {

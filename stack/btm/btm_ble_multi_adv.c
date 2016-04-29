@@ -843,18 +843,21 @@ void btm_ble_multi_adv_init()
     {
         btm_multi_adv_cb.p_adv_inst = GKI_getbuf( sizeof(tBTM_BLE_MULTI_ADV_INST)*
                                                  (btm_cb.cmn_ble_vsc_cb.adv_inst_max));
-        memset(btm_multi_adv_cb.p_adv_inst, 0, sizeof(tBTM_BLE_MULTI_ADV_INST)*
+        if (btm_multi_adv_cb.p_adv_inst)
+            memset(btm_multi_adv_cb.p_adv_inst, 0, sizeof(tBTM_BLE_MULTI_ADV_INST)*
                                                (btm_cb.cmn_ble_vsc_cb.adv_inst_max));
 
         btm_multi_adv_cb.op_q.p_sub_code = GKI_getbuf( sizeof(UINT8) *
                                                       (btm_cb.cmn_ble_vsc_cb.adv_inst_max));
-        memset(btm_multi_adv_cb.op_q.p_sub_code, 0,
-               sizeof(UINT8)*(btm_cb.cmn_ble_vsc_cb.adv_inst_max));
+        if (btm_multi_adv_cb.op_q.p_sub_code)
+            memset(btm_multi_adv_cb.op_q.p_sub_code, 0,
+                 sizeof(UINT8)*(btm_cb.cmn_ble_vsc_cb.adv_inst_max));
 
         btm_multi_adv_cb.op_q.p_inst_id = GKI_getbuf( sizeof(UINT8) *
                                           (btm_cb.cmn_ble_vsc_cb.adv_inst_max));
-        memset(btm_multi_adv_cb.op_q.p_inst_id, 0,
-               sizeof(UINT8)*(btm_cb.cmn_ble_vsc_cb.adv_inst_max));
+        if (btm_multi_adv_cb.op_q.p_inst_id)
+            memset(btm_multi_adv_cb.op_q.p_inst_id, 0,
+                   sizeof(UINT8)*(btm_cb.cmn_ble_vsc_cb.adv_inst_max));
     }
 
     /* Initialize adv instance indices and IDs. */

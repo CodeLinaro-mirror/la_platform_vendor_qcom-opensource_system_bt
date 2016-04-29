@@ -371,13 +371,16 @@ static BT_HDR * avrc_proc_vendor_command(UINT8 handle, UINT8 label,
     {
         /* check for buffer size before modifing it */
         p_rsp = avrc_copy_packet(p_pkt, AVRC_OP_REJ_MSG_LEN);
-        p_rsp_data = avrc_get_data_ptr(p_rsp);
-        *p_rsp_data++ = AVRC_RSP_REJ;
-        p_rsp_data += AVRC_VENDOR_HDR_SIZE; /* pdu 1 byte*/
-        *p_rsp_data++ = 0;                  /* pkt_type  1 byte*/
-        UINT16_TO_BE_STREAM(p_rsp_data, 1); /* len 2 byte */
-        *p_rsp_data++ = status;             /* error code 1 byte*/
-        p_rsp->len = AVRC_VENDOR_HDR_SIZE + 5;
+        if (p_rsp)
+        {
+            p_rsp_data = avrc_get_data_ptr(p_rsp);
+            *p_rsp_data++ = AVRC_RSP_REJ;
+            p_rsp_data += AVRC_VENDOR_HDR_SIZE; /* pdu 1 byte*/
+            *p_rsp_data++ = 0;                  /* pkt_type  1 byte*/
+            UINT16_TO_BE_STREAM(p_rsp_data, 1); /* len 2 byte */
+            *p_rsp_data++ = status;             /* error code 1 byte*/
+            p_rsp->len = AVRC_VENDOR_HDR_SIZE + 5;
+        }
     }
 
     return p_rsp;
@@ -653,21 +656,24 @@ static void avrc_msg_cback(UINT8 handle, UINT8 label, UINT8 cr,
                 {
                     /* send the response to the peer */
                     p_rsp = avrc_copy_packet(p_pkt, AVRC_OP_UNIT_INFO_RSP_LEN);
-                    p_rsp_data = avrc_get_data_ptr(p_rsp);
-                    *p_rsp_data = AVRC_RSP_IMPL_STBL;
-                    /* check & set the offset. set response code, set subunit_type & subunit_id,
-                       set AVRC_OP_UNIT_INFO */
-                    /* 3 bytes: ctype, subunit*, opcode */
-                    p_rsp_data      += AVRC_AVC_HDR_SIZE;
-                    *p_rsp_data++   = 7;
-                    /* Panel subunit & id=0 */
-                    *p_rsp_data++   = (AVRC_SUB_PANEL << AVRC_SUBTYPE_SHIFT);
-                    AVRC_CO_ID_TO_BE_STREAM(p_rsp_data, avrc_cb.ccb[handle].company_id);
-                    p_rsp->len      = (UINT16) (p_rsp_data - (UINT8 *)(p_rsp + 1) - p_rsp->offset);
-                    cr = AVCT_RSP;
+                    if (p_rsp)
+                    {
+                        p_rsp_data = avrc_get_data_ptr(p_rsp);
+                        *p_rsp_data = AVRC_RSP_IMPL_STBL;
+                        /* check & set the offset. set response code, set subunit_type & subunit_id,
+                           set AVRC_OP_UNIT_INFO */
+                        /* 3 bytes: ctype, subunit*, opcode */
+                        p_rsp_data      += AVRC_AVC_HDR_SIZE;
+                        *p_rsp_data++   = 7;
+                        /* Panel subunit & id=0 */
+                        *p_rsp_data++   = (AVRC_SUB_PANEL << AVRC_SUBTYPE_SHIFT);
+                        AVRC_CO_ID_TO_BE_STREAM(p_rsp_data, avrc_cb.ccb[handle].company_id);
+                        p_rsp->len      = (UINT16) (p_rsp_data - (UINT8 *)(p_rsp + 1) - p_rsp->offset);
+                        cr = AVCT_RSP;
 #if (BT_USE_TRACES == TRUE)
-                    p_drop_msg = "auto respond";
+                        p_drop_msg = "auto respond";
 #endif
+                    }
                 }
                 else
                 {
@@ -685,20 +691,23 @@ static void avrc_msg_cback(UINT8 handle, UINT8 label, UINT8 cr,
                 {
                     /* send the response to the peer */
                     p_rsp = avrc_copy_packet(p_pkt, AVRC_OP_SUB_UNIT_INFO_RSP_LEN);
-                    p_rsp_data = avrc_get_data_ptr(p_rsp);
-                    *p_rsp_data = AVRC_RSP_IMPL_STBL;
-                    /* check & set the offset. set response code, set (subunit_type & subunit_id),
-                       set AVRC_OP_SUB_INFO, set (page & extention code) */
-                    p_rsp_data      += 4;
-                    /* Panel subunit & id=0 */
-                    *p_rsp_data++   = (AVRC_SUB_PANEL << AVRC_SUBTYPE_SHIFT);
-                    memset(p_rsp_data, AVRC_CMD_OPRND_PAD, AVRC_SUBRSP_OPRND_BYTES);
-                    p_rsp_data      += AVRC_SUBRSP_OPRND_BYTES;
-                    p_rsp->len      = (UINT16) (p_rsp_data - (UINT8 *)(p_rsp + 1) - p_rsp->offset);
-                    cr = AVCT_RSP;
+                    if (p_rsp)
+                    {
+                        p_rsp_data = avrc_get_data_ptr(p_rsp);
+                        *p_rsp_data = AVRC_RSP_IMPL_STBL;
+                        /* check & set the offset. set response code, set (subunit_type & subunit_id),
+                           set AVRC_OP_SUB_INFO, set (page & extention code) */
+                        p_rsp_data      += 4;
+                        /* Panel subunit & id=0 */
+                        *p_rsp_data++   = (AVRC_SUB_PANEL << AVRC_SUBTYPE_SHIFT);
+                        memset(p_rsp_data, AVRC_CMD_OPRND_PAD, AVRC_SUBRSP_OPRND_BYTES);
+                        p_rsp_data      += AVRC_SUBRSP_OPRND_BYTES;
+                        p_rsp->len      = (UINT16) (p_rsp_data - (UINT8 *)(p_rsp + 1) - p_rsp->offset);
+                        cr = AVCT_RSP;
 #if (BT_USE_TRACES == TRUE)
-                    p_drop_msg = "auto responded";
+                        p_drop_msg = "auto responded";
 #endif
+                    }
                 }
                 else
                 {
@@ -821,13 +830,16 @@ static void avrc_msg_cback(UINT8 handle, UINT8 label, UINT8 cr,
         {
             /* reject unsupported opcode */
             p_rsp = avrc_copy_packet(p_pkt, AVRC_OP_REJ_MSG_LEN);
-            p_rsp_data      = avrc_get_data_ptr(p_rsp);
-            *p_rsp_data     = AVRC_RSP_REJ;
+            if (p_rsp)
+            {
+                p_rsp_data      = avrc_get_data_ptr(p_rsp);
+                *p_rsp_data     = AVRC_RSP_REJ;
 #if (BT_USE_TRACES == TRUE)
-            p_drop_msg = "rejected";
+                p_drop_msg = "rejected";
 #endif
-            cr      = AVCT_RSP;
-            drop    = TRUE;
+                cr      = AVCT_RSP;
+                drop    = TRUE;
+            }
         }
 
         if (p_rsp)

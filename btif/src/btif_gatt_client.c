@@ -783,7 +783,8 @@ static void btif_gattc_upstreams_evt(uint16_t event, char* p_param)
             if (p_data->read_reports.data_len > 0 && NULL != p_data->read_reports.p_rep_data)
             {
                 p_rep_data = GKI_getbuf(p_data->read_reports.data_len);
-                memcpy(p_rep_data, p_data->read_reports.p_rep_data, p_data->read_reports.data_len);
+                if (p_rep_data)
+                    memcpy(p_rep_data, p_data->read_reports.p_rep_data, p_data->read_reports.data_len);
             }
 
             HAL_CBACK(bt_gatt_callbacks, client->batchscan_reports_cb
@@ -1001,7 +1002,8 @@ static void bta_batch_scan_reports_cb(tBTA_DM_BLE_REF_VALUE ref_value, UINT8 rep
     if (data_len > 0)
     {
         btif_scan_track_cb.read_reports.p_rep_data = GKI_getbuf(data_len);
-        memcpy(btif_scan_track_cb.read_reports.p_rep_data, p_rep_data, data_len);
+        if (btif_scan_track_cb.read_reports.p_rep_data)
+            memcpy(btif_scan_track_cb.read_reports.p_rep_data, p_rep_data, data_len);
         GKI_freebuf(p_rep_data);
     }
 
@@ -1596,15 +1598,18 @@ static void btgattc_handle_event(uint16_t event, char* p_param)
             if (cbindex >= 0 && btif_gattc_copy_datacb(cbindex, p_adv_data, false))
             {
                 btgatt_multi_adv_common_data *p_multi_adv_data_cb = btif_obtain_multi_adv_data_cb();
-                if (!p_adv_data->set_scan_rsp)
+                if (p_multi_adv_data_cb && p_multi_adv_data_cb->inst_cb)
                 {
-                    BTA_DmBleSetAdvConfig(p_multi_adv_data_cb->inst_cb[cbindex].mask,
-                        &p_multi_adv_data_cb->inst_cb[cbindex].data, bta_gattc_set_adv_data_cback);
-                }
-                else
-                {
-                    BTA_DmBleSetScanRsp(p_multi_adv_data_cb->inst_cb[cbindex].mask,
-                        &p_multi_adv_data_cb->inst_cb[cbindex].data, bta_gattc_set_adv_data_cback);
+                    if (!p_adv_data->set_scan_rsp)
+                    {
+                        BTA_DmBleSetAdvConfig(p_multi_adv_data_cb->inst_cb[cbindex].mask,
+                            &p_multi_adv_data_cb->inst_cb[cbindex].data, bta_gattc_set_adv_data_cback);
+                    }
+                    else
+                    {
+                        BTA_DmBleSetScanRsp(p_multi_adv_data_cb->inst_cb[cbindex].mask,
+                            &p_multi_adv_data_cb->inst_cb[cbindex].data, bta_gattc_set_adv_data_cback);
+                    }
                 }
             }
             else
@@ -1628,14 +1633,17 @@ static void btgattc_handle_event(uint16_t event, char* p_param)
             if (cbindex >= 0 && arrindex >= 0)
             {
                 btgatt_multi_adv_common_data *p_multi_adv_data_cb = btif_obtain_multi_adv_data_cb();
-                memcpy(&p_multi_adv_data_cb->inst_cb[cbindex].param,
-                       &p_inst_cb->param, sizeof(tBTA_BLE_ADV_PARAMS));
-                p_multi_adv_data_cb->inst_cb[cbindex].timeout_s = p_inst_cb->timeout_s;
-                BTIF_TRACE_DEBUG("%s, client_if value: %d", __FUNCTION__,
+                if (p_multi_adv_data_cb && p_multi_adv_data_cb->inst_cb)
+                {
+                    memcpy(&p_multi_adv_data_cb->inst_cb[cbindex].param,
+                           &p_inst_cb->param, sizeof(tBTA_BLE_ADV_PARAMS));
+                    p_multi_adv_data_cb->inst_cb[cbindex].timeout_s = p_inst_cb->timeout_s;
+                    BTIF_TRACE_DEBUG("%s, client_if value: %d", __FUNCTION__,
                             p_multi_adv_data_cb->clntif_map[arrindex + arrindex]);
-                BTA_BleEnableAdvInstance(&(p_multi_adv_data_cb->inst_cb[cbindex].param),
-                    bta_gattc_multi_adv_cback,
-                    &(p_multi_adv_data_cb->clntif_map[arrindex + arrindex]));
+                    BTA_BleEnableAdvInstance(&(p_multi_adv_data_cb->inst_cb[cbindex].param),
+                        bta_gattc_multi_adv_cback,
+                        &(p_multi_adv_data_cb->clntif_map[arrindex + arrindex]));
+                }
             }
             else
             {
@@ -1654,10 +1662,13 @@ static void btgattc_handle_event(uint16_t event, char* p_param)
             if (inst_id >= 0 && cbindex >= 0 && NULL != p_inst_cb)
             {
                 btgatt_multi_adv_common_data *p_multi_adv_data_cb = btif_obtain_multi_adv_data_cb();
-                memcpy(&p_multi_adv_data_cb->inst_cb[cbindex].param, &p_inst_cb->param,
-                        sizeof(tBTA_BLE_ADV_PARAMS));
-                BTA_BleUpdateAdvInstParam((UINT8)inst_id,
-                    &(p_multi_adv_data_cb->inst_cb[cbindex].param));
+                if (p_multi_adv_data_cb && p_multi_adv_data_cb->inst_cb)
+                {
+                    memcpy(&p_multi_adv_data_cb->inst_cb[cbindex].param, &p_inst_cb->param,
+                            sizeof(tBTA_BLE_ADV_PARAMS));
+                    BTA_BleUpdateAdvInstParam((UINT8)inst_id,
+                        &(p_multi_adv_data_cb->inst_cb[cbindex].param));
+                }
             }
             else
                 BTIF_TRACE_ERROR("%s invalid index in BTIF_GATTC_UPDATE_ADV", __FUNCTION__);
@@ -1673,11 +1684,12 @@ static void btgattc_handle_event(uint16_t event, char* p_param)
             {
                 btgatt_multi_adv_common_data *p_multi_adv_data_cb =
                     btif_obtain_multi_adv_data_cb();
-                BTA_BleCfgAdvInstData(
-                    (UINT8)inst_id,
-                    p_multi_adv_data_cb->inst_cb[cbindex].is_scan_rsp,
-                    p_multi_adv_data_cb->inst_cb[cbindex].mask,
-                    &p_multi_adv_data_cb->inst_cb[cbindex].data);
+                if (p_multi_adv_data_cb && p_multi_adv_data_cb->inst_cb)
+                    BTA_BleCfgAdvInstData(
+                        (UINT8)inst_id,
+                        p_multi_adv_data_cb->inst_cb[cbindex].is_scan_rsp,
+                        p_multi_adv_data_cb->inst_cb[cbindex].mask,
+                        &p_multi_adv_data_cb->inst_cb[cbindex].data);
             }
             else
             {
@@ -1846,20 +1858,23 @@ static void btif_gattc_deep_copy(UINT16 event, char *p_dest, char *p_src)
             if (src->p_manufacturer_data)
             {
                 dst->p_manufacturer_data = GKI_getbuf(src->manufacturer_len);
-                memcpy(dst->p_manufacturer_data, src->p_manufacturer_data,
-                       src->manufacturer_len);
+                if (dst->p_manufacturer_data)
+                    memcpy(dst->p_manufacturer_data, src->p_manufacturer_data,
+                           src->manufacturer_len);
             }
 
             if (src->p_service_data)
             {
                 dst->p_service_data = GKI_getbuf(src->service_data_len);
-                memcpy(dst->p_service_data, src->p_service_data, src->service_data_len);
+                if (dst->p_service_data)
+                    memcpy(dst->p_service_data, src->p_service_data, src->service_data_len);
             }
 
             if (src->p_service_uuid)
             {
                 dst->p_service_uuid = GKI_getbuf(src->service_uuid_len);
-                memcpy(dst->p_service_uuid, src->p_service_uuid, src->service_uuid_len);
+                if (dst->p_service_uuid)
+                    memcpy(dst->p_service_uuid, src->p_service_uuid, src->service_uuid_len);
             }
             break;
         }

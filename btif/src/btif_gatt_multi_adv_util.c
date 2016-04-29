@@ -64,19 +64,22 @@ btgatt_multi_adv_common_data *btif_obtain_multi_adv_data_cb()
             /* Storing both client_if and inst_id details */
             p_multi_adv_com_data_cb->clntif_map =
                   GKI_getbuf(( max_adv_inst * INST_ID_IDX_MAX)* sizeof(INT8));
-            memset(p_multi_adv_com_data_cb->clntif_map, 0 ,
-                  ( max_adv_inst * INST_ID_IDX_MAX)* sizeof(INT8));
+            if (p_multi_adv_com_data_cb->clntif_map)
+            {
+                memset(p_multi_adv_com_data_cb->clntif_map, 0 ,
+                      ( max_adv_inst * INST_ID_IDX_MAX)* sizeof(INT8));
+                for (int i=0; i < max_adv_inst * 2; i += 2)
+                {
+                    p_multi_adv_com_data_cb->clntif_map[i] = INVALID_ADV_INST;
+                    p_multi_adv_com_data_cb->clntif_map[i+1] = INVALID_ADV_INST;
+                }
+            }
 
             p_multi_adv_com_data_cb->inst_cb = GKI_getbuf(( max_adv_inst + 1 )
                                               * sizeof(btgatt_multi_adv_inst_cb));
-            memset(p_multi_adv_com_data_cb->inst_cb, 0 ,
-                 ( max_adv_inst + 1) * sizeof(btgatt_multi_adv_inst_cb));
-
-            for (int i=0; i < max_adv_inst * 2; i += 2)
-            {
-                p_multi_adv_com_data_cb->clntif_map[i] = INVALID_ADV_INST;
-                p_multi_adv_com_data_cb->clntif_map[i+1] = INVALID_ADV_INST;
-            }
+            if (p_multi_adv_com_data_cb->inst_cb)
+                memset(p_multi_adv_com_data_cb->inst_cb, 0 ,
+                   ( max_adv_inst + 1) * sizeof(btgatt_multi_adv_inst_cb));
         }
     }
 
@@ -234,21 +237,24 @@ void btif_gattc_adv_data_packager(int client_if, bool set_scan_rsp,
     if (manufacturer_len > 0)
     {
         p_multi_adv_inst->p_manufacturer_data = GKI_getbuf(manufacturer_len);
-        memcpy(p_multi_adv_inst->p_manufacturer_data, manufacturer_data, manufacturer_len);
+        if (p_multi_adv_inst->p_manufacturer_data)
+            memcpy(p_multi_adv_inst->p_manufacturer_data, manufacturer_data, manufacturer_len);
     }
 
     p_multi_adv_inst->service_data_len = service_data_len;
     if (service_data_len > 0)
     {
         p_multi_adv_inst->p_service_data = GKI_getbuf(service_data_len);
-        memcpy(p_multi_adv_inst->p_service_data, service_data, service_data_len);
+        if (p_multi_adv_inst->p_service_data)
+            memcpy(p_multi_adv_inst->p_service_data, service_data, service_data_len);
     }
 
     p_multi_adv_inst->service_uuid_len = service_uuid_len;
     if (service_uuid_len > 0)
     {
         p_multi_adv_inst->p_service_uuid = GKI_getbuf(service_uuid_len);
-        memcpy(p_multi_adv_inst->p_service_uuid, service_uuid, service_uuid_len);
+        if (p_multi_adv_inst->p_service_uuid)
+            memcpy(p_multi_adv_inst->p_service_uuid, service_uuid, service_uuid_len);
     }
 }
 
@@ -268,7 +274,7 @@ void btif_gattc_adv_data_cleanup(const btif_adv_data_t* adv)
 BOOLEAN btif_gattc_copy_datacb(int cbindex, const btif_adv_data_t *p_adv_data,
                                BOOLEAN bInstData) {
     btgatt_multi_adv_common_data *p_multi_adv_data_cb = btif_obtain_multi_adv_data_cb();
-    if (NULL == p_multi_adv_data_cb || cbindex < 0)
+    if (NULL == p_multi_adv_data_cb || NULL == p_multi_adv_data_cb->inst_cb || cbindex < 0)
        return false;
 
     BTIF_TRACE_DEBUG("%s", __FUNCTION__);
@@ -619,7 +625,7 @@ void btif_multi_adv_timer_ctrl(int client_if, TIMER_CBACK cb)
         return;
 
     btgatt_multi_adv_common_data *p_multi_adv_data_cb = btif_obtain_multi_adv_data_cb();
-    if (p_multi_adv_data_cb == NULL)
+    if (p_multi_adv_data_cb == NULL || p_multi_adv_data_cb->inst_cb == NULL)
         return;
 
     if (cb == NULL)
