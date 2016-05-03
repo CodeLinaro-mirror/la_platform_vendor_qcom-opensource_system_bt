@@ -120,37 +120,19 @@ extern void BTA_HdRegisterApp(tBTA_HD_APP_INFO *p_app_info, tBTA_HD_QOS_INFO *p_
         p_buf->hdr.event = BTA_HD_API_REGISTER_APP_EVT;
 
         if (p_app_info->p_name)
-        {
-            BCM_STRNCPY_S(p_buf->name, sizeof(p_buf->name),
-                p_app_info->p_name, BTA_HD_APP_NAME_LEN);
-            p_buf->name[BTA_HD_APP_NAME_LEN] = '\0';
-        }
+            strlcpy(p_buf->name, p_app_info->p_name, sizeof(p_buf->name));
         else
-        {
             p_buf->name[0]= '\0';
-        }
 
         if (p_app_info->p_description)
-        {
-            BCM_STRNCPY_S(p_buf->description, sizeof(p_buf->description), p_app_info->p_description,
-                BTA_HD_APP_DESCRIPTION_LEN);
-            p_buf->description[BTA_HD_APP_DESCRIPTION_LEN] = '\0';
-        }
+            strlcpy(p_buf->description, p_app_info->p_description, sizeof(p_buf->description));
         else
-        {
             p_buf->description[0]= '\0';
-        }
 
         if (p_app_info->p_provider)
-        {
-            BCM_STRNCPY_S(p_buf->provider, sizeof(p_buf->provider), p_app_info->p_provider,
-                BTA_HD_APP_PROVIDER_LEN);
-            p_buf->provider[BTA_HD_APP_PROVIDER_LEN] = '\0';
-        }
+            strlcpy(p_buf->provider,  p_app_info->p_provider, sizeof(p_buf->provider));
         else
-        {
             p_buf->provider[0]= '\0';
-        }
 
         p_buf->subclass = p_app_info->subclass;
 

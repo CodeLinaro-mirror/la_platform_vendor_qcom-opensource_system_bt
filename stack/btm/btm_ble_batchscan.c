@@ -101,14 +101,16 @@ void btm_ble_batchscan_filter_track_adv_vse_cback(UINT8 len, UINT8 *p)
                 if (adv_data.adv_pkt_len > 0)
                 {
                     adv_data.p_adv_pkt_data = GKI_getbuf(adv_data.adv_pkt_len);
-                    memcpy(adv_data.p_adv_pkt_data, p, adv_data.adv_pkt_len);
+                    if (adv_data.p_adv_pkt_data)
+                        memcpy(adv_data.p_adv_pkt_data, p, adv_data.adv_pkt_len);
                 }
 
                 STREAM_TO_UINT8(adv_data.scan_rsp_len, p);
                 if (adv_data.scan_rsp_len > 0)
                 {
                     adv_data.p_scan_rsp_data = GKI_getbuf(adv_data.scan_rsp_len);
-                    memcpy(adv_data.p_scan_rsp_data, p, adv_data.scan_rsp_len);
+                    if (adv_data.p_scan_rsp_data)
+                        memcpy(adv_data.p_scan_rsp_data, p, adv_data.scan_rsp_len);
                 }
             }
         }
@@ -215,20 +217,26 @@ void btm_ble_batchscan_enq_rep_data(UINT8 report_format, UINT8 num_records, UINT
         if (NULL != p_orig_data)
         {
             p_app_data = GKI_getbuf(len + data_len);
-            memcpy(p_app_data, p_orig_data, len);
-            memcpy(p_app_data+len, p_data, data_len);
-            GKI_freebuf(p_orig_data);
-            ble_batchscan_cb.main_rep_q.p_data[index] = p_app_data;
-            ble_batchscan_cb.main_rep_q.num_records[index] += num_records;
-            ble_batchscan_cb.main_rep_q.data_len[index] += data_len;
+            if (p_app_data)
+            {
+                memcpy(p_app_data, p_orig_data, len);
+                memcpy(p_app_data+len, p_data, data_len);
+                GKI_freebuf(p_orig_data);
+                ble_batchscan_cb.main_rep_q.p_data[index] = p_app_data;
+                ble_batchscan_cb.main_rep_q.num_records[index] += num_records;
+                ble_batchscan_cb.main_rep_q.data_len[index] += data_len;
+            }
         }
         else
         {
             p_app_data = GKI_getbuf(data_len);
             memcpy(p_app_data, p_data, data_len);
-            ble_batchscan_cb.main_rep_q.p_data[index] = p_app_data;
-            ble_batchscan_cb.main_rep_q.num_records[index] = num_records;
-            ble_batchscan_cb.main_rep_q.data_len[index] = data_len;
+            if (p_app_data)
+            {
+                ble_batchscan_cb.main_rep_q.p_data[index] = p_app_data;
+                ble_batchscan_cb.main_rep_q.num_records[index] = num_records;
+                ble_batchscan_cb.main_rep_q.data_len[index] = data_len;
+            }
         }
     }
 }

@@ -373,29 +373,35 @@ static void fragment_packet(l2cap_client_t *client, buffer_t *packet) {
 
   // TODO(sharvil): eliminate copy into BT_HDR.
   BT_HDR *bt_packet = GKI_getbuf(buffer_length(packet) + L2CAP_MIN_OFFSET);
-  bt_packet->offset = L2CAP_MIN_OFFSET;
-  bt_packet->len = buffer_length(packet);
-  memcpy(bt_packet->data + bt_packet->offset, buffer_ptr(packet), buffer_length(packet));
+  if (bt_packet)
+  {
+      bt_packet->offset = L2CAP_MIN_OFFSET;
+      bt_packet->len = buffer_length(packet);
+      memcpy(bt_packet->data + bt_packet->offset, buffer_ptr(packet), buffer_length(packet));
 
-  for (;;) {
-    if (bt_packet->len <= client->remote_mtu) {
-      if (bt_packet->len > 0)
-        list_append(client->outbound_fragments, bt_packet);
-      else
-        GKI_freebuf(bt_packet);
-      break;
-    }
+      for (;;) {
+        if (bt_packet->len <= client->remote_mtu) {
+          if (bt_packet->len > 0)
+            list_append(client->outbound_fragments, bt_packet);
+          else
+            GKI_freebuf(bt_packet);
+          break;
+        }
 
-    BT_HDR *fragment = GKI_getbuf(client->remote_mtu + L2CAP_MIN_OFFSET);
-    fragment->offset = L2CAP_MIN_OFFSET;
-    fragment->len = client->remote_mtu;
-    memcpy(fragment->data + fragment->offset, bt_packet->data + bt_packet->offset, client->remote_mtu);
+        BT_HDR *fragment = GKI_getbuf(client->remote_mtu + L2CAP_MIN_OFFSET);
+        if (fragment)
+        {
+            fragment->offset = L2CAP_MIN_OFFSET;
+            fragment->len = client->remote_mtu;
+            memcpy(fragment->data + fragment->offset, bt_packet->data + bt_packet->offset, client->remote_mtu);
 
-    list_append(client->outbound_fragments, fragment);
+            list_append(client->outbound_fragments, fragment);
+        }
 
-    bt_packet->offset += client->remote_mtu;
-    bt_packet->len -= client->remote_mtu;
-  }
+        bt_packet->offset += client->remote_mtu;
+        bt_packet->len -= client->remote_mtu;
+      }
+   }
 }
 
 static void dispatch_fragments(l2cap_client_t *client) {

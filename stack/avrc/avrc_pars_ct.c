@@ -219,8 +219,11 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR *p_msg, tAVRC_RESPON
                                      ,p_result->get_cur_app_val.num_val);
         for (xx = 0; xx < p_result->get_cur_app_val.num_val; xx++)
         {
-            BE_STREAM_TO_UINT8(app_sett[xx].attr_id,p);
-            BE_STREAM_TO_UINT8(app_sett[xx].attr_val,p);
+            if (app_sett)
+            {
+                BE_STREAM_TO_UINT8(app_sett[xx].attr_id,p);
+                BE_STREAM_TO_UINT8(app_sett[xx].attr_val,p);
+            }
         }
         p_result->get_cur_app_val.p_vals = app_sett;
     }

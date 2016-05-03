@@ -708,9 +708,11 @@ void btm_ble_enqueue_direct_conn_req(void *p_param)
 {
     tBTM_BLE_CONN_REQ   *p = (tBTM_BLE_CONN_REQ *)GKI_getbuf(sizeof(tBTM_BLE_CONN_REQ));
 
-    p->p_param = p_param;
-
-    GKI_enqueue (&btm_cb.ble_ctr_cb.conn_pending_q, p);
+    if (p)
+    {
+        p->p_param = p_param;
+        GKI_enqueue (&btm_cb.ble_ctr_cb.conn_pending_q, p);
+    }
 }
 /*******************************************************************************
 **
