@@ -117,6 +117,8 @@ extern fixed_queue_t *btif_msg_queue;
 
 extern thread_t *bt_workqueue_thread;
 
+static pthread_mutex_t btu_task_lock = PTHREAD_MUTEX_INITIALIZER;
+
 /* Define a function prototype to allow a generic timeout handler */
 typedef void (tUSER_TIMEOUT_FUNC) (TIMER_LIST_ENT *p_tle);
 
@@ -255,7 +257,14 @@ static void btu_bta_alarm_process(TIMER_LIST_ENT *p_tle) {
     }
 }
 
+static BOOLEAN btu_stack_started = FALSE;
 void btu_task_start_up(UNUSED_ATTR void *context) {
+  pthread_mutex_lock(&btu_task_lock);
+  if (btu_stack_started == TRUE) {
+      LOG_WARN("btu task already started, returning");
+      pthread_mutex_unlock(&btu_task_lock);
+      return;
+  }
   BT_TRACE(TRACE_LAYER_BTU, TRACE_TYPE_API,
       "btu_task pending for preload complete event");
 
@@ -308,9 +317,17 @@ void btu_task_start_up(UNUSED_ATTR void *context) {
       thread_get_reactor(bt_workqueue_thread),
       btu_l2cap_alarm_ready,
       NULL);
+  btu_stack_started = TRUE;
+  pthread_mutex_unlock(&btu_task_lock);
 }
 
 void btu_task_shut_down(UNUSED_ATTR void *context) {
+  pthread_mutex_lock(&btu_task_lock);
+  if (btu_stack_started == FALSE) {
+      LOG_WARN("btu task already shut down, returning");
+      pthread_mutex_unlock(&btu_task_lock);
+      return;
+  }
   fixed_queue_unregister_dequeue(btu_bta_msg_queue);
   fixed_queue_unregister_dequeue(btu_hci_msg_queue);
   fixed_queue_unregister_dequeue(btu_general_alarm_queue);
@@ -327,7 +344,8 @@ void btu_task_shut_down(UNUSED_ATTR void *context) {
 #if (defined(LE_L2CAP_CFC_INCLUDED) && (LE_L2CAP_CFC_INCLUDED == TRUE))
     l2c_cleanup();
 #endif
-
+  btu_stack_started = FALSE;
+  pthread_mutex_unlock(&btu_task_lock);
 }
 
 /*******************************************************************************
