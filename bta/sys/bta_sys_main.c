@@ -49,8 +49,8 @@
 tBTA_SYS_CB bta_sys_cb;
 #endif
 
-fixed_queue_t *btu_bta_alarm_queue;
-static hash_map_t *bta_alarm_hash_map;
+fixed_queue_t *btu_bta_alarm_queue = NULL;
+static hash_map_t *bta_alarm_hash_map = NULL;
 static const size_t BTA_ALARM_HASH_MAP_SIZE = 17;
 static pthread_mutex_t bta_alarm_lock;
 extern thread_t *bt_workqueue_thread;
@@ -181,7 +181,15 @@ void bta_sys_init(void)
 
     bta_alarm_hash_map = hash_map_new(BTA_ALARM_HASH_MAP_SIZE,
             hash_function_pointer, NULL, (data_free_fn)alarm_free, NULL);
+    if (!bta_alarm_hash_map) {
+        ALOGE("Failed to allocate bta_alarm_hash_map");
+        goto error;
+    }
     btu_bta_alarm_queue = fixed_queue_new(SIZE_MAX);
+    if (!btu_bta_alarm_queue) {
+        ALOGE("Failed to allocate btu_bta_alarm_queue");
+        goto error;
+    }
 
     fixed_queue_register_dequeue(btu_bta_alarm_queue,
         thread_get_reactor(bt_workqueue_thread),
@@ -199,12 +207,20 @@ void bta_sys_init(void)
 #if( defined BTA_AR_INCLUDED ) && (BTA_AR_INCLUDED == TRUE)
     bta_ar_init();
 #endif
+    return;
 
+error:
+    fixed_queue_free(btu_bta_alarm_queue, NULL);
+    btu_bta_alarm_queue = NULL;
+    hash_map_free(bta_alarm_hash_map);
+    bta_alarm_hash_map = NULL;
 }
 
 void bta_sys_free(void) {
     fixed_queue_free(btu_bta_alarm_queue, NULL);
+    btu_bta_alarm_queue = NULL;
     hash_map_free(bta_alarm_hash_map);
+    bta_alarm_hash_map = NULL;
     pthread_mutex_destroy(&bta_alarm_lock);
 }
 
