@@ -4371,6 +4371,31 @@ void btm_sec_auth_complete (UINT16 handle, UINT8 status)
         btm_sec_auth_collision(handle);
         return;
     }
+
+    if (status == HCI_ERR_REPEATED_ATTEMPTS)
+    {
+        /* get the device with auth type as BTM_SEC_STATE_AUTHENTICATING */
+        if (!p_dev_rec)
+            p_dev_rec = btm_find_dev_by_sec_state(BTM_SEC_STATE_AUTHENTICATING);
+
+        if (p_dev_rec)
+        {
+            if ( (btm_cb.pairing_state != BTM_PAIR_STATE_IDLE)
+                  &&  (memcmp (p_dev_rec->bd_addr, btm_cb.pairing_bda, BD_ADDR_LEN) == 0) )
+                btm_sec_change_pairing_state (BTM_PAIR_STATE_IDLE);
+
+            if (btm_cb.api.p_auth_complete_callback)
+            {
+                (*btm_cb.api.p_auth_complete_callback) (p_dev_rec->bd_addr,
+                        p_dev_rec->dev_class,
+                        p_dev_rec->sec_bd_name, status);
+                BTM_TRACE_DEBUG("btm_sec_auth_complete: Repeated attempts, send Auth failure");
+            }
+            btm_sec_send_hci_disconnect (p_dev_rec, HCI_ERR_AUTH_FAILURE, p_dev_rec->hci_handle);
+        }
+        return;
+    }
+
     btm_cb.collision_start_time = 0;
 
     btm_restore_mode();

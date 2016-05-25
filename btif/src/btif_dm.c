@@ -1312,6 +1312,7 @@ static void btif_dm_auth_cmpl_evt (tBTA_DM_AUTH_CMPL *p_auth_cmpl)
             case HCI_ERR_PAIRING_WITH_UNIT_KEY_NOT_SUPPORTED:
             case HCI_ERR_INSUFFCIENT_SECURITY:
             case HCI_ERR_PEER_USER:
+            case HCI_ERR_REPEATED_ATTEMPTS:
             case HCI_ERR_UNSPECIFIED:
                 BTIF_TRACE_DEBUG(" %s() Authentication fail reason %d",
                     __FUNCTION__, p_auth_cmpl->fail_reason);
