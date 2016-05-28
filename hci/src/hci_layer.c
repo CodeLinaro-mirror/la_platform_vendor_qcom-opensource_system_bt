@@ -479,6 +479,10 @@ static void epilog_timer_expired(UNUSED_ATTR void *context) {
 // Command/packet transmitting functions
 
 static void event_command_ready(fixed_queue_t *queue, UNUSED_ATTR void *context) {
+  if (hci_state < HCI_STARTED) {
+    LOG_ERROR("%s Returning, hci_layer not ready", __func__);
+    return;
+  }
   if (command_credits > 0) {
     waiting_command_t *wait_entry = fixed_queue_dequeue(queue);
     command_credits--;
@@ -498,6 +502,10 @@ static void event_command_ready(fixed_queue_t *queue, UNUSED_ATTR void *context)
 }
 
 static void event_packet_ready(fixed_queue_t *queue, UNUSED_ATTR void *context) {
+  if (hci_state < HCI_STARTED) {
+    LOG_ERROR("%s Returning, hci_layer not ready", __func__);
+    return;
+  }
   // The queue may be the command queue or the packet queue, we don't care
   BT_HDR *packet = (BT_HDR *)fixed_queue_dequeue(queue);
 
