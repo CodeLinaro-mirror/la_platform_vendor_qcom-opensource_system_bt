@@ -100,6 +100,7 @@ typedef struct
     int channel_count;
     UINT8 codec_type;
     UINT8 peer_bd[6];
+    UINT8   codec_info[AVDT_CODEC_SIZE];
 } btif_av_sink_config_req_t;
 
 /*****************************************************************************
@@ -405,6 +406,7 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data)
             // copy to avoid alignment problems
             memcpy(&req, p_data, sizeof(req));
 
+            btif_reset_decoder((UINT8*)(req.codec_info));
             BTIF_TRACE_WARNING("BTIF_AV_SINK_CONFIG_REQ_EVT %d %d", req.sample_rate,
                     req.channel_count);
             if (bt_av_sink_callbacks != NULL) {
@@ -597,6 +599,7 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
 
             BTIF_TRACE_WARNING("BTIF_AV_SINK_CONFIG_REQ_EVT %d %d", req.sample_rate,
                     req.channel_count);
+            btif_reset_decoder((UINT8*)(req.codec_info));
             if (btif_av_cb.peer_sep == AVDT_TSEP_SRC && bt_av_sink_callbacks != NULL) {
                 HAL_CBACK(bt_av_sink_callbacks, audio_config_cb, &(btif_av_cb.peer_bda),
                         req.sample_rate, req.channel_count, req.codec_type);
@@ -1267,7 +1270,7 @@ static void bte_av_media_callback(tBTA_AV_EVT event, tBTA_AV_MEDIA *p_data)
         UINT8* config = (UINT8*)(p_data->avk_config.codec_info);
         UINT8 codec_type = config[2];
         /* send a command to BT Media Task */
-        btif_reset_decoder((UINT8*)(p_data->avk_config.codec_info));
+        memcpy(config_req.codec_info,(UINT8*)(p_data->avk_config.codec_info), AVDT_CODEC_SIZE);
         config_req.codec_type = codec_type;
         switch(codec_type)
         {

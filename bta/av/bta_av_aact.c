@@ -1981,6 +1981,16 @@ void bta_av_getcap_results (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         cfg.psc_mask &= p_scb->p_cap->psc_mask;
         p_scb->cur_psc_mask = cfg.psc_mask;
 
+        if ((uuid_int == UUID_SERVCLASS_AUDIO_SINK) &&
+            (p_scb->seps[p_scb->sep_idx].p_app_data_cback != NULL))
+        {
+            APPL_TRACE_DEBUG(" Configure Deoder for Sink Connection ");
+            memcpy(av_sink_codec_info.avk_config.bd_addr,p_scb->peer_addr,sizeof(BD_ADDR));
+            av_sink_codec_info.avk_config.codec_info = p_scb->cfg.codec_info;
+            p_scb->seps[p_scb->sep_idx].p_app_data_cback(BTA_AV_MEDIA_SINK_CFG_EVT,
+                     &av_sink_codec_info);
+        }
+
         if ((uuid_int == UUID_SERVCLASS_AUDIO_SOURCE) &&
                 (cfg.codec_info[SBC_MAX_BITPOOL_OFFSET] > SBC_MAX_BITPOOL))
         {
