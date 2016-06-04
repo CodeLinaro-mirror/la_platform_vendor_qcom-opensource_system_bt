@@ -213,19 +213,34 @@ static char* btif_get_default_local_name();
 **  Externs
 ******************************************************************************/
 extern UINT16 bta_service_id_to_uuid_lkup_tbl [BTA_MAX_SERVICE_ID];
+#if (defined BTA_HF_INCLUDED && BTA_HF_INCLUDED == TRUE)
 extern bt_status_t btif_hf_execute_service(BOOLEAN b_enable);
+#endif
+#if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
 extern bt_status_t btif_av_execute_service(BOOLEAN b_enable);
+#endif
+#if (defined BTA_AV_SINK_INCLUDED && BTA_AV_SINK_INCLUDED == TRUE)
 extern bt_status_t btif_av_sink_execute_service(BOOLEAN b_enable);
+#endif
+#if (defined BTA_HH_INCLUDED && BTA_HH_INCLUDED == TRUE)
 extern bt_status_t btif_hh_execute_service(BOOLEAN b_enable);
+#endif
+#if (defined BTA_HF_CLIENT_INCLUDED && BTA_HF_CLIENT_INCLUDED == TRUE)
 extern bt_status_t btif_hf_client_execute_service(BOOLEAN b_enable);
+#endif
 extern bt_status_t btif_sdp_execute_service(BOOLEAN b_enable);
+#if (defined BTA_HH_INCLUDED && BTA_HH_INCLUDED == TRUE)
 extern int btif_hh_connect(bt_bdaddr_t *bd_addr);
+#endif
+#if (defined BTA_HD_INCLUDED && BTA_HD_INCLUDED == TRUE)
 extern bt_status_t btif_hd_execute_service(BOOLEAN b_enable);
+#endif
 extern void bta_gatt_convert_uuid16_to_uuid128(UINT8 uuid_128[LEN_UUID_128], UINT16 uuid_16);
+#if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
 extern void btif_av_move_idle(bt_bdaddr_t bd_addr);
 extern void btif_av_trigger_suspend();
 extern BOOLEAN btif_av_get_ongoing_multicast();
-
+#endif
 /******************************************************************************
 **  Functions
 ******************************************************************************/
@@ -263,35 +278,47 @@ bt_status_t btif_in_execute_service_request(tBTA_SERVICE_ID service_id,
     /* Check the service_ID and invoke the profile's BT state changed API */
     switch (service_id)
     {
+#if (defined BTA_HF_INCLUDED && BTA_HF_INCLUDED == TRUE)
          case BTA_HFP_SERVICE_ID:
          case BTA_HSP_SERVICE_ID:
          {
               btif_hf_execute_service(b_enable);
          }break;
+#endif
+#if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
          case BTA_A2DP_SOURCE_SERVICE_ID:
          {
               btif_av_execute_service(b_enable);
          }break;
+#endif
+#if (defined BTA_AV_SINK_INCLUDED && BTA_AV_SINK_INCLUDED == TRUE)
          case BTA_A2DP_SINK_SERVICE_ID:
          {
             btif_av_sink_execute_service(b_enable);
          }break;
+#endif
+#if (defined BTA_HH_INCLUDED && BTA_HH_INCLUDED == TRUE)
          case BTA_HID_SERVICE_ID:
          {
               btif_hh_execute_service(b_enable);
          }break;
+#endif
+#if (defined BTA_HF_CLIENT_INCLUDED && BTA_HF_CLIENT_INCLUDED == TRUE)
          case BTA_HFP_HS_SERVICE_ID:
          {
              btif_hf_client_execute_service(b_enable);
          }break;
+#endif
          case BTA_SDP_SERVICE_ID:
          {
              btif_sdp_execute_service(b_enable);
          }break;
+#if (defined BTA_HD_INCLUDED && BTA_HD_INCLUDED == TRUE)
          case BTA_HIDD_SERVICE_ID:
          {
               btif_hd_execute_service(b_enable);
          }break;
+#endif
          default:
               BTIF_TRACE_ERROR("%s: Unknown service being enabled", __FUNCTION__);
               return BT_STATUS_FAIL;
@@ -789,6 +816,7 @@ static void btif_dm_cb_create_bond(bt_bdaddr_t *bd_addr, tBTA_TRANSPORT transpor
     }
 #endif
 
+#if (defined BTA_HH_INCLUDED && BTA_HH_INCLUDED == TRUE)
 #if BLE_INCLUDED == TRUE
     if(is_hid && (device_type & BT_DEVICE_TYPE_BLE) == 0)
 #else
@@ -801,6 +829,7 @@ static void btif_dm_cb_create_bond(bt_bdaddr_t *bd_addr, tBTA_TRANSPORT transpor
             bond_state_changed(status, bd_addr, BT_BOND_STATE_NONE);
     }
     else
+#endif
     {
         BTA_DmBondByTransport((UINT8 *)bd_addr->address, transport);
     }
@@ -1961,12 +1990,13 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
              * During active muisc streaming no new connection can happen, hence
              * We will get this only when multistreaming is happening due to tuchtones
              */
+#if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
             if (btif_av_get_ongoing_multicast())
             {
                 // trigger a2dp suspend
                 btif_av_trigger_suspend();
             }
-
+#endif
             btif_update_remote_version_property(&bd_addr);
 
             HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
@@ -1992,7 +2022,9 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
                 num_active_br_edr_links--;
                 BTIF_TRACE_DEBUG("num_active_br_edr_links is %d ",num_active_br_edr_links);
             }
+#if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
             btif_av_move_idle(bd_addr);
+#endif
             BTIF_TRACE_DEBUG("BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
             HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
                       &bd_addr, BT_ACL_STATE_DISCONNECTED);
@@ -3023,8 +3055,13 @@ void btif_dm_load_local_oob(void)
 void btif_dm_proc_loc_oob(BOOLEAN valid, BT_OCTET16 c, BT_OCTET16 r)
 {
     FILE *fp;
+#ifdef ANDROID
     char *path_a = "/data/misc/bluedroid/LOCAL/a.key";
     char *path_b = "/data/misc/bluedroid/LOCAL/b.key";
+#else
+    char *path_a = "/etc/data/misc/bluedroid/LOCAL/a.key";
+    char *path_b = "/etc/data/misc/bluedroid/LOCAL/b.key";
+#endif
     char *path = NULL;
     char prop_oob[PROPERTY_VALUE_MAX];
     BTIF_TRACE_DEBUG("btif_dm_proc_loc_oob: valid=%d", valid);
@@ -3062,8 +3099,13 @@ BOOLEAN btif_dm_proc_rmt_oob(BD_ADDR bd_addr,  BT_OCTET16 p_c, BT_OCTET16 p_r)
 {
     char t[128];
     FILE *fp;
+#ifdef ANDROID
     char *path_a = "/data/misc/bluedroid/LOCAL/a.key";
     char *path_b = "/data/misc/bluedroid/LOCAL/b.key";
+#else
+    char *path_a = "/etc/data/misc/bluedroid/LOCAL/a.key";
+    char *path_b = "/etc/data/misc/bluedroid/LOCAL/b.key";
+#endif
     char *path = NULL;
     char prop_oob[PROPERTY_VALUE_MAX];
     BOOLEAN result = FALSE;

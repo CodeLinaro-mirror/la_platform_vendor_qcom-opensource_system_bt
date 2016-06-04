@@ -63,7 +63,7 @@
 #include "l2cdefs.h"
 #include "l2c_api.h"
 
-#if TEST_APP_INTERFACE == TRUE
+#if (defined TEST_APP_INTERFACE && TEST_APP_INTERFACE == TRUE)
 #include <bt_testapp.h>
 #endif
 #include <logging.h>
@@ -89,25 +89,37 @@ bt_os_callouts_t *bt_os_callouts = NULL;
 
 /* list all extended interfaces here */
 
+#if (defined BTA_HF_INCLUDED && BTA_HF_INCLUDED == TRUE)
 /* handsfree profile */
 extern bthf_interface_t *btif_hf_get_interface();
+#endif
+#if (defined BTA_HF_CLIENT_INCLUDED && BTA_HF_CLIENT_INCLUDED == TRUE)
 /* handsfree profile - client */
 extern bthf_client_interface_t *btif_hf_client_get_interface();
+#endif
+#if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
 /* advanced audio profile */
 extern btav_interface_t *btif_av_get_src_interface();
+#endif
+#if (defined BTA_AV_SINK_INCLUDED && BTA_AV_SINK_INCLUDED == TRUE)
 extern btav_interface_t *btif_av_get_sink_interface();
+#endif
 /*rfc l2cap*/
 extern btsock_interface_t *btif_sock_get_interface();
+#if (defined BTA_HH_INCLUDED && BTA_HH_INCLUDED == TRUE)
 /* hid host profile */
 extern bthh_interface_t *btif_hh_get_interface();
+#endif
+#if (defined BTA_HD_INCLUDED && BTA_HD_INCLUDED == TRUE)
 /* hid device profile */
 extern bthd_interface_t *btif_hd_get_interface();
+#endif
+#if (defined BTA_HEALTH_INCLUDED && BTA_HEALTH_INCLUDED == TRUE)
 /* health device profile */
 extern bthl_interface_t *btif_hl_get_interface();
+#endif
 /*pan*/
 extern btpan_interface_t *btif_pan_get_interface();
-/*map client*/
-extern btmce_interface_t *btif_mce_get_interface();
 #if BLE_INCLUDED == TRUE
 /* gatt */
 extern btgatt_interface_t *btif_gatt_get_interface();
@@ -122,7 +134,7 @@ extern btrc_interface_t *btif_rc_ctrl_get_interface();
 /*SDP search client*/
 extern btsdp_interface_t *btif_sdp_get_interface();
 
-#if TEST_APP_INTERFACE == TRUE
+#if (defined TEST_APP_INTERFACE && TEST_APP_INTERFACE == TRUE)
 extern const btl2cap_interface_t *btif_l2cap_get_interface(void);
 extern const btrfcomm_interface_t *btif_rfcomm_get_interface(void);
 extern const btmcap_interface_t *btif_mcap_get_interface(void);
@@ -359,12 +371,16 @@ static const void* get_profile_interface (const char *profile_id)
     if (interface_ready() == FALSE)
         return NULL;
 
+#if (defined BTA_HF_INCLUDED && BTA_HF_INCLUDED == TRUE)
     /* check for supported profile interfaces */
     if (is_profile(profile_id, BT_PROFILE_HANDSFREE_ID))
         return btif_hf_get_interface();
+#endif
 
+#if (defined BTA_HF_CLIENT_INCLUDED && BTA_HF_CLIENT_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_HANDSFREE_CLIENT_ID))
         return btif_hf_client_get_interface();
+#endif
 
     if (is_profile(profile_id, BT_PROFILE_SOCKETS_ID))
         return btif_sock_get_interface();
@@ -375,20 +391,30 @@ static const void* get_profile_interface (const char *profile_id)
     if (is_profile(profile_id, BT_PROFILE_PAN_ID))
         return btif_pan_get_interface();
 
+#if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_ID))
         return btif_av_get_src_interface();
+#endif
 
+#if (defined BTA_AV_SINK_INCLUDED && BTA_AV_SINK_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_SINK_ID))
         return btif_av_get_sink_interface();
+#endif
 
+#if (defined BTA_HH_INCLUDED && BTA_HH_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_HIDHOST_ID))
         return btif_hh_get_interface();
+#endif
 
+#if (defined BTA_HD_INCLUDED && BTA_HD_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_HIDDEV_ID))
         return btif_hd_get_interface();
+#endif
 
+#if (defined BTA_HEALTH_INCLUDED && BTA_HEALTH_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_HEALTH_ID))
         return btif_hl_get_interface();
+#endif
 
     if (is_profile(profile_id, BT_PROFILE_SDP_CLIENT_ID))
         return btif_sdp_get_interface();
@@ -398,21 +424,25 @@ static const void* get_profile_interface (const char *profile_id)
         return btif_gatt_get_interface();
 #endif
 
+#if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_AV_RC_ID))
         return btif_rc_get_interface();
+#endif
 
 #ifdef WIPOWER_SUPPORTED
     if (is_profile(profile_id, WIPOWER_PROFILE_ID))
         return get_wipower_interface();
 #endif
 
+#if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_AV_RC_CTRL_ID))
         return btif_rc_ctrl_get_interface();
+#endif
 
     return NULL;
 }
 
-#if TEST_APP_INTERFACE == TRUE
+#if (defined TEST_APP_INTERFACE && TEST_APP_INTERFACE == TRUE)
 static const void* get_testapp_interface(int test_app_profile)
 {
     ALOGI("get_testapp_interface %d", test_app_profile);
@@ -551,7 +581,7 @@ static const bt_interface_t bluetoothInterface = {
     read_energy_info,
     dump,
     config_clear,
-#if TEST_APP_INTERFACE == TRUE
+#if (defined TEST_APP_INTERFACE && TEST_APP_INTERFACE == TRUE)
     get_testapp_interface,
 #else
     NULL,

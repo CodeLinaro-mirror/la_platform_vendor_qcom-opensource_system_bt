@@ -28,7 +28,11 @@
 #if( defined BLE_INCLUDED ) && (BLE_INCLUDED == TRUE)
 #if( defined BTA_GATT_INCLUDED ) && (BTA_GATT_INCLUDED == TRUE)
 
+#ifdef ANDROID
 #define GATT_CACHE_PREFIX "/data/misc/bluedroid/gatt_cache_"
+#else
+#define GATT_CACHE_PREFIX "/etc/data/misc/bluedroid/gatt_cache_"
+#endif
 
 static FILE* sCacheFD = 0;
 

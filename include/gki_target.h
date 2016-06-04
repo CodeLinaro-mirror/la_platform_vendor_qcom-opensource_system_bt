@@ -235,4 +235,6 @@ over HCI data and intentionally kept out of order */
 #define GKI_NUM_TOTAL_BUF_POOLS     10
 #endif
 
+#ifndef ANDROID
 void LogMsg (UINT32 trace_set_mask, const char *fmt_str, ...);
+#endif

@@ -20,7 +20,11 @@
 
 #include <stdbool.h>
 
+#ifdef ANDROID
 #include "config.h"
+#else
+#include "osi/include/config.h"
+#endif
 #include "module.h"
 
 static const char STACK_CONFIG_MODULE[] = "stack_config_module";

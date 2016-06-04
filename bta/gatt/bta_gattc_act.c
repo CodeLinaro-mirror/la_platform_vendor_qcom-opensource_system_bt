@@ -325,7 +325,9 @@ void bta_gattc_deregister(tBTA_GATTC_CB *p_cb, tBTA_GATTC_RCB  *p_clreg)
     else
     {
         APPL_TRACE_ERROR("bta_gattc_deregister Deregister Failed unknown client if");
+#if (defined BTA_HH_INCLUDED && BTA_HH_INCLUDED == TRUE)
         bta_hh_cleanup_disable(BTA_HH_OK);
+#endif
     }
 }
 /*******************************************************************************
@@ -2141,7 +2143,11 @@ static void  bta_gattc_cmpl_cback(UINT16 conn_id, tGATTC_OPTYPE op, tGATT_STATUS
 
     /* notification and indication processed right away */
     if ((op == GATTC_OPTYPE_NOTIFICATION || op == GATTC_OPTYPE_INDICATION) &&
-       (p_clcb || !bta_hh_le_is_hh_gatt_if(gatt_if)))
+       (p_clcb
+#if (defined BTA_HH_LE_INCLUDED && BTA_HH_LE_INCLUDED == TRUE)
+       || !bta_hh_le_is_hh_gatt_if(gatt_if)
+#endif
+       ))
     {
         bta_gattc_process_indicate(conn_id, op, p_data);
         return;

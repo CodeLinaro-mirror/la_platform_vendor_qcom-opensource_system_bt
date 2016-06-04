@@ -51,7 +51,11 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define MAX_FILE_SIZE 1024*1024*20
 
+#ifdef ANDROID
 #define LOGD0(t,s) __android_log_write(ANDROID_LOG_DEBUG, t, s)
+#else
+#define LOGD0(t,s) fprintf(stderr, t, s)
+#endif
 
 static int file_descriptor = -1;
 uint32_t file_size = 0;

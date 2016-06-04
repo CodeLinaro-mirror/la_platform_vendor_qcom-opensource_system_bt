@@ -23,6 +23,9 @@
 #include <stddef.h>
 #include <string.h>
 #include <sys/eventfd.h>
+#ifndef ANDROID
+#include <sys/time.h>
+#endif
 
 #include "osi/include/allocator.h"
 #include "osi/include/eager_reader.h"

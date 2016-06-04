@@ -79,11 +79,11 @@
 #endif
 
 #ifndef BTA_HD_INCLUDED
-#define BTA_HD_INCLUDED TRUE
+#define BTA_HD_INCLUDED FALSE
 #endif
 
 #ifndef BTA_HH_INCLUDED
-#define BTA_HH_INCLUDED TRUE
+#define BTA_HH_INCLUDED FALSE
 #endif
 
 #ifndef BTA_HH_ROLE
@@ -91,15 +91,24 @@
 #endif
 
 #ifndef BTA_HH_LE_INCLUDED
-#define BTA_HH_LE_INCLUDED TRUE
+#define BTA_HH_LE_INCLUDED FALSE
 #endif
 
 #ifndef BTA_AR_INCLUDED
-#define BTA_AR_INCLUDED TRUE
+#define BTA_AR_INCLUDED FALSE
 #endif
 
 #ifndef BTA_AV_INCLUDED
-#define BTA_AV_INCLUDED TRUE
+#define BTA_AV_INCLUDED FALSE
+#endif
+
+/* Add new flag for HF */
+#ifndef BTA_HF_INCLUDED
+#define BTA_HF_INCLUDED FALSE
+#endif
+
+#ifndef BTA_HF_CLIENT_INCLUDED
+#define BTA_HF_CLIENT_INCLUDED FALSE
 #endif
 
 #ifndef BTA_GATT_INCLUDED
@@ -107,12 +116,17 @@
 #endif
 
 #ifndef BTA_AV_SINK_INCLUDED
-#define BTA_AV_SINK_INCLUDED TRUE
+#define BTA_AV_SINK_INCLUDED FALSE
 #endif
 
 #ifndef BTA_DISABLE_DELAY
 #define BTA_DISABLE_DELAY 200 /* in milliseconds */
 #endif
+
+#ifndef BTA_HEALTH_INCLUDED
+#define BTA_HEALTH_INCLUDED FALSE
+#endif
+
 
 // If the next wakeup time is less than this threshold, we should acquire
 // a wakelock instead of setting a wake alarm so we're not bouncing in
@@ -220,7 +234,7 @@
 ******************************************************************************/
 
 #ifndef TEST_APP_INTERFACE
-#define TEST_APP_INTERFACE           TRUE
+#define TEST_APP_INTERFACE           FALSE
 #endif
 
 /******************************************************************************
@@ -433,7 +447,7 @@
 
 /* Includes SCO if TRUE */
 #ifndef BTM_SCO_INCLUDED
-#define BTM_SCO_INCLUDED            TRUE       /* TRUE includes SCO code */
+#define BTM_SCO_INCLUDED            FALSE       /* TRUE includes SCO code */
 #endif
 
 /* Includes SCO if TRUE */
@@ -1546,7 +1560,7 @@ Range: 2 octets
 
 /* HID Device Role Included */
 #ifndef HID_DEV_INCLUDED
-#define HID_DEV_INCLUDED             TRUE
+#define HID_DEV_INCLUDED             FALSE
 #endif
 
 #ifndef HID_DEV_SUBCLASS
@@ -1588,7 +1602,7 @@ Range: 2 octets
 ** Definitions for HID-Host
 */
 #ifndef  HID_HOST_INCLUDED
-#define HID_HOST_INCLUDED           TRUE
+#define HID_HOST_INCLUDED           FALSE
 #endif
 
 #ifndef HID_HOST_MAX_DEVICES
