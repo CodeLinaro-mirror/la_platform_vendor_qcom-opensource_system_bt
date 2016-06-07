@@ -52,6 +52,7 @@ c_sources+= \
 
 # BTIF
 c_sources += \
+        ../btif/src/btif_av.c \
         ../btif/src/btif_config.c \
         ../btif/src/btif_core.c \
         ../btif/src/btif_debug.c \
@@ -67,9 +68,11 @@ c_sources += \
         ../btif/src/btif_hh.c \
         ../btif/src/btif_hd.c \
         ../btif/src/btif_hl.c \
+        ../btif/src/btif_media_task.c \
         ../btif/src/btif_sdp.c \
         ../btif/src/btif_pan.c \
         ../btif/src/btif_profile_queue.c \
+        ../btif/src/btif_rc.c \
         ../btif/src/btif_sm.c \
         ../btif/src/btif_sock.c \
         ../btif/src/btif_sock_rfc.c \
@@ -81,7 +84,21 @@ c_sources += \
         ../btif/src/btif_stack_log.c \
         ../btif/src/btif_storage.c \
         ../btif/src/btif_util.c \
-        ../btif/src/stack_manager.c
+        ../btif/src/stack_manager.c \
+        ../embdrv/sbc/decoder/srce/alloc.c \
+        ../embdrv/sbc/decoder/srce/bitalloc.c \
+        ../embdrv/sbc/decoder/srce/bitalloc-sbc.c \
+        ../embdrv/sbc/decoder/srce/bitstream-decode.c \
+        ../embdrv/sbc/decoder/srce/decoder-oina.c \
+        ../embdrv/sbc/decoder/srce/decoder-private.c \
+        ../embdrv/sbc/decoder/srce/decoder-sbc.c \
+        ../embdrv/sbc/decoder/srce/dequant.c \
+        ../embdrv/sbc/decoder/srce/framing.c \
+        ../embdrv/sbc/decoder/srce/framing-sbc.c \
+        ../embdrv/sbc/decoder/srce/oi_codec_version.c \
+        ../embdrv/sbc/decoder/srce/synthesis-sbc.c \
+        ../embdrv/sbc/decoder/srce/synthesis-dct8.c \
+        ../embdrv/sbc/decoder/srce/synthesis-8-generated.c
 
 #if ($(BOARD_USES_WIPOWER), true)
 #c_sources += \
@@ -95,7 +112,18 @@ c_sources+= \
         ../btif/co/bta_hl_co.c \
         ../btif/co/bta_pan_co.c \
         ../btif/co/bta_gattc_co.c \
-        ../btif/co/bta_gatts_co.c
+        ../btif/co/bta_gatts_co.c \
+        ../btif/co/bta_av_co.c
+# sbc encoder
+c_sources+= \
+        ../embdrv/sbc/encoder/srce/sbc_analysis.c \
+        ../embdrv/sbc/encoder/srce/sbc_dct.c \
+        ../embdrv/sbc/encoder/srce/sbc_dct_coeffs.c \
+        ../embdrv/sbc/encoder/srce/sbc_enc_bit_alloc_mono.c \
+        ../embdrv/sbc/encoder/srce/sbc_enc_bit_alloc_ste.c \
+        ../embdrv/sbc/encoder/srce/sbc_enc_coeffs.c \
+        ../embdrv/sbc/encoder/srce/sbc_encoder.c \
+        ../embdrv/sbc/encoder/srce/sbc_packing.c
 
 c_sources+= \
         ../udrv/ulinux/uipc.c
@@ -104,7 +132,7 @@ common_LDFLAGS = -ldl -lrt -lresolv ../hci/libbt-hci.la \
         ../utils/libbtutils.la ../osi/libbtosi.la ../gki/libbtgki.la \
         ../stack/libbtstack.la ../bta/libbtbta.la ../btcore/libbtcore.la \
         ../profile/libbtprofile.la ../device/libbtdevice.la
-        common_CFLAGS =  $(AM_CFLAGS) -fPIC -D_GNU_SOURCE $(Z_LIB)
+        common_CFLAGS =  $(AM_CFLAGS) -fPIC -DUSE_AUDIO_TRACK -D_GNU_SOURCE $(Z_LIB)
 
 library_includedir = $(pkgincludedir)
 lib_LTLIBRARIES = libbluetoothdefault.la
