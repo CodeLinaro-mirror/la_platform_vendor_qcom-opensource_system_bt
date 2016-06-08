@@ -295,8 +295,9 @@ void destroy_tap_read_thread(void)
 {
     if (pan_pth >= 0)
     {
-        btsock_thread_exit(pan_pth);
-        pan_pth = -1;
+        //Todo: Fix Me
+        //btsock_thread_exit(pan_pth);
+        //pan_pth = -1;
     }
 }
 
@@ -397,13 +398,17 @@ int btpan_tap_open()
 {
     struct ifreq ifr;
     int fd, err;
+#ifdef ANDROID
     const char *clonedev = "/dev/tun";
+#else
+    const char *clonedev = "/dev/net/tun";
+#endif
 
     /* open the clone device */
 
     if ((fd = open(clonedev, O_RDWR)) < 0)
     {
-        BTIF_TRACE_DEBUG("could not open %s, err:%d", clonedev, errno);
+        BTIF_TRACE_ERROR("could not open %s, err:%d", clonedev, errno);
         return fd;
     }
 
@@ -415,7 +420,7 @@ int btpan_tap_open()
     /* try to create the device */
     if ((err = ioctl(fd, TUNSETIFF, (void *) &ifr)) < 0)
     {
-        BTIF_TRACE_DEBUG("ioctl error:%d, errno:%s", err, strerror(errno));
+        BTIF_TRACE_ERROR("ioctl error:%d, errno:%s", err, strerror(errno));
         close(fd);
         return err;
     }
