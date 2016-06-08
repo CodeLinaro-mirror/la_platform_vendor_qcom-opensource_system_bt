@@ -29,6 +29,7 @@
 #include <hardware/bt_hf.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <cutils/properties.h>
 
 #define LOG_TAG "bt_btif_hf"

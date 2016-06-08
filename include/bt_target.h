@@ -104,11 +104,11 @@
 
 /* Add new flag for HF */
 #ifndef BTA_HF_INCLUDED
-#define BTA_HF_INCLUDED FALSE
+#define BTA_HF_INCLUDED TRUE
 #endif
 
 #ifndef BTA_HF_CLIENT_INCLUDED
-#define BTA_HF_CLIENT_INCLUDED FALSE
+#define BTA_HF_CLIENT_INCLUDED TRUE
 #endif
 
 #ifndef BTA_GATT_INCLUDED
@@ -447,7 +447,7 @@
 
 /* Includes SCO if TRUE */
 #ifndef BTM_SCO_INCLUDED
-#define BTM_SCO_INCLUDED            FALSE       /* TRUE includes SCO code */
+#define BTM_SCO_INCLUDED            TRUE       /* TRUE includes SCO code */
 #endif
 
 /* Includes SCO if TRUE */
