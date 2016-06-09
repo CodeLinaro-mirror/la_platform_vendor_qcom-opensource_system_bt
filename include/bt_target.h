@@ -79,11 +79,11 @@
 #endif
 
 #ifndef BTA_HD_INCLUDED
-#define BTA_HD_INCLUDED FALSE
+#define BTA_HD_INCLUDED TRUE
 #endif
 
 #ifndef BTA_HH_INCLUDED
-#define BTA_HH_INCLUDED FALSE
+#define BTA_HH_INCLUDED TRUE
 #endif
 
 #ifndef BTA_HH_ROLE
@@ -91,7 +91,7 @@
 #endif
 
 #ifndef BTA_HH_LE_INCLUDED
-#define BTA_HH_LE_INCLUDED FALSE
+#define BTA_HH_LE_INCLUDED TRUE
 #endif
 
 #ifndef BTA_AR_INCLUDED
@@ -124,7 +124,7 @@
 #endif
 
 #ifndef BTA_HEALTH_INCLUDED
-#define BTA_HEALTH_INCLUDED FALSE
+#define BTA_HEALTH_INCLUDED TRUE
 #endif
 
 

@@ -52,8 +52,9 @@
 #include <sys/poll.h>
 #include <sys/prctl.h>
 #include <cutils/sockets.h>
+#ifdef ANDROID
 #include <cutils/log.h>
-
+#endif
 #include <hardware/bluetooth.h>
 #include <hardware/bt_hl.h>
 
