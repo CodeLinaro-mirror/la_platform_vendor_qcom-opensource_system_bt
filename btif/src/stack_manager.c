@@ -37,6 +37,7 @@
 #include "bt_utils.h"
 
 static thread_t *management_thread;
+extern void bt_utils_cleanup( void);
 
 // If initialized, any of the bluetooth API functions can be called.
 // (e.g. turning logging on and off, enabling/disabling the stack, etc)
@@ -184,10 +185,11 @@ static void event_clean_up_stack(UNUSED_ATTR void *context) {
 
   btif_shutdown_bluetooth();
   module_clean_up(get_module(BTIF_CONFIG_MODULE));
-  module_clean_up(get_module(BT_UTILS_MODULE));
+  //module_clean_up(get_module(BT_UTILS_MODULE));
+  bt_utils_cleanup();
 
   future_await(hack_future);
-  module_clean_up(get_module(OSI_MODULE));
+  //module_clean_up(get_module(OSI_MODULE));
   module_management_stop();
   LOG_DEBUG("%s finished.", __func__);
 }

@@ -71,10 +71,11 @@
 #define LOGW0(t,s) __android_log_write(ANDROID_LOG_WARN, t, s)
 #define LOGE0(t,s) __android_log_write(ANDROID_LOG_ERROR, t, s)
 #else
-#define LOGI0(x,y) { fprintf(stderr, x,y); fprintf(stderr, "\n");}
-#define LOGD0(x,y) { fprintf(stderr, x,y); fprintf(stderr, "\n");}
-#define LOGW0(x,y) { fprintf(stderr, x,y); fprintf(stderr, "\n");}
-#define LOGE0(x,y) { fprintf(stderr, x,y); fprintf(stderr, "\n");}
+#include <syslog.h>
+#define LOGI0(x) { syslog (LOG_NOTICE, x);}
+#define LOGD0(x) { syslog (LOG_NOTICE, x);}
+#define LOGW0(x) { syslog (LOG_WARNING, x);}
+#define LOGE0(x) { syslog (LOG_ERR, x);}
 #endif
 
 #ifndef DEFAULT_CONF_TRACE_LEVEL
@@ -197,7 +198,46 @@ static tBTTRC_FUNC_MAP bttrc_set_level_map[] = {
 
 static const UINT16 bttrc_map_size = sizeof(bttrc_set_level_map)/sizeof(tBTTRC_FUNC_MAP);
 
-#ifdef ANDROID
+#ifndef ANDROID
+void LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
+  static char buffer[BTE_LOG_BUF_SIZE];
+  int offset = MSG_BUFFER_OFFSET;
+  int trace_layer = TRACE_GET_LAYER(trace_set_mask);
+  if (trace_layer >= TRACE_LAYER_MAX_NUM)
+    trace_layer = 0;
+
+  strcpy(&buffer[offset], "bt_stack : ");
+  offset += strlen("bt_stack : ");
+  strcpy(&buffer[offset], bt_layer_tags[trace_layer]);
+  offset += strlen(bt_layer_tags[trace_layer]);
+  strcpy(&buffer[offset], " : ");
+  offset += strlen(" : ");
+
+  va_list ap;
+  va_start(ap, fmt_str);
+  vsnprintf(&buffer[offset], BTE_LOG_MAX_SIZE - offset, fmt_str, ap);
+  va_end(ap);
+
+  switch ( TRACE_GET_TYPE(trace_set_mask) ) {
+    case TRACE_TYPE_ERROR:
+      LOGE0(buffer);
+      break;
+    case TRACE_TYPE_WARNING:
+      LOGW0(buffer);
+      break;
+    case TRACE_TYPE_API:
+    case TRACE_TYPE_EVENT:
+      LOGI0(buffer);
+      break;
+    case TRACE_TYPE_DEBUG:
+      LOGD0(buffer);
+      break;
+    default:
+      LOGE0(buffer);      /* we should never get this */
+      break;
+  }
+}
+#else
 void LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
   static char buffer[BTE_LOG_BUF_SIZE];
   int trace_layer = TRACE_GET_LAYER(trace_set_mask);
