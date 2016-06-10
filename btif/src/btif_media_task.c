@@ -1983,6 +1983,30 @@ static void btif_media_task_enc_update(BT_HDR *p_msg)
     APPL_TRACE_DEBUG("btif_media_task_enc_update : minmtu %d, maxbp %d minbp %d",
             pUpdateAudio->MinMtuSize, pUpdateAudio->MaxBitPool, pUpdateAudio->MinBitPool);
 
+#if defined(USE_QTI_APTX_CODEC)
+
+    if(pUpdateAudio->CodecType == NON_A2DP_MEDIA_CT)
+    {
+        APPL_TRACE_EVENT("btif_media_task_enc_update BluetoothVendorID %x, BluetoothCodecID %d",
+                     pUpdateAudio->BluetoothVendorID, pUpdateAudio->BluetoothCodecID);
+
+
+        if ((pUpdateAudio->BluetoothVendorID == QTI_APTX_VENDOR_ID)
+           && (pUpdateAudio->BluetoothCodecID == QTI_APTX_CODEC_ID_BLUETOOTH))  /* aptX Classic */
+        {
+            APPL_TRACE_DEBUG("btif_media_task_enc_update: aptX ");
+            btif_media_cb.TxAaMtuSize = ((BTIF_MEDIA_AA_BUF_SIZE - BTIF_MEDIA_AA_APTX_OFFSET - sizeof(BT_HDR)) < pUpdateAudio->MinMtuSize) ?
+                                                  (BTIF_MEDIA_AA_BUF_SIZE - BTIF_MEDIA_AA_APTX_OFFSET - sizeof(BT_HDR)) : pUpdateAudio->MinMtuSize;
+            APPL_TRACE_DEBUG("btif_media_task_enc_update : aptX btif_media_cb.TxAaMtuSize %d",btif_media_cb.TxAaMtuSize);
+            return;
+        }
+        else
+        {
+            /* do nothing, fall through to SBC */
+        }
+    }
+#endif  /* USE_QCOM_APTX_CODEC */
+
     if (!pstrEncParams->s16NumOfSubBands)
     {
         APPL_TRACE_ERROR("Error: SubBands are set to 0, resetting to Max");
