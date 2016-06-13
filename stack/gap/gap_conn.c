@@ -37,6 +37,7 @@ static void gap_config_cfm (UINT16 l2cap_cid, tL2CAP_CFG_INFO *p_cfg);
 static void gap_disconnect_ind (UINT16 l2cap_cid, BOOLEAN ack_needed);
 static void gap_data_ind (UINT16 l2cap_cid, BT_HDR *p_msg);
 static void gap_congestion_ind (UINT16 lcid, BOOLEAN is_congested);
+static void gap_tx_complete_ind (UINT16 l2cap_cid, UINT16 sdu_sent);
 
 static tGAP_CCB *gap_find_ccb_by_cid (UINT16 cid);
 static tGAP_CCB *gap_find_ccb_by_handle (UINT16 handle);
@@ -82,7 +83,7 @@ void gap_conn_init (void)
     gap_cb.conn.reg_info.pL2CA_QoSViolationInd_Cb  = NULL;
     gap_cb.conn.reg_info.pL2CA_DataInd_Cb          = gap_data_ind;
     gap_cb.conn.reg_info.pL2CA_CongestionStatus_Cb = gap_congestion_ind;
-    gap_cb.conn.reg_info.pL2CA_TxComplete_Cb       = NULL;
+    gap_cb.conn.reg_info.pL2CA_TxComplete_Cb       = gap_tx_complete_ind;
 #endif
 }
 
@@ -723,6 +724,23 @@ UINT16 GAP_ConnGetL2CAPCid (UINT16 gap_handle)
     return (p_ccb->connection_id);
 }
 
+
+void gap_tx_complete_ind (UINT16 l2cap_cid, UINT16 sdu_sent)
+{
+    tGAP_CCB    *p_ccb;
+    /* Find CCB based on CID */
+    if ((p_ccb = gap_find_ccb_by_cid (l2cap_cid)) == NULL)
+    {
+        return;
+    }
+
+    if ((p_ccb->con_state == GAP_CCB_STATE_CONNECTED) && (sdu_sent == 0xFFFF))
+
+    {
+        GAP_TRACE_EVENT ("gap_tx_complete_ind: GAP_EVT_TX_EMPTY \n");
+        p_ccb->p_callback (p_ccb->gap_handle, GAP_EVT_TX_EMPTY);
+    }
+}
 
 /*******************************************************************************
 **
