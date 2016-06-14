@@ -261,6 +261,9 @@ static int skt_connect(char *path, size_t buffer_sz)
 
     skt_fd = socket(AF_LOCAL, SOCK_STREAM, 0);
 
+    if(skt_fd < 0)
+       return -1;
+
     if(socket_local_client_connect(skt_fd, path,
             ANDROID_SOCKET_NAMESPACE_ABSTRACT, SOCK_STREAM) < 0)
     {
@@ -1335,9 +1338,9 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     #endif
 
     skt_disconnect(out->common.ctrl_fd);
-    free(stream);
     a2dp_dev->output = NULL;
     pthread_mutex_unlock(&out->common.lock);
+    free(stream);
 
     INFO("done");
 }
