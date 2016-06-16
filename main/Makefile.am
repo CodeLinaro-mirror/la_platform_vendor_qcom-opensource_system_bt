@@ -64,6 +64,9 @@ c_sources += \
         ../btif/src/btif_gatt_server.c \
         ../btif/src/btif_gatt_test.c \
         ../btif/src/btif_gatt_util.c \
+        ../btif/src/btif_hh.c \
+        ../btif/src/btif_hd.c \
+        ../btif/src/btif_hl.c \
         ../btif/src/btif_sdp.c \
         ../btif/src/btif_pan.c \
         ../btif/src/btif_profile_queue.c \
@@ -88,6 +91,8 @@ c_sources += \
 # callouts
 c_sources+= \
         ../btif/co/bta_dm_co.c \
+        ../btif/co/bta_hh_co.c \
+        ../btif/co/bta_hl_co.c \
         ../btif/co/bta_pan_co.c \
         ../btif/co/bta_gattc_co.c \
         ../btif/co/bta_gatts_co.c

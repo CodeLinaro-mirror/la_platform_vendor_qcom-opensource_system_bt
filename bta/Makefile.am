@@ -43,6 +43,21 @@ c_sources = \
         gatt/bta_gattc_cache.c \
         gatt/bta_gatts_utils.c \
         ag/bta_ag_sdp.c \
+        hh/bta_hh_cfg.c \
+        hh/bta_hh_act.c \
+        hh/bta_hh_api.c \
+        hh/bta_hh_le.c \
+        hh/bta_hh_utils.c \
+        hh/bta_hh_main.c \
+        hd/bta_hd_act.c \
+        hd/bta_hd_api.c \
+        hd/bta_hd_main.c \
+        hl/bta_hl_act.c \
+        hl/bta_hl_api.c \
+        hl/bta_hl_main.c \
+        hl/bta_hl_utils.c \
+        hl/bta_hl_sdp.c \
+        hl/bta_hl_ci.c \
         pan/bta_pan_main.c \
         pan/bta_pan_ci.c \
         pan/bta_pan_act.c \
