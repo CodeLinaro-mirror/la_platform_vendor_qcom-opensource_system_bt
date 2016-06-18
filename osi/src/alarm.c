@@ -57,7 +57,6 @@ struct alarm_t {
   void *data;
 };
 
-extern bt_os_callouts_t *bt_os_callouts;
 
 // If the next wakeup time is less than this threshold, we should acquire
 // a wakelock instead of setting a wake alarm so we're not bouncing in
@@ -308,28 +307,11 @@ static void reschedule_root_alarm(void) {
     goto done;
 
   alarm_t *next = list_front(alarms);
-  int64_t next_expiration = next->deadline - now();
-  if (next_expiration < TIMER_INTERVAL_FOR_WAKELOCK_IN_MS) {
-    if (!timer_set) {
-      int status = bt_os_callouts->acquire_wake_lock(WAKE_LOCK_ID);
-      if (status != BT_STATUS_SUCCESS) {
-        LOG_ERROR("%s unable to acquire wake lock: %d", __func__, status);
-        goto done;
-      }
-    }
-
-    wakeup_time.it_value.tv_sec = (next->deadline / 1000);
-    wakeup_time.it_value.tv_nsec = (next->deadline % 1000) * 1000000LL;
-  } else {
-    if (!bt_os_callouts->set_wake_alarm(next_expiration, true, timer_callback, NULL))
-      LOG_ERROR("%s unable to set wake alarm for %" PRId64 "ms.", __func__, next_expiration);
-  }
+  wakeup_time.it_value.tv_sec = (next->deadline / 1000);
+  wakeup_time.it_value.tv_nsec = (next->deadline % 1000) * 1000000LL;
 
 done:
   timer_set = wakeup_time.it_value.tv_sec != 0 || wakeup_time.it_value.tv_nsec != 0;
-  if (timer_was_set && !timer_set) {
-    bt_os_callouts->release_wake_lock(WAKE_LOCK_ID);
-  }
 
   if (timer_settime(timer, TIMER_ABSTIME, &wakeup_time, NULL) == -1)
     LOG_ERROR("%s unable to set timer: %s", __func__, strerror(errno));

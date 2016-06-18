@@ -131,6 +131,16 @@ static future_t *init(void) {
   return NULL;
 }
 
+void bt_utils_cleanup( void)
+{
+  pthread_mutex_destroy(&gIdxLock);
+  pthread_mutex_destroy(&iot_mutex_lock);
+#ifndef ANDROID
+  shutdown(bt_prop_socket, SHUT_RDWR);
+  close(bt_prop_socket);
+#endif
+}
+
 static future_t *clean_up(void) {
   int i;
   pthread_mutex_destroy(&gIdxLock);

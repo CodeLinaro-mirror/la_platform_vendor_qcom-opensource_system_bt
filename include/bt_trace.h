@@ -228,13 +228,6 @@ extern void BTA_setStackLog( const char* log_layer, int log_level);
 #endif
 // btla-specific --
 
-#ifndef ANDROID
-#define LogMsg(tag, fmt, ...) do { \
-               fprintf(stderr, fmt, ##__VA_ARGS__); \
-               fprintf(stderr, "\n"); \
-                              } while (0)
-#endif
-
 #define BT_TRACE(l,t,...)                        LogMsg((TRACE_CTRL_GENERAL | (l) | TRACE_ORG_STACK | (t)), ##__VA_ARGS__)
 #define BT_ERROR_TRACE(l,...)                    LogMsg(TRACE_CTRL_GENERAL | (l) | TRACE_ORG_STACK | TRACE_TYPE_ERROR, ##__VA_ARGS__)
 
