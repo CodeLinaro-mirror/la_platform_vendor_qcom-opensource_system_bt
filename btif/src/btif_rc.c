@@ -315,7 +315,6 @@ extern void btif_get_latest_playing_device(BD_ADDR address); //get the Playing d
 extern BOOLEAN btif_av_is_playing();
 extern BOOLEAN btif_av_is_device_connected(BD_ADDR address);
 extern void btif_av_trigger_dual_handoff(BOOLEAN handoff, BD_ADDR address);
-extern BOOLEAN btif_hf_is_call_idle();
 extern BOOLEAN btif_av_get_multicast_state();
 extern BOOLEAN btif_av_is_current_device(BD_ADDR address);
 extern UINT16 btif_av_get_num_connected_devices(void);
@@ -2227,11 +2226,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
             btrc_status_t status_code = AVRC_STS_NO_ERROR;
             BTIF_TRACE_EVENT("%s() AVRC_PDU_SET_ADDRESSED_PLAYER", __FUNCTION__);
             FILL_PDU_QUEUE(IDX_SET_ADDRESS_PLAYER_RSP, ctype, label, TRUE, index, pavrc_cmd->pdu);
-            if (!btif_hf_is_call_idle())
-            {
-                set_addrplayer_rsp(ERR_PLAYER_NOT_ADDRESED, &remote_addr); // send reject if call is in progress
-                return;
-            }
+            // TODO: SRC, check for hf_is_call_idle
             if (btif_rc_cb[index].rc_connected == TRUE)
             {
                 HAL_CBACK(bt_rc_callbacks, set_addrplayer_cb, pavrc_cmd->addr_player.player_id, &remote_addr);

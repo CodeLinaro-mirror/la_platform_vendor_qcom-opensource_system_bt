@@ -31,7 +31,6 @@
 #include <string.h>
 
 #include <hardware/bluetooth.h>
-#include <system/audio.h>
 #include "hardware/bt_av.h"
 #include "osi/include/allocator.h"
 #include <cutils/properties.h>
@@ -1053,13 +1052,7 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
             if ((p_av->start.status == BTA_SUCCESS) && (p_av->start.suspending == TRUE))
                 return TRUE;
 
-            /* if remote tries to start a2dp when call is in progress, suspend it right away */
-            if ((!(btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START)) && (!btif_hf_is_call_idle())) {
-                BTIF_TRACE_EVENT("%s: trigger suspend as call is in progress!!", __FUNCTION__);
-                btif_dispatch_sm_event(BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL, 0);
-            }
-
-
+            // TODO: SRC, check for hf_is_call_idle
             /* if remote tries to start a2dp when DUT is a2dp source
              * then suspend. In case a2dp is sink and call is active
              * then disconnect the AVDTP channel
@@ -2738,6 +2731,12 @@ bt_status_t btif_av_sink_execute_service(BOOLEAN b_enable)
                                                                 UUID_SERVCLASS_AUDIO_SINK);
      }
      else {
+         if (btif_av_cb[0].sm_handle != NULL)
+         {
+             BTIF_TRACE_IMP("%s: shutting down AV SM", __FUNCTION__);
+             btif_sm_shutdown(btif_av_cb[0].sm_handle);
+             btif_av_cb[0].sm_handle = NULL;
+         }
          BTA_AvDeregister(btif_av_cb[0].bta_handle);
          BTA_AvDisable();
      }
