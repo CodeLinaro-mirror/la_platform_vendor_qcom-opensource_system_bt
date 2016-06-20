@@ -35,6 +35,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -97,6 +98,11 @@ OI_INT16 pcmData[15*SBC_MAX_SAMPLES_PER_FRAME*SBC_MAX_CHANNELS];
 #define PERF_SYSTRACE 1
 #endif
 
+#define DUMP_PCM_DATA TRUE
+#if (defined(DUMP_PCM_DATA) && (DUMP_PCM_DATA == TRUE))
+FILE *outputPcmSampleFile;
+char outputFilename [50] = "/etc/data/misc/bluedroid/output_sample.pcm";
+#endif
 /*****************************************************************************
  **  Constants
  *****************************************************************************/
@@ -339,7 +345,6 @@ BOOLEAN btif_media_task_clear_track(void);
 
 static void btif_media_task_aa_handle_timer(UNUSED_ATTR void *context);
 static void btif_media_task_avk_handle_timer(UNUSED_ATTR void *context);
-extern BOOLEAN btif_hf_is_call_idle();
 
 static tBTIF_MEDIA_CB btif_media_cb;
 static int media_task_running = MEDIA_TASK_STATE_OFF;
@@ -513,12 +518,8 @@ static void btif_recv_ctrl_data(void)
             /* Don't sent START request to stack while we are in call.
                Some headsets like the Sony MW600, don't allow AVDTP START
                in call and respond BAD_STATE. */
-            if (!btif_hf_is_call_idle())
-            {
-                a2dp_cmd_acknowledge(A2DP_CTRL_ACK_INCALL_FAILURE);
-                break;
-            }
 
+            // TODO: SRC, check for hf_is_call_idle
             if (btif_media_cb.is_tx_timer == TRUE)
             {
                 APPL_TRACE_IMP("Unexpected HAL Start. Stream in started state, bail out");
@@ -1507,7 +1508,15 @@ static void btif_media_task_handle_inc_media(tBT_SBC_HDR*p_msg)
     }
 
 #ifdef USE_AUDIO_TRACK
+#ifdef ANDROID
     retwriteAudioTrack = btWriteData((void*)pcmData, (sizeof(pcmData) - availPcmBytes));
+#endif
+#if (defined(DUMP_PCM_DATA) && (DUMP_PCM_DATA == TRUE))
+    if (outputPcmSampleFile)
+    {
+       fwrite ((void*)pcmData, 1, (size_t)(sizeof(pcmData) - availPcmBytes), outputPcmSampleFile);
+    }
+#endif
 #else
     UIPC_Send(UIPC_CH_ID_AV_AUDIO, 0, (UINT8 *)pcmData, (sizeof(pcmData) - availPcmBytes));
 #endif
@@ -2141,7 +2150,9 @@ static void btif_media_task_aa_handle_stop_decoding(void) {
   alarm_free(btif_media_cb.decode_alarm);
   btif_media_cb.decode_alarm = NULL;
 #ifdef USE_AUDIO_TRACK
+#ifdef ANDROID
   btPauseTrack();
+#endif
 #endif
 }
 
@@ -2149,7 +2160,9 @@ static void btif_media_task_aa_handle_start_decoding(void) {
   if (btif_media_cb.decode_alarm)
     return;
 #ifdef USE_AUDIO_TRACK
+#ifdef ANDROID
   btStartTrack();
+#endif
 #endif
   btif_media_cb.decode_alarm = alarm_new();
   if (!btif_media_cb.decode_alarm) {
@@ -2166,8 +2179,17 @@ static void btif_media_task_aa_handle_clear_track (void)
 {
     APPL_TRACE_DEBUG("btif_media_task_aa_handle_clear_track");
 #ifdef USE_AUDIO_TRACK
+#ifdef ANDROID
     btStopTrack();
     btDeleteTrack();
+#endif
+#if (defined(DUMP_PCM_DATA) && (DUMP_PCM_DATA == TRUE))
+    if (outputPcmSampleFile)
+    {
+        fclose(outputPcmSampleFile);
+    }
+    outputPcmSampleFile = NULL;
+#endif
 #endif
 }
 
@@ -2213,10 +2235,15 @@ static void btif_media_task_aa_handle_decoder_reset(BT_HDR *p_msg)
 
 #ifdef USE_AUDIO_TRACK
     APPL_TRACE_DEBUG("A2dpSink: sbc Create Track");
+#if (defined(DUMP_PCM_DATA) && (DUMP_PCM_DATA == TRUE))
+    outputPcmSampleFile = fopen(outputFilename, "ab");
+#endif
+#ifdef ANDROID
     if (btCreateTrack(btif_a2dp_get_track_frequency(sbc_cie.samp_freq), a2dp_get_track_channel_type(sbc_cie.ch_mode)) == -1) {
         APPL_TRACE_ERROR("A2dpSink: Track creation fails!!!");
         return;
     }
+#endif
 #else
     UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
 #endif

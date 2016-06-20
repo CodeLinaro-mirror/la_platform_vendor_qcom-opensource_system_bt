@@ -62,6 +62,15 @@ c_sources = \
         pan/bta_pan_ci.c \
         pan/bta_pan_act.c \
         pan/bta_pan_api.c \
+        av/bta_av_act.c \
+        av/bta_av_ci.c \
+        av/bta_av_api.c \
+        av/bta_av_aact.c \
+        av/bta_av_main.c \
+        av/bta_av_cfg.c \
+        av/bta_av_ssm.c \
+        av/bta_av_sbc.c \
+        ar/bta_ar.c \
         sdp/bta_sdp_api.c \
         sdp/bta_sdp_act.c \
         sdp/bta_sdp.c \
