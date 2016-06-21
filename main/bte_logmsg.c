@@ -23,7 +23,7 @@
 #include <stdarg.h>
 #include <sys/time.h>
 #include <time.h>
-
+#include <unistd.h>
 #include "bte.h"
 #include "bta_api.h"
 #include "btu.h"

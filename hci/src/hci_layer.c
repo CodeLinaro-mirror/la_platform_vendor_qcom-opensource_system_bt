@@ -20,6 +20,7 @@
 
 #include <assert.h>
 #include <cutils/properties.h>
+#include <errno.h>
 #include <string.h>
 #include <signal.h>
 #include <string.h>
@@ -29,6 +30,7 @@
 #include "btsnoop.h"
 #include "osi/include/fixed_queue.h"
 #include "osi/include/future.h"
+#include "osi/include/compat.h"
 #include "hcidefs.h"
 #include "hcimsgs.h"
 #include "hci_hal.h"
@@ -545,7 +547,7 @@ static void command_timed_out(UNUSED_ATTR void *context) {
 
   LOG_ERROR("%s restarting the bluetooth process.", __func__);
   ssr_cleanup(0x22);//SSR reasno 0x22 = CMD TO
-  usleep(20000);
+  TEMP_FAILURE_RETRY(usleep(20000));
   //Reset SOC status to trigger hciattach service
   if (property_set_bt("bluetooth.status", "off") < 0) {
      LOG_ERROR("hci_cmd_timeout: Error resetting SOC status\n ");
