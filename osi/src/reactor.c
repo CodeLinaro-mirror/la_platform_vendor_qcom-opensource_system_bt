@@ -25,11 +25,13 @@
 #include <string.h>
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
+#include <unistd.h>
 
 #include "osi/include/allocator.h"
 #include "osi/include/list.h"
 #include "osi/include/log.h"
 #include "osi/include/reactor.h"
+#include "osi/include/compat.h"
 
 #if !defined(EFD_SEMAPHORE)
 #  define EFD_SEMAPHORE (1 << 0)
@@ -259,7 +261,7 @@ static reactor_status_t run_reactor(reactor_t *reactor, int iterations) {
 
     int ret;
     do {
-      ret = epoll_wait(reactor->epoll_fd, events, MAX_EVENTS, -1);
+      ret = TEMP_FAILURE_RETRY(epoll_wait(reactor->epoll_fd, events, MAX_EVENTS, -1));
     } while (ret == -1 && errno == EINTR);
 
     if (ret == -1) {

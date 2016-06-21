@@ -28,6 +28,7 @@
 #include "osi/include/log.h"
 #include "osi/include/reactor.h"
 #include "osi/include/thread.h"
+#include "osi/include/compat.h"
 #include "vendor.h"
 
 #define HCI_HAL_SERIAL_BUFFER_SIZE 1026
@@ -197,7 +198,7 @@ static uint16_t transmit_data(serial_data_type_t type, uint8_t *data, uint16_t l
 
   uint16_t transmitted_length = 0;
   while (length > 0) {
-    ssize_t ret = write(uart_fd, data + transmitted_length, length);
+    ssize_t ret = TEMP_FAILURE_RETRY(write(uart_fd, data + transmitted_length, length));
     switch (ret) {
       case -1:
         LOG_ERROR("In %s, error writing to the uart serial port: %s", __func__, strerror(errno));

@@ -40,7 +40,7 @@
 #include "btcore/include/bdaddr.h"
 #include "bta_ag_api.h"
 #include "device/include/controller.h"
-
+#include "osi/include/compat.h"
 /************************************************************************************
 **  Constants & Macros
 ************************************************************************************/
