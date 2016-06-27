@@ -59,3 +59,7 @@ period_ms_t alarm_get_remaining_ms(const alarm_t *alarm);
 
 // Alarm-related state cleanup
 void alarm_cleanup(void);
+
+// All alarms registered to call callback |cb| will be canceled. The queue
+// hosting this callback |cb| is being cleared.
+void alarm_unregister_callbacks(alarm_callback_t cb);

@@ -83,6 +83,7 @@ static semaphore_t *alarm_expired;
 static bool lazy_initialize(void);
 static period_ms_t now(void);
 static void alarm_set_internal(alarm_t *alarm, period_ms_t deadline, alarm_callback_t cb, void *data, bool is_periodic);
+static void alarm_cancel_internal(alarm_t *alarm);
 static void schedule_next_instance(alarm_t *alarm, bool force_reschedule);
 static void reschedule_root_alarm(void);
 static void timer_callback(void *data);
@@ -178,7 +179,15 @@ void alarm_cancel(alarm_t *alarm) {
   assert(alarm != NULL);
 
   pthread_mutex_lock(&monitor);
+  alarm_cancel_internal(alarm);
+  pthread_mutex_unlock(&monitor);
 
+  // If the callback for |alarm| is in progress, wait here until it completes.
+  pthread_mutex_lock(&alarm->callback_lock);
+  pthread_mutex_unlock(&alarm->callback_lock);
+}
+
+void alarm_cancel_internal(alarm_t *alarm) {
   bool needs_reschedule = (!list_is_empty(alarms) && list_front(alarms) == alarm);
 
   list_remove(alarms, alarm);
@@ -188,12 +197,6 @@ void alarm_cancel(alarm_t *alarm) {
 
   if (needs_reschedule)
     reschedule_root_alarm();
-
-  pthread_mutex_unlock(&monitor);
-
-  // If the callback for |alarm| is in progress, wait here until it completes.
-  pthread_mutex_lock(&alarm->callback_lock);
-  pthread_mutex_unlock(&alarm->callback_lock);
 }
 
 void alarm_cleanup(void) {
@@ -351,6 +354,22 @@ done:
       semaphore_post(alarm_expired);
     }
   }
+}
+
+void alarm_unregister_callbacks(alarm_callback_t cb) {
+  if(alarms == NULL)
+    return;
+
+  // Cancel all alarms registered with this callback
+  pthread_mutex_lock(&monitor);
+  for (list_node_t *node = list_begin(alarms); node != list_end(alarms); ) {
+    alarm_t *alarm = (alarm_t *)list_node(node);
+    node = list_next(node);
+
+    if (alarm->callback == cb)
+      alarm_cancel_internal(alarm);
+  }
+  pthread_mutex_unlock(&monitor);
 }
 
 // Callback function for wake alarms and our posix timer
