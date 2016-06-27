@@ -290,6 +290,10 @@ bool config_save(const config_t *config, const char *filename) {
   fflush(fp);
   fclose(fp);
 
+  /* If the battery fluctuation would occur before writing to
+     physical memory, then bt_config.conf file is getting corrupted */
+  sync();
+
   // Change the file's permissions to Read/Write by User and Group
   if (chmod(temp_filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP) == -1) {
     LOG_ERROR("%s unable to change file permissions '%s': %s", __func__, filename, strerror(errno));
