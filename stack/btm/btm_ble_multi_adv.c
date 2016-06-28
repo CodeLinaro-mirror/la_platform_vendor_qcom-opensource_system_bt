@@ -126,6 +126,12 @@ void btm_ble_multi_adv_vsc_cmpl_cback (tBTM_VSC_CMPL *p_params)
     tBTM_BLE_MULTI_ADV_INST *p_inst ;
     UINT8   cb_evt = 0, opcode;
 
+    if (!controller_get_interface()->get_is_ready())
+    {
+        BTM_TRACE_ERROR("btm_ble_multi_adv_vsc_cmpl_cback controller not ready. returning!");
+
+    }
+
     if (len  < 2)
     {
         BTM_TRACE_ERROR("wrong length for btm_ble_multi_adv_vsc_cmpl_cback");
@@ -390,9 +396,9 @@ tBTM_STATUS btm_ble_multi_adv_write_rpa (tBTM_BLE_MULTI_ADV_INST *p_inst, BD_ADD
 *******************************************************************************/
 void btm_ble_multi_adv_gen_rpa_cmpl(tBTM_RAND_ENC *p)
 {
-    if (!stack_manager_get_interface()->get_stack_is_running())
+    if (!controller_get_interface()->get_is_ready())
     {
-        BTM_TRACE_ERROR("btm_ble_multi_adv_gen_rpa_cmpl stack is not running!");
+        BTM_TRACE_ERROR("btm_ble_multi_adv_gen_rpa_cmpl controller module is not ready!");
         return;
     }
 
