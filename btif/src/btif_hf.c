@@ -1380,6 +1380,12 @@ static bt_status_t phone_state_change(int num_active, int num_held, bthf_call_st
     else
         idx = btif_hf_latest_connected_idx();
 
+    if ((idx < 0) || (idx >= BTIF_HF_NUM_CB))
+    {
+        BTIF_TRACE_ERROR("%s: Invalid index %d", __FUNCTION__, idx);
+        return BT_STATUS_FAIL;
+    }
+
     BTIF_TRACE_IMP("phone_state_change: idx = %d", idx);
 
     /* Check if SLC is connected */

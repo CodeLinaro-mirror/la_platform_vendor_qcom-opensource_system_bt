@@ -70,7 +70,7 @@ socket_t *socket_new(void) {
   return ret;
 
 error:;
-  if (ret)
+  if (ret && ret->fd != INVALID_FD)
     close(ret->fd);
   osi_free(ret);
   return NULL;
