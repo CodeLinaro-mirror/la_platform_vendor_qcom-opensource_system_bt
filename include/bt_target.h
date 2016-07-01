@@ -1449,7 +1449,11 @@ Range: 2 octets
 
 /* This will enable the PANU role */
 #ifndef PAN_SUPPORTS_ROLE_PANU
+#ifdef ANDROID
 #define PAN_SUPPORTS_ROLE_PANU              TRUE
+#else
+#define PAN_SUPPORTS_ROLE_PANU              FALSE
+#endif
 #endif
 
 /* This will enable the GN role */
