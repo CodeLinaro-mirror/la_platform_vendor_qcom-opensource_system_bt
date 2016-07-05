@@ -65,6 +65,8 @@ c_sources += \
         ../btif/src/btif_gatt_server.c \
         ../btif/src/btif_gatt_test.c \
         ../btif/src/btif_gatt_util.c \
+        ../btif/src/btif_hf.c \
+        ../btif/src/btif_hf_client.c \
         ../btif/src/btif_hh.c \
         ../btif/src/btif_hd.c \
         ../btif/src/btif_hl.c \
@@ -78,6 +80,7 @@ c_sources += \
         ../btif/src/btif_sock_rfc.c \
         ../btif/src/btif_sock_l2cap.c \
         ../btif/src/btif_sock_sdp.c \
+        ../btif/src/btif_sock_sco.c \
         ../btif/src/btif_sock_thread.c \
         ../btif/src/btif_sdp_server.c \
         ../btif/src/btif_sock_util.c \
@@ -107,6 +110,7 @@ c_sources += \
 
 # callouts
 c_sources+= \
+        ../btif/co/bta_ag_co.c \
         ../btif/co/bta_dm_co.c \
         ../btif/co/bta_hh_co.c \
         ../btif/co/bta_hl_co.c \
