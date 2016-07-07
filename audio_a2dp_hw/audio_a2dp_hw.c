@@ -1,4 +1,5 @@
 /******************************************************************************
+ *  Copyright (C) 2016, The Linux Foundation. All rights reserved.
  *
  *  Copyright (C) 2009-2012 Broadcom Corporation
  *
@@ -51,7 +52,11 @@
 #include <hardware/hardware.h>
 #include "audio_a2dp_hw.h"
 #include "bt_utils.h"
+#include <dlfcn.h>
 
+#ifdef BT_HOST_IPC_ENABLED
+#include "bthost_ipc.h"
+#endif
 
 #define LOG_TAG "bt_a2dp_hw"
 #include "osi/include/log.h"
@@ -82,20 +87,10 @@ static int number =0;
 #define ERROR(fmt, ...)     LOG_ERROR("%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
 
 #define ASSERTC(cond, msg, val) if (!(cond)) {ERROR("### ASSERT : %s line %d %s (%d) ###", __FILE__, __LINE__, msg, val);}
-
+//#define BT_HOST_IPC_PATH "/system/lib/hw/bthost-ipc.so"
 /*****************************************************************************
 **  Local type definitions
 ******************************************************************************/
-
-typedef enum {
-    AUDIO_A2DP_STATE_STARTING,
-    AUDIO_A2DP_STATE_STARTED,
-    AUDIO_A2DP_STATE_STOPPING,
-    AUDIO_A2DP_STATE_STOPPED,
-    AUDIO_A2DP_STATE_SUSPENDED, /* need explicit set param call to resume (suspend=false) */
-    AUDIO_A2DP_STATE_STANDBY    /* allows write to autoresume */
-} a2dp_state_t;
-
 struct a2dp_stream_in;
 struct a2dp_stream_out;
 
@@ -103,23 +98,6 @@ struct a2dp_audio_device {
     struct audio_hw_device device;
     struct a2dp_stream_in  *input;
     struct a2dp_stream_out *output;
-};
-
-struct a2dp_config {
-    uint32_t                rate;
-    uint32_t                channel_flags;
-    int                     format;
-};
-
-/* move ctrl_fd outside output stream and keep open until HAL unloaded ? */
-
-struct a2dp_stream_common {
-    pthread_mutex_t         lock;
-    int                     ctrl_fd;
-    int                     audio_fd;
-    size_t                  buffer_sz;
-    struct a2dp_config      cfg;
-    a2dp_state_t            state;
 };
 
 struct a2dp_stream_out {
@@ -137,7 +115,10 @@ struct a2dp_stream_in {
 /*****************************************************************************
 **  Static variables
 ******************************************************************************/
-
+#ifdef BT_HOST_IPC_ENABLED
+static void *lib_handle = NULL;
+bt_host_ipc_interface_t *ipc_if = NULL;
+#endif
 /*****************************************************************************
 **  Static functions
 ******************************************************************************/
@@ -166,6 +147,8 @@ static const char* dump_a2dp_ctrl_event(char event)
         CASE_RETURN_STR(A2DP_CTRL_CMD_STOP)
         CASE_RETURN_STR(A2DP_CTRL_CMD_SUSPEND)
         CASE_RETURN_STR(A2DP_CTRL_CMD_CHECK_STREAM_STARTED)
+        CASE_RETURN_STR(A2DP_CTRL_CMD_OFFLOAD_SUPPORTED)
+        CASE_RETURN_STR(A2DP_CTRL_CMD_OFFLOAD_NOT_SUPPORTED)
         default:
             return "UNKNOWN MSG ID";
     }
@@ -244,6 +227,8 @@ static const char* dump_a2dp_hal_state(int event)
             return "UNKNOWN STATE ID";
     }
 }
+
+#ifndef BT_HOST_IPC_ENABLED
 /*****************************************************************************
 **
 **   bluedroid stack adaptation
@@ -561,7 +546,6 @@ static int start_audio_datapath(struct a2dp_stream_common *common)
 #else
     common->state = AUDIO_A2DP_STATE_STARTED;
 #endif
-
     return 0;
 }
 
@@ -634,7 +618,7 @@ static int check_a2dp_stream_started(struct a2dp_stream_out *out)
    }
    return 0;
 }
-
+#endif
 
 /*****************************************************************************
 **
@@ -667,7 +651,11 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     if ((out->common.state == AUDIO_A2DP_STATE_STOPPED) ||
         (out->common.state == AUDIO_A2DP_STATE_STANDBY))
     {
+#ifdef BT_HOST_IPC_ENABLED
+        if (ipc_if->start_audio_datapath(&out->common) < 0)
+#else
         if (start_audio_datapath(&out->common) < 0)
+#endif
         {
             pthread_mutex_unlock(&out->common.lock);
             goto error;
@@ -698,7 +686,11 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     }
     #endif
 
+#ifdef BT_HOST_IPC_ENABLED
+    sent = ipc_if->skt_write(out->common.audio_fd, buffer,  bytes);
+#else
     sent = skt_write(out->common.audio_fd, buffer,  bytes);
+#endif
 
     #ifdef BT_AUDIO_SYSTRACE_LOG
     if (PERF_SYSTRACE)
@@ -707,8 +699,13 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     }
     #endif
 
-    if (sent == -1) {
+    if (sent == -1)
+    {
+#ifdef BT_HOST_IPC_ENABLED
+        ipc_if->skt_disconnect(out->common.audio_fd);
+#else
         skt_disconnect(out->common.audio_fd);
+#endif
         out->common.audio_fd = AUDIO_SKT_DISCONNECTED;
         if (out->common.state != AUDIO_A2DP_STATE_SUSPENDED)
             out->common.state = AUDIO_A2DP_STATE_STOPPED;
@@ -805,7 +802,11 @@ static int out_standby(struct audio_stream *stream)
     DUT need to clear flag else start will not happen but
     Do nothing in SUSPENDED state. */
     if (out->common.state != AUDIO_A2DP_STATE_SUSPENDED)
+#ifdef BT_HOST_IPC_ENABLED
+        retVal =  ipc_if->suspend_audio_datapath(&out->common, true);
+#else
         retVal =  suspend_audio_datapath(&out->common, true);
+#endif
     out->frames_rendered = 0; // rendered is reset, presented is not
     pthread_mutex_unlock (&out->common.lock);
 
@@ -852,7 +853,11 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
             else if ((out->common.state == AUDIO_A2DP_STATE_STOPPED) ||
                 (out->common.state == AUDIO_A2DP_STATE_STANDBY))
             {
+#ifdef BT_HOST_IPC_ENABLED
+                if (ipc_if->start_audio_datapath(&out->common) < 0)
+#else
                 if (start_audio_datapath(&out->common) < 0)
+#endif
                 {
                     INFO("stream start failed");
                     status = -1;
@@ -871,7 +876,11 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
             INFO("out_set_parameters, value: false");
             pthread_mutex_lock(&out->common.lock);
             if (out->common.state != AUDIO_A2DP_STATE_SUSPENDED)
+#ifdef BT_HOST_IPC_ENABLED
+                status = ipc_if->suspend_audio_datapath(&out->common, true);
+#else
                 status = suspend_audio_datapath(&out->common, true);
+#endif
             else
             {
                 ERROR("stream alreday suspended");
@@ -904,15 +913,27 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
         {
             if (out->common.state == AUDIO_A2DP_STATE_STARTED)
             {
+#ifdef BT_HOST_IPC_ENABLED
+                status = ipc_if->suspend_audio_datapath(&out->common, false);
+#else
                 status = suspend_audio_datapath(&out->common, false);
+#endif
             }
             else
             {
+#ifdef BT_HOST_IPC_ENABLED
+                if (ipc_if->check_a2dp_stream_started(&out->common) == 0)
+#else
                 if (check_a2dp_stream_started(out) == 0)
+#endif
                    /*Btif and A2dp HAL state can be out of sync
                     *check state of btif and suspend audio.
                     *Happens when remote initiates start.*/
+#ifdef BT_HOST_IPC_ENABLED
+                    status = ipc_if->suspend_audio_datapath(&out->common, false);
+#else
                     status = suspend_audio_datapath(&out->common, false);
+#endif
                 else
                     out->common.state = AUDIO_A2DP_STATE_SUSPENDED;
             }
@@ -1159,8 +1180,11 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
         (in->common.state == AUDIO_A2DP_STATE_STANDBY))
     {
         pthread_mutex_lock(&in->common.lock);
-
+#ifdef BT_HOST_IPC_ENABLED
+        if (ipc_if->start_audio_datapath(&in->common) < 0)
+#else
         if (start_audio_datapath(&in->common) < 0)
+#endif
         {
             /* emulate time this write represents to avoid very fast write
                failures during transition periods or remote suspend */
@@ -1182,11 +1206,19 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
         return -1;
     }
 
+#ifdef BT_HOST_IPC_ENABLED
+    read = ipc_if->skt_read(in->common.audio_fd, buffer, bytes);
+#else
     read = skt_read(in->common.audio_fd, buffer, bytes);
+#endif
 
     if (read == -1)
     {
+#ifdef BT_HOST_IPC_ENABLED
+        ipc_if->skt_disconnect(in->common.audio_fd);
+#else
         skt_disconnect(in->common.audio_fd);
+#endif
         in->common.audio_fd = AUDIO_SKT_DISCONNECTED;
         in->common.state = AUDIO_A2DP_STATE_STOPPED;
     } else if (read == 0) {
@@ -1256,6 +1288,23 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     number++;
     #endif
 
+#ifdef BT_HOST_IPC_ENABLED
+    lib_handle = dlopen("libbthost_if.so", RTLD_NOW);
+    if (!lib_handle)
+    {
+        INFO("Failed to load bthost-ipc library %s",dlerror());
+        goto err_open;
+    }
+    else
+    {
+        ipc_if = (bt_host_ipc_interface_t*) dlsym(lib_handle,"BTHOST_IPC_INTERFACE");
+        if (!ipc_if)
+        {
+            ERROR("Failed to load BT IPC library symbol");
+            goto err_open;
+        }
+    }
+#endif
     out->stream.common.get_sample_rate = out_get_sample_rate;
     out->stream.common.set_sample_rate = out_set_sample_rate;
     out->stream.common.get_buffer_size = out_get_buffer_size;
@@ -1276,8 +1325,11 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
 
 
     /* initialize a2dp specifics */
+#ifdef BT_HOST_IPC_ENABLED
+    ipc_if->a2dp_stream_common_init(&out->common);
+#else
     a2dp_stream_common_init(&out->common);
-
+#endif
     out->common.cfg.channel_flags = AUDIO_STREAM_DEFAULT_CHANNEL_FLAG;
     out->common.cfg.format = AUDIO_STREAM_DEFAULT_FORMAT;
     out->common.cfg.rate = AUDIO_STREAM_DEFAULT_RATE;
@@ -1292,7 +1344,11 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     *stream_out = &out->stream;
     a2dp_dev->output = out;
 
+#ifdef BT_HOST_IPC_ENABLED
+    ipc_if->a2dp_open_ctrl_path(&out->common);
+#else
     a2dp_open_ctrl_path(&out->common);
+#endif
     if (out->common.ctrl_fd == AUDIO_SKT_DISCONNECTED)
     {
         ERROR("ctrl socket failed to connect (%s)", strerror(errno));
@@ -1300,6 +1356,13 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         goto err_open;
     }
 
+#ifdef BT_HOST_IPC_ENABLED
+    if (ipc_if->a2dp_command(&out->common, A2DP_CTRL_CMD_OFFLOAD_NOT_SUPPORTED) == 0) {
+#else
+    if (a2dp_command(&out->common, A2DP_CTRL_CMD_OFFLOAD_NOT_SUPPORTED) == 0) {
+#endif
+        DEBUG("Streaming mode set successfully");
+    }
     INFO("success");
     /* Delay to ensure Headset is in proper state when START is initiated
        from DUT immediately after the connection due to ongoing music playback. */
@@ -1324,14 +1387,24 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
 
     pthread_mutex_lock(&out->common.lock);
     if ((out->common.state == AUDIO_A2DP_STATE_STARTED) || (out->common.state == AUDIO_A2DP_STATE_STOPPING))
+#ifdef BT_HOST_IPC_ENABLED
+        ipc_if->stop_audio_datapath(&out->common);
+#else
         stop_audio_datapath(&out->common);
+#endif
 
     #ifdef BT_AUDIO_SAMPLE_LOG
     ALOGV("close file output");
     fclose (outputpcmsamplefile);
     #endif
 
+#ifdef BT_HOST_IPC_ENABLED
+    ipc_if->skt_disconnect(out->common.ctrl_fd);
+#else
     skt_disconnect(out->common.ctrl_fd);
+#endif
+    if (lib_handle)
+        dlclose(lib_handle);
     free(stream);
     a2dp_dev->output = NULL;
     pthread_mutex_unlock(&out->common.lock);
@@ -1469,6 +1542,23 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     if (!in)
         return -ENOMEM;
 
+#ifdef BT_HOST_IPC_ENABLED
+    lib_handle = dlopen("libbthost_if.so", RTLD_NOW);
+    if (!lib_handle)
+    {
+        INFO("Failed to load bthost-ipc library %s",dlerror());
+        goto err_open;
+    }
+    else
+    {
+        ipc_if = (bt_host_ipc_interface_t*) dlsym(lib_handle,"BTHOST_IPC_INTERFACE");
+        if (!ipc_if)
+        {
+            ERROR("Failed to load BT IPC library symbol");
+            goto err_open;
+        }
+    }
+#endif
     in->stream.common.get_sample_rate = in_get_sample_rate;
     in->stream.common.set_sample_rate = in_set_sample_rate;
     in->stream.common.get_buffer_size = in_get_buffer_size;
@@ -1486,12 +1576,19 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     in->stream.get_input_frames_lost = in_get_input_frames_lost;
 
     /* initialize a2dp specifics */
+#ifdef BT_HOST_IPC_ENABLED
+    ipc_if->a2dp_stream_common_init(&in->common);
+#else
     a2dp_stream_common_init(&in->common);
-
+#endif
     *stream_in = &in->stream;
     a2dp_dev->input = in;
 
+#ifdef BT_HOST_IPC_ENABLED
+    ipc_if->a2dp_open_ctrl_path(&in->common);
+#else
     a2dp_open_ctrl_path(&in->common);
+#endif
     if (in->common.ctrl_fd == AUDIO_SKT_DISCONNECTED)
     {
         ERROR("ctrl socket failed to connect (%s)", strerror(errno));
@@ -1499,7 +1596,18 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
         goto err_open;
     }
 
+#ifdef BT_HOST_IPC_ENABLED
+    if (ipc_if->a2dp_command(&in->common, A2DP_CTRL_CMD_OFFLOAD_NOT_SUPPORTED) == 0) {
+#else
+    if (a2dp_command(&in->common, A2DP_CTRL_CMD_OFFLOAD_NOT_SUPPORTED) == 0) {
+#endif
+        DEBUG("Streaming mode set successfully");
+    }
+#ifdef BT_HOST_IPC_ENABLED
+    if (ipc_if->a2dp_read_audio_config(&in->common) < 0) {
+#else
     if (a2dp_read_audio_config(&in->common) < 0) {
+#endif
         ERROR("a2dp_read_audio_config failed (%s)", strerror(errno));
         ret = -1;
         goto err_open;
@@ -1526,12 +1634,21 @@ static void adev_close_input_stream(struct audio_hw_device *dev,
     INFO("closing input (state %d)", state);
 
     if ((state == AUDIO_A2DP_STATE_STARTED) || (state == AUDIO_A2DP_STATE_STOPPING))
+#ifdef BT_HOST_IPC_ENABLED
+        ipc_if->stop_audio_datapath(&in->common);
+#else
         stop_audio_datapath(&in->common);
+#endif
 
+#ifdef BT_HOST_IPC_ENABLED
+    ipc_if->skt_disconnect(in->common.ctrl_fd);
+#else
     skt_disconnect(in->common.ctrl_fd);
+#endif
     free(stream);
     a2dp_dev->input = NULL;
-
+    if (lib_handle)
+        dlclose(lib_handle);
     DEBUG("done");
 }
 
