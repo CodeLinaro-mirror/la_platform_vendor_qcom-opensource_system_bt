@@ -80,6 +80,12 @@ typedef enum {
   FINISHED
 } receive_state_t;
 
+typedef enum {
+  HCI_SHUTDOWN,
+  HCI_SSR_CLEANUP,
+  HCI_STARTED
+} hci_layer_state;
+
 typedef struct {
   receive_state_t state;
   uint16_t bytes_remaining;
@@ -140,6 +146,7 @@ static packet_receive_data_t incoming_packets[INBOUND_PACKET_TYPE_COUNT];
 // The hand-off point for data going to a higher layer, set by the higher layer
 static fixed_queue_t *upwards_data_queue;
 
+static int hci_state;
 static future_t *shut_down();
 
 static void event_finish_startup(void *context);
@@ -270,6 +277,7 @@ static future_t *start_up(void) {
   startup_future = future_new();
   LOG_DEBUG("%s starting async portion", __func__);
   thread_post(thread, event_finish_startup, NULL);
+  hci_state = HCI_STARTED;
   return startup_future;
 error:;
   shut_down(); // returns NULL so no need to wait for it
@@ -291,6 +299,8 @@ static future_t *shut_down() {
 
     thread_join(thread);
   }
+
+  hci_state = HCI_SHUTDOWN;
 
   fixed_queue_free(command_queue, osi_free);
   fixed_queue_free(packet_queue, buffer_allocator->free);
@@ -350,6 +360,11 @@ static void transmit_command(
     command_complete_cb complete_callback,
     command_status_cb status_callback,
     void *context) {
+  if(hci_state != HCI_STARTED) {
+    LOG_ERROR("%s Returning, hci_layer not ready", __func__);
+    return;
+  }
+
   waiting_command_t *wait_entry = osi_calloc(sizeof(waiting_command_t));
   if (!wait_entry) {
     LOG_ERROR("%s couldn't allocate space for wait entry.", __func__);
@@ -395,6 +410,10 @@ static void transmit_downward(data_dispatcher_type_t type, void *data) {
     transmit_command((BT_HDR *)data, NULL, NULL, NULL);
     LOG_WARN("%s legacy transmit of command. Use transmit_command instead.", __func__);
   } else {
+    if(hci_state != HCI_STARTED) {
+      LOG_ERROR("%s Returning, hci_layer not ready", __func__);
+      return;
+    }
     fixed_queue_enqueue(packet_queue, data);
   }
 }
@@ -741,6 +760,10 @@ intercepted:;
 ** and turns off the chip*/
 void ssr_cleanup (int reason) {
    LOG_INFO("%s", __func__);
+   if(hci_state != HCI_STARTED) {
+     LOG_ERROR("%s Returning, hci_layer already shut down", __func__);
+     return;
+   }
    if (vendor != NULL) {
        vendor->ssr_cleanup(reason);
    } else {
