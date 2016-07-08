@@ -203,6 +203,9 @@ void GKI_init_q (BUFFER_Q *p_q)
 void *GKI_getbuf (UINT16 size)
 {
   BUFFER_HDR_T *header = osi_malloc(size + BUFFER_HDR_SIZE);
+  if (!header)
+    return NULL;
+
   header->status  = BUF_STATUS_UNLINKED;
   header->p_next  = NULL;
   header->Type    = 0;
