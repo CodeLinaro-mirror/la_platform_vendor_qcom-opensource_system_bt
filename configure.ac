@@ -141,6 +141,7 @@ AC_CONFIG_FILES([ \
          main/Makefile \
          tools/Makefile \
          tools/bdtool/Makefile \
+         tools/btsnoop_dump/Makefile \
          ])
 
 AC_OUTPUT

@@ -188,7 +188,6 @@ static void update_logging() {
 
   is_logging = should_log;
   if (should_log) {
-    btsnoop_net_open();
     if (hci_ext_dump_enabled == true) {
       property_set_bt("bluetooth.startbtsnoop", "true");
     }
@@ -205,12 +204,12 @@ static void update_logging() {
     logfile_fd = open(log_path, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
     if (logfile_fd == INVALID_FD) {
       LOG_ERROR("%s unable to open '%s': %s", __func__, log_path, strerror(errno));
-      btsnoop_net_close();
       is_logging = false;
       return;
     }
 
     write(logfile_fd, "btsnoop\0\0\0\0\1\0\0\x3\xea", 16);
+    btsnoop_net_open();
   } else {
     if (logfile_fd != INVALID_FD)
       close(logfile_fd);

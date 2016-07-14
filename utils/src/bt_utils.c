@@ -106,7 +106,6 @@ static future_t *init(void) {
     exit(1);
   }
   /*Create the address of the server.*/
-  ALOGE("connecting to %s, bt_prop_socket = %d", SOCKETNAME, bt_prop_socket);
   memset(&name, 0, sizeof(struct sockaddr_un));
   name.sun_family = AF_UNIX;
   strncpy(name.sun_path, SOCKETNAME, strlen(SOCKETNAME));

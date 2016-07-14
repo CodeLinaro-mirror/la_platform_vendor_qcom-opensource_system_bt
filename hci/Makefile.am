@@ -33,7 +33,7 @@ c_sources = \
         src/vendor.c
 
 common_LDFLAGS = -lpthread -lrt
-common_CFLAGS =  $(AM_CFLAGS) -fPIC -D_GNU_SOURCE
+common_CFLAGS =  $(AM_CFLAGS) -fPIC -D_GNU_SOURCE -DBTSNOOP_DEFAULT=TRUE -DBT_NET_DEBUG=TRUE
 
 library_includedir = $(pkgincludedir)\
 library_include_HEADERS = $(h_sources)
