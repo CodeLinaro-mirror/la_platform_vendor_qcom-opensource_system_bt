@@ -82,9 +82,16 @@ typedef enum {
 #define HOST_ROLE_SLAVE                    0x01
 #define HOST_ROLE_UNKNOWN                  0xff
 
+#define MAX_A2DP_SINK_PCM_QUEUE_SZ         20
+
 /*****************************************************************************
 **  Local type definitions
 ******************************************************************************/
+typedef struct
+{
+    UINT16 len;
+    UINT16 offset;
+} tBT_PCM_HDR;
 
 typedef struct
 {
@@ -101,7 +108,10 @@ typedef struct
     int service;
     BOOLEAN is_slave;
     BOOLEAN is_device_playing;
+    BUFFER_Q RxPcmQ;
 } btif_av_cb_t;
+
+static pthread_mutex_t pcm_queue_lock;
 
 typedef struct
 {
@@ -183,6 +193,7 @@ static const btif_sm_handler_t btif_av_state_handlers[] =
 };
 
 static void btif_av_event_free_data(btif_sm_event_t event, void *p_data);
+static void btif_media_clear_pcm_queue();
 
 /*************************************************************************
 ** Extern functions
@@ -399,6 +410,7 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
             {
                 BTIF_TRACE_EVENT("reset A2dp states in IDLE ");
                 btif_a2dp_on_idle();
+                btif_media_clear_pcm_queue();
             }
             else
             {
@@ -750,9 +762,9 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
             // copy to avoid alignment problems
             memcpy(&req, p_data, sizeof(req));
 
-            BTIF_TRACE_WARNING("BTIF_AV_SINK_CONFIG_REQ_EVT %d %d", req.sample_rate,
+            BTIF_TRACE_DEBUG("BTIF_AV_SINK_CONFIG_REQ_EVT %d %d", req.sample_rate,
                     req.channel_count);
-            if (btif_av_cb[index].peer_sep == AVDT_TSEP_SRC && bt_av_sink_callbacks != NULL) {
+            if (bt_av_sink_callbacks != NULL) {
                 HAL_CBACK(bt_av_sink_callbacks, audio_config_cb, &(btif_av_cb[index].peer_bda),
                         req.sample_rate, req.channel_count);
             }
@@ -2138,6 +2150,63 @@ static bt_status_t init_src(btav_callbacks_t* callbacks, int max_a2dp_connection
 
 /*******************************************************************************
 **
+** Function         get_pcm_data
+**
+** Description      get pcm data stored from PCM Q
+**
+** Returns          number of bytes returned
+**
+*******************************************************************************/
+static uint32_t get_pcm_data (UINT8* data, uint32_t size)
+{
+    uint16_t pcm_q_bytes_left = 0;// bytes left in topmost element of PCM Q
+    tBT_PCM_HDR* p_pcm_q_buf; // pointer to first element in que;
+    uint32_t bytes_to_be_written = size;// bytes written to buffer supplied by app.
+    UINT8* p_src; UINT8* p_dest;
+    BTIF_TRACE_DEBUG(" %s size = %d", __FUNCTION__, size);
+    pthread_mutex_lock(&pcm_queue_lock);
+    if(GKI_queue_is_empty(&btif_av_cb[0].RxPcmQ)) {
+        BTIF_TRACE_DEBUG("%s PCM Que Empty, returning", __FUNCTION__);
+        pthread_mutex_unlock(&pcm_queue_lock);
+        return 0;
+    }
+
+    while ((bytes_to_be_written > 0) && (!GKI_queue_is_empty(&btif_av_cb[0].RxPcmQ)))
+    {
+        p_pcm_q_buf = (tBT_PCM_HDR *)GKI_getfirst(&(btif_av_cb[0].RxPcmQ));
+        if (p_pcm_q_buf == NULL)
+            break;
+        pcm_q_bytes_left = p_pcm_q_buf->len - p_pcm_q_buf->offset;
+        BTIF_TRACE_DEBUG(" %s Q_Len %d, bytes_to_be_written %d, bytes_left_in_Q %d", __FUNCTION__,
+                GKI_queue_length(&btif_av_cb[0].RxPcmQ), bytes_to_be_written, pcm_q_bytes_left);
+        if (bytes_to_be_written >= pcm_q_bytes_left)
+        {
+            // read from topmost element and deque it
+            p_pcm_q_buf = (tBT_PCM_HDR *)GKI_dequeue(&(btif_av_cb[0].RxPcmQ));
+            p_dest = data + (size - bytes_to_be_written);
+            p_src = (UINT8*)(p_pcm_q_buf + 1) + p_pcm_q_buf->offset;
+            memcpy(p_dest, p_src, pcm_q_bytes_left);
+            GKI_freebuf(p_pcm_q_buf);
+            bytes_to_be_written = bytes_to_be_written - pcm_q_bytes_left;
+        }
+        else
+        {
+            // read only required data and keep the node in Q
+            p_dest = data + (size - bytes_to_be_written);
+            p_src = (UINT8*)(p_pcm_q_buf + 1) + p_pcm_q_buf->offset;
+            memcpy(p_dest, p_src, bytes_to_be_written);
+            p_pcm_q_buf->offset += bytes_to_be_written;
+            bytes_to_be_written = 0;
+        }
+
+    }
+    BTIF_TRACE_DEBUG(" %s Wrote %d bytes",__FUNCTION__, size - bytes_to_be_written);
+    pthread_mutex_unlock(&pcm_queue_lock);
+    return (size - bytes_to_be_written);
+}
+
+/*******************************************************************************
+**
 ** Function         init_sink
 **
 ** Description      Initializes the AV interface for sink mode
@@ -2174,9 +2243,56 @@ static bt_status_t init_sink(btav_callbacks_t* callbacks, int max,
         //BTA_AvEnable_Sink(TRUE);
     }
 
+    /* initializing mutex for sink */
+    pthread_mutex_init(&pcm_queue_lock, NULL);
+
     return status;
 }
+/*******************************************************************************
+ **
+ ** Function         btif_media_enque_pcm_data
+ **
+ ** Description      queues PCM data
+ **
+ ** Returns          void
+ **
+ *******************************************************************************/
+void btif_media_enque_pcm_data(UINT8 *data, UINT16 size)
+{
+    tBT_PCM_HDR* p_msg;
+    pthread_mutex_lock(&pcm_queue_lock);
+    if(GKI_queue_length(&btif_av_cb[0].RxPcmQ) >= MAX_A2DP_SINK_PCM_QUEUE_SZ)
+    {
+         BTIF_TRACE_DEBUG(" %s PCM Que Full, returning", __FUNCTION__);
+         pthread_mutex_unlock(&pcm_queue_lock);
+         return;
+    }
+    if ((p_msg = (tBT_PCM_HDR *)GKI_getbuf(sizeof(tBT_PCM_HDR) + size)) != NULL)
+    {
+        UINT8 *p_dest;
 
+        p_dest = (UINT8*)(p_msg + 1);
+        memcpy(p_dest, (UINT8*)(data), size);
+
+        p_msg->len = size;
+        p_msg->offset = 0;
+
+        GKI_enqueue(&(btif_av_cb[0].RxPcmQ), p_msg);
+        BTIF_TRACE_DEBUG("%s pkt_size %d  PCM_Q_Size %d", __FUNCTION__, size,
+                                                GKI_queue_length(&btif_av_cb[0].RxPcmQ));
+    }
+    pthread_mutex_unlock(&pcm_queue_lock);
+}
+static void btif_media_clear_pcm_queue()
+{
+    BTIF_TRACE_DEBUG(" Clear PCM QUeue ");
+    pthread_mutex_lock(&pcm_queue_lock);
+    while (!GKI_queue_is_empty(&btif_av_cb[0].RxPcmQ))
+    {
+        GKI_freebuf(GKI_dequeue(&btif_av_cb[0].RxPcmQ));
+    }
+    pthread_mutex_unlock(&pcm_queue_lock);
+}
 #ifdef USE_AUDIO_TRACK
 /*******************************************************************************
 **
@@ -2422,6 +2538,8 @@ static void cleanup_src(void) {
 static void cleanup_sink(void) {
     BTIF_TRACE_EVENT("%s", __FUNCTION__);
     cleanup(BTA_A2DP_SINK_SERVICE_ID);
+    btif_media_clear_pcm_queue();
+    pthread_mutex_destroy(&pcm_queue_lock);
 }
 
 static void allow_connection(int is_valid, bt_bdaddr_t *bd_addr)
@@ -2493,6 +2611,7 @@ static const btav_interface_t bt_av_sink_interface = {
 #ifdef USE_AUDIO_TRACK
     audio_focus_status,
 #endif
+    get_pcm_data,
 };
 
 /*******************************************************************************

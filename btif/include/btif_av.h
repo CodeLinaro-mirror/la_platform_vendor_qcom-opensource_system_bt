@@ -171,6 +171,17 @@ BOOLEAN btif_av_is_peer_edr(void);
 void btif_queue_focus_rquest(void);
 #endif
 
+/*******************************************************************************
+ **
+ ** Function         btif_media_enque_pcm_data
+ **
+ ** Description      queues PCM data
+ **
+ ** Returns          void
+ **
+ *******************************************************************************/
+void btif_media_enque_pcm_data(UINT8 *data, UINT16 size);
+
 /******************************************************************************
 **
 ** Function         btif_av_clear_remote_suspend_flag
