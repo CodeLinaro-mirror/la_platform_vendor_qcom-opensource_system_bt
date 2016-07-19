@@ -1085,30 +1085,6 @@ void btif_remote_properties_evt(bt_status_t status, bt_bdaddr_t *remote_addr,
                      status, remote_addr, num_props, p_props);
 }
 
-static void btif_bredr_cleanup_event(UINT16 event, char *p_param)
-{
-    tBTA_SERVICE_MASK service_mask;
-    uint32_t i;
-    bool val = true;
-    bt_property_t prop;
-
-    service_mask = btif_get_enabled_services_mask();
-    for (i = 0; i <= BTA_MAX_SERVICE_ID; i++)
-    {
-        if (i != BTA_BLE_SERVICE_ID && (service_mask &
-            (tBTA_SERVICE_MASK)(BTA_SERVICE_ID_TO_SERVICE_MASK(i))))
-        {
-             btif_in_execute_service_request(i, FALSE);
-        }
-    }
-
-    //fire HAL callback for property change
-    prop.type = BT_PROPERTY_BREDR_CLEANUP;
-    prop.val = (void *)&val;
-    prop.len = 1;
-    HAL_CBACK(bt_hal_cbacks, adapter_properties_cb, BT_STATUS_SUCCESS, 1, &prop);
-}
-
 /*******************************************************************************
 **
 ** Function         btif_in_storage_request_copy_cb
@@ -1284,11 +1260,6 @@ bt_status_t btif_set_adapter_property(const bt_property_t *property)
         case BT_PROPERTY_REMOTE_FRIENDLY_NAME:
             /* no write support through HAL, these properties are only populated from BTA events */
             status = BT_STATUS_FAIL;
-            break;
-
-        case BT_PROPERTY_BREDR_CLEANUP:
-            return btif_transfer_context(btif_bredr_cleanup_event,
-                   BT_PROPERTY_BREDR_CLEANUP, NULL, 0, NULL);
             break;
 
         default:
