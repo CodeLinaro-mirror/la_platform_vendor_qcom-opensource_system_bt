@@ -346,7 +346,9 @@ static int tap_if_up(const char *devname, const bt_bdaddr_t *addr)
     memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifr_name, devname, IF_NAMESIZE - 1);
 
+#ifdef ANDROID
     ifr.ifr_flags |= IFF_UP;
+#endif
     ifr.ifr_flags |= IFF_MULTICAST;
 
     err = ioctl(sk, SIOCSIFFLAGS, (caddr_t) &ifr);
