@@ -191,7 +191,7 @@ static future_t *start_up(void) {
   // Grab the override startup timeout ms, if present.
   period_ms_t startup_timeout_ms;
   char timeout_prop[PROPERTY_VALUE_MAX];
-  if (!property_get("bluetooth.enable_timeout_ms", timeout_prop, STRING_VALUE_OF(DEFAULT_STARTUP_TIMEOUT_MS))
+  if (!property_get_bt("bluetooth.enable_timeout_ms", timeout_prop, STRING_VALUE_OF(DEFAULT_STARTUP_TIMEOUT_MS))
       || (startup_timeout_ms = atoi(timeout_prop)) < 100)
     startup_timeout_ms = DEFAULT_STARTUP_TIMEOUT_MS;
 
@@ -547,7 +547,7 @@ static void command_timed_out(UNUSED_ATTR void *context) {
   ssr_cleanup(0x22);//SSR reasno 0x22 = CMD TO
   usleep(20000);
   //Reset SOC status to trigger hciattach service
-  if (property_set("bluetooth.status", "off") < 0) {
+  if (property_set_bt("bluetooth.status", "off") < 0) {
      LOG_ERROR("hci_cmd_timeout: Error resetting SOC status\n ");
   } else {
      LOG_ERROR("hci_cmd_timeout: SOC Status is reset\n ");
@@ -579,7 +579,7 @@ static void hal_says_data_ready(serial_data_type_t type) {
         break;
       else {
         //Reset SOC status to trigger hciattach service
-        if(property_set("bluetooth.status", "off") < 0) {
+        if(property_set_bt("bluetooth.status", "off") < 0) {
             LOG_ERROR("SSR: Error resetting SOC status\n ");
         } else {
             ALOGE("SSR: SOC Status is reset\n ");

@@ -103,7 +103,7 @@ static future_t *start_up(void) {
 static future_t *shut_down(void) {
   module_started = false;
   if (hci_ext_dump_enabled == true) {
-    property_set("bluetooth.startbtsnoop", "false");
+    property_set_bt("bluetooth.startbtsnoop", "false");
   }
   update_logging();
 
@@ -190,7 +190,7 @@ static void update_logging() {
   if (should_log) {
     btsnoop_net_open();
     if (hci_ext_dump_enabled == true) {
-      property_set("bluetooth.startbtsnoop", "true");
+      property_set_bt("bluetooth.startbtsnoop", "true");
     }
     const char *log_path = stack_config->get_btsnoop_log_path();
 

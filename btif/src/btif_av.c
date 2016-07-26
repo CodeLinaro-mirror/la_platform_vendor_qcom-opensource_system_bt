@@ -384,7 +384,7 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
             {
                 btif_av_cb[i].dual_handoff = FALSE;
             }
-            property_get("persist.service.bt.a2dp.sink", a2dp_role, "false");
+            property_get_bt("persist.service.bt.a2dp.sink", a2dp_role, "false");
             if (!strncmp("false", a2dp_role, 5)) {
                 btif_av_cb[index].peer_sep = AVDT_TSEP_SNK;
                 btif_a2dp_set_peer_sep(AVDT_TSEP_SNK);

@@ -214,7 +214,7 @@ BOOLEAN sdp_fallback_avrcp_version (tSDP_ATTRIBUTE *p_attr, BD_ADDR remote_addre
                          p_attr->value_ptr[PROFILE_VERSION_POSITION]);
                 return TRUE;
             }
-            property_get("persist.service.bt.a2dp.sink", a2dp_role, "false");
+            property_get_bt("persist.service.bt.a2dp.sink", a2dp_role, "false");
             if (!strncmp("false", a2dp_role, 5)) {
                 ver = sdp_get_stored_avrc_tg_version (remote_address);
                 if (ver != AVRC_REV_INVALID)

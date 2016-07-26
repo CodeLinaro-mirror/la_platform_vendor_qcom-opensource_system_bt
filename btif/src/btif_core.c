@@ -388,7 +388,7 @@ static bool fetch_vendor_addr (bt_bdaddr_t *local_addr)
 static bool btif_fetch_property(const char *key, bt_bdaddr_t *addr) {
     char val[PROPERTY_VALUE_MAX] = {0};
 
-    if (property_get(key, val, NULL)) {
+    if (property_get_bt(key, val, NULL)) {
         if (string_to_bdaddr(val, addr)) {
             BTIF_TRACE_DEBUG("%s: Got BDA %s", __func__, val);
             return TRUE;
@@ -406,7 +406,7 @@ static void btif_fetch_local_bdaddr(bt_bdaddr_t *local_addr)
     const uint8_t null_bdaddr[BD_ADDR_LEN] = {0,0,0,0,0,0};
 
     /* Get local bdaddr storage path from property */
-    if (property_get(PROPERTY_BT_BDADDR_PATH, val, NULL))
+    if (property_get_bt(PROPERTY_BT_BDADDR_PATH, val, NULL))
     {
         int addr_fd;
 
@@ -477,7 +477,7 @@ static void btif_fetch_local_bdaddr(bt_bdaddr_t *local_addr)
         BTIF_TRACE_DEBUG("No preset BDA. Generating BDA: %s for prop %s",
              (char*)bdstr, PERSIST_BDADDR_PROPERTY);
 
-        if (property_set(PERSIST_BDADDR_PROPERTY, (char*)bdstr) < 0)
+        if (property_set_bt(PERSIST_BDADDR_PROPERTY, (char*)bdstr) < 0)
             BTIF_TRACE_ERROR("Failed to set random BDA in prop %s",PERSIST_BDADDR_PROPERTY);
     }
 
