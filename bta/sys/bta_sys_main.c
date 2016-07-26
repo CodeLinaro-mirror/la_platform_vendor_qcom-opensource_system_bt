@@ -65,6 +65,8 @@ UINT8 audio_latency_trace_level = BT_TRACE_LEVEL_WARNING;
 extern fixed_queue_t *btu_bta_msg_queue;
 void btu_bta_alarm_ready(fixed_queue_t *queue, UNUSED_ATTR void *context);
 
+void bta_alarm_cb(void *data);
+
 static const tBTA_SYS_REG bta_sys_hw_reg =
 {
     bta_sys_sm_execute,
@@ -217,6 +219,7 @@ error:
 }
 
 void bta_sys_free(void) {
+    alarm_unregister_callbacks(bta_alarm_cb);
     fixed_queue_free(btu_bta_alarm_queue, NULL);
     btu_bta_alarm_queue = NULL;
     hash_map_free(bta_alarm_hash_map);
