@@ -3035,7 +3035,7 @@ void btif_dm_set_oob_for_io_req(tBTA_OOB_DATA  *p_oob_data)
 void btif_dm_load_local_oob(void)
 {
     char prop_oob[PROPERTY_VALUE_MAX];
-    property_get("service.brcm.bt.oob", prop_oob, "3");
+    property_get_bt("service.brcm.bt.oob", prop_oob, "3");
     BTIF_TRACE_DEBUG("btif_dm_load_local_oob prop_oob = %s",prop_oob);
     if (prop_oob[0] != '3')
     {
@@ -3072,7 +3072,7 @@ void btif_dm_proc_loc_oob(BOOLEAN valid, BT_OCTET16 c, BT_OCTET16 r)
         BTIF_TRACE_DEBUG("save local OOB data in memory");
         memcpy(oob_cb.sp_c, c, BT_OCTET16_LEN);
         memcpy(oob_cb.sp_r, r, BT_OCTET16_LEN);
-        property_get("service.brcm.bt.oob", prop_oob, "3");
+        property_get_bt("service.brcm.bt.oob", prop_oob, "3");
         BTIF_TRACE_DEBUG("btif_dm_proc_loc_oob prop_oob = %s",prop_oob);
         if (prop_oob[0] == '1')
             path = path_a;
@@ -3111,7 +3111,7 @@ BOOLEAN btif_dm_proc_rmt_oob(BD_ADDR bd_addr,  BT_OCTET16 p_c, BT_OCTET16 p_r)
     BOOLEAN result = FALSE;
     bt_bdaddr_t bt_bd_addr;
     bdcpy(oob_cb.oob_bdaddr, bd_addr);
-    property_get("service.brcm.bt.oob", prop_oob, "3");
+    property_get_bt("service.brcm.bt.oob", prop_oob, "3");
     BTIF_TRACE_DEBUG("btif_dm_proc_rmt_oob prop_oob = %s",prop_oob);
     if (prop_oob[0] == '1')
         path = path_b;
@@ -3580,7 +3580,7 @@ static char* btif_get_default_local_name() {
         else
         {
             char prop_model[PROPERTY_VALUE_MAX];
-            property_get(PROPERTY_PRODUCT_MODEL, prop_model, "");
+            property_get_bt(PROPERTY_PRODUCT_MODEL, prop_model, "");
             strncpy(btif_default_local_name, prop_model, max_len);
         }
         btif_default_local_name[max_len] = '\0';

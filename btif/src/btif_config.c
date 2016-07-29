@@ -42,10 +42,14 @@
 #ifdef ANDROID
 static const char *CONFIG_FILE_PATH = "/data/misc/bluedroid/bt_config.conf";
 static const char *LEGACY_CONFIG_FILE_PATH = "/data/misc/bluedroid/bt_config.xml";
+#elif HCI_USE_MCT
+static const char *CONFIG_FILE_PATH = "/etc/bluetooth/bt_config.conf";
+static const char *LEGACY_CONFIG_FILE_PATH = "/etc/bluetooth/bt_config.xml";
 #else
 static const char *CONFIG_FILE_PATH = "/etc/data/misc/bluedroid/bt_config.conf";
 static const char *LEGACY_CONFIG_FILE_PATH = "/etc/data/misc/bluedroid/bt_config.xml";
 #endif
+
 static const period_ms_t CONFIG_SETTLE_PERIOD_MS = 3000;
 
 static void timer_config_save_cb(void *data);

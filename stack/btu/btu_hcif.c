@@ -1211,7 +1211,7 @@ static void btu_hcif_hardware_error_evt (UINT8 *p)
        bte_ssr_cleanup(0x33);//SSR reason 0x33 = HW ERR EVT
        usleep(20000); /* 20 milliseconds */
        //Reset SOC status to trigger hciattach service
-       if(property_set("bluetooth.status", "off") < 0)
+       if(property_set_bt("bluetooth.status", "off") < 0)
        {
           ALOGE("SSR: Error resetting SOC status\n ");
        }

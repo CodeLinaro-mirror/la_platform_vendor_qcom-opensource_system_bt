@@ -1020,7 +1020,7 @@ void bta_av_rc_msg(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 #if (AVRC_CTLR_INCLUDED == TRUE)
             else if (((p_data->rc_msg.msg.pass.op_id == AVRC_ID_VOL_UP)||
                       (p_data->rc_msg.msg.pass.op_id == AVRC_ID_VOL_DOWN))&&
-                     ((property_get("bluetooth.pts.avrcp_ct.support", value, "false"))&&
+                     ((property_get_bt("bluetooth.pts.avrcp_ct.support", value, "false"))&&
                       (!strcmp(value, "true"))))
             {
                 p_data->rc_msg.msg.hdr.ctype = BTA_AV_RSP_ACCEPT;
@@ -1963,7 +1963,7 @@ tBTA_AV_FEAT bta_av_check_peer_features (UINT16 service_uuid)
             }
 #if ((defined(SDP_AVRCP_1_6) && (SDP_AVRCP_1_6 == TRUE)) || \
            (defined(SDP_AVRCP_1_5) && (SDP_AVRCP_1_5 == TRUE)))
-            property_get("persist.service.bt.a2dp.sink", a2dp_role, "false");
+            property_get_bt("persist.service.bt.a2dp.sink", a2dp_role, "false");
             if (!strncmp("false", a2dp_role, 5)) {
                 if ((peer_rc_version >= AVRC_REV_1_4) &&
                         ((peer_features & BTA_AV_FEAT_BROWSE) || (peer_features & BTA_AV_FEAT_CA)))

@@ -1293,7 +1293,7 @@ BOOLEAN SDP_Dev_Blacklisted_For_Avrcp15 (BD_ADDR addr)
     BOOLEAN ret = sdp_dev_blacklisted_for_avrcp15(addr);
 
     SDP_TRACE_ERROR("%s", __func__);
-    property_get("persist.service.bt.a2dp.sink", a2dp_role, "false");
+    property_get_bt("persist.service.bt.a2dp.sink", a2dp_role, "false");
     if (!strncmp("true", a2dp_role, 4)) {
         return ret;
     }

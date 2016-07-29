@@ -103,7 +103,7 @@ void btsnoop_net_open() {
 void btsnoop_net_close() {
 
   if (listen_thread_valid_) {
-#if (defined(BT_NET_DEBUG) && (NET_DEBUG == TRUE))
+#if (defined(BT_NET_DEBUG) && (BT_NET_DEBUG == TRUE))
     // Disable using network sockets for security reasons
     shutdown(listen_socket_, SHUT_RDWR);
 #endif
@@ -142,7 +142,7 @@ static void *listen_fn_(UNUSED_ATTR void *context) {
 
   FD_ZERO(&sock_fds);
 
-#if (defined(BT_NET_DEBUG) && (NET_DEBUG == TRUE))
+#if (defined(BT_NET_DEBUG) && (BT_NET_DEBUG == TRUE))
   // Disable using network sockets for security reasons
   listen_socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (listen_socket_ == -1) {
@@ -196,7 +196,9 @@ static void *listen_fn_(UNUSED_ATTR void *context) {
     }
 
     if ((listen_socket_ != -1) && FD_ISSET(listen_socket_, &sock_fds)) {
-      client_socket = accept(listen_socket_, NULL, NULL);
+      struct sockaddr_in cli_addr;
+      socklen_t length = sizeof(cli_addr);
+      client_socket = accept(listen_socket_, (struct sockaddr *) &cli_addr, &length);
       if (client_socket == -1) {
         if (errno == EINVAL || errno == EBADF) {
           LOG_WARN("%s error accepting TCP socket: %s", __func__, strerror(errno));
@@ -207,7 +209,7 @@ static void *listen_fn_(UNUSED_ATTR void *context) {
       }
     } else if ((listen_socket_local_ != -1) && FD_ISSET(listen_socket_local_, &sock_fds)){
       struct sockaddr_un cliaddr;
-      int length;
+      socklen_t length = sizeof(cliaddr);
 
       client_socket = accept(listen_socket_local_, (struct sockaddr *)&cliaddr, &length);
       if (client_socket == -1) {

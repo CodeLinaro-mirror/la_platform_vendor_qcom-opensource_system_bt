@@ -106,7 +106,6 @@ static future_t *init(void) {
     exit(1);
   }
   /*Create the address of the server.*/
-  ALOGE("connecting to %s, bt_prop_socket = %d", SOCKETNAME, bt_prop_socket);
   memset(&name, 0, sizeof(struct sockaddr_un));
   name.sun_family = AF_UNIX;
   strncpy(name.sun_path, SOCKETNAME, strlen(SOCKETNAME));
@@ -175,7 +174,7 @@ const module_t bt_utils_module = {
 *******************************************************************************/
 static void check_do_scheduling_group(void) {
     char buf[PROPERTY_VALUE_MAX];
-    int len = property_get("debug.sys.noschedgroups", buf, "");
+    int len = property_get_bt("debug.sys.noschedgroups", buf, "");
     if (len > 0) {
         int temp;
         if (sscanf(buf, "%d", &temp) == 1) {
@@ -185,7 +184,7 @@ static void check_do_scheduling_group(void) {
 }
 
 #ifndef ANDROID
-int property_get(const char *key, char *value, const char *default_value)
+int property_get_bt(const char *key, char *value, const char *default_value)
 {
     char prop_string[200];
     int ret, bytes_read = 0, i = 0;
@@ -205,7 +204,7 @@ int property_get(const char *key, char *value, const char *default_value)
             i++;
         }
     } while(1);
-    ALOGD("property_get: key(%s) has value: %s", key, value);
+    ALOGD("property_get_bt: key(%s) has value: %s", key, value);
     if (bytes_read) {
         return 0;
     } else {
@@ -214,14 +213,14 @@ int property_get(const char *key, char *value, const char *default_value)
     }
 }
 
-/* property_set: returns 0 on success, < 0 on failure
+/* property_set_bt: returns 0 on success, < 0 on failure
 */
-int property_set(const char *key, const char *value)
+int property_set_bt(const char *key, const char *value)
 {
     char prop_string[200];
     int ret;
     sprintf(prop_string, "set_property %s %s,", key, value);
-    ALOGD("property_set: setting key(%s) to value: %s\n", key, value);
+    ALOGD("property_set_bt: setting key(%s) to value: %s\n", key, value);
     ret = send(bt_prop_socket, prop_string, strlen(prop_string), 0);
     return 0;
 }

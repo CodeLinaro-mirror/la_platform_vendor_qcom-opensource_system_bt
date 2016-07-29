@@ -1047,7 +1047,7 @@ bt_status_t btif_hf_client_execute_service(BOOLEAN b_enable)
 {
     BTIF_TRACE_EVENT("%s enable:%d", __FUNCTION__, b_enable);
 
-    property_get("ro.bluetooth.hfp.ver", btif_hf_client_version, "1.6");
+    property_get_bt("ro.bluetooth.hfp.ver", btif_hf_client_version, "1.6");
 
     BTIF_TRACE_EVENT("%s: hfp client version is %s", __func__, btif_hf_client_version);
 

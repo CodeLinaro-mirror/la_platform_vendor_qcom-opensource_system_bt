@@ -1518,7 +1518,7 @@ void bta_av_str_opened (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
 
     // This code is used to pass PTS TC for AVDTP ABORT
     char value[PROPERTY_VALUE_MAX] = {0};
-    if ((property_get("bluetooth.pts.force_a2dp_abort", value, "false"))
+    if ((property_get_bt("bluetooth.pts.force_a2dp_abort", value, "false"))
         && (!strcmp(value, "true")))
     {
         APPL_TRACE_ERROR ("%s: Calling AVDT_AbortReq", __func__);

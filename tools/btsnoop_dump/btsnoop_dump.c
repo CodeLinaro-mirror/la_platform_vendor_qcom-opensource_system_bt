@@ -30,6 +30,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <ctype.h>
@@ -41,11 +42,12 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <sys/un.h>
 #include <unistd.h>
 #include <dirent.h>
-
+#ifdef ANDROID
 #include <private/android_filesystem_config.h>
 #include <android/log.h>
 
 #include <cutils/log.h>
+#endif
 #include "osi/include/config.h"
 
 
@@ -54,14 +56,19 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef ANDROID
 #define LOGD0(t,s) __android_log_write(ANDROID_LOG_DEBUG, t, s)
 #else
-#define LOGD0(t,s) fprintf(stderr, t, s)
+#include <sys/syslog.h>
+#define LOGD0(t,s) //syslog (LOG_NOTICE, t, s)
 #endif
 
 static int file_descriptor = -1;
 uint32_t file_size = 0;
 
 #define LOCAL_SOCKET_NAME "bthcitraffic"
+#ifdef ANDROID
 #define BTSNOOP_PATH "/data/media/0"
+#else
+#define BTSNOOP_PATH "/sdcard/"
+#endif
 #define BTSOOP_PORT 8872
 
 static const char *BTSNOOP_LOG_PATH_KEY =  "ExtBtSnoopFileName";
@@ -207,12 +214,11 @@ int snoop_connect_to_source (void)
     {
         memset(&serv_addr, 0, sizeof(serv_addr));
         serv_addr.sun_family = AF_LOCAL;
-        memcpy(&serv_addr.sun_path[1], LOCAL_SOCKET_NAME, strlen(LOCAL_SOCKET_NAME));
-        addr_len =  strlen(LOCAL_SOCKET_NAME) + 1;
-        addr_len += sizeof(serv_addr.sun_family);
+        strncpy(serv_addr.sun_path, LOCAL_SOCKET_NAME, sizeof(serv_addr.sun_path)-1);
+
         do
         {
-            ret = connect(sk, &serv_addr, addr_len);
+            ret = connect(sk,  (struct sockaddr *)&serv_addr, sizeof(serv_addr));
             if (ret < 0)
             {
                 snoop_log("Can't connect to BT traffic source : %s\n",strerror(errno));
@@ -296,7 +302,6 @@ int snoop_process (int sk)
 
     length = read_buf[0] << 24 | read_buf[1] << 16 | read_buf[2] << 8 | read_buf[3];
 
-#if 1
 #ifdef __SNOOP_DUMP_DBG__
     snoop_log("Length of Frame %ld : byte %0x %0x %0x %0x", length,
         read_buf[0], read_buf[1], read_buf[2], read_buf[3]);
@@ -316,7 +321,6 @@ int snoop_process (int sk)
             }
         }
     }
-#endif
 
 /*
     Read rest of snoop header(16 Bytes) and HCI Packet
@@ -339,7 +343,9 @@ int main (int argc, char * argv[])
 {
     int sk, ret, bytes_recv;
     char *snoop_file_prefix = NULL;
-
+#ifndef ANDROID
+    openlog ("btsnoop", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
+#endif
     snoop_log ("btsnoop dump starting");
 
     /* set the file creation mask to allow read/write */
@@ -362,7 +368,12 @@ int main (int argc, char * argv[])
 #ifdef __SNOOP_DUMP_DBG__
         snoop_log("stack configuration loaded");
 #endif // __SNOOP_DUMP_DBG__
+
+#ifdef ANDROID
         snoop_file_prefix = config_get_string(config, CONFIG_DEFAULT_SECTION, BTSNOOP_LOG_PATH_KEY, "/data/media/0/hci_snoop");
+#else
+        snoop_file_prefix = config_get_string(config, CONFIG_DEFAULT_SECTION, BTSNOOP_LOG_PATH_KEY, "/sdcard/hci_snoop");
+#endif
         if(snoop_file_prefix == NULL) {
            snoop_log("Ext snnop prefix is NULL");
         } else {
@@ -371,7 +382,11 @@ int main (int argc, char * argv[])
             {
                 char *tmp;
 
+#ifdef ANDROID
                 strcpy(ext_snoop_file_prefix, "/data/media/0/");
+#else
+                strcpy(ext_snoop_file_prefix, "/sdcard/");
+#endif
                 tmp = snoop_file_prefix + strlen("/sdcard/");
                 if (tmp != NULL)
                 {
@@ -411,6 +426,9 @@ int main (int argc, char * argv[])
     }
 
     snoop_log("btsnoop dump terminated");
+#ifndef ANDROID
+    closelog ();
+#endif
     return 0;
 }
 

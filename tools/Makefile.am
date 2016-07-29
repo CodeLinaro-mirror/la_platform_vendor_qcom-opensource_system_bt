@@ -1,3 +1,3 @@
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = bdtool
+SUBDIRS = bdtool btsnoop_dump
