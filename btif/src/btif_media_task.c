@@ -101,7 +101,7 @@ OI_INT16 pcmData[15*SBC_MAX_SAMPLES_PER_FRAME*SBC_MAX_CHANNELS];
 #define DUMP_PCM_DATA TRUE
 #if (defined(DUMP_PCM_DATA) && (DUMP_PCM_DATA == TRUE))
 FILE *outputPcmSampleFile;
-char outputFilename [50] = "/etc/data/misc/bluedroid/output_sample.pcm";
+char outputFilename [50] = "/etc/bluetooth/output_sample.pcm";
 #endif
 /*****************************************************************************
  **  Constants
