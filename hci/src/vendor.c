@@ -31,8 +31,6 @@
 
 #ifdef ANDROID
 static const char *VENDOR_LIBRARY_NAME = "libbt-vendor.so";
-#elif HCI_USE_MCT
-static const char *VENDOR_LIBRARY_NAME = "libbt-vendor.so";
 #else
 static const char *VENDOR_LIBRARY_NAME = "libbt-vendor.so.0";
 #endif
