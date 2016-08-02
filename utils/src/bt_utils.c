@@ -205,12 +205,13 @@ int property_get_bt(const char *key, char *value, const char *default_value)
         }
     } while(1);
     ALOGD("property_get_bt: key(%s) has value: %s", key, value);
-    if (bytes_read) {
-        return 0;
-    } else {
+    if (!i && default_value)
+    {
+        ALOGD("property_get_bt: Copied default =%s", default_value);
         strncpy(value, default_value, strlen(default_value));
         return 1;
     }
+    return 0;
 }
 
 /* property_set_bt: returns 0 on success, < 0 on failure
