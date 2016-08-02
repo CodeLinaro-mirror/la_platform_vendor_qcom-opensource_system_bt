@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "osi/include/compat.h"
 #ifdef ANDROID
 #include <utils/ThreadDefs.h>
 #else
@@ -108,8 +109,7 @@ static future_t *init(void) {
   /*Create the address of the server.*/
   memset(&name, 0, sizeof(struct sockaddr_un));
   name.sun_family = AF_UNIX;
-  strncpy(name.sun_path, SOCKETNAME, strlen(SOCKETNAME));
-  printf("connecting to %s", SOCKETNAME);
+  strlcpy(name.sun_path, SOCKETNAME, sizeof(name.sun_path));
   len = sizeof(name.sun_family) + strlen(name.sun_path);
   /*Connect to the server.*/
   if (connect(bt_prop_socket, (struct sockaddr *) &name, len) < 0){
