@@ -25,8 +25,9 @@ endif
 
 ifneq ($(TARGET_BUILD_VARIANT),user)
 bdroid_CFLAGS += -DBLUEDROID_DEBUG
-bdroid_CFLAGS += -DUSE_AUDIO_TRACK
 endif
+
+bdroid_CFLAGS += -DUSE_AUDIO_TRACK
 
 ifeq ($(BOARD_USES_WIPOWER), true)
 bdroid_CFLAGS  += -DWIPOWER_SUPPORTED
