@@ -26,11 +26,6 @@ AC_PROG_LN_S
 AC_PROG_MAKE_SET
 PKG_PROG_PKG_CONFIG
 
-# Checks for libraries.
-PKG_CHECK_MODULES([TGENOFF], [time-genoff])
-AC_SUBST([TGENOFF_CFLAGS])
-AC_SUBST([TGENOFF_LIBS])
-
 # Library configs
 AC_ARG_WITH([common_includes],
       AC_HELP_STRING([--with-common-includes=@<:@dir@:>@],
