@@ -167,6 +167,17 @@ typedef enum {
  *      specific epilog process once it has been done.
  */
     BT_VND_OP_EPILOG,
+
+/*  [operation]
+ *      Perform Firmware download only.
+ *  [input param]
+ *      None.
+ *  [return]
+ *      0 - default, don't care.
+ *  [callback]
+ *      None.
+ */
+    BT_VND_OP_FW_DOWNLOAD,
 } bt_vendor_opcode_t;
 
 /** Power on/off control states */
