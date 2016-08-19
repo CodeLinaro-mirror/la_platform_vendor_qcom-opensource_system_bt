@@ -93,7 +93,7 @@ btif_hl_cb_t *p_btif_hl_cb = &btif_hl_cb;
 ************************************************************************************/
 static bthl_callbacks_t  bt_hl_callbacks_cb;
 static bthl_callbacks_t *bt_hl_callbacks=NULL;
-
+static pthread_mutex_t buf_lock = PTHREAD_MUTEX_INITIALIZER;
 /* signal socketpair to wake up select loop */
 
 const int btif_hl_signal_select_wakeup = 1;
@@ -444,6 +444,7 @@ void * btif_hl_get_buf(UINT16 size)
 *******************************************************************************/
 void btif_hl_free_buf(void **p)
 {
+    pthread_mutex_lock(&buf_lock);
     if (*p != NULL)
     {
         BTIF_TRACE_DEBUG("%s OK", __FUNCTION__ );
@@ -452,6 +453,7 @@ void btif_hl_free_buf(void **p)
     }
     else
         BTIF_TRACE_ERROR("%s NULL pointer",__FUNCTION__ );
+    pthread_mutex_unlock(&buf_lock);
 }
 /*******************************************************************************
 **
@@ -4454,7 +4456,6 @@ static void  cleanup( void ){
         bt_hl_callbacks = NULL;
         reg_counter = 0;
     }
-
     btif_hl_disable();
     btif_hl_close_select_thread();
 }
@@ -4776,7 +4777,6 @@ void btif_hl_select_wakeup_callback( fd_set *p_org_set ,  int wakeup_signal){
 *******************************************************************************/
 void btif_hl_select_monitor_callback(fd_set *p_cur_set ,fd_set *p_org_set) {
     UNUSED(p_org_set);
-
     BTIF_TRACE_DEBUG("entering %s",__FUNCTION__);
 
     for (const list_node_t *node = list_begin(soc_queue);
