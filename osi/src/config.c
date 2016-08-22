@@ -84,6 +84,8 @@ error:;
 config_t *config_new(const char *filename) {
   assert(filename != NULL);
 
+  int size = 0;
+
   config_t *config = config_new_empty();
   if (!config)
     return NULL;
@@ -92,6 +94,14 @@ config_t *config_new(const char *filename) {
   if (!fp) {
     LOG_ERROR("%s unable to open file '%s': %s", __func__, filename, strerror(errno));
     config_free(config);
+    return NULL;
+  }
+  /* Read the file size before parsing */
+  fseek(fp, 0L, SEEK_END);
+  size = ftell(fp);
+  rewind(fp);
+  if (0 == size) {
+    LOG_WARN("Config File Size:%d", size);
     return NULL;
   }
   config_parse(fp, config);
