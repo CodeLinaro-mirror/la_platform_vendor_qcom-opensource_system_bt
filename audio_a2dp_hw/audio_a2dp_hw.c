@@ -42,12 +42,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <cutils/str_parms.h>
 #include <cutils/sockets.h>
-
-#include <system/audio.h>
 #include <hardware/audio.h>
-
 #include <hardware/hardware.h>
 #include "audio_a2dp_hw.h"
 #include "bt_utils.h"
@@ -78,7 +74,7 @@ static int number =0;
 #define CASE_RETURN_STR(const) case const: return #const;
 
 #define FNLOG()             LOG_VERBOSE("%s", __FUNCTION__);
-#define DEBUG(fmt, ...)     LOG_VERBOSE("%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
+#define DEBUG(fmt, ...)     LOG_INFO("%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
 #define INFO(fmt, ...)      LOG_INFO("%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
 #define ERROR(fmt, ...)     LOG_ERROR("%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
 
@@ -262,8 +258,15 @@ static int skt_connect(char *path, size_t buffer_sz)
 
     skt_fd = socket(AF_LOCAL, SOCK_STREAM, 0);
 
+#ifdef ANDROID
     if(socket_local_client_connect(skt_fd, path,
             ANDROID_SOCKET_NAMESPACE_ABSTRACT, SOCK_STREAM) < 0)
+#else
+    memset(&remote, 0, sizeof(remote));
+    remote.sun_family = AF_LOCAL;
+    strncpy(remote.sun_path, path, sizeof(remote.sun_path)-1);
+    if(connect(skt_fd, (struct sockaddr*)&remote, sizeof(remote)) < 0)
+#endif
     {
         ERROR("failed to connect (%s)", strerror(errno));
         close(skt_fd);

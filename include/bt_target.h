@@ -1,4 +1,10 @@
 /******************************************************************************
+ *  Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ *
+ *  Not a contribution.
+ ******************************************************************************/
+
+/******************************************************************************
  *
  *  Copyright (c) 2013, 2015, The Linux Foundation. All rights reserved.
  *  Not a Contribution.
@@ -1419,7 +1425,7 @@ Range: 2 octets
 
 /* Maximum size in bytes of the codec capabilities information element. */
 #ifndef AVDT_CODEC_SIZE
-#define AVDT_CODEC_SIZE             10
+#define AVDT_CODEC_SIZE             20
 #endif
 
 /* Maximum size in bytes of the content protection information element. */

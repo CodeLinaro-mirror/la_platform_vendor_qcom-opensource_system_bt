@@ -51,6 +51,7 @@ tAVRC_CB avrc_cb;
 const tSDP_PROTOCOL_ELEM  avrc_proto_list [] =
 {
     {UUID_PROTOCOL_L2CAP, 1, {AVCT_PSM, 0} },
+#ifdef ANDROID
 #if SDP_AVCTP_1_4 == TRUE
     {UUID_PROTOCOL_AVCTP, 1, {AVCT_REV_1_4, 0}  }
 #else
@@ -68,6 +69,9 @@ const tSDP_PROTOCOL_ELEM  avrc_proto_list [] =
 #endif
 #endif
 #endif
+#endif
+#else
+    {UUID_PROTOCOL_AVCTP, 1, {AVCT_REV_1_0, 0}  }
 #endif
 };
 
@@ -303,9 +307,13 @@ UINT16 AVRC_AddRecord(UINT16 service_uuid, char *p_service_name,
 #endif
     result &= SDP_AddServiceClassIdList(sdp_handle, count, class_list);
 
+#ifndef ANDROID
+        /* add protocol descriptor list   */
+        result &= SDP_AddProtocolList(sdp_handle, 1, (tSDP_PROTOCOL_ELEM *)avrc_proto_list);
+        result &= SDP_AddProfileDescriptorList(sdp_handle, UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_0);
+#else
     /* add protocol descriptor list   */
     result &= SDP_AddProtocolList(sdp_handle, AVRC_NUM_PROTO_ELEMS, (tSDP_PROTOCOL_ELEM *)avrc_proto_list);
-
     /* add profile descriptor list   */
 #if (defined(SDP_AVRCP_1_6) && (SDP_AVRCP_1_6 == TRUE))
     /* additional protocol list to include browsing channel */
@@ -344,7 +352,7 @@ UINT16 AVRC_AddRecord(UINT16 service_uuid, char *p_service_name,
 #endif
 #endif
 #endif
-
+#endif
     /* add supported categories */
     p = temp;
     UINT16_TO_BE_STREAM(p, categories);
