@@ -33,6 +33,8 @@
 
 #define LOG_TAG "bt_btif_hh"
 
+#include <cutils/log.h>
+
 #include "bta_api.h"
 #include "bta_hh_api.h"
 #include "btif_storage.h"
@@ -235,7 +237,7 @@ static void toggle_os_keylockstates(int fd, int changedlockstates)
     BTIF_TRACE_DEBUG("%s:  %x %x %x", __FUNCTION__,
          hidreport[6], hidreport[7], hidreport[8]);
     bta_hh_co_write(fd , hidreport, sizeof(hidreport));
-    usleep(200000);
+    TEMP_FAILURE_RETRY(usleep(200000));
     memset(hidreport,0,9);
     hidreport[0]=1;
     BTIF_TRACE_DEBUG("Writing hidreport #2 to os: "\
@@ -257,7 +259,12 @@ static void toggle_os_keylockstates(int fd, int changedlockstates)
 *******************************************************************************/
 static BT_HDR *create_pbuf(UINT16 len, UINT8 *data)
 {
-    BT_HDR* p_buf = GKI_getbuf((UINT16) (len + BTA_HH_MIN_OFFSET + sizeof(BT_HDR)));
+    UINT16 buflen = (UINT16) (len + BTA_HH_MIN_OFFSET + sizeof(BT_HDR));
+    if (buflen < len) {
+      android_errorWriteWithInfoLog(0x534e4554, "28672558", -1, NULL, 0);
+      return NULL;
+    }
+    BT_HDR* p_buf = GKI_getbuf(buflen);
 
     if (p_buf) {
         UINT8* pbuf_data;
@@ -325,7 +332,7 @@ static void sync_lockstate_on_connect(btif_hh_device_t *p_dev)
         BTIF_TRACE_DEBUG("%s: Sending hid report to kernel "\
             "indicating lock key state 0x%x",__FUNCTION__,
             keylockstates);
-        usleep(200000);
+        TEMP_FAILURE_RETRY(usleep(200000));
         toggle_os_keylockstates(p_dev->fd, keylockstates);
     }
     else
