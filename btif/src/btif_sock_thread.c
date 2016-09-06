@@ -225,6 +225,7 @@ static void free_thread_slot(int h)
     {
         close_cmd_fd(h);
         ts[h].used = 0;
+        ts[h].thread_id = -1;
     }
     else APPL_TRACE_ERROR("invalid thread handle:%d", h);
 }
@@ -648,7 +649,6 @@ static void *sock_poll_thread(void *arg)
         }
         else {APPL_TRACE_DEBUG("no data, select ret: %d", ret)};
     }
-    ts[h].thread_id = -1;
     APPL_TRACE_DEBUG("socket poll thread exiting, h:%d", h);
     return 0;
 }

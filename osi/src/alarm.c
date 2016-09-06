@@ -207,7 +207,7 @@ void alarm_cleanup(void) {
 
   semaphore_free(alarm_expired);
   alarm_expired = NULL;
-  timer_delete(&timer);
+  timer_delete(timer);
   list_free(alarms);
   alarms = NULL;
 
@@ -337,7 +337,8 @@ done:
 
 // Callback function for wake alarms and our posix timer
 static void timer_callback(UNUSED_ATTR void *ptr) {
-  semaphore_post(alarm_expired);
+  if (callback_thread_active)
+    semaphore_post(alarm_expired);
 }
 
 // Function running on |callback_thread| that dispatches alarm callbacks upon
