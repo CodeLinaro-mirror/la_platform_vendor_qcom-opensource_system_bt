@@ -207,7 +207,7 @@ enum {
    but due to link flow control or thread preemption in lower
    layers we might need to temporarily buffer up data */
 /* 18 frames is equivalent to 6.89*18*2.9 ~= 360 ms @ 44.1 khz, 20 ms mediatick */
-#define MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ 10
+#define MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ 18
 #ifndef MAX_PCM_FRAME_NUM_PER_TICK
 #define MAX_PCM_FRAME_NUM_PER_TICK     14
 #endif
