@@ -206,12 +206,10 @@ void LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
   if (trace_layer >= TRACE_LAYER_MAX_NUM)
     trace_layer = 0;
 
-  strcpy(&buffer[offset], "bt_stack : ");
-  offset += strlen("bt_stack : ");
-  strcpy(&buffer[offset], bt_layer_tags[trace_layer]);
-  offset += strlen(bt_layer_tags[trace_layer]);
-  strcpy(&buffer[offset], " : ");
-  offset += strlen(" : ");
+  offset += strlen("bt_stack : ") +
+            strlen(bt_layer_tags[trace_layer]) + strlen(" : ");
+  snprintf(buffer, offset+1 , "bt_stack : %s : ",
+        bt_layer_tags[trace_layer]);
 
   va_list ap;
   va_start(ap, fmt_str);

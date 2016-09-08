@@ -53,7 +53,7 @@
 #define LOG_TAG "bt_btif_sock"
 #include "btif_common.h"
 #include "btif_util.h"
-
+#include "osi/include/compat.h"
 
 #include "bta_api.h"
 #include "btif_sock.h"
@@ -136,7 +136,7 @@ static inline int create_server_socket(const char* name)
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_LOCAL;
-    strncpy(addr.sun_path, name, sizeof(addr.sun_path)-1);
+    strlcpy(addr.sun_path, name, sizeof(addr.sun_path));
     unlink(name);
     if (!(bind(s, (struct sockaddr*)&addr, sizeof(addr))))
 #endif
