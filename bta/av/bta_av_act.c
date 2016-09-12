@@ -158,6 +158,7 @@ void bta_av_del_rc(tBTA_AV_RCB *p_rcb)
         {
             p_rcb->status = 0;
             p_rcb->handle = BTA_AV_RC_HANDLE_NONE;
+            APPL_TRACE_DEBUG("bta_av_del_rc:  AVRCP Remote Handle = %d", p_rcb->handle);
             p_rcb->shdl = 0;
             p_rcb->lidx = 0;
         }
@@ -388,6 +389,7 @@ UINT8 bta_av_rc_create(tBTA_AV_CB *p_cb, UINT8 role, UINT8 shdl, UINT8 lidx)
     }
 
     p_rcb->handle = rc_handle;
+    APPL_TRACE_IMP("bta_av_rc_create AVRCP Remote Handle = %d", rc_handle);
     p_rcb->status = status;
     p_rcb->shdl = shdl;
     p_rcb->lidx = lidx;
@@ -2276,16 +2278,13 @@ void bta_av_rc_closed(tBTA_AV_DATA *p_data)
             {
                 /* AVCT CCB is deallocated */
                 p_rcb->handle = BTA_AV_RC_HANDLE_NONE;
+                APPL_TRACE_DEBUG("bta_av_rc_closed AVRCP Remote Handle = %d",p_rcb->handle);
                 p_rcb->status = 0;
             }
             else
             {
                 /* AVCT CCB is still there. dealloc */
                 bta_av_del_rc(p_rcb);
-
-                /* if the AVRCP is no longer listening, create the listening channel */
-                if (bta_av_cb.rc_acp_handle == BTA_AV_RC_HANDLE_NONE && bta_av_cb.features & BTA_AV_FEAT_RCTG)
-                    bta_av_rc_create(&bta_av_cb, AVCT_ACP, 0, BTA_AV_NUM_LINKS + 1);
             }
         }
         else if((p_rcb->handle != BTA_AV_RC_HANDLE_NONE) && (p_rcb->status & BTA_AV_RC_CONN_MASK))
