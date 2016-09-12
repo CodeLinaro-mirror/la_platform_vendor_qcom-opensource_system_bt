@@ -618,8 +618,10 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
                 bta_ar_reg_avct(p_bta_av_cfg->avrc_mtu, p_bta_av_cfg->avrc_br_mtu,
                                 (UINT8)(bta_av_cb.sec_mask & (~BTA_SEC_AUTHORIZE)), BTA_ID_AV);
 #endif
+                if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
                 bta_ar_reg_avrc(UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
                      p_bta_av_cfg->avrc_tg_cat, BTA_ID_AV,(bta_av_cb.features & BTA_AV_FEAT_BROWSE));
+                }
 #endif
             }
 
