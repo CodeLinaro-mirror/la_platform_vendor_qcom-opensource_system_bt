@@ -274,7 +274,7 @@ static void btsock_l2cap_free_l(l2cap_socket *sock)
 
     //lower-level close() should be idempotent... so let's call it and see...
     // Only call if we are non server connections
-    if (sock->handle && (sock->server == FALSE)) {
+    if ((sock->handle >= 0) && (sock->server == FALSE)) {
         if (sock->fixed_chan)
             BTA_JvL2capCloseLE(sock->handle);
         else
@@ -286,6 +286,11 @@ static void btsock_l2cap_free_l(l2cap_socket *sock)
         } else {
             BTA_JvFreeChannel(sock->channel, BTA_JV_CONN_TYPE_L2CAP);
         }
+        if(!sock->fixed_chan) {
+           APPL_TRACE_DEBUG(" stopping l2cap server chnl %d", sock->channel);
+           BTA_JvL2capStopServer ( sock->channel, (void*)sock->id);
+        }
+
     }
 
     APPL_TRACE_DEBUG("SOCK_LIST: free(id = %d)", sock->id);
