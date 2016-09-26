@@ -20,6 +20,7 @@
 
 #include <assert.h>
 #include <cutils/properties.h>
+#include <errno.h>
 #include <string.h>
 #include <signal.h>
 #include <string.h>
@@ -29,6 +30,7 @@
 #include "btsnoop.h"
 #include "osi/include/fixed_queue.h"
 #include "osi/include/future.h"
+#include "osi/include/compat.h"
 #include "hcidefs.h"
 #include "hcimsgs.h"
 #include "hci_hal.h"
@@ -545,7 +547,7 @@ static void command_timed_out(UNUSED_ATTR void *context) {
 
   LOG_ERROR("%s restarting the bluetooth process.", __func__);
   ssr_cleanup(0x22);//SSR reasno 0x22 = CMD TO
-  usleep(20000);
+  TEMP_FAILURE_RETRY(usleep(20000));
   //Reset SOC status to trigger hciattach service
   if (property_set_bt("bluetooth.status", "off") < 0) {
      LOG_ERROR("hci_cmd_timeout: Error resetting SOC status\n ");
@@ -560,7 +562,7 @@ static void command_timed_out(UNUSED_ATTR void *context) {
 // This function is not required to read all of a packet in one go, so
 // be wary of reentry. But this function must return after finishing a packet.
 static void hal_says_data_ready(serial_data_type_t type) {
-  LOG_VERBOSE("%s", __func__);
+  //LOG_VERBOSE("%s", __func__);
 
   packet_receive_data_t *incoming = &incoming_packets[PACKET_TYPE_TO_INBOUND_INDEX(type)];
 
@@ -570,7 +572,7 @@ static void hal_says_data_ready(serial_data_type_t type) {
 
   uint8_t byte;
   while (hal->read_data(type, &byte, 1, false) != 0) {
-    LOG_VERBOSE("%s, incoming state is %d", __func__, incoming->state);
+    //LOG_VERBOSE("%s, incoming state is %d", __func__, incoming->state);
 #ifdef QCOM_WCN_SSR
     reset = hal->dev_in_reset();
     if (reset) {
@@ -665,7 +667,7 @@ static void hal_says_data_ready(serial_data_type_t type) {
     }
 
     if (incoming->state == FINISHED) {
-      LOG_VERBOSE("%s, finished receiving", __func__);
+      //LOG_VERBOSE("%s, finished receiving", __func__);
 
       incoming->buffer->len = incoming->index;
       btsnoop->capture(incoming->buffer, true);
@@ -684,7 +686,7 @@ static void hal_says_data_ready(serial_data_type_t type) {
           uint8_t event_code;
           STREAM_TO_UINT8(event_code, stream);
 
-          LOG_VERBOSE("%s, dispatch packet", __func__);
+          //LOG_VERBOSE("%s, dispatch packet", __func__);
           data_dispatcher_dispatch(
             interface.event_dispatcher,
             event_code,
@@ -704,7 +706,7 @@ static void hal_says_data_ready(serial_data_type_t type) {
       // We return after a packet is finished for two reasons:
       // 1. The type of the next packet could be different.
       // 2. We don't want to hog cpu time.
-      LOG_VERBOSE("%s, return back", __func__);
+      //LOG_VERBOSE("%s, return back", __func__);
       return;
     }
   }

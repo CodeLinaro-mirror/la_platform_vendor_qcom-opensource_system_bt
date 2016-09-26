@@ -72,6 +72,7 @@
 #include "osi/include/list.h"
 #include "mca_api.h"
 #include "osi/include/log.h"
+#include "osi/include/compat.h"
 
 #define MAX_DATATYPE_SUPPORTED 8
 
@@ -4795,9 +4796,9 @@ void btif_hl_select_monitor_callback(fd_set *p_cur_set ,fd_set *p_org_set) {
                     btif_hl_free_buf((void **) &p_dcb->p_tx_pkt);
                 }
                 p_dcb->p_tx_pkt = btif_hl_get_buf (p_dcb->mtu);
-                if (p_dcb) {
-                    int r = (int)recv(p_scb->socket_id[1], p_dcb->p_tx_pkt,
-                            p_dcb->mtu, MSG_DONTWAIT);
+                if (p_dcb->p_tx_pkt) {
+                    int r = (int)TEMP_FAILURE_RETRY(recv(p_scb->socket_id[1], p_dcb->p_tx_pkt,
+                            p_dcb->mtu, MSG_DONTWAIT));
                     if (r > 0) {
                         BTIF_TRACE_DEBUG("btif_hl_select_monitor_callback send data r =%d", r);
                         p_dcb->tx_size = r;
@@ -4853,7 +4854,7 @@ static inline int btif_hl_select_wakeup_init(fd_set* set){
 static inline int btif_hl_select_wakeup(void){
     char sig_on = btif_hl_signal_select_wakeup;
     BTIF_TRACE_DEBUG("btif_hl_select_wakeup");
-    return send(signal_fds[1], &sig_on, sizeof(sig_on), 0);
+    return TEMP_FAILURE_RETRY(send(signal_fds[1], &sig_on, sizeof(sig_on), 0));
 }
 
 /*******************************************************************************
@@ -4868,7 +4869,7 @@ static inline int btif_hl_select_wakeup(void){
 static inline int btif_hl_select_close_connected(void){
     char sig_on = btif_hl_signal_select_close_connected;
     BTIF_TRACE_DEBUG("btif_hl_select_close_connected");
-    return send(signal_fds[1], &sig_on, sizeof(sig_on), 0);
+    return TEMP_FAILURE_RETRY(send(signal_fds[1], &sig_on, sizeof(sig_on), 0));
 }
 
 /*******************************************************************************
@@ -4885,7 +4886,7 @@ static inline int btif_hl_close_select_thread(void)
     int result = 0;
     char sig_on = btif_hl_signal_select_exit;
     BTIF_TRACE_DEBUG("btif_hl_signal_select_exit");
-    result = send(signal_fds[1], &sig_on, sizeof(sig_on), 0);
+    result = TEMP_FAILURE_RETRY(send(signal_fds[1], &sig_on, sizeof(sig_on), 0));
     if (btif_is_enabled())
     {
         /* Wait for the select_thread_id to exit if BT is still enabled
@@ -4912,7 +4913,7 @@ static inline int btif_hl_select_wake_reset(void){
     char sig_recv = 0;
 
     BTIF_TRACE_DEBUG("btif_hl_select_wake_reset");
-    recv(signal_fds[0], &sig_recv, sizeof(sig_recv), MSG_WAITALL);
+    TEMP_FAILURE_RETRY(recv(signal_fds[0], &sig_recv, sizeof(sig_recv), MSG_WAITALL));
     return(int)sig_recv;
 }
 /*******************************************************************************
@@ -4973,7 +4974,7 @@ static void *btif_hl_select_thread(void *arg){
         BTIF_TRACE_DEBUG("set curr_set = org_set ");
         curr_set = org_set;
         max_curr_s = max_org_s;
-        int ret = select((max_curr_s + 1), &curr_set, NULL, NULL, NULL);
+        int ret = TEMP_FAILURE_RETRY(select((max_curr_s + 1), &curr_set, NULL, NULL, NULL));
         BTIF_TRACE_DEBUG("select unblocked ret=%d", ret);
         if (ret == -1)
         {

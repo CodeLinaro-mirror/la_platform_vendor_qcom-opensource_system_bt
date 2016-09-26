@@ -23,7 +23,7 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <pthread.h>
-
+#include <unistd.h>
 #define LOG_TAG "BTIF_SOCK"
 #include "osi/include/allocator.h"
 #include "btif_common.h"
@@ -274,7 +274,7 @@ static void btsock_l2cap_free_l(l2cap_socket *sock)
 
     //lower-level close() should be idempotent... so let's call it and see...
     // Only call if we are non server connections
-    if (sock->handle && (sock->server == FALSE)) {
+    if ((sock->handle >= 0) && (sock->server == FALSE)) {
         if (sock->fixed_chan)
             BTA_JvL2capCloseLE(sock->handle);
         else
@@ -286,6 +286,11 @@ static void btsock_l2cap_free_l(l2cap_socket *sock)
         } else {
             BTA_JvFreeChannel(sock->channel, BTA_JV_CONN_TYPE_L2CAP);
         }
+        if(!sock->fixed_chan) {
+           APPL_TRACE_DEBUG(" stopping l2cap server chnl %d", sock->channel);
+           BTA_JvL2capStopServer ( sock->channel, (void*)sock->id);
+        }
+
     }
 
     APPL_TRACE_DEBUG("SOCK_LIST: free(id = %d)", sock->id);
@@ -976,7 +981,7 @@ static BOOLEAN flush_incoming_que_on_wr_signal_l(l2cap_socket *sock)
     uint32_t len;
 
     while (packet_get_head_l(sock, &buf, &len)) {
-        int sent = send(sock->our_fd, buf, len, MSG_DONTWAIT);
+        int sent = TEMP_FAILURE_RETRY(send(sock->our_fd, buf, len, MSG_DONTWAIT));
 
         if (sent == (signed)len)
             osi_free(buf);
@@ -1010,7 +1015,7 @@ void btsock_l2cap_signaled(int fd, int flags, uint32_t user_id)
             if (sock->connected) {
                 int size = 0;
 
-                if (!(flags & SOCK_THREAD_FD_EXCEPTION) || (ioctl(sock->our_fd, FIONREAD, &size)
+                if (!(flags & SOCK_THREAD_FD_EXCEPTION) || (TEMP_FAILURE_RETRY(ioctl(sock->our_fd, FIONREAD, &size))
                         == 0 && size)) {
                     uint8_t *buffer = osi_malloc(L2CAP_MAX_SDU_LENGTH);
                     //uint8_t *buffer = (uint8_t*)GKI_getbuf(L2CAP_MAX_SDU_LENGTH);
@@ -1036,8 +1041,8 @@ void btsock_l2cap_signaled(int fd, int flags, uint32_t user_id)
                          * UPDATE: Since we are responsible for freeing the buffer in the
                          * write_complete_ind, it is OK to use malloc. */
 
-                        int count = recv(fd, buffer, L2CAP_MAX_SDU_LENGTH,
-                                MSG_NOSIGNAL | MSG_DONTWAIT);
+                        int count = TEMP_FAILURE_RETRY(recv(fd, buffer, L2CAP_MAX_SDU_LENGTH,
+                                MSG_NOSIGNAL | MSG_DONTWAIT));
                         APPL_TRACE_DEBUG("btsock_l2cap_signaled - %d bytes received from socket",
                                 count);
                         if (sock->fixed_chan) {
@@ -1069,7 +1074,7 @@ void btsock_l2cap_signaled(int fd, int flags, uint32_t user_id)
         }
         if (drop_it || (flags & SOCK_THREAD_FD_EXCEPTION)) {
             int size = 0;
-            if (drop_it || ioctl(sock->our_fd, FIONREAD, &size) != 0 || size == 0)
+            if (drop_it || TEMP_FAILURE_RETRY(ioctl(sock->our_fd, FIONREAD, &size)) != 0 || size == 0)
                 btsock_l2cap_free_l(sock);
         }
     }

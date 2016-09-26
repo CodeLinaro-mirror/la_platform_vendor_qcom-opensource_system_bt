@@ -20,7 +20,7 @@
 
 #include <features.h>
 #include <sys/types.h>
-
+#include <unistd.h>
 #if __GLIBC__
 
 /* Get thread identification. */
