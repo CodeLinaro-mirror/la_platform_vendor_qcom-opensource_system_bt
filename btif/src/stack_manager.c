@@ -190,6 +190,7 @@ static void event_clean_up_stack(UNUSED_ATTR void *context) {
 
   future_await(hack_future);
   //module_clean_up(get_module(OSI_MODULE));
+  alarm_cleanup();
   module_management_stop();
   LOG_DEBUG("%s finished.", __func__);
 }

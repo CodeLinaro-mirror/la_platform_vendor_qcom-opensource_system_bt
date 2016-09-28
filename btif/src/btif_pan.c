@@ -295,9 +295,8 @@ void destroy_tap_read_thread(void)
 {
     if (pan_pth >= 0)
     {
-        //Todo: Fix Me
-        //btsock_thread_exit(pan_pth);
-        //pan_pth = -1;
+        btsock_thread_exit(pan_pth);
+        pan_pth = -1;
     }
 }
 

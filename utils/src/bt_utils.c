@@ -186,9 +186,10 @@ static void check_do_scheduling_group(void) {
 #ifndef ANDROID
 int property_get_bt(const char *key, char *value, const char *default_value)
 {
-    char prop_string[200];
+    char prop_string[200] = {'\0'};
     int ret, bytes_read = 0, i = 0;
-    sprintf(prop_string, "get_property %s,", key);
+
+    snprintf(prop_string, sizeof(prop_string), "get_property %s,", key);
     ret = send(bt_prop_socket, prop_string, strlen(prop_string), 0);
     memset(value, 0, sizeof(value));
     do
@@ -208,7 +209,7 @@ int property_get_bt(const char *key, char *value, const char *default_value)
     if (!i && default_value)
     {
         ALOGD("property_get_bt: Copied default =%s", default_value);
-        strncpy(value, default_value, strlen(default_value));
+        strlcpy(value, default_value, strlen(default_value)+1);
         return 1;
     }
     return 0;
@@ -218,9 +219,9 @@ int property_get_bt(const char *key, char *value, const char *default_value)
 */
 int property_set_bt(const char *key, const char *value)
 {
-    char prop_string[200];
+    char prop_string[200] = {'\0'};
     int ret;
-    sprintf(prop_string, "set_property %s %s,", key, value);
+    snprintf(prop_string, sizeof(prop_string), "set_property %s %s,", key, value);
     ALOGD("property_set_bt: setting key(%s) to value: %s\n", key, value);
     ret = send(bt_prop_socket, prop_string, strlen(prop_string), 0);
     return 0;

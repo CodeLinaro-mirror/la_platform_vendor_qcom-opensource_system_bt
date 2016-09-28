@@ -49,7 +49,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <cutils/log.h>
 #endif
 #include "osi/include/config.h"
-
+#include "osi/include/compat.h"
 
 #define MAX_FILE_SIZE 1024*1024*20
 
@@ -214,7 +214,7 @@ int snoop_connect_to_source (void)
     {
         memset(&serv_addr, 0, sizeof(serv_addr));
         serv_addr.sun_family = AF_LOCAL;
-        strncpy(serv_addr.sun_path, LOCAL_SOCKET_NAME, sizeof(serv_addr.sun_path)-1);
+        strlcpy(serv_addr.sun_path, LOCAL_SOCKET_NAME, sizeof(serv_addr.sun_path));
 
         do
         {
@@ -361,7 +361,7 @@ int main (int argc, char * argv[])
     if (!config)
     {
         snoop_log("%s file >%s< not found", __func__, path);
-        strcpy(ext_snoop_file_prefix, "/data/media/0/hci_snoop");
+        strlcpy(ext_snoop_file_prefix, "/data/media/0/hci_snoop", strlen("/data/media/0/hci_snoop")+1);
     }
     else
     {
@@ -383,20 +383,20 @@ int main (int argc, char * argv[])
                 char *tmp;
 
 #ifdef ANDROID
-                strcpy(ext_snoop_file_prefix, "/data/media/0/");
+                strlcpy(ext_snoop_file_prefix, "/data/media/0/", strlen("/data/media/0/")+1);
 #else
-                strcpy(ext_snoop_file_prefix, "/sdcard/");
+                strlcpy(ext_snoop_file_prefix, "/sdcard/", strlen("/sdcard/")+1);
 #endif
                 tmp = snoop_file_prefix + strlen("/sdcard/");
                 if (tmp != NULL)
                 {
-                    strcat(ext_snoop_file_prefix, tmp);
+                    strlcat(ext_snoop_file_prefix, tmp, sizeof(ext_snoop_file_prefix));
                     snoop_log("path created %s", ext_snoop_file_prefix);
                 }
             }
             else
             {
-                strcpy(ext_snoop_file_prefix, snoop_file_prefix);
+                strlcpy(ext_snoop_file_prefix, snoop_file_prefix, (strlen(snoop_file_prefix) + 1));
                 snoop_log("path created %s", ext_snoop_file_prefix);
             }
         }

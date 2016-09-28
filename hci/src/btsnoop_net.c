@@ -37,7 +37,7 @@
 
 #include "osi/include/osi.h"
 #include "osi/include/log.h"
-
+#include "osi/include/compat.h"
 static void safe_close_(int *fd);
 static void *listen_fn_(void *context);
 
@@ -75,7 +75,7 @@ static int local_socket_create(void) {
 #else
   memset(&addr, 0, sizeof(addr));
   addr.sun_family = AF_LOCAL;
-  strncpy(addr.sun_path, LOCAL_SOCKET_NAME, sizeof(addr.sun_path)-1);
+  strlcpy(addr.sun_path, LOCAL_SOCKET_NAME, sizeof(addr.sun_path));
   unlink(LOCAL_SOCKET_NAME);
   if (bind(listen_socket_local_, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
 #endif

@@ -113,8 +113,7 @@ void btif_sock_cleanup(void) {
 
   thread_stop(thread);
   thread_join(thread);
-  //TODO: Fixme
-  //btsock_thread_exit(thread_handle);
+  btsock_thread_exit(thread_handle);
   btsock_rfc_cleanup();
 #if (defined BTM_SCO_INCLUDED && BTM_SCO_INCLUDED == TRUE)
   btsock_sco_cleanup();
