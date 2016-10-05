@@ -1257,8 +1257,8 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB *p_scb, UINT16 cmd, UINT8 arg_type,
             /* store peer features */
             p_scb->peer_features = (UINT16) int_arg;
             features = p_scb->features & BTA_AG_BSRF_FEAT_SPEC;
-            /* if the devices is blacklisted, report DUT's HFP version as 1.6 */
-            if (is_dev_blacklisted_for_hfpversion(p_scb->peer_addr))
+            /* if the devices does not support HFP 1.7, report DUT's HFP version as 1.6 */
+            if (p_scb->peer_version < HFP_VERSION_1_7)
             {
                 features = features & ~(BTA_AG_FEAT_HFIND | BTA_AG_FEAT_S4);
             }
