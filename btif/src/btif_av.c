@@ -43,6 +43,7 @@
 #include "btif_profile_queue.h"
 #include "bta_api.h"
 #include "btif_media.h"
+#include "btif_storage.h"
 #include "bta_av_api.h"
 #include "gki.h"
 #include "btu.h"
@@ -2332,6 +2333,17 @@ static bt_status_t connect_int(bt_bdaddr_t *bd_addr, uint16_t uuid)
     connect_req.target_bda = bd_addr;
     connect_req.uuid = uuid;
     BTIF_TRACE_EVENT("%s", __FUNCTION__);
+
+    if (!btif_storage_is_device_bonded(bd_addr))
+    {
+        bdstr_t bdstr;
+
+        BTIF_TRACE_ERROR("## connect_int ## Device Not Bonded : %s", bdaddr_to_string(bd_addr, bdstr, sizeof(bdstr)));
+        /* inform the application of the disconnection as the connection is not processed */
+        btif_report_connection_state(BTAV_CONNECTION_STATE_DISCONNECTED, bd_addr);
+        btif_queue_advance();
+        return BT_STATUS_SUCCESS;
+    }
 
     for (i = 0; i < btif_max_av_clients;)
     {
