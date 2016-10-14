@@ -31,6 +31,15 @@
 #include <limits.h>
 #include <stdio.h>
 
+#ifdef USE_ANDROID_LOGGING
+#include <utils/Log.h>
+#define LOG_TAG "bt_stack"
+#define LOG_VERBOSE(...) ALOGV(__VA_ARGS__)
+#define LOG_DEBUG(...)   ALOGD(__VA_ARGS__)
+#define LOG_INFO(...)   ALOGI(__VA_ARGS__)
+#define LOG_WARN(...)   ALOGW(__VA_ARGS__)
+#define LOG_ERROR(...)   ALOGE(__VA_ARGS__)
+#else
 #include <syslog.h>
 
 #define LOG_TAG "bt_stack : "
@@ -52,5 +61,6 @@
 #define LOG_INFO(fmt, arg...)  syslog (LOG_NOTICE, LOG_TAG fmt, ##arg)
 #define LOG_WARN(fmt, arg...)  syslog (LOG_WARNING, LOG_TAG fmt, ##arg)
 #define LOG_ERROR(fmt, arg...) syslog (LOG_ERR, LOG_TAG fmt, ##arg)
+#endif
 #endif
 

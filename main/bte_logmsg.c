@@ -71,11 +71,19 @@
 #define LOGW0(t,s) __android_log_write(ANDROID_LOG_WARN, t, s)
 #define LOGE0(t,s) __android_log_write(ANDROID_LOG_ERROR, t, s)
 #else
+#ifdef USE_ANDROID_LOGGING
+#include <utils/Log.h>
+#define LOGI0 ALOGI
+#define LOGD0 ALOGD
+#define LOGW0 ALOGW
+#define LOGE0 ALOGE
+#else
 #include <syslog.h>
 #define LOGI0(x) { syslog (LOG_NOTICE, x);}
 #define LOGD0(x) { syslog (LOG_NOTICE, x);}
 #define LOGW0(x) { syslog (LOG_WARNING, x);}
 #define LOGE0(x) { syslog (LOG_ERR, x);}
+#endif
 #endif
 
 #ifndef DEFAULT_CONF_TRACE_LEVEL
@@ -206,10 +214,16 @@ void LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
   if (trace_layer >= TRACE_LAYER_MAX_NUM)
     trace_layer = 0;
 
+#ifndef USE_ANDROID_LOGGING
   offset += strlen("bt_stack : ") +
             strlen(bt_layer_tags[trace_layer]) + strlen(" : ");
   snprintf(buffer, offset+1 , "bt_stack : %s : ",
         bt_layer_tags[trace_layer]);
+#else
+  offset += strlen(bt_layer_tags[trace_layer]) + strlen(" : ");
+  snprintf(buffer, offset+1 , "%s : ",
+        bt_layer_tags[trace_layer]);
+#endif
 
   va_list ap;
   va_start(ap, fmt_str);

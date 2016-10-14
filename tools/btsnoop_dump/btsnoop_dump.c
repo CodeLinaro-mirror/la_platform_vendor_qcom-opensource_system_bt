@@ -56,9 +56,15 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef ANDROID
 #define LOGD0(t,s) __android_log_write(ANDROID_LOG_DEBUG, t, s)
 #else
+#ifdef USE_ANDROID_LOGGING
+#include <utils/Log.h>
+#define LOGD0 ALOGD
+#else
 #include <sys/syslog.h>
 #define LOGD0(t,s) //syslog (LOG_NOTICE, t, s)
 #endif
+#endif
+
 
 static int file_descriptor = -1;
 uint32_t file_size = 0;
@@ -343,7 +349,7 @@ int main (int argc, char * argv[])
 {
     int sk, ret, bytes_recv;
     char *snoop_file_prefix = NULL;
-#ifndef ANDROID
+#ifndef USE_ANDROID_LOGGING
     openlog ("btsnoop", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
 #endif
     snoop_log ("btsnoop dump starting");
@@ -426,7 +432,7 @@ int main (int argc, char * argv[])
     }
 
     snoop_log("btsnoop dump terminated");
-#ifndef ANDROID
+#ifndef USE_ANDROID_LOGGING
     closelog ();
 #endif
     return 0;
