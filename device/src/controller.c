@@ -112,8 +112,8 @@ static future_t *start_up(void) {
 
   #ifdef QLOGKIT_USERDEBUG
   /* Enable SOC Logging */
-  UINT8       param[5] = {0x10,0x03,0x00,0x00,0x01};
-  BTM_VendorSpecificCommand(HCI_VS_HOST_LOG_OPCODE,5,param,NULL);
+  UINT8       param_enhlog[2] = {0x14, 0x01};
+  BTM_VendorSpecificCommand(HCI_VS_HOST_LOG_OPCODE, 2, param_enhlog, NULL);
   #endif
 
   // Read the local version info off the controller next, including

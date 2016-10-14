@@ -434,8 +434,8 @@ void bta_dm_disable (tBTA_DM_MSG *p_data)
 
 #ifdef QLOGKIT_USERDEBUG
     /* Disable SOC Logging */
-    UINT8       param[5] = {0x10,0x02,0x00,0x00,0x01};
-    BTM_VendorSpecificCommand(HCI_VS_HOST_LOG_OPCODE,5,param,NULL);
+    UINT8       param_enhlog[2] = {0x14, 0x00};
+    BTM_VendorSpecificCommand(HCI_VS_HOST_LOG_OPCODE, 2, param_enhlog, NULL);
 #endif
 
     if(BTM_GetNumAclLinks()==0)
