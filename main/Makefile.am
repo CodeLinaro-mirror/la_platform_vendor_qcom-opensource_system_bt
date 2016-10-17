@@ -38,6 +38,16 @@ AM_CPPFLAGS= \
         -I${WORKSPACE}/external/tinyxml2 \
         -I${WORKSPACE}/external/zlib
 
+if MDM_ROME
+AM_CFLAGS += -DBT_SOC_TYPE_ROME
+AM_CPPFLAGS += -DBT_SOC_TYPE_ROME
+else
+if MDM_PRONTO
+AM_CFLAGS += -DHCI_USE_MCT
+AM_CPPFLAGS += -DHCI_USE_MCT
+endif
+endif
+
 # HAL layer
 c_sources = \
         ../btif/src/bluetooth.c

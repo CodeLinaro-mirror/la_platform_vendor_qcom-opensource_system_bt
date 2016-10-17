@@ -68,6 +68,14 @@ AC_CHECK_HEADERS([fcntl.h stdlib.h string.h sys/socket.h sys/time.h termios.h un
 #
 # To add new components: add AC_ARG_ENABLE, AM_CONDITIONAL and update AC_OUTPUT
 #
+AC_ARG_ENABLE(target,
+  [AS_HELP_STRING([--enable-target=TARGET], [Specify the target product to build])],
+  [TARGET=$enableval],
+  [TARGET=none]
+)
+AM_CONDITIONAL([MDM_ROME], [test "x$TARGET" = "xmdm9607" -o "x$TARGET" = "xmdm9635" -o "x$TARGET" = "xmdm9640" -o "x$TARGET" = "xmdmcalifornium"])
+AM_CONDITIONAL([MDM_PRONTO], [test "x$TARGET" = "xapq8009" -o "x$TARGET" = "xapq8017" -o "x$TARGET" = "xapq8053"])
+
 AC_MSG_CHECKING(for zlib support)
 AC_ARG_WITH(zlib, AC_HELP_STRING([--with-zlib],[Enable zlib support for mod_compress]),
     [WITH_ZLIB=$withval],[WITH_ZLIB=yes])
