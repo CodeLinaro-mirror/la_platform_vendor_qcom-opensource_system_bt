@@ -43,6 +43,7 @@
 #include <hardware/bt_gatt.h>
 #include <hardware/bt_rc.h>
 #include <hardware/bt_sdp.h>
+#include <hardware/vendor.h>
 #ifdef WIPOWER_SUPPORTED
 #include <hardware/wipower.h>
 #endif
@@ -135,6 +136,8 @@ extern wipower_interface_t *get_wipower_interface();
 extern btrc_interface_t *btif_rc_ctrl_get_interface();
 /*SDP search client*/
 extern btsdp_interface_t *btif_sdp_get_interface();
+/* vendor  */
+extern btvendor_interface_t *btif_vendor_get_interface();
 
 #if (defined TEST_APP_INTERFACE && TEST_APP_INTERFACE == TRUE)
 extern const btl2cap_interface_t *btif_l2cap_get_interface(void);
@@ -200,13 +203,6 @@ static void cleanup(void) {
   stack_manager_get_interface()->clean_up_stack_async();
 }
 
-static void ssrcleanup(void)
-{
-#ifdef QCA_BT_ROME
-    btif_ssr_cleanup();
-#endif
-    return;
-}
 
 bool is_restricted_mode() {
   return restricted_mode;
@@ -402,6 +398,9 @@ static const void* get_profile_interface (const char *profile_id)
     if (is_profile(profile_id, BT_PROFILE_PAN_ID))
         return btif_pan_get_interface();
 
+    if (is_profile(profile_id, BT_PROFILE_VENDOR_ID))
+        return btif_vendor_get_interface();
+
 #if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_ID))
         return btif_av_get_src_interface();
@@ -557,7 +556,6 @@ static const bt_interface_t bluetoothInterface = {
     enable,
     disable,
     cleanup,
-    ssrcleanup,
     get_adapter_properties,
     get_adapter_property,
     set_adapter_property,

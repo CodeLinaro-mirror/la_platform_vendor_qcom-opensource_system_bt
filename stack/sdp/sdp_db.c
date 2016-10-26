@@ -752,7 +752,6 @@ BOOLEAN SDP_AddProfileDescriptorList (UINT32 handle, UINT16 profile_uuid,
     UINT8           *p_buff;
     UINT8           *p;
      BOOLEAN        result;
-
     if ((p_buff = (UINT8 *) GKI_getbuf(sizeof(UINT8) * SDP_MAX_ATTR_LEN)) == NULL)
     {
         SDP_TRACE_ERROR("SDP_AddProfileDescriptorList cannot get a buffer!");

@@ -36,7 +36,8 @@ AM_CPPFLAGS= \
         -I../audio_a2dp_hw \
         -I../utils/include \
         -I${WORKSPACE}/external/tinyxml2 \
-        -I${WORKSPACE}/external/zlib
+        -I${WORKSPACE}/external/zlib \
+        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/hal/include
 
 if MDM_ROME
 AM_CFLAGS += -DBT_SOC_TYPE_ROME
@@ -97,6 +98,7 @@ c_sources += \
         ../btif/src/btif_stack_log.c \
         ../btif/src/btif_storage.c \
         ../btif/src/btif_util.c \
+        ../btif/src/btif_vendor.c \
         ../btif/src/stack_manager.c \
         ../embdrv/sbc/decoder/srce/alloc.c \
         ../embdrv/sbc/decoder/srce/bitalloc.c \

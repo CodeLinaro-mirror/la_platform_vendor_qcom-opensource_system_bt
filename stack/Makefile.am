@@ -43,6 +43,7 @@ AM_CPPFLAGS = \
 c_sources:= \
         ./a2dp/a2d_api.c \
         ./a2dp/a2d_sbc.c \
+        ./a2dp/a2d_aptx.c \
         ./avrc/avrc_api.c \
         ./avrc/avrc_sdp.c \
         ./avrc/avrc_opt.c \

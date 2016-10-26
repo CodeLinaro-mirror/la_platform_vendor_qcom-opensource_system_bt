@@ -135,7 +135,7 @@ static btif_av_cb_t btif_av_cb[BTIF_AV_NUM_CB];
 static TIMER_LIST_ENT tle_av_open_on_rc;
 static btif_sm_event_t idle_rc_event;
 static tBTA_AV idle_rc_data;
-static int btif_max_av_clients = 1;
+int btif_max_av_clients = 1;
 static BOOLEAN enable_multicast = FALSE;
 static BOOLEAN is_multicast_supported = FALSE;
 static BOOLEAN multicast_disabled = FALSE;
@@ -205,7 +205,7 @@ extern void btif_rc_check_handle_pending_play (BD_ADDR peer_addr, BOOLEAN bSendT
 extern void btif_rc_get_playing_device(BD_ADDR address);
 extern void btif_rc_clear_playing_state(BOOLEAN play);
 extern void btif_rc_clear_priority(BD_ADDR address);
-extern void btif_rc_send_pause_command();
+extern void btif_rc_send_pause_command(int index);
 extern UINT16 btif_dm_get_br_edr_links();
 extern UINT16 btif_dm_get_le_links();
 
@@ -1083,7 +1083,6 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
                             /* when HS2 is connected during HS1 playing, stack directly
                              * sends start event hence update encoder so that least L2CAP
                              *  MTU is selected.*/
-                            //btif_a2dp_update_codec();
                             BTIF_TRACE_DEBUG("%s: A2dp Multicast playback",
                                     __FUNCTION__);
                         }
@@ -1448,7 +1447,7 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
                 if (enable_multicast == FALSE)
                 {
                     APPL_TRACE_WARNING("other Idx is connected, move to SUSPENDED");
-                    btif_rc_send_pause_command();
+                    btif_rc_send_pause_command(index);
                     btif_a2dp_on_stopped(&p_av->suspend);
                 }
             }
@@ -2787,6 +2786,11 @@ bt_status_t btif_av_execute_service(BOOLEAN b_enable)
           * be initiated by the app/audioflinger layers */
          /* Support for browsing for SDP record should work only if we enable BROWSE
           * while registering. */
+#ifndef ANDROID
+        /* No Plan to support Avrcp 1.3 and above feature sets on LE*/
+        BTA_AvEnable(BTA_SEC_AUTHENTICATE, (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_NO_SCO_SSPD
+            |BTA_AV_FEAT_ACP_START), bte_av_callback);
+#else
 #if (AVRC_METADATA_INCLUDED == TRUE)
         BTA_AvEnable(BTA_SEC_AUTHENTICATE,
             BTA_AV_FEAT_RCTG|BTA_AV_FEAT_METADATA|BTA_AV_FEAT_VENDOR|BTA_AV_FEAT_NO_SCO_SSPD
@@ -2794,12 +2798,13 @@ bt_status_t btif_av_execute_service(BOOLEAN b_enable)
 #if (AVRC_ADV_CTRL_INCLUDED == TRUE)
             |BTA_AV_FEAT_RCCT
             |BTA_AV_FEAT_ADV_CTRL
-			|BTA_AV_FEAT_BROWSE
+            |BTA_AV_FEAT_BROWSE
 #endif
             ,bte_av_callback);
 #else
         BTA_AvEnable(BTA_SEC_AUTHENTICATE, (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_NO_SCO_SSPD
             |BTA_AV_FEAT_ACP_START), bte_av_callback);
+#endif
 #endif
         for (i = 0; i < btif_max_av_clients; i++)
         {

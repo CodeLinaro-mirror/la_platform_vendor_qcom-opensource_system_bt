@@ -754,11 +754,13 @@ void handle_rc_connect (tBTA_AV_RC_OPEN *p_rc_open)
 
         if (bt_rc_callbacks)
         {
+#ifdef ANDROID
             result = uinput_driver_check();
             if(result == BT_STATUS_SUCCESS)
             {
                 init_uinput();
             }
+#endif
         }
         else
         {
@@ -846,7 +848,9 @@ void handle_rc_disconnect (tBTA_AV_RC_CLOSE *p_rc_close)
     {
         BTIF_TRACE_DEBUG("Clear UINPUT and transactions when zero RC left");
         init_all_transactions();
+#ifdef ANDROID
         close_uinput();
+#endif
     }
     if (!bdcmp(bd_null, rc_addr.address))
     {
@@ -1029,13 +1033,24 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
                                   __FUNCTION__, key_map[i].name);
                 return;
             }
+#ifdef ANDROID
             send_key(uinput_fd, key_map[i].mapped_id, pressed);
+#else
+            bdcpy(remote_address.address, btif_rc_cb[index].rc_addr);
+            HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id,
+                    pressed, &remote_address);
+#endif
             if ((key_map[i].release_quirk == 1) && (pressed == 1))
             {
                 GKI_delay(30); // 30ms
                 BTIF_TRACE_DEBUG("%s: AVRC %s Release quirk enabled, send release now",
                                   __FUNCTION__, key_map[i].name);
+#ifdef ANDROID
                 send_key(uinput_fd, key_map[i].mapped_id, 0);
+#else
+                HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id,
+                        0, &remote_address);
+#endif
             }
             break;
         }
@@ -1049,21 +1064,29 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
 /***************************************************************************
  *  Function       btif_rc_send_pause_command
  *
- *  - Argument:    None
+ *  - Argument:    Index
  *
  *  - Description: Sends PAUSE key event to Upper layer.
  *
  ***************************************************************************/
-void btif_rc_send_pause_command()
+void btif_rc_send_pause_command(int index)
 {
     int rc_id;
+    bt_bdaddr_t remote_address;
 
     rc_id = BTA_AV_RC_PAUSE;
     BTIF_TRACE_DEBUG("Send Pause to music if playing is remotely disconnected");
 
+#ifdef ANDROID
     send_key(uinput_fd, KEY_PAUSECD, 1);
     GKI_delay(30); // 30ms
     send_key(uinput_fd, KEY_PAUSECD, 0);
+#else
+    bdcpy(remote_address.address, btif_rc_cb[index].rc_addr);
+    HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, AVRC_ID_PAUSE, 1, &remote_address);
+    GKI_delay(30); // 30ms
+    HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, AVRC_ID_PAUSE, 0, &remote_address);
+#endif
 }
 
 /***************************************************************************
@@ -4019,7 +4042,9 @@ static void cleanup(void)
 {
     BTIF_TRACE_EVENT("## RC:  %s ##", __FUNCTION__);
     memset(&btif_rc_cb, 0, sizeof(btif_rc_cb_t));
+#ifdef ANDROID
     close_uinput();
+#endif
     if (bt_rc_callbacks)
     {
         bt_rc_callbacks = NULL;
