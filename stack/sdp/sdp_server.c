@@ -40,8 +40,11 @@
 
 #include "sdp_api.h"
 #include "sdpint.h"
+#include "device/include/interop.h"
+#include "btif/include/btif_storage.h"
 #include <errno.h>
 #include <cutils/properties.h>
+#include <hardware/bluetooth.h>
 
 #if SDP_SERVER_ENABLED == TRUE
 
@@ -54,11 +57,6 @@
 #define AVRCP_SUPPORTED_FEATURES_POSITION 1
 #define AVRCP_BROWSE_SUPPORT_BITMASK    0x40
 
-/* Few remote device does not understand AVRCP version greater
- * than 1.3 and falls back to 1.0, we would like to blacklist
- * and send AVRCP versio as 1.3.
- */
-static const UINT8 sdp_black_list_prefix[][3] = {};
 static const UINT8 sdp_hfp_black_list_prefix[][3] = {{0x94, 0x44, 0x44},  /* DUSTER carkit */
                                                      {0x00, 0x0E, 0x9F}}; /* BMW 7 series carkit */
 
@@ -165,24 +163,30 @@ int sdp_get_stored_avrc_tg_version(BD_ADDR addr)
 *******************************************************************************/
 BOOLEAN sdp_dev_blacklisted_for_avrcp15 (BD_ADDR addr)
 {
-    int blacklistsize = 0;
-    int i =0;
+    bt_bdaddr_t remote_bdaddr;
+    bdcpy(remote_bdaddr.address, addr);
 
-    if(sizeof(sdp_black_list_prefix) == 0)
-    {
-        SDP_TRACE_ERROR("No AVRCP Black Listed Device");
-        return FALSE;
-    }
+    if (interop_addr_match(INTEROP_ADV_AVRCP_VER_1_3, &remote_bdaddr)) {
+        bt_property_t prop_name;
+        bt_bdname_t bdname;
 
-    blacklistsize = sizeof(sdp_black_list_prefix)/sizeof(sdp_black_list_prefix[0]);
-    for (i=0; i < blacklistsize; i++)
-    {
-        if (0 == memcmp(sdp_black_list_prefix[i], addr, 3))
+        BTIF_STORAGE_FILL_PROPERTY(&prop_name, BT_PROPERTY_BDNAME,
+                               sizeof(bt_bdname_t), &bdname);
+        if (btif_storage_get_remote_device_property(&remote_bdaddr,
+                                              &prop_name) != BT_STATUS_SUCCESS)
         {
-            SDP_TRACE_ERROR("SDP Avrcp Version Black List Device");
+            SDP_TRACE_ERROR("%s: BT_PROPERTY_BDNAME failed, returning false", __func__);
+            return FALSE;
+        }
+
+        if (strlen((const char *)bdname.name) != 0 &&
+            interop_name_match(INTEROP_ADV_AVRCP_VER_1_3, (const char *)bdname.name))
+        {
+            SDP_TRACE_DEBUG("%s: advertise AVRCP version 1.3 for device", __func__);
             return TRUE;
         }
     }
+
     return FALSE;
 }
 

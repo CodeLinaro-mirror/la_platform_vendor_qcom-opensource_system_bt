@@ -77,6 +77,11 @@ static const interop_addr_t interop_addr_database[] = {
 
   // Fiat Carkit
   {{0x00, 0x14, 0x09,       0,0,0}, 3, INTEROP_INCREASE_AG_CONN_TIMEOUT},
+
+  // Marvel CK used in Mercedes C300/BMW 640i
+  // For a more specific black listing(e.g. just for Mercedes), both BD addr
+  // and device name has to be added for AVRCP 1.3 blacklisting
+  {{{0xa0, 0x56, 0xb2,      0,0,0}}, 3, INTEROP_ADV_AVRCP_VER_1_3},
 };
 
 static const interop_name_t interop_name_database[] = {
@@ -93,6 +98,7 @@ static const interop_name_t interop_name_database[] = {
 
   // Targus BT Laser Notebook Mouse
   {"Targus BT Laser Notebook Mouse", INTEROP_DISABLE_AUTH_FOR_HID_POINTING},
+  {"MB Bluetooth", INTEROP_ADV_AVRCP_VER_1_3},
 };
 
 static const interop_manufacturer_t interop_manufctr_database[] = {
