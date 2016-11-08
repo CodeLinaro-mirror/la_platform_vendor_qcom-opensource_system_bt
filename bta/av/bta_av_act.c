@@ -64,6 +64,10 @@
 #define BTA_AV_ACP_SIG_TIME_VAL 2000
 #endif
 
+#ifndef AVRC_CONNECT_RETRY_DELAY_MS
+#define AVRC_CONNECT_RETRY_DELAY_MS 2000
+#endif
+
 #ifndef AVRC_MIN_META_CMD_LEN
 #define AVRC_MIN_META_CMD_LEN 20
 #endif
@@ -2122,6 +2126,14 @@ void bta_av_rc_disc_done(tBTA_AV_DATA *p_data)
     }
 
     APPL_TRACE_DEBUG("rc_handle %d", rc_handle);
+    if (rc_handle == BTA_AV_RC_HANDLE_NONE)
+    {
+        if (AVRC_CheckIncomingConn(p_scb->peer_addr) == TRUE)
+        {
+            bta_sys_start_timer(&p_scb->timer, BTA_AV_SDP_AVRC_DISC_EVT, AVRC_CONNECT_RETRY_DELAY_MS);
+        }
+    }
+
     if (p_cb->sdp_a2d_snk_handle)
     {
         /* This is Sink + CT + TG(Abs Vol) */
