@@ -381,6 +381,8 @@
 /* subcode for VOIP Network Wifi */
 #define HCI_VSC_SUBCODE_VOIP_NETWORK_WIFI               0x01
 
+#define HCI_VSC_A2DP_PEER_TYPE_OCF   (0x00DE | HCI_GRP_VENDOR_SPECIFIC)
+
 /* subcode for multi adv feature */
 #define BTM_BLE_MULTI_ADV_SET_PARAM                     0x01
 #define BTM_BLE_MULTI_ADV_WRITE_ADV_DATA                0x02
