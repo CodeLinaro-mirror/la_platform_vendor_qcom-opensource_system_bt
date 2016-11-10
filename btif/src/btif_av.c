@@ -370,7 +370,21 @@ static void btif_initiate_av_open_timer_timeout(UNUSED_ATTR void *data)
 
 }
 
+static void set_a2dp_peer_type_hci_cmd_complete(tBTM_VSC_CMPL* p_data)
+{
+    UINT8  *stream, status;
 
+    if (p_data && (stream = (UINT8*)p_data->p_param_buf))
+    {
+        STREAM_TO_UINT8(status, stream);
+        if (status == HCI_SUCCESS)
+        {
+            BTIF_TRACE_DEBUG("set_a2dp_peer_type_hci_cmd_complete status success");
+        } else {
+            BTIF_TRACE_DEBUG("set_a2dp_peer_type_hci_cmd_complete status failure");
+        }
+    }
+}
 /*****************************************************************************
 **  Static functions
 ******************************************************************************/
@@ -428,7 +442,9 @@ static void btif_report_audio_state(btav_audio_state_t state, bt_bdaddr_t *bd_ad
 static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, int index)
 {
     int i;
-    char a2dp_role[255] = "false";
+    char a2dp_role[PROPERTY_VALUE_MAX] = "false";
+    UINT8 param[3];
+    UINT16 acl_hdl;
 
     BTIF_TRACE_IMP("%s event:%s flags %x on Index = %d", __FUNCTION__,
                      dump_av_sm_event_name(event), btif_av_cb[index].flags, index);
@@ -651,6 +667,18 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
                  * and update multicast state
                  */
                 btif_av_update_multicast_state(index);
+                if (btif_av_cb[index].peer_sep == AVDT_TSEP_SRC) {
+                    acl_hdl  = BTM_GetHCIConnHandle((UINT8 *)&btif_av_cb[index].peer_bda, BT_TRANSPORT_BR_EDR);
+                    param[0] = (UINT8)(acl_hdl & 0x00ff);
+                    param[1] = (UINT8)(((acl_hdl & 0xff00) >> 8) & 0x00ff);
+                    param[2] = AVDT_TSEP_SNK;
+                    if (BTM_CMD_STARTED !=
+                        BTM_VendorSpecificCommand(HCI_VSC_A2DP_PEER_TYPE_OCF, sizeof(param),
+                                 param, set_a2dp_peer_type_hci_cmd_complete))
+                    {
+                        BTIF_TRACE_ERROR("%s: HCI_VSC_A2DP_CODEC_TYPE_OCF failed ", __FUNCTION__);
+                    }
+                }
 
                 btif_av_cb[index].current_playing = TRUE;
                 if (enable_multicast == FALSE)
@@ -731,6 +759,9 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
 static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data, int index)
 {
     int i;
+    UINT8 param[5];
+    UINT16 acl_hdl;
+
     BTIF_TRACE_IMP("%s event:%s flags %x on index = %d", __FUNCTION__,
                      dump_av_sm_event_name(event), btif_av_cb[index].flags, index);
     switch (event)
@@ -849,6 +880,18 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
                     {
                         BTIF_TRACE_DEBUG("Trigger Dual A2dp Handoff on %d", index);
                         btif_av_trigger_dual_handoff(TRUE, btif_av_cb[index].peer_bda.address);
+                    }
+                }
+                if (btif_av_cb[index].peer_sep == AVDT_TSEP_SRC) {
+                    acl_hdl  = BTM_GetHCIConnHandle((UINT8 *)&btif_av_cb[index].peer_bda, BT_TRANSPORT_BR_EDR);
+                    param[0] = (UINT8)(acl_hdl & 0x00ff);
+                    param[1] = (UINT8)(((acl_hdl & 0xff00) >> 8) & 0x00ff);
+                    param[2] = AVDT_TSEP_SNK;
+                    if (BTM_CMD_STARTED !=
+                              BTM_VendorSpecificCommand(HCI_VSC_A2DP_PEER_TYPE_OCF, sizeof(param),
+                                param, set_a2dp_peer_type_hci_cmd_complete))
+                    {
+                        BTIF_TRACE_ERROR("%s: HCI_VSC_A2DP_CODEC_TYPE_OCF failed ", __FUNCTION__);
                     }
                 }
                 if (btif_av_cb[index].peer_sep == AVDT_TSEP_SNK)
