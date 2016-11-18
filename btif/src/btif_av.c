@@ -427,7 +427,7 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
             memcpy(&btif_av_cb[index].peer_bda, ((btif_av_connect_req_t*)p_data)->target_bda,
                                                                         sizeof(bt_bdaddr_t));
             BTA_AvOpen(btif_av_cb[index].peer_bda.address, btif_av_cb[index].bta_handle,
-                        TRUE, BTA_SEC_NONE, ((btif_av_connect_req_t*)p_data)->uuid);
+                        TRUE, BTA_SEC_AUTHENTICATE, ((btif_av_connect_req_t*)p_data)->uuid);
             btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_OPENING);
             break;
 
@@ -489,7 +489,7 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
                 if(event == BTA_AV_PENDING_EVT)
                 {
                     BTA_AvOpen(btif_av_cb[index].peer_bda.address, btif_av_cb[index].bta_handle,
-                       TRUE, BTA_SEC_NONE, UUID_SERVCLASS_AUDIO_SINK);
+                       TRUE, BTA_SEC_AUTHENTICATE, UUID_SERVCLASS_AUDIO_SINK);
                 }
                 else if(event == BTA_AV_RC_OPEN_EVT)
                 {
@@ -2465,7 +2465,7 @@ static void allow_connection(int is_valid, bt_bdaddr_t *bd_addr)
                 }
                 BTIF_TRACE_DEBUG("The connection is allowed for the device at index = %d", index);
                 BTA_AvOpen(btif_av_cb[index].peer_bda.address, btif_av_cb[index].bta_handle,
-                       TRUE, BTA_SEC_NONE, UUID_SERVCLASS_AUDIO_SOURCE);
+                       TRUE, BTA_SEC_AUTHENTICATE, UUID_SERVCLASS_AUDIO_SOURCE);
             }
             else
             {
@@ -2725,6 +2725,9 @@ bt_status_t btif_av_execute_service(BOOLEAN b_enable)
 *******************************************************************************/
 bt_status_t btif_av_sink_execute_service(BOOLEAN b_enable)
 {
+     int i;
+     BTIF_TRACE_IMP("%s: enable: %d", __FUNCTION__, b_enable);
+
      if (b_enable)
      {
          /* Added BTA_AV_FEAT_NO_SCO_SSPD - this ensures that the BTA does not
@@ -2738,9 +2741,20 @@ bt_status_t btif_av_sink_execute_service(BOOLEAN b_enable)
                                                                 UUID_SERVCLASS_AUDIO_SINK);
      }
      else {
-         BTA_AvDeregister(btif_av_cb[0].bta_handle);
-         BTA_AvDisable();
+         /* Also shut down the AV state machine */
+        for (i = 0; i < btif_max_av_clients; i++ )
+        {
+            if (btif_av_cb[i].sm_handle != NULL)
+            {
+                BTIF_TRACE_IMP("%s: shutting down AV SM", __FUNCTION__);
+                btif_sm_shutdown(btif_av_cb[i].sm_handle);
+                btif_av_cb[i].sm_handle = NULL;
+            }
+        }
+        BTA_AvDeregister(btif_av_cb[0].bta_handle);
+        BTA_AvDisable();
      }
+     BTIF_TRACE_IMP("%s: enable: %d completed", __FUNCTION__, b_enable);
      return BT_STATUS_SUCCESS;
 }
 /*******************************************************************************
