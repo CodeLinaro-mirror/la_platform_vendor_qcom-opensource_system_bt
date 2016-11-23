@@ -2858,9 +2858,9 @@ static void btif_media_task_aa_stop_tx(void)
        /* Stop the timer first */
        alarm_free(btif_media_cb.media_alarm);
        btif_media_cb.media_alarm = NULL;
-       btif_media_cb.is_tx_timer = FALSE;
     }
 
+    btif_media_cb.is_tx_timer = FALSE;
     UIPC_Close(UIPC_CH_ID_AV_AUDIO);
 
     /* Try to send acknowldegment once the media stream is
