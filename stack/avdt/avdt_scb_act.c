@@ -66,8 +66,6 @@ const UINT8 avdt_scb_role_evt[] = {
     AVDT_OPEN_CFM_EVT           /* AVDT_OPEN_INT */
 };
 
-extern UINT8* bta_av_get_current_codecInfo();
-
 #define NON_A2DP_MEDIA_CT 0xff
 /*******************************************************************************
 **

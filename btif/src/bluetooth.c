@@ -109,7 +109,7 @@ extern bthf_client_interface_t *btif_hf_client_get_interface();
 extern btav_interface_t *btif_av_get_src_interface();
 #endif
 #if (defined BTA_AV_SINK_INCLUDED && BTA_AV_SINK_INCLUDED == TRUE)
-extern btav_interface_t *btif_av_get_sink_interface();
+extern btav_interface_t *btif_avk_get_sink_interface();
 #endif
 /*rfc l2cap*/
 extern btsock_interface_t *btif_sock_get_interface();
@@ -133,11 +133,11 @@ extern btgatt_interface_t *btif_gatt_get_interface();
 #endif
 /* avrc target */
 extern btrc_interface_t *btif_rc_get_interface();
+/* avrc controller */
+extern btrc_ctrl_interface_t *btif_avk_rc_ctrl_get_interface();
 #ifdef WIPOWER_SUPPORTED
 extern wipower_interface_t *get_wipower_interface();
 #endif
-/* avrc controller */
-extern btrc_ctrl_interface_t *btif_rc_ctrl_get_interface();
 /*SDP search client*/
 extern btsdp_interface_t *btif_sdp_get_interface();
 /* vendor  */
@@ -425,7 +425,7 @@ static const void* get_profile_interface (const char *profile_id)
 
 #if (defined BTA_AV_SINK_INCLUDED && BTA_AV_SINK_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_SINK_ID))
-        return btif_av_get_sink_interface();
+        return btif_avk_get_sink_interface();
 #endif
 
 #if (defined BTA_HH_INCLUDED && BTA_HH_INCLUDED == TRUE)
@@ -463,7 +463,7 @@ static const void* get_profile_interface (const char *profile_id)
 
 #if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_AV_RC_CTRL_ID))
-        return btif_rc_ctrl_get_interface();
+        return btif_avk_rc_ctrl_get_interface();
 #endif
 
 #if (defined BTA_HF_CLIENT_INCLUDED && BTA_HF_CLIENT_INCLUDED == TRUE)
@@ -483,7 +483,7 @@ static const void* get_profile_interface (const char *profile_id)
 
 #if (defined BTA_AV_SINK_INCLUDED && BTA_AV_SINK_INCLUDED == TRUE)
      if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_SINK_VENDOR_ID))
-         return btif_av_get_sink_vendor_interface();
+         return btif_avk_get_sink_vendor_interface();
 #endif
 
 #if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
@@ -493,7 +493,7 @@ static const void* get_profile_interface (const char *profile_id)
 
 #if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
      if (is_profile(profile_id, BT_PROFILE_AV_RC_CTRL_VENDOR_ID))
-         return btif_rc_ctrl_vendor_get_interface();
+         return btif_avk_rc_ctrl_vendor_get_interface();
 #endif
 
     return NULL;
