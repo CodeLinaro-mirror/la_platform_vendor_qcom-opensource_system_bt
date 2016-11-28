@@ -61,6 +61,14 @@ c_sources+= \
         bte_conf.c \
         stack_config.c
 
+# BTC
+if BTC_SUPPORT
+AM_CFLAGS += -DBTC_INCLUDED=TRUE
+AM_CPPFLAGS += -DBTC_INCLUDED=TRUE -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btc/include
+c_sources+= \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btc/src/btc_common.c
+endif
+
 # BTIF
 c_sources += \
         ../btif/src/btif_av.c \
