@@ -111,15 +111,22 @@ typedef enum {
     BT_SOC_RESERVED
 } bt_soc_type;
 
+typedef enum {
+  LPM_CONFIG_ALL,
+  LPM_CONFIG_TX,
+  LPM_CONFIG_NONE
+} low_power_config_t;
+
 // Using a define here, because it can be stringified for the property lookup
 #define DEFAULT_STARTUP_TIMEOUT_MS 8000
 #define STRING_VALUE_OF(x) #x
+
+low_power_config_t lpm_config = LPM_CONFIG_NONE;
 
 static const uint32_t EPILOG_TIMEOUT_MS = 3000;
 static const uint32_t COMMAND_PENDING_TIMEOUT_MS = 8000;
 
 extern int soc_type;
-static uint32_t HARDWARE_ERROR_TIMEOUT_MS = 2000;
 
 // Our interface
 static bool interface_created;
@@ -198,6 +205,22 @@ static future_t *start_up(void) {
   // This value can change when you get a command complete or command status event.
   command_credits = 1;
   firmware_is_configured = false;
+
+  char prop_lpm_config[PROPERTY_VALUE_MAX];
+  osi_property_get("persist.service.bdroid.lpmcfg", prop_lpm_config, "all");
+  if (!strcmp(prop_lpm_config, "all")) {
+     // LPM configured for both Tx and Rx channels
+     lpm_config = LPM_CONFIG_ALL;
+  }
+  else if (!strcmp(prop_lpm_config, "tx")) {
+     // LPM configured for Tx channel only
+     lpm_config = LPM_CONFIG_TX;
+  }
+  else {
+     lpm_config = LPM_CONFIG_NONE;
+  }
+
+  LOG_INFO(LOG_TAG, "%s lpm configure value = %d.", __func__, lpm_config);
 
   pthread_mutex_init(&commands_pending_response_lock, NULL);
 
@@ -534,9 +557,21 @@ static void event_command_ready(fixed_queue_t *queue, UNUSED_ATTR void *context)
     pthread_mutex_unlock(&commands_pending_response_lock);
 
     // Send it off
-    low_power_manager->wake_assert();
+    if (LPM_CONFIG_TX == lpm_config) {
+        low_power_manager->stop_idle_timer();;
+    }
+    else {
+        low_power_manager->wake_assert();
+    }
+
     packet_fragmenter->fragment_and_dispatch(wait_entry->command);
-    low_power_manager->transmit_done();
+
+    if (LPM_CONFIG_TX == lpm_config) {
+        low_power_manager->start_idle_timer(false);
+    }
+    else {
+        low_power_manager->transmit_done();
+    }
 
     update_command_response_timer();
   }
@@ -604,18 +639,23 @@ static void command_timed_out(UNUSED_ATTR void *context) {
 
   if (soc_type == BT_SOC_ROME || soc_type == BT_SOC_CHEROKEE) {
     char value[PROPERTY_VALUE_MAX] = {0};
-    if( property_get("wc_transport.force_special_byte", value, "false") && !strcmp(value,"true")) {
+    uint32_t hardware_error_timeout_ms = 2000;
+    bool enabled = false;
+#ifdef ENABLE_DBG_FLAGS
+    enabled = true;
+#endif
+    if (property_get("wc_transport.force_special_byte", value, NULL))
+      enabled = (strcmp(value, "false") == 0) ? false : true;
+    if (enabled) {
       hardware_error_timer = alarm_new("hci.hardware_error_timer");
       if (!hardware_error_timer) {
         LOG_ERROR("%s unable to create hardware error timer.", __func__);
         usleep(2000000);
         kill(getpid(), SIGKILL);
       }
-      if(soc_type == BT_SOC_ROME)
-        HARDWARE_ERROR_TIMEOUT_MS = 2000000;
-      else if(soc_type == BT_SOC_CHEROKEE)
-        HARDWARE_ERROR_TIMEOUT_MS = 5000000;
-      alarm_set(hardware_error_timer, HARDWARE_ERROR_TIMEOUT_MS, hardware_error_timer_expired, NULL);
+      if(soc_type == BT_SOC_CHEROKEE)
+        hardware_error_timeout_ms = 5000;
+      alarm_set(hardware_error_timer, hardware_error_timeout_ms, hardware_error_timer_expired, NULL);
       return;
     }
   }
@@ -852,7 +892,6 @@ void ssr_cleanup (int reason) {
    }
    if (vendor != NULL) {
        vendor->ssr_cleanup(reason);
-       hal->close(); //clean up the UART stream
    } else {
        LOG_ERROR("%s: vendor is NULL", __func__);
    }
