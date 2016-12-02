@@ -25,6 +25,11 @@ AM_CPPFLAGS += -DHCI_USE_MCT
 endif
 endif
 
+if BTC_SUPPORT
+AM_CFLAGS += -DBTC_INCLUDED=TRUE
+AM_CPPFLAGS += -DBTC_INCLUDED=TRUE
+endif
+
 c_sources = \
         src/btsnoop.c \
         src/btsnoop_mem.c \

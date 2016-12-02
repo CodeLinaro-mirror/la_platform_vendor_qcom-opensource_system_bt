@@ -41,6 +41,9 @@
 #include "bta_ag_api.h"
 #include "device/include/controller.h"
 #include "osi/include/compat.h"
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+#include "btc_common.h"
+#endif
 /************************************************************************************
 **  Constants & Macros
 ************************************************************************************/
@@ -528,6 +531,16 @@ static void btif_hf_upstreams_evt(UINT16 event, char* p_param)
             {
                 HAL_CBACK(bt_hf_callbacks, connection_state_cb, btif_hf_cb[idx].state,
                                                         &btif_hf_cb[idx].connected_bda);
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+                if(BTHF_CONNECTION_STATE_CONNECTED == btif_hf_cb[idx].state)
+                {
+                    btc_post_msg(BLUETOOTH_HEADSET_CONNECTED);
+                }
+                else if(BTHF_CONNECTION_STATE_DISCONNECTED == btif_hf_cb[idx].state)
+                {
+                    btc_post_msg(BLUETOOTH_HEADSET_DISCONNECTED);
+                }
+#endif
             }
 
             if (btif_hf_cb[idx].state == BTHF_CONNECTION_STATE_DISCONNECTED)
@@ -545,6 +558,9 @@ static void btif_hf_upstreams_evt(UINT16 event, char* p_param)
                           btif_hf_cb[idx].handle);
             HAL_CBACK(bt_hf_callbacks, connection_state_cb, btif_hf_cb[idx].state,
                                                         &btif_hf_cb[idx].connected_bda);
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+            btc_post_msg(BLUETOOTH_HEADSET_DISCONNECTED);
+#endif
             bdsetany(btif_hf_cb[idx].connected_bda.address);
             btif_hf_cb[idx].peer_feat = 0;
             clear_phone_state_multihf(idx);
@@ -572,11 +588,17 @@ static void btif_hf_upstreams_evt(UINT16 event, char* p_param)
             hf_idx = idx;
             HAL_CBACK(bt_hf_callbacks, audio_state_cb, BTHF_AUDIO_STATE_CONNECTED,
                                                         &btif_hf_cb[idx].connected_bda);
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+            btc_post_msg(BLUETOOTH_HEADSET_AUDIO_STREAM_STARTED);
+#endif
             break;
 
         case BTA_AG_AUDIO_CLOSE_EVT:
             HAL_CBACK(bt_hf_callbacks, audio_state_cb, BTHF_AUDIO_STATE_DISCONNECTED,
                                                            &btif_hf_cb[idx].connected_bda);
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+            btc_post_msg(BLUETOOTH_HEADSET_AUDIO_STREAM_STOPPED);
+#endif
             break;
 
         /* BTA auto-responds, silently discard */

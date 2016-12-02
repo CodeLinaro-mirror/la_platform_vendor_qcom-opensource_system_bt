@@ -60,6 +60,9 @@
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
 #include "stack/btm/btm_int.h"
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+#include "btc_common.h"
+#endif
 
 /******************************************************************************
 **  Constants & Macros
@@ -1561,6 +1564,9 @@ static void btif_dm_search_devices_evt (UINT16 event, char *p_param)
         case BTA_DM_DISC_CMPL_EVT:
         {
             HAL_CBACK(bt_hal_cbacks, discovery_state_changed_cb, BT_DISCOVERY_STOPPED);
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+            btc_post_msg(BLUETOOTH_DISCOVERY_FINISHED);
+#endif
         }
         break;
         case BTA_DM_SEARCH_CANCEL_CMPL_EVT:
@@ -1582,6 +1588,9 @@ static void btif_dm_search_devices_evt (UINT16 event, char *p_param)
                                         bte_scan_filt_param_cfg_evt, 0);
 #endif
                HAL_CBACK(bt_hal_cbacks, discovery_state_changed_cb, BT_DISCOVERY_STOPPED);
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+               btc_post_msg(BLUETOOTH_DISCOVERY_FINISHED);
+#endif
            }
         }
         break;
@@ -1952,12 +1961,18 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
                 {
                        HAL_CBACK(bt_hal_cbacks, discovery_state_changed_cb,
                                                 BT_DISCOVERY_STARTED);
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+                       btc_post_msg(BLUETOOTH_DISCOVERY_STARTED);
+#endif
                        btif_dm_inquiry_in_progress = TRUE;
                 }
                 else if (p_data->busy_level.level_flags == BTM_BL_INQUIRY_CANCELLED)
                 {
                        HAL_CBACK(bt_hal_cbacks, discovery_state_changed_cb,
                                                 BT_DISCOVERY_STOPPED);
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+                       btc_post_msg(BLUETOOTH_DISCOVERY_FINISHED);
+#endif
                        btif_dm_inquiry_in_progress = FALSE;
                 }
                 else if (p_data->busy_level.level_flags == BTM_BL_INQUIRY_COMPLETE)
@@ -2003,6 +2018,9 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
 
             HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
                       &bd_addr, BT_ACL_STATE_CONNECTED);
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+            btc_post_msg(BLUETOOTH_DEVICE_CONNECTED);
+#endif
             break;
 
         case BTA_DM_LINK_DOWN_EVT:
@@ -2030,6 +2048,9 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             BTIF_TRACE_DEBUG("BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
             HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
                       &bd_addr, BT_ACL_STATE_DISCONNECTED);
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+            btc_post_msg(BLUETOOTH_DEVICE_DISCONNECTED);
+#endif
             break;
 
         case BTA_DM_HW_ERROR_EVT:
@@ -2236,6 +2257,9 @@ static void btif_dm_generic_evt(UINT16 event, char* p_param)
         case BTIF_DM_CB_DISCOVERY_STARTED:
         {
             HAL_CBACK(bt_hal_cbacks, discovery_state_changed_cb, BT_DISCOVERY_STARTED);
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+            btc_post_msg(BLUETOOTH_DISCOVERY_STARTED);
+#endif
         }
         break;
 
