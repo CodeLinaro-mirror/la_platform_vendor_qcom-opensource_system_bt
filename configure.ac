@@ -85,6 +85,13 @@ AM_CONDITIONAL([BTC_SUPPORT], false)
 # on detection of SSR/command timeout/Hw eror event
 AM_CONDITIONAL([SSR_CLEANUP_SUPPORT], true)
 
+AC_ARG_ENABLE(rome,
+  [AS_HELP_STRING([--enable-rome=ROME], [Specify the rome product to build])],
+  [ROME=$enableval],
+  [ROME=none]
+)
+AM_CONDITIONAL([MDM_ROME], [test "x$ROME" = "xsnap"])
+
 AC_MSG_CHECKING(for zlib support)
 AC_ARG_WITH(zlib, AC_HELP_STRING([--with-zlib],[Enable zlib support for mod_compress]),
     [WITH_ZLIB=$withval],[WITH_ZLIB=yes])
