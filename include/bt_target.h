@@ -218,6 +218,26 @@
 
 /******************************************************************************
 **
+** Buffer sizes
+**
+******************************************************************************/
+
+#ifndef BT_DEFAULT_BUFFER_SIZE
+#define BT_DEFAULT_BUFFER_SIZE          (4096 + 16)
+#endif
+
+#ifndef BT_SMALL_BUFFER_SIZE
+#define BT_SMALL_BUFFER_SIZE            660
+#endif
+
+/* Receives HCI events from the lower-layer. */
+#ifndef HCI_CMD_BUF_SIZE
+#define HCI_CMD_BUF_SIZE                BT_SMALL_BUFFER_SIZE
+#endif
+
+
+/******************************************************************************
+**
 ** Test Application interface
 **
 ******************************************************************************/
