@@ -62,6 +62,7 @@ typedef struct hid_kb_bllist
 
 static tHID_KB_BLLIST hid_multitouch_bl[] =
 {
+    {0x22b8, 0x093d, "Motorola Keyboard KZ500"},
     {0x22b8, 0x093d, "Motorola Keyboard KZ500 v122"}
 };
 
