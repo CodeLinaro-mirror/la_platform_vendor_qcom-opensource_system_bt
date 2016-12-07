@@ -871,7 +871,7 @@ static bt_status_t btSock_start_l2cap_server_l(l2cap_socket *sock) {
                 stat = BT_STATUS_FAIL;
         } else {
             if (BTA_JvL2capStartServer(sock->security, 0, &obex_l2c_etm_opt,
-                    sock->channel, L2CAP_MAX_SDU_LENGTH, &cfg, btsock_l2cap_cbk, (void*)sock->id)
+                    sock->channel, L2CAP_OBEX_MAX_MTU, &cfg, btsock_l2cap_cbk, (void*)sock->id)
                     != BTA_JV_SUCCESS)
                 stat = BT_STATUS_FAIL;
         }
@@ -932,7 +932,7 @@ static bt_status_t btsock_l2cap_listen_or_connect(const char *name, const bt_bda
 
         } else {
             if (BTA_JvL2capConnect(sock->security, 0, &obex_l2c_etm_opt,
-                    channel, L2CAP_MAX_SDU_LENGTH, &cfg, sock->addr.address,
+                    channel, L2CAP_OBEX_MAX_MTU, &cfg, sock->addr.address,
                     btsock_l2cap_cbk, (void*)sock->id) != BTA_JV_SUCCESS)
                 stat = BT_STATUS_FAIL;
         }
