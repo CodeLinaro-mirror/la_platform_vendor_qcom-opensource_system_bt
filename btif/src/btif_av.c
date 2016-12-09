@@ -3096,6 +3096,34 @@ BOOLEAN btif_av_stream_started_ready(void)
 
 /*******************************************************************************
 **
+** Function         btif_av_is_start_ack_pending
+**
+** Description      Checks whether start command is sent but not acked by remote
+**
+** Returns          None
+**
+*******************************************************************************/
+
+BOOLEAN btif_av_is_start_ack_pending(void)
+{
+    int i;
+    BOOLEAN status = FALSE;
+
+    for (i = 0; i < btif_max_av_clients; i++)
+    {
+        if (btif_av_cb[i].flags & BTIF_AV_FLAG_PENDING_START)
+        {
+            status = TRUE;
+            break;
+        }
+    }
+    BTIF_TRACE_DEBUG("btif_av_is_start_ack_pending: %d", status);
+    return status;
+}
+
+
+/*******************************************************************************
+**
 ** Function         btif_dispatch_sm_event
 **
 ** Description      Send event to AV statemachine
