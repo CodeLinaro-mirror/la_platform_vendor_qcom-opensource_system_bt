@@ -82,9 +82,10 @@ static int number =0;
 ******************************************************************************/
 
 #define CTRL_CHAN_RETRY_COUNT 3
+
 #define USEC_PER_SEC 1000000L
 #define SOCK_SEND_TIMEOUT_MS 2000  /* Timeout for sending */
-#define SOCK_RECV_TIMEOUT_MS 5000  /* Timeout for receiving */
+#define SOCK_RECV_TIMEOUT_MS 3000  /* Timeout for receiving */
 
 // set WRITE_POLL_MS to 0 for blocking sockets, nonzero for polled non-blocking sockets
 #define WRITE_POLL_MS 20
@@ -378,28 +379,10 @@ static int skt_disconnect(int fd)
 static int a2dp_ctrl_receive(struct a2dp_stream_common *common, void* buffer, int length)
 {
     ssize_t ret;
-    int i;
-
-    for (i = 0;; i++) {
-        OSI_NO_INTR(ret = recv(common->ctrl_fd, buffer, length, MSG_NOSIGNAL));
-        if (ret > 0) {
-            break;
-        }
-        if (ret == 0) {
-            ERROR("ack failed: peer closed");
-            break;
-        }
-        if (errno != EWOULDBLOCK && errno != EAGAIN) {
-            ERROR("ack failed: error(%s)", strerror(errno));
-            break;
-        }
-        if (i == (CTRL_CHAN_RETRY_COUNT - 1)) {
-            ERROR("ack failed: max retry count");
-            break;
-        }
-        INFO("ack failed (%s), retrying", strerror(errno));
-    }
+    OSI_NO_INTR(ret = recv(common->ctrl_fd, buffer, length, MSG_NOSIGNAL));
+    DEBUG("a2dp_ctrl_receive: ret=%d", (int)ret);
     if (ret <= 0) {
+        INFO("a2dp_ctrl_receive: ret=%d, error(%s)", (int)ret, strerror(errno));
         skt_disconnect(common->ctrl_fd);
         common->ctrl_fd = AUDIO_SKT_DISCONNECTED;
     }
@@ -435,14 +418,16 @@ static int a2dp_command(struct a2dp_stream_common *common, char cmd)
     /* wait for ack byte */
     if (a2dp_ctrl_receive(common, &ack, 1) < 0) {
         ERROR("A2DP COMMAND %s: no ACK", dump_a2dp_ctrl_event(cmd));
-        return -1;
+        //On no ACK scenario also we need to fake as success
+        return 0;
     }
 
     INFO("A2DP COMMAND %s DONE STATUS %d", dump_a2dp_ctrl_event(cmd), ack);
 
-    if (ack == A2DP_CTRL_ACK_INCALL_FAILURE)
+    if ((ack == A2DP_CTRL_ACK_INCALL_FAILURE) || (ack == A2DP_CTRL_ACK_PREVIOUS_COMMAND_PENDING))
         return ack;
     if (ack != A2DP_CTRL_ACK_SUCCESS) {
+        // This is now valid only for local command, for remote commands error ack is not sent now
         ERROR("A2DP COMMAND %s error %d", dump_a2dp_ctrl_event(cmd), ack);
         return -1;
     }
@@ -466,8 +451,9 @@ static int a2dp_read_audio_config(struct a2dp_stream_common *common)
     uint32_t sample_rate;
     uint8_t channel_count;
 
-    if (a2dp_command(common, A2DP_CTRL_GET_AUDIO_CONFIG) < 0)
+    if (a2dp_command(common, A2DP_CTRL_GET_AUDIO_CONFIG) != 0)
     {
+        // Now >0 return value (prev command pending) should also be considered as error
         ERROR("check a2dp ready failed");
         return -1;
     }
@@ -489,6 +475,8 @@ static int a2dp_read_audio_config(struct a2dp_stream_common *common)
 static void a2dp_open_ctrl_path(struct a2dp_stream_common *common)
 {
     int i;
+    ssize_t ret;
+    char ack;
 
     /* retry logic to catch any timing variations on control channel */
     for (i = 0; i < CTRL_CHAN_RETRY_COUNT; i++)
@@ -496,6 +484,11 @@ static void a2dp_open_ctrl_path(struct a2dp_stream_common *common)
         /* connect control channel if not already connected */
         if ((common->ctrl_fd = skt_connect(A2DP_CTRL_PATH, common->buffer_sz)) > 0)
         {
+            OSI_NO_INTR(ret = recv(common->ctrl_fd, &ack, 1, MSG_NOSIGNAL | MSG_DONTWAIT));
+            if (ret > 0)
+            {
+                WARN("a2dp_open_ctrl_path: flush stale ACK byte");
+            }
             /* success, now check if stack is ready */
             if (check_a2dp_ready(common) == 0)
                 break;
@@ -574,22 +567,29 @@ static int start_audio_datapath(struct a2dp_stream_common *common)
         ERROR("Audiopath start failed - in call, move to suspended");
         goto error;
     }
+    else if (a2dp_status == A2DP_CTRL_ACK_PREVIOUS_COMMAND_PENDING)
+    {
+        INFO("start_audio_datapath: Audiopath start failed as previous command is pending, fake as success");
+    }
 
 #ifndef BTA_AV_SPLIT_A2DP_ENABLED
     /* connect socket if not yet connected */
     if (common->audio_fd == AUDIO_SKT_DISCONNECTED)
     {
+        INFO("Try opening data socket");
         common->audio_fd = skt_connect(A2DP_DATA_PATH, common->buffer_sz);
         if (common->audio_fd < 0)
         {
             ERROR("Audiopath start failed - error opening data socket");
-            goto error;
+            if ((a2dp_status == A2DP_CTRL_ACK_INCALL_FAILURE)
+            || (a2dp_status < 0))
+                goto error;
+            else
+                INFO("Ignore Audiopath start failure");
         }
-        common->state = AUDIO_A2DP_STATE_STARTED;
     }
-#else
-    common->state = AUDIO_A2DP_STATE_STARTED;
 #endif
+    common->state = AUDIO_A2DP_STATE_STARTED;
     return 0;
 
 error:
@@ -600,19 +600,22 @@ error:
 static int stop_audio_datapath(struct a2dp_stream_common *common)
 {
     int oldstate = common->state;
+    int ret;
 
     INFO("state %s", dump_a2dp_hal_state(common->state));
 
     /* prevent any stray output writes from autostarting the stream
        while stopping audiopath */
     common->state = AUDIO_A2DP_STATE_STOPPING;
-
-    if (a2dp_command(common, A2DP_CTRL_CMD_STOP) < 0)
+    ret = a2dp_command(common, A2DP_CTRL_CMD_STOP);
+    if (ret < 0)
     {
         ERROR("audiopath stop failed");
         common->state = oldstate;
         return -1;
     }
+    else if (ret > 0)
+        WARN("audiopath stop completed with non zero error code");
 
     common->state = AUDIO_A2DP_STATE_STOPPED;
 
@@ -627,13 +630,20 @@ static int stop_audio_datapath(struct a2dp_stream_common *common)
 
 static int suspend_audio_datapath(struct a2dp_stream_common *common, bool standby)
 {
+    int ret;
     INFO("state %s", dump_a2dp_hal_state(common->state));
 
     if (common->state == AUDIO_A2DP_STATE_STOPPING)
         return -1;
 
-    if (a2dp_command(common, A2DP_CTRL_CMD_SUSPEND) < 0)
+    ret = a2dp_command(common, A2DP_CTRL_CMD_SUSPEND);
+    if (ret < 0)
+    {
+        ERROR("audiopath suspend failed");
         return -1;
+    }
+    else if (ret > 0)
+        WARN("audio path suspend completed with non zero error code");
 
     if (standby)
         common->state = AUDIO_A2DP_STATE_STANDBY;
@@ -739,19 +749,8 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 
     if (sent == -1)
     {
-#ifdef BT_HOST_IPC_ENABLED
-        ipc_if->skt_disconnect(out->common.audio_fd);
-#else
-        skt_disconnect(out->common.audio_fd);
-#endif
-        out->common.audio_fd = AUDIO_SKT_DISCONNECTED;
-        if ((out->common.state != AUDIO_A2DP_STATE_SUSPENDED) &&
-                (out->common.state != AUDIO_A2DP_STATE_STOPPING)) {
-            out->common.state = AUDIO_A2DP_STATE_STOPPED;
-        } else {
-            ERROR("write failed : stream suspended, avoid resetting state");
-        }
-        goto finish;
+        sent = bytes;
+        DEBUG("ignore data write failure");
     }
 
 finish: ;
@@ -1454,8 +1453,10 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     skt_disconnect(out->common.ctrl_fd);
 #endif
     out->common.ctrl_fd = AUDIO_SKT_DISCONNECTED;
+#ifdef BT_HOST_IPC_ENABLED
     if (lib_handle)
         dlclose(lib_handle);
+#endif
     free(stream);
     a2dp_dev->output = NULL;
     pthread_mutex_unlock(&out->common.lock);
@@ -1696,8 +1697,10 @@ static void adev_close_input_stream(struct audio_hw_device *dev,
     in->common.ctrl_fd = AUDIO_SKT_DISCONNECTED;
     free(stream);
     a2dp_dev->input = NULL;
+#ifdef BT_HOST_IPC_ENABLED
     if (lib_handle)
         dlclose(lib_handle);
+#endif
     DEBUG("done");
 }
 
