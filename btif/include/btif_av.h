@@ -43,8 +43,10 @@ typedef enum {
     BTIF_AV_CONNECT_REQ_EVT = BTA_AV_MAX_EVT,
     BTIF_AV_DISCONNECT_REQ_EVT,
     BTIF_AV_START_STREAM_REQ_EVT,
+    BTIF_AVK_START_STREAM_REQ_EVT,
     BTIF_AV_STOP_STREAM_REQ_EVT,
     BTIF_AV_SUSPEND_STREAM_REQ_EVT,
+    BTIF_AVK_SUSPEND_STREAM_REQ_EVT,
     BTIF_AV_SINK_CONFIG_REQ_EVT,
     BTIF_AV_CLEANUP_REQ_EVT,
     BTIF_AV_SINK_FOCUS_REQ_EVT,
@@ -181,6 +183,17 @@ void btif_queue_focus_rquest(void);
  **
  *******************************************************************************/
 void btif_media_enque_pcm_data(UINT8 *data, UINT16 size);
+
+/*******************************************************************************
+ **
+ ** Function         btif_media_avk_fetch_pcm_data
+ **
+ ** Description      fetch PCM data
+ **
+ ** Returns          size of data read
+ **
+ *******************************************************************************/
+UINT32 btif_media_avk_fetch_pcm_data(UINT8 *data, UINT32 size);
 
 /******************************************************************************
 **

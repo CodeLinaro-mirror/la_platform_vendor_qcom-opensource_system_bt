@@ -242,6 +242,7 @@ static int  uinput_driver_check();
 static int  uinput_create(char *name);
 static int  init_uinput (void);
 static void close_uinput (void);
+static bt_status_t send_passthrough_cmd(bt_bdaddr_t *bd_addr, uint8_t key_code, uint8_t key_state);
 #if (AVRC_CTLR_INCLUDED == TRUE)
 static BOOLEAN conn_status = FALSE;
 #endif
@@ -1090,6 +1091,36 @@ void btif_rc_send_pause_command(int index)
 }
 
 /***************************************************************************
+ *  Function       btif_rc_ctrl_send_pause
+ *
+ *  - Argument:    Index
+ *
+ *  - Description: Sends PAUSE key event to remote.
+ *
+ ***************************************************************************/
+void btif_rc_ctrl_send_pause(bt_bdaddr_t *bd_addr)
+{
+// send pass through command  ( AVRCP_PAUSE )to remote.
+    BTIF_TRACE_DEBUG("%s: ", __FUNCTION__);
+    send_passthrough_cmd(bd_addr, AVRC_ID_PAUSE ,AVRC_STATE_PRESS);
+    send_passthrough_cmd(bd_addr, AVRC_ID_PAUSE ,AVRC_STATE_RELEASE);
+}
+/***************************************************************************
+ *  Function       btif_rc_ctrl_send_play
+ *
+ *  - Argument:    Index
+ *
+ *  - Description: Sends PLAY key event to remote.
+ *
+ ***************************************************************************/
+void btif_rc_ctrl_send_play(bt_bdaddr_t *bd_addr)
+{
+// send pass through command (AVRCP_PLAY) to remote.
+    BTIF_TRACE_DEBUG("%s: ", __FUNCTION__);
+    send_passthrough_cmd(bd_addr, AVRC_ID_PLAY ,AVRC_STATE_PRESS);
+    send_passthrough_cmd(bd_addr, AVRC_ID_PLAY ,AVRC_STATE_RELEASE);
+}
+/***************************************************************************
  *  Function       handle_rc_passthrough_rsp
  *
  *  - Argument:    tBTA_AV_REMOTE_RSP passthrough command response
@@ -1690,6 +1721,9 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV *p_data)
  ** Function       btif_rc_get_connected_peer
  **
  ** Description    Fetches the connected headset's BD_ADDR if any
+ **
+ ** Returns        FALSE: if no RC connection and RC and AV connected to same device
+ **                TRUE:  if RC and AV connected to 2 different device
  **
  ***************************************************************************/
 BOOLEAN btif_rc_get_connected_peer(BD_ADDR peer_addr)

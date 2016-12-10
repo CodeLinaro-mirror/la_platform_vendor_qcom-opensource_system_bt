@@ -1047,9 +1047,22 @@ static int in_set_format(struct audio_stream *stream, audio_format_t format)
 
 static int in_standby(struct audio_stream *stream)
 {
-    UNUSED(stream);
+    struct a2dp_stream_in *in = (struct a2dp_stream_in *)stream;
+    int retVal = 0;
 
     FNLOG();
+
+    pthread_mutex_lock(&in->common.lock);
+
+    /*Need not check State here as btif layer does
+    check of btif state , during remote initited suspend
+    DUT need to clear flag else start will not happen but
+    Do nothing in SUSPENDED state. */
+    if (in->common.state != AUDIO_A2DP_STATE_SUSPENDED)
+        retVal = suspend_audio_datapath(&in->common, true);
+    pthread_mutex_unlock (&in->common.lock);
+
+    return retVal;
     return 0;
 }
 
