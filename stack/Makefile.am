@@ -161,6 +161,10 @@ c_sources:= \
         ./gap/gap_utils.c \
         ./l2cap/l2c_le_csm.c
 
+if SSR_CLEANUP_SUPPORT
+AM_CFLAGS += -DSSR_CLEANUP=TRUE
+endif
+
 common_LDFLAGS = -lpthread
 common_CFLAGS =  $(AM_CFLAGS) -fPIC -D_GNU_SOURCE
 

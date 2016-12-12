@@ -80,6 +80,11 @@ AM_CONDITIONAL([BT_AUDIO_HAL_INTEGRATION], [test "x$TARGET" = "xapq8009" -o "x$T
 # make below flag to true to enable the BTC
 AM_CONDITIONAL([BTC_SUPPORT], false)
 
+# SSR_Cleanup support
+# make below flag to true to cleanup audio related things from BT app
+# on detection of SSR/command timeout/Hw eror event
+AM_CONDITIONAL([SSR_CLEANUP_SUPPORT], true)
+
 AC_MSG_CHECKING(for zlib support)
 AC_ARG_WITH(zlib, AC_HELP_STRING([--with-zlib],[Enable zlib support for mod_compress]),
     [WITH_ZLIB=$withval],[WITH_ZLIB=yes])
