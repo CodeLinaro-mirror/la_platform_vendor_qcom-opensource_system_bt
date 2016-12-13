@@ -36,7 +36,11 @@ static config_t *config;
 // Module lifecycle functions
 
 static future_t *init() {
+#ifdef ANDROID
   const char *path = "/etc/bluetooth/bt_stack.conf";
+#else
+ const char *path = "/data/misc/bluetooth/bt_stack.conf";
+#endif
   assert(path != NULL);
 
   LOG_INFO("%s attempt to load stack conf from %s", __func__, path);
@@ -73,7 +77,7 @@ static const char *get_btsnoop_log_path(void) {
 #ifdef ANDROID
    "/data/misc/bluedroid/btsnoop_hci.log");
 #else
-   "/etc/data/misc/bluedroid/btsnoop_hci.log");
+   "/data/misc/bluetooth/btsnoop_hci.log");
 #endif
 }
 

@@ -73,12 +73,17 @@ uint32_t file_size = 0;
 #ifdef ANDROID
 #define BTSNOOP_PATH "/data/media/0"
 #else
-#define BTSNOOP_PATH "/sdcard/"
+#define BTSNOOP_PATH "/data/misc/bluetooth/"
 #endif
 #define BTSOOP_PORT 8872
 
 static const char *BTSNOOP_LOG_PATH_KEY =  "ExtBtSnoopFileName";
+#ifdef ANDROID
 static const char *path = "/etc/bluetooth/bt_stack.conf";
+#else
+static const char *path = "/data/misc/bluetooth/bt_stack.conf";
+#endif
+
 static config_t *config;
 static char ext_snoop_file_prefix[256];
 
@@ -378,22 +383,27 @@ int main (int argc, char * argv[])
 #ifdef ANDROID
         snoop_file_prefix = config_get_string(config, CONFIG_DEFAULT_SECTION, BTSNOOP_LOG_PATH_KEY, "/data/media/0/hci_snoop");
 #else
-        snoop_file_prefix = config_get_string(config, CONFIG_DEFAULT_SECTION, BTSNOOP_LOG_PATH_KEY, "/sdcard/hci_snoop");
+        snoop_file_prefix = config_get_string(config, CONFIG_DEFAULT_SECTION, BTSNOOP_LOG_PATH_KEY, "/data/misc/bluetooth/hci_snoop");
 #endif
         if(snoop_file_prefix == NULL) {
            snoop_log("Ext snnop prefix is NULL");
         } else {
             snoop_log("Ext snoop prefix: %s", snoop_file_prefix);
+#ifdef ANDROID
             if (strstr(snoop_file_prefix, "sdcard") != NULL)
+#else
+            if (strstr(snoop_file_prefix, "data/misc/bluetooth") != NULL)
+#endif
             {
                 char *tmp;
 
 #ifdef ANDROID
                 strlcpy(ext_snoop_file_prefix, "/data/media/0/", strlen("/data/media/0/")+1);
-#else
-                strlcpy(ext_snoop_file_prefix, "/sdcard/", strlen("/sdcard/")+1);
-#endif
                 tmp = snoop_file_prefix + strlen("/sdcard/");
+#else
+                strlcpy(ext_snoop_file_prefix, "/data/misc/bluetooth/", strlen("/data/misc/bluetooth/")+1);
+                tmp = snoop_file_prefix + strlen("/data/misc/bluetooth/");
+#endif
                 if (tmp != NULL)
                 {
                     strlcat(ext_snoop_file_prefix, tmp, sizeof(ext_snoop_file_prefix));

@@ -70,7 +70,11 @@
 ************************************************************************************/
 
 #ifndef BTE_DID_CONF_FILE
+#ifdef ANDROID
 #define BTE_DID_CONF_FILE "/etc/bluetooth/bt_did.conf"
+#else
+#define BTE_DID_CONF_FILE "/data/misc/bluetooth/bt_did.conf"
+#endif
 #endif
 
 #define VENDOR_PERSISTENCE_PATH    "/persist/bluetooth"
