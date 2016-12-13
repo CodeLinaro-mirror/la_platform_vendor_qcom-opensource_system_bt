@@ -3442,6 +3442,24 @@ void btm_sec_rmt_name_request_complete (UINT8 *p_bd_addr, UINT8 *p_bd_name, UINT
             p_dev_rec->sec_bd_name[0] = 0;
         }
 
+        if ((btm_cb.is_pending_ssp_cfm == TRUE) &&
+           (btm_cb.pairing_state == BTM_PAIR_STATE_WAIT_NUMERIC_CONFIRM) && p_bd_addr
+           &&  (memcmp (btm_cb.pairing_bda, p_bd_addr, BD_ADDR_LEN) == 0))
+        {
+            UINT8           status;
+            btm_cb.is_pending_ssp_cfm = FALSE;
+            BCM_STRNCPY_S ((char *)btm_cb.cfm_req.bd_name, sizeof(btm_cb.cfm_req.bd_name),
+                                        (char *)p_dev_rec->sec_bd_name, BTM_MAX_REM_BD_NAME_LEN);
+            BTM_TRACE_DEBUG ("Calling delayed SSP cfm callback now");
+            status = (*btm_cb.api.p_sp_callback) (BTM_SP_CFM_REQ_EVT, (tBTM_SP_EVT_DATA *)&btm_cb.cfm_req);
+            if (status == BTM_NOT_AUTHORIZED)
+            {
+                BTM_TRACE_DEBUG ("calling BTM_ConfirmReqReply with status: %d", status);
+                BTM_ConfirmReqReply (status, p_bd_addr);
+            }
+            memset (&btm_cb.cfm_req, 0, sizeof(tBTM_SP_CFM_REQ));
+        }
+
         if (p_dev_rec->sec_state == BTM_SEC_STATE_GETTING_NAME)
             p_dev_rec->sec_state = BTM_SEC_STATE_IDLE;
 
@@ -4038,10 +4056,23 @@ void btm_proc_sp_req_evt (tBTM_SP_EVT event, UINT8 *p)
 
         if (btm_cb.api.p_sp_callback)
         {
-            status = (*btm_cb.api.p_sp_callback) (event, (tBTM_SP_EVT_DATA *)&evt_data);
-            if (status != BTM_NOT_AUTHORIZED)
+            // delay SSP cfm callback if there is no remote name available and
+            // security manager is in the process of retrieving the remote name
+            if ((BTM_SP_CFM_REQ_EVT == event) && (p_dev_rec->sec_state == BTM_SEC_STATE_GETTING_NAME) &&
+                                    (p_dev_rec->sec_bd_name[0] == '\0'))
             {
+                btm_cb.is_pending_ssp_cfm = TRUE;
+                memcpy (&btm_cb.cfm_req, &evt_data.cfm_req, sizeof(tBTM_SP_CFM_REQ));
+                BTM_TRACE_DEBUG ("Delaying SSP cfm event until the RNR Event is received");
                 return;
+            }
+            else
+            {
+                status = (*btm_cb.api.p_sp_callback) (event, (tBTM_SP_EVT_DATA *)&evt_data);
+                if (status != BTM_NOT_AUTHORIZED)
+                {
+                    return;
+                }
             }
             /* else BTM_NOT_AUTHORIZED means when the app wants to reject the req right now */
         }
