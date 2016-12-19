@@ -64,7 +64,7 @@
 #ifdef ANDROID
 #define BTIF_STORAGE_PATH_BLUEDROID "/data/misc/bluedroid"
 #else
-#define BTIF_STORAGE_PATH_BLUEDROID "/etc/data/misc/bluedroid"
+#define BTIF_STORAGE_PATH_BLUEDROID "/data/misc/bluetooth"
 #endif
 //#define BTIF_STORAGE_PATH_ADAPTER_INFO "adapter_info"
 //#define BTIF_STORAGE_PATH_REMOTE_DEVICES "remote_devices"
@@ -85,7 +85,11 @@
 #define BTIF_STORAGE_KEY_ADAPTER_DISC_TIMEOUT "DiscoveryTimeout"
 
 
+#ifdef ANDROID
 #define BTIF_AUTO_PAIR_CONF_FILE  "/etc/bluetooth/auto_pair_devlist.conf"
+#else
+#define BTIF_AUTO_PAIR_CONF_FILE  "/data/misc/bluetooth/auto_pair_devlist.conf"
+#endif
 #define BTIF_STORAGE_PATH_AUTOPAIR_BLACKLIST "AutoPairBlacklist"
 #define BTIF_STORAGE_KEY_AUTOPAIR_BLACKLIST_ADDR "AddressBlacklist"
 #define BTIF_STORAGE_KEY_AUTOPAIR_BLACKLIST_EXACTNAME "ExactNameBlacklist"

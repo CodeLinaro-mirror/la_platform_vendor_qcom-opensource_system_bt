@@ -38,7 +38,7 @@ static const int WATCHDOG_PERIOD_SEC = 1 * 60;
 #ifdef ANDROID
 static const char *CONFIG_FILE_PATH = "/data/misc/bluedroid/bt_config.conf";
 #else
-static const char *CONFIG_FILE_PATH = "/etc/data/misc/bluedroid/bt_config.conf";
+static const char *CONFIG_FILE_PATH = "/data/misc/bluetooth/bt_config.conf";
 #endif
 const bt_interface_t *bt_interface;
 bt_bdaddr_t bt_remote_bdaddr;

@@ -45,7 +45,7 @@
 #include <sys/un.h>
 #include <sys/time.h>
 #include <fcntl.h>
-#define SOCKETNAME  "/etc/bluetooth/btprop"
+#define SOCKETNAME  "/data/misc/bluetooth/btprop"
 #endif
 #include "bt_types.h"
 #include "bt_utils.h"

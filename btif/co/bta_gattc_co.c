@@ -31,7 +31,7 @@
 #ifdef ANDROID
 #define GATT_CACHE_PREFIX "/data/misc/bluedroid/gatt_cache_"
 #else
-#define GATT_CACHE_PREFIX "/etc/data/misc/bluedroid/gatt_cache_"
+#define GATT_CACHE_PREFIX "/data/misc/bluetooth/gatt_cache_"
 #endif
 
 static FILE* sCacheFD = 0;

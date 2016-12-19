@@ -109,7 +109,11 @@ OI_INT16 pcmData[15*SBC_MAX_SAMPLES_PER_FRAME*SBC_MAX_CHANNELS];
 //#define DUMP_PCM_DATA TRUE
 #if (defined(DUMP_PCM_DATA) && (DUMP_PCM_DATA == TRUE))
 FILE *outputPcmSampleFile;
+#ifdef ANDROID
 char outputFilename [50] = "/etc/bluetooth/output_sample.pcm";
+#else
+char outputFilename [50] = "/data/misc/bluetooth/output_sample.pcm";
+#endif
 #endif
 /*****************************************************************************
  **  Constants
