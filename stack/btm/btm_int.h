@@ -902,6 +902,8 @@ typedef struct
     BOOLEAN                 paging;
     BOOLEAN                 discing;
     BUFFER_Q                sec_pending_q;  /* pending sequrity requests in tBTM_SEC_QUEUE_ENTRY format */
+    BOOLEAN                 is_pending_ssp_cfm;
+    tBTM_SP_CFM_REQ         cfm_req;    /* BTM_SP_CFM_REQ_EVT     */
 
 #if  (!defined(BT_TRACE_VERBOSE) || (BT_TRACE_VERBOSE == FALSE))
     char state_temp_buffer[BTM_STATE_BUFFER_SIZE];
