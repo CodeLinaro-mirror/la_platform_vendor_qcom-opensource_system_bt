@@ -39,6 +39,9 @@
 #include <unistd.h>
 
 #include <hardware/bluetooth.h>
+#if (defined(SSR_CLEANUP) && SSR_CLEANUP == TRUE)
+#include <hardware/vendor.h>
+#endif
 
 #include <cutils/properties.h>
 #include "gki.h"
@@ -2058,8 +2061,12 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             /* Flush storage data */
             btif_config_flush();
             TEMP_FAILURE_RETRY(usleep(100000)); /* 100milliseconds */
+#if (defined(SSR_CLEANUP) && SSR_CLEANUP == TRUE)
+            HAL_CBACK(bt_vendor_callbacks, ssr_cleanup_cb);
+#else
             /* Killing the process to force a restart as part of fault tolerance */
             kill(getpid(), SIGKILL);
+#endif
             break;
 
 #if (defined(BLE_INCLUDED) && (BLE_INCLUDED == TRUE))
