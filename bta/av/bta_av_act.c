@@ -715,7 +715,9 @@ void bta_av_rc_meta_rsp(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
             (!p_data->api_meta_rsp.is_rsp && (p_cb->features & BTA_AV_FEAT_RCCT)) )
         {
             p_rcb = &p_cb->rcb[p_data->hdr.layer_specific];
-            if (p_rcb->handle != BTA_AV_RC_HANDLE_NONE) {
+            /* Fix for below Klockwork Issue
+             * Array 'avrc_cb.fcb' of size 5 may use index value(s) 0..254 */
+            if ((p_rcb->handle != BTA_AV_RC_HANDLE_NONE) && (p_rcb->handle < AVCT_NUM_CONN)) {
                 AVRC_MsgReq(p_rcb->handle, p_data->api_meta_rsp.label,
                             p_data->api_meta_rsp.rsp_code,
                             p_data->api_meta_rsp.p_pkt);
@@ -1797,6 +1799,8 @@ static void bta_av_accept_signalling_timer_cback(void *data)
 
             if (bta_av_is_scb_opening(p_scb))
             {
+                APPL_TRACE_DEBUG("%s: stream state opening: SDP started = %d",
+                                 __func__, p_scb->sdp_discovery_started);
                 if (p_scb->sdp_discovery_started)
                 {
                     /* We are still doing SDP. Run the timer again. */
@@ -1818,6 +1822,7 @@ static void bta_av_accept_signalling_timer_cback(void *data)
             {
                 /* Stay in incoming state if SNK does not start signalling */
 
+                APPL_TRACE_DEBUG("%s: stream state incoming", __func__);
                 /* API open was called right after SNK opened L2C connection. */
                 if (p_scb->coll_mask & BTA_AV_COLL_API_CALLED)
                 {
@@ -2167,7 +2172,9 @@ void bta_av_rc_disc_done(tBTA_AV_DATA *p_data)
                 if (p_lcb)
                 {
                     rc_handle = bta_av_rc_create(p_cb, AVCT_INT, (UINT8)(p_scb->hdi + 1), p_lcb->lidx);
-                    if(rc_handle != BTA_AV_RC_HANDLE_NONE)
+                    /* Fix for below Klockwork Issue
+                     * Array 'rcb' of size 4 may use index value(s) 4..254 */
+                    if((rc_handle != BTA_AV_RC_HANDLE_NONE) && (rc_handle < BTA_AV_NUM_RCB))
                     {
                         p_cb->rcb[rc_handle].peer_features = peer_features;
                     }
@@ -2202,7 +2209,10 @@ void bta_av_rc_disc_done(tBTA_AV_DATA *p_data)
     }
     else
     {
-        p_cb->rcb[rc_handle].peer_features = peer_features;
+        /* Fix for below Klockwork Issue
+         * Array 'rcb' of size 4 may use index value(s) 4..254 */
+        if (rc_handle < BTA_AV_NUM_RCB)
+            p_cb->rcb[rc_handle].peer_features = peer_features;
         rc_feat.rc_handle =  rc_handle;
         rc_feat.peer_features = peer_features;
         if (p_scb == NULL)

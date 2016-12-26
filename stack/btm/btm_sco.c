@@ -34,6 +34,8 @@
 #include "btm_int.h"
 #include "hcidefs.h"
 #include "bt_utils.h"
+#include "device/include/controller.h"
+
 
 #if BTM_SCO_INCLUDED == TRUE
 
@@ -59,7 +61,7 @@ static const tBTM_ESCO_PARAMS btm_esco_defaults =
 {
     BTM_64KBITS_RATE,               /* TX Bandwidth (64 kbits/sec)              */
     BTM_64KBITS_RATE,               /* RX Bandwidth (64 kbits/sec)              */
-    0x000a,                         /* 10 ms (HS/HF can use EV3, 2-EV3, 3-EV3)  */
+    0x000c,                         /* 12 ms (HS/HF can use EV3, 2-EV3, 3-EV3)  */
     0x0060,                         /* Inp Linear, Air CVSD, 2s Comp, 16bit     */
     (BTM_SCO_PKT_TYPES_MASK_HV1 +   /* Packet Types                             */
      BTM_SCO_PKT_TYPES_MASK_HV2 +
@@ -67,7 +69,7 @@ static const tBTM_ESCO_PARAMS btm_esco_defaults =
      BTM_SCO_PKT_TYPES_MASK_EV3 +
      BTM_SCO_PKT_TYPES_MASK_EV4 +
      BTM_SCO_PKT_TYPES_MASK_EV5),
-     BTM_ESCO_RETRANS_POWER        /* Retransmission Effort (Power)   */
+   BTM_ESCO_RETRANS_QUALITY         /* Retransmission Effort */
 };
 
 /*******************************************************************************
@@ -668,7 +670,7 @@ tBTM_STATUS BTM_CreateSco (BD_ADDR remote_bda, BOOLEAN is_orig, UINT16 pkt_types
                              btm_cb.btm_sco_pkt_types_supported);
 
             /* OR in any exception packet types */
-            if (btm_cb.sco_cb.desired_sco_mode == HCI_LINK_TYPE_ESCO)
+            if (controller_get_interface()->get_bt_version()->hci_version >= HCI_PROTO_VERSION_2_0)
             {
                 temp_pkt_types |= ((p_setup->packet_types & BTM_SCO_EXCEPTION_PKTS_MASK) |
                     (btm_cb.btm_sco_pkt_types_supported & BTM_SCO_EXCEPTION_PKTS_MASK));
@@ -1067,14 +1069,21 @@ UINT16  btm_find_scb_by_handle (UINT16 handle)
 tBTM_STATUS BTM_RemoveSco (UINT16 sco_inx)
 {
 #if (BTM_MAX_SCO_LINKS>0)
-    tSCO_CONN   *p = &btm_cb.sco_cb.sco_db[sco_inx];
+    tSCO_CONN   *p;
     UINT16       tempstate;
     tBTM_PM_STATE   state = BTM_PM_ST_INVALID;
 
     BTM_TRACE_DEBUG("%s", __func__);
 
     /* Validity check */
-    if ((sco_inx >= BTM_MAX_SCO_LINKS) || (p->state == SCO_ST_UNUSED))
+    if (sco_inx >= BTM_MAX_SCO_LINKS)
+        return (BTM_UNKNOWN_ADDR);
+
+    /* Fix for below Klockwork Issue
+     * Array 'btm_cb.sco_cb.sco_db' of size 3 may use index value(s) 0..USHRT_MAX-1 */
+    p = &btm_cb.sco_cb.sco_db[sco_inx];
+
+    if ((p == NULL) || (p->state == SCO_ST_UNUSED))
         return (BTM_UNKNOWN_ADDR);
 
     /* If no HCI handle, simply drop the connection and return */

@@ -1720,9 +1720,10 @@ void bta_av_connect_req(tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     {
         /* SNK initiated L2C connection while SRC was doing SDP.    */
         /* Wait until timeout to check if SNK starts signalling.    */
-        APPL_TRACE_EVENT("bta_av_connect_req: coll_mask = 0x%2X", p_scb->coll_mask);
+        APPL_TRACE_EVENT("%s: coll_mask = 0x%2X", __func__, p_scb->coll_mask);
         p_scb->coll_mask |= BTA_AV_COLL_API_CALLED;
-        APPL_TRACE_EVENT("bta_av_connect_req: updated coll_mask = 0x%2X", p_scb->coll_mask);
+        APPL_TRACE_EVENT("%s: updated coll_mask = 0x%2X", __func__,
+                         p_scb->coll_mask);
         return;
     }
 
@@ -3209,7 +3210,9 @@ void bta_av_chk_2nd_start (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     BOOLEAN new_started = FALSE;
     UNUSED(p_data);
 
-    if ((p_scb->chnl == BTA_AV_CHNL_AUDIO) && (bta_av_cb.audio_open_cnt >= 2))
+    APPL_TRACE_DEBUG("%s\n", __func__);
+    if ((p_scb->chnl == BTA_AV_CHNL_AUDIO) && (bta_av_cb.audio_open_cnt >= 2) &&
+         bta_av_is_multicast_enabled())
     {
         /* more than one audio channel is connected */
         if (!(p_scb->role & BTA_AV_ROLE_SUSPEND_OPT))

@@ -832,9 +832,13 @@ void bta_dm_remove_device(tBTA_DM_MSG *p_data)
         /* Take the link down first, and mark the device for removal when disconnected */
         for(int i=0; i < bta_dm_cb.device_list.count; i++)
         {
-            if (!bdcmp(bta_dm_cb.device_list.peer_device[i].peer_bdaddr, other_address))
+            if ((!bdcmp(bta_dm_cb.device_list.peer_device[i].peer_bdaddr, other_address))&&
+               ((other_transport && (other_transport == bta_dm_cb.device_list.peer_device[i].transport)) ||
+               !other_transport))
             {
                 bta_dm_cb.device_list.peer_device[i].conn_state = BTA_DM_UNPAIRING;
+                APPL_TRACE_DEBUG("%s:transport = %d ,other_transport = %d", __func__,
+                                  bta_dm_cb.device_list.peer_device[i].transport, other_transport);
                 btm_remove_acl(other_address,bta_dm_cb.device_list.peer_device[i].transport);
                 break;
             }
@@ -3591,24 +3595,19 @@ static void bta_dm_reset_sec_dev_pending(BD_ADDR remote_bd_addr)
 *******************************************************************************/
 static void bta_dm_remove_sec_dev_entry(BD_ADDR remote_bd_addr)
 {
-    UINT16 index = 0;
     if ( BTM_IsAclConnectionUp(remote_bd_addr, BT_TRANSPORT_LE) ||
          BTM_IsAclConnectionUp(remote_bd_addr, BT_TRANSPORT_BR_EDR))
     {
-         APPL_TRACE_DEBUG("%s ACL is not down. Schedule for  Dev Removal when ACL closes",
-                            __FUNCTION__);
-        for (index = 0; index < bta_dm_cb.device_list.count; index ++)
+        APPL_TRACE_DEBUG("%s ACL is not down. Schedule for  Dev Removal when ACL closes",
+                            __func__);
+        BTM_SecClearSecurityFlags (remote_bd_addr);
+        for (int i = 0; i < bta_dm_cb.device_list.count; i++)
         {
-            if (!bdcmp( bta_dm_cb.device_list.peer_device[index].peer_bdaddr, remote_bd_addr))
+            if (!bdcmp( bta_dm_cb.device_list.peer_device[i].peer_bdaddr, remote_bd_addr))
+            {
+                bta_dm_cb.device_list.peer_device[i].remove_dev_pending = TRUE;
                 break;
-        }
-        if (index != bta_dm_cb.device_list.count)
-        {
-            bta_dm_cb.device_list.peer_device[index].remove_dev_pending = TRUE;
-        }
-        else
-        {
-            APPL_TRACE_ERROR(" %s Device does not exist in DB", __FUNCTION__);
+            }
         }
     }
     else
