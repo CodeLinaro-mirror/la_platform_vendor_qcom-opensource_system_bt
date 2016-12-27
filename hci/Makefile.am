@@ -30,6 +30,10 @@ AM_CFLAGS += -DBTC_INCLUDED=TRUE
 AM_CPPFLAGS += -DBTC_INCLUDED=TRUE
 endif
 
+if SSR_CLEANUP_SUPPORT
+AM_CFLAGS += -DSSR_CLEANUP=TRUE
+endif
+
 c_sources = \
         src/btsnoop.c \
         src/btsnoop_mem.c \
