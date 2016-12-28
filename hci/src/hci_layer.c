@@ -554,7 +554,19 @@ static void command_timed_out(UNUSED_ATTR void *context) {
   } else {
      LOG_ERROR("hci_cmd_timeout: SOC Status is reset\n ");
   }
+#if (defined(SSR_CLEANUP) && SSR_CLEANUP == TRUE)
+  packet_receive_data_t data_pkt;
+  if (!create_hw_reset_evt_packet(&data_pkt)) {
+    kill(getpid(), SIGKILL);
+  } else {
+    uint8_t *stream = data_pkt.buffer->data;
+    uint8_t event_code;
+    STREAM_TO_UINT8(event_code, stream);
+    data_dispatcher_dispatch(interface.event_dispatcher, event_code, data_pkt.buffer);
+  }
+#else
   kill(getpid(), SIGKILL);
+#endif
 }
 
 // Event/packet receiving functions
