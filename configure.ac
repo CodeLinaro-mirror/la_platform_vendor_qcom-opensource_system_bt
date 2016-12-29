@@ -73,7 +73,14 @@ AC_ARG_ENABLE(target,
   [TARGET=$enableval],
   [TARGET=none]
 )
-AM_CONDITIONAL([MDM_ROME], [test "x$TARGET" = "xmdm9607" -o "x$TARGET" = "xmdm9635" -o "x$TARGET" = "xmdm9640" -o "x$TARGET" = "xmdmcalifornium" -o "x$TARGET" = "xapq8096" -o "x$TARGET" = "xsdxhedgehog"])
+
+AC_ARG_ENABLE(rome,
+  [AS_HELP_STRING([--enable-rome=ROME], [Specify the rome product to build])],
+  [ROME=$enableval],
+  [ROME=none]
+)
+
+AM_CONDITIONAL([MDM_ROME], [test "x$TARGET" = "xmdm9607" -o "x$TARGET" = "xmdm9635" -o "x$TARGET" = "xmdm9640" -o "x$TARGET" = "xmdmcalifornium" -o "x$TARGET" = "xapq8096" -o "x$TARGET" = "xsdxhedgehog" -o "x$ROME" = "xsnap"])
 AM_CONDITIONAL([MDM_PRONTO], [test "x$TARGET" = "xapq8009" -o "x$TARGET" = "xapq8017" -o "x$TARGET" = "xapq8053" -o "x$TARGET" = "xapq8016"])
 AM_CONDITIONAL([BT_AUDIO_HAL_INTEGRATION], [test "x$TARGET" = "xapq8009" -o "x$TARGET" = "xapq8017" -o "x$TARGET" = "xapq8053"])
 # BTC support
@@ -85,12 +92,6 @@ AM_CONDITIONAL([BTC_SUPPORT], false)
 # on detection of SSR/command timeout/Hw eror event
 AM_CONDITIONAL([SSR_CLEANUP_SUPPORT], true)
 
-AC_ARG_ENABLE(rome,
-  [AS_HELP_STRING([--enable-rome=ROME], [Specify the rome product to build])],
-  [ROME=$enableval],
-  [ROME=none]
-)
-AM_CONDITIONAL([MDM_ROME], [test "x$ROME" = "xsnap"])
 
 AC_MSG_CHECKING(for zlib support)
 AC_ARG_WITH(zlib, AC_HELP_STRING([--with-zlib],[Enable zlib support for mod_compress]),
