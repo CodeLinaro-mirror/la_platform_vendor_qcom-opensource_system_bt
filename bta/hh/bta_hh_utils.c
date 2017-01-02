@@ -511,7 +511,12 @@ void bta_hh_cleanup_disable(tBTA_HH_STATUS status)
     {
         utl_freebuf((void **)&bta_hh_cb.kdev[xx].dscp_info.descriptor.dsc_list);
     }
-    utl_freebuf((void **)&bta_hh_cb.p_disc_db);
+
+    if (bta_hh_cb.p_disc_db) {
+        /* Cancel SDP if it had been started. */
+        (void)SDP_CancelServiceSearch (bta_hh_cb.p_disc_db);
+        utl_freebuf((void **)&bta_hh_cb.p_disc_db);
+    }
 
     if (bta_hh_cb.p_cback)
     {

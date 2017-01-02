@@ -647,11 +647,6 @@ bt_status_t btif_disable_bluetooth(void)
     btif_pan_cleanup();
     BTA_DisableBluetooth();
 
-#if (BLE_INCLUDED == TRUE)
-     BTA_VendorCleanup();
-     BTA_StopBleTimers();
-#endif
-
     return BT_STATUS_SUCCESS;
 }
 
@@ -699,6 +694,11 @@ void btif_disable_bluetooth_evt(void)
 bt_status_t btif_shutdown_bluetooth(void)
 {
     BTIF_TRACE_DEBUG("%s", __FUNCTION__);
+
+    #if (BLE_INCLUDED == TRUE)
+         BTA_VendorCleanup();
+         BTA_StopBleTimers();
+    #endif
 
     btif_transfer_context(btif_jni_disassociate, 0, NULL, 0, NULL);
 

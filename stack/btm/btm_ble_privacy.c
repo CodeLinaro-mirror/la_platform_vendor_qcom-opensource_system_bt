@@ -1012,11 +1012,15 @@ void btm_ble_resolving_list_cleanup(void)
 {
     tBTM_BLE_RESOLVE_Q *p_q = &btm_cb.ble_ctr_cb.resolving_list_pend_q;
 
-    if (p_q->resolve_q_random_pseudo)
+    if (p_q->resolve_q_random_pseudo) {
         GKI_freebuf(p_q->resolve_q_random_pseudo);
+        p_q->resolve_q_random_pseudo = NULL;
+    }
 
-    if (p_q->resolve_q_action)
+    if (p_q->resolve_q_action) {
        GKI_freebuf(p_q->resolve_q_action);
+       p_q->resolve_q_action = NULL;
+    }
 
     if (btm_cb.ble_ctr_cb.irk_list_mask)
        GKI_freebuf(btm_cb.ble_ctr_cb.irk_list_mask);
