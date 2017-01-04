@@ -418,6 +418,21 @@ extern tBNEP_RESULT BNEP_SetMulticastFilters (UINT16 handle,
 
 /*******************************************************************************
 **
+** Function         BNEP_SetTethering
+**
+** Description      This function is called by the application to set the PAN
+**                  Tethering status. This can be called any time to change the
+**                  PAN tethering status.
+**
+** Parameters:      enable   - is a flag to change tethering status(on/Off)
+**
+** Returns          None
+**
+*******************************************************************************/
+extern void BNEP_SetTethering(BOOLEAN enable);
+
+/*******************************************************************************
+**
 ** Function         BNEP_SetTraceLevel
 **
 ** Description      This function sets the trace level for BNEP. If called with
