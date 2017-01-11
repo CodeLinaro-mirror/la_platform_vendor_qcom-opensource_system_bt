@@ -707,8 +707,10 @@ static void process_service_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
 #if SDP_AVRCP_1_5 == TRUE
             /* Check for UUID Remote Control and Remote BD address  */
             is_avrcp_fallback = sdp_fallback_avrcp_version (p_attr, p_ccb->device_address);
+#if (defined(AVCT_BROWSE_INCLUDED)&&(AVCT_BROWSE_INCLUDED == TRUE))
             is_avrcp_browse_bit_reset = sdp_reset_avrcp_browsing_bit(
                         p_rec->attribute[1], p_attr, p_ccb->device_address);
+#endif
 #endif
             is_hfp_fallback = sdp_change_hfp_version (p_attr, p_ccb->device_address);
             /* Check if attribute fits. Assume 3-byte value type/length */
@@ -1051,8 +1053,10 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
 #if SDP_AVRCP_1_5 == TRUE
                 /* Check for UUID Remote Control and Remote BD address  */
                 is_avrcp_fallback = sdp_fallback_avrcp_version (p_attr, p_ccb->device_address);
+#if (defined(AVCT_BROWSE_INCLUDED)&&(AVCT_BROWSE_INCLUDED == TRUE))
                 is_avrcp_browse_bit_reset = sdp_reset_avrcp_browsing_bit(
                             p_rec->attribute[1], p_attr, p_ccb->device_address);
+#endif
 #endif
                 is_hfp_fallback = sdp_change_hfp_version (p_attr, p_ccb->device_address);
                 /* Check if attribute fits. Assume 3-byte value type/length */
