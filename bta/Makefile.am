@@ -109,7 +109,9 @@ c_sources+= \
         ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/bta/avk/bta_avk_main.c \
         ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/bta/avk/bta_avk_cfg.c \
         ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/bta/avk/bta_avk_ssm.c \
-        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/bta/avk/bta_avk_sbc.c
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/bta/avk/bta_avk_sbc.c \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/bta/avk/bta_avk_aac.c \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/bta/avk/bta_avk_mp3.c
 
 common_LDFLAGS = -lpthread  -lrt ../stack/libbtstack.la
 common_CFLAGS =  $(AM_CFLAGS) -fPIC -D_GNU_SOURCE

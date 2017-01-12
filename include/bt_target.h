@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ *  Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
  *
  *  Not a contribution.
  ******************************************************************************/
@@ -1638,6 +1638,10 @@ Range: 2 octets
 #define A2D_INCLUDED            TRUE
 #endif
 
+#ifndef A2D_M24_INCLUDED
+#define A2D_M24_INCLUDED        A2D_INCLUDED
+#endif
+
 /******************************************************************************
 **
 ** AVCTP
@@ -1679,6 +1683,18 @@ Range: 2 octets
 
 #ifndef AVRC_CTLR_INCLUDED
 #define AVRC_CTLR_INCLUDED          TRUE
+#endif
+
+#ifndef AAC_DECODER_INCLUDED
+#define AAC_DECODER_INCLUDED        TRUE
+#endif
+
+#ifndef MP3_DECODER_INCLUDED
+#define MP3_DECODER_INCLUDED        TRUE
+#endif
+
+#ifndef APTX_CLASSIC_DECODER_INCLUDED
+#define APTX_CLASSIC_DECODER_INCLUDED        TRUE
 #endif
 
 #ifndef SDP_AVRCP_1_6
