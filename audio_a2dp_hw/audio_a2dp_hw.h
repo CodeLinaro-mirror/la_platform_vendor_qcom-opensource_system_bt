@@ -36,8 +36,8 @@
 #define A2DP_CTRL_PATH "/data/misc/bluedroid/.a2dp_ctrl"
 #define A2DP_DATA_PATH "/data/misc/bluedroid/.a2dp_data"
 #else
-#define A2DP_CTRL_PATH "/etc/bluetooth/.a2dp_ctrl"
-#define A2DP_DATA_PATH "/etc/bluetooth/.a2dp_data"
+#define A2DP_CTRL_PATH "/data/misc/bluetooth/.a2dp_ctrl"
+#define A2DP_DATA_PATH "/data/misc/bluetooth/.a2dp_data"
 #endif
 #define AUDIO_STREAM_DEFAULT_RATE          44100
 #define AUDIO_STREAM_DEFAULT_FORMAT        AUDIO_FORMAT_PCM_16_BIT

@@ -62,7 +62,11 @@
 
 /* Run-time configuration file for BLE*/
 #ifndef BTE_BLE_STACK_CONF_FILE
+#ifdef ANDROID
 #define BTE_BLE_STACK_CONF_FILE "/etc/bluetooth/ble_stack.conf"
+#else
+#define BTE_BLE_STACK_CONF_FILE "/data/misc/bluetooth/ble_stack.conf"
+#endif
 #endif
 
 /******************************************************************************

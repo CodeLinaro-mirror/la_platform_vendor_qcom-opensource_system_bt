@@ -69,6 +69,12 @@ c_sources+= \
         ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btc/src/btc_common.c
 endif
 
+
+# SSR_CLEANUP
+if SSR_CLEANUP_SUPPORT
+AM_CFLAGS += -DSSR_CLEANUP=TRUE
+endif
+
 # BTIF
 c_sources += \
         ../btif/src/btif_av.c \

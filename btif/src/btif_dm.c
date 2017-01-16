@@ -39,6 +39,9 @@
 #include <unistd.h>
 
 #include <hardware/bluetooth.h>
+#if (defined(SSR_CLEANUP) && SSR_CLEANUP == TRUE)
+#include <hardware/vendor.h>
+#endif
 
 #include <cutils/properties.h>
 #include "gki.h"
@@ -2058,8 +2061,12 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             /* Flush storage data */
             btif_config_flush();
             TEMP_FAILURE_RETRY(usleep(100000)); /* 100milliseconds */
+#if (defined(SSR_CLEANUP) && SSR_CLEANUP == TRUE)
+            HAL_CBACK(bt_vendor_callbacks, ssr_cleanup_cb);
+#else
             /* Killing the process to force a restart as part of fault tolerance */
             kill(getpid(), SIGKILL);
+#endif
             break;
 
 #if (defined(BLE_INCLUDED) && (BLE_INCLUDED == TRUE))
@@ -3085,8 +3092,8 @@ void btif_dm_proc_loc_oob(BOOLEAN valid, BT_OCTET16 c, BT_OCTET16 r)
     char *path_a = "/data/misc/bluedroid/LOCAL/a.key";
     char *path_b = "/data/misc/bluedroid/LOCAL/b.key";
 #else
-    char *path_a = "/etc/data/misc/bluedroid/LOCAL/a.key";
-    char *path_b = "/etc/data/misc/bluedroid/LOCAL/b.key";
+    char *path_a = "/data/misc/bluetooth/LOCAL/a.key";
+    char *path_b = "/data/misc/bluetooth/LOCAL/b.key";
 #endif
     char *path = NULL;
     char prop_oob[PROPERTY_VALUE_MAX];
@@ -3129,8 +3136,8 @@ BOOLEAN btif_dm_proc_rmt_oob(BD_ADDR bd_addr,  BT_OCTET16 p_c, BT_OCTET16 p_r)
     char *path_a = "/data/misc/bluedroid/LOCAL/a.key";
     char *path_b = "/data/misc/bluedroid/LOCAL/b.key";
 #else
-    char *path_a = "/etc/data/misc/bluedroid/LOCAL/a.key";
-    char *path_b = "/etc/data/misc/bluedroid/LOCAL/b.key";
+    char *path_a = "/data/misc/bluetooth/LOCAL/a.key";
+    char *path_b = "/data/misc/bluetooth/LOCAL/b.key";
 #endif
     char *path = NULL;
     char prop_oob[PROPERTY_VALUE_MAX];

@@ -208,7 +208,7 @@ static const UINT16 bttrc_map_size = sizeof(bttrc_set_level_map)/sizeof(tBTTRC_F
 
 #ifndef ANDROID
 void LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
-  static char buffer[BTE_LOG_BUF_SIZE];
+  char buffer[BTE_LOG_BUF_SIZE];
   int offset = MSG_BUFFER_OFFSET;
   int trace_layer = TRACE_GET_LAYER(trace_set_mask);
   if (trace_layer >= TRACE_LAYER_MAX_NUM)
