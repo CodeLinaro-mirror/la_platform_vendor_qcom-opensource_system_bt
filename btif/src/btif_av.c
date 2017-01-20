@@ -3357,6 +3357,7 @@ void btif_av_clear_remote_suspend_flag(void)
 void btif_av_move_idle(bt_bdaddr_t bd_addr)
 {
     int index =0;
+    if (btif_av_cb[0].sm_handle == NULL) return;
     /* inform the application that ACL is disconnected and move to idle state */
     index = btif_av_idx_by_bdaddr(bd_addr.address);
     if (index == btif_max_av_clients)

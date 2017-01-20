@@ -25,6 +25,7 @@
 #ifndef BTA_AR_INT_H
 #define BTA_AR_INT_H
 
+#include "bta_avk_api.h"
 #include "bta_av_api.h"
 
 

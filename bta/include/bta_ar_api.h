@@ -31,6 +31,7 @@
 #include "avrc_api.h"
 #include "sdp_api.h"
 #include "bta_av_api.h"
+#include "bta_avk_api.h"
 #include "bta_sys.h"
 
 /*****************************************************************************
