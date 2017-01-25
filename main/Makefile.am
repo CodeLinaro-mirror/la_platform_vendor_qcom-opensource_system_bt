@@ -35,9 +35,12 @@ AM_CPPFLAGS= \
         -I../embdrv/sbc/decoder/include \
         -I../audio_a2dp_hw \
         -I../utils/include \
+        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/bta/include \
+        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/include \
         -I${WORKSPACE}/external/tinyxml2 \
         -I${WORKSPACE}/external/zlib \
-        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/hal/include
+        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/hal/include \
+        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/vhal/include
 
 if MDM_ROME
 AM_CFLAGS += -DBT_SOC_TYPE_ROME
@@ -144,6 +147,7 @@ c_sources+= \
         ../btif/co/bta_gattc_co.c \
         ../btif/co/bta_gatts_co.c \
         ../btif/co/bta_av_co.c
+
 # sbc encoder
 c_sources+= \
         ../embdrv/sbc/encoder/srce/sbc_analysis.c \
@@ -157,6 +161,15 @@ c_sources+= \
 
 c_sources+= \
         ../udrv/ulinux/uipc.c
+
+c_sources+= \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/src/btif_avk_media_task.c \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/src/btif_avk.c \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/src/btif_avk_rc.c \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/src/btif_avk_media_aac.c \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/src/btif_avk_media_mp3.c \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/src/btif_avk_media_aptx.c \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/co/bta_avk_co.c
 
 common_LDFLAGS = -ldl -lrt -lresolv ../hci/libbt-hci.la \
         ../utils/libbtutils.la ../osi/libbtosi.la ../gki/libbtgki.la \

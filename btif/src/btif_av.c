@@ -49,6 +49,7 @@
 #if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
 #include "btc_common.h"
 #endif
+#include "hardware/bt_av_vendor.h"
 
 /*****************************************************************************
 **  Constants & Macros
@@ -134,6 +135,8 @@ typedef struct
 ******************************************************************************/
 static btav_callbacks_t *bt_av_src_callbacks = NULL;
 static btav_callbacks_t *bt_av_sink_callbacks = NULL;
+static btav_vendor_callbacks_t *bt_av_src_vendor_callbacks = NULL;
+static btav_vendor_callbacks_t *bt_av_sink_vendor_callbacks = NULL;
 static btif_av_cb_t btif_av_cb[BTIF_AV_NUM_CB];
 static TIMER_LIST_ENT tle_av_open_on_rc;
 static btif_sm_event_t idle_rc_event;
@@ -530,7 +533,7 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
             {
                 BTIF_TRACE_DEBUG("Calling connection priority callback ");
                 idle_rc_event = event;
-                HAL_CBACK(bt_av_src_callbacks, connection_priority_cb,
+                HAL_CBACK(bt_av_src_vendor_callbacks, connection_priority_vendor_cb,
                          &(btif_av_cb[index].peer_bda));
             }
             if (bt_av_sink_callbacks != NULL)
@@ -1189,7 +1192,7 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
             {
                 btif_a2dp_set_rx_flush(FALSE); /*  remove flush state, ready for streaming*/
 #ifdef USE_AUDIO_TRACK
-                audio_focus_status(BTIF_MEIDA_FOCUS_READY);
+                audio_focus_status_vendor(BTIF_MEIDA_FOCUS_READY);
 #endif
             }
 
@@ -1506,7 +1509,7 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
 
 #ifdef USE_AUDIO_TRACK
             case BTIF_AV_SINK_FOCUS_REQ_EVT:
-                HAL_CBACK(bt_av_sink_callbacks, audio_focus_request_cb,
+                HAL_CBACK(bt_av_sink_vendor_callbacks, audio_focus_request_vendor_cb,
                                                    &(btif_av_cb[index].peer_bda));
             break;
 #endif
@@ -2085,7 +2088,7 @@ static void btif_av_check_rc_connection_priority(void *p_data)
         if (bt_av_src_callbacks != NULL)
         {
             BTIF_TRACE_DEBUG(" Check Device priority");
-            HAL_CBACK(bt_av_src_callbacks, connection_priority_cb,
+            HAL_CBACK(bt_av_src_vendor_callbacks, connection_priority_vendor_cb,
                     &peer_bda);
         }
     }
@@ -2192,7 +2195,72 @@ bt_status_t btif_av_init(int service_id)
 **
 *******************************************************************************/
 
-static bt_status_t init_src(btav_callbacks_t* callbacks, int max_a2dp_connections,
+static bt_status_t init_src(btav_callbacks_t* callbacks)
+{
+    bt_status_t status;
+
+    BTIF_TRACE_EVENT("%s ", __FUNCTION__);
+
+    if (bt_av_sink_callbacks != NULL) {
+        // already did btif_av_init()
+        status = BT_STATUS_SUCCESS;
+    }
+    else
+    {
+        status = btif_av_init(BTA_A2DP_SOURCE_SERVICE_ID);
+    }
+
+    if (status == BT_STATUS_SUCCESS) {
+        bt_av_src_callbacks = callbacks;
+    }
+
+    return status;
+}
+
+/*******************************************************************************
+**
+** Function         init_sink
+**
+** Description      Initializes the AV interface for sink mode
+**
+** Returns          bt_status_t
+**
+*******************************************************************************/
+
+static bt_status_t init_sink(btav_callbacks_t* callbacks)
+{
+    bt_status_t status;
+
+    BTIF_TRACE_EVENT("%s", __FUNCTION__);
+
+    if (bt_av_src_callbacks != NULL) {
+        // already did btif_av_init()
+        status = BT_STATUS_SUCCESS;
+    }
+    else
+    {
+        status = btif_av_init(BTA_A2DP_SINK_SERVICE_ID);
+    }
+
+    if (status == BT_STATUS_SUCCESS) {
+        bt_av_sink_callbacks = callbacks;
+        //BTA_AvEnable_Sink(TRUE);
+    }
+
+    return status;
+}
+
+/*******************************************************************************
+**
+** Function         init_src_vendor
+**
+** Description      Initializes the AV interface for source vendor mode
+**
+** Returns          bt_status_t
+**
+*******************************************************************************/
+
+static bt_status_t init_src_vendor(btav_vendor_callbacks_t* callbacks, int max_a2dp_connections,
                             int a2dp_multicast_state)
 {
     bt_status_t status;
@@ -2210,11 +2278,12 @@ static bt_status_t init_src(btav_callbacks_t* callbacks, int max_a2dp_connection
             is_multicast_supported = TRUE;
         }
         btif_max_av_clients = max_a2dp_connections;
-        status = btif_av_init(BTA_A2DP_SOURCE_SERVICE_ID);
+        if (bt_av_src_callbacks != NULL)
+            status = BT_STATUS_SUCCESS;
     }
 
     if (status == BT_STATUS_SUCCESS) {
-        bt_av_src_callbacks = callbacks;
+        bt_av_src_vendor_callbacks = callbacks;
     }
 
     return status;
@@ -2222,14 +2291,58 @@ static bt_status_t init_src(btav_callbacks_t* callbacks, int max_a2dp_connection
 
 /*******************************************************************************
 **
-** Function         get_pcm_data
+** Function         init_sink_vendor
 **
-** Description      get pcm data stored from PCM Q
+** Description      Initializes the AV interface for sink vendor mode
+**
+** Returns          bt_status_t
+**
+*******************************************************************************/
+static bt_status_t init_sink_vendor(btav_vendor_callbacks_t* callbacks, int max,
+                             int a2dp_multicast_state)
+{
+    bt_status_t status;
+
+    BTIF_TRACE_EVENT("%s", __FUNCTION__);
+
+    if (bt_av_src_callbacks != NULL) {
+        // already did btif_av_init()
+        status = BT_STATUS_SUCCESS;
+    }
+    else
+    {
+        enable_multicast = FALSE; // Clear multicast flag for sink
+        if (max > 1)
+        {
+            BTIF_TRACE_ERROR("Only one Sink can be initialized");
+            max = 1;
+        }
+        btif_max_av_clients = max; //Should be 1
+        if (bt_av_sink_callbacks != NULL)
+            status = BT_STATUS_SUCCESS;
+    }
+
+    if (status == BT_STATUS_SUCCESS) {
+        bt_av_sink_vendor_callbacks = callbacks;
+        //BTA_AvEnable_Sink(TRUE);
+    }
+
+    /* initializing mutex for sink */
+    pthread_mutex_init(&pcm_queue_lock, NULL);
+
+    return status;
+}
+
+/*******************************************************************************
+**
+** Function         get_pcm_data_vendor
+**
+** Description      vendor interface get pcm data stored from PCM Q
 **
 ** Returns          number of bytes returned
 **
 *******************************************************************************/
-static uint32_t get_pcm_data (UINT8* data, uint32_t size)
+static uint32_t get_pcm_data_vendor (UINT8* data, uint32_t size)
 {
     uint16_t pcm_q_bytes_left = 0;// bytes left in topmost element of PCM Q
     tBT_PCM_HDR* p_pcm_q_buf; // pointer to first element in que;
@@ -2278,49 +2391,6 @@ static uint32_t get_pcm_data (UINT8* data, uint32_t size)
 }
 
 /*******************************************************************************
-**
-** Function         init_sink
-**
-** Description      Initializes the AV interface for sink mode
-**
-** Returns          bt_status_t
-**
-*******************************************************************************/
-
-static bt_status_t init_sink(btav_callbacks_t* callbacks, int max,
-                             int a2dp_multicast_state)
-{
-    bt_status_t status;
-
-    BTIF_TRACE_EVENT("%s", __FUNCTION__);
-
-    if (bt_av_src_callbacks != NULL) {
-        // already did btif_av_init()
-        status = BT_STATUS_SUCCESS;
-    }
-    else
-    {
-        enable_multicast = FALSE; // Clear multicast flag for sink
-        if (max > 1)
-        {
-            BTIF_TRACE_ERROR("Only one Sink can be initialized");
-            max = 1;
-        }
-        btif_max_av_clients = max; //Should be 1
-        status = btif_av_init(BTA_A2DP_SINK_SERVICE_ID);
-    }
-
-    if (status == BT_STATUS_SUCCESS) {
-        bt_av_sink_callbacks = callbacks;
-        //BTA_AvEnable_Sink(TRUE);
-    }
-
-    /* initializing mutex for sink */
-    pthread_mutex_init(&pcm_queue_lock, NULL);
-
-    return status;
-}
-/*******************************************************************************
  **
  ** Function         btif_media_avk_fetch_pcm_data
  **
@@ -2331,7 +2401,7 @@ static bt_status_t init_sink(btav_callbacks_t* callbacks, int max,
  *******************************************************************************/
 uint32_t btif_media_avk_fetch_pcm_data(UINT8 *data, UINT32 size)
 {
-    return get_pcm_data(data,size);
+    return get_pcm_data_vendor(data,size);
 }
 /*******************************************************************************
  **
@@ -2381,14 +2451,14 @@ static void btif_media_clear_pcm_queue()
 #ifdef USE_AUDIO_TRACK
 /*******************************************************************************
 **
-** Function         audio_focus_status
+** Function         audio_focus_status_vendor
 **
 ** Description      Update Audio Focus State
 **
 ** Returns          None
 **
 *******************************************************************************/
-void audio_focus_status(int state)
+void audio_focus_status_vendor(int state)
 {
     BTIF_TRACE_DEBUG(" audio_focus_status  %d ",state);
     btif_a2dp_set_audio_focus_state(state);
@@ -2627,7 +2697,25 @@ static void cleanup_sink(void) {
     pthread_mutex_destroy(&pcm_queue_lock);
 }
 
-static void allow_connection(int is_valid, bt_bdaddr_t *bd_addr)
+static void cleanup_src_vendor(void) {
+    BTIF_TRACE_EVENT("%s", __FUNCTION__);
+    if (bt_av_src_vendor_callbacks)
+    {
+        bt_av_src_vendor_callbacks = NULL;
+    }
+    BTIF_TRACE_EVENT("%s completed", __FUNCTION__);
+}
+
+static void cleanup_sink_vendor(void) {
+    BTIF_TRACE_EVENT("%s", __FUNCTION__);
+    if (bt_av_sink_vendor_callbacks)
+    {
+        bt_av_sink_vendor_callbacks = NULL;
+    }
+    BTIF_TRACE_EVENT("%s completed", __FUNCTION__);
+}
+
+static void allow_connection_vendor(int is_valid, bt_bdaddr_t *bd_addr)
 {
     int index = 0;
     BTIF_TRACE_DEBUG(" %s isValid is %d event %d", __FUNCTION__,is_valid,idle_rc_event);
@@ -2683,7 +2771,6 @@ static const btav_interface_t bt_av_src_interface = {
     src_connect_sink,
     disconnect,
     cleanup_src,
-    allow_connection,
 };
 
 static const btav_interface_t bt_av_sink_interface = {
@@ -2692,11 +2779,28 @@ static const btav_interface_t bt_av_sink_interface = {
     sink_connect_src,
     disconnect,
     cleanup_sink,
+};
+
+static const btav_vendor_interface_t bt_av_src_vendor_interface = {
+    sizeof(btav_vendor_interface_t),
+    init_src_vendor,
+    allow_connection_vendor,
+    NULL,
+    NULL,
+    cleanup_src_vendor,
+};
+
+static const btav_vendor_interface_t bt_av_sink_vendor_interface = {
+    sizeof(btav_vendor_interface_t),
+    init_sink_vendor,
     NULL,
 #ifdef USE_AUDIO_TRACK
-    audio_focus_status,
+    audio_focus_status_vendor,
+#else
+    NULL,
 #endif
-    get_pcm_data,
+    get_pcm_data_vendor,
+    cleanup_sink_vendor,
 };
 
 /*******************************************************************************
@@ -2953,6 +3057,7 @@ bt_status_t btif_av_sink_execute_service(BOOLEAN b_enable)
      }
      return BT_STATUS_SUCCESS;
 }
+
 /*******************************************************************************
 **
 ** Function         btif_av_get_src_interface
@@ -2981,6 +3086,36 @@ const btav_interface_t *btif_av_get_sink_interface(void)
 {
     BTIF_TRACE_EVENT("%s", __FUNCTION__);
     return &bt_av_sink_interface;
+}
+
+/*******************************************************************************
+**
+** Function         btif_av_get_src_vendor_interface
+**
+** Description      Get the AV callback interface for A2DP source profile
+**
+** Returns          btav_interface_t
+**
+*******************************************************************************/
+const btav_vendor_interface_t *btif_av_get_src_vendor_interface(void)
+{
+    BTIF_TRACE_EVENT("%s", __FUNCTION__);
+    return &bt_av_src_vendor_interface;
+}
+
+/*******************************************************************************
+**
+** Function         btif_av_get_sink_interface
+**
+** Description      Get the AV callback interface for A2DP sink profile
+**
+** Returns          btav_interface_t
+**
+*******************************************************************************/
+const btav_interface_t *btif_av_get_sink_vendor_interface(void)
+{
+    BTIF_TRACE_EVENT("%s", __FUNCTION__);
+    return &bt_av_sink_vendor_interface;
 }
 
 /*******************************************************************************
@@ -3222,6 +3357,7 @@ void btif_av_clear_remote_suspend_flag(void)
 void btif_av_move_idle(bt_bdaddr_t bd_addr)
 {
     int index =0;
+    if (btif_av_cb[0].sm_handle == NULL) return;
     /* inform the application that ACL is disconnected and move to idle state */
     index = btif_av_idx_by_bdaddr(bd_addr.address);
     if (index == btif_max_av_clients)
@@ -3372,7 +3508,7 @@ void btif_av_update_multicast_state(int index)
     {
         BTA_AvEnableMultiCast(enable_multicast,
                 btif_av_cb[index].bta_handle);
-        HAL_CBACK(bt_av_src_callbacks, multicast_state_cb,
+        HAL_CBACK(bt_av_src_vendor_callbacks, multicast_state_vendor_cb,
               enable_multicast);
     }
 }
