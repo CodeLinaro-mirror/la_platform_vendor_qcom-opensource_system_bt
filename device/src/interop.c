@@ -36,6 +36,7 @@ static const char* interop_feature_string(const interop_feature_t feature) {
     CASE_RETURN_STR(INTEROP_DISABLE_SNIFF_DURING_SCO)
     CASE_RETURN_STR(INTEROP_INCREASE_AG_CONN_TIMEOUT)
     CASE_RETURN_STR(INTEROP_ADV_AVRCP_VER_1_3)
+    CASE_RETURN_STR(INTEROP_ADV_PBAP_VER_1_1)
   }
 
   return "UNKNOWN";
@@ -68,6 +69,7 @@ bool interop_name_match(const interop_feature_t feature, const char *name) {
 
   for (size_t i = 0; i != db_size; ++i) {
     if (feature == interop_name_database[i].feature &&
+        strlen(name) == strlen(interop_name_database[i].name) &&
         strncmp(name, interop_name_database[i].name, strlen(name)) == 0) {
       char bdstr[20] = {0};
       LOG_WARN("%s() Device with name: %s is a match for interop name workaround %s", __func__,
