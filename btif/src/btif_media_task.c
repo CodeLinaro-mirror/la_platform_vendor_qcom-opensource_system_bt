@@ -487,13 +487,11 @@ extern tBTA_AV_HNDL btif_av_get_av_hdl_from_idx(UINT8 idx);
 extern BOOLEAN btif_av_is_under_handoff();
 void btif_media_send_reset_vendor_state();
 void btif_media_on_start_vendor_command();
-void btif_media_start_vendor_command();
 void btif_media_on_stop_vendor_command();
 BOOLEAN btif_media_send_vendor_pref_bit_rate();
 BOOLEAN btif_media_send_vendor_write_sbc_cfg();
 BOOLEAN btif_media_send_vendor_media_chn_cfg();
 BOOLEAN btif_media_send_vendor_stop();
-BOOLEAN btif_media_send_vendor_start();
 void disconnect_a2dp_on_vendor_start_failure();
 BOOLEAN btif_media_send_vendor_selected_codec();
 BOOLEAN btif_media_send_vendor_transport_cfg();
@@ -503,13 +501,11 @@ BOOLEAN btif_media_send_vendor_scmst_hdr();
 #define btif_av_is_under_handoff() (0)
 #define btif_media_send_reset_vendor_state() (0)
 #define btif_media_on_start_vendor_command() (0)
-#define btif_media_start_vendor_command()    (0)
 #define btif_media_on_stop_vendor_command()  (0)
 #define btif_media_send_vendor_pref_bit_rate() (0)
 #define btif_media_send_vendor_write_sbc_cfg() (0)
 #define btif_media_send_vendor_media_chn_cfg() (0)
 #define btif_media_send_vendor_stop()        (0)
-#define btif_media_send_vendor_start()       (0)
 #define disconnect_a2dp_on_vendor_start_failure() (0)
 #define btif_media_send_vendor_selected_codec() (0)
 #define btif_media_send_vendor_transport_cfg()  (0)
