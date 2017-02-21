@@ -1400,7 +1400,7 @@ Range: 2 octets
  * Audio*2 + Video*2 + 1 Additional
  */
 #ifndef AVDT_NUM_SEPS
-#define AVDT_NUM_SEPS               5
+#define AVDT_NUM_SEPS               9
 #endif
 
 /* Number of transport channels setup per media stream(audio or video) */
