@@ -674,6 +674,11 @@ void btif_disable_bluetooth_evt(void)
     bte_main_enable_lpm(FALSE);
 #endif
 
+    #if (BLE_INCLUDED == TRUE)
+         BTA_VendorCleanup();
+         BTA_StopBleTimers();
+    #endif
+
      bte_main_disable();
 
     /* callback to HAL */
@@ -695,10 +700,6 @@ bt_status_t btif_shutdown_bluetooth(void)
 {
     BTIF_TRACE_DEBUG("%s", __FUNCTION__);
 
-    #if (BLE_INCLUDED == TRUE)
-         BTA_VendorCleanup();
-         BTA_StopBleTimers();
-    #endif
 
     btif_transfer_context(btif_jni_disassociate, 0, NULL, 0, NULL);
 
