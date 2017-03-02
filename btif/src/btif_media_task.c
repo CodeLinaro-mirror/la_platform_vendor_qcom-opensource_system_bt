@@ -271,6 +271,8 @@ enum {
 #define SBC_FRAME_HEADER_SIZE_BYTES 4 // A2DP Spec v1.3, 12.4, Table 12.12
 #define SBC_SCALE_FACTOR_BITS       4 // A2DP Spec v1.3, 12.4, Table 12.13
 
+#define PAYLOAD_SIZE_2DH5_PACKET 679
+
 typedef struct {
     // Counter for total updates
     size_t total_updates;
@@ -4945,6 +4947,30 @@ BOOLEAN btif_media_send_vendor_media_chn_cfg()
     UINT8 param[8];
     bt_bdaddr_t bd_addr;
     BD_ADDR addr;
+    UINT8 codec_type = A2DP_CODEC_SBC;
+
+    codec_type = bta_av_co_get_current_codec();
+    if (codec_type == A2D_NON_A2DP_MEDIA_CT) {
+        UINT8* ptr = bta_av_co_get_current_codecInfo();
+        if (ptr) {
+            tA2D_APTX_CIE* codecInfo = (tA2D_APTX_CIE*) &ptr[BTA_AV_CFG_START_IDX];
+            if (codecInfo && codecInfo->vendorId == A2D_APTX_VENDOR_ID && codecInfo->codecId == A2D_APTX_CODEC_ID_BLUETOOTH)
+                   codec_type = A2DP_CODEC_APTX;
+            else if (codecInfo && codecInfo->vendorId == A2D_APTX_HD_VENDOR_ID && codecInfo->codecId == A2D_APTX_HD_CODEC_ID_BLUETOOTH)
+                   codec_type = A2DP_CODEC_APTX_HD;
+        }
+    }
+
+    APPL_TRACE_IMP("Selected Codec Type: %d", codec_type);
+    if ((codec_type == A2DP_CODEC_APTX) || (codec_type == A2DP_CODEC_APTX_HD))
+    {
+        if (btif_media_cb.TxAaMtuSize > PAYLOAD_SIZE_2DH5_PACKET)
+        {
+            APPL_TRACE_IMP("Restricting streaming MTU size to 679 for APTx codecs");
+            btif_media_cb.TxAaMtuSize = PAYLOAD_SIZE_2DH5_PACKET;
+        }
+    }
+
     btif_av_get_peer_addr(&bd_addr);
     memcpy(addr, bd_addr.address, sizeof(BD_ADDR));
     UINT16 acl_hdl = BTM_GetHCIConnHandle(addr, BT_TRANSPORT_BR_EDR);
