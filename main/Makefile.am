@@ -32,6 +32,8 @@ AM_CPPFLAGS= \
         -I../embdrv/sbc/decoder/include \
         -I../audio_a2dp_hw \
         -I../utils/include \
+        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/bta/include \
+        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/include \
         -I${WORKSPACE}/external/tinyxml2 \
         -I${WORKSPACE}/external/zlib \
         -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/hal/include \
@@ -57,7 +59,21 @@ c_sources = \
         bte_init.c \
         bte_logmsg.c \
         bte_conf.c \
-        stack_config.c
+        stack_config.c \
+        ../embdrv/sbc/decoder/srce/alloc.c \
+        ../embdrv/sbc/decoder/srce/bitalloc.c \
+        ../embdrv/sbc/decoder/srce/bitalloc-sbc.c \
+        ../embdrv/sbc/decoder/srce/bitstream-decode.c \
+        ../embdrv/sbc/decoder/srce/decoder-oina.c \
+        ../embdrv/sbc/decoder/srce/decoder-private.c \
+        ../embdrv/sbc/decoder/srce/decoder-sbc.c \
+        ../embdrv/sbc/decoder/srce/dequant.c \
+        ../embdrv/sbc/decoder/srce/framing.c \
+        ../embdrv/sbc/decoder/srce/framing-sbc.c \
+        ../embdrv/sbc/decoder/srce/oi_codec_version.c \
+        ../embdrv/sbc/decoder/srce/synthesis-sbc.c \
+        ../embdrv/sbc/decoder/srce/synthesis-dct8.c \
+        ../embdrv/sbc/decoder/srce/synthesis-8-generated.c
 
 # BTC
 if BTC_SUPPORT
@@ -98,6 +114,16 @@ common_LDFLAGS = -ldl -lrt -lresolv -Wl,--whole-archive,../hci/.libs/libbt-hci.a
                  -Wl,--whole-archive,../utils/.libs/libbtutils.a,--no-whole-archive -Wl,--whole-archive,../btcore/.libs/libbtcore.a,--no-whole-archive \
                  -Wl,--whole-archive,../osi/.libs/libbtosi.a,--no-whole-archive -Wl,--whole-archive,../device/.libs/libbtdevice.a,--no-whole-archive \
 				 -laudioutils
+
+c_sources+= \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/src/btif_avk_media_task.c \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/src/btif_avk.c \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/src/btif_avk_rc.c \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/src/btif_avk_media_aac.c \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/src/btif_avk_media_mp3.c \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/src/btif_avk_media_aptx.c \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/co/bta_avk_co.c
+
 
 common_CFLAGS =  $(AM_CFLAGS) -fPIC -DUSE_AUDIO_TRACK -D_GNU_SOURCE $(Z_LIB)
 

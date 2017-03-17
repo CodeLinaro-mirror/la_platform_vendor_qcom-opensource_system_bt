@@ -41,6 +41,7 @@
 #include "btif_profile_queue.h"
 #include "btif_util.h"
 #include "osi/include/properties.h"
+#include "hardware/bt_hf_client_vendor.h"
 
 /************************************************************************************
 **  Constants & Macros
@@ -73,6 +74,7 @@
 **  Static variables
 ************************************************************************************/
 static bthf_client_callbacks_t *bt_hf_client_callbacks = NULL;
+static bthf_client_vendor_callbacks_t *bt_hf_client_vendor_callbacks = NULL;
 static UINT32 btif_hf_client_features = 0;
 
 char btif_hf_client_version[PROPERTY_VALUE_MAX];
@@ -200,6 +202,24 @@ static bt_status_t init( bthf_client_callbacks_t* callbacks )
     btif_enable_service(BTA_HFP_HS_SERVICE_ID);
 
     clear_state();
+
+    return BT_STATUS_SUCCESS;
+}
+
+/*******************************************************************************
+**
+** Function         btif_hf_client_vendor_init
+**
+** Description     initializes the hf client vendor interface
+**
+** Returns         bt_status_t
+**
+*******************************************************************************/
+static bt_status_t init_vendor( bthf_client_vendor_callbacks_t* callbacks )
+{
+    BTIF_TRACE_EVENT("%s", __FUNCTION__);
+
+    bt_hf_client_vendor_callbacks = callbacks;
 
     return BT_STATUS_SUCCESS;
 }
@@ -645,6 +665,23 @@ static void  cleanup( void )
 
 /*******************************************************************************
 **
+** Function        cleanup_vendor
+**
+** Description     cleans up the hf client vendor interface
+**
+** Returns         bt_status_t
+**
+*******************************************************************************/
+static bt_status_t cleanup_vendor( void )
+{
+    BTIF_TRACE_EVENT("%s", __FUNCTION__);
+
+    bt_hf_client_vendor_callbacks = NULL;
+
+    return BT_STATUS_SUCCESS;
+}
+/*******************************************************************************
+**
 ** Function         send_at_cmd
 **
 ** Description      Send requested AT command to rempte device.
@@ -682,6 +719,12 @@ static const bthf_client_interface_t bthfClientInterface = {
     .request_last_voice_tag_number = request_last_voice_tag_number,
     .cleanup = cleanup,
     .send_at_cmd = send_at_cmd,
+};
+
+static const bthf_client_vendor_interface_t bthfClientVendorInterface = {
+    sizeof(bthf_client_vendor_interface_t),
+    .init_vendor = init_vendor,
+    .cleanup_vendor = cleanup_vendor,
 };
 
 static void process_ind_evt(tBTA_HF_CLIENT_IND *ind)
@@ -896,10 +939,10 @@ static void btif_hf_client_upstreams_evt(UINT16 event, char* p_param)
             HAL_CBACK(bt_hf_client_callbacks, ring_indication_cb);
             break;
         case BTA_HF_CLIENT_CGMI_EVT:
-            HAL_CBACK(bt_hf_client_callbacks, cgmi_cb, p_data->cgmi.name);
+            HAL_CBACK(bt_hf_client_vendor_callbacks, cgmi_vendor_cb, p_data->cgmi.name);
             break;
         case BTA_HF_CLIENT_CGMM_EVT:
-            HAL_CBACK(bt_hf_client_callbacks, cgmm_cb, p_data->cgmm.model);
+            HAL_CBACK(bt_hf_client_vendor_callbacks, cgmm_vendor_cb, p_data->cgmm.model);
             break;
         default:
             BTIF_TRACE_WARNING("%s: Unhandled event: %d", __FUNCTION__, event);
@@ -941,7 +984,9 @@ bt_status_t btif_hf_client_execute_service(BOOLEAN b_enable)
 {
     BTIF_TRACE_EVENT("%s enable:%d", __FUNCTION__, b_enable);
 
-    osi_property_get("ro.bluetooth.hfp.ver", btif_hf_client_version, "1.5");
+    property_get("ro.bluetooth.hfp.ver", btif_hf_client_version, "1.6");
+
+    BTIF_TRACE_EVENT("%s: hfp client version is %s", __func__, btif_hf_client_version);
 
      if (b_enable)
      {
@@ -980,11 +1025,11 @@ bt_status_t btif_hf_client_execute_service(BOOLEAN b_enable)
 
 /*******************************************************************************
 **
-** Function         btif_hf_get_interface
+** Function         btif_hf_client_get_interface
 **
-** Description      Get the hf callback interface
+** Description      Get the hf client callback interface
 **
-** Returns          bthf_interface_t
+** Returns          bthf_client_interface_t
 **
 *******************************************************************************/
 const bthf_client_interface_t *btif_hf_client_get_interface(void)
@@ -992,3 +1037,19 @@ const bthf_client_interface_t *btif_hf_client_get_interface(void)
     BTIF_TRACE_EVENT("%s", __FUNCTION__);
     return &bthfClientInterface;
 }
+
+/*******************************************************************************
+**
+** Function         btif_hf_client_vendor_get_interface
+**
+** Description      Get the hf client vendor callback interface
+**
+** Returns          bthf_client_vendor_interface_t
+**
+*******************************************************************************/
+const bthf_client_vendor_interface_t *btif_hf_client_vendor_get_interface(void)
+{
+    BTIF_TRACE_IMP("%s", __FUNCTION__);
+    return &bthfClientVendorInterface;
+}
+

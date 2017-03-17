@@ -287,6 +287,33 @@ void A2D_deinit_aptX(void)
 
 /*******************************************************************************
 **
+** Function         A2D_stop_aptX
+**
+** Description      This function remove aptX thread
+**
+** Returns          Nothing
+**
+*******************************************************************************/
+void A2D_stop_aptX(void)
+{
+    A2D_TRACE_DEBUG("%s", __func__);
+    mutex_global_lock();
+    if (A2dAptXSchedLibHandle)
+    {
+        // remove aptX thread
+        if (A2d_aptx_thread)
+        {
+            A2D_aptx_sched_stop();
+            thread_free(A2d_aptx_thread);
+            A2d_aptx_thread = NULL;
+        }
+    }
+    mutex_global_unlock();
+    return;
+}
+
+/*******************************************************************************
+**
 ** Function         A2D_close_aptX
 **
 ** Description      This function close aptX

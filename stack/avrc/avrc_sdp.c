@@ -239,6 +239,11 @@ UINT16 AVRC_AddRecord(UINT16 service_uuid, char *p_service_name,
         avrc_proto_desc_list[index].params[0] = AVCT_REV_1_4;
         avrc_proto_desc_list[index].params[1] = 0;
     }
+#ifndef ANDROID
+        /* add protocol descriptor list   */
+    result &= SDP_AddProtocolList(sdp_handle, 1, (tSDP_PROTOCOL_ELEM *)avrc_proto_desc_list);
+    result &= SDP_AddProfileDescriptorList(sdp_handle, UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_0);
+#else
     result &= SDP_AddProtocolList(sdp_handle, AVRC_NUM_PROTO_ELEMS,
                                                   (tSDP_PROTOCOL_ELEM *)avrc_proto_desc_list);
 
@@ -272,7 +277,7 @@ UINT16 AVRC_AddRecord(UINT16 service_uuid, char *p_service_name,
     }
     /* add profile descriptor list   */
     result &= SDP_AddProfileDescriptorList(sdp_handle, UUID_SERVCLASS_AV_REMOTE_CONTROL, profile_version);
-
+#endif
     /* add supported categories */
     p = temp;
     UINT16_TO_BE_STREAM(p, categories);

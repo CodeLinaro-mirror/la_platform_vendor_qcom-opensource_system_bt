@@ -1853,9 +1853,8 @@ static BOOLEAN bta_av_co_audio_peer_supports_codec(tBTA_AV_CO_PEER *p_peer, UINT
               }
         }
     } else
-        APPL_TRACE_DEBUG("%s aptX is disabled", __func__);
+        APPL_TRACE_DEBUG("%s AAC is disabled", __func__);
 #endif
-
 
     for (index = 0; index < p_peer->num_sup_snks; index++)
     {
@@ -1863,7 +1862,7 @@ static BOOLEAN bta_av_co_audio_peer_supports_codec(tBTA_AV_CO_PEER *p_peer, UINT
             ((p_codec_type == NULL) && (p_peer->snks[index].codec_type == codec_type ||
             p_peer->snks[index].codec_type == bta_av_co_cb.codec_cfg_sbc.id)))
         {
-            switch (p_peer->snks[index].codec_type)
+            switch (bta_av_co_cb.codec_cfg->id)
             {
             case BTIF_AV_CODEC_SBC:
                 if (p_snk_index) *p_snk_index = index;
@@ -2124,7 +2123,7 @@ BOOLEAN bta_av_co_audio_codec_supported(tBTIF_STATUS *p_status)
 #if defined(BTA_AV_CO_CP_SCMS_T) && (BTA_AV_CO_CP_SCMS_T == TRUE)
                         || (p_peer->cp_active != cp_active)
 #endif
-                        )
+                        || (current_codec_id != p_scb_codec_type))
                     {
                         /* Save the new configuration */
                         p_peer->p_snk = p_sink;

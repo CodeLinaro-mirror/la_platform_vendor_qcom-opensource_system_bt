@@ -260,7 +260,7 @@ extern bt_status_t btif_hf_execute_service(BOOLEAN b_enable);
 extern bt_status_t btif_av_execute_service(BOOLEAN b_enable);
 #endif
 #if (defined BTA_AV_SINK_INCLUDED && BTA_AV_SINK_INCLUDED == TRUE)
-extern bt_status_t btif_av_sink_execute_service(BOOLEAN b_enable);
+extern bt_status_t btif_avk_sink_execute_service(BOOLEAN b_enable);
 #endif
 #if (defined BTA_HH_INCLUDED && BTA_HH_INCLUDED == TRUE)
 extern bt_status_t btif_hh_execute_service(BOOLEAN b_enable);
@@ -275,8 +275,11 @@ extern int btif_hh_connect(bt_bdaddr_t *bd_addr);
 extern void bta_gatt_convert_uuid16_to_uuid128(UINT8 uuid_128[LEN_UUID_128], UINT16 uuid_16);
 #if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
 extern void btif_av_move_idle(bt_bdaddr_t bd_addr);
+extern void btif_avk_move_idle(bt_bdaddr_t bd_addr);
 extern void btif_av_trigger_suspend();
 extern BOOLEAN btif_av_get_ongoing_multicast();
+extern void btif_avk_trigger_suspend();
+extern BOOLEAN btif_avk_get_ongoing_multicast();
 #endif
 /******************************************************************************
 **  Functions
@@ -351,7 +354,7 @@ bt_status_t btif_in_execute_service_request(tBTA_SERVICE_ID service_id,
 #if (defined BTA_AV_SINK_INCLUDED && BTA_AV_SINK_INCLUDED == TRUE)
          case BTA_A2DP_SINK_SERVICE_ID:
          {
-            btif_av_sink_execute_service(b_enable);
+            btif_avk_sink_execute_service(b_enable);
          }break;
 #endif
 #if (defined BTA_HH_INCLUDED && BTA_HH_INCLUDED == TRUE)
@@ -2079,6 +2082,11 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
                 // trigger a2dp suspend
                 btif_av_trigger_suspend();
             }
+            if (btif_avk_get_ongoing_multicast())
+            {
+                // trigger a2dp suspend
+                btif_avk_trigger_suspend();
+            }
 #endif
             btif_update_remote_version_property(&bd_addr);
 
@@ -2110,6 +2118,7 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             }
 #if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
             btif_av_move_idle(bd_addr);
+            btif_avk_move_idle(bd_addr);
 #endif
             BTIF_TRACE_DEBUG("BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
             HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,

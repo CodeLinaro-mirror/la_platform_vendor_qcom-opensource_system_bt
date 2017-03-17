@@ -1,5 +1,5 @@
- /******************************************************************************
- *  Copyright (c) 2016, The Linux Foundation. All rights reserved.
+/******************************************************************************
+ *  Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
  *
  *  Not a contribution.
  ******************************************************************************/
@@ -86,7 +86,7 @@
 #endif
 
 #ifndef BTA_AR_INCLUDED
-#define BTA_AR_INCLUDED FALSE
+#define BTA_AR_INCLUDED TRUE
 #endif
 
 #ifndef BTA_AV_INCLUDED
@@ -95,11 +95,11 @@
 
 /* Add new flag for HF */
 #ifndef BTA_HF_INCLUDED
-#define BTA_HF_INCLUDED FALSE
+#define BTA_HF_INCLUDED TRUE
 #endif
 
 #ifndef BTA_HF_CLIENT_INCLUDED
-#define BTA_HF_CLIENT_INCLUDED FALSE
+#define BTA_HF_CLIENT_INCLUDED TRUE
 #endif
 
 #ifndef BTA_GATT_INCLUDED
@@ -107,7 +107,7 @@
 #endif
 
 #ifndef BTA_AV_SINK_INCLUDED
-#define BTA_AV_SINK_INCLUDED FALSE
+#define BTA_AV_SINK_INCLUDED TRUE
 #endif
 
 #ifndef BTA_DISABLE_DELAY
@@ -1511,6 +1511,18 @@
 
 #ifndef AVRC_CTLR_INCLUDED
 #define AVRC_CTLR_INCLUDED          TRUE
+#endif
+
+#ifndef AAC_DECODER_INCLUDED
+#define AAC_DECODER_INCLUDED        TRUE
+#endif
+
+#ifndef MP3_DECODER_INCLUDED
+#define MP3_DECODER_INCLUDED        TRUE
+#endif
+
+#ifndef APTX_CLASSIC_DECODER_INCLUDED
+#define APTX_CLASSIC_DECODER_INCLUDED        TRUE
 #endif
 
 #ifndef SDP_AVRCP_1_6

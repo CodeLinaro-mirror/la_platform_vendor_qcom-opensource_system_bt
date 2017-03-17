@@ -164,6 +164,7 @@ AC_CONFIG_FILES([ \
          tools/btsnoop_dump/Makefile \
          embdrv/sbc/decoder/Makefile \
          btif/Makefile
+         audio_a2dp_hw/Makefile \
          ])
 
 AC_OUTPUT

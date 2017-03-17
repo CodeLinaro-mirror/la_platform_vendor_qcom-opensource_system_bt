@@ -82,6 +82,7 @@
 #endif
 #if BTA_AV_INCLUDED==TRUE
 #include "bta_av_int.h"
+#include "bta_avk_int.h"
 #endif
 
 #if BTA_HH_INCLUDED==TRUE
@@ -191,6 +192,7 @@ void BTE_InitStack(void)
 #endif
 #if BTA_AV_INCLUDED==TRUE
     memset((void *)bta_av_cb_ptr, 0, sizeof(tBTA_AV_CB));
+    memset((void *)bta_avk_cb_ptr, 0, sizeof(tBTA_AVK_CB));
 #endif
 #if BTA_HH_INCLUDED==TRUE
     memset((void *)bta_hh_cb_ptr, 0, sizeof(tBTA_HH_CB));

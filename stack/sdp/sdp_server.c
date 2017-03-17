@@ -215,7 +215,11 @@ BOOLEAN sdp_fallback_avrcp_version (tSDP_ATTRIBUTE *p_attr, BD_ADDR remote_addre
             int ver;
             if (sdp_dev_blacklisted_for_avrcp15 (remote_address))
             {
+#ifdef ANDROID
                 p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x03; // Update AVRCP version as 1.3
+#else
+                p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x00; // Update AVRCP version as 1.0
+#endif
                 SDP_TRACE_ERROR("SDP Change AVRCP Version = 0x%x",
                          p_attr->value_ptr[PROFILE_VERSION_POSITION]);
                 return TRUE;
@@ -246,7 +250,11 @@ BOOLEAN sdp_fallback_avrcp_version (tSDP_ATTRIBUTE *p_attr, BD_ADDR remote_addre
                 }
                 else
                 {
+#ifdef ANDROID
                     p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x03; // Update AVRCP ver as 1.3
+#else
+                    p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x00; // Update AVRCP ver as 1.0
+#endif
                     SDP_TRACE_DEBUG("Device not stored, Change AVRCP Version = 0x%x",
                              p_attr->value_ptr[PROFILE_VERSION_POSITION]);
                     return TRUE;

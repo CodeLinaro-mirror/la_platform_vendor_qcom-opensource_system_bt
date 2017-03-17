@@ -69,6 +69,9 @@ const UINT16  bta_av_audio_flush_to[] = {
 
 /* Note: Android doesnt support AVRC_SUPF_TG_GROUP_NAVI  */
 /* Note: if AVRC_SUPF_TG_GROUP_NAVI is set, bta_av_cfg.avrc_group should be TRUE */
+#ifndef ANDROID
+#define BTA_AV_RC_SUPF_TG       (AVRC_SUPF_TG_CAT1)
+#else
 #if AVRC_METADATA_INCLUDED == TRUE
 
 #if AVCT_BROWSE_INCLUDED == TRUE
@@ -85,7 +88,7 @@ const UINT16  bta_av_audio_flush_to[] = {
 #else
 #define BTA_AV_RC_SUPF_TG       (AVRC_SUPF_TG_CAT1)
 #endif
-
+#endif
 /*
  * If the number of event IDs is changed in this array, BTA_AV_ NUM_RC_EVT_IDS   also needs to be changed.
  * AVRCP 1.3 specific events to be added before AVCT_BROWSE_INCLUDED.

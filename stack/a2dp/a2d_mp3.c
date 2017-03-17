@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright (c) 2015,2017 The Linux Foundation. All rights reserved.
+ *  Copyright (c) 2017, The Linux Foundation. All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions are
@@ -38,34 +38,32 @@
 #include <string.h>
 #include "a2d_api.h"
 #include "a2d_int.h"
-#include "a2d_aac.h"
+#include "a2d_mp3.h"
 #include "bt_utils.h"
 
-#if (A2D_M24_INCLUDED == TRUE)
+#if (MP3_DECODER_INCLUDED == TRUE)
 static UINT8 A2D_UINT32_BitsSet(UINT32 num);
 /******************************************************************************
 **
-** Function         A2D_BldAacInfo
+** Function         A2D_BldMp3Info
 **
 ** Description      This function builds byte sequence for
 **                  Aac Codec Capabilities.
 ** Input :           media_type:  Audio or MultiMedia.
-**                  p_ie: AAC Codec Information Element
+**                  p_ie: MP3 Codec Information Element
 **
 ** Output :          p_result: codec info.
 **
 ** Returns          A2D_SUCCESS if successful.
 **                  Error otherwise.
 ******************************************************************************/
-tA2D_STATUS A2D_BldAacInfo(UINT8 media_type, tA2D_AAC_CIE *p_ie, UINT8 *p_result)
+tA2D_STATUS A2D_BldMp3Info(UINT8 media_type, tA2D_MP3_CIE *p_ie, UINT8 *p_result)
 {
     tA2D_STATUS status;
     if( p_ie == NULL || p_result == NULL ||
-        (p_ie->object_type & ~A2D_AAC_IE_OBJ_TYPE_MSK) ||
-        (p_ie->samp_freq & ~A2D_AAC_IE_SAMP_FREQ_MSK) ||
-        (p_ie->channels & ~A2D_AAC_IE_CHANNELS_MSK) ||
-        (p_ie->bit_rate & ~A2D_AAC_IE_BIT_RATE_MSK) ||
-        (p_ie->vbr & ~A2D_AAC_IE_VBR_MSK) )
+        (p_ie->layer & ~A2D_MP3_IE_LAYER_MSK) ||
+        (p_ie->samp_freq & ~A2D_MP3_IE_SAMP_FREQ_MSK) ||
+        (p_ie->channels & ~A2D_MP3_IE_CHANNELS_MSK))
     {
         /* return invalid params if invalid bit is set */
         status = A2D_INVALID_PARAMS;
@@ -73,38 +71,34 @@ tA2D_STATUS A2D_BldAacInfo(UINT8 media_type, tA2D_AAC_CIE *p_ie, UINT8 *p_result
     else
     {
         status = A2D_SUCCESS;
-        *p_result++ = A2D_AAC_INFO_LEN;
+        *p_result++ = A2D_MP3_INFO_LEN;
         *p_result++ = media_type;
-        *p_result++ = A2D_MEDIA_CT_M24;
+        *p_result++ = A2D_MEDIA_CT_M12;
 
         /* Codec information */
-        *p_result++ = p_ie->object_type; // object type
-
-        *p_result++ = (UINT8)(p_ie->samp_freq >> 8);
-
-        *p_result++ = (p_ie->samp_freq & 0x00F0)|p_ie->channels;
-        *p_result++ = p_ie->vbr | ((p_ie->bit_rate >> 16)& 0x007F);
-        *p_result++ = (p_ie->bit_rate >> 8)& 0x00FF;
-        *p_result   = p_ie->bit_rate & 0x000000FF;
+        *p_result++ = p_ie->layer|p_ie->crc|p_ie->channels;                 // First Octet
+        *p_result++ = (p_ie->mpf << 6) | p_ie->samp_freq;                   // Second Octet
+        *p_result++ = (p_ie->vbr << 7) | ((p_ie->bit_rate >> 8) & 0x007F);  // Third Octet
+        *p_result++ = (UINT8)(p_ie->samp_freq & 0x00FF);                    // Fourth Octet
     }
     return status;
 }
 
 /******************************************************************************
 **
-** Function         A2D_ParsAacInfo
+** Function         MP3_ParsAacInfo
 **
 ** Description      This function parse byte sequence for
-**                  Aac Codec Capabilities.
+**                  MP3 Codec Capabilities.
 ** Input :          p_info:  input byte sequence.
 **                  for_caps: True for getcap, false otherwise
 **
-** Output :          p_ie: Aac codec information.
+** Output :          p_ie: MP3 codec information.
 **
 ** Returns          A2D_SUCCESS if successful.
 **                  Error otherwise.
 ******************************************************************************/
-tA2D_STATUS A2D_ParsAacInfo(tA2D_AAC_CIE *p_ie, UINT8 *p_info, BOOLEAN for_caps)
+tA2D_STATUS A2D_ParsMp3Info(tA2D_MP3_CIE *p_ie, UINT8 *p_info, BOOLEAN for_caps)
 {
     tA2D_STATUS status;
     UINT8   losc;
@@ -117,30 +111,30 @@ tA2D_STATUS A2D_ParsAacInfo(tA2D_AAC_CIE *p_ie, UINT8 *p_info, BOOLEAN for_caps)
         losc            = *p_info++;
         media_type      = *p_info++;
         /* Check for wrong length, media type */
-        if(losc != A2D_AAC_INFO_LEN || *p_info != A2D_MEDIA_CT_M24)
+        if(losc != A2D_MP3_INFO_LEN || *p_info != A2D_MEDIA_CT_M12)
             status = A2D_WRONG_CODEC;
         else
         {
             p_info++;
-            /* obj type */
-            p_ie->object_type = *p_info & A2D_AAC_IE_OBJ_TYPE_MSK; p_info++;
-            /* samping freq */
-            p_ie->samp_freq     = *p_info; p_info++;
-            p_ie->samp_freq = p_ie->samp_freq << 8;
-            p_ie->samp_freq |= (*p_info & 0xF0);
-            /* channels */
-            p_ie->channels = *p_info & A2D_AAC_IE_CHANNELS_MSK; p_info++;
+            /* layer, CR, Channels from 1st Octet */
+            p_ie->layer = *p_info & A2D_MP3_IE_LAYER_MSK;
+            p_ie->crc   = *p_info & A2D_MP3_IE_CRC_MSK;
+            p_ie->channels   = *p_info & A2D_MP3_IE_CHANNELS_MSK;
+            p_info++;
+            /* MPF, samping freq  from 2nd Octet*/
+            p_ie->mpf = *p_info & A2D_MP3_IE_MPF_MSK;
+            p_ie->samp_freq = *p_info & A2D_MP3_IE_SAMP_FREQ_MSK;
+            p_info++;
             /* variable bit rate */
-            p_ie->vbr =       *p_info & A2D_AAC_IE_VBR_MSK;
+            p_ie->vbr =       *p_info & A2D_MP3_IE_VBR_MSK;
             /* bit rate */
             p_ie->bit_rate = *p_info & 0x7F;p_ie->bit_rate = p_ie->bit_rate << 8; p_info++;
-            p_ie->bit_rate |= *p_info;p_ie->bit_rate = p_ie->bit_rate << 8; p_info++;
             p_ie->bit_rate |= *p_info;
             status = A2D_SUCCESS;
 
             if(for_caps == FALSE)
             {
-                if(A2D_UINT32_BitsSet(p_ie->object_type) != A2D_SET_ONE_BIT)
+                if(A2D_UINT32_BitsSet(p_ie->layer) != A2D_SET_ONE_BIT)
                     status = A2D_BAD_OBJ_TYPE;
                 if(A2D_UINT32_BitsSet(p_ie->samp_freq) != A2D_SET_ONE_BIT)
                     status = A2D_BAD_SAMP_FREQ;
@@ -172,4 +166,4 @@ static UINT8 A2D_UINT32_BitsSet(UINT32 num)
     }
     return res;
 }
-#endif /* A2D_M24_INCLUDED == TRUE */
+#endif /* MP3_DECODER_INCLUDED == TRUE */
