@@ -845,6 +845,8 @@ BOOLEAN BTM_UseLeLink (BD_ADDR bd_addr)
 tBTM_STATUS BTM_SetBleDataLength(BD_ADDR bd_addr, UINT16 tx_pdu_length)
 {
     tACL_CONN *p_acl = btm_bda_to_acl(bd_addr, BT_TRANSPORT_LE);
+    UINT16 tx_time = BTM_BLE_DATA_TX_TIME_MAX_LEGACY;
+
     BTM_TRACE_DEBUG("%s: tx_pdu_length =%d", __FUNCTION__, tx_pdu_length);
 
     if (!controller_get_interface()->supports_ble_packet_extension())
@@ -866,9 +868,11 @@ tBTM_STATUS BTM_SetBleDataLength(BD_ADDR bd_addr, UINT16 tx_pdu_length)
         else if (tx_pdu_length < BTM_BLE_DATA_SIZE_MIN)
             tx_pdu_length =  BTM_BLE_DATA_SIZE_MIN;
 
+        if (controller_get_interface()->get_bt_version()->hci_version >= HCI_PROTO_VERSION_5_0)
+            tx_time = BTM_BLE_DATA_TX_TIME_MAX;
+
         /* always set the TxTime to be max, as controller does not care for now */
-        btsnd_hcic_ble_set_data_length(p_acl->hci_handle, tx_pdu_length,
-                                            BTM_BLE_DATA_TX_TIME_MAX);
+        btsnd_hcic_ble_set_data_length(p_acl->hci_handle, tx_pdu_length, tx_time);
 
         return BTM_SUCCESS;
     }
@@ -1867,18 +1871,26 @@ static void btm_ble_resolve_random_addr_on_conn_cmpl(void * p_rec, void *p_data,
 {
     UINT8   *p = (UINT8 *)p_data;
     tBTM_SEC_DEV_REC    *match_rec = (tBTM_SEC_DEV_REC *) p_rec;
-    UINT8       role, bda_type;
+    UINT8       role, bda_type, sub_code;
     UINT16      handle;
     BD_ADDR     bda;
+    BD_ADDR     local_rpa, peer_rpa;
     UINT16      conn_interval, conn_latency, conn_timeout;
     BOOLEAN     match = FALSE;
     UNUSED(extended);
 
+    --p;
+    STREAM_TO_UINT8(sub_code, p);
     ++p;
     STREAM_TO_UINT16   (handle, p);
     STREAM_TO_UINT8    (role, p);
     STREAM_TO_UINT8    (bda_type, p);
     STREAM_TO_BDADDR   (bda, p);
+    if (sub_code == BTM_BLE_ENHC_CONN_SUB_CODE)
+    {
+        STREAM_TO_BDADDR   (local_rpa, p);
+        STREAM_TO_BDADDR   (peer_rpa, p);
+    }
     STREAM_TO_UINT16   (conn_interval, p);
     STREAM_TO_UINT16   (conn_latency, p);
     STREAM_TO_UINT16   (conn_timeout, p);
