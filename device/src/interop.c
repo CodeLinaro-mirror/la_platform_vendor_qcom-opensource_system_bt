@@ -37,6 +37,7 @@ static const char* interop_feature_string(const interop_feature_t feature) {
     CASE_RETURN_STR(INTEROP_INCREASE_AG_CONN_TIMEOUT)
     CASE_RETURN_STR(INTEROP_ADV_AVRCP_VER_1_3)
     CASE_RETURN_STR(INTEROP_ADV_PBAP_VER_1_1)
+    CASE_RETURN_STR(INTEROP_DISABLE_HF_INDICATOR)
   }
 
   return "UNKNOWN";
