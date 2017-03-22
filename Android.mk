@@ -2,7 +2,9 @@ LOCAL_PATH := $(call my-dir)
 
 # Setup bdroid local make variables for handling configuration
 ifneq ($(BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR),)
-  bdroid_C_INCLUDES := $(BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR)
+  bdroid_C_INCLUDES := $(BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR) \
+  device/qcom/common
+
   bdroid_CFLAGS += -DHAS_BDROID_BUILDCFG
 else
   bdroid_C_INCLUDES :=
