@@ -25,6 +25,9 @@
 #include <string.h>
 #include <sys/eventfd.h>
 #include <unistd.h>
+#ifndef ANDROID
+#include <sys/time.h>
+#endif
 
 #include "osi/include/fixed_queue.h"
 #include "osi/include/log.h"

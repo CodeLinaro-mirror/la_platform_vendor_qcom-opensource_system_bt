@@ -69,6 +69,11 @@ static future_t *clean_up(void) {
   return NULL;
 }
 
+//TODO: Fix this
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
+
 EXPORT_SYMBOL const module_t classic_peer_module = {
   .name = CLASSIC_PEER_MODULE,
   .init = init,

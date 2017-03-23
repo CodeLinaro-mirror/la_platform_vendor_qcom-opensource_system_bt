@@ -45,7 +45,9 @@
 #include <sys/un.h>
 #include <time.h>
 #include <unistd.h>
-
+#ifdef ANDROID
+#include <cutils/log.h>
+#endif
 #include <hardware/bt_hl.h>
 
 #include "bta_api.h"

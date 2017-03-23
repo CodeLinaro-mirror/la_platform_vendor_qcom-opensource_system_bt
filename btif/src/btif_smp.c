@@ -41,7 +41,7 @@
 #include "bt_utils.h"
 #include "smp_api.h"
 
-#ifdef TEST_APP_INTERFACE
+#if (defined TEST_APP_INTERFACE && TEST_APP_INTERFACE == TRUE)
 #include <bt_testapp.h>
 static void SmpInit(void)
 {

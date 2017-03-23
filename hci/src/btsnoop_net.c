@@ -31,9 +31,13 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#ifndef ANDROID
+#include <sys/time.h>
+#endif
 
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+#include "osi/include/compat.h"
 
 static void safe_close_(int *fd);
 static void *listen_fn_(void *context);
@@ -56,15 +60,26 @@ int client_socket_btsnoop = -1;
 static int listen_socket_local_ = -1;
 
 static int local_socket_create(void) {
+#ifndef ANDROID
+  struct sockaddr_un addr;
+#endif
 
   listen_socket_local_ = socket(AF_LOCAL, SOCK_STREAM, 0);
   if(listen_socket_local_ < 0) {
     return -1;
   }
 
+#ifdef ANDROID
   if(socket_local_server_bind(listen_socket_local_, LOCAL_SOCKET_NAME,
       ANDROID_SOCKET_NAMESPACE_ABSTRACT) < 0) {
-    LOG_ERROR(LOG_TAG, "Failed to create Local Socket (%s)", strerror(errno));
+#else
+  memset(&addr, 0, sizeof(addr));
+  addr.sun_family = AF_LOCAL;
+  strlcpy(addr.sun_path, LOCAL_SOCKET_NAME, sizeof(addr.sun_path));
+  unlink(LOCAL_SOCKET_NAME);
+  if (bind(listen_socket_local_, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+#endif
+    LOG_ERROR("Failed to create Local Socket (%s)", strerror(errno));
     return -1;
   }
 
@@ -89,7 +104,7 @@ void btsnoop_net_open() {
 void btsnoop_net_close() {
 
   if (listen_thread_valid_) {
-#if (defined(BT_NET_DEBUG) && (NET_DEBUG == TRUE))
+#if (defined(BT_NET_DEBUG) && (BT_NET_DEBUG == TRUE))
     // Disable using network sockets for security reasons
     shutdown(listen_socket_, SHUT_RDWR);
 #endif
@@ -180,7 +195,9 @@ static void *listen_fn_(UNUSED_ATTR void *context) {
     }
 
     if ((listen_socket_ != -1) && FD_ISSET(listen_socket_, &sock_fds)) {
-      client_socket = accept(listen_socket_, NULL, NULL);
+      struct sockaddr_in cli_addr;
+      socklen_t length = sizeof(cli_addr);
+      client_socket = accept(listen_socket_, (struct sockaddr *) &cli_addr, &length);
       if (client_socket == -1) {
         if (errno == EINVAL || errno == EBADF) {
           LOG_WARN(LOG_TAG, "%s error accepting TCP socket: %s", __func__, strerror(errno));
@@ -191,7 +208,7 @@ static void *listen_fn_(UNUSED_ATTR void *context) {
       }
     } else if ((listen_socket_local_ != -1) && FD_ISSET(listen_socket_local_, &sock_fds)){
       struct sockaddr_un cliaddr;
-      int length;
+      socklen_t length = sizeof(cliaddr);
 
       client_socket = accept(listen_socket_local_, (struct sockaddr *)&cliaddr, (socklen_t *)&length);
       if (client_socket == -1) {

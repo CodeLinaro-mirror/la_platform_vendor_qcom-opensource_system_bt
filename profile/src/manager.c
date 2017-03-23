@@ -57,6 +57,11 @@ static future_t *clean_up(void) {
   return NULL;
 }
 
+//TODO: Fix this
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
+
 EXPORT_SYMBOL const module_t profile_manager_module = {
   .name = PROFILE_MANAGER_MODULE,
   .init = init,

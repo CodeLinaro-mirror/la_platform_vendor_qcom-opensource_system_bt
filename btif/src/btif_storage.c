@@ -57,8 +57,11 @@
 ************************************************************************************/
 
 // TODO(armansito): Find a better way than using a hardcoded path.
+#ifdef ANDROID
 #define BTIF_STORAGE_PATH_BLUEDROID "/data/misc/bluedroid"
-
+#else
+#define BTIF_STORAGE_PATH_BLUEDROID "/data/misc/bluetooth"
+#endif
 //#define BTIF_STORAGE_PATH_ADAPTER_INFO "adapter_info"
 //#define BTIF_STORAGE_PATH_REMOTE_DEVICES "remote_devices"
 #define BTIF_STORAGE_PATH_REMOTE_DEVTIME "Timestamp"
@@ -1296,6 +1299,8 @@ bt_status_t btif_storage_get_remote_addr_type(bt_bdaddr_t *remote_bd_addr,
     return ret ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
 }
 #endif
+
+#if (defined BTA_HH_INCLUDED && BTA_HH_INCLUDED == TRUE)
 /*******************************************************************************
 **
 ** Function         btif_storage_add_hid_device_info
@@ -1447,6 +1452,7 @@ bt_status_t btif_storage_remove_hid_info(bt_bdaddr_t *remote_bd_addr)
     btif_config_save();
     return BT_STATUS_SUCCESS;
 }
+#endif
 
 /*******************************************************************************
 **

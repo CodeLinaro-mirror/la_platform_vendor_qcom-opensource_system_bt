@@ -33,8 +33,12 @@
 
 #define HCI_HAL_SERIAL_BUFFER_SIZE 1026
 
+#ifdef ANDROID
 #include <termios.h>
 #include <sys/ioctl.h>
+#else
+#include <asm-generic/termios.h>
+#endif
 
 // Our interface and modules we import
 static const hci_hal_t interface;

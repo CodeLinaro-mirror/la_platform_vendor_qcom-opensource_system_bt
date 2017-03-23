@@ -31,6 +31,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef ANDROID
+#include <signal.h>
+#endif
 
 #include "device/include/controller.h"
 #include "osi/include/log.h"
@@ -1207,8 +1210,10 @@ static void btu_hcif_hardware_error_evt (UINT8 *p)
        {
           ALOGE("SSR: SOC Status is reset\n ");
        }
+#if (!defined(SSR_CLEANUP) || (defined(SSR_CLEANUP) && SSR_CLEANUP == FALSE))
        /* Killing the process to force a restart as part of fault tolerance */
        kill(getpid(), SIGKILL);
+#endif
     }
 }
 

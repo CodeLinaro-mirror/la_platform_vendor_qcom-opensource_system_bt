@@ -26,6 +26,7 @@
  *
  ***********************************************************************************/
 
+#include <hardware/bluetooth.h>
 #include <hardware/vendor.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,7 +42,7 @@
 #define BTA_SERVICE_ID_TO_SERVICE_MASK(id)  (1 << (id))
 extern bt_status_t btif_in_execute_service_request(tBTA_SERVICE_ID service_id,
                                                BOOLEAN b_enable);
-static btvendor_callbacks_t *bt_vendor_callbacks = NULL;
+btvendor_callbacks_t *bt_vendor_callbacks = NULL;
 
 #define BTIF_VENDOR_BREDR_CLEANUP 1
 

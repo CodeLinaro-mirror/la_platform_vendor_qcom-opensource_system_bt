@@ -23,6 +23,9 @@
 #include "btif_uid.h"
 #include "bte_appl.h"
 
+#if (defined(SSR_CLEANUP) && SSR_CLEANUP == TRUE)
+#include <hardware/vendor.h>
+#endif
 /************************************************************************************
 **  Functions
 ********************************************************************************/
@@ -94,6 +97,10 @@ typedef struct
 #define BTIF_DM_LE_LOCAL_KEY_IRK      (1<<1)
 #define BTIF_DM_LE_LOCAL_KEY_DHK      (1<<2)
 #define BTIF_DM_LE_LOCAL_KEY_ER       (1<<3)
+
+#if (defined(SSR_CLEANUP) && SSR_CLEANUP == TRUE)
+extern btvendor_callbacks_t *bt_vendor_callbacks;
+#endif
 
 void btif_dm_load_ble_local_keys(void);
 void btif_dm_get_ble_local_keys(tBTA_DM_BLE_LOCAL_KEY_MASK *p_key_mask, BT_OCTET16 er,

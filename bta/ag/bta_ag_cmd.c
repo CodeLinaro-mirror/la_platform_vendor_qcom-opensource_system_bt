@@ -1241,8 +1241,13 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB *p_scb, UINT16 cmd, UINT8 arg_type,
                  (!(p_scb->peer_features & BTA_AG_PEER_FEAT_HFIND)))
             {
                 /* For PTS keep flags as is. */
+#ifdef ANDROID
                 if (property_get("bt.pts.certification", value, "false") &&
                     strcmp(value, "true") != 0)
+#else
+                if (property_get_bt("bt.pts.certification", value, "false") &&
+                    strcmp(value, "true") != 0)
+#endif
                 {
                     features = features & ~(BTA_AG_FEAT_HFIND | BTA_AG_FEAT_S4);
                 }
@@ -1253,8 +1258,13 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB *p_scb, UINT16 cmd, UINT8 arg_type,
                 APPL_TRACE_WARNING("%s: Remote is hfp 1.7 but does not support HF indicators" \
                                      "unset hf indicator bit from BRSF", __func__);
                 /* For PTS keep flags as is. */
+#ifdef ANDROID
                 if (property_get("bt.pts.certification", value, "false") &&
                     strcmp(value, "true") != 0)
+#else
+                if (property_get_bt("bt.pts.certification", value, "false") &&
+                    strcmp(value, "true") != 0)
+#endif
                 {
                     features = features & ~(BTA_AG_FEAT_HFIND);
                 }

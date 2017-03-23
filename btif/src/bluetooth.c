@@ -73,13 +73,11 @@
 #include "l2c_api.h"
 #include "stack_config.h"
 
-#if TEST_APP_INTERFACE == TRUE
+#if (defined TEST_APP_INTERFACE && TEST_APP_INTERFACE == TRUE)
 #include <bt_testapp.h>
 #endif
 
-
 #include <logging.h>
-
 
 /************************************************************************************
 **  Static variables
@@ -94,23 +92,31 @@ bool restricted_mode = FALSE;
 
 /* list all extended interfaces here */
 
+#if (defined BTA_HF_INCLUDED && BTA_HF_INCLUDED == TRUE)
 /* handsfree profile */
 extern bthf_interface_t *btif_hf_get_interface();
+#endif
+#if (defined BTA_HF_CLIENT_INCLUDED && BTA_HF_CLIENT_INCLUDED == TRUE)
 /* handsfree profile - client */
 extern bthf_client_interface_t *btif_hf_client_get_interface();
+#endif
+#if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
 /* advanced audio profile */
 extern btav_interface_t *btif_av_get_src_interface();
+#endif
+#if (defined BTA_AV_SINK_INCLUDED && BTA_AV_SINK_INCLUDED == TRUE)
 extern btav_interface_t *btif_av_get_sink_interface();
+#endif
 /*rfc l2cap*/
 extern btsock_interface_t *btif_sock_get_interface();
+#if (defined BTA_HH_INCLUDED && BTA_HH_INCLUDED == TRUE)
 /* hid host profile */
 extern bthh_interface_t *btif_hh_get_interface();
 /* health device profile */
 extern bthl_interface_t *btif_hl_get_interface();
+#endif
 /*pan*/
 extern btpan_interface_t *btif_pan_get_interface();
-/*map client*/
-extern btmce_interface_t *btif_mce_get_interface();
 #if BLE_INCLUDED == TRUE
 /* gatt */
 extern btgatt_interface_t *btif_gatt_get_interface();
@@ -185,8 +191,13 @@ static int init(bt_callbacks_t *callbacks) {
   stack_manager_get_interface()->init_stack();
   get_logger_config_value();
 
-  if(bt_logger_enabled)
+  if(bt_logger_enabled) {
+#ifdef ANDROID
     property_set("bluetooth.startbtlogger", "true");
+#else
+    property_set_bt("bluetooth.startbtlogger", "true");
+#endif
+  }
   btif_debug_init();
   return BT_STATUS_SUCCESS;
 }
@@ -214,8 +225,13 @@ static int disable(void) {
 static void cleanup(void) {
   stack_manager_get_interface()->clean_up_stack();
 
-  if(bt_logger_enabled)
+  if(bt_logger_enabled) {
+#ifdef ANDROID
     property_set("bluetooth.startbtlogger", "false");
+#else
+    property_set_bt("bluetooth.startbtlogger", "false");
+#endif
+  }
 }
 
 bool is_restricted_mode() {
@@ -394,12 +410,16 @@ static void dump(int fd, const char **arguments)
     if (arguments != NULL && arguments[0] != NULL) {
       if (strncmp(arguments[0], "--proto-text", 12) == 0) {
         btif_update_a2dp_metrics();
+#ifdef ANDROID
         metrics_print(fd, true);
+#endif
         return;
       }
       if (strncmp(arguments[0], "--proto-bin", 11) == 0) {
         btif_update_a2dp_metrics();
+#ifdef ANDROID
         metrics_write(fd, true);
+#endif
         return;
       }
     }
@@ -424,12 +444,16 @@ static const void* get_profile_interface (const char *profile_id)
     if (interface_ready() == FALSE)
         return NULL;
 
+#if (defined BTA_HF_INCLUDED && BTA_HF_INCLUDED == TRUE)
     /* check for supported profile interfaces */
     if (is_profile(profile_id, BT_PROFILE_HANDSFREE_ID))
         return btif_hf_get_interface();
+#endif
 
+#if (defined BTA_HF_CLIENT_INCLUDED && BTA_HF_CLIENT_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_HANDSFREE_CLIENT_ID))
         return btif_hf_client_get_interface();
+#endif
 
     if (is_profile(profile_id, BT_PROFILE_SOCKETS_ID))
         return btif_sock_get_interface();
@@ -440,17 +464,28 @@ static const void* get_profile_interface (const char *profile_id)
     if (is_profile(profile_id, BT_PROFILE_PAN_ID))
         return btif_pan_get_interface();
 
+    if (is_profile(profile_id, BT_PROFILE_VENDOR_ID))
+        return btif_vendor_get_interface();
+
+#if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_ID))
         return btif_av_get_src_interface();
+#endif
 
+#if (defined BTA_AV_SINK_INCLUDED && BTA_AV_SINK_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_SINK_ID))
         return btif_av_get_sink_interface();
+#endif
 
+#if (defined BTA_HH_INCLUDED && BTA_HH_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_HIDHOST_ID))
         return btif_hh_get_interface();
+#endif
 
+#if (defined BTA_HEALTH_INCLUDED && BTA_HEALTH_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_HEALTH_ID))
         return btif_hl_get_interface();
+#endif
 
     if (is_profile(profile_id, BT_PROFILE_SDP_CLIENT_ID))
         return btif_sdp_get_interface();
@@ -460,16 +495,20 @@ static const void* get_profile_interface (const char *profile_id)
         return btif_gatt_get_interface();
 #endif
 
+#if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_AV_RC_ID))
         return btif_rc_get_interface();
+#endif
 
 #ifdef WIPOWER_SUPPORTED
     if (is_profile(profile_id, BT_PROFILE_WIPOWER_VENDOR_ID))
         return get_wipower_interface();
 #endif
 
+#if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
     if (is_profile(profile_id, BT_PROFILE_AV_RC_CTRL_ID))
         return btif_rc_ctrl_get_interface();
+#endif
 
     if (is_profile(profile_id, BT_PROFILE_VENDOR_ID))
         return btif_vendor_get_interface();
@@ -477,7 +516,7 @@ static const void* get_profile_interface (const char *profile_id)
     return NULL;
 }
 
-#if TEST_APP_INTERFACE == TRUE
+#if (defined TEST_APP_INTERFACE && TEST_APP_INTERFACE == TRUE)
 static const void* get_testapp_interface(int test_app_profile)
 {
     ALOGI("get_testapp_interface %d", test_app_profile);
@@ -659,6 +698,11 @@ static int open_bluetooth_stack(const struct hw_module_t *module, UNUSED_ATTR ch
 static struct hw_module_methods_t bt_stack_module_methods = {
     .open = open_bluetooth_stack,
 };
+
+//TODO: Fix this
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
 
 EXPORT_SYMBOL struct hw_module_t HAL_MODULE_INFO_SYM = {
     .tag = HARDWARE_MODULE_TAG,

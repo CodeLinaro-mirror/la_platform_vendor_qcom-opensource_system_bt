@@ -68,7 +68,11 @@ int main(int argc, char *argv[]) {
   // TODO(armansito): Remove Chromecast specific property out of here. This
   // should just be obtained from global config.
   char disable_value[PROPERTY_VALUE_MAX];
+#ifdef ANDROID
   int status = property_get(kDisableProperty, disable_value, nullptr);
+#else
+  int status = property_get_bt(kDisableProperty, disable_value, nullptr);
+#endif
   if (status && !strcmp(disable_value, "1")) {
     LOG(INFO) << "service disabled";
     return EXIT_SUCCESS;

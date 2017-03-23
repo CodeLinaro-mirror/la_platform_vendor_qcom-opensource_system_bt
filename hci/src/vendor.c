@@ -30,7 +30,12 @@
 #include "osi/include/osi.h"
 
 
+#ifdef ANDROID
 static const char *VENDOR_LIBRARY_NAME = "libbt-vendor.so";
+#else
+static const char *VENDOR_LIBRARY_NAME = "libbt-vendor.so.0";
+#endif
+
 static const char *VENDOR_LIBRARY_SYMBOL_NAME = "BLUETOOTH_VENDOR_LIB_INTERFACE";
 
 static const vendor_t interface;

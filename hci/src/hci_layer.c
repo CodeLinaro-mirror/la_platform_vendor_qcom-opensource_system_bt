@@ -382,6 +382,11 @@ static future_t *shut_down() {
   return NULL;
 }
 
+//TODO: Fix this
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
+
 EXPORT_SYMBOL const module_t hci_module = {
   .name = HCI_MODULE,
   .init = NULL,
@@ -636,7 +641,11 @@ static void command_timed_out(UNUSED_ATTR void *context) {
   ssr_cleanup(0x22);//SSR reasno 0x22 = CMD TO
 
   //Reset SOC status to trigger hciattach service
+#ifdef ANDROID
   if (property_set("bluetooth.status", "off") < 0) {
+#else
+  if (property_set_bt("bluetooth.status", "off") < 0) {
+#endif
      LOG_ERROR(LOG_TAG, "hci_cmd_timeout: Error resetting SOC status\n ");
   } else {
      LOG_ERROR(LOG_TAG, "hci_cmd_timeout: SOC Status is reset\n ");
@@ -649,7 +658,11 @@ static void command_timed_out(UNUSED_ATTR void *context) {
 #ifdef ENABLE_DBG_FLAGS
     enabled = true;
 #endif
+#ifdef ANDROID
     if (property_get("wc_transport.force_special_byte", value, NULL))
+#else
+    if (property_get_bt("wc_transport.force_special_byte", value, NULL))
+#endif
       enabled = (strcmp(value, "false") == 0) ? false : true;
     if (enabled) {
       hardware_error_timer = alarm_new("hci.hardware_error_timer");
@@ -665,7 +678,19 @@ static void command_timed_out(UNUSED_ATTR void *context) {
     }
   }
   usleep(20000);
+#if (defined(SSR_CLEANUP) && SSR_CLEANUP == TRUE)
+  packet_receive_data_t data_pkt;
+  if (!create_hw_reset_evt_packet(&data_pkt)) {
+    kill(getpid(), SIGKILL);
+  } else {
+    uint8_t *stream = data_pkt.buffer->data;
+    uint8_t event_code;
+    STREAM_TO_UINT8(event_code, stream);
+    data_dispatcher_dispatch(interface.event_dispatcher, event_code, data_pkt.buffer);
+  }
+#else
   kill(getpid(), SIGKILL);
+#endif
 }
 
 // Event/packet receiving functions
@@ -687,7 +712,11 @@ static void hal_says_data_ready(serial_data_type_t type) {
                 break;
             else {
             //Reset SOC status to trigger hciattach service
+#ifdef ANDROID
                 if(property_set("bluetooth.status", "off") < 0) {
+#else
+                if(property_set_bt("bluetooth.status", "off") < 0) {
+#endif
                     LOG_ERROR(LOG_TAG, "SSR: Error resetting SOC status\n ");
                 } else {
                     ALOGE("SSR: SOC Status is reset\n ");

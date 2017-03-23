@@ -70,8 +70,10 @@
 // TODO(armansito): Find a better way than searching by a hardcoded path.
 #if defined(OS_GENERIC)
 #define BTE_DID_CONF_FILE "bt_did.conf"
-#else  // !defined(OS_GENERIC)
+#elif ANDROID
 #define BTE_DID_CONF_FILE "/etc/bluetooth/bt_did.conf"
+#else  // !defined(OS_GENERIC)
+#define BTE_DID_CONF_FILE "/data/misc/bluetooth/bt_did.conf"
 #endif  // defined(OS_GENERIC)
 #endif  // BTE_DID_CONF_FILE
 
@@ -442,8 +444,13 @@ static void btif_fetch_local_bdaddr(bt_bdaddr_t *local_addr)
     }
 
     /* No factory BDADDR found. Look for BDA in ro.boot.btmacaddr */
+#ifdef ANDROID
     if ((!valid_bda) && \
         (property_get("ro.boot.btmacaddr", val, NULL)))
+#else
+    if ((!valid_bda) && \
+        (property_get_bt("ro.boot.btmacaddr", val, NULL)))
+#endif
     {
         valid_bda = string_to_bdaddr(val, local_addr);
         if (valid_bda) {

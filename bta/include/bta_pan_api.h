@@ -110,7 +110,11 @@ typedef union
 
 /* Number of PAN connections */
 #ifndef BTA_PAN_NUM_CONN
+#ifdef ANDROID
 #define BTA_PAN_NUM_CONN         4
+#else
+#define BTA_PAN_NUM_CONN         3
+#endif
 #endif
 
 /* PAN callback */

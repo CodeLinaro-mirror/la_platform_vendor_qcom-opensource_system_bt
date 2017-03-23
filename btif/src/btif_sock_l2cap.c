@@ -52,6 +52,9 @@
 #include "port_api.h"
 #include "sdp_api.h"
 
+#ifdef ANDROID
+#include <cutils/log.h>
+#endif
 #define asrt(s) if (!(s)) APPL_TRACE_ERROR("## %s assert %s failed at line:%d ##",__FUNCTION__, \
         #s, __LINE__)
 

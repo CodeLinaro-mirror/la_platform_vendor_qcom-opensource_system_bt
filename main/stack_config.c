@@ -47,7 +47,7 @@ static future_t *init() {
 #if defined(OS_GENERIC)
   const char *path = "bt_stack.conf";
 #else  // !defined(OS_GENERIC)
-  const char *path = "/etc/bluetooth/bt_stack.conf";
+  const char *path = "/data/misc/bluetooth/bt_stack.conf";
 #endif  // defined(OS_GENERIC)
   assert(path != NULL);
 
@@ -68,6 +68,11 @@ static future_t *clean_up() {
   return future_new_immediate(FUTURE_SUCCESS);
 }
 
+//TODO: Fix this
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
+
 EXPORT_SYMBOL const module_t stack_config_module = {
   .name = STACK_CONFIG_MODULE,
   .init = init,
@@ -82,7 +87,13 @@ EXPORT_SYMBOL const module_t stack_config_module = {
 // Interface functions
 
 static const char *get_btsnoop_log_path(void) {
-  return config_get_string(config, CONFIG_DEFAULT_SECTION, BTSNOOP_LOG_PATH_KEY, "/data/misc/bluedroid/btsnoop_hci.log");
+#ifdef ANDROID
+  return config_get_string(config, CONFIG_DEFAULT_SECTION, BTSNOOP_LOG_PATH_KEY,
+   "/data/misc/bluedroid/btsnoop_hci.log");
+#else
+  return config_get_string(config, CONFIG_DEFAULT_SECTION, BTSNOOP_LOG_PATH_KEY,
+   "/data/misc/bluetooth/btsnoop_hci.log");
+#endif
 }
 
 static bool get_btsnoop_turned_on(void) {

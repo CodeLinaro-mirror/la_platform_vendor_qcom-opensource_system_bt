@@ -299,6 +299,7 @@ void bta_sys_app_close(UINT8 id, UINT8 app_id, BD_ADDR peer_addr)
 *******************************************************************************/
 void bta_sys_sco_open(UINT8 id, UINT8 app_id, BD_ADDR peer_addr)
 {
+#if (defined BTM_SCO_INCLUDED && BTM_SCO_INCLUDED == TRUE)
     /* AG triggers p_sco_cb by bta_sys_sco_use. */
     if((id != BTA_ID_AG) && (bta_sys_cb.p_sco_cb))
     {
@@ -310,6 +311,7 @@ void bta_sys_sco_open(UINT8 id, UINT8 app_id, BD_ADDR peer_addr)
     {
         bta_sys_cb.ppm_cb(BTA_SYS_SCO_OPEN, id, app_id, peer_addr);
     }
+#endif
 }
 
 /*******************************************************************************
@@ -324,6 +326,7 @@ void bta_sys_sco_open(UINT8 id, UINT8 app_id, BD_ADDR peer_addr)
 *******************************************************************************/
 void bta_sys_sco_close(UINT8 id, UINT8 app_id, BD_ADDR peer_addr)
 {
+#if (defined BTM_SCO_INCLUDED && BTM_SCO_INCLUDED == TRUE)
     UINT8 num_sco_links;
 
     if((id != BTA_ID_AG) && (bta_sys_cb.p_sco_cb))
@@ -336,6 +339,7 @@ void bta_sys_sco_close(UINT8 id, UINT8 app_id, BD_ADDR peer_addr)
     {
         bta_sys_cb.ppm_cb(BTA_SYS_SCO_CLOSE, id, app_id, peer_addr);
     }
+#endif
 }
 
 /*******************************************************************************
@@ -350,6 +354,7 @@ void bta_sys_sco_close(UINT8 id, UINT8 app_id, BD_ADDR peer_addr)
 *******************************************************************************/
 void bta_sys_sco_use(UINT8 id, UINT8 app_id, BD_ADDR peer_addr)
 {
+#if (defined BTM_SCO_INCLUDED && BTM_SCO_INCLUDED == TRUE)
     UNUSED(id);
 
     /* AV streaming need to be suspended before SCO is connected. */
@@ -358,6 +363,7 @@ void bta_sys_sco_use(UINT8 id, UINT8 app_id, BD_ADDR peer_addr)
         /* without querying BTM_GetNumScoLinks() */
         bta_sys_cb.p_sco_cb(BTA_SYS_SCO_OPEN, 1, app_id, peer_addr);
     }
+#endif
 }
 
 /*******************************************************************************
@@ -372,6 +378,7 @@ void bta_sys_sco_use(UINT8 id, UINT8 app_id, BD_ADDR peer_addr)
 *******************************************************************************/
 void bta_sys_sco_unuse(UINT8 id, UINT8 app_id, BD_ADDR peer_addr)
 {
+#if (defined BTM_SCO_INCLUDED && BTM_SCO_INCLUDED == TRUE)
     UINT8 num_sco_links;
     UNUSED(id);
 
@@ -380,7 +387,9 @@ void bta_sys_sco_unuse(UINT8 id, UINT8 app_id, BD_ADDR peer_addr)
         num_sco_links = BTM_GetNumScoLinks();
         bta_sys_cb.p_sco_cb(BTA_SYS_SCO_CLOSE, num_sco_links, app_id, peer_addr);
     }
+#endif
 }
+
 /*******************************************************************************
 **
 ** Function         bta_sys_chg_ssr_config

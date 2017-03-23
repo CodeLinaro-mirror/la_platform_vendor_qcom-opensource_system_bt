@@ -172,6 +172,50 @@ static tBTTRC_FUNC_MAP bttrc_set_level_map[] = {
   {0, 0, NULL, NULL, DEFAULT_CONF_TRACE_LEVEL}
 };
 
+#ifndef ANDROID
+void LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
+  char buffer[BTE_LOG_BUF_SIZE];
+  int offset = MSG_BUFFER_OFFSET;
+  int trace_layer = TRACE_GET_LAYER(trace_set_mask);
+  if (trace_layer >= TRACE_LAYER_MAX_NUM)
+    trace_layer = 0;
+
+#ifndef USE_ANDROID_LOGGING
+  offset += strlen("bt_stack : ") +
+            strlen(bt_layer_tags[trace_layer]) + strlen(" : ");
+  snprintf(buffer, offset+1 , "bt_stack : %s : ",
+        bt_layer_tags[trace_layer]);
+#else
+  offset += strlen(bt_layer_tags[trace_layer]) + strlen(" : ");
+  snprintf(buffer, offset+1 , "%s : ",
+        bt_layer_tags[trace_layer]);
+#endif
+
+  va_list ap;
+  va_start(ap, fmt_str);
+  vsnprintf(&buffer[offset], BTE_LOG_MAX_SIZE - offset, fmt_str, ap);
+  va_end(ap);
+
+  switch ( TRACE_GET_TYPE(trace_set_mask) ) {
+    case TRACE_TYPE_ERROR:
+      LOG_ERROR(bt_layer_tags[trace_layer], "%s", buffer);
+      break;
+    case TRACE_TYPE_WARNING:
+      LOG_WARN(bt_layer_tags[trace_layer], "%s", buffer);
+      break;
+    case TRACE_TYPE_API:
+    case TRACE_TYPE_EVENT:
+      LOG_INFO(bt_layer_tags[trace_layer], "%s", buffer);
+      break;
+    case TRACE_TYPE_DEBUG:
+      LOG_DEBUG(bt_layer_tags[trace_layer], "%s", buffer);
+      break;
+    default:
+      LOG_ERROR(bt_layer_tags[trace_layer], "%s", buffer);      /* we should never get this */
+      break;
+    }
+}
+#else
 void LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
   static char buffer[BTE_LOG_BUF_SIZE];
   int trace_layer = TRACE_GET_LAYER(trace_set_mask);
@@ -202,6 +246,7 @@ void LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
       break;
   }
 }
+#endif
 
 void vnd_LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
   int trace_layer = TRACE_GET_LAYER(trace_set_mask);
@@ -272,6 +317,11 @@ static future_t *init(void) {
   load_levels_from_config(stack_config->get_all());
   return NULL;
 }
+
+//TODO: Fix this
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
 
 EXPORT_SYMBOL const module_t bte_logmsg_module = {
   .name = BTE_LOGMSG_MODULE,

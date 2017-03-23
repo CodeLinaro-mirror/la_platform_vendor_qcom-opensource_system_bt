@@ -350,7 +350,9 @@ static int tap_if_up(const char *devname, const bt_bdaddr_t *addr)
     memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifr_name, devname, IF_NAMESIZE - 1);
 
+#ifdef ANDROID
     ifr.ifr_flags |= IFF_UP;
+#endif
     ifr.ifr_flags |= IFF_MULTICAST;
 
     err = ioctl(sk, SIOCSIFFLAGS, (caddr_t) &ifr);
@@ -402,13 +404,17 @@ int btpan_tap_open()
 {
     struct ifreq ifr;
     int fd, err;
+#ifdef ANDROID
     const char *clonedev = "/dev/tun";
+#else
+    const char *clonedev = "/dev/net/tun";
+#endif
 
     /* open the clone device */
 
     if ((fd = open(clonedev, O_RDWR)) < 0)
     {
-        BTIF_TRACE_DEBUG("could not open %s, err:%d", clonedev, errno);
+        BTIF_TRACE_ERROR("could not open %s, err:%d", clonedev, errno);
         return fd;
     }
 
@@ -420,7 +426,7 @@ int btpan_tap_open()
     /* try to create the device */
     if ((err = ioctl(fd, TUNSETIFF, (void *) &ifr)) < 0)
     {
-        BTIF_TRACE_DEBUG("ioctl error:%d, errno:%s", err, strerror(errno));
+        BTIF_TRACE_ERROR("ioctl error:%d, errno:%s", err, strerror(errno));
         close(fd);
         return err;
     }

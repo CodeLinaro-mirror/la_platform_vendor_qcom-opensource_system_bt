@@ -35,6 +35,9 @@
 #include <sys/time.h>
 #include <sys/poll.h>
 #include <unistd.h>
+#ifndef ANDROID
+#include <linux/types.h>
+#endif
 
 #include "bt_types.h"
 #include "hci/include/btsnoop.h"
@@ -111,6 +114,11 @@ static future_t *shut_down(void) {
   return NULL;
 }
 
+//TODO: Fix this
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
+
 EXPORT_SYMBOL const module_t btsnoop_module = {
   .name = BTSNOOP_MODULE,
   .init = NULL,
@@ -130,6 +138,7 @@ static void set_api_wants_to_log(bool value) {
   update_logging();
 }
 
+
 static void capture(const BT_HDR *buffer, bool is_received) {
   const uint8_t *p = buffer->data + buffer->offset;
 
@@ -141,6 +150,9 @@ static void capture(const BT_HDR *buffer, bool is_received) {
   switch (buffer->event & MSG_EVT_MASK) {
     case MSG_HC_TO_STACK_HCI_EVT:
       btsnoop_write_packet(kEventPacket, p, false);
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+      btc_capture(buffer, kEventPacket);
+#endif
       break;
     case MSG_HC_TO_STACK_HCI_ACL:
     case MSG_STACK_TO_HC_HCI_ACL:
@@ -152,6 +164,9 @@ static void capture(const BT_HDR *buffer, bool is_received) {
       break;
     case MSG_STACK_TO_HC_HCI_CMD:
       btsnoop_write_packet(kCommandPacket, p, true);
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+      btc_capture(buffer, kCommandPacket);
+#endif
       break;
   }
 }
@@ -189,8 +204,6 @@ static void update_logging() {
 
   is_logging = should_log;
   if (should_log) {
-    btsnoop_net_open();
-
     if (hci_ext_dump_enabled == true) {
       START_SNOOP_LOGGING();
     }
@@ -213,6 +226,7 @@ static void update_logging() {
     }
 
     write(logfile_fd, "btsnoop\0\0\0\0\1\0\0\x3\xea", 16);
+    btsnoop_net_open();
   } else {
     if (logfile_fd != INVALID_FD)
       close(logfile_fd);

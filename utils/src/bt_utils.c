@@ -35,10 +35,18 @@
 #include <stdlib.h>
 #include <sys/resource.h>
 #include <unistd.h>
-
+#ifdef ANDROID
 #include <utils/ThreadDefs.h>
 #include <cutils/sched_policy.h>
-
+#else
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <string.h>
+#include <sys/un.h>
+#include <sys/time.h>
+#include <fcntl.h>
+#define SOCKETNAME  "/data/misc/bluetooth/btprop"
+#endif
 #include "bt_types.h"
 #include "btcore/include/module.h"
 #include "osi/include/compat.h"
@@ -101,9 +109,32 @@ static bt_soc_type soc_type;
 
 static void init_soc_type();
 
+#ifndef ANDROID
+static int bt_prop_socket;      /* This end of connection*/
+#endif
+
 static future_t *init(void) {
   int i;
   pthread_mutexattr_t lock_attr;
+
+#ifndef ANDROID
+  int len;    /* length of sockaddr */
+  struct sockaddr_un name;
+  if( (bt_prop_socket = socket(AF_UNIX, SOCK_STREAM, 0) ) < 0) {
+    perror("socket");
+    exit(1);
+  }
+  /*Create the address of the server.*/
+  memset(&name, 0, sizeof(struct sockaddr_un));
+  name.sun_family = AF_UNIX;
+  strlcpy(name.sun_path, SOCKETNAME, sizeof(name.sun_path));
+  len = sizeof(name.sun_family) + strlen(name.sun_path);
+  /*Connect to the server.*/
+  if (connect(bt_prop_socket, (struct sockaddr *) &name, len) < 0){
+      perror("connect");
+      exit(1);
+  }
+#endif
 
   for(i = 0; i < TASK_HIGH_MAX; i++) {
     g_DoSchedulingGroupOnce[i] = PTHREAD_ONCE_INIT;
@@ -118,11 +149,31 @@ static future_t *init(void) {
   return NULL;
 }
 
-static future_t *clean_up(void) {
+void bt_utils_cleanup( void)
+{
   pthread_mutex_destroy(&gIdxLock);
   pthread_mutex_destroy(&iot_mutex_lock);
+#ifndef ANDROID
+  shutdown(bt_prop_socket, SHUT_RDWR);
+  close(bt_prop_socket);
+#endif
+}
+
+static future_t *clean_up(void) {
+  int i;
+  pthread_mutex_destroy(&gIdxLock);
+  pthread_mutex_destroy(&iot_mutex_lock);
+#ifndef ANDROID
+  shutdown(bt_prop_socket, SHUT_RDWR);
+  close(bt_prop_socket);
+#endif
   return NULL;
 }
+
+//TODO: Fix this
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
 
 EXPORT_SYMBOL const module_t bt_utils_module = {
   .name = BT_UTILS_MODULE,
@@ -155,6 +206,51 @@ static void check_do_scheduling_group(void) {
     }
 }
 
+#ifndef ANDROID
+int property_get_bt(const char *key, char *value, const char *default_value)
+{
+    char prop_string[200] = {'\0'};
+    int ret, bytes_read = 0, i = 0;
+
+    snprintf(prop_string, sizeof(prop_string), "get_property %s,", key);
+    ret = send(bt_prop_socket, prop_string, strlen(prop_string), 0);
+    memset(value, 0, sizeof(value));
+    do
+    {
+        bytes_read = recv(bt_prop_socket, &value[i], 1, 0);
+        if (bytes_read == 1)
+        {
+            if (value[i] == ',')
+            {
+                value[i] = '\0';
+                break;
+            }
+            i++;
+        }
+    } while(1);
+    ALOGD("property_get_bt: key(%s) has value: %s", key, value);
+    if (!i && default_value)
+    {
+        ALOGD("property_get_bt: Copied default =%s", default_value);
+        strlcpy(value, default_value, strlen(default_value)+1);
+        return 1;
+    }
+    return 0;
+}
+
+/* property_set_bt: returns 0 on success, < 0 on failure
+*/
+int property_set_bt(const char *key, const char *value)
+{
+    char prop_string[200] = {'\0'};
+    int ret;
+    snprintf(prop_string, sizeof(prop_string), "set_property %s %s,", key, value);
+    ALOGD("property_set_bt: setting key(%s) to value: %s\n", key, value);
+    ret = send(bt_prop_socket, prop_string, strlen(prop_string), 0);
+    return 0;
+}
+#endif
+
 /*****************************************************************************
 **
 ** Function        raise_priority_a2dp
@@ -165,6 +261,7 @@ static void check_do_scheduling_group(void) {
 **
 *******************************************************************************/
 void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task) {
+#ifdef ANDROID
     int rc = 0;
     int tid = gettid();
     int priority = ANDROID_PRIORITY_AUDIO;
@@ -200,6 +297,7 @@ void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task) {
     if (setpriority(PRIO_PROCESS, tid, priority) < 0) {
         LOG_WARN(LOG_TAG, "failed to change priority tid: %d to %d", tid, priority);
     }
+#endif
 }
 
 /*****************************************************************************
@@ -214,6 +312,7 @@ void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task) {
 **
 *******************************************************************************/
 void adjust_priority_a2dp(int start) {
+#ifdef ANDROID
     int priority = start ? ANDROID_PRIORITY_URGENT_AUDIO : ANDROID_PRIORITY_AUDIO;
     int tid;
     int i;
@@ -229,6 +328,7 @@ void adjust_priority_a2dp(int start) {
             }
         }
     }
+#endif
 }
 
 /*****************************************************************************
@@ -1099,6 +1199,7 @@ static void init_soc_type()
     ALOGI("init_soc_type");
 
     soc_type = BT_SOC_DEFAULT;
+#if defined(ANDROID)
     ret = property_get("qcom.bluetooth.soc", bt_soc_type, NULL);
     if (ret != 0) {
         int i;
@@ -1112,6 +1213,11 @@ static void init_soc_type()
             }
         }
     }
+#elif defined(BT_SOC_TYPE_ROME)
+    soc_type = BT_SOC_ROME;
+#elif defined(BT_SOC_TYPE_CHEROKEE)
+    soc_type = BT_SOC_CHEROKEE;
+#endif
 }
 
 /*****************************************************************************

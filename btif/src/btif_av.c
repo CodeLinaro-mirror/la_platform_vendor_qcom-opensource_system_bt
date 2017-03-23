@@ -38,6 +38,9 @@
 #include "bt_common.h"
 #include "osi/include/allocator.h"
 #include <cutils/properties.h>
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+#include "btc_common.h"
+#endif
 
 /*****************************************************************************
 **  Constants & Macros
@@ -389,6 +392,20 @@ static void btif_report_connection_state(btav_connection_state_t state, bt_bdadd
     } else if ( bt_av_src_callbacks != NULL) {
         HAL_CBACK(bt_av_src_callbacks, connection_state_cb, state, bd_addr);
     }
+
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+    if ((bt_av_sink_callbacks != NULL) || ( bt_av_src_callbacks != NULL))
+    {
+        if(BTAV_CONNECTION_STATE_CONNECTED == state)
+        {
+            btc_post_msg(BLUETOOTH_AUDIO_SINK_CONNECTED);
+        }
+        else if(BTAV_CONNECTION_STATE_DISCONNECTED == state)
+        {
+            btc_post_msg(BLUETOOTH_AUDIO_SINK_DISCONNECTED);
+        }
+    }
+#endif
 }
 
 /*******************************************************************************
@@ -411,6 +428,20 @@ static void btif_report_audio_state(btav_audio_state_t state, bt_bdaddr_t *bd_ad
     } else if (bt_av_src_callbacks != NULL) {
         HAL_CBACK(bt_av_src_callbacks, audio_state_cb, state, bd_addr);
     }
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+    if ((bt_av_sink_callbacks != NULL) || ( bt_av_src_callbacks != NULL))
+    {
+        if(BTAV_AUDIO_STATE_STARTED == state)
+        {
+            btc_post_msg(BLUETOOTH_SINK_STREAM_STARTED);
+        }
+        else if((BTAV_AUDIO_STATE_STOPPED == state) ||
+                (BTAV_AUDIO_STATE_REMOTE_SUSPEND == state))
+        {
+            btc_post_msg(BLUETOOTH_SINK_STREAM_STOPPED);
+        }
+    }
+#endif
 }
 
 /*****************************************************************************
@@ -446,7 +477,11 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
             {
                 btif_av_cb[i].dual_handoff = FALSE;
             }
+#ifdef ANDROID
             property_get("persist.service.bt.a2dp.sink", a2dp_role, "false");
+#else
+            property_get_bt("persist.service.bt.a2dp.sink", a2dp_role, "false");
+#endif
             if (!strncmp("false", a2dp_role, 5)) {
                 btif_av_cb[index].peer_sep = AVDT_TSEP_SNK;
                 btif_a2dp_set_peer_sep(AVDT_TSEP_SNK);

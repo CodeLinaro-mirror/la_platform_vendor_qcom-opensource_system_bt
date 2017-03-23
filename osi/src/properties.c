@@ -35,7 +35,11 @@ int osi_property_get(const char *key, char *value, const char *default_value) {
     value[len] = '\0';
     return len;
 #else
+#ifdef ANDROID
     return property_get(key, value, default_value);
+#else
+    return property_get_bt(key, value, default_value);
+#endif
 #endif  // defined(OS_GENERIC)
 }
 
@@ -43,6 +47,10 @@ int osi_property_set(const char *key, const char *value) {
 #if defined(OS_GENERIC)
     return -1;
 #else
+#ifdef ANDROID
     return property_set(key, value);
+#else
+    return property_set_bt(key, value);
+#endif
 #endif  // defined(OS_GENERIC)
 }

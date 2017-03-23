@@ -751,7 +751,11 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
                     } else {
                         char value[PROPERTY_VALUE_MAX];
                         bool enableAptXHD = false;
+#ifdef ANDROID
                         if (property_get("persist.bt.enableAptXHD", value, "false") && strcmp(value, "true") == 0)
+#else
+                        if (property_get_bt("persist.bt.enableAptXHD", value, "false") && strcmp(value, "true") == 0)
+#endif
                             enableAptXHD = true;
                         else
                             APPL_TRACE_WARNING("%s enableAptXHD property is not set", __func__);

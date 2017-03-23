@@ -36,8 +36,12 @@
 #include "btif_config.h"
 #include "btif_profile_queue.h"
 #include "bt_utils.h"
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+#include "btc_common.h"
+#endif /*BTC*/
 
 static thread_t *management_thread;
+extern void bt_utils_cleanup( void);
 
 // If initialized, any of the bluetooth API functions can be called.
 // (e.g. turning logging on and off, enabling/disabling the stack, etc)
@@ -112,6 +116,10 @@ static void event_init_stack(void *context) {
     module_init(get_module(BTIF_CONFIG_MODULE));
     btif_init_bluetooth();
 
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+    btc_init();
+#endif /*BTC*/
+
     // stack init is synchronous, so no waiting necessary here
     stack_is_initialized = true;
   }
@@ -157,6 +165,11 @@ static void event_start_up_stack(UNUSED_ATTR void *context) {
 
   stack_is_running = true;
   LOG_INFO(LOG_TAG, "%s finished", __func__);
+
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+  btc_hci_init();
+#endif /*BTC*/
+
   btif_thread_post(event_signal_stack_up, NULL);
 }
 
@@ -171,6 +184,10 @@ static void event_shut_down_stack(UNUSED_ATTR void *context) {
   future_t *local_hack_future = future_new();
   hack_future = local_hack_future;
   stack_is_running = false;
+
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+  btc_hci_deinit();
+#endif /*BTC*/
 
   btif_disable_bluetooth();
   module_shut_down(get_module(BTIF_CONFIG_MODULE));
@@ -207,6 +224,11 @@ static void event_clean_up_stack(void *context) {
   module_clean_up(get_module(BTIF_CONFIG_MODULE));
   module_clean_up(get_module(BT_UTILS_MODULE));
   module_clean_up(get_module(OSI_MODULE));
+
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+    btc_deinit();
+#endif /*BTC*/
+
   module_management_stop();
   LOG_INFO(LOG_TAG, "%s finished", __func__);
 
@@ -222,11 +244,17 @@ static void event_signal_stack_up(UNUSED_ATTR void *context) {
   // now time to dispatch all the pending profile connect requests.
   btif_queue_connect_next();
   HAL_CBACK(bt_hal_cbacks, adapter_state_changed_cb, BT_STATE_ON);
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+  btc_post_msg(BLUETOOTH_ON);
+#endif /*BTC*/
 }
 
 static void event_signal_stack_down(UNUSED_ATTR void *context) {
   HAL_CBACK(bt_hal_cbacks, adapter_state_changed_cb, BT_STATE_OFF);
   future_ready(stack_manager_get_hack_future(), FUTURE_SUCCESS);
+#if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
+  btc_post_msg(BLUETOOTH_OFF);
+#endif /*BTC*/
 }
 
 static void ensure_manager_initialized(void) {

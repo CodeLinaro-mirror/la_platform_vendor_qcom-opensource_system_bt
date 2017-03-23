@@ -41,7 +41,7 @@
 #include "gap_api.h"
 #include "l2c_api.h"
 
-#ifdef TEST_APP_INTERFACE
+#if (defined TEST_APP_INTERFACE && TEST_APP_INTERFACE == TRUE)
 #include <bt_testapp.h>
 
 

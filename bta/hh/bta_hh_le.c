@@ -2698,7 +2698,9 @@ static void bta_hh_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC *p_data)
             break;
 
         case BTA_GATTC_DEREG_EVT: /* 1 */
+#if (defined BTA_HH_INCLUDED && BTA_HH_INCLUDED == TRUE)
             bta_hh_cleanup_disable(p_data->reg_oper.status);
+#endif
             break;
 
         case BTA_GATTC_OPEN_EVT: /* 2 */

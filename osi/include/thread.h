@@ -20,6 +20,9 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#ifndef ANDROID
+#include <pthread.h>
+#endif
 
 #define THREAD_NAME_MAX 16
 

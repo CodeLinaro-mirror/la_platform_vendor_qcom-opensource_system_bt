@@ -478,6 +478,7 @@ static void reschedule_root_alarm(void) {
   if (list_is_empty(alarms))
     goto done;
 
+#ifdef ANDROID
   const alarm_t *next = list_front(alarms);
   const int64_t next_expiration = next->deadline - now();
   if (next_expiration < TIMER_INTERVAL_FOR_WAKELOCK_IN_MS) {
@@ -527,6 +528,14 @@ done:
   if (timer_was_set && !timer_set) {
     wakelock_release();
   }
+#else
+  alarm_t *next = list_front(alarms);
+  timer_time.it_value.tv_sec = (next->deadline / 1000);
+  timer_time.it_value.tv_nsec = (next->deadline % 1000) * 1000000LL;
+
+done:
+  timer_set = timer_time.it_value.tv_sec != 0 || timer_time.it_value.tv_nsec != 0;
+#endif
 
   if (timer_settime(timer, TIMER_ABSTIME, &timer_time, NULL) == -1)
     LOG_ERROR(LOG_TAG, "%s unable to set timer: %s", __func__, strerror(errno));
@@ -627,7 +636,7 @@ static void alarm_queue_ready(fixed_queue_t *queue,
 
 // Callback function for wake alarms and our posix timer
 static void timer_callback(UNUSED_ATTR void *ptr) {
-  semaphore_post(alarm_expired);
+    semaphore_post(alarm_expired);
 }
 
 // Function running on |dispatcher_thread| that performs the following:

@@ -35,7 +35,9 @@
 #include "btm_api.h"
 #include "btu.h"
 #include "btm_api.h"
+#if (defined TEST_APP_INTERFACE && TEST_APP_INTERFACE == TRUE)
 #include "bt_testapp.h"
+#endif
 #define LOG_NDDEBUG 0
 #define LOG_TAG "bluedroid"
 #include "btif_api.h"
@@ -55,13 +57,16 @@ static void bt_rfc_mmt_server_cback (UINT32 code, UINT16 handle);//rfc
 static int bt_rfc_data_cback (UINT16 port_handle, void *data, UINT16 len);//rfc
 static void bt_rfc_port_cback (UINT32 code, UINT16 handle);//rfc
 void rdut_rfcomm (UINT8 server);
+#if (defined TEST_APP_INTERFACE && TEST_APP_INTERFACE == TRUE)
 void rdut_rfcomm_test_interface (tRFC *input);
+#endif
 static UINT16 rfc_handle = 0;
 char buffer[RFC_BUFFER_SIZE];
 
 /************************************************************************************
 **  Functions
 ************************************************************************************/
+#if (defined TEST_APP_INTERFACE && TEST_APP_INTERFACE == TRUE)
 static const btrfcomm_interface_t btrfcInterface = {
     sizeof(btrfcomm_interface_t),
     NULL,
@@ -77,6 +82,7 @@ const btrfcomm_interface_t *btif_rfcomm_get_interface(void)
     ALOGI("\n%s\n", __FUNCTION__);
     return &btrfcInterface;
 }
+#endif
 
 static void bt_rfc_mmt_cback (UINT32 code, UINT16 handle)
 {
@@ -171,6 +177,7 @@ void rdut_rfcomm (UINT8 server)
     }
 }
 
+#if (defined TEST_APP_INTERFACE && TEST_APP_INTERFACE == TRUE)
 void rdut_rfcomm_test_interface (tRFC *input)
 {
     BD_ADDR   remote_bd;
@@ -245,3 +252,4 @@ void rdut_rfcomm_test_interface (tRFC *input)
         PORT_SetEventCallback(handle, bt_rfc_port_cback);
     }
 }
+#endif

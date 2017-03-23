@@ -18,6 +18,10 @@
 
 #pragma once
 
+#ifndef ANDROID
+#include "stdio.h"
+#endif
+
 static const char BTE_LOGMSG_MODULE[] = "bte_logmsg_module";
 
 /* BTE tracing IDs for debug purposes */

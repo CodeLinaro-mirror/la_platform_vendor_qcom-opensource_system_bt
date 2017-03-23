@@ -47,6 +47,8 @@ extern bool bt_logger_enabled;
 
 //#define VNDLOG(tag, fmt, ## args) if(logger_interface)logger_interface->send_log_data(tag, fmt, ## args)
 
+#ifdef ANDROID
+
 #if LOG_NDEBUG
 #define LOG_VERBOSE(...) ((void)0)
 #else  // LOG_NDEBUG
@@ -56,5 +58,43 @@ extern bool bt_logger_enabled;
 #define LOG_INFO(tag, fmt, args...)    {if(logger_interface)logger_interface->send_log_data(tag, fmt, ## args);ALOG(LOG_INFO, tag, fmt, ## args);}
 #define LOG_WARN(tag, fmt, args...)    {if(logger_interface)logger_interface->send_log_data(tag, fmt, ## args);ALOG(LOG_WARN, tag, fmt, ## args);}
 #define LOG_ERROR(tag, fmt, args...)   {if(logger_interface)logger_interface->send_log_data(tag, fmt, ## args);ALOG(LOG_ERROR, tag, fmt, ## args);}
+
+#else
+#include <errno.h>
+#include <limits.h>
+#include <stdio.h>
+
+#ifdef USE_ANDROID_LOGGING
+#include <utils/Log.h>
+#define LOG_TAG "bt_stack"
+#define LOG_VERBOSE(...) ALOGV(__VA_ARGS__)
+#define LOG_DEBUG(...)   ALOGD(__VA_ARGS__)
+#define LOG_INFO(...)   ALOGI(__VA_ARGS__)
+#define LOG_WARN(...)   ALOGW(__VA_ARGS__)
+#define LOG_ERROR(...)   ALOGE(__VA_ARGS__)
+#else
+#include <syslog.h>
+
+#define LOG_TAG "bt_stack : "
+
+#define PRI_INFO " I"
+#define PRI_WARN " W"
+#define PRI_ERROR " E"
+#define PRI_DEBUG " D"
+#define PRI_VERB " V"
+
+#define ALOGV(fmt, arg...) syslog (LOG_WARNING, LOG_TAG fmt, ##arg)
+#define ALOGD(fmt, arg...) syslog (LOG_NOTICE, LOG_TAG fmt, ##arg)
+#define ALOGI(fmt, arg...) syslog (LOG_NOTICE, LOG_TAG fmt, ##arg)
+#define ALOGW(fmt, arg...) syslog (LOG_WARNING, LOG_TAG fmt, ##arg)
+#define ALOGE(fmt, arg...) syslog (LOG_ERR, LOG_TAG fmt, ##arg)
+
+#define LOG_VERBOSE(fmt, arg...) syslog (LOG_WARNING, LOG_TAG fmt, ##arg)
+#define LOG_DEBUG(fmt, arg...) syslog (LOG_NOTICE, LOG_TAG fmt, ##arg)
+#define LOG_INFO(fmt, arg...)  syslog (LOG_NOTICE, LOG_TAG fmt, ##arg)
+#define LOG_WARN(fmt, arg...)  syslog (LOG_WARNING, LOG_TAG fmt, ##arg)
+#define LOG_ERROR(fmt, arg...) syslog (LOG_ERR, LOG_TAG fmt, ##arg)
+#endif
+#endif
 
 #endif  /* defined(OS_GENERIC) */

@@ -48,7 +48,9 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#ifdef ANDROID
 #include <audio_utils/primitives.h>
+#endif
 #include <audio_utils/format.h>
 
 #include <hardware/bluetooth.h>
@@ -5137,9 +5139,11 @@ void btif_update_a2dp_metrics(void)
         }
     }
 
+#ifdef ANDROID
     metrics_a2dp_session(session_duration_sec, disconnect_reason, device_class,
                          media_timer_min_ms, media_timer_max_ms,
                          media_timer_avg_ms, buffer_overruns_max_count,
                          buffer_overruns_total, buffer_underruns_average,
                          buffer_underruns_count);
+#endif
 }

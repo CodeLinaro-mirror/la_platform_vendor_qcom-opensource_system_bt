@@ -235,7 +235,11 @@ static future_t *start_up(void) {
 #endif
 
 #if (BLE_INCLUDED == TRUE)
+#ifdef ANDROID
   ret = property_get("ble.ae_supported", value, NULL);
+#else
+  ret = property_get_bt("ble.ae_supported", value, NULL);
+#endif
   if (ret) {
     adv_ext_enabled = (strcmp(value, "true") ==0) ? true : false;
     LOG_INFO(LOG_TAG, "%s BLE Adv Extensions enabled:%d", __func__, adv_ext_enabled);
@@ -322,6 +326,11 @@ static future_t *shut_down(void) {
   readable = false;
   return future_new_immediate(FUTURE_SUCCESS);
 }
+
+//TODO: Fix this
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
 
 EXPORT_SYMBOL const module_t controller_module = {
   .name = CONTROLLER_MODULE,

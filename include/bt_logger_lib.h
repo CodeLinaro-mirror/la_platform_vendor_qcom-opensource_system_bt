@@ -32,6 +32,9 @@
 
 #include <stdio.h>
 #include <sys/types.h>
+#ifndef ANDROID
+#include <stdarg.h>
+#endif
 
 /**
  * Commands

@@ -220,7 +220,11 @@ BOOLEAN sdp_fallback_avrcp_version (tSDP_ATTRIBUTE *p_attr, BD_ADDR remote_addre
                          p_attr->value_ptr[PROFILE_VERSION_POSITION]);
                 return TRUE;
             }
+#ifdef ANDROID
             property_get("persist.service.bt.a2dp.sink", a2dp_role, "false");
+#else
+            property_get_bt("persist.service.bt.a2dp.sink", a2dp_role, "false");
+#endif
             if (!strncmp("false", a2dp_role, 5)) {
                 ver = sdp_get_stored_avrc_tg_version (remote_address);
                 if (ver != AVRC_REV_INVALID)
@@ -315,9 +319,15 @@ BOOLEAN sdp_change_hfp_version (tSDP_ATTRIBUTE *p_attr, BD_ADDR remote_address)
             SDP_TRACE_DEBUG("%s: HF version is 1.7 for BD addr: %x:%x:%x",\
                            __func__, remote_address[0], remote_address[1], remote_address[2]);
             /* For PTS we should show AG's HFP version as 1.7 */
+#ifdef ANDROID
             if (is_blacklisted ||
                 (property_get("bt.pts.certification", value, "false") &&
                  strcmp(value, "true") == 0))
+#else
+            if (is_blacklisted ||
+                (property_get_bt("bt.pts.certification", value, "false") &&
+                 strcmp(value, "true") == 0))
+#endif
             {
                 p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x07; // Update HFP version as 1.7
                 SDP_TRACE_ERROR("SDP Change HFP Version = 0x%x",

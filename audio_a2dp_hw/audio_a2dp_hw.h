@@ -32,13 +32,19 @@
 #ifndef AUDIO_A2DP_HW_H
 #define AUDIO_A2DP_HW_H
 #include <pthread.h>
+#include <stdint.h>
 /*****************************************************************************
 **  Constants & Macros
 ******************************************************************************/
 
 #define A2DP_AUDIO_HARDWARE_INTERFACE "audio.a2dp"
+#ifdef ANDROID
 #define A2DP_CTRL_PATH "/data/misc/bluedroid/.a2dp_ctrl"
 #define A2DP_DATA_PATH "/data/misc/bluedroid/.a2dp_data"
+#else
+#define A2DP_CTRL_PATH "/data/misc/bluetooth/.a2dp_ctrl"
+#define A2DP_DATA_PATH "/data/misc/bluetooth/.a2dp_data"
+#endif
 
 #ifndef BTA_AV_SPLIT_A2DP_DEF_FREQ_48KHZ
 #define AUDIO_STREAM_DEFAULT_RATE          44100

@@ -65,11 +65,16 @@ static const char* TIME_STRING_FORMAT = "%Y-%m-%d %H:%M:%S";
 static const char *CONFIG_FILE_PATH = "bt_config.conf";
 static const char *CONFIG_BACKUP_PATH = "bt_config.bak";
 static const char *CONFIG_LEGACY_FILE_PATH = "bt_config.xml";
-#else  // !defined(OS_GENERIC)
+#elif ANDROID
 static const char *CONFIG_FILE_PATH = "/data/misc/bluedroid/bt_config.conf";
 static const char *CONFIG_BACKUP_PATH = "/data/misc/bluedroid/bt_config.bak";
 static const char *CONFIG_LEGACY_FILE_PATH = "/data/misc/bluedroid/bt_config.xml";
+#else
+static const char *CONFIG_FILE_PATH = "/data/misc/bluetooth/bt_config.conf";
+static const char *CONFIG_BACKUP_PATH = "/data/misc/bluetooth/bt_config.bak";
+static const char *CONFIG_LEGACY_FILE_PATH = "/data/misc/bluetooth/bt_config.xml";
 #endif  // defined(OS_GENERIC)
+
 static const period_ms_t CONFIG_SETTLE_PERIOD_MS = 3000;
 
 static void timer_config_save_cb(void *data);
@@ -154,12 +159,14 @@ static future_t *init(void) {
     btif_config_source = BACKUP;
     file_source = "Backup";
   }
+#ifdef USE_TINYXML2
   if (!config) {
     LOG_WARN("%s unable to load backup; attempting to transcode legacy file.", __func__);
     config = btif_config_transcode(CONFIG_LEGACY_FILE_PATH);
     btif_config_source = LEGACY;
     file_source = "Legacy";
   }
+#endif
   if (!config) {
     LOG_ERROR("%s unable to transcode legacy file; creating empty config.", __func__);
     config = config_new_empty();
@@ -193,6 +200,10 @@ static future_t *init(void) {
       config_set_string(config, INFO_SECTION, FILE_TIMESTAMP, btif_config_time_created);
     }
   }
+
+  // Cleanup temporary pairings if we have left guest mode
+  if (!is_restricted_mode())
+    btif_config_remove_restricted(config);
 
   // TODO(sharvil): use a non-wake alarm for this once we have
   // API support for it. There's no need to wake the system to
@@ -248,6 +259,11 @@ static future_t *clean_up(void) {
   config = NULL;
   return future_new_immediate(FUTURE_SUCCESS);
 }
+
+//TODO: Fix this
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
 
 EXPORT_SYMBOL const module_t btif_config_module = {
   .name = BTIF_CONFIG_MODULE,
@@ -580,12 +596,20 @@ static void btif_config_remove_restricted(config_t* config) {
 
 static bool is_factory_reset(void) {
   char factory_reset[PROPERTY_VALUE_MAX] = {0};
+#ifdef ANDROID
   property_get("persist.bluetooth.factoryreset", factory_reset, "false");
+#else
+  property_get_bt("persist.bluetooth.factoryreset", factory_reset, "false");
+#endif
   return strncmp(factory_reset, "true", 4) == 0;
 }
 
 static void delete_config_files(void) {
   remove(CONFIG_FILE_PATH);
   remove(CONFIG_BACKUP_PATH);
+#ifdef ANDROID
   property_set("persist.bluetooth.factoryreset", "false");
+#else
+  property_set_bt("persist.bluetooth.factoryreset", "false");
+#endif
 }
