@@ -47,6 +47,10 @@ AM_CPPFLAGS += -DHCI_USE_MCT
 endif
 endif
 
+if MDM_CHEROKEE
+AM_CFLAGS += -DBT_SOC_TYPE_CHEROKEE
+AM_CPPFLAGS += -DBT_SOC_TYPE_CHEROKEE
+endif
 # platform specific
 c_sources = \
         bte_main.c \
