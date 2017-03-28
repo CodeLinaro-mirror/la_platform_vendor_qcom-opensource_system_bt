@@ -165,6 +165,8 @@ AC_CONFIG_FILES([ \
          embdrv/sbc/decoder/Makefile \
          btif/Makefile
          audio_a2dp_hw/Makefile \
+         test/Makefile \
+         test/bluedroidtest/Makefile \
          ])
 
 AC_OUTPUT

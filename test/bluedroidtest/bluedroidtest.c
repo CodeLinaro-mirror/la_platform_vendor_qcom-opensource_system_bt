@@ -34,14 +34,17 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <sys/prctl.h>
-#include <sys/capability.h>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netdb.h>
-
+#ifdef ANDROID
+#include <sys/capability.h>
 #include <private/android_filesystem_config.h>
 #include <android/log.h>
+#else
+#include <stdarg.h>
+#endif
 
 #include <hardware/hardware.h>
 #include <hardware/bluetooth.h>
@@ -76,11 +79,11 @@ static bt_status_t status;
 static bluetooth_device_t* bt_device;
 
 const bt_interface_t* sBtInterface = NULL;
-
+#ifdef ANDROID
 static gid_t groups[] = { AID_NET_BT, AID_INET, AID_NET_BT_ADMIN,
                           AID_SYSTEM, AID_MISC, AID_SDCARD_RW,
                           AID_NET_ADMIN, AID_VPN};
-
+#endif
 /* Set to 1 when the Bluedroid stack is enabled */
 static unsigned char bt_enabled = 0;
 static int deviceCount;
@@ -121,7 +124,7 @@ static void bdt_shutdown(void)
 /*****************************************************************************
 ** Android's init.rc does not yet support applying linux capabilities
 *****************************************************************************/
-
+#ifdef ANDROID
 static void config_permissions(void)
 {
     struct __user_cap_header_struct header;
@@ -157,7 +160,7 @@ static void config_permissions(void)
     capset(&header, &cap[0]);
     setgroups(sizeof(groups)/sizeof(groups[0]), groups);
 }
-
+#endif
 
 
 /*****************************************************************************
@@ -855,8 +858,9 @@ int main (int UNUSED argc, char UNUSED *argv[])
     int pid = -1;
     int enable_wait_count = 0;
     pthread_t discoveryThread;
-
+#ifdef ANDROID
     config_permissions();
+#endif
     bdt_log("\n:::::::::::::::::::::::::::::::::::::::::::::::::::");
     bdt_log(":: Bluedroid test app starting");
 
