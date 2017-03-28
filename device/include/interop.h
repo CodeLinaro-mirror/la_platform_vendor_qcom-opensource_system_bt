@@ -150,6 +150,10 @@ typedef enum {
   // values.
   INTEROP_UPDATE_HID_SSR_MAX_LAT,
 
+  //Few carkit hfp version is hfp1.5 but it support hfp indicator, violate spec
+  //remove hfp indicator for such device
+  INTEROP_DISABLE_HF_INDICATOR,
+
   END_OF_INTEROP_LIST
 
 } interop_feature_t;
