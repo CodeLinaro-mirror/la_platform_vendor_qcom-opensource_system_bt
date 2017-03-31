@@ -161,6 +161,7 @@ static fixed_queue_t *packet_queue;
 // Inbound-related
 static alarm_t *command_response_timer;
 static list_t *commands_pending_response;
+static list_t *commands_pending_in_queue;
 static pthread_mutex_t commands_pending_response_lock;
 static packet_receive_data_t incoming_packets[INBOUND_PACKET_TYPE_COUNT];
 
@@ -279,6 +280,11 @@ static future_t *start_up(void) {
     LOG_ERROR(LOG_TAG, "%s unable to create list for commands pending response.", __func__);
     goto error;
   }
+  commands_pending_in_queue = list_new(NULL);
+  if (!commands_pending_in_queue) {
+    LOG_ERROR("%s unable to create list for commands pending response.", __func__);
+    goto error;
+  }
 
   memset(incoming_packets, 0, sizeof(incoming_packets));
 
@@ -354,6 +360,7 @@ static future_t *shut_down() {
   packet_queue = NULL;
   list_free(commands_pending_response);
   commands_pending_response = NULL;
+  list_free(commands_pending_in_queue);
 
   pthread_mutex_destroy(&commands_pending_response_lock);
 
@@ -547,6 +554,30 @@ static void hardware_error_timer_expired(UNUSED_ATTR void *context) {
   kill(getpid(), SIGKILL);
 }
 
+static void send_cmd_to_lower(waiting_command_t *wait_entry) {
+  // Move it to the list of commands awaiting response
+  pthread_mutex_lock(&commands_pending_response_lock);
+  list_append(commands_pending_response, wait_entry);
+  pthread_mutex_unlock(&commands_pending_response_lock);
+
+  // Send it off
+   if (LPM_CONFIG_TX == lpm_config) {
+       low_power_manager->stop_idle_timer();;
+   }
+   else {
+       low_power_manager->wake_assert();
+   }
+
+   if (LPM_CONFIG_TX == lpm_config) {
+       low_power_manager->start_idle_timer(false);
+   }
+   else {
+       low_power_manager->transmit_done();
+   }
+   packet_fragmenter->fragment_and_dispatch(wait_entry->command);
+   update_command_response_timer();
+
+}
 // Command/packet transmitting functions
 
 static void event_command_ready(fixed_queue_t *queue, UNUSED_ATTR void *context) {
@@ -558,31 +589,10 @@ static void event_command_ready(fixed_queue_t *queue, UNUSED_ATTR void *context)
     waiting_command_t *wait_entry = fixed_queue_dequeue(queue);
     command_credits--;
 
-    // Move it to the list of commands awaiting response
-    pthread_mutex_lock(&commands_pending_response_lock);
-    list_append(commands_pending_response, wait_entry);
-    pthread_mutex_unlock(&commands_pending_response_lock);
-
-    // Send it off
-    if (LPM_CONFIG_TX == lpm_config) {
-        low_power_manager->stop_idle_timer();;
-    }
-    else {
-        low_power_manager->wake_assert();
-    }
-
-    if (LPM_CONFIG_TX == lpm_config) {
-        low_power_manager->start_idle_timer(false);
-    }
-    else {
-        low_power_manager->transmit_done();
-    }
-
-    packet_fragmenter->fragment_and_dispatch(wait_entry->command);
-
-
-
-    update_command_response_timer();
+    send_cmd_to_lower(wait_entry);
+  } else {
+    waiting_command_t *wait_entry = fixed_queue_dequeue(queue);
+    list_append(commands_pending_in_queue, wait_entry);
   }
 }
 
@@ -912,6 +922,16 @@ intercepted:
     buffer_allocator->free(packet);
   }
 
+  if(command_credits > 0) {
+     const list_node_t *node = list_begin(commands_pending_in_queue);
+
+     if(node != list_end(commands_pending_in_queue)) {
+       waiting_command_t *wait_entry = list_node(node);
+       command_credits--;
+       list_remove(commands_pending_in_queue, wait_entry);
+       send_cmd_to_lower(wait_entry);
+    }
+  }
   return true;
 }
 
