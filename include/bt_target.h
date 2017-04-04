@@ -1232,7 +1232,7 @@
 
 /* Number of simultaneous links to different peer devices. */
 #ifndef AVDT_NUM_LINKS
-#define AVDT_NUM_LINKS              2
+#define AVDT_NUM_LINKS              4
 #endif
 
 /* Number of simultaneous stream endpoints.
@@ -1240,7 +1240,7 @@
  */
 #ifndef AVDT_NUM_SEPS
 #if defined(AAC_ENCODER_INCLUDED) && (AAC_ENCODER_INCLUDED == TRUE)
-#define AVDT_NUM_SEPS               9
+#define AVDT_NUM_SEPS               11
 #else
 #define AVDT_NUM_SEPS               7
 #endif
@@ -1460,13 +1460,13 @@
 
 /* Number of simultaneous ACL links to different peer devices. */
 #ifndef AVCT_NUM_LINKS
-#define AVCT_NUM_LINKS              2
+#define AVCT_NUM_LINKS             3
 #endif
 
 /* Number of simultaneous AVCTP connections.
  * Audio*2 + Video*2 + 1 Additional */
 #ifndef AVCT_NUM_CONN
-#define AVCT_NUM_CONN               5
+#define AVCT_NUM_CONN               7
 #endif
 
 /* Buffer size to reassemble the SDU. */

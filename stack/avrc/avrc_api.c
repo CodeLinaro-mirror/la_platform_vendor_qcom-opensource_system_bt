@@ -948,6 +948,7 @@ UINT16 AVRC_Open(UINT8 *p_handle, tAVRC_CONN_CB *p_ccb, BD_ADDR_PTR peer_addr)
     cc.pid          = UUID_SERVCLASS_AV_REMOTE_CONTROL;  /* Profile ID */
     cc.role         = p_ccb->conn;          /* Initiator/acceptor role */
     cc.control      = p_ccb->control;       /* Control role (Control/Target) */
+    cc.av_sep_type  = p_ccb->av_sep_type;
 
     status = AVCT_CreateConn(p_handle, &cc, peer_addr);
     if (status == AVCT_SUCCESS)

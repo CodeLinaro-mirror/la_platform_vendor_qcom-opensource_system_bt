@@ -153,7 +153,7 @@ enum
 #define BTA_AV_QUEUE_DATA_CHK_NUM   L2CAP_HIGH_PRI_MIN_XMIT_QUOTA
 
 /* the number of ACL links with AVDT */
-#define BTA_AV_NUM_LINKS            AVDT_NUM_LINKS
+#define BTA_AV_NUM_LINKS            (AVDT_NUM_LINKS/2)
 
 #define BTA_AV_CO_ID_TO_BE_STREAM(p, u32) {*(p)++ = (UINT8)((u32) >> 16); *(p)++ = (UINT8)((u32) >> 8); *(p)++ = (UINT8)(u32); }
 #define BTA_AV_BE_STREAM_TO_CO_ID(u32, p) {u32 = (((UINT32)(*((p) + 2))) + (((UINT32)(*((p) + 1))) << 8) + (((UINT32)(*(p))) << 16)); (p) += 3;}
@@ -680,6 +680,7 @@ extern BOOLEAN bta_av_is_scb_init (tBTA_AV_SCB *p_scb);
 extern void bta_av_set_scb_sst_incoming (tBTA_AV_SCB *p_scb);
 extern tBTA_AV_LCB * bta_av_find_lcb(BD_ADDR addr, UINT8 op);
 extern BOOLEAN bta_av_is_multicast_enabled();
+extern BOOLEAN bta_av_is_scb_available();
 
 /* main functions */
 extern void bta_av_api_deregister(tBTA_AV_DATA *p_data);
