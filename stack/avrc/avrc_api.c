@@ -681,7 +681,7 @@ static void avrc_msg_cback(UINT8 handle, UINT8 label, UINT8 cr,
             case AVRC_OP_VENDOR:
                 p_data  = (UINT8 *)(p_pkt+1) + p_pkt->offset;
                 p_begin = p_data;
-                if (p_pkt->len < AVRC_VENDOR_HDR_SIZE) /* 6 = ctype, subunit*, opcode & CO_ID */
+                if (p_pkt->len <= AVRC_VENDOR_HDR_SIZE) /* 6 = ctype, subunit*, opcode & CO_ID */
                 {
                     if (cr == AVCT_CMD)
                         reject = TRUE;
@@ -693,6 +693,7 @@ static void avrc_msg_cback(UINT8 handle, UINT8 label, UINT8 cr,
                 AVRC_BE_STREAM_TO_CO_ID(p_msg->company_id, p_data);
                 p_msg->p_vendor_data   = p_data;
                 p_msg->vendor_len      = p_pkt->len - (p_data - p_begin);
+                AVRC_TRACE_DEBUG(" vendor_len %d", p_msg->vendor_len);
 
 #if (AVRC_METADATA_INCLUDED == TRUE)
                 UINT8 drop_code = 0;
