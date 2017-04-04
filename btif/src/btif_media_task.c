@@ -1574,7 +1574,8 @@ tBTIF_STATUS btif_a2dp_setup_codec(tBTA_AV_HNDL hdl)
     /* for now hardcode 44.1 khz 32 bit stereo PCM format */
     media_feeding.cfg.pcm.sampling_freq = BTIF_A2DP_SRC_SAMPLING_RATE;
 #endif
-    media_feeding.cfg.pcm.bit_per_sample = BTIF_A2DP_SRC_BIT_DEPTH;
+    /* LE supports only 16bit sample */
+    media_feeding.cfg.pcm.bit_per_sample = 16;
     media_feeding.cfg.pcm.num_channel = BTIF_A2DP_SRC_NUM_CHANNELS;
     media_feeding.format = BTIF_AV_CODEC_PCM;
 
@@ -3683,7 +3684,8 @@ static void btif_media_task_aa_start_tx(void)
           BOOLEAN use_SCMS_T = false;
 #endif
           A2D_AptXCodecType aptX_codec_type = btif_media_task_get_aptX_codec_type();
-          BOOLEAN is_24bit_audio = true;
+          /* LE will support only 16bit sample */
+          BOOLEAN is_24bit_audio = false;
 
           BOOLEAN test = false;
           BOOLEAN trace = false;
@@ -4327,7 +4329,8 @@ static void btif_media_aa_prep_sbc_2_send(UINT8 nb_frame,
             if (btif_media_aa_read_feeding(UIPC_CH_ID_AV_AUDIO))
             {
                 size_t frames  = blocm_x_subband * btif_media_cb.encoder.s16NumOfChannels;
-                memcpy_by_audio_format(btif_media_cb.encoder.as16PcmBuffer, AUDIO_FORMAT_PCM_16_BIT, btif_media_cb.encoder.as32PcmBuffer, AUDIO_FORMAT_PCM_8_24_BIT, frames);
+                /* LE supports only 16bit sample */
+                memcpy_by_audio_format(btif_media_cb.encoder.as16PcmBuffer, AUDIO_FORMAT_PCM_16_BIT, btif_media_cb.encoder.as32PcmBuffer, AUDIO_FORMAT_PCM_16_BIT, frames);
                 SBC_Encoder(&(btif_media_cb.encoder));
 
                 /* Update SBC frame length */
