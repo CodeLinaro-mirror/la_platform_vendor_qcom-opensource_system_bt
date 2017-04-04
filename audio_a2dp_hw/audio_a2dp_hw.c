@@ -519,6 +519,31 @@ static void a2dp_open_ctrl_path(struct a2dp_stream_common *common)
     }
 }
 
+static void a2dp_sink_open_ctrl_path(struct a2dp_stream_common *common)
+{
+    int i;
+
+    /* retry logic to catch any timing variations on control channel */
+    for (i = 0; i < CTRL_CHAN_RETRY_COUNT; i++)
+    {
+        /* connect control channel if not already connected */
+        if ((common->ctrl_fd = skt_connect(A2DP_AVK_CTRL_PATH, common->buffer_sz)) > 0)
+        {
+            /* success, now check if stack is ready */
+            if (check_a2dp_ready(common) == 0)
+                break;
+
+            ERROR("error : a2dp not ready, wait 250 ms and retry");
+            TEMP_FAILURE_RETRY(usleep(250000));
+            skt_disconnect(common->ctrl_fd);
+            common->ctrl_fd = AUDIO_SKT_DISCONNECTED;
+        }
+
+        /* ctrl channel not ready, wait a bit */
+        TEMP_FAILURE_RETRY(usleep(250000));
+    }
+}
+
 /*****************************************************************************
 **
 ** AUDIO DATA PATH
@@ -603,6 +628,70 @@ static int start_audio_datapath(struct a2dp_stream_common *common)
 error:
     common->state = oldstate;
     return -1;
+}
+
+static int start_avk_audio_datapath(struct a2dp_stream_common *common)
+{
+    INFO("state %d", common->state);
+
+    #ifdef BT_AUDIO_SYSTRACE_LOG
+    char trace_buf[512];
+    #endif
+
+    INFO("state %s", dump_a2dp_hal_state(common->state));
+
+    if (common->ctrl_fd == AUDIO_SKT_DISCONNECTED) {
+        INFO("%s AUDIO_SKT_DISCONNECTED", __func__);
+        return -1;
+    }
+
+    int oldstate = common->state;
+    common->state = AUDIO_A2DP_STATE_STARTING;
+
+    int a2dp_status = a2dp_command(common, A2DP_CTRL_CMD_START);
+    #ifdef BT_AUDIO_SYSTRACE_LOG
+    snprintf(trace_buf, 32, "start_audio_data_path:");
+    if (PERF_SYSTRACE)
+    {
+        ATRACE_BEGIN(trace_buf);
+    }
+    #endif
+
+
+    #ifdef BT_AUDIO_SYSTRACE_LOG
+    if (PERF_SYSTRACE)
+    {
+        ATRACE_END();
+    }
+    #endif
+    if (a2dp_status < 0)
+    {
+        ERROR("%s Audiopath start failed (status %d)", __func__, a2dp_status);
+
+        common->state = oldstate;
+        return -1;
+    }
+    else if (a2dp_status == A2DP_CTRL_ACK_INCALL_FAILURE)
+    {
+        ERROR("%s Audiopath start failed - in call, move to suspended", __func__);
+        common->state = oldstate;
+        return -1;
+    }
+
+    /* connect socket if not yet connected */
+    if (common->audio_fd == AUDIO_SKT_DISCONNECTED)
+    {
+        common->audio_fd = skt_connect(A2DP_AVK_DATA_PATH, common->buffer_sz);
+        if (common->audio_fd < 0)
+        {
+            common->state = oldstate;
+            return -1;
+        }
+
+        common->state = AUDIO_A2DP_STATE_STARTED;
+    }
+
+    return 0;
 }
 
 static int stop_audio_datapath(struct a2dp_stream_common *common)
@@ -1245,7 +1334,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
 #ifdef BT_HOST_IPC_ENABLED
         if (ipc_if->start_audio_datapath(&in->common) < 0)
 #else
-        if (start_audio_datapath(&in->common) < 0)
+        if (start_avk_audio_datapath(&in->common) < 0)
 #endif
         {
             goto error;
@@ -1658,7 +1747,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 #ifdef BT_HOST_IPC_ENABLED
     ipc_if->a2dp_open_ctrl_path(&in->common);
 #else
-    a2dp_open_ctrl_path(&in->common);
+    a2dp_sink_open_ctrl_path(&in->common);
 #endif
     if (in->common.ctrl_fd == AUDIO_SKT_DISCONNECTED)
     {

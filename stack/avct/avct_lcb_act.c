@@ -28,9 +28,10 @@
 #include "bt_utils.h"
 #include "avct_api.h"
 #include "avct_int.h"
+
 #include "bt_common.h"
 #include "btm_api.h"
-
+#include "bta_ar_int_ext.h"
 /* packet header length lookup table */
 const UINT8 avct_lcb_pkt_type_len[] = {
     AVCT_HDR_LEN_SINGLE,
@@ -344,14 +345,46 @@ void avct_lcb_open_ind(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
     tAVCT_CCB   *p_ccb = &avct_cb.ccb[0];
     int         i;
     BOOLEAN     bind = FALSE;
+    DEV_CLASS device_class;
+    UINT16 service_class; UINT8 major_class, minor_class;
+    BOOLEAN sink_only_cod = false;
+    BOOLEAN src_only_cod = false;
+
+    /* First check, if AVDTP was done earlier and we have any info from avdtp */
+    UINT8 avdtp_conn_type = get_remote_sep_type(p_lcb->peer_addr);
+    AVCT_TRACE_DEBUG(" avdtp_conn_type %d ", avdtp_conn_type);
+
+    if(avdtp_conn_type == 0)
+    {
+        /* In this case, index was not found, Check COD once */
+        BTM_GetCOD(p_lcb->peer_addr, device_class);
+        sink_only_cod = (service_class & BTM_COD_SERVICE_RENDERING) && !(service_class & BTM_COD_SERVICE_CAPTURING);
+        src_only_cod = (service_class & BTM_COD_SERVICE_CAPTURING) && !(service_class & BTM_COD_SERVICE_RENDERING);
+        APPL_TRACE_DEBUG(" %s Major_Class [%x], Minor Class [%x], Service_Class [%x], src_only %d, sink_only %d",__FUNCTION__,
+                 major_class, minor_class, service_class, src_only_cod, sink_only_cod);
+        /* If from COD we come to know that its src or Sink only */
+        if(sink_only_cod)
+        {
+            /* remote is SInk only, this indication should go to AV */
+            avdtp_conn_type = BTA_AR_EXT_AV_MASK;
+        }
+        if(src_only_cod)
+        {
+            /* remote is Src only, this indication should go to AVK */
+            avdtp_conn_type = BTA_AR_EXT_AVK_MASK;
+        }
+    }
+    AVCT_TRACE_DEBUG(" avdtp_conn_type COD update %d ", avdtp_conn_type);
 
     for (i = 0; i < AVCT_NUM_CONN; i++, p_ccb++)
     {
+        AVCT_TRACE_DEBUG("avct_lcb_open_ind, %d index = %d ", p_ccb->allocated, i);
         /* if ccb allocated and */
         if (p_ccb->allocated)
         {
             /* if bound to this lcb send connect confirm event */
-            AVCT_TRACE_DEBUG("avct_lcb_open_ind, %d", p_ccb->allocated);
+            AVCT_TRACE_DEBUG("%s profile id 0x%0X : role %s ccb_sep = %d",__FUNCTION__, p_ccb->cc.pid,
+                (p_ccb->cc.role) ? "AVCT_ACP" : "AVCT_INT", p_ccb->cc.av_sep_type);
             if (p_ccb->p_lcb == p_lcb)
             {
                 AVCT_TRACE_DEBUG("avct_lcb_open_ind, bind true");
@@ -364,6 +397,18 @@ void avct_lcb_open_ind(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
             else if ((p_ccb->p_lcb == NULL) && (p_ccb->cc.role == AVCT_ACP) &&
                      (avct_lcb_has_pid(p_lcb, p_ccb->cc.pid) == NULL))
             {
+                if((avdtp_conn_type & BTA_AR_EXT_AV_MASK) && !(avdtp_conn_type & BTA_AR_EXT_AVK_MASK))
+                {
+                    /* Remote is pure A2DP Src, we should send indication to AV profile only */
+                    if(p_ccb->cc.av_sep_type != BTA_AV_RC_PROFILE_SRC)
+                        continue;
+                }
+                if((avdtp_conn_type & BTA_AR_EXT_AVK_MASK) && !(avdtp_conn_type & BTA_AR_EXT_AV_MASK))
+                {
+                    /* Remote is pure A2DP Sink, we should send indication to AV profile only */
+                    if(p_ccb->cc.av_sep_type != BTA_AV_RC_PROFILE_SINK)
+                        continue;
+                }
                 /* bind ccb to lcb and send connect ind event */
                 AVCT_TRACE_DEBUG("avct_lcb_open_ind, bind and update");
                 bind = TRUE;

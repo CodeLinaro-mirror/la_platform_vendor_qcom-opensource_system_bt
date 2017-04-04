@@ -44,6 +44,8 @@
 #else
 #define A2DP_CTRL_PATH "/data/misc/bluetooth/.a2dp_ctrl"
 #define A2DP_DATA_PATH "/data/misc/bluetooth/.a2dp_data"
+#define A2DP_AVK_CTRL_PATH "/data/misc/bluetooth/.a2dp_avk_ctrl"
+#define A2DP_AVK_DATA_PATH "/data/misc/bluetooth/.a2dp_avk_data"
 #endif
 
 #ifndef BTA_AV_SPLIT_A2DP_DEF_FREQ_48KHZ

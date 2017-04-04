@@ -50,7 +50,7 @@
 #if ( defined BTA_AR_INCLUDED ) && (BTA_AR_INCLUDED == TRUE)
 #include "bta_ar_api.h"
 #endif
-
+#include "bta_ar_int_ext.h"
 /*****************************************************************************
 **  Constants
 *****************************************************************************/
@@ -367,6 +367,7 @@ UINT8 bta_av_rc_create(tBTA_AV_CB *p_cb, UINT8 role, UINT8 shdl, UINT8 lidx)
     ccb.p_msg_cback = bta_av_rc_msg_cback;
     ccb.company_id = p_bta_av_cfg->company_id;
     ccb.conn = role;
+    ccb.av_sep_type = BTA_AV_RC_PROFILE_SRC;
     /* note: BTA_AV_FEAT_RCTG = AVRC_CT_TARGET, BTA_AV_FEAT_RCCT = AVRC_CT_CONTROL */
     ccb.control = p_cb->features & (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_RCCT | AVRC_CT_PASSIVE);
 
@@ -506,7 +507,7 @@ tBTA_AV_LCB * bta_av_find_lcb(BD_ADDR addr, UINT8 op)
             if (op == BTA_AV_LCB_FREE)
             {
                 p_cb->conn_lcb &= ~mask; /* clear the connect mask */
-                APPL_TRACE_DEBUG("conn_lcb: 0x%x", p_cb->conn_lcb);
+                APPL_TRACE_DEBUG("Removed Mask conn_lcb: 0x%x", p_cb->conn_lcb);
             }
             break;
         }
@@ -1698,7 +1699,7 @@ void bta_av_sig_chg(tBTA_AV_DATA *p_data)
     {
         /* disconnected. */
         APPL_TRACE_DEBUG("%s: bta_av_cb.conn_lcb is %d", __func__, bta_av_cb.conn_lcb);
-
+        dealloc_ar_device_info(p_data->str_msg.bd_addr);
         p_lcb = bta_av_find_lcb(p_data->str_msg.bd_addr, BTA_AV_LCB_FREE);
         if (p_lcb && (p_lcb->conn_msk || bta_av_cb.conn_lcb))
         {

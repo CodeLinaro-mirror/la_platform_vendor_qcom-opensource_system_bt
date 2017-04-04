@@ -199,8 +199,9 @@ typedef UINT8 AVDT_REPORT_TYPE;
 #define AVDT_REPORT_DISCONN_EVT     19      /* Reporting channel disconnected */
 #define AVDT_DELAY_REPORT_EVT       20      /* Delay report received */
 #define AVDT_DELAY_REPORT_CFM_EVT   21      /* Delay report response received */
+#define AVDT_SETCONFIG_CMD_EVT      22      /* SetConfig command received from remote */
 
-#define AVDT_MAX_EVT                (AVDT_DELAY_REPORT_CFM_EVT)
+#define AVDT_MAX_EVT                (AVDT_SETCONFIG_CMD_EVT)
 
 /* PSM for AVDT */
 #define AVDT_PSM                    0x0019
@@ -336,6 +337,12 @@ typedef struct {
     UINT16          delay;              /* Delay value */
 } tAVDT_DELAY_RPT;
 
+/* This data structure is associated with the SetConfig Done indication to AR module. */
+typedef struct {
+    tAVDT_EVT_HDR   hdr;                         /* Event header */
+    UINT8          sep_configured;              /* Sep Type that was configured */
+} tAVDT_SetConfig_Cmd;
+
 /* Union of all control callback event data structures */
 typedef union {
     tAVDT_EVT_HDR       hdr;
@@ -355,6 +362,7 @@ typedef union {
     tAVDT_EVT_HDR       disconnect_ind;
     tAVDT_EVT_HDR       report_conn;
     tAVDT_DELAY_RPT     delay_rpt_cmd;
+    tAVDT_SetConfig_Cmd setconf_cmd_ind;
 } tAVDT_CTRL;
 
 /* This is the control callback function.  This function passes control events

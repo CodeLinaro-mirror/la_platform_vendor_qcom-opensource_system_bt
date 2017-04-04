@@ -3352,6 +3352,17 @@ extern UINT8 BTM_SecClrService (UINT8 service_id);
 
 /*******************************************************************************
 **
+** Function         BTM_GetCOD
+**
+** Description      Gets the Class of Remove of remote device.
+**
+** Returns          COD in case record is found, 0 otherwise.
+**
+*******************************************************************************/
+extern void BTM_GetCOD(BD_ADDR bd_addr, DEV_CLASS_PTR dev_class);
+
+/*******************************************************************************
+**
 ** Function         BTM_SecAddDevice
 **
 ** Description      Add/modify device.  This function will be normally called
