@@ -281,6 +281,13 @@ BOOLEAN gatt_disconnect (tGATT_TCB *p_tcb)
 *******************************************************************************/
 BOOLEAN gatt_update_app_hold_link_status(tGATT_IF gatt_if, tGATT_TCB *p_tcb, BOOLEAN is_add)
 {
+    for (int i = 0; i < GATT_MAX_APPS; i++) {
+        if (p_tcb->app_hold_link[i] == gatt_if && is_add) {
+            GATT_TRACE_DEBUG("%s: gatt_if %d already exists at idx %d", __func__, gatt_if, i);
+            return true;
+        }
+    }
+
     for (int i=0; i<GATT_MAX_APPS; i++) {
         if (p_tcb->app_hold_link[i] == 0 && is_add) {
             p_tcb->app_hold_link[i] = gatt_if;
@@ -400,7 +407,7 @@ BOOLEAN gatt_act_connect (tGATT_REG *p_reg, BD_ADDR bd_addr,
     if (ret)
     {
         if (!opportunistic)
-            gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, TRUE, FALSE);
+            gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, TRUE, TRUE);
         else
             GATT_TRACE_DEBUG("%s: connection is opportunistic, not updating app usage",
                             __func__);
