@@ -82,7 +82,8 @@ AC_ARG_ENABLE(rome,
 
 AM_CONDITIONAL([MDM_ROME], [test "x$TARGET" = "xmdm9607" -o "x$TARGET" = "xmdm9635" -o "x$TARGET" = "xmdm9640" -o "x$TARGET" = "xmdmcalifornium" -o "x$TARGET" = "xapq8096" -o "x$TARGET" = "xsdxhedgehog" -o "x$ROME" = "xqsap"])
 AM_CONDITIONAL([MDM_PRONTO], [test "x$TARGET" = "xapq8009" -o "x$TARGET" = "xapq8017" -o "x$TARGET" = "xapq8053" -o "x$TARGET" = "xapq8016"])
-AM_CONDITIONAL([BT_AUDIO_HAL_INTEGRATION], [test "x$TARGET" = "xapq8009" -o "x$TARGET" = "xapq8017" -o "x$TARGET" = "xapq8053"])
+AM_CONDITIONAL([MDM_CHEROKEE], [test "x$TARGET" = "xapq8098"])
+AM_CONDITIONAL([BT_AUDIO_HAL_INTEGRATION], [test "x$TARGET" = "xapq8009" -o "x$TARGET" = "xapq8017" -o "x$TARGET" = "xapq8053" -o "x$TARGET" = "xapq8098"])
 # BTC support
 # make below flag to true to enable the BTC
 AM_CONDITIONAL([BTC_SUPPORT], false)
@@ -163,6 +164,7 @@ AC_CONFIG_FILES([ \
          tools/btsnoop_dump/Makefile \
          embdrv/sbc/decoder/Makefile \
          btif/Makefile
+         audio_a2dp_hw/Makefile \
          ])
 
 AC_OUTPUT

@@ -47,7 +47,8 @@
 #include <sys/time.h>
 #include <sys/un.h>
 #include <unistd.h>
-
+#include <fcntl.h>
+#include <cutils/sockets.h>
 #include <hardware/audio.h>
 #include <hardware/hardware.h>
 #include <system/audio.h>
@@ -91,11 +92,11 @@ static int number =0;
 
 #define CASE_RETURN_STR(const) case const: return #const;
 
-#define FNLOG()             LOG_VERBOSE(LOG_TAG, "%s", __FUNCTION__);
-#define DEBUG(fmt, ...)     LOG_VERBOSE(LOG_TAG, "%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
-#define INFO(fmt, ...)      LOG_INFO(LOG_TAG, "%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
+#define FNLOG()             LOG_VERBOSE("%s", __FUNCTION__);
+#define DEBUG(fmt, ...)     LOG_INFO("%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
+#define INFO(fmt, ...)      LOG_INFO("%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
 #define WARN(fmt, ...)      LOG_WARN(LOG_TAG, "%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
-#define ERROR(fmt, ...)     LOG_ERROR(LOG_TAG, "%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
+#define ERROR(fmt, ...)     LOG_ERROR("%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
 
 #define ASSERTC(cond, msg, val) if (!(cond)) {ERROR("### ASSERT : %s line %d %s (%d) ###", __FILE__, __LINE__, msg, val);}
 //#define BT_HOST_IPC_PATH "/system/lib/hw/bthost-ipc.so"
@@ -256,14 +257,22 @@ static int skt_connect(char *path, size_t buffer_sz)
 {
     int ret;
     int skt_fd;
+    struct sockaddr_un remote;
     int len;
 
     INFO("connect to %s (sz %zu)", path, buffer_sz);
 
     skt_fd = socket(AF_LOCAL, SOCK_STREAM, 0);
 
-    if(osi_socket_local_client_connect(skt_fd, path,
+#ifdef ANDROID
+    if(socket_local_client_connect(skt_fd, path,
             ANDROID_SOCKET_NAMESPACE_ABSTRACT, SOCK_STREAM) < 0)
+#else
+    memset(&remote, 0, sizeof(remote));
+    remote.sun_family = AF_LOCAL;
+    strncpy(remote.sun_path, path, sizeof(remote.sun_path)-1);
+    if(connect(skt_fd, (struct sockaddr*)&remote, sizeof(remote)) < 0)
+#endif
     {
         ERROR("failed to connect (%s)", strerror(errno));
         close(skt_fd);
@@ -1157,9 +1166,22 @@ static int in_set_format(struct audio_stream *stream, audio_format_t format)
 
 static int in_standby(struct audio_stream *stream)
 {
-    UNUSED(stream);
+    struct a2dp_stream_in *in = (struct a2dp_stream_in *)stream;
+    int retVal = 0;
 
     FNLOG();
+
+    pthread_mutex_lock(&in->common.lock);
+
+    /*Need not check State here as btif layer does
+    check of btif state , during remote initited suspend
+    DUT need to clear flag else start will not happen but
+    Do nothing in SUSPENDED state. */
+    if (in->common.state != AUDIO_A2DP_STATE_SUSPENDED)
+        retVal = suspend_audio_datapath(&in->common, true);
+    pthread_mutex_unlock (&in->common.lock);
+
+    return retVal;
     return 0;
 }
 
@@ -1454,8 +1476,10 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     skt_disconnect(out->common.ctrl_fd);
 #endif
     out->common.ctrl_fd = AUDIO_SKT_DISCONNECTED;
+#ifdef BT_HOST_IPC_ENABLED
     if (lib_handle)
         dlclose(lib_handle);
+#endif
     free(stream);
     a2dp_dev->output = NULL;
     pthread_mutex_unlock(&out->common.lock);
@@ -1696,8 +1720,10 @@ static void adev_close_input_stream(struct audio_hw_device *dev,
     in->common.ctrl_fd = AUDIO_SKT_DISCONNECTED;
     free(stream);
     a2dp_dev->input = NULL;
+#ifdef BT_HOST_IPC_ENABLED
     if (lib_handle)
         dlclose(lib_handle);
+#endif
     DEBUG("done");
 }
 

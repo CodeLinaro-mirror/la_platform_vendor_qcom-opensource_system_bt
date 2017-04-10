@@ -45,6 +45,7 @@ c_sources:= \
     ./a2dp/a2d_aptx.c \
     ./a2dp/a2d_aptx_hd.c \
     ./a2dp/a2d_aac.c \
+    ./a2dp/a2d_mp3.c \
     ./avrc/avrc_api.c \
     ./avrc/avrc_sdp.c \
     ./avrc/avrc_opt.c \

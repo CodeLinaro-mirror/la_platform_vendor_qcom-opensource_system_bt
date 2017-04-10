@@ -268,6 +268,7 @@ tAVDT_CTRL_CBACK * const bta_av_dt_cback[] =
 static UINT8 bta_av_get_scb_handle(tBTA_AV_SCB *p_scb, UINT8 local_sep)
 {
     UINT8 xx =0;
+    const int NON_A2DP = 0xFF;
     for (xx = 0; xx<BTA_AV_MAX_SEPS; xx++)
     {
         if ((p_scb->seps[xx].tsep == local_sep) &&
@@ -801,6 +802,7 @@ static void bta_av_a2d_sdp_cback(BOOLEAN found, tA2D_Service *p_service)
 static void bta_av_adjust_seps_idx(tBTA_AV_SCB *p_scb, UINT8 avdt_handle)
 {
     int xx;
+    const int NON_A2DP = 0xFF;
     APPL_TRACE_DEBUG("bta_av_adjust_seps_idx codec_type: %d", p_scb->codec_type);
     for(xx=0; xx<BTA_AV_MAX_SEPS; xx++)
     {

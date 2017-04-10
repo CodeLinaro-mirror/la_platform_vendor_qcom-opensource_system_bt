@@ -45,6 +45,8 @@
 #if (defined(BTC_INCLUDED) && BTC_INCLUDED == TRUE)
 #include "btc_common.h"
 #endif
+#include "hardware/bt_hf_vendor.h"
+
 /************************************************************************************
 **  Constants & Macros
 ************************************************************************************/
@@ -117,6 +119,7 @@ UINT16 bthf_hf_id[BTIF_HF_NUM_CB] = {BTIF_HF_ID_1, BTIF_HF_ID_2,
 **  Static variables
 ************************************************************************************/
 static bthf_callbacks_t *bt_hf_callbacks = NULL;
+static bthf_vendor_callbacks_t *bt_hf_vendor_callbacks = NULL;
 static int hf_idx = BTIF_HF_INVALID_IDX;
 static UINT32 btif_features = BTIF_HF_FEATURES;
 
@@ -751,21 +754,21 @@ static void btif_hf_upstreams_evt(UINT16 event, char* p_param)
             switch(p_data->val.num)
             {
                 case BTA_AG_AT_SET:
-                    HAL_CBACK(bt_hf_callbacks, bind_cmd_cb, p_data->val.str, BTHF_BIND_SET,
-                                               &btif_hf_cb[idx].connected_bda);
+                    HAL_CBACK(bt_hf_vendor_callbacks, bind_cmd_vendor_cb, p_data->val.str,
+                            BTHF_VENDOR_BIND_SET, &btif_hf_cb[idx].connected_bda);
                     break;
                 case BTA_AG_AT_READ:
-                    HAL_CBACK(bt_hf_callbacks, bind_cmd_cb, p_data->val.str, BTHF_BIND_READ,
-                                               &btif_hf_cb[idx].connected_bda);
+                    HAL_CBACK(bt_hf_vendor_callbacks, bind_cmd_vendor_cb, p_data->val.str,
+                            BTHF_VENDOR_BIND_READ, &btif_hf_cb[idx].connected_bda);
                     break;
                 case BTA_AG_AT_TEST:
-                    HAL_CBACK(bt_hf_callbacks, bind_cmd_cb, p_data->val.str, BTHF_BIND_TEST,
-                                               &btif_hf_cb[idx].connected_bda);
+                    HAL_CBACK(bt_hf_vendor_callbacks, bind_cmd_vendor_cb, p_data->val.str,
+                            BTHF_VENDOR_BIND_TEST, &btif_hf_cb[idx].connected_bda);
                     break;
             }
             break;
         case BTA_AG_AT_BIEV_EVT:
-            HAL_CBACK(bt_hf_callbacks, biev_cmd_cb, p_data->val.str,
+            HAL_CBACK(bt_hf_vendor_callbacks, biev_cmd_vendor_cb, p_data->val.str,
                                                &btif_hf_cb[idx].connected_bda);
 
             break;
@@ -875,6 +878,21 @@ static bt_status_t init( bthf_callbacks_t* callbacks, int max_hf_clients)
     for (int i = 0; i < btif_max_hf_clients; i++)
         clear_phone_state_multihf(i);
 
+    return BT_STATUS_SUCCESS;
+}
+
+/*******************************************************************************
+**
+** Function         btif_hf_vendor_init
+**
+** Description     initializes the hf vendor interface
+**
+** Returns         bt_status_t
+**
+*******************************************************************************/
+static bt_status_t init_vendor( bthf_vendor_callbacks_t* callbacks)
+{
+    bt_hf_vendor_callbacks = callbacks;
     return BT_STATUS_SUCCESS;
 }
 
@@ -1706,6 +1724,21 @@ static void  cleanup( void )
 
 /*******************************************************************************
 **
+** Function        cleanup_vendor
+**
+** Description     cleans the hf vendor interface
+**
+** Returns         bt_status_t
+**
+*******************************************************************************/
+static bt_status_t cleanup_vendor( void)
+{
+    bt_hf_vendor_callbacks = NULL;
+    return BT_STATUS_SUCCESS;
+}
+
+/*******************************************************************************
+**
 ** Function         configure_wbs
 **
 ** Description      set to over-ride the current WBS configuration.
@@ -1740,7 +1773,7 @@ static bt_status_t  configure_wbs( bt_bdaddr_t *bd_addr , bthf_wbs_config_t conf
 
 /*******************************************************************************
 **
-** Function         bind_response
+** Function         bind_response_vendor
 **
 ** Description      response for BIND READ command
 **                  Can be iteratively called for each Hf indicator.
@@ -1748,7 +1781,7 @@ static bt_status_t  configure_wbs( bt_bdaddr_t *bd_addr , bthf_wbs_config_t conf
 ** Returns          bt_status_t
 **
 *******************************************************************************/
-static bt_status_t bind_response(int anum, bthf_hf_indicator_status_t status,
+static bt_status_t bind_response_vendor(int anum, bthf_vendor_hf_indicator_status_t status,
                                bt_bdaddr_t *bd_addr)
 {
     CHECK_BTHF_INIT();
@@ -1782,14 +1815,14 @@ static bt_status_t bind_response(int anum, bthf_hf_indicator_status_t status,
 
 /*******************************************************************************
 **
-** Function         bind_string_response
+** Function         bind_string_response_vendor
 **
 ** Description      response for BIND TEST command
 **
 ** Returns          bt_status_t
 **
 *******************************************************************************/
-static bt_status_t bind_string_response(const char* res,
+static bt_status_t bind_string_response_vendor(const char* res,
                                bt_bdaddr_t *bd_addr)
 {
     CHECK_BTHF_INIT();
@@ -1842,15 +1875,15 @@ static void set_voip_network_type_wifi_hci_cmd_complete(tBTM_VSC_CMPL* p_data)
 
 /*******************************************************************************
 **
-** Function         voip_network_type_wifi
+** Function         voip_network_type_wifi_vendor
 **
 ** Description      BT app updates the connectivity network used for VOIP as Wifi
 **
 ** Returns          bt_status_t
 **
 *******************************************************************************/
-static bt_status_t voip_network_type_wifi(bthf_voip_state_t isVoipStarted,
-                                          bthf_voip_call_network_type_t isNetworkWifi)
+static bt_status_t voip_network_type_wifi_vendor(bthf_vendor_voip_state_t isVoipStarted,
+                                          bthf_vendor_voip_call_network_type_t isNetworkWifi)
 {
     UINT8           cmd[3], *p_cursor;
     UINT8           sub_cmd = HCI_VSC_SUBCODE_VOIP_NETWORK_WIFI;
@@ -1902,9 +1935,15 @@ static const bthf_interface_t bthfInterface = {
     phone_state_change,
     cleanup,
     configure_wbs,
-    bind_response,
-    bind_string_response,
-    voip_network_type_wifi,
+};
+
+static const bthf_vendor_interface_t bthfVendorInterface = {
+    sizeof(bthfVendorInterface),
+    init_vendor,
+    bind_response_vendor,
+    bind_string_response_vendor,
+    voip_network_type_wifi_vendor,
+    cleanup_vendor,
 };
 
 /*******************************************************************************
@@ -1993,3 +2032,19 @@ const bthf_interface_t *btif_hf_get_interface()
     BTIF_TRACE_EVENT("%s", __FUNCTION__);
     return &bthfInterface;
 }
+
+/*******************************************************************************
+**
+** Function         btif_hf_vendor_get_interface
+**
+** Description      Get the hf vendor callback interface
+**
+** Returns          bthf_interface_t
+**
+*******************************************************************************/
+const bthf_vendor_interface_t *btif_hf_vendor_get_interface()
+{
+    BTIF_TRACE_EVENT("%s", __FUNCTION__);
+    return &bthfVendorInterface;
+}
+

@@ -773,8 +773,11 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
                     continue;
                 }
 
-                if(AVDT_CreateStream(&p_scb->seps[index - startIndex].av_handle, &cs) ==
-                                                                            AVDT_SUCCESS)
+                /* Fix for below klockwork Issues
+                 * Array 'seps' of size 2 may use index value(s) 2 */
+                if (((index - startIndex) < BTA_AV_MAX_SEPS) &&
+                    (AVDT_CreateStream(&p_scb->seps[index - startIndex].av_handle, &cs) ==
+                                                                             AVDT_SUCCESS))
                 {
                    if ((profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) &&
                        ((index == BTIF_SV_AV_AA_APTX_INDEX) || (index == BTIF_SV_AV_AA_APTX_HD_INDEX)))

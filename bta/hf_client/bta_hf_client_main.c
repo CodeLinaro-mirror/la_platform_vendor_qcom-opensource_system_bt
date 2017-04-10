@@ -387,8 +387,9 @@ static void bta_hf_client_api_enable(tBTA_HF_CLIENT_DATA *p_data)
     bta_hf_client_cb.p_cback = p_data->api_enable.p_cback;
 
     /* check if mSBC support enabled */
-    osi_property_get("ro.bluetooth.hfp.ver", value, "0");
+    property_get("ro.bluetooth.hfp.ver", value, "1.6");
 
+    APPL_TRACE_ERROR("%s: HFP client version is %s", __func__, value);
     if (strtof(value, NULL) >= 1.6)
     {
        bta_hf_client_cb.msbc_enabled = TRUE;

@@ -77,7 +77,7 @@
 #endif  // defined(OS_GENERIC)
 #endif  // BTE_DID_CONF_FILE
 
-#define VENDOR_PERSISTENCE_PATH    "/persist/bluetooth"
+#define VENDOR_PERSISTENCE_PATH    "/data/misc/bluetooth"
 #define VENDOR_BT_NV_FILE_NAME     ".bt_nv.bin"
 #define VENDOR_PAYLOAD_MAXLENGTH   (260)
 #define VENDOR_MAX_CMD_HDR_SIZE    (3)

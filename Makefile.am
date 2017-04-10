@@ -1,3 +1,7 @@
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = hci profile osi device btcore stack bta btif utils embdrv/sbc/decoder main
+if BT_AUDIO_HAL_INTEGRATION
+SUBDIRS = hci osi profile device btcore utils stack bta btif main embdrv/sbc/decoder audio_a2dp_hw
+else
+SUBDIRS = hci osi profile device btcore utils stack bta btif main embdrv/sbc/decoder
+endif

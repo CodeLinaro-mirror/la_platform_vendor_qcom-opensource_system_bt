@@ -59,6 +59,14 @@
 #include "smp_api.h"
 #endif
 
+#ifdef USE_ANDROID_LOGGING
+#include <utils/Log.h>
+#define LOGI0 ALOGI
+#define LOGD0 ALOGD
+#define LOGW0 ALOGW
+#define LOGE0 ALOGE
+#endif
+
 #ifndef DEFAULT_CONF_TRACE_LEVEL
 #define DEFAULT_CONF_TRACE_LEVEL BT_TRACE_LEVEL_WARNING
 #endif
@@ -198,20 +206,20 @@ void LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
 
   switch ( TRACE_GET_TYPE(trace_set_mask) ) {
     case TRACE_TYPE_ERROR:
-      LOG_ERROR(bt_layer_tags[trace_layer], "%s", buffer);
+      LOGE0(buffer);
       break;
     case TRACE_TYPE_WARNING:
-      LOG_WARN(bt_layer_tags[trace_layer], "%s", buffer);
+      LOGW0(buffer);
       break;
     case TRACE_TYPE_API:
     case TRACE_TYPE_EVENT:
-      LOG_INFO(bt_layer_tags[trace_layer], "%s", buffer);
+      LOGI0(buffer);
       break;
     case TRACE_TYPE_DEBUG:
-      LOG_DEBUG(bt_layer_tags[trace_layer], "%s", buffer);
+      LOGD0(buffer);
       break;
     default:
-      LOG_ERROR(bt_layer_tags[trace_layer], "%s", buffer);      /* we should never get this */
+      LOGE0(buffer);
       break;
     }
 }

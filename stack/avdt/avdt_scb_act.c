@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ *  Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
  *
  *  Not a contribution.
  ******************************************************************************/
@@ -69,7 +69,8 @@ const UINT8 avdt_scb_role_evt[] = {
     AVDT_OPEN_CFM_EVT           /* AVDT_OPEN_INT */
 };
 
-
+extern UINT8 bta_avk_get_current_codec();
+#define NON_A2DP_MEDIA_CT 0xff
 /*******************************************************************************
 **
 ** Function         avdt_scb_gen_ssrc
@@ -263,6 +264,18 @@ void avdt_scb_hdl_pkt_no_frag(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
     UINT16  ex_len;
     UINT8   pad_len = 0;
 
+    if ((p_scb != NULL)&&(p_scb->cs.p_data_cback != NULL))
+    {
+        AVDT_TRACE_DEBUG(" Get current codec = %d",bta_avk_get_current_codec());
+        if (bta_avk_get_current_codec() == 0xff)// this is a vendor specific codec, no RTP here
+        {
+            // This must be a case of Sink as for Src, p_data_cback is made NULL
+            p_data->p_pkt->layer_specific = 0;
+            AVDT_TRACE_DEBUG("AVDTP Recv Packet, APTX len =  %d", p_data->p_pkt->len);
+            (*p_scb->cs.p_data_cback)(avdt_scb_to_hdl(p_scb), p_data->p_pkt, 0, 0);
+            return;
+        }
+    }
     p = p_start = (UINT8 *)(p_data->p_pkt + 1) + p_data->p_pkt->offset;
 
     /* parse media packet header */
@@ -304,8 +317,10 @@ void avdt_scb_hdl_pkt_no_frag(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
     /* adjust offset and length and send it up */
     else
     {
-        p_data->p_pkt->len -= (offset + pad_len);
-        p_data->p_pkt->offset += offset;
+        //p_data->p_pkt->len -= (offset + pad_len);
+        //p_data->p_pkt->offset += offset;
+        // remove padding here itself.
+        p_data->p_pkt->len -= (pad_len);
 
         if (p_scb->cs.p_data_cback != NULL)
         {
@@ -1290,9 +1305,11 @@ void avdt_scb_hdl_write_req_no_frag(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
     }
     osi_free_and_reset((void **)&p_scb->p_pkt);
 
-    /* build a media packet */
-    /* Add RTP header if required */
-    if ( !(p_data->apiwrite.opt & AVDT_DATA_OPT_NO_RTP) )
+    /* build a media packet if the codec type is not aptX */
+#if defined(BTA_AV_CO_CP_SCMS_T) && (BTA_AV_CO_CP_SCMS_T == TRUE)
+#else
+    if (p_data->apiwrite.m_pt != NON_A2DP_MEDIA_CT)
+#endif
     {
         ssrc = avdt_scb_gen_ssrc(p_scb);
 
