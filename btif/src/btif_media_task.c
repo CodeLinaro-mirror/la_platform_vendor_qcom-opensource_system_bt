@@ -100,7 +100,7 @@
 #ifdef USE_AUDIO_TRACK
 #include "btif_avrcp_audio_track.h"
 #endif
-
+#include "oi_codec_sbc_private.h"
 #include "bthost_ipc.h"
 #if (BTA_AV_SINK_INCLUDED == TRUE)
 OI_CODEC_SBC_DECODER_CONTEXT context;
@@ -132,7 +132,8 @@ char outputFilename [50] = "/etc/data/misc/bluedroid/output_sample.pcm";
 #ifndef AUDIO_CHANNEL_OUT_STEREO
 #define AUDIO_CHANNEL_OUT_STEREO 0x03
 #endif
-
+#define A2DP_SRC_AUDIO_CODEC_PCM 0x40
+#define A2DP_SRC_AUDIO_CODEC_SBC 0x00
 /* BTIF media cmd event definition : BTIF_MEDIA_TASK_CMD */
 enum
 {
@@ -394,6 +395,12 @@ typedef struct
     A2D_APTX_HD_ENC_PARAMS aptxhdEncoderParams;
     UINT16 as16PcmBuffer[1024];
     UINT32 as32PcmBuffer[1024];
+    UINT8* sbcBufferReadPtr;
+    UINT8  asDataBuffer[20000];
+    UINT8* dataBufferReadPtr;
+    UINT32 data_codec_type;
+    INT32 aa_feed_data_residue;
+    INT32 aa_feed_data_size;
     UINT8 busy_level;
     void* av_sm_hdl;
     UINT8 a2dp_cmd_pending; /* we can have max one command pending */
@@ -437,6 +444,7 @@ typedef struct {
 } t_stat;
 
 static UINT64 last_frame_us = 0;
+static OI_CODEC_SBC_COMMON_CONTEXT sbc_common_context;
 
 static void btif_a2dp_data_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
 static void btif_a2dp_ctrl_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
@@ -2691,6 +2699,7 @@ static void btif_media_task_aa_tx_flush(BT_HDR *p_msg)
 
     btif_media_cb.media_feeding_state.pcm.counter = 0;
     btif_media_cb.media_feeding_state.pcm.aa_feed_residue = 0;
+    btif_media_cb.aa_feed_data_residue = 0;
 
     btif_media_cb.stats.tx_queue_total_flushed_messages +=
         fixed_queue_length(btif_media_cb.TxAaQ);
@@ -4104,6 +4113,195 @@ BT_HDR *btif_media_aa_readbuf(void)
 
 /*******************************************************************************
  **
+ ** Function         btif_media_aa_read_data_feading
+ **
+ ** Description      read data send from BT Audio HAL. the data format is
+ **                  codec_type + length of data + payload data
+ **
+ **
+ ** Returns          BOOLEAN
+ *******************************************************************************/
+BOOLEAN btif_media_aa_read_data_feading(tUIPC_CH_ID channel_id)//, UINT8 * desBuf, UINT16*in_sbc_frame_len)
+{
+    UINT16 event;
+    UINT32  nb_byte_read;
+    UINT16  bytes_needed = MAX_SBC_HQ_FRAME_SIZE_44_1;
+    UINT16  sbcframesize = 0;
+    UINT32  headerlen;
+    UINT32  codectype;
+    UINT8*  read_feeding_ptr;
+    if(btif_media_cb.aa_feed_data_size== 0 || btif_media_cb.aa_feed_data_residue == 0)
+    {
+        nb_byte_read = UIPC_Read(channel_id,&event,
+                   (UINT8 *)&btif_media_cb.data_codec_type,4);
+                   //sizeof(btif_media_cb.data_codec_type)
+                 //);
+
+        if(nb_byte_read != sizeof(btif_media_cb.data_codec_type))
+        {
+            APPL_TRACE_WARNING("Cannot get the codec type",
+                nb_byte_read, sizeof(btif_media_cb.data_codec_type));
+            btif_media_cb.aa_feed_data_size =0;
+            btif_media_cb.data_codec_type = A2DP_SRC_AUDIO_CODEC_SBC;
+            return FALSE;
+        }
+        nb_byte_read = UIPC_Read(channel_id, &event,
+                  ((UINT8 *)&btif_media_cb.aa_feed_data_size),4);
+                 // sizeof(btif_media_cb.aa_feed_data_size));
+        if(nb_byte_read!=sizeof(btif_media_cb.aa_feed_data_size))
+        {
+            APPL_TRACE_ERROR("Cannot get get the len of packet");
+            btif_media_cb.aa_feed_data_size =0;
+            return FALSE;
+        }
+
+        if((btif_media_cb.data_codec_type != A2DP_SRC_AUDIO_CODEC_SBC) \
+          &&(btif_media_cb.data_codec_type != A2DP_SRC_AUDIO_CODEC_PCM))
+
+        {
+             APPL_TRACE_ERROR("Invalid codec type %x",btif_media_cb.data_codec_type);
+             btif_media_cb.aa_feed_data_size =0;
+             return FALSE;
+        }
+
+        nb_byte_read = UIPC_Read(channel_id,&event,
+                   (UINT8 *)btif_media_cb.asDataBuffer,
+                   btif_media_cb.aa_feed_data_size
+                 );
+        APPL_TRACE_ERROR("read new data actully read =%d, request size = %d",
+                          nb_byte_read,btif_media_cb.aa_feed_data_size);
+        if(nb_byte_read != btif_media_cb.aa_feed_data_size)
+        {
+            APPL_TRACE_WARNING("### UNDERFLOW :: ONLY READ %d BYTES OUT OF %d ###",
+                nb_byte_read, btif_media_cb.aa_feed_data_size);
+            btif_media_cb.aa_feed_data_size=0;
+            return FALSE;
+        }
+       //reset the residue value and ptr
+        btif_media_cb.aa_feed_data_residue = btif_media_cb.aa_feed_data_size;
+        btif_media_cb.dataBufferReadPtr = btif_media_cb.asDataBuffer;
+    }
+    return TRUE;
+}
+
+/*******************************************************************************
+ **
+ ** Function         btif_media_aa_read_sbc_feeding
+ **
+ ** Description
+ **
+ ** Returns          BOOLEAN
+ **
+ *******************************************************************************/
+BOOLEAN btif_media_aa_read_sbc_feeding (tUIPC_CH_ID channel_id,UINT8 * desBuf, UINT16*in_sbc_frame_len)
+{
+    UINT16 event;
+    UINT32  nb_byte_read;
+    UINT16  bytes_needed = MAX_SBC_HQ_FRAME_SIZE_44_1;
+    UINT16  sbcframesize = 0;
+    UINT32  headerlen;
+    if(btif_media_cb.aa_feed_data_residue ==0)
+    {
+       if (!btif_media_aa_read_data_feading(UIPC_CH_ID_AV_AUDIO))
+           return FALSE;
+    }
+    if(btif_media_cb.data_codec_type != A2DP_SRC_AUDIO_CODEC_SBC)
+    {
+        APPL_TRACE_ERROR("data is not sbc ");
+        return FALSE;
+    }
+    APPL_TRACE_ERROR("unprocessed rd ptr =%p begin with %x residue size= %d",
+                      btif_media_cb.dataBufferReadPtr,
+                      *btif_media_cb.dataBufferReadPtr,
+                      btif_media_cb.aa_feed_data_residue);
+    while(((*btif_media_cb.dataBufferReadPtr)!=OI_SBC_SYNCWORD
+           &&(*btif_media_cb.dataBufferReadPtr)!=OI_SBC_ENHANCED_SYNCWORD)
+           &&btif_media_cb.aa_feed_data_residue>0)
+    {
+        APPL_TRACE_ERROR("read error header  bits=%x",*btif_media_cb.dataBufferReadPtr);
+        btif_media_cb.dataBufferReadPtr++;
+        btif_media_cb.aa_feed_data_residue--;
+    }
+
+    if(btif_media_cb.aa_feed_data_residue < SBC_HEADER_LEN)
+    {
+        btif_media_cb.aa_feed_data_residue =0;
+        APPL_TRACE_ERROR("residue data doesnot have enough spece to store header####");
+        return FALSE;
+    }
+
+    // parse the SBC header and cal the frame len
+    OI_SBC_ReadHeader(&sbc_common_context, btif_media_cb.dataBufferReadPtr);
+    sbcframesize = OI_SBC_CalculateFrameAndHeaderlen(&(sbc_common_context.frameInfo), &headerlen);
+
+    if( btif_media_cb.aa_feed_data_residue  < sbcframesize) {
+        btif_media_cb.aa_feed_data_residue =0;
+        APPL_TRACE_ERROR("residue data does not contain enough body data");
+        return FALSE;
+    }
+    memcpy(desBuf,btif_media_cb.dataBufferReadPtr,sbcframesize);
+    btif_media_cb.aa_feed_data_residue -= sbcframesize;
+    btif_media_cb.dataBufferReadPtr +=sbcframesize;
+    *in_sbc_frame_len = sbcframesize;
+    APPL_TRACE_ERROR("Before return data ptr= %p begin=%x",btif_media_cb.dataBufferReadPtr,*btif_media_cb.dataBufferReadPtr);
+    return TRUE;
+}
+
+/*******************************************************************************
+ **
+ ** Function        get_pcm_data_from_buffer
+ **
+ ** Description     get the pcm data from read buffer, which will got the raw data
+ **                 through upic
+ **
+ ** Returns         size_t
+ **
+ *******************************************************************************/
+
+size_t get_pcm_data_from_buffer(UINT8 *dest, int size)
+{
+    int readsize=0;
+    if(btif_media_cb.aa_feed_data_residue  == 0)
+    {
+        if (!btif_media_aa_read_data_feading(UIPC_CH_ID_AV_AUDIO))
+            return 0;
+    }
+    if(btif_media_cb.data_codec_type != A2DP_SRC_AUDIO_CODEC_PCM)
+    {
+        APPL_TRACE_ERROR("got another type data");
+        return 0;
+    }
+    if(btif_media_cb.aa_feed_data_residue >= size)
+    {
+        memcpy(dest,btif_media_cb.dataBufferReadPtr,size);
+        btif_media_cb.aa_feed_data_residue -= size;
+        btif_media_cb.dataBufferReadPtr += size;
+        return size;
+    }
+
+    while(readsize<size && btif_media_cb.aa_feed_data_size !=0)
+    {
+        if( btif_media_cb.aa_feed_data_residue > size-readsize)
+        {
+           // the residue data size is more than needed, just copy
+            memcpy(dest,btif_media_cb.dataBufferReadPtr,size-readsize);
+            btif_media_cb.aa_feed_data_residue -= (size-readsize);
+            btif_media_cb.dataBufferReadPtr += (size-readsize);
+            return size;
+        }
+        memcpy(dest,btif_media_cb.dataBufferReadPtr,\
+                   btif_media_cb.aa_feed_data_residue);
+
+        readsize += btif_media_cb.aa_feed_data_residue;
+        dest = dest + btif_media_cb.aa_feed_data_residue;
+        btif_media_aa_read_data_feading(UIPC_CH_ID_AV_AUDIO);
+    }
+
+    return readsize;
+}
+
+/*******************************************************************************
+ **
  ** Function         btif_media_aa_read_feeding
  **
  ** Description
@@ -4155,8 +4353,7 @@ BOOLEAN btif_media_aa_read_feeding(tUIPC_CH_ID channel_id)
 
     if (sbc_sampling == btif_media_cb.media_feeding.cfg.pcm.sampling_freq) {
         read_size = bytes_needed - btif_media_cb.media_feeding_state.pcm.aa_feed_residue;
-        nb_byte_read = UIPC_Read(channel_id, &event,
-                  ((UINT8 *)btif_media_cb.encoder.as32PcmBuffer) +
+        nb_byte_read = get_pcm_data_from_buffer(((UINT8 *)btif_media_cb.encoder.as32PcmBuffer) +
                   btif_media_cb.media_feeding_state.pcm.aa_feed_residue,
                   read_size);
         if (nb_byte_read == read_size) {
@@ -4218,10 +4415,8 @@ BOOLEAN btif_media_aa_read_feeding(tUIPC_CH_ID channel_id)
     read_size *= btif_media_cb.media_feeding.cfg.pcm.num_channel;
     read_size *= (btif_media_cb.media_feeding.cfg.pcm.bit_per_sample / 8);
 
-    /* Read Data from UIPC channel */
-    nb_byte_read = UIPC_Read(channel_id, &event, (UINT8 *)read_buffer, read_size);
-
-    //tput_mon(TRUE, nb_byte_read, FALSE);
+    /*get data from buffer, which read from uipc channel*/
+    nb_byte_read = get_pcm_data_from_buffer((UINT8 *)read_buffer, read_size);
 
     if (nb_byte_read < read_size)
     {
@@ -4309,6 +4504,17 @@ static void btif_media_aa_prep_sbc_2_send(UINT8 nb_frame,
     UINT16 blocm_x_subband = btif_media_cb.encoder.s16NumOfSubBands *
                              btif_media_cb.encoder.s16NumOfBlocks;
 
+    BOOLEAN feed_result = FALSE;
+    UINT8 *tmpPtr;
+    UINT32 tmpLength;
+    if(btif_media_cb.aa_feed_data_residue == 0)
+    {
+        if(!btif_media_aa_read_data_feading(UIPC_CH_ID_AV_AUDIO))
+            return;
+    }
+    APPL_TRACE_WARNING(" prep_sbc_2_send codec= %d,aa_feed_data_residue +%d ",
+                         btif_media_cb.data_codec_type,
+                         btif_media_cb.aa_feed_data_residue );
     while (nb_frame) {
         BT_HDR *p_buf = (BT_HDR *)osi_malloc(BTIF_MEDIA_AA_BUF_SIZE);
 
@@ -4319,34 +4525,49 @@ static void btif_media_aa_prep_sbc_2_send(UINT8 nb_frame,
 
         do
         {
-            /* Write @ of allocated buffer in encoder.pu8Packet */
-            btif_media_cb.encoder.pu8Packet = (UINT8 *) (p_buf + 1) + p_buf->offset + p_buf->len;
-            /* Fill allocated buffer with 0 */
-            memset(btif_media_cb.encoder.as32PcmBuffer, 0, blocm_x_subband
-                               * btif_media_cb.encoder.s16NumOfChannels * 2);
-
-            /* Read PCM data and upsample them if needed */
-            if (btif_media_aa_read_feeding(UIPC_CH_ID_AV_AUDIO))
+            if(btif_media_cb.data_codec_type == A2DP_SRC_AUDIO_CODEC_PCM)
             {
-                size_t frames  = blocm_x_subband * btif_media_cb.encoder.s16NumOfChannels;
+               /* Write @ of allocated buffer in encoder.pu8Packet */
+               btif_media_cb.encoder.pu8Packet = (UINT8 *) (p_buf + 1) + p_buf->offset + p_buf->len;
+               /* Fill allocated buffer with 0 */
+               memset(btif_media_cb.encoder.as32PcmBuffer, 0, blocm_x_subband
+                               * btif_media_cb.encoder.s16NumOfChannels * 2);
+                feed_result = btif_media_aa_read_feeding(UIPC_CH_ID_AV_AUDIO);
+                if (feed_result)
+                /* Read PCM data and upsample them if needed */
+                {
+                    size_t frames  = blocm_x_subband * btif_media_cb.encoder.s16NumOfChannels;
                 /* LE supports only 16bit sample */
-                memcpy_by_audio_format(btif_media_cb.encoder.as16PcmBuffer, AUDIO_FORMAT_PCM_16_BIT, btif_media_cb.encoder.as32PcmBuffer, AUDIO_FORMAT_PCM_16_BIT, frames);
-                SBC_Encoder(&(btif_media_cb.encoder));
+                    memcpy_by_audio_format(btif_media_cb.encoder.as16PcmBuffer, AUDIO_FORMAT_PCM_16_BIT, btif_media_cb.encoder.as32PcmBuffer, AUDIO_FORMAT_PCM_16_BIT, frames);
+                    SBC_Encoder(&(btif_media_cb.encoder));
 
                 /* Update SBC frame length */
-                p_buf->len += btif_media_cb.encoder.u16PacketLength;
-                nb_frame--;
-                p_buf->layer_specific++;
+                    p_buf->len += btif_media_cb.encoder.u16PacketLength;
+                    nb_frame--;
+                    p_buf->layer_specific++;
+                 }
             }
-            else
+            else if(btif_media_cb.data_codec_type == A2DP_SRC_AUDIO_CODEC_SBC)
+            {
+                tmpPtr = (UINT8 *) (p_buf + 1) + p_buf->offset + p_buf->len;
+                feed_result = btif_media_aa_read_sbc_feeding(UIPC_CH_ID_AV_AUDIO,tmpPtr,&tmpLength);
+                //APPL_TRACE_ERROR("read sbc feading result =%d, tmpLength",feed_result,tmpLength);
+                if(feed_result){
+                    p_buf->len += tmpLength;
+                    nb_frame--;
+                    p_buf->layer_specific++;
+                }
+            }
+
+            if(!feed_result)
             {
                 APPL_TRACE_WARNING("btif_media_aa_prep_sbc_2_send underflow %d, %d",
                     nb_frame, btif_media_cb.media_feeding_state.pcm.aa_feed_residue);
-                btif_media_cb.media_feeding_state.pcm.counter += nb_frame *
-                     btif_media_cb.encoder.s16NumOfSubBands *
-                     btif_media_cb.encoder.s16NumOfBlocks *
-                     btif_media_cb.media_feeding.cfg.pcm.num_channel *
-                     btif_media_cb.media_feeding.cfg.pcm.bit_per_sample / 8;
+                    btif_media_cb.media_feeding_state.pcm.counter += nb_frame *
+                    btif_media_cb.encoder.s16NumOfSubBands *
+                    btif_media_cb.encoder.s16NumOfBlocks *
+                    btif_media_cb.media_feeding.cfg.pcm.num_channel *
+                    btif_media_cb.media_feeding.cfg.pcm.bit_per_sample / 8;
                 /* no more pcm to read */
                 nb_frame = 0;
 
@@ -4357,7 +4578,6 @@ static void btif_media_aa_prep_sbc_2_send(UINT8 nb_frame,
                     return;
                 }
             }
-
         } while (((p_buf->len + btif_media_cb.encoder.u16PacketLength) < btif_media_cb.TxAaMtuSize)
                 && (p_buf->layer_specific < 0x0F) && nb_frame);
 
