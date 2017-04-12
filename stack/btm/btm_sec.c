@@ -4117,7 +4117,8 @@ void btm_sec_auth_complete (UINT16 handle, UINT8 status)
     /* User probably Disabled the keyboard while it was asleap.  Let her try */
     if (btm_cb.api.p_auth_complete_callback)
     {
-        /* report the suthentication status */
+
+        /* report the authentication status */
         if ((old_state != BTM_PAIR_STATE_IDLE) || (status != HCI_SUCCESS))
             (*btm_cb.api.p_auth_complete_callback) (p_dev_rec->bd_addr,
                                                     p_dev_rec->dev_class,
