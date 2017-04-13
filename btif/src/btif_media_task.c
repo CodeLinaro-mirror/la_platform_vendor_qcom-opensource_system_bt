@@ -2170,7 +2170,7 @@ static void btif_media_flush_q(fixed_queue_t *p_q)
 static void btif_media_thread_handle_cmd(fixed_queue_t *queue, UNUSED_ATTR void *context)
 {
     BT_HDR *p_msg = (BT_HDR *)fixed_queue_dequeue(queue);
-    UINT32 size;
+
     APPL_TRACE_IMP("btif_media_thread_handle_cmd : %d %s", p_msg->event,
              dump_media_event(p_msg->event));
 

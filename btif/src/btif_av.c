@@ -27,8 +27,6 @@
 
 #include <hardware/bluetooth.h>
 #include "hardware/bt_av.h"
-#include "osi/include/allocator.h"
-#include <cutils/properties.h>
 
 #define LOG_TAG "bt_btif_av"
 
@@ -622,7 +620,7 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
             if (event == BTA_AV_PENDING_EVT)
                 btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_OPENING);
 
-            if (bt_av_src_callbacks != NULL)
+            if (bt_av_src_vendor_callbacks != NULL)
             {
                 BTIF_TRACE_DEBUG("Calling connection priority callback ");
                 idle_rc_event = event;
@@ -638,10 +636,10 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
                 }
                 else if(event == BTA_AV_RC_OPEN_EVT)
                 {
- 		            alarm_set_on_queue(av_open_on_rc_timer,
- 							  BTIF_TIMEOUT_AV_OPEN_ON_RC_MS,
- 							  btif_initiate_av_open_timer_timeout, NULL,
- 							  btu_general_alarm_queue);
+                    alarm_set_on_queue(av_open_on_rc_timer,
+                              BTIF_TIMEOUT_AV_OPEN_ON_RC_MS,
+                              btif_initiate_av_open_timer_timeout, NULL,
+                              btu_general_alarm_queue);
                     btif_rc_handler(event, p_data);
                 }
             }
@@ -1600,7 +1598,7 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
                 int idx = btif_av_get_other_connected_idx(index);
                 /* Fix for below Klockwork Issue
                  * Array 'btif_av_cb' of size 2 may use index value(s) -1 */
-                if (idx != INVALID_INDEX)
+                if ((idx != INVALID_INDEX) && (bt_av_src_vendor_callbacks != NULL))
                 {
                     HAL_CBACK(bt_av_src_vendor_callbacks, reconfig_a2dp_trigger_cb, 1,
                                                     &(btif_av_cb[idx].peer_bda));
@@ -1735,7 +1733,7 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
                 int idx = btif_av_get_other_connected_idx(index);
                 /* Fix for below Klockwork Issue
                  * Array 'btif_av_cb' of size 2 may use index value(s) -1 */
-                if (idx != INVALID_INDEX)
+                if ((idx != INVALID_INDEX) && (bt_av_src_vendor_callbacks != NULL))
                 {
                     HAL_CBACK(bt_av_src_vendor_callbacks, reconfig_a2dp_trigger_cb, 1,
                                                     &(btif_av_cb[idx].peer_bda));
@@ -2304,7 +2302,7 @@ static void btif_av_check_rc_connection_priority(void *p_data)
     if (((tBTA_AV*)p_data)->rc_open.status == BTA_AV_SUCCESS)
     {
         BTIF_TRACE_DEBUG("RC conn is success ");
-        if (bt_av_src_callbacks != NULL)
+        if (bt_av_src_vendor_callbacks != NULL)
         {
             BTIF_TRACE_DEBUG(" Check Device priority");
             HAL_CBACK(bt_av_src_vendor_callbacks, connection_priority_vendor_cb,
@@ -2614,123 +2612,6 @@ static bt_status_t init_sink_vendor(btav_vendor_callbacks_t* callbacks, int max,
     return status;
 }
 
-#if 0
-/*******************************************************************************
-**
-** Function         get_pcm_data_vendor
-**
-** Description      vendor interface get pcm data stored from PCM Q
-**
-** Returns          number of bytes returned
-**
-*******************************************************************************/
-static uint32_t get_pcm_data_vendor (UINT8* data, uint32_t size)
-{
-    uint16_t pcm_q_bytes_left = 0;// bytes left in topmost element of PCM Q
-    tBT_PCM_HDR* p_pcm_q_buf; // pointer to first element in que;
-    uint32_t bytes_to_be_written = size;// bytes written to buffer supplied by app.
-    UINT8* p_src; UINT8* p_dest;
-    BTIF_TRACE_DEBUG(" %s size = %d", __FUNCTION__, size);
-    pthread_mutex_lock(&pcm_queue_lock);
-    if(GKI_queue_is_empty(&btif_av_cb[0].RxPcmQ)) {
-        BTIF_TRACE_DEBUG("%s PCM Que Empty, returning", __FUNCTION__);
-        pthread_mutex_unlock(&pcm_queue_lock);
-        return 0;
-    }
-
-    while ((bytes_to_be_written > 0) && (!GKI_queue_is_empty(&btif_av_cb[0].RxPcmQ)))
-    {
-        p_pcm_q_buf = (tBT_PCM_HDR *)GKI_getfirst(&(btif_av_cb[0].RxPcmQ));
-        if (p_pcm_q_buf == NULL)
-            break;
-        pcm_q_bytes_left = p_pcm_q_buf->len - p_pcm_q_buf->offset;
-        BTIF_TRACE_DEBUG(" %s Q_Len %d, bytes_to_be_written %d, bytes_left_in_Q %d", __FUNCTION__,
-                GKI_queue_length(&btif_av_cb[0].RxPcmQ), bytes_to_be_written, pcm_q_bytes_left);
-        if (bytes_to_be_written >= pcm_q_bytes_left)
-        {
-            // read from topmost element and deque it
-            p_pcm_q_buf = (tBT_PCM_HDR *)GKI_dequeue(&(btif_av_cb[0].RxPcmQ));
-            p_dest = data + (size - bytes_to_be_written);
-            p_src = (UINT8*)(p_pcm_q_buf + 1) + p_pcm_q_buf->offset;
-            memcpy(p_dest, p_src, pcm_q_bytes_left);
-            GKI_freebuf(p_pcm_q_buf);
-            bytes_to_be_written = bytes_to_be_written - pcm_q_bytes_left;
-        }
-        else
-        {
-            // read only required data and keep the node in Q
-            p_dest = data + (size - bytes_to_be_written);
-            p_src = (UINT8*)(p_pcm_q_buf + 1) + p_pcm_q_buf->offset;
-            memcpy(p_dest, p_src, bytes_to_be_written);
-            p_pcm_q_buf->offset += bytes_to_be_written;
-            bytes_to_be_written = 0;
-        }
-
-    }
-    BTIF_TRACE_DEBUG(" %s Wrote %d bytes",__FUNCTION__, size - bytes_to_be_written);
-    pthread_mutex_unlock(&pcm_queue_lock);
-    return (size - bytes_to_be_written);
-}
-
-/*******************************************************************************
- **
- ** Function         btif_media_avk_fetch_pcm_data
- **
- ** Description      fetch PCM data
- **
- ** Returns          void
- **
- *******************************************************************************/
-uint32_t btif_media_avk_fetch_pcm_data(UINT8 *data, UINT32 size)
-{
-    return get_pcm_data_vendor(data,size);
-}
-/*******************************************************************************
- **
- ** Function         btif_media_enque_pcm_data
- **
- ** Description      queues PCM data
- **
- ** Returns          void
- **
- *******************************************************************************/
-void btif_media_enque_pcm_data(UINT8 *data, UINT16 size)
-{
-    tBT_PCM_HDR* p_msg;
-    pthread_mutex_lock(&pcm_queue_lock);
-    if(GKI_queue_length(&btif_av_cb[0].RxPcmQ) >= MAX_A2DP_SINK_PCM_QUEUE_SZ)
-    {
-         BTIF_TRACE_DEBUG(" %s PCM Que Full, returning", __FUNCTION__);
-         pthread_mutex_unlock(&pcm_queue_lock);
-         return;
-    }
-    if ((p_msg = (tBT_PCM_HDR *)GKI_getbuf(sizeof(tBT_PCM_HDR) + size)) != NULL)
-    {
-        UINT8 *p_dest;
-
-        p_dest = (UINT8*)(p_msg + 1);
-        memcpy(p_dest, (UINT8*)(data), size);
-
-        p_msg->len = size;
-        p_msg->offset = 0;
-
-        GKI_enqueue(&(btif_av_cb[0].RxPcmQ), p_msg);
-        BTIF_TRACE_DEBUG("%s pkt_size %d  PCM_Q_Size %d", __FUNCTION__, size,
-                                                GKI_queue_length(&btif_av_cb[0].RxPcmQ));
-    }
-    pthread_mutex_unlock(&pcm_queue_lock);
-}
-static void btif_media_clear_pcm_queue()
-{
-    BTIF_TRACE_DEBUG(" Clear PCM QUeue ");
-    pthread_mutex_lock(&pcm_queue_lock);
-    while (!GKI_queue_is_empty(&btif_av_cb[0].RxPcmQ))
-    {
-        GKI_freebuf(GKI_dequeue(&btif_av_cb[0].RxPcmQ));
-    }
-    pthread_mutex_unlock(&pcm_queue_lock);
-}
-#endif
 #ifdef USE_AUDIO_TRACK
 /*******************************************************************************
 **
@@ -3019,10 +2900,10 @@ static void allow_connection_vendor(int is_valid, bt_bdaddr_t *bd_addr)
             if (is_valid)
             {
                 BTIF_TRACE_DEBUG("allowconn for RC connection");
-				alarm_set_on_queue(av_open_on_rc_timer,
-						  BTIF_TIMEOUT_AV_OPEN_ON_RC_MS,
-						  btif_initiate_av_open_timer_timeout, NULL,
-						  btu_general_alarm_queue);
+                alarm_set_on_queue(av_open_on_rc_timer,
+                          BTIF_TIMEOUT_AV_OPEN_ON_RC_MS,
+                          btif_initiate_av_open_timer_timeout, NULL,
+                          btu_general_alarm_queue);
                 btif_rc_handler(idle_rc_event, &idle_rc_data);
             }
             else
@@ -3075,6 +2956,8 @@ static const btav_interface_t bt_av_sink_interface = {
     sink_connect_src,
     disconnect,
     cleanup_sink,
+    NULL,
+    NULL,
 };
 
 static const btav_vendor_interface_t bt_av_src_vendor_interface = {
@@ -3095,6 +2978,7 @@ static const btav_vendor_interface_t bt_av_sink_vendor_interface = {
 #else
     NULL,
 #endif
+    NULL,
     cleanup_sink_vendor,
 };
 

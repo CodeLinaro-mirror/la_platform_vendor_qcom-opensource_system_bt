@@ -47,7 +47,6 @@
 #include <sys/time.h>
 #include <sys/un.h>
 #include <unistd.h>
-#include <fcntl.h>
 #include <cutils/sockets.h>
 #include <hardware/audio.h>
 #include <hardware/hardware.h>
