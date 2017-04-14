@@ -24,10 +24,10 @@ c_sources = \
 common_CFLAGS =  $(AM_CFLAGS) -fPIC -D_GNU_SOURCE
 
 library_includedir = $(pkgincludedir)
-bin_PROGRAMS = bdt
-bdt_CC = @CC@
-bdt_SOURCES = $(c_sources)
-bdt_CFLAGS = $(common_CFLAGS)
-bdt_LDFLAGS = $(Z_LIB)
-bdt_LDADD = -ldl -lrt -lresolv ../../btcore/libbtcore.la \
+bin_PROGRAMS = net_bdtool
+net_bdtool_CC = @CC@
+net_bdtool_SOURCES = $(c_sources)
+net_bdtool_CFLAGS = $(common_CFLAGS)
+net_bdtool_LDFLAGS = $(Z_LIB)
+net_bdtool_LDADD = -ldl -lrt -lresolv ../../btcore/libbtcore.la \
     ../../osi/libbtosi.la $(SYS_LIB)/libbtvendorhal.la
