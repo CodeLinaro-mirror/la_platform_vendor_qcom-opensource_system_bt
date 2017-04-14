@@ -1029,6 +1029,10 @@ void bta_av_role_res (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
 *******************************************************************************/
 void bta_av_delay_co (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
 {
+    tBTA_AV_DELAY_REPORT delay_rpt;
+    delay_rpt.delay_rpt = p_data->str_msg.msg.delay_rpt_cmd.delay;
+    bdcpy(delay_rpt.bd_addr, p_scb->peer_addr);
+    (*bta_av_cb.p_cback)(BTA_AV_DELAY_REPORT_EVT, (tBTA_AV *) &delay_rpt);
     p_scb->p_cos->delay(p_scb->hndl, p_data->str_msg.msg.delay_rpt_cmd.delay);
 }
 

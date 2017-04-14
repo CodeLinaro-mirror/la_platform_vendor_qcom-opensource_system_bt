@@ -976,6 +976,14 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
              btif_rc_handler(event, p_data);;
             break;
 
+        case BTA_AV_DELAY_REPORT_EVT:
+        {
+            tBTA_AV *p_av = (tBTA_AV*)p_data;
+            HAL_CBACK(bt_av_src_vendor_callbacks, delay_report_vendor_cb,
+            p_av->delay_report.bd_addr, p_av->delay_report.delay_rpt);
+        }
+            break;
+
         CHECK_RC_EVENT(event, p_data);
 
         default:
@@ -1402,6 +1410,12 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
         case BTA_AV_RC_OPEN_EVT:
             btif_av_check_rc_connection_priority(p_data);
             break;
+
+        case BTA_AV_DELAY_REPORT_EVT:
+            HAL_CBACK(bt_av_src_vendor_callbacks, delay_report_vendor_cb,
+            p_av->delay_report.bd_addr, p_av->delay_report.delay_rpt);
+            break;
+
         CHECK_RC_EVENT(event, p_data);
 
         default:
@@ -1755,6 +1769,11 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
 
         case BTA_AV_OFFLOAD_START_RSP_EVT:
             btif_a2dp_on_offload_started(p_av->status);
+            break;
+
+        case BTA_AV_DELAY_REPORT_EVT:
+            HAL_CBACK(bt_av_src_vendor_callbacks, delay_report_vendor_cb,
+            p_av->delay_report.bd_addr, p_av->delay_report.delay_rpt);
             break;
 
         CHECK_RC_EVENT(event, p_data);
