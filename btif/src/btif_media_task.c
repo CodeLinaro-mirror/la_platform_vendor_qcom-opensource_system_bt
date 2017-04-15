@@ -3868,6 +3868,7 @@ static void btif_media_task_aa_stop_tx(void)
                 btif_media_cb.a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND)
             {
                 BTIF_TRACE_ERROR("Stop/Suspend pending for ack");
+                BTIF_TRACE_DEBUG("Ack Pending Stop/Suspend");
                 a2dp_cmd_acknowledge(A2DP_CTRL_ACK_SUCCESS);
             }
             else if (btif_media_cb.a2dp_cmd_pending == A2DP_CTRL_CMD_START)
