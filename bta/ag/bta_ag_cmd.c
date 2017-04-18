@@ -37,7 +37,7 @@
 #include "port_api.h"
 #include "utl.h"
 #include <cutils/properties.h>
-
+#include "device/include/interop.h"
 
 /*****************************************************************************
 **  Constants
@@ -1236,6 +1236,17 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB *p_scb, UINT16 cmd, UINT8 arg_type,
             /* store peer features. */
             p_scb->peer_features = (UINT16) int_arg;
             features = p_scb->features & BTA_AG_BSRF_FEAT_SPEC;
+            if (interop_match_addr(INTEROP_DISABLE_HF_INDICATOR,
+                (const bt_bdaddr_t*)p_scb->peer_addr))
+            {
+                if ((p_scb->peer_version < HFP_VERSION_1_7) &&
+                     (p_scb->peer_features & BTA_AG_PEER_FEAT_HFIND))
+                {
+                    APPL_TRACE_WARNING("hf indicator needs hfp 1.7 support,"
+                                       "thus remove remote device HF indicator bit");
+                    p_scb->peer_features = p_scb->peer_features &(~BTA_AG_PEER_FEAT_HFIND);
+                }
+            }
             /* if the devices does not support HFP 1.7, report DUT's HFP version as 1.6 */
             if ((p_scb->peer_version < HFP_VERSION_1_7) &&
                  (!(p_scb->peer_features & BTA_AG_PEER_FEAT_HFIND)))
