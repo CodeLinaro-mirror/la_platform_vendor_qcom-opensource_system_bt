@@ -1966,8 +1966,15 @@ tBTA_AV_FEAT bta_av_check_peer_features (UINT16 service_uuid)
             }
 #if ((defined(SDP_AVRCP_1_6) && (SDP_AVRCP_1_6 == TRUE)) || \
            (defined(SDP_AVRCP_1_5) && (SDP_AVRCP_1_5 == TRUE)))
+#ifdef ANDROID
             if ((peer_rc_version >= AVRC_REV_1_4) &&
                     ((peer_features & BTA_AV_FEAT_BROWSE) || (peer_features & BTA_AV_FEAT_CA)))
+#else
+            /* For IOE, we will upgrade our AVRCP version even if remote just supports
+               v > 1.3 and may not support browsing or CA. This is done since for IOE,
+               at present, most remote will only use Absolute volume feature only */
+            if (peer_rc_version >= AVRC_REV_1_4)
+#endif
             {
                 BOOLEAN ret = FALSE;
                 APPL_TRACE_DEBUG("peer version to update: 0x%x", peer_rc_version);

@@ -3170,9 +3170,20 @@ bt_status_t btif_av_execute_service(BOOLEAN b_enable)
         * auto-suspend av streaming on AG events(SCO or Call). The suspend shall
         * be initiated by the app/audioflinger layers */
 #ifndef ANDROID
-        /* No Plan to support Avrcp 1.3 and above feature sets on LE*/
+#if (AVRC_METADATA_INCLUDED == TRUE)
+        BTA_AvEnable(BTA_SEC_AUTHENTICATE,
+            BTA_AV_FEAT_RCTG|BTA_AV_FEAT_METADATA|BTA_AV_FEAT_VENDOR|BTA_AV_FEAT_NO_SCO_SSPD
+            |BTA_AV_FEAT_ACP_START
+#if (AVRC_ADV_CTRL_INCLUDED == TRUE)
+            |BTA_AV_FEAT_RCCT
+            |BTA_AV_FEAT_ADV_CTRL
+            |BTA_AV_FEAT_BROWSE
+#endif
+            ,bte_av_callback);
+#else
         BTA_AvEnable(BTA_SEC_AUTHENTICATE, (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_NO_SCO_SSPD
             |BTA_AV_FEAT_ACP_START), bte_av_callback);
+#endif
 #else
 #if (AVRC_METADATA_INCLUDED == TRUE)
         BTA_AvEnable(BTA_SEC_AUTHENTICATE,

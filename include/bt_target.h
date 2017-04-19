@@ -1526,11 +1526,19 @@
 #endif
 
 #ifndef SDP_AVRCP_1_6
+#ifdef ANDROID
 #define SDP_AVRCP_1_6               TRUE
+#else
+#define SDP_AVRCP_1_6               FALSE
+#endif
 #endif
 
 #ifndef  SDP_AVRCP_1_5
+#ifdef ANDROID
 #define SDP_AVRCP_1_5               FALSE
+#else
+#define SDP_AVRCP_1_5               TRUE
+#endif
 #endif
 
 #if (defined(SDP_AVRCP_1_6) && (SDP_AVRCP_1_6 == TRUE))
