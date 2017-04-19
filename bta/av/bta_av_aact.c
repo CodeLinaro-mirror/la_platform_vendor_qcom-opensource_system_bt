@@ -445,11 +445,15 @@ static BOOLEAN bta_av_next_getcap(tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
             {
                 p_req = AVDT_GetCapReq;
             }
-            (*p_req)(p_scb->peer_addr,
+            if ((*p_req)(p_scb->peer_addr,
                            p_scb->sep_info[i].seid,
-                           p_scb->p_cap, bta_av_dt_cback[p_scb->hdi]);
-            sent_cmd = TRUE;
-            break;
+                           p_scb->p_cap, bta_av_dt_cback[p_scb->hdi]) == AVDT_SUCCESS)
+            {
+                sent_cmd = TRUE;
+                break;
+            }
+            else
+                APPL_TRACE_ERROR("bta_av_next_getcap command could not be sent because of resource constraint");
         }
     }
 
@@ -1462,22 +1466,13 @@ void bta_av_setconfig_rsp (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
             p_scb->avdt_version = AVDT_VERSION_SYNC;
 
 
-        if (p_scb->codec_type == BTA_AV_CODEC_SBC || num > 1)
-        {
-            /* if SBC is used by the SNK as INT, discover req is not sent in bta_av_config_ind.
-                       * call disc_res now */
-           /* this is called in A2DP SRC path only, In case of SINK we don't need it  */
-            if (local_sep == AVDT_TSEP_SRC)
-                p_scb->p_cos->disc_res(p_scb->hndl, num, num, 0, p_scb->peer_addr,
-                                                      UUID_SERVCLASS_AUDIO_SOURCE);
-        }
-        else
-        {
-            /* we do not know the peer device and it is using non-SBC codec
-             * we need to know all the SEPs on SNK */
-            bta_av_discover_req(p_scb, NULL);
-            return;
-        }
+        /* For any codec used by the SNK as INT, discover req is not sent in bta_av_config_ind.
+         * This is done since we saw an IOT issue with APTX codec. Thus, we now take same
+         * path for all codecs as for SBC. call disc_res now */
+        /* this is called in A2DP SRC path only, In case of SINK we don't need it  */
+        if (local_sep == AVDT_TSEP_SRC)
+            p_scb->p_cos->disc_res(p_scb->hndl, num, num, 0, p_scb->peer_addr,
+                                                  UUID_SERVCLASS_AUDIO_SOURCE);
 
         for (i = 1; i < num; i++)
         {
@@ -1729,9 +1724,10 @@ void bta_av_connect_req(tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     {
         /* SNK initiated L2C connection while SRC was doing SDP.    */
         /* Wait until timeout to check if SNK starts signalling.    */
-        APPL_TRACE_EVENT("bta_av_connect_req: coll_mask = 0x%2X", p_scb->coll_mask);
+        APPL_TRACE_EVENT("%s: coll_mask = 0x%2X", __func__, p_scb->coll_mask);
         p_scb->coll_mask |= BTA_AV_COLL_API_CALLED;
-        APPL_TRACE_EVENT("bta_av_connect_req: updated coll_mask = 0x%2X", p_scb->coll_mask);
+        APPL_TRACE_EVENT("%s: updated coll_mask = 0x%2X", __func__,
+                         p_scb->coll_mask);
         return;
     }
 
@@ -2161,8 +2157,11 @@ void bta_av_discover_req (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     UNUSED(p_data);
 
     /* send avdtp discover request */
-
-    AVDT_DiscoverReq(p_scb->peer_addr, p_scb->sep_info, BTA_AV_NUM_SEPS, bta_av_dt_cback[p_scb->hdi]);
+    if (AVDT_DiscoverReq(p_scb->peer_addr, p_scb->sep_info, BTA_AV_NUM_SEPS, bta_av_dt_cback[p_scb->hdi]) != AVDT_SUCCESS)
+    {
+        APPL_TRACE_ERROR("bta_av_discover_req command could not be sent because of resource constraint");
+        bta_av_ssm_execute(p_scb, BTA_AV_STR_DISC_FAIL_EVT, p_data);
+    }
 }
 
 /*******************************************************************************

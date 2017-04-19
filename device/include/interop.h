@@ -101,6 +101,15 @@ typedef enum {
   // to preferred conn params immediately post connection. Disable automatic switching to
   // preferred conn params for such devices and allow them to explicity ask for it.
   INTEROP_DISABLE_LE_CONN_PREFERRED_PARAMS,
+
+  // Few remote devices do not understand AVRCP version greater than 1.3. For these
+  // devices, we would like to blacklist them and advertise AVRCP version as 1.3
+  INTEROP_ADV_AVRCP_VER_1_3,
+
+  // Disable profile connection for headsets/car-kits
+  // Some car kits going bad state when DUT initiate profile connection in collision scenerio
+  // Hence don't initaite profile level connections and wait for incoming connetcion
+  INTEROP_DISABLE_CONNECTION_AFTER_COLLISION,
 } interop_feature_t;
 
 // Check if a given |addr| matches a known interoperability workaround as identified
@@ -134,8 +143,8 @@ bool interop_match_manufacturer(const interop_feature_t feature, uint16_t manufa
 // Check if a given |vendor_id, product_id, name| matches a known interoperability workaround
 // as identified by the |interop_feature_t| enum. This API is used for simple name based lookups
 // where more information is not available.
-bool interop_match_hid_multitouch(const interop_feature_t feature,
-        uint16_t vendor_id, uint16_t product_id, const char *name);
+bool interop_match_vendor_product_ids(const interop_feature_t feature,
+        uint16_t vendor_id, uint16_t product_id);
 
 // Add a dynamic interop database entry for a device matching the first |length| bytes
 // of |addr|, implementing the workaround identified by |feature|. |addr| may not be

@@ -65,6 +65,10 @@
 #define BTA_AV_ACCEPT_SIGNALLING_TIMEOUT_MS     (2 * 1000)      /* 2 seconds */
 #endif
 
+#ifndef AVRC_CONNECT_RETRY_DELAY_MS
+#define AVRC_CONNECT_RETRY_DELAY_MS 2000
+#endif
+
 extern fixed_queue_t *btu_bta_alarm_queue;
 
 static void bta_av_accept_signalling_timer_cback(void *data);
@@ -387,9 +391,9 @@ UINT8 bta_av_rc_create(tBTA_AV_CB *p_cb, UINT8 role, UINT8 shdl, UINT8 lidx)
         /* this LIDX is reserved for the AVRCP ACP connection */
         p_cb->rc_acp_handle = p_rcb->handle;
         p_cb->rc_acp_idx = (i + 1);
-        APPL_TRACE_DEBUG("rc_acp_handle:%d idx:%d", p_cb->rc_acp_handle, p_cb->rc_acp_idx);
+        APPL_TRACE_IMP("rc_acp_handle: %d idx: %d", p_cb->rc_acp_handle, p_cb->rc_acp_idx);
     }
-    APPL_TRACE_DEBUG("create %d, role: %d, shdl:%d, rc_handle:%d, lidx:%d, status:0x%x",
+    APPL_TRACE_IMP("bta_av_rc_create %d, role: %d, shdl:%d, rc_handle:%d, lidx:%d, status:0x%x",
         i, role, shdl, p_rcb->handle, lidx, p_rcb->status);
 
     return rc_handle;
@@ -711,7 +715,9 @@ void bta_av_rc_meta_rsp(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
             (!p_data->api_meta_rsp.is_rsp && (p_cb->features & BTA_AV_FEAT_RCCT)) )
         {
             p_rcb = &p_cb->rcb[p_data->hdr.layer_specific];
-            if (p_rcb->handle != BTA_AV_RC_HANDLE_NONE) {
+            /* Fix for below Klockwork Issue
+             * Array 'avrc_cb.fcb' of size 5 may use index value(s) 0..254 */
+            if ((p_rcb->handle != BTA_AV_RC_HANDLE_NONE) && (p_rcb->handle < AVCT_NUM_CONN)) {
                 AVRC_MsgReq(p_rcb->handle, p_data->api_meta_rsp.label,
                             p_data->api_meta_rsp.rsp_code,
                             p_data->api_meta_rsp.p_pkt);
@@ -1793,6 +1799,8 @@ static void bta_av_accept_signalling_timer_cback(void *data)
 
             if (bta_av_is_scb_opening(p_scb))
             {
+                APPL_TRACE_DEBUG("%s: stream state opening: SDP started = %d",
+                                 __func__, p_scb->sdp_discovery_started);
                 if (p_scb->sdp_discovery_started)
                 {
                     /* We are still doing SDP. Run the timer again. */
@@ -1814,6 +1822,7 @@ static void bta_av_accept_signalling_timer_cback(void *data)
             {
                 /* Stay in incoming state if SNK does not start signalling */
 
+                APPL_TRACE_DEBUG("%s: stream state incoming", __func__);
                 /* API open was called right after SNK opened L2C connection. */
                 if (p_scb->coll_mask & BTA_AV_COLL_API_CALLED)
                 {
@@ -2113,6 +2122,15 @@ void bta_av_rc_disc_done(tBTA_AV_DATA *p_data)
     }
 
     APPL_TRACE_DEBUG("%s rc_handle %d", __FUNCTION__, rc_handle);
+    if (rc_handle == BTA_AV_RC_HANDLE_NONE)
+    {
+        if (AVRC_CheckIncomingConn(p_scb->peer_addr) == TRUE)
+        {
+            bta_sys_start_timer(p_scb->avrc_ct_timer, AVRC_CONNECT_RETRY_DELAY_MS,
+                                   BTA_AV_SDP_AVRC_DISC_EVT,p_scb->hndl);
+        }
+    }
+
 #if (BTA_AV_SINK_INCLUDED == TRUE)
     if (p_cb->sdp_a2d_snk_handle)
     {
@@ -2154,7 +2172,9 @@ void bta_av_rc_disc_done(tBTA_AV_DATA *p_data)
                 if (p_lcb)
                 {
                     rc_handle = bta_av_rc_create(p_cb, AVCT_INT, (UINT8)(p_scb->hdi + 1), p_lcb->lidx);
-                    if(rc_handle != BTA_AV_RC_HANDLE_NONE)
+                    /* Fix for below Klockwork Issue
+                     * Array 'rcb' of size 4 may use index value(s) 4..254 */
+                    if((rc_handle != BTA_AV_RC_HANDLE_NONE) && (rc_handle < BTA_AV_NUM_RCB))
                     {
                         p_cb->rcb[rc_handle].peer_features = peer_features;
                     }
@@ -2189,7 +2209,10 @@ void bta_av_rc_disc_done(tBTA_AV_DATA *p_data)
     }
     else
     {
-        p_cb->rcb[rc_handle].peer_features = peer_features;
+        /* Fix for below Klockwork Issue
+         * Array 'rcb' of size 4 may use index value(s) 4..254 */
+        if (rc_handle < BTA_AV_NUM_RCB)
+            p_cb->rcb[rc_handle].peer_features = peer_features;
         rc_feat.rc_handle =  rc_handle;
         rc_feat.peer_features = peer_features;
         if (p_scb == NULL)
@@ -2300,6 +2323,9 @@ void bta_av_rc_closed(tBTA_AV_DATA *p_data)
         bdcpy(rc_close.peer_addr, p_msg->peer_addr);
     }
     (*p_cb->p_cback)(BTA_AV_RC_CLOSE_EVT, (tBTA_AV *) &rc_close);
+    if (bta_av_cb.rc_acp_handle == BTA_AV_RC_HANDLE_NONE
+                    && bta_av_cb.features & BTA_AV_FEAT_RCTG)
+        bta_av_rc_create(&bta_av_cb, AVCT_ACP, 0, BTA_AV_NUM_LINKS + 1);
 }
 
 /*******************************************************************************

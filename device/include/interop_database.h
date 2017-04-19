@@ -118,6 +118,15 @@ static const interop_addr_entry_t interop_addr_database[] = {
   // Dialog Keyboard and mouse
   {{{0x80, 0xea, 0xca,      0,0,0}}, 3, INTEROP_DISABLE_LE_SECURE_CONNECTIONS},
 
+  // Marvel CK used in Mercedes C300/BMW 640i
+  // For a more specific black listing(e.g. just for Mercedes), both BD addr
+  // and device name has to be added for AVRCP 1.3 blacklisting
+  {{{0xa0, 0x56, 0xb2,      0,0,0}}, 3, INTEROP_ADV_AVRCP_VER_1_3},
+
+  // Mazda Atenza
+  {{{0x04, 0xf8, 0xc2,      0,0,0}}, 3, INTEROP_DISABLE_ABSOLUTE_VOLUME},
+  // HONDA HFT
+  {{{0xA0, 0x14, 0x3D,      0,0,0}}, 3, INTEROP_DISABLE_CONNECTION_AFTER_COLLISION},
 };
 
 typedef struct {
@@ -153,6 +162,11 @@ static const interop_name_entry_t interop_name_database[] = {
   //Below devices reject connection updated with preferred
   {"BSMBB09DS", 9, INTEROP_DISABLE_LE_CONN_PREFERRED_PARAMS},
   {"ELECOM", 6, INTEROP_DISABLE_LE_CONN_PREFERRED_PARAMS},
+
+  // HID Moto KZ500 Keyboard - Problematic SDP digitizer descriptor
+  {"Motorola Keyboard KZ500", 23, INTEROP_REMOVE_HID_DIG_DESCRIPTOR},
+  {"Motorola Keyboard KZ500 v122", 28, INTEROP_REMOVE_HID_DIG_DESCRIPTOR},
+  {"MB Bluetooth", 12, INTEROP_ADV_AVRCP_VER_1_3},
 };
 
 typedef struct {
@@ -171,12 +185,10 @@ static const interop_manufacturer_t interop_manufacturer_database[] = {
 typedef struct {
   uint16_t vendor_id;
   uint16_t product_id;
-  char name[40];
-  size_t length;
   interop_feature_t feature;
 } interop_hid_multitouch_t;
 
 static const interop_hid_multitouch_t interop_hid_multitouch_database[] = {
-  // Moto KZ500 Keyboard
-  {0x22b8, 0x093d, "Motorola Keyboard KZ500 v122", 28, INTEROP_REMOVE_HID_DIG_DESCRIPTOR},
+  // HID Moto KZ500 Keyboard - Problematic SDP digitizer descriptor
+  {0x22b8, 0x093d, INTEROP_REMOVE_HID_DIG_DESCRIPTOR},
 };
