@@ -1269,7 +1269,8 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB *p_scb, UINT16 cmd, UINT8 arg_type,
                 {
                     features = features & ~(BTA_AG_FEAT_HFIND);
                 }
-             }
+            }
+
             /* send BRSF, send OK */
             bta_ag_send_result(p_scb, BTA_AG_RES_BRSF, NULL,
                                (INT16) features);
@@ -1746,6 +1747,16 @@ void bta_ag_hfp_result(tBTA_AG_SCB *p_scb, tBTA_AG_API_RESULT *p_result)
             ** then  open sco.
             */
             bta_ag_send_call_inds(p_scb, p_result->result);
+
+            if (interop_match_addr(INTEROP_DELAY_SCO_FOR_MT_CALL,
+                (const bt_bdaddr_t*)p_scb->peer_addr))
+            {
+               /* Ensure that call active indicator is sent prior to SCO connection
+                  request by adding some delay. Some remotes are very strict in the
+                  order of call indicator and SCO connection request. */
+                APPL_TRACE_IMP("%s: sleeping 20msec before opening sco", __func__);
+                usleep(20*1000);
+            }
 
             if (!(p_scb->features & BTA_AG_FEAT_NOSCO))
             {
