@@ -3192,7 +3192,12 @@ void btm_sec_rmt_name_request_complete (UINT8 *p_bd_addr, UINT8 *p_bd_name, UINT
                 return;
             }
 
-            if (status != HCI_SUCCESS)
+            if (status == HCI_ERR_CONTROLLER_BUSY)
+            {
+                BTM_TRACE_WARNING ("btm_sec_rmt_name_request_complete() Wait for incoming connection");
+                return;
+            }
+            else if (status != HCI_SUCCESS)
             {
                 btm_sec_change_pairing_state (BTM_PAIR_STATE_IDLE);
 
@@ -4561,7 +4566,7 @@ void btm_sec_connected (UINT8 *bda, UINT16 handle, UINT8 status, UINT8 enc_mode)
             return;
         }
         /* wait for incoming connection without resetting pairing state */
-        else if (status == HCI_ERR_CONNECTION_EXISTS)
+        else if ((status == HCI_ERR_CONNECTION_EXISTS) || (status ==  HCI_ERR_CONTROLLER_BUSY))
         {
             BTM_TRACE_WARNING ("Security Manager: btm_sec_connected: Wait for incoming connection");
             return;
