@@ -163,6 +163,8 @@ AC_CONFIG_FILES([ \
          tools/bdtool/Makefile \
          tools/btsnoop_dump/Makefile \
          audio_a2dp_hw/Makefile \
+         test/Makefile \
+         test/bluedroidtest/Makefile \
          ])
 
 AC_OUTPUT

@@ -142,6 +142,7 @@ static TIMER_LIST_ENT tle_av_open_on_rc;
 static btif_sm_event_t idle_rc_event;
 static tBTA_AV idle_rc_data;
 int btif_max_av_clients = 1;
+static UINT16 enable_delay_reporting = 0; // by default disable it
 static BOOLEAN enable_multicast = FALSE;
 static BOOLEAN is_multicast_supported = FALSE;
 static BOOLEAN multicast_disabled = FALSE;
@@ -2261,7 +2262,7 @@ static bt_status_t init_sink(btav_callbacks_t* callbacks)
 *******************************************************************************/
 
 static bt_status_t init_src_vendor(btav_vendor_callbacks_t* callbacks, int max_a2dp_connections,
-                            int a2dp_multicast_state)
+                            int a2dp_multicast_state, uint8_t streaming_prarm)
 {
     bt_status_t status;
 
@@ -2282,6 +2283,8 @@ static bt_status_t init_src_vendor(btav_vendor_callbacks_t* callbacks, int max_a
             status = BT_STATUS_SUCCESS;
     }
 
+    enable_delay_reporting = streaming_prarm & A2DP_SRC_ENABLE_DELAY_REPORTING;
+    BTIF_TRACE_DEBUG(" ~~ enable_delay_reporting = %d", enable_delay_reporting);
     if (status == BT_STATUS_SUCCESS) {
         bt_av_src_vendor_callbacks = callbacks;
     }
@@ -2978,9 +2981,17 @@ bt_status_t btif_av_execute_service(BOOLEAN b_enable)
          /* Support for browsing for SDP record should work only if we enable BROWSE
           * while registering. */
 #ifndef ANDROID
-        /* No Plan to support Avrcp 1.3 and above feature sets on LE*/
-        BTA_AvEnable(BTA_SEC_AUTHENTICATE, (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_NO_SCO_SSPD
-            |BTA_AV_FEAT_ACP_START), bte_av_callback);
+        if(enable_delay_reporting) {
+            BTIF_TRACE_DEBUG("%s ~~ BTA_AvEnable Added BTA_AV_FEAT_DELAY_RPT!", __FUNCTION__);
+            BTA_AvEnable(BTA_SEC_AUTHENTICATE, (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_NO_SCO_SSPD
+                |BTA_AV_FEAT_ACP_START | BTA_AV_FEAT_DELAY_RPT), bte_av_callback);
+        }
+        else
+        {
+                BTIF_TRACE_DEBUG("%s ~~ BTA_AvEnable NOT Added BTA_AV_FEAT_DELAY_RPT!", __FUNCTION__);
+                BTA_AvEnable(BTA_SEC_AUTHENTICATE, (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_NO_SCO_SSPD
+                        |BTA_AV_FEAT_ACP_START), bte_av_callback);
+        }
 #else
 #if (AVRC_METADATA_INCLUDED == TRUE)
         BTA_AvEnable(BTA_SEC_AUTHENTICATE,
