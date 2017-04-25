@@ -6654,7 +6654,9 @@ static void initialize_transaction(int lbl)
     pthread_mutex_lock(&device.lbllock);
     if (lbl < MAX_TRANSACTIONS_PER_SESSION) {
         if (alarm_is_scheduled(device.transaction[lbl].txn_timer)) {
+            pthread_mutex_unlock(&device.lbllock);
             clear_cmd_timeout(lbl);
+            pthread_mutex_lock(&device.lbllock);
         }
         device.transaction[lbl].lbl = lbl;
         device.transaction[lbl].in_use=FALSE;
