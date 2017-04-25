@@ -71,6 +71,9 @@ const UINT8 avdt_scb_role_evt[] = {
 
 extern UINT8 bta_avk_get_current_codec();
 #define NON_A2DP_MEDIA_CT 0xff
+#define INIT_DELAY_RPT    60
+static UINT16 reported_delay = INIT_DELAY_RPT;
+
 /*******************************************************************************
 **
 ** Function         avdt_scb_gen_ssrc
@@ -977,6 +980,12 @@ void avdt_scb_hdl_setconfig_rsp(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
         /* save configuration */
         memcpy(&p_scb->curr_cfg, &p_scb->req_cfg, sizeof(tAVDT_CFG));
 
+        if((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT))
+        {
+            AVDT_TRACE_DEBUG(" %s ~~ SNK & SRC support DELAY_RPT both, begin init Delay report procedure",__func__);
+            AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay);
+        }
+        AVDT_TRACE_DEBUG(" %s ~~ begin init Open procedure",__func__);
         /* initiate open */
         single.seid = p_scb->peer_seid;
         avdt_scb_event(p_scb, AVDT_SCB_API_OPEN_REQ_EVT, (tAVDT_SCB_EVT *) &single);
@@ -1143,6 +1152,7 @@ void avdt_scb_snd_delay_rpt_req (tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
 *******************************************************************************/
 void avdt_scb_hdl_delay_rpt_cmd (tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
 {
+    AVDT_TRACE_DEBUG(" %s ~~ handling delay report cmd",__func__);
     (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
                               p_scb->p_ccb ? p_scb->p_ccb->peer_addr : NULL,
                               AVDT_DELAY_REPORT_EVT,
@@ -1166,10 +1176,11 @@ void avdt_scb_hdl_delay_rpt_cmd (tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
 *******************************************************************************/
 void avdt_scb_hdl_delay_rpt_rsp (tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
 {
-    (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
+    AVDT_TRACE_DEBUG(" %s ~~ handling delay report rsp",__func__);
+  /*  (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
                               p_scb->p_ccb ? p_scb->p_ccb->peer_addr : NULL,
                               AVDT_DELAY_REPORT_CFM_EVT,
-                              (tAVDT_CTRL *) &p_data->msg.hdr);
+                              (tAVDT_CTRL *) &p_data->msg.hdr);*/
 }
 
 #if AVDT_REPORTING == TRUE
@@ -1783,6 +1794,13 @@ void avdt_scb_snd_setconfig_rsp(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
         memcpy(&p_scb->curr_cfg, &p_scb->req_cfg, sizeof(tAVDT_CFG));
 
         avdt_msg_send_rsp(p_scb->p_ccb, AVDT_SIG_SETCONFIG, &p_data->msg);
+
+AVDT_TRACE_DEBUG(" %s ~~ p_scb->curr_cfg.psc_mask= %d",__func__,  p_scb->curr_cfg.psc_mask);
+        if((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT))
+        {
+            AVDT_TRACE_DEBUG(" %s ~~ SNK & SRC support DELAY_RPT both, begin init Delay report procedure",__func__);
+            AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay);
+        }
     }
 }
 
