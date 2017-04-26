@@ -295,7 +295,7 @@ static void schedule_next_instance(alarm_t *alarm, bool force_reschedule) {
     }
 
   // If the new alarm has the earliest deadline, we need to re-evaluate our schedule.
-  if (force_reschedule || needs_reschedule || (!list_is_empty(alarms) && list_front(alarms) == alarm) || ((int64_t)(alarm->deadline - just_now) < TIMER_INTERVAL_FOR_WAKELOCK_IN_MS))
+  if (force_reschedule || needs_reschedule || (!list_is_empty(alarms) && list_front(alarms) == alarm))
     reschedule_root_alarm();
 }
 
@@ -324,9 +324,6 @@ static void reschedule_root_alarm(void) {
 
     wakeup_time.it_value.tv_sec = (next->deadline / 1000);
     wakeup_time.it_value.tv_nsec = (next->deadline % 1000) * 1000000LL;
-
-    /* Since local timer is being started, we can do away with Java timer */
-    bt_os_callouts->set_wake_alarm(0, true, timer_callback, NULL);
   } else {
     if (!bt_os_callouts->set_wake_alarm(next_expiration, true, timer_callback, NULL))
       LOG_ERROR("%s unable to set wake alarm for %" PRId64 "ms.", __func__, next_expiration);
