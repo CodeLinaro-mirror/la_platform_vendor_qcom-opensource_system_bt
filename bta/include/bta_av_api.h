@@ -275,8 +275,10 @@ typedef UINT8 tBTA_AV_ERR;
 #define BTA_AV_OFFLOAD_START_RSP_EVT 22 /* a2dp offload start response */
 #define BTA_AV_BROWSE_MSG_EVT   23      /* Browse MSG EVT */
 #define BTA_AV_ROLE_CHANGED_EVT     24
+#define BTA_AV_DELAY_REPORT_EVT     25  /* update delay report */
+
 /* Max BTA event */
-#define BTA_AV_MAX_EVT          25
+#define BTA_AV_MAX_EVT          26
 
 typedef UINT8 tBTA_AV_EVT;
 
@@ -470,6 +472,13 @@ typedef struct
     tBTA_AV_HNDL    hndl;       /* Handle associated with role change event */
 } tBTA_AV_ROLE_CHANGED;
 
+/* data associated with BTA_AV_DELAY_REPORT */
+typedef struct
+{
+    BD_ADDR  bd_addr;
+    UINT16   delay_rpt;
+} tBTA_AV_DELAY_REPORT;
+
 /* union of data associated with AV callback */
 typedef union
 {
@@ -496,6 +505,7 @@ typedef union
     tBTA_AV_RC_FEAT     rc_feat;
     tBTA_AV_STATUS      status;
     tBTA_AV_ROLE_CHANGED role_changed;
+    tBTA_AV_DELAY_REPORT delay_report;
 } tBTA_AV;
 
 typedef struct

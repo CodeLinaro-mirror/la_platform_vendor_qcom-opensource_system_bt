@@ -239,17 +239,14 @@ UINT16 AVRC_AddRecord(UINT16 service_uuid, char *p_service_name,
         avrc_proto_desc_list[index].params[0] = AVCT_REV_1_4;
         avrc_proto_desc_list[index].params[1] = 0;
     }
-#ifndef ANDROID
-        /* add protocol descriptor list   */
-    result &= SDP_AddProtocolList(sdp_handle, 1, (tSDP_PROTOCOL_ELEM *)avrc_proto_desc_list);
-    result &= SDP_AddProfileDescriptorList(sdp_handle, UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_0);
-#else
+
     result &= SDP_AddProtocolList(sdp_handle, AVRC_NUM_PROTO_ELEMS,
                                                   (tSDP_PROTOCOL_ELEM *)avrc_proto_desc_list);
 
     /* additional protocal descriptor, required only for version > 1.3    */
     if ((profile_version > AVRC_REV_1_3 ) && (browse_supported))
     {
+        AVRC_TRACE_API("browse supported, add PSM");
         tSDP_PROTO_LIST_ELEM  avrc_add_proto_desc_list[AVRC_NUM_ADDL_PROTO_ELEMS];
         avrc_add_proto_desc_list[0].num_elems = 2;
         avrc_add_proto_desc_list[0].list_elem[0].num_params = 1;
@@ -262,6 +259,7 @@ UINT16 AVRC_AddRecord(UINT16 service_uuid, char *p_service_name,
         avrc_add_proto_desc_list[0].list_elem[1].params[1] = 0;
         for (index = 1; index < AVRC_NUM_ADDL_PROTO_ELEMS; index++)
         {
+#if (defined(AVCT_COVER_ART_INCLUDED) && (AVCT_COVER_ART_INCLUDED == TRUE))
             avrc_add_proto_desc_list[index].num_elems = 2;
             avrc_add_proto_desc_list[index].list_elem[0].num_params = 1;
             avrc_add_proto_desc_list[index].list_elem[0].protocol_uuid = UUID_PROTOCOL_L2CAP;
@@ -271,13 +269,13 @@ UINT16 AVRC_AddRecord(UINT16 service_uuid, char *p_service_name,
             avrc_add_proto_desc_list[index].list_elem[1].protocol_uuid = UUID_PROTOCOL_OBEX;
             avrc_add_proto_desc_list[index].list_elem[1].params[0] = 0;
             avrc_add_proto_desc_list[index].list_elem[1].params[1] = 0;
-
+#endif
         }
         result &= SDP_AddAdditionProtoLists( sdp_handle, AVRC_NUM_ADDL_PROTO_ELEMS, (tSDP_PROTO_LIST_ELEM *)avrc_add_proto_desc_list);
     }
     /* add profile descriptor list   */
     result &= SDP_AddProfileDescriptorList(sdp_handle, UUID_SERVCLASS_AV_REMOTE_CONTROL, profile_version);
-#endif
+
     /* add supported categories */
     p = temp;
     UINT16_TO_BE_STREAM(p, categories);
