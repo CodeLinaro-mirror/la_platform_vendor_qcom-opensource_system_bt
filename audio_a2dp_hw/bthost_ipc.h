@@ -36,8 +36,8 @@
 ******************************************************************************/
 
 #define BT_AUDIO_HARDWARE_INTERFACE "libbthost"
-#define A2DP_CTRL_PATH "/data/misc/bluedroid/.a2dp_ctrl"
-#define A2DP_DATA_PATH "/data/misc/bluedroid/.a2dp_data"
+#define A2DP_CTRL_PATH "/data/misc/bluetooth/.a2dp_ctrl"
+#define A2DP_DATA_PATH "/data/misc/bluetooth/.a2dp_data"
 
 typedef enum {
     A2DP_CTRL_GET_CODEC_CONFIG = 15,
@@ -166,6 +166,6 @@ typedef struct {
     void (*audio_handoff_triggered)(void);
     void (*clear_a2dpsuspend_flag)(void);
     void*(*audio_get_next_codec_config)(uint8_t idx, audio_format_t *codec_type);
-
+    int (*audio_check_a2dp_ready)(void);
 } bt_host_ipc_interface_t;
 #endif
