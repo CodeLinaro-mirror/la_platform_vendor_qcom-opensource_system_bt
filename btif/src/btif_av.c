@@ -153,6 +153,7 @@ static btif_av_cb_t btif_av_cb[BTIF_AV_NUM_CB];
 static btif_sm_event_t idle_rc_event;
 static tBTA_AV idle_rc_data;
 int btif_max_av_clients = 1;
+static UINT16 enable_delay_reporting = 0; // by default disable it
 static BOOLEAN enable_multicast = FALSE;
 static BOOLEAN is_multicast_supported = FALSE;
 static BOOLEAN multicast_disabled = FALSE;
@@ -2551,7 +2552,7 @@ static bool get_src_codec_config(uint8_t * codecinfo, uint8_t *codectype)
 *******************************************************************************/
 
 static bt_status_t init_src_vendor(btav_vendor_callbacks_t* callbacks, int max_a2dp_connections,
-                            int a2dp_multicast_state, const char* offload_cap)
+                            int a2dp_multicast_state, uint8_t streaming_prarm, const char* offload_cap)
 {
     bt_status_t status;
 
@@ -2578,6 +2579,8 @@ static bt_status_t init_src_vendor(btav_vendor_callbacks_t* callbacks, int max_a
             status = BT_STATUS_SUCCESS;
     }
 
+    enable_delay_reporting = streaming_prarm & A2DP_SRC_ENABLE_DELAY_REPORTING;
+    BTIF_TRACE_DEBUG(" ~~ enable_delay_reporting = %d", enable_delay_reporting);
     if (status == BT_STATUS_SUCCESS) {
         bt_av_src_vendor_callbacks = callbacks;
     }
@@ -3188,10 +3191,15 @@ bt_status_t btif_av_execute_service(BOOLEAN b_enable)
         * auto-suspend av streaming on AG events(SCO or Call). The suspend shall
         * be initiated by the app/audioflinger layers */
 #ifndef ANDROID
+        UINT16 feat_delayrpt;
+        if(enable_delay_reporting)
+            feat_delayrpt = BTA_AV_FEAT_DELAY_RPT;
+        else
+            feat_delayrpt = 0x0;
 #if (AVRC_METADATA_INCLUDED == TRUE)
         BTA_AvEnable(BTA_SEC_AUTHENTICATE,
             BTA_AV_FEAT_RCTG|BTA_AV_FEAT_METADATA|BTA_AV_FEAT_VENDOR|BTA_AV_FEAT_NO_SCO_SSPD
-            |BTA_AV_FEAT_ACP_START
+            |BTA_AV_FEAT_ACP_START | feat_delayrpt 
 #if (AVRC_ADV_CTRL_INCLUDED == TRUE)
             |BTA_AV_FEAT_RCCT
             |BTA_AV_FEAT_ADV_CTRL
@@ -3200,7 +3208,7 @@ bt_status_t btif_av_execute_service(BOOLEAN b_enable)
             ,bte_av_callback);
 #else
         BTA_AvEnable(BTA_SEC_AUTHENTICATE, (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_NO_SCO_SSPD
-            |BTA_AV_FEAT_ACP_START), bte_av_callback);
+            |BTA_AV_FEAT_ACP_START | feat_delayrpt), bte_av_callback);
 #endif
 #else
 #if (AVRC_METADATA_INCLUDED == TRUE)

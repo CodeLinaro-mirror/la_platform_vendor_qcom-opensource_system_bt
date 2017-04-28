@@ -392,7 +392,7 @@ void A2D_Init(void)
 {
     memset(&a2d_cb, 0, sizeof(tA2D_CB));
 
-    a2d_cb.avdt_sdp_ver = AVDT_VERSION;
+    a2d_cb.avdt_sdp_ver = AVDT_VERSION_SYNC;
 
 #if defined(A2D_INITIAL_TRACE_LEVEL)
     a2d_cb.trace_level  = A2D_INITIAL_TRACE_LEVEL;
