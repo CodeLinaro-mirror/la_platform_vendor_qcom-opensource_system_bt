@@ -54,7 +54,8 @@ enum
     BTA_PAN_API_ENABLE_EVT,
     BTA_PAN_API_DISABLE_EVT,
     BTA_PAN_API_SET_ROLE_EVT,
-    BTA_PAN_API_OPEN_EVT
+    BTA_PAN_API_OPEN_EVT,
+    BTA_PAN_API_SET_TETHERING_EVT
 };
 
 /* state machine states */
@@ -121,6 +122,12 @@ typedef struct
 
 } tBTA_PAN_CONN;
 
+/* data type for BTA_PAN_SET_TETHERING_EVT */
+typedef struct
+{
+    BT_HDR          hdr;        /* Event header */
+    BOOLEAN         enable;;
+} tBTA_PAN_SET_TETHERING;
 
 
 
@@ -133,6 +140,7 @@ typedef union
     tBTA_PAN_API_OPEN        api_open;
     tBTA_PAN_CI_TX_FLOW      ci_tx_flow;
     tBTA_PAN_CONN            conn;
+    tBTA_PAN_SET_TETHERING   api_set_tethering;
 } tBTA_PAN_DATA;
 
 /* state machine control block */
@@ -205,6 +213,7 @@ extern BOOLEAN bta_pan_hdl_event(BT_HDR *p_msg);
 extern void bta_pan_enable(tBTA_PAN_DATA *p_data);
 extern void bta_pan_disable(void);
 extern void bta_pan_set_role(tBTA_PAN_DATA *p_data);
+extern void bta_pan_set_tethering(tBTA_PAN_DATA *p_data);
 extern void bta_pan_open(tBTA_PAN_SCB *p_scb, tBTA_PAN_DATA *p_data);
 extern void bta_pan_api_close(tBTA_PAN_SCB *p_scb, tBTA_PAN_DATA *p_data);
 extern void bta_pan_set_shutdown(tBTA_PAN_SCB *p_scb, tBTA_PAN_DATA *p_data);

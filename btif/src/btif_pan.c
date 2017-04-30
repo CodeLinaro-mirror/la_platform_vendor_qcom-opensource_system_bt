@@ -97,6 +97,7 @@ static bt_status_t btpan_connect(const bt_bdaddr_t *bd_addr, int local_role, int
 static bt_status_t btpan_disconnect(const bt_bdaddr_t *bd_addr);
 static bt_status_t btpan_enable(int local_role);
 static int btpan_get_local_role(void);
+static void btpan_set_tethering(bool enable);
 
 static void btpan_tap_fd_signaled(int fd, int type, int flags, uint32_t user_id);
 static void btpan_cleanup_conn(btpan_conn_t* conn);
@@ -110,7 +111,8 @@ static btpan_interface_t pan_if = {
     btpan_get_local_role,
     btpan_connect,
     btpan_disconnect,
-    btpan_jni_cleanup
+    btpan_jni_cleanup,
+    btpan_set_tethering
 };
 
 btpan_interface_t *btif_pan_get_interface()
@@ -188,6 +190,11 @@ static void btpan_jni_cleanup()
 {
     pan_disable();
     jni_initialized = false;
+}
+
+static void btpan_set_tethering(bool enable)
+{
+    BTA_SetTethering(enable);
 }
 
 static inline int bta_role_to_btpan(int bta_pan_role)
