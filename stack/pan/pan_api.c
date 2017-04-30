@@ -257,7 +257,23 @@ tPAN_RESULT PAN_SetRole (UINT8 role,
     return PAN_SUCCESS;
 }
 
-
+/*******************************************************************************
+**
+** Function         PAN_SetTethering
+**
+** Description      This function is called by the application to set the PAN
+**                  Tethering status. This can be called any time to change the
+**                  PAN tethering status.
+**
+** Parameters:      enable   - is a flag to change tethering status(on/Off)
+**
+** Returns          None
+**
+*******************************************************************************/
+void PAN_SetTethering(BOOLEAN enable)
+{
+    BNEP_SetTethering(enable);
+}
 
 /*******************************************************************************
 **

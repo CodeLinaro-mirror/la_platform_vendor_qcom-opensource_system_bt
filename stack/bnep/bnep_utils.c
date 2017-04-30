@@ -34,6 +34,7 @@
 
 
 extern fixed_queue_t *btu_general_alarm_queue;
+BOOLEAN is_tethering_enabled = FALSE;
 
 /********************************************************************************/
 /*              L O C A L    F U N C T I O N     P R O T O T Y P E S            */
@@ -565,6 +566,13 @@ static UINT8 *bnepu_init_hdr (BT_HDR *p_buf, UINT16 hdr_len, UINT8 pkt_type)
 void bnep_process_setup_conn_req (tBNEP_CONN *p_bcb, UINT8 *p_setup, UINT8 len)
 {
     BNEP_TRACE_EVENT ("BNEP - bnep_process_setup_conn_req for CID: 0x%x", p_bcb->l2cap_cid);
+
+    if (is_tethering_enabled == FALSE)
+    {
+        BNEP_TRACE_WARNING ("BNEP - tethering is not enabled");
+        bnep_send_conn_responce (p_bcb, BNEP_SETUP_CONN_NOT_ALLOWED);
+        return;
+    }
 
     if (p_bcb->con_state != BNEP_STATE_CONN_SETUP &&
         p_bcb->con_state != BNEP_STATE_SEC_CHECKING &&

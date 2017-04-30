@@ -6,6 +6,10 @@ AM_CFLAGS = -Wall \
         -Wno-trigraphs \
         -std=c99 \
         -DHAS_NO_BDROID_BUILDCFG
+if MDM_CHEROKEE
+AM_CFLAGS += -DBTA_AV_SPLIT_A2DP_ENABLED
+AM_CFLAGS += -DBTA_AV_SPLIT_A2DP_DEF_FREQ_48KHZ
+endif
 
 AM_CPPFLAGS = -Iinclude \
         -Isys \

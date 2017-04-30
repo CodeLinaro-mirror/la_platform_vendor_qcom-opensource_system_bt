@@ -196,6 +196,17 @@ void BTA_PanOpen(BD_ADDR bd_addr, tBTA_PAN_ROLE    local_role, tBTA_PAN_ROLE  pe
 *******************************************************************************/
 extern void BTA_PanClose(UINT16 handle);
 
+/*******************************************************************************
+**
+** Function         BTA_SetTethering
+**
+** Description      Notify BT tethering status to BNEP layer.
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+void BTA_SetTethering(BOOLEAN enable);
 
 #ifdef __cplusplus
 }
