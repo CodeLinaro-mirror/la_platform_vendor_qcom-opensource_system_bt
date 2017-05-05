@@ -404,7 +404,20 @@ void bta_pan_set_role(tBTA_PAN_DATA *p_data)
     bta_pan_cb.p_cback(BTA_PAN_SET_ROLE_EVT, (tBTA_PAN *)&set_role);
 }
 
-
+/*******************************************************************************
+**
+** Function         bta_pan_set_tethering
+**
+** Description      Process set ethering API event.
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+void bta_pan_set_tethering(tBTA_PAN_DATA * p_data)
+{
+    PAN_SetTethering(p_data->api_set_tethering.enable);
+}
 
 /*******************************************************************************
 **

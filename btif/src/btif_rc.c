@@ -615,19 +615,23 @@ void handle_rc_features(int index)
 
         if (btif_rc_cb[index].rc_features & BTA_AV_FEAT_BROWSE)
         {
+            BTIF_TRACE_IMP("%s: BTRC_FEAT_BROWSE", __FUNCTION__);
             rc_features |= BTRC_FEAT_BROWSE;
         }
         if ( (btif_rc_cb[index].rc_features & BTA_AV_FEAT_ADV_CTRL) &&
             (btif_rc_cb[index].rc_features & BTA_AV_FEAT_RCTG))
         {
+            BTIF_TRACE_IMP("%s: BTRC_FEAT_ABSOLUTE_VOLUME", __FUNCTION__);
             rc_features |= BTRC_FEAT_ABSOLUTE_VOLUME;
         }
         if (btif_rc_cb[index].rc_features & BTA_AV_FEAT_METADATA)
         {
+            BTIF_TRACE_IMP("%s: BTRC_FEAT_METADATA", __FUNCTION__);
             rc_features |= BTRC_FEAT_METADATA;
         }
         if (btif_rc_cb[index].rc_features & BTA_AV_FEAT_AVRC_UI_UPDATE)
         {
+            BTIF_TRACE_IMP("%s: BTRC_FEAT_AVRC_UI_UPDATE", __FUNCTION__);
             rc_features |= BTRC_FEAT_AVRC_UI_UPDATE;
         }
         BTIF_TRACE_IMP("%s: rc_features=0x%x", __FUNCTION__, rc_features);
@@ -1132,7 +1136,7 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
         else if (bt_rc_callbacks != NULL)
         {
 #if (defined(USE_LIBHW_AOSP))
-            HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, pressed, &remote_address);
+            HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, pressed);
 #else
             HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, pressed, &remote_address);
 #endif
@@ -1175,7 +1179,7 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
             else if (bt_rc_callbacks != NULL)
             {
 #if (defined(USE_LIBHW_AOSP))
-                HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, pressed, &remote_address);
+                HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, pressed);
 #else
                 HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, pressed, &remote_address);
 #endif
@@ -1198,7 +1202,7 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
                 else if (bt_rc_callbacks != NULL)
                 {
 #if (defined(USE_LIBHW_AOSP))
-                    HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, 0, &remote_address);
+                    HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, 0);
 #else
                     HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, 0, &remote_address);
 #endif
@@ -1237,9 +1241,35 @@ void btif_rc_send_pause_command(int index)
     send_key(uinput_fd, KEY_PAUSECD, 0);
 #else
     bdcpy(remote_address.address, btif_rc_cb[index].rc_addr);
-    HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, AVRC_ID_PAUSE, 1, &remote_address);
+    if (bt_rc_vendor_callbacks != NULL)
+    {
+        HAL_CBACK(bt_rc_vendor_callbacks, passthrough_cmd_vendor_cb,
+                AVRC_ID_PAUSE, 1, &remote_address);
+    }
+    else if (bt_rc_callbacks != NULL)
+    {
+#if (defined(USE_LIBHW_AOSP))
+        HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, AVRC_ID_PAUSE, 1);
+#else
+        HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, AVRC_ID_PAUSE, 1, &remote_address);
+#endif
+    }
+
     sleep_ms(30); // 30ms
-    HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, AVRC_ID_PAUSE, 0, &remote_address);
+
+    if (bt_rc_vendor_callbacks != NULL)
+    {
+        HAL_CBACK(bt_rc_vendor_callbacks, passthrough_cmd_vendor_cb,
+                AVRC_ID_PAUSE, 0, &remote_address);
+    }
+    else if (bt_rc_callbacks != NULL)
+    {
+#if (defined(USE_LIBHW_AOSP))
+        HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, AVRC_ID_PAUSE, 0);
+#else
+        HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, AVRC_ID_PAUSE, 0, &remote_address);
+#endif
+    }
 #endif
 }
 
@@ -1644,10 +1674,12 @@ void handle_rc_browsemsg_cmd (tBTA_AV_BROWSE_MSG *pbrowse_msg)
                 case AVRC_SCOPE_PLAYER_LIST:
                     dropmsg = handle_get_folder_item_mediaplyerlist_cmd(pbrowse_msg, &cmd, &event);
                 break;
+#ifdef ANDROID
                 case AVRC_SCOPE_FILE_SYSTEM:
                 case AVRC_SCOPE_NOW_PLAYING:
                     dropmsg = handle_get_folder_item_filesystem_cmd(pbrowse_msg, &cmd, &event);
                 break;
+#endif
             }
             if (dropmsg == FALSE)
             {
@@ -2348,7 +2380,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
             {
 #if (defined(USE_LIBHW_AOSP))
                 HAL_CBACK(bt_rc_callbacks, list_player_app_values_cb,
-                        pavrc_cmd->list_app_values.attr_id, &remote_addr);
+                        pavrc_cmd->list_app_values.attr_id);
 #else
                 HAL_CBACK(bt_rc_callbacks, list_player_app_values_cb,
                         pavrc_cmd->list_app_values.attr_id, &remote_addr);
@@ -2384,7 +2416,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
             {
 #if (defined(USE_LIBHW_AOSP))
                 HAL_CBACK(bt_rc_callbacks, get_player_app_value_cb ,
-                        pavrc_cmd->get_cur_app_val.num_attr, player_attr, &remote_addr);
+                        pavrc_cmd->get_cur_app_val.num_attr, player_attr);
 #else
                 HAL_CBACK(bt_rc_callbacks, get_player_app_value_cb ,
                         pavrc_cmd->get_cur_app_val.num_attr, player_attr, &remote_addr);
@@ -2420,7 +2452,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
                 else if (bt_rc_callbacks != NULL)
                 {
 #if (defined(USE_LIBHW_AOSP))
-                    HAL_CBACK(bt_rc_callbacks, set_player_app_value_cb, &attr, &remote_addr);
+                    HAL_CBACK(bt_rc_callbacks, set_player_app_value_cb, &attr);
 #else
                     HAL_CBACK(bt_rc_callbacks, set_player_app_value_cb, &attr, &remote_addr);
 #endif
@@ -2453,7 +2485,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
                 {
 #if (defined(USE_LIBHW_AOSP))
                     HAL_CBACK(bt_rc_callbacks, get_player_app_attrs_text_cb,
-                            pavrc_cmd->get_app_attr_txt.num_attr, player_attr_txt, &remote_addr);
+                            pavrc_cmd->get_app_attr_txt.num_attr, player_attr_txt);
 #else
                     HAL_CBACK(bt_rc_callbacks, get_player_app_attrs_text_cb,
                             pavrc_cmd->get_app_attr_txt.num_attr, player_attr_txt, &remote_addr);
@@ -2488,7 +2520,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
 #if (defined(USE_LIBHW_AOSP))
                     HAL_CBACK(bt_rc_callbacks, get_player_app_values_text_cb,
                             pavrc_cmd->get_app_val_txt.attr_id, pavrc_cmd->get_app_val_txt.num_val,
-                            pavrc_cmd->get_app_val_txt.vals, &remote_addr);
+                            pavrc_cmd->get_app_val_txt.vals);
 #else
                     HAL_CBACK(bt_rc_callbacks, get_player_app_values_text_cb,
                             pavrc_cmd->get_app_val_txt.attr_id, pavrc_cmd->get_app_val_txt.num_val,
@@ -2559,7 +2591,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
             else if (bt_rc_callbacks != NULL)
             {
 #if (defined(USE_LIBHW_AOSP))
-                HAL_CBACK(bt_rc_callbacks, get_element_attr_cb, num_attr, element_attrs, &remote_addr);
+                HAL_CBACK(bt_rc_callbacks, get_element_attr_cb, num_attr, element_attrs);
 #else
                 HAL_CBACK(bt_rc_callbacks, get_element_attr_cb, num_attr, element_attrs, &remote_addr);
 #endif
@@ -2587,7 +2619,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
             {
 #if (defined(USE_LIBHW_AOSP))
                 HAL_CBACK(bt_rc_callbacks, register_notification_cb, pavrc_cmd->reg_notif.event_id,
-                        pavrc_cmd->reg_notif.param, &remote_addr);
+                        pavrc_cmd->reg_notif.param);
 #else
                 HAL_CBACK(bt_rc_callbacks, register_notification_cb, pavrc_cmd->reg_notif.event_id,
                         pavrc_cmd->reg_notif.param, &remote_addr);
@@ -2865,6 +2897,7 @@ static void btif_rc_upstreams_rsp_evt(UINT16 event, tAVRC_RESPONSE *pavrc_resp, 
             if(AVRC_RSP_CHANGED==ctype)
                  btif_rc_cb[index].rc_volume=pavrc_resp->reg_notif.param.volume;
 
+            BTIF_TRACE_IMP("%s vol: %d ", __FUNCTION__, pavrc_resp->reg_notif.param.volume);
             if (bt_rc_vendor_callbacks != NULL)
             {
                 HAL_CBACK(bt_rc_vendor_callbacks, volume_change_vendor_cb,
@@ -2874,7 +2907,7 @@ static void btif_rc_upstreams_rsp_evt(UINT16 event, tAVRC_RESPONSE *pavrc_resp, 
             {
 #if (defined(USE_LIBHW_AOSP))
                 HAL_CBACK(bt_rc_callbacks, volume_change_cb,
-                        pavrc_resp->reg_notif.param.volume,ctype, &remote_addr)
+                        pavrc_resp->reg_notif.param.volume,ctype);
 #else
                 HAL_CBACK(bt_rc_callbacks, volume_change_cb,
                         pavrc_resp->reg_notif.param.volume,ctype, &remote_addr);
@@ -2898,7 +2931,7 @@ static void btif_rc_upstreams_rsp_evt(UINT16 event, tAVRC_RESPONSE *pavrc_resp, 
             {
 #if (defined(USE_LIBHW_AOSP))
                 HAL_CBACK(bt_rc_callbacks,volume_change_cb,
-                        pavrc_resp->volume.volume,ctype, &remote_addr)
+                        pavrc_resp->volume.volume,ctype);
 #else
                 HAL_CBACK(bt_rc_callbacks,volume_change_cb,
                         pavrc_resp->volume.volume,ctype, &remote_addr);
@@ -3653,6 +3686,13 @@ static bt_status_t register_notification_rsp(btrc_event_id_t event_id,
                                        p_param->player_setting.attr_ids, 2);
             memcpy(&avrc_rsp.reg_notif.param.player_setting.attr_value,
                                        p_param->player_setting.attr_values, 2);
+            break;
+        case BTRC_EVT_ADDRESSED_PLAYER_CHANGED:
+            avrc_rsp.reg_notif.param.addr_player.player_id = p_param->player_id;
+            avrc_rsp.reg_notif.param.addr_player.uid_counter = 0;
+            break;
+        case BTRC_EVT_AVAILABLE_PLAYERS_CHANGED:
+            avrc_rsp.reg_notif.param.evt  = 0x0a;
             break;
         default:
             BTIF_TRACE_WARNING("%s : Unhandled event ID : 0x%x", __FUNCTION__, event_id);
@@ -6490,6 +6530,7 @@ static const btrc_interface_t bt_rc_interface = {
     set_player_app_value_rsp,     /* set_player_app_value_rsp */
     register_notification_rsp,
     set_volume,
+    send_passthrough_cmd,
     cleanup,
 };
 
@@ -6497,12 +6538,26 @@ static const btrc_ctrl_interface_t bt_rc_ctrl_interface = {
     sizeof(bt_rc_ctrl_interface),
     init_ctrl,
     send_passthrough_cmd,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
     cleanup_ctrl,
 };
 
 static const btrc_vendor_interface_t bt_rc_vendor_interface = {
     sizeof(bt_rc_vendor_interface),
     init_vendor,
+    get_play_status_rsp_vendor,
+    list_player_app_attr_rsp_vendor,
+    list_player_app_value_rsp_vendor,
+    get_player_app_value_rsp_vendor,
+    get_player_app_attr_text_rsp_vendor,
+    get_player_app_value_text_rsp_vendor,
+    get_element_attr_rsp_vendor,
+    set_player_app_value_rsp_vendor,
+    register_notification_rsp_vendor,
+    set_volume_rsp_vendor,
     get_folderitem_rsp_vendor,
     set_addrplayer_rsp_vendor,
     set_browseplayer_rsp_vendor,

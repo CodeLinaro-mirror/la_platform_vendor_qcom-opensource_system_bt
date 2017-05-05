@@ -542,6 +542,7 @@ UINT16 AVDT_DelayReport(UINT8 handle, UINT8 seid, UINT16 delay)
     /* map handle to scb */
     if ((p_scb = avdt_scb_by_hdl(handle)) == NULL)
     {
+        AVDT_TRACE_ERROR(" %s ~~ error: avdt_scb_by_hdl(handle)) == NULL",__func__);
         result = AVDT_BAD_HANDLE;
     }
     else
@@ -549,6 +550,7 @@ UINT16 AVDT_DelayReport(UINT8 handle, UINT8 seid, UINT16 delay)
     {
         evt.apidelay.hdr.seid   = seid;
         evt.apidelay.delay      = delay;
+        AVDT_TRACE_DEBUG(" %s ~~ seid = %d, delay = %d ",__func__, seid,delay);
         avdt_scb_event(p_scb, AVDT_SCB_API_DELAY_RPT_REQ_EVT, &evt);
     }
 

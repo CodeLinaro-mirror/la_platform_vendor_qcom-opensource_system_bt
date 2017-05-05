@@ -71,11 +71,11 @@ static int bt_split_a2dp_enabled = 0;
 
 #define CASE_RETURN_STR(const) case const: return #const;
 
-#define FNLOG()             LOG_VERBOSE(LOG_TAG, "%s", __FUNCTION__);
-#define DEBUG(fmt, ...)     LOG_VERBOSE(LOG_TAG, "%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
-#define INFO(fmt, ...)      LOG_INFO(LOG_TAG, "%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
+#define FNLOG()             LOG_VERBOSE("%s", __FUNCTION__);
+#define DEBUG(fmt, ...)     LOG_INFO("%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
+#define INFO(fmt, ...)      LOG_INFO("%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
 #define WARN(fmt, ...)      LOG_WARN(LOG_TAG, "%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
-#define ERROR(fmt, ...)     LOG_ERROR(LOG_TAG, "%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
+#define ERROR(fmt, ...)     LOG_ERROR("%s: " fmt,__FUNCTION__, ## __VA_ARGS__)
 
 #define ASSERTC(cond, msg, val) if (!(cond)) {ERROR("### ASSERT : %s line %d %s (%d) ###", __FILE__, __LINE__, msg, val);}
 
@@ -456,14 +456,17 @@ static int skt_connect(char *path, size_t buffer_sz)
 {
     int ret;
     int skt_fd;
+    struct sockaddr_un remote;
     int len;
 
     INFO("connect to %s (sz %zu)", path, buffer_sz);
 
     skt_fd = socket(AF_LOCAL, SOCK_STREAM, 0);
+    memset(&remote, 0, sizeof(remote));
+    remote.sun_family = AF_LOCAL;
+    strncpy(remote.sun_path, path, sizeof(remote.sun_path)-1);
 
-    if(osi_socket_local_client_connect(skt_fd, path,
-            ANDROID_SOCKET_NAMESPACE_ABSTRACT, SOCK_STREAM) < 0)
+    if(connect(skt_fd, (struct sockaddr*)&remote, sizeof(remote)) < 0)
     {
         ERROR("failed to connect (%s)", strerror(errno));
         close(skt_fd);
@@ -476,22 +479,6 @@ static int skt_connect(char *path, size_t buffer_sz)
         ERROR("setsockopt failed (%s)", strerror(errno));
 
     ret = setsockopt(skt_fd, SOL_SOCKET, SO_RCVBUF, (char*)&len, (int)sizeof(len));
-    if (ret < 0)
-        ERROR("setsockopt failed (%s)", strerror(errno));
-
-    /* Socket send/receive timeout value */
-    struct timeval tv;
-    tv.tv_sec = SOCK_SEND_TIMEOUT_MS / 1000;
-    tv.tv_usec = (SOCK_SEND_TIMEOUT_MS % 1000) * 1000;
-
-    ret = setsockopt(skt_fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-    if (ret < 0)
-        ERROR("setsockopt failed (%s)", strerror(errno));
-
-    tv.tv_sec = SOCK_RECV_TIMEOUT_MS / 1000;
-    tv.tv_usec = (SOCK_RECV_TIMEOUT_MS % 1000) * 1000;
-
-    ret = setsockopt(skt_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     if (ret < 0)
         ERROR("setsockopt failed (%s)", strerror(errno));
 
@@ -508,7 +495,7 @@ static int skt_read(int fd, void *p, size_t len)
 
     ts_log("skt_read recv", len, NULL);
 
-    OSI_NO_INTR(read = recv(fd, p, len, MSG_NOSIGNAL));
+    TEMP_FAILURE_RETRY(read = recv(fd, p, len, MSG_NOSIGNAL));
     if (read == -1)
         ERROR("read failed with errno=%d\n", errno);
 
@@ -525,7 +512,7 @@ static int skt_write(int fd, const void *p, size_t len)
 
     if (WRITE_POLL_MS == 0) {
         // do not poll, use blocking send
-        OSI_NO_INTR(sent = send(fd, p, len, MSG_NOSIGNAL));
+        TEMP_FAILURE_RETRY(sent = send(fd, p, len, MSG_NOSIGNAL));
         if (sent == -1)
             ERROR("write failed with error(%s)", strerror(errno));
 
@@ -536,7 +523,7 @@ static int skt_write(int fd, const void *p, size_t len)
     int ms_timeout = SOCK_SEND_TIMEOUT_MS;
     size_t count = 0;
     while (count < len) {
-        OSI_NO_INTR(sent = send(fd, p, len - count, MSG_NOSIGNAL | MSG_DONTWAIT));
+        TEMP_FAILURE_RETRY(sent = send(fd, p, len - count, MSG_NOSIGNAL | MSG_DONTWAIT));
         if (sent == -1) {
             if (errno != EAGAIN && errno != EWOULDBLOCK) {
                 ERROR("write failed with error(%s)", strerror(errno));
@@ -582,7 +569,7 @@ int a2dp_ctrl_receive(struct a2dp_stream_common *common, void* buffer, int lengt
     int i;
 
     for (i = 0;; i++) {
-        OSI_NO_INTR(ret = recv(common->ctrl_fd, buffer, length, MSG_NOSIGNAL));
+        TEMP_FAILURE_RETRY(ret = recv(common->ctrl_fd, buffer, length, MSG_NOSIGNAL));
         if (ret > 0) {
             break;
         }
@@ -624,7 +611,7 @@ int a2dp_command(struct a2dp_stream_common *common, char cmd)
 
     /* send command */
     ssize_t sent;
-    OSI_NO_INTR(sent = send(common->ctrl_fd, &cmd, 1, MSG_NOSIGNAL));
+    TEMP_FAILURE_RETRY(sent = send(common->ctrl_fd, &cmd, 1, MSG_NOSIGNAL));
     if (sent == -1)
     {
         ERROR("cmd failed (%s)", strerror(errno));
@@ -713,7 +700,8 @@ int a2dp_read_codec_config(struct a2dp_stream_common *common,uint8_t idx)
         ERROR("%s: Failed to get ack",__func__);
         return -1;
     }
-    if (a2dp_ctrl_receive(common, &len, 1) < 0)
+    if ((a2dp_ctrl_receive(common, &len, 1) < 0) ||
+        (len <= 0) || (len > MAX_CODEC_CFG_SIZE))
         return -1;
     if (a2dp_ctrl_receive(common, p_codec_cfg, len) < 0)
         return -1;
@@ -809,13 +797,13 @@ int start_audio_datapath(struct a2dp_stream_common *common)
     common->state = AUDIO_A2DP_STATE_STARTING;
 
     int a2dp_status = a2dp_command(common, A2DP_CTRL_CMD_START);
-    #ifdef BT_AUDIO_SYSTRACE_LOG
+#ifdef BT_AUDIO_SYSTRACE_LOG
     snprintf(trace_buf, 32, "start_audio_data_path:");
     if (PERF_SYSTRACE)
     {
         ATRACE_BEGIN(trace_buf);
     }
-    #endif
+#endif
 
 
     #ifdef BT_AUDIO_SYSTRACE_LOG
@@ -1097,6 +1085,21 @@ void* audio_get_next_codec_config(uint8_t idx, audio_format_t *codec_type)
     }
     return NULL;
 }
+
+int audio_check_a2dp_ready()
+{
+    INFO("audio_check_a2dp_ready: state %s", dump_a2dp_hal_state(audio_stream.state));
+    pthread_mutex_lock(&audio_stream.lock);
+    if (a2dp_command(&audio_stream, A2DP_CTRL_CMD_CHECK_READY) != 0)
+    {
+        INFO("audio_check_a2dp_ready: FAIL");
+        pthread_mutex_unlock(&audio_stream.lock);
+        return 0;
+    }
+    pthread_mutex_unlock(&audio_stream.lock);
+    return 1;
+}
+
 //Entry point for dynamic lib
 const bt_host_ipc_interface_t BTHOST_IPC_INTERFACE = {
     sizeof(bt_host_ipc_interface_t),
@@ -1120,5 +1123,6 @@ const bt_host_ipc_interface_t BTHOST_IPC_INTERFACE = {
     audio_get_codec_config,
     audio_handoff_triggered,
     clear_a2dpsuspend_flag,
-    audio_get_next_codec_config
+    audio_get_next_codec_config,
+    audio_check_a2dp_ready
 };

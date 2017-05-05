@@ -6,6 +6,9 @@ AM_CFLAGS = -Wall \
         -Wno-trigraphs \
         -std=c99 \
         -DHAS_NO_BDROID_BUILDCFG
+if MDM_CHEROKEE
+AM_CFLAGS += -DBTA_AV_SPLIT_A2DP_ENABLED
+endif
 
 AM_CPPFLAGS = \
         -I.. \

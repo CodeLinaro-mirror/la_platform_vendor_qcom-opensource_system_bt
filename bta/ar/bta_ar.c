@@ -262,8 +262,18 @@ void bta_ar_reg_avrc(UINT16 service_uuid, char *service_name, char *provider_nam
                            bta_ar_cb.sdp_tg_handle, browse_supported, profile_version);
             bta_sys_add_uuid(service_uuid);
         }
-        /* only one TG is allowed (first-come, first-served).
-         * If sdp_tg_handle is non-0, ignore this request */
+        else
+        {
+            /* multiple TG registration is allowed since we support both
+               A2dp SRC+SNK simultaneously. Change supported categories for
+               the second registration since it will overwrite the categories
+               for merged SDP record of TG.*/
+            p = temp;
+            categories = AVRC_SUPF_TG_CAT2 | AVRC_SUPF_TG_CAT1;
+            UINT16_TO_BE_STREAM(p, categories);
+            SDP_AddAttribute(bta_ar_cb.sdp_tg_handle, ATTR_ID_SUPPORTED_FEATURES, UINT_DESC_TYPE,
+                      (UINT32)2, (UINT8*)temp);
+        }
     }
     else if ((service_uuid == UUID_SERVCLASS_AV_REMOTE_CONTROL)||
              (service_uuid == UUID_SERVCLASS_AV_REM_CTRL_CONTROL))
@@ -279,9 +289,12 @@ void bta_ar_reg_avrc(UINT16 service_uuid, char *service_name, char *provider_nam
         }
         else
         {
-            /* multiple CTs are allowed.
-             * Change supported categories on the second one */
+            /* multiple CT registration is allowed since we support both
+               A2dp SRC+SNK simultaneously. Change supported categories for
+               the second registration since it will overwrite the categories
+               for merged SDP record of CR.*/
             p = temp;
+            categories = AVRC_SUPF_CT_CAT2 | AVRC_SUPF_CT_CAT1;
             UINT16_TO_BE_STREAM(p, categories);
             SDP_AddAttribute(bta_ar_cb.sdp_ct_handle, ATTR_ID_SUPPORTED_FEATURES, UINT_DESC_TYPE,
                       (UINT32)2, (UINT8*)temp);

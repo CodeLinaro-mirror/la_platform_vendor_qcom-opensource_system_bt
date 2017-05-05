@@ -531,11 +531,7 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
     APPL_TRACE_DEBUG("bta_av_api_register : channel %d", registr.chnl);
 
     profile_initialized = p_data->api_reg.service_uuid;
-    if(profile_initialized == UUID_SERVCLASS_AUDIO_SINK)
-    {
-        p_bta_av_cfg  = (tBTA_AV_CFG *) &bta_avk_cfg;
-    }
-    else if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE)
+    if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE)
     {
         p_bta_av_cfg  = (tBTA_AV_CFG *) &bta_av_cfg;
     }
@@ -543,6 +539,7 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
     do
     {
         p_scb = bta_av_alloc_scb(registr.chnl);
+        cs.registration_id = p_scb->hdi;
         if(p_scb == NULL)
         {
             APPL_TRACE_ERROR("failed to alloc SCB");
@@ -751,11 +748,7 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
                     } else {
                         char value[PROPERTY_VALUE_MAX];
                         bool enableAptXHD = false;
-#ifdef ANDROID
                         if (property_get("persist.bt.enableAptXHD", value, "false") && strcmp(value, "true") == 0)
-#else
-                        if (property_get_bt("persist.bt.enableAptXHD", value, "false") && strcmp(value, "true") == 0)
-#endif
                             enableAptXHD = true;
                         else
                             APPL_TRACE_WARNING("%s enableAptXHD property is not set", __func__);
