@@ -37,6 +37,20 @@
 #include "hcidefs.h"
 #include "l2c_api.h"
 
+void BTM_GetCOD(BD_ADDR bd_addr, DEV_CLASS_PTR dev_class)
+{
+    BTM_TRACE_API("%s", __FUNCTION__);
+    tBTM_SEC_DEV_REC  *p_dev_rec = NULL;
+    p_dev_rec = btm_find_dev (bd_addr);
+    if (p_dev_rec == NULL)
+    {
+        BTM_TRACE_API("%s, record not found", __FUNCTION__);
+        return 0;
+    }
+    dev_class[0] = p_dev_rec->dev_class[0];
+    dev_class[1] = p_dev_rec->dev_class[1];
+    dev_class[2] = p_dev_rec->dev_class[2];
+}
 /*******************************************************************************
 **
 ** Function         BTM_SecAddDevice

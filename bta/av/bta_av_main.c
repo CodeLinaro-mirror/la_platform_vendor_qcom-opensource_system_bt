@@ -398,6 +398,7 @@ void bta_av_conn_cback(UINT8 handle, BD_ADDR bd_addr, UINT8 event, tAVDT_CTRL *p
     tBTA_AV_SCB *p_scb = NULL;
     UNUSED(handle);
 
+    APPL_TRACE_DEBUG("%s event :%d",__func__, event);
 #if( defined BTA_AR_INCLUDED ) && (BTA_AR_INCLUDED == TRUE)
     if (event == BTA_AR_AVDT_CONN_EVT ||
         event == AVDT_CONNECT_IND_EVT || event == AVDT_DISCONNECT_IND_EVT)
@@ -432,6 +433,33 @@ void bta_av_conn_cback(UINT8 handle, BD_ADDR bd_addr, UINT8 event, tAVDT_CTRL *p
                          bd_addr[4], bd_addr[5]);
         bta_sys_sendmsg(p_msg);
     }
+}
+
+BOOLEAN bta_av_is_scb_available()
+{
+    tBTA_AV_CB   *p_cb = &bta_av_cb;
+    int     xx;
+    UINT8   mask;
+    for(xx=0; xx<BTA_AV_NUM_LINKS; xx++)
+    {
+        mask = 1 << xx;
+        APPL_TRACE_DEBUG(" %s The current conn_lcb: 0x%x index = %d", __func__, p_cb->conn_lcb, xx);
+
+        /* look for a p_lcb with its p_scb registered */
+        if((!(mask & p_cb->conn_lcb)) && (p_cb->p_scb[xx] != NULL))
+        {
+            /* Check if the SCB is Free before using for
+             * ACP connection
+             */
+            if (p_cb->p_scb[xx]->state == BTA_AV_INIT_ST)
+            {
+                APPL_TRACE_DEBUG(" %s SCB is free @ %d", __func__, xx);
+                return true;
+            }
+        }
+    }
+    APPL_TRACE_DEBUG(" %s SCB is not free ", __func__);
+    return false;
 }
 
 #if AVDT_REPORTING == TRUE

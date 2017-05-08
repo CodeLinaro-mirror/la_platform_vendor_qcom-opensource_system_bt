@@ -165,6 +165,7 @@ typedef struct
     UINT32              company_id;     /* the company ID  */
     UINT8               conn;           /* Connection role (Initiator/acceptor) */
     UINT8               control;        /* Control role (Control/Target) */
+    UINT8               av_sep_type;    /* Profile which created this AVRCP, 1 for src, 2 for Sink */
 } tAVRC_CONN_CB;
 
 
