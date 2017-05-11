@@ -389,7 +389,7 @@ tGATT_HDL_LIST_ELEM *gatt_find_hdl_buffer_by_app_id (tBT_UUID *p_app_uuid128,
 void gatt_free_hdl_buffer(tGATT_HDL_LIST_ELEM *p)
 {
 
-    if (p)
+    if (p && p->in_use == TRUE)
     {
         while (!fixed_queue_is_empty(p->svc_db.svc_buffer))
             osi_free(fixed_queue_try_dequeue(p->svc_db.svc_buffer));

@@ -3775,6 +3775,18 @@ void btm_ble_init(void)
 #endif
 }
 
+void btm_ble_free(void)
+{
+    tBTM_BLE_CB *p_cb = &btm_cb.ble_ctr_cb;
+
+    BTM_TRACE_DEBUG("%s", __func__);
+
+    if(p_cb->conn_pending_q)
+    {
+        fixed_queue_free(p_cb->conn_pending_q,NULL);
+        p_cb->conn_pending_q = NULL;
+    }
+}
 /*******************************************************************************
 **
 ** Function         btm_ble_topology_check

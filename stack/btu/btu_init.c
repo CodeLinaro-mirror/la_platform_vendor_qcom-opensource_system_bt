@@ -84,6 +84,7 @@ void btu_task_shut_down(void *context);
 ******************************************************************************/
 void btu_init_core(void)
 {
+    LOG_INFO(LOG_TAG, "%s ", __func__);
     /* Initialize the mandatory core stack components */
     btm_init();
 
@@ -112,11 +113,14 @@ void btu_init_core(void)
 ******************************************************************************/
 void btu_free_core(void)
 {
-      /* Free the mandatory core stack components */
-      l2c_free();
+    LOG_INFO(LOG_TAG, "%s ", __func__);
+    btm_free();
+    /* Free the mandatory core stack components */
+    l2c_free();
 
 #if BLE_INCLUDED == TRUE
-      gatt_free();
+    gatt_free();
+    btm_ble_free();
 #endif
 }
 
