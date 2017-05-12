@@ -85,6 +85,13 @@ static const interop_addr_t interop_addr_database[] = {
   // For a more specific black listing(e.g. just for Mercedes), both BD addr
   // and device name has to be added for AVRCP 1.3 blacklisting
   {{{0xa0, 0x56, 0xb2,      0,0,0}}, 3, INTEROP_ADV_AVRCP_VER_1_3},
+
+  // Land Rover Carkit(s)
+  {{{0x00, 0x00, 0x31,      0,0,0}}, 3, INTEROP_ADV_PBAP_VER_1_1},
+  {{{0x00, 0x00, 0x41,      0,0,0}}, 3, INTEROP_ADV_PBAP_VER_1_1},
+  {{{0x00, 0x00, 0x6a,      0,0,0}}, 3, INTEROP_ADV_PBAP_VER_1_1},
+  {{{0x00, 0x00, 0x7f,      0,0,0}}, 3, INTEROP_ADV_PBAP_VER_1_1},
+  {{{0x00, 0x01, 0x0a,      0,0,0}}, 3, INTEROP_ADV_PBAP_VER_1_1},
 };
 
 static const interop_name_t interop_name_database[] = {
@@ -102,6 +109,9 @@ static const interop_name_t interop_name_database[] = {
   // Targus BT Laser Notebook Mouse
   {"Targus BT Laser Notebook Mouse", INTEROP_DISABLE_AUTH_FOR_HID_POINTING},
   {"MB Bluetooth", INTEROP_ADV_AVRCP_VER_1_3},
+
+  // Land Rover Carkit
+  {"Discovery Sport", INTEROP_ADV_PBAP_VER_1_1},
 };
 
 static const interop_manufacturer_t interop_manufctr_database[] = {
