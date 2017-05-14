@@ -78,4 +78,17 @@ void btm_init (void)
     btm_dev_init();                     /* Device Manager Structures & HCI_Reset */
 }
 
+void btm_free (void)
+{
+    if(btm_cb.page_queue)
+    {
+        fixed_queue_free(btm_cb.page_queue,NULL);
+        btm_cb.page_queue =  NULL;
+    }
+    if(btm_cb.sec_pending_q)
+    {
+        fixed_queue_free(btm_cb.sec_pending_q,NULL);
+        btm_cb.sec_pending_q =  NULL;
+    }
+}
 
