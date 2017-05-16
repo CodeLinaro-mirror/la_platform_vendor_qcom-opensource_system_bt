@@ -619,7 +619,9 @@ void handle_rc_features(int index)
 
         if (btif_rc_cb[index].rc_features & BTA_AV_FEAT_BROWSE)
         {
+#if (defined(AVCT_BROWSE_INCLUDED)&&(AVCT_BROWSE_INCLUDED == TRUE))
             rc_features |= BTRC_FEAT_BROWSE;
+#endif
         }
         if ( (btif_rc_cb[index].rc_features & BTA_AV_FEAT_ADV_CTRL) &&
             (btif_rc_cb[index].rc_features & BTA_AV_FEAT_RCTG))
