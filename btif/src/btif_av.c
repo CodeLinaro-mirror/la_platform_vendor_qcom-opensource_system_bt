@@ -2523,6 +2523,23 @@ static bt_status_t init_sink(btav_callbacks_t* callbacks)
     return status;
 }
 
+static bool get_src_codec_config(uint8_t * codecinfo, uint8_t *codectype)
+{
+    UINT16 min_mtu;
+    if (btif_av_stream_started_ready() == FALSE)
+    {
+        BTIF_TRACE_ERROR("A2DP_CTRL_GET_CODEC_CONFIG: stream not started");
+        //return false;
+    }
+    *codectype = bta_av_co_get_current_codec();
+    if(*codectype == BTIF_AV_CODEC_NONE)
+        return false;
+    else if(*codectype == BTIF_AV_CODEC_SBC)
+        bta_av_co_audio_get_sbc_config(codecinfo,&min_mtu);
+    else
+        memcpy(codecinfo,bta_av_co_get_current_codecInfo(),AVDT_CODEC_SIZE);
+    return true;
+}
 /*******************************************************************************
 **
 ** Function         init_src_vendor
@@ -2965,6 +2982,7 @@ static const btav_vendor_interface_t bt_av_src_vendor_interface = {
     init_src_vendor,
     allow_connection_vendor,
     NULL,
+    get_src_codec_config,
     NULL,
     cleanup_src_vendor,
 };

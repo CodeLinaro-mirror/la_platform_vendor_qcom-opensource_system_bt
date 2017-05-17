@@ -40,7 +40,9 @@ AM_CPPFLAGS = \
         -I../bta/include \
         -I../bta/sys \
         -I../utils/include \
-        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/system_bt_ext
+        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/system_bt_ext \
+        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/bta/ar
+
 
 c_sources:= \
     ./a2dp/a2d_api.c \

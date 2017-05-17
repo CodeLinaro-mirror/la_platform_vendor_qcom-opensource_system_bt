@@ -33,7 +33,9 @@ AM_CPPFLAGS= \
         -I../audio_a2dp_hw \
         -I../utils/include \
         -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/bta/include \
+        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/bta/ar \
         -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/include \
+        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/udrv/include \
         -I${WORKSPACE}/external/tinyxml2 \
         -I${WORKSPACE}/external/zlib \
         -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/hal/include \
@@ -122,8 +124,8 @@ c_sources+= \
         ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/src/btif_avk_media_aac.c \
         ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/src/btif_avk_media_mp3.c \
         ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/src/btif_avk_media_aptx.c \
-        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/co/bta_avk_co.c
-
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/btif/co/bta_avk_co.c \
+        ${WORKSPACE}/vendor/qcom/opensource/bluetooth/system_bt_ext/udrv/ulinux/uipc_avk.c
 
 common_CFLAGS =  $(AM_CFLAGS) -fPIC -DUSE_AUDIO_TRACK -D_GNU_SOURCE $(Z_LIB)
 

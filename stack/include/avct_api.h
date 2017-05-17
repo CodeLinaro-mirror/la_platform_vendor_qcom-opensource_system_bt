@@ -115,6 +115,7 @@ typedef struct {
     UINT16              pid;                /* Profile ID */
     UINT8               role;               /* Initiator/acceptor role */
     UINT8               control;        /* Control role (Control/Target) */
+    UINT8               av_sep_type;    /* Profile which created this AVRCP, 1 for src, 2 for Sink */
 } tAVCT_CC;
 
 /*****************************************************************************
