@@ -460,7 +460,7 @@ void bta_hf_client_disc_int_res(tBTA_HF_CLIENT_DATA *p_data)
     }
 
     /* free discovery db */
-    bta_hf_client_free_db(p_data);
+    bta_hf_client_free_db_int(p_data);
 
     /* send ourselves sdp ok/fail event */
     bta_hf_client_sm_execute(event, p_data);
@@ -478,6 +478,7 @@ void bta_hf_client_disc_int_res(tBTA_HF_CLIENT_DATA *p_data)
 *******************************************************************************/
 void bta_hf_client_disc_acp_res(tBTA_HF_CLIENT_DATA *p_data)
 {
+    APPL_TRACE_DEBUG ("%s: Status: %d", __func__, p_data->disc_result.status);
     /* if found service */
     if (p_data->disc_result.status == SDP_SUCCESS ||
         p_data->disc_result.status == SDP_DB_FULL)
@@ -487,7 +488,7 @@ void bta_hf_client_disc_acp_res(tBTA_HF_CLIENT_DATA *p_data)
     }
 
     /* free discovery db */
-    bta_hf_client_free_db(p_data);
+    bta_hf_client_free_db_acp(p_data);
 }
 
 /*******************************************************************************
