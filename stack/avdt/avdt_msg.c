@@ -485,6 +485,7 @@ static void avdt_msg_bld_security_cmd(UINT8 **p, tAVDT_MSG *p_msg)
 *******************************************************************************/
 static void avdt_msg_bld_delay_rpt(UINT8 **p, tAVDT_MSG *p_msg)
 {
+    AVDT_TRACE_DEBUG(" %s ~~ seid = %d, delay = %d",__func__,p_msg->delay_rpt_cmd.hdr.seid,p_msg->delay_rpt_cmd.delay);
     AVDT_MSG_BLD_SEID(*p, p_msg->delay_rpt_cmd.hdr.seid);
     UINT16_TO_BE_STREAM(*p, p_msg->delay_rpt_cmd.delay);
 }
@@ -528,7 +529,7 @@ static void avdt_msg_bld_discover_rsp(UINT8 **p, tAVDT_MSG *p_msg)
 static void avdt_msg_bld_svccap(UINT8 **p, tAVDT_MSG *p_msg)
 {
     tAVDT_CFG cfg;
-
+    AVDT_TRACE_DEBUG(" %s ~~ p_msg->svccap.p_cfg.psc_mask [%d]",__func__,p_msg->svccap.p_cfg->psc_mask);
     /* make sure the delay report category is not reported */
     memcpy (&cfg, p_msg->svccap.p_cfg, sizeof(tAVDT_CFG));
     cfg.psc_mask &= ~AVDT_PSC_DELAY_RPT;
@@ -548,6 +549,7 @@ static void avdt_msg_bld_svccap(UINT8 **p, tAVDT_MSG *p_msg)
 *******************************************************************************/
 static void avdt_msg_bld_all_svccap(UINT8 **p, tAVDT_MSG *p_msg)
 {
+    AVDT_TRACE_DEBUG(" %s ~~ p_msg->svccap.p_cfg.psc_mask [%d]",__func__,p_msg->svccap.p_cfg->psc_mask);
     avdt_msg_bld_cfg(p, p_msg->svccap.p_cfg);
 }
 
@@ -1173,6 +1175,7 @@ static UINT8 avdt_msg_prs_delay_rpt (tAVDT_MSG *p_msg, UINT8 *p, UINT16 len)
 
         if (avdt_scb_by_hdl(p_msg->delay_rpt_cmd.hdr.seid) == NULL)
         {
+            AVDT_TRACE_ERROR(" %s ~~ seid error!",__func__);
             err = AVDT_ERR_SEID;
         }
         else

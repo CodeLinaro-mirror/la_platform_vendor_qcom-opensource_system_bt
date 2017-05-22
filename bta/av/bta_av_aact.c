@@ -442,10 +442,12 @@ static BOOLEAN bta_av_next_getcap(tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
                 p_scb->p_cap = (tAVDT_CFG *)osi_malloc(sizeof(tAVDT_CFG));
             if ((p_scb->avdt_version >= AVDT_VERSION_SYNC) && (a2d_get_avdt_sdp_ver() >= AVDT_VERSION_SYNC) )
             {
+                APPL_TRACE_DEBUG("%s ~~ current conn avdt ver = %d local avdt ver = %d",__func__,p_scb->avdt_version,a2d_get_avdt_sdp_ver());
                 p_req = AVDT_GetAllCapReq;
             }
             else
             {
+                APPL_TRACE_DEBUG("%s ~~ current conn avdt ver = %d local avdt ver = %d",__func__,p_scb->avdt_version,a2d_get_avdt_sdp_ver());
                 p_req = AVDT_GetCapReq;
             }
             if ((*p_req)(p_scb->peer_addr,
@@ -784,6 +786,7 @@ static void bta_av_a2d_sdp_cback(BOOLEAN found, tA2D_Service *p_service)
         p_scb->avdt_version = p_service->avdt_version;
     else
         p_scb->avdt_version = 0x00;
+    APPL_TRACE_DEBUG(" %s ~~ p_scb->avdt_version [%d]", __func__,p_scb->avdt_version);
     p_msg->hdr.layer_specific = bta_av_cb.handle;
 
     bta_sys_sendmsg(p_msg);
@@ -1470,8 +1473,11 @@ void bta_av_setconfig_rsp (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
          * getcap on these SEID */
         p_scb->num_seps = num;
 
+        APPL_TRACE_IMP(" %s ~~ p_scb->cur_psc_mask [%d]",__func__,p_scb->cur_psc_mask);
         if (p_scb->cur_psc_mask & AVDT_PSC_DELAY_RPT)
             p_scb->avdt_version = AVDT_VERSION_SYNC;
+        else
+            p_scb->avdt_version = AVDT_VERSION;
 
 
         /* For any codec used by the SNK as INT, discover req is not sent in bta_av_config_ind.
@@ -2087,8 +2093,13 @@ void bta_av_getcap_results (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
             bta_av_adjust_seps_idx(p_scb, bta_av_get_scb_handle(p_scb, AVDT_TSEP_SNK));
 
         /* use only the services peer supports */
+        APPL_TRACE_DEBUG(" %s ~~ cfg.psc_mask [%d] p_scb->p_cap->psc_mask [%d]",__func__,cfg.psc_mask,p_scb->p_cap->psc_mask);
         cfg.psc_mask &= p_scb->p_cap->psc_mask;
         p_scb->cur_psc_mask = cfg.psc_mask;
+        if (p_scb->cur_psc_mask & AVDT_PSC_DELAY_RPT)
+            p_scb->avdt_version = AVDT_VERSION_SYNC;
+        else
+            p_scb->avdt_version = AVDT_VERSION;
 
         if ((uuid_int == UUID_SERVCLASS_AUDIO_SINK) &&
             (p_scb->seps[p_scb->sep_idx].p_app_data_cback != NULL))
