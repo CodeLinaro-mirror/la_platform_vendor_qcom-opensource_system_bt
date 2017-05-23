@@ -4469,6 +4469,7 @@ void btm_sec_connected (UINT8 *bda, UINT16 handle, UINT8 status, UINT8 enc_mode)
     BOOLEAN          is_pairing_device = FALSE;
     tACL_CONN        *p_acl_cb;
     UINT8            bit_shift = 0;
+    BTM_TRACE_DEBUG ("%s",__func__);
 
     btm_acl_resubmit_page();
 
