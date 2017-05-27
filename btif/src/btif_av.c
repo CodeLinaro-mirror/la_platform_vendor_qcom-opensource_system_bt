@@ -711,7 +711,9 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
                  btif_av_cb[index].peer_sep = p_bta_data->open.sep;
                  btif_a2dp_set_peer_sep(p_bta_data->open.sep);
 
-                 if (p_bta_data->open.edr & BTA_AV_EDR_3MBPS)
+                 if ((p_bta_data->open.edr & BTA_AV_EDR_3MBPS) &&
+                     (!(interop_match_addr(INTEROP_2MBPS_LINK_ONLY,
+                        (const bt_bdaddr_t *)&btif_av_cb[index].peer_bda.address))))
                  {
                      BTIF_TRACE_DEBUG("remote supports 3 mbps");
                      btif_av_cb[index].edr_3mbps = TRUE;
@@ -854,7 +856,9 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
                  }
                  btif_av_cb[index].peer_sep = p_bta_data->open.sep;
                  btif_a2dp_set_peer_sep(p_bta_data->open.sep);
-                 if (p_bta_data->open.edr & BTA_AV_EDR_3MBPS)
+                 if ((p_bta_data->open.edr & BTA_AV_EDR_3MBPS) &&
+                     (!(interop_match_addr(INTEROP_2MBPS_LINK_ONLY,
+                        (const bt_bdaddr_t *)&btif_av_cb[index].peer_bda.address))))
                  {
                      BTIF_TRACE_DEBUG("remote supports 3 mbps");
                      btif_av_cb[index].edr_3mbps = TRUE;
