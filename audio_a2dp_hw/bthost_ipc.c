@@ -774,15 +774,15 @@ void a2dp_open_ctrl_path(struct a2dp_stream_common *common)
             if (check_a2dp_open_ready(common) == 0)
                 return;
             ERROR("a2dp_open_ctrl_path : No valid a2dp connection, abort");
-            usleep(250000);
+            usleep(100000);
             skt_disconnect(common->ctrl_fd);
             common->ctrl_fd = AUDIO_SKT_DISCONNECTED;
         }
 
         /* ctrl channel not ready, wait a bit */
-        if (CTRL_CHAN_RETRY_COUNT > 1)
+        if (i < CTRL_CHAN_RETRY_COUNT - 1)
         {
-            usleep(250000);
+            usleep(100000);
         }
     }
 }
