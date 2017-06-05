@@ -37,6 +37,7 @@
 #include "avdt_int.h"
 #include "bt_common.h"
 #include "btu.h"
+#include "osi/include/alarm.h"
 
 
 extern fixed_queue_t *btu_general_alarm_queue;
@@ -69,9 +70,14 @@ const UINT8 avdt_scb_role_evt[] = {
     AVDT_OPEN_CFM_EVT           /* AVDT_OPEN_INT */
 };
 
-extern UINT8 bta_avk_get_current_codec();
+
 #define NON_A2DP_MEDIA_CT 0xff
 #define INIT_DELAY_RPT    60
+#define accure_range      15
+extern UINT64 average_delay;
+extern UINT8 bta_avk_get_current_codec();
+extern void btu_general_alarm_cb(void *data);
+static alarm_t* delay_rpt_alarm = NULL;
 static UINT16 reported_delay = INIT_DELAY_RPT;
 
 /*******************************************************************************
@@ -1148,6 +1154,12 @@ void avdt_scb_hdl_tc_close(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
 
     alarm_cancel(p_scb->transport_channel_timer);
 
+    /* ~~ stop delay report timer */
+    if(delay_rpt_alarm != NULL)
+    {
+        alarm_free(delay_rpt_alarm);
+        delay_rpt_alarm = NULL;
+    }
     if ((p_scb->role == AVDT_CLOSE_INT) || (p_scb->role == AVDT_OPEN_INT))
     {
         /* tell ccb we're done with signaling channel */
@@ -1263,6 +1275,36 @@ void avdt_scb_hdl_tc_close_sto(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
 
 /*******************************************************************************
 **
+** Function         avdt_delay_rpt_tmr_hdlr
+**
+** Description      Timer to trigger checking average_delay,
+**                  compare the latest reported delay,
+**                  if the current delay is out of accure range,
+**                  start a new Delay report procedure.
+**
+** Returns          Nothing.
+**
+*******************************************************************************/
+//static void avdt_delay_rpt_tmr_hdlr(TIMER_LIST_ENT *tle)
+static void avdt_delay_rpt_tmr_hdlr(void* data)
+{
+    if(average_delay == 0)
+        return;
+
+    UINT16 delay_ms = (UINT16)(average_delay / 1000000);
+
+    if(abs(reported_delay - delay_ms) >= accure_range)
+    {
+        reported_delay = delay_ms;
+
+        AVDT_TRACE_DEBUG(" %s ~~ average delay is changed, update delay report by AVDT_DelayReport() ",__func__);
+        tAVDT_SCB *p_scb = (tAVDT_SCB *)data;
+        AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay);
+    }
+}
+
+/*******************************************************************************
+**
 ** Function         avdt_scb_hdl_tc_open
 **
 ** Description      This function is called when the transport channel is
@@ -1281,6 +1323,13 @@ void avdt_scb_hdl_tc_open(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
 #endif
 
     alarm_cancel(p_scb->transport_channel_timer);
+    /* start update delay report timer*/
+    if((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT))
+    {
+        delay_rpt_alarm = alarm_new_periodic("avdt.delayreport");
+        alarm_set(delay_rpt_alarm, (period_ms_t)1000 ,(alarm_callback_t)avdt_delay_rpt_tmr_hdlr, (void*)p_scb);
+        AVDT_TRACE_DEBUG(" %s ~~ start update delay report timer",__func__);
+    }
 
     event = (p_scb->role == AVDT_OPEN_INT) ? AVDT_OPEN_CFM_EVT : AVDT_OPEN_IND_EVT;
     p_data->open.hdr.err_code = 0;
