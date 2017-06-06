@@ -432,7 +432,7 @@ void bta_gattc_open(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
 
   /* open/hold a connection */
   if (!GATT_Connect(p_clcb->p_rcb->client_if, p_data->api_conn.remote_bda, true,
-                    p_data->api_conn.transport, false,
+                    p_data->api_conn.transport, p_data->api_conn.opportunistic,
                     p_data->api_conn.initiating_phys)) {
     APPL_TRACE_ERROR("Connection open failure");
 
@@ -933,13 +933,23 @@ void bta_gattc_disc_cmpl(tBTA_GATTC_CLCB* p_clcb,
 void bta_gattc_read(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
   if (!bta_gattc_enqueue(p_clcb, p_data)) return;
 
-  tGATT_READ_PARAM read_param;
-  memset(&read_param, 0, sizeof(tGATT_READ_PARAM));
-  read_param.by_handle.handle = p_data->api_read.handle;
-  read_param.by_handle.auth_req = p_data->api_read.auth_req;
+  tBTA_GATT_STATUS status;
+  if (p_data->api_read.handle != 0) {
+    tGATT_READ_PARAM read_param;
+    memset(&read_param, 0, sizeof(tGATT_READ_PARAM));
+    read_param.by_handle.handle = p_data->api_read.handle;
+    read_param.by_handle.auth_req = p_data->api_read.auth_req;
+    status = GATTC_Read(p_clcb->bta_conn_id, GATT_READ_BY_HANDLE, &read_param);
+  } else {
+    tGATT_READ_PARAM read_param;
+    memset(&read_param, 0, sizeof(tGATT_READ_BY_TYPE));
 
-  tBTA_GATT_STATUS status =
-      GATTC_Read(p_clcb->bta_conn_id, GATT_READ_BY_HANDLE, &read_param);
+    read_param.char_type.s_handle = p_data->api_read.s_handle;
+    read_param.char_type.e_handle = p_data->api_read.e_handle;
+    read_param.char_type.uuid = p_data->api_read.uuid;
+    read_param.char_type.auth_req = p_data->api_read.auth_req;
+    status = GATTC_Read(p_clcb->bta_conn_id, GATT_READ_BY_TYPE, &read_param);
+  }
 
   /* read fail */
   if (status != BTA_GATT_OK) {
@@ -1080,7 +1090,11 @@ void bta_gattc_read_cmpl(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_OP_CMPL* p_data) {
   GATT_READ_OP_CB cb = p_clcb->p_q_cmd->api_read.read_cb;
   void* my_cb_data = p_clcb->p_q_cmd->api_read.read_cb_data;
 
+  // if it was read by handle, return the handle requested, if read by UUID, use
+  // handle returned from remote
   uint16_t handle = p_clcb->p_q_cmd->api_read.handle;
+  if (handle == 0) handle = p_data->p_cmpl->att_value.handle;
+
   osi_free_and_reset((void**)&p_clcb->p_q_cmd);
 
   if (cb) {
@@ -1192,10 +1206,10 @@ void bta_gattc_op_cmpl(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
       return;
     }
 
-    /* discard responses if service change indication is received before
-     * operation completed */
+    /* Except for MTU configuration, discard responses if service change
+     * indication is received before operation completed */
     if (p_clcb->auto_update == BTA_GATTC_DISC_WAITING &&
-        p_clcb->p_srcb->srvc_hdl_chg) {
+        p_clcb->p_srcb->srvc_hdl_chg && op != GATTC_OPTYPE_CONFIG) {
       APPL_TRACE_DEBUG(
           "Discard all responses when service change indication is received.");
       p_data->op_cmpl.status = GATT_ERROR;

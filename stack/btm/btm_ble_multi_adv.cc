@@ -32,6 +32,16 @@
 #include "ble_advertiser_hci_interface.h"
 #include "btm_int_types.h"
 
+#ifdef WIPOWER_SUPPORTED
+#define BTM_BLE_MULTI_ADV_DEFAULT_STD 0xFF
+
+#define WIPOWER_16_UUID_LSB 0xFE
+#define WIPOWER_16_UUID_MSB 0xFF
+
+static bool is_wipower_adv = false;
+uint8_t wipower_inst_id  = BTM_BLE_MULTI_ADV_DEFAULT_STD;
+#endif
+
 using base::Bind;
 using RegisterCb =
     base::Callback<void(uint8_t /* inst_id */, uint8_t /* status */)>;
@@ -98,9 +108,7 @@ struct AdvertisingInstance {
   }
 };
 
-#if (BLE_PRIVACY_SPT == TRUE)
 void btm_ble_adv_raddr_timer_timeout(void* data);
-#endif
 
 void DoNothing(uint8_t) {}
 void DoNothing2(uint8_t, uint8_t) {}
@@ -159,6 +167,12 @@ class BleAdvertisingManagerImpl
   }
 
   ~BleAdvertisingManagerImpl() { adv_inst.clear(); }
+
+  void GetOwnAddress(uint8_t inst_id, GetAddressCallback cb) override {
+    bt_bdaddr_t addr;
+    memcpy(addr.address, adv_inst[inst_id].own_address, BD_ADDR_LEN);
+    cb.Run(adv_inst[inst_id].own_address_type, addr);
+  }
 
   void ReadInstanceCountCb(uint8_t instance_count) {
     this->inst_count = instance_count;
@@ -261,7 +275,6 @@ class BleAdvertisingManagerImpl
 
       p_inst->in_use = true;
 
-#if (BLE_PRIVACY_SPT == TRUE)
       // set up periodic timer to update address.
       if (BTM_BleLocalPrivacyEnabled()) {
         p_inst->own_address_type = BLE_ADDR_RANDOM;
@@ -279,14 +292,13 @@ class BleAdvertisingManagerImpl
               cb.Run(p_inst->inst_id, BTM_BLE_MULTI_ADV_SUCCESS);
             },
             p_inst, cb));
-      }
-#else
-      p_inst->own_address_type = BLE_ADDR_PUBLIC;
-      memcpy(p_inst->own_address,
-             controller_get_interface()->get_address()->address, BD_ADDR_LEN);
+      } else {
+        p_inst->own_address_type = BLE_ADDR_PUBLIC;
+        memcpy(p_inst->own_address,
+               controller_get_interface()->get_address()->address, BD_ADDR_LEN);
 
-      cb.Run(p_inst->inst_id, BTM_BLE_MULTI_ADV_SUCCESS);
-#endif
+        cb.Run(p_inst->inst_id, BTM_BLE_MULTI_ADV_SUCCESS);
+      }
       return;
     }
 
@@ -672,6 +684,15 @@ class BleAdvertisingManagerImpl
         i += data[i] + 1;
       }
     }
+#ifdef WIPOWER_SUPPORTED
+    if (data.size() >= 6) {
+      if (data[5] == WIPOWER_16_UUID_LSB && data[6] == WIPOWER_16_UUID_MSB)
+      {
+        is_wipower_adv = true;
+        wipower_inst_id = inst_id;
+      }
+    }
+#endif
 
     VLOG(1) << "data is: " << base::HexEncode(data.data(), data.size());
     DivideAndSendData(
@@ -800,12 +821,10 @@ class BleAdvertisingManagerImpl
       return;
     }
 
-#if (BLE_PRIVACY_SPT == TRUE)
     if (BTM_BleLocalPrivacyEnabled() &&
         advertising_handle <= BTM_BLE_MULTI_ADV_MAX) {
       btm_acl_update_conn_addr(connection_handle, p_inst->own_address);
     }
-#endif
 
     VLOG(1) << "reneabling advertising";
 
@@ -814,8 +833,15 @@ class BleAdvertisingManagerImpl
       // right now. This should probably be removed, check with Andre.
       if ((p_inst->advertising_event_properties & 0x0C) ==
           0 /* directed advertising bits not set */) {
-        GetHciInterface()->Enable(true, advertising_handle, 0x00, 0x00,
+#ifdef WIPOWER_SUPPORTED
+        if (!(is_wipower_adv && (advertising_handle == wipower_inst_id))) {
+            GetHciInterface()->Enable(true, advertising_handle, 0x00, 0x00,
                                   Bind(DoNothing));
+        }
+#else
+        GetHciInterface()->Enable(true, advertising_handle, 0x00, 0x00,
+                                    Bind(DoNothing));
+#endif
       } else {
         /* mark directed adv as disabled if adv has been stopped */
         p_inst->in_use = false;
@@ -833,12 +859,10 @@ class BleAdvertisingManagerImpl
 
 BleAdvertisingManager* instance;
 
-#if (BLE_PRIVACY_SPT == TRUE)
 void btm_ble_adv_raddr_timer_timeout(void* data) {
   ((BleAdvertisingManagerImpl*)BleAdvertisingManager::Get())
       ->ConfigureRpa((AdvertisingInstance*)data, base::Bind(DoNothing));
 }
-#endif
 }  // namespace
 
 void BleAdvertisingManager::Initialize(BleAdvertiserHciInterface* interface) {
@@ -881,6 +905,10 @@ void btm_ble_adv_init() {
  *
  ******************************************************************************/
 void btm_ble_multi_adv_cleanup(void) {
+#ifdef WIPOWER_SUPPORTED
+  is_wipower_adv = false;
+  wipower_inst_id = BTM_BLE_MULTI_ADV_DEFAULT_STD;
+#endif
   BleAdvertisingManager::CleanUp();
   BleAdvertiserHciInterface::CleanUp();
 }

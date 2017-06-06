@@ -127,16 +127,20 @@ void BTA_GATTC_AppDeregister(tBTA_GATTC_IF client_if) {
  *                  transport: Transport to be used for GATT connection
  *                             (BREDR/LE)
  *                  initiating_phys: LE PHY to use, optional
+ *                  opportunistic: wether the connection shall be opportunistic,
+ *                                 and don't impact the disconnection timer
  *
  ******************************************************************************/
 void BTA_GATTC_Open(tBTA_GATTC_IF client_if, BD_ADDR remote_bda, bool is_direct,
-                    tBTA_GATT_TRANSPORT transport) {
+                    tBTA_GATT_TRANSPORT transport, bool opportunistic) {
   uint8_t phy = controller_get_interface()->get_le_all_initiating_phys();
-  BTA_GATTC_Open(client_if, remote_bda, is_direct, transport, phy);
+  BTA_GATTC_Open(client_if, remote_bda, is_direct, transport, phy,
+                 opportunistic);
 }
 
 void BTA_GATTC_Open(tBTA_GATTC_IF client_if, BD_ADDR remote_bda, bool is_direct,
-                    tBTA_GATT_TRANSPORT transport, uint8_t initiating_phys) {
+                    tBTA_GATT_TRANSPORT transport, uint8_t initiating_phys,
+                    bool opportunistic) {
   tBTA_GATTC_API_OPEN* p_buf =
       (tBTA_GATTC_API_OPEN*)osi_malloc(sizeof(tBTA_GATTC_API_OPEN));
 
@@ -145,6 +149,7 @@ void BTA_GATTC_Open(tBTA_GATTC_IF client_if, BD_ADDR remote_bda, bool is_direct,
   p_buf->is_direct = is_direct;
   p_buf->transport = transport;
   p_buf->initiating_phys = initiating_phys;
+  p_buf->opportunistic = opportunistic;
   memcpy(p_buf->remote_bda, remote_bda, BD_ADDR_LEN);
 
   bta_sys_sendmsg(p_buf);
@@ -255,6 +260,16 @@ void BTA_GATTC_ServiceSearchRequest(uint16_t conn_id, tBT_UUID* p_srvc_uuid) {
   bta_sys_sendmsg(p_buf);
 }
 
+void BTA_GATTC_DiscoverServiceByUuid(uint16_t conn_id, tBT_UUID* p_srvc_uuid) {
+  tGATT_DISC_PARAM* param = new tGATT_DISC_PARAM;
+  param->s_handle = 0x0001;
+  param->e_handle = 0xFFFF;
+  param->service = *p_srvc_uuid;
+  do_in_bta_thread(FROM_HERE,
+                   base::Bind(base::IgnoreResult(&GATTC_Discover), conn_id,
+                              GATT_DISC_SRVC_BY_UUID, base::Owned(param)));
+}
+
 /*******************************************************************************
  *
  * Function         BTA_GATTC_GetServices
@@ -347,6 +362,30 @@ void BTA_GATTC_ReadCharacteristic(uint16_t conn_id, uint16_t handle,
   p_buf->hdr.layer_specific = conn_id;
   p_buf->auth_req = auth_req;
   p_buf->handle = handle;
+  p_buf->read_cb = callback;
+  p_buf->read_cb_data = cb_data;
+
+  bta_sys_sendmsg(p_buf);
+}
+
+/**
+ * This function is called to read a value of characteristic with uuid equal to
+ * |uuid|
+ */
+void BTA_GATTC_ReadUsingCharUuid(uint16_t conn_id, tBT_UUID uuid,
+                                 uint16_t s_handle, uint16_t e_handle,
+                                 tBTA_GATT_AUTH_REQ auth_req,
+                                 GATT_READ_OP_CB callback, void* cb_data) {
+  tBTA_GATTC_API_READ* p_buf =
+      (tBTA_GATTC_API_READ*)osi_calloc(sizeof(tBTA_GATTC_API_READ));
+
+  p_buf->hdr.event = BTA_GATTC_API_READ_EVT;
+  p_buf->hdr.layer_specific = conn_id;
+  p_buf->auth_req = auth_req;
+  p_buf->handle = 0;
+  p_buf->uuid = uuid;
+  p_buf->s_handle = s_handle;
+  p_buf->e_handle = e_handle;
   p_buf->read_cb = callback;
   p_buf->read_cb_data = cb_data;
 

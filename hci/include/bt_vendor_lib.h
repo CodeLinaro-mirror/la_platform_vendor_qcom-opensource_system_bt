@@ -19,6 +19,7 @@
 #ifndef BT_VENDOR_LIB_H
 #define BT_VENDOR_LIB_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
@@ -197,6 +198,12 @@ typedef enum {
    */
   BT_VND_OP_A2DP_OFFLOAD_STOP,
 
+    FM_VND_OP_POWER_CTRL,
+
+    BT_VND_OP_FM_USERIAL_OPEN,
+
+    BT_VND_OP_FM_USERIAL_CLOSE,
+
 } bt_vendor_opcode_t;
 
 /** Power on/off control states */
@@ -240,6 +247,7 @@ typedef struct {
   uint16_t handle;
   uint16_t peer_codec;
   uint16_t state;
+  bool use_enhanced_sco;
 } bt_vendor_op_audio_state_t;
 
 /*
