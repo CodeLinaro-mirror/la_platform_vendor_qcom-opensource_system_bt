@@ -1514,6 +1514,7 @@ void btif_a2dp_stop_media_task(void)
     /* make sure no channels are restarted while shutting down */
     media_task_running = MEDIA_TASK_STATE_SHUTTING_DOWN;
 
+    pthread_mutex_lock(&aptx_thread_lock);
     // remove aptX thread
     if (A2d_aptx_thread)
     {
@@ -1521,6 +1522,7 @@ void btif_a2dp_stop_media_task(void)
         thread_free(A2d_aptx_thread);
         A2d_aptx_thread = NULL;
     }
+    pthread_mutex_unlock(&aptx_thread_lock);
 
     // Stop timer
     alarm_free(btif_media_cb.media_alarm);
