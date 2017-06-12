@@ -102,6 +102,7 @@ audio_aac_encoder_config aac_codec;
 /*****************************************************************************
 **  Functions
 ******************************************************************************/
+static int check_a2dp_open_ready(struct a2dp_stream_common *common);
 void a2dp_open_ctrl_path(struct a2dp_stream_common *common);
 static int check_a2dp_open_ready(struct a2dp_stream_common *common);
 
@@ -642,7 +643,9 @@ int a2dp_command(struct a2dp_stream_common *common, char cmd)
     INFO("A2DP COMMAND %s DONE STATUS %d", dump_a2dp_ctrl_event(cmd), ack);
 
     if ((ack == A2DP_CTRL_ACK_INCALL_FAILURE) ||
-        (ack == A2DP_CTRL_ACK_PREVIOUS_COMMAND_PENDING))
+        (ack == A2DP_CTRL_ACK_PREVIOUS_COMMAND_PENDING) ||
+        (ack == A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS))
+
         return ack;
     if (ack != A2DP_CTRL_ACK_SUCCESS) {
         ERROR("A2DP COMMAND %s error %d", dump_a2dp_ctrl_event(cmd), ack);
@@ -771,15 +774,15 @@ void a2dp_open_ctrl_path(struct a2dp_stream_common *common)
             if (check_a2dp_open_ready(common) == 0)
                 return;
             ERROR("a2dp_open_ctrl_path : No valid a2dp connection, abort");
-            usleep(250000);
+            usleep(100000);
             skt_disconnect(common->ctrl_fd);
             common->ctrl_fd = AUDIO_SKT_DISCONNECTED;
         }
 
         /* ctrl channel not ready, wait a bit */
-        if (CTRL_CHAN_RETRY_COUNT > 1)
+        if (i < CTRL_CHAN_RETRY_COUNT - 1)
         {
-            usleep(250000);
+            usleep(100000);
         }
     }
 }
@@ -855,6 +858,12 @@ int start_audio_datapath(struct a2dp_stream_common *common)
         ERROR("Audiopath start failed as prev cmd pending, fake as success");
     }
 
+    else if (a2dp_status == A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS)
+    {
+        ERROR("%s Audiopath start failed - disconnection in progress", __func__);
+        ret = a2dp_status;
+        goto error;
+    }
     if (!bt_split_a2dp_enabled)
     {
         /* connect socket if not yet connected */
