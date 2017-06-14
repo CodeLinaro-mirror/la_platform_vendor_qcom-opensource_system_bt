@@ -26,6 +26,12 @@
 
 #include "l2c_api.h"
 #include "bta_av_api.h"
+#include "a2d_sbc.h"
+#include "bt_utils.h"
+#include "a2d_aac.h"
+#include "a2d_mp3.h"
+#include "a2d_aptx.h"
+#include "a2d_aptx_hd.h"
 
 /*****************************************************************************
 **  Constants and data types
@@ -75,6 +81,18 @@ enum
     BTIF_SV_AV_AA_SBC_SINK_INDEX = BTIF_SV_AV_AA_SRC_SEP_INDEX,
     BTIF_SV_AV_AA_SNK_SEP_INDEX  /* Last index */
 };
+
+typedef struct
+{
+    UINT8 codec_type;                   /* peer SEP codec type */
+    union {
+        tA2D_SBC_CIE sbc_caps;
+        tA2D_AAC_CIE aac_caps;
+        tA2D_MP3_CIE mp3_caps;
+        tA2D_APTX_CIE aptx_caps;
+        tA2D_APTX_HD_CIE aptx_hd_caps;
+    } codec_cap;
+} tBTA_AV_CO_CODEC_CAP_LIST;
 
 
 /* data type for the Audio Codec Information*/

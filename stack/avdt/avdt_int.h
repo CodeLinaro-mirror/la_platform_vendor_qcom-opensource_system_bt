@@ -494,6 +494,7 @@ typedef struct {
     UINT16          media_seq;      /* media packet sequence number */
     BOOLEAN         allocated;      /* whether scb is allocated or unused */
     BOOLEAN         in_use;         /* whether stream being used by peer */
+    BOOLEAN         is_required;      /* whether codec is required */
     UINT8           role;           /* initiator/acceptor role in current procedure */
     BOOLEAN         remove;         /* whether CB is marked for removal */
     UINT8           state;          /* state machine state */
@@ -679,6 +680,9 @@ extern void avdt_scb_transport_channel_timer(tAVDT_SCB *p_scb,
                                              tAVDT_SCB_EVT *p_data);
 extern void avdt_scb_clr_vars(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data);
 extern void avdt_scb_queue_frags(tAVDT_SCB *p_scb, UINT8 **pp_data, UINT32 *p_data_len);
+extern void avdt_scb_update_supported_codecs(UINT8 *p_codec_type, UINT8 *p_vnd,
+                                      UINT8 *p_codec_id, UINT8 num_codec_cfg,
+                                      UINT8 codec_info[][AVDT_CODEC_SIZE], UINT8 tsep);
 
 /* msg function declarations */
 extern BOOLEAN avdt_msg_send(tAVDT_CCB *p_ccb, BT_HDR *p_msg);
