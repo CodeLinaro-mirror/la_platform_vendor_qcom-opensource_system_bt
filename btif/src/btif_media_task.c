@@ -1182,10 +1182,11 @@ static BOOLEAN btif_media_task_is_aptx_configured()
         if (ptr) {
             tA2D_APTX_CIE* codecInfo = (tA2D_APTX_CIE*) &ptr[BTA_AV_CFG_START_IDX];
             if ((codecInfo && codecInfo->vendorId == A2D_APTX_VENDOR_ID && codecInfo->codecId == A2D_APTX_CODEC_ID_BLUETOOTH)
-                || (codecInfo && codecInfo->vendorId == A2D_APTX_HD_VENDOR_ID && codecInfo->codecId == A2D_APTX_HD_CODEC_ID_BLUETOOTH))
+                || (codecInfo && codecInfo->vendorId == A2D_APTX_HD_VENDOR_ID && codecInfo->codecId == A2D_APTX_HD_CODEC_ID_BLUETOOTH)){
                 APPL_TRACE_DEBUG("%s codecId %d", __func__, codecInfo->codecId);
                 APPL_TRACE_DEBUG("%s vendorId %x", __func__, codecInfo->vendorId);
                 result = TRUE;
+          }
         }
     }
     return result;
@@ -1354,7 +1355,7 @@ static void btif_a2dp_encoder_update(void)
 
     APPL_TRACE_DEBUG("btif_a2dp_encoder_update");
     btif_media_cb.tx_enc_update_initiated = TRUE;
-
+    memset(&msg,0, sizeof(tBTIF_MEDIA_UPDATE_AUDIO));
     UINT8 codectype = 0;
     codectype = bta_av_co_get_current_codec();
     if (codectype == A2D_NON_A2DP_MEDIA_CT)
@@ -1596,7 +1597,7 @@ tBTIF_STATUS btif_a2dp_setup_codec(tBTA_AV_HNDL hdl)
     if (bta_av_co_audio_set_codec(&media_feeding, &status))
     {
         tBTIF_MEDIA_INIT_AUDIO_FEEDING mfeed;
-
+        memset(&mfeed,0,sizeof(tBTIF_MEDIA_INIT_AUDIO_FEEDING));
         /* Init the encoding task */
         btif_a2dp_encoder_init(hdl);
 
@@ -4640,7 +4641,7 @@ static void btif_media_aa_prep_2_send(UINT8 nb_frame, uint64_t timestamp_us)
     BD_ADDR peer_bda;
     if (nb_frame > MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ)
         nb_frame = MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ;
-
+    memset(&peer_bda,0, sizeof(BD_ADDR));
     if (fixed_queue_length(btif_media_cb.TxAaQ) > (MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ - nb_frame))
     {
         APPL_TRACE_WARNING("%s() - TX queue buffer count %d/%d", __func__,
