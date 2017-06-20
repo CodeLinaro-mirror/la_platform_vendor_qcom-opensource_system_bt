@@ -50,6 +50,7 @@
 const char* A2D_APTX_SCHED_LIB_NAME = "libaptXScheduler.so";
 void *A2dAptXSchedLibHandle = NULL;
 thread_t *A2d_aptx_thread = NULL;
+pthread_mutex_t aptx_thread_lock = PTHREAD_MUTEX_INITIALIZER;
 BOOLEAN isA2dAptXEnabled = FALSE;
 
 int (*A2D_aptx_encoder_init)(void);
@@ -297,7 +298,7 @@ void A2D_deinit_aptX(void)
 void A2D_stop_aptX(void)
 {
     A2D_TRACE_DEBUG("%s", __func__);
-    mutex_global_lock();
+    pthread_mutex_lock(&aptx_thread_lock);
     if (A2dAptXSchedLibHandle)
     {
         // remove aptX thread
@@ -308,7 +309,7 @@ void A2D_stop_aptX(void)
             A2d_aptx_thread = NULL;
         }
     }
-    mutex_global_unlock();
+    pthread_mutex_unlock(&aptx_thread_lock);
     return;
 }
 
@@ -325,6 +326,7 @@ void A2D_close_aptX(void)
 {
     A2D_TRACE_DEBUG("%s", __func__);
 
+    pthread_mutex_lock(&aptx_thread_lock);
     if (A2dAptXSchedLibHandle)
     {
         // remove aptX thread
@@ -335,6 +337,7 @@ void A2D_close_aptX(void)
             A2d_aptx_thread = NULL;
         }
     }
+    pthread_mutex_unlock(&aptx_thread_lock);
 
     // de-initialize aptX HD
     A2D_deinit_aptX_HD();
