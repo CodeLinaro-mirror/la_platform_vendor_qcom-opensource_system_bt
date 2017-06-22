@@ -258,6 +258,7 @@ extern void bta_gatt_convert_uuid16_to_uuid128(UINT8 uuid_128[LEN_UUID_128], UIN
 extern void btif_av_move_idle(bt_bdaddr_t bd_addr);
 extern void btif_av_trigger_suspend();
 extern BOOLEAN btif_av_get_ongoing_multicast();
+extern void btif_av_update_streaming_bitrate(BD_ADDR bd_addr, UINT16 acl_pkt_types_supported);
 
 /******************************************************************************
 **  Functions
@@ -2273,6 +2274,8 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
         case BTA_DM_PKT_TYPE_CHG_EVT:
         {
             //btif_av_update_streaming_bitrate
+            btif_av_update_streaming_bitrate (p_data->pkt_type_chg.remote_bd_addr,
+                                                 p_data->pkt_type_chg.pkt_type);
             break;
         }
         case BTA_DM_AUTHORIZE_EVT:

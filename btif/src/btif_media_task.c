@@ -415,6 +415,7 @@ typedef struct
     BOOLEAN tx_enc_update_initiated;
 //#endif
 
+    BOOLEAN is_medium_bitrate_enabled;
 #endif
 } tBTIF_MEDIA_CB;
 
@@ -1333,10 +1334,11 @@ static UINT16 btif_media_task_get_sbc_rate(void)
     UINT16 rate = BTIF_A2DP_DEFAULT_BITRATE;
 
     /* restrict bitrate if a2dp link is non-edr */
-    if (!btif_av_is_peer_edr())
+    if ((!btif_av_is_peer_edr()) ||
+        (btif_media_cb.is_medium_bitrate_enabled))
     {
         rate = BTIF_A2DP_NON_EDR_MAX_RATE;
-        APPL_TRACE_DEBUG("non-edr a2dp sink detected, restrict rate to %d", rate);
+        APPL_TRACE_IMP("Restrict A2dp bitrate to %d", rate);
     }
 
     return rate;
@@ -1668,6 +1670,7 @@ void btif_a2dp_on_init(void)
     btif_media_cb.rx_audio_focus_state = BTIF_MEDIA_FOCUS_NOT_GRANTED;
     btif_media_cb.audio_track = NULL;
 #endif
+    btif_media_cb.is_medium_bitrate_enabled = FALSE;
 }
 
 
@@ -1781,6 +1784,7 @@ void btif_a2dp_on_idle(void)
         APPL_TRACE_DEBUG("Stopped BT track");
     }
 #endif
+    btif_media_cb.is_medium_bitrate_enabled = FALSE;
 }
 
 /*****************************************************************************
@@ -1863,6 +1867,7 @@ BOOLEAN btif_a2dp_on_started(tBTA_AV_START *p_av, BOOLEAN pending_start, tBTA_AV
     BOOLEAN ack = FALSE;
 
     APPL_TRACE_IMP("## ON A2DP STARTED ##");
+    btif_media_cb.is_medium_bitrate_enabled = FALSE;
 
     if (p_av == NULL)
     {
@@ -5404,3 +5409,19 @@ void btif_update_a2dp_metrics(void)
                          buffer_overruns_total, buffer_underruns_average,
                          buffer_underruns_count);
 }
+
+void btif_media_on_update_bitrate(bool isMediumBitrateEnabled)
+{
+    if (alarm_is_scheduled(btif_media_cb.media_alarm))
+    {
+        APPL_TRACE_IMP("bitrate Changed to medium ?: %d", isMediumBitrateEnabled);
+        APPL_TRACE_IMP("Existing bitrate type used ?: %d",
+                    btif_media_cb.is_medium_bitrate_enabled);
+        if (btif_media_cb.is_medium_bitrate_enabled != isMediumBitrateEnabled)
+        {
+            btif_media_cb.is_medium_bitrate_enabled = isMediumBitrateEnabled;
+            btif_a2dp_encoder_update();
+        }
+    }
+}
+
