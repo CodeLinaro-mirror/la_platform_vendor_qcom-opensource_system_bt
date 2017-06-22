@@ -892,6 +892,7 @@ typedef struct
     UINT8                   busy_level; /* the current busy level */
     BOOLEAN                 is_paging;  /* TRUE, if paging is in progess */
     BOOLEAN                 is_inquiry; /* TRUE, if inquiry is in progess */
+    BOOLEAN                 is_wifi_connected; /* TRUE, if wifi connected */
     fixed_queue_t          *page_queue;
     BOOLEAN                 paging;
     BOOLEAN                 discing;

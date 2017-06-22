@@ -1987,6 +1987,28 @@ extern tBTM_STATUS BTM_SetLocalDeviceName (char *p_name);
 
 /*******************************************************************************
 **
+** Function         BTM_SetWifiState
+**
+** Description      This function sets wifi state.
+**
+** Returns          void
+**
+*******************************************************************************/
+extern void BTM_SetWifiState (bool status);
+
+/*******************************************************************************
+**
+** Function         BTM_GetWifiState
+**
+** Description      This function gets wifi state.
+**
+** Returns          wifi connected status
+**
+*******************************************************************************/
+extern BOOLEAN BTM_GetWifiState (void);
+
+/*******************************************************************************
+**
 ** Function         BTM_SetDeviceClass
 **
 ** Description      This function is called to set the local device class

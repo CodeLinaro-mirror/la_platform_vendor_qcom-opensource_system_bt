@@ -126,6 +126,7 @@ enum
     BTA_DM_API_REMOVE_DEVICE_EVT,
     BTA_DM_API_HCI_RAW_COMMAND_EVT,
     BTA_DM_API_VENDOR_SPECIFIC_COMMAND_EVT,
+    BTA_DM_API_SET_WIFI_STATE_EVT,
     BTA_DM_MAX_EVT
 };
 
@@ -390,6 +391,13 @@ typedef struct
     BT_HDR              hdr;
     BD_ADDR             bd_addr;
 } tBTA_DM_API_REMOVE_DEVICE;
+
+/* data type for BTA_DM_API_SET_WIFI_STATE_EVT */
+typedef struct
+{
+    BT_HDR      hdr;
+    BOOLEAN status;
+} tBTA_DM_API_SET_WIFI_STATE;
 
 /* data type for BTA_DM_API_EXECUTE_CBACK_EVT */
 typedef struct
@@ -791,6 +799,7 @@ typedef union
     tBTA_DM_API_REMOVE_ALL_ACL          remove_all_acl;
     tBTA_DM_API_RAW_COMMAND             btc_command;
     tBTA_DM_API_VENDOR_SPECIFIC_COMMAND vendor_command;
+    tBTA_DM_API_SET_WIFI_STATE          wifi_state;
 } tBTA_DM_MSG;
 
 #ifndef MAX_ACL_CONNECTIONS
@@ -1141,6 +1150,7 @@ extern void bta_dm_set_visibility (tBTA_DM_MSG *p_data);
 
 extern void bta_dm_set_scan_config(tBTA_DM_MSG *p_data);
 extern void bta_dm_vendor_spec_command(tBTA_DM_MSG *p_data);
+extern void bta_dm_set_wifi_state(tBTA_DM_MSG *p_data);
 extern void bta_dm_bond (tBTA_DM_MSG *p_data);
 extern void bta_dm_bond_cancel (tBTA_DM_MSG *p_data);
 extern void bta_dm_pin_reply (tBTA_DM_MSG *p_data);

@@ -1456,6 +1456,17 @@ extern tBTA_STATUS BTA_DmHciRawCommand (UINT16 opcode, UINT8 param_len,UINT8 *p_
 extern tBTA_STATUS BTA_DmVendorSpecificCommand (UINT16 opcode,
             UINT8 param_len,UINT8 *p_param_buf, tBTA_VENDOR_CMPL_CBACK *p_cback);
 
+/*******************************************************************************
+**
+** Function         BTA_DmSetWifiState
+**
+** Description      This function sets wifi stats
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+extern void BTA_DmSetWifiState (bool status);
 
 /*******************************************************************************
 **

@@ -113,6 +113,12 @@ static void capture_vnd_logs(void)
     GENERATE_VND_LOGS();
 }
 
+static void set_wifi_state(bool status)
+{
+    LOG_INFO(LOG_TAG,"setwifistate :%d", status);
+    BTA_DmSetWifiState(status);
+}
+
 static void cleanup(void)
 {
     LOG_INFO(LOG_TAG,"cleanup");
@@ -135,6 +141,7 @@ static const btvendor_interface_t btvendorInterface = {
     ssrcleanup,
     bredrcleanup,
     capture_vnd_logs,
+    set_wifi_state,
     cleanup,
     interop_db_match,
 };
