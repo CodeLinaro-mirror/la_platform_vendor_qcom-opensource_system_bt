@@ -2270,6 +2270,11 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
         }
 #endif
 
+        case BTA_DM_PKT_TYPE_CHG_EVT:
+        {
+            //btif_av_update_streaming_bitrate
+            break;
+        }
         case BTA_DM_AUTHORIZE_EVT:
         case BTA_DM_SIG_STRENGTH_EVT:
         case BTA_DM_SP_RMT_OOB_EVT:
