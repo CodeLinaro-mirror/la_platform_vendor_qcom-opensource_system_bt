@@ -783,11 +783,11 @@ static void btif_recv_ctrl_data(void)
                                    __func__, dump_a2dp_ctrl_event(cmd));
                 local_ack = A2DP_CTRL_ACK_FAILURE;
             }
-            if (bt_split_a2dp_enabled && !btif_hf_is_call_vr_idle())
+            else if (bt_split_a2dp_enabled && !btif_hf_is_call_vr_idle())
             {
                 local_ack = A2DP_CTRL_ACK_INCALL_FAILURE;
             }
-            if (bt_split_a2dp_enabled && (btif_av_is_under_handoff() || reconfig_a2dp))
+            else if (bt_split_a2dp_enabled && (btif_av_is_under_handoff() || reconfig_a2dp))
             {
                 local_ack = A2DP_CTRL_ACK_SUCCESS;
             }
