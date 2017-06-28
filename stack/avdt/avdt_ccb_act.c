@@ -167,10 +167,29 @@ void avdt_ccb_hdl_discover_cmd(tAVDT_CCB *p_ccb, tAVDT_CCB_EVT *p_data)
     p_data->msg.discover_rsp.p_sep_info = sep_info;
     p_data->msg.discover_rsp.num_seps = 0;
 
+    /* If this ccb, has done setconf and is doing discover again
+     * we should show SEP for which setconfig was done earlier
+     * This is done for IOP with some remotes */
+    for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++)
+    {
+        if((p_ccb != NULL)&& (p_scb->p_ccb != NULL)&&(p_scb->p_ccb == p_ccb))
+        {
+            AVDT_TRACE_EVENT(" CCB already tied to SCB[%d] ",i);
+            /* copy sep info */
+            sep_info[p_data->msg.discover_rsp.num_seps].in_use = p_scb->in_use;
+            sep_info[p_data->msg.discover_rsp.num_seps].seid = i + 1;
+            sep_info[p_data->msg.discover_rsp.num_seps].media_type = p_scb->cs.media_type;
+            sep_info[p_data->msg.discover_rsp.num_seps].tsep = p_scb->cs.tsep;
+            p_data->msg.discover_rsp.num_seps++;
+            avdt_ccb_event(p_ccb, AVDT_CCB_API_DISCOVER_RSP_EVT, p_data);
+            return;
+        }
+    }
+    p_scb = &avdt_cb.scb[0];
     /* for all allocated scbs */
     for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++)
     {
-        if (p_scb->allocated)
+        if ((p_scb->allocated) && (!p_scb->in_use))
         {
             /* copy sep info */
             sep_info[p_data->msg.discover_rsp.num_seps].in_use = p_scb->in_use;
