@@ -82,6 +82,8 @@ static int number =0;
 ******************************************************************************/
 
 #define CTRL_CHAN_RETRY_COUNT 1
+#define CTRL_CHAN_OPEN_FAIL_RETRY_MAX 5
+
 #define USEC_PER_SEC 1000000L
 #define SOCK_SEND_TIMEOUT_MS 2000  /* Timeout for sending */
 #define SOCK_RECV_TIMEOUT_MS 3000  /* Timeout for receiving */
@@ -129,7 +131,10 @@ struct a2dp_stream_in {
 #ifdef BT_HOST_IPC_ENABLED
 static void *lib_handle = NULL;
 bt_host_ipc_interface_t *ipc_if = NULL;
+#else
+static int open_ctrl_chnl_fail_count = 0;
 #endif
+
 /*****************************************************************************
 **  Static functions
 ******************************************************************************/
@@ -412,9 +417,18 @@ static int a2dp_command(struct a2dp_stream_common *common, char cmd)
 {
     char ack;
 
-    INFO("A2DP COMMAND %s", dump_a2dp_ctrl_event(cmd));
+#ifndef BT_HOST_IPC_ENABLED
+    INFO("A2DP COMMAND %s, fail count %d", dump_a2dp_ctrl_event(cmd),
+                    open_ctrl_chnl_fail_count);
 
-    if (common->ctrl_fd == AUDIO_SKT_DISCONNECTED) {
+    if (open_ctrl_chnl_fail_count >= CTRL_CHAN_OPEN_FAIL_RETRY_MAX)
+    {
+        ERROR("control channel open alreday failed 5 times, bailing out");
+        return -1;
+    }
+#endif
+    if (common->ctrl_fd == AUDIO_SKT_DISCONNECTED)
+    {
         INFO("recovering from previous error");
         a2dp_open_ctrl_path(common);
         if (common->ctrl_fd == AUDIO_SKT_DISCONNECTED) {
@@ -503,6 +517,13 @@ static void a2dp_open_ctrl_path(struct a2dp_stream_common *common)
         /* connect control channel if not already connected */
         if ((common->ctrl_fd = skt_connect(A2DP_CTRL_PATH, common->buffer_sz)) > 0)
         {
+#ifndef BT_HOST_IPC_ENABLED
+            if (open_ctrl_chnl_fail_count != 0)
+            {
+                open_ctrl_chnl_fail_count = 0;
+                INFO("socket opened successfully, Fail count reset to 0");
+            }
+#endif
             OSI_NO_INTR(ret = recv(common->ctrl_fd, &ack, 1, MSG_NOSIGNAL | MSG_DONTWAIT));
             if (ret > 0)
             {
@@ -515,16 +536,25 @@ static void a2dp_open_ctrl_path(struct a2dp_stream_common *common)
             /* success, now check if stack is ready */
             if (check_a2dp_ready(common) == 0)
                 break;
-
-            ERROR("error : a2dp not ready, wait 250 ms and retry");
-            usleep(250000);
+            ERROR("error : a2dp not ready, wait 100 ms and retry");
+            usleep(100000);
             skt_disconnect(common->ctrl_fd);
             common->ctrl_fd = AUDIO_SKT_DISCONNECTED;
         }
 
         /* ctrl channel not ready, wait a bit */
-        usleep(250000);
+        if (i < CTRL_CHAN_RETRY_COUNT - 1)
+            usleep(100000);
     }
+#ifndef BT_HOST_IPC_ENABLED
+    DEBUG("a2dp_open_ctrl_path : ctrl_fd: %d", common->ctrl_fd);
+    if (common->ctrl_fd == AUDIO_SKT_DISCONNECTED)
+    {
+        open_ctrl_chnl_fail_count += 1;
+        WARN("a2dp_open_ctrl_path : Fail count raised to: %d",
+                            open_ctrl_chnl_fail_count);
+    }
+#endif
 }
 
 /*****************************************************************************
@@ -549,6 +579,10 @@ static void a2dp_stream_common_init(struct a2dp_stream_common *common)
 
     /* manages max capacity of socket pipe */
     common->buffer_sz = AUDIO_STREAM_OUTPUT_BUFFER_SZ;
+#ifndef BT_HOST_IPC_ENABLED
+    open_ctrl_chnl_fail_count = 0;
+    INFO("a2dp_stream_common_init : Socket Open Fail count set to 0");
+#endif
 }
 
 static int start_audio_datapath(struct a2dp_stream_common *common)
