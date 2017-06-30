@@ -731,6 +731,11 @@ static void hal_says_data_ready(serial_data_type_t type) {
                 if (buffer_size > MCA_USER_RX_BUF_SIZE) {
                     LOG_ERROR(LOG_TAG, "%s buffer_size(%zu) exceeded allowed packet size, allocation not possible", __func__, buffer_size);
                     incoming = &incoming_packets[PACKET_TYPE_TO_INBOUND_INDEX(type = DATA_TYPE_EVENT)];
+                    ssr_cleanup(0x22); // Induce SoC dump collection
+                    if(soc_type == BT_SOC_CHEROKEE)
+                        usleep(5000000);
+                    else if(soc_type != BT_SOC_SMD)
+                        usleep(2000000);
                     if(create_hw_reset_evt_packet(incoming))
                         break;
                     else
