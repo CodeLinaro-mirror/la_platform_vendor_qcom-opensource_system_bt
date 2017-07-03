@@ -271,6 +271,8 @@ enum {
 #define SBC_FRAME_HEADER_SIZE_BYTES 4 // A2DP Spec v1.3, 12.4, Table 12.12
 #define SBC_SCALE_FACTOR_BITS       4 // A2DP Spec v1.3, 12.4, Table 12.13
 
+#define PAYLOAD_SIZE_2DH5_PACKET 679
+
 typedef struct {
     // Counter for total updates
     size_t total_updates;
@@ -501,7 +503,6 @@ void disconnect_a2dp_on_vendor_start_failure();
 BOOLEAN btif_media_send_vendor_selected_codec();
 BOOLEAN btif_media_send_vendor_transport_cfg();
 BOOLEAN btif_media_send_vendor_scmst_hdr();
-void btif_a2dp_remote_start_timer();
 #else
 #define btif_av_get_av_hdl_from_idx(idx) (0)
 #define btif_av_is_under_handoff() (0)
@@ -518,9 +519,8 @@ void btif_a2dp_remote_start_timer();
 #define btif_media_send_vendor_selected_codec() (0)
 #define btif_media_send_vendor_transport_cfg()  (0)
 #define btif_media_send_vendor_scmst_hdr()      (0)
-#define btif_a2dp_remote_start_timer() (0)
 #endif
-
+void btif_a2dp_remote_start_timer();
 
 static tBTIF_MEDIA_CB btif_media_cb;
 static int media_task_running = MEDIA_TASK_STATE_OFF;
@@ -783,11 +783,11 @@ static void btif_recv_ctrl_data(void)
                                    __func__, dump_a2dp_ctrl_event(cmd));
                 local_ack = A2DP_CTRL_ACK_FAILURE;
             }
-            if (bt_split_a2dp_enabled && !btif_hf_is_call_vr_idle())
+            else if (bt_split_a2dp_enabled && !btif_hf_is_call_vr_idle())
             {
                 local_ack = A2DP_CTRL_ACK_INCALL_FAILURE;
             }
-            if (bt_split_a2dp_enabled && (btif_av_is_under_handoff() || reconfig_a2dp))
+            else if (bt_split_a2dp_enabled && (btif_av_is_under_handoff() || reconfig_a2dp))
             {
                 local_ack = A2DP_CTRL_ACK_SUCCESS;
             }
@@ -2050,7 +2050,6 @@ void btif_a2dp_on_suspended(tBTA_AV_SUSPEND *p_av)
     btif_media_task_stop_aa_req();
 }
 
-#ifdef BTA_AV_SPLIT_A2DP_ENABLED
 /*****************************************************************************
 **
 ** Function        btif_media_remote_start_alarm_cb
@@ -2075,13 +2074,10 @@ static void btif_media_remote_start_alarm_cb(UNUSED_ATTR void *context) {
 *******************************************************************************/
 void btif_a2dp_remote_start_timer()
 {
-    if (alarm_is_scheduled(btif_media_cb.remote_start_alarm))
-    {
-        alarm_free(btif_media_cb.remote_start_alarm);
-        btif_media_cb.remote_start_alarm = NULL;
-        APPL_TRACE_DEBUG("Suspend stream request to Av");
-        btif_dispatch_sm_event(BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL, 0);
-    }
+    alarm_free(btif_media_cb.remote_start_alarm);
+    btif_media_cb.remote_start_alarm = NULL;
+    APPL_TRACE_DEBUG("Suspend stream request to Av");
+    btif_dispatch_sm_event(BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL, 0);
 }
 
 /*****************************************************************************
@@ -2105,7 +2101,11 @@ void btif_a2dp_on_remote_started()
     alarm_set(btif_media_cb.remote_start_alarm, BTIF_REMOTE_START_TOUT,
               btif_media_remote_start_alarm_cb, NULL);
 }
-#endif
+
+BOOLEAN btif_is_remote_start_timer_scheduled()
+{
+    return (alarm_is_scheduled(btif_media_cb.remote_start_alarm))? TRUE:FALSE;
+}
 /*****************************************************************************
 **
 ** Function        btif_a2dp_on_offload_started
@@ -3814,7 +3814,8 @@ static void btif_media_task_aa_stop_tx(void)
     {
         APPL_TRACE_IMP("%s media_alarm is %srunning", __func__,
                          alarm_is_scheduled(btif_media_cb.media_alarm)? "" : "not ");
-        const bool send_ack = alarm_is_scheduled(btif_media_cb.media_alarm);
+        const bool send_ack = alarm_is_scheduled(btif_media_cb.media_alarm) |
+                                             btif_is_remote_start_timer_scheduled();
 
         if (isA2dAptXEnabled && A2d_aptx_thread)
         {
@@ -4942,6 +4943,30 @@ BOOLEAN btif_media_send_vendor_media_chn_cfg()
     UINT8 param[8];
     bt_bdaddr_t bd_addr;
     BD_ADDR addr;
+    UINT8 codec_type = A2DP_CODEC_SBC;
+
+    codec_type = bta_av_co_get_current_codec();
+    if (codec_type == A2D_NON_A2DP_MEDIA_CT) {
+        UINT8* ptr = bta_av_co_get_current_codecInfo();
+        if (ptr) {
+            tA2D_APTX_CIE* codecInfo = (tA2D_APTX_CIE*) &ptr[BTA_AV_CFG_START_IDX];
+            if (codecInfo && codecInfo->vendorId == A2D_APTX_VENDOR_ID && codecInfo->codecId == A2D_APTX_CODEC_ID_BLUETOOTH)
+                   codec_type = A2DP_CODEC_APTX;
+            else if (codecInfo && codecInfo->vendorId == A2D_APTX_HD_VENDOR_ID && codecInfo->codecId == A2D_APTX_HD_CODEC_ID_BLUETOOTH)
+                   codec_type = A2DP_CODEC_APTX_HD;
+        }
+    }
+
+    APPL_TRACE_IMP("Selected Codec Type: %d", codec_type);
+    if ((codec_type == A2DP_CODEC_APTX) || (codec_type == A2DP_CODEC_APTX_HD))
+    {
+        if (btif_media_cb.TxAaMtuSize > PAYLOAD_SIZE_2DH5_PACKET)
+        {
+            APPL_TRACE_IMP("Restricting streaming MTU size to 679 for APTx codecs");
+            btif_media_cb.TxAaMtuSize = PAYLOAD_SIZE_2DH5_PACKET;
+        }
+    }
+
     btif_av_get_peer_addr(&bd_addr);
     memcpy(addr, bd_addr.address, sizeof(BD_ADDR));
     UINT16 acl_hdl = BTM_GetHCIConnHandle(addr, BT_TRANSPORT_BR_EDR);

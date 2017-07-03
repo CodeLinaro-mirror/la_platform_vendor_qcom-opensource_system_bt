@@ -1354,6 +1354,7 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
                         {
                             bt_property_t prop_name;
                             bt_bdname_t bdname;
+                            BOOLEAN is_device_blacklisted = FALSE;
                             BOOLEAN remote_name = FALSE;
                             BTIF_STORAGE_FILL_PROPERTY(&prop_name, BT_PROPERTY_BDNAME,
                                                        sizeof(bt_bdname_t), &bdname);
@@ -1362,11 +1363,15 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
                             {
                                 remote_name = TRUE;
                             }
-                            if ((bt_split_a2dp_enabled &&
-                                (!interop_match_addr(INTEROP_REMOTE_AVDTP_START, &btif_av_cb[index].peer_bda) ||
-                                (!remote_name || (remote_name &&
-                                 !interop_match_name(INTEROP_REMOTE_AVDTP_START, (const char *)bdname.name))))) ||
-                                !bt_split_a2dp_enabled)
+                            // did we find a match with bd_addr
+                            is_device_blacklisted = interop_match_addr(INTEROP_REMOTE_AVDTP_START,
+                                                                  &btif_av_cb[index].peer_bda);
+                            // if bd_aadr match not found, then check name
+                            if((remote_name) && (!is_device_blacklisted)) {
+                                is_device_blacklisted |= interop_match_name
+                                         (INTEROP_REMOTE_AVDTP_START, (const char *)bdname.name);
+                            }
+                            if (!is_device_blacklisted)
                             {
                                 BTIF_TRACE_DEBUG("%s: trigger suspend as remote initiated!!",
                                     __FUNCTION__);
