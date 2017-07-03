@@ -67,6 +67,10 @@ typedef enum {
   // leading them to go in bad state. So for better interoperability respond with PBAP 1.1
   // as supported version.
   INTEROP_ADV_PBAP_VER_1_1,
+
+  //Few carkit hfp version is hfp1.5 but it support hfp indicator, violate spec
+  //remove hfp indicator for such device
+  INTEROP_DISABLE_HF_INDICATOR,
 } interop_feature_t;
 
 // Check if a given |addr| matches a known interoperability workaround as identified
