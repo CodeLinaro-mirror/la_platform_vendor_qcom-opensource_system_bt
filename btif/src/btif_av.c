@@ -1369,6 +1369,10 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
                             {
                                btif_media_start_vendor_command();
                             }
+                            else
+                            {
+                                btif_a2dp_on_remote_started();
+                            }
                         }
                         else
                         {
