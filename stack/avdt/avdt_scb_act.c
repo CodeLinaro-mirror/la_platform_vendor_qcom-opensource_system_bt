@@ -72,8 +72,8 @@ const UINT8 avdt_scb_role_evt[] = {
 
 
 #define NON_A2DP_MEDIA_CT 0xff
-#define INIT_DELAY_RPT    60
-#define accure_range      15
+#define INIT_DELAY_RPT    600      // in 1/10 millisecond 
+#define accure_range      150      // in 1/10 millisecond 
 extern UINT64 average_delay;
 extern UINT8 bta_avk_get_current_codec();
 extern void btu_general_alarm_cb(void *data);
@@ -1291,7 +1291,7 @@ static void avdt_delay_rpt_tmr_hdlr(void* data)
     if(average_delay == 0)
         return;
 
-    UINT16 delay_ms = (UINT16)(average_delay / 1000000);
+    UINT16 delay_ms = (UINT16)(average_delay / 100000); // report value is in 1/10 millisecond
 
     if(abs(reported_delay - delay_ms) >= accure_range)
     {
