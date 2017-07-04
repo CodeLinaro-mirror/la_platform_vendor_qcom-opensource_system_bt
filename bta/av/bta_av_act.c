@@ -76,6 +76,7 @@ struct blacklist_entry
 {
     int ver;
     char addr[3];
+    BOOLEAN  is_src;
 };
 
 
@@ -1883,6 +1884,7 @@ BOOLEAN bta_av_check_store_avrc_tg_version(BD_ADDR addr, UINT16 ver)
         {
             data.ver = ver;
             memcpy(data.addr, (const char *)addr, 3);
+            data.is_src = false;
             APPL_TRACE_DEBUG("Avrcp version to store = 0x%x", ver);
             fwrite(&data, sizeof(data), 1, fp);
             fclose(fp);

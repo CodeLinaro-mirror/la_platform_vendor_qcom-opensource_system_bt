@@ -119,7 +119,39 @@ struct blacklist_entry
 {
     int ver;
     char addr[3];
+    BOOLEAN is_src;
 };
+
+BOOLEAN is_stored_device_src(BD_ADDR addr)
+{
+    BOOLEAN is_remote_src = false;
+    struct blacklist_entry data;
+    FILE *fp;
+
+    SDP_TRACE_DEBUG("%s target BD Addr: %x:%x:%x", __func__,\
+                       addr[0], addr[1], addr[2]);
+
+    fp = fopen(AVRC_PEER_VERSION_CONF_FILE, "rb");
+    if (!fp)
+    {
+       SDP_TRACE_ERROR("%s unable to open AVRC Conf file for read: err: (%s)",\
+                                          __func__, strerror(errno));
+       return is_remote_src;
+    }
+    while (fread(&data, sizeof(data), 1, fp) != 0)
+    {
+        SDP_TRACE_DEBUG("Entry: addr = %x:%x:%x, ver = 0x%x, is_src = %d",\
+               data.addr[0], data.addr[1], data.addr[2], data.ver, data.is_src);
+        if(!memcmp(addr, data.addr, 3))
+        {
+            is_remote_src = data.is_src;
+            SDP_TRACE_DEBUG("Entry found with src role: 0x%x", is_remote_src);
+            break;
+        }
+    }
+    fclose(fp);
+    return is_remote_src;
+}
 
 int sdp_get_stored_avrc_tg_version(BD_ADDR addr)
 {
@@ -704,17 +736,19 @@ static void process_service_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
 
         if (p_attr)
         {
+           if (!is_stored_device_src(p_ccb->device_address)) {
 #if ((defined(SDP_AVRCP_1_6) && (SDP_AVRCP_1_6 == TRUE)) || \
         (defined(SDP_AVRCP_1_5) && (SDP_AVRCP_1_5 == TRUE)))
             /* Check for UUID Remote Control and Remote BD address  */
-            is_avrcp_fallback = sdp_fallback_avrcp_version (p_attr, p_ccb->device_address);
-            is_avrcp_browse_bit_reset = sdp_reset_avrcp_browsing_bit(
+               is_avrcp_fallback = sdp_fallback_avrcp_version (p_attr, p_ccb->device_address);
+               is_avrcp_browse_bit_reset = sdp_reset_avrcp_browsing_bit(
                         p_rec->attribute[1], p_attr, p_ccb->device_address);
 #if (defined(SDP_AVRCP_1_6) && (SDP_AVRCP_1_6 == TRUE))
-            is_avrcp_ca_bit_reset = sdp_reset_avrcp_cover_art_bit(
+               is_avrcp_ca_bit_reset = sdp_reset_avrcp_cover_art_bit(
                         p_rec->attribute[1], p_attr, p_ccb->device_address);
 #endif
 #endif
+           }
             is_hfp_fallback = sdp_change_hfp_version (p_attr, p_ccb->device_address);
             /* Check if attribute fits. Assume 3-byte value type/length */
             rem_len = max_list_len - (INT16) (p_rsp - &p_ccb->rsp_list[0]);
@@ -1050,17 +1084,19 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
 
             if (p_attr)
             {
+                if (!is_stored_device_src(p_ccb->device_address)) {
 #if ((defined(SDP_AVRCP_1_6) && (SDP_AVRCP_1_6 == TRUE)) || \
         (defined(SDP_AVRCP_1_5) && (SDP_AVRCP_1_5 == TRUE)))
                 /* Check for UUID Remote Control and Remote BD address  */
-                is_avrcp_fallback = sdp_fallback_avrcp_version (p_attr, p_ccb->device_address);
-                is_avrcp_browse_bit_reset = sdp_reset_avrcp_browsing_bit(
+                   is_avrcp_fallback = sdp_fallback_avrcp_version (p_attr, p_ccb->device_address);
+                   is_avrcp_browse_bit_reset = sdp_reset_avrcp_browsing_bit(
                             p_rec->attribute[1], p_attr, p_ccb->device_address);
 #if (defined(SDP_AVRCP_1_6) && (SDP_AVRCP_1_6 == TRUE))
-                is_avrcp_ca_bit_reset = sdp_reset_avrcp_cover_art_bit(
+                   is_avrcp_ca_bit_reset = sdp_reset_avrcp_cover_art_bit(
                             p_rec->attribute[1], p_attr, p_ccb->device_address);
 #endif
 #endif
+                }
                 is_hfp_fallback = sdp_change_hfp_version (p_attr, p_ccb->device_address);
                 /* Check if attribute fits. Assume 3-byte value type/length */
                 rem_len = max_list_len - (INT16) (p_rsp - &p_ccb->rsp_list[0]);
