@@ -1569,6 +1569,31 @@ void btm_process_pkt_type_change_evt (UINT16 hci_handle, UINT16 pkt_type)
 
 /*******************************************************************************
 **
+** Function         btm_process_soc_logging_evt
+**
+** Description      This function is called when soc logging request received
+**                  from controller.
+**
+** Input Parms      SOC logging ID
+**
+** Returns          void
+**
+*******************************************************************************/
+void btm_process_soc_logging_evt (UINT16 soc_log_id)
+{
+    tBTM_BL_SOC_LOGGING_DATA   evt;
+
+    BTM_TRACE_DEBUG ("btm_process_soc_logging_evt");
+    if (btm_cb.p_bl_changed_cb)
+    {
+        evt.event = BTM_BL_SOC_LOGGING_EVT;
+        evt.soc_log_id = soc_log_id;
+        (*btm_cb.p_bl_changed_cb)((tBTM_BL_EVENT_DATA *)&evt);
+    }
+}
+
+/*******************************************************************************
+**
 ** Function         btm_blacklist_role_change_device
 **
 ** Description      This function is used to blacklist the device if the role

@@ -2278,6 +2278,13 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
                                                  p_data->pkt_type_chg.pkt_type);
             break;
         }
+        case BTA_DM_SOC_LOGGING_EVT:
+        {
+            BTIF_TRACE_WARNING( "btif_dm_cback : event(%d),soc id=%0x", event , p_data->soc_logging.soc_log_id);
+            if (p_data->soc_logging.soc_log_id == (LOG_ID_STATS_A2DP))
+                BTIF_TRACE_WARNING( " event(%d),dump a2dp configuration", event);
+            break;
+        }
         case BTA_DM_AUTHORIZE_EVT:
         case BTA_DM_SIG_STRENGTH_EVT:
         case BTA_DM_SP_RMT_OOB_EVT:
