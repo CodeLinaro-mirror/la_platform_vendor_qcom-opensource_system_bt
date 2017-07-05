@@ -511,6 +511,7 @@ static UINT8 avrc_proc_far_msg(UINT8 handle, UINT8 label, UINT8 cr, BT_HDR **pp_
             avrc_cmd.pdu    = AVRC_PDU_REQUEST_CONTINUATION_RSP;
             avrc_cmd.status = AVRC_STS_NO_ERROR;
             avrc_cmd.target_pdu = p_rcb->rasm_pdu;
+            AVRC_TRACE_DEBUG("avrc_proc_far_msg AVRC_BldCommand AVRC_PDU_REQUEST_CONTINUATION_RSP!~");
             if (AVRC_BldCommand ((tAVRC_COMMAND *)&avrc_cmd, &p_cmd) == AVRC_STS_NO_ERROR)
             {
                 drop_code = 2;
@@ -525,6 +526,8 @@ static UINT8 avrc_proc_far_msg(UINT8 handle, UINT8 label, UINT8 cr, BT_HDR **pp_
             avrc_cmd.pdu    = AVRC_PDU_ABORT_CONTINUATION_RSP;
             avrc_cmd.status = AVRC_STS_NO_ERROR;
             avrc_cmd.target_pdu = p_rcb->rasm_pdu;
+            AVRC_TRACE_DEBUG("avrc_proc_far_msg AVRC_BldCommand AVRC_PDU_ABORT_CONTINUATION_RSP req_continue=%d, buf_overflow=%d!~",
+               req_continue,buf_overflow);
             if (AVRC_BldCommand ((tAVRC_COMMAND *)&avrc_cmd, &p_cmd) == AVRC_STS_NO_ERROR)
             {
                 drop_code = 4;
@@ -963,6 +966,22 @@ UINT16 AVRC_Open(UINT8 *p_handle, tAVRC_CONN_CB *p_ccb, BD_ADDR_PTR peer_addr)
                __FUNCTION__, cc.role, cc.control, status, *p_handle);
     return status;
 }
+
+UINT16 AVRC_OpenBrowseChannel (UINT8 handle)
+{
+    UINT16 status;
+    status = AVCT_CreateBrowse (handle, AVCT_INT);
+    if (status == AVCT_SUCCESS)
+    {
+        BTIF_TRACE_IMP(" %s handle: 0x%x ", __FUNCTION__, handle);
+    }
+    else
+    {
+        BTIF_TRACE_ERROR(" %s handle: 0x%x status 0x%d", __FUNCTION__, handle, status);
+    }
+    return status;
+}
+
 
 /******************************************************************************
 **
