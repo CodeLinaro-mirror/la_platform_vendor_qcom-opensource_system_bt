@@ -708,8 +708,6 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
                     (p_bta_data->open.status == BTA_AV_SUCCESS)) {
         /* if queued PLAY command,  send it now */
         btif_rc_check_handle_pending_play(p_bta_data->open.bd_addr, false);
-        /* if queued PLAY command,  send it now */
-        btif_rc_check_handle_pending_play(p_bta_data->open.bd_addr, false);
         /* Bring up AVRCP connection too */
         BTA_AvOpenRc(btif_av_cb[index].bta_handle);
       }
@@ -838,7 +836,10 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
         state = BTAV_CONNECTION_STATE_DISCONNECTED;
         av_state = BTIF_AV_STATE_IDLE;
       }
-
+      if (p_bta_data->open.status != BTA_AV_SUCCESS &&
+              p_bta_data->open.status != BTA_AV_FAIL_SDP) {
+          btif_av_check_and_start_collission_timer(index);
+      }
       /* inform the application of the event */
       btif_report_connection_state(state, &(btif_av_cb[index].peer_bda));
       /* change state to open/idle based on the status */
@@ -876,8 +877,7 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
           /* Bring up AVRCP connection too */
           BTA_AvOpenRc(btif_av_cb[index].bta_handle);
         }
-      } else if (p_bta_data->open.status != BTA_AV_FAIL_SDP)
-        btif_av_check_and_start_collission_timer(index);
+      }
       btif_queue_advance();
     } break;
 
@@ -1638,11 +1638,15 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
       btif_av_cb[index].flags |= BTIF_AV_FLAG_PENDING_STOP;
       btif_av_cb[index].current_playing = false;
       if (btif_av_is_connected_on_other_idx(index)) {
-        if (enable_multicast == false) {
-          APPL_TRACE_WARNING("other Idx is connected, move to SUSPENDED");
-          btif_rc_send_pause_command(&btif_av_cb[index].peer_bda);
-          btif_a2dp_on_stopped(&p_av->suspend);
+        if (!btif_av_is_split_a2dp_enabled()) {
+          if (enable_multicast == false) {
+            APPL_TRACE_WARNING("other Idx is connected, move to SUSPENDED");
+            btif_rc_send_pause_command(&btif_av_cb[index].peer_bda);
+            btif_a2dp_on_stopped(&p_av->suspend);
+          }
         }
+        else
+          btif_a2dp_on_stopped(&p_av->suspend);
       }
       else {
         APPL_TRACE_WARNING("Stop the AV Data channel as no connection is present");
@@ -1829,9 +1833,32 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
       return;
 
     case BTA_AV_PENDING_EVT:
-      index = HANDLE_TO_INDEX(p_bta_data->pend.hndl);
-      break;
-
+        /* In race conditions, outgoing and incoming connections
+        * at same time check for BD address at index and if it
+        * does not match then check for first avialable index.
+        */
+        index = HANDLE_TO_INDEX(p_bta_data->pend.hndl);
+        if (index >= 0 && index < btif_max_av_clients &&
+            memcmp (((tBTA_AV*)p_bta_data)->pend.bd_addr,
+            &(btif_av_cb[index].peer_bda),
+            sizeof(btif_av_cb[index].peer_bda)) == 0)
+       {
+            BTIF_TRACE_EVENT("incomming connection at index %d", index);
+       }
+       else
+       {
+           index = btif_av_idx_by_bdaddr(bd_null);
+           if (index >= btif_max_av_clients)
+           {
+               BTIF_TRACE_ERROR("No free SCB available");
+               BTA_AvDisconnect(p_bta_data->pend.bd_addr);
+           }
+           else
+           {
+               BTIF_TRACE_EVENT("updated index for connection %d", index);
+           }
+       }
+       break;
     case BTA_AV_REJECT_EVT:
       index = HANDLE_TO_INDEX(p_bta_data->reject.hndl);
       break;
@@ -2310,7 +2337,7 @@ static bt_status_t init_src(
   BTIF_TRACE_EVENT("%s() with max conn = %d", __func__, max_a2dp_connections);
   char value[PROPERTY_VALUE_MAX] = {'\0'};
 
-  osi_property_get("persist.bt.enable.splita2dp", value, "false");
+  osi_property_get("persist.bt.enable.splita2dp", value, "true");
   BTIF_TRACE_ERROR("split_a2dp_status = %s",value);
   bt_split_a2dp_enabled = (strcmp(value, "true") == 0);
   BTIF_TRACE_ERROR("split_a2dp_status = %d",bt_split_a2dp_enabled);

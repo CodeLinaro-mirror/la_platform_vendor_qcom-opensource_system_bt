@@ -282,6 +282,13 @@ extern uint16_t sdpu_get_attrib_entry_len(tSDP_ATTRIBUTE* p_attr);
 extern uint8_t* sdpu_build_partial_attrib_entry(uint8_t* p_out,
                                                 tSDP_ATTRIBUTE* p_attr,
                                                 uint16_t len, uint16_t* offset);
+extern bool SDP_AddAttributeToRecord (tSDP_RECORD *p_rec, uint16_t attr_id,
+                                                uint8_t attr_type, uint32_t attr_len,
+                                                uint8_t *p_val);
+extern bool SDP_AddProfileDescriptorListToRecord (tSDP_RECORD *p_rec, uint16_t profile_uuid,
+                                                uint16_t version);
+extern bool SDP_DeleteAttributeFromRecord (tSDP_RECORD *p_rec, uint16_t attr_id);
+
 
 /* Functions provided by sdp_db.cc
 */
@@ -300,6 +307,8 @@ extern void sdp_server_handle_client_req(tCONN_CB* p_ccb, BT_HDR* p_msg);
 #define sdp_server_handle_client_req(p_ccb, p_msg)
 #endif
 
+extern int sdp_get_stored_avrc_tg_version(BD_ADDR addr);
+extern bool sdp_dev_blacklisted_for_avrcp15 (BD_ADDR addr);
 /* Functions provided by sdp_discovery.cc
 */
 extern void sdp_disc_connected(tCONN_CB* p_ccb);

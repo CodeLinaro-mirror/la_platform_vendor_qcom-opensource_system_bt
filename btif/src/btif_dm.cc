@@ -1367,7 +1367,6 @@ static void btif_dm_search_devices_evt(uint16_t event, char* p_param) {
 
     case BTA_DM_INQ_RES_EVT: {
       /* inquiry result */
-      uint32_t cod;
       bt_bdname_t bdname;
       bt_bdaddr_t bdaddr;
       uint8_t remote_name_len;
@@ -1381,13 +1380,6 @@ static void btif_dm_search_devices_evt(uint16_t event, char* p_param) {
                        bdaddr_to_string(&bdaddr, bdstr, sizeof(bdstr)),
                        p_search_data->inq_res.device_type);
       bdname.name[0] = 0;
-
-      cod = devclass2uint(p_search_data->inq_res.dev_class);
-
-      if (cod == 0) {
-        LOG_DEBUG(LOG_TAG, "%s cod is 0, set as unclassified", __func__);
-        cod = COD_UNCLASSIFIED;
-      }
 
       if (!check_eir_remote_name(p_search_data, bdname.name, &remote_name_len))
         check_cached_remote_name(p_search_data, bdname.name, &remote_name_len);
@@ -1439,10 +1431,15 @@ static void btif_dm_search_devices_evt(uint16_t event, char* p_param) {
         }
 
         /* DEV_CLASS */
-        BTIF_STORAGE_FILL_PROPERTY(&properties[num_properties],
-                                   BT_PROPERTY_CLASS_OF_DEVICE, sizeof(cod),
-                                   &cod);
-        num_properties++;
+        uint32_t cod = devclass2uint(p_search_data->inq_res.dev_class);
+        BTIF_TRACE_DEBUG("%s cod is 0x%06x", __func__, cod);
+        if (cod != 0) {
+          BTIF_STORAGE_FILL_PROPERTY(&properties[num_properties],
+                                     BT_PROPERTY_CLASS_OF_DEVICE, sizeof(cod),
+                                     &cod);
+          num_properties++;
+        }
+
         /* DEV_TYPE */
         /* FixMe: Assumption is that bluetooth.h and BTE enums match */
 
@@ -2218,7 +2215,7 @@ static void bte_search_devices_evt(tBTA_DM_SEARCH_EVT event,
    * to the end of the tBTA_DM_SEARCH */
   switch (event) {
     case BTA_DM_INQ_RES_EVT: {
-      if (p_data && p_data->inq_res.p_eir) param_len += HCI_EXT_INQ_RESPONSE_LEN;
+      if (p_data && p_data->inq_res.p_eir) param_len += p_data->inq_res.eir_len;
     } break;
 
     case BTA_DM_DISC_RES_EVT: {
