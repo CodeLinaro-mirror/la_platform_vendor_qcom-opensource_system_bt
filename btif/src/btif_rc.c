@@ -401,6 +401,7 @@ static UINT8 btif_rc_get_idx_by_rc_handle(UINT8 rc_handle);
 **  Externs
 ******************************************************************************/
 extern BOOLEAN btif_hf_call_terminated_recently();
+extern BOOLEAN btif_hf_call_terminated_recently_2();
 extern BOOLEAN check_cod(const bt_bdaddr_t *remote_bdaddr, uint32_t cod);
 extern void btif_get_latest_playing_device(BD_ADDR address); //get the Playing device address
 extern BOOLEAN btif_av_is_playing();
@@ -1026,6 +1027,16 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
     {
         BTIF_TRACE_ERROR("Passthrough on AVRCP only device: Ignore..");
         return;
+    }
+
+    if (btif_hf_call_terminated_recently_2())
+    {
+        if ((p_remote_cmd->rc_id == BTA_AV_RC_PLAY || p_remote_cmd->rc_id == BTA_AV_RC_PAUSE) &&
+            (p_remote_cmd->key_state == AVRC_STATE_PRESS))
+        {
+            APPL_TRACE_WARNING("Play/Pause cmd while hf call terminated recently: Ignore..");
+            return;
+        }
     }
 
     /* Trigger DUAL Handoff when support single streaming */
