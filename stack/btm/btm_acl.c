@@ -318,10 +318,14 @@ void btm_acl_created (BD_ADDR bda, DEV_CLASS dc, BD_NAME bdn,
                     &p->active_remote_addr_type);
 #endif
 
-                if (HCI_LE_SLAVE_INIT_FEAT_EXC_SUPPORTED(controller_get_interface()->get_features_ble()->as_array)
-                    || link_role == HCI_ROLE_MASTER)
+                if(link_role == HCI_ROLE_MASTER)
                 {
                     btsnd_hcic_ble_read_remote_feat(p->hci_handle);
+                } /*as slave role, need do version request firstly, only if LMP version is larger than 4.0, slave can send feature request */
+                else if((HCI_LE_SLAVE_INIT_FEAT_EXC_SUPPORTED(controller_get_interface()->get_features_ble()->as_array)
+                        && link_role == HCI_ROLE_SLAVE))
+                {
+                    btsnd_hcic_rmt_ver_req (p->hci_handle);
                 }
                 else
                 {
@@ -970,6 +974,9 @@ void btm_read_remote_version_complete (UINT8 *p)
                     BTM_TRACE_DEBUG("Calling btm_read_remote_features");
                     btm_read_remote_features (p_acl_cb->hci_handle);
                 }
+                if (p_acl_cb->transport == BT_TRANSPORT_LE && p_acl_cb->link_role == HCI_ROLE_SLAVE
+                    && p_acl_cb->lmp_version > HCI_PROTO_VERSION_4_0)
+                    btsnd_hcic_ble_read_remote_feat(p_acl_cb->hci_handle);
             }
 
 #if (defined(BLE_INCLUDED) && (BLE_INCLUDED == TRUE))
