@@ -1417,9 +1417,12 @@ static void btif_dm_auth_cmpl_evt (tBTA_DM_AUTH_CMPL *p_auth_cmpl)
                 status =  BT_STATUS_AUTH_FAILURE;
                 break;
 
+            /* Dont fail the bonding for key missing error as stack retry security */
+            case HCI_ERR_KEY_MISSING:
+                btif_storage_remove_bonded_device(&bd_addr);
+                return;
             /* map the auth failure codes, so we can retry pairing if necessary */
             case HCI_ERR_AUTH_FAILURE:
-            case HCI_ERR_KEY_MISSING:
                 btif_storage_remove_bonded_device(&bd_addr);
             case HCI_ERR_HOST_REJECT_SECURITY:
             case HCI_ERR_ENCRY_MODE_NOT_ACCEPTABLE:
