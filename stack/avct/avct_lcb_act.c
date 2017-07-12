@@ -346,7 +346,7 @@ void avct_lcb_open_ind(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
     int         i;
     BOOLEAN     bind = FALSE;
     DEV_CLASS device_class;
-    UINT16 service_class; UINT8 major_class, minor_class;
+    UINT16 service_class; UINT8 major_class = 0, minor_class = 0;
     BOOLEAN sink_only_cod = false;
     BOOLEAN src_only_cod = false;
 
