@@ -213,7 +213,6 @@ void rfc_release_multiplexer_channel (tRFC_MCB *p_mcb)
     }
 
     rfc_timer_stop (p_mcb);
-    alarm_free(p_mcb->mcb_timer);
 
     fixed_queue_free(p_mcb->cmd_q, osi_free);
 
