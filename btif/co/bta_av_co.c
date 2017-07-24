@@ -2476,8 +2476,13 @@ BOOLEAN bta_av_co_audio_get_codec_config(UINT8 *p_config, UINT16 *p_minmtu, UINT
                     sbc_config->max_bitpool =
                         BTA_AV_CO_MIN(p_sink->codec_caps[BTA_AV_CO_SBC_MAX_BITPOOL_OFF],
                                       sbc_config->max_bitpool);
-                    APPL_TRACE_EVENT("%s sink bitpool min %d, max %d", __func__,
-                                      sbc_config->min_bitpool, sbc_config->max_bitpool);
+                    APPL_TRACE_EVENT("%s actual sink bitpool min %d, max %d", __func__,
+                                  sbc_config->min_bitpool, sbc_config->max_bitpool);
+                    if(sbc_config->min_bitpool > sbc_config->max_bitpool) {
+                        sbc_config->max_bitpool = sbc_config->min_bitpool;
+                        APPL_TRACE_EVENT("%s changed sink bitpool min %d, max %d", __func__,
+                                          sbc_config->min_bitpool, sbc_config->max_bitpool);
+                    }
                     break;
                 }
             }
@@ -2538,8 +2543,13 @@ BOOLEAN bta_av_co_audio_get_sbc_config(tA2D_SBC_CIE *p_sbc_config, UINT16 *p_min
                             p_sbc_config->max_bitpool =
                                BTA_AV_CO_MIN(p_sink->codec_caps[BTA_AV_CO_SBC_MAX_BITPOOL_OFF],
                                              p_sbc_config->max_bitpool);
-                            APPL_TRACE_EVENT("bta_av_co_audio_get_sbc_config : sink bitpool min %d, max %d",
-                                 p_sbc_config->min_bitpool, p_sbc_config->max_bitpool);
+                            APPL_TRACE_EVENT("%s: actual sink bitpool min %d, max %d", __func__,
+                                  p_sbc_config->min_bitpool, p_sbc_config->max_bitpool);
+                            if(p_sbc_config->min_bitpool > p_sbc_config->max_bitpool) {
+                                p_sbc_config->max_bitpool = p_sbc_config->min_bitpool;
+                                APPL_TRACE_EVENT("%s: updated sink bitpool min %d, max %d", __func__,
+                                                  p_sbc_config->min_bitpool, p_sbc_config->max_bitpool);
+                            }
                             break;
                         }
                     }
