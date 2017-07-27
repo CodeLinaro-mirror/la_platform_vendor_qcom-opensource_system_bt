@@ -1,4 +1,8 @@
 /******************************************************************************
+ * Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ ******************************************************************************/
+/******************************************************************************
  *
  *  Copyright (C) 2003-2012 Broadcom Corporation
  *
@@ -23,6 +27,7 @@
  *
  ******************************************************************************/
 
+#include <base/logging.h>
 #include <string.h>
 #include "avct_api.h"
 #include "avct_int.h"
@@ -177,7 +182,7 @@ void avct_lcb_event(tAVCT_LCB* p_lcb, uint8_t event, tAVCT_LCB_EVT* p_data) {
   /* execute action functions */
   for (i = 0; i < AVCT_LCB_ACTIONS; i++) {
     action = state_table[event][i];
-    if (action != AVCT_LCB_IGNORE) {
+    if (action < AVCT_LCB_IGNORE) {
       (*avct_lcb_action[action])(p_lcb, p_data);
     } else {
       break;
@@ -212,7 +217,7 @@ void avct_bcb_event(tAVCT_BCB* p_bcb, uint8_t event, tAVCT_LCB_EVT* p_data) {
   /* execute action functions */
   for (i = 0; i < AVCT_LCB_ACTIONS; i++) {
     action = state_table[event][i];
-    if (action != AVCT_LCB_IGNORE) {
+    if (action < AVCT_LCB_IGNORE) {
       (*avct_bcb_action[action])(p_bcb, p_data);
     } else {
       break;
@@ -230,13 +235,13 @@ void avct_bcb_event(tAVCT_BCB* p_bcb, uint8_t event, tAVCT_LCB_EVT* p_data) {
  * Returns          pointer to the lcb, or NULL if none found.
  *
  ******************************************************************************/
-tAVCT_LCB* avct_lcb_by_bd(BD_ADDR bd_addr) {
+tAVCT_LCB* avct_lcb_by_bd(const RawAddress& bd_addr) {
   tAVCT_LCB* p_lcb = &avct_cb.lcb[0];
   int i;
 
   for (i = 0; i < AVCT_NUM_LINKS; i++, p_lcb++) {
     /* if allocated lcb has matching lcb */
-    if (p_lcb->allocated && (!memcmp(p_lcb->peer_addr, bd_addr, BD_ADDR_LEN))) {
+    if (p_lcb->allocated && p_lcb->peer_addr == bd_addr) {
       break;
     }
   }
@@ -245,9 +250,7 @@ tAVCT_LCB* avct_lcb_by_bd(BD_ADDR bd_addr) {
     /* if no lcb found */
     p_lcb = NULL;
 
-    AVCT_TRACE_DEBUG("No lcb for addr %02x-%02x-%02x-%02x-%02x-%02x",
-                     bd_addr[0], bd_addr[1], bd_addr[2], bd_addr[3], bd_addr[4],
-                     bd_addr[5]);
+    VLOG(1) << "No lcb for addr " << bd_addr;
   }
   return p_lcb;
 }
@@ -262,14 +265,14 @@ tAVCT_LCB* avct_lcb_by_bd(BD_ADDR bd_addr) {
  * Returns          pointer to the lcb, or NULL if none could be allocated.
  *
  ******************************************************************************/
-tAVCT_LCB* avct_lcb_alloc(BD_ADDR bd_addr) {
+tAVCT_LCB* avct_lcb_alloc(const RawAddress& bd_addr) {
   tAVCT_LCB* p_lcb = &avct_cb.lcb[0];
   int i;
 
   for (i = 0; i < AVCT_NUM_LINKS; i++, p_lcb++) {
     if (!p_lcb->allocated) {
       p_lcb->allocated = (uint8_t)(i + 1);
-      memcpy(p_lcb->peer_addr, bd_addr, BD_ADDR_LEN);
+      p_lcb->peer_addr = bd_addr;
       AVCT_TRACE_DEBUG("avct_lcb_alloc %d", p_lcb->allocated);
       p_lcb->tx_q = fixed_queue_new(SIZE_MAX);
       break;
@@ -361,9 +364,11 @@ tAVCT_CCB* avct_lcb_has_pid(tAVCT_LCB* p_lcb, uint16_t pid) {
 
   for (i = 0; i < AVCT_NUM_CONN; i++, p_ccb++) {
     if (p_ccb->allocated && (p_ccb->p_lcb == p_lcb) && (p_ccb->cc.pid == pid)) {
+      AVCT_TRACE_DEBUG("%s(): lcb found", __func__);
       return p_ccb;
     }
   }
+  AVCT_TRACE_WARNING("%s(): lcb not found", __func__);
   return NULL;
 }
 

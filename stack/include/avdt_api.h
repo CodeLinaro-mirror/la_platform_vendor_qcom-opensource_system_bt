@@ -1,4 +1,8 @@
 /******************************************************************************
+ * Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ ******************************************************************************/
+/******************************************************************************
  *
  *  Copyright (C) 2002-2012 Broadcom Corporation
  *
@@ -384,8 +388,8 @@ typedef union {
  * endpoints and for the AVDT_DiscoverReq() and AVDT_GetCapReq() functions.
  *
 */
-typedef void(tAVDT_CTRL_CBACK)(uint8_t handle, BD_ADDR bd_addr, uint8_t event,
-                               tAVDT_CTRL* p_data);
+typedef void(tAVDT_CTRL_CBACK)(uint8_t handle, const RawAddress* bd_addr,
+                               uint8_t event, tAVDT_CTRL* p_data);
 
 /* This is the data callback function.  It is executed when AVDTP has a media
  * packet ready for the application.  This function is required for SNK
@@ -403,7 +407,7 @@ typedef void(tAVDT_REPORT_CBACK)(uint8_t handle, AVDT_REPORT_TYPE type,
                                  tAVDT_REPORT_DATA* p_data);
 #endif
 
-typedef uint16_t(tAVDT_GETCAP_REQ)(BD_ADDR bd_addr, uint8_t seid,
+typedef uint16_t(tAVDT_GETCAP_REQ)(const RawAddress& bd_addr, uint8_t seid,
                                    tAVDT_CFG* p_cfg, tAVDT_CTRL_CBACK* p_cback);
 
 /* This structure contains information required when a stream is created.
@@ -421,6 +425,7 @@ typedef struct {
   uint8_t tsep;       /* SEP type */
   uint8_t media_type; /* Media type: AVDT_MEDIA_TYPE_* */
   uint16_t nsc_mask;  /* Nonsupported protocol command messages */
+  uint8_t registration_id;/* All SCBs created during single registration will have same value.*/
 } tAVDT_CS;
 
 /* AVDT data option mask is used in the write request */
@@ -432,6 +437,19 @@ typedef uint8_t tAVDT_DATA_OPT_MASK;
 /*****************************************************************************
  *  External Function Declarations
  ****************************************************************************/
+/*******************************************************************************
+ *
+ * Function         AVDT_Init
+ *
+ * Description      This function is called to initialize the control block
+ *                  for this layer.  It must be called before accessing any
+ *                  other API functions for this layer.  It is typically called
+ *                  once during the start up of the stack.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void AVDT_Init(void);
 
 /*******************************************************************************
  *
@@ -462,6 +480,32 @@ extern void AVDT_Register(tAVDT_REG* p_reg, tAVDT_CTRL_CBACK* p_cback);
  *
  ******************************************************************************/
 extern void AVDT_Deregister(void);
+
+/*******************************************************************************
+ *
+ * Function         AVDT_UpdateServiceBusyState
+ *
+ * Description      This function is used to set the service busy state
+ *                  during outgoing connection to properly handle the
+ *                  connections in upper layers.
+ *
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void AVDT_UpdateServiceBusyState(bool state);
+
+/*******************************************************************************
+ *
+ * Function         AVDT_GetServiceBusyState
+ *
+ * Description      This function is used to get the service busy state
+ *
+ *
+ * Returns          outgoing connection in progress or not
+ *
+ ******************************************************************************/
+bool AVDT_GetServiceBusyState(void);
 
 /*******************************************************************************
  *
@@ -533,8 +577,9 @@ extern uint16_t AVDT_RemoveStream(uint8_t handle);
  * Returns          AVDT_SUCCESS if successful, otherwise error.
  *
  ******************************************************************************/
-extern uint16_t AVDT_DiscoverReq(BD_ADDR bd_addr, tAVDT_SEP_INFO* p_sep_info,
-                                 uint8_t max_seps, tAVDT_CTRL_CBACK* p_cback);
+extern uint16_t AVDT_DiscoverReq(const RawAddress& bd_addr,
+                                 tAVDT_SEP_INFO* p_sep_info, uint8_t max_seps,
+                                 tAVDT_CTRL_CBACK* p_cback);
 
 /*******************************************************************************
  *
@@ -560,8 +605,8 @@ extern uint16_t AVDT_DiscoverReq(BD_ADDR bd_addr, tAVDT_SEP_INFO* p_sep_info,
  * Returns          AVDT_SUCCESS if successful, otherwise error.
  *
  ******************************************************************************/
-extern uint16_t AVDT_GetCapReq(BD_ADDR bd_addr, uint8_t seid, tAVDT_CFG* p_cfg,
-                               tAVDT_CTRL_CBACK* p_cback);
+extern uint16_t AVDT_GetCapReq(const RawAddress& bd_addr, uint8_t seid,
+                               tAVDT_CFG* p_cfg, tAVDT_CTRL_CBACK* p_cback);
 
 /*******************************************************************************
  *
@@ -587,7 +632,7 @@ extern uint16_t AVDT_GetCapReq(BD_ADDR bd_addr, uint8_t seid, tAVDT_CFG* p_cfg,
  * Returns          AVDT_SUCCESS if successful, otherwise error.
  *
  ******************************************************************************/
-extern uint16_t AVDT_GetAllCapReq(BD_ADDR bd_addr, uint8_t seid,
+extern uint16_t AVDT_GetAllCapReq(const RawAddress& bd_addr, uint8_t seid,
                                   tAVDT_CFG* p_cfg, tAVDT_CTRL_CBACK* p_cback);
 
 /*******************************************************************************
@@ -617,8 +662,8 @@ extern uint16_t AVDT_DelayReport(uint8_t handle, uint8_t seid, uint16_t delay);
  * Returns          AVDT_SUCCESS if successful, otherwise error.
  *
  ******************************************************************************/
-extern uint16_t AVDT_OpenReq(uint8_t handle, BD_ADDR bd_addr, uint8_t seid,
-                             tAVDT_CFG* p_cfg);
+extern uint16_t AVDT_OpenReq(uint8_t handle, const RawAddress& bd_addr,
+                             uint8_t seid, tAVDT_CFG* p_cfg);
 
 /*******************************************************************************
  *
@@ -844,7 +889,7 @@ extern uint16_t AVDT_WriteReqOpt(uint8_t handle, BT_HDR* p_pkt,
  * Returns          AVDT_SUCCESS if successful, otherwise error.
  *
  ******************************************************************************/
-extern uint16_t AVDT_ConnectReq(BD_ADDR bd_addr, uint8_t sec_mask,
+extern uint16_t AVDT_ConnectReq(const RawAddress& bd_addr, uint8_t sec_mask,
                                 tAVDT_CTRL_CBACK* p_cback);
 
 /*******************************************************************************
@@ -859,7 +904,8 @@ extern uint16_t AVDT_ConnectReq(BD_ADDR bd_addr, uint8_t sec_mask,
  * Returns          AVDT_SUCCESS if successful, otherwise error.
  *
  ******************************************************************************/
-extern uint16_t AVDT_DisconnectReq(BD_ADDR bd_addr, tAVDT_CTRL_CBACK* p_cback);
+extern uint16_t AVDT_DisconnectReq(const RawAddress& bd_addr,
+                                   tAVDT_CTRL_CBACK* p_cback);
 
 /*******************************************************************************
  *
@@ -882,7 +928,19 @@ extern uint16_t AVDT_GetL2CapChannel(uint8_t handle);
  * Returns          CID if successful, otherwise 0.
  *
  ******************************************************************************/
-extern uint16_t AVDT_GetSignalChannel(uint8_t handle, BD_ADDR bd_addr);
+extern uint16_t AVDT_GetSignalChannel(uint8_t handle,
+                                      const RawAddress& bd_addr);
+
+/*******************************************************************************
+**
+** Function         AVDT_UpdateMaxAvClients
+**
+** Description      Update max simultaneous AV connections supported
+**
+** Returns
+**
+*******************************************************************************/
+extern void AVDT_UpdateMaxAvClients(uint8_t num_clients);
 
 /*******************************************************************************
  *

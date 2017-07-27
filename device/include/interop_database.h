@@ -19,9 +19,10 @@
 #pragma once
 
 #include "device/include/interop.h"
+#include "raw_address.h"
 
 typedef struct {
-  bt_bdaddr_t addr;
+  RawAddress addr;
   size_t length;
   interop_feature_t feature;
 } interop_addr_entry_t;
@@ -42,6 +43,8 @@ static const interop_addr_entry_t interop_addr_database[] = {
     {{{0xac, 0x9e, 0x17, 0, 0, 0}}, 3, INTEROP_DISABLE_LE_SECURE_CONNECTIONS},
     {{{0xf0, 0x79, 0x59, 0, 0, 0}}, 3, INTEROP_DISABLE_LE_SECURE_CONNECTIONS},
 
+    // Dialog Keyboard and mouse
+    {{{0x80, 0xea, 0xca, 0, 0, 0}}, 3, INTEROP_DISABLE_LE_SECURE_CONNECTIONS},
     {{{0x08, 0x62, 0x66, 0, 0, 0}}, 3, INTEROP_HID_PREF_CONN_SUP_TIMEOUT_3S},
     {{{0x38, 0x2c, 0x4a, 0xc9, 0, 0}}, 4, INTEROP_HID_PREF_CONN_SUP_TIMEOUT_3S},
     {{{0x38, 0x2c, 0x4a, 0xe6, 0, 0}}, 4, INTEROP_HID_PREF_CONN_SUP_TIMEOUT_3S},
@@ -62,6 +65,9 @@ static const interop_addr_entry_t interop_addr_database[] = {
 
     // iKross IKBT83B HS - unacceptably loud volume
     {{{0x00, 0x14, 0x02, 0, 0, 0}}, 3, INTEROP_DISABLE_ABSOLUTE_VOLUME},
+
+    // Jabra EXTREME 2 - unacceptably loud volume
+    {{{0x1c, 0x48, 0xf9,      0,0,0}}, 3, INTEROP_DISABLE_ABSOLUTE_VOLUME},
 
     // JayBird BlueBuds X - low granularity on volume control
     {{{0x44, 0x5e, 0xf3, 0, 0, 0}}, 3, INTEROP_DISABLE_ABSOLUTE_VOLUME},
@@ -106,6 +112,7 @@ static const interop_addr_entry_t interop_addr_database[] = {
     // Unknown keyboard (carried over from auto_pair_devlist.conf)
     {{{0x00, 0x0F, 0xF6, 0, 0, 0}}, 3, INTEROP_KEYBOARD_REQUIRES_FIXED_PIN},
 
+<<<<<<< HEAD
     // Apple Magic Mouse - SDP No Resources Error
     {{{0x04, 0x0C, 0xCE, 0, 0, 0}}, 3, INTEROP_DISABLE_SDP_AFTER_PAIRING},
     // Bluetooth Laser Travel Mouse - SDP No Resources Error
@@ -120,14 +127,38 @@ static const interop_addr_entry_t interop_addr_database[] = {
     {{{0x28, 0x18, 0x78, 0, 0, 0}}, 3, INTEROP_DISABLE_SDP_AFTER_PAIRING},
     // Tero's Game Controller
     {{{0x60, 0x45, 0xBD, 0, 0, 0}}, 3, INTEROP_DISABLE_SDP_AFTER_PAIRING},
+    {{{0x58, 0x71, 0x33, 0, 0, 0}}, 3, INTEROP_DISABLE_SDP_AFTER_PAIRING},
     // Bluetooth Keyboard
     {{{0x20, 0x4C, 0x10, 0, 0, 0}}, 3, INTEROP_DISABLE_SNIFF_DURING_SCO},
     // Kinivo BTC-450 - volume is erratic when using Absolute Volume
     {{{0x00, 0x18, 0x91, 0, 0, 0}}, 3, INTEROP_DISABLE_ABSOLUTE_VOLUME},
+
+=======
+>>>>>>> 3712a5d947b37f05640898586f8d2f37a9fc7123
+    // Kenwood KMM-BT518HD - no audio when A2DP codec sample rate is changed
+    {{{0x00, 0x1d, 0x86, 0, 0, 0}}, 3, INTEROP_DISABLE_AVDTP_RECONFIGURE},
+
+    // NAC FORD-2013 - Lincoln
+    {{{0x00, 0x26, 0xb4, 0, 0, 0}}, 3, INTEROP_DISABLE_ROLE_SWITCH},
+
+    // Toyota Prius - 2015
+    {{{0xfc, 0xc2, 0xde, 0, 0, 0}}, 3, INTEROP_DISABLE_ROLE_SWITCH},
+
+    // OBU II Bluetooth dongle
+    {{{0x00, 0x04, 0x3e, 0, 0, 0}}, 3, INTEROP_DISABLE_ROLE_SWITCH},
+
+    // Roman R9020
+    {{{0x00, 0x23, 0x01, 0, 0, 0}}, 3, INTEROP_DISABLE_ROLE_SWITCH},
+
+    // Jabra Storm
+    {{{0x1c, 0x48, 0xf9, 0, 0, 0}}, 3, INTEROP_DISABLE_ROLE_SWITCH},
+
+    // Jeep Uconnect
+    {{{0x00, 0x54, 0xaf, 0, 0, 0}}, 3, INTEROP_DISABLE_ROLE_SWITCH},
 };
 
 typedef struct {
-  char name[40];
+  char name[249];
   size_t length;
   interop_feature_t feature;
 } interop_name_entry_t;
@@ -154,9 +185,30 @@ static const interop_name_entry_t interop_name_database[] = {
     {"Microsoft Sculpt Touch Mouse", 28, INTEROP_DISABLE_SDP_AFTER_PAIRING},
     {"Tero's Game Controller", 22, INTEROP_DISABLE_SDP_AFTER_PAIRING},
 
+    // Pixel C Keyboard doesn't respond to service changed indications.
+    {"Pixel C Keyboard", 16, INTEROP_GATTC_NO_SERVICE_CHANGED_IND},
+
+    // HID Authentication Blacklist
+    {"Targus BT Laser Notebook Mouse", 30, INTEROP_DISABLE_AUTH_FOR_HID_POINTING},
+
+    //Below devices reject connection updated with preferred
+    {"BSMBB09DS", 9, INTEROP_DISABLE_LE_CONN_PREFERRED_PARAMS},
+    {"ELECOM", 6, INTEROP_DISABLE_LE_CONN_PREFERRED_PARAMS},
+    {"MB Bluetooth", 12, INTEROP_ADV_AVRCP_VER_1_3},
+
     // HID Moto KZ500 Keyboard - Problematic SDP digitizer descriptor
     {"Motorola Keyboard KZ500", 23, INTEROP_REMOVE_HID_DIG_DESCRIPTOR},
     {"Motorola Keyboard KZ500 v122", 28, INTEROP_REMOVE_HID_DIG_DESCRIPTOR},
+
+    // Pixel C Keyboard doesn't respond to service changed indications.
+    {"Pixel C Keyboard", 16, INTEROP_GATTC_NO_SERVICE_CHANGED_IND},
+
+    // Kenwood KMM-BT518HD - no audio when A2DP codec sample rate is changed
+    {"KMM-BT51*HD", 11, INTEROP_DISABLE_AVDTP_RECONFIGURE},
+
+    // Honor remote's avdtp start request
+    {"Audi",    4, INTEROP_REMOTE_AVDTP_START},
+    {"Porsche", 7, INTEROP_REMOTE_AVDTP_START},
 };
 
 typedef struct {

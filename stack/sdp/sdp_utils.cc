@@ -142,6 +142,36 @@ void sdpu_release_ccb(tCONN_CB* p_ccb) {
 }
 
 /*******************************************************************************
+**
+** Function         sdpu_update_ccb_cont_info
+**
+** Description      This function updates CCB's continuation information in the
+**                  case of a record being moved up one place in DB following
+**                  deletion of a record above.
+**
+** Returns          void
+**
+*******************************************************************************/
+void sdpu_update_ccb_cont_info (uint32_t handle) {
+  uint16_t       xx;
+  tCONN_CB     *p_ccb;
+
+  /* Look through each connection control block */
+  for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
+    if ((p_ccb->con_state != SDP_STATE_IDLE) && (p_ccb->cont_info.curr_sdp_rec) && (p_ccb->cont_info.curr_sdp_rec->record_handle == handle)) {
+      if (handle == sdp_cb.server_db.record[0].record_handle) {
+        /* The record is moved to the top of database. Resetting the prev_sdp_rec to NULL */
+        p_ccb->cont_info.curr_sdp_rec = NULL;
+        p_ccb->cont_info.prev_sdp_rec = NULL;
+      } else {
+        p_ccb->cont_info.curr_sdp_rec -= 1;
+        p_ccb->cont_info.prev_sdp_rec = p_ccb->cont_info.curr_sdp_rec -1;
+      }
+    }
+  }
+}
+
+/*******************************************************************************
  *
  * Function         sdpu_build_attrib_seq
  *
@@ -201,6 +231,8 @@ uint8_t* sdpu_build_attrib_seq(uint8_t* p_out, uint16_t* p_attr,
  *
  ******************************************************************************/
 uint8_t* sdpu_build_attrib_entry(uint8_t* p_out, tSDP_ATTRIBUTE* p_attr) {
+  if(!p_out)
+    return p_out;
   /* First, store the attribute ID. Goes as a UINT */
   UINT8_TO_BE_STREAM(p_out, (UINT_DESC_TYPE << 3) | SIZE_TWO_BYTES);
   UINT16_TO_BE_STREAM(p_out, p_attr->id);
@@ -895,10 +927,12 @@ uint8_t* sdpu_build_partial_attrib_entry(uint8_t* p_out, tSDP_ATTRIBUTE* p_attr,
 
   size_t len_to_copy =
       ((attr_len - *offset) < len) ? (attr_len - *offset) : len;
-  memcpy(p_out, &p_attr_buff[*offset], len_to_copy);
+  if(p_out) {
+    memcpy(p_out, &p_attr_buff[*offset], len_to_copy);
 
-  p_out = &p_out[len_to_copy];
-  *offset += len_to_copy;
+    p_out = &p_out[len_to_copy];
+    *offset += len_to_copy;
+  }
 
   osi_free(p_attr_buff);
   return p_out;

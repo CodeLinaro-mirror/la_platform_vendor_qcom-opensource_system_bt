@@ -53,8 +53,27 @@ typedef struct {
 } tA2DP_SBC_CIE;
 
 /* SBC SRC codec capabilities */
-static const tA2DP_SBC_CIE a2dp_sbc_caps = {
+<<<<<<< HEAD
+static const tA2DP_SBC_CIE a2dp_sbc_src_caps = {
     A2DP_SBC_IE_SAMP_FREQ_44,          /* samp_freq */
+    A2DP_SBC_IE_CH_MD_JOINT,           /* ch_mode */
+    A2DP_SBC_IE_BLOCKS_16,             /* block_len */
+=======
+static const tA2DP_SBC_CIE a2dp_sbc_caps = {
+    A2DP_SBC_IE_SAMP_FREQ_44,                           /* samp_freq */
+    (A2DP_SBC_IE_CH_MD_MONO | A2DP_SBC_IE_CH_MD_JOINT), /* ch_mode */
+    (A2DP_SBC_IE_BLOCKS_16 | A2DP_SBC_IE_BLOCKS_12 | A2DP_SBC_IE_BLOCKS_8 |
+     A2DP_SBC_IE_BLOCKS_4),            /* block_len */
+>>>>>>> 3712a5d947b37f05640898586f8d2f37a9fc7123
+    A2DP_SBC_IE_SUBBAND_8,             /* num_subbands */
+    A2DP_SBC_IE_ALLOC_MD_L,            /* alloc_method */
+    A2DP_SBC_IE_MIN_BITPOOL,           /* min_bitpool */
+    A2DP_SBC_MAX_BITPOOL,              /* max_bitpool */
+    BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16 /* bits_per_sample */
+};
+/* SBC SRC offload capabilities */
+static const tA2DP_SBC_CIE a2dp_sbc_offload_caps = {
+    A2DP_SBC_IE_SAMP_FREQ_48,          /* samp_freq */
     A2DP_SBC_IE_CH_MD_JOINT,           /* ch_mode */
     A2DP_SBC_IE_BLOCKS_16,             /* block_len */
     A2DP_SBC_IE_SUBBAND_8,             /* num_subbands */
@@ -63,7 +82,6 @@ static const tA2DP_SBC_CIE a2dp_sbc_caps = {
     A2DP_SBC_MAX_BITPOOL,              /* max_bitpool */
     BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16 /* bits_per_sample */
 };
-
 /* SBC SINK codec capabilities */
 static const tA2DP_SBC_CIE a2dp_sbc_sink_caps = {
     (A2DP_SBC_IE_SAMP_FREQ_48 | A2DP_SBC_IE_SAMP_FREQ_44), /* samp_freq */
@@ -77,9 +95,8 @@ static const tA2DP_SBC_CIE a2dp_sbc_sink_caps = {
     A2DP_SBC_MAX_BITPOOL,                              /* max_bitpool */
     BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16                 /* bits_per_sample */
 };
-
 /* Default SBC codec configuration */
-const tA2DP_SBC_CIE a2dp_sbc_default_config = {
+const tA2DP_SBC_CIE a2dp_sbc_src_default_config = {
     A2DP_SBC_IE_SAMP_FREQ_44,          /* samp_freq */
     A2DP_SBC_IE_CH_MD_JOINT,           /* ch_mode */
     A2DP_SBC_IE_BLOCKS_16,             /* block_len */
@@ -89,6 +106,18 @@ const tA2DP_SBC_CIE a2dp_sbc_default_config = {
     A2DP_SBC_MAX_BITPOOL,              /* max_bitpool */
     BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16 /* bits_per_sample */
 };
+/* Default SBC offload configuration */
+const tA2DP_SBC_CIE a2dp_sbc_offload_default_config = {
+    A2DP_SBC_IE_SAMP_FREQ_48,          /* samp_freq */
+    A2DP_SBC_IE_CH_MD_JOINT,           /* ch_mode */
+    A2DP_SBC_IE_BLOCKS_16,             /* block_len */
+    A2DP_SBC_IE_SUBBAND_8,             /* num_subbands */
+    A2DP_SBC_IE_ALLOC_MD_L,            /* alloc_method */
+    A2DP_SBC_IE_MIN_BITPOOL,           /* min_bitpool */
+    A2DP_SBC_MAX_BITPOOL,              /* max_bitpool */
+    BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16 /* bits_per_sample */
+};
+tA2DP_SBC_CIE a2dp_sbc_caps, a2dp_sbc_default_config;
 
 static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_sbc = {
     a2dp_sbc_encoder_init,
@@ -517,19 +546,6 @@ int A2DP_GetTrackSampleRateSbc(const uint8_t* p_codec_info) {
   }
 
   return -1;
-}
-
-int A2DP_GetTrackBitsPerSampleSbc(const uint8_t* p_codec_info) {
-  tA2DP_SBC_CIE sbc_cie;
-
-  tA2DP_STATUS a2dp_status = A2DP_ParseInfoSbc(&sbc_cie, p_codec_info, false);
-  if (a2dp_status != A2DP_SUCCESS) {
-    LOG_ERROR(LOG_TAG, "%s: cannot decode codec information: %d", __func__,
-              a2dp_status);
-    return -1;
-  }
-
-  return 16;  // For SBC we always use 16 bits per audio sample
 }
 
 int A2DP_GetTrackChannelCountSbc(const uint8_t* p_codec_info) {
@@ -1033,6 +1049,15 @@ UNUSED_ATTR static void build_codec_config(const tA2DP_SBC_CIE& config_cie,
 A2dpCodecConfigSbc::A2dpCodecConfigSbc(
     btav_a2dp_codec_priority_t codec_priority)
     : A2dpCodecConfig(BTAV_A2DP_CODEC_INDEX_SOURCE_SBC, "SBC", codec_priority) {
+  LOG_DEBUG(LOG_TAG,"%s",__func__);
+  if (A2DP_GetOffloadStatus()) {
+    a2dp_sbc_caps = a2dp_sbc_offload_caps;
+    a2dp_sbc_default_config = a2dp_sbc_offload_default_config;
+  }
+  else {
+    a2dp_sbc_caps = a2dp_sbc_src_caps;
+    a2dp_sbc_default_config = a2dp_sbc_src_default_config;
+  }
   // Compute the local capability
   if (a2dp_sbc_caps.samp_freq & A2DP_SBC_IE_SAMP_FREQ_44) {
     codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
@@ -1060,6 +1085,15 @@ A2dpCodecConfigSbc::~A2dpCodecConfigSbc() {}
 bool A2dpCodecConfigSbc::init() {
   if (!isValid()) return false;
 
+  if (A2DP_GetOffloadStatus()) {
+    if (A2DP_IsCodecEnabledInOffload(BTAV_A2DP_CODEC_INDEX_SOURCE_SBC)) {
+      LOG_ERROR(LOG_TAG, "%s: SBC enabled in offload mode", __func__);
+      return true;
+    }else {
+      LOG_ERROR(LOG_TAG, "%s: SBC disabled in offload mode", __func__);
+      return false;
+    }
+  }
   // Load the encoder
   if (!A2DP_LoadEncoderSbc()) {
     LOG_ERROR(LOG_TAG, "%s: cannot load the encoder", __func__);

@@ -206,6 +206,16 @@ void BTM_DeviceReset(UNUSED_ATTR tBTM_CMPL_CB* p_cb) {
                                      bt_workqueue_thread, reset_complete);
 }
 
+void BTM_HCI_Reset(void) {
+  /* Flush all ACL connections */
+  btm_acl_device_down();
+
+  /* Clear the callback, so application would not hang on reset */
+  btm_db_reset();
+
+  btsnd_hcic_reset(LOCAL_BR_EDR_CONTROLLER_ID);
+}
+
 /*******************************************************************************
  *
  * Function         BTM_IsDeviceUp
@@ -555,6 +565,56 @@ tBTM_DEV_STATUS_CB* BTM_RegisterForDeviceStatusNotif(tBTM_DEV_STATUS_CB* p_cb) {
   return (p_prev);
 }
 
+
+/*******************************************************************************
+**
+** Function         BTM_Hci_Raw_Command
+**
+** Description      Send  HCI raw command to the controller.
+**
+** Returns
+**      BTM_SUCCESS         Command sent. Does not expect command complete
+**                              event. (command cmpl callback param is NULL)
+**      BTM_CMD_STARTED     Command sent. Waiting for command cmpl event.
+**
+**
+*******************************************************************************/
+tBTM_STATUS BTM_Hci_Raw_Command(uint16_t opcode, uint8_t param_len,
+                              uint8_t *p_param_buf, tBTM_RAW_CMPL_CB *p_cb)
+{
+  void *p_buf;
+#if HCI_RAW_CMD_INCLUDED == TRUE
+  tBTM_DEVCB  *p_devcb = &btm_cb.devcb;
+#endif
+
+BTM_TRACE_EVENT ("BTM: BTM_Hci_Raw_Command: Opcode: 0x%04X, ParamLen: %i.",
+                   opcode, param_len);
+
+  /* Allocate a buffer to hold HCI command plus the callback function */
+  p_buf = osi_malloc((uint16_t)(sizeof(BT_HDR) + sizeof (tBTM_CMPL_CB *) +
+                          param_len + HCIC_PREAMBLE_SIZE));
+  if (p_buf != NULL) {
+    btsnd_hcic_raw_cmd (p_buf, opcode, param_len, p_param_buf, (void *)p_cb);
+
+    /* Return value */
+#if HCI_RAW_CMD_INCLUDED == TRUE
+    if (p_cb != NULL) {
+      if(p_cb != (p_devcb->p_hci_evt_cb)) {
+        p_devcb->p_hci_evt_cb = p_cb;
+      }
+            return BTM_CMD_STARTED;
+    }
+#else
+    if (p_cb != NULL)
+      return BTM_CMD_STARTED;
+#endif
+    else
+      return BTM_SUCCESS;
+  }
+  else
+    return BTM_NO_RESOURCES;
+
+}
 /*******************************************************************************
  *
  * Function         BTM_VendorSpecificCommand
@@ -579,6 +639,32 @@ void BTM_VendorSpecificCommand(uint16_t opcode, uint8_t param_len,
                              (void*)p_cb);
 }
 
+#if HCI_RAW_CMD_INCLUDED == TRUE
+/*******************************************************************************
+**
+** Function         btm_hci_event
+**
+** Description      This function is called when HCI event is received
+**                  from the HCI layer.
+**
+** Returns          void
+**
+*******************************************************************************/
+void btm_hci_event(uint8_t *p, uint8_t event_code, uint8_t param_len)
+{
+  tBTM_DEVCB     *p_devcb = &btm_cb.devcb;
+  tBTM_RAW_CMPL  raw_cplt_params;
+
+  /* If there was a callback address for raw cmd complete, call it */
+  if (p_devcb->p_hci_evt_cb) {
+    /* Pass paramters to the callback function */
+    raw_cplt_params.event_code = event_code;   /* Number of bytes in return info */
+    raw_cplt_params.param_len = param_len;    /* Number of bytes in return info */
+    raw_cplt_params.p_param_buf = p;
+    (p_devcb->p_hci_evt_cb) (&raw_cplt_params);  /* Call the cmd complete callback function */
+  }
+}
+#endif
 /*******************************************************************************
  *
  * Function         btm_vsc_complete
@@ -768,27 +854,26 @@ tBTM_STATUS BTM_EnableTestMode(void) {
  *                                 the results
  *
  ******************************************************************************/
-tBTM_STATUS BTM_DeleteStoredLinkKey(BD_ADDR bd_addr, tBTM_CMPL_CB* p_cb) {
-  BD_ADDR local_bd_addr;
-  bool delete_all_flag = false;
-
+tBTM_STATUS BTM_DeleteStoredLinkKey(const RawAddress* bd_addr,
+                                    tBTM_CMPL_CB* p_cb) {
   /* Check if the previous command is completed */
   if (btm_cb.devcb.p_stored_link_key_cmpl_cb) return (BTM_BUSY);
 
-  if (!bd_addr) {
-    /* This is to delete all link keys */
-    delete_all_flag = true;
-
-    /* We don't care the BD address. Just pass a non zero pointer */
-    bd_addr = local_bd_addr;
-  }
+  bool delete_all_flag = !bd_addr;
 
   BTM_TRACE_EVENT("BTM: BTM_DeleteStoredLinkKey: delete_all_flag: %s",
                   delete_all_flag ? "true" : "false");
 
-  /* Send the HCI command */
   btm_cb.devcb.p_stored_link_key_cmpl_cb = p_cb;
-  btsnd_hcic_delete_stored_key(bd_addr, delete_all_flag);
+  if (!bd_addr) {
+    /* This is to delete all link keys */
+    /* We don't care the BD address. Just pass a non zero pointer */
+    RawAddress local_bd_addr = RawAddress::kEmpty;
+    btsnd_hcic_delete_stored_key(local_bd_addr, delete_all_flag);
+  } else {
+    btsnd_hcic_delete_stored_key(*bd_addr, delete_all_flag);
+  }
+
   return (BTM_SUCCESS);
 }
 

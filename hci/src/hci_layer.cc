@@ -41,6 +41,7 @@
 #include "hci_internals.h"
 #include "hcidefs.h"
 #include "hcimsgs.h"
+#include "bt_utils.h"
 #include "osi/include/alarm.h"
 #include "osi/include/list.h"
 #include "osi/include/log.h"
@@ -50,9 +51,16 @@
 
 #define BT_HCI_TIMEOUT_TAG_NUM 1010000
 
+bt_soc_type soc_type;
+
 extern void hci_initialize();
 extern void hci_transmit(BT_HDR* packet);
 extern void hci_close();
+extern int hci_open_firmware_log_file();
+extern void hci_close_firmware_log_file(int fd);
+extern void hci_log_firmware_debug_packet(int fd, BT_HDR* packet);
+
+static int hci_firmware_log_fd = INVALID_FD;
 
 typedef struct {
   uint16_t opcode;
@@ -73,6 +81,7 @@ static const int BT_HCI_RT_PRIORITY = 1;
 
 // Abort if there is no response to an HCI command.
 static const uint32_t COMMAND_PENDING_TIMEOUT_MS = 2000;
+static const uint32_t COMMAND_TIMEOUT_RESTART_S = 5;
 
 // Our interface
 static bool interface_created;
@@ -102,10 +111,12 @@ static list_t* commands_pending_response;
 static std::recursive_mutex commands_pending_response_mutex;
 
 // The hand-off point for data going to a higher layer, set by the higher layer
-static fixed_queue_t* upwards_data_queue;
+static base::Callback<void(const tracked_objects::Location&, BT_HDR*)>
+    send_data_upwards;
 
 static bool filter_incoming_event(BT_HDR* packet);
 static waiting_command_t* get_waiting_command(command_opcode_t opcode);
+static int get_num_waiting_commands();
 
 static void event_finish_startup(void* context);
 static void startup_timer_expired(void* context);
@@ -132,12 +143,12 @@ void initialization_complete() {
       FROM_HERE, base::Bind(&event_finish_startup, nullptr));
 }
 
-void hci_event_received(BT_HDR* packet) {
+void hci_event_received(const tracked_objects::Location& from_here,
+                        BT_HDR* packet) {
   btsnoop->capture(packet, true);
 
   if (!filter_incoming_event(packet)) {
-    data_dispatcher_dispatch(interface.event_dispatcher, packet->data[0],
-                             packet);
+    send_data_upwards.Run(from_here, packet);
   }
 }
 
@@ -244,6 +255,9 @@ error:
 static future_t* hci_module_shut_down() {
   LOG_INFO(LOG_TAG, "%s", __func__);
 
+  // Close HCI to prevent callbacks.
+  hci_close();
+
   // Free the timers
   {
     std::lock_guard<std::recursive_mutex> lock(commands_pending_response_mutex);
@@ -264,8 +278,6 @@ static future_t* hci_module_shut_down() {
     thread_join(thread);
   }
 
-  // Close HCI to prevent callbacks.
-  hci_close();
 
   {
     std::lock_guard<std::recursive_mutex> lock(commands_pending_response_mutex);
@@ -291,7 +303,11 @@ EXPORT_SYMBOL extern const module_t hci_module = {
 
 // Interface functions
 
-static void set_data_queue(fixed_queue_t* queue) { upwards_data_queue = queue; }
+static void set_data_cb(
+    base::Callback<void(const tracked_objects::Location&, BT_HDR*)>
+        send_data_cb) {
+  send_data_upwards = std::move(send_data_cb);
+}
 
 static void transmit_command(BT_HDR* command,
                              command_complete_cb complete_callback,
@@ -331,7 +347,7 @@ static future_t* transmit_command_futured(BT_HDR* command) {
   return future;
 }
 
-static void transmit_downward(data_dispatcher_type_t type, void* data) {
+static void transmit_downward(uint16_t type, void* data) {
   if (type == MSG_STACK_TO_HC_HCI_CMD) {
     // TODO(zachoverflow): eliminate this call
     transmit_command((BT_HDR*)data, NULL, NULL, NULL);
@@ -429,34 +445,74 @@ static void fragmenter_transmit_finished(BT_HDR* packet,
     // This is kind of a weird case, since we're dispatching a partially sent
     // packet up to a higher layer.
     // TODO(zachoverflow): rework upper layer so this isn't necessary.
-    data_dispatcher_dispatch(interface.event_dispatcher,
-                             packet->event & MSG_EVT_MASK, packet);
+
+    send_data_upwards.Run(FROM_HERE, packet);
   }
 }
 
-static void command_timed_out(UNUSED_ATTR void* context) {
+// Print debugging information and quit. Don't dereference original_wait_entry.
+static void command_timed_out(void* original_wait_entry) {
   std::unique_lock<std::recursive_mutex> lock(commands_pending_response_mutex);
 
-  if (list_is_empty(commands_pending_response)) {
-    LOG_ERROR(LOG_TAG, "%s with no commands pending response", __func__);
-  } else {
-    waiting_command_t* wait_entry = reinterpret_cast<waiting_command_t*>(
-        list_front(commands_pending_response));
+  LOG_ERROR(LOG_TAG, "%s: %d commands pending response", __func__,
+            get_num_waiting_commands());
+
+  for (const list_node_t* node = list_begin(commands_pending_response);
+       node != list_end(commands_pending_response); node = list_next(node)) {
+    waiting_command_t* wait_entry =
+        reinterpret_cast<waiting_command_t*>(list_node(node));
 
     int wait_time_ms =
         std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - wait_entry->timestamp)
             .count();
-    // We shouldn't try to recover the stack from this command timeout.
-    // If it's caused by a software bug, fix it. If it's a hardware bug, fix it.
-    LOG_ERROR(LOG_TAG, "%s: Waited %d ms for a response to opcode: 0x%x",
-              __func__, wait_time_ms, wait_entry->opcode);
-    LOG_EVENT_INT(BT_HCI_TIMEOUT_TAG_NUM, wait_entry->opcode);
-    lock.unlock();
-  }
+    LOG_ERROR(LOG_TAG, "%s: Waited %d ms for a response to opcode: 0x%x %s",
+              __func__, wait_time_ms, wait_entry->opcode,
+              (wait_entry == original_wait_entry) ? "*matches timer*" : "");
 
-  LOG_ERROR(LOG_TAG, "%s restarting the bluetooth process.", __func__);
-  usleep(10000);
+    // Dump the length field and the first byte of the payload, if present.
+    uint8_t* command = wait_entry->command->data + wait_entry->command->offset;
+    if (wait_entry->command->len > 3) {
+      LOG_ERROR(LOG_TAG, "%s: Size %d Hex %02x %02x %02x %02x", __func__,
+                wait_entry->command->len, command[0], command[1], command[2],
+                command[3]);
+    } else {
+      LOG_ERROR(LOG_TAG, "%s: Size %d Hex %02x %02x %02x", __func__,
+                wait_entry->command->len, command[0], command[1], command[2]);
+    }
+
+    LOG_EVENT_INT(BT_HCI_TIMEOUT_TAG_NUM, wait_entry->opcode);
+  }
+  lock.unlock();
+
+  LOG_ERROR(LOG_TAG, "%s: requesting a firmware dump.", __func__);
+
+  /* Allocate a buffer to hold the HCI command. */
+  BT_HDR* bt_hdr =
+      static_cast<BT_HDR*>(osi_malloc(sizeof(BT_HDR) + HCIC_PREAMBLE_SIZE));
+
+  bt_hdr->len = HCIC_PREAMBLE_SIZE;
+  bt_hdr->event = MSG_STACK_TO_HC_HCI_CMD;
+  bt_hdr->offset = 0;
+
+  uint8_t* hci_packet = reinterpret_cast<uint8_t*>(bt_hdr + 1);
+
+  UINT16_TO_STREAM(hci_packet,
+                   HCI_GRP_VENDOR_SPECIFIC | HCI_CONTROLLER_DEBUG_INFO_OCF);
+  UINT8_TO_STREAM(hci_packet, 0);  // No parameters
+
+  hci_firmware_log_fd = hci_open_firmware_log_file();
+
+  transmit_fragment(bt_hdr, true);
+
+  osi_free(bt_hdr);
+
+  LOG_ERROR(LOG_TAG, "%s restarting the Bluetooth process.", __func__);
+  sleep(COMMAND_TIMEOUT_RESTART_S);
+  hci_close_firmware_log_file(hci_firmware_log_fd);
+
+  // We shouldn't try to recover the stack from this command timeout.
+  // If it's caused by a software bug, fix it. If it's a hardware bug, fix it.
   abort();
 }
 
@@ -469,7 +525,10 @@ void process_command_credits(int credits) {
     // HCI Layer was shut down
     return;
   }
-  command_credits = credits;
+
+  // Subtract commands in flight.
+  command_credits = credits - get_num_waiting_commands();
+
   while (command_credits > 0 && command_queue.size() > 0) {
     message_loop_->task_runner()->PostTask(FROM_HERE,
                                            std::move(command_queue.front()));
@@ -495,9 +554,10 @@ static bool filter_incoming_event(BT_HDR* packet) {
     STREAM_TO_UINT8(credits, stream);
     STREAM_TO_UINT16(opcode, stream);
 
+    wait_entry = get_waiting_command(opcode);
+
     process_command_credits(credits);
 
-    wait_entry = get_waiting_command(opcode);
     if (!wait_entry) {
       if (opcode != HCI_COMMAND_NONE) {
         LOG_WARN(LOG_TAG,
@@ -521,11 +581,12 @@ static bool filter_incoming_event(BT_HDR* packet) {
     STREAM_TO_UINT8(credits, stream);
     STREAM_TO_UINT16(opcode, stream);
 
-    process_command_credits(credits);
-
     // If a command generates a command status event, it won't be getting a
     // command complete event
     wait_entry = get_waiting_command(opcode);
+
+    process_command_credits(credits);
+
     if (!wait_entry) {
       LOG_WARN(
           LOG_TAG,
@@ -539,6 +600,15 @@ static bool filter_incoming_event(BT_HDR* packet) {
     }
 
     goto intercepted;
+  } else if (event_code == HCI_VSE_SUBCODE_DEBUG_INFO_SUB_EVT) {
+    if (hci_firmware_log_fd == INVALID_FD)
+      hci_firmware_log_fd = hci_open_firmware_log_file();
+
+    if (hci_firmware_log_fd != INVALID_FD)
+      hci_log_firmware_debug_packet(hci_firmware_log_fd, packet);
+
+    buffer_allocator->free(packet);
+    return true;
   }
 
   return false;
@@ -566,9 +636,9 @@ intercepted:
 static void dispatch_reassembled(BT_HDR* packet) {
   // Events should already have been dispatched before this point
   CHECK((packet->event & MSG_EVT_MASK) != MSG_HC_TO_STACK_HCI_EVT);
-  CHECK(upwards_data_queue != NULL);
+  CHECK(!send_data_upwards.is_null());
 
-  fixed_queue_enqueue(upwards_data_queue, packet);
+  send_data_upwards.Run(FROM_HERE, packet);
 }
 
 // Misc internal functions
@@ -587,8 +657,32 @@ static waiting_command_t* get_waiting_command(command_opcode_t opcode) {
 
     return wait_entry;
   }
+  // look for any command complete with improper VS Opcode
+  for (const list_node_t *node = list_begin(commands_pending_response);
+      node != list_end(commands_pending_response);
+      node = list_next(node)) {
+    waiting_command_t *wait_entry =
+        reinterpret_cast<waiting_command_t*> (list_node(node));
 
+    if (wait_entry && (wait_entry->opcode != opcode) &&
+        (((wait_entry->opcode & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC) &&
+        ((opcode & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC))) {
+        LOG_DEBUG(LOG_TAG,"%s VS event found treat it as valid 0x%x", __func__, opcode);
+    }
+    else {
+        continue;
+    }
+
+    list_remove(commands_pending_response, wait_entry);
+
+    return wait_entry;
+  }
   return NULL;
+}
+
+static int get_num_waiting_commands() {
+  std::lock_guard<std::recursive_mutex> lock(commands_pending_response_mutex);
+  return list_length(commands_pending_response);
 }
 
 static void update_command_response_timer(void) {
@@ -599,7 +693,7 @@ static void update_command_response_timer(void) {
     alarm_cancel(command_response_timer);
   } else {
     alarm_set(command_response_timer, COMMAND_PENDING_TIMEOUT_MS,
-              command_timed_out, NULL);
+              command_timed_out, list_front(commands_pending_response));
   }
 }
 
@@ -607,13 +701,17 @@ static void init_layer_interface() {
   if (!interface_created) {
     // It's probably ok for this to live forever. It's small and
     // there's only one instance of the hci interface.
+<<<<<<< HEAD
     interface.event_dispatcher = data_dispatcher_new("hci_layer");
     if (!interface.event_dispatcher) {
       LOG_ERROR(LOG_TAG, "%s could not create upward dispatcher.", __func__);
       return;
     }
+    soc_type = get_soc_type();
+=======
+>>>>>>> 3712a5d947b37f05640898586f8d2f37a9fc7123
 
-    interface.set_data_queue = set_data_queue;
+    interface.set_data_cb = set_data_cb;
     interface.transmit_command = transmit_command;
     interface.transmit_command_futured = transmit_command_futured;
     interface.transmit_downward = transmit_downward;
@@ -623,10 +721,9 @@ static void init_layer_interface() {
 
 void hci_layer_cleanup_interface() {
   if (interface_created) {
-    data_dispatcher_free(interface.event_dispatcher);
-    interface.event_dispatcher = NULL;
+    send_data_upwards.Reset();
 
-    interface.set_data_queue = NULL;
+    interface.set_data_cb = NULL;
     interface.transmit_command = NULL;
     interface.transmit_command_futured = NULL;
     interface.transmit_downward = NULL;

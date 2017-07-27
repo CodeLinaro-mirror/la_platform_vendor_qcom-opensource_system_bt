@@ -1,4 +1,8 @@
 /******************************************************************************
+ * Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ ******************************************************************************/
+/******************************************************************************
  *
  *  Copyright (C) 2003-2016 Broadcom Corporation
  *
@@ -129,7 +133,8 @@ void AVCT_Deregister(void) {
  * Returns          AVCT_SUCCESS if successful, otherwise error.
  *
  ******************************************************************************/
-uint16_t AVCT_CreateConn(uint8_t* p_handle, tAVCT_CC* p_cc, BD_ADDR peer_addr) {
+uint16_t AVCT_CreateConn(uint8_t* p_handle, tAVCT_CC* p_cc,
+                         const RawAddress& peer_addr) {
   uint16_t result = AVCT_SUCCESS;
   tAVCT_CCB* p_ccb;
   tAVCT_LCB* p_lcb;
@@ -265,7 +270,7 @@ uint16_t AVCT_CreateBrowse(uint8_t handle, uint8_t role) {
     if (result == AVCT_SUCCESS) {
       /* bind bcb to ccb */
       p_ccb->p_bcb = p_bcb;
-      memcpy(p_bcb->peer_addr, p_ccb->p_lcb->peer_addr, BD_ADDR_LEN);
+      p_bcb->peer_addr = p_ccb->p_lcb->peer_addr;
       AVCT_TRACE_DEBUG("ch_state: %d", p_bcb->ch_state);
       avct_bcb_event(p_bcb, AVCT_LCB_UL_BIND_EVT, (tAVCT_LCB_EVT*)&p_ccb);
     }
@@ -416,8 +421,13 @@ uint16_t AVCT_MsgReq(uint8_t handle, uint8_t label, uint8_t cr, BT_HDR* p_msg) {
         osi_free(p_msg);
       } else {
         p_ccb->p_bcb = avct_bcb_by_lcb(p_ccb->p_lcb);
-        avct_bcb_event(p_ccb->p_bcb, AVCT_LCB_UL_MSG_EVT,
-                       (tAVCT_LCB_EVT*)&ul_msg);
+        if (p_ccb->p_bcb)
+          avct_bcb_event(p_ccb->p_bcb, AVCT_LCB_UL_MSG_EVT,
+                         (tAVCT_LCB_EVT *) &ul_msg);
+        else {
+          result = AVCT_BAD_HANDLE;
+          osi_free(p_msg);
+        }
       }
     }
     /* send msg event to lcb */
@@ -427,4 +437,56 @@ uint16_t AVCT_MsgReq(uint8_t handle, uint8_t label, uint8_t cr, BT_HDR* p_msg) {
     }
   }
   return result;
+}
+
+/*******************************************************************************
+**
+** Function         AVCT_CheckIncomingConn
+**
+** Description      Check for incoming connection in progress
+**
+** Return           TRUE if incoming connection in progress, FALSE otherwise
+******************************************************************************/
+bool AVCT_CheckIncomingConn(BD_ADDR peer_addr)
+{
+    tAVCT_LCB *p_lcb;
+
+    p_lcb = avct_lcb_by_bd(peer_addr);
+    if (p_lcb != NULL)
+    {
+        if (p_lcb->ch_state != AVCT_CH_IDLE)
+        {
+            AVCT_TRACE_ERROR("%s: Incoming AVCT connection in progress",__func__);
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+/******************************************************************************
+ *
+ * Function         AVCT_SetTraceLevel
+ *
+ * Description      Sets the trace level for AVCT. If 0xff is passed, the
+ *                  current trace level is returned.
+ *
+ *                  Input Parameters:
+ *                      new_level:  The level to set the AVCT tracing to:
+ *                      0xff-returns the current setting.
+ *                      0-turns off tracing.
+ *                      >= 1-Errors.
+ *                      >= 2-Warnings.
+ *                      >= 3-APIs.
+ *                      >= 4-Events.
+ *                      >= 5-Debug.
+ *
+ * Returns          The new trace level or current trace level if
+ *                  the input parameter is 0xff.
+ *
+ ******************************************************************************/
+uint8_t AVCT_SetTraceLevel (uint8_t new_level) {
+  if (new_level != 0xFF)
+    avct_cb.trace_level = new_level;
+
+  return (avct_cb.trace_level);
 }

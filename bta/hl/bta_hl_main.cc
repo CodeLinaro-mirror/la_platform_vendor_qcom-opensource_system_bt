@@ -452,7 +452,7 @@ void bta_hl_cch_sm_execute(uint8_t app_idx, uint8_t mcl_idx, uint16_t event,
 
   for (i = 0; i < BTA_HL_CCH_ACTIONS; i++) {
     action = state_table[event][i];
-    if (action != BTA_HL_CCH_IGNORE) {
+    if (action < BTA_HL_CCH_IGNORE) {
       (*bta_hl_cch_action[action])(app_idx, mcl_idx, p_data);
     } else {
       /* discard HDP data */
@@ -503,7 +503,7 @@ void bta_hl_dch_sm_execute(uint8_t app_idx, uint8_t mcl_idx, uint8_t mdl_idx,
 
   for (i = 0; i < BTA_HL_DCH_ACTIONS; i++) {
     action = state_table[event][i];
-    if (action != BTA_HL_DCH_IGNORE) {
+    if (action < BTA_HL_DCH_IGNORE) {
       (*bta_hl_dch_action[action])(app_idx, mcl_idx, mdl_idx, p_data);
     } else {
       /* discard mas data */
@@ -780,7 +780,7 @@ static void bta_hl_api_cch_open(UNUSED_ATTR tBTA_HL_CB* p_cb,
         p_mcb->in_use = true;
         p_mcb->req_ctrl_psm = p_data->api_cch_open.ctrl_psm;
         p_mcb->sec_mask = p_data->api_cch_open.sec_mask;
-        bdcpy(p_mcb->bd_addr, p_data->api_cch_open.bd_addr);
+        p_mcb->bd_addr = p_data->api_cch_open.bd_addr;
         p_mcb->cch_oper = BTA_HL_CCH_OP_LOCAL_OPEN;
       } else {
         status = BTA_HL_STATUS_NO_RESOURCE;
@@ -1328,7 +1328,7 @@ static void bta_hl_api_sdp_query(UNUSED_ATTR tBTA_HL_CB* p_cb,
       if (bta_hl_find_avail_mcl_idx(app_idx, &mcl_idx)) {
         p_mcb = BTA_HL_GET_MCL_CB_PTR(app_idx, mcl_idx);
         p_mcb->in_use = true;
-        bdcpy(p_mcb->bd_addr, p_data->api_sdp_query.bd_addr);
+        p_mcb->bd_addr = p_data->api_sdp_query.bd_addr;
         APPL_TRACE_DEBUG(
             "bta_hl_api_sdp_query p_mcb->app_id %d app_idx %d mcl_idx %d",
             p_mcb->app_id, app_idx, mcl_idx);

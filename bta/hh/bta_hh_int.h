@@ -115,7 +115,7 @@ typedef struct {
 
 typedef struct {
   BT_HDR hdr;
-  BD_ADDR bd_addr;
+  RawAddress bd_addr;
   uint8_t sec_mask;
   tBTA_HH_PROTO_MODE mode;
 } tBTA_HH_API_CONN;
@@ -123,14 +123,14 @@ typedef struct {
 /* internal event data from BTE HID callback */
 typedef struct {
   BT_HDR hdr;
-  BD_ADDR addr;
+  RawAddress addr;
   uint32_t data;
   BT_HDR* p_data;
 } tBTA_HH_CBACK_DATA;
 
 typedef struct {
   BT_HDR hdr;
-  BD_ADDR bda;
+  RawAddress bda;
   uint16_t attr_mask;
   uint16_t sub_event;
   uint8_t sub_class;
@@ -204,6 +204,14 @@ typedef struct {
 
 } tBTA_HH_LE_HID_SRVC;
 
+#ifndef BTA_HH_LE_HID_SRVC_MAX
+#if (defined(BLE_HH_QUALIFICATION_ENABLED) && BLE_HH_QUALIFICATION_ENABLED == TRUE)
+#define BTA_HH_LE_HID_SRVC_MAX      2
+#else
+#define BTA_HH_LE_HID_SRVC_MAX      1
+#endif
+#endif
+
 /* convert a HID handle to the LE CB index */
 #define BTA_HH_GET_LE_CB_IDX(x) (((x) >> 4) - 1)
 /* convert a GATT connection ID to HID device handle, it is the hi 4 bits of a
@@ -217,7 +225,7 @@ typedef struct {
 /* device control block */
 typedef struct {
   tBTA_HH_DEV_DSCP_INFO dscp_info; /* report descriptor and DI information */
-  BD_ADDR addr;                    /* BD-Addr of the HID device */
+  RawAddress addr;                 /* BD-Addr of the HID device */
   uint16_t attr_mask;              /* attribute mask */
   uint16_t w4_evt;                 /* W4_handshake event name */
   uint8_t index;                   /* index number referenced to handle index */
@@ -246,11 +254,14 @@ typedef struct {
   tBTA_HH_STATUS status;
   tBTA_GATT_REASON reason;
   bool is_le_device;
-  tBTA_HH_LE_HID_SRVC hid_srvc;
+  uint8_t total_srvc;
+  tBTA_HH_LE_HID_SRVC hid_srvc[BTA_HH_LE_HID_SRVC_MAX];
   uint16_t conn_id;
   bool in_bg_conn;
+  uint8_t cur_srvc_index; /* currently discovering service index */
   uint8_t clt_cfg_idx;
   uint16_t scan_refresh_char_handle;
+  uint16_t scan_int_char_handle;
   bool scps_supported;
 
 #define BTA_HH_LE_SCPS_NOTIFY_NONE 0
@@ -323,7 +334,7 @@ extern void bta_hh_open_cmpl_act(tBTA_HH_DEV_CB* p_cb, tBTA_HH_DATA* p_data);
 extern void bta_hh_open_failure(tBTA_HH_DEV_CB* p_cb, tBTA_HH_DATA* p_data);
 
 /* utility functions */
-extern uint8_t bta_hh_find_cb(BD_ADDR bda);
+extern uint8_t bta_hh_find_cb(const RawAddress& bda);
 extern void bta_hh_parse_keybd_rpt(tBTA_HH_BOOT_RPT* p_kb_data,
                                    uint8_t* p_report, uint16_t report_len);
 extern void bta_hh_parse_mice_rpt(tBTA_HH_BOOT_RPT* p_kb_data,
@@ -348,7 +359,7 @@ extern void bta_hh_api_enable(tBTA_HH_DATA* p_data);
 extern void bta_hh_api_disable(void);
 extern void bta_hh_disc_cmpl(void);
 
-extern tBTA_HH_STATUS bta_hh_read_ssr_param(BD_ADDR bd_addr,
+extern tBTA_HH_STATUS bta_hh_read_ssr_param(const RawAddress& bd_addr,
                                             uint16_t* p_max_ssr_lat,
                                             uint16_t* p_min_ssr_tout);
 
@@ -356,8 +367,10 @@ extern tBTA_HH_STATUS bta_hh_read_ssr_param(BD_ADDR bd_addr,
 extern void bta_hh_le_enable(void);
 extern bool bta_hh_le_is_hh_gatt_if(tBTA_GATTC_IF client_if);
 extern void bta_hh_le_deregister(void);
-extern bool bta_hh_is_le_device(tBTA_HH_DEV_CB* p_cb, BD_ADDR remote_bda);
-extern void bta_hh_le_open_conn(tBTA_HH_DEV_CB* p_cb, BD_ADDR remote_bda);
+extern bool bta_hh_is_le_device(tBTA_HH_DEV_CB* p_cb,
+                                const RawAddress& remote_bda);
+extern void bta_hh_le_open_conn(tBTA_HH_DEV_CB* p_cb,
+                                const RawAddress& remote_bda);
 extern void bta_hh_le_api_disc_act(tBTA_HH_DEV_CB* p_cb);
 extern void bta_hh_le_get_dscp_act(tBTA_HH_DEV_CB* p_cb);
 extern void bta_hh_le_write_dev_act(tBTA_HH_DEV_CB* p_cb, tBTA_HH_DATA* p_data);

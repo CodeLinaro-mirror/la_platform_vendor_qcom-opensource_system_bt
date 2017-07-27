@@ -35,18 +35,20 @@
 #include "port_api.h"
 #include "port_int.h"
 #include "rfc_int.h"
+#include "port_ext.h"
 #include "rfcdefs.h"
 
+extern fixed_queue_t *btu_general_alarm_queue;
 /*
  * Define Callback functions to be called by L2CAP
 */
-static void RFCOMM_ConnectInd(BD_ADDR bd_addr, uint16_t lcid, uint16_t psm,
-                              uint8_t id);
+static void RFCOMM_ConnectInd(const RawAddress& bd_addr, uint16_t lcid,
+                              uint16_t psm, uint8_t id);
 static void RFCOMM_ConnectCnf(uint16_t lcid, uint16_t err);
 static void RFCOMM_ConfigInd(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg);
 static void RFCOMM_ConfigCnf(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg);
 static void RFCOMM_DisconnectInd(uint16_t lcid, bool is_clear);
-static void RFCOMM_QoSViolationInd(UNUSED_ATTR BD_ADDR bd_addr);
+static void RFCOMM_QoSViolationInd(UNUSED_ATTR const RawAddress& bd_addr);
 static void RFCOMM_BufDataInd(uint16_t lcid, BT_HDR* p_buf);
 static void RFCOMM_CongestionStatusInd(uint16_t lcid, bool is_congested);
 
@@ -85,8 +87,8 @@ void rfcomm_l2cap_if_init(void) {
  *                  block and dispatch the event to it.
  *
  ******************************************************************************/
-void RFCOMM_ConnectInd(BD_ADDR bd_addr, uint16_t lcid, UNUSED_ATTR uint16_t psm,
-                       uint8_t id) {
+void RFCOMM_ConnectInd(const RawAddress& bd_addr, uint16_t lcid,
+                       UNUSED_ATTR uint16_t psm, uint8_t id) {
   tRFC_MCB* p_mcb = rfc_alloc_multiplexer_channel(bd_addr, false);
 
   if ((p_mcb) && (p_mcb->state != RFC_MX_STATE_IDLE)) {
@@ -98,14 +100,13 @@ void RFCOMM_ConnectInd(BD_ADDR bd_addr, uint16_t lcid, UNUSED_ATTR uint16_t psm,
       /* wait random timeout (2 - 12) to resolve collision */
       /* if peer gives up then local device rejects incoming connection and
        * continues as initiator */
-      /* if timeout, local device disconnects outgoing connection and continues
-       * as acceptor */
-      RFCOMM_TRACE_DEBUG(
-          "RFCOMM_ConnectInd start timer for collision, initiator's "
-          "LCID(0x%x), acceptor's LCID(0x%x)",
-          p_mcb->lcid, p_mcb->pending_lcid);
-
-      rfc_timer_start(p_mcb, (uint16_t)(time_get_os_boottime_ms() % 10 + 2));
+      /* if timeout, local device disconnects outgoing connection and continues */
+      period_ms_t interval_ms = (((time_get_os_boottime_ms() % 20) * 500) + 2000);
+      RFCOMM_TRACE_DEBUG ("RFCOMM_ConnectInd start collision timer = %d ms , initiator's LCID(0x%x), acceptor's LCID(0x%x)",
+                              interval_ms, p_mcb->lcid, p_mcb->pending_lcid);
+      alarm_set_on_queue(p_mcb->mcb_timer, interval_ms,
+                  rfcomm_mcb_timer_timeout, p_mcb,
+                  btu_general_alarm_queue);
       return;
     } else {
       /* we cannot accept connection request from peer at this state */
@@ -246,7 +247,7 @@ void RFCOMM_ConfigCnf(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg) {
  *                  FSM.
  *
  ******************************************************************************/
-void RFCOMM_QoSViolationInd(UNUSED_ATTR BD_ADDR bd_addr) {}
+void RFCOMM_QoSViolationInd(UNUSED_ATTR const RawAddress& bd_addr) {}
 
 /*******************************************************************************
  *

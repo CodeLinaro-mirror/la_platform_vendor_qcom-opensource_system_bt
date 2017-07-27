@@ -22,6 +22,8 @@
 
 #include "bta_hh_int.h"
 #include "osi/include/osi.h"
+#include "device/include/interop.h"
+#include "device/include/interop_config.h"
 
 /* if SSR max latency is not defined by remote device, set the default value
    as half of the link supervision timeout */
@@ -44,21 +46,6 @@ static const uint8_t bta_hh_mod_key_mask[BTA_HH_MOD_MAX_KEY] = {
     BTA_HH_KB_CTRL_MASK, BTA_HH_KB_SHIFT_MASK, BTA_HH_KB_ALT_MASK,
     BTA_HH_KB_GUI_MASK};
 
-/* hid_blacklist_addr_prefix_for_ssr & hid_ssr_max_lat_list_for_iot are used
-   to fix IOP issues of sniff subrate feature */
-static const uint8_t hid_blacklist_addr_prefix_for_ssr[][3] = {
-    {0x00, 0x1B, 0xDC} // ISSC
-    ,{0xdc, 0x2c, 0x26} // BORND
-    ,{0x54, 0x46, 0x6B} // JW MT002
-};
-
-static const uint16_t hid_ssr_max_lat_list_for_iot[] = {
-    0x0012 // ISSC
-    ,BTA_HH_SSR_MAX_LATENCY_ZERO // BORND
-    ,BTA_HH_SSR_DISABLE_SSR // JW MT002
-};
-
-
 /*******************************************************************************
 **      Function       blacklist_adjust_sniff_subrate
 **
@@ -67,22 +54,18 @@ static const uint16_t hid_ssr_max_lat_list_for_iot[] = {
 **
 **      Returns        None
 *******************************************************************************/
-static void blacklist_adjust_sniff_subrate(BD_ADDR peer_dev, uint16_t *ssr_max_lat)
+static void blacklist_adjust_sniff_subrate(BD_ADDR peer_dev, UINT16 *ssr_max_lat)
 {
-  uint16_t old_ssr_max_lat = *ssr_max_lat;
-  const int blacklist_size =
-          sizeof(hid_blacklist_addr_prefix_for_ssr)/sizeof(hid_blacklist_addr_prefix_for_ssr[0]);
-  for (int i = 0; i < blacklist_size; i++) {
-    if (hid_blacklist_addr_prefix_for_ssr[i][0] == peer_dev[0] &&
-        hid_blacklist_addr_prefix_for_ssr[i][1] == peer_dev[1] &&
-        hid_blacklist_addr_prefix_for_ssr[i][2] == peer_dev[2]) {
-        *ssr_max_lat = hid_ssr_max_lat_list_for_iot[i];
-      APPL_TRACE_WARNING("%s: Device in blacklist for ssr, max latency changed "
-          "from %d to %d", __func__, old_ssr_max_lat, *ssr_max_lat);
-      return;
+    UINT16 old_ssr_max_lat = *ssr_max_lat;
+    bt_bdaddr_t remote_bdaddr;
+    bdcpy(remote_bdaddr.address, peer_dev);
+    if (interop_match_addr_get_max_lat(INTEROP_UPDATE_HID_SSR_MAX_LAT, &remote_bdaddr,
+        ssr_max_lat)) {
+        APPL_TRACE_WARNING("%s: Device in blacklist for ssr, max latency changed "
+            "from %d to %d", __func__, old_ssr_max_lat, *ssr_max_lat);
     }
-  }
 }
+
 
 /*******************************************************************************
  *
@@ -94,14 +77,13 @@ static void blacklist_adjust_sniff_subrate(BD_ADDR peer_dev, uint16_t *ssr_max_l
  * Returns          void
  *
  ******************************************************************************/
-uint8_t bta_hh_find_cb(BD_ADDR bda) {
+uint8_t bta_hh_find_cb(const RawAddress& bda) {
   uint8_t xx;
 
   /* See how many active devices there are. */
   for (xx = 0; xx < BTA_HH_MAX_DEVICE; xx++) {
     /* check if any active/known devices is a match */
-    if ((!bdcmp(bda, bta_hh_cb.kdev[xx].addr) &&
-         bdcmp(bda, bd_addr_null) != 0)) {
+    if ((bda == bta_hh_cb.kdev[xx].addr && !bda.IsEmpty())) {
 #if (BTA_HH_DEBUG == TRUE)
       APPL_TRACE_DEBUG("found kdev_cb[%d] hid_handle = %d ", xx,
                        bta_hh_cb.kdev[xx].hid_handle)
@@ -119,7 +101,7 @@ uint8_t bta_hh_find_cb(BD_ADDR bda) {
   /* if no active device match, find a spot for it */
   for (xx = 0; xx < BTA_HH_MAX_DEVICE; xx++) {
     if (!bta_hh_cb.kdev[xx].in_use) {
-      bdcpy(bta_hh_cb.kdev[xx].addr, bda);
+      bta_hh_cb.kdev[xx].addr = bda;
       break;
     }
   }
@@ -412,14 +394,15 @@ void bta_hh_parse_mice_rpt(tBTA_HH_BOOT_RPT* p_mice_data, uint8_t* p_report,
  * Returns          tBTA_HH_STATUS  operation status
  *
  ******************************************************************************/
-tBTA_HH_STATUS bta_hh_read_ssr_param(BD_ADDR bd_addr, uint16_t* p_max_ssr_lat,
+tBTA_HH_STATUS bta_hh_read_ssr_param(const RawAddress& bd_addr,
+                                     uint16_t* p_max_ssr_lat,
                                      uint16_t* p_min_ssr_tout) {
   tBTA_HH_STATUS status = BTA_HH_ERR;
   tBTA_HH_CB* p_cb = &bta_hh_cb;
   uint8_t i;
   uint16_t ssr_max_latency;
   for (i = 0; i < BTA_HH_MAX_KNOWN; i++) {
-    if (memcmp(p_cb->kdev[i].addr, bd_addr, BD_ADDR_LEN) == 0) {
+    if (p_cb->kdev[i].addr == bd_addr) {
       /* if remote device does not have HIDSSRHostMaxLatency attribute in SDP,
       set SSR max latency default value here.  */
       if (p_cb->kdev[i].dscp_info.ssr_max_latency == HID_SSR_PARAM_INVALID) {

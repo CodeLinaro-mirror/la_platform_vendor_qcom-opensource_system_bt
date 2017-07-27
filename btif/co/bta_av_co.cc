@@ -1,4 +1,8 @@
 /******************************************************************************
+ * Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ ******************************************************************************/
+/******************************************************************************
  *
  *  Copyright (C) 2004-2012 Broadcom Corporation
  *
@@ -38,6 +42,7 @@
 #include "btif_util.h"
 #include "osi/include/mutex.h"
 #include "osi/include/osi.h"
+#include "osi/include/properties.h"
 
 /*****************************************************************************
  **  Constants
@@ -65,7 +70,7 @@ typedef struct {
 } tBTA_AV_CO_SINK;
 
 typedef struct {
-  BD_ADDR addr; /* address of audio/video peer */
+  RawAddress addr; /* address of audio/video peer */
   tBTA_AV_CO_SINK
       sinks[BTAV_A2DP_CODEC_INDEX_MAX]; /* array of supported sinks */
   tBTA_AV_CO_SINK srcs[BTAV_A2DP_CODEC_INDEX_MAX]; /* array of supported srcs */
@@ -144,6 +149,10 @@ static bool bta_av_co_set_codec_ota_config(tBTA_AV_CO_PEER* p_peer,
                                            const uint8_t* p_protect_info,
                                            bool* p_restart_output);
 
+/* externs */
+extern int btif_max_av_clients;
+extern tBTA_AV_HNDL btif_av_get_reconfig_dev_hndl();
+extern void btif_av_reset_codec_reconfig_flag();
 /*******************************************************************************
  **
  ** Function         bta_av_co_cp_get_flag
@@ -156,7 +165,17 @@ static bool bta_av_co_set_codec_ota_config(tBTA_AV_CO_PEER* p_peer,
  ** Returns          The current flag value
  **
  ******************************************************************************/
-static uint8_t bta_av_co_cp_get_flag(void) { return bta_av_co_cb.cp.flag; }
+uint8_t bta_av_co_cp_get_flag(void) { return bta_av_co_cb.cp.flag; }
+/*******************************************************************************
+ **
+ ** Function         bta_av_co_cp_is_active
+ **
+ ** Description     Get the current configuration of content protection
+ **
+ ** Returns          TRUE if the current streaming has CP, FALSE otherwise
+ **
+ ******************************************************************************/
+bool bta_av_co_cp_is_active(void) { return bta_av_co_cb.cp.active; }
 
 /*******************************************************************************
  **
@@ -239,8 +258,8 @@ bool bta_av_co_audio_init(btav_a2dp_codec_index_t codec_index,
  **
  ******************************************************************************/
 void bta_av_co_audio_disc_res(tBTA_AV_HNDL hndl, uint8_t num_seps,
-                              uint8_t num_sink, uint8_t num_src, BD_ADDR addr,
-                              uint16_t uuid_local) {
+                              uint8_t num_sink, uint8_t num_src,
+                              const RawAddress& addr, uint16_t uuid_local) {
   tBTA_AV_CO_PEER* p_peer;
 
   APPL_TRACE_DEBUG("%s: h:x%x num_seps:%d num_sink:%d num_src:%d", __func__,
@@ -259,7 +278,7 @@ void bta_av_co_audio_disc_res(tBTA_AV_HNDL hndl, uint8_t num_seps,
   }
 
   /* Copy the discovery results */
-  bdcpy(p_peer->addr, addr);
+  p_peer->addr = addr;
   p_peer->num_sinks = num_sink;
   p_peer->num_srcs = num_src;
   p_peer->num_seps = num_seps;
@@ -492,7 +511,8 @@ tA2DP_STATUS bta_av_co_audio_getconfig(tBTA_AV_HNDL hndl, uint8_t* p_codec_info,
  ******************************************************************************/
 void bta_av_co_audio_setconfig(tBTA_AV_HNDL hndl, const uint8_t* p_codec_info,
                                UNUSED_ATTR uint8_t seid,
-                               UNUSED_ATTR BD_ADDR addr, uint8_t num_protect,
+                               UNUSED_ATTR const RawAddress& addr,
+                               uint8_t num_protect,
                                const uint8_t* p_protect_info,
                                uint8_t t_local_sep, uint8_t avdt_handle) {
   tBTA_AV_CO_PEER* p_peer;
@@ -894,7 +914,13 @@ static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer) {
 
   // NOTE: Unconditionally dispatch the event to make sure a callback with
   // the most recent codec info is generated.
-  btif_dispatch_sm_event(BTIF_AV_SOURCE_CONFIG_UPDATED_EVT, NULL, 0);
+  bt_bdaddr_t bt_addr;
+  bdcpy(bt_addr.address, p_peer->addr);
+  btif_dispatch_sm_event(BTIF_AV_SOURCE_CONFIG_UPDATED_EVT, &bt_addr,
+                   sizeof(bt_bdaddr_t));
+  APPL_TRACE_DEBUG("%s BDA:0x%02X%02X%02X%02X%02X%02X", __func__,
+                   bt_addr.address[0], bt_addr.address[1], bt_addr.address[2],
+                   bt_addr.address[3], bt_addr.address[4], bt_addr.address[5]);
 
   return p_sink;
 }
@@ -912,6 +938,10 @@ static tBTA_AV_CO_SINK* bta_av_co_audio_codec_selected(
   for (size_t index = 0; index < p_peer->num_sup_sinks; index++) {
     btav_a2dp_codec_index_t peer_codec_index =
         A2DP_SourceCodecIndex(p_peer->sinks[index].codec_caps);
+
+    APPL_TRACE_DEBUG("%s ind: %d, peer_codec_index : %d :: codec_config.codecIndex() : %d",
+           __func__, index, peer_codec_index, codec_config.codecIndex());
+
     if (peer_codec_index != codec_config.codecIndex()) {
       continue;
     }
@@ -1054,14 +1084,18 @@ bool bta_av_co_set_codec_user_config(
   bool restart_output = false;
   bool config_updated = false;
   bool success = true;
-
+  tBTA_AV_HNDL hndl = btif_av_get_reconfig_dev_hndl();
   // Find the peer that is currently open
   tBTA_AV_CO_PEER* p_peer = nullptr;
-  for (size_t i = 0; i < BTA_AV_CO_NUM_ELEMENTS(bta_av_co_cb.peers); i++) {
-    tBTA_AV_CO_PEER* p_peer_tmp = &bta_av_co_cb.peers[i];
-    if (p_peer_tmp->opened) {
-      p_peer = p_peer_tmp;
-      break;
+  if (hndl > 0)
+    p_peer = bta_av_co_get_peer(hndl);
+  else {
+    for (size_t i = 0; i < BTA_AV_CO_NUM_ELEMENTS(bta_av_co_cb.peers); i++) {
+      tBTA_AV_CO_PEER* p_peer_tmp = &bta_av_co_cb.peers[i];
+      if (p_peer_tmp->opened) {
+        p_peer = p_peer_tmp;
+        break;
+      }
     }
   }
   if (p_peer == nullptr) {
@@ -1124,7 +1158,17 @@ done:
   // request succeeded or failed.
   // NOTE: Currently, the input is restarted by sending an upcall
   // and informing the Media Framework about the change.
-  btif_dispatch_sm_event(BTIF_AV_SOURCE_CONFIG_UPDATED_EVT, NULL, 0);
+  bt_bdaddr_t bt_addr;
+  bdcpy(bt_addr.address, p_peer->addr);
+  btif_dispatch_sm_event(BTIF_AV_SOURCE_CONFIG_UPDATED_EVT, &bt_addr,
+                         sizeof(bt_bdaddr_t));
+  if (!success || !restart_output) {
+    APPL_TRACE_DEBUG("%s:reseting codec reconfig flag",__func__);
+    btif_av_reset_codec_reconfig_flag();
+  }
+  APPL_TRACE_DEBUG("%s BDA:0x%02X%02X%02X%02X%02X%02X", __func__,
+                   bt_addr.address[0], bt_addr.address[1], bt_addr.address[2],
+                   bt_addr.address[3], bt_addr.address[4], bt_addr.address[5]);
 
   return success;
 }
@@ -1198,7 +1242,13 @@ static bool bta_av_co_set_codec_ota_config(tBTA_AV_CO_PEER* p_peer,
   if (restart_input || config_updated) {
     // NOTE: Currently, the input is restarted by sending an upcall
     // and informing the Media Framework about the change.
-    btif_dispatch_sm_event(BTIF_AV_SOURCE_CONFIG_UPDATED_EVT, NULL, 0);
+    bt_bdaddr_t bt_addr;
+    bdcpy(bt_addr.address, p_peer->addr);
+    btif_dispatch_sm_event(BTIF_AV_SOURCE_CONFIG_UPDATED_EVT, &bt_addr,
+                           sizeof(bt_bdaddr_t));
+    APPL_TRACE_DEBUG("%s BDA:0x%02X%02X%02X%02X%02X%02X", __func__,
+                   bt_addr.address[0], bt_addr.address[1], bt_addr.address[2],
+                   bt_addr.address[3], bt_addr.address[4], bt_addr.address[5]);
   }
 
   return true;
@@ -1256,7 +1306,13 @@ bool bta_av_co_set_codec_audio_config(
   if (config_updated) {
     // NOTE: Currently, the input is restarted by sending an upcall
     // and informing the Media Framework about the change.
-    btif_dispatch_sm_event(BTIF_AV_SOURCE_CONFIG_UPDATED_EVT, NULL, 0);
+    bt_bdaddr_t bt_addr;
+    bdcpy(bt_addr.address, p_peer->addr);
+    btif_dispatch_sm_event(BTIF_AV_SOURCE_CONFIG_UPDATED_EVT, &bt_addr,
+                           sizeof(bt_bdaddr_t));
+    APPL_TRACE_DEBUG("%s BDA:0x%02X%02X%02X%02X%02X%02X", __func__,
+                   bt_addr.address[0], bt_addr.address[1], bt_addr.address[2],
+                   bt_addr.address[3], bt_addr.address[4], bt_addr.address[5]);
   }
 
   return true;
@@ -1278,10 +1334,32 @@ A2dpCodecConfig* bta_av_get_a2dp_current_codec(void) {
   return current_codec;
 }
 
+bt_status_t bta_av_set_a2dp_current_codec(tBTA_AV_HNDL hndl) {
+  tBTA_AV_CO_PEER* p_peer;
+  tBTA_AV_CO_SINK* p_sink;
+  bt_status_t  status = BT_STATUS_SUCCESS;
+
+  mutex_global_lock();
+  p_peer = bta_av_co_get_peer(hndl);
+  if (p_peer) {
+    p_sink = bta_av_co_audio_set_codec(p_peer);
+    if (p_sink == NULL) {
+      APPL_TRACE_ERROR("%s() can not setup codec for the peer", __func__);
+      status = BT_STATUS_FAIL;
+    }
+  } else {
+    APPL_TRACE_ERROR("%s() peer not found", __func__);
+    status = BT_STATUS_FAIL;
+  }
+  mutex_global_unlock();
+
+  return status;
+}
+
 void bta_av_co_init(
     const std::vector<btav_a2dp_codec_config_t>& codec_priorities) {
   APPL_TRACE_DEBUG("%s", __func__);
-
+  char value[PROPERTY_VALUE_MAX] = {'\0'};
   /* Reset the control block */
   bta_av_co_cb.reset();
 
@@ -1295,7 +1373,18 @@ void bta_av_co_init(
   /* Protect access to bta_av_co_cb.codec_config */
   mutex_global_lock();
   bta_av_co_cb.codecs = new A2dpCodecs(codec_priorities);
-  bta_av_co_cb.codecs->init();
+/* SPLITA2DP */
+  bool a2dp_offload = btif_av_is_split_a2dp_enabled();
+  osi_property_get("persist.bt.a2dp_offload_cap", value, "false");
+  A2DP_SetOffloadStatus(a2dp_offload, value);
+/* SPLITA2DP */
+  bool isMcastSupported = btif_av_is_multicast_supported();
+  bool isShoSupported = (btif_max_av_clients > 1) ? true : false;
+  if (a2dp_offload) {
+    isMcastSupported = false;
+    isShoSupported = false;
+  }
+  bta_av_co_cb.codecs->init(isMcastSupported, isShoSupported);
   A2DP_InitDefaultCodec(bta_av_co_cb.codec_config);
   mutex_global_unlock();
 

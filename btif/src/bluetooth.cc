@@ -46,9 +46,9 @@
 #include <hardware/bt_sdp.h>
 #include <hardware/bt_sock.h>
 #ifdef WIPOWER_SUPPORTED
-#include <hardware/vendor.h>
 #include <hardware/wipower.h>
 #endif
+#include <hardware/vendor.h>
 
 #include "bt_utils.h"
 #include "bta/include/bta_hf_client_api.h"
@@ -57,6 +57,7 @@
 #include "btif_a2dp.h"
 #include "btif_api.h"
 #include "btif_config.h"
+#include "device/include/controller.h"
 #include "btif_debug.h"
 #include "btif_storage.h"
 #include "btsnoop.h"
@@ -113,18 +114,22 @@ extern btrc_interface_t* btif_rc_get_interface();
 extern btrc_interface_t* btif_rc_ctrl_get_interface();
 /*SDP search client*/
 extern btsdp_interface_t* btif_sdp_get_interface();
+
 #ifdef WIPOWER_SUPPORTED
 extern wipower_interface_t *get_wipower_interface();
 #endif
 
 /* List all test interface here */
 extern btmcap_test_interface_t* stack_mcap_get_interface();
+/* vendor  */
+extern btvendor_interface_t *btif_vendor_get_interface();
+
 
 /*******************************************************************************
  *  Functions
  ******************************************************************************/
 
-static bool interface_ready(void) { return bt_hal_cbacks != NULL; }
+bool interface_ready(void) { return bt_hal_cbacks != NULL; }
 
 static bool is_profile(const char* p1, const char* p2) {
   CHECK(p1);
@@ -196,14 +201,14 @@ static int set_adapter_property(const bt_property_t* property) {
   return btif_set_adapter_property(property);
 }
 
-int get_remote_device_properties(bt_bdaddr_t* remote_addr) {
+int get_remote_device_properties(RawAddress* remote_addr) {
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
 
   return btif_get_remote_device_properties(remote_addr);
 }
 
-int get_remote_device_property(bt_bdaddr_t* remote_addr,
+int get_remote_device_property(RawAddress* remote_addr,
                                bt_property_type_t type) {
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
@@ -211,7 +216,7 @@ int get_remote_device_property(bt_bdaddr_t* remote_addr,
   return btif_get_remote_device_property(remote_addr, type);
 }
 
-int set_remote_device_property(bt_bdaddr_t* remote_addr,
+int set_remote_device_property(RawAddress* remote_addr,
                                const bt_property_t* property) {
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
@@ -219,18 +224,18 @@ int set_remote_device_property(bt_bdaddr_t* remote_addr,
   return btif_set_remote_device_property(remote_addr, property);
 }
 
-int get_remote_service_record(bt_bdaddr_t* remote_addr, bt_uuid_t* uuid) {
+int get_remote_service_record(RawAddress* remote_addr, bt_uuid_t* uuid) {
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
 
   return btif_get_remote_service_record(remote_addr, uuid);
 }
 
-int get_remote_services(bt_bdaddr_t* remote_addr) {
+int get_remote_services(RawAddress* remote_addr) {
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
 
-  return btif_dm_get_remote_services(remote_addr);
+  return btif_dm_get_remote_services(*remote_addr);
 }
 
 static int start_discovery(void) {
@@ -247,14 +252,14 @@ static int cancel_discovery(void) {
   return btif_dm_cancel_discovery();
 }
 
-static int create_bond(const bt_bdaddr_t* bd_addr, int transport) {
+static int create_bond(const RawAddress* bd_addr, int transport) {
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
 
   return btif_dm_create_bond(bd_addr, transport);
 }
 
-static int create_bond_out_of_band(const bt_bdaddr_t* bd_addr, int transport,
+static int create_bond_out_of_band(const RawAddress* bd_addr, int transport,
                                    const bt_out_of_band_data_t* oob_data) {
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
@@ -262,14 +267,14 @@ static int create_bond_out_of_band(const bt_bdaddr_t* bd_addr, int transport,
   return btif_dm_create_bond_out_of_band(bd_addr, transport, oob_data);
 }
 
-static int cancel_bond(const bt_bdaddr_t* bd_addr) {
+static int cancel_bond(const RawAddress* bd_addr) {
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
 
   return btif_dm_cancel_bond(bd_addr);
 }
 
-static int remove_bond(const bt_bdaddr_t* bd_addr) {
+static int remove_bond(const RawAddress* bd_addr) {
   if (is_restricted_mode() && !btif_storage_is_restricted_device(bd_addr))
     return BT_STATUS_SUCCESS;
 
@@ -279,22 +284,22 @@ static int remove_bond(const bt_bdaddr_t* bd_addr) {
   return btif_dm_remove_bond(bd_addr);
 }
 
-static int get_connection_state(const bt_bdaddr_t* bd_addr) {
+static int get_connection_state(const RawAddress* bd_addr) {
   /* sanity check */
   if (interface_ready() == false) return 0;
 
   return btif_dm_get_connection_state(bd_addr);
 }
 
-static int pin_reply(const bt_bdaddr_t* bd_addr, uint8_t accept,
-                     uint8_t pin_len, bt_pin_code_t* pin_code) {
+static int pin_reply(const RawAddress* bd_addr, uint8_t accept, uint8_t pin_len,
+                     bt_pin_code_t* pin_code) {
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
 
   return btif_dm_pin_reply(bd_addr, accept, pin_len, pin_code);
 }
 
-static int ssp_reply(const bt_bdaddr_t* bd_addr, bt_ssp_variant_t variant,
+static int ssp_reply(const RawAddress* bd_addr, bt_ssp_variant_t variant,
                      uint8_t accept, uint32_t passkey) {
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
@@ -376,6 +381,9 @@ static const void* get_profile_interface(const char* profile_id) {
 
   if (is_profile(profile_id, BT_PROFILE_AV_RC_CTRL_ID))
     return btif_rc_ctrl_get_interface();
+
+  if (is_profile(profile_id, BT_PROFILE_VENDOR_ID))
+    return btif_vendor_get_interface();
 
 #ifdef WIPOWER_SUPPORTED
   if (is_profile(profile_id, BT_PROFILE_WIPOWER_VENDOR_ID))

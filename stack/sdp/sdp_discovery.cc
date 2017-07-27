@@ -47,7 +47,8 @@ static void process_service_search_rsp(tCONN_CB* p_ccb, uint8_t* p_reply);
 static void process_service_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply);
 static void process_service_search_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply);
 static uint8_t* save_attr_seq(tCONN_CB* p_ccb, uint8_t* p, uint8_t* p_msg_end);
-static tSDP_DISC_REC* add_record(tSDP_DISCOVERY_DB* p_db, BD_ADDR p_bda);
+static tSDP_DISC_REC* add_record(tSDP_DISCOVERY_DB* p_db,
+                                 const RawAddress& p_bda);
 static uint8_t* add_attr(uint8_t* p, tSDP_DISCOVERY_DB* p_db,
                          tSDP_DISC_REC* p_rec, uint16_t attr_id,
                          tSDP_DISC_ATTR* p_parent_attr, uint8_t nest_level);
@@ -88,9 +89,11 @@ static uint8_t* sdpu_build_uuid_seq(uint8_t* p_out, uint16_t num_uuids,
     } else if (p_uuid_list->len == 4) {
       UINT8_TO_BE_STREAM(p_out, (UUID_DESC_TYPE << 3) | SIZE_FOUR_BYTES);
       UINT32_TO_BE_STREAM(p_out, p_uuid_list->uu.uuid32);
-    } else {
+    } else if (p_uuid_list->len == 16) {
       UINT8_TO_BE_STREAM(p_out, (UUID_DESC_TYPE << 3) | SIZE_SIXTEEN_BYTES);
       ARRAY_TO_BE_STREAM(p_out, p_uuid_list->uu.uuid128, p_uuid_list->len);
+    } else {
+      SDP_TRACE_ERROR("SDP: Passed Uuid is of Invalid length: %x",p_uuid_list->len);
     }
   }
 
@@ -319,19 +322,20 @@ static void process_service_search_rsp(tCONN_CB* p_ccb, uint8_t* p_reply) {
  ******************************************************************************/
 #if (SDP_RAW_DATA_INCLUDED == TRUE)
 static void sdp_copy_raw_data(tCONN_CB* p_ccb, bool offset) {
-  unsigned int cpy_len;
+  unsigned int    cpy_len, rem_len;
   uint32_t list_len;
   uint8_t* p;
   uint8_t type;
 
 #if (SDP_DEBUG_RAW == TRUE)
-  uint8_t num_array[SDP_MAX_LIST_BYTE_COUNT];
+  uint8_t num_array[2 * SDP_MAX_LIST_BYTE_COUNT]; // Need double the space to store hex data
   uint32_t i;
 
   for (i = 0; i < p_ccb->list_len; i++) {
     snprintf((char*)&num_array[i * 2], sizeof(num_array) - i * 2, "%02X",
              (uint8_t)(p_ccb->rsp_list[i]));
   }
+  (char)num_array[2*i] = '\0';
   SDP_TRACE_WARNING("result :%s", num_array);
 #endif
 
@@ -346,6 +350,11 @@ static void sdp_copy_raw_data(tCONN_CB* p_ccb, bool offset) {
     }
     if (list_len && list_len < cpy_len) {
       cpy_len = list_len;
+    }
+    rem_len = SDP_MAX_LIST_BYTE_COUNT - (unsigned int) (p - &p_ccb->rsp_list[0]);
+    if (cpy_len > rem_len) {
+      SDP_TRACE_WARNING("rem_len :%d less than cpy_len:%d", rem_len, cpy_len);
+      cpy_len = rem_len;
     }
     SDP_TRACE_WARNING(
         "%s: list_len:%d cpy_len:%d p:%p p_ccb:%p p_db:%p raw_size:%d "
@@ -727,7 +736,7 @@ static uint8_t* save_attr_seq(tCONN_CB* p_ccb, uint8_t* p, uint8_t* p_msg_end) {
  * Returns          pointer to next byte in data stream
  *
  ******************************************************************************/
-tSDP_DISC_REC* add_record(tSDP_DISCOVERY_DB* p_db, BD_ADDR p_bda) {
+tSDP_DISC_REC* add_record(tSDP_DISCOVERY_DB* p_db, const RawAddress& p_bda) {
   tSDP_DISC_REC* p_rec;
 
   /* See if there is enough space in the database */
@@ -740,7 +749,7 @@ tSDP_DISC_REC* add_record(tSDP_DISCOVERY_DB* p_db, BD_ADDR p_bda) {
   p_rec->p_first_attr = NULL;
   p_rec->p_next_rec = NULL;
 
-  memcpy(p_rec->remote_bd_addr, p_bda, BD_ADDR_LEN);
+  p_rec->remote_bd_addr = p_bda;
 
   /* Add the record to the end of chain */
   if (!p_db->p_first_rec)

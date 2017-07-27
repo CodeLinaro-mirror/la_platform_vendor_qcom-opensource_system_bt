@@ -1,4 +1,8 @@
 /******************************************************************************
+ * Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ ******************************************************************************/
+/******************************************************************************
  *
  *  Copyright (C) 2002-2012 Broadcom Corporation
  *
@@ -39,6 +43,11 @@
  *  Global data
  ****************************************************************************/
 tA2DP_CB a2dp_cb;
+static uint16_t a2dp_attr_list[] = {
+    ATTR_ID_SERVICE_CLASS_ID_LIST, /* update A2DP_NUM_ATTR, if changed */
+    ATTR_ID_BT_PROFILE_DESC_LIST,  ATTR_ID_SUPPORTED_FEATURES,
+    ATTR_ID_SERVICE_NAME,          ATTR_ID_PROTOCOL_DESC_LIST,
+    ATTR_ID_PROVIDER_NAME};
 
 /******************************************************************************
  *
@@ -115,6 +124,19 @@ static void a2dp_sdp_cback(uint16_t status) {
   }
 
   return;
+}
+
+/*******************************************************************************
+ *
+ * Function         a2dp_get_avdt_sdp_ver
+ *
+ * Description      This function fetches current version of AVDT.
+ *
+ * Returns          Current version of AVDT
+ *
+ *******************************************************************************/
+uint16_t a2dp_get_avdt_sdp_ver() {
+    return a2dp_cb.avdt_sdp_ver;
 }
 
 /*******************************************************************************
@@ -261,16 +283,11 @@ tA2DP_STATUS A2DP_AddRecord(uint16_t service_uuid, char* p_service_name,
  *                  A2DP_FAIL if function execution failed.
  *
  *****************************************************************************/
-tA2DP_STATUS A2DP_FindService(uint16_t service_uuid, BD_ADDR bd_addr,
+tA2DP_STATUS A2DP_FindService(uint16_t service_uuid, const RawAddress& bd_addr,
                               tA2DP_SDP_DB_PARAMS* p_db,
                               tA2DP_FIND_CBACK* p_cback) {
   tSDP_UUID uuid_list;
   bool result = true;
-  uint16_t a2dp_attr_list[] = {
-      ATTR_ID_SERVICE_CLASS_ID_LIST, /* update A2DP_NUM_ATTR, if changed */
-      ATTR_ID_BT_PROFILE_DESC_LIST,  ATTR_ID_SUPPORTED_FEATURES,
-      ATTR_ID_SERVICE_NAME,          ATTR_ID_PROTOCOL_DESC_LIST,
-      ATTR_ID_PROVIDER_NAME};
 
   LOG_VERBOSE(LOG_TAG, "%s: uuid: 0x%x", __func__, service_uuid);
   if ((service_uuid != UUID_SERVCLASS_AUDIO_SOURCE &&
@@ -298,7 +315,7 @@ tA2DP_STATUS A2DP_FindService(uint16_t service_uuid, BD_ADDR bd_addr,
                                p_db->num_attr, p_db->p_attrs);
 
   if (result == true) {
-    /* store service_uuid */
+    /* store service_uuid and discovery db pointer */
     a2dp_cb.find.service_uuid = service_uuid;
     a2dp_cb.find.p_cback = p_cback;
 

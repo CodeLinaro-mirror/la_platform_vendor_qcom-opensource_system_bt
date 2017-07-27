@@ -1,4 +1,8 @@
 /******************************************************************************
+ * Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ ******************************************************************************/
+/******************************************************************************
  *
  *  Copyright (C) 2002-2012 Broadcom Corporation
  *
@@ -489,6 +493,77 @@ void avdt_scb_hdl_security_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
                             (tAVDT_CTRL*)&p_data->msg.security_cmd);
 }
 
+void avdt_set_scbs_busy(tAVDT_SCB *ptr_scb) {
+  AVDT_TRACE_DEBUG(" avdt_set_scbs_busy ");
+  tAVDT_SCB       *p_scb = &avdt_cb.scb[0];
+  uint8_t reg_id = ptr_scb->cs.registration_id;
+  int i = 0;
+  for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++) {
+    AVDT_TRACE_DEBUG(" avdt_set_scbs_busy SCB[%d] reg_id, sep_type ", i, p_scb->cs.registration_id, p_scb->cs.tsep);
+    if ((p_scb->allocated) && (p_scb->cs.registration_id == reg_id) && (p_scb->cs.tsep == ptr_scb->cs.tsep)) {
+      AVDT_TRACE_DEBUG(" Setting SCB[%d].in_use as true", i);
+      p_scb->in_use = TRUE;
+    }
+  }
+}
+void avdt_set_scbs_free(tAVDT_SCB *ptr_scb) {
+  AVDT_TRACE_DEBUG(" avdt_set_scbs_free ");
+  tAVDT_SCB       *p_scb = &avdt_cb.scb[0];
+  uint8_t reg_id = ptr_scb->cs.registration_id;
+  int i = 0;
+  for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++) {
+    AVDT_TRACE_DEBUG(" avdt_set_scbs_free SCB[%d] reg_id, sep_type ", i, p_scb->cs.registration_id, p_scb->cs.tsep);
+    if ((p_scb->allocated) && (p_scb->cs.registration_id == reg_id) && (p_scb->cs.tsep == ptr_scb->cs.tsep)) {
+      AVDT_TRACE_DEBUG(" Setting SCB[%d].in_use as false ", i);
+      p_scb->in_use = FALSE;
+    }
+  }
+}
+/*******************************************************************************
+ *
+ * Function         avdt_check_sep_state
+ *
+ * Description      This function checks if either of the SEID is in use in the
+ *                  cluster of a stream in which the ACP SEP for the remote
+ *                  initiated connection belongs to.
+ *
+ * Returns          True if one SEID in the cluster is busy, False otherwise
+ *
+ ******************************************************************************/
+bool avdt_check_sep_state(tAVDT_SCB *p_scb) {
+  int i,j;
+  int num_sep = 0,sep_offset;
+  int num_stream = avdt_scb_get_max_av_client();
+  if (num_stream == 1)
+    return false;
+  for (i = 0;i < AVDT_NUM_SEPS; i++) {
+    tAVDT_SCB *temp_scb = &avdt_cb.scb[i];
+    if (p_scb == temp_scb)
+      break;
+  }
+  if (i < AVDT_NUM_SEPS) {
+    sep_offset = i;
+    tAVDT_SCB *temp_scb = &avdt_cb.scb[0];
+    for (j = 0; j < AVDT_NUM_SEPS; j++, temp_scb++) {
+      if (temp_scb->allocated)
+        num_sep++;
+    }
+    int num_stream  = avdt_scb_get_max_av_client();
+    int num_codecs = num_sep/num_stream;
+    for (i = 0; i < num_sep;i += num_codecs) {
+      bool in_use = false;
+      for (j = i;j < (i+num_codecs); j++) {
+        tAVDT_SCB *temp_scb = &avdt_cb.scb[j];
+        if (temp_scb->in_use)
+          in_use = true;
+      }
+      if (in_use && (sep_offset >= i && sep_offset < j))
+        return true;
+    }
+  }
+  return false;
+}
+
 /*******************************************************************************
  *
  * Function         avdt_scb_hdl_setconfig_cmd
@@ -503,7 +578,8 @@ void avdt_scb_hdl_security_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
 void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   tAVDT_CFG* p_cfg;
 
-  if (!p_scb->in_use) {
+  if ((!p_scb->in_use) && !(avdt_check_sep_state(p_scb)) &&
+      (!avdt_cb.conn_in_progress)) {
     p_cfg = p_data->msg.config_cmd.p_cfg;
     if (A2DP_GetCodecType(p_scb->cs.cfg.codec_info) ==
         A2DP_GetCodecType(p_cfg->codec_info)) {
@@ -512,13 +588,15 @@ void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
 
       /* copy info to scb */
       p_scb->p_ccb = avdt_ccb_by_idx(p_data->msg.config_cmd.hdr.ccb_idx);
+      avdt_set_scbs_busy(p_scb);
       p_scb->peer_seid = p_data->msg.config_cmd.int_seid;
       memcpy(&p_scb->req_cfg, p_cfg, sizeof(tAVDT_CFG));
       /* call app callback */
       /* handle of scb- which is same as sep handle of bta_av_cb.p_scb*/
-      (*p_scb->cs.p_ctrl_cback)(
-          avdt_scb_to_hdl(p_scb), p_scb->p_ccb ? p_scb->p_ccb->peer_addr : NULL,
-          AVDT_CONFIG_IND_EVT, (tAVDT_CTRL*)&p_data->msg.config_cmd);
+      (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
+                                p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
+                                AVDT_CONFIG_IND_EVT,
+                                (tAVDT_CTRL*)&p_data->msg.config_cmd);
     } else {
       p_data->msg.hdr.err_code = AVDT_ERR_UNSUP_CFG;
       p_data->msg.hdr.err_param = 0;
@@ -591,7 +669,7 @@ void avdt_scb_hdl_setconfig_rsp(tAVDT_SCB* p_scb,
 void avdt_scb_hdl_start_cmd(tAVDT_SCB* p_scb,
                             UNUSED_ATTR tAVDT_SCB_EVT* p_data) {
   (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
-                            p_scb->p_ccb ? p_scb->p_ccb->peer_addr : NULL,
+                            p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
                             AVDT_START_IND_EVT, NULL);
 }
 
@@ -607,7 +685,7 @@ void avdt_scb_hdl_start_cmd(tAVDT_SCB* p_scb,
  ******************************************************************************/
 void avdt_scb_hdl_start_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
-                            p_scb->p_ccb ? p_scb->p_ccb->peer_addr : NULL,
+                            p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
                             AVDT_START_CFM_EVT, (tAVDT_CTRL*)&p_data->msg.hdr);
 }
 
@@ -624,7 +702,7 @@ void avdt_scb_hdl_start_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
 void avdt_scb_hdl_suspend_cmd(tAVDT_SCB* p_scb,
                               UNUSED_ATTR tAVDT_SCB_EVT* p_data) {
   (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
-                            p_scb->p_ccb ? p_scb->p_ccb->peer_addr : NULL,
+                            p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
                             AVDT_SUSPEND_IND_EVT, NULL);
 }
 
@@ -640,7 +718,7 @@ void avdt_scb_hdl_suspend_cmd(tAVDT_SCB* p_scb,
  ******************************************************************************/
 void avdt_scb_hdl_suspend_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   (*p_scb->cs.p_ctrl_cback)(
-      avdt_scb_to_hdl(p_scb), p_scb->p_ccb ? p_scb->p_ccb->peer_addr : NULL,
+      avdt_scb_to_hdl(p_scb), p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
       AVDT_SUSPEND_CFM_EVT, (tAVDT_CTRL*)&p_data->msg.hdr);
 }
 
@@ -666,9 +744,7 @@ void avdt_scb_hdl_tc_close(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   tAVDT_CTRL avdt_ctrl;
   uint8_t event;
   tAVDT_CCB* p_ccb = p_scb->p_ccb;
-  BD_ADDR remote_addr;
-
-  memcpy(remote_addr, p_ccb->peer_addr, BD_ADDR_LEN);
+  RawAddress remote_addr = p_ccb->peer_addr;
 
   /* set up hdr */
   avdt_ctrl.hdr.err_code = p_scb->close_code;
@@ -696,7 +772,7 @@ void avdt_scb_hdl_tc_close(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   }
 
   /* call app callback */
-  (*p_ctrl_cback)(hdl, remote_addr, event, &avdt_ctrl);
+  (*p_ctrl_cback)(hdl, &remote_addr, event, &avdt_ctrl);
 }
 
 /*******************************************************************************
@@ -726,7 +802,7 @@ void avdt_scb_snd_delay_rpt_req(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
  ******************************************************************************/
 void avdt_scb_hdl_delay_rpt_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   (*p_scb->cs.p_ctrl_cback)(
-      avdt_scb_to_hdl(p_scb), p_scb->p_ccb ? p_scb->p_ccb->peer_addr : NULL,
+      avdt_scb_to_hdl(p_scb), p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
       AVDT_DELAY_REPORT_EVT, (tAVDT_CTRL*)&p_data->msg.hdr);
 
   if (p_scb->p_ccb)
@@ -747,7 +823,7 @@ void avdt_scb_hdl_delay_rpt_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
  ******************************************************************************/
 void avdt_scb_hdl_delay_rpt_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   (*p_scb->cs.p_ctrl_cback)(
-      avdt_scb_to_hdl(p_scb), p_scb->p_ccb ? p_scb->p_ccb->peer_addr : NULL,
+      avdt_scb_to_hdl(p_scb), p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
       AVDT_DELAY_REPORT_CFM_EVT, (tAVDT_CTRL*)&p_data->msg.hdr);
 }
 
@@ -773,7 +849,7 @@ void avdt_scb_hdl_tc_close_sto(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
       avdt_ctrl.hdr.err_param = 0;
       /* call app callback */
       (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
-                                p_scb->p_ccb ? p_scb->p_ccb->peer_addr : NULL,
+                                p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
                                 AVDT_REPORT_DISCONN_EVT, &avdt_ctrl);
     }
   } else {
@@ -821,7 +897,7 @@ void avdt_scb_hdl_tc_open(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
 
   /* call app callback */
   (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
-                            p_scb->p_ccb ? p_scb->p_ccb->peer_addr : NULL,
+                            p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
                             event, (tAVDT_CTRL*)&p_data->open);
 }
 
@@ -847,7 +923,7 @@ void avdt_scb_hdl_tc_open_sto(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
     avdt_ctrl.hdr.err_code = 0;
     avdt_ctrl.hdr.err_param = 1;
     (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
-                              p_scb->p_ccb ? p_scb->p_ccb->peer_addr : NULL,
+                              p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
                               AVDT_REPORT_CONN_EVT, &avdt_ctrl);
   }
 }
@@ -1180,7 +1256,7 @@ void avdt_scb_snd_setconfig_req(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   p_req = p_data->msg.config_cmd.p_cfg;
   p_cfg = &p_scb->cs.cfg;
   memcpy(&p_scb->req_cfg, p_data->msg.config_cmd.p_cfg, sizeof(tAVDT_CFG));
-
+  avdt_set_scbs_busy(p_scb);
   avdt_msg_send_cmd(p_scb->p_ccb, p_scb, AVDT_SIG_SETCONFIG, &p_data->msg);
 
   /* tell ccb to open channel */
@@ -1448,6 +1524,7 @@ void avdt_scb_transport_channel_timer(tAVDT_SCB* p_scb,
  *
  ******************************************************************************/
 void avdt_scb_clr_vars(tAVDT_SCB* p_scb, UNUSED_ATTR tAVDT_SCB_EVT* p_data) {
+  avdt_set_scbs_free(p_scb);
   p_scb->in_use = false;
   p_scb->p_ccb = NULL;
   p_scb->peer_seid = 0;

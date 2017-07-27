@@ -50,7 +50,7 @@ void BTM_GetDeviceIDRoot(BT_OCTET16 irk) {}
 void btm_ble_update_dmt_flag_bits(uint8_t* flag_value,
                                   const uint16_t connect_mode,
                                   const uint16_t disc_mode) {}
-void btm_acl_update_conn_addr(uint8_t conn_handle, BD_ADDR address) {}
+void btm_acl_update_conn_addr(uint8_t conn_handle, const RawAddress& address) {}
 void btm_gen_resolvable_private_addr(base::Callback<void(uint8_t[8])> cb) {
   uint8_t fake_rand[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   cb.Run(fake_rand);
@@ -101,7 +101,7 @@ class AdvertiserHciMock : public BleAdvertiserHciInterface {
                void(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t*, status_cb));
   MOCK_METHOD6(SetScanResponseData,
                void(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t*, status_cb));
-  MOCK_METHOD3(SetRandomAddress, void(uint8_t, BD_ADDR, status_cb));
+  MOCK_METHOD3(SetRandomAddress, void(uint8_t, const RawAddress&, status_cb));
   MOCK_METHOD5(Enable, void(uint8_t, uint8_t, uint16_t, uint8_t, status_cb));
   MOCK_METHOD5(SetPeriodicAdvertisingParameters,
                void(uint8_t, uint16_t, uint16_t, uint16_t, status_cb));
@@ -113,14 +113,14 @@ class AdvertiserHciMock : public BleAdvertiserHciInterface {
 
   MOCK_METHOD9(SetParameters1,
                void(uint8_t, uint16_t, uint32_t, uint32_t, uint8_t, uint8_t,
-                    BD_ADDR, uint8_t, BD_ADDR));
+                    const RawAddress&, uint8_t, const RawAddress&));
   MOCK_METHOD8(SetParameters2, void(uint8_t, int8_t, uint8_t, uint8_t, uint8_t,
                                     uint8_t, uint8_t, parameters_cb));
 
   void SetParameters(uint8_t handle, uint16_t properties, uint32_t adv_int_min,
                      uint32_t adv_int_max, uint8_t channel_map,
-                     uint8_t own_address_type, BD_ADDR own_address,
-                     uint8_t peer_address_type, BD_ADDR peer_address,
+                     uint8_t own_address_type, const RawAddress& own_address,
+                     uint8_t peer_address_type, const RawAddress& peer_address,
                      uint8_t filter_policy, int8_t tx_power,
                      uint8_t primary_phy, uint8_t secondary_max_skip,
                      uint8_t secondary_phy, uint8_t advertising_sid,
@@ -739,5 +739,95 @@ TEST_F(BleAdvertisingManagerTest,
   ::testing::Mock::VerifyAndClearExpectations(hci_mock.get());
 
   disable_cb.Run(0);
+  remove_cb.Run(0);
+}
+
+/* This test makes sure that periodic advertising is stopped before
+ * unregistering the advertiser, if it was enabled. */
+TEST_F(BleAdvertisingManagerTest, test_periodic_adv_disable_on_unregister) {
+  std::vector<uint8_t> adv_data;
+  std::vector<uint8_t> scan_resp;
+  tBTM_BLE_ADV_PARAMS params;
+  params.advertising_event_properties = 0x1 /* connectable */;
+  tBLE_PERIODIC_ADV_PARAMS periodic_params;
+  periodic_params.enable = true;  // enable periodic advertising
+  std::vector<uint8_t> periodic_data;
+
+  parameters_cb set_params_cb;
+  status_cb set_address_cb;
+  status_cb set_data_cb;
+  status_cb set_scan_resp_data_cb;
+  status_cb enable_cb;
+  status_cb set_periodic_params_cb;
+  status_cb set_periodic_data_cb;
+  status_cb set_periodic_enable_cb;
+  EXPECT_CALL(*hci_mock, SetParameters1(_, _, _, _, _, _, _, _, _)).Times(1);
+  EXPECT_CALL(*hci_mock, SetParameters2(_, _, _, _, _, _, _, _))
+      .Times(1)
+      .WillOnce(SaveArg<7>(&set_params_cb));
+  EXPECT_CALL(*hci_mock, SetRandomAddress(_, _, _))
+      .Times(1)
+      .WillOnce(SaveArg<2>(&set_address_cb));
+  EXPECT_CALL(*hci_mock, SetAdvertisingData(_, _, _, _, _, _))
+      .Times(1)
+      .WillOnce(SaveArg<5>(&set_data_cb));
+  EXPECT_CALL(*hci_mock, SetScanResponseData(_, _, _, _, _, _))
+      .Times(1)
+      .WillOnce(SaveArg<5>(&set_scan_resp_data_cb));
+  EXPECT_CALL(*hci_mock, SetPeriodicAdvertisingParameters(_, _, _, _, _))
+      .Times(1)
+      .WillOnce(SaveArg<4>(&set_periodic_params_cb));
+  EXPECT_CALL(*hci_mock, SetPeriodicAdvertisingData(_, _, _, _, _))
+      .Times(1)
+      .WillOnce(SaveArg<4>(&set_periodic_data_cb));
+  EXPECT_CALL(*hci_mock, SetPeriodicAdvertisingEnable(0x01 /* enable */, _, _))
+      .Times(1)
+      .WillOnce(SaveArg<2>(&set_periodic_enable_cb));
+  EXPECT_CALL(*hci_mock, Enable(0x01 /* enable */, _, _, _, _))
+      .Times(1)
+      .WillOnce(SaveArg<4>(&enable_cb));
+
+  BleAdvertisingManager::Get()->StartAdvertisingSet(
+      Bind(&BleAdvertisingManagerTest::StartAdvertisingSetCb,
+           base::Unretained(this)),
+      &params, adv_data, scan_resp, &periodic_params, periodic_data,
+      0 /* duration */, 0 /* maxExtAdvEvents */, Bind(DoNothing2));
+
+  // we are a truly gracious fake controller, let the commands succeed!
+  int selected_tx_power = -15;
+  set_params_cb.Run(0, selected_tx_power);
+  set_address_cb.Run(0);
+  set_data_cb.Run(0);
+  set_scan_resp_data_cb.Run(0);
+  set_periodic_params_cb.Run(0);
+  set_periodic_data_cb.Run(0);
+  set_periodic_enable_cb.Run(0);
+  enable_cb.Run(0);
+  EXPECT_EQ(BTM_BLE_MULTI_ADV_SUCCESS, start_advertising_set_status);
+  EXPECT_EQ(selected_tx_power, start_advertising_set_tx_power);
+  int advertiser_id = start_advertising_set_advertiser_id;
+  ::testing::Mock::VerifyAndClearExpectations(hci_mock.get());
+
+  // ... advertising ...
+
+  // Unregister advertiser - should disable periodic advertising
+  status_cb disable_cb;
+  EXPECT_CALL(*hci_mock, Enable(0x00 /* disable */, advertiser_id, _, _, _))
+      .Times(1)
+      .WillOnce(SaveArg<4>(&disable_cb));
+  status_cb disable_periodic_cb;
+  EXPECT_CALL(*hci_mock, SetPeriodicAdvertisingEnable(0x00 /* disable */,
+                                                      advertiser_id, _))
+      .Times(1)
+      .WillOnce(SaveArg<2>(&disable_periodic_cb));
+  status_cb remove_cb;
+  EXPECT_CALL(*hci_mock, RemoveAdvertisingSet(advertiser_id, _))
+      .Times(1)
+      .WillOnce(SaveArg<1>(&remove_cb));
+  BleAdvertisingManager::Get()->Unregister(advertiser_id);
+  ::testing::Mock::VerifyAndClearExpectations(hci_mock.get());
+
+  disable_cb.Run(0);
+  disable_periodic_cb.Run(0);
   remove_cb.Run(0);
 }

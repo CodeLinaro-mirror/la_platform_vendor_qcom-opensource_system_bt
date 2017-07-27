@@ -1,4 +1,8 @@
 /******************************************************************************
+ * Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ ******************************************************************************/
+/******************************************************************************
  *
  *  Copyright (C) 2003-2012 Broadcom Corporation
  *
@@ -42,6 +46,7 @@
 /* PSM for AVCT. */
 #define AVCT_PSM 0x0017
 #define AVCT_BR_PSM 0x001B
+#define AVCT_CA_PSM 0x1021
 
 /* Protocol revision numbers */
 #define AVCT_REV_1_0 0x0100
@@ -102,7 +107,7 @@
 
 /* Control callback function. */
 typedef void(tAVCT_CTRL_CBACK)(uint8_t handle, uint8_t event, uint16_t result,
-                               BD_ADDR peer_addr);
+                               const RawAddress* peer_addr);
 
 /* Message callback function */
 /* p_pkt->layer_specific is AVCT_DATA_CTRL or AVCT_DATA_BROWSE */
@@ -121,6 +126,20 @@ typedef struct {
 /*****************************************************************************
  *  External Function Declarations
  ****************************************************************************/
+
+/*******************************************************************************
+ *
+ * Function         AVCT_Init
+ *
+ * Description      This function is called to initialize the control block
+ *                  for this layer.  It must be called before accessing any
+ *                  other API functions for this layer.  It is typically called
+ *                  once during the start up of the stack.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void AVCT_Init(void);
 
 /*******************************************************************************
  *
@@ -172,7 +191,7 @@ extern void AVCT_Deregister(void);
  *
  ******************************************************************************/
 extern uint16_t AVCT_CreateConn(uint8_t* p_handle, tAVCT_CC* p_cc,
-                                BD_ADDR peer_addr);
+                                const RawAddress& peer_addr);
 
 /*******************************************************************************
  *
@@ -272,5 +291,55 @@ extern uint16_t AVCT_GetPeerMtu(uint8_t handle);
  ******************************************************************************/
 extern uint16_t AVCT_MsgReq(uint8_t handle, uint8_t label, uint8_t cr,
                             BT_HDR* p_msg);
+
+/******************************************************************************
+ *
+ * Function         AVCT_SetTraceLevel
+ *
+ * Description      Sets the trace level for AVCT. If 0xff is passed, the
+ *                  current trace level is returned.
+ *
+ *                  Input Parameters:
+ *                      new_level:  The level to set the AVCT tracing to:
+ *                      0xff-returns the current setting.
+ *                      0-turns off tracing.
+ *                      >= 1-Errors.
+ *                      >= 2-Warnings.
+ *                      >= 3-APIs.
+ *                      >= 4-Events.
+ *                      >= 5-Debug.
+ *
+ * Returns          The new trace level or current trace level if
+ *                  the input parameter is 0xff.
+ *
+ ****************************************************************************/
+uint8_t AVCT_SetTraceLevel(uint8_t new_level);
+
+/*******************************************************************************
+**
+** Function         AVCT_CheckIncomingConn
+**
+**
+** Description      Check if remote AVCTP incoming connection in progress
+**
+** Returns          TRUE if icoming connection is in progress,
+**
+*******************************************************************************/
+extern bool AVCT_CheckIncomingConn(BD_ADDR peer_addr);
+
+/*******************************************************************************
+**
+** Function         avct_get_peer_addr_by_ccb
+**
+**
+** Description      Return peer BD address on ccb index (or handle).
+**
+**
+**
+**
+** Returns          BD Address.
+**
+*******************************************************************************/
+extern bool avct_get_peer_addr_by_ccb (uint8_t idx, BD_ADDR addr);
 
 #endif /* AVCT_API_H */

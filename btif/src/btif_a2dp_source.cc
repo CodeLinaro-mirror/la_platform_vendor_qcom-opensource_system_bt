@@ -1,4 +1,8 @@
 /******************************************************************************
+ * Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ ******************************************************************************/
+/******************************************************************************
  *
  *  Copyright (C) 2016 The Android Open Source Project
  *  Copyright (C) 2009-2012 Broadcom Corporation
@@ -18,8 +22,10 @@
  ******************************************************************************/
 
 #define LOG_TAG "bt_btif_a2dp_source"
+#define ATRACE_TAG ATRACE_TAG_AUDIO
 
 #include <base/logging.h>
+#include <cutils/trace.h>
 #include <limits.h>
 #include <string.h>
 #include <algorithm>
@@ -27,7 +33,6 @@
 #include "audio_a2dp_hw/include/audio_a2dp_hw.h"
 #include "bt_common.h"
 #include "bta_av_ci.h"
-#include "btcore/include/bdaddr.h"
 #include "btif_a2dp.h"
 #include "btif_a2dp_control.h"
 #include "btif_a2dp_source.h"
@@ -69,6 +74,8 @@ enum {
   BTIF_MEDIA_SOURCE_ENCODER_USER_CONFIG_UPDATE,
   BTIF_MEDIA_AUDIO_FEEDING_UPDATE
 };
+
+#define MAX_MEDIA_WORKQUEUE_SEM_COUNT 1024
 
 /* tBTIF_A2DP_SOURCE_ENCODER_INIT msg structure */
 typedef struct {
@@ -155,6 +162,7 @@ typedef struct {
   fixed_queue_t* tx_audio_queue;
   bool tx_flush; /* Discards any outgoing data when true */
   alarm_t* media_alarm;
+  alarm_t *remote_start_alarm;
   const tA2DP_ENCODER_INTERFACE* encoder_interface;
   period_ms_t encoder_interval_ms; /* Local copy of the encoder interval */
   btif_media_stats_t stats;
@@ -262,7 +270,7 @@ bool btif_a2dp_source_startup(void) {
 
   /* Start A2DP Source media task */
   btif_a2dp_source_cb.worker_thread =
-      thread_new("btif_a2dp_source_worker_thread");
+      thread_new_sized("media_worker", MAX_MEDIA_WORKQUEUE_SEM_COUNT);
   if (btif_a2dp_source_cb.worker_thread == NULL) {
     APPL_TRACE_ERROR("%s: unable to start up media thread", __func__);
     btif_a2dp_source_state = BTIF_A2DP_SOURCE_STATE_OFF;
@@ -308,6 +316,8 @@ void btif_a2dp_source_shutdown(void) {
   // Stop the timer
   alarm_free(btif_a2dp_source_cb.media_alarm);
   btif_a2dp_source_cb.media_alarm = NULL;
+  alarm_free(btif_a2dp_source_cb.remote_start_alarm);
+  btif_a2dp_source_cb.remote_start_alarm = NULL;
 
   // Exit the thread
   fixed_queue_free(btif_a2dp_source_cb.cmd_msg_queue, NULL);
@@ -316,9 +326,12 @@ void btif_a2dp_source_shutdown(void) {
               btif_a2dp_source_shutdown_delayed, NULL);
   thread_free(btif_a2dp_source_cb.worker_thread);
   btif_a2dp_source_cb.worker_thread = NULL;
+  APPL_TRACE_EVENT("## A2DP SOURCE MEDIA THREAD STOPPED ##");
 }
 
 static void btif_a2dp_source_shutdown_delayed(UNUSED_ATTR void* context) {
+  APPL_TRACE_DEBUG("%s", __func__);
+  btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
   btif_a2dp_control_cleanup();
   fixed_queue_free(btif_a2dp_source_cb.tx_audio_queue, NULL);
   btif_a2dp_source_cb.tx_audio_queue = NULL;
@@ -338,6 +351,16 @@ bool btif_a2dp_source_media_task_is_shutting_down(void) {
 
 bool btif_a2dp_source_is_streaming(void) {
   return alarm_is_scheduled(btif_a2dp_source_cb.media_alarm);
+}
+
+bool btif_a2dp_source_is_remote_start(void) {
+  return alarm_is_scheduled(btif_a2dp_source_cb.remote_start_alarm);
+}
+
+void btif_a2dp_source_cancel_remote_start(void) {
+  alarm_free(btif_a2dp_source_cb.remote_start_alarm);
+  btif_a2dp_source_cb.remote_start_alarm = NULL;
+  return;
 }
 
 static void btif_a2dp_source_command_ready(fixed_queue_t* queue,
@@ -375,15 +398,22 @@ static void btif_a2dp_source_command_ready(fixed_queue_t* queue,
   LOG_VERBOSE(LOG_TAG, "%s: %s DONE", __func__, dump_media_event(p_msg->event));
 }
 
-void btif_a2dp_source_setup_codec(void) {
+bt_status_t btif_a2dp_source_setup_codec(tBTA_AV_HNDL hndl) {
   APPL_TRACE_EVENT("## A2DP SOURCE SETUP CODEC ##");
+  bt_status_t status = BT_STATUS_FAIL;
 
   mutex_global_lock();
-
-  /* Init the encoding task */
-  btif_a2dp_source_encoder_init();
+  status =  bta_av_set_a2dp_current_codec(hndl);
+  if (status == BT_STATUS_SUCCESS) {
+    /* Init the encoding task */
+    btif_a2dp_source_encoder_init();
+  } else {
+    APPL_TRACE_ERROR("%s() can not setup current codec", __func__);
+    status = BT_STATUS_FAIL;
+  }
 
   mutex_global_unlock();
+  return status;
 }
 
 void btif_a2dp_source_start_audio_req(void) {
@@ -623,6 +653,8 @@ static void btif_a2dp_source_audio_tx_stop_event(void) {
   /* Stop the timer first */
   alarm_free(btif_a2dp_source_cb.media_alarm);
   btif_a2dp_source_cb.media_alarm = NULL;
+  alarm_free(btif_a2dp_source_cb.remote_start_alarm);
+  btif_a2dp_source_cb.remote_start_alarm = NULL;
 
   UIPC_Close(UIPC_CH_ID_AV_AUDIO);
 
@@ -638,8 +670,14 @@ static void btif_a2dp_source_audio_tx_stop_event(void) {
    * a block/wait. Due to this acknowledgement, the A2DP HAL is guranteed
    * to get the ACK for any pending command in such cases.
    */
-
-  if (send_ack) btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
+  tA2DP_CTRL_CMD pending_cmd = btif_a2dp_get_pending_command();
+  if (send_ack) {
+    btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
+  } else if (pending_cmd == A2DP_CTRL_CMD_SUSPEND ||
+             pending_cmd == A2DP_CTRL_CMD_STOP) {
+    APPL_TRACE_DEBUG("%s, Ack for pending cmd", __func__);
+    btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
+  }
 
   /* audio engine stopped, reset tx suspended flag */
   btif_a2dp_source_cb.tx_flush = false;
@@ -660,10 +698,11 @@ static void btif_a2dp_source_audio_handle_timer(UNUSED_ATTR void* context) {
 
   if (alarm_is_scheduled(btif_a2dp_source_cb.media_alarm)) {
     CHECK(btif_a2dp_source_cb.encoder_interface != NULL);
+    size_t transmit_queue_length =
+        fixed_queue_length(btif_a2dp_source_cb.tx_audio_queue);
+    ATRACE_INT("btif TX queue", transmit_queue_length);
     if (btif_a2dp_source_cb.encoder_interface->set_transmit_queue_length !=
         NULL) {
-      size_t transmit_queue_length =
-          fixed_queue_length(btif_a2dp_source_cb.tx_audio_queue);
       btif_a2dp_source_cb.encoder_interface->set_transmit_queue_length(
           transmit_queue_length);
     }
@@ -738,8 +777,14 @@ static bool btif_a2dp_source_enqueue_callback(BT_HDR* p_buf, size_t frames_n) {
     }
 
     // Request RSSI for log purposes if we had to flush buffers
-    bt_bdaddr_t peer_bda = btif_av_get_addr();
+<<<<<<< HEAD
+    bt_bdaddr_t peer_bda;
+    btif_av_get_peer_addr(&peer_bda);
     BTM_ReadRSSI(peer_bda.address, btm_read_rssi_cb);
+=======
+    RawAddress peer_bda = btif_av_get_addr();
+    BTM_ReadRSSI(peer_bda, btm_read_rssi_cb);
+>>>>>>> 3712a5d947b37f05640898586f8d2f37a9fc7123
   }
 
   /* Update the statistics */
@@ -1086,9 +1131,6 @@ static void btm_read_rssi_cb(void* data) {
     return;
   }
 
-  char temp_buffer[20] = {0};
   LOG_WARN(LOG_TAG, "%s device: %s, rssi: %d", __func__,
-           bdaddr_to_string((bt_bdaddr_t*)result->rem_bda, temp_buffer,
-                            sizeof(temp_buffer)),
-           result->rssi);
+           result->rem_bda.ToString().c_str(), result->rssi);
 }

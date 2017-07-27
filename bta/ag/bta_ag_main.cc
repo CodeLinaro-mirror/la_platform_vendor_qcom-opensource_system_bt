@@ -260,6 +260,7 @@ static tBTA_AG_SCB* bta_ag_scb_alloc(void) {
       p_scb->in_use = true;
       p_scb->sco_idx = BTM_INVALID_SCO_INDEX;
       p_scb->codec_updated = false;
+      p_scb->codec_fallback = false;
       p_scb->peer_codecs = BTA_AG_CODEC_CVSD;
       p_scb->sco_codec = BTA_AG_CODEC_CVSD;
       /* set up timers */
@@ -392,13 +393,13 @@ uint8_t bta_ag_service_to_idx(tBTA_SERVICE_MASK services) {
  * Returns          Index of SCB or zero if none found.
  *
  ******************************************************************************/
-uint16_t bta_ag_idx_by_bdaddr(BD_ADDR peer_addr) {
+uint16_t bta_ag_idx_by_bdaddr(const RawAddress* peer_addr) {
   tBTA_AG_SCB* p_scb = &bta_ag_cb.scb[0];
   uint16_t i;
 
   if (peer_addr != NULL) {
     for (i = 0; i < BTA_AG_NUM_SCB; i++, p_scb++) {
-      if (p_scb->in_use && !bdcmp(peer_addr, p_scb->peer_addr)) {
+      if (p_scb->in_use && *peer_addr == p_scb->peer_addr) {
         return (i + 1);
       }
     }
@@ -510,7 +511,8 @@ static void bta_ag_collision_timer_cback(void* data) {
  *
  ******************************************************************************/
 void bta_ag_collision_cback(UNUSED_ATTR tBTA_SYS_CONN_STATUS status, uint8_t id,
-                            UNUSED_ATTR uint8_t app_id, BD_ADDR peer_addr) {
+                            UNUSED_ATTR uint8_t app_id,
+                            const RawAddress* peer_addr) {
   uint16_t handle;
   tBTA_AG_SCB* p_scb;
 
@@ -796,6 +798,10 @@ bool bta_ag_hdl_event(BT_HDR* p_msg) {
 
     case BTA_AG_API_RESULT_EVT:
       bta_ag_api_result((tBTA_AG_DATA*)p_msg);
+      break;
+
+    case BTA_AG_API_SET_SCO_ALLOWED_EVT:
+      bta_ag_set_sco_allowed((tBTA_AG_DATA*)p_msg);
       break;
 
     /* all others reference scb by handle */

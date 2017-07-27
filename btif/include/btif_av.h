@@ -1,4 +1,8 @@
 /******************************************************************************
+ * Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ ******************************************************************************/
+/******************************************************************************
  *
  *  Copyright (C) 2009-2012 Broadcom Corporation
  *
@@ -48,6 +52,7 @@ typedef enum {
   BTIF_AV_SINK_CONFIG_REQ_EVT,
   BTIF_AV_OFFLOAD_START_REQ_EVT,
   BTIF_AV_CLEANUP_REQ_EVT,
+  BTIF_AV_INIT_REQ_EVT,
 } btif_av_sm_event_t;
 
 /*******************************************************************************
@@ -64,7 +69,11 @@ typedef enum {
  *
  ******************************************************************************/
 
-bt_bdaddr_t btif_av_get_addr(void);
+<<<<<<< HEAD
+bt_bdaddr_t btif_av_get_addr(BD_ADDR address);
+=======
+RawAddress btif_av_get_addr(void);
+>>>>>>> 3712a5d947b37f05640898586f8d2f37a9fc7123
 
 /*******************************************************************************
  * Function         btif_av_is_sink_enabled
@@ -149,7 +158,7 @@ bool btif_av_is_connected(void);
  *
  ******************************************************************************/
 
-uint8_t btif_av_get_peer_sep(void);
+uint8_t btif_av_get_peer_sep(int index);
 
 /*******************************************************************************
  *
@@ -188,5 +197,186 @@ void btif_av_clear_remote_suspend_flag(void);
  *
  ******************************************************************************/
 bool btif_av_peer_supports_3mbps(void);
+
+/*******************************************************************************
+**
+** Function         btif_av_check_flag_remote_suspend
+**
+** Description      Check whether remote suspend flag is set or not
+**
+** Returns          TRUE if remote suspen flag set
+**
+*******************************************************************************/
+bool btif_av_check_flag_remote_suspend(int index);
+
+/*******************************************************************************
+ *
+ * Function         btif_av_is_split_a2dp_enabled
+ *
+ * Description      Check if split a2dp is enabled.
+ *
+ * Returns          TRUE if split a2dp is enabled, FALSE otherwise
+ *
+ ******************************************************************************/
+bool btif_av_is_split_a2dp_enabled(void);
+
+/*******************************************************************************
+**
+** Function         btif_av_any_br_peer
+**
+** Description      Check if the any of connected devices is BR device.
+**
+** Returns          TRUE if connected to any BR device, FALSE otherwise.
+**
+*******************************************************************************/
+bool btif_av_any_br_peer(void);
+
+/*******************************************************************************
+**
+** Function         btif_av_get_multicast_state
+**
+** Description      Check if A2DP multicast is enabled
+**
+** Returns          TRUE if a2dp multicast is enabled
+**
+*******************************************************************************/
+bool btif_av_get_multicast_state();
+
+/*******************************************************************************
+**
+** Function         btif_av_is_multicast_supported
+**
+** Description      Check if A2DP multicast is supported
+**
+** Returns          TRUE if a2dp multicast is supported
+**
+*******************************************************************************/
+bool btif_av_is_multicast_supported();
+
+/******************************************************************************
+ *
+ * Function         btif_av_get_peer_addr
+ *
+ * Description      Returns peer device address
+ *
+ * Returns          peer address
+ *******************************************************************************/
+void btif_av_get_peer_addr(bt_bdaddr_t *peer_bda);
+
+/******************************************************************************
+ *
+ * Function         btif_get_latest_playing_device_idx
+ *
+ * Description      Get the index of AV where streaming is happening
+ *
+ * Returns          index
+ *******************************************************************************/
+int btif_av_get_latest_playing_device_idx();
+
+/******************************************************************************
+ *
+ * Function         btif_av_is_device_connected
+ *
+ * Description      Checks if the A2DP device is connected
+ *
+ * Returns          true/false
+ *******************************************************************************/
+bool btif_av_is_device_connected(BD_ADDR address);
+
+/******************************************************************************
+ *
+ * Function         btif_av_is_playing
+ *
+ * Description      Checks if the A2DP stream is playing
+ *
+ * Returns          true/false
+ *******************************************************************************/
+bool btif_av_is_playing();
+
+/*******************************************************************************
+ *
+ * Function         btif_av_get_latest_playing_device_idx
+ *
+ * Description      Get the index of AV where streaming is happening
+ *
+ * Returns          int
+ *
+ ******************************************************************************/
+int btif_av_get_latest_playing_device_idx();
+
+/*******************************************************************************
+ *
+ * Function         btif_av_trigger_dual_handoff
+ *
+ * Description      Trigger the DUAL HANDOFF. This function will trigger remote
+ *                  suspend for currently playing device and then initiate START
+ *                  on Handoff device whose address is passed as an argument.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btif_av_trigger_dual_handoff(bool handoff, BD_ADDR address);
+
+/*******************************************************************************
+ *
+ * Function         btif_get_latest_playing_device
+ *
+ * Description      Get the index for the most recent source
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+void btif_get_latest_playing_device(BD_ADDR address);
+
+/*******************************************************************************
+ *
+ * Function        btif_av_get_num_connected_devices
+ *
+ * Description     Return number of A2dp connected devices
+ *
+ * Returns         int
+ *****************************************************************************/
+uint16_t btif_av_get_num_connected_devices(void);
+
+/******************************************************************************
+ *
+ * Function        btif_av_get_num_playing_devices
+ *
+ * Description     Return number of A2dp playing devices
+ *
+ * Returns         int
+ *****************************************************************************/
+uint16_t btif_av_get_num_playing_devices(void);
+
+/******************************************************************************
+ *
+ * Function        btif_av_is_current_device
+ *
+ * Description     return true if this A2dp device is streaming
+ *
+ * Returns         true/false
+ *****************************************************************************/
+bool btif_av_is_current_device(BD_ADDR address);
+
+/******************************************************************************
+ *
+ * Function        btif_av_get_latest_device_idx_to_start
+ *
+ * Description     Return latest device index to which start stream req will be
+ *                 processed
+ *
+ * Returns         int
+ *****************************************************************************/
+int btif_av_get_latest_device_idx_to_start();
+
+/******************************************************************************
+**
+** Function         btif_av_is_under_handoff
+**
+** Description     check if AV state is under handoff
+**
+** Returns         TRUE if handoff is triggered, FALSE otherwise
+********************************************************************************/
+bool btif_av_is_under_handoff();
 
 #endif /* BTIF_AV_H */

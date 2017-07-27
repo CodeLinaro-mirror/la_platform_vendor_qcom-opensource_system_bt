@@ -1,4 +1,8 @@
 /******************************************************************************
+ * Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ ******************************************************************************/
+/******************************************************************************
  *
  *  Copyright (C) 2000-2012 Broadcom Corporation
  *
@@ -156,7 +160,8 @@ extern tA2DP_STATUS A2DP_AddRecord(uint16_t service_uuid, char* p_service_name,
  *                  A2DP_FAIL if function execution failed.
  *
  *****************************************************************************/
-extern tA2DP_STATUS A2DP_FindService(uint16_t service_uuid, BD_ADDR bd_addr,
+extern tA2DP_STATUS A2DP_FindService(uint16_t service_uuid,
+                                     const RawAddress& bd_addr,
                                      tA2DP_SDP_DB_PARAMS* p_db,
                                      tA2DP_FIND_CBACK* p_cback);
 
@@ -195,5 +200,8 @@ extern uint8_t A2DP_BitsSet(uint64_t num);
 
 // Initializes the A2DP control block.
 void A2DP_Init(void);
+
+extern void a2dp_set_avdt_sdp_ver(uint16_t avdt_sdp_ver);
+extern uint16_t a2dp_get_avdt_sdp_ver();
 
 #endif  // A2DP_API_H

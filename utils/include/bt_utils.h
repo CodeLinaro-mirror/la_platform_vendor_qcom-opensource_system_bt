@@ -25,16 +25,35 @@ static const char BT_UTILS_MODULE[] = "bt_utils_module";
  *  Type definitions
  ******************************************************************************/
 
+#define COD_AUDIO_DEVICE (0x200400)
+
 typedef enum {
   TASK_HIGH_MEDIA = 0,
   TASK_UIPC_READ,
   TASK_HIGH_MAX
 } tHIGH_PRIORITY_TASK;
 
+/* Run-time configuration file to store AVRCP version info*/
+#ifndef AVRC_PEER_VERSION_CONF_FILE
+#define AVRC_PEER_VERSION_CONF_FILE "/data/misc/bluedroid/avrc_peer_entries.conf"
+#endif
+
+typedef enum {
+    BT_SOC_DEFAULT = 0,
+    BT_SOC_SMD = BT_SOC_DEFAULT,
+    BT_SOC_AR3K,
+    BT_SOC_ROME,
+    BT_SOC_CHEROKEE,
+    /* Add chipset type here */
+    BT_SOC_RESERVED
+} bt_soc_type;
+
 /*******************************************************************************
  *  Functions
  ******************************************************************************/
 
 void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task);
+bool is_device_present(char* header, unsigned char* device_details);
+bt_soc_type get_soc_type();
 
 #endif /* BT_UTILS_H */

@@ -330,30 +330,6 @@ int A2DP_VendorGetTrackSampleRateLdac(const uint8_t* p_codec_info) {
   return -1;
 }
 
-int A2DP_VendorGetTrackBitsPerSampleLdac(const uint8_t* p_codec_info) {
-  tA2DP_LDAC_CIE ldac_cie;
-
-  // Check whether the codec info contains valid data
-  tA2DP_STATUS a2dp_status = A2DP_ParseInfoLdac(&ldac_cie, p_codec_info, false);
-  if (a2dp_status != A2DP_SUCCESS) {
-    LOG_ERROR(LOG_TAG, "%s: cannot decode codec information: %d", __func__,
-              a2dp_status);
-    return -1;
-  }
-
-  switch (a2dp_ldac_caps.bits_per_sample) {
-    case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16:
-      return 16;
-    case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24:
-      return 24;
-    case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32:
-      return 32;
-    case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE:
-      break;
-  }
-  return -1;
-}
-
 int A2DP_VendorGetTrackChannelCountLdac(const uint8_t* p_codec_info) {
   tA2DP_LDAC_CIE ldac_cie;
 
@@ -572,6 +548,15 @@ A2dpCodecConfigLdac::~A2dpCodecConfigLdac() {}
 bool A2dpCodecConfigLdac::init() {
   if (!isValid()) return false;
 
+  if (A2DP_GetOffloadStatus()) {
+    if (A2DP_IsCodecEnabledInOffload(BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC)){
+      LOG_ERROR(LOG_TAG,"%s: LDAC enabled in offload mode",__func__);
+      return true;
+    } else {
+      LOG_ERROR(LOG_TAG, "%s: LDAC disabled in offload mode", __func__);
+      return false;
+    }
+  }
   // Load the encoder
   if (!A2DP_VendorLoadEncoderLdac()) {
     LOG_ERROR(LOG_TAG, "%s: cannot load the encoder", __func__);

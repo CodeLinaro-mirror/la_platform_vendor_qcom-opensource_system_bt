@@ -42,6 +42,11 @@
    L2CAP_EXTFEA_FIXED_CHNLS)
 #endif
 
+/* This feature is used to update any QCOM related changes in the stack*/
+#ifndef BLUETOOTH_QTI_SW
+#define BLUETOOTH_QTI_SW TRUE
+#endif
+
 #ifndef BTUI_OPS_FORMATS
 #define BTUI_OPS_FORMATS (BTA_OP_VCARD21_MASK | BTA_OP_ANY_MASK)
 #endif
@@ -147,6 +152,16 @@
 #endif
 
 //------------------End added from bdroid_buildcfg.h---------------------
+
+/******************************************************************************
+**
+** Test Application interface
+**
+******************************************************************************/
+
+#ifndef TEST_APP_INTERFACE
+#define TEST_APP_INTERFACE           TRUE
+#endif
 
 /******************************************************************************
  *
@@ -385,7 +400,7 @@
 
 /* The number of security records for services. */
 #ifndef BTM_SEC_MAX_SERVICE_RECORDS
-#define BTM_SEC_MAX_SERVICE_RECORDS 32
+#define BTM_SEC_MAX_SERVICE_RECORDS 64
 #endif
 
 /* If True, force a retrieval of remote device name for each bond in case it's
@@ -448,6 +463,11 @@
  * BTM_RegisterForVSEvents */
 #ifndef BTM_MAX_VSE_CALLBACKS
 #define BTM_MAX_VSE_CALLBACKS 3
+#endif
+
+/* Safe reattempt even after device is blacklisted for role switch */
+#ifndef BTM_SAFE_REATTEMPT_ROLE_SWITCH
+#define BTM_SAFE_REATTEMPT_ROLE_SWITCH TRUE
 #endif
 
 /******************************************
@@ -514,13 +534,13 @@
 
 /* The maximum number of simultaneous channels that L2CAP can support. */
 #ifndef MAX_L2CAP_CHANNELS
-#define MAX_L2CAP_CHANNELS 16
+#define MAX_L2CAP_CHANNELS 20
 #endif
 
 /* The maximum number of simultaneous applications that can register with L2CAP.
  */
 #ifndef MAX_L2CAP_CLIENTS
-#define MAX_L2CAP_CLIENTS 15
+#define MAX_L2CAP_CLIENTS 19
 #endif
 
 /* The number of seconds of link inactivity before a link is disconnected. */
@@ -567,7 +587,7 @@
 
 /* Whether link wants to be the master or the slave. */
 #ifndef L2CAP_DESIRED_LINK_ROLE
-#define L2CAP_DESIRED_LINK_ROLE HCI_ROLE_SLAVE
+#define L2CAP_DESIRED_LINK_ROLE HCI_ROLE_MASTER
 #endif
 
 /* Include Non-Flushable Packet Boundary Flag feature of Lisbon */
@@ -651,6 +671,9 @@
  * BLE
  *
  *****************************************************************************/
+#ifndef HCI_RAW_CMD_INCLUDED
+#define HCI_RAW_CMD_INCLUDED    TRUE
+#endif
 
 #ifndef LOCAL_BLE_CONTROLLER_ID
 #define LOCAL_BLE_CONTROLLER_ID (1)
@@ -689,6 +712,11 @@
 #ifndef BLE_MAX_L2CAP_CLIENTS
 #define BLE_MAX_L2CAP_CLIENTS 15
 #endif
+
+#ifndef BLE_HH_QUALIFICATION_ENABLED
+#define BLE_HH_QUALIFICATION_ENABLED        FALSE
+#endif
+
 
 /******************************************************************************
  *
@@ -736,13 +764,6 @@
 /* Used for conformance testing ONLY */
 #ifndef GATT_CONFORMANCE_TESTING
 #define GATT_CONFORMANCE_TESTING FALSE
-#endif
-
-/* number of background connection device allowence, ideally to be the same as
- * WL size
-*/
-#ifndef GATT_MAX_BG_CONN_DEV
-#define GATT_MAX_BG_CONN_DEV 32
 #endif
 
 /******************************************************************************
@@ -1204,11 +1225,6 @@
 
 #ifndef GAP_INCLUDED
 #define GAP_INCLUDED TRUE
-#endif
-
-/* This is set to enable use of GAP L2CAP connections. */
-#ifndef GAP_CONN_INCLUDED
-#define GAP_CONN_INCLUDED TRUE
 #endif
 
 /* The maximum number of simultaneous GAP L2CAP connections. */

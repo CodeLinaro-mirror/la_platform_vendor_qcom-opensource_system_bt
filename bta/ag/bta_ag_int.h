@@ -99,7 +99,8 @@ enum {
 
   /* these events are handled outside of the state machine */
   BTA_AG_API_ENABLE_EVT,
-  BTA_AG_API_DISABLE_EVT
+  BTA_AG_API_DISABLE_EVT,
+  BTA_AG_API_SET_SCO_ALLOWED_EVT
 };
 
 /* Actions to perform after a SCO event */
@@ -153,7 +154,7 @@ typedef struct {
 /* data type for BTA_AG_API_OPEN_EVT */
 typedef struct {
   BT_HDR hdr;
-  BD_ADDR bd_addr;
+  RawAddress bd_addr;
   tBTA_SERVICE_MASK services;
   tBTA_SEC sec_mask;
 } tBTA_AG_API_OPEN;
@@ -170,6 +171,12 @@ typedef struct {
   BT_HDR hdr;
   tBTA_AG_PEER_CODEC codec;
 } tBTA_AG_API_SETCODEC;
+
+/* data type for BTA_AG_API_SET_SCO_ALLOWED_EVT */
+typedef struct {
+  BT_HDR hdr;
+  bool value;
+} tBTA_AG_API_SET_SCO_ALLOWED;
 
 /* data type for BTA_AG_DISC_RESULT_EVT */
 typedef struct {
@@ -218,7 +225,7 @@ typedef struct {
   char clip[BTA_AG_AT_MAX_LEN + 1];     /* number string used for CLIP */
   uint16_t serv_handle[BTA_AG_NUM_IDX]; /* RFCOMM server handles */
   tBTA_AG_AT_CB at_cb;                  /* AT command interpreter */
-  BD_ADDR peer_addr;                    /* peer bd address */
+  RawAddress peer_addr;                 /* peer bd address */
   tSDP_DISCOVERY_DB* p_disc_db;         /* pointer to discovery database */
   tBTA_SERVICE_MASK reg_services;       /* services specified in register API */
   tBTA_SERVICE_MASK open_services;      /* services specified in open API */
@@ -228,7 +235,7 @@ typedef struct {
   tBTA_AG_FEAT features;                /* features registered by application */
   tBTA_AG_PEER_FEAT peer_features;      /* peer device features */
   uint16_t peer_version;                /* profile version of peer device */
-  uint16_t hsp_version;                 /* HSP profile version */
+  uint16_t hsp_version;                 /* HSP profile version before SDP */
   uint16_t sco_idx;                     /* SCO handle */
   bool in_use;                          /* scb in use */
   bool dealloc;                         /* true if service shutting down */
@@ -251,7 +258,6 @@ typedef struct {
   uint8_t roam_ind;         /* CIEV roam indicator value */
   uint8_t battchg_ind;      /* CIEV battery charge indicator value */
   uint8_t callheld_ind;     /* CIEV call held indicator value */
-  bool retry_with_sco_only; /* indicator to try with SCO only when eSCO fails */
   uint32_t bia_masked_out;  /* indicators HF does not want us to send */
   alarm_t* collision_timer;
   alarm_t* ring_timer;
@@ -317,7 +323,7 @@ extern void bta_ag_scb_dealloc(tBTA_AG_SCB* p_scb);
 extern uint16_t bta_ag_scb_to_idx(tBTA_AG_SCB* p_scb);
 extern tBTA_AG_SCB* bta_ag_scb_by_idx(uint16_t idx);
 extern uint8_t bta_ag_service_to_idx(tBTA_SERVICE_MASK services);
-extern uint16_t bta_ag_idx_by_bdaddr(BD_ADDR peer_addr);
+extern uint16_t bta_ag_idx_by_bdaddr(const RawAddress* peer_addr);
 extern bool bta_ag_other_scb_open(tBTA_AG_SCB* p_curr_scb);
 extern bool bta_ag_scb_open(tBTA_AG_SCB* p_curr_scb);
 extern tBTA_AG_SCB* bta_ag_get_other_idle_scb(tBTA_AG_SCB* p_curr_scb);
@@ -325,7 +331,7 @@ extern void bta_ag_sm_execute(tBTA_AG_SCB* p_scb, uint16_t event,
                               tBTA_AG_DATA* p_data);
 extern bool bta_ag_hdl_event(BT_HDR* p_msg);
 extern void bta_ag_collision_cback(tBTA_SYS_CONN_STATUS status, uint8_t id,
-                                   uint8_t app_id, BD_ADDR peer_addr);
+                                   uint8_t app_id, const RawAddress* peer_addr);
 extern void bta_ag_resume_open(tBTA_AG_SCB* p_scb);
 
 /* SDP functions */
@@ -395,5 +401,6 @@ extern void bta_ag_send_ring(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
 extern void bta_ag_ci_sco_data(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
 extern void bta_ag_ci_rx_data(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
 extern void bta_ag_rcvd_slc_ready(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
+extern void bta_ag_set_sco_allowed(tBTA_AG_DATA* p_data);
 
 #endif /* BTA_AG_INT_H */

@@ -20,7 +20,6 @@
 
 #include <stdint.h>
 
-#include "bdaddr.h"
 #include "bt_types.h"
 #include "device_features.h"
 #include "features.h"
@@ -38,7 +37,7 @@ typedef struct {
                                                  bt_version_t* bt_version_ptr);
 
   void (*parse_read_bd_addr_response)(BT_HDR* response,
-                                      bt_bdaddr_t* address_ptr);
+                                      RawAddress* address_ptr);
 
   void (*parse_read_local_supported_commands_response)(
       BT_HDR* response, uint8_t* supported_commands_ptr,
@@ -78,6 +77,9 @@ typedef struct {
       BT_HDR* response, uint8_t* number_of_local_supported_codecs,
       uint8_t* local_supported_codecs);
 
+  void (*parse_ble_read_offload_features_response)(
+      BT_HDR *response,
+      bool *ble_offload_features_supported);
 } hci_packet_parser_t;
 
 const hci_packet_parser_t* hci_packet_parser_get_interface();

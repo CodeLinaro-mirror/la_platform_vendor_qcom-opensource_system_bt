@@ -60,8 +60,8 @@ bool bta_av_co_audio_init(btav_a2dp_codec_index_t codec_index,
  *
  ******************************************************************************/
 void bta_av_co_audio_disc_res(tBTA_AV_HNDL hndl, uint8_t num_seps,
-                              uint8_t num_snk, uint8_t num_src, BD_ADDR addr,
-                              uint16_t uuid_local);
+                              uint8_t num_snk, uint8_t num_src,
+                              const RawAddress& addr, uint16_t uuid_local);
 
 /*******************************************************************************
  *
@@ -93,7 +93,8 @@ tA2DP_STATUS bta_av_co_audio_getconfig(tBTA_AV_HNDL hndl, uint8_t* p_codec_info,
  *
  ******************************************************************************/
 void bta_av_co_audio_setconfig(tBTA_AV_HNDL hndl, const uint8_t* p_codec_info,
-                               uint8_t seid, BD_ADDR addr, uint8_t num_protect,
+                               uint8_t seid, const RawAddress& addr,
+                               uint8_t num_protect,
                                const uint8_t* p_protect_info,
                                uint8_t t_local_sep, uint8_t avdt_handle);
 
@@ -211,5 +212,29 @@ void bta_av_co_audio_delay(tBTA_AV_HNDL hndl, uint16_t delay);
  *
  ******************************************************************************/
 void bta_av_co_audio_update_mtu(tBTA_AV_HNDL hndl, uint16_t mtu);
+/*******************************************************************************
+ **
+ ** Function         bta_av_co_cp_get_flag
+ **
+ ** Description      Get content protection flag
+ **                  AVDT_CP_SCMS_COPY_NEVER
+ **                  AVDT_CP_SCMS_COPY_ONCE
+ **                  AVDT_CP_SCMS_COPY_FREE
+ **
+ ** Returns          The current flag value
+ **
+ ******************************************************************************/
+uint8_t bta_av_co_cp_get_flag(void);
+
+/*******************************************************************************
+ **
+ ** Function         bta_av_co_cp_is_active
+ **
+ ** Description     Get the current configuration of content protection
+ **
+ ** Returns          TRUE if the current streaming has CP, FALSE otherwise
+ **
+ ******************************************************************************/
+bool bta_av_co_cp_is_active(void);
 
 #endif /* BTA_AV_CO_H */

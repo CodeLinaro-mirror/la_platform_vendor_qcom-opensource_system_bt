@@ -166,7 +166,7 @@ typedef void(tAVRC_FIND_CBACK)(uint16_t status);
 /* This is the control callback function.  This function passes events
  * listed in Table 20 to the application. */
 typedef void(tAVRC_CTRL_CBACK)(uint8_t handle, uint8_t event, uint16_t result,
-                               BD_ADDR peer_addr);
+                               const RawAddress* peer_addr);
 
 /* This is the message callback function.  It is executed when AVCTP has
  * a message packet ready for the application.  The implementation of this
@@ -271,7 +271,8 @@ extern uint16_t AVRC_AddRecord(uint16_t service_uuid,
  *                                    perform the service search.
  *
  *****************************************************************************/
-extern uint16_t AVRC_FindService(uint16_t service_uuid, BD_ADDR bd_addr,
+extern uint16_t AVRC_FindService(uint16_t service_uuid,
+                                 const RawAddress& bd_addr,
                                  tAVRC_SDP_DB_PARAMS* p_db,
                                  tAVRC_FIND_CBACK* p_cback);
 
@@ -324,7 +325,7 @@ extern uint16_t AVRC_FindService(uint16_t service_uuid, BD_ADDR bd_addr,
  *
  *****************************************************************************/
 extern uint16_t AVRC_Open(uint8_t* p_handle, tAVRC_CONN_CB* p_ccb,
-                          BD_ADDR_PTR peer_addr);
+                          const RawAddress& peer_addr);
 
 /******************************************************************************
  *
@@ -703,5 +704,17 @@ extern bool AVRC_IsValidAvcType(uint8_t pdu_id, uint8_t avc_type);
  *
  ******************************************************************************/
 extern bool AVRC_IsValidPlayerAttr(uint8_t attr);
+
+/*******************************************************************************
+**
+** Function         AVRC_CheckIncomingConn
+**
+** Description      Check if AVRC incoming connection in progress
+**
+**
+** Returns          returns TRUE if incoming connection in progress
+**
+*******************************************************************************/
+extern bool AVRC_CheckIncomingConn(BD_ADDR peer_addr);
 
 #endif /* AVRC_API_H */

@@ -145,6 +145,8 @@ typedef struct {
                                   next cont. response */
   tSDP_RECORD* prev_sdp_rec; /* last sdp record that was completely sent in the
                                 response */
+  tSDP_RECORD* curr_sdp_rec; /* sdp record that is currently being sent in the
+                                response */
   bool last_attr_seq_desc_sent; /* whether attr seq length has been sent
                                    previously */
   uint16_t attr_offset; /* offset within the attr to keep trak of partial
@@ -165,7 +167,7 @@ typedef struct {
 #define SDP_FLAGS_MY_CFG_DONE 0x04
   uint8_t con_flags;
 
-  BD_ADDR device_address;
+  RawAddress device_address;
   alarm_t* sdp_conn_timer;
   uint16_t rem_mtu_size;
   uint16_t connection_id;
@@ -241,7 +243,7 @@ extern void sdp_conn_rcv_l2e_conn_failed(BT_HDR* p_msg);
 extern void sdp_conn_rcv_l2e_data(BT_HDR* p_msg);
 extern void sdp_conn_timer_timeout(void* data);
 
-extern tCONN_CB* sdp_conn_originate(uint8_t* p_bd_addr);
+extern tCONN_CB* sdp_conn_originate(const RawAddress& p_bd_addr);
 
 /* Functions provided by sdp_utils.cc
 */
@@ -249,6 +251,7 @@ extern tCONN_CB* sdpu_find_ccb_by_cid(uint16_t cid);
 extern tCONN_CB* sdpu_find_ccb_by_db(tSDP_DISCOVERY_DB* p_db);
 extern tCONN_CB* sdpu_allocate_ccb(void);
 extern void sdpu_release_ccb(tCONN_CB* p_ccb);
+extern void sdpu_update_ccb_cont_info (uint32_t handle);
 
 extern uint8_t* sdpu_build_attrib_seq(uint8_t* p_out, uint16_t* p_attr,
                                       uint16_t num_attrs);
@@ -279,6 +282,13 @@ extern uint16_t sdpu_get_attrib_entry_len(tSDP_ATTRIBUTE* p_attr);
 extern uint8_t* sdpu_build_partial_attrib_entry(uint8_t* p_out,
                                                 tSDP_ATTRIBUTE* p_attr,
                                                 uint16_t len, uint16_t* offset);
+extern bool SDP_AddAttributeToRecord (tSDP_RECORD *p_rec, uint16_t attr_id,
+                                                uint8_t attr_type, uint32_t attr_len,
+                                                uint8_t *p_val);
+extern bool SDP_AddProfileDescriptorListToRecord (tSDP_RECORD *p_rec, uint16_t profile_uuid,
+                                                uint16_t version);
+extern bool SDP_DeleteAttributeFromRecord (tSDP_RECORD *p_rec, uint16_t attr_id);
+
 
 /* Functions provided by sdp_db.cc
 */
@@ -297,6 +307,8 @@ extern void sdp_server_handle_client_req(tCONN_CB* p_ccb, BT_HDR* p_msg);
 #define sdp_server_handle_client_req(p_ccb, p_msg)
 #endif
 
+extern int sdp_get_stored_avrc_tg_version(BD_ADDR addr);
+extern bool sdp_dev_blacklisted_for_avrcp15 (BD_ADDR addr);
 /* Functions provided by sdp_discovery.cc
 */
 extern void sdp_disc_connected(tCONN_CB* p_ccb);

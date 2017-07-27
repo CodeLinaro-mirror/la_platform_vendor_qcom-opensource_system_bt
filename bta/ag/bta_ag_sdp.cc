@@ -22,7 +22,9 @@
  *  operations.
  *
  ******************************************************************************/
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
 #include <string.h>
 
 #include "bt_common.h"
@@ -34,6 +36,8 @@
 #include "osi/include/osi.h"
 #include "sdp_api.h"
 #include "utl.h"
+#include "device/include/interop_config.h"
+#include "bt_utils.h"
 
 /* Number of protocol elements in protocol element list. */
 #define BTA_AG_NUM_PROTO_ELEMS 2
@@ -154,7 +158,7 @@ bool bta_ag_add_record(uint16_t service_uuid, char* p_service_name, uint8_t scn,
   /* add profile descriptor list */
   if (service_uuid == UUID_SERVCLASS_AG_HANDSFREE) {
     profile_uuid = UUID_SERVCLASS_HF_HANDSFREE;
-    version = BTA_HFP_VERSION;
+    version = HFP_VERSION_1_6;
   } else {
     profile_uuid = UUID_SERVCLASS_HEADSET;
     version = HSP_VERSION_1_2;
@@ -298,7 +302,8 @@ bool bta_ag_sdp_find_attr(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
     uuid = UUID_SERVCLASS_HEADSET_HS;
     p_scb->peer_version = 0x0100; /* Default version */
   } else {
-    return result;
+    uuid = UUID_SERVCLASS_HEADSET_HS;
+    p_scb->peer_version = HSP_VERSION_1_2; /* Default version */
   }
 
   /* loop through all records we found */
@@ -338,6 +343,14 @@ bool bta_ag_sdp_find_attr(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
         /* Do not update if we already received BRSF.           */
         if (p_scb->peer_features == 0)
           p_scb->peer_features = p_attr->attr_value.v.u16;
+      }
+
+      /* Remote supports 1.7, store it in the file */
+      if (p_scb->peer_version == HFP_VERSION_1_7) {
+         bt_bdaddr_t remote_bdaddr;
+         bdcpy(remote_bdaddr.address, p_scb->peer_addr);
+         interop_database_add_addr(INTEROP_HFP_1_7_BLACKLIST,
+                          (bt_bdaddr_t *)&remote_bdaddr, 3);
       }
     } else /* HSP */
     {
@@ -407,9 +420,20 @@ void bta_ag_do_disc(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
       num_uuid = 2;
     }
   }
-  /* HSP acceptor; no discovery */
+  /* HSP acceptor; get features */
   else {
-    return;
+    attr_list[0] = ATTR_ID_SERVICE_CLASS_ID_LIST;
+    attr_list[1] = ATTR_ID_PROTOCOL_DESC_LIST;
+    attr_list[2] = ATTR_ID_BT_PROFILE_DESC_LIST;
+    attr_list[3] = ATTR_ID_REMOTE_AUDIO_VOLUME_CONTROL;
+    num_attr = 4;
+
+    uuid_list[0].uu.uuid16 = UUID_SERVCLASS_HEADSET;        /* Legacy from HSP v1.0 */
+    if (p_scb->hsp_version >= HSP_VERSION_1_2)
+    {
+      uuid_list[1].uu.uuid16 = UUID_SERVCLASS_HEADSET_HS;
+      num_uuid = 2;
+    }
   }
 
   /* allocate buffer for sdp database */

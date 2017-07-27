@@ -1,4 +1,8 @@
 /******************************************************************************
+ * Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ ******************************************************************************/
+/******************************************************************************
  *
  *  Copyright (C) 2011-2012 Broadcom Corporation
  *
@@ -151,14 +155,14 @@ void BTA_AvDeregister(tBTA_AV_HNDL hndl) {
  * Returns          void
  *
  ******************************************************************************/
-void BTA_AvOpen(BD_ADDR bd_addr, tBTA_AV_HNDL handle, bool use_rc,
+void BTA_AvOpen(const RawAddress& bd_addr, tBTA_AV_HNDL handle, bool use_rc,
                 tBTA_SEC sec_mask, uint16_t uuid) {
   tBTA_AV_API_OPEN* p_buf =
       (tBTA_AV_API_OPEN*)osi_malloc(sizeof(tBTA_AV_API_OPEN));
 
   p_buf->hdr.event = BTA_AV_API_OPEN_EVT;
   p_buf->hdr.layer_specific = handle;
-  bdcpy(p_buf->bd_addr, bd_addr);
+  p_buf->bd_addr = bd_addr;
   p_buf->use_rc = use_rc;
   p_buf->sec_mask = sec_mask;
   p_buf->switch_res = BTA_AV_RS_NONE;
@@ -194,12 +198,12 @@ void BTA_AvClose(tBTA_AV_HNDL handle) {
  * Returns          void
  *
  ******************************************************************************/
-void BTA_AvDisconnect(BD_ADDR bd_addr) {
+void BTA_AvDisconnect(const RawAddress& bd_addr) {
   tBTA_AV_API_DISCNT* p_buf =
       (tBTA_AV_API_DISCNT*)osi_malloc(sizeof(tBTA_AV_API_DISCNT));
 
   p_buf->hdr.event = BTA_AV_API_DISCONNECT_EVT;
-  bdcpy(p_buf->bd_addr, bd_addr);
+  p_buf->bd_addr = bd_addr;
 
   bta_sys_sendmsg(p_buf);
 }
@@ -213,10 +217,11 @@ void BTA_AvDisconnect(BD_ADDR bd_addr) {
  * Returns          void
  *
  ******************************************************************************/
-void BTA_AvStart(void) {
+void BTA_AvStart(tBTA_AV_HNDL handle) {
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(sizeof(BT_HDR));
 
   p_buf->event = BTA_AV_API_START_EVT;
+  p_buf->layer_specific = handle;
 
   bta_sys_sendmsg(p_buf);
 }
@@ -270,7 +275,7 @@ void BTA_AvOffloadStartRsp(tBTA_AV_HNDL hndl, tBTA_AV_STATUS status) {
  * Returns          void
  *
  ******************************************************************************/
-void BTA_AvStop(bool suspend) {
+void BTA_AvStop(bool suspend, tBTA_AV_HNDL handle) {
   tBTA_AV_API_STOP* p_buf =
       (tBTA_AV_API_STOP*)osi_malloc(sizeof(tBTA_AV_API_STOP));
 
@@ -278,8 +283,50 @@ void BTA_AvStop(bool suspend) {
   p_buf->flush = true;
   p_buf->suspend = suspend;
   p_buf->reconfig_stop = false;
+  p_buf->hdr.layer_specific = handle;
 
   bta_sys_sendmsg(p_buf);
+}
+
+/*******************************************************************************
+ *
+ * Function         BTA_AvEnableMultiCast
+ *
+ * Description      Enable/Disable Avdtp MultiCast
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_AvEnableMultiCast(bool state, tBTA_AV_HNDL handle)
+{
+  tBTA_AV_ENABLE_MULTICAST  *p_buf;
+
+  if ((p_buf = (tBTA_AV_ENABLE_MULTICAST *)osi_malloc(sizeof(tBTA_AV_ENABLE_MULTICAST))) != NULL) {
+    p_buf->hdr.event = BTA_AV_ENABLE_MULTICAST_EVT;
+    p_buf->hdr.layer_specific   = handle;
+    p_buf->is_multicast_enabled = state;
+    bta_sys_sendmsg(p_buf);
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         BTA_AvUpdateMaxAVClient
+ *
+ * Description      Update max av connections supported simultaneously
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_AvUpdateMaxAVClient(uint8_t max_clients)
+{
+  tBTA_AV_MAX_CLIENT *p_buf;
+
+  if ((p_buf = (tBTA_AV_MAX_CLIENT *) osi_malloc(sizeof(tBTA_AV_MAX_CLIENT))) != NULL) {
+    p_buf->hdr.event = BTA_AV_UPDATE_MAX_AV_CLIENTS_EVT;
+    p_buf->max_clients = max_clients;
+    bta_sys_sendmsg(p_buf);
+  }
 }
 
 /*******************************************************************************

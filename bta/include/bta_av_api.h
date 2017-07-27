@@ -1,4 +1,8 @@
 /******************************************************************************
+ * Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ ******************************************************************************/
+/******************************************************************************
  *
  *  Copyright (C) 2004-2012 Broadcom Corporation
  *
@@ -72,9 +76,11 @@ typedef uint8_t tBTA_AV_STATUS;
 #define BTA_AV_FEAT_DELAY_RPT 0x0400 /* allow delay reporting */
 #define BTA_AV_FEAT_ACP_START \
   0x0800 /* start stream when 2nd SNK was accepted   */
+#define BTA_AV_FEAT_CA          0x1000  /* use cover art */
 #define BTA_AV_FEAT_APP_SETTING 0x2000 /* Player app setting support */
 
 /* Internal features */
+#define BTA_AV_FEAT_AVRC_UI_UPDATE 0x4000 /* UI notification for browsing capable remote*/
 #define BTA_AV_FEAT_NO_SCO_SSPD \
   0x8000 /* Do not suspend av streaming as to AG events(SCO or Call) */
 
@@ -239,8 +245,10 @@ typedef uint8_t tBTA_AV_ERR;
 #define BTA_AV_OFFLOAD_START_RSP_EVT 22 /* a2dp offload start response */
 #define BTA_AV_RC_BROWSE_OPEN_EVT 23    /* remote control channel open */
 #define BTA_AV_RC_BROWSE_CLOSE_EVT 24   /* remote control channel closed */
+#define BTA_AV_ROLE_CHANGED_EVT 25
+#define BTA_AV_RC_COLL_DETECTED_EVT 26  /* RC channel collission detected */
 /* Max BTA event */
-#define BTA_AV_MAX_EVT 25
+#define BTA_AV_MAX_EVT 27
 
 typedef uint8_t tBTA_AV_EVT;
 
@@ -263,11 +271,12 @@ typedef uint8_t tBTA_AV_EDR;
 typedef struct {
   tBTA_AV_CHNL chnl;
   tBTA_AV_HNDL hndl;
-  BD_ADDR bd_addr;
+  RawAddress bd_addr;
   tBTA_AV_STATUS status;
   bool starting;
   tBTA_AV_EDR edr; /* 0, if peer device does not support EDR */
   uint8_t sep;     /*  sep type of peer device */
+  uint8_t role;    /* 0x00 master, 0x01 slave , 0xFF unkown */
 } tBTA_AV_OPEN;
 
 /* data associated with BTA_AV_CLOSE_EVT */
@@ -283,6 +292,7 @@ typedef struct {
   tBTA_AV_STATUS status;
   bool initiator; /* true, if local device initiates the START */
   bool suspending;
+  uint8_t role;   /* 0x00 master, 0x01 slave , 0xFF unkown */
 } tBTA_AV_START;
 
 /* data associated with BTA_AV_SUSPEND_EVT */
@@ -321,34 +331,40 @@ typedef struct {
 typedef struct {
   uint8_t rc_handle;
   tBTA_AV_FEAT peer_features;
-  BD_ADDR peer_addr;
+  RawAddress peer_addr;
   tBTA_AV_STATUS status;
 } tBTA_AV_RC_OPEN;
 
 /* data associated with BTA_AV_RC_CLOSE_EVT */
 typedef struct {
   uint8_t rc_handle;
-  BD_ADDR peer_addr;
+  RawAddress peer_addr;
 } tBTA_AV_RC_CLOSE;
+
+/* data associated with BTA_AV_RC_COLL_DETECTED */
+typedef struct {
+  uint8_t rc_handle;
+  BD_ADDR peer_addr;
+} tBTA_AV_RC_COLL_DETECTED;
 
 /* data associated with BTA_AV_RC_BROWSE_OPEN_EVT */
 typedef struct {
   uint8_t rc_handle;
-  BD_ADDR peer_addr;
+  RawAddress peer_addr;
   tBTA_AV_STATUS status;
 } tBTA_AV_RC_BROWSE_OPEN;
 
 /* data associated with BTA_AV_RC_BROWSE_CLOSE_EVT */
 typedef struct {
   uint8_t rc_handle;
-  BD_ADDR peer_addr;
+  RawAddress peer_addr;
 } tBTA_AV_RC_BROWSE_CLOSE;
 
 /* data associated with BTA_AV_RC_FEAT_EVT */
 typedef struct {
   uint8_t rc_handle;
   tBTA_AV_FEAT peer_features;
-  BD_ADDR peer_addr;
+  RawAddress peer_addr;
 } tBTA_AV_RC_FEAT;
 
 /* data associated with BTA_AV_REMOTE_CMD_EVT */
@@ -395,14 +411,29 @@ typedef struct {
 } tBTA_AV_META_MSG;
 
 /* data associated with BTA_AV_PENDING_EVT */
-typedef struct { BD_ADDR bd_addr; } tBTA_AV_PEND;
+<<<<<<< HEAD
+typedef struct {
+  BD_ADDR bd_addr;
+  tBTA_AV_HNDL hndl; /* Handle associated with the stream. */
+} tBTA_AV_PEND;
+=======
+typedef struct { RawAddress bd_addr; } tBTA_AV_PEND;
+>>>>>>> 3712a5d947b37f05640898586f8d2f37a9fc7123
 
 /* data associated with BTA_AV_REJECT_EVT */
 typedef struct {
-  BD_ADDR bd_addr;
+  RawAddress bd_addr;
   tBTA_AV_HNDL hndl; /* Handle associated with the stream that rejected the
                         connection. */
 } tBTA_AV_REJECT;
+
+/* data associated with BTA_AV_ROLE_CHANGED */
+typedef struct
+{
+  BD_ADDR bd_addr;
+  uint8_t new_role;  /* 0x00 master, 0x01 slave , 0xFF unkown */
+  tBTA_AV_HNDL hndl; /* Handle associated with role change event */
+} tBTA_AV_ROLE_CHANGED;
 
 /* union of data associated with AV callback */
 typedef union {
@@ -416,6 +447,7 @@ typedef union {
   tBTA_AV_PROTECT_RSP protect_rsp;
   tBTA_AV_RC_OPEN rc_open;
   tBTA_AV_RC_CLOSE rc_close;
+  tBTA_AV_RC_COLL_DETECTED rc_col_detected;
   tBTA_AV_RC_BROWSE_OPEN rc_browse_open;
   tBTA_AV_RC_BROWSE_CLOSE rc_browse_close;
   tBTA_AV_REMOTE_CMD remote_cmd;
@@ -429,12 +461,12 @@ typedef union {
   tBTA_AV_REJECT reject;
   tBTA_AV_RC_FEAT rc_feat;
   tBTA_AV_STATUS status;
+  tBTA_AV_ROLE_CHANGED role_changed;
 } tBTA_AV;
 
 typedef struct {
   uint8_t* codec_info;
-  BD_ADDR bd_addr;
-  ;
+  RawAddress bd_addr;
 } tBTA_AVK_CONFIG;
 
 /* union of data associated with AV Media callback */
@@ -556,7 +588,7 @@ void BTA_AvDeregister(tBTA_AV_HNDL hndl);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_AvOpen(BD_ADDR bd_addr, tBTA_AV_HNDL handle, bool use_rc,
+void BTA_AvOpen(const RawAddress& bd_addr, tBTA_AV_HNDL handle, bool use_rc,
                 tBTA_SEC sec_mask, uint16_t uuid);
 
 /*******************************************************************************
@@ -579,7 +611,7 @@ void BTA_AvClose(tBTA_AV_HNDL handle);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_AvDisconnect(BD_ADDR bd_addr);
+void BTA_AvDisconnect(const RawAddress& bd_addr);
 
 /*******************************************************************************
  *
@@ -590,20 +622,42 @@ void BTA_AvDisconnect(BD_ADDR bd_addr);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_AvStart(void);
+void BTA_AvStart(tBTA_AV_HNDL handle);
 
 /*******************************************************************************
  *
  * Function         BTA_AvStop
  *
- * Description      Stop audio/video stream data transfer.
+ * Description      Stop audio/video stream data transfer on the AV handle.
  *                  If suspend is true, this function sends AVDT suspend signal
  *                  to the connected peer(s).
  *
  * Returns          void
  *
  ******************************************************************************/
-void BTA_AvStop(bool suspend);
+void BTA_AvStop(bool suspend, tBTA_AV_HNDL handle);
+
+/*******************************************************************************
+ *
+ * Function         BTA_AvEnableMultiCast
+ *
+ * Description      Enable/disable Avdtp MultiCast
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_AvEnableMultiCast(bool state, tBTA_AV_HNDL handle);
+
+/*******************************************************************************
+ *
+ * Function         BTA_AvUpdateMaxAVClient
+ *
+ * Description      Update max simultaneous AV connections supported
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_AvUpdateMaxAVClient(uint8_t max_clients);
 
 /*******************************************************************************
  *

@@ -1,4 +1,8 @@
 /******************************************************************************
+ * Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ ******************************************************************************/
+/******************************************************************************
  *
  *  Copyright (C) 2002-2012 Broadcom Corporation
  *
@@ -134,6 +138,39 @@ void AVDT_Deregister(void) {
   L2CA_Deregister(AVDT_PSM);
 }
 
+/*******************************************************************************
+ *
+ * Function         AVDT_UpdateServiceBusyState
+ *
+ * Description      This function is used to set the service busy state
+ *                  during outgoing connection to properly handle the
+ *                  connections in upper layers.
+ *
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void AVDT_UpdateServiceBusyState(bool state) {
+    AVDT_TRACE_DEBUG("%s(): state-%d", __func__, state);
+    avdt_cb.conn_in_progress = state;
+}
+
+/*******************************************************************************
+ *
+ * Function         AVDT_GetServiceBusyState
+ *
+ * Description      This function is used to get the service busy state
+ *
+ *
+ * Returns          bool
+ *
+ ******************************************************************************/
+bool AVDT_GetServiceBusyState(void)
+{
+    AVDT_TRACE_DEBUG("%s(): state-%d", __func__, avdt_cb.conn_in_progress);
+    return avdt_cb.conn_in_progress;
+}
+
 void AVDT_AbortReq(uint8_t handle) {
   AVDT_TRACE_ERROR("%s", __func__);
 
@@ -166,14 +203,17 @@ uint16_t AVDT_CreateStream(uint8_t* p_handle, tAVDT_CS* p_cs) {
   /* Verify parameters; if invalid, return failure */
   if (((p_cs->cfg.psc_mask & (~AVDT_PSC)) != 0) ||
       (p_cs->p_ctrl_cback == NULL)) {
+    AVDT_TRACE_ERROR("%s(): bad param", __func__);
     result = AVDT_BAD_PARAMS;
   }
   /* Allocate scb; if no scbs, return failure */
   else {
     p_scb = avdt_scb_alloc(p_cs);
     if (p_scb == NULL) {
+      AVDT_TRACE_ERROR("%s(): no resources", __func__);
       result = AVDT_NO_RESOURCES;
     } else {
+      AVDT_TRACE_DEBUG("%s(): allocated", __func__);
       *p_handle = avdt_scb_to_hdl(p_scb);
     }
   }
@@ -201,9 +241,11 @@ uint16_t AVDT_RemoveStream(uint8_t handle) {
   /* look up scb */
   p_scb = avdt_scb_by_hdl(handle);
   if (p_scb == NULL) {
+    AVDT_TRACE_ERROR("%s(): bad handle - %d", __func__, handle);
     result = AVDT_BAD_HANDLE;
   } else {
     /* send remove event to scb */
+    AVDT_TRACE_DEBUG("%s(): removing stream with handle - %d", __func__, handle);
     avdt_scb_event(p_scb, AVDT_SCB_API_REMOVE_EVT, NULL);
   }
   return result;
@@ -235,7 +277,7 @@ uint16_t AVDT_RemoveStream(uint8_t handle) {
  * Returns          AVDT_SUCCESS if successful, otherwise error.
  *
  ******************************************************************************/
-uint16_t AVDT_DiscoverReq(BD_ADDR bd_addr, tAVDT_SEP_INFO* p_sep_info,
+uint16_t AVDT_DiscoverReq(const RawAddress& bd_addr, tAVDT_SEP_INFO* p_sep_info,
                           uint8_t max_seps, tAVDT_CTRL_CBACK* p_cback) {
   tAVDT_CCB* p_ccb;
   uint16_t result = AVDT_SUCCESS;
@@ -277,7 +319,8 @@ uint16_t AVDT_DiscoverReq(BD_ADDR bd_addr, tAVDT_SEP_INFO* p_sep_info,
  * Returns          AVDT_SUCCESS if successful, otherwise error.
  *
  ******************************************************************************/
-static uint16_t avdt_get_cap_req(BD_ADDR bd_addr, tAVDT_CCB_API_GETCAP* p_evt) {
+static uint16_t avdt_get_cap_req(const RawAddress& bd_addr,
+                                 tAVDT_CCB_API_GETCAP* p_evt) {
   tAVDT_CCB* p_ccb = NULL;
   uint16_t result = AVDT_SUCCESS;
 
@@ -336,8 +379,8 @@ static uint16_t avdt_get_cap_req(BD_ADDR bd_addr, tAVDT_CCB_API_GETCAP* p_evt) {
  * Returns          AVDT_SUCCESS if successful, otherwise error.
  *
  ******************************************************************************/
-uint16_t AVDT_GetCapReq(BD_ADDR bd_addr, uint8_t seid, tAVDT_CFG* p_cfg,
-                        tAVDT_CTRL_CBACK* p_cback) {
+uint16_t AVDT_GetCapReq(const RawAddress& bd_addr, uint8_t seid,
+                        tAVDT_CFG* p_cfg, tAVDT_CTRL_CBACK* p_cback) {
   tAVDT_CCB_API_GETCAP getcap;
 
   getcap.single.seid = seid;
@@ -371,8 +414,8 @@ uint16_t AVDT_GetCapReq(BD_ADDR bd_addr, uint8_t seid, tAVDT_CFG* p_cfg,
  * Returns          AVDT_SUCCESS if successful, otherwise error.
  *
  ******************************************************************************/
-uint16_t AVDT_GetAllCapReq(BD_ADDR bd_addr, uint8_t seid, tAVDT_CFG* p_cfg,
-                           tAVDT_CTRL_CBACK* p_cback) {
+uint16_t AVDT_GetAllCapReq(const RawAddress& bd_addr, uint8_t seid,
+                           tAVDT_CFG* p_cfg, tAVDT_CTRL_CBACK* p_cback) {
   tAVDT_CCB_API_GETCAP getcap;
 
   getcap.single.seid = seid;
@@ -427,7 +470,7 @@ uint16_t AVDT_DelayReport(uint8_t handle, uint8_t seid, uint16_t delay) {
  * Returns          AVDT_SUCCESS if successful, otherwise error.
  *
  ******************************************************************************/
-uint16_t AVDT_OpenReq(uint8_t handle, BD_ADDR bd_addr, uint8_t seid,
+uint16_t AVDT_OpenReq(uint8_t handle, const RawAddress& bd_addr, uint8_t seid,
                       tAVDT_CFG* p_cfg) {
   tAVDT_CCB* p_ccb = NULL;
   tAVDT_SCB* p_scb = NULL;
@@ -893,7 +936,7 @@ uint16_t AVDT_WriteReq(uint8_t handle, BT_HDR* p_pkt, uint32_t time_stamp,
  * Returns          AVDT_SUCCESS if successful, otherwise error.
  *
  ******************************************************************************/
-uint16_t AVDT_ConnectReq(BD_ADDR bd_addr, uint8_t sec_mask,
+uint16_t AVDT_ConnectReq(const RawAddress& bd_addr, uint8_t sec_mask,
                          tAVDT_CTRL_CBACK* p_cback) {
   tAVDT_CCB* p_ccb = NULL;
   uint16_t result = AVDT_SUCCESS;
@@ -935,7 +978,8 @@ uint16_t AVDT_ConnectReq(BD_ADDR bd_addr, uint8_t sec_mask,
  * Returns          AVDT_SUCCESS if successful, otherwise error.
  *
  ******************************************************************************/
-uint16_t AVDT_DisconnectReq(BD_ADDR bd_addr, tAVDT_CTRL_CBACK* p_cback) {
+uint16_t AVDT_DisconnectReq(const RawAddress& bd_addr,
+                            tAVDT_CTRL_CBACK* p_cback) {
   tAVDT_CCB* p_ccb = NULL;
   uint16_t result = AVDT_SUCCESS;
   tAVDT_CCB_EVT evt;
@@ -991,7 +1035,7 @@ uint16_t AVDT_GetL2CapChannel(uint8_t handle) {
  * Returns          CID if successful, otherwise 0.
  *
  ******************************************************************************/
-uint16_t AVDT_GetSignalChannel(uint8_t handle, BD_ADDR bd_addr) {
+uint16_t AVDT_GetSignalChannel(uint8_t handle, const RawAddress& bd_addr) {
   tAVDT_SCB* p_scb;
   tAVDT_CCB* p_ccb;
   uint8_t tcid = 0; /* tcid is always 0 for signal channel */
@@ -1128,4 +1172,17 @@ uint8_t AVDT_SetTraceLevel(uint8_t new_level) {
   if (new_level != 0xFF) avdt_cb.trace_level = new_level;
 
   return (avdt_cb.trace_level);
+}
+
+/*******************************************************************************
+ *
+ * Function         AVDT_UpdateMaxAvClients
+ *
+ * Description      Update max simultaneous AV connections supported
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void AVDT_UpdateMaxAvClients(uint8_t max_clients) {
+    avdt_scb_set_max_av_client(max_clients);
 }

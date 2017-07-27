@@ -1,4 +1,8 @@
 /*
+ * Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ */
+/*
  * Copyright (C) 2016 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -268,7 +272,7 @@ class A2dpCodecs {
   // Initializes all supported codecs.
   // Returns true if at least one Source codec and one Sink codec were
   // initialized, otherwise false.
-  bool init();
+  bool init(bool isMulticastEnabled = false, bool isShoEnabled = false);
 
   // Finds the Source codec that corresponds to the A2DP over-the-air
   // |p_codec_info| information.
@@ -409,8 +413,8 @@ class A2dpCodecs {
 
  private:
   struct CompareBtBdaddr
-      : public std::binary_function<bt_bdaddr_t, bt_bdaddr_t, bool> {
-    bool operator()(const bt_bdaddr_t& lhs, const bt_bdaddr_t& rhs) const {
+      : public std::binary_function<RawAddress, RawAddress, bool> {
+    bool operator()(const RawAddress& lhs, const RawAddress& rhs) const {
       return (memcmp(&lhs, &rhs, sizeof(lhs)) < 0);
     }
   };
@@ -430,7 +434,7 @@ class A2dpCodecs {
   // A2DP Sink codecs ordered by priority
   std::list<A2dpCodecConfig*> ordered_sink_codecs_;
 
-  std::map<bt_bdaddr_t, IndexedCodecs*, CompareBtBdaddr> peer_codecs_;
+  std::map<RawAddress, IndexedCodecs*, CompareBtBdaddr> peer_codecs_;
 };
 
 /**
@@ -579,12 +583,6 @@ bool A2DP_CodecEquals(const uint8_t* p_codec_info_a,
 // contains invalid codec information.
 int A2DP_GetTrackSampleRate(const uint8_t* p_codec_info);
 
-// Gets the bits per audio sample for the A2DP codec.
-// |p_codec_info| is a pointer to the codec_info to decode.
-// Returns the bits per audio sample on success, or -1 if |p_codec_info|
-// contains invalid codec information.
-int A2DP_GetTrackBitsPerSample(const uint8_t* p_codec_info);
-
 // Gets the channel count for the A2DP codec.
 // |p_codec_info| is a pointer to the codec_info to decode.
 // Returns the channel count on success, or -1 if |p_codec_info|
@@ -649,6 +647,9 @@ const char* A2DP_CodecIndexStr(btav_a2dp_codec_index_t codec_index);
 bool A2DP_InitCodecConfig(btav_a2dp_codec_index_t codec_index,
                           tAVDT_CFG* p_cfg);
 
+void A2DP_SetOffloadStatus(bool offload_status, char *offload_cap);
+bool A2DP_GetOffloadStatus();
+bool A2DP_IsCodecEnabledInOffload(btav_a2dp_codec_index_t codec_index);
 // Add enum-based flag operators to the btav_a2dp_codec_config_t fields
 #ifndef DEFINE_ENUM_FLAG_OPERATORS
 #define DEFINE_ENUM_FLAG_OPERATORS(bitmask)                                 \

@@ -109,12 +109,12 @@ void l2c_rcv_acl_data(BT_HDR* p_msg) {
         }
 
         return;
-      } else {
+      } else if (handle != 0xedc) {    /* Handle 0xedc used for SOC Logging */
         L2CAP_TRACE_ERROR(
-            "L2CAP - rcvd ACL for unknown handle:%d ls:%d cid:%d"
-            " opcode:%d cur count:%d",
-            handle, p_msg->layer_specific, rcv_cid, cmd_code,
-            list_length(l2cb.rcv_pending_q));
+          "L2CAP - rcvd ACL for unknown handle:%d ls:%d cid:%d"
+          " opcode:%d cur count:%d",
+          handle, p_msg->layer_specific, rcv_cid, cmd_code,
+          list_length(l2cb.rcv_pending_q));
       }
       osi_free(p_msg);
       return;
@@ -357,7 +357,7 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
 
           p_lcb->w4_info_rsp = false;
           ci.status = HCI_SUCCESS;
-          memcpy(ci.bd_addr, p_lcb->remote_bd_addr, sizeof(BD_ADDR));
+          ci.bd_addr = p_lcb->remote_bd_addr;
 
           /* For all channels, send the event through their FSMs */
           for (p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb;
@@ -696,7 +696,7 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
 #endif
 
         ci.status = HCI_SUCCESS;
-        memcpy(ci.bd_addr, p_lcb->remote_bd_addr, sizeof(BD_ADDR));
+        ci.bd_addr = p_lcb->remote_bd_addr;
         for (p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb;
              p_ccb = p_ccb->p_next_ccb) {
           l2c_csm_execute(p_ccb, L2CEVT_L2CAP_INFO_RSP, &ci);

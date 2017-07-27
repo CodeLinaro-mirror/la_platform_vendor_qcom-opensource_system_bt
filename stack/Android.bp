@@ -35,6 +35,7 @@ cc_library_static {
         "system/bt/bta/include",
         "system/bt/bta/sys",
         "system/bt/utils/include",
+        "vendor/qcom/opensource/bluetooth_ext/system_bt_ext",
     ],
     srcs: [
         "a2dp/a2dp_aac.cc",
@@ -99,10 +100,8 @@ cc_library_static {
         "btu/btu_hcif.cc",
         "btu/btu_init.cc",
         "btu/btu_task.cc",
-        "gap/gap_api.cc",
         "gap/gap_ble.cc",
         "gap/gap_conn.cc",
-        "gap/gap_utils.cc",
         "gatt/att_protocol.cc",
         "gatt/gatt_api.cc",
         "gatt/gatt_attr.cc",
@@ -174,7 +173,7 @@ cc_library_static {
     ],
     shared_libs: [
         "libcutils",
-        "liblog",
+         "liblog",
     ],
     required: [
         "libldacBT_enc",
@@ -197,6 +196,7 @@ cc_test {
     srcs: ["test/stack_a2dp_test.cc"],
     shared_libs: [
         "liblog",
+        "libcutils",
     ],
     static_libs: [
         "libbt-stack",
@@ -234,6 +234,7 @@ cc_test {
     ],
     shared_libs: [
         "libcutils",
+		"liblog"
     ],
     static_libs: [
         "liblog",
@@ -268,6 +269,7 @@ cc_test {
         "libcutils",
     ],
     static_libs: [
+        "libbluetooth-types",
         "liblog",
         "libgmock",
     ],
@@ -285,7 +287,40 @@ cc_test {
         "test/ad_parser_unittest.cc",
     ],
     static_libs: [
+        "libbluetooth-types",
         "liblog",
         "libgmock",
+    ],
+}
+
+// Bluetooth stack message loop tests for target
+// ========================================================
+cc_test {
+    name: "net_test_btu_message_loop",
+    defaults: ["fluoride_defaults"],
+    local_include_dirs: [
+        "include",
+        "btm",
+    ],
+    include_dirs: [
+        "system/bt/",
+        "system/bt/include",
+        "system/bt/btcore/include",
+        "system/bt/bta/include",
+    ],
+    srcs: [
+        "btu/btu_task.cc",
+        "test/stack_btu_test.cc",
+    ],
+    shared_libs: [
+        "liblog",
+        "libcutils",
+        "libprotobuf-cpp-lite",
+    ],
+    static_libs: [
+        "libbluetooth-types",
+        "libgmock",
+        "libosi",
+        "libbt-protos",
     ],
 }
