@@ -92,6 +92,9 @@ static const interop_addr_t interop_addr_database[] = {
   {{{0x00, 0x00, 0x6a,      0,0,0}}, 3, INTEROP_ADV_PBAP_VER_1_1},
   {{{0x00, 0x00, 0x7f,      0,0,0}}, 3, INTEROP_ADV_PBAP_VER_1_1},
   {{{0x00, 0x01, 0x0a,      0,0,0}}, 3, INTEROP_ADV_PBAP_VER_1_1},
+
+  //Renault Carkit
+  {{0x98, 0x7B, 0xF3,       0,0,0}, 3, INTEROP_DISABLE_HF_INDICATOR},
 };
 
 static const interop_name_t interop_name_database[] = {
