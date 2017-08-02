@@ -259,6 +259,7 @@ extern void btif_av_move_idle(bt_bdaddr_t bd_addr);
 extern void btif_av_trigger_suspend();
 extern BOOLEAN btif_av_get_ongoing_multicast();
 extern void btif_av_update_streaming_bitrate(BD_ADDR bd_addr, UINT16 acl_pkt_types_supported);
+extern void btif_av_peer_config_dump();
 
 /******************************************************************************
 **  Functions
@@ -2281,8 +2282,10 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
         case BTA_DM_SOC_LOGGING_EVT:
         {
             BTIF_TRACE_WARNING( "btif_dm_cback : event(%d),soc id=%0x", event , p_data->soc_logging.soc_log_id);
-            if (p_data->soc_logging.soc_log_id == (LOG_ID_STATS_A2DP))
+            if (p_data->soc_logging.soc_log_id == (LOG_ID_STATS_A2DP)) {
                 BTIF_TRACE_WARNING( " event(%d),dump a2dp configuration", event);
+                btif_av_peer_config_dump();
+            }
             break;
         }
         case BTA_DM_AUTHORIZE_EVT:
