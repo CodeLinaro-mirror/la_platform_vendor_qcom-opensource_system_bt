@@ -5759,6 +5759,8 @@ static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC *p_data)
 
         case BTA_GATTC_CLOSE_EVT:
             APPL_TRACE_DEBUG("BTA_GATTC_CLOSE_EVT reason = %d", p_data->close.reason);
+             if(p_data->close.conn_id == bta_dm_search_cb.conn_id)
+                 bta_dm_search_cb.conn_id = BTA_GATT_INVALID_CONN_ID;
             /* in case of disconnect before search is completed */
             if ( (bta_dm_search_cb.state != BTA_DM_SEARCH_IDLE) &&
                  (bta_dm_search_cb.state != BTA_DM_SEARCH_ACTIVE) &&
