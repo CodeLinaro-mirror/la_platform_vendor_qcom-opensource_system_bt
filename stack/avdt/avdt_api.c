@@ -39,6 +39,7 @@
 tAVDT_CB avdt_cb;
 #endif
 
+extern UINT16 pump_encoded_data;
 /*******************************************************************************
 **
 ** Function         AVDT_Init
@@ -1005,6 +1006,7 @@ UINT16 AVDT_WriteReqOpt(UINT8 handle, BT_HDR *p_pkt, UINT32 time_stamp, UINT8 m_
         evt.apiwrite.time_stamp = time_stamp;
         evt.apiwrite.m_pt = m_pt;
         evt.apiwrite.opt = opt;
+        evt.apiwrite.encoded_data_enabled = pump_encoded_data;
         avdt_scb_event(p_scb, AVDT_SCB_API_WRITE_REQ_EVT, &evt);
     }
 
