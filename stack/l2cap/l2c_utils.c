@@ -145,10 +145,8 @@ void l2cu_release_lcb (tL2C_LCB *p_lcb)
     p_lcb->is_bonding = FALSE;
 
     /* Stop and free timers */
-    alarm_free(p_lcb->l2c_lcb_timer);
-    p_lcb->l2c_lcb_timer = NULL;
-    alarm_free(p_lcb->info_resp_timer);
-    p_lcb->info_resp_timer = NULL;
+    alarm_cancel(p_lcb->l2c_lcb_timer);
+    alarm_cancel(p_lcb->info_resp_timer);
 
     /* Release any unfinished L2CAP packet on this link */
     osi_free_and_reset((void **)&p_lcb->p_hcit_rcv_acl);
@@ -1705,8 +1703,7 @@ void l2cu_release_ccb (tL2C_CCB *p_ccb)
        btm_sec_clr_temp_auth_service (p_lcb->remote_bd_addr);
 
     /* Free the timer */
-    alarm_free(p_ccb->l2c_ccb_timer);
-    p_ccb->l2c_ccb_timer = NULL;
+    alarm_cancel(p_ccb->l2c_ccb_timer);
 
     fixed_queue_free(p_ccb->xmit_hold_q, osi_free);
     p_ccb->xmit_hold_q = NULL;
