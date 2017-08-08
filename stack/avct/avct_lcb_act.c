@@ -311,7 +311,7 @@ void avct_close_bcb(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
     if (p_bcb != NULL)
     {
         AVCT_TRACE_DEBUG("Send Disconnect Event");
-        p_bcb->allocated = 0;
+   //     p_bcb->allocated = 0;
         avct_bcb_event( p_bcb, AVCT_LCB_INT_CLOSE_EVT, p_data);
     }
 }
