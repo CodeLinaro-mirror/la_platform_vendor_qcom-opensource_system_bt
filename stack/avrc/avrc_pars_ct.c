@@ -372,13 +372,16 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(
 
     case AVRC_PDU_GET_PLAY_STATUS:
         if (len == 0)
-        {
             break;
-        }
         BE_STREAM_TO_UINT32(p_result->get_play_status.song_len, p);
         BE_STREAM_TO_UINT32(p_result->get_play_status.song_pos, p);
         BE_STREAM_TO_UINT8(p_result->get_play_status.play_status, p);
         break;
+    case AVRC_PDU_SET_ADDRESSED_PLAYER:
+         if (len == 0)
+            break;
+        BE_STREAM_TO_UINT8(p_result->addr_player.status, p);
+       break;
 
     default:
         return AVRC_STS_BAD_CMD;
