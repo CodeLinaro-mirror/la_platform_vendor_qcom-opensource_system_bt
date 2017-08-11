@@ -1981,13 +1981,14 @@ tBTA_AV_FEAT bta_av_check_peer_features (UINT16 service_uuid)
                                 ATTR_ID_SUPPORTED_FEATURES)) != NULL)
                 {
                     categories = p_attr->attr_value.v.u16;
+                    APPL_TRACE_DEBUG("peer categories: 0x%x", categories);
                     if (categories & AVRC_SUPF_CT_BROWSE)
                     {
                         peer_features |= (BTA_AV_FEAT_BROWSE);
                         APPL_TRACE_DEBUG("peer supports browsing");
                     }
-                    if (categories & AVRC_SUPF_CT_COVER_ART_GET_IMAGE &
-                        AVRC_SUPF_CT_COVER_ART_GET_THUMBNAIL)
+                    if ((categories & AVRC_SUPF_CT_COVER_ART_GET_IMAGE) &&
+                        (categories & AVRC_SUPF_CT_COVER_ART_GET_THUMBNAIL))
                     {
                         peer_features |=  BTA_AV_FEAT_CA;
                         APPL_TRACE_DEBUG("peer supports cover art");
