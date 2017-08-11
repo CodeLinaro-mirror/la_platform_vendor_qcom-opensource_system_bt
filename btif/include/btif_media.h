@@ -285,6 +285,8 @@ extern BOOLEAN btif_media_task_audio_feeding_init_req(tBTIF_MEDIA_INIT_AUDIO_FEE
  *******************************************************************************/
 extern void dump_codec_info(unsigned char *p_codec);
 
+void btif_media_dump_codec_info(tBTA_AV_HNDL hdl);
+
 /**
  * Local adaptation helper functions between btif and media task
  */
