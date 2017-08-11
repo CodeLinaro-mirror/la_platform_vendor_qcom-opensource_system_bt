@@ -1734,6 +1734,18 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
                 BTIF_TRACE_DEBUG("Other device not suspended, don't ack the suspend");
             }
 
+            BTIF_TRACE_DEBUG("%s: local suspend flag: %d", __FUNCTION__,
+                                  btif_av_cb[index].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING);
+            if (btif_av_cb[index].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING)
+            {
+                BTIF_TRACE_DEBUG("%s: report upper layers audio state stopped:", __FUNCTION__);
+                btif_report_audio_state(BTAV_AUDIO_STATE_STOPPED, &(btif_av_cb[index].peer_bda));
+            }
+            else
+            {
+                BTIF_TRACE_DEBUG("%s: report upper layers audio state suspended:", __FUNCTION__);
+                btif_report_audio_state(BTAV_AUDIO_STATE_REMOTE_SUSPEND, &(btif_av_cb[index].peer_bda));
+            }
             /* if not successful, remain in current state */
             if (p_av->suspend.status != BTA_AV_SUCCESS)
             {
@@ -1747,14 +1759,6 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
                 return FALSE;
             }
 
-            if (p_av->suspend.initiator != TRUE)
-            {
-                btif_report_audio_state(BTAV_AUDIO_STATE_REMOTE_SUSPEND, &(btif_av_cb[index].peer_bda));
-            }
-            else
-            {
-                btif_report_audio_state(BTAV_AUDIO_STATE_REMOTE_SUSPEND, &(btif_av_cb[index].peer_bda));
-            }
             btif_av_cb[index].is_device_playing = FALSE;
             btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_OPENED);
 
