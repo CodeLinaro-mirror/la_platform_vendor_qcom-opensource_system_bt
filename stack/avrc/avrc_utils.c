@@ -59,9 +59,10 @@ BOOLEAN AVRC_IsValidAvcType(UINT8 pdu_id, UINT8 avc_type)
         case AVRC_PDU_INFORM_BATTERY_STAT_OF_CT:   /* 0x18 */
         case AVRC_PDU_REQUEST_CONTINUATION_RSP:    /* 0x40 */
         case AVRC_PDU_ABORT_CONTINUATION_RSP:      /* 0x41 */
-        case AVRC_PDU_SET_ADDRESSED_PLAYER:
-        case AVRC_PDU_PLAY_ITEM:
-        case AVRC_PDU_SET_ABSOLUTE_VOLUME:
+        case AVRC_PDU_SET_ADDRESSED_PLAYER:        /* 0x60 */
+        case AVRC_PDU_PLAY_ITEM:                   /* 0x74 */
+        case AVRC_PDU_SET_ABSOLUTE_VOLUME:  /* 0x50 */
+        case AVRC_PDU_ADD_TO_NOW_PLAYING:   /* 0x90 */
              if (avc_type == AVRC_CMD_CTRL)
                 result=TRUE;
              break;
@@ -70,6 +71,10 @@ BOOLEAN AVRC_IsValidAvcType(UINT8 pdu_id, UINT8 avc_type)
              if (avc_type == AVRC_CMD_NOTIF)
                 result=TRUE;
              break;
+
+          case AVRC_PDU_GET_FOLDER_ITEMS: /* 0x71 */
+            result = true;
+            break;
         }
     }
     else  /* response msg */
@@ -198,21 +203,30 @@ tAVRC_STS avrc_pars_pass_thru(tAVRC_MSG_PASS *p_msg, UINT16 *p_vendor_unique_id)
 *******************************************************************************/
 UINT8 avrc_opcode_from_pdu(UINT8 pdu)
 {
-    UINT8 opcode = 0;
+    uint8_t opcode = 0;
 
-    switch (pdu)
-    {
-    case AVRC_PDU_NEXT_GROUP:
-    case AVRC_PDU_PREV_GROUP: /* pass thru */
-        opcode  = AVRC_OP_PASS_THRU;
+    switch (pdu) {
+      case AVRC_PDU_SET_BROWSED_PLAYER:
+      case AVRC_PDU_GET_FOLDER_ITEMS:
+      case AVRC_PDU_CHANGE_PATH:
+      case AVRC_PDU_GET_ITEM_ATTRIBUTES:
+      case AVRC_PDU_SEARCH:
+      case AVRC_PDU_GENERAL_REJECT:
+        opcode = AVRC_OP_BROWSE;
         break;
 
-    default: /* vendor */
-        opcode  = AVRC_OP_VENDOR;
+      case AVRC_PDU_NEXT_GROUP:
+      case AVRC_PDU_PREV_GROUP: /* pass thru */
+        opcode = AVRC_OP_PASS_THRU;
+        break;
+
+      default: /* vendor */
+        opcode = AVRC_OP_VENDOR;
         break;
     }
 
     return opcode;
+
 }
 
 /*******************************************************************************

@@ -376,6 +376,35 @@ static tAVRC_STS avrc_bld_set_addressed_player_cmd(
   return AVRC_STS_NO_ERROR;
 }
 
+/*******************************************************************************
+ *
+ * Function         avrc_bld_set_browsed_player_cmd
+ *
+ * Description      This function builds the set browsed player cmd.
+ *
+ * Returns          AVRC_STS_NO_ERROR, if the command is built successfully
+ *                  Otherwise, the error code.
+ *
+ ******************************************************************************/
+static tAVRC_STS avrc_bld_set_browsed_player_cmd(
+    BT_HDR* p_pkt, const tAVRC_SET_BR_PLAYER_CMD* cmd) {
+    AVRC_TRACE_API("%s", __func__);
+    uint8_t* p_start = (uint8_t*)(p_pkt + 1) + p_pkt->offset;
+    /* This is where the PDU specific for AVRC starts
+     * AVRCP Spec 1.4 section 22.19 */
+    uint8_t* p_data = p_start + 1; /* pdu */
+
+    /* To change browsed player the following is the total length:
+     * Player ID (2)
+     */
+    UINT16_TO_BE_STREAM(p_data, 2); /* fixed length */
+    UINT16_TO_BE_STREAM(p_data, cmd->player_id);
+    p_pkt->len = (p_data - p_start);
+     AVRC_TRACE_API("%s p_pkt->len = %d", __func__, p_pkt->len);
+    return AVRC_STS_NO_ERROR;
+
+}
+
 #endif
 
 /*******************************************************************************
@@ -390,37 +419,42 @@ static tAVRC_STS avrc_bld_set_addressed_player_cmd(
 *******************************************************************************/
 static BT_HDR *avrc_bld_init_cmd_buffer(tAVRC_COMMAND *p_cmd)
 {
-    UINT8  opcode = avrc_opcode_from_pdu(p_cmd->pdu);
-    AVRC_TRACE_API("avrc_bld_init_cmd_buffer: pdu=%x, opcode=%x", p_cmd->pdu, opcode);
+    uint16_t chnl = AVCT_DATA_CTRL;
+    uint8_t opcode = avrc_opcode_from_pdu(p_cmd->pdu);
+    AVRC_TRACE_API("avrc_bld_init_cmd_buffer: pdu=%x, opcode=%x", p_cmd->pdu,
+                   opcode);
 
-    UINT16 offset = 0;
-    switch (opcode)
-    {
-    case AVRC_OP_PASS_THRU:
-        offset  = AVRC_MSG_PASS_THRU_OFFSET;
+    uint16_t offset = 0;
+    switch (opcode) {
+      case AVRC_OP_BROWSE:
+        chnl = AVCT_DATA_BROWSE;
+        offset = AVCT_BROWSE_OFFSET;
         break;
 
-    case AVRC_OP_VENDOR:
-        offset  = AVRC_MSG_VENDOR_OFFSET;
+      case AVRC_OP_PASS_THRU:
+        offset = AVRC_MSG_PASS_THRU_OFFSET;
+        break;
+
+      case AVRC_OP_VENDOR:
+        offset = AVRC_MSG_VENDOR_OFFSET;
         break;
     }
 
     /* allocate and initialize the buffer */
-    BT_HDR *p_pkt = (BT_HDR *)osi_malloc(AVRC_META_CMD_BUF_SIZE);
-    UINT8 *p_data, *p_start;
+    BT_HDR* p_pkt = (BT_HDR*)osi_malloc(AVRC_META_CMD_BUF_SIZE);
+    uint8_t *p_data, *p_start;
 
-    p_pkt->layer_specific = AVCT_DATA_CTRL;
+    p_pkt->layer_specific = chnl;
     p_pkt->event = opcode;
     p_pkt->offset = offset;
-    p_data = (UINT8 *)(p_pkt + 1) + p_pkt->offset;
+    p_data = (uint8_t*)(p_pkt + 1) + p_pkt->offset;
     p_start = p_data;
 
     /* pass thru - group navigation - has a two byte op_id, so dont do it here */
-    if (opcode != AVRC_OP_PASS_THRU)
-        *p_data++ = p_cmd->pdu;
+    if (opcode != AVRC_OP_PASS_THRU) *p_data++ = p_cmd->pdu;
 
     switch (opcode) {
-    case AVRC_OP_VENDOR:
+      case AVRC_OP_VENDOR:
         /* reserved 0, packet_type 0 */
         UINT8_TO_BE_STREAM(p_data, 0);
         /* continue to the next "case to add length */
@@ -433,6 +467,7 @@ static BT_HDR *avrc_bld_init_cmd_buffer(tAVRC_COMMAND *p_cmd)
     p_cmd->cmd.opcode = opcode;
 
     return p_pkt;
+
 }
 
 /*******************************************************************************
@@ -531,6 +566,10 @@ tAVRC_STS AVRC_BldCommand( tAVRC_COMMAND *p_cmd, BT_HDR **pp_pkt)
     case AVRC_PDU_SET_ADDRESSED_PLAYER:
       status = avrc_bld_set_addressed_player_cmd(p_pkt, &(p_cmd->addr_player));
       break;
+    case AVRC_PDU_SET_BROWSED_PLAYER:
+      status = avrc_bld_set_browsed_player_cmd(p_pkt, &(p_cmd->br_player));
+      break;
+
 #endif
     }
 
