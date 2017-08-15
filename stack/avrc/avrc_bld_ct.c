@@ -405,6 +405,35 @@ static tAVRC_STS avrc_bld_set_browsed_player_cmd(
 
 }
 
+/*******************************************************************************
+ *
+ * Function         avrc_bld_change_path_cmd
+ *
+ * Description      This function builds the change path command
+ *
+ * Returns          AVRC_STS_NO_ERROR, if the command is built successfully
+ *                  Otherwise, the error code.
+ *
+ ******************************************************************************/
+static tAVRC_STS avrc_bld_change_path_cmd(BT_HDR* p_pkt,
+                                            const tAVRC_CHG_PATH_CMD* cmd) {
+    AVRC_TRACE_API("avrc_bld_change_folder_cmd");
+    uint8_t* p_start = (uint8_t*)(p_pkt + 1) + p_pkt->offset;
+    /* This is where the PDU specific for AVRC starts
+    * AVRCP Spec 1.4 section 22.19 */
+    uint8_t* p_data = p_start + 1; /* pdu */
+
+    /* To change folder we need to provide the following:
+    * UID Counter (2) + Direction (1) + UID (8) = 11bytes
+    */
+    UINT16_TO_BE_STREAM(p_data, 11);
+    UINT16_TO_BE_STREAM(p_data, cmd->uid_counter);
+    UINT8_TO_BE_STREAM(p_data, cmd->direction);
+    UINT64_TO_BE_STREAM(p_data, cmd->folder_uid);
+    p_pkt->len = (p_data - p_start);
+    return AVRC_STS_NO_ERROR;
+}
+
 #endif
 
 /*******************************************************************************
@@ -568,6 +597,9 @@ tAVRC_STS AVRC_BldCommand( tAVRC_COMMAND *p_cmd, BT_HDR **pp_pkt)
       break;
     case AVRC_PDU_SET_BROWSED_PLAYER:
       status = avrc_bld_set_browsed_player_cmd(p_pkt, &(p_cmd->br_player));
+      break;
+    case AVRC_PDU_CHANGE_PATH:
+      status = avrc_bld_change_path_cmd(p_pkt, &(p_cmd->chg_path));
       break;
 
 #endif
