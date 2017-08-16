@@ -39,6 +39,8 @@
 #include "btif_profile_queue.h"
 #include "stack_config.h"
 #include "stack_manager.h"
+#include "device/include/interop_config.h"
+#include "device/include/interop.h"
 
 #define BTA_SERVICE_ID_TO_SERVICE_MASK(id)  (1 << (id))
 extern bt_status_t btif_in_execute_service_request(tBTA_SERVICE_ID service_id,
@@ -111,19 +113,37 @@ static void capture_vnd_logs(void)
     GENERATE_VND_LOGS();
 }
 
+static void set_wifi_state(bool status)
+{
+    LOG_INFO(LOG_TAG,"setwifistate :%d", status);
+    BTA_DmSetWifiState(status);
+}
+
 static void cleanup(void)
 {
     LOG_INFO(LOG_TAG,"cleanup");
     if (bt_vendor_callbacks)
         bt_vendor_callbacks = NULL;
 }
+
+// API's to match entries with in dynamic interop database
+static bool interop_db_match(int feature, int type, void *value) {
+    if ( type == INTEROP_BL_TYPE_ADDR)
+        return interop_database_match_addr((interop_feature_t)feature, (bt_bdaddr_t *)value);
+    else if ( type == INTEROP_BL_TYPE_NAME)
+        return interop_database_match_name((interop_feature_t)feature, (char *)value);
+    return false;
+}
+
 static const btvendor_interface_t btvendorInterface = {
     sizeof(btvendorInterface),
     init,
     ssrcleanup,
     bredrcleanup,
     capture_vnd_logs,
+    set_wifi_state,
     cleanup,
+    interop_db_match,
 };
 
 /*******************************************************************************

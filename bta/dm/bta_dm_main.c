@@ -123,6 +123,7 @@ const tBTA_DM_ACTION bta_dm_action[] =
     bta_dm_remove_device,       /* BTA_DM_API_REMOVE_DEVICE_EVT */
     bta_dm_hci_raw_command,    /* BTA_DM_API_HCI_RAW_COMMAND_EVT */
     bta_dm_vendor_spec_command,/* BTA_DM_API_VENDOR_SPECIFIC_COMMAND_EVT */
+    bta_dm_set_wifi_state,     /* BTA_DM_API_SET_WIFI_STATE_EVT */
 };
 
 

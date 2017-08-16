@@ -618,6 +618,25 @@ void bta_dm_set_dev_name (tBTA_DM_MSG *p_data)
 
 /*******************************************************************************
 **
+** Function         bta_dm_set_wifi_state
+**
+** Description      Sets wifi state
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+void bta_dm_set_wifi_state (tBTA_DM_MSG *p_data)
+{
+    if (BTM_GetWifiState() == p_data->wifi_state.status)
+        return;
+    BTM_SetWifiState((bool)p_data->wifi_state.status);
+    if (p_data->wifi_state.status == true)
+        bta_dm_adjust_roles(FALSE);
+}
+
+/*******************************************************************************
+**
 ** Function         bta_dm_set_visibility
 **
 ** Description      Sets discoverability, connectability and pairability
@@ -3143,6 +3162,13 @@ static void bta_dm_bl_change_cback (tBTM_BL_EVENT_DATA *p_data)
         p_msg->hci_status = p_data->role_chg.hci_status;
         bdcpy(p_msg->bd_addr, p_data->role_chg.p_bda);
         break;
+    case BTM_BL_PKT_TYPE_CHG_EVT:
+        p_msg->pkt_type = p_data->pkt_type_chg.pkt_type;
+        bdcpy(p_msg->bd_addr, p_data->pkt_type_chg.remote_bd_addr);
+        break;
+    case BTM_BL_SOC_LOGGING_EVT:
+        p_msg->soc_log_id = p_data->soc_logging.soc_log_id;
+        break;
     case BTM_BL_COLLISION_EVT:
         bdcpy(p_msg->bd_addr, p_data->conn.p_bda);
         break;
@@ -3304,8 +3330,18 @@ void bta_dm_acl_change(tBTA_DM_MSG *p_data)
                 bta_dm_cb.p_sec_cback(BTA_DM_ROLE_CHG_EVT, (tBTA_DM_SEC *)&conn);
         }
         return;
+    case BTM_BL_PKT_TYPE_CHG_EVT:   /* packet type change event */
+        bdcpy(conn.pkt_type_chg.remote_bd_addr, p_bda);
+        conn.pkt_type_chg.pkt_type = (UINT16) p_data->acl_change.pkt_type;
+        if( bta_dm_cb.p_sec_cback )
+            bta_dm_cb.p_sec_cback(BTA_DM_PKT_TYPE_CHG_EVT, (tBTA_DM_SEC *)&conn);
+        return;
+    case BTM_BL_SOC_LOGGING_EVT:   /* packet type change event */
+        conn.soc_logging.soc_log_id = (UINT16) p_data->acl_change.soc_log_id;
+        if( bta_dm_cb.p_sec_cback )
+            bta_dm_cb.p_sec_cback(BTA_DM_SOC_LOGGING_EVT, (tBTA_DM_SEC *)&conn);
+        return;
     }
-
     /* Collision report from Stack: Notify profiles */
     if (p_data->acl_change.event == BTM_BL_COLLISION_EVT)
     {
@@ -3701,6 +3737,21 @@ static void bta_dm_adjust_roles(BOOLEAN delay_role_switch)
                                         HCI_ROLE_MASTER, NULL);
                     }
                     else
+                    {
+                        alarm_set_on_queue(bta_dm_cb.switch_delay_timer,
+                                           BTA_DM_SWITCH_DELAY_TIMER_MS,
+                                           bta_dm_delay_role_switch_cback,
+                                           NULL, btu_bta_alarm_queue);
+                    }
+                }
+                else if (br_count == 1)
+                {
+                    if (delay_role_switch == FALSE && BTM_GetWifiState())
+                    {
+                       BTM_SwitchRole (bta_dm_cb.device_list.peer_device[i].peer_bdaddr,
+                                       HCI_ROLE_MASTER, NULL);
+                    }
+                    else if(delay_role_switch == TRUE)
                     {
                         alarm_set_on_queue(bta_dm_cb.switch_delay_timer,
                                            BTA_DM_SWITCH_DELAY_TIMER_MS,
