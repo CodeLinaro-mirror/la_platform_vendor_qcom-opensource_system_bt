@@ -120,6 +120,7 @@ tCONN_CB *sdpu_allocate_ccb (void)
     {
         if (p_ccb->con_state == SDP_STATE_IDLE)
         {
+           alarm_free(p_ccb->sdp_conn_timer);
             memset(p_ccb, 0, sizeof(tCONN_CB));
             p_ccb->sdp_conn_timer = alarm_new("sdp.sdp_conn_timer");
             return (p_ccb);
@@ -143,8 +144,7 @@ tCONN_CB *sdpu_allocate_ccb (void)
 void sdpu_release_ccb (tCONN_CB *p_ccb)
 {
     /* Ensure timer is stopped */
-    alarm_free(p_ccb->sdp_conn_timer);
-    p_ccb->sdp_conn_timer = NULL;
+    alarm_cancel(p_ccb->sdp_conn_timer);
 
     /* Drop any response pointer we may be holding */
     p_ccb->con_state = SDP_STATE_IDLE;
@@ -153,9 +153,10 @@ void sdpu_release_ccb (tCONN_CB *p_ccb)
 #endif
 
     /* Free the response buffer */
-    if (p_ccb->rsp_list)
+    if (p_ccb->rsp_list){
         SDP_TRACE_DEBUG("releasing SDP rsp_list");
     osi_free_and_reset((void **)&p_ccb->rsp_list);
+   }
 }
 
 /*******************************************************************************

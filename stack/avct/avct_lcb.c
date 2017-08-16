@@ -459,38 +459,22 @@ void avct_lcb_dealloc(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 *******************************************************************************/
 void avct_bcb_dealloc(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 {
-    tAVCT_CCB   *p_ccb = &avct_cb.ccb[0];
-    BOOLEAN     found = FALSE;
-    int         i;
+    tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
 
-    if (p_bcb != NULL)
-    {
-        AVCT_TRACE_DEBUG("avct_bcb_dealloc %d", p_bcb->allocated);
-        for (i = 0; i < AVCT_NUM_CONN; i++, p_ccb++)
-        {
-            /* if ccb allocated and */
-            if (p_ccb->allocated)
-            {
-                if (p_ccb->p_bcb == p_bcb)
-                {
-                    AVCT_TRACE_DEBUG("avct_lcb_dealloc used by ccb: %d", i);
-                    found = TRUE;
-                    break;
-                }
-            }
-        }
+    AVCT_TRACE_DEBUG("%s %d!~", __func__, p_bcb->allocated);
 
-        if (!found)
-        {
-           AVCT_TRACE_DEBUG("avct_bcb_dealloc now");
-           memset(p_bcb, 0, sizeof(tAVCT_BCB));
-        }
-    }
-    else
-    {
-        AVCT_TRACE_ERROR("### dealloc Null bcb");
+    for (int idx = 0; idx < AVCT_NUM_CONN; idx++, p_ccb++) {
+      /* if ccb allocated and */
+      if ((p_ccb->allocated) && (p_ccb->p_bcb == p_bcb)) {
+        p_ccb->p_bcb = NULL;
+        AVCT_TRACE_DEBUG("%s used by ccb: %d", __func__, idx);
+        break;
+      }
     }
 
+    /* the browsing channel is down. Check if we have pending messages */
+    osi_free_and_reset((void**)&p_bcb->p_tx_msg);
+    memset(p_bcb, 0, sizeof(tAVCT_BCB));
 }
 
 #endif
@@ -528,6 +512,29 @@ tAVCT_LCB *avct_lcb_by_lcid(UINT16 lcid)
 }
 
 #if AVCT_BROWSE_INCLUDED
+/*******************************************************************************
+ *
+ * Function         avct_bcb_get_last_ccb_index
+ *
+ * Description      See if given ccb is only one on the bcb.
+ *
+ *
+ * Returns          0, if ccb is last,  (ccb index + 1) otherwise.
+ *
+ ******************************************************************************/
+uint8_t avct_bcb_get_last_ccb_index(tAVCT_BCB* p_bcb, tAVCT_CCB* p_ccb_last) {
+  tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
+  uint8_t idx = 0;
+
+  for (int i = 0; i < AVCT_NUM_CONN; i++, p_ccb++) {
+    if (p_ccb->allocated && (p_ccb->p_bcb == p_bcb)) {
+      if (p_ccb != p_ccb_last) return 0;
+      idx = (uint8_t)(i + 1);
+    }
+  }
+  return idx;
+}
+
 /******************************************************************************
 **
 ** Function         avct_bcb_by_lcid(UINT16 lcid);
