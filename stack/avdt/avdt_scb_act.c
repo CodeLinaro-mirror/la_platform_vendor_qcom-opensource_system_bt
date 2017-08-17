@@ -72,13 +72,15 @@ const UINT8 avdt_scb_role_evt[] = {
 
 
 #define NON_A2DP_MEDIA_CT 0xff
-#define INIT_DELAY_RPT    60
-#define accure_range      15
+#define INIT_DELAY_RPT    600      // in 1/10 millisecond 
+#define accure_range      150      // in 1/10 millisecond 
+#define INIT_ESTMT_DELAY  50       // in millisecond
 extern UINT64 average_delay;
 extern UINT8 bta_avk_get_current_codec();
 extern void btu_general_alarm_cb(void *data);
 static alarm_t* delay_rpt_alarm = NULL;
 static UINT16 reported_delay = INIT_DELAY_RPT;
+extern int rendering_delay;
 
 /*******************************************************************************
 **
@@ -1029,6 +1031,7 @@ void avdt_scb_hdl_setconfig_rsp(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
         if((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT))
         {
             AVDT_TRACE_DEBUG(" %s ~~ SNK & SRC support DELAY_RPT both, begin init Delay report procedure",__func__);
+            reported_delay = (rendering_delay + INIT_ESTMT_DELAY) * 10;
             AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay);
         }
         AVDT_TRACE_DEBUG(" %s ~~ begin init Open procedure",__func__);
@@ -1291,7 +1294,7 @@ static void avdt_delay_rpt_tmr_hdlr(void* data)
     if(average_delay == 0)
         return;
 
-    UINT16 delay_ms = (UINT16)(average_delay / 1000000);
+    UINT16 delay_ms = (UINT16)(average_delay / 100000); // report value is in 1/10 millisecond
 
     if(abs(reported_delay - delay_ms) >= accure_range)
     {
@@ -1888,6 +1891,7 @@ AVDT_TRACE_DEBUG(" %s ~~ p_scb->curr_cfg.psc_mask= %d",__func__,  p_scb->curr_cf
         if((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT))
         {
             AVDT_TRACE_DEBUG(" %s ~~ SNK & SRC support DELAY_RPT both, begin init Delay report procedure",__func__);
+            reported_delay = (rendering_delay + INIT_ESTMT_DELAY) * 10;
             AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay);
         }
     }

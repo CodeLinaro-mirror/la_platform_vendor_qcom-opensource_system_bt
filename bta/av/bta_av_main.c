@@ -612,9 +612,10 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
                                    (bta_av_cb.features & BTA_AV_FEAT_BROWSE), AVRC_REV_1_6);
 #else
 #if (defined(SDP_AVRCP_1_5) && (SDP_AVRCP_1_5 == TRUE))
+            /* Downgraded AVRCP version to have symmetry in case both src and sink are enableda */
                     bta_ar_reg_avrc(UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target",
                                    NULL, p_bta_av_cfg->avrc_tg_cat, BTA_ID_AV,
-                                   (bta_av_cb.features & BTA_AV_FEAT_BROWSE), AVRC_REV_1_5);
+                                   (bta_av_cb.features & BTA_AV_FEAT_BROWSE), AVRC_REV_1_4);
 #else
                     bta_ar_reg_avrc(UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target",
                                    NULL, p_bta_av_cfg->avrc_tg_cat, BTA_ID_AV,

@@ -261,8 +261,34 @@ void avct_lcb_chnl_open(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 *******************************************************************************/
 void avct_bcb_chnl_open(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 {
-    /*DUT does not initiate Browsing channel connect */
-    AVCT_TRACE_ERROR("###avct_bcb_chnl_open");
+    AVCT_TRACE_DEBUG("avct_bcb_chnl_open BEGIN!~");
+
+    uint16_t result = AVCT_RESULT_FAIL;
+    tAVCT_LCB* p_lcb = avct_lcb_by_bcb(p_bcb);
+    tL2CAP_ERTM_INFO ertm_info;
+
+    BTM_SetOutService(p_lcb->peer_addr, BTM_SEC_SERVICE_AVCTP_BROWSE, 0);
+
+    /* Set the FCR options: Browsing channel mandates ERTM */
+    ertm_info.preferred_mode = avct_l2c_br_fcr_opts_def.mode;
+    ertm_info.allowed_modes = L2CAP_FCR_CHAN_OPT_ERTM;
+    ertm_info.user_rx_buf_size = BT_DEFAULT_BUFFER_SIZE;
+    ertm_info.user_tx_buf_size = BT_DEFAULT_BUFFER_SIZE;
+    ertm_info.fcr_rx_buf_size = BT_DEFAULT_BUFFER_SIZE;
+    ertm_info.fcr_tx_buf_size = BT_DEFAULT_BUFFER_SIZE;
+
+    /* call l2cap connect req */
+    p_bcb->ch_state = AVCT_CH_CONN;
+    p_bcb->ch_lcid =
+        L2CA_ErtmConnectReq(AVCT_BR_PSM, p_lcb->peer_addr, &ertm_info);
+    if (p_bcb->ch_lcid == 0) {
+      /* if connect req failed, send ourselves close event */
+      avct_bcb_event(p_bcb, AVCT_LCB_LL_CLOSE_EVT, (tAVCT_LCB_EVT*)&result);
+    }
+
+
+    AVCT_TRACE_DEBUG("avct_bcb_chnl_open END!~");
+
 }
 
 
@@ -322,7 +348,12 @@ void avct_lcb_unbind_disc(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 *******************************************************************************/
 void avct_bcb_unbind_disc(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 {
-    AVCT_TRACE_ERROR("### avct_bcb_unbind_disc");
+    AVCT_TRACE_DEBUG("avct_bcb_unbind_disc !~");
+
+    p_data->p_ccb->p_bcb = NULL;
+    (*p_data->p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_data->p_ccb),
+                                      AVCT_BROWSE_DISCONN_CFM_EVT, 0, NULL);
+
 }
 #endif
 
@@ -346,7 +377,7 @@ void avct_lcb_open_ind(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
     int         i;
     BOOLEAN     bind = FALSE;
     DEV_CLASS device_class;
-    UINT16 service_class; UINT8 major_class, minor_class;
+    UINT16 service_class; UINT8 major_class = 0, minor_class = 0;
     BOOLEAN sink_only_cod = false;
     BOOLEAN src_only_cod = false;
 
@@ -520,8 +551,16 @@ void avct_lcb_open_fail(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 *******************************************************************************/
 void avct_bcb_open_fail(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 {
-    /* DUT does not initiate browsing channel open */
-    AVCT_TRACE_ERROR("###avct_bcb_open_fail");
+    AVCT_TRACE_DEBUG("avct_bcb_open_fail!~");
+
+    tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
+
+    for (int idx = 0; idx < AVCT_NUM_CONN; idx++, p_ccb++) {
+      if (p_ccb->allocated && (p_ccb->p_bcb == p_bcb)) {
+        p_ccb->p_bcb = NULL;
+      }
+    }
+
 }
 
 #endif
@@ -575,7 +614,26 @@ void avct_lcb_close_ind(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 *******************************************************************************/
 void avct_bcb_close_ind(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 {
-    tAVCT_CCB           *p_ccb = &avct_cb.ccb[0];
+    AVCT_TRACE_DEBUG("avct_bcb_close_ind!~");
+
+    tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
+    tAVCT_LCB* p_lcb = avct_lcb_by_bcb(p_bcb);
+
+    for (int idx = 0; idx < AVCT_NUM_CONN; idx++, p_ccb++) {
+      if (p_ccb->allocated && (p_ccb->p_bcb == p_bcb)) {
+        if (p_ccb->cc.role == AVCT_INT) {
+          (*p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_ccb),
+                                    AVCT_BROWSE_DISCONN_CFM_EVT, 0,
+                                    p_lcb->peer_addr);
+        } else {
+          (*p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_ccb),
+                                    AVCT_BROWSE_DISCONN_IND_EVT, 0, NULL);
+        }
+        p_ccb->p_bcb = NULL;
+      }
+    }
+
+/*    tAVCT_CCB           *p_ccb = &avct_cb.ccb[0];
     int                 i;
     AVCT_TRACE_DEBUG("avct_bcb_close_ind");
     for (i = 0; i < AVCT_NUM_CONN; i++, p_ccb++)
@@ -587,7 +645,7 @@ void avct_bcb_close_ind(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
             p_ccb->p_bcb = NULL;
             AVCT_TRACE_DEBUG("**close_ind");
         }
-    }
+    }*/
 }
 #endif
 
@@ -651,15 +709,32 @@ void avct_lcb_close_cfm(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 *******************************************************************************/
 void avct_bcb_close_cfm(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 {
-    AVCT_TRACE_DEBUG("avct_bcb_close_cfm");
-    if (p_bcb != NULL)
-    {
-        memset(p_bcb, 0, sizeof(tAVCT_BCB));
+    AVCT_TRACE_DEBUG("avct_bcb_close_cfm!~");
+    tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
+    uint8_t event = 0;
+    /* Whether BCB initiated channel close */
+    bool ch_close = p_bcb->ch_close;
+    tAVCT_CTRL_CBACK* p_cback;
+
+    p_bcb->ch_close = false;
+    p_bcb->allocated = 0;
+    for (int idx = 0; idx < AVCT_NUM_CONN; idx++, p_ccb++) {
+      if (p_ccb->allocated && (p_ccb->p_bcb == p_bcb)) {
+        /* if this ccb initiated close send disconnect cfm otherwise ind */
+        if (ch_close) {
+          event = AVCT_BROWSE_DISCONN_CFM_EVT;
+        } else {
+          event = AVCT_BROWSE_DISCONN_IND_EVT;
+        }
+
+        p_cback = p_ccb->cc.p_ctrl_cback;
+        p_ccb->p_bcb = NULL;
+        if (p_ccb->p_lcb == NULL) avct_ccb_dealloc(p_ccb, AVCT_NO_EVT, 0, NULL);
+        (*p_cback)(avct_ccb_to_idx(p_ccb), event, p_data->result,
+                   p_bcb->peer_addr);
+      }
     }
-    else
-    {
-        AVCT_TRACE_ERROR("### avct_bcb_close_cfm");
-    }
+
 }
 #endif
 
@@ -694,8 +769,14 @@ void avct_lcb_bind_conn(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 *******************************************************************************/
 void avct_bcb_bind_conn(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 {
-   /* DUT does not initiate browse connect*/
-   AVCT_TRACE_ERROR("###avct_bcb_bind_conn");
+    AVCT_TRACE_DEBUG("avct_bcb_bind_conn !~");
+
+    tAVCT_LCB* p_lcb = avct_lcb_by_bcb(p_bcb);
+    p_data->p_ccb->p_bcb = p_bcb;
+    (*p_data->p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_data->p_ccb),
+                                      AVCT_BROWSE_CONN_CFM_EVT, 0,
+                                      p_lcb->peer_addr);
+
 }
 
 #endif
@@ -742,8 +823,16 @@ void avct_lcb_chk_disc(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 *******************************************************************************/
 void avct_bcb_chk_disc(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 {
-    /* BCB disconnecton done during lcb_chk_disc */
-    AVCT_TRACE_ERROR("### avct_bcb_chk_disc");
+    AVCT_TRACE_WARNING("avct_bcb_chk_disc !~");
+
+    p_bcb->ch_close = avct_bcb_get_last_ccb_index(p_bcb, p_data->p_ccb);
+    if (p_bcb->ch_close) {
+      avct_bcb_event(p_bcb, AVCT_LCB_INT_CLOSE_EVT, p_data);
+      return;
+    }
+
+    avct_bcb_unbind_disc(p_bcb, p_data);
+
 }
 #endif
 
@@ -813,8 +902,13 @@ void avct_lcb_bind_fail(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 *******************************************************************************/
 void avct_bcb_bind_fail(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 {
-   /* Not expected to be called */
-   AVCT_TRACE_ERROR("###avct_bcb_bind_fail");
+    AVCT_TRACE_DEBUG("avct_bcb_bind_fail !~");
+
+    p_data->p_ccb->p_bcb = NULL;
+    (*p_data->p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_data->p_ccb),
+                                      AVCT_BROWSE_CONN_CFM_EVT, AVCT_RESULT_FAIL,
+                                      NULL);
+
 }
 #endif
 
@@ -933,8 +1027,27 @@ void avct_lcb_discard_msg(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 *******************************************************************************/
 void avct_bcb_discard_msg(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 {
-    AVCT_TRACE_ERROR("### avct_bcb_discard_msg");
-    osi_free_and_reset((void**)&p_data->ul_msg.p_buf);
+    osi_free_and_reset((void**)&p_bcb->p_tx_msg);
+
+    /* if control channel is up, save the message and open the browsing channel */
+    if (p_data->ul_msg.p_ccb->p_lcb == NULL) {
+      osi_free_and_reset((void**)&p_data->ul_msg.p_buf);
+      return;
+    }
+    p_bcb->p_tx_msg = p_data->ul_msg.p_buf;
+
+    if (p_bcb->p_tx_msg) {
+      p_bcb->p_tx_msg->layer_specific =
+          (p_data->ul_msg.cr << 8) + p_data->ul_msg.label;
+
+      /* the channel is closed, opening or closing - open it again */
+      AVCT_TRACE_DEBUG("ch_state: %d, allocated:%d->%d", p_bcb->ch_state,
+                       p_bcb->allocated, p_data->ul_msg.p_ccb->p_lcb->allocated);
+      p_bcb->allocated = p_data->ul_msg.p_ccb->p_lcb->allocated;
+      avct_bcb_event(p_bcb, AVCT_LCB_UL_BIND_EVT,
+                     (tAVCT_LCB_EVT*)p_data->ul_msg.p_ccb);
+    }
+
 }
 #endif
 
