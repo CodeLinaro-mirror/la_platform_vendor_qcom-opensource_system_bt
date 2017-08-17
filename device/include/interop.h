@@ -160,6 +160,11 @@ typedef enum {
   // SCO Connection.
   INTEROP_DISABLE_CODEC_NEGOTIATION,
 
+  // When connection fails due to collision, DUT will reconnect A2dp
+  // every 2s till it succeeds. But some remotes will refuse reconnection
+  // from DUT, thus increase this collision timeout.
+  INTEROP_INCREASE_COLL_DETECT_TIMEOUT,
+
   END_OF_INTEROP_LIST
 
 } interop_feature_t;
