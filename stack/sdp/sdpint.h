@@ -170,6 +170,7 @@ typedef struct
 #define SDP_STATE_CONN_SETUP        1
 #define SDP_STATE_CFG_SETUP         2
 #define SDP_STATE_CONNECTED         3
+#define SDP_STATE_CONN_PEND         4
     UINT8             con_state;
 
 #define SDP_FLAGS_IS_ORIG           0x01
@@ -295,6 +296,9 @@ extern UINT16 sdpu_get_attrib_seq_len(tSDP_RECORD *p_rec, tSDP_ATTR_SEQ *attr_se
 extern UINT16 sdpu_get_attrib_entry_len(tSDP_ATTRIBUTE *p_attr);
 extern UINT8 *sdpu_build_partial_attrib_entry (UINT8 *p_out, tSDP_ATTRIBUTE *p_attr, UINT16 len, UINT16 *offset);
 extern void sdpu_uuid16_to_uuid128(UINT16 uuid16, UINT8* p_uuid128);
+extern UINT16 sdpu_get_active_ccb_cid(BD_ADDR remote_bd_addr);
+extern BOOLEAN sdpu_process_pend_ccb(UINT16 cid, BOOLEAN use_cur_chnl);
+extern void sdpu_clear_pend_ccb(UINT16 cid);
 
 /* Functions provided by sdp_db.c
 */
