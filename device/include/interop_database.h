@@ -73,8 +73,18 @@ static const interop_addr_entry_t interop_addr_database[] = {
     {{{0x44, 0x5e, 0xf3, 0, 0, 0}}, 3, INTEROP_DISABLE_ABSOLUTE_VOLUME},
     {{{0xd4, 0x9c, 0x28, 0, 0, 0}}, 3, INTEROP_DISABLE_ABSOLUTE_VOLUME},
 
+    // Bose QuiteComfort 35, SoundSport and similar (because of older firmware)
+    {{{0x04, 0x52, 0xc7, 0, 0, 0}}, 3, INTEROP_2MBPS_LINK_ONLY},
+
     // JayBird Family
     {{{0x00, 0x18, 0x91, 0, 0, 0}}, 3, INTEROP_2MBPS_LINK_ONLY},
+
+    // Sony MBH-10
+    {{{0x20, 0x15, 0x06, 0, 0, 0}}, 3, INTEROP_2MBPS_LINK_ONLY},
+
+    // Uconnect
+    {{{0x00, 0x54, 0xaf, 0, 0, 0}}, 3, INTEROP_2MBPS_LINK_ONLY},
+    {{{0x30, 0x14, 0x4a, 0, 0, 0}}, 3, INTEROP_2MBPS_LINK_ONLY},
 
     // LG Tone HBS-730 - unacceptably loud volume
     {{{0x00, 0x18, 0x6b, 0, 0, 0}}, 3, INTEROP_DISABLE_ABSOLUTE_VOLUME},
