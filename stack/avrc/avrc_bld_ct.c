@@ -440,6 +440,41 @@ static tAVRC_STS avrc_bld_get_folder_items_cmd(BT_HDR* p_pkt,
     return AVRC_STS_NO_ERROR;
 }
 
+/*******************************************************************************
+ *
+ * Function         avrc_bld_get_folder_items_cmd
+ *
+ * Description      This function builds the get folder items cmd.
+ *
+ * Returns          AVRC_STS_NO_ERROR, if the command is built successfully
+ *                  Otherwise, the error code.
+ *
+ ******************************************************************************/
+static tAVRC_STS avrc_bld_get_item_attributes_cmd(BT_HDR* p_pkt,
+                                               const tAVRC_GET_ATTRS_CMD* cmd) {
+    AVRC_TRACE_API(
+      "avrc_bld_get_item_attributes_cmd scope %d, uid %lld, uid_counter %x attr_count %d",
+      cmd->scope, cmd->uid, cmd->uid_counter,cmd->attr_count);
+    uint8_t* p_start = (uint8_t*)(p_pkt + 1) + p_pkt->offset;
+    /* This is where the PDU specific for AVRC starts
+    * AVRCP Spec 1.4 section 22.19 */
+    uint8_t* p_data = p_start + 1; /* pdu */
+
+    /* To get the list of all media players we simply need to use the predefined
+    * PDU mentioned in above spec. */
+    /* scope (1) + UID (8) + UID Counte (2) + Number of Attributes (1) + Attribute IDs(4N)*/
+    int nCount = cmd->attr_count;
+    UINT16_TO_BE_STREAM(p_data, 12 + nCount*4);
+    UINT8_TO_BE_STREAM(p_data, cmd->scope);       /* scope (1bytes) */
+    UINT64_TO_BE_STREAM(p_data, cmd->uid);  /* uid (8bytes) */
+    UINT16_TO_BE_STREAM(p_data, cmd->uid_counter);   /* uid counter (2bytes) */
+    UINT8_TO_BE_STREAM(p_data, cmd->attr_count); /* attribute count (1bytes) */
+    for(int i=0;i < nCount; i++)
+        UINT32_TO_BE_STREAM(p_data, cmd->attrs[i]);
+    p_pkt->len = (p_data - p_start);
+    return AVRC_STS_NO_ERROR;
+}
+
 
 /*******************************************************************************
  *
@@ -639,6 +674,9 @@ tAVRC_STS AVRC_BldCommand( tAVRC_COMMAND *p_cmd, BT_HDR **pp_pkt)
       break;
     case AVRC_PDU_GET_FOLDER_ITEMS:
       status = avrc_bld_get_folder_items_cmd(p_pkt, &(p_cmd->get_items));
+      break;
+    case AVRC_PDU_GET_ITEM_ATTRIBUTES:
+      status = avrc_bld_get_item_attributes_cmd(p_pkt, &(p_cmd->get_attrs));
       break;
 
 #endif
