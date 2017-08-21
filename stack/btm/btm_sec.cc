@@ -2885,7 +2885,7 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr,
   int i;
   DEV_CLASS dev_class;
   uint8_t old_sec_state;
-
+  bool process_rnr = false;
   BTM_TRACE_EVENT("btm_sec_rmt_name_request_complete");
   if ((!p_bd_addr && !BTM_ACL_IS_CONNECTED(btm_cb.connecting_bda)) ||
       (p_bd_addr && !BTM_ACL_IS_CONNECTED(*p_bd_addr))) {
@@ -2925,6 +2925,8 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr,
 
   if (p_dev_rec) {
     old_sec_state = p_dev_rec->sec_state;
+    process_rnr = p_dev_rec->process_existing_rnr;
+    p_dev_rec->process_existing_rnr = false;
     if (status == HCI_SUCCESS) {
       strlcpy((char*)p_dev_rec->sec_bd_name, (char*)p_bd_name,
               BTM_MAX_REM_BD_NAME_LEN);
@@ -3099,7 +3101,10 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr,
     return;
   }
 
-  if (old_sec_state != BTM_SEC_STATE_GETTING_NAME) return;
+  if ((old_sec_state != BTM_SEC_STATE_GETTING_NAME) && (process_rnr == false)) {
+    BTM_TRACE_ERROR ("Ignoring RNR as the state is not BTM_SEC_STATE_GETTING_NAME");
+    return;
+  }
 
   /* If get name failed, notify the waiting layer */
   if (status != HCI_SUCCESS) {
@@ -5113,6 +5118,8 @@ tBTM_STATUS btm_sec_execute_procedure(tBTM_SEC_DEV_REC* p_dev_rec) {
       "btm_sec_execute_procedure: Required:0x%x Flags:0x%x State:%d",
       p_dev_rec->security_required, p_dev_rec->sec_flags, p_dev_rec->sec_state);
 
+  tBTM_INQUIRY_VAR_ST *p_inq = &btm_cb.btm_inq_vars;
+
   /* There is a chance that we are getting name.  Wait until done. */
   if (p_dev_rec->sec_state != 0) return (BTM_CMD_STARTED);
 
@@ -5120,7 +5127,13 @@ tBTM_STATUS btm_sec_execute_procedure(tBTM_SEC_DEV_REC* p_dev_rec) {
   if (!(p_dev_rec->sec_flags & BTM_SEC_NAME_KNOWN) &&
       (p_dev_rec->hci_handle != BTM_SEC_INVALID_HANDLE)) {
     BTM_TRACE_EVENT("Security Manager: Start get name");
-    if (!btm_sec_start_get_name(p_dev_rec)) {
+
+    if((p_inq->remname_active) && (p_inq->remname_bda == p_dev_rec->bd_addr)) {
+      BTM_TRACE_WARNING ("Security Manager:Other module started RNR already %s", p_dev_rec->bd_addr.ToString().c_str());
+      p_dev_rec->process_existing_rnr = true;
+      return (BTM_CMD_STARTED);
+    }
+    else if (!btm_sec_start_get_name(p_dev_rec)) {
       return (BTM_NO_RESOURCES);
     }
     return (BTM_CMD_STARTED);
