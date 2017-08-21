@@ -64,6 +64,7 @@ static void bta_dm_service_search_remname_cback(const RawAddress& bd_addr,
                                                 DEV_CLASS dc, BD_NAME bd_name);
 static void bta_dm_remname_cback(void* p);
 static void bta_dm_find_services(const RawAddress& bd_addr);
+static void bta_dm_rem_name_cback(const RawAddress& bd_addr, DEV_CLASS dc, BD_NAME bd_name);
 static void bta_dm_discover_next_device(void);
 static void bta_dm_sdp_callback(uint16_t sdp_status);
 static uint8_t bta_dm_authorize_cback(const RawAddress& bd_addr,
@@ -264,6 +265,9 @@ void bta_dm_enable(tBTA_DM_SEC_CBACK* p_sec_cback) {
 
   /* first, register our callback to SYS HW manager */
   bta_sys_hw_register(BTA_SYS_HW_BLUETOOTH, bta_dm_sys_hw_cback);
+
+  /* Register callback with btm layer for remote name */
+  BTM_SecAddRmtNameNotifyCallback(&bta_dm_rem_name_cback);
 
   /* make sure security callback is saved - if no callback, do not erase the
   previous one,
@@ -469,6 +473,9 @@ void bta_dm_disable() {
 
   /* disable all active subsystems */
   bta_sys_disable(BTA_SYS_HW_BLUETOOTH);
+
+  /* De-register callback with btm layer for remote name */
+  BTM_SecDeleteRmtNameNotifyCallback(&bta_dm_rem_name_cback);
 
   BTM_SetDiscoverability(BTM_NON_DISCOVERABLE, 0, 0);
   BTM_SetConnectability(BTM_NON_CONNECTABLE, 0, 0);
@@ -2129,6 +2136,33 @@ static void bta_dm_inq_cmpl_cb(void* p_result) {
   }
 
   bta_sys_sendmsg(p_msg);
+}
+
+/*******************************************************************************
+**
+** Function         bta_dm_rem_name_cback
+**
+** Description      Remote name call back from BTM when remote name is retrieved successfully
+**
+** Returns          void
+**
+*******************************************************************************/
+static void bta_dm_rem_name_cback (const RawAddress& bd_addr,
+                                UNUSED_ATTR DEV_CLASS dc,
+                                BD_NAME bd_name)
+{
+  tBTA_DM_SEC sec_event;
+
+  APPL_TRACE_DEBUG("bta_dm_rem_name_cback name=<%s>", bd_name);
+
+  if (strlen((char*)bd_name) > (BD_NAME_LEN-1)) {
+    sec_event.rem_name_evt.bd_name[(BD_NAME_LEN-1)] = 0;
+  }
+  sec_event.rem_name_evt.bd_addr = bd_addr;
+  strlcpy((char*)sec_event.rem_name_evt.bd_name, (char*)bd_name, BD_NAME_LEN);
+  if(bta_dm_cb.p_sec_cback) {
+    bta_dm_cb.p_sec_cback(BTA_DM_REM_NAME_EVT, &sec_event);
+  }
 }
 
 /*******************************************************************************
