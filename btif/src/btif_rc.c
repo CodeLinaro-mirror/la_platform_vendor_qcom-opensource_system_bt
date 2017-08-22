@@ -3697,9 +3697,11 @@ static bt_status_t register_notification_rsp(btrc_event_id_t event_id,
         case BTRC_EVT_APP_SETTINGS_CHANGED:
             avrc_rsp.reg_notif.param.player_setting.num_attr = p_param->player_setting.num_attr;
             memcpy(&avrc_rsp.reg_notif.param.player_setting.attr_id,
-                                       p_param->player_setting.attr_ids, 2);
+                                       p_param->player_setting.attr_ids,
+                                       avrc_rsp.reg_notif.param.player_setting.num_attr);
             memcpy(&avrc_rsp.reg_notif.param.player_setting.attr_value,
-                                       p_param->player_setting.attr_values, 2);
+                                       p_param->player_setting.attr_values,
+                                       avrc_rsp.reg_notif.param.player_setting.num_attr);
             break;
         case BTRC_EVT_ADDRESSED_PLAYER_CHANGED:
             avrc_rsp.reg_notif.param.addr_player.player_id = p_param->player_id;
