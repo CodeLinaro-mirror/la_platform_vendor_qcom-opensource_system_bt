@@ -475,6 +475,67 @@ static tAVRC_STS avrc_bld_get_item_attributes_cmd(BT_HDR* p_pkt,
     return AVRC_STS_NO_ERROR;
 }
 
+/*******************************************************************************
+ *
+ * Function         avrc_bld_play_item__cmd
+ *
+ * Description      This function builds the play items cmd.
+ *
+ * Returns          AVRC_STS_NO_ERROR, if the command is built successfully
+ *                  Otherwise, the error code.
+ *
+ ******************************************************************************/
+static tAVRC_STS avrc_bld_play_item_cmd(BT_HDR* p_pkt,
+                                               const tAVRC_PLAY_ITEM_CMD* cmd) {
+    AVRC_TRACE_API(
+      "avrc_bld_play_item__cmd scope %d, uid %lld, uid_counter %x",
+      cmd->scope, cmd->uid, cmd->uid_counter);
+    uint8_t* p_start = (uint8_t*)(p_pkt + 1) + p_pkt->offset;
+    uint8_t* p_data = p_start + 2; /* pdu + rsvd */
+    /* add fixed length 11 */
+    UINT16_TO_BE_STREAM(p_data, 0xb);
+    /* Add scope */
+    UINT8_TO_BE_STREAM(p_data, cmd->scope);
+    /* Add UID */
+    UINT64_TO_BE_STREAM(p_data, cmd->uid);
+    /* Add UID Counter */
+    UINT16_TO_BE_STREAM(p_data, cmd->uid_counter);
+    p_pkt->len = (p_data - p_start);
+    return AVRC_STS_NO_ERROR;
+
+}
+
+/*******************************************************************************
+ *
+ * Function         avrc_bld_addto_nowplaying_cmd
+ *
+ * Description      This function builds the addto now playing cmd.
+ *
+ * Returns          AVRC_STS_NO_ERROR, if the command is built successfully
+ *                  Otherwise, the error code.
+ *
+ ******************************************************************************/
+static tAVRC_STS avrc_bld_addto_nowplaying_cmd(BT_HDR* p_pkt,
+                                               const tAVRC_ADD_TO_PLAY_CMD* cmd) {
+    AVRC_TRACE_API(
+      "avrc_bld_addto_nowplaying_cmd scope %d, uid %lld, uid_counter %x",
+      cmd->scope, cmd->uid, cmd->uid_counter);
+    uint8_t* p_start = (uint8_t*)(p_pkt + 1) + p_pkt->offset;
+    uint8_t* p_data = p_start + 2; /* pdu + rsvd */
+    /* add fixed length 11 */
+    UINT16_TO_BE_STREAM(p_data, 0xb);
+    /* Add scope */
+    UINT8_TO_BE_STREAM(p_data, cmd->scope);
+    /* Add UID */
+    UINT64_TO_BE_STREAM(p_data, cmd->uid);
+    /* Add UID Counter */
+    UINT16_TO_BE_STREAM(p_data, cmd->uid_counter);
+    p_pkt->len = (p_data - p_start);
+    return AVRC_STS_NO_ERROR;
+
+}
+
+
 
 /*******************************************************************************
  *
@@ -677,6 +738,12 @@ tAVRC_STS AVRC_BldCommand( tAVRC_COMMAND *p_cmd, BT_HDR **pp_pkt)
       break;
     case AVRC_PDU_GET_ITEM_ATTRIBUTES:
       status = avrc_bld_get_item_attributes_cmd(p_pkt, &(p_cmd->get_attrs));
+      break;
+    case AVRC_PDU_PLAY_ITEM:
+      status = avrc_bld_play_item_cmd(p_pkt, &(p_cmd->play_item));
+      break;
+    case AVRC_PDU_ADD_TO_NOW_PLAYING:
+      status = avrc_bld_addto_nowplaying_cmd(p_pkt, &(p_cmd->add_to_play));
       break;
 
 #endif

@@ -677,6 +677,17 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(
             break;
         BE_STREAM_TO_UINT8(p_result->addr_player.status, p);
        break;
+   case AVRC_PDU_PLAY_ITEM:
+        if (len == 0)
+           break;
+       BE_STREAM_TO_UINT8(p_result->play_item.status, p);
+      break;
+    case AVRC_PDU_ADD_TO_NOW_PLAYING:
+        if (len == 0)
+          break;
+       BE_STREAM_TO_UINT8(p_result->add_to_play.status, p);
+      break;
+
    case AVRC_PDU_SET_BROWSED_PLAYER:
         if (len == 0)
            break;
