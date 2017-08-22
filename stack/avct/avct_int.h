@@ -99,6 +99,7 @@ typedef struct {
     UINT8               ch_close;       /* CCB index+1, if CCB initiated channel close */
     fixed_queue_t       *tx_q;          /* Transmit data buffer queue       */
     BOOLEAN             cong;           /* TRUE, if congested */
+    BD_ADDR             peer_addr;      /* BD address of peer */
 } tAVCT_BCB;
 
 #define AVCT_ALOC_LCB       0x01
@@ -151,6 +152,9 @@ extern void avct_bcb_event(tAVCT_BCB *p_bcb, UINT8 event, tAVCT_LCB_EVT *p_data)
 extern void avct_close_bcb(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data);
 extern tAVCT_LCB *avct_lcb_by_bcb(tAVCT_BCB *p_bcb);
 extern tAVCT_BCB *avct_bcb_by_lcb(tAVCT_LCB *p_lcb);
+extern uint8_t avct_bcb_get_last_ccb_index(tAVCT_BCB* p_bcb,
+                                           tAVCT_CCB* p_ccb_last);
+
 extern BOOLEAN avct_bcb_last_ccb(tAVCT_BCB *p_bcb, tAVCT_CCB *p_ccb_last);
 extern tAVCT_BCB *avct_bcb_by_lcid(UINT16 lcid);
 #endif
