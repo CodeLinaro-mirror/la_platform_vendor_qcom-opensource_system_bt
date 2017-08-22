@@ -350,6 +350,28 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
       break;
     }
 
+    case AVRC_PDU_SEARCH: {
+      tAVRC_SEARCH_RSP* search_rsp = &(p_rsp->search);
+      /* Copyback the PDU */
+      search_rsp->pdu = pdu;
+      /* Read the status */
+      BE_STREAM_TO_UINT8(search_rsp->status, p);
+      if (search_rsp->status != AVRC_STS_NO_ERROR) {
+        AVRC_TRACE_ERROR(
+            "%s Stopping further parsing because status is error %d",
+            __func__, search_rsp->status);
+        return search_rsp->status;
+      }
+      BE_STREAM_TO_UINT16(search_rsp->uid_counter, p);
+      BE_STREAM_TO_UINT32(search_rsp->num_items, p);
+      pkt_len_read += 7;
+
+      AVRC_TRACE_DEBUG("%s pdu %d status %d item count %d", __func__,
+                       search_rsp->pdu, search_rsp->status,
+                       search_rsp->num_items);
+      break;
+    }
+
     case AVRC_PDU_GET_ITEM_ATTRIBUTES: {
         tAVRC_GET_ATTRS_RSP* get_attrs_rsp = &(p_rsp->get_attrs);
         /* Copyback the PDU */

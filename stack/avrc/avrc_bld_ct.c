@@ -535,6 +535,36 @@ static tAVRC_STS avrc_bld_addto_nowplaying_cmd(BT_HDR* p_pkt,
 
 }
 
+/*******************************************************************************
+ *
+ * Function         avrc_bld_search_cmd
+ *
+ * Description      This function builds the search command
+ *
+ * Returns          AVRC_STS_NO_ERROR, if the command is built successfully
+ *                  Otherwise, the error code.
+ *
+ ******************************************************************************/
+static tAVRC_STS avrc_bld_search_cmd(BT_HDR* p_pkt,
+                                            const tAVRC_SEARCH_CMD* cmd) {
+    AVRC_TRACE_API("avrc_bld_search_cmd");
+    uint8_t* p_start = (uint8_t*)(p_pkt + 1) + p_pkt->offset;
+    /* This is where the PDU specific for AVRC starts
+    * AVRCP Spec 1.4 section 22.19 */
+    uint8_t* p_data = p_start + 1; /* pdu */
+
+    /* To change folder we need to provide the following:
+    * Character set (2) + Length (2) + string (Length)
+    */
+    int nLen = cmd->string.str_len;
+    UINT16_TO_BE_STREAM(p_data, 4 + nLen);
+    UINT16_TO_BE_STREAM(p_data, cmd->string.charset_id);
+    UINT16_TO_BE_STREAM(p_data, cmd->string.str_len);
+    ARRAY_TO_BE_STREAM(p_data, cmd->string.p_str, nLen);
+    p_pkt->len = (p_data - p_start);
+    return AVRC_STS_NO_ERROR;
+}
+
 
 
 /*******************************************************************************
@@ -745,6 +775,10 @@ tAVRC_STS AVRC_BldCommand( tAVRC_COMMAND *p_cmd, BT_HDR **pp_pkt)
     case AVRC_PDU_ADD_TO_NOW_PLAYING:
       status = avrc_bld_addto_nowplaying_cmd(p_pkt, &(p_cmd->add_to_play));
       break;
+    case AVRC_PDU_SEARCH:
+      status = avrc_bld_search_cmd(p_pkt, &(p_cmd->search));
+      break;
+
 
 #endif
     }
