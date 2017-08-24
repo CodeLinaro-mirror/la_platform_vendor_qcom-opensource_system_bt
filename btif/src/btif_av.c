@@ -219,6 +219,7 @@ extern void btif_rc_send_pause_command();
 extern UINT16 btif_dm_get_br_edr_links();
 extern UINT16 btif_dm_get_le_links();
 extern UINT16 btif_hf_is_call_vr_idle();
+extern void btif_media_on_update_bitrate(bool isMediumBitRateEnabled);
 
 extern fixed_queue_t *btu_general_alarm_queue;
 
@@ -3769,6 +3770,29 @@ BOOLEAN btif_av_get_ongoing_multicast()
     }
 }
 
+void btif_av_peer_config_dump()
+{
+   int index = 0;
+   BD_ADDR bd_addr;
+   btif_sm_state_t av_state;
+   btif_get_latest_playing_device(bd_addr);
+   BTIF_TRACE_IMP("TARGET BD ADDRESS %x:%x:%x:%x:%x:%x", bd_addr[0],
+         bd_addr[1], bd_addr[2], bd_addr[3], bd_addr[4], bd_addr[5]);
+   index = btif_av_idx_by_bdaddr(bd_addr);
+   if (index == btif_max_av_clients)
+   {
+       BTIF_TRACE_DEBUG("%s: AV Index invalid", __FUNCTION__);
+       return;
+   }
+   av_state = btif_get_conn_state_of_device(bd_addr);
+   BTIF_TRACE_IMP("%s: Av_state: %d", __FUNCTION__, av_state);
+   BTIF_TRACE_IMP("%s: index: %d flags: 0x%x edr: 0x%x SHO: %d current_playing: %d",
+                    __FUNCTION__, index, btif_av_cb[index].flags, btif_av_cb[index].edr,
+                     btif_av_cb[index].dual_handoff, btif_av_cb[index].current_playing);
+   BTIF_TRACE_IMP("%s: is_slave: %d is_device_palaying: %d",
+         __FUNCTION__, btif_av_cb[index].is_slave, btif_av_cb[index].is_device_playing);
+   btif_media_dump_codec_info(btif_av_cb[index].bta_handle);
+}
 /******************************************************************************
 **
 ** Function        btif_av_is_multicast_supported
@@ -4003,4 +4027,47 @@ void btif_av_reset_reconfig_flag()
     reconfig_a2dp = FALSE;
 }
 #endif
+
+void btif_av_update_streaming_bitrate(BD_ADDR bd_addr,
+                                    UINT16 acl_pkt_types_supported)
+{
+    UINT8 index;
+    btif_sm_state_t state;
+    index = btif_av_idx_by_bdaddr(bd_addr);
+    if (index == btif_max_av_clients)
+    {
+        BTIF_TRACE_WARNING("%s: Wrong BD address passed, index: %d, bail out!",
+            __func__, index);
+        return;
+    }
+    state = btif_sm_get_state(btif_av_cb[index].sm_handle);
+    if (state != BTIF_AV_STATE_STARTED)
+    {
+        BTIF_TRACE_WARNING("%s: device not started: state: %d, bail out!",
+            __func__, state);
+        return;
+    }
+    BTIF_TRACE_IMP("%s Bitrate updated: mask: %u, index: %d, state: %d",
+        __func__, acl_pkt_types_supported, index, state);
+    if (!btif_av_cb[index].edr)
+    {
+        BTIF_TRACE_WARNING("%s: device not edr, bail out!", __func__);
+        return;
+    }
+    BTIF_TRACE_IMP("%s: device supports 3mbps? %d", __func__,
+                                        btif_av_cb[index].edr_3mbps);
+    if (((!btif_av_cb[index].edr_3mbps) && (acl_pkt_types_supported &
+        HCI_PKT_TYPES_MASK_NO_2_DH5)) ||
+        ((btif_av_cb[index].edr_3mbps) && (acl_pkt_types_supported &
+        HCI_PKT_TYPES_MASK_NO_3_DH5)))
+    {
+        BTIF_TRACE_IMP("%s: fallback to medium bitrate", __func__);
+        btif_media_on_update_bitrate(true);
+    }
+    else
+    {
+        BTIF_TRACE_IMP("%s: fallback to high bitrate", __func__);
+        btif_media_on_update_bitrate(false);
+    }
+}
 

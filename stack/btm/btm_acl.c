@@ -84,6 +84,34 @@ void btm_acl_init (void)
 
 /*******************************************************************************
 **
+** Function         btm_get_bredr_acl_count
+**
+** Description      This function returns the number bredr acl links.
+**
+** Parameters       void
+**
+** Returns          Returns number of bredr acl links
+**
+*******************************************************************************/
+UINT8 btm_get_bredr_acl_count (void)
+{
+    tACL_CONN   *p = &btm_cb.acl_db[0];
+    UINT16       xx;
+    UINT8        count = 0;
+    for (xx = 0; xx < MAX_L2CAP_LINKS; xx++, p++)
+    {
+        if ((p->in_use)
+#if BLE_INCLUDED == TRUE
+             && p->transport == BT_TRANSPORT_BR_EDR
+#endif
+           )
+           count++;
+    }
+    return(count);
+}
+
+/*******************************************************************************
+**
 ** Function         btm_bda_to_acl
 **
 ** Description      This function returns the FIRST acl_db entry for the passed BDA.
@@ -637,7 +665,9 @@ tBTM_STATUS BTM_SwitchRole (BD_ADDR remote_bd_addr, UINT8 new_role, tBTM_CMPL_CB
     bt_bdaddr_t remote_address;
     bdcpy(remote_address.address, remote_bd_addr);
     /* Finished if already in desired role */
-    if ((p->link_role == new_role) || (interop_database_match_addr(INTEROP_DISABLE_ROLE_SWITCH, (bt_bdaddr_t *)&remote_address)))
+    if ((p->link_role == new_role) || 
+        (interop_database_match_addr(INTEROP_DISABLE_ROLE_SWITCH, (bt_bdaddr_t *)&remote_address)) ||
+         (!btm_cb.is_wifi_connected && btm_get_bredr_acl_count() <= 1))
         return(BTM_SUCCESS);
 
 #if BTM_SCO_INCLUDED == TRUE
@@ -1503,6 +1533,63 @@ void btm_process_clk_off_comp_evt (UINT16 hci_handle, UINT16 clock_offset)
     /* Look up the connection by handle and set the current mode */
     if ((xx = btm_handle_to_acl_index(hci_handle)) < MAX_L2CAP_LINKS)
         btm_cb.acl_db[xx].clock_offset = clock_offset;
+}
+
+/*******************************************************************************
+**
+** Function         btm_process_pkt_type_change_evt
+**
+** Description      This function is called when packet type change event received.
+**
+** Input Parms      hci_handle - connection handle associated with the change
+**                  packet type
+**
+** Returns          void
+**
+*******************************************************************************/
+void btm_process_pkt_type_change_evt (UINT16 hci_handle, UINT16 pkt_type)
+{
+    UINT8            acl_idx;
+    tBTM_BL_PKT_TYPE_CHG_DATA   evt;
+
+    BTM_TRACE_DEBUG ("btm_process_pkt_type_change_evt");
+    if ((acl_idx = btm_handle_to_acl_index(hci_handle)) >= MAX_L2CAP_LINKS)
+    {
+         BTM_TRACE_ERROR("btm_process_pkt_type_change_evt handle=%d invalid", hci_handle);
+         return;
+    }
+    if (btm_cb.p_bl_changed_cb)
+    {
+        evt.event = BTM_BL_PKT_TYPE_CHG_EVT;
+        memcpy(evt.remote_bd_addr, btm_cb.acl_db[acl_idx].remote_addr, BD_ADDR_LEN);
+        evt.pkt_type = pkt_type;
+        (*btm_cb.p_bl_changed_cb)((tBTM_BL_EVENT_DATA *)&evt);
+    }
+}
+
+/*******************************************************************************
+**
+** Function         btm_process_soc_logging_evt
+**
+** Description      This function is called when soc logging request received
+**                  from controller.
+**
+** Input Parms      SOC logging ID
+**
+** Returns          void
+**
+*******************************************************************************/
+void btm_process_soc_logging_evt (UINT16 soc_log_id)
+{
+    tBTM_BL_SOC_LOGGING_DATA   evt;
+
+    BTM_TRACE_DEBUG ("btm_process_soc_logging_evt");
+    if (btm_cb.p_bl_changed_cb)
+    {
+        evt.event = BTM_BL_SOC_LOGGING_EVT;
+        evt.soc_log_id = soc_log_id;
+        (*btm_cb.p_bl_changed_cb)((tBTM_BL_EVENT_DATA *)&evt);
+    }
 }
 
 /*******************************************************************************
