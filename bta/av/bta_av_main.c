@@ -190,6 +190,7 @@ static void bta_av_sys_rs_cback (tBTA_SYS_CONN_STATUS status,UINT8 id, UINT8 app
 
 static void bta_av_api_enable_multicast(tBTA_AV_DATA *p_data);
 static void bta_av_api_update_max_av_clients(tBTA_AV_DATA * p_data);
+static void bta_av_api_update_supp_codecs(tBTA_AV_DATA *p_data);
 
 /* action functions */
 const tBTA_AV_NSM_ACT bta_av_nsm_act[] =
@@ -213,7 +214,8 @@ const tBTA_AV_NSM_ACT bta_av_nsm_act[] =
 #endif
     bta_av_api_to_ssm,              /* BTA_AV_API_START_EVT */
     bta_av_api_to_ssm,              /* BTA_AV_API_STOP_EVT */
-    bta_av_api_update_max_av_clients,
+    bta_av_api_update_max_av_clients, /* BTA_AV_UPDATE_MAX_AV_CLIENTS_EVT */
+    bta_av_api_update_supp_codecs, /* BTA_AV_UPDATE_SUPP_CODECS */
     bta_av_api_enable_multicast,    /* BTA_AV_ENABLE_MULTICAST_EVT */
 };
 
@@ -811,10 +813,8 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
                     }
                     p_scb->seps[index - startIndex].codec_type = codec_type;
                     p_scb->seps[index - startIndex].tsep = cs.tsep;
-                    if(cs.tsep == AVDT_TSEP_SNK)
-                        p_scb->seps[index - startIndex].p_app_data_cback = p_data->api_reg.p_app_data_cback;
-                    else
-                        p_scb->seps[index - startIndex].p_app_data_cback = NULL; /* In case of A2DP SOURCE we don't need a callback to handle media packets */
+                    p_scb->seps[index - startIndex].p_app_data_cback =
+                        p_data->api_reg.p_app_data_cback;
                     index++;
                 } else
                     break;
@@ -1037,6 +1037,26 @@ static void bta_av_api_enable_multicast(tBTA_AV_DATA *p_data)
 {
     is_multicast_enabled = p_data->multicast_state.is_multicast_enabled;
     APPL_TRACE_DEBUG("is_multicast_enabled :%d", is_multicast_enabled);
+}
+
+/*******************************************************************************
+**
+** Function         bta_av_api_update_supp_codecs
+**
+** Description      Update Avdtp supported codecs
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+static void bta_av_api_update_supp_codecs(tBTA_AV_DATA *p_data)
+{
+    APPL_TRACE_DEBUG("bta_av_api_update_supp_codecs: num_codec_configs : %d",
+        p_data->update_supp_codecs.num_codec_configs);
+    avdt_scb_update_supported_codecs(p_data->update_supp_codecs.codec_type,
+        p_data->update_supp_codecs.vnd_id, p_data->update_supp_codecs.codec_id,
+        p_data->update_supp_codecs.num_codec_configs,
+        p_data->update_supp_codecs.codec_info, AVDT_TSEP_SRC);
 }
 
 /*******************************************************************************
@@ -1672,6 +1692,7 @@ char *bta_av_evt_code(UINT16 evt_code)
 #endif
     case BTA_AV_API_START_EVT: return "API_START";
     case BTA_AV_API_STOP_EVT: return "API_STOP";
+    case BTA_AV_UPDATE_SUPP_CODECS: return "UPDATE_SUPPORTED_CODECS";
     case BTA_AV_ENABLE_MULTICAST_EVT: return "MULTICAST_ENABLE";
     default:             return "unknown";
     }

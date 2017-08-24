@@ -276,9 +276,10 @@ typedef UINT8 tBTA_AV_ERR;
 #define BTA_AV_BROWSE_MSG_EVT   23      /* Browse MSG EVT */
 #define BTA_AV_ROLE_CHANGED_EVT     24
 #define BTA_AV_DELAY_REPORT_EVT     25  /* update delay report */
+#define BTA_AV_MEDIA_SRC_CFG_EVT    26 /* command to configure codec */
 
 /* Max BTA event */
-#define BTA_AV_MAX_EVT          26
+#define BTA_AV_MAX_EVT          27
 
 typedef UINT8 tBTA_AV_EVT;
 
@@ -919,6 +920,20 @@ void BTA_AvOffloadStartRsp(tBTA_AV_HNDL hndl, tBTA_AV_STATUS status);
 **
 *******************************************************************************/
 UINT8 bta_av_get_codec_type();
+
+/*******************************************************************************
+**
+** Function         BTA_AvUpdateCodecSupport
+**
+** Description      Update Avdtp Codec Support
+**
+** Returns          void
+**
+*******************************************************************************/
+void BTA_AvUpdateCodecSupport(UINT8 *p_codec_type_list, UINT8 *p_vnd_list, UINT8 *p_codec_id_list,
+                              UINT8 codec_info[][AVDT_CODEC_SIZE], UINT8 num_codec_configs);
+
+
 
 #ifdef __cplusplus
 }

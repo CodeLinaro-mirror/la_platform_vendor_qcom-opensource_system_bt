@@ -5747,6 +5747,11 @@ static void handle_avk_rc_metamsg_rsp(tBTA_AV_META_MSG *pmeta_msg)
             case AVRC_PDU_GET_PLAY_STATUS:
                 handle_get_playstatus_response(pmeta_msg, &avrc_response.get_play_status);
                 break;
+
+            case AVRC_PDU_SET_ADDRESSED_PLAYER:
+                handle_get_playstatus_response(pmeta_msg, &avrc_response.addr_player);
+                break;
+
         }
         release_transaction(pmeta_msg->label);
     }
