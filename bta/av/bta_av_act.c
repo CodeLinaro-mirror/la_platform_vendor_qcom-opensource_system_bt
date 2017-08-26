@@ -1912,8 +1912,10 @@ tBTA_AV_FEAT bta_av_check_peer_features (UINT16 service_uuid)
     tSDP_DISC_ATTR      *p_attr;
     UINT16              peer_rc_version=0; /*Assuming Default peer version as 1.3*/
     UINT16              categories = 0;
+    char dy_version[PROPERTY_VALUE_MAX] = "false";
 
     APPL_TRACE_DEBUG("bta_av_check_peer_features service_uuid:x%x", service_uuid);
+    property_get("persist.avrcp.enable.dy_version", dy_version, "false");
     /* loop through all records we found */
     while (TRUE)
     {
@@ -1967,6 +1969,8 @@ tBTA_AV_FEAT bta_av_check_peer_features (UINT16 service_uuid)
                     }
                 }
             }
+            if (!strncmp("false", dy_version, 5))
+                return peer_features;
 #if ((defined(SDP_AVRCP_1_6) && (SDP_AVRCP_1_6 == TRUE)) || \
            (defined(SDP_AVRCP_1_5) && (SDP_AVRCP_1_5 == TRUE)))
 #ifdef ANDROID
