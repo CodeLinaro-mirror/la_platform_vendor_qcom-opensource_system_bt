@@ -1153,7 +1153,7 @@ typedef struct
     tAVRC_STS   status;
     UINT8       opcode;         /* Op Code (assigned by AVRC_BldCommand according to pdu) */
     UINT8       scope;
-    tAVRC_UID   uid;
+    UINT64      uid;
     UINT16      uid_counter;
 } tAVRC_ADD_TO_PLAY_CMD;
 
