@@ -39,6 +39,7 @@
 #include "btu.h"
 
 #include "osi/include/osi.h"
+#include <cutils/properties.h>
 
 /**********************************************************************
 **   C L I E N T    F U N C T I O N    P R O T O T Y P E S            *
@@ -1290,6 +1291,11 @@ UINT8 SDP_SetTraceLevel (UINT8 new_level)
 BOOLEAN SDP_Dev_Blacklisted_For_Avrcp15 (BD_ADDR addr)
 {
     int ver;
+    char dy_version[PROPERTY_VALUE_MAX] = "false";
+    property_get("persist.avrcp.enable.dy_version", dy_version, "false");
+    if (!strncmp("false", dy_version, 5))
+        return false;
+
     BOOLEAN ret = sdp_dev_blacklisted_for_avrcp15(addr);
     SDP_TRACE_ERROR("%s", __func__);
     if (ret != TRUE)

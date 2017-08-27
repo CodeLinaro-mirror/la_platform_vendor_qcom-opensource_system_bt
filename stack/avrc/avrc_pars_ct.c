@@ -334,6 +334,12 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
       change_path_rsp->pdu = pdu;
       /* Read the status */
       BE_STREAM_TO_UINT8(change_path_rsp->status, p);
+      if (change_path_rsp->status != AVRC_STS_NO_ERROR) {
+        AVRC_TRACE_ERROR(
+            "%s Stopping further parsing because status is error %d",
+            __func__, change_path_rsp->status);
+        return change_path_rsp->status;
+      }
       /* Read the number of items in folder */
       BE_STREAM_TO_UINT32(change_path_rsp->num_items, p);
       pkt_len_read += 5;
@@ -341,6 +347,75 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
       AVRC_TRACE_DEBUG("%s pdu %d status %d item count %d", __func__,
                        change_path_rsp->pdu, change_path_rsp->status,
                        change_path_rsp->num_items);
+      break;
+    }
+
+    case AVRC_PDU_SEARCH: {
+      tAVRC_SEARCH_RSP* search_rsp = &(p_rsp->search);
+      /* Copyback the PDU */
+      search_rsp->pdu = pdu;
+      /* Read the status */
+      BE_STREAM_TO_UINT8(search_rsp->status, p);
+      if (search_rsp->status != AVRC_STS_NO_ERROR) {
+        AVRC_TRACE_ERROR(
+            "%s Stopping further parsing because status is error %d",
+            __func__, search_rsp->status);
+        return search_rsp->status;
+      }
+      BE_STREAM_TO_UINT16(search_rsp->uid_counter, p);
+      BE_STREAM_TO_UINT32(search_rsp->num_items, p);
+      pkt_len_read += 7;
+
+      AVRC_TRACE_DEBUG("%s pdu %d status %d item count %d", __func__,
+                       search_rsp->pdu, search_rsp->status,
+                       search_rsp->num_items);
+      break;
+    }
+
+    case AVRC_PDU_GET_ITEM_ATTRIBUTES: {
+        tAVRC_GET_ATTRS_RSP* get_attrs_rsp = &(p_rsp->get_attrs);
+        /* Copyback the PDU */
+        get_attrs_rsp->pdu = pdu;
+        /* Read the status */
+        BE_STREAM_TO_UINT8(get_attrs_rsp->status, p);
+
+      if (get_attrs_rsp->status != AVRC_STS_NO_ERROR) {
+        AVRC_TRACE_ERROR(
+            "%s Stopping further parsing because status is error %d",
+            __func__, get_attrs_rsp->status);
+        return get_attrs_rsp->status;
+      }
+
+        /* Read the number of items in folder */
+        BE_STREAM_TO_UINT8(get_attrs_rsp->attr_count, p);
+        pkt_len_read += 2;
+
+        AVRC_TRACE_DEBUG(
+          "%s AVRC_PDU_GET_ITEM_ATTRIBUTES status %d attr_count %d ",
+          __func__, get_attrs_rsp->status, get_attrs_rsp->attr_count);
+
+        if(get_attrs_rsp->attr_count > 0)
+        {
+            get_attrs_rsp->p_attr_list = (tAVRC_ATTR_ENTRY*)osi_malloc(
+                get_attrs_rsp->attr_count * sizeof(tAVRC_ATTR_ENTRY));
+
+            /* Read each of the attr */
+            for (uint32_t i = 0; i < get_attrs_rsp->attr_count; i++) {
+              tAVRC_ATTR_ENTRY* pAttr = &(get_attrs_rsp->p_attr_list[i]);
+              BE_STREAM_TO_UINT32(pAttr->attr_id, p);
+              BE_STREAM_TO_UINT16(pAttr->name.charset_id, p);
+              BE_STREAM_TO_UINT16(pAttr->name.str_len, p);
+
+              AVRC_TRACE_DEBUG("%s AVRC_PDU_GET_ITEM_ATTRIBUTES attr: %d attr_id: %d charset_id: %d str_len: %d",
+                               __func__, i, pAttr->attr_id, pAttr->name.charset_id, pAttr->name.str_len);
+              pAttr->name.p_str =
+                  (uint8_t*)osi_malloc((pAttr->name.str_len + 1) * sizeof(uint8_t));
+              BE_STREAM_TO_ARRAY(p, pAttr->name.p_str, pAttr->name.str_len);
+              pkt_len_read += (8 + pAttr->name.str_len);
+             }
+        }
+      else
+           get_attrs_rsp->p_attr_list = NULL;
       break;
     }
 
@@ -356,7 +431,7 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
         AVRC_TRACE_ERROR(
             "%s Stopping further parsing because player not browsable sts %d",
             __func__, set_br_pl_rsp->status);
-        break;
+        return set_br_pl_rsp->status;
       }
       BE_STREAM_TO_UINT16(set_br_pl_rsp->uid_counter, p);
       BE_STREAM_TO_UINT32(set_br_pl_rsp->num_items, p);
@@ -624,6 +699,17 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(
             break;
         BE_STREAM_TO_UINT8(p_result->addr_player.status, p);
        break;
+   case AVRC_PDU_PLAY_ITEM:
+        if (len == 0)
+           break;
+       BE_STREAM_TO_UINT8(p_result->play_item.status, p);
+      break;
+    case AVRC_PDU_ADD_TO_NOW_PLAYING:
+        if (len == 0)
+          break;
+       BE_STREAM_TO_UINT8(p_result->add_to_play.status, p);
+      break;
+
    case AVRC_PDU_SET_BROWSED_PLAYER:
         if (len == 0)
            break;
