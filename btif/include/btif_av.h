@@ -53,7 +53,7 @@ typedef enum {
     BTIF_AV_CLEANUP_REQ_EVT,
     BTIF_AV_UPDATE_ENCODER_REQ_EVT,
     BTIF_AV_INIT_REQ_EVT,
-	
+    BTIF_AV_SRC_CONFIG_REQ_EVT,
 } btif_av_sm_event_t;
 
 
