@@ -39,9 +39,9 @@
 #define BTA_DM_PAGE_TIMEOUT    8192
 #endif
 
-/* link supervision timeout in 625uS (5 secs) */
+/* link supervision timeout in 625uS (10 secs) */
 #ifndef BTA_DM_LINK_TIMEOUT
-#define BTA_DM_LINK_TIMEOUT    8000
+#define BTA_DM_LINK_TIMEOUT    16000
 #endif
 
 /* TRUE to avoid scatternet when av is streaming (be the master) */
