@@ -1374,14 +1374,25 @@ static BOOLEAN bta_av_co_audio_codec_build_config(const UINT8 *p_codec_caps, UIN
     tA2D_AAC_CIE peer_aac_cfg;
     tA2D_AAC_CIE aac_cfg_selected;
     tA2D_APTX_CIE aptx_cfg_selected;
+    UINT8           status = 0;
 
     memset(p_codec_cfg, 0, AVDT_CODEC_SIZE);
 
     switch (bta_av_co_cb.codec_cfg->id)
     {
     case BTIF_AV_CODEC_SBC:
-        A2D_ParsSbcInfo (&peer_sbc_cfg ,(UINT8*)p_codec_caps, FALSE);
-        A2D_ParsSbcInfo (&sbc_cfg_selected ,bta_av_co_cb.codec_cfg->info, FALSE);
+        if ((status = A2D_ParsSbcInfo (&peer_sbc_cfg ,
+                (UINT8*)p_codec_caps, FALSE)) != 0)
+        {
+             APPL_TRACE_DEBUG(" Cant parse peer_sbc_cfg ret = %d", status);
+             return FALSE;
+        }
+        if ((status = A2D_ParsSbcInfo (&sbc_cfg_selected ,
+            bta_av_co_cb.codec_cfg->info, FALSE)) != 0)
+        {
+             APPL_TRACE_DEBUG(" Cant parse sbc_cfg_selected ret = %d", status);
+             return FALSE;
+        }
         if ((peer_sbc_cfg.samp_freq & A2D_SBC_IE_SAMP_FREQ_48) &&
             (sbc_cfg_selected.samp_freq & A2D_SBC_IE_SAMP_FREQ_48))
             sbc_cfg_selected.samp_freq = A2D_SBC_IE_SAMP_FREQ_48;

@@ -410,7 +410,6 @@ void avct_l2c_br_connect_cfm_cback(UINT16 lcid, UINT16 result)
     }
     else
     {
-        AVCT_TRACE_DEBUG("index value = %d", index);
         p_lcb = avct_lcb_by_bcb(p_bcb);
 
         for (index = 0; index < AVCT_NUM_CONN; ++index)
