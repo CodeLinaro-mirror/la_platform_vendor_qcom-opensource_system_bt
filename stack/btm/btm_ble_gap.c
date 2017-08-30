@@ -26,8 +26,6 @@
 #include <stdio.h>
 #include <stddef.h>
 
-#include <log/log.h>
-
 #include "bt_types.h"
 #include "bt_utils.h"
 #include "btm_int.h"
@@ -2288,8 +2286,7 @@ BOOLEAN btm_ble_cache_adv_data(tBTM_INQ_RESULTS *p_cur, UINT8 data_len, UINT8 *p
         {
             /* adv record size must be smaller than the total adv data size */
             if ((length + 1) > data_len) {
-                BTM_TRACE_ERROR("BTM - got incorrect LE advertising data");
-                android_errorWriteLog(0x534e4554, "33899337");
+                BTM_TRACE_ERROR("BTM - got incorrect LE advertising data (A-33899337)");
                 return FALSE;
             }
             /* copy from the length byte & data into cache */
