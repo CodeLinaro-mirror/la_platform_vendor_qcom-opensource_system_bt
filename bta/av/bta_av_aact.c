@@ -1447,13 +1447,18 @@ void bta_av_setconfig_rsp (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     bta_av_adjust_seps_idx(p_scb, avdt_handle);
     APPL_TRACE_DEBUG("bta_av_setconfig_rsp: sep_idx: %d cur_psc_mask:0x%x", p_scb->sep_idx, p_scb->cur_psc_mask);
 
-    if ((AVDT_TSEP_SNK == local_sep) && (p_data->ci_setconfig.err_code == AVDT_SUCCESS) &&
+    if ((p_data->ci_setconfig.err_code == AVDT_SUCCESS) &&
                                      (p_scb->seps[p_scb->sep_idx].p_app_data_cback != NULL)) {
-        tBTA_AV_MEDIA av_sink_codec_info;
-        memcpy(av_sink_codec_info.avk_config.bd_addr,p_scb->peer_addr,sizeof(BD_ADDR));
-        av_sink_codec_info.avk_config.codec_info = p_scb->cfg.codec_info;
-        p_scb->seps[p_scb->sep_idx].p_app_data_cback(BTA_AV_MEDIA_SINK_CFG_EVT,
-                                              &av_sink_codec_info);
+        tBTA_AV_MEDIA av_codec_info;
+        tBTA_AV_EVT evt;
+        if (AVDT_TSEP_SNK == local_sep)
+            evt = BTA_AV_MEDIA_SINK_CFG_EVT;
+        else
+            evt = BTA_AV_MEDIA_SRC_CFG_EVT;
+        memcpy(av_codec_info.avk_config.bd_addr,p_scb->peer_addr,sizeof(BD_ADDR));
+        av_codec_info.avk_config.codec_info = p_scb->cfg.codec_info;
+        p_scb->seps[p_scb->sep_idx].p_app_data_cback(evt,
+                                              &av_codec_info);
     }
 
 
@@ -2101,24 +2106,19 @@ void bta_av_getcap_results (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         else
             p_scb->avdt_version = AVDT_VERSION;
 
-        if ((uuid_int == UUID_SERVCLASS_AUDIO_SINK) &&
-            (p_scb->seps[p_scb->sep_idx].p_app_data_cback != NULL))
+        if (p_scb->seps[p_scb->sep_idx].p_app_data_cback != NULL)
         {
             APPL_TRACE_DEBUG("%s Configure Decoder for Sink Connection.", __func__);
-            tBTA_AV_MEDIA av_sink_codec_info;
-            memcpy(av_sink_codec_info.avk_config.bd_addr,p_scb->peer_addr,sizeof(BD_ADDR));
-            av_sink_codec_info.avk_config.codec_info = p_scb->cfg.codec_info;
-            p_scb->seps[p_scb->sep_idx].p_app_data_cback(BTA_AV_MEDIA_SINK_CFG_EVT,
-                                                         &av_sink_codec_info);
-        }
-
-        if ((uuid_int == UUID_SERVCLASS_AUDIO_SOURCE) &&
-            (cfg.codec_info[SBC_MAX_BITPOOL_OFFSET] > SBC_MAX_BITPOOL))
-        {
-            APPL_TRACE_WARNING("%s max bitpool length received for SBC is out of range."
-                    "Clamping the codec bitpool configuration from %d to %d.", __func__,
-                    cfg.codec_info[SBC_MAX_BITPOOL_OFFSET], SBC_MAX_BITPOOL);
-            cfg.codec_info[SBC_MAX_BITPOOL_OFFSET] = SBC_MAX_BITPOOL;
+            tBTA_AV_MEDIA av_codec_info;
+            tBTA_AV_EVT evt;
+            if (uuid_int == UUID_SERVCLASS_AUDIO_SINK)
+                evt = BTA_AV_MEDIA_SINK_CFG_EVT;
+            else
+                evt = BTA_AV_MEDIA_SRC_CFG_EVT;
+            memcpy(av_codec_info.avk_config.bd_addr,p_scb->peer_addr,sizeof(BD_ADDR));
+            av_codec_info.avk_config.codec_info = p_scb->cfg.codec_info;
+            p_scb->seps[p_scb->sep_idx].p_app_data_cback(evt,
+                                                         &av_codec_info);
         }
 
         /* open the stream */

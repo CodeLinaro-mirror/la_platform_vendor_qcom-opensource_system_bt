@@ -393,7 +393,52 @@ void avct_l2c_connect_cfm_cback(UINT16 lcid, UINT16 result)
 
 void avct_l2c_br_connect_cfm_cback(UINT16 lcid, UINT16 result)
 {
-    AVCT_TRACE_ERROR("avct_l2c_br_connect_cfm_cback %x: lcid , %x: result", lcid, result );
+    tAVCT_BCB       *p_bcb = &avct_cb.bcb[0] ;
+    tAVCT_LCB       *p_lcb = NULL;
+    tAVCT_CCB       *p_ccb = &avct_cb.ccb[0];
+
+    tL2CAP_CFG_INFO cfg;
+    UINT8 index;
+
+    AVCT_TRACE_DEBUG("%s lcid:0x%x result :0x%x", __FUNCTION__,
+                            lcid , result);
+
+    /* Check for associated lcb */
+    if ((p_bcb = avct_bcb_by_lcid(lcid)) == NULL)
+    {
+        AVCT_TRACE_ERROR("Not Expected as locally Initiated connection");
+    }
+    else
+    {
+        p_lcb = avct_lcb_by_bcb(p_bcb);
+
+        for (index = 0; index < AVCT_NUM_CONN; ++index)
+        {
+            if (avct_cb.ccb[index].p_lcb == p_lcb)
+            {
+                AVCT_TRACE_ERROR("BCB index value = %d", index);
+                avct_cb.ccb[index].p_bcb = p_bcb ;
+                avct_cb.ccb[index].allocated = AVCT_ALOC_BCB ;
+            }
+
+        }
+
+        /* Send L2CAP config request to proceed with connection */
+        if (result == L2CAP_CONN_OK)
+        {
+            /* transition to configuration state */
+            p_bcb->ch_state = AVCT_CH_CFG;
+            /* Send L2CAP config req */
+            memset(&cfg, 0, sizeof(tL2CAP_CFG_INFO));
+            cfg.mtu_present = TRUE;
+            cfg.mtu = avct_cb.mtu_br; //As per initial config it's 1008
+            cfg.fcr_present = TRUE;
+            memcpy(&cfg.fcr, &avct_l2c_br_fcr_opts_def, sizeof (tL2CAP_FCR_OPTS));
+            /*Send Configue Request*/
+            L2CA_ConfigReq(lcid, &cfg);
+            AVCT_TRACE_DEBUG("Browse Channel mtu size = %d",cfg.mtu);
+        }
+    }
 }
 #endif
 
@@ -729,13 +774,18 @@ void avct_l2c_disconnect_cfm_cback(UINT16 lcid, UINT16 result)
 void avct_l2c_br_disconnect_cfm_cback(UINT16 lcid, UINT16 result)
 {
     tAVCT_BCB      *p_bcb;
+    UINT16          res;
     AVCT_TRACE_DEBUG("avct_l2c_br_disconnect_cfm_cback lcid : %d ", lcid);
 
     if ((p_bcb = avct_bcb_by_lcid(lcid)) != NULL)
     {
         AVCT_TRACE_DEBUG("avct_l2c_disconnect_cfm_cback: 0x%x, ch_state: %d, res: %d",
             lcid, p_bcb->ch_state, result);
+        /* result value may be previously stored */
+        res = (p_bcb->ch_result != 0) ? p_bcb->ch_result : result;
         p_bcb->ch_result = 0;
+        avct_bcb_event(p_bcb, AVCT_LCB_LL_CLOSE_EVT, (tAVCT_LCB_EVT *) &res);
+        AVCT_TRACE_DEBUG("ch_state dc: %d ", p_bcb->ch_state);
     }
 }
 

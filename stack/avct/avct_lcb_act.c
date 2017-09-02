@@ -311,7 +311,7 @@ void avct_close_bcb(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
     if (p_bcb != NULL)
     {
         AVCT_TRACE_DEBUG("Send Disconnect Event");
-        p_bcb->allocated = 0;
+   //     p_bcb->allocated = 0;
         avct_bcb_event( p_bcb, AVCT_LCB_INT_CLOSE_EVT, p_data);
     }
 }
@@ -1197,11 +1197,13 @@ void avct_bcb_send_msg(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
         p = (UINT8 *)(p_buf + 1) + p_buf->offset;
 
         /* build header */
-        p_data->ul_msg.cr = AVCT_RSP ;
+ //       p_data->ul_msg.cr = AVCT_RSP ;
         AVCT_BLD_HDR(p, p_data->ul_msg.label, pkt_type, p_data->ul_msg.cr);
         //UINT8_TO_STREAM(p, nosp);
         p_data->ul_msg.p_ccb->cc.pid = 0x110E;
         UINT16_TO_BE_STREAM(p, p_data->ul_msg.p_ccb->cc.pid);
+
+        p_buf->layer_specific = AVCT_DATA_BROWSE;
         if (p_bcb->cong == TRUE)
         {
             AVCT_TRACE_ERROR("L2CAP congestion");
@@ -1313,6 +1315,7 @@ void avct_lcb_msg_ind(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
         p_data->p_buf->offset += AVCT_HDR_LEN_SINGLE;
         p_data->p_buf->len -= AVCT_HDR_LEN_SINGLE;
         (*p_ccb->cc.p_msg_cback)(avct_ccb_to_idx(p_ccb), label, cr_ipid, p_data->p_buf);
+        AVCT_TRACE_WARNING("avct_lcb_msg_ind p_ccb->cc.p_msg_cback end");
     }
     else
     {
