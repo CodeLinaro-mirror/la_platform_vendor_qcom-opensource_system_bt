@@ -64,7 +64,7 @@ const UINT16  bta_av_audio_flush_to[] = {
 /* Note: Android doesnt support AVRC_SUPF_TG_GROUP_NAVI  */
 /* Note: if AVRC_SUPF_TG_GROUP_NAVI is set, bta_av_cfg.avrc_group should be TRUE */
 #ifndef ANDROID
-#define BTA_AV_RC_SUPF_TG       (AVRC_SUPF_TG_CAT1)
+#define BTA_AV_RC_SUPF_TG       (AVRC_SUPF_TG_CAT1 | AVRC_SUPF_TG_APP_SETTINGS)
 #else
 #if AVRC_METADATA_INCLUDED == TRUE
 
@@ -102,6 +102,8 @@ const UINT8  bta_av_meta_caps_evt_ids[] = {
 #else
     AVRC_EVT_PLAY_STATUS_CHANGE,
     AVRC_EVT_TRACK_CHANGE,
+    AVRC_EVT_PLAY_POS_CHANGED,
+    AVRC_EVT_APP_SETTING_CHANGE,
 #if AVCT_BROWSE_INCLUDED == TRUE
     AVRC_EVT_AVAL_PLAYERS_CHANGE,
     AVRC_EVT_ADDR_PLAYER_CHANGE,
