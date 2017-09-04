@@ -1043,7 +1043,7 @@ void bta_av_co_audio_setconfig(tBTA_AV_HNDL hndl, tBTA_AV_CODEC codec_type,
                 memcpy(bta_av_co_cb.codec_cfg_sbc_setconfig.info, p_codec_info, AVDT_CODEC_SIZE);
                 bta_av_co_cb.codec_cfg_setconfig = &bta_av_co_cb.codec_cfg_sbc_setconfig;
                 memcpy(bta_av_co_cb.codec_cfg_sbc.info, p_codec_info, AVDT_CODEC_SIZE);
-                memcpy(bta_av_co_cb.codec_cfg->info, p_codec_info, AVDT_CODEC_SIZE);
+                bta_av_co_cb.codec_cfg = &bta_av_co_cb.codec_cfg_sbc;
                 if(AVDT_TSEP_SNK == t_local_sep)
                 {
                     /* If Peer is SRC, and our cfg subset matches with what is requested by peer, then
