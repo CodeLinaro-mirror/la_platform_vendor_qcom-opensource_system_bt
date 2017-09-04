@@ -413,6 +413,7 @@ extern UINT16 btif_av_get_num_connected_devices(void);
 extern UINT16 btif_av_get_num_playing_devices(void);
 extern BOOLEAN btif_av_is_offload_supported();
 extern UINT8 btif_av_idx_by_bdaddr(BD_ADDR bd_addr);
+extern bt_status_t btif_hf_check_if_sco_connected();
 
 extern bt_status_t btif_hf_check_if_sco_connected();
 
@@ -1012,6 +1013,12 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
     BD_ADDR address;
     bt_bdaddr_t remote_address;
     BOOLEAN ignore_play_processed = FALSE;
+
+    if (btif_hf_check_if_sco_connected() == BT_STATUS_SUCCESS)
+    {
+        BTIF_TRACE_ERROR("Ignore passthrough commands as SCO is present.");
+        return;
+    }
 
     if (p_remote_cmd == NULL)
         return;
