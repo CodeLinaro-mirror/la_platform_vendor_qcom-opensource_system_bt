@@ -3202,72 +3202,80 @@ static bt_status_t update_supported_codecs_param_vendor(btav_codec_configuration
     }
 
     pthread_mutex_lock(&src_codec_q_lock);
+    if (p_bta_av_codec_pri_list == NULL) {
+        BTIF_TRACE_ERROR(" %s p_bta_av_codec_pri_list is NULL returning!!", __func__);
+        pthread_mutex_unlock(&src_codec_q_lock);
+        return BT_STATUS_NOT_READY;
+    }
 
+    /* Copy the codec parameters passed from application layer to create a pointer to
+     * preferred codec list for outgoing connection */
     tA2D_SBC_CIE sbc_supported_cap;
     tA2D_APTX_CIE aptx_supported_cap;
     UINT8 codec_info[BTIF_SV_AV_AA_SRC_SEP_INDEX][AVDT_CODEC_SIZE];
 
-    /* Copy the codec parameters passed from application layer to create a pointer to
-     * preferred codec list for outgoing connection */
-    if (p_bta_av_codec_pri_list != NULL) {
-        /* Free the memory already allocated and reallocate fresh memory */
-        osi_free(p_bta_av_codec_pri_list);
-        p_bta_av_codec_pri_list = osi_calloc((num_codec_configs +
-            BTIF_SV_AV_AA_SRC_SEP_INDEX) * sizeof(tBTA_AV_CO_CODEC_CAP_LIST));
-        /* Set codec supported capabilities to mandatory capabilities for each codec */
-        memcpy(&sbc_supported_cap, &bta_av_co_sbc_caps, sizeof(tA2D_SBC_CIE));
-        memcpy(&aptx_supported_cap, &bta_av_co_aptx_caps, sizeof(tA2D_APTX_CIE));
-        for (i = 0; i < num_codec_configs; i ++) {
-            p_bta_av_codec_pri_list[i].codec_type =
-                p_codec_config_list[i].codec_type;
-            switch (p_codec_config_list[i].codec_type) {
-                case A2DP_SINK_AUDIO_CODEC_SBC:
-                    /* Copy SBC codec parameters  as per application layer */
-                    memcpy(&p_bta_av_codec_pri_list[i].codec_cap.sbc_caps,
-                        &p_codec_config_list[i].codec_config.sbc_config,
-                        sizeof(tA2D_SBC_CIE));
-                    /* Check if supported capability needs to be updated */
-                    is_value_to_be_updated(&sbc_supported_cap.samp_freq,
-                        &p_codec_config_list[i].codec_config.sbc_config.samp_freq);
-                    is_value_to_be_updated(&sbc_supported_cap.ch_mode,
-                        &p_codec_config_list[i].codec_config.sbc_config.ch_mode);
-                    is_value_to_be_updated(&sbc_supported_cap.block_len,
-                        &p_codec_config_list[i].codec_config.sbc_config.block_len);
-                    is_value_to_be_updated(&sbc_supported_cap.num_subbands,
-                        &p_codec_config_list[i].codec_config.sbc_config.num_subbands);
-                    is_value_to_be_updated(&sbc_supported_cap.alloc_mthd,
-                        &p_codec_config_list[i].codec_config.sbc_config.alloc_mthd);
-                    if (sbc_supported_cap.min_bitpool >
-                        p_codec_config_list[i].codec_config.sbc_config.min_bitpool) {
-                        sbc_supported_cap.min_bitpool =
-                            p_codec_config_list[i].codec_config.sbc_config.min_bitpool;
-                    }
-                    if (sbc_supported_cap.max_bitpool <
-                        p_codec_config_list[i].codec_config.sbc_config.max_bitpool) {
-                        sbc_supported_cap.max_bitpool =
-                            p_codec_config_list[i].codec_config.sbc_config.max_bitpool;
-                    }
-                    break;
+    /* Free the memory already allocated and reallocate fresh memory */
+    osi_free(p_bta_av_codec_pri_list);
+    p_bta_av_codec_pri_list = osi_calloc((num_codec_configs +
+        BTIF_SV_AV_AA_SRC_SEP_INDEX) * sizeof(tBTA_AV_CO_CODEC_CAP_LIST));
+    if (p_bta_av_codec_pri_list == NULL) {
+        BTIF_TRACE_ERROR(" %s p_bta_av_codec_pri_list is NULL returning!!", __func__);
+        pthread_mutex_unlock(&src_codec_q_lock);
+        return BT_STATUS_NOMEM;
+    }
+    /* Set codec supported capabilities to mandatory capabilities for each codec */
+    memcpy(&sbc_supported_cap, &bta_av_co_sbc_caps, sizeof(tA2D_SBC_CIE));
+    memcpy(&aptx_supported_cap, &bta_av_co_aptx_caps, sizeof(tA2D_APTX_CIE));
+    for (i = 0; i < num_codec_configs; i ++) {
+        p_bta_av_codec_pri_list[i].codec_type =
+            p_codec_config_list[i].codec_type;
+        switch (p_codec_config_list[i].codec_type) {
+            case A2DP_SINK_AUDIO_CODEC_SBC:
+                /* Copy SBC codec parameters  as per application layer */
+                memcpy(&p_bta_av_codec_pri_list[i].codec_cap.sbc_caps,
+                    &p_codec_config_list[i].codec_config.sbc_config,
+                    sizeof(tA2D_SBC_CIE));
+                /* Check if supported capability needs to be updated */
+                is_value_to_be_updated(&sbc_supported_cap.samp_freq,
+                    &p_codec_config_list[i].codec_config.sbc_config.samp_freq);
+                is_value_to_be_updated(&sbc_supported_cap.ch_mode,
+                    &p_codec_config_list[i].codec_config.sbc_config.ch_mode);
+                is_value_to_be_updated(&sbc_supported_cap.block_len,
+                    &p_codec_config_list[i].codec_config.sbc_config.block_len);
+                is_value_to_be_updated(&sbc_supported_cap.num_subbands,
+                    &p_codec_config_list[i].codec_config.sbc_config.num_subbands);
+                is_value_to_be_updated(&sbc_supported_cap.alloc_mthd,
+                    &p_codec_config_list[i].codec_config.sbc_config.alloc_mthd);
+                if (sbc_supported_cap.min_bitpool >
+                    p_codec_config_list[i].codec_config.sbc_config.min_bitpool) {
+                    sbc_supported_cap.min_bitpool =
+                        p_codec_config_list[i].codec_config.sbc_config.min_bitpool;
+                }
+                if (sbc_supported_cap.max_bitpool <
+                    p_codec_config_list[i].codec_config.sbc_config.max_bitpool) {
+                    sbc_supported_cap.max_bitpool =
+                        p_codec_config_list[i].codec_config.sbc_config.max_bitpool;
+                }
+                break;
 
-                case A2DP_SOURCE_AUDIO_CODEC_APTX:
-                    /* Update Codec Type for APTX */
-                    p_bta_av_codec_pri_list[i].codec_type = A2D_NON_A2DP_MEDIA_CT;
-                    /* Copy Mandatory APTX codec parameters */
-                    memcpy(&p_bta_av_codec_pri_list[i].codec_cap.aptx_caps,
-                        &bta_av_co_aptx_caps, sizeof(tA2D_APTX_CIE));
-                    /* Update sampling frequency as per Application layer */
-                    p_bta_av_codec_pri_list[i].codec_cap.aptx_caps.sampleRate =
-                    p_codec_config_list[i].codec_config.aptx_config.sampling_freq;
-                    /* Update channel mode as per Application layer */
-                    p_bta_av_codec_pri_list[i].codec_cap.aptx_caps.channelMode =
-                    p_codec_config_list[i].codec_config.aptx_config.channel_count;
-                    /* Check if supported capability needs to be updated */
-                    is_value_to_be_updated(&aptx_supported_cap.sampleRate,
-                        &p_codec_config_list[i].codec_config.aptx_config.sampling_freq);
-                    is_value_to_be_updated(&aptx_supported_cap.channelMode,
-                        &p_codec_config_list[i].codec_config.aptx_config.channel_count);
-                    break;
-            }
+            case A2DP_SOURCE_AUDIO_CODEC_APTX:
+                /* Update Codec Type for APTX */
+                p_bta_av_codec_pri_list[i].codec_type = A2D_NON_A2DP_MEDIA_CT;
+                /* Copy Mandatory APTX codec parameters */
+                memcpy(&p_bta_av_codec_pri_list[i].codec_cap.aptx_caps,
+                    &bta_av_co_aptx_caps, sizeof(tA2D_APTX_CIE));
+                /* Update sampling frequency as per Application layer */
+                p_bta_av_codec_pri_list[i].codec_cap.aptx_caps.sampleRate =
+                p_codec_config_list[i].codec_config.aptx_config.sampling_freq;
+                /* Update channel mode as per Application layer */
+                p_bta_av_codec_pri_list[i].codec_cap.aptx_caps.channelMode =
+                p_codec_config_list[i].codec_config.aptx_config.channel_count;
+                /* Check if supported capability needs to be updated */
+                is_value_to_be_updated(&aptx_supported_cap.sampleRate,
+                    &p_codec_config_list[i].codec_config.aptx_config.sampling_freq);
+                is_value_to_be_updated(&aptx_supported_cap.channelMode,
+                    &p_codec_config_list[i].codec_config.aptx_config.channel_count);
+                break;
         }
     }
 
@@ -3291,12 +3299,16 @@ static bt_status_t update_supported_codecs_param_vendor(btav_codec_configuration
                 vnd_id_list[j] = A2D_APTX_VENDOR_ID;
                 codec_id_list[j] = A2D_APTX_CODEC_ID_BLUETOOTH;
             }
-            else
-            {
+            else {
                 codec_type_list[j] = p_codec_config_list[i].codec_type;
             }
             codec_type_added[p_codec_config_list[i].codec_type] = 1;
             j ++;
+            if (j >= BTIF_SV_AV_AA_SRC_SEP_INDEX) {
+                BTIF_TRACE_ERROR(" %s num of different codecs(%d) exceeds max limit",
+                    __func__, j);
+                break;
+            }
         }
     }
 
@@ -3304,25 +3316,23 @@ static bt_status_t update_supported_codecs_param_vendor(btav_codec_configuration
          * case if the codec parameters sent by upper layers are not capable of creating connection.
          * In that case, use the below parameters to create connection. in order of priority of
          * APTX > SBC */
-        if (p_bta_av_codec_pri_list != NULL) {
-            if (codec_type_added[A2DP_SOURCE_AUDIO_CODEC_APTX]) {
-                p_bta_av_codec_pri_list[num_codec_configs].codec_type
-                    = A2D_NON_A2DP_MEDIA_CT;
-                /* Copy Mandatory APTX codec parameters */
-                memcpy(&p_bta_av_codec_pri_list[num_codec_configs ++]
-                    .codec_cap.aptx_caps, &bta_av_co_aptx_caps,
-                    sizeof(tA2D_APTX_CIE));
-                BTIF_TRACE_DEBUG(" %s Added Mandatory APTX codec at index %d",
-                    __func__, num_codec_configs - 1);
-            }
-            p_bta_av_codec_pri_list[num_codec_configs].codec_type
-                = A2DP_SOURCE_AUDIO_CODEC_SBC;
-            /* Copy Mandatory SBC codec parameters */
-            memcpy(&p_bta_av_codec_pri_list[num_codec_configs ++]
-                .codec_cap.sbc_caps, &bta_av_co_sbc_caps, sizeof(tA2D_SBC_CIE));
-            BTIF_TRACE_DEBUG(" %s Added Mandatory SBC codec at index %d",
-                __func__, num_codec_configs - 1);
-        }
+    if (codec_type_added[A2DP_SOURCE_AUDIO_CODEC_APTX]) {
+        p_bta_av_codec_pri_list[num_codec_configs].codec_type
+            = A2D_NON_A2DP_MEDIA_CT;
+        /* Copy Mandatory APTX codec parameters */
+        memcpy(&p_bta_av_codec_pri_list[num_codec_configs ++]
+            .codec_cap.aptx_caps, &bta_av_co_aptx_caps,
+            sizeof(tA2D_APTX_CIE));
+        BTIF_TRACE_DEBUG(" %s Added Mandatory APTX codec at index %d",
+            __func__, num_codec_configs - 1);
+    }
+    p_bta_av_codec_pri_list[num_codec_configs].codec_type
+        = A2DP_SOURCE_AUDIO_CODEC_SBC;
+    /* Copy Mandatory SBC codec parameters */
+    memcpy(&p_bta_av_codec_pri_list[num_codec_configs ++]
+        .codec_cap.sbc_caps, &bta_av_co_sbc_caps, sizeof(tA2D_SBC_CIE));
+    BTIF_TRACE_DEBUG(" %s Added Mandatory SBC codec at index %d",
+        __func__, num_codec_configs - 1);
 
     j = 0;
     /* Create Codec Config array for supported types as per application layer */

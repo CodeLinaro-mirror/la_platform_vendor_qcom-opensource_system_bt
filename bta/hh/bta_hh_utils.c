@@ -355,7 +355,7 @@ void bta_hh_parse_keybd_rpt(tBTA_HH_BOOT_RPT *p_kb_data, UINT8 *p_report,
         }
     }
     /***************************************************************************/
-    /*  Now, process all the characters in the report, up to 6 keycodes        */
+    /*  Now, process all the characters in the report, up to 8 keycodes        */
     /***************************************************************************/
     for (xx = 0; xx < report_len; xx++)
     {
