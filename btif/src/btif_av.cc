@@ -2181,6 +2181,35 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
       index = btif_av_idx_by_bdaddr(bt_addr);
       break;
 
+    case BTIF_AV_TRIGGER_HANDOFF_REQ_EVT:
+            bt_addr = (RawAddress *)p_param;
+            index = btif_av_idx_by_bdaddr(bt_addr);
+            BTIF_TRACE_IMP("BTIF_AV_TRIGGER_HANDOFF_REQ_EVT on index %d", index);
+            if (index >= 0 && index < btif_max_av_clients)
+            {
+                int i = 0;
+                for(; i< btif_max_av_clients; i++)
+                {
+                    if (i == index)
+                        btif_av_cb[i].current_playing = TRUE;
+                    else
+                        btif_av_cb[i].current_playing = FALSE;
+                }
+                for (i = 0; i< btif_max_av_clients; i++)
+                {
+                    BTIF_TRACE_IMP("current_playing on index %d, %d", i, btif_av_cb[i].current_playing);
+                }
+                /*RC play state is to be cleared to make sure the same when retained
+                does not impact UI initiated play*/
+	        btif_rc_clear_playing_state(FALSE);
+                btif_av_trigger_dual_handoff(TRUE, btif_av_cb[index].peer_bda.address);
+            }
+            else
+            {
+                BTIF_TRACE_WARNING("Device is no longer connectied, device switch fails");
+            }
+            break;
+
     case BTIF_AV_START_STREAM_REQ_EVT:
       /* Get the last connected device on which START can be issued
        * Get the Dual A2dp Handoff Device first, if none is present,
@@ -3251,6 +3280,17 @@ static void allow_connection(int is_valid, RawAddress *bd_addr)
   memset(&idle_rc_data, 0, sizeof(tBTA_AV));
 }
 
+static bt_status_t select_audio_device(RawAddress *bd_addr)
+{
+    BTIF_TRACE_EVENT("%s", __FUNCTION__);
+    CHECK_BTAV_INIT();
+
+    /* Switch to BTIF context */
+    return btif_transfer_context(btif_av_handle_event,
+            BTIF_AV_TRIGGER_HANDOFF_REQ_EVT,
+            (char*)bd_addr, sizeof(RawAddress), NULL);
+}
+
 static const btav_source_interface_t bt_av_src_interface = {
     sizeof(btav_source_interface_t),
     init_src,
@@ -3259,6 +3299,7 @@ static const btav_source_interface_t bt_av_src_interface = {
     codec_config_src,
     cleanup_src,
     allow_connection,
+    select_audio_device,
 };
 
 static const btav_sink_interface_t bt_av_sink_interface = {
