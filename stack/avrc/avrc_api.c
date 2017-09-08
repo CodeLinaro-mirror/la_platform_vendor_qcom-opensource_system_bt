@@ -511,6 +511,7 @@ static UINT8 avrc_proc_far_msg(UINT8 handle, UINT8 label, UINT8 cr, BT_HDR **pp_
             avrc_cmd.pdu    = AVRC_PDU_REQUEST_CONTINUATION_RSP;
             avrc_cmd.status = AVRC_STS_NO_ERROR;
             avrc_cmd.target_pdu = p_rcb->rasm_pdu;
+            AVRC_TRACE_DEBUG("avrc_proc_far_msg AVRC_BldCommand AVRC_PDU_REQUEST_CONTINUATION_RSP!~");
             if (AVRC_BldCommand ((tAVRC_COMMAND *)&avrc_cmd, &p_cmd) == AVRC_STS_NO_ERROR)
             {
                 drop_code = 2;
@@ -525,6 +526,8 @@ static UINT8 avrc_proc_far_msg(UINT8 handle, UINT8 label, UINT8 cr, BT_HDR **pp_
             avrc_cmd.pdu    = AVRC_PDU_ABORT_CONTINUATION_RSP;
             avrc_cmd.status = AVRC_STS_NO_ERROR;
             avrc_cmd.target_pdu = p_rcb->rasm_pdu;
+            AVRC_TRACE_DEBUG("avrc_proc_far_msg AVRC_BldCommand AVRC_PDU_ABORT_CONTINUATION_RSP req_continue=%d, buf_overflow=%d!~",
+               req_continue,buf_overflow);
             if (AVRC_BldCommand ((tAVRC_COMMAND *)&avrc_cmd, &p_cmd) == AVRC_STS_NO_ERROR)
             {
                 drop_code = 4;
@@ -813,22 +816,29 @@ static void avrc_msg_cback(UINT8 handle, UINT8 label, UINT8 cr,
         }
 #endif
 
+        if (opcode == AVRC_OP_BROWSE && msg.browse.p_browse_pkt == NULL) {
+            AVRC_TRACE_WARNING("msg.browse.p_browse_pkt == NULL");
+          do_free = false;
+        }
 
         if (do_free)
             osi_free(p_pkt);
     }
     else
     {
-        opcode = p_data[0];
-        AVRC_TRACE_DEBUG("opcode:%x, length:%x",opcode, p_pkt->len);
+        UINT8 pdu = p_data[0];
+        AVRC_TRACE_DEBUG("AVCT_DATA_BROWSE pdu:%x, length:%x",pdu, p_pkt->len);
         /*Do sanity Check here*/
-        if ((avrc_cb.ccb[handle].control & AVRC_CT_TARGET) && (cr == AVCT_CMD))
+        if ((avrc_cb.ccb[handle].control & AVRC_CT_TARGET) && (cr == AVCT_CMD) ||
+           ((avrc_cb.ccb[handle].control & AVRC_CT_CONTROL) && (cr == AVCT_RSP)))
         {
             opcode  =  AVRC_OP_BROWSE;
+            msg.hdr.opcode = opcode;
+            msg.browse.hdr.ctype = cr;
             msg.browse.browse_len = p_pkt->len;
             AVRC_TRACE_DEBUG("Browsing length %x",msg.browse.browse_len);
-            /* Browse data remains same */
-            msg.browse.p_browse_data = (UINT8 *)(p_pkt+1) + p_pkt->offset;
+            msg.browse.p_browse_data = p_data;
+            msg.browse.p_browse_pkt = p_pkt;
             (*avrc_cb.ccb[handle].p_msg_cback)(handle, label, opcode, &msg);
         }
         else
@@ -836,7 +846,14 @@ static void avrc_msg_cback(UINT8 handle, UINT8 label, UINT8 cr,
             AVRC_TRACE_ERROR("### expect AVCT_CMD");
         }
         /*Free the packet as the same already got copied in BTA*/
-        osi_free(p_pkt);
+        if (msg.browse.p_browse_pkt == NULL) {
+            AVRC_TRACE_WARNING("msg.browse.p_browse_pkt == NULL");
+          do_free = false;
+        }
+
+        if (do_free)
+            osi_free(p_pkt);
+
     }
 
 }
@@ -964,6 +981,22 @@ UINT16 AVRC_Open(UINT8 *p_handle, tAVRC_CONN_CB *p_ccb, BD_ADDR_PTR peer_addr)
     return status;
 }
 
+UINT16 AVRC_OpenBrowseChannel (UINT8 handle)
+{
+    UINT16 status;
+    status = AVCT_CreateBrowse (handle, AVCT_INT);
+    if (status == AVCT_SUCCESS)
+    {
+        BTIF_TRACE_IMP(" %s handle: 0x%x ", __FUNCTION__, handle);
+    }
+    else
+    {
+        BTIF_TRACE_ERROR(" %s handle: 0x%x status 0x%d", __FUNCTION__, handle, status);
+    }
+    return status;
+}
+
+
 /******************************************************************************
 **
 ** Function         AVRC_Close
@@ -1014,6 +1047,7 @@ UINT16 AVRC_MsgReq (UINT8 handle, UINT8 label, UINT8 ctype, BT_HDR *p_pkt)
     UINT8   *p_start = NULL;
     tAVRC_FRAG_CB   *p_fcb;
     UINT16  len;
+    uint16_t peer_mtu;
 
     if (!p_pkt)
         return AVRC_BAD_PARAM;
@@ -1050,9 +1084,27 @@ UINT16 AVRC_MsgReq (UINT8 handle, UINT8 label, UINT8 ctype, BT_HDR *p_pkt)
         *p_data++       = 5;                /* operation data len */
         AVRC_CO_ID_TO_BE_STREAM(p_data, AVRC_CO_METADATA);
     }
+    else {
+    chk_frag = false;
+    peer_mtu = AVCT_GetBrowseMtu(handle);
+    if (p_pkt->len > (peer_mtu - AVCT_HDR_LEN_SINGLE)) {
+      AVRC_TRACE_ERROR(
+          "%s bigger than peer mtu (p_pkt->len(%d) > peer_mtu(%d-%d))",
+          __func__, p_pkt->len, peer_mtu, AVCT_HDR_LEN_SINGLE);
+      osi_free(p_pkt);
+      return AVRC_MSG_TOO_BIG;
+    }
+  }
 
     /* abandon previous fragments */
     p_fcb = &avrc_cb.fcb[handle];
+
+    if (p_fcb == NULL) {
+    AVRC_TRACE_ERROR("%s p_fcb is NULL", __func__);
+    osi_free(p_pkt);
+    return AVRC_NOT_OPEN;
+    }
+
     if (p_fcb->frag_enabled)
         p_fcb->frag_enabled = FALSE;
 

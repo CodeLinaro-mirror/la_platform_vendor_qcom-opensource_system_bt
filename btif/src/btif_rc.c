@@ -110,6 +110,19 @@
         return BT_STATUS_NOT_READY;                                                        \
     }
 
+#define CHECK_RC_CONNECTED_BY_IDX                                                                  \
+    BTIF_TRACE_DEBUG("## %s ##", __FUNCTION__);                                            \
+    int clients;                                                                           \
+    int conn_status = BT_STATUS_NOT_READY;                                                      \
+    if ((btif_rc_cb[index].rc_connected == TRUE))                                    \
+       conn_status = BT_STATUS_SUCCESS;                                                    \
+    if(conn_status == BT_STATUS_NOT_READY)                                                      \
+    {                                                                                      \
+        BTIF_TRACE_WARNING("Function %s() called when RC is not connected", __FUNCTION__); \
+        return BT_STATUS_NOT_READY;                                                        \
+    }
+
+
 #define TXN_LABEL_ENQUEUE(handle, label, front, rear, size, item, cmd)   \
 {                                                                        \
     if (size == MAX_TRANSACTIONS_PER_SESSION)                            \
@@ -359,7 +372,8 @@ static bt_status_t get_play_status_cmd_vendor(void);
 static bt_status_t get_player_app_setting_value_text_cmd (UINT8 *vals, UINT8 num_vals);
 static bt_status_t register_notification_cmd_vendor (UINT8 label, UINT8 event_id, UINT32 event_value);
 static bt_status_t get_element_attribute_cmd_vendor (uint8_t num_attribute, uint32_t *p_attr_ids);
-static bt_status_t getcapabilities_cmd_vendor (uint8_t cap_id);
+static bt_status_t getcapabilities_cmd_vendor (bt_bdaddr_t *bd_addr, uint8_t cap_id);
+static bt_status_t getcapabilities_cmd(int index, uint8_t cap_id);
 static bt_status_t list_player_app_setting_attrib_cmd_vendor(void);
 static bt_status_t list_player_app_setting_value_cmd_vendor(uint8_t attrib_id);
 static bt_status_t get_player_app_setting_cmd_vendor(uint8_t num_attrib, uint8_t* attrib_ids);
@@ -583,7 +597,7 @@ void handle_rc_ctrl_features(int index)
                 btif_av_is_sink_enabled())
             {
                 btif_rc_cb[index].rc_features_processed = TRUE;
-                getcapabilities_cmd_vendor (AVRC_CAP_COMPANY_ID);
+                getcapabilities_cmd(index, AVRC_CAP_COMPANY_ID);
             }
         }
         BTIF_TRACE_DEBUG("%s Update rc features to CTRL %d", __FUNCTION__, rc_features);
@@ -3683,9 +3697,11 @@ static bt_status_t register_notification_rsp(btrc_event_id_t event_id,
         case BTRC_EVT_APP_SETTINGS_CHANGED:
             avrc_rsp.reg_notif.param.player_setting.num_attr = p_param->player_setting.num_attr;
             memcpy(&avrc_rsp.reg_notif.param.player_setting.attr_id,
-                                       p_param->player_setting.attr_ids, 2);
+                                       p_param->player_setting.attr_ids,
+                                       avrc_rsp.reg_notif.param.player_setting.num_attr);
             memcpy(&avrc_rsp.reg_notif.param.player_setting.attr_value,
-                                       p_param->player_setting.attr_values, 2);
+                                       p_param->player_setting.attr_values,
+                                       avrc_rsp.reg_notif.param.player_setting.num_attr);
             break;
         case BTRC_EVT_ADDRESSED_PLAYER_CHANGED:
             avrc_rsp.reg_notif.param.addr_player.player_id = p_param->player_id;
@@ -4866,12 +4882,19 @@ static void handle_get_capability_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_G
         return;
     }
 
+    int index = btif_rc_get_idx_by_rc_handle(pmeta_msg->rc_handle);
+    if (index == btif_max_rc_clients)
+    {
+        BTIF_TRACE_ERROR("%s: on unknown index", __FUNCTION__);
+        return;
+    }
+
     if (p_rsp->capability_id == AVRC_CAP_EVENTS_SUPPORTED)
     {
         btif_rc_supported_event_t *p_event;
 
         /* Todo: Check if list can be active when we hit here */
-        btif_rc_cb[0].rc_supported_event_list = list_new(osi_free);
+        btif_rc_cb[index].rc_supported_event_list = list_new(osi_free);
         for (xx = 0; xx < p_rsp->count; xx++)
         {
             /* Skip registering for Play position change notification */
@@ -4882,23 +4905,23 @@ static void handle_get_capability_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_G
                 p_event = (btif_rc_supported_event_t *)osi_malloc(sizeof(btif_rc_supported_event_t));
                 p_event->event_id = p_rsp->param.event_id[xx];
                 p_event->status = eNOT_REGISTERED;
-                list_append(btif_rc_cb[0].rc_supported_event_list, p_event);
+                list_append(btif_rc_cb[index].rc_supported_event_list, p_event);
             }
         }
-        if (list_is_empty(btif_rc_cb[0].rc_supported_event_list))
+        if (list_is_empty(btif_rc_cb[index].rc_supported_event_list))
         {
             BTIF_TRACE_EVENT(" Supported event list Empty, returning");
             return;
         }
-        p_event = list_front(btif_rc_cb[0].rc_supported_event_list);
+        p_event = list_front(btif_rc_cb[index].rc_supported_event_list);
         if (p_event != NULL)
         {
-            register_for_event_notification(p_event);
+             register_for_event_notification(p_event);
         }
     }
     else if (p_rsp->capability_id == AVRC_CAP_COMPANY_ID)
     {
-        getcapabilities_cmd_vendor (AVRC_CAP_EVENTS_SUPPORTED);
+        getcapabilities_cmd(index, AVRC_CAP_EVENTS_SUPPORTED);
         BTIF_TRACE_EVENT("%s AVRC_CAP_COMPANY_ID: ", __FUNCTION__);
         for (xx = 0; xx < p_rsp->count; xx++)
         {
@@ -5726,6 +5749,11 @@ static void handle_avk_rc_metamsg_rsp(tBTA_AV_META_MSG *pmeta_msg)
             case AVRC_PDU_GET_PLAY_STATUS:
                 handle_get_playstatus_response(pmeta_msg, &avrc_response.get_play_status);
                 break;
+
+            case AVRC_PDU_SET_ADDRESSED_PLAYER:
+                handle_get_playstatus_response(pmeta_msg, &avrc_response.addr_player);
+                break;
+
         }
         release_transaction(pmeta_msg->label);
     }
@@ -5843,13 +5871,23 @@ static void cleanup_ctrl()
 ** Returns          void
 **
 ***************************************************************************/
-static bt_status_t getcapabilities_cmd_vendor (uint8_t cap_id)
+static bt_status_t getcapabilities_cmd_vendor (bt_bdaddr_t *bd_addr, uint8_t cap_id)
 {
     tAVRC_STS status = BT_STATUS_UNSUPPORTED;
     rc_transaction_t *p_transaction = NULL;
 #if (AVRC_CTLR_INCLUDED == TRUE)
     BTIF_TRACE_DEBUG("%s: cap_id %d", __FUNCTION__, cap_id);
-    CHECK_RC_CONNECTED
+
+    int index = btif_rc_get_idx_by_addr(bd_addr->address);
+    BTIF_TRACE_DEBUG("%s: index = %d ", __FUNCTION__, index);
+    if (index >= btif_max_rc_clients)
+    {
+        BTIF_TRACE_DEBUG("%s: invalid index", __FUNCTION__);
+        return BT_STATUS_FAIL;
+    }
+
+    CHECK_RC_CONNECTED_BY_IDX
+
     bt_status_t tran_status=get_transaction(&p_transaction);
     if (BT_STATUS_SUCCESS != tran_status)
         return BT_STATUS_FAIL;
@@ -5866,7 +5904,7 @@ static bt_status_t getcapabilities_cmd_vendor (uint8_t cap_id)
          UINT8* data_start = (UINT8*)(p_msg + 1) + p_msg->offset;
          BTIF_TRACE_DEBUG("%s msgreq being sent out with label %d",
                             __FUNCTION__,p_transaction->lbl);
-         BTA_AvVendorCmd(btif_rc_cb[0].rc_handle,p_transaction->lbl,AVRC_CMD_STATUS,
+         BTA_AvVendorCmd(btif_rc_cb[index].rc_handle,p_transaction->lbl,AVRC_CMD_STATUS,
                                                           data_start, p_msg->len);
          status =  BT_STATUS_SUCCESS;
          start_status_command_timer (AVRC_PDU_GET_CAPABILITIES, p_transaction);
@@ -5882,6 +5920,64 @@ static bt_status_t getcapabilities_cmd_vendor (uint8_t cap_id)
 #endif
     return status;
 }
+
+/***************************************************************************
+**
+** Function         getcapabilities_cmd
+**
+** Description      GetCapabilties from Remote(Company_ID, Events_Supported)
+**
+** Returns          void
+**
+***************************************************************************/
+static bt_status_t getcapabilities_cmd(int index, uint8_t cap_id)
+{
+    tAVRC_STS status = BT_STATUS_UNSUPPORTED;
+    rc_transaction_t *p_transaction = NULL;
+#if (AVRC_CTLR_INCLUDED == TRUE)
+    BTIF_TRACE_DEBUG("%s: index %d cap_id %d", __FUNCTION__, index, cap_id);
+
+    if (index >= btif_max_rc_clients)
+    {
+        BTIF_TRACE_DEBUG("%s: invalid index", __FUNCTION__);
+        return BT_STATUS_FAIL;
+    }
+
+    CHECK_RC_CONNECTED_BY_IDX
+
+    bt_status_t tran_status=get_transaction(&p_transaction);
+    if (BT_STATUS_SUCCESS != tran_status)
+        return BT_STATUS_FAIL;
+
+     tAVRC_COMMAND avrc_cmd = {0};
+     BT_HDR *p_msg = NULL;
+     avrc_cmd.get_caps.opcode = AVRC_OP_VENDOR;
+     avrc_cmd.get_caps.capability_id = cap_id;
+     avrc_cmd.get_caps.pdu = AVRC_PDU_GET_CAPABILITIES;
+     avrc_cmd.get_caps.status = AVRC_STS_NO_ERROR;
+     status = AVRC_BldCommand(&avrc_cmd, &p_msg);
+     if ((status == AVRC_STS_NO_ERROR)&&(p_msg != NULL))
+     {
+         UINT8* data_start = (UINT8*)(p_msg + 1) + p_msg->offset;
+         BTIF_TRACE_DEBUG("%s msgreq being sent out with label %d",
+                            __FUNCTION__,p_transaction->lbl);
+         BTA_AvVendorCmd(btif_rc_cb[index].rc_handle,p_transaction->lbl,AVRC_CMD_STATUS,
+                                                          data_start, p_msg->len);
+         status =  BT_STATUS_SUCCESS;
+         start_status_command_timer (AVRC_PDU_GET_CAPABILITIES, p_transaction);
+     }
+     else
+     {
+         BTIF_TRACE_ERROR("%s: failed to build command. status: 0x%02x",
+                             __FUNCTION__, status);
+     }
+     osi_free(p_msg);
+#else
+    BTIF_TRACE_DEBUG("%s: feature not enabled", __FUNCTION__);
+#endif
+    return status;
+}
+
 
 /***************************************************************************
 **

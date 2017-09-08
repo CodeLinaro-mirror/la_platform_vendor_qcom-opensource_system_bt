@@ -74,11 +74,13 @@ const UINT8 avdt_scb_role_evt[] = {
 #define NON_A2DP_MEDIA_CT 0xff
 #define INIT_DELAY_RPT    600      // in 1/10 millisecond 
 #define accure_range      150      // in 1/10 millisecond 
+#define INIT_ESTMT_DELAY  50       // in millisecond
 extern UINT64 average_delay;
 extern UINT8 bta_avk_get_current_codec();
 extern void btu_general_alarm_cb(void *data);
 static alarm_t* delay_rpt_alarm = NULL;
 static UINT16 reported_delay = INIT_DELAY_RPT;
+extern int rendering_delay;
 
 /*******************************************************************************
 **
@@ -849,8 +851,10 @@ void avdt_set_scbs_busy(tAVDT_SCB *ptr_scb)
     int i = 0;
     for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++)
     {
-        AVDT_TRACE_DEBUG(" avdt_set_scbs_busy SCB[%d] reg_id, sep_type ", i, p_scb->cs.registration_id, p_scb->cs.tsep);
-        if ((p_scb->allocated) && (p_scb->cs.registration_id == reg_id) && (p_scb->cs.tsep == ptr_scb->cs.tsep))
+        AVDT_TRACE_DEBUG(" avdt_set_scbs_busy SCB[%d] reg_id[%d], sep_type[%d]",
+            i, p_scb->cs.registration_id, p_scb->cs.tsep);
+        if ((p_scb->allocated) && (p_scb->cs.registration_id == reg_id) &&
+            (p_scb->cs.tsep == ptr_scb->cs.tsep))
         {
             AVDT_TRACE_DEBUG(" Setting SCB[%d].in_use as true", i);
             p_scb->in_use = TRUE;
@@ -866,8 +870,10 @@ void avdt_set_scbs_free(tAVDT_SCB *ptr_scb)
     int i = 0;
     for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++)
     {
-        AVDT_TRACE_DEBUG(" avdt_set_scbs_free SCB[%d] reg_id, sep_type ", i, p_scb->cs.registration_id, p_scb->cs.tsep);
-        if ((p_scb->allocated) && (p_scb->cs.registration_id == reg_id) && (p_scb->cs.tsep == ptr_scb->cs.tsep))
+        AVDT_TRACE_DEBUG(" avdt_set_scbs_free SCB[%d] reg_id, sep_type[%d]",
+            i, p_scb->cs.registration_id, p_scb->cs.tsep);
+        if ((p_scb->allocated) && (p_scb->cs.registration_id == reg_id) &&
+            (p_scb->cs.tsep == ptr_scb->cs.tsep))
         {
             AVDT_TRACE_DEBUG(" Setting SCB[%d].in_use as false ", i);
             p_scb->in_use = FALSE;
@@ -941,10 +947,11 @@ void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
 {
     tAVDT_CFG *p_cfg;
     tAVDT_CTRL          avdt_ctrl;
-    AVDT_TRACE_WARNING("avdt_scb_hdl_setconfig_cmd: SCB in use: %d, Conn in progress: %d",
-        p_scb->in_use, avdt_cb.conn_in_progress);
+    AVDT_TRACE_WARNING("avdt_scb_hdl_setconfig_cmd: SCB in use: %d, SCB is required: %d "
+        "Conn in progress: %d", p_scb->in_use, p_scb->is_required, avdt_cb.conn_in_progress);
 
-    if ((!p_scb->in_use) && !(avdt_check_sep_state(p_scb)) && (!avdt_cb.conn_in_progress))
+    if ((!p_scb->in_use) && (p_scb->is_required) & !(avdt_check_sep_state(p_scb))
+        && (!avdt_cb.conn_in_progress))
     {
         p_cfg = p_data->msg.config_cmd.p_cfg;
         if(p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == p_cfg->codec_info[AVDT_CODEC_TYPE_INDEX])
@@ -1029,6 +1036,7 @@ void avdt_scb_hdl_setconfig_rsp(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
         if((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT))
         {
             AVDT_TRACE_DEBUG(" %s ~~ SNK & SRC support DELAY_RPT both, begin init Delay report procedure",__func__);
+            reported_delay = (rendering_delay + INIT_ESTMT_DELAY) * 10;
             AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay);
         }
         AVDT_TRACE_DEBUG(" %s ~~ begin init Open procedure",__func__);
@@ -1888,6 +1896,7 @@ AVDT_TRACE_DEBUG(" %s ~~ p_scb->curr_cfg.psc_mask= %d",__func__,  p_scb->curr_cf
         if((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT))
         {
             AVDT_TRACE_DEBUG(" %s ~~ SNK & SRC support DELAY_RPT both, begin init Delay report procedure",__func__);
+            reported_delay = (rendering_delay + INIT_ESTMT_DELAY) * 10;
             AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay);
         }
     }

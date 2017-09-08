@@ -115,6 +115,10 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
 #define SDP_TEXT_BAD_MAX_RECORDS_LIST   NULL
 #endif
 
+#ifndef SDP_TEXT_BAD_MAX_ATTR_LIST
+#define SDP_TEXT_BAD_MAX_ATTR_LIST   NULL
+#endif
+
 struct blacklist_entry
 {
     int ver;
@@ -506,6 +510,12 @@ static void process_service_search (tCONN_CB *p_ccb, UINT16 trans_num,
     /* Get the max replies we can send. Cap it at our max anyways. */
     BE_STREAM_TO_UINT16 (max_replies, p_req);
 
+    if (!max_replies)
+    {
+        sdpu_build_n_send_error (p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX, SDP_TEXT_BAD_MAX_ATTR_LIST);
+        return;
+    }
+
     if (max_replies > SDP_MAX_RECORDS)
         max_replies = SDP_MAX_RECORDS;
 
@@ -649,6 +659,7 @@ static void process_service_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
     BOOLEAN         is_hfp_fallback = FALSE;
     BOOLEAN         is_avrcp_ca_bit_reset = FALSE;
     UINT16          attr_len;
+    char dy_version[PROPERTY_VALUE_MAX] = "false";
 
     /* Extract the record handle */
     BE_STREAM_TO_UINT32 (rec_handle, p_req);
@@ -661,6 +672,12 @@ static void process_service_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
 
     /* Get the max list length we can send. Cap it at MTU size minus overhead */
     BE_STREAM_TO_UINT16 (max_list_len, p_req);
+
+    if (!max_list_len)
+    {
+        sdpu_build_n_send_error (p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX, SDP_TEXT_BAD_MAX_ATTR_LIST);
+        return;
+    }
 
     if (max_list_len > (p_ccb->rem_mtu_size - SDP_MAX_ATTR_RSPHDR_LEN))
         max_list_len = p_ccb->rem_mtu_size - SDP_MAX_ATTR_RSPHDR_LEN;
@@ -729,6 +746,7 @@ static void process_service_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
         p_ccb->cont_info.attr_offset = 0;
     }
 
+    property_get("persist.avrcp.enable.dy_version", dy_version, "false");
     /* Search for attributes that match the list given to us */
     for (xx = p_ccb->cont_info.next_attr_index; xx < attr_seq.num_attr; xx++)
     {
@@ -736,7 +754,8 @@ static void process_service_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
 
         if (p_attr)
         {
-           if (!is_stored_device_src(p_ccb->device_address)) {
+           if (!strncmp("true", dy_version, 4) &&
+               !is_stored_device_src(p_ccb->device_address)) {
 #if ((defined(SDP_AVRCP_1_6) && (SDP_AVRCP_1_6 == TRUE)) || \
         (defined(SDP_AVRCP_1_5) && (SDP_AVRCP_1_5 == TRUE)))
             /* Check for UUID Remote Control and Remote BD address  */
@@ -983,6 +1002,7 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
     BOOLEAN         is_avrcp_ca_bit_reset = FALSE;
     UINT8           *p_seq_start = NULL;
     UINT16          seq_len, attr_len;
+    char dy_version[PROPERTY_VALUE_MAX] = "false";
     UNUSED(p_req_end);
 
     /* Extract the UUID sequence to search for */
@@ -996,6 +1016,12 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
 
     /* Get the max list length we can send. Cap it at our max list length. */
     BE_STREAM_TO_UINT16 (max_list_len, p_req);
+
+    if (!max_list_len)
+    {
+        sdpu_build_n_send_error (p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX, SDP_TEXT_BAD_MAX_ATTR_LIST);
+        return;
+    }
 
     if (max_list_len > (p_ccb->rem_mtu_size - SDP_MAX_SERVATTR_RSPHDR_LEN))
         max_list_len = p_ccb->rem_mtu_size - SDP_MAX_SERVATTR_RSPHDR_LEN;
@@ -1077,6 +1103,7 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
             p_rsp += 3;
         }
 
+        property_get("persist.avrcp.enable.dy_version", dy_version, "false");
         /* Get a list of handles that match the UUIDs given to us */
         for (xx = p_ccb->cont_info.next_attr_index; xx < attr_seq.num_attr; xx++)
         {
@@ -1084,7 +1111,8 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
 
             if (p_attr)
             {
-                if (!is_stored_device_src(p_ccb->device_address)) {
+                if (!strncmp("true", dy_version, 4) &&
+                    !is_stored_device_src(p_ccb->device_address)) {
 #if ((defined(SDP_AVRCP_1_6) && (SDP_AVRCP_1_6 == TRUE)) || \
         (defined(SDP_AVRCP_1_5) && (SDP_AVRCP_1_5 == TRUE)))
                 /* Check for UUID Remote Control and Remote BD address  */

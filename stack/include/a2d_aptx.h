@@ -42,8 +42,10 @@
 
 #define A2D_APTX_VENDOR_ID             (0x0000004F)
 #define A2D_APTX_CODEC_ID_BLUETOOTH    (0x0001)
+#define A2D_APTX_SAMPLERATE_MSK         (0xF0)
 #define A2D_APTX_SAMPLERATE_44100       (0x20)
 #define A2D_APTX_SAMPLERATE_48000       (0x10)
+#define A2D_APTX_CHANNELS_MSK           (0x0F)
 #define A2D_APTX_CHANNELS_STEREO        (0x02)
 #define A2D_APTX_CHANNELS_MONO          (0x01)
 #define A2D_APTX_FUTURE_1        (0x00)
