@@ -1382,7 +1382,20 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
                         else
                         {
                             BTIF_TRACE_DEBUG("%s: honor remote started for BL device",__FUNCTION__);
-                            btif_a2dp_on_remote_started();
+                            BD_ADDR playing_addr;
+                            memset(playing_addr, 0, sizeof(BD_ADDR));
+                            btif_rc_get_playing_device(playing_addr);
+                            if ((bdcmp(playing_addr, bd_addr_null) != 0) &&
+                                (btif_av_idx_by_bdaddr(playing_addr) < btif_max_av_clients) &&
+                                (btif_av_idx_by_bdaddr(playing_addr) == index))
+                            {
+                                BTIF_TRACE_DEBUG("%s: don't start remote started timer as play received ",__FUNCTION__);
+                            }
+                            else
+                            {
+                                BTIF_TRACE_DEBUG("%s: start remote started timer ",__FUNCTION__);
+                                btif_a2dp_on_remote_started();
+                            }
                         }
                     }
                 }
