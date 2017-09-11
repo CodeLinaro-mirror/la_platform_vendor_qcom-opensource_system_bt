@@ -659,6 +659,7 @@ static void process_service_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
     BOOLEAN         is_hfp_fallback = FALSE;
     BOOLEAN         is_avrcp_ca_bit_reset = FALSE;
     UINT16          attr_len;
+    char dy_version[PROPERTY_VALUE_MAX] = "false";
 
     /* Extract the record handle */
     BE_STREAM_TO_UINT32 (rec_handle, p_req);
@@ -745,6 +746,7 @@ static void process_service_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
         p_ccb->cont_info.attr_offset = 0;
     }
 
+    property_get("persist.avrcp.enable.dy_version", dy_version, "false");
     /* Search for attributes that match the list given to us */
     for (xx = p_ccb->cont_info.next_attr_index; xx < attr_seq.num_attr; xx++)
     {
@@ -752,7 +754,8 @@ static void process_service_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
 
         if (p_attr)
         {
-           if (!is_stored_device_src(p_ccb->device_address)) {
+           if (!strncmp("true", dy_version, 4) &&
+               !is_stored_device_src(p_ccb->device_address)) {
 #if ((defined(SDP_AVRCP_1_6) && (SDP_AVRCP_1_6 == TRUE)) || \
         (defined(SDP_AVRCP_1_5) && (SDP_AVRCP_1_5 == TRUE)))
             /* Check for UUID Remote Control and Remote BD address  */
@@ -999,6 +1002,7 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
     BOOLEAN         is_avrcp_ca_bit_reset = FALSE;
     UINT8           *p_seq_start = NULL;
     UINT16          seq_len, attr_len;
+    char dy_version[PROPERTY_VALUE_MAX] = "false";
     UNUSED(p_req_end);
 
     /* Extract the UUID sequence to search for */
@@ -1099,6 +1103,7 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
             p_rsp += 3;
         }
 
+        property_get("persist.avrcp.enable.dy_version", dy_version, "false");
         /* Get a list of handles that match the UUIDs given to us */
         for (xx = p_ccb->cont_info.next_attr_index; xx < attr_seq.num_attr; xx++)
         {
@@ -1106,7 +1111,8 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
 
             if (p_attr)
             {
-                if (!is_stored_device_src(p_ccb->device_address)) {
+                if (!strncmp("true", dy_version, 4) &&
+                    !is_stored_device_src(p_ccb->device_address)) {
 #if ((defined(SDP_AVRCP_1_6) && (SDP_AVRCP_1_6 == TRUE)) || \
         (defined(SDP_AVRCP_1_5) && (SDP_AVRCP_1_5 == TRUE)))
                 /* Check for UUID Remote Control and Remote BD address  */

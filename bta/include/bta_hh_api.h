@@ -261,7 +261,7 @@ enum
 /* parsed boot mode keyboard report */
 typedef struct
 {
-    UINT8               this_char[6];       /* virtual key code     */
+    UINT8               this_char[8];       /* virtual key code     */
     BOOLEAN             mod_key[BTA_HH_MOD_MAX_KEY];
                                             /* ctrl, shift, Alt, GUI */
                                             /* modifier key: is Shift key pressed */

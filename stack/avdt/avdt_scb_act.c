@@ -851,8 +851,10 @@ void avdt_set_scbs_busy(tAVDT_SCB *ptr_scb)
     int i = 0;
     for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++)
     {
-        AVDT_TRACE_DEBUG(" avdt_set_scbs_busy SCB[%d] reg_id, sep_type ", i, p_scb->cs.registration_id, p_scb->cs.tsep);
-        if ((p_scb->allocated) && (p_scb->cs.registration_id == reg_id) && (p_scb->cs.tsep == ptr_scb->cs.tsep))
+        AVDT_TRACE_DEBUG(" avdt_set_scbs_busy SCB[%d] reg_id[%d], sep_type[%d]",
+            i, p_scb->cs.registration_id, p_scb->cs.tsep);
+        if ((p_scb->allocated) && (p_scb->cs.registration_id == reg_id) &&
+            (p_scb->cs.tsep == ptr_scb->cs.tsep))
         {
             AVDT_TRACE_DEBUG(" Setting SCB[%d].in_use as true", i);
             p_scb->in_use = TRUE;
@@ -868,8 +870,10 @@ void avdt_set_scbs_free(tAVDT_SCB *ptr_scb)
     int i = 0;
     for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++)
     {
-        AVDT_TRACE_DEBUG(" avdt_set_scbs_free SCB[%d] reg_id, sep_type ", i, p_scb->cs.registration_id, p_scb->cs.tsep);
-        if ((p_scb->allocated) && (p_scb->cs.registration_id == reg_id) && (p_scb->cs.tsep == ptr_scb->cs.tsep))
+        AVDT_TRACE_DEBUG(" avdt_set_scbs_free SCB[%d] reg_id, sep_type[%d]",
+            i, p_scb->cs.registration_id, p_scb->cs.tsep);
+        if ((p_scb->allocated) && (p_scb->cs.registration_id == reg_id) &&
+            (p_scb->cs.tsep == ptr_scb->cs.tsep))
         {
             AVDT_TRACE_DEBUG(" Setting SCB[%d].in_use as false ", i);
             p_scb->in_use = FALSE;
@@ -943,10 +947,11 @@ void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
 {
     tAVDT_CFG *p_cfg;
     tAVDT_CTRL          avdt_ctrl;
-    AVDT_TRACE_WARNING("avdt_scb_hdl_setconfig_cmd: SCB in use: %d, Conn in progress: %d",
-        p_scb->in_use, avdt_cb.conn_in_progress);
+    AVDT_TRACE_WARNING("avdt_scb_hdl_setconfig_cmd: SCB in use: %d, SCB is required: %d "
+        "Conn in progress: %d", p_scb->in_use, p_scb->is_required, avdt_cb.conn_in_progress);
 
-    if ((!p_scb->in_use) && !(avdt_check_sep_state(p_scb)) && (!avdt_cb.conn_in_progress))
+    if ((!p_scb->in_use) && (p_scb->is_required) & !(avdt_check_sep_state(p_scb))
+        && (!avdt_cb.conn_in_progress))
     {
         p_cfg = p_data->msg.config_cmd.p_cfg;
         if(p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == p_cfg->codec_info[AVDT_CODEC_TYPE_INDEX])

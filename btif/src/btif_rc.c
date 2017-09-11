@@ -3697,9 +3697,11 @@ static bt_status_t register_notification_rsp(btrc_event_id_t event_id,
         case BTRC_EVT_APP_SETTINGS_CHANGED:
             avrc_rsp.reg_notif.param.player_setting.num_attr = p_param->player_setting.num_attr;
             memcpy(&avrc_rsp.reg_notif.param.player_setting.attr_id,
-                                       p_param->player_setting.attr_ids, 2);
+                                       p_param->player_setting.attr_ids,
+                                       avrc_rsp.reg_notif.param.player_setting.num_attr);
             memcpy(&avrc_rsp.reg_notif.param.player_setting.attr_value,
-                                       p_param->player_setting.attr_values, 2);
+                                       p_param->player_setting.attr_values,
+                                       avrc_rsp.reg_notif.param.player_setting.num_attr);
             break;
         case BTRC_EVT_ADDRESSED_PLAYER_CHANGED:
             avrc_rsp.reg_notif.param.addr_player.player_id = p_param->player_id;
@@ -5747,6 +5749,11 @@ static void handle_avk_rc_metamsg_rsp(tBTA_AV_META_MSG *pmeta_msg)
             case AVRC_PDU_GET_PLAY_STATUS:
                 handle_get_playstatus_response(pmeta_msg, &avrc_response.get_play_status);
                 break;
+
+            case AVRC_PDU_SET_ADDRESSED_PLAYER:
+                handle_get_playstatus_response(pmeta_msg, &avrc_response.addr_player);
+                break;
+
         }
         release_transaction(pmeta_msg->label);
     }
