@@ -75,6 +75,7 @@ typedef struct
     UINT16            rem_mtu_size;
 
     BOOLEAN           is_congested;
+    BOOLEAN           is_link_policy_set;
     fixed_queue_t     *tx_queue;            /* Queue of buffers waiting to be sent  */
     fixed_queue_t     *rx_queue;            /* Queue of buffers waiting to be read  */
 
