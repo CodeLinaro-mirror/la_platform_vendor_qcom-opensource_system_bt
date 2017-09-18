@@ -70,7 +70,7 @@ const UINT8 avdt_scb_role_evt[] = {
     AVDT_OPEN_CFM_EVT           /* AVDT_OPEN_INT */
 };
 
-
+#define PUMP_ENCODED_DATA 0x4000
 #define NON_A2DP_MEDIA_CT 0xff
 #define INIT_DELAY_RPT    600      // in 1/10 millisecond 
 #define accure_range      150      // in 1/10 millisecond 
@@ -1413,7 +1413,7 @@ void avdt_scb_hdl_write_req_no_frag(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
     }
     osi_free_and_reset((void **)&p_scb->p_pkt);
 
-    if(!p_data->apiwrite.encoded_data_enabled)
+    if((p_data->apiwrite.opt & PUMP_ENCODED_DATA) != PUMP_ENCODED_DATA)
     {
         AVDT_TRACE_DEBUG("avdt_scb_hdl_write_req_no_frag , encoded_data_enabled is false");
         /* build a media packet if the codec type is not aptX */
