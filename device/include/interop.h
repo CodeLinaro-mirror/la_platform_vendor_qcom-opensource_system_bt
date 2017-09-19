@@ -102,6 +102,10 @@ typedef enum {
   // preferred conn params for such devices and allow them to explicity ask for it.
   INTEROP_DISABLE_LE_CONN_PREFERRED_PARAMS,
 
+  //Few carkit hfp version is hfp1.5 but it support hfp indicator, violate spec
+  //remove hfp indicator for such device
+  INTEROP_DISABLE_HF_INDICATOR,
+
   // Few remote devices do not understand AVRCP version greater than 1.3. For these
   // devices, we would like to blacklist them and advertise AVRCP version as 1.3
   INTEROP_ADV_AVRCP_VER_1_3,

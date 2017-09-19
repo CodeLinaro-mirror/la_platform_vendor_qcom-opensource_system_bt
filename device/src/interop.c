@@ -160,6 +160,7 @@ static const char* interop_feature_string_(const interop_feature_t feature) {
     CASE_RETURN_STR(INTEROP_ADV_PBAP_VER_1_1)
     CASE_RETURN_STR(INTEROP_DISABLE_CODEC_NEGOTIATION)
     CASE_RETURN_STR(INTEROP_DELAY_SCO_FOR_MT_CALL)
+    CASE_RETURN_STR(INTEROP_DISABLE_HF_INDICATOR)
   }
 
   return "UNKNOWN";
