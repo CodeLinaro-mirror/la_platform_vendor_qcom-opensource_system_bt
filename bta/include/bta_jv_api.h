@@ -272,6 +272,7 @@ typedef struct
     tBTA_JV_STATUS  status;     /* Whether the operation succeeded or failed. */
     UINT32          handle;     /* The connection handle */
     BD_ADDR         rem_bda;    /* The peer address */
+    UINT16          mtu;        /* peer mtu */
 } tBTA_JV_RFCOMM_OPEN;
 /* data associated with BTA_JV_RFCOMM_SRV_OPEN_EVT */
 typedef struct
@@ -280,6 +281,7 @@ typedef struct
     UINT32          handle;             /* The connection handle */
     UINT32          new_listen_handle;  /* The new listen handle */
     BD_ADDR         rem_bda;            /* The peer address */
+    UINT16          mtu;                /* peer mtu */
 } tBTA_JV_RFCOMM_SRV_OPEN;
 
 

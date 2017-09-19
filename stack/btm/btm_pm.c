@@ -183,6 +183,7 @@ tBTM_STATUS BTM_SetPowerMode (UINT8 pm_id, BD_ADDR remote_bda, tBTM_PM_PWR_MD *p
     tBTM_PM_MCB *p_cb = NULL;   /* per ACL link */
     tBTM_PM_MODE        mode;
     int                 temp_pm_id;
+    UINT8 *p_rem_feat  = NULL;
 
     if(pm_id >= BTM_MAX_PM_RECORDS)
         pm_id = BTM_PM_SET_ONLY_ID;
@@ -207,7 +208,9 @@ tBTM_STATUS BTM_SetPowerMode (UINT8 pm_id, BD_ADDR remote_bda, tBTM_PM_PWR_MD *p
         /* check if the requested mode is supported */
         ind = mode - BTM_PM_MD_HOLD; /* make it base 0 */
         p_features = BTM_ReadLocalFeatures();
-        if(ind < BTM_PM_NUM_SET_MODES && !(p_features[ btm_pm_mode_off[ind] ] & btm_pm_mode_msk[ind] ) )
+        p_rem_feat = BTM_ReadRemoteFeatures(remote_bda);
+        if(ind < BTM_PM_NUM_SET_MODES && (!(p_features[ btm_pm_mode_off[ind] ] & btm_pm_mode_msk[ind] )
+            || !(p_rem_feat [ btm_pm_mode_off[ind] ] & btm_pm_mode_msk[ind] )))
             return BTM_MODE_UNSUPPORTED;
     }
 
