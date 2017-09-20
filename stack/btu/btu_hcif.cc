@@ -907,6 +907,14 @@ static void btu_hcif_hdl_command_complete(uint16_t opcode, uint8_t* p,
       btm_read_rssi_complete(p);
       break;
 
+    case HCI_READ_FAILED_CONTACT_COUNTER:
+      btm_read_failed_contact_counter_complete(p);
+      break;
+
+    case HCI_READ_AUTOMATIC_FLUSH_TIMEOUT:
+      btm_read_automatic_flush_timeout_complete(p);
+      break;
+
     case HCI_READ_TRANSMIT_POWER_LEVEL:
       btm_read_tx_power_complete(p, false);
       break;
