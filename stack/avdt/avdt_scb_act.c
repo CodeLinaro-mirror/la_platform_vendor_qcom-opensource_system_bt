@@ -1413,26 +1413,29 @@ void avdt_scb_hdl_write_req_no_frag(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
     }
     osi_free_and_reset((void **)&p_scb->p_pkt);
 
-    /* build a media packet if the codec type is not aptX */
-#if defined(BTA_AV_CO_CP_SCMS_T) && (BTA_AV_CO_CP_SCMS_T == TRUE)
-#else
-    if (p_data->apiwrite.m_pt != NON_A2DP_MEDIA_CT)
-#endif
+    if(!p_data->apiwrite.encoded_data_enabled)
     {
-        ssrc = avdt_scb_gen_ssrc(p_scb);
+        AVDT_TRACE_DEBUG("avdt_scb_hdl_write_req_no_frag , encoded_data_enabled is false");
+        /* build a media packet if the codec type is not aptX */
+    #if defined(BTA_AV_CO_CP_SCMS_T) && (BTA_AV_CO_CP_SCMS_T == TRUE)
+    #else
+        if (p_data->apiwrite.m_pt != NON_A2DP_MEDIA_CT)
+    #endif
+        {
+            ssrc = avdt_scb_gen_ssrc(p_scb);
 
-        p_data->apiwrite.p_buf->len += AVDT_MEDIA_HDR_SIZE;
-        p_data->apiwrite.p_buf->offset -= AVDT_MEDIA_HDR_SIZE;
-        p_scb->media_seq++;
-        p = (UINT8 *)(p_data->apiwrite.p_buf + 1) + p_data->apiwrite.p_buf->offset;
+            p_data->apiwrite.p_buf->len += AVDT_MEDIA_HDR_SIZE;
+            p_data->apiwrite.p_buf->offset -= AVDT_MEDIA_HDR_SIZE;
+            p_scb->media_seq++;
+            p = (UINT8 *)(p_data->apiwrite.p_buf + 1) + p_data->apiwrite.p_buf->offset;
 
-        UINT8_TO_BE_STREAM(p, AVDT_MEDIA_OCTET1);
-        UINT8_TO_BE_STREAM(p, p_data->apiwrite.m_pt);
-        UINT16_TO_BE_STREAM(p, p_scb->media_seq);
-        UINT32_TO_BE_STREAM(p, p_data->apiwrite.time_stamp);
-        UINT32_TO_BE_STREAM(p, ssrc);
+            UINT8_TO_BE_STREAM(p, AVDT_MEDIA_OCTET1);
+            UINT8_TO_BE_STREAM(p, p_data->apiwrite.m_pt);
+            UINT16_TO_BE_STREAM(p, p_scb->media_seq);
+            UINT32_TO_BE_STREAM(p, p_data->apiwrite.time_stamp);
+            UINT32_TO_BE_STREAM(p, ssrc);
+        }
     }
-
     /* store it */
     p_scb->p_pkt = p_data->apiwrite.p_buf;
 }
