@@ -323,6 +323,7 @@ extern BOOLEAN btif_av_is_codec_offload_supported(int codec);
 #endif
 extern BOOLEAN btif_av_is_offload_supported();
 extern BOOLEAN bt_split_a2dp_enabled;
+extern UINT16 pump_encoded_data;
 /*******************************************************************************
  **
  ** Function         bta_av_co_cp_is_active
@@ -1043,7 +1044,7 @@ void bta_av_co_audio_setconfig(tBTA_AV_HNDL hndl, tBTA_AV_CODEC codec_type,
                 memcpy(bta_av_co_cb.codec_cfg_sbc_setconfig.info, p_codec_info, AVDT_CODEC_SIZE);
                 bta_av_co_cb.codec_cfg_setconfig = &bta_av_co_cb.codec_cfg_sbc_setconfig;
                 memcpy(bta_av_co_cb.codec_cfg_sbc.info, p_codec_info, AVDT_CODEC_SIZE);
-                memcpy(bta_av_co_cb.codec_cfg->info, p_codec_info, AVDT_CODEC_SIZE);
+                bta_av_co_cb.codec_cfg = &bta_av_co_cb.codec_cfg_sbc;
                 if(AVDT_TSEP_SNK == t_local_sep)
                 {
                     /* If Peer is SRC, and our cfg subset matches with what is requested by peer, then
@@ -1279,7 +1280,7 @@ void * bta_av_co_audio_src_data_path(tBTA_AV_CODEC codec_type, UINT32 *p_len,
     FUNC_TRACE();
 
     p_buf = btif_media_aa_readbuf();
-    if (p_buf != NULL)
+    if (p_buf != NULL && (!pump_encoded_data))
     {
         switch (codec_type)
         {
