@@ -3834,6 +3834,11 @@ static void btif_media_task_aa_stop_tx(void)
            alarm_free(btif_media_cb.media_alarm);
            btif_media_cb.media_alarm = NULL;
         }
+        if (btif_media_cb.remote_start_alarm != NULL)
+        {
+            alarm_free(btif_media_cb.remote_start_alarm);
+            btif_media_cb.remote_start_alarm = NULL;
+        }
 
         UIPC_Close(UIPC_CH_ID_AV_AUDIO);
 
