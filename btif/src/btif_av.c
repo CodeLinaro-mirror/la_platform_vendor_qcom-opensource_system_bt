@@ -558,6 +558,11 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
         case BTA_AV_REGISTER_EVT:
             BTIF_TRACE_EVENT("The AV Handle:%d", ((tBTA_AV*)p_data)->registr.hndl);
             btif_av_cb[index].bta_handle = ((tBTA_AV*)p_data)->registr.hndl;
+            if (btif_max_av_clients == index + 1) {
+                if (bt_av_src_vendor_callbacks != NULL) {
+                    HAL_CBACK(bt_av_src_vendor_callbacks, registration_vendor_cb, TRUE);
+                }
+            }
             break;
 
            /*
