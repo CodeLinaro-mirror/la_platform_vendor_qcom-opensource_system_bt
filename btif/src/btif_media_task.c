@@ -221,6 +221,8 @@ enum {
 #endif
 #endif
 
+#define BTIF_A2DP_MAX_BITPOOL_MQ 35
+
 #if (BTA_AV_CO_CP_SCMS_T == TRUE)
 /* A2DP header will contain a CP header of size 1 */
 #define A2DP_HDR_SIZE               2
@@ -3832,6 +3834,11 @@ static void btif_media_task_aa_stop_tx(void)
            alarm_free(btif_media_cb.media_alarm);
            btif_media_cb.media_alarm = NULL;
         }
+        if (btif_media_cb.remote_start_alarm != NULL)
+        {
+            alarm_free(btif_media_cb.remote_start_alarm);
+            btif_media_cb.remote_start_alarm = NULL;
+        }
 
         UIPC_Close(UIPC_CH_ID_AV_AUDIO);
 
@@ -4977,6 +4984,12 @@ BOOLEAN btif_media_send_vendor_media_chn_cfg()
     UINT16 acl_hdl = BTM_GetHCIConnHandle(addr, BT_TRANSPORT_BR_EDR);
     APPL_TRACE_IMP("btif_media_send_vendor_media_chn_cfg");
     APPL_TRACE_IMP("AVDTP mtu: %u, hdl: %u", btif_media_cb.TxAaMtuSize, acl_hdl);
+
+    if (btif_media_cb.max_bitpool <= BTIF_A2DP_MAX_BITPOOL_MQ)
+    {
+        APPL_TRACE_IMP("Restricting streaming MTU size for MQ Bitpool");
+        btif_media_cb.TxAaMtuSize = MAX_2MBPS_AVDTP_MTU;
+    }
 
     param[0] = VS_QHCI_WRITE_A2DP_MEDIA_CHANNEL_CFG;
     param[1] = 0; /*needs to send index for multi A2dp*/
