@@ -58,6 +58,7 @@ static void bta_dm_inq_results_cb(tBTM_INQ_RESULTS* p_inq, uint8_t* p_eir,
 static void bta_dm_inq_cmpl_cb(void* p_result);
 static void bta_dm_service_search_remname_cback(BD_ADDR bd_addr, DEV_CLASS dc,
                                                 BD_NAME bd_name);
+static void bta_dm_rem_name_cback(BD_ADDR bd_addr, DEV_CLASS dc, BD_NAME bd_name);
 static void bta_dm_remname_cback(tBTM_REMOTE_DEV_NAME* p_remote_name);
 static void bta_dm_find_services(BD_ADDR bd_addr);
 static void bta_dm_discover_next_device(void);
@@ -284,6 +285,9 @@ void bta_dm_enable(tBTA_DM_MSG* p_data) {
   /* first, register our callback to SYS HW manager */
   bta_sys_hw_register(BTA_SYS_HW_BLUETOOTH, bta_dm_sys_hw_cback);
 
+  /* Register callback with btm layer for remote name */
+  BTM_SecAddRmtNameNotifyCallback(&bta_dm_rem_name_cback);
+
   /* make sure security callback is saved - if no callback, do not erase the
   previous one,
   it could be an error recovery mechanism */
@@ -501,6 +505,9 @@ void bta_dm_disable(UNUSED_ATTR tBTA_DM_MSG* p_data) {
 
   /* disable all active subsystems */
   bta_sys_disable(BTA_SYS_HW_BLUETOOTH);
+
+  /* De-register callback with btm layer for remote name */
+  BTM_SecDeleteRmtNameNotifyCallback(&bta_dm_rem_name_cback);
 
   BTM_SetDiscoverability(BTM_NON_DISCOVERABLE, 0, 0);
   BTM_SetConnectability(BTM_NON_CONNECTABLE, 0, 0);
@@ -2366,6 +2373,32 @@ static void bta_dm_inq_cmpl_cb(void* p_result) {
 }
 
 /*******************************************************************************
+**
+** Function         bta_dm_rem_name_cback
+**
+** Description      Remote name call back from BTM when remote name is retrieved successfully
+**
+** Returns          void
+**
+*******************************************************************************/
+static void bta_dm_rem_name_cback (BD_ADDR bd_addr, DEV_CLASS dc, BD_NAME bd_name)
+{
+  tBTA_DM_SEC sec_event;
+
+  APPL_TRACE_DEBUG("bta_dm_rem_name_cback name=<%s>", bd_name);
+
+  if (strlen((char*)bd_name) > (BD_NAME_LEN-1)){
+    sec_event.rem_name_evt.bd_name[(BD_NAME_LEN-1)] = 0;
+  }
+  bdcpy(sec_event.rem_name_evt.bd_addr, bd_addr);
+  strlcpy((char*)sec_event.rem_name_evt.bd_name, (char*)bd_name, BD_NAME_LEN);
+  if(bta_dm_cb.p_sec_cback){
+    bta_dm_cb.p_sec_cback(BTA_DM_REM_NAME_EVT, &sec_event);
+  }
+}
+
+
+/*******************************************************************************
  *
  * Function         bta_dm_service_search_remname_cback
  *
@@ -2687,7 +2720,10 @@ static uint8_t bta_dm_authentication_complete_cback(
     if (bta_dm_cb.p_sec_cback)
       bta_dm_cb.p_sec_cback(BTA_DM_AUTH_CMPL_EVT, &sec_event);
 
-    if (result != HCI_ERR_LMP_RESPONSE_TIMEOUT &&
+    if ((result == HCI_ERR_KEY_MISSING) && btm_is_sm4_dev(bd_addr)) {
+      APPL_TRACE_WARNING(
+              "bta_dm_authentication_complete_cback: sm4 device dont delete security record");
+    } else if (result != HCI_ERR_LMP_RESPONSE_TIMEOUT &&
         result != HCI_ERR_PAGE_TIMEOUT &&
         result != HCI_ERR_CONN_FAILED_ESTABLISHMENT) {
       bta_dm_remove_sec_dev_entry(bd_addr);
@@ -3028,6 +3064,12 @@ void bta_dm_acl_change(tBTA_DM_MSG* p_data) {
 
   tBTA_DM_PEER_DEVICE* p_dev;
   memset(&conn, 0, sizeof(tBTA_DM_SEC));
+
+  if(!bta_dm_cb.is_bta_dm_active) {
+    APPL_TRACE_ERROR("%s Ignore event: %d, bta dm is not in initialized state.",
+            __func__, p_data->acl_change.event);
+    return;
+  }
 
   switch (p_data->acl_change.event) {
     case BTM_BL_UPDATE_EVT: /* busy level update */

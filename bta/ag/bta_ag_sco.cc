@@ -37,15 +37,20 @@
 #include "device/include/esco_parameters.h"
 #include "osi/include/osi.h"
 #include "utl.h"
+#include "osi/include/properties.h"
 
 #ifndef BTA_AG_SCO_DEBUG
 #define BTA_AG_SCO_DEBUG FALSE
 #endif
 
+bool sco_init_rmt_xfer = false;
+
 /* Codec negotiation timeout */
 #ifndef BTA_AG_CODEC_NEGOTIATION_TIMEOUT_MS
 #define BTA_AG_CODEC_NEGOTIATION_TIMEOUT_MS (5 * 1000) /* 3 seconds */
 #endif
+
+static char value[PROPERTY_VALUE_MAX];
 
 extern fixed_queue_t* btu_bta_alarm_queue;
 
@@ -165,7 +170,9 @@ static void bta_ag_sco_disc_cback(uint16_t sco_idx) {
     if (bta_ag_cb.sco.p_curr_scb->inuse_codec == BTA_AG_CODEC_MSBC) {
       /* Bypass vendor specific and voice settings if enhanced eSCO supported */
       if (!(controller_get_interface()
-                ->supports_enhanced_setup_synchronous_connection())) {
+                ->supports_enhanced_setup_synchronous_connection() &&
+            (osi_property_get("qcom.bluetooth.soc", value, "qcombtsoc") &&
+             strcmp(value, "cherokee") == 0))) {
 #if (BLUETOOTH_QTI_SW == FALSE) /* This change is not needed.*/
         BTM_WriteVoiceSettings(BTM_VOICE_SETTING_CVSD);
 #endif
@@ -487,7 +494,9 @@ static void bta_ag_create_pending_sco(tBTA_AG_SCB* p_scb, bool is_local) {
 
     /* Bypass voice settings if enhanced SCO setup command is supported */
     if (!(controller_get_interface()
-              ->supports_enhanced_setup_synchronous_connection())) {
+              ->supports_enhanced_setup_synchronous_connection() &&
+          (osi_property_get("qcom.bluetooth.soc", value, "qcombtsoc") &&
+           strcmp(value, "cherokee") == 0))) {
 #if (BLUETOOTH_QTI_SW == FALSE) /* These changes are not needed*/
       if (esco_codec == BTA_AG_CODEC_MSBC)
         BTM_WriteVoiceSettings(BTM_VOICE_SETTING_TRANS);
@@ -716,8 +725,15 @@ static void bta_ag_sco_event(tBTA_AG_SCB* p_scb, uint8_t event) {
 
         case BTA_AG_SCO_XFER_E:
           /* save xfer scb */
-          p_sco->p_xfer_scb = p_scb;
-          p_sco->state = BTA_AG_SCO_CLOSE_XFER_ST;
+          if (!sco_init_rmt_xfer) {
+              p_sco->p_xfer_scb = p_scb;
+              p_sco->state = BTA_AG_SCO_CLOSE_XFER_ST;
+          } else {
+              //IGN SCO XFER if it is in the middle
+              //remote initiated transfer
+              APPL_TRACE_WARNING("%s:Ignoring SCO XFER @ state: %d",
+                                            __func__, p_sco->state);
+          }
           break;
 
         case BTA_AG_SCO_SHUTDOWN_E:
@@ -767,9 +783,16 @@ static void bta_ag_sco_event(tBTA_AG_SCB* p_scb, uint8_t event) {
           break;
 
         case BTA_AG_SCO_XFER_E:
-          /* save xfer scb */
-          p_sco->p_xfer_scb = p_scb;
-          p_sco->state = BTA_AG_SCO_CLOSE_XFER_ST;
+          if (!sco_init_rmt_xfer) {
+              /* save xfer scb */
+              p_sco->p_xfer_scb = p_scb;
+              p_sco->state = BTA_AG_SCO_CLOSE_XFER_ST;
+          } else {
+              //IGN SCO XFER if it is in the middle
+              //remote initiated transfer
+              APPL_TRACE_WARNING("%s:Ignoring SCO XFER @ state: %d",
+                                               __func__, p_sco->state);
+          }
           break;
 
         case BTA_AG_SCO_CLOSE_E:
@@ -792,6 +815,7 @@ static void bta_ag_sco_event(tBTA_AG_SCB* p_scb, uint8_t event) {
 
         case BTA_AG_SCO_CONN_OPEN_E:
           p_sco->state = BTA_AG_SCO_OPEN_ST;
+          sco_init_rmt_xfer = false;
           break;
 
         case BTA_AG_SCO_CONN_CLOSE_E:
@@ -881,6 +905,7 @@ static void bta_ag_sco_event(tBTA_AG_SCB* p_scb, uint8_t event) {
           p_sco->p_curr_scb = p_sco->p_xfer_scb;
           p_sco->cur_idx = p_sco->p_xfer_scb->sco_idx;
           p_sco->p_xfer_scb = NULL;
+          sco_init_rmt_xfer = true;
           break;
 
         default:
