@@ -1353,36 +1353,8 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
                         }
                         else
                         {
-                            bt_property_t prop_name;
-                            bt_bdname_t bdname;
-                            BOOLEAN is_device_blacklisted = FALSE;
-                            BOOLEAN remote_name = FALSE;
-                            BTIF_STORAGE_FILL_PROPERTY(&prop_name, BT_PROPERTY_BDNAME,
-                                                       sizeof(bt_bdname_t), &bdname);
-                            if (btif_storage_get_remote_device_property(&btif_av_cb[index].peer_bda, &prop_name)
-                                                                        == BT_STATUS_SUCCESS)
-                            {
-                                remote_name = TRUE;
-                            }
-                            // did we find a match with bd_addr
-                            is_device_blacklisted = interop_match_addr(INTEROP_REMOTE_AVDTP_START,
-                                                                  &btif_av_cb[index].peer_bda);
-                            // if bd_aadr match not found, then check name
-                            if((remote_name) && (!is_device_blacklisted)) {
-                                is_device_blacklisted |= interop_match_name
-                                         (INTEROP_REMOTE_AVDTP_START, (const char *)bdname.name);
-                            }
-                            if (!is_device_blacklisted)
-                            {
-                                BTIF_TRACE_DEBUG("%s: trigger suspend as remote initiated!!",
-                                    __FUNCTION__);
-                                btif_dispatch_sm_event(BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL, 0);
-                            }
-                            else
-                            {
-                                BTIF_TRACE_DEBUG("%s: honor remote started for BL device",__FUNCTION__);
-                                btif_a2dp_on_remote_started();
-                            }
+                            BTIF_TRACE_DEBUG("%s: honor remote started for BL device",__FUNCTION__);
+                            btif_a2dp_on_remote_started();
                         }
                     }
                 }
