@@ -476,7 +476,7 @@ BOOLEAN btif_media_task_clear_track(void);
 
 static void btif_media_task_aa_handle_timer(UNUSED_ATTR void *context);
 static void btif_media_task_avk_handle_timer(UNUSED_ATTR void *context);
-extern BOOLEAN btif_hf_is_call_idle();
+extern BOOLEAN btif_hf_is_call_vr_idle();
 extern int btif_get_latest_playing_device_idx();
 extern tBTA_AV_HNDL btif_av_get_playing_device_hdl();
 extern int btif_get_num_playing_devices();
@@ -739,7 +739,7 @@ static void btif_recv_ctrl_data(void)
                 a2dp_cmd_acknowledge(A2DP_CTRL_ACK_FAILURE);
                 return;
             }
-            if (bt_split_a2dp_enabled && !btif_hf_is_call_idle())
+            if (bt_split_a2dp_enabled && !btif_hf_is_call_vr_idle())
             {
                 a2dp_cmd_acknowledge(A2DP_CTRL_ACK_INCALL_FAILURE);
                 return;
@@ -774,7 +774,7 @@ static void btif_recv_ctrl_data(void)
             /* Don't sent START request to stack while we are in call.
                Some headsets like the Sony MW600, don't allow AVDTP START
                in call and respond BAD_STATE. */
-            if (!btif_hf_is_call_idle())
+            if (!btif_hf_is_call_vr_idle())
             {
                 a2dp_cmd_acknowledge(A2DP_CTRL_ACK_INCALL_FAILURE);
                 break;
@@ -1088,7 +1088,7 @@ static void btif_recv_ctrl_data(void)
             a2dp_cmd_acknowledge(A2DP_CTRL_ACK_SUCCESS);
             break;
         case A2DP_CTRL_GET_CONNECTION_STATUS:
-            if (btif_av_is_connected())
+            if (btif_av_is_connected() && media_task_running != MEDIA_TASK_STATE_SHUTTING_DOWN)
             {
                 BTIF_TRACE_DEBUG("got valid connection");
                 a2dp_cmd_acknowledge(A2DP_CTRL_ACK_SUCCESS);
@@ -2113,6 +2113,8 @@ static void btif_media_thread_init(UNUSED_ATTR void *context) {
 static void btif_media_thread_cleanup(UNUSED_ATTR void *context) {
   APPL_TRACE_IMP(" btif_media_thread_cleanup");
 
+  APPL_TRACE_IMP(" before close the UIPC channnel, ack the pending cmd.");
+  a2dp_cmd_acknowledge(A2DP_CTRL_ACK_SUCCESS);
   /* this calls blocks until uipc is fully closed */
   UIPC_Close(UIPC_CH_ID_ALL);
 
@@ -2225,14 +2227,20 @@ static void btif_media_thread_handle_cmd(fixed_queue_t *queue, UNUSED_ATTR void 
         btif_media_cb.tx_enc_update_initiated = FALSE;
         break;
     case BTIF_MEDIA_START_VS_CMD:
-        if (!btif_media_cb.tx_started
+        if (!btif_hf_is_call_vr_idle())
+        {
+            APPL_TRACE_IMP("ignore VS start request as Call is not idle.");
+        }
+        else if (!btif_media_cb.tx_started
              && (!btif_media_cb.tx_start_initiated || btif_media_cb.tx_enc_update_initiated))
         {
             btif_a2dp_encoder_update();
             btif_media_start_vendor_command();
         }
         else
+        {
             APPL_TRACE_IMP("ignore VS start request");
+        }
         break;
     case BTIF_MEDIA_STOP_VS_CMD:
         if (btif_media_cb.tx_started && !btif_media_cb.tx_stop_initiated)
@@ -3668,7 +3676,15 @@ static void btif_media_task_aa_stop_tx(void)
         {
             if (btif_media_cb.a2dp_cmd_pending == A2DP_CTRL_CMD_STOP ||
                 btif_media_cb.a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND)
+            {
+                BTIF_TRACE_DEBUG("Ack Pending Stop/Suspend");
                 a2dp_cmd_acknowledge(A2DP_CTRL_ACK_SUCCESS);
+            }
+            else if (btif_media_cb.a2dp_cmd_pending == A2DP_CTRL_CMD_START)
+            {
+                BTIF_TRACE_ERROR("Ack Pending Start while Disconnect in Progress");
+                a2dp_cmd_acknowledge(A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS);
+            }
             else
             {
                 BTIF_TRACE_ERROR("Invalid cmd pending for ack");
