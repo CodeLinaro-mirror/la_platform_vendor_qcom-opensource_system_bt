@@ -28,6 +28,8 @@
 #include <stdio.h>
 #include <stddef.h>
 
+#include <log/log.h>
+
 #include "bt_types.h"
 #include "bt_utils.h"
 #include "btm_ble_api.h"
