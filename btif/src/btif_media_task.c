@@ -4122,6 +4122,9 @@ size_t *btif_media_writebuf_vendor(bt_bdaddr_t *bd_addr, const void* buffer, siz
             fixed_queue_enqueue(btif_media_cb.TxAaQ, p_buf);
         }else {
             APPL_TRACE_DEBUG("### discarded frame ###");
+            while(fixed_queue_length(btif_media_cb.TxAaQ) == 0) {
+                osi_free(fixed_queue_try_dequeue(btif_media_cb.TxAaQ));
+            }
             return 0;
         }
         bta_av_ci_src_data_ready(BTA_AV_CHNL_AUDIO);
