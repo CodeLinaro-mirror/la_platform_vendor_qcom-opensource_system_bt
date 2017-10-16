@@ -51,6 +51,10 @@ c_sources = \
         src/packet_fragmenter.c \
         src/vendor.c
 
+h_sources= \
+	include/bt_vendor_lib.h \
+	include/bt_hci_bdroid.h
+
 common_LDFLAGS = -lpthread -lrt
 common_CFLAGS =  $(AM_CFLAGS) -fPIC -D_GNU_SOURCE -DBTSNOOP_DEFAULT=TRUE -DBT_NET_DEBUG=TRUE
 
