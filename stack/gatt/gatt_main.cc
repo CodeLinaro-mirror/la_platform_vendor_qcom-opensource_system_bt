@@ -175,9 +175,7 @@ void gatt_free(void) {
   }
 
   gatt_cb.hdl_list_info->clear();
-  gatt_cb.hdl_list_info = nullptr;
   gatt_cb.srv_list_info->clear();
-  gatt_cb.srv_list_info = nullptr;
 }
 
 /*******************************************************************************
@@ -253,6 +251,30 @@ bool gatt_disconnect(tGATT_TCB* p_tcb) {
   }
 
   return ret;
+}
+
+/*******************************************************************************
+**
+** Function         gatt_is_app_holding_link
+**
+** Description      Checks whether the application holds the link
+**
+** Returns          true if the app holds the link, false otherwise.
+**
+*******************************************************************************/
+bool gatt_is_app_holding_link(tGATT_IF gatt_if, tGATT_TCB *p_tcb)
+{
+  if(p_tcb) {
+    for (int i = 0; i < GATT_MAX_APPS; i++) {
+      if (p_tcb->app_hold_link[i] == gatt_if) {
+        GATT_TRACE_DEBUG("%s: gatt_if %d exists at idx %d", __func__, gatt_if, i);
+        return true;
+      }
+    }
+  }
+
+  GATT_TRACE_DEBUG("%s: gatt_if=%d not found;", __func__, gatt_if);
+  return false;
 }
 
 /*******************************************************************************

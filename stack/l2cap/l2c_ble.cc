@@ -51,6 +51,14 @@ static void l2cble_start_conn_update(tL2C_LCB* p_lcb);
  ******************************************************************************/
 bool L2CA_CancelBleConnectReq(BD_ADDR rem_bda) {
   tL2C_LCB* p_lcb;
+  tACL_CONN* p_acl = NULL;
+
+  p_acl = btm_bda_to_acl(rem_bda, BT_TRANSPORT_LE);
+  if(p_acl) {
+    L2CAP_TRACE_WARNING("%s - disconnecting the LE link", __func__);
+    btm_sec_disconnect(p_acl->hci_handle, HCI_ERR_CONN_CAUSE_LOCAL_HOST);
+    return (true);
+  }
 
   /* There can be only one BLE connection request outstanding at a time */
   if (btm_ble_get_conn_st() == BLE_CONN_IDLE) {
@@ -292,6 +300,7 @@ void l2cble_scanner_conn_comp(uint16_t handle, BD_ADDR bda, tBLE_ADDR_TYPE type,
     if (!p_lcb) {
       btm_sec_disconnect(handle, HCI_ERR_NO_CONNECTION);
       L2CAP_TRACE_ERROR("l2cble_scanner_conn_comp - failed to allocate LCB");
+      btm_ble_set_conn_st(BLE_CONN_IDLE);
       return;
     } else {
       if (!l2cu_initialize_fixed_ccb(
@@ -300,12 +309,14 @@ void l2cble_scanner_conn_comp(uint16_t handle, BD_ADDR bda, tBLE_ADDR_TYPE type,
                    .fixed_chnl_opts)) {
         btm_sec_disconnect(handle, HCI_ERR_NO_CONNECTION);
         L2CAP_TRACE_WARNING("l2cble_scanner_conn_comp - LCB but no CCB");
+        btm_ble_set_conn_st(BLE_CONN_IDLE);
         return;
       }
     }
   } else if (p_lcb->link_state != LST_CONNECTING) {
     L2CAP_TRACE_ERROR("L2CAP got BLE scanner conn_comp in bad state: %d",
                       p_lcb->link_state);
+    btm_ble_set_conn_st(BLE_CONN_IDLE);
     return;
   }
   alarm_cancel(p_lcb->l2c_lcb_timer);
