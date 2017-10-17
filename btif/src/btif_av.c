@@ -558,6 +558,11 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
         case BTA_AV_REGISTER_EVT:
             BTIF_TRACE_EVENT("The AV Handle:%d", ((tBTA_AV*)p_data)->registr.hndl);
             btif_av_cb[index].bta_handle = ((tBTA_AV*)p_data)->registr.hndl;
+            if (btif_max_av_clients == index + 1) {
+                if (bt_av_src_vendor_callbacks != NULL) {
+                    HAL_CBACK(bt_av_src_vendor_callbacks, registration_vendor_cb, TRUE);
+                }
+            }
             break;
 
            /*
@@ -733,6 +738,15 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
             }
             btif_queue_advance();
         } break;
+
+        case BTA_AV_MTU_CONFIG_EVT:
+        {
+            tBTA_AV *p_bta_data = (tBTA_AV*)p_data;
+            BTIF_TRACE_DEBUG("event: BTA_AV_MTU_CONFIG_EVT");
+            HAL_CBACK(bt_av_src_vendor_callbacks, mtu_packettype_cb, p_bta_data->mtu_config.mtu,
+                p_bta_data->mtu_config.packet_type,&btif_av_cb[index].peer_bda);
+        }
+            break;
 
         case BTA_AV_REMOTE_CMD_EVT:
         case BTA_AV_VENDOR_CMD_EVT:
@@ -989,7 +1003,7 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
             /* avdtp link is closed */
             /* Check if any other device is playing
             * and this is not the one.*/
-            if (!btif_av_is_playing())
+            if (!btif_av_is_playing() && (pump_encoded_data == 0))
             {
                 btif_a2dp_on_stopped(NULL);
             }
@@ -1135,7 +1149,8 @@ static BOOLEAN btif_av_state_closing_handler(btif_sm_event_t event, void *p_data
                     /* immediately flush any pending tx frames while suspend is pending */
                     APPL_TRACE_WARNING("Stop the AV Data channel");
                     btif_a2dp_set_tx_flush(TRUE);
-                    btif_a2dp_on_stopped(NULL);
+                    if(!pump_encoded_data)
+                        btif_a2dp_on_stopped(NULL);
                 }
             }
             if (btif_av_cb[index].peer_sep == AVDT_TSEP_SRC)
@@ -1373,13 +1388,18 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
                 /* In case peer is A2DP SRC we do not want to ack commands on UIPC */
                 if (btif_av_cb[index].peer_sep == AVDT_TSEP_SNK)
                 {
-                    if (btif_a2dp_on_started(&p_av->start,
-                        ((btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START) != 0),
-                        btif_av_cb[index].bta_handle))
+                    if(pump_encoded_data == 0)
                     {
-                        /* only clear pending flag after acknowledgement */
-                        btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
+                        if (btif_a2dp_on_started(&p_av->start,
+                            ((btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START) != 0),
+                            btif_av_cb[index].bta_handle))
+                        {
+                            /* only clear pending flag after acknowledgement */
+                            btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
+                        }
                     }
+                    else
+                        btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
                 }
                 /* Clear dual handoff flag */
                 for (i = 0; i < btif_max_av_clients; i++)
@@ -1421,13 +1441,15 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
                      APPL_TRACE_WARNING("Suspend the AV Data channel");
                      /* ensure tx frames are immediately suspended */
                      btif_a2dp_set_tx_flush(TRUE);
-                     btif_media_task_stop_aa_req();
+                     if(!pump_encoded_data)
+                        btif_media_task_stop_aa_req();
                  }
              }
              else
              {
                  APPL_TRACE_WARNING("Stop the AV Data channel");
-                 btif_a2dp_on_stopped(NULL);
+                 if(!pump_encoded_data)
+                    btif_a2dp_on_stopped(NULL);
              }
 
             /* inform the application that we are disconnected */
@@ -1550,18 +1572,22 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
             /*Ack from entry point of started handler instead of open state to avoid race condition*/
             if (btif_av_cb[index].peer_sep == AVDT_TSEP_SNK)
             {
-                if (btif_a2dp_on_started(&p_av->start,
-                    ((btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START) != 0),
-                      btif_av_cb[index].bta_handle))
+                if(pump_encoded_data == 0)
                 {
-                    /* only clear pending flag after acknowledgement */
-                    btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
+                    if (btif_a2dp_on_started(&p_av->start,
+                        ((btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START) != 0),
+                          btif_av_cb[index].bta_handle))
+                    {
+                        /* only clear pending flag after acknowledgement */
+                        btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
+                    }
                 }
+                else
+                    btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
             }
-
             /* Already changed state to started, send acknowledgement if start is pending */
             if (btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START) {
-                if (btif_av_cb[index].peer_sep == AVDT_TSEP_SNK)
+                if (btif_av_cb[index].peer_sep == AVDT_TSEP_SNK && (pump_encoded_data == 0))
                     btif_a2dp_on_started(NULL, TRUE, btif_av_cb[index].bta_handle);
                 btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
             }
@@ -1807,13 +1833,15 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
                     if (!bt_split_a2dp_enabled) {
                         btif_rc_send_pause_command();
                     }
-                    btif_a2dp_on_stopped(&p_av->suspend);
+                    if(!pump_encoded_data)
+                        btif_a2dp_on_stopped(&p_av->suspend);
                 }
             }
             else
             {
                 APPL_TRACE_WARNING("Stop the AV Data channel as no connection is present");
-                btif_a2dp_on_stopped(&p_av->suspend);
+                if(!pump_encoded_data)
+                    btif_a2dp_on_stopped(&p_av->suspend);
             }
             btif_av_cb[index].is_device_playing = FALSE;
 
@@ -1848,7 +1876,8 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
 
             /* avdtp link is closed */
             APPL_TRACE_WARNING("Stop the AV Data channel");
-            btif_a2dp_on_stopped(NULL);
+            if(!pump_encoded_data)
+                btif_a2dp_on_stopped(NULL);
 
             /* inform the application that we are disconnected */
             btif_report_connection_state(BTAV_CONNECTION_STATE_DISCONNECTED,
@@ -3780,15 +3809,17 @@ bt_status_t btif_av_execute_service(BOOLEAN b_enable)
         * auto-suspend av streaming on AG events(SCO or Call). The suspend shall
         * be initiated by the app/audioflinger layers */
 #ifndef ANDROID
-        UINT16 feat_delayrpt;
+        UINT16 feat_delayrpt,feat_EncodedData;
         if(enable_delay_reporting)
             feat_delayrpt = BTA_AV_FEAT_DELAY_RPT;
         else
             feat_delayrpt = 0x0;
+        if(pump_encoded_data)
+            feat_EncodedData = BTA_AV_FEAT_ENCODED_DATA;
 #if (AVRC_METADATA_INCLUDED == TRUE)
         BTA_AvEnable(BTA_SEC_AUTHENTICATE,
             BTA_AV_FEAT_RCTG|BTA_AV_FEAT_METADATA|BTA_AV_FEAT_VENDOR|BTA_AV_FEAT_NO_SCO_SSPD
-            |BTA_AV_FEAT_ACP_START | feat_delayrpt 
+            |BTA_AV_FEAT_ACP_START | feat_delayrpt | feat_EncodedData
 #if (AVRC_ADV_CTRL_INCLUDED == TRUE)
             |BTA_AV_FEAT_RCCT
             |BTA_AV_FEAT_ADV_CTRL
