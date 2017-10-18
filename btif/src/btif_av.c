@@ -3816,6 +3816,8 @@ bt_status_t btif_av_execute_service(BOOLEAN b_enable)
             feat_delayrpt = 0x0;
         if(pump_encoded_data)
             feat_EncodedData = BTA_AV_FEAT_ENCODED_DATA;
+        else
+            feat_EncodedData = 0x0;
 #if (AVRC_METADATA_INCLUDED == TRUE)
         BTA_AvEnable(BTA_SEC_AUTHENTICATE,
             BTA_AV_FEAT_RCTG|BTA_AV_FEAT_METADATA|BTA_AV_FEAT_VENDOR|BTA_AV_FEAT_NO_SCO_SSPD
