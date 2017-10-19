@@ -149,7 +149,7 @@ void bta_av_del_rc(tBTA_AV_RCB* p_rcb) {
       }
     }
 
-    APPL_TRACE_EVENT(
+    APPL_TRACE_IMP(
         "bta_av_del_rc  handle: %d status=0x%x, rc_acp_handle:%d, idx:%d",
         p_rcb->handle, p_rcb->status, bta_av_cb.rc_acp_handle,
         bta_av_cb.rc_acp_idx);
@@ -384,8 +384,8 @@ uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, uint8_t role, uint8_t shdl,
                      p_cb->rc_acp_idx);
   }
   APPL_TRACE_IMP(
-      "bta_av_rc_create %d, role: %d, shdl:%d, rc_handle:%d, lidx:%d, status:0x%x", i,
-      role, shdl, p_rcb->handle, lidx, p_rcb->status);
+      "%s create %d, role: %d, shdl:%d, rc_handle:%d, lidx:%d, status:0x%x",
+      __func__, i, role, shdl, p_rcb->handle, lidx, p_rcb->status);
 
   return rc_handle;
 }
@@ -1523,6 +1523,12 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
             /* Possible collision : need to avoid outgoing processing while the
              * timer is running */
             p_cb->p_scb[xx]->coll_mask = BTA_AV_COLL_INC_TMR;
+            APPL_TRACE_DEBUG("%s: AV signalling timer started for index = %d", __func__, xx);
+            APPL_TRACE_DEBUG("%s: Remote Addr: %02X:%02X:%02X:%02X:%02X:%02X", __func__,
+                             p_cb->p_scb[xx]->peer_addr[0], p_cb->p_scb[xx]->peer_addr[1],
+                             p_cb->p_scb[xx]->peer_addr[2], p_cb->p_scb[xx]->peer_addr[3],
+                             p_cb->p_scb[xx]->peer_addr[4], p_cb->p_scb[xx]->peer_addr[5]);
+
             alarm_set_on_queue(p_cb->accept_signalling_timer[xx],
                                BTA_AV_ACCEPT_SIGNALLING_TIMEOUT_MS,
                                bta_av_accept_signalling_timer_cback,
@@ -1632,8 +1638,11 @@ static void bta_av_accept_signalling_timer_cback(void* data) {
     p_scb = p_cb->p_scb[inx];
   }
   if (p_scb) {
-    APPL_TRACE_DEBUG("%s coll_mask = 0x%02X", __func__, p_scb->coll_mask);
-
+    APPL_TRACE_DEBUG("%s coll_mask = 0x%02X index = %d", __func__, p_scb->coll_mask, inx);
+    APPL_TRACE_DEBUG("%s: Remote Addr: %02X:%02X:%02X:%02X:%02X:%02X", __func__,
+                     p_scb->peer_addr[0], p_scb->peer_addr[1],
+                     p_scb->peer_addr[2], p_scb->peer_addr[3],
+                     p_scb->peer_addr[4], p_scb->peer_addr[5]);
     if (p_scb->coll_mask & BTA_AV_COLL_INC_TMR) {
       p_scb->coll_mask &= ~BTA_AV_COLL_INC_TMR;
 
