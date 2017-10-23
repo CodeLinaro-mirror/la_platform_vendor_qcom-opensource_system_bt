@@ -558,6 +558,11 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
         case BTA_AV_REGISTER_EVT:
             BTIF_TRACE_EVENT("The AV Handle:%d", ((tBTA_AV*)p_data)->registr.hndl);
             btif_av_cb[index].bta_handle = ((tBTA_AV*)p_data)->registr.hndl;
+            if (btif_max_av_clients == index + 1) {
+                if (bt_av_src_vendor_callbacks != NULL) {
+                    HAL_CBACK(bt_av_src_vendor_callbacks, registration_vendor_cb, TRUE);
+                }
+            }
             break;
 
            /*
@@ -3811,6 +3816,8 @@ bt_status_t btif_av_execute_service(BOOLEAN b_enable)
             feat_delayrpt = 0x0;
         if(pump_encoded_data)
             feat_EncodedData = BTA_AV_FEAT_ENCODED_DATA;
+        else
+            feat_EncodedData = 0x0;
 #if (AVRC_METADATA_INCLUDED == TRUE)
         BTA_AvEnable(BTA_SEC_AUTHENTICATE,
             BTA_AV_FEAT_RCTG|BTA_AV_FEAT_METADATA|BTA_AV_FEAT_VENDOR|BTA_AV_FEAT_NO_SCO_SSPD
