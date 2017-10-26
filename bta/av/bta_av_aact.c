@@ -70,6 +70,7 @@ extern BOOLEAN is_sniff_disabled;
 #define BTA_AV_RECONFIG_RETRY       6
 #endif
 
+static const size_t SBC_MIN_BITPOOL_OFFSET = 5;
 static const size_t SBC_MAX_BITPOOL_OFFSET = 6;
 
 #ifdef BTA_AV_SPLIT_A2DP_DEF_FREQ_48KHZ
@@ -2105,6 +2106,15 @@ void bta_av_getcap_results (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
                     "Clamping the codec bitpool configuration from %d to %d.", __func__,
                     cfg.codec_info[SBC_MAX_BITPOOL_OFFSET], SBC_MAX_BITPOOL);
             cfg.codec_info[SBC_MAX_BITPOOL_OFFSET] = SBC_MAX_BITPOOL;
+        }
+
+        if ((uuid_int == UUID_SERVCLASS_AUDIO_SOURCE) &&
+            (cfg.codec_info[SBC_MIN_BITPOOL_OFFSET] > cfg.codec_info[SBC_MAX_BITPOOL_OFFSET]))
+        {
+            APPL_TRACE_WARNING("%s min bitpool value received for SBC is more than DUT supported Max bitpool"
+                    "Clamping the max bitpool configuration further from %d to %d.", __func__,
+                    cfg.codec_info[SBC_MAX_BITPOOL_OFFSET], cfg.codec_info[SBC_MIN_BITPOOL_OFFSET]);
+            cfg.codec_info[SBC_MAX_BITPOOL_OFFSET] = cfg.codec_info[SBC_MIN_BITPOOL_OFFSET];
         }
 
         /* open the stream */
