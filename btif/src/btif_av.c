@@ -28,7 +28,7 @@
 #include <system/audio.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_av.h>
-
+#include "btif_storage.h"
 #include "bt_utils.h"
 #include "bta_api.h"
 #include "btif_media.h"
@@ -428,7 +428,12 @@ static void btif_av_collission_timer_timeout(UNUSED_ATTR void *data)
     bt_bdaddr_t *target_bda = &retry_bda;
     btif_sm_state_t av_state;
     BD_ADDR av_address;
-
+    if(!btif_storage_is_device_bonded(target_bda)){
+     BTIF_TRACE_IMP("btif_av_collission_timer_timeout: not bonded device ");
+     return;
+   }else{
+      BTIF_TRACE_IMP("btif_av_collission_timer_timeout: bonded device ");
+    }
     bdcpy(av_address, target_bda->address);
     av_state = btif_get_conn_state_of_device(av_address);
     BTIF_TRACE_IMP("btif_av_collission_timer_timeout: AV state: %d", av_state);
@@ -1377,7 +1382,20 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
                         else
                         {
                             BTIF_TRACE_DEBUG("%s: honor remote started for BL device",__FUNCTION__);
-                            btif_a2dp_on_remote_started();
+                            BD_ADDR playing_addr;
+                            memset(playing_addr, 0, sizeof(BD_ADDR));
+                            btif_rc_get_playing_device(playing_addr);
+                            if ((bdcmp(playing_addr, bd_addr_null) != 0) &&
+                                (btif_av_idx_by_bdaddr(playing_addr) < btif_max_av_clients) &&
+                                (btif_av_idx_by_bdaddr(playing_addr) == index))
+                            {
+                                BTIF_TRACE_DEBUG("%s: don't start remote started timer as play received ",__FUNCTION__);
+                            }
+                            else
+                            {
+                                BTIF_TRACE_DEBUG("%s: start remote started timer ",__FUNCTION__);
+                                btif_a2dp_on_remote_started();
+                            }
                         }
                     }
                 }
