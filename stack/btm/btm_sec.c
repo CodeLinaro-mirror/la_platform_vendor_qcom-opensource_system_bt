@@ -4298,6 +4298,10 @@ void btm_sec_encrypt_change (UINT16 handle, UINT8 status, UINT8 encr_enable)
         {
             btm_sec_disconnect(handle, status);
         }
+        else if (status == HCI_ERR_KEY_MISSING)
+        {
+            btm_sec_disconnect(handle, status);
+        }
         btm_ble_link_encrypted(p_dev_rec->ble.pseudo_addr, encr_enable);
         return;
     }

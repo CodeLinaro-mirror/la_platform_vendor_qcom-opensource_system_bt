@@ -37,6 +37,7 @@
 #include "stack/l2cap/l2c_int.h"
 #include "utl.h"
 #include "btm_int.h"
+#include "device/include/interop.h"
 
 #if (defined BTA_HH_LE_INCLUDED && BTA_HH_LE_INCLUDED == TRUE)
 #include "bta_hh_int.h"
@@ -896,7 +897,13 @@ void bta_gattc_set_discover_st(tBTA_GATTC_SERV *p_srcb)
     UINT8   i;
 
 #if BLE_INCLUDED == TRUE
-    L2CA_EnableUpdateBleConnParams(p_srcb->server_bda, FALSE);
+    BD_NAME bdname;
+
+    if (!BTM_GetRemoteDeviceName(p_srcb->server_bda, bdname) || !*bdname ||
+        (!interop_match_name(INTEROP_DISABLE_LE_CONN_UPDATES, (const char*)bdname)))
+    {
+        L2CA_EnableUpdateBleConnParams(p_srcb->server_bda, FALSE);
+    }
 #endif
     for (i = 0; i < BTA_GATTC_CLCB_MAX; i ++)
     {
@@ -966,6 +973,7 @@ void bta_gattc_cfg_mtu(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
 void bta_gattc_start_discover(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
 {
     UNUSED(p_data);
+    BD_NAME bdname;
 
     APPL_TRACE_DEBUG("bta_gattc_start_discover conn_id=%d p_clcb->p_srcb->state = %d ",
         p_clcb->bta_conn_id, p_clcb->p_srcb->state);
@@ -984,9 +992,13 @@ void bta_gattc_start_discover(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
             p_clcb->p_srcb->update_count = 0;
             p_clcb->p_srcb->state = BTA_GATTC_SERV_DISC_ACT;
 
-            if (p_clcb->transport == BTA_TRANSPORT_LE)
-                L2CA_EnableUpdateBleConnParams(p_clcb->p_srcb->server_bda, FALSE);
-
+            if (p_clcb->transport == BTA_TRANSPORT_LE) {
+                if (!BTM_GetRemoteDeviceName(p_clcb->p_srcb->server_bda, bdname) || !*bdname ||
+                    (!interop_match_name(INTEROP_DISABLE_LE_CONN_UPDATES, (const char*)bdname)))
+                {
+                    L2CA_EnableUpdateBleConnParams(p_clcb->p_srcb->server_bda, FALSE);
+                }
+            }
             /* set all srcb related clcb into discovery ST */
             bta_gattc_set_discover_st(p_clcb->p_srcb);
 
@@ -1031,12 +1043,18 @@ void bta_gattc_disc_cmpl(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
 {
     tBTA_GATTC_DATA *p_q_cmd = p_clcb->p_q_cmd;
     UNUSED(p_data);
+    BD_NAME bdname;
 
     APPL_TRACE_DEBUG("bta_gattc_disc_cmpl conn_id=%d",p_clcb->bta_conn_id);
 
 #if BLE_INCLUDED == TRUE
-    if(p_clcb->transport == BTA_TRANSPORT_LE)
-        L2CA_EnableUpdateBleConnParams(p_clcb->p_srcb->server_bda, TRUE);
+    if(p_clcb->transport == BTA_TRANSPORT_LE) {
+        if (!BTM_GetRemoteDeviceName(p_clcb->p_srcb->server_bda, bdname) || !*bdname ||
+            (!interop_match_name(INTEROP_DISABLE_LE_CONN_UPDATES, (const char*)bdname)))
+        {
+            L2CA_EnableUpdateBleConnParams(p_clcb->p_srcb->server_bda, TRUE);
+        }
+    }
 #endif
     p_clcb->p_srcb->state = BTA_GATTC_SERV_IDLE;
     p_clcb->disc_active = FALSE;
