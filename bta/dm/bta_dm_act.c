@@ -3297,6 +3297,11 @@ void bta_dm_acl_change(tBTA_DM_MSG *p_data)
             if(p_dev->info & BTA_DM_DI_AV_ACTIVE)
             {
                 /* there's AV activity on this link */
+                if ((p_data->acl_change.new_role == HCI_ROLE_SLAVE) &&
+                   (p_data->acl_change.hci_status == HCI_SUCCESS))
+                {
+                    BTM_SetA2dpStreamQoS(p_bda, NULL);
+                }
                 if(p_data->acl_change.new_role == HCI_ROLE_SLAVE && bta_dm_cb.device_list.count > 1
                     && p_data->acl_change.hci_status == HCI_SUCCESS)
                 {
