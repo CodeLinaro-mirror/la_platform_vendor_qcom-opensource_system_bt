@@ -1073,6 +1073,7 @@ static void gap_congestion_ind (UINT16 lcid, BOOLEAN is_congested)
     UINT16       event;
     BT_HDR      *p_buf;
     UINT8        status;
+    UINT16       policy_setting;
 
     GAP_TRACE_EVENT ("GAP_CONN - Rcvd L2CAP Is Congested (%d), CID: 0x%x",
                       is_congested, lcid);
@@ -1086,8 +1087,26 @@ static void gap_congestion_ind (UINT16 lcid, BOOLEAN is_congested)
     event = (is_congested) ? GAP_EVT_CONN_CONGESTED : GAP_EVT_CONN_UNCONGESTED;
     p_ccb->p_callback (p_ccb->gap_handle, event);
 
-    if (!is_congested)
+    if (is_congested)
     {
+        policy_setting =  btm_cb.btm_def_link_policy  &
+                         (HCI_ENABLE_MASTER_SLAVE_SWITCH |
+                          HCI_ENABLE_HOLD_MODE  |
+                          HCI_ENABLE_PARK_MODE);
+        BTM_SetLinkPolicy(p_ccb->rem_dev_address, &policy_setting);
+        p_ccb->is_link_policy_set = TRUE;
+    }
+    else
+    {
+        if (p_ccb->is_link_policy_set)
+        {
+            BTM_SetLinkPolicy(p_ccb->rem_dev_address, &btm_cb.btm_def_link_policy);
+            p_ccb->is_link_policy_set = FALSE;
+        }
+    }
+
+     if (!is_congested)
+     {
         while ((p_buf = (BT_HDR *)fixed_queue_try_dequeue(p_ccb->tx_queue)) != NULL)
         {
             status = L2CA_DATA_WRITE (p_ccb->connection_id, p_buf);
