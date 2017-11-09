@@ -1077,8 +1077,11 @@ void bta_gattc_disc_cmpl(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
 
     if (p_clcb->auto_update == BTA_GATTC_DISC_WAITING)
     {
+     if (p_q_cmd !=NULL)
+        p_clcb->p_q_cmd = NULL;
         /* start discovery again */
         bta_gattc_sm_execute(p_clcb, BTA_GATTC_INT_DISCOVER_EVT, NULL);
+        p_clcb->p_q_cmd = p_q_cmd;
     }
     /* get any queued command to proceed */
     else if (p_q_cmd != NULL)
