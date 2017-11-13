@@ -97,6 +97,7 @@ static inline void logu(const char* title, const uint8_t * p_uuid)
 static tBTA_JV_PCB * bta_jv_add_rfc_port(tBTA_JV_RFC_CB *p_cb, tBTA_JV_PCB *p_pcb_open);
 static tBTA_JV_STATUS bta_jv_free_set_pm_profile_cb(UINT32 jv_handle);
 static void bta_jv_pm_conn_busy(tBTA_JV_PM_CB *p_cb);
+static void bta_jv_pm_conn_congested(tBTA_JV_L2C_CB* p_cb);
 static void bta_jv_pm_conn_idle(tBTA_JV_PM_CB *p_cb);
 static void bta_jv_pm_state_change(tBTA_JV_PM_CB *p_cb, const tBTA_JV_CONN_STATE state);
 tBTA_JV_STATUS bta_jv_set_pm_conn_state(tBTA_JV_PM_CB *p_cb, const tBTA_JV_CONN_STATE
@@ -1038,7 +1039,9 @@ static void bta_jv_l2cap_client_cback(UINT16 gap_handle, UINT16 event)
 
     case GAP_EVT_CONN_CONGESTED:
     case GAP_EVT_CONN_UNCONGESTED:
-        p_cb->cong = (event == GAP_EVT_CONN_CONGESTED) ? TRUE : FALSE;
+        p_cb->p_pm_cb->cong = p_cb->cong = (event == GAP_EVT_CONN_CONGESTED) ? TRUE : FALSE;
+        if (p_cb->cong == TRUE)
+            bta_jv_pm_conn_congested(p_cb);
         evt_data.l2c_cong.cong = p_cb->cong;
         p_cb->p_cback(BTA_JV_L2CAP_CONG_EVT, &evt_data, p_cb->user_data);
         break;
@@ -1213,7 +1216,9 @@ static void bta_jv_l2cap_server_cback(UINT16 gap_handle, UINT16 event)
 
     case GAP_EVT_CONN_CONGESTED:
     case GAP_EVT_CONN_UNCONGESTED:
-        p_cb->cong = (event == GAP_EVT_CONN_CONGESTED) ? TRUE : FALSE;
+        p_cb->p_pm_cb->cong = p_cb->cong = (event == GAP_EVT_CONN_CONGESTED) ? TRUE : FALSE;
+        if (p_cb->cong == TRUE)
+            bta_jv_pm_conn_congested(p_cb);
         evt_data.l2c_cong.cong = p_cb->cong;
         p_cb->p_cback(BTA_JV_L2CAP_CONG_EVT, &evt_data, p_cb->user_data);
         break;
@@ -2208,6 +2213,25 @@ static void bta_jv_pm_conn_busy(tBTA_JV_PM_CB *p_cb)
     }
 }
 
+ /*******************************************************************************
+ **
+ ** Function    bta_jv_pm_conn_congested
+ **
+ ** Description set pm connection congested state (input param safe)
+ **
+ ** Params      p_cb: pm control block of jv connection
+ **
+ ** Returns     void
+ **
+ *******************************************************************************/
+static void bta_jv_pm_conn_congested(tBTA_JV_L2C_CB* p_cb)
+{
+    if ((NULL != p_cb) && (NULL != p_cb->p_pm_cb))
+    {
+        bta_jv_pm_state_change(p_cb->p_pm_cb, BTA_JV_CONN_BUSY);
+        APPL_TRACE_DEBUG("bta_jv_pm_conn_congested");
+    }
+}
 /*******************************************************************************
  **
  ** Function    bta_jv_pm_conn_busy
@@ -2721,6 +2745,12 @@ void bta_jv_idle_timeout_handler(void *tle) {
     APPL_TRACE_DEBUG("%s p_cb: %p", __func__, p_cb);
 
     if (NULL != p_cb) {
+        if (p_cb->cong == TRUE) {
+            p_cb->state = BTA_JV_PM_BUSY_ST;
+            bta_jv_pm_conn_idle(p_cb);
+            APPL_TRACE_WARNING("%s: %d", __func__, p_cb->cong);
+            return;
+        }
 
         tBTM_PM_MODE    mode = BTM_PM_MD_ACTIVE;
         if (BTM_ReadPowerMode(p_cb->peer_bd_addr, &mode) == BTM_SUCCESS) {
