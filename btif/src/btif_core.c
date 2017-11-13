@@ -80,6 +80,7 @@
 #define VENDOR_PAYLOAD_MAXLENGTH   (260)
 #define VENDOR_MAX_CMD_HDR_SIZE    (3)
 #define VENDOR_BD_ADDR_TYPE        (1)
+#define MAX_JNI_WORKQUEUE_COUNT    (1024)
 
 /************************************************************************************
 **  Local type definitions
@@ -125,8 +126,7 @@ static tBTA_SERVICE_MASK btif_enabled_services = 0;
 * To set this, the btif_init_bluetooth needs to be called with argument as 1
 */
 static UINT8 btif_dut_mode = 0;
-
-static thread_t *bt_jni_workqueue_thread;
+thread_t *bt_jni_workqueue_thread;
 static const char *BT_JNI_WORKQUEUE_NAME = "bt_jni_workqueue";
 static uid_set_t* uid_set = NULL;
 
@@ -515,7 +515,7 @@ bt_status_t btif_init_bluetooth() {
   memset(&btif_local_bd_addr, 0, sizeof(bt_bdaddr_t));
   btif_fetch_local_bdaddr(&btif_local_bd_addr);
 
-  bt_jni_workqueue_thread = thread_new(BT_JNI_WORKQUEUE_NAME);
+  bt_jni_workqueue_thread = thread_new_sized(BT_JNI_WORKQUEUE_NAME, MAX_JNI_WORKQUEUE_COUNT);
   if (bt_jni_workqueue_thread == NULL) {
     LOG_ERROR(LOG_TAG, "%s Unable to create thread %s", __func__, BT_JNI_WORKQUEUE_NAME);
     goto error_exit;
