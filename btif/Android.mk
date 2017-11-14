@@ -74,6 +74,11 @@ btifCommonSrc += \
   src/btif_gap.c \
   src/btif_smp.c
 
+ifeq ($(BLUETOOTH_FEATURE_ENABLED_IOT_LOGGING),true)
+btifCommonSrc += \
+  src/btif_iot_config.c
+endif
+
 # Callouts
 btifCommonSrc += \
   co/bta_ag_co.c \

@@ -66,6 +66,9 @@
 #include "stack_manager.h"
 #include "btif_config.h"
 #include "btif_storage.h"
+#ifdef BT_IOT_LOGGING_ENABLED
+#include "btif_iot_config.h"
+#endif
 #include "btif/include/btif_debug_btsnoop.h"
 #include "btif/include/btif_debug_conn.h"
 #include "btif/include/btif_media.h"
@@ -396,6 +399,9 @@ static void dump(int fd, const char **arguments)
     btif_debug_bond_event_dump(fd);
     btif_debug_a2dp_dump(fd);
     btif_debug_config_dump(fd);
+#ifdef BT_IOT_LOGGING_ENABLED
+    btif_debug_iot_config_dump(fd);
+#endif
     wakelock_debug_dump(fd);
     alarm_debug_dump(fd);
 #if defined(BTSNOOP_MEM) && (BTSNOOP_MEM == TRUE)
