@@ -42,6 +42,9 @@
 #include "btif_av.h"
 #include "btif_av_co.h"
 #include "btif_util.h"
+#ifdef BT_IOT_LOGGING_ENABLED
+#include "btif_iot_config.h"
+#endif
 #include "osi/include/mutex.h"
 #include "device/include/interop.h"
 
@@ -725,6 +728,46 @@ UINT8 bta_av_audio_sink_getconfig(tBTA_AV_HNDL hndl, tBTA_AV_CODEC codec_type,
     }
     return result;
 }
+
+#ifdef BT_IOT_LOGGING_ENABLED
+static void bta_av_co_store_peer_codectype(const tBTA_AV_CO_PEER *p_peer)
+{
+    int index, peer_codec_type = 0;
+    const tBTA_AV_CO_SINK *p_sink;
+    APPL_TRACE_DEBUG("%s", __func__);
+    for (index = 0; index < p_peer->num_sup_snks; index++) {
+        p_sink = &p_peer->snks[index];
+        switch (p_sink->codec_type)
+        {
+        case BTA_AV_CODEC_SBC:
+            peer_codec_type |= IOT_CONF_VAL_A2DP_CODECTYPE_SBC;
+            break;
+        case A2D_NON_A2DP_MEDIA_CT:
+        {
+            UINT16 codecId = ((tA2D_APTX_CIE*)(p_sink->codec_caps))->codecId;
+            UINT32 vendorId = ((tA2D_APTX_CIE*)(p_sink->codec_caps))->vendorId;
+            APPL_TRACE_DEBUG("%s codecId = %d", __func__, codecId );
+            APPL_TRACE_DEBUG("%s vendorId = %x", __func__, vendorId );
+
+            if (codecId ==  A2D_APTX_CODEC_ID_BLUETOOTH && vendorId == A2D_APTX_VENDOR_ID) {
+                peer_codec_type |= IOT_CONF_VAL_A2DP_CODECTYPE_APTX;
+            } else if (codecId ==  A2D_APTX_HD_CODEC_ID_BLUETOOTH && vendorId == A2D_APTX_HD_VENDOR_ID) {
+                peer_codec_type |= IOT_CONF_VAL_A2DP_CODECTYPE_APTXHD;
+            }
+            break;
+        }
+        case BTA_AV_CODEC_M24:
+            peer_codec_type |= IOT_CONF_VAL_A2DP_CODECTYPE_AAC;
+            break;
+        default:
+            break;
+        }
+    }
+
+    btif_iot_config_addr_set_hex(p_peer->addr, IOT_CONF_KEY_A2DP_CODECTYPE, peer_codec_type, 1);
+}
+#endif
+
 /*******************************************************************************
  **
  ** Function         bta_av_co_audio_getconfig
@@ -845,6 +888,9 @@ UINT8 bta_av_co_audio_getconfig(tBTA_AV_HNDL hndl, tBTA_AV_CODEC codec_type,
         (p_peer->num_sup_snks == BTA_AV_CO_NUM_ELEMENTS(p_peer->snks)))
     {
         APPL_TRACE_DEBUG("bta_av_co_audio_getconfig last sink reached");
+#ifdef BT_IOT_LOGGING_ENABLED
+        bta_av_co_store_peer_codectype(p_peer);
+#endif
 
         /* Protect access to bta_av_co_cb.codec_cfg */
         mutex_global_lock();

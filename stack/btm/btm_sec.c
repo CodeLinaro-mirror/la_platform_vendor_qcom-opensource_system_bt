@@ -37,6 +37,9 @@
 #include "btu.h"
 #include "hcimsgs.h"
 #include "l2c_int.h"
+#ifdef BT_IOT_LOGGING_ENABLED
+#include "btif/include/btif_iot_config.h"
+#endif
 
 #if (BT_USE_TRACES == TRUE && BT_TRACE_VERBOSE == FALSE)
 /* needed for sprintf() */
@@ -4824,6 +4827,12 @@ void btm_sec_disconnected (UINT16 handle, UINT8 reason)
             {
                 result = HCI_ERR_HOST_REJECT_SECURITY;
             }
+#ifdef BT_IOT_LOGGING_ENABLED
+            else
+            {
+                btif_iot_config_addr_int_add_one(p_dev_rec->bd_addr, IOT_CONF_KEY_GAP_DISC_AUTHFAIL_COUNT);
+            }
+#endif
             (*btm_cb.api.p_auth_complete_callback) (p_dev_rec->bd_addr,     p_dev_rec->dev_class,
                                                     p_dev_rec->sec_bd_name, result);
         }

@@ -35,7 +35,9 @@
 #include "hcidefs.h"
 #include "bt_utils.h"
 #include "device/include/controller.h"
-
+#ifdef BT_IOT_LOGGING_ENABLED
+#include "btif/include/btif_iot_config.h"
+#endif
 
 #if BTM_SCO_INCLUDED == TRUE
 
@@ -845,6 +847,10 @@ void btm_sco_conn_req (BD_ADDR bda,  DEV_CLASS dev_class, UINT8 link_type)
     UINT16      xx;
     tBTM_ESCO_CONN_REQ_EVT_DATA evt_data;
 
+#ifdef BT_IOT_LOGGING_ENABLED
+    btif_iot_config_addr_int_add_one(bda, IOT_CONF_KEY_HFP_SCO_CONN_COUNT);
+#endif
+
     for (xx = 0; xx < BTM_MAX_SCO_LINKS; xx++, p++)
     {
         /*
@@ -988,8 +994,13 @@ void btm_sco_connected (UINT8 hci_status, BD_ADDR bda, UINT16 hci_handle,
                         p->state = SCO_ST_UNUSED;
                         (*p->p_disc_cb)(xx);
                     }
-                    else
+                    else {
                         p->state = SCO_ST_LISTENING;
+#ifdef BT_IOT_LOGGING_ENABLED
+                        if (bda)
+                            btif_iot_config_addr_int_add_one(bda, IOT_CONF_KEY_HFP_SCO_CONN_FAIL_COUNT);
+#endif
+                    }
                 }
 
                 return;

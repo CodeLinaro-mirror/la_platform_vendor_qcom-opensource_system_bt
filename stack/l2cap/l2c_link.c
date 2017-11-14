@@ -42,6 +42,9 @@
 #include "btm_int.h"
 #include "btcore/include/bdaddr.h"
 #include "device/include/interop_config.h"
+#ifdef BT_IOT_LOGGING_ENABLED
+#include "btif/include/btif_iot_config.h"
+#endif
 
 extern fixed_queue_t *btu_general_alarm_queue;
 
@@ -376,6 +379,39 @@ void l2c_link_sec_comp (BD_ADDR p_bda, tBT_TRANSPORT transport, void *p_ref_data
     }
 }
 
+#ifdef BT_IOT_LOGGING_ENABLED
+/*******************************************************************************
+**
+** Function         l2c_link_iot_store_disc_reason
+**
+** Description      iot store disconnection reason to local conf file
+**
+** Returns          void
+**
+*******************************************************************************/
+static void l2c_link_iot_store_disc_reason (BD_ADDR bda, UINT8 reason)
+{
+    const char *disc_keys[] = {
+            IOT_CONF_KEY_GAP_DISC_CONNTIMEOUT_COUNT,
+        };
+    const UINT8 disc_reasons[] = {
+            HCI_ERR_CONNECTION_TOUT,
+        };
+    int i = 0;
+    int num = sizeof(disc_keys)/sizeof(disc_keys[0]);
+
+    if (reason == (UINT8) -1)
+        return;
+
+    btif_iot_config_addr_int_add_one(bda, IOT_CONF_KEY_GAP_DISC_COUNT);
+    for (i = 0; i < num; i++) {
+        if (disc_reasons[i] == reason) {
+            btif_iot_config_addr_int_add_one(bda, disc_keys[i]);
+            break;
+        }
+    }
+}
+#endif
 
 /*******************************************************************************
 **
@@ -405,6 +441,9 @@ BOOLEAN l2c_link_hci_disc_comp (UINT16 handle, UINT8 reason)
     }
     else
     {
+#ifdef BT_IOT_LOGGING_ENABLED
+        l2c_link_iot_store_disc_reason(p_lcb->remote_bd_addr, reason);
+#endif
         /* There can be a case when we rejected PIN code authentication */
         /* otherwise save a new reason */
         if (btm_cb.acl_disc_reason != HCI_ERR_HOST_REJECT_SECURITY)

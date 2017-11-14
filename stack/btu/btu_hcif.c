@@ -45,6 +45,9 @@
 #include "hci_layer.h"
 #include "hcimsgs.h"
 #include "l2c_int.h"
+#ifdef BT_IOT_LOGGING_ENABLED
+#include "btif/include/btif_iot_config.h"
+#endif
 
 // TODO(zachoverflow): remove this horrible hack
 #include "btu.h"
@@ -507,6 +510,10 @@ static void btu_hcif_connection_comp_evt (UINT8 *p)
         btm_sec_connected (bda, handle, status, enc_mode);
 
         l2c_link_hci_conn_comp (status, handle, bda);
+#ifdef BT_IOT_LOGGING_ENABLED
+        if (status != HCI_SUCCESS)
+            btif_iot_config_addr_int_add_one(bda, IOT_CONF_KEY_GAP_CONN_FAIL_COUNT);
+#endif
     }
 #if BTM_SCO_INCLUDED == TRUE
     else
@@ -543,6 +550,9 @@ static void btu_hcif_connection_request_evt (UINT8 *p)
     if (link_type == HCI_LINK_TYPE_ACL)
     {
         btm_sec_conn_req (bda, dc);
+#ifdef BT_IOT_LOGGING_ENABLED
+        btif_iot_config_addr_int_add_one(bda, IOT_CONF_KEY_GAP_CONN_COUNT);
+#endif
     }
 #if BTM_SCO_INCLUDED == TRUE
     else

@@ -47,6 +47,9 @@
 #include "osi/include/properties.h"
 #include "utl.h"
 #include "device/include/interop.h"
+#ifdef BT_IOT_LOGGING_ENABLED
+#include "btif/include/btif_iot_config.h"
+#endif
 
 #if ( defined BTA_AR_INCLUDED ) && (BTA_AR_INCLUDED == TRUE)
 #include "bta_ar_api.h"
@@ -367,6 +370,9 @@ UINT8 bta_av_rc_create(tBTA_AV_CB *p_cb, UINT8 role, UINT8 shdl, UINT8 lidx)
         p_scb = p_cb->p_scb[shdl - 1];
         bda = p_scb->peer_addr;
         status = BTA_AV_RC_ROLE_INT;
+#ifdef BT_IOT_LOGGING_ENABLED
+        btif_iot_config_addr_int_add_one(p_scb->peer_addr, IOT_CONF_KEY_AVRCP_CONN_COUNT);
+#endif
     }
     else
     {
@@ -384,8 +390,12 @@ UINT8 bta_av_rc_create(tBTA_AV_CB *p_cb, UINT8 role, UINT8 shdl, UINT8 lidx)
     /* note: BTA_AV_FEAT_RCTG = AVRC_CT_TARGET, BTA_AV_FEAT_RCCT = AVRC_CT_CONTROL */
     ccb.control = p_cb->features & (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_RCCT | AVRC_CT_PASSIVE);
 
-    if (AVRC_Open(&rc_handle, &ccb, bda) != AVRC_SUCCESS)
+    if (AVRC_Open(&rc_handle, &ccb, bda) != AVRC_SUCCESS) {
+#ifdef BT_IOT_LOGGING_ENABLED
+        btif_iot_config_addr_int_add_one(p_scb->peer_addr, IOT_CONF_KEY_AVRCP_CONN_FAIL_COUNT);
+#endif
         return BTA_AV_RC_HANDLE_NONE;
+    }
 
     i = rc_handle;
     p_rcb = &p_cb->rcb[i];
@@ -1905,6 +1915,36 @@ BOOLEAN bta_av_check_store_avrc_tg_version(BD_ADDR addr, UINT16 ver)
     return is_file_updated;
 }
 
+#ifdef BT_IOT_LOGGING_ENABLED
+static void bta_av_store_peer_rc_version()
+{
+    tBTA_AV_CB   *p_cb = &bta_av_cb;
+    tSDP_DISC_REC       *p_rec = NULL;
+    UINT16              peer_rc_version = 0; /*Assuming Default peer version as 1.3*/
+
+    if ((p_rec = SDP_FindServiceInDb(p_cb->p_disc_db, UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL)) != NULL) {
+        if ((SDP_FindAttributeInRec(p_rec, ATTR_ID_BT_PROFILE_DESC_LIST)) != NULL) {
+            /* get profile version (if failure, version parameter is not updated) */
+            SDP_FindProfileVersionInRec(p_rec, UUID_SERVCLASS_AV_REMOTE_CONTROL,
+                                                                &peer_rc_version);
+        }
+        if (peer_rc_version != 0)
+            btif_iot_config_addr_set_hex_if_greater(p_rec->remote_bd_addr, IOT_CONF_KEY_AVRCP_CTRL_VERSION, peer_rc_version, 2);
+    }
+
+    peer_rc_version = 0;
+    if ((p_rec = SDP_FindServiceInDb(p_cb->p_disc_db, UUID_SERVCLASS_AV_REM_CTRL_TARGET, NULL)) != NULL) {
+        if ((SDP_FindAttributeInRec(p_rec, ATTR_ID_BT_PROFILE_DESC_LIST)) != NULL) {
+            /* get profile version (if failure, version parameter is not updated) */
+            SDP_FindProfileVersionInRec(p_rec, UUID_SERVCLASS_AV_REMOTE_CONTROL,
+                                                                &peer_rc_version);
+        }
+        if (peer_rc_version != 0)
+            btif_iot_config_addr_set_hex_if_greater(p_rec->remote_bd_addr, IOT_CONF_KEY_AVRCP_TG_VERSION, peer_rc_version, 2);
+    }
+}
+#endif
+
 /*******************************************************************************
 **
 ** Function         bta_av_check_peer_features
@@ -2183,6 +2223,9 @@ void bta_av_rc_disc_done(tBTA_AV_DATA *p_data)
             peer_features |= bta_av_check_peer_features(UUID_SERVCLASS_AV_REM_CTRL_TARGET);
         }
     }
+#ifdef BT_IOT_LOGGING_ENABLED
+    bta_av_store_peer_rc_version();
+#endif
 
     p_cb->disc = 0;
     osi_free_and_reset((void **)&p_cb->p_disc_db);
@@ -2235,6 +2278,10 @@ void bta_av_rc_disc_done(tBTA_AV_DATA *p_data)
                 rc_open.status = BTA_AV_FAIL_SDP;
                 (*p_cb->p_cback)(BTA_AV_RC_OPEN_EVT, (tBTA_AV *) &rc_open);
             }
+#ifdef BT_IOT_LOGGING_ENABLED
+            if (peer_features != 0)
+                btif_iot_config_addr_set_hex(p_scb->peer_addr, IOT_CONF_KEY_AVRCP_FEATURES, peer_features, 2);
+#endif
         }
     }
     else
@@ -2257,6 +2304,10 @@ void bta_av_rc_disc_done(tBTA_AV_DATA *p_data)
         else
             bdcpy(rc_feat.peer_addr, p_scb->peer_addr);
         (*p_cb->p_cback)(BTA_AV_RC_FEAT_EVT, (tBTA_AV *) &rc_feat);
+#ifdef BT_IOT_LOGGING_ENABLED
+        if (peer_features != 0)
+            btif_iot_config_addr_set_hex(rc_feat.peer_addr, IOT_CONF_KEY_AVRCP_FEATURES, peer_features, 2);
+#endif
     }
 }
 

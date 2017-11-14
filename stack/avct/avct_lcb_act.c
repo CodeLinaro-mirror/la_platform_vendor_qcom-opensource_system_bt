@@ -30,6 +30,9 @@
 #include "avct_int.h"
 #include "bt_common.h"
 #include "btm_api.h"
+#ifdef BT_IOT_LOGGING_ENABLED
+#include "btif/include/btif_iot_config.h"
+#endif
 
 /* packet header length lookup table */
 const UINT8 avct_lcb_pkt_type_len[] = {
@@ -379,6 +382,9 @@ void avct_lcb_open_ind(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
     if (bind == FALSE)
     {
         AVCT_TRACE_DEBUG("avct_lcb_open_ind, send disconnect");
+#ifdef BT_IOT_LOGGING_ENABLED
+        btif_iot_config_addr_int_add_one(p_lcb->peer_addr, IOT_CONF_KEY_AVRCP_CONN_FAIL_COUNT);
+#endif
         avct_lcb_event(p_lcb, AVCT_LCB_INT_CLOSE_EVT, p_data);
     }
 }
@@ -457,6 +463,9 @@ void avct_lcb_open_fail(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
         {
             avct_ccb_dealloc(p_ccb, AVCT_CONNECT_CFM_EVT,
                              p_data->result, p_lcb->peer_addr);
+#ifdef BT_IOT_LOGGING_ENABLED
+            btif_iot_config_addr_int_add_one(p_lcb->peer_addr, IOT_CONF_KEY_AVRCP_CONN_FAIL_COUNT);
+#endif
         }
     }
 }
@@ -750,9 +759,14 @@ void avct_bcb_chnl_disc(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 *******************************************************************************/
 void avct_lcb_bind_fail(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 {
+#ifndef BT_IOT_LOGGING_ENABLED
     UNUSED(p_lcb);
+#endif
 
     avct_ccb_dealloc(p_data->p_ccb, AVCT_CONNECT_CFM_EVT, AVCT_RESULT_FAIL, NULL);
+#ifdef BT_IOT_LOGGING_ENABLED
+    btif_iot_config_addr_int_add_one(p_lcb->peer_addr, IOT_CONF_KEY_AVRCP_CONN_FAIL_COUNT);
+#endif
 }
 
 #if (AVCT_BROWSE_INCLUDED == TRUE)
