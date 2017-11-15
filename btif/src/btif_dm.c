@@ -60,6 +60,9 @@
 #include "osi/include/properties.h"
 #include "stack_config.h"
 #include "stack/btm/btm_int.h"
+#ifdef BT_IOT_LOGGING_ENABLED
+#include "btif_iot_config.h"
+#endif
 
 /******************************************************************************
 **  Constants & Macros
@@ -223,6 +226,10 @@ static void btif_dm_cb_create_bond(bt_bdaddr_t *bd_addr, tBTA_TRANSPORT transpor
 static void btif_dm_cb_hid_remote_name(tBTM_REMOTE_DEV_NAME *p_remote_name);
 static void btif_update_remote_properties(BD_ADDR bd_addr, BD_NAME bd_name,
                                           DEV_CLASS dev_class, tBT_DEVICE_TYPE dev_type);
+#ifdef BT_IOT_LOGGING_ENABLED
+static void btif_dm_save_iot_pair_type(BD_ADDR bd_addr, bool is_ble);
+static void btif_dm_update_iot_info(tBTA_DM_AUTH_CMPL *p_auth_cmpl, bool is_ble);
+#endif
 #if (defined(BLE_INCLUDED) && (BLE_INCLUDED == TRUE))
 static btif_dm_local_key_cb_t ble_local_key_cb;
 static void btif_dm_ble_key_notif_evt(tBTA_DM_SP_KEY_NOTIF *p_ssp_key_notif);
@@ -762,6 +769,134 @@ static void btif_update_remote_properties(BD_ADDR bd_addr, BD_NAME bd_name,
                      status, &bdaddr, num_properties, properties);
 }
 
+#ifdef BT_IOT_LOGGING_ENABLED
+/*******************************************************************************
+**
+** Function         btif_dm_save_iot_pair_type
+**
+** Description      Store remote pair type to iot conf file
+**
+** Returns          void
+**
+*******************************************************************************/
+static void btif_dm_save_iot_pair_type(BD_ADDR bd_addr, bool is_ble)
+{
+    if (pairing_cb.is_ssp) {
+        if (!is_ble)
+            btif_iot_config_addr_set_int(bd_addr,
+                            IOT_CONF_KEY_PAIRTYPE, IOT_CONF_VAL_PAIR_TYPE_SSP);
+        else
+            btif_iot_config_addr_set_int(bd_addr,
+                            IOT_CONF_KEY_LE_PAIRTYPE, IOT_CONF_VAL_LE_PAIRTYPE_SECURE);
+    } else {
+        if (!is_ble)
+            btif_iot_config_addr_set_int(bd_addr,
+                            IOT_CONF_KEY_PAIRTYPE, IOT_CONF_VAL_PAIR_TYPE_LEGACY);
+        else
+            btif_iot_config_addr_set_int(bd_addr,
+                            IOT_CONF_KEY_LE_PAIRTYPE, IOT_CONF_VAL_LE_PAIRTYPE_LEGACY);
+    }
+}
+
+/*******************************************************************************
+**
+** Function         btif_dm_update_iot_info
+**
+** Description      Store remote dev info to iot conf file
+**
+** Returns          void
+**
+*******************************************************************************/
+static void btif_dm_update_iot_info(tBTA_DM_AUTH_CMPL *p_auth_cmpl, bool is_ble)
+{
+    int name_length = 0;
+    char value[1024];
+    BD_NAME bd_name;
+    bt_bdaddr_t bd_addr;
+    int num_properties = 0;
+    bt_property_t properties[2];
+    UINT32 cod = 0;
+    UINT8 lmp_ver = 0;
+    UINT16 lmp_subver = 0;
+    UINT16 mfct_set = 0;
+    tBTM_STATUS btm_status;
+
+    bdcpy(bd_addr.address, p_auth_cmpl->bd_addr);
+
+    //save remote name to iot conf file
+    if (strlen((const char *)p_auth_cmpl->bd_name))
+    {
+        name_length = strlen((char *)p_auth_cmpl->bd_name) > BTM_MAX_LOC_BD_NAME_LEN ?
+                        BTM_MAX_LOC_BD_NAME_LEN : strlen((char *)p_auth_cmpl->bd_name);
+        strncpy(value, (char*)p_auth_cmpl->bd_name, name_length);
+        value[name_length] = '\0';
+        btif_iot_config_addr_set_str(p_auth_cmpl->bd_addr,
+                        IOT_CONF_KEY_REMOTE_NAME, value);
+    } else {
+        if (BTM_GetRemoteDeviceName(p_auth_cmpl->bd_addr, bd_name))
+        {
+            btif_iot_config_addr_set_str(p_auth_cmpl->bd_addr,
+                            IOT_CONF_KEY_REMOTE_NAME, (char *)bd_name);
+        }
+    }
+
+    //save remote dev class to iot conf file
+    //Try to retrieve cod from storage
+    BTIF_STORAGE_FILL_PROPERTY(&properties[num_properties],
+                    BT_PROPERTY_CLASS_OF_DEVICE, sizeof(cod), &cod);
+    if (btif_storage_get_remote_device_property(&bd_addr, &properties[num_properties])
+                    == BT_STATUS_SUCCESS)
+        BTIF_TRACE_DEBUG("%s cod retrieved from storage is 0x%06x", __func__, cod);
+    if (cod == 0) {
+        BTIF_TRACE_DEBUG("%s cod is 0, set as unclassified", __func__);
+        cod = COD_UNCLASSIFIED;
+    }
+    btif_iot_config_addr_set_int(p_auth_cmpl->bd_addr,
+                    IOT_CONF_KEY_DEVCLASS, (int)cod);
+    num_properties++;
+
+    //save remote dev type to iot conf file
+    bt_device_type_t dev_type;
+    uint8_t remote_dev_type;
+    BTIF_STORAGE_FILL_PROPERTY(&properties[num_properties],
+                    BT_PROPERTY_TYPE_OF_DEVICE, sizeof(uint8_t), &remote_dev_type);
+    if (btif_storage_get_remote_device_property(&bd_addr, &properties[num_properties])
+                    == BT_STATUS_SUCCESS) {
+        BTIF_TRACE_DEBUG("%s retrieve dev type from storage", __func__);
+        dev_type = remote_dev_type | p_auth_cmpl->dev_type;
+    } else {
+        dev_type = p_auth_cmpl->dev_type;
+    }
+    btif_iot_config_addr_set_int(p_auth_cmpl->bd_addr,
+                    IOT_CONF_KEY_DEVTYPE, (int)dev_type);
+
+#if BLE_INCLUDED == TRUE
+    //save remote addr type to iot conf file
+    btif_iot_config_addr_set_int(p_auth_cmpl->bd_addr,
+                    IOT_CONF_KEY_ADDRTYPE, (int)p_auth_cmpl->addr_type);
+#endif
+
+    //save remote versions to iot conf file
+    btm_status = BTM_ReadRemoteVersion(p_auth_cmpl->bd_addr, &lmp_ver,
+                          &mfct_set, &lmp_subver);
+
+    if (btm_status == BTM_SUCCESS)
+    {
+        btif_iot_config_addr_set_int(p_auth_cmpl->bd_addr,
+                            IOT_CONF_KEY_MANUFACTURER, mfct_set);
+        btif_iot_config_addr_set_int(p_auth_cmpl->bd_addr,
+                            IOT_CONF_KEY_LMPVER, lmp_ver);
+        btif_iot_config_addr_set_int(p_auth_cmpl->bd_addr,
+                            IOT_CONF_KEY_LMPSUBVER, lmp_subver);
+    }
+
+    //save remote pair type to iot conf file
+    btif_dm_save_iot_pair_type(p_auth_cmpl->bd_addr, is_ble);
+
+    btif_iot_config_flush();
+}
+#endif
+
 /*******************************************************************************
 **
 ** Function         btif_dm_cb_hid_remote_name
@@ -1291,6 +1426,11 @@ static void btif_dm_auth_cmpl_evt (tBTA_DM_AUTH_CMPL *p_auth_cmpl)
     // Skip SDP for certain  HID Devices
     if (p_auth_cmpl->success)
     {
+#ifdef BT_IOT_LOGGING_ENABLED
+        //save remote info to iot conf file
+        btif_dm_update_iot_info(p_auth_cmpl, false);
+#endif
+
         // We could have received a new link key without going through the pairing flow.
         // If so, we don't want to perform SDP or any other operations on the authenticated
         // device. Also, make sure that the link key is not derived from secure LTK, because
@@ -3400,6 +3540,11 @@ static void btif_dm_ble_auth_cmpl_evt (tBTA_DM_AUTH_CMPL *p_auth_cmpl)
                btif_dm_get_remote_services_by_transport(&bd_addr, BTA_GATT_TRANSPORT_LE);
             else
                btif_dm_get_remote_services(&bd_addr);
+
+#ifdef BT_IOT_LOGGING_ENABLED
+            //save remote info to iot conf file
+            btif_dm_update_iot_info(p_auth_cmpl, true);
+#endif
         }
     }
     else

@@ -61,6 +61,10 @@
 #include "osi/include/properties.h"
 #include "osi/include/thread.h"
 #include "stack_manager.h"
+#ifdef BT_IOT_LOGGING_ENABLED
+#include "btif_iot_config.h"
+#endif
+
 
 /************************************************************************************
 **  Constants & Macros
@@ -515,6 +519,14 @@ bt_status_t btif_init_bluetooth() {
   memset(&btif_local_bd_addr, 0, sizeof(bt_bdaddr_t));
   btif_fetch_local_bdaddr(&btif_local_bd_addr);
 
+#ifdef BT_IOT_LOGGING_ENABLED
+  //save bd addr to iot conf file
+  bdstr_t bdstr;
+  bdaddr_to_string(&btif_local_bd_addr, bdstr, sizeof(bdstr));
+  btif_iot_config_set_str(IOT_CONF_KEY_SECTION_ADAPTER,
+          IOT_CONF_KEY_ADDRESS, bdstr);
+#endif
+
   bt_jni_workqueue_thread = thread_new(BT_JNI_WORKQUEUE_NAME);
   if (bt_jni_workqueue_thread == NULL) {
     LOG_ERROR(LOG_TAG, "%s Unable to create thread %s", __func__, BT_JNI_WORKQUEUE_NAME);
@@ -580,6 +592,12 @@ void btif_enable_bluetooth_evt(tBTA_STATUS status)
         //save the bd address to config file
         btif_config_set_str("Adapter", "Address", bdstr);
         btif_config_save();
+
+#ifdef BT_IOT_LOGGING_ENABLED
+        //save bd addr to iot conf file
+        btif_iot_config_set_str(IOT_CONF_KEY_SECTION_ADAPTER,
+                        IOT_CONF_KEY_ADDRESS, bdstr);
+#endif
 
         //fire HAL callback for property change
         prop.type = BT_PROPERTY_BDADDR;
