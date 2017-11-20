@@ -2510,6 +2510,10 @@ void bta_av_data_path (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
             {
                 opt |= AVDT_DATA_OPT_NO_RTP;
             }
+            if(is_pump_encoded_data_supported())
+            {
+                opt |= BTA_AV_FEAT_ENCODED_DATA;
+            }
 
             AVDT_WriteReqOpt(p_scb->avdt_handle, p_buf, timestamp, m_pt, opt);
             p_scb->cong = TRUE;
