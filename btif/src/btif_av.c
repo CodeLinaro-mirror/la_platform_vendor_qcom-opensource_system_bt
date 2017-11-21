@@ -28,7 +28,7 @@
 #include <system/audio.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_av.h>
-
+#include "btif_storage.h"
 #include "bt_utils.h"
 #include "bta_api.h"
 #include "btif_media.h"
@@ -438,7 +438,12 @@ static void btif_av_collission_timer_timeout(UNUSED_ATTR void *data)
     bt_bdaddr_t *target_bda = &retry_bda;
     btif_sm_state_t av_state;
     BD_ADDR av_address;
-
+    if(!btif_storage_is_device_bonded(target_bda)){
+     BTIF_TRACE_IMP("btif_av_collission_timer_timeout: not bonded device ");
+     return;
+   }else{
+      BTIF_TRACE_IMP("btif_av_collission_timer_timeout: bonded device ");
+    }
     bdcpy(av_address, target_bda->address);
     av_state = btif_get_conn_state_of_device(av_address);
     BTIF_TRACE_IMP("btif_av_collission_timer_timeout: AV state: %d", av_state);
