@@ -3854,8 +3854,12 @@ static void btif_media_task_aa_stop_tx(void)
        to get the ACK for any pending command in such cases. */
 
         if ((send_ack) && (btif_media_cb.a2dp_cmd_pending == A2DP_CTRL_CMD_STOP ||
-                btif_media_cb.a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND))
+                btif_media_cb.a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND)) {
             a2dp_cmd_acknowledge(A2DP_CTRL_ACK_SUCCESS);
+        } else if ((send_ack) && (btif_media_cb.a2dp_cmd_pending == A2DP_CTRL_CMD_START)) {
+            BTIF_TRACE_ERROR("Ack Pending Start while Disconnect in Progress");
+            a2dp_cmd_acknowledge(A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS);
+        }
 
         /* audio engine stopped, reset tx suspended flag */
         btif_media_cb.tx_flush = 0;
