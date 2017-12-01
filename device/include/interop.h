@@ -104,12 +104,20 @@ typedef enum {
   // preferred conn params for such devices and allow them to explicity ask for it.
   INTEROP_DISABLE_LE_CONN_PREFERRED_PARAMS,
 
+  //Few carkit hfp version is hfp1.5 but it support hfp indicator, violate spec
+  //remove hfp indicator for such device
+  INTEROP_DISABLE_HF_INDICATOR,
+
   // Few remote devices do not understand AVRCP version greater than 1.3. For these
   // devices, we would like to blacklist them and advertise AVRCP version as 1.3
   INTEROP_ADV_AVRCP_VER_1_3,
+
   // certain remote A2DP sinks have issue playing back Music in AAC format.
   // disable AAC for those headsets so that it switch to SBC
   INTEROP_DISABLE_AAC_CODEC,
+
+  // Enable AAC only for whitelist of devices
+  INTEROP_ENABLE_AAC_CODEC,
 
   // Some car kits notifies role switch supported but it rejects
   // the role switch and after some attempts of role switch
@@ -128,8 +136,50 @@ typedef enum {
 
   INTEROP_HFP_1_7_BLACKLIST,
 
-  END_OF_INTEROP_LIST
+  // Some Carkits are not initiating AVRCP Browse Channel on
+  // seeing DUT's AVRCP version as v1.6. Hence fallback DUT's
+  // AVRCP version to v1.4 for those Carkits
+  INTEROP_STORE_REMOTE_AVRCP_VERSION_1_4,
 
+  // Devices requiring this workaround do not handle Bluetooth PBAP 1.2 version correctly,
+  // leading them to go in bad state. So for better interoperability respond with PBAP 1.1
+  // as supported version.
+  INTEROP_ADV_PBAP_VER_1_1,
+
+  // Devices requiring this workaround do not handle SSR max latency values as mentioned,
+  // in their SDP HID Record properly and lead to connection timeout or lags. To prevent
+  // such scenarios, device requiring this workaorund need to use specific ssr max latency
+  // values.
+  INTEROP_UPDATE_HID_SSR_MAX_LAT,
+  // Some Carkits being AVRCP v1.3 upon receiving Play Application Setting Command Response
+  // and notification, doesn't send Passthrough commands back to DUT in Streaming State
+  INTEROP_DISABLE_PLAYER_APPLICATION_SETTING_CMDS,
+
+  // Some remotes are very strict in receiving the call active
+  // indicator and SCO connection request order for MT call.
+  // If CIEV1,1 and SCO connection request are sent back to back
+  // to SOC, it may send SCO connection request first then CIEV1,1
+  // which may lead to remotes not rendering SCO audio.
+  INTEROP_DELAY_SCO_FOR_MT_CALL,
+
+  // Some remotes are taking too long to respond for codec negotiation.
+  // Disable codec negotiation for such remotes and directly initiate
+  // SCO Connection.
+  INTEROP_DISABLE_CODEC_NEGOTIATION,
+
+  // Some remotes are going into sniff mode during SCO connection process and taking time
+  // for SCO connection to complete. For such devices, disable sniff when SCO is
+  // connecting and enable it after SCO disconnection.
+  INTEROP_DISABLE_SNIFF_POLICY_DURING_SCO,
+
+  // Some LE devices have proven problematic behaviour if LE connection update is initiated with
+  // them, resulting in no response after initiating LE connection update and ultimately resulting
+  // in connection timeout.
+  // To avoid degrading the user experience with those devices, LE connection update
+  // is not requested explictly for those devices.
+  INTEROP_DISABLE_LE_CONN_UPDATES,
+
+  END_OF_INTEROP_LIST
 } interop_feature_t;
 
 // Check if a given |addr| matches a known interoperability workaround as identified
@@ -165,6 +215,15 @@ bool interop_match_manufacturer(const interop_feature_t feature, uint16_t manufa
 // where more information is not available.
 bool interop_match_vendor_product_ids(const interop_feature_t feature,
         uint16_t vendor_id, uint16_t product_id);
+
+// Check if a given |addr| matches a known interoperability workaround as
+// identified by the |interop_feature_t| enum. This API is used for simple
+// address based lookups where more information is not available. No
+// look-ups or random address resolution are performed on |addr|. If address
+// is matched, max latency for SSR stored for particular remote device is
+// returned.
+bool interop_match_addr_get_max_lat(const interop_feature_t feature,
+        const bt_bdaddr_t *addr, uint16_t *max_lat);
 
 // Add a dynamic interop database entry for a device matching the first |length| bytes
 // of |addr|, implementing the workaround identified by |feature|. |addr| may not be

@@ -864,7 +864,8 @@ void bta_hh_le_register_input_notif(tBTA_HH_DEV_CB *p_dev_cb, UINT8 srvc_inst,
 *******************************************************************************/
 void bta_hh_le_deregister_input_notif(tBTA_HH_DEV_CB *p_dev_cb)
 {
-    tBTA_HH_LE_RPT  *p_rpt = &p_dev_cb->hid_srvc[p_dev_cb->cur_srvc_index].report[0];
+    tBTA_HH_LE_RPT  *p_rpt = &p_dev_cb->hid_srvc[0].report[0];
+    APPL_TRACE_DEBUG("%s ---> current service instance:%d", __func__, p_dev_cb->cur_srvc_index);
 
     for (UINT8 i = 0; i < BTA_HH_LE_RPT_MAX; i++, p_rpt++)
     {
@@ -983,6 +984,7 @@ BOOLEAN bta_hh_le_write_rpt_clt_cfg(tBTA_HH_DEV_CB *p_cb, UINT8 srvc_inst_id)
         p_cb->disc_active &= ~BTA_HH_LE_DISC_HIDS;
 
         bta_hh_le_open_cmpl(p_cb);
+        p_cb->cur_srvc_index = 0;
     }
     return FALSE;
 }
@@ -1732,6 +1734,12 @@ void bta_hh_le_proc_get_rpt_cmpl(tBTA_HH_DEV_CB *p_dev_cb, tBTA_GATTC_READ *p_da
     const tBTA_GATTC_CHARACTERISTIC *p_char = BTA_GATTC_GetCharacteristic(p_dev_cb->conn_id,
                                                                           p_data->handle);
 
+    if (p_char == NULL) {
+        APPL_TRACE_ERROR("%s: report cmpl for Unknown Characteristic,handle: 0x%04x",
+            __func__, p_data->handle);
+        return;
+    }
+
     memset(&hs_data, 0, sizeof(hs_data));
     hs_data.status  = BTA_HH_ERR;
     hs_data.handle  = p_dev_cb->hid_handle;
@@ -2031,6 +2039,11 @@ void bta_hh_w4_le_write_cmpl(tBTA_HH_DEV_CB *p_dev_cb, tBTA_HH_DATA *p_buf)
 
     const tBTA_GATTC_CHARACTERISTIC *p_char = BTA_GATTC_GetCharacteristic(p_dev_cb->conn_id,
                                                                           p_data->handle);
+    if (p_char == NULL) {
+        APPL_TRACE_ERROR("%s: write cmpl for Unknown Characteristic,handle: 0x%04x",
+            __func__, p_data->handle);
+        return;
+    }
 
     if (p_char->uuid.uu.uuid16 == GATT_UUID_HID_PROTO_MODE)
     {
@@ -2061,6 +2074,12 @@ void bta_hh_le_write_cmpl(tBTA_HH_DEV_CB *p_dev_cb, tBTA_HH_DATA *p_buf)
 
     const tBTA_GATTC_CHARACTERISTIC *p_char = BTA_GATTC_GetCharacteristic(p_dev_cb->conn_id,
                                                                           p_data->handle);
+
+    if (p_char == NULL) {
+        APPL_TRACE_ERROR("%s: write cmpl for Unknown Characteristic,handle: 0x%04x",
+            __func__, p_data->handle);
+        return;
+    }
 
 #if BTA_HH_DEBUG
     APPL_TRACE_DEBUG("bta_hh_le_write_cmpl w4_evt: %d", p_dev_cb->w4_evt);

@@ -274,13 +274,16 @@ static void hidh_l2cif_connect_ind (BD_ADDR  bd_addr, UINT16 l2cap_cid, UINT16 p
 
     if (psm == HID_PSM_CONTROL)
     {
+        bt_bdaddr_t remote_bdaddr;
         p_hcon->conn_flags = 0;
         p_hcon->ctrl_cid   = l2cap_cid;
         p_hcon->ctrl_id    = l2cap_id;
         p_hcon->disc_reason = HID_L2CAP_CONN_FAIL;  /* In case disconnection occurs before security is completed, then set CLOSE_EVT reason code to 'connection failure' */
 
         p_hcon->conn_state = HID_CONN_STATE_SECURITY;
-        if (!interop_match_addr(INTEROP_DISABLE_AUTH_FOR_HID_POINTING, (bt_bdaddr_t*)p_dev->addr))
+        bdcpy(remote_bdaddr.address, p_dev->addr);
+
+        if (!interop_match_addr(INTEROP_DISABLE_AUTH_FOR_HID_POINTING, (bt_bdaddr_t *)&remote_bdaddr))
         {
             if(btm_sec_mx_access_request (p_dev->addr, HID_PSM_CONTROL,
                 FALSE, BTM_SEC_PROTO_HID,
@@ -318,6 +321,7 @@ static void hidh_l2cif_connect_ind (BD_ADDR  bd_addr, UINT16 l2cap_cid, UINT16 p
 void hidh_process_repage_timer_timeout(void *data)
 {
   uint8_t dhandle = PTR_TO_UINT(data);
+  GENERATE_VENDOR_LOGS();
   hidh_try_repage(dhandle);
 }
 
@@ -389,6 +393,7 @@ void hidh_sec_check_complete_orig (BD_ADDR bd_addr, tBT_TRANSPORT transport, voi
             }
         }
 #endif
+        GENERATE_VENDOR_LOGS();
         p_dev->conn.disc_reason = HID_ERR_AUTH_FAILED;      /* Save reason for disconnecting */
         hidh_conn_disconnect(dhandle);
     }
@@ -452,17 +457,21 @@ static void hidh_l2cif_connect_cfm (UINT16 l2cap_cid, UINT16 result)
             reason = HID_L2CAP_CONN_FAIL | (UINT32) result ;
             HIDH_TRACE_WARNING ("HID-Host: l2cap connect failed, reason = %d", reason);
             hh_cb.callback( dhandle, hh_cb.devices[dhandle].addr, HID_HDEV_EVT_CLOSE, reason, NULL ) ;
+            GENERATE_VENDOR_LOGS();
         }
         return;
     }
     /* receive Control Channel connect confirmation */
     if (l2cap_cid == p_hcon->ctrl_cid)
     {
+        bt_bdaddr_t remote_address;
+
         /* check security requirement */
         p_hcon->conn_state = HID_CONN_STATE_SECURITY;
         p_hcon->disc_reason = HID_L2CAP_CONN_FAIL;  /* In case disconnection occurs before security is completed, then set CLOSE_EVT reason code to "connection failure" */
+        bdcpy(remote_address.address, p_dev->addr);
 
-        if (!interop_match_addr(INTEROP_DISABLE_AUTH_FOR_HID_POINTING, (bt_bdaddr_t *)p_dev->addr))
+        if (!interop_match_addr(INTEROP_DISABLE_AUTH_FOR_HID_POINTING, (bt_bdaddr_t *)&remote_address))
         {
             btm_sec_mx_access_request (p_dev->addr, HID_PSM_CONTROL,
                 TRUE, BTM_SEC_PROTO_HID,
@@ -546,6 +555,7 @@ static void hidh_l2cif_config_ind (UINT16 l2cap_cid, tL2CAP_CFG_INFO *p_cfg)
                 hidh_conn_disconnect (dhandle);
                 HIDH_TRACE_WARNING ("HID-Host: l2cap config failed, reason = %d", reason);
                 hh_cb.callback( dhandle, hh_cb.devices[dhandle].addr, HID_HDEV_EVT_CLOSE, reason, NULL ) ;
+                GENERATE_VENDOR_LOGS();
                 return;
             }
             else
@@ -607,6 +617,7 @@ static void hidh_l2cif_config_cfm (UINT16 l2cap_cid, tL2CAP_CFG_INFO *p_cfg)
         reason = HID_L2CAP_CFG_FAIL | (UINT32) p_cfg->result ;
         HIDH_TRACE_WARNING ("HID-Host: l2cap config ind failed, reason = %d", reason);
         hh_cb.callback( dhandle, hh_cb.devices[dhandle].addr, HID_HDEV_EVT_CLOSE, reason, NULL ) ;
+        GENERATE_VENDOR_LOGS();
         return;
     }
 
@@ -626,6 +637,7 @@ static void hidh_l2cif_config_cfm (UINT16 l2cap_cid, tL2CAP_CFG_INFO *p_cfg)
                 hidh_conn_disconnect (dhandle);
                 HIDH_TRACE_WARNING ("HID-Host: l2cap config ind failed 2, reason = %d", reason);
                 hh_cb.callback( dhandle, hh_cb.devices[dhandle].addr, HID_HDEV_EVT_CLOSE, reason, NULL ) ;
+                GENERATE_VENDOR_LOGS();
                 return;
             }
             else
@@ -713,6 +725,7 @@ static void hidh_l2cif_disconnect_ind (UINT16 l2cap_cid, BOOLEAN ack_needed)
                                interval_ms, hidh_process_repage_timer_timeout,
                                UINT_TO_PTR(dhandle), btu_general_alarm_queue);
             hh_cb.callback( dhandle,  hh_cb.devices[dhandle].addr, HID_HDEV_EVT_CLOSE, disc_res, NULL);
+            GENERATE_VENDOR_LOGS();
         }
         else
 #endif
@@ -1088,6 +1101,7 @@ tHID_STATUS hidh_conn_initiate (UINT8 dhandle)
         HIDH_TRACE_WARNING ("HID-Host Originate failed");
         hh_cb.callback( dhandle,  hh_cb.devices[dhandle].addr, HID_HDEV_EVT_CLOSE,
                                 HID_ERR_L2CAP_FAILED, NULL ) ;
+        GENERATE_VENDOR_LOGS();
         return HID_ERR_L2CAP_FAILED;
     }
     else

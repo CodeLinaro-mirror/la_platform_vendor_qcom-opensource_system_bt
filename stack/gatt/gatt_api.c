@@ -34,6 +34,8 @@
 #include "l2c_api.h"
 #include "btm_int.h"
 
+#define SYSTEM_APP_GATT_IF  3
+
 /*******************************************************************************
 **
 ** Function         GATT_SetTraceLevel
@@ -781,15 +783,16 @@ tGATT_STATUS GATTC_ConfigureMTU (UINT16 conn_id, UINT16 mtu)
 
     GATT_TRACE_API ("GATTC_ConfigureMTU conn_id=%d mtu=%d", conn_id, mtu );
 
+    if ( (p_tcb == NULL) || (p_reg==NULL) || (mtu < GATT_DEF_BLE_MTU_SIZE) || (mtu > GATT_MAX_MTU_SIZE))
+    {
+        GATT_TRACE_ERROR("GATTC_ConfigureMTU conn_id=%d mtu=%d", conn_id, mtu);
+        return GATT_ILLEGAL_PARAMETER;
+    }
+
     /* Validate that the link is BLE, not BR/EDR */
     if (p_tcb->transport != BT_TRANSPORT_LE)
     {
         return GATT_ERROR;
-    }
-
-    if ( (p_tcb == NULL) || (p_reg==NULL) || (mtu < GATT_DEF_BLE_MTU_SIZE) || (mtu > GATT_MAX_MTU_SIZE))
-    {
-        return GATT_ILLEGAL_PARAMETER;
     }
 
     if (gatt_is_clcb_allocated(conn_id))
@@ -1277,6 +1280,11 @@ void GATT_Deregister (tGATT_IF gatt_if)
             if (gatt_get_ch_state(p_tcb) != GATT_CH_CLOSE)
             {
                 gatt_update_app_use_link_flag(gatt_if, p_tcb,  FALSE, TRUE);
+                if ((gatt_if > SYSTEM_APP_GATT_IF) && (!gatt_num_apps_hold_link(p_tcb)))
+                {
+                    /* this will disconnect the link or cancel the pending connect request at lower layer*/
+                    gatt_disconnect(p_tcb);
+                }
             }
 
             for (j = 0, p_clcb= &gatt_cb.clcb[j]; j < GATT_CL_MAX_LCB; j++, p_clcb++)

@@ -586,7 +586,7 @@
 
 /* The maximum number of simultaneous channels that L2CAP can support. */
 #ifndef MAX_L2CAP_CHANNELS
-#define MAX_L2CAP_CHANNELS          16
+#define MAX_L2CAP_CHANNELS          20
 #endif
 
 /* The maximum number of simultaneous links that L2CAP can support. */
@@ -598,7 +598,7 @@
 
 /* The maximum number of simultaneous applications that can register with L2CAP. */
 #ifndef MAX_L2CAP_CLIENTS
-#define MAX_L2CAP_CLIENTS           15
+#define MAX_L2CAP_CLIENTS           19
 #endif
 
 /* The number of seconds of link inactivity before a link is disconnected. */

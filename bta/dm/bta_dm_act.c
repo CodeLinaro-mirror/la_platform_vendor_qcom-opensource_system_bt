@@ -592,7 +592,7 @@ static void bta_dm_disable_timer_cback(void *data)
         bta_dm_cb.disabling = FALSE;
 
         bta_sys_remove_uuid(UUID_SERVCLASS_PNP_INFORMATION);
-        bta_dm_cb.p_sec_cback(BTA_DM_DISABLE_EVT, NULL);
+        bta_dm_disable_conn_down_timer_cback(NULL);
     }
 }
 
@@ -786,9 +786,11 @@ void bta_dm_remove_device(tBTA_DM_MSG *p_data)
     bdcpy(other_address, p_dev->bd_addr);
 
     /* If ACL exists for the device in the remove_bond message*/
+    bt_bdaddr_t remote_bdaddr;
+    bdcpy(remote_bdaddr.address, p_dev->bd_addr);
     BOOLEAN continue_delete_dev = FALSE;
     UINT8 other_transport = BT_TRANSPORT_INVALID;
-    interop_database_remove_addr(INTEROP_DYNAMIC_ROLE_SWITCH, (bt_bdaddr_t *)&p_dev->bd_addr);
+    interop_database_remove_addr(INTEROP_DYNAMIC_ROLE_SWITCH, (bt_bdaddr_t *)&remote_bdaddr);
 
     if (BTM_IsAclConnectionUp(p_dev->bd_addr, BT_TRANSPORT_LE) ||
         BTM_IsAclConnectionUp(p_dev->bd_addr, BT_TRANSPORT_BR_EDR))
@@ -2965,6 +2967,7 @@ static UINT8 bta_dm_sp_cback (tBTM_SP_EVT event, tBTM_SP_EVT_DATA *p_data)
 #endif
         if(BTM_SP_CFM_REQ_EVT == event)
         {
+          bta_dm_cb.num_val = sec_event.key_notif.passkey = p_data->cfm_req.num_val;
           /* Due to the switch case falling through below to BTM_SP_KEY_NOTIF_EVT,
              call remote name request using values from cfm_req */
           if(p_data->cfm_req.bd_name[0] == 0)
@@ -2996,6 +2999,8 @@ static UINT8 bta_dm_sp_cback (tBTM_SP_EVT event, tBTM_SP_EVT_DATA *p_data)
         bta_dm_cb.num_val = sec_event.key_notif.passkey = p_data->key_notif.passkey;
         if (BTM_SP_KEY_NOTIF_EVT == event)
         {
+
+            bta_dm_cb.num_val = sec_event.key_notif.passkey = p_data->key_notif.passkey;
             /* If the device name is not known, save bdaddr and devclass
                and initiate a name request with values from key_notif */
             if(p_data->key_notif.bd_name[0] == 0)

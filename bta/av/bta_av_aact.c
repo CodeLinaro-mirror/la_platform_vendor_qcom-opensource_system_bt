@@ -73,6 +73,7 @@ extern pump_encoded_data;
 #define BTA_AV_RECONFIG_RETRY       6
 #endif
 
+static const size_t SBC_MIN_BITPOOL_OFFSET = 5;
 static const size_t SBC_MAX_BITPOOL_OFFSET = 6;
 
 #ifdef BTA_AV_SPLIT_A2DP_DEF_FREQ_48KHZ
@@ -1205,6 +1206,7 @@ void bta_av_cleanup(tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     /* if de-registering shut everything down */
     msg.hdr.layer_specific  = p_scb->hndl;
     p_scb->started  = FALSE;
+    p_scb->suspend_local_sent = FALSE;
     p_scb->cong = FALSE;
     p_scb->role = role;
     p_scb->cur_psc_mask = 0;
@@ -1543,7 +1545,7 @@ void bta_av_str_opened (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     /* set the congestion flag, so AV would not send media packets by accident */
     p_scb->cong = TRUE;
     p_scb->offload_start_pending = FALSE;
-
+    p_scb->suspend_local_sent = FALSE;
 
     p_scb->stream_mtu = p_data->str_msg.msg.open_ind.peer_mtu - AVDT_MEDIA_HDR_SIZE;
     mtu_config.mtu = p_data->str_msg.msg.open_ind.peer_mtu;
@@ -1632,11 +1634,15 @@ void bta_av_str_opened (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
 ** Returns          bta_av_cb.codec_type
 **
 *******************************************************************************/
-UINT8 bta_av_get_codec_type()
+UINT8 bta_av_get_codec_type(tBTA_AV_HNDL hndl)
 {
+    APPL_TRACE_DEBUG("%s: hdl = %x", __func__, hndl);
+    tBTA_AV_SCB *p_scb = bta_av_hndl_to_scb(hndl);
+    bta_av_cb.codec_type = p_scb->codec_type;
     APPL_TRACE_DEBUG("%s [bta_av_cb.codec_type] %x", __func__, bta_av_cb.codec_type);
     return bta_av_cb.codec_type;
 }
+
 /*******************************************************************************
 **
 ** Function         bta_av_security_ind
@@ -1718,6 +1724,7 @@ void bta_av_do_close (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
 
     /* close stream */
     p_scb->started = FALSE;
+    p_scb->suspend_local_sent = FALSE;
 
     /* drop the buffers queued in L2CAP */
     L2CA_FlushChannel (p_scb->l2c_cid, L2CAP_FLUSH_CHANS_ALL);
@@ -2128,6 +2135,15 @@ void bta_av_getcap_results (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
                                                          &av_codec_info);
         }
 
+        if ((uuid_int == UUID_SERVCLASS_AUDIO_SOURCE) &&
+            (cfg.codec_info[SBC_MIN_BITPOOL_OFFSET] > cfg.codec_info[SBC_MAX_BITPOOL_OFFSET]))
+        {
+            APPL_TRACE_WARNING("%s min bitpool value received for SBC is more than DUT supported Max bitpool"
+                    "Clamping the max bitpool configuration further from %d to %d.", __func__,
+                    cfg.codec_info[SBC_MAX_BITPOOL_OFFSET], cfg.codec_info[SBC_MIN_BITPOOL_OFFSET]);
+            cfg.codec_info[SBC_MAX_BITPOOL_OFFSET] = cfg.codec_info[SBC_MIN_BITPOOL_OFFSET];
+        }
+
         /* open the stream */
         AVDT_OpenReq(p_scb->seps[p_scb->sep_idx].av_handle, p_scb->peer_addr,
                      p_scb->sep_info[p_scb->sep_info_idx].seid, &cfg);
@@ -2326,16 +2342,18 @@ void bta_av_str_stopped (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
 
     if (p_data && p_data->api_stop.suspend)
     {
-        APPL_TRACE_DEBUG("suspending: %d, sup:%d", start, p_scb->suspend_sup);
-        if ((start)  && (p_scb->suspend_sup))
+        APPL_TRACE_DEBUG("suspending: %d, sup:%d, suspend_local_sent = %d",
+                           start, p_scb->suspend_sup,p_scb->suspend_local_sent);
+        if ((start)  && (p_scb->suspend_sup) && (!p_scb->suspend_local_sent))
         {
+            p_scb->suspend_local_sent = TRUE;
             sus_evt = FALSE;
             p_scb->l2c_bufs = 0;
             AVDT_SuspendReq(&p_scb->avdt_handle, 1);
         }
 
         /* send SUSPEND_EVT event only if not in reconfiguring state and sus_evt is TRUE*/
-        if ((sus_evt)&&(p_scb->state != BTA_AV_RCFG_SST))
+        if ((sus_evt) && ((p_scb->suspend_local_sent) || (p_scb->state != BTA_AV_RCFG_SST)))
         {
             suspend_rsp.status = BTA_AV_SUCCESS;
             suspend_rsp.initiator = TRUE;
@@ -2877,12 +2895,12 @@ void bta_av_suspend_cfm (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     tBTA_AV_SUSPEND suspend_rsp;
     UINT8           err_code = p_data->str_msg.msg.hdr.err_code;
     UINT8 policy = HCI_ENABLE_SNIFF_MODE;
-
+    p_scb->suspend_local_sent = FALSE;
     if (is_sniff_disabled == true)
         policy = 0;
 
-    APPL_TRACE_DEBUG ("bta_av_suspend_cfm:audio_open_cnt = %d, err_code = %d",
-        bta_av_cb.audio_open_cnt, err_code);
+    APPL_TRACE_DEBUG ("%s:audio_open_cnt = %d, err_code = %d, scb_started = %d",
+                      __func__,bta_av_cb.audio_open_cnt,err_code,p_scb->started);
 
     if (p_scb->started == FALSE)
     {
@@ -3107,7 +3125,7 @@ void bta_av_suspend_cont (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
 {
     UINT8       err_code = p_data->str_msg.msg.hdr.err_code;
     tBTA_AV_RECONFIG    evt;
-
+    p_scb->suspend_local_sent = FALSE;
     p_scb->started = FALSE;
     p_scb->cong    = FALSE;
     if (err_code)
@@ -3162,7 +3180,7 @@ void bta_av_rcfg_cfm (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     */
     if (err_code)
     {
-        APPL_TRACE_ERROR("reconfig rejected, try close");
+        APPL_TRACE_ERROR("reconfig rejected, try close with error code = %d", err_code);
          /* Disable reconfiguration feature only with explicit rejection(not with timeout) */
         if (err_code != AVDT_ERR_TIMEOUT)
         {

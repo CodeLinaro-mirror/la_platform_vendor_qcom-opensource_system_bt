@@ -29,6 +29,7 @@
 #include "bt_common.h"
 #include "gatt_int.h"
 #include "l2c_api.h"
+#include "l2c_int.h"
 #include "btm_int.h"
 #include "btm_ble_int.h"
 #include "bt_utils.h"
@@ -240,7 +241,12 @@ BOOLEAN gatt_disconnect (tGATT_TCB *p_tcb)
         {
             if (p_tcb->att_lcid == L2CAP_ATT_CID)
             {
-                if (ch_state == GATT_CH_OPEN)
+                tL2C_LCB *p_lcb = l2cu_find_lcb_by_bd_addr(p_tcb->peer_bda, p_tcb->transport);
+                tL2C_LINK_STATE link_state = p_lcb != NULL ? p_lcb->link_state : LST_DISCONNECTED;
+                GATT_TRACE_WARNING("%s, ch_state=%d, link_state=%d", __func__, ch_state, link_state);
+
+                if ((ch_state == GATT_CH_OPEN) ||
+                        ((ch_state == GATT_CH_CONN) && (link_state == LST_CONNECTED)))
                 {
                     /* only LCB exist between remote device and local */
                     ret = L2CA_RemoveFixedChnl (L2CAP_ATT_CID, p_tcb->peer_bda);
@@ -281,6 +287,13 @@ BOOLEAN gatt_disconnect (tGATT_TCB *p_tcb)
 *******************************************************************************/
 BOOLEAN gatt_update_app_hold_link_status(tGATT_IF gatt_if, tGATT_TCB *p_tcb, BOOLEAN is_add)
 {
+    for (int i = 0; i < GATT_MAX_APPS; i++) {
+        if (p_tcb->app_hold_link[i] == gatt_if && is_add) {
+            GATT_TRACE_DEBUG("%s: gatt_if %d already exists at idx %d", __func__, gatt_if, i);
+            return true;
+        }
+    }
+
     for (int i=0; i<GATT_MAX_APPS; i++) {
         if (p_tcb->app_hold_link[i] == 0 && is_add) {
             p_tcb->app_hold_link[i] = gatt_if;
@@ -400,7 +413,7 @@ BOOLEAN gatt_act_connect (tGATT_REG *p_reg, BD_ADDR bd_addr,
     if (ret)
     {
         if (!opportunistic)
-            gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, TRUE, FALSE);
+            gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, TRUE, TRUE);
         else
             GATT_TRACE_DEBUG("%s: connection is opportunistic, not updating app usage",
                             __func__);
@@ -434,6 +447,8 @@ static void gatt_le_connect_cback (UINT16 chan, BD_ADDR bd_addr, BOOLEAN connect
                        (bd_addr[0]<<24)+(bd_addr[1]<<16)+(bd_addr[2]<<8)+bd_addr[3],
                        (bd_addr[4]<<8)+bd_addr[5], (connected) ? "connected" : "disconnected");
 
+    if (reason == GATT_CONN_TIMEOUT || reason == GATT_CONN_LMP_TIMEOUT)
+        GENERATE_VENDOR_LOGS();
     if ((p_srv_chg_clt = gatt_is_bda_in_the_srv_chg_clt_list(bd_addr)) != NULL)
     {
         check_srv_chg = TRUE;

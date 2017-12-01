@@ -174,13 +174,13 @@ static future_t *init(void) {
     file_source = "Empty";
   }
 
-  if (file_source != NULL)
-    config_set_string(config, INFO_SECTION, FILE_SOURCE, file_source);
-
   if (!config) {
     LOG_ERROR("%s unable to allocate a config object.", __func__);
     goto error;
   }
+
+  if (file_source != NULL)
+    config_set_string(config, INFO_SECTION, FILE_SOURCE, file_source);
 
   btif_config_remove_unpaired(config);
 

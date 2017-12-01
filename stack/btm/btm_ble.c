@@ -747,6 +747,31 @@ void BTM_BleReceiverTest(UINT8 rx_freq, tBTM_CMPL_CB *p_cmd_cmpl_cback)
 
 /*******************************************************************************
 **
+** Function         BTM_BleEnhReceiverTest
+**
+** Description      This function is called to start the LE Enhanced Receiver
+**                  test
+**
+** Parameter        rx_freq - Frequency Range
+**                  phy - Phy to be used
+**                  mod_index - Modulation index
+**                  p_cmd_cmpl_cback - Command Complete callback
+**
+*******************************************************************************/
+void BTM_BleEnhReceiverTest(UINT8 rx_freq, UINT8 phy, UINT8 mod_index,
+                              tBTM_CMPL_CB *p_cmd_cmpl_cback)
+{
+     btm_cb.devcb.p_le_test_cmd_cmpl_cb = p_cmd_cmpl_cback;
+
+     if (btsnd_hcic_ble_enh_receiver_test(rx_freq, phy, mod_index) == FALSE)
+     {
+          BTM_TRACE_ERROR("%s: Unable to Trigger LE Enhanced receiver test",
+                               __FUNCTION__);
+     }
+}
+
+/*******************************************************************************
+**
 ** Function         BTM_BleTransmitterTest
 **
 ** Description      This function is called to start the LE Transmitter test
@@ -764,6 +789,32 @@ void BTM_BleTransmitterTest(UINT8 tx_freq, UINT8 test_data_len,
      if (btsnd_hcic_ble_transmitter_test(tx_freq, test_data_len, packet_payload) == FALSE)
      {
           BTM_TRACE_ERROR("%s: Unable to Trigger LE transmitter test", __FUNCTION__);
+     }
+}
+
+/*******************************************************************************
+**
+** Function         BTM_BleEnhTransmitterTest
+**
+** Description      This function is called to start the LE Enhanced Transmitter test
+**
+** Parameter        tx_freq - Frequency Range
+**                  test_data_len - Length in bytes of payload data in each packet
+**                  packet_payload - Pattern to use in the payload
+**                  phy - Phy to be used
+**                  p_cmd_cmpl_cback - Command Complete callback
+**
+*******************************************************************************/
+void BTM_BleEnhTransmitterTest(UINT8 tx_freq, UINT8 test_data_len,
+                                 UINT8 packet_payload, UINT8 phy,
+                                 tBTM_CMPL_CB *p_cmd_cmpl_cback)
+{
+     btm_cb.devcb.p_le_test_cmd_cmpl_cb = p_cmd_cmpl_cback;
+     if (btsnd_hcic_ble_enh_transmitter_test(tx_freq, test_data_len,
+              packet_payload, phy) == FALSE)
+     {
+          BTM_TRACE_ERROR("%s: Unable to Trigger LE Enhanced transmitter test",
+                               __FUNCTION__);
      }
 }
 
@@ -845,6 +896,8 @@ BOOLEAN BTM_UseLeLink (BD_ADDR bd_addr)
 tBTM_STATUS BTM_SetBleDataLength(BD_ADDR bd_addr, UINT16 tx_pdu_length)
 {
     tACL_CONN *p_acl = btm_bda_to_acl(bd_addr, BT_TRANSPORT_LE);
+    UINT16 tx_time = BTM_BLE_DATA_TX_TIME_MAX_LEGACY;
+
     BTM_TRACE_DEBUG("%s: tx_pdu_length =%d", __FUNCTION__, tx_pdu_length);
 
     if (!controller_get_interface()->supports_ble_packet_extension())
@@ -853,22 +906,23 @@ tBTM_STATUS BTM_SetBleDataLength(BD_ADDR bd_addr, UINT16 tx_pdu_length)
         return BTM_ILLEGAL_VALUE;
     }
 
-    if (!HCI_LE_DATA_LEN_EXT_SUPPORTED(p_acl->peer_le_features))
-    {
-        BTM_TRACE_ERROR("%s failed, peer does not support request", __FUNCTION__);
-        return BTM_ILLEGAL_VALUE;
-    }
-
     if (p_acl != NULL)
     {
+        if (!HCI_LE_DATA_LEN_EXT_SUPPORTED(p_acl->peer_le_features))
+        {
+            BTM_TRACE_ERROR("%s failed, peer does not support request", __FUNCTION__);
+            return BTM_ILLEGAL_VALUE;
+        }
         if (tx_pdu_length > BTM_BLE_DATA_SIZE_MAX)
             tx_pdu_length =  BTM_BLE_DATA_SIZE_MAX;
         else if (tx_pdu_length < BTM_BLE_DATA_SIZE_MIN)
             tx_pdu_length =  BTM_BLE_DATA_SIZE_MIN;
 
+        if (controller_get_interface()->get_bt_version()->hci_version >= HCI_PROTO_VERSION_5_0)
+            tx_time = BTM_BLE_DATA_TX_TIME_MAX;
+
         /* always set the TxTime to be max, as controller does not care for now */
-        btsnd_hcic_ble_set_data_length(p_acl->hci_handle, tx_pdu_length,
-                                            BTM_BLE_DATA_TX_TIME_MAX);
+        btsnd_hcic_ble_set_data_length(p_acl->hci_handle, tx_pdu_length, tx_time);
 
         return BTM_SUCCESS;
     }
@@ -1867,18 +1921,26 @@ static void btm_ble_resolve_random_addr_on_conn_cmpl(void * p_rec, void *p_data,
 {
     UINT8   *p = (UINT8 *)p_data;
     tBTM_SEC_DEV_REC    *match_rec = (tBTM_SEC_DEV_REC *) p_rec;
-    UINT8       role, bda_type;
+    UINT8       role, bda_type, sub_code;
     UINT16      handle;
     BD_ADDR     bda;
+    BD_ADDR     local_rpa, peer_rpa;
     UINT16      conn_interval, conn_latency, conn_timeout;
     BOOLEAN     match = FALSE;
     UNUSED(extended);
 
+    --p;
+    STREAM_TO_UINT8(sub_code, p);
     ++p;
     STREAM_TO_UINT16   (handle, p);
     STREAM_TO_UINT8    (role, p);
     STREAM_TO_UINT8    (bda_type, p);
     STREAM_TO_BDADDR   (bda, p);
+    if (sub_code == BTM_BLE_ENHC_CONN_SUB_CODE)
+    {
+        STREAM_TO_BDADDR   (local_rpa, p);
+        STREAM_TO_BDADDR   (peer_rpa, p);
+    }
     STREAM_TO_UINT16   (conn_interval, p);
     STREAM_TO_UINT16   (conn_latency, p);
     STREAM_TO_UINT16   (conn_timeout, p);
@@ -2146,7 +2208,7 @@ UINT8 btm_proc_smp_cback(tSMP_EVT event, BD_ADDR bd_addr, tSMP_EVT_DATA *p_data)
                    (*btm_cb.api.p_le_callback) (event, bd_addr, (tBTM_LE_EVT_DATA *)p_data);
                 }
 
-                if (event == SMP_COMPLT_EVT)
+                if (event == SMP_COMPLT_EVT && !p_data->cmplt.smp_over_br)
                 {
                     BTM_TRACE_DEBUG ("evt=SMP_COMPLT_EVT before update sec_level=0x%x sec_flags=0x%x", p_data->cmplt.sec_level , p_dev_rec->sec_flags );
 
@@ -2179,6 +2241,7 @@ UINT8 btm_proc_smp_cback(tSMP_EVT event, BD_ADDR bd_addr, tSMP_EVT_DATA *p_data)
                     {
                         BTM_TRACE_DEBUG ("Pairing failed - prepare to remove ACL");
                         l2cu_start_post_bond_timer(p_dev_rec->ble_hci_handle);
+                        GENERATE_VENDOR_LOGS();
                     }
 #endif
 

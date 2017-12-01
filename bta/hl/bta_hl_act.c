@@ -414,7 +414,7 @@ void bta_hl_dch_ci_get_tx_data(UINT8 app_idx, UINT8 mcl_idx, UINT8 mdl_idx,
     tBTA_HL_MCL_CB      *p_mcb  = BTA_HL_GET_MCL_CB_PTR(app_idx, mcl_idx);
     tBTA_HL_MDL_CB      *p_dcb  = BTA_HL_GET_MDL_CB_PTR(app_idx, mcl_idx, mdl_idx);
     tMCA_RESULT         result;
-    tBTA_HL_STATUS      status;
+    tBTA_HL_STATUS      status = BTA_HL_STATUS_OK;
     BOOLEAN             free_buf = FALSE;
     BOOLEAN             close_dch = FALSE;
     tBTA_HL             evt_data;

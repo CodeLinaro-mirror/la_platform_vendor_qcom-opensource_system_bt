@@ -643,6 +643,13 @@ typedef struct
     UINT16      periodic_adv_int;
     UINT8       direct_addr_type;
     BD_ADDR     direct_bda;
+    /*periodic adv rpt params*/
+    UINT16      sync_handle;
+    UINT8       periodic_adv_tx_power;
+    UINT8       periodic_adv_rssi;
+    UINT8       periodic_adv_unused;
+    UINT8       periodic_data_status;
+    UINT8       periodic_data_len;
 #endif
 } tBTM_INQ_RESULTS;
 

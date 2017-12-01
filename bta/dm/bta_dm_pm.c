@@ -47,6 +47,7 @@ static BOOLEAN bta_dm_pm_is_sco_active ();
 static int bta_dm_get_sco_index();
 static void bta_dm_pm_hid_check(BOOLEAN bScoActive);
 static void bta_dm_pm_set_sniff_policy(tBTA_DM_PEER_DEVICE *p_dev, BOOLEAN bDisable);
+void bta_dm_pm_set_sniff_policy_toggle(BD_ADDR peer_addr, BOOLEAN bDisable);
 static void bta_dm_pm_stop_timer_by_index(tBTA_PM_TIMER *p_timer,
                                           UINT8 timer_idx);
 
@@ -529,10 +530,12 @@ static void bta_dm_pm_cback(tBTA_SYS_CONN_STATUS status, UINT8 id, UINT8 app_id,
             tBTA_DM_PEER_DEVICE *p_rem_dev = NULL;
             if (BTM_ReadRemoteVersion(peer_addr, &lmp_version,
                 &manufacturer, &lmp_sub_version) == BTM_SUCCESS) {
+                bt_bdaddr_t remote_bdaddr;
+                bdcpy(remote_bdaddr.address, peer_addr);
                 p_rem_dev = bta_dm_find_peer_device(peer_addr);
                 /* Disable sniff policy on the HID link since SCO is Up on Slave Link */
                 if ((p_rem_dev) && (interop_match_addr(
-                    INTEROP_DISABLE_SNIFF_DURING_SCO, (const bt_bdaddr_t *)peer_addr) ||
+                    INTEROP_DISABLE_SNIFF_DURING_SCO, (const bt_bdaddr_t *)&remote_bdaddr) ||
                     interop_match_manufacturer(INTEROP_DISABLE_SNIFF_DURING_SCO, manufacturer)))
                 {
                     char buf[18];
@@ -917,10 +920,6 @@ static void bta_dm_pm_ssr(BD_ADDR peer_addr)
                     BTM_SetSsrParams (peer_addr, 0, 0, 0);
                     return;
                 }
-                else if (p_spec_cur->max_lat > BTA_HH_SSR_MAX_LATENCY_OPTIMAL)
-                {
-                    p_spec_cur->max_lat = BTA_HH_SSR_MAX_LATENCY_OPTIMAL;
-                }
                 else if (p_spec_cur->max_lat < BTA_HH_SSR_MAX_LATENCY_MIN_OPTIMAL)
                 {
                     p_spec_cur->max_lat = BTA_HH_SSR_MAX_LATENCY_MIN_OPTIMAL;
@@ -1289,14 +1288,16 @@ static void bta_dm_pm_hid_check(BOOLEAN bScoActive)
             UINT8 lmp_version = 0;
             tBTA_DM_PEER_DEVICE *p_rem_dev = NULL;
             UINT8 *p = BTM_ReadLocalFeatures();
+            bt_bdaddr_t remote_address;
             bdcpy(peer_bdaddr, bta_dm_conn_srvcs.conn_srvc[j].peer_bdaddr);
+            bdcpy(remote_address.address, bta_dm_conn_srvcs.conn_srvc[j].peer_bdaddr);
 
             if (BTM_ReadRemoteVersion(peer_bdaddr, &lmp_version,
                 &manufacturer, &lmp_sub_version) == BTM_SUCCESS) {
                 p_rem_dev = bta_dm_find_peer_device(peer_bdaddr);
                 /* Disable/Enable sniff policy on the HID link if SCO Up/Down*/
                 if ((p_rem_dev) && (interop_match_addr(
-                    INTEROP_DISABLE_SNIFF_DURING_SCO, (const bt_bdaddr_t *)peer_bdaddr) ||
+                    INTEROP_DISABLE_SNIFF_DURING_SCO, (const bt_bdaddr_t *)&remote_address) ||
                     interop_match_manufacturer(INTEROP_DISABLE_SNIFF_DURING_SCO, manufacturer)))
                 {
                     char buf[18];
@@ -1333,7 +1334,13 @@ static void bta_dm_pm_hid_check(BOOLEAN bScoActive)
     }
 
 }
-
+void bta_dm_pm_set_sniff_policy_toggle(BD_ADDR peer_addr, BOOLEAN bDisable)
+{
+    APPL_TRACE_DEBUG("%s: bDisable:%d", __func__, bDisable);
+    tBTA_DM_PEER_DEVICE *p_dev = NULL;
+    p_dev = bta_dm_find_peer_device(peer_addr);
+    bta_dm_pm_set_sniff_policy(p_dev, bDisable);
+}
 /*******************************************************************************
 **
 ** Function         bta_dm_pm_set_sniff_policy

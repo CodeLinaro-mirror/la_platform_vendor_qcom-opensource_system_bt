@@ -1288,6 +1288,7 @@ void gatt_rsp_timeout(void *data)
 
     GATT_TRACE_WARNING("%s disconnecting...", __func__);
     gatt_disconnect (p_clcb->p_tcb);
+    GENERATE_VENDOR_LOGS();
 }
 
 /*******************************************************************************
@@ -2043,7 +2044,7 @@ BOOLEAN gatt_find_app_hold_link(tGATT_TCB *p_tcb, UINT8 start_idx, UINT8 *p_foun
     UINT8 i;
     BOOLEAN found= FALSE;
 
-    for (i = start_idx; i < GATT_MAX_APPS; i ++)
+    for (i = start_idx; i < GATT_CL_MAX_LCB; i ++)
     {
         if (p_tcb->app_hold_link[i])
         {
