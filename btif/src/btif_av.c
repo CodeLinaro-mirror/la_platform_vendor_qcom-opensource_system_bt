@@ -28,7 +28,7 @@
 #include <system/audio.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_av.h>
-
+#include "btif_storage.h"
 #include "bt_utils.h"
 #include "bta_api.h"
 #include "btif_media.h"
@@ -48,6 +48,7 @@
 
 #define BTIF_TIMEOUT_AV_OPEN_ON_RC_MS  (2 * 1000)
 #define BTIF_TIMEOUT_AV_COLL_DETECTED_MS (2 * 1000)
+#define BTIF_TIMEOUT_AV_COLL_DETECTED_MS_2 (5 * 1000)
 
 /* Number of BTIF-AV control blocks */
 /* Now supports Two AV connections. */
@@ -428,7 +429,12 @@ static void btif_av_collission_timer_timeout(UNUSED_ATTR void *data)
     bt_bdaddr_t *target_bda = &retry_bda;
     btif_sm_state_t av_state;
     BD_ADDR av_address;
-
+    if(!btif_storage_is_device_bonded(target_bda)){
+     BTIF_TRACE_IMP("btif_av_collission_timer_timeout: not bonded device ");
+     return;
+   }else{
+      BTIF_TRACE_IMP("btif_av_collission_timer_timeout: bonded device ");
+    }
     bdcpy(av_address, target_bda->address);
     av_state = btif_get_conn_state_of_device(av_address);
     BTIF_TRACE_IMP("btif_av_collission_timer_timeout: AV state: %d", av_state);
@@ -499,11 +505,21 @@ void btif_av_check_and_start_collission_timer(int index)
         alarm_cancel(av_coll_detected_timer);
         BTIF_TRACE_IMP("btif_av_check_and_start_collission_timer:Deleting previously queued timer");
     }
-    alarm_set_on_queue(av_coll_detected_timer,
-              BTIF_TIMEOUT_AV_COLL_DETECTED_MS,
-              btif_av_collission_timer_timeout,
-              NULL,
-              btu_general_alarm_queue);
+    if (interop_match_addr(INTEROP_INCREASE_COLL_DETECT_TIMEOUT, &btif_av_cb[index].peer_bda))
+    {
+        /* Increase collision detected timeout */
+        alarm_set_on_queue(av_coll_detected_timer,
+                   BTIF_TIMEOUT_AV_COLL_DETECTED_MS_2,
+                   btif_av_collission_timer_timeout,
+                   NULL,
+                   btu_general_alarm_queue);
+    } else {
+        alarm_set_on_queue(av_coll_detected_timer,
+                  BTIF_TIMEOUT_AV_COLL_DETECTED_MS,
+                  btif_av_collission_timer_timeout,
+                  NULL,
+                  btu_general_alarm_queue);
+    }
 }
 
 
@@ -519,6 +535,7 @@ void btif_av_check_and_start_collission_timer(int index)
 
 static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, int index)
 {
+    int i;
     char a2dp_role[255] = "false";
 
     BTIF_TRACE_IMP("%s event:%s flags %x on Index = %d", __FUNCTION__,
@@ -744,22 +761,40 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
                  * and update multicast state
                  */
                 btif_av_update_multicast_state(index);
+
+                btif_av_cb[index].current_playing = TRUE;
+                if (enable_multicast == FALSE)
+                {
+                    for (i = 0; i < btif_max_av_clients; i++)
+                    {
+                        if (i != index)
+                        {
+                            btif_av_cb[i].current_playing = FALSE;
+                        }
+                    }
+                    if (btif_av_is_playing())
+                    {
+                        BTIF_TRACE_DEBUG("Trigger Dual A2dp Handoff on %d", index);
+                        btif_av_trigger_dual_handoff(TRUE, btif_av_cb[index].peer_bda.address);
+                    }
+                }
+
+                if (btif_av_cb[index].peer_sep == AVDT_TSEP_SNK)
+                {
+                    /* if queued PLAY command,  send it now */
+                    btif_rc_check_handle_pending_play(p_bta_data->open.bd_addr,
+                                (p_bta_data->open.status == BTA_AV_SUCCESS));
+                }
+                else if ((btif_av_cb[index].peer_sep == AVDT_TSEP_SRC) &&
+                            (p_bta_data->open.status == BTA_AV_SUCCESS))
+                {
+                    /* if queued PLAY command,  send it now */
+                    btif_rc_check_handle_pending_play(p_bta_data->open.bd_addr, FALSE);
+                    /* Bring up AVRCP connection too */
+                    BTA_AvOpenRc(btif_av_cb[index].bta_handle);
+                }
             }
 
-            if (btif_av_cb[index].peer_sep == AVDT_TSEP_SNK)
-            {
-                /* if queued PLAY command,  send it now */
-                btif_rc_check_handle_pending_play(p_bta_data->open.bd_addr,
-                                             (p_bta_data->open.status == BTA_AV_SUCCESS));
-            }
-            else if ((btif_av_cb[index].peer_sep == AVDT_TSEP_SRC) &&
-                    (p_bta_data->open.status == BTA_AV_SUCCESS))
-            {
-                /* if queued PLAY command,  send it now */
-                btif_rc_check_handle_pending_play(p_bta_data->open.bd_addr, FALSE);
-                /* Bring up AVRCP connection too */
-                BTA_AvOpenRc(btif_av_cb[index].bta_handle);
-            }
             btif_queue_advance();
         } break;
 
@@ -1350,11 +1385,28 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
                             {
                                btif_media_start_vendor_command();
                             }
+                            else
+                            {
+                                btif_a2dp_on_remote_started();
+                            }
                         }
                         else
                         {
                             BTIF_TRACE_DEBUG("%s: honor remote started for BL device",__FUNCTION__);
-                            btif_a2dp_on_remote_started();
+                            BD_ADDR playing_addr;
+                            memset(playing_addr, 0, sizeof(BD_ADDR));
+                            btif_rc_get_playing_device(playing_addr);
+                            if ((bdcmp(playing_addr, bd_addr_null) != 0) &&
+                                (btif_av_idx_by_bdaddr(playing_addr) < btif_max_av_clients) &&
+                                (btif_av_idx_by_bdaddr(playing_addr) == index))
+                            {
+                                BTIF_TRACE_DEBUG("%s: don't start remote started timer as play received ",__FUNCTION__);
+                            }
+                            else
+                            {
+                                BTIF_TRACE_DEBUG("%s: start remote started timer ",__FUNCTION__);
+                                btif_a2dp_on_remote_started();
+                            }
                         }
                     }
                 }
@@ -1711,6 +1763,18 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
                 BTIF_TRACE_DEBUG("Other device not suspended, don't ack the suspend");
             }
 
+            BTIF_TRACE_DEBUG("%s: local suspend flag: %d", __FUNCTION__,
+                                  btif_av_cb[index].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING);
+            if (btif_av_cb[index].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING)
+            {
+                BTIF_TRACE_DEBUG("%s: report upper layers audio state stopped:", __FUNCTION__);
+                btif_report_audio_state(BTAV_AUDIO_STATE_STOPPED, &(btif_av_cb[index].peer_bda));
+            }
+            else
+            {
+                BTIF_TRACE_DEBUG("%s: report upper layers audio state suspended:", __FUNCTION__);
+                btif_report_audio_state(BTAV_AUDIO_STATE_REMOTE_SUSPEND, &(btif_av_cb[index].peer_bda));
+            }
             /* if not successful, remain in current state */
             if (p_av->suspend.status != BTA_AV_SUCCESS)
             {
@@ -1724,14 +1788,6 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
                 return FALSE;
             }
 
-            if (p_av->suspend.initiator != TRUE)
-            {
-                btif_report_audio_state(BTAV_AUDIO_STATE_REMOTE_SUSPEND, &(btif_av_cb[index].peer_bda));
-            }
-            else
-            {
-                btif_report_audio_state(BTAV_AUDIO_STATE_REMOTE_SUSPEND, &(btif_av_cb[index].peer_bda));
-            }
             btif_av_cb[index].is_device_playing = FALSE;
             btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_OPENED);
 
@@ -3192,7 +3248,8 @@ bt_status_t btif_av_execute_service(BOOLEAN b_enable)
             if (btif_av_cb[i].sm_handle != NULL)
             {
                 state = btif_sm_get_state(btif_av_cb[i].sm_handle);
-                if(state==BTIF_AV_STATE_OPENING)
+                BTIF_TRACE_DEBUG("BT is shutting down, state=%d", state);
+                if((state == BTIF_AV_STATE_OPENING) || (state == BTIF_AV_STATE_OPENED) || (state == BTIF_AV_STATE_STARTED))
                 {
                     BTIF_TRACE_DEBUG("Moving State from Opening to Idle due to BT ShutDown");
                     btif_sm_change_state(btif_av_cb[i].sm_handle, BTIF_AV_STATE_IDLE);

@@ -2424,7 +2424,7 @@ tBTM_STATUS btm_sec_l2cap_access_req (BD_ADDR bd_addr, UINT16 psm, UINT16 handle
             p_dev_rec->sec_state         = BTM_SEC_STATE_DELAY_FOR_ENC;
             (*p_callback) (bd_addr, transport, p_ref_data, rc);
 
-            return BTM_SUCCESS;
+            return BTM_CMD_STARTED;
         }
     }
 
@@ -4071,12 +4071,14 @@ void btm_sec_auth_complete (UINT16 handle, UINT8 status)
          &&  (memcmp (p_dev_rec->bd_addr, btm_cb.pairing_bda, BD_ADDR_LEN) == 0) )
         are_bonding = TRUE;
 
-    if ( (btm_cb.pairing_state != BTM_PAIR_STATE_IDLE)
-          &&  (memcmp (p_dev_rec->bd_addr, btm_cb.pairing_bda, BD_ADDR_LEN) == 0) )
-        btm_sec_change_pairing_state (BTM_PAIR_STATE_IDLE);
 
     if (p_dev_rec->sec_state != BTM_SEC_STATE_AUTHENTICATING)
     {
+      p_dev_rec->sec_state = BTM_SEC_STATE_IDLE;
+     if ( (btm_cb.pairing_state != BTM_PAIR_STATE_IDLE)
+      && (memcmp (p_dev_rec->bd_addr, btm_cb.pairing_bda, BD_ADDR_LEN) == 0) )
+        btm_sec_change_pairing_state (BTM_PAIR_STATE_IDLE);
+
         if ( (btm_cb.api.p_auth_complete_callback && status != HCI_SUCCESS)
              &&  (old_state != BTM_PAIR_STATE_IDLE) )
         {
@@ -4085,7 +4087,12 @@ void btm_sec_auth_complete (UINT16 handle, UINT8 status)
                                                     p_dev_rec->sec_bd_name, status);
         }
         return;
-    }
+    }else{
+   p_dev_rec->sec_state = BTM_SEC_STATE_IDLE;
+   if ( (btm_cb.pairing_state != BTM_PAIR_STATE_IDLE)
+    && (memcmp (p_dev_rec->bd_addr, btm_cb.pairing_bda, BD_ADDR_LEN) == 0) )
+     btm_sec_change_pairing_state (BTM_PAIR_STATE_IDLE);
+}
 
     /* There can be a race condition, when we are starting authentication and
     ** the peer device is doing encryption.

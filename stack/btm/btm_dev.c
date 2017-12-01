@@ -204,7 +204,6 @@ extern void BTM_SecClearSecurityFlags (BD_ADDR bd_addr)
 
     p_dev_rec->sec_flags = 0;
     p_dev_rec->sec_state = BTM_SEC_STATE_IDLE;
-    p_dev_rec->sm4 = BTM_SM4_UNKNOWN;
 }
 
 /*******************************************************************************
