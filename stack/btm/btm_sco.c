@@ -1802,10 +1802,12 @@ BOOLEAN btm_is_sco_active_by_bdaddr (BD_ADDR remote_bda)
     {
         if ((!memcmp (p->esco.data.bd_addr, remote_bda, BD_ADDR_LEN)) && (p->state == SCO_ST_CONNECTED))
         {
+            APPL_TRACE_DEBUG("%s: Sco is active", __func__);
             return (TRUE);
         }
     }
 #endif
+    APPL_TRACE_DEBUG("%s: Sco is not active", __func__);
     return (FALSE);
 }
 #else   /* SCO_EXCLUDED == TRUE (Link in stubs) */
