@@ -2869,10 +2869,7 @@ static bt_status_t get_play_status_rsp(btrc_play_status_t play_status, uint32_t 
     {
         BTIF_TRACE_ERROR("%s: clear remote suspend flag: %d",__FUNCTION__, av_index);
         btif_av_clear_remote_suspend_flag();
-        if (btif_av_is_offload_supported())
-        {
-            btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
-        }
+        btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
     }
 
     avrc_rsp.get_play_status.pdu = AVRC_PDU_GET_PLAY_STATUS;
@@ -3269,10 +3266,7 @@ static bt_status_t register_notification_rsp(btrc_event_id_t event_id,
             {
                 BTIF_TRACE_ERROR("%s: clear remote suspend flag: %d",__FUNCTION__,av_index );
                 btif_av_clear_remote_suspend_flag();
-                if (btif_av_is_offload_supported())
-                {
-                    btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
-                }
+                btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
             }
             break;
         case BTRC_EVT_TRACK_CHANGE:

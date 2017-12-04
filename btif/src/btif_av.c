@@ -1242,6 +1242,7 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
                 BTIF_TRACE_EVENT("%s: Resetting remote suspend flag on RC PLAY",
                         __FUNCTION__);
                 btif_av_cb[i].flags &= ~BTIF_AV_FLAG_REMOTE_SUSPEND;
+                btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
             }
         }
     }
