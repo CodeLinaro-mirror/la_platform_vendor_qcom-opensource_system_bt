@@ -414,6 +414,8 @@ extern UINT16 btif_av_get_num_playing_devices(void);
 extern BOOLEAN btif_av_is_offload_supported();
 extern UINT8 btif_av_idx_by_bdaddr(BD_ADDR bd_addr);
 
+extern bt_status_t btif_hf_check_if_sco_connected();
+
 extern fixed_queue_t *btu_general_alarm_queue;
 
 /*****************************************************************************
@@ -1027,6 +1029,12 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
     {
         BTIF_TRACE_ERROR("Passthrough on AVRCP only device: Ignore..");
         return;
+    }
+
+    if (btif_hf_check_if_sco_connected() == BT_STATUS_SUCCESS)
+    {
+        BTIF_TRACE_ERROR("ignore Passthrough command when SCO is up");
+        return ;
     }
 
     /* Trigger DUAL Handoff when support single streaming */
