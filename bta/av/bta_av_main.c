@@ -1387,8 +1387,14 @@ UINT16 bta_av_chk_mtu(tBTA_AV_SCB *p_scb, UINT16 mtu)
     tBTA_AV_SCB *p_scbi;
     int i;
     UINT8   mask;
-    UNUSED(mtu);
 
+    if (!is_multicast_enabled) {
+        APPL_TRACE_DEBUG("bta_av_chk_mtu Non-multicast, conn_audio:0x%x, ret:%d",
+                           bta_av_cb.conn_audio, mtu);
+        if (mtu > BTA_AV_MAX_A2DP_MTU)
+            mtu = BTA_AV_MAX_A2DP_MTU;
+        return mtu;
+    }
     /* TODO_MV mess with the mtu according to the number of EDR/non-EDR headsets */
     if(p_scb->chnl == BTA_AV_CHNL_AUDIO)
     {
