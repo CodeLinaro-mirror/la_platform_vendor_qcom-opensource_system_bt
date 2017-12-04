@@ -59,6 +59,7 @@
 #include "osi/include/metrics.h"
 #include "osi/include/mutex.h"
 #include "osi/include/thread.h"
+#include "device/include/interop.h"
 #include "bt_utils.h"
 #include "a2d_api.h"
 #include "a2d_int.h"
@@ -272,6 +273,8 @@ enum {
 /* Readability constants */
 #define SBC_FRAME_HEADER_SIZE_BYTES 4 // A2DP Spec v1.3, 12.4, Table 12.12
 #define SBC_SCALE_FACTOR_BITS       4 // A2DP Spec v1.3, 12.4, Table 12.13
+
+#define A2DP_AUDIO_ADDL_LATENCY   200
 
 typedef struct {
     // Counter for total updates
@@ -740,6 +743,7 @@ static const char* dump_a2dp_ctrl_event(UINT8 event)
         CASE_RETURN_STR(A2DP_CTRL_GET_CODEC_CONFIG)
         CASE_RETURN_STR(A2DP_CTRL_GET_MULTICAST_STATUS)
         CASE_RETURN_STR(A2DP_CTRL_GET_CONNECTION_STATUS)
+        CASE_RETURN_STR(AUDIO_CTRL_GET_ADDL_LATENCY)
         default:
             return "UNKNOWN MSG ID";
     }
@@ -1158,6 +1162,36 @@ static void btif_recv_ctrl_data(void)
 
             break;
         }
+
+        case AUDIO_CTRL_GET_ADDL_LATENCY:
+        {
+             BTIF_TRACE_ERROR("Get additional audio latency");
+             uint16_t audio_latency = 0;
+             uint8_t latency_ack;
+             bt_bdaddr_t remote_addr;
+             BD_ADDR bd_addr;
+
+             btif_av_get_peer_addr(&remote_addr);
+             bdcpy(bd_addr,remote_addr.address);
+
+             BTIF_TRACE_IMP("TARGET BD ADDRESS %x:%x:%x:%x:%x:%x", bd_addr[0],
+                     bd_addr[1], bd_addr[2], bd_addr[3], bd_addr[4], bd_addr[5]);
+
+             //check for blacklisted device
+             if (interop_match_addr(INTEROP_AUDIO_ADDL_LATENCY, &remote_addr))
+             {
+                 BTIF_TRACE_ERROR("Device blacklisted for latency !!!");
+                 audio_latency = A2DP_AUDIO_ADDL_LATENCY;
+             }
+
+             BTIF_TRACE_ERROR("The additional audio latency: %d",audio_latency);
+
+             latency_ack = A2DP_CTRL_ACK_SUCCESS;
+             UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, &latency_ack, 1);
+             UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, (uint8_t *)&audio_latency, 2);
+             break;
+        }
+
         case A2DP_CTRL_CMD_OFFLOAD_SUPPORTED:
             BTIF_TRACE_ERROR("Split A2DP supported");
             bt_split_a2dp_enabled = TRUE;

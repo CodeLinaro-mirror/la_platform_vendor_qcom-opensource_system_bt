@@ -178,6 +178,10 @@ typedef enum {
   // is not requested explictly for those devices.
   INTEROP_DISABLE_LE_CONN_UPDATES,
 
+  // Some remote devices need to be checked for the audio latency value
+  // This latency value would be added with the existing value to provide synchronization
+  INTEROP_AUDIO_ADDL_LATENCY,
+
   END_OF_INTEROP_LIST
 
 } interop_feature_t;
