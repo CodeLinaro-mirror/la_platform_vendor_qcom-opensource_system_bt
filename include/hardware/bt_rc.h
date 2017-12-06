@@ -86,6 +86,7 @@ typedef enum {
   BTRC_FEAT_METADATA = 0x01,        /* AVRCP 1.3 */
   BTRC_FEAT_ABSOLUTE_VOLUME = 0x02, /* Supports TG role and volume sync */
   BTRC_FEAT_BROWSE = 0x04, /* AVRCP 1.4 and up, with Browsing support */
+  BTRC_FEAT_COVER_ART = 0x08,    /* cover art support */
 } btrc_remote_features_t;
 
 typedef enum {
@@ -131,6 +132,7 @@ typedef enum {
   BTRC_MEDIA_ATTR_NUM_TRACKS = 0x05,
   BTRC_MEDIA_ATTR_GENRE = 0x06,
   BTRC_MEDIA_ATTR_PLAYING_TIME = 0x07,
+  BTRC_MEDIA_ATTR_COVER_ART = 0x08,
 } btrc_media_attr_t;
 
 typedef enum {
@@ -571,7 +573,8 @@ typedef void (*btrc_connection_state_callback)(bool rc_connect, bool bt_connect,
                                                const RawAddress& bd_addr);
 
 typedef void (*btrc_ctrl_getrcfeatures_callback)(const RawAddress& bd_addr,
-                                                 int features);
+                                                 int features,
+                                                 uint16_t cover_art_psm);
 
 typedef void (*btrc_ctrl_setabsvol_cmd_callback)(const RawAddress& bd_addr,
                                                  uint8_t abs_vol,

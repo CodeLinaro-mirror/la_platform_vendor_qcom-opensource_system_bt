@@ -88,6 +88,7 @@
 #define MAX_TRANSACTIONS_PER_SESSION 16
 #define PLAY_STATUS_PLAYING 1
 #define BTIF_RC_NUM_CONN BT_RC_NUM_APP
+#define BTIF_RC_HANDLE_NONE 0xFF
 
 #define CHECK_RC_CONNECTED(p_dev)                                          \
   do {                                                                     \
@@ -174,6 +175,7 @@ typedef struct {
   bool br_connected;  // Browsing channel.
   uint8_t rc_handle;
   tBTA_AV_FEAT rc_features;
+  uint16_t rc_cover_art_psm;  /* l2cap psm for cover art on remote */
   btrc_connection_state_t rc_state;
   RawAddress rc_addr;
   uint16_t rc_pending_play;
@@ -187,6 +189,7 @@ typedef struct {
   bool rc_features_processed;
   uint64_t rc_playing_uid;
   bool rc_procedure_complete;
+  bool rc_element_attr_app_req;  /* flag to track get_element_attr req */
 } btif_rc_device_cb_t;
 
 typedef struct {
@@ -481,6 +484,10 @@ void handle_rc_ctrl_features(btif_rc_device_cb_t* p_dev) {
     }
   }
 
+  if (p_dev->rc_features & BTA_AV_FEAT_CA) {
+    rc_features |= BTRC_FEAT_COVER_ART;
+  }
+
   /* Add browsing feature capability */
   if (p_dev->rc_features & BTA_AV_FEAT_BROWSE) {
     rc_features |= BTRC_FEAT_BROWSE;
@@ -488,7 +495,8 @@ void handle_rc_ctrl_features(btif_rc_device_cb_t* p_dev) {
 
   BTIF_TRACE_DEBUG("%s: Update rc features to CTRL: %d", __func__, rc_features);
   do_in_jni_thread(FROM_HERE, base::Bind(bt_rc_ctrl_callbacks->getrcfeatures_cb,
-                                         p_dev->rc_addr, rc_features));
+                                         p_dev->rc_addr, rc_features,
+                                         p_dev->rc_cover_art_psm));
 }
 
 void handle_rc_features(btif_rc_device_cb_t* p_dev) {
@@ -630,6 +638,7 @@ void handle_rc_connect(tBTA_AV_RC_OPEN* p_rc_open) {
   }
   p_dev->rc_addr = p_rc_open->peer_addr;
   p_dev->rc_features = p_rc_open->peer_features;
+  p_dev->rc_cover_art_psm = p_rc_open->cover_art_psm;
   BTIF_TRACE_DEBUG("%s: handle_rc_connect in features: 0x%x out features 0x%x",
                    __func__, p_rc_open->peer_features, p_dev->rc_features);
   p_dev->rc_vol_label = MAX_LABEL;
@@ -1029,6 +1038,7 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV* p_data) {
       }
 
       p_dev->rc_features = p_data->rc_feat.peer_features;
+      p_dev->rc_cover_art_psm = p_data->rc_feat.cover_art_psm;
       if (bt_rc_callbacks != NULL) {
         handle_rc_features(p_dev);
       }
@@ -1754,6 +1764,8 @@ static bt_status_t init_ctrl(btrc_ctrl_callbacks_t* callbacks) {
            sizeof(btif_rc_cb.rc_multi_cb[idx]));
     btif_rc_cb.rc_multi_cb[idx].rc_vol_label = MAX_LABEL;
     btif_rc_cb.rc_multi_cb[idx].rc_volume = MAX_VOLUME;
+    btif_rc_cb.rc_multi_cb[idx].rc_features_processed = FALSE;
+    btif_rc_cb.rc_multi_cb[idx].rc_handle = BTIF_RC_HANDLE_NONE;
   }
   lbl_init();
 
@@ -1774,7 +1786,7 @@ static void rc_ctrl_procedure_complete(btif_rc_device_cb_t* p_dev) {
       AVRC_MEDIA_ATTR_ID_TITLE,       AVRC_MEDIA_ATTR_ID_ARTIST,
       AVRC_MEDIA_ATTR_ID_ALBUM,       AVRC_MEDIA_ATTR_ID_TRACK_NUM,
       AVRC_MEDIA_ATTR_ID_NUM_TRACKS,  AVRC_MEDIA_ATTR_ID_GENRE,
-      AVRC_MEDIA_ATTR_ID_PLAYING_TIME};
+      AVRC_MEDIA_ATTR_ID_PLAYING_TIME, AVRC_MEDIA_ATTR_ID_COVER_ART};
   get_element_attribute_cmd(AVRC_MAX_NUM_MEDIA_ATTR_ID, attr_list, p_dev);
 }
 
@@ -2761,6 +2773,7 @@ bool iterate_supported_event_list_for_timeout(void* data, void* cb_data) {
 static void rc_notification_interim_timout(uint8_t label,
                                            btif_rc_device_cb_t* p_dev) {
   list_node_t* node;
+  if (p_dev->rc_supported_event_list == NULL ) return;
   rc_context_t cntxt;
   memset(&cntxt, 0, sizeof(rc_context_t));
   cntxt.label = label;
@@ -3133,6 +3146,10 @@ static void handle_get_capability_response(tBTA_AV_META_MSG* pmeta_msg,
         list_append(p_dev->rc_supported_event_list, p_event);
       }
     }
+    if (list_is_empty(p_dev->rc_supported_event_list)) {
+      BTIF_TRACE_EVENT(" Supported event list Empty, returning");
+      return;
+    }
     p_event =
         (btif_rc_supported_event_t*)list_front(p_dev->rc_supported_event_list);
     if (p_event != NULL) {
@@ -3185,7 +3202,7 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
       AVRC_MEDIA_ATTR_ID_TITLE,       AVRC_MEDIA_ATTR_ID_ARTIST,
       AVRC_MEDIA_ATTR_ID_ALBUM,       AVRC_MEDIA_ATTR_ID_TRACK_NUM,
       AVRC_MEDIA_ATTR_ID_NUM_TRACKS,  AVRC_MEDIA_ATTR_ID_GENRE,
-      AVRC_MEDIA_ATTR_ID_PLAYING_TIME};
+      AVRC_MEDIA_ATTR_ID_PLAYING_TIME, AVRC_MEDIA_ATTR_ID_COVER_ART};
 
   if (p_dev == NULL) {
     BTIF_TRACE_ERROR("%s: p_dev NULL", __func__);
@@ -3224,6 +3241,7 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
            * Attributes will be fetched after the AVRCP procedure
            */
           BE_STREAM_TO_UINT64(p_dev->rc_playing_uid, p_data);
+          get_element_attribute_cmd(0, attr_list, p_dev);
         }
         break;
 
@@ -3327,10 +3345,12 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
       case AVRC_EVT_TRACK_CHANGE:
         if (rc_is_track_id_valid(p_rsp->param.track) != true) {
           break;
+        } else {
+          uint8_t* p_data = p_rsp->param.track;
+          BE_STREAM_TO_UINT64(p_dev->rc_playing_uid, p_data);
+          get_element_attribute_cmd(0, NULL, p_dev);
         }
-        get_element_attribute_cmd(AVRC_MAX_NUM_MEDIA_ATTR_ID, attr_list, p_dev);
         break;
-
       case AVRC_EVT_APP_SETTING_CHANGE: {
         btrc_player_settings_t app_settings;
         uint16_t xx;
@@ -3415,6 +3435,8 @@ static void handle_app_attr_response(tBTA_AV_META_MSG* pmeta_msg,
     list_player_app_setting_value_cmd(p_dev->rc_app_settings.attrs[0].attr_id,
                                       p_dev);
   } else {
+    /* Complete RC procedure from here */
+    rc_ctrl_procedure_complete(p_dev);
     BTIF_TRACE_ERROR("%s: No Player application settings found", __func__);
   }
 }
@@ -5010,8 +5032,8 @@ static bt_status_t register_notification_cmd(uint8_t label, uint8_t event_id,
 static bt_status_t get_element_attribute_cmd(uint8_t num_attribute,
                                              uint32_t* p_attr_ids,
                                              btif_rc_device_cb_t* p_dev) {
-  BTIF_TRACE_DEBUG("%s: num_attribute: %d attribute_id: %d", __func__,
-                   num_attribute, p_attr_ids[0]);
+  BTIF_TRACE_DEBUG("%s: num_attribute: %d ", __func__,
+                   num_attribute);
   CHECK_RC_CONNECTED(p_dev);
 
   tAVRC_COMMAND avrc_cmd = {0};
