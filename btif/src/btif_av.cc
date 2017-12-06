@@ -355,8 +355,20 @@ static void btif_initiate_av_open_timer_timeout(UNUSED_ATTR void* data) {
   btif_av_connect_req_t connect_req;
 
   memset(&connect_req, 0, sizeof(btif_av_connect_req_t));
-  /* is there at least one RC connection - There should be */
+  /* Is there at least one RC connection? - There should be */
   if (btif_rc_get_connected_peer(&peer_addr)) {
+    /* In case of AVRCP connection request, we will initiate SRC connection */
+    btif_sm_state_t state = btif_sm_get_state(btif_av_cb[0].sm_handle);
+    if ((state == BTIF_AV_STATE_STARTED) || (state == BTIF_AV_STATE_OPENED)) {
+      BTIF_TRACE_DEBUG(" %s A2DP Connection Already UP", __FUNCTION__);
+      /* Check if A2DP conneciton is with same device */
+      if(btif_av_cb[0].peer_bda == peer_addr) {
+          BTIF_TRACE_WARNING(" %s Disconnecting AVRCP ", __FUNCTION__);
+          BTA_AvCloseRc(btif_rc_get_connected_peer_handle(peer_addr));
+          return;
+      }
+    }
+
     /* Check if this peer_addr is same as currently connected AV*/
     if (btif_get_conn_state_of_device(peer_addr) == BTIF_AV_STATE_OPENED) {
       BTIF_TRACE_DEBUG("AV is already connected");
@@ -370,19 +382,21 @@ static void btif_initiate_av_open_timer_timeout(UNUSED_ATTR void* data) {
       rc_handle = btif_rc_get_connected_peer_handle(peer_addr);
       index = btif_av_get_valid_idx_for_rc_events(peer_addr, rc_handle);
       if (index >= btif_max_av_clients) {
-          BTIF_TRACE_ERROR("%s No slot free for AV connection, back off",
-                            __func__);
-          return;
+        BTIF_TRACE_ERROR("%s No slot free for AV connection, back off",
+                         __func__);
+        return;
       }
+
       BTIF_TRACE_DEBUG("%s Issuing connect to the remote RC peer", __func__);
-    /* In case of AVRCP connection request, we will initiate SRC connection */
-    connect_req.target_bda = &peer_addr;
-    if (bt_av_sink_callbacks != NULL)
-      connect_req.uuid = UUID_SERVCLASS_AUDIO_SINK;
-    else if (bt_av_src_callbacks != NULL)
-      connect_req.uuid = UUID_SERVCLASS_AUDIO_SOURCE;
-    btif_dispatch_sm_event(BTIF_AV_CONNECT_REQ_EVT, (char*)&connect_req,
-                           sizeof(connect_req));
+      /* In case of AVRCP connection request, we will initiate SRC connection */
+      connect_req.target_bda = &peer_addr;
+      if (bt_av_sink_callbacks != NULL)
+        connect_req.uuid = UUID_SERVCLASS_AUDIO_SINK;
+      else if (bt_av_src_callbacks != NULL)
+        connect_req.uuid = UUID_SERVCLASS_AUDIO_SOURCE;
+
+      btif_dispatch_sm_event(BTIF_AV_CONNECT_REQ_EVT, (char*)&connect_req,
+                             sizeof(connect_req));
     }
   } else {
     BTIF_TRACE_ERROR("%s: No connected RC peers", __func__);
