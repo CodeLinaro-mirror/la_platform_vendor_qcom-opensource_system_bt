@@ -1368,6 +1368,15 @@
 #define DUMP_PCM_DATA FALSE
 #endif
 
+#ifndef SDP_AVRCP_CT_1_6
+#define SDP_AVRCP_CT_1_6            TRUE
+#endif
+#ifdef SDP_AVRCP_CT_1_6
+#ifndef SDP_AVRCP_CT_COVER_ART
+#define SDP_AVRCP_CT_COVER_ART      TRUE
+#endif
+#endif
+
 /******************************************************************************
  *
  * MCAP
