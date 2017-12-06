@@ -1208,7 +1208,6 @@ void btif_media_snd_ctrl_cmd(UINT8 cmd)
                    remotely suspended, clear REMOTE SUSPEND Flag */
                 APPL_TRACE_DEBUG("%s:A2DP command %s AV stream_started_ready clear flag",
                              __func__, dump_a2dp_ctrl_event(cmd));
-                btif_av_clear_remote_suspend_flag();
                 a2dp_cmd_acknowledge(A2DP_CTRL_ACK_SUCCESS);
             }
             break;
