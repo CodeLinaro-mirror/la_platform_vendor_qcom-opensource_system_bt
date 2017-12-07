@@ -49,6 +49,9 @@
 #include "btif/include/btif_a2dp_source.h"
 #include "device/include/interop.h"
 #include "device/include/controller.h"
+#ifdef BT_IOT_LOGGING_ENABLED
+#include "btif_iot_config.h"
+#endif
 
 extern bool isDevUiReq;
 bool isBitRateChange = false;
@@ -652,6 +655,11 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
         btif_av_cb[index].peer_bda = *connect_req_p->target_bda;
         BTA_AvOpen(btif_av_cb[index].peer_bda, btif_av_cb[index].bta_handle, true,
                    BTA_SEC_AUTHENTICATE, connect_req_p->uuid);
+#ifdef BT_IOT_LOGGING_ENABLED
+        btif_iot_config_addr_set_int(btif_av_cb[index].peer_bda, IOT_CONF_KEY_A2DP_ROLE,
+            (connect_req_p->uuid == UUID_SERVCLASS_AUDIO_SOURCE) ? IOT_CONF_VAL_A2DP_ROLE_SINK : IOT_CONF_VAL_A2DP_ROLE_SOURCE);
+        btif_iot_config_addr_int_add_one(btif_av_cb[index].peer_bda, IOT_CONF_KEY_A2DP_CONN_COUNT);
+#endif
 
       btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_OPENING);
       } break;
@@ -693,8 +701,12 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
         btif_av_cb[index].peer_bda = ((tBTA_AV*)p_data)->pend.bd_addr;
 
       // Only for AVDTP connection request move to opening state
-      if (event == BTA_AV_PENDING_EVT)
+      if (event == BTA_AV_PENDING_EVT) {
+#ifdef BT_IOT_LOGGING_ENABLED
+        btif_iot_config_addr_int_add_one(btif_av_cb[index].peer_bda, IOT_CONF_KEY_A2DP_CONN_COUNT);
+#endif
         btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_OPENING);
+      }
 
       if (bt_av_src_callbacks != NULL) {
         BTIF_TRACE_DEBUG("Calling connection priority callback ");
@@ -905,6 +917,9 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
       btif_report_connection_state(BTAV_CONNECTION_STATE_DISCONNECTED,
                                    &(btif_av_cb[index].peer_bda));
       btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_IDLE);
+#ifdef BT_IOT_LOGGING_ENABLED
+      btif_iot_config_addr_int_add_one(btif_av_cb[index].peer_bda, IOT_CONF_KEY_A2DP_CONN_FAIL_COUNT);
+#endif
       break;
 
     case BTA_AV_OPEN_EVT: {
@@ -967,6 +982,9 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
         }
         state = BTAV_CONNECTION_STATE_DISCONNECTED;
         av_state = BTIF_AV_STATE_IDLE;
+#ifdef BT_IOT_LOGGING_ENABLED
+        btif_iot_config_addr_int_add_one(btif_av_cb[index].peer_bda, IOT_CONF_KEY_A2DP_CONN_FAIL_COUNT);
+#endif
       }
       if (p_bta_data->open.status != BTA_AV_SUCCESS &&
               p_bta_data->open.status != BTA_AV_FAIL_SDP) {
@@ -1102,6 +1120,9 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
       btif_queue_advance();
       btif_av_check_and_start_collission_timer(index);
       btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_IDLE);
+#ifdef BT_IOT_LOGGING_ENABLED
+      btif_iot_config_addr_int_add_one(btif_av_cb[index].peer_bda, IOT_CONF_KEY_A2DP_CONN_FAIL_COUNT);
+#endif
       break;
 
     case BTIF_AV_DISCONNECT_REQ_EVT:
