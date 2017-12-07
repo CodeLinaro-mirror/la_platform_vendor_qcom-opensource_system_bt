@@ -28,6 +28,7 @@ static_library("btif") {
     "src/btif_ble_advertiser.cc",
     "src/btif_ble_scanner.cc",
     "src/btif_config.cc",
+    "src/btif_iot_config.cc",
     "src/btif_config_transcode.cc",
     "src/btif_core.cc",
     "src/btif_debug.cc",
