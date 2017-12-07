@@ -48,6 +48,9 @@
 #include <cutils/properties.h>
 #include "device/include/controller.h"
 #include "btif_storage.h"
+#ifdef BT_IOT_LOGGING_ENABLED
+#include "btif_iot_config.h"
+#endif
 
 /*******************************************************************************
  *  Constants & Macros
@@ -492,6 +495,12 @@ static void btif_hf_upstreams_evt(uint16_t event, char* p_param) {
                          __func__, p_data->open.status, btif_hf_cb[idx].state, btif_max_hf_clients);
       if (p_data->open.status == BTA_AG_SUCCESS) {
         btif_hf_cb[idx].connected_bda = p_data->open.bd_addr;
+#ifdef BT_IOT_LOGGING_ENABLED
+        if (btif_hf_cb[idx].state != BTHF_CONNECTION_STATE_CONNECTING) {
+          btif_iot_config_addr_set_int(btif_hf_cb[idx].connected_bda, IOT_CONF_KEY_HFP_ROLE, IOT_CONF_VAL_HFP_ROLE_CLIENT);
+          btif_iot_config_addr_int_add_one(btif_hf_cb[idx].connected_bda, IOT_CONF_KEY_HFP_SLC_CONN_COUNT);
+        }
+#endif
         btif_hf_cb[idx].state = BTHF_CONNECTION_STATE_CONNECTED;
         btif_hf_cb[idx].peer_feat = 0;
         clear_phone_state_multihf(idx);
@@ -507,6 +516,12 @@ static void btif_hf_upstreams_evt(uint16_t event, char* p_param) {
                         __func__, btif_hf_cb[idx].connected_bda.ToString().c_str());
           ignore_rfc_fail = true;
         }
+
+#ifdef BT_IOT_LOGGING_ENABLED
+        if (!ignore_rfc_fail) {
+          btif_iot_config_addr_int_add_one(btif_hf_cb[idx].connected_bda, IOT_CONF_KEY_HFP_SLC_CONN_FAIL_COUNT);
+        }
+#endif
         btif_hf_cb[idx].state = BTHF_CONNECTION_STATE_DISCONNECTED;
       } else {
         BTIF_TRACE_WARNING(
@@ -531,6 +546,13 @@ static void btif_hf_upstreams_evt(uint16_t event, char* p_param) {
 
     case BTA_AG_CLOSE_EVT:
       btif_hf_cb[idx].connected_timestamp.tv_sec = 0;
+
+#ifdef BT_IOT_LOGGING_ENABLED
+      if (btif_hf_cb[idx].state == BTHF_CONNECTION_STATE_CONNECTED) {
+        btif_iot_config_addr_int_add_one(btif_hf_cb[idx].connected_bda, IOT_CONF_KEY_HFP_SLC_CONN_FAIL_COUNT);
+      }
+#endif
+
       btif_hf_cb[idx].state = BTHF_CONNECTION_STATE_DISCONNECTED;
 
       BTIF_TRACE_DEBUG("%s: Moving the audio_state to DISCONNECTED", __FUNCTION__);
@@ -561,6 +583,13 @@ static void btif_hf_upstreams_evt(uint16_t event, char* p_param) {
     case BTA_AG_CONN_EVT:
       clock_gettime(CLOCK_MONOTONIC, &btif_hf_cb[idx].connected_timestamp);
       BTIF_TRACE_DEBUG("%s: BTA_AG_CONN_EVT, idx = %d ", __func__, idx);
+
+#ifdef BT_IOT_LOGGING_ENABLED
+      btif_iot_config_addr_set_hex(btif_hf_cb[idx].connected_bda, IOT_CONF_KEY_HFP_CODECTYPE,
+          p_data->conn.peer_codec == 0x03 ? IOT_CONF_VAL_HFP_CODECTYPE_CVSDMSBC : IOT_CONF_VAL_HFP_CODECTYPE_CVSD, 1);
+      btif_iot_config_addr_set_hex(btif_hf_cb[idx].connected_bda, IOT_CONF_KEY_HFP_FEATURES,  p_data->conn.peer_feat, 2);
+#endif
+
       btif_hf_cb[idx].peer_feat = p_data->conn.peer_feat;
       btif_hf_cb[idx].state = BTHF_CONNECTION_STATE_SLC_CONNECTED;
       hf_idx = btif_hf_latest_connected_idx();
@@ -580,6 +609,11 @@ static void btif_hf_upstreams_evt(uint16_t event, char* p_param) {
 
     case BTA_AG_AUDIO_CLOSE_EVT:
       BTIF_TRACE_DEBUG("%s: Moving the audio_state to DISCONNECTED", __FUNCTION__);
+#ifdef BT_IOT_LOGGING_ENABLED
+      if (btif_hf_cb[idx].audio_state != BTHF_AUDIO_STATE_CONNECTED) {
+        btif_iot_config_addr_int_add_one(btif_hf_cb[idx].connected_bda, IOT_CONF_KEY_HFP_SCO_CONN_FAIL_COUNT);
+      }
+#endif
       btif_hf_cb[idx].audio_state = BTHF_AUDIO_STATE_DISCONNECTED;
       HAL_CBACK(bt_hf_callbacks, audio_state_cb, BTHF_AUDIO_STATE_DISCONNECTED,
                 &btif_hf_cb[idx].connected_bda);
@@ -912,6 +946,11 @@ static bt_status_t connect_int(RawAddress* bd_addr, uint16_t uuid) {
 
     BTA_AgOpen(btif_hf_cb[i].handle, btif_hf_cb[i].connected_bda,
                BTIF_HF_SECURITY, BTIF_HF_SERVICES);
+
+#ifdef BT_IOT_LOGGING_ENABLED
+    btif_iot_config_addr_set_int(btif_hf_cb[i].connected_bda, IOT_CONF_KEY_HFP_ROLE, IOT_CONF_VAL_HFP_ROLE_CLIENT);
+    btif_iot_config_addr_int_add_one(btif_hf_cb[i].connected_bda, IOT_CONF_KEY_HFP_SLC_CONN_COUNT);
+#endif
     return BT_STATUS_SUCCESS;
   }
 
@@ -975,6 +1014,11 @@ static bt_status_t connect_audio(RawAddress* bd_addr) {
 
   if (idx != BTIF_HF_INVALID_IDX) {
     BTA_AgAudioOpen(btif_hf_cb[idx].handle);
+
+#ifdef BT_IOT_LOGGING_ENABLED
+    if (btif_hf_cb[idx].audio_state != BTHF_AUDIO_STATE_CONNECTING)
+      btif_iot_config_addr_int_add_one(*bd_addr, IOT_CONF_KEY_HFP_SCO_CONN_COUNT);
+#endif
 
     /* Inform the application that the audio connection has been initiated
      * successfully */
@@ -1417,6 +1461,9 @@ static bt_status_t phone_state_change(int num_active, int num_held,
   bt_status_t status = BT_STATUS_SUCCESS;
   bool activeCallUpdated = false;
   int idx, i;
+#ifdef BT_IOT_LOGGING_ENABLED
+  bthf_audio_state_t current_audio_state;
+#endif
 
   memset(&ag_res, 0, sizeof(ag_res));
   /* hf_idx is index of connected HS that sent ATA/BLDN,
@@ -1427,6 +1474,9 @@ static bt_status_t phone_state_change(int num_active, int num_held,
     idx = btif_hf_latest_connected_idx();
 
   BTIF_TRACE_IMP("phone_state_change: idx = %d", idx);
+#ifdef BT_IOT_LOGGING_ENABLED
+  current_audio_state = btif_hf_cb[idx].audio_state;
+#endif
 
   /* Check if SLC is connected */
   if (btif_hf_check_if_slc_connected() != BT_STATUS_SUCCESS)
@@ -1644,6 +1694,11 @@ update_call_states:
       btif_hf_cb[i].call_setup_state = call_setup_state;
     }
   }
+
+#ifdef BT_IOT_LOGGING_ENABLED
+  if (current_audio_state != BTHF_AUDIO_STATE_CONNECTING && btif_hf_cb[idx].audio_state == BTHF_AUDIO_STATE_CONNECTING)
+    btif_iot_config_addr_int_add_one(btif_hf_cb[idx].connected_bda, IOT_CONF_KEY_HFP_SCO_CONN_COUNT);
+#endif
   return status;
 }
 
