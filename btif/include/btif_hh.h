@@ -26,6 +26,7 @@
 #include "bta_hh_api.h"
 #include "btu.h"
 #include "osi/include/list.h"
+#include "hardware/bt_hh_vendor.h"
 
 /*******************************************************************************
 **  Constants & Macros
@@ -106,7 +107,7 @@ typedef struct
 ********************************************************************************/
 
 extern btif_hh_cb_t btif_hh_cb;
-
+extern bthh_vendor_callbacks_t *bt_hh_vendor_callbacks;
 extern btif_hh_device_t *btif_hh_find_connected_dev_by_handle(UINT8 handle);
 extern void btif_hh_remove_device(bt_bdaddr_t bd_addr);
 BOOLEAN btif_hh_add_added_dev(bt_bdaddr_t bda, tBTA_HH_ATTR_MASK attr_mask);
