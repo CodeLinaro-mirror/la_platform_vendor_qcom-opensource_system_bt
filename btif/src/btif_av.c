@@ -1242,6 +1242,7 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
                 BTIF_TRACE_EVENT("%s: Resetting remote suspend flag on RC PLAY",
                         __FUNCTION__);
                 btif_av_cb[i].flags &= ~BTIF_AV_FLAG_REMOTE_SUSPEND;
+                btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
             }
         }
     }
@@ -2937,10 +2938,10 @@ static void allow_connection(int is_valid, bt_bdaddr_t *bd_addr)
             if (is_valid)
             {
                 BTIF_TRACE_DEBUG("allowconn for RC connection");
-				alarm_set_on_queue(av_open_on_rc_timer,
-						  BTIF_TIMEOUT_AV_OPEN_ON_RC_MS,
-						  btif_initiate_av_open_timer_timeout, NULL,
-						  btu_general_alarm_queue);
+                alarm_set_on_queue(av_open_on_rc_timer,
+                  BTIF_TIMEOUT_AV_OPEN_ON_RC_MS,
+                  btif_initiate_av_open_timer_timeout, NULL,
+                  btu_general_alarm_queue);
                 btif_rc_handler(idle_rc_event, &idle_rc_data);
             }
             else
@@ -2951,21 +2952,25 @@ static void allow_connection(int is_valid, bt_bdaddr_t *bd_addr)
             break;
 
         case BTA_AV_PENDING_EVT:
+            index = btif_av_idx_by_bdaddr(bd_addr->address);
+            if (index >= btif_max_av_clients)
+            {
+                BTIF_TRACE_DEBUG("Invalid index for device");
+                break;
+            }
             if (is_valid)
             {
-                index = btif_av_idx_by_bdaddr(bd_addr->address);
-                if (index >= btif_max_av_clients)
-                {
-                    BTIF_TRACE_DEBUG("Invalid index for device");
-                    break;
-                }
                 BTIF_TRACE_DEBUG("The connection is allowed for the device at index = %d", index);
                 BTA_AvOpen(btif_av_cb[index].peer_bda.address, btif_av_cb[index].bta_handle,
                        TRUE, BTA_SEC_AUTHENTICATE, UUID_SERVCLASS_AUDIO_SOURCE);
             }
             else
             {
-                BTA_AvDisconnect(idle_rc_data.pend.bd_addr);
+                BTIF_TRACE_IMP("Reject incoming AV connection on Index %d", index);
+                btif_report_connection_state(BTAV_CONNECTION_STATE_DISCONNECTED,
+                    &(btif_av_cb[index].peer_bda));
+                BTA_AvClose(btif_av_cb[index].bta_handle);
+                btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_IDLE);
             }
             break;
 
@@ -3248,7 +3253,8 @@ bt_status_t btif_av_execute_service(BOOLEAN b_enable)
             if (btif_av_cb[i].sm_handle != NULL)
             {
                 state = btif_sm_get_state(btif_av_cb[i].sm_handle);
-                if(state==BTIF_AV_STATE_OPENING)
+                BTIF_TRACE_DEBUG("BT is shutting down, state=%d", state);
+                if((state == BTIF_AV_STATE_OPENING) || (state == BTIF_AV_STATE_OPENED) || (state == BTIF_AV_STATE_STARTED))
                 {
                     BTIF_TRACE_DEBUG("Moving State from Opening to Idle due to BT ShutDown");
                     btif_sm_change_state(btif_av_cb[i].sm_handle, BTIF_AV_STATE_IDLE);

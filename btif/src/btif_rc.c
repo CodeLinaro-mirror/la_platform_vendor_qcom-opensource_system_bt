@@ -413,6 +413,9 @@ extern UINT16 btif_av_get_num_connected_devices(void);
 extern UINT16 btif_av_get_num_playing_devices(void);
 extern BOOLEAN btif_av_is_offload_supported();
 extern UINT8 btif_av_idx_by_bdaddr(BD_ADDR bd_addr);
+extern bt_status_t btif_hf_check_if_sco_connected();
+
+extern bt_status_t btif_hf_check_if_sco_connected();
 
 extern fixed_queue_t *btu_general_alarm_queue;
 
@@ -1011,6 +1014,12 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
     bt_bdaddr_t remote_address;
     BOOLEAN ignore_play_processed = FALSE;
 
+    if (btif_hf_check_if_sco_connected() == BT_STATUS_SUCCESS)
+    {
+        BTIF_TRACE_ERROR("Ignore passthrough commands as SCO is present.");
+        return;
+    }
+
     if (p_remote_cmd == NULL)
         return;
 
@@ -1027,6 +1036,12 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
     {
         BTIF_TRACE_ERROR("Passthrough on AVRCP only device: Ignore..");
         return;
+    }
+
+    if (btif_hf_check_if_sco_connected() == BT_STATUS_SUCCESS)
+    {
+        BTIF_TRACE_ERROR("ignore Passthrough command when SCO is up");
+        return ;
     }
 
     /* Trigger DUAL Handoff when support single streaming */
@@ -2861,10 +2876,7 @@ static bt_status_t get_play_status_rsp(btrc_play_status_t play_status, uint32_t 
     {
         BTIF_TRACE_ERROR("%s: clear remote suspend flag: %d",__FUNCTION__, av_index);
         btif_av_clear_remote_suspend_flag();
-        if (btif_av_is_offload_supported())
-        {
-            btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
-        }
+        btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
     }
 
     avrc_rsp.get_play_status.pdu = AVRC_PDU_GET_PLAY_STATUS;
@@ -3261,10 +3273,7 @@ static bt_status_t register_notification_rsp(btrc_event_id_t event_id,
             {
                 BTIF_TRACE_ERROR("%s: clear remote suspend flag: %d",__FUNCTION__,av_index );
                 btif_av_clear_remote_suspend_flag();
-                if (btif_av_is_offload_supported())
-                {
-                    btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
-                }
+                btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
             }
             break;
         case BTRC_EVT_TRACK_CHANGE:

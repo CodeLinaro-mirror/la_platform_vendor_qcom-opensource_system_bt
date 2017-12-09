@@ -291,6 +291,7 @@ static void sdp_connect_cfm (UINT16 l2cap_cid, UINT16 result)
                 (*p_ccb->p_cb2)(err, p_ccb->user_data);
 
         }
+        sdpu_process_pend_ccb(p_ccb->connection_id, false);
         sdpu_release_ccb (p_ccb);
     }
 }

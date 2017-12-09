@@ -882,18 +882,21 @@ void bta_av_switch_role (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     {
         if (bta_av_switch_if_needed(p_scb) || !bta_av_link_role_ok(p_scb, A2D_SET_MULTL_BIT))
         {
+            APPL_TRACE_DEBUG("%s: Role switch request in progress", __func__);
             p_scb->wait |= BTA_AV_WAIT_ROLE_SW_RES_OPEN;
         }
         else
         {
             /* this should not happen in theory. Just in case...
              * continue to do_disc_a2d */
+            APPL_TRACE_DEBUG("%s: Role switch request completed", __func__);
             switch_res = BTA_AV_RS_DONE;
         }
     }
     else
     {
         /* report failure on OPEN */
+        APPL_TRACE_DEBUG("%s: Role switch request failed", __func__);
         switch_res = BTA_AV_RS_FAIL;
     }
 
@@ -903,6 +906,7 @@ void bta_av_switch_role (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         {
             bta_av_cb.rs_idx = 0;
         }
+        APPL_TRACE_DEBUG("%s: Role switch request to be retried", __func__);
         p_scb->wait &= ~BTA_AV_WAIT_ROLE_SW_RETRY;
         p_scb->q_tag = 0;
         p_buf->switch_res = switch_res;
@@ -1063,6 +1067,7 @@ void bta_av_do_disc_a2d (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
             memcpy(&p_scb->q_info.open, &p_data->api_open, sizeof(tBTA_AV_API_OPEN));
             p_scb->wait |= BTA_AV_WAIT_ROLE_SW_RES_OPEN;
             p_scb->q_tag = BTA_AV_Q_TAG_OPEN;
+            APPL_TRACE_DEBUG("%s: AV Role switch triggered", __func__);
         }
         else
         {
@@ -1085,6 +1090,7 @@ void bta_av_do_disc_a2d (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         }
         else
         {
+            APPL_TRACE_DEBUG("%s: Role not proper yet, wait", __func__);
             p_scb->wait |= BTA_AV_WAIT_ROLE_SW_RES_OPEN;
         }
         break;
@@ -1103,6 +1109,7 @@ void bta_av_do_disc_a2d (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
 
     if (p_scb->wait & BTA_AV_WAIT_CHECK_RC)
     {
+        APPL_TRACE_DEBUG("%s: Start RC Timer, wait:x%x",__func__, p_scb->wait);
         p_scb->wait &= ~BTA_AV_WAIT_CHECK_RC;
         bta_sys_start_timer(p_scb->avrc_ct_timer, BTA_AV_RC_DISC_TIME_VAL,
                             BTA_AV_AVRC_TIMER_EVT, p_scb->hndl);
