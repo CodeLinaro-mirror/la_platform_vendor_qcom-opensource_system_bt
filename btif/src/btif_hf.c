@@ -455,7 +455,7 @@ static bt_status_t btif_hf_check_if_slc_connected()
 ** Returns          bt_status_t
 **
 *******************************************************************************/
-bt_status_t btif_hf_check_if_sco_connected()
+static bt_status_t btif_hf_check_if_sco_connected()
 {
     if (bt_hf_callbacks == NULL)
     {
