@@ -1023,10 +1023,9 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
         return;
     }
 
-    if (btif_hf_call_terminated_recently_2())
+    if (btif_hf_call_terminated_recently_2()&&btif_av_is_playing())
     {
-        if ((p_remote_cmd->rc_id == BTA_AV_RC_PLAY || p_remote_cmd->rc_id == BTA_AV_RC_PAUSE) &&
-            (p_remote_cmd->key_state == AVRC_STATE_PRESS))
+        if ((p_remote_cmd->rc_id == BTA_AV_RC_PLAY || p_remote_cmd->rc_id == BTA_AV_RC_PAUSE || p_remote_cmd->rc_id == BTA_AV_RC_STOP))
         {
             APPL_TRACE_WARNING("Play/Pause cmd while hf call terminated recently: Ignore..");
             return;
