@@ -682,8 +682,10 @@ tBTM_STATUS BTM_BleEnableAdvInstance (tBTM_BLE_ADV_PARAMS *p_params,
                     rt = btm_ble_multi_adv_set_params(p_inst, p_params, 0);
                 }
             }
-            else
-                rt = BTM_CMD_STARTED;
+            else {
+                BTM_TRACE_ERROR("Invalid params value in BTM_BleEnableAdvInstance");
+                return BTM_ILLEGAL_VALUE;
+            }
 
             /* enable adv */
             BTM_TRACE_EVENT("btm_ble_enable_multi_adv being called with inst_id:%d",

@@ -2524,6 +2524,10 @@ UINT8 btm_ble_is_discoverable(BD_ADDR bda, UINT8 evt_type, UINT8 *p)
     UNUSED(p);
 
     p_i = btm_inq_db_find (bda);
+    if (p_i == NULL) {
+        BTM_TRACE_DEBUG("BD ADDR not present in inq db");
+        return;
+    }
     p_le_inq_cb = &p_i->inq_info.results.inq_data;
 
     /* for observer, always "discoverable */
@@ -2804,17 +2808,21 @@ BOOLEAN btm_ble_update_inq_result(tINQ_DB_ENT *p_i, UINT8 addr_type, UINT16 evt_
         STREAM_TO_UINT8 (rssi, p1);
     }
 
-    /* Save the info */
+    /* Save the info common for any advertising packet */
     p_cur->inq_result_type = BTM_INQ_RESULT_BLE;
     p_cur->ble_addr_type    = addr_type;
     p_cur->rssi = rssi;
 
-    p_cur->pri_phy = pri_phy;
-    p_cur->sec_phy = sec_phy;
-    p_cur->adv_sid = adv_sid;
-    p_cur->periodic_adv_int = periodic_adv_int;
-    p_cur->direct_addr_type = direct_addr_type;
-    memcpy(p_cur->direct_bda, direct_bda, BD_ADDR_LEN);
+    /* Save the info only used for extended advertising packet */
+    if(extended)
+    {
+        p_cur->pri_phy = pri_phy;
+        p_cur->sec_phy = sec_phy;
+        p_cur->adv_sid = adv_sid;
+        p_cur->periodic_adv_int = periodic_adv_int;
+        p_cur->direct_addr_type = direct_addr_type;
+        memcpy(p_cur->direct_bda, direct_bda, BD_ADDR_LEN);
+    }
 
     /* active scan, always wait until get scan_rsp to report the result */
     if (!btm_ble_is_adv_reportable(extended, evt_type))
