@@ -49,7 +49,10 @@
 
 btvendor_callbacks_t *bt_vendor_callbacks = NULL;
 
-#define BTIF_VENDOR_BREDR_CLEANUP 1
+typedef enum {
+    BTIF_VENDOR_BREDR_CLEANUP = 1,
+    BTIF_VENDOR_SET_LE_BT_NAME,
+}btif_vendor_event_t;
 
 /*******************************************************************************
 ** VENDOR INTERFACE FUNCTIONS
@@ -119,6 +122,22 @@ static void cleanup(void)
     if (bt_vendor_callbacks)
         bt_vendor_callbacks = NULL;
 }
+
+static void btif_vendor_set_le_bt_name(UINT16 event, char *p_param)
+{
+    btvendor_lename_t* name = (btvendor_lename_t *)p_param;
+    if (name == NULL) {
+        LOG_ERROR (LOG_TAG," LE name cannot be set to NULL.");
+        return;
+    }
+    BTA_DmSetLeDeviceName((char*) name->val);
+}
+
+static void setLeBtName(btvendor_lename_t *name){
+    btif_transfer_context(btif_vendor_set_le_bt_name,BTIF_VENDOR_SET_LE_BT_NAME,
+                          (char*)name, sizeof(btvendor_lename_t), NULL);
+}
+
 static const btvendor_interface_t btvendorInterface = {
     sizeof(btvendorInterface),
     init,
@@ -126,6 +145,8 @@ static const btvendor_interface_t btvendorInterface = {
     bredrcleanup,
     capture_vnd_logs,
     cleanup,
+    NULL,
+    setLeBtName,
 };
 
 /*******************************************************************************
