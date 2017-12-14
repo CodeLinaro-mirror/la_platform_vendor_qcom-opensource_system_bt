@@ -3334,6 +3334,33 @@ bool btif_av_stream_started_ready(void)
 
 /*******************************************************************************
 **
+** Function         btif_av_is_start_ack_pending
+**
+** Description      Checks whether start command is sent but not acked by remote
+**
+** Returns          None
+**
+*******************************************************************************/
+
+bool btif_av_is_start_ack_pending(void)
+{
+    int i;
+    bool status = false;
+
+    for (i = 0; i < btif_max_av_clients; i++)
+    {
+        if (btif_av_cb[i].flags & BTIF_AV_FLAG_PENDING_START)
+        {
+            status = true;
+            break;
+        }
+    }
+    BTIF_TRACE_DEBUG("btif_av_is_start_ack_pending: %d", status);
+    return status;
+}
+
+/*******************************************************************************
+**
 ** Function         btif_av_is_suspend_stop_pending_ack
 **
 ** Description      Checks whether suspend/stop is pending ack when state is started
