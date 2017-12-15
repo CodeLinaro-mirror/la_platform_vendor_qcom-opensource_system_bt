@@ -212,6 +212,11 @@ typedef uint8_t tBTM_BLE_CONN_ST;
 
 typedef struct { void* p_param; } tBTM_BLE_CONN_REQ;
 
+/* BLE Background roles */
+#define BLE_BG_NONE         0
+#define BLE_BG_INITIATOR    1
+#define BLE_BG_ADVERTISER   2
+
 /* LE state request */
 #define BTM_BLE_STATE_INVALID 0
 #define BTM_BLE_STATE_CONN_ADV 1

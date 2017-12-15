@@ -38,6 +38,8 @@ void btm_ble_update_dmt_flag_bits(uint8_t* flag_value,
                                   const uint16_t disc_mode);
 void btm_acl_update_conn_addr(uint16_t conn_handle, const RawAddress& address);
 
+bool btm_update_dev_to_white_list(bool to_add, const RawAddress& bd_addr, uint8_t background_role, uint8_t adv_handle);
+
 // methods we expose to c code:
 void btm_ble_multi_adv_cleanup(void);
 void btm_ble_multi_adv_init();
@@ -105,6 +107,7 @@ class BleAdvertisingManager {
       tBLE_PERIODIC_ADV_PARAMS* periodic_params,
       std::vector<uint8_t> periodic_data, uint16_t duration,
       uint8_t maxExtAdvEvents,
+      std::vector<RawAddress> bd_addr_list,
       base::Callback<void(uint8_t /* inst_id */, uint8_t /* status */)>
           timeout_cb) = 0;
 
@@ -124,6 +127,7 @@ class BleAdvertisingManager {
   /* This function update a Multi-ADV instance with the specififed adv
    * parameters. */
   virtual void SetParameters(uint8_t inst_id, tBTM_BLE_ADV_PARAMS* p_params,
+                             std::vector<RawAddress> bd_addr_list,
                              ParametersCb cb) = 0;
 
   /* This function configure a Multi-ADV instance with the specified adv data or
@@ -144,6 +148,10 @@ class BleAdvertisingManager {
   virtual void SetPeriodicAdvertisingEnable(uint8_t inst_id, uint8_t enable,
                                             MultiAdvCb cb) = 0;
 
+  /* This function configure instance with the specified periodic parameters */
+   virtual void UpdateAdvertisingWhiteList(
+       uint8_t inst_id, RawAddress bd_addr, bool to_add, MultiAdvCb cb) = 0;
+
   /*  This function disable a Multi-ADV instance */
   virtual void Unregister(uint8_t inst_id) = 0;
 
@@ -163,6 +171,8 @@ class BleAdvertisingManager {
   using GetAddressCallback =
       base::Callback<void(uint8_t /* address_type*/, RawAddress /*address*/)>;
   virtual void GetOwnAddress(uint8_t inst_id, GetAddressCallback cb) = 0;
+
+  virtual bool IsWhiteListAdvActive() = 0;
 };
 
 #endif  // BLE_ADVERTISER_H
