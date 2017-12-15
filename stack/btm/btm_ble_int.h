@@ -116,8 +116,9 @@ extern void btm_ble_update_sec_key_size(const RawAddress& bd_addr,
 extern uint8_t btm_ble_read_sec_key_size(const RawAddress& bd_addr);
 
 /* white list function */
-extern bool btm_update_dev_to_white_list(bool to_add,
-                                         const RawAddress& bd_addr);
+extern bool btm_update_dev_to_white_list(bool to_add, const RawAddress& bd_addr,
+                                   uint8_t background_role, uint8_t adv_handle);
+
 extern void btm_update_scanner_filter_policy(tBTM_BLE_SFP scan_policy);
 extern void btm_update_adv_filter_policy(tBTM_BLE_AFP adv_policy);
 extern void btm_ble_clear_white_list(void);
@@ -144,7 +145,7 @@ extern void btm_write_dir_conn_wl(const RawAddress& target_addr);
 extern void btm_ble_update_mode_operation(uint8_t link_role,
                                           const RawAddress* bda,
                                           uint8_t status);
-extern bool btm_execute_wl_dev_operation(void);
+extern bool btm_execute_wl_dev_operation(uint8_t background_role);
 extern void btm_ble_update_link_topology_mask(uint8_t role, bool increase);
 extern void btm_ble_bgconn_cancel_if_disconnected(const RawAddress& bd_addr);
 
