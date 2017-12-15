@@ -50,6 +50,7 @@
 #include "device/include/interop.h"
 #include "device/include/controller.h"
 
+extern bool isDevUiReq;
 
 /*****************************************************************************
  *  Constants & Macros
@@ -3151,6 +3152,7 @@ static bt_status_t codec_config_src(
   BTIF_TRACE_EVENT("%s", __func__);
   CHECK_BTAV_INIT();
 
+  isDevUiReq = false;
   for (auto cp : codec_preferences) {
     BTIF_TRACE_DEBUG(
         "%s: codec_type=%d codec_priority=%d "
@@ -3178,6 +3180,7 @@ static bt_status_t codec_config_src(
           else
             codec_cfg_change = true;
         }
+    isDevUiReq = true;
     btif_transfer_context(btif_av_handle_event, BTIF_AV_SOURCE_CONFIG_REQ_EVT,
                           reinterpret_cast<char*>(&cp), sizeof(cp), NULL);
   }
