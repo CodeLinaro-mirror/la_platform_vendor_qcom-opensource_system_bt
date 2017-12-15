@@ -93,7 +93,8 @@ class BleAdvertiserInterface {
       std::vector<uint8_t> scan_response_data,
       PeriodicAdvertisingParameters periodic_params,
       std::vector<uint8_t> periodic_data, uint16_t duration,
-      uint8_t maxExtAdvEvents, IdStatusCallback timeout_cb) = 0;
+      uint8_t maxExtAdvEvents, std::vector<RawAddress> bd_addr_list,
+      IdStatusCallback timeout_cb) = 0;
 
   virtual void SetPeriodicAdvertisingParameters(
       int advertiser_id, PeriodicAdvertisingParameters parameters,
@@ -105,6 +106,10 @@ class BleAdvertiserInterface {
 
   virtual void SetPeriodicAdvertisingEnable(int advertiser_id, bool enable,
                                             StatusCallback cb) = 0;
+
+  virtual void UpdateAdvertisingWhiteList(
+        int advertiser_id, RawAddress bd_addr, bool toAdd,
+        StatusCallback cb) = 0;
 };
 
 #endif /* ANDROID_INCLUDE_BLE_ADVERTISER_H */
