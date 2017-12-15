@@ -745,7 +745,7 @@ void BTM_BleClearBgConnDev(void) {
  ******************************************************************************/
 bool BTM_BleUpdateBgConnDev(bool add_remove, const RawAddress& remote_bda) {
   BTM_TRACE_EVENT("%s() add=%d", __func__, add_remove);
-  return btm_update_dev_to_white_list(add_remove, remote_bda);
+  return btm_update_dev_to_white_list(add_remove, remote_bda, BLE_BG_INITIATOR, -1);
 }
 
 /*******************************************************************************
