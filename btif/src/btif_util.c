@@ -368,6 +368,7 @@ const char* dump_hh_event(UINT16 event)
         CASE_RETURN_STR(BTA_HH_ADD_DEV_EVT)
         CASE_RETURN_STR(BTA_HH_RMV_DEV_EVT)
         CASE_RETURN_STR(BTA_HH_API_ERR_EVT)
+        CASE_RETURN_STR(BTA_HH_SEND_RAW_DATA_EVT)
         default:
             return "UNKNOWN MSG ID";
      }

@@ -49,6 +49,7 @@
 #include "hardware/bt_hf_vendor.h"
 #include "hardware/bt_av_vendor.h"
 #include "hardware/bt_rc_vendor.h"
+#include "hardware/bt_hh_vendor.h"
 #ifdef WIPOWER_SUPPORTED
 #include <hardware/wipower.h>
 #endif
@@ -541,6 +542,11 @@ static const void* get_profile_interface (const char *profile_id)
 #if (defined BTA_AV_INCLUDED && BTA_AV_INCLUDED == TRUE)
      if (is_profile(profile_id, BT_PROFILE_AV_RC_CTRL_VENDOR_ID))
          return btif_avk_rc_ctrl_vendor_get_interface();
+#endif
+
+#if (defined BTA_HH_INCLUDED && BTA_HH_INCLUDED == TRUE)
+     if (is_profile(profile_id, BT_PROFILE_HID_VENDOR_ID))
+         return btif_hh_vendor_get_interface();
 #endif
 
     return NULL;
