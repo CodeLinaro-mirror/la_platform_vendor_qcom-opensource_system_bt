@@ -51,6 +51,10 @@
 #include "device/include/controller.h"
 
 extern bool isDevUiReq;
+bool isBitRateChange = false;
+bool isBitsPerSampleChange = false;
+static int reconfig_a2dp_param_id = 0;
+static int reconfig_a2dp_param_val = 0;
 
 /*****************************************************************************
  *  Constants & Macros
@@ -96,6 +100,10 @@ typedef enum {
 /* Default sink latency value while delay report is not supported by SNK */
 #define BTIF_AV_DEFAULT_SINK_LATENCY 0
 #define BTIF_AV_DEFAULT_MULTICAST_SINK_LATENCY 200
+
+/* Param id for bitrate and bits per sample */
+#define BITRATE_PARAM_ID 1
+#define BITSPERSAMPLE_PARAM_ID 2
 
 /*****************************************************************************
  *  Local type definitions
@@ -1439,8 +1447,8 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
         if (codec_cfg_change) {
           codec_cfg_change = false;
           reconfig_a2dp = TRUE;
-          HAL_CBACK(bt_av_src_callbacks, reconfig_a2dp_trigger_cb, 1,
-                                       &(btif_av_cb[index].peer_bda));
+          HAL_CBACK(bt_av_src_callbacks, reconfig_a2dp_trigger_cb, SOFT_HANDOFF,
+                                       &(btif_av_cb[index].peer_bda), 0, 0);
         }
       }
     } break;
@@ -1482,8 +1490,8 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
             if (idx != INVALID_INDEX) {
               if ((btif_av_cb[idx].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING) == 0) {
                 reconfig_a2dp = true;
-                HAL_CBACK(bt_av_src_callbacks, reconfig_a2dp_trigger_cb, 1,
-                                              &(btif_av_cb[idx].peer_bda));
+                HAL_CBACK(bt_av_src_callbacks, reconfig_a2dp_trigger_cb, SOFT_HANDOFF,
+                                              &(btif_av_cb[idx].peer_bda), 0, 0);
               }
             }
           } else {
@@ -1736,8 +1744,15 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
         if (codec_cfg_change) {
           codec_cfg_change = false;
           reconfig_a2dp = TRUE;
-          HAL_CBACK(bt_av_src_callbacks, reconfig_a2dp_trigger_cb, 1,
-                                          &(btif_av_cb[index].peer_bda));
+          if (isBitRateChange || isBitsPerSampleChange) {
+            HAL_CBACK(bt_av_src_callbacks, reconfig_a2dp_trigger_cb, RECONFIG_A2DP_PARAM,
+                                       &(btif_av_cb[index].peer_bda), reconfig_a2dp_param_id, reconfig_a2dp_param_val);
+            isBitRateChange = false;
+            isBitsPerSampleChange = false;
+          } else {
+            HAL_CBACK(bt_av_src_callbacks, reconfig_a2dp_trigger_cb, SOFT_HANDOFF,
+                                            &(btif_av_cb[index].peer_bda), 0, 0);
+          }
         }
       }
       break;
@@ -1823,8 +1838,8 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
          * Array 'btif_av_cb' of size 2 may use index value(s) -1 */
         if (idx != INVALID_INDEX) {
           reconfig_a2dp = TRUE;
-          HAL_CBACK(bt_av_src_callbacks, reconfig_a2dp_trigger_cb, 1,
-                                          &(btif_av_cb[idx].peer_bda));
+          HAL_CBACK(bt_av_src_callbacks, reconfig_a2dp_trigger_cb, SOFT_HANDOFF,
+                                          &(btif_av_cb[idx].peer_bda), 0, 0);
           }
       }
       break;
@@ -2015,8 +2030,8 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
          * Array 'btif_av_cb' of size 2 may use index value(s) -1 */
         if (idx != INVALID_INDEX) {
           reconfig_a2dp = true;
-          HAL_CBACK(bt_av_src_callbacks, reconfig_a2dp_trigger_cb, 1,
-                                          &(btif_av_cb[idx].peer_bda));
+          HAL_CBACK(bt_av_src_callbacks, reconfig_a2dp_trigger_cb, SOFT_HANDOFF,
+                                          &(btif_av_cb[idx].peer_bda), 0, 0);
         }
       }
       break;
@@ -3035,8 +3050,8 @@ void btif_av_trigger_dual_handoff(bool handoff, RawAddress address) {
     Array 'btif_av_cb' of size 2 may use index value(s) -1 */
     if (next_idx != INVALID_INDEX && next_idx != btif_max_av_clients) {
       reconfig_a2dp = true;
-      HAL_CBACK(bt_av_src_callbacks, reconfig_a2dp_trigger_cb, 1,
-                              &(btif_av_cb[next_idx].peer_bda));
+      HAL_CBACK(bt_av_src_callbacks, reconfig_a2dp_trigger_cb, SOFT_HANDOFF,
+                              &(btif_av_cb[next_idx].peer_bda), 0, 0);
     }
   }
 }
@@ -3165,6 +3180,65 @@ static bt_status_t codec_config_src(
         cp.codec_specific_2, cp.codec_specific_3, cp.codec_specific_4);
 
         if (btif_av_is_split_a2dp_enabled()) {
+          A2dpCodecConfig* current_codec = bta_av_get_a2dp_current_codec();
+          if (current_codec != nullptr) {
+            btav_a2dp_codec_config_t codec_config;
+            codec_config = current_codec->getCodecConfig();
+            isBitRateChange = false;
+            isBitsPerSampleChange = false;
+            if (codec_config.codec_specific_1 != cp.codec_specific_1) {
+              switch (cp.codec_specific_1)
+              {
+              case 1000:
+                if ((codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_44100) ||
+                  (codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_88200))
+                  reconfig_a2dp_param_val = 909000;
+                else
+                  reconfig_a2dp_param_val = 990000;
+                break;
+              case 1001:
+                if ((codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_44100) ||
+                  (codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_88200))
+                  reconfig_a2dp_param_val = 606000;
+                else
+                  reconfig_a2dp_param_val = 660000;
+                break;
+              case 1002:
+                if ((codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_44100) ||
+                  (codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_88200))
+                  reconfig_a2dp_param_val = 303000;
+                else
+                  reconfig_a2dp_param_val = 330000;
+                break;
+              case 1003: break;
+              }
+              if (codec_config.codec_specific_1 != 0) {
+                reconfig_a2dp_param_id = BITRATE_PARAM_ID;
+                isBitRateChange = true;
+              }
+            } else if ((codec_config.bits_per_sample != cp.bits_per_sample) &&
+                     (codec_config.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC)) {
+              switch (cp.bits_per_sample)
+              {
+                case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16:
+                  reconfig_a2dp_param_val = 16;
+                  break;
+                case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24:
+                  reconfig_a2dp_param_val = 24;
+                  break;
+                case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32:
+                  reconfig_a2dp_param_val = 32;
+                  break;
+                case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE:
+                  break;
+              }
+              if ((cp.bits_per_sample != 0) && (codec_config.bits_per_sample != 0)) {
+                reconfig_a2dp_param_id = BITSPERSAMPLE_PARAM_ID;
+                isBitsPerSampleChange = true;
+              }
+            }
+          }
+
           if (!btif_av_allow_codec_config_change(cp.codec_type,cp.sample_rate)) {
             int idx;
             if (btif_av_stream_started_ready())

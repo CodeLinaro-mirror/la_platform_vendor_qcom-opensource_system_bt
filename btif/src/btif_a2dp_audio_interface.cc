@@ -683,12 +683,16 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         }
         else if (A2DP_MEDIA_CT_NON_A2DP == codec_type)
         {
-          int bits_per_sample = 16; // TODO
           int samplerate = A2DP_GetTrackSampleRate(p_codec_info);
           if ((A2DP_VendorCodecGetVendorId(p_codec_info)) == A2DP_LDAC_VENDOR_ID) {
-            bitrate = DEFAULT_LDAC_BITRATE; /* Default bitrate for LDAC is 330KBps */
+            if ((samplerate == 44100) || (samplerate == 88200)) {
+              bitrate = DEFAULT_LDAC_BITRATE_441KHZ; /* Default bitrate for LDAC is 606BKBps for 44.1/88.2 KHz */
+            } else {
+              bitrate = DEFAULT_LDAC_BITRATE_48KHZ; /* Default bitrate for LDAC is 660KBps for 48/96 KHz */
+            }
           } else {
             /* BR = (Sampl_Rate * PCM_DEPTH * CHNL)/Compression_Ratio */
+            int bits_per_sample = 16; // TODO
             bitrate = (samplerate * bits_per_sample * 2)/4;
           }
         }

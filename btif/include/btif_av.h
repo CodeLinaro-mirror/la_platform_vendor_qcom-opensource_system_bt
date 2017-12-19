@@ -36,6 +36,9 @@
 #include "btif_common.h"
 #include "btif_sm.h"
 
+#define SOFT_HANDOFF 1
+#define RECONFIG_A2DP_PARAM 2
+
 /*******************************************************************************
  *  Type definitions for callback functions
  ******************************************************************************/
