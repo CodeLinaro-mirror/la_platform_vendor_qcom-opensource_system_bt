@@ -2439,8 +2439,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
         break;
         case AVRC_PDU_REGISTER_NOTIFICATION:
         {
-            if (pavrc_cmd->reg_notif.event_id == BTRC_EVT_PLAY_POS_CHANGED &&
-                pavrc_cmd->reg_notif.param == 0)
+            if (pavrc_cmd->reg_notif.event_id == BTRC_EVT_PLAY_POS_CHANGED)
             {
                 BTIF_TRACE_WARNING("%s Device registering position changed with illegal param 0.",
                     __FUNCTION__);
