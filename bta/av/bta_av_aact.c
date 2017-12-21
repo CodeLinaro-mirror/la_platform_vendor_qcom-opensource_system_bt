@@ -2227,12 +2227,17 @@ void bta_av_do_start (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     /* disallow role switch during streaming, only if we are the master role
      * i.e. allow role switch, if we are slave.
      * It would not hurt us, if the peer device wants us to be master */
-    if ((BTM_GetRole (p_scb->peer_addr, &cur_role) == BTM_SUCCESS) &&
-        (cur_role == BTM_ROLE_MASTER) )
+    if (BTM_GetRole (p_scb->peer_addr, &cur_role) == BTM_SUCCESS)
     {
-        policy |= HCI_ENABLE_MASTER_SLAVE_SWITCH;
+        if (cur_role == BTM_ROLE_MASTER)
+        {
+            policy |= HCI_ENABLE_MASTER_SLAVE_SWITCH;
+        }
+        else
+        {
+            BTM_SetA2dpStreamQoS(p_scb->peer_addr, NULL);
+        }
     }
-
     bta_sys_clear_policy(BTA_ID_AV, policy, p_scb->peer_addr);
 
     if ((p_scb->started == FALSE) && ((p_scb->role & BTA_AV_ROLE_START_INT) == 0))
