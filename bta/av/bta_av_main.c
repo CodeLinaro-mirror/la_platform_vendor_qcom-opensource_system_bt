@@ -1341,7 +1341,9 @@ BOOLEAN bta_av_link_role_ok(tBTA_AV_SCB *p_scb, UINT8 bits)
         LOG_INFO("%s hndl:x%x role:%d conn_audio:x%x bits:%d features:x%x",
                 __func__, p_scb->hndl, role, bta_av_cb.conn_audio, bits,
                 bta_av_cb.features);
-        if (BTM_ROLE_MASTER != role && (A2D_BitsSet(bta_av_cb.conn_audio) > bits || (bta_av_cb.features & BTA_AV_FEAT_MASTER)))
+        if (BTM_ROLE_MASTER != role && (A2D_BitsSet(bta_av_cb.conn_audio) > bits ||
+           (bta_av_cb.features & BTA_AV_FEAT_MASTER) ||
+            BTM_GetWifiState()))
         {
             if (bta_av_cb.features & BTA_AV_FEAT_MASTER)
                 bta_sys_clear_policy(BTA_ID_AV, HCI_ENABLE_MASTER_SLAVE_SWITCH, p_scb->peer_addr);
