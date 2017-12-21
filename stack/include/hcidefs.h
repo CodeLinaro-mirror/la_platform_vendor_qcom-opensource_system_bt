@@ -430,6 +430,8 @@
 /* multi adv instance state change */
 #define HCI_VSE_SUBCODE_BLE_MULTI_ADV_ST_CHG 0x55
 
+#define HCI_VSE_INFO_REPORT 0x8D /* IOT info report */
+
 /* subcode for batch scan feature */
 #define BTM_BLE_BATCH_SCAN_ENB_DISAB_CUST_FEATURE 0x01
 #define BTM_BLE_BATCH_SCAN_SET_STORAGE_PARAM 0x02
