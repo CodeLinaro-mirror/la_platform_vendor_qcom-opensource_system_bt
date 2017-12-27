@@ -947,7 +947,7 @@ static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer) {
   for (const auto& iter : bta_av_co_cb.codecs->orderedSourceCodecs()) {
     APPL_TRACE_DEBUG("%s: trying codec %s", __func__, iter->name().c_str());
     if (bta_av_co_audio_is_aac_wl_enabled(&p_peer->addr)) {
-      if ((!strcmp(iter->name().c_str(),"AAC")) && (!interop_match_addr(INTEROP_ENABLE_AAC_CODEC, &p_peer->addr)))
+      if ((!strcmp(iter->name().c_str(),"AAC")) && (!interop_match_addr_or_name(INTEROP_ENABLE_AAC_CODEC, &p_peer->addr)))
       {
         APPL_TRACE_DEBUG("This device is not present in white-list remote devices");
       }
@@ -957,7 +957,7 @@ static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer) {
        p_sink = bta_av_co_audio_codec_selected(*iter, p_peer);
       }
     } else {
-      if ((!strcmp(iter->name().c_str(),"AAC")) && (interop_match_addr(INTEROP_DISABLE_AAC_CODEC, &p_peer->addr)))
+      if ((!strcmp(iter->name().c_str(),"AAC")) && (interop_match_addr_or_name(INTEROP_DISABLE_AAC_CODEC, &p_peer->addr)))
       {
         APPL_TRACE_DEBUG("AAC is not supported for this BL remote device");
       }

@@ -36,12 +36,12 @@
 #include "btm_int.h"
 #include "btu.h"
 #include "device/include/controller.h"
+#include "device/include/interop.h"
 #include "hcimsgs.h"
 #include "l2c_api.h"
 #include "l2c_int.h"
 #include "l2cdefs.h"
 #include "osi/include/osi.h"
-#include "device/include/interop_config.h"
 
 static bool l2c_link_send_to_lower(tL2C_LCB* p_lcb, BT_HDR* p_buf,
                                    tL2C_TX_COMPLETE_CB_INFO* p_cbi);
@@ -94,7 +94,7 @@ bool l2c_link_hci_conn_req(const RawAddress& bd_addr) {
     if (no_links)
       p_lcb->link_role = L2CAP_DESIRED_LINK_ROLE;
 
-    if ((p_lcb->link_role == BTM_ROLE_MASTER)&&(interop_database_match_addr(INTEROP_DISABLE_ROLE_SWITCH, &bd_addr))) {
+    if ((p_lcb->link_role == BTM_ROLE_MASTER)&&(interop_match_addr_or_name(INTEROP_DISABLE_ROLE_SWITCH, &bd_addr))) {
       p_lcb->link_role = BTM_ROLE_SLAVE;
     }
 
@@ -122,7 +122,7 @@ bool l2c_link_hci_conn_req(const RawAddress& bd_addr) {
     else
       p_lcb->link_role = l2cu_get_conn_role(p_lcb);
 
-    if ((p_lcb->link_role == BTM_ROLE_MASTER)&&(interop_database_match_addr(INTEROP_DISABLE_ROLE_SWITCH, &bd_addr))) {
+    if ((p_lcb->link_role == BTM_ROLE_MASTER)&&(interop_match_addr_or_name(INTEROP_DISABLE_ROLE_SWITCH, &bd_addr))) {
       p_lcb->link_role = BTM_ROLE_SLAVE;
       L2CAP_TRACE_WARNING ("l2c_link_hci_conn_req:set link_role= %d",p_lcb->link_role);
     }
