@@ -167,7 +167,7 @@ void smp_send_app_cback(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
 
           if (!(p_cb->loc_auth_req & SMP_SC_SUPPORT_BIT) ||
               lmp_version_below(p_cb->pairing_bda, HCI_PROTO_VERSION_4_2) ||
-              interop_match_addr(INTEROP_DISABLE_LE_SECURE_CONNECTIONS,
+              interop_match_addr_or_name(INTEROP_DISABLE_LE_SECURE_CONNECTIONS,
                                  (const RawAddress*)&p_cb->pairing_bda)) {
             p_cb->loc_auth_req &= ~SMP_KP_SUPPORT_BIT;
             p_cb->local_i_key &= ~SMP_SEC_KEY_TYPE_LK;
