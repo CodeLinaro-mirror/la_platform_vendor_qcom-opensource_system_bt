@@ -579,6 +579,12 @@ tBTM_STATUS BTM_SwitchRole(const RawAddress& remote_bd_addr, uint8_t new_role,
   VLOG(1) << __func__ << " BDA: " << remote_bd_addr;
 
 
+#if (BTM_SCO_INCLUDED == TRUE)
+    /* Check if there is any SCO Active on this BD Address */
+    is_sco_active = btm_is_sco_active_by_bdaddr(remote_bd_addr);
+    if (is_sco_active == true) return (BTM_NO_RESOURCES);
+#endif
+
   /* Make sure the local/remote devices supports switching */
   if (!btm_dev_support_switch(remote_bd_addr))
     return(BTM_MODE_UNSUPPORTED);
@@ -598,13 +604,6 @@ tBTM_STATUS BTM_SwitchRole(const RawAddress& remote_bd_addr, uint8_t new_role,
                 INTEROP_DISABLE_ROLE_SWITCH, &remote_bd_addr)) ||
                 (!btm_cb.is_wifi_connected && (btm_get_bredr_acl_count() <= 1)))
       return(BTM_SUCCESS);
-
-#if (BTM_SCO_INCLUDED == TRUE)
-  /* Check if there is any SCO Active on this BD Address */
-  is_sco_active = btm_is_sco_active_by_bdaddr(remote_bd_addr);
-
-  if (is_sco_active == true) return (BTM_NO_RESOURCES);
-#endif
 
   /* Ignore role switch request if the previous request was not completed */
   if (p->switch_role_state != BTM_ACL_SWKEY_STATE_IDLE) {
@@ -1946,6 +1945,30 @@ tBTM_STATUS BTM_RegBusyLevelNotif(tBTM_BL_CHANGE_CB* p_cb, uint8_t* p_level,
   return (BTM_SUCCESS);
 }
 
+
+/*******************************************************************************
+ *
+ * Function         BTM_SetA2dpStreamQoS
+ *
+ * Description      This function is called to setup QoS
+ *                  for a2dp streaming link
+ *
+ * Returns          status of the operation
+ *
+ ******************************************************************************/
+tBTM_STATUS BTM_SetA2dpStreamQoS(const RawAddress& bd, tBTM_CMPL_CB* p_cb) {
+  FLOW_SPEC p_flow;
+
+  p_flow.qos_flags = 0;
+  p_flow.service_type = BEST_EFFORT;
+  p_flow.token_rate = 0x00000000;
+  p_flow.peak_bandwidth = 0x00000000;
+  p_flow.latency =  0x00002710;
+  p_flow.delay_variation = 0xFFFFFFFF;
+
+  return BTM_SetQoS(bd, &p_flow, p_cb);
+}
+
 /*******************************************************************************
  *
  * Function         BTM_SetQoS
@@ -2779,7 +2802,7 @@ void btm_acl_paging(BT_HDR* p, const RawAddress& bda) {
   } else {
     if (!BTM_ACL_IS_CONNECTED(bda)) {
       VLOG(1) << "connecting_bda: " << btm_cb.connecting_bda;
-      if (btm_cb.paging && bda != btm_cb.connecting_bda) {
+      if (btm_cb.paging && bda == btm_cb.connecting_bda) {
         fixed_queue_enqueue(btm_cb.page_queue, p);
       } else {
         p_dev_rec = btm_find_or_alloc_dev(bda);
