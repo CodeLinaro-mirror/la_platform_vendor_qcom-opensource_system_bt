@@ -204,7 +204,7 @@ int btif_av_idx_by_bdaddr(RawAddress *bd_addr);
 static int btif_av_get_valid_idx_for_rc_events(RawAddress bd_addr, int rc_handle);
 static int btif_get_conn_state_of_device(RawAddress address);
 static bt_status_t connect_int(RawAddress *bd_addr, uint16_t uuid);
-static void btif_av_update_current_playing_device(int index);
+void btif_av_update_current_playing_device(int index);
 static void btif_av_check_rc_connection_priority(void *p_data);
 static bt_status_t connect_int(RawAddress* bd_addr, uint16_t uuid);
 static bool btif_av_allow_codec_config_change(btav_a2dp_codec_index_t codec_type,
@@ -231,7 +231,7 @@ extern bool btif_rc_get_connected_peer(RawAddress* peer_addr);
 extern uint8_t btif_rc_get_connected_peer_handle(const RawAddress& peer_addr);
 extern void btif_rc_check_handle_pending_play(const RawAddress& peer_addr,
                                               bool bSendToApp);
-extern void btif_rc_get_playing_device(RawAddress address);
+extern void btif_rc_get_playing_device(RawAddress *address);
 extern void btif_rc_clear_playing_state(bool play);
 extern void btif_rc_clear_priority(RawAddress address);
 extern void btif_rc_send_pause_command(RawAddress bda);
@@ -2450,12 +2450,15 @@ int btif_av_get_latest_device_idx_to_start() {
   /* Get the device which sent PLAY command
    * If found, START on that index.
    */
-  btif_rc_get_playing_device(playing_address);
+  btif_rc_get_playing_device(&playing_address);
+  BTIF_TRACE_DEBUG("%s:playing device address: %s", __func__,
+                                 playing_address.ToString().c_str());
   if (!(playing_address.IsEmpty())) {
     /* Got some valid Playing device.
      * Get the AV index for this device.
      */
     i = btif_av_idx_by_bdaddr(&playing_address);
+    BTIF_TRACE_DEBUG("%s: index i = %d", __func__, i);
     if (i == btif_max_av_clients)
       return btif_max_av_clients;
     BTIF_TRACE_EVENT("Got some valid Playing device; %d", i);
@@ -3706,7 +3709,7 @@ bool btif_av_is_playing_on_other_idx(int current_index)
  * Returns          void
  *
  ******************************************************************************/
-static void btif_av_update_current_playing_device(int index) {
+void btif_av_update_current_playing_device(int index) {
   int i;
   for (i = 0; i < btif_max_av_clients; i++)
     if (i != index)
