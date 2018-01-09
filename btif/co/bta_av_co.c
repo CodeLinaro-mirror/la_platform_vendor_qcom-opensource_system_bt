@@ -2488,6 +2488,10 @@ BOOLEAN bta_av_co_audio_get_codec_config(UINT8 *p_config, UINT16 *p_minmtu, UINT
             }
         }
     }
+    if (*p_minmtu > BTA_AV_MAX_A2DP_MTU)
+        *p_minmtu = BTA_AV_MAX_A2DP_MTU;
+    APPL_TRACE_DEBUG("%s updating peer MTU to %d for index %d",
+                            __func__, *p_minmtu, index);
     mutex_global_unlock();
 
     return result;

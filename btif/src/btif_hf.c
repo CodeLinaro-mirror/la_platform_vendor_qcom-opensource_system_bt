@@ -454,7 +454,7 @@ static bt_status_t btif_hf_check_if_slc_connected()
 ** Returns          bt_status_t
 **
 *******************************************************************************/
-static bt_status_t btif_hf_check_if_sco_connected()
+bt_status_t btif_hf_check_if_sco_connected()
 {
     if (bt_hf_callbacks == NULL)
     {
@@ -575,7 +575,8 @@ static void btif_hf_upstreams_evt(UINT16 event, char* p_param)
             if (btif_hf_cb[idx].state == BTHF_CONNECTION_STATE_DISCONNECTED)
                 bdsetany(btif_hf_cb[idx].connected_bda.address);
 
-            btif_queue_advance();
+            if (p_data->open.status != BTA_AG_SUCCESS)
+                btif_queue_advance();
 
             break;
 
@@ -611,6 +612,7 @@ static void btif_hf_upstreams_evt(UINT16 event, char* p_param)
 
             HAL_CBACK(bt_hf_callbacks, connection_state_cb, btif_hf_cb[idx].state,
                              &btif_hf_cb[idx].connected_bda);
+            btif_queue_advance();
             break;
 
         case BTA_AG_AUDIO_OPEN_EVT:

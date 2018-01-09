@@ -3297,6 +3297,11 @@ void bta_dm_acl_change(tBTA_DM_MSG *p_data)
             if(p_dev->info & BTA_DM_DI_AV_ACTIVE)
             {
                 /* there's AV activity on this link */
+                if ((p_data->acl_change.new_role == HCI_ROLE_SLAVE) &&
+                   (p_data->acl_change.hci_status == HCI_SUCCESS))
+                {
+                    BTM_SetA2dpStreamQoS(p_bda, NULL);
+                }
                 if(p_data->acl_change.new_role == HCI_ROLE_SLAVE && bta_dm_cb.device_list.count > 1
                     && p_data->acl_change.hci_status == HCI_SUCCESS)
                 {
@@ -3744,20 +3749,12 @@ static void bta_dm_adjust_roles(BOOLEAN delay_role_switch)
                                            NULL, btu_bta_alarm_queue);
                     }
                 }
-                else if (br_count == 1)
+                else if ((br_count == 1) &&
+                          (bta_dm_cb.device_list.peer_device[i].pref_role ==
+                          BTA_MASTER_ROLE_PREF))
                 {
-                    if (delay_role_switch == FALSE && BTM_GetWifiState())
-                    {
-                       BTM_SwitchRole (bta_dm_cb.device_list.peer_device[i].peer_bdaddr,
-                                       HCI_ROLE_MASTER, NULL);
-                    }
-                    else if(delay_role_switch == TRUE)
-                    {
-                        alarm_set_on_queue(bta_dm_cb.switch_delay_timer,
-                                           BTA_DM_SWITCH_DELAY_TIMER_MS,
-                                           bta_dm_delay_role_switch_cback,
-                                           NULL, btu_bta_alarm_queue);
-                    }
+                    BTM_SwitchRole (bta_dm_cb.device_list.peer_device[i].peer_bdaddr,
+                                    HCI_ROLE_MASTER, NULL);
                 }
             }
         }

@@ -430,7 +430,7 @@ typedef struct {
 } t_stat;
 
 static UINT64 last_frame_us = 0;
-
+static unsigned char vs_failure_status = 0;
 static void btif_a2dp_data_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
 static void btif_a2dp_ctrl_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
 static void btif_a2dp_encoder_update(void);
@@ -1208,7 +1208,6 @@ void btif_media_snd_ctrl_cmd(UINT8 cmd)
                    remotely suspended, clear REMOTE SUSPEND Flag */
                 APPL_TRACE_DEBUG("%s:A2DP command %s AV stream_started_ready clear flag",
                              __func__, dump_a2dp_ctrl_event(cmd));
-                btif_av_clear_remote_suspend_flag();
                 a2dp_cmd_acknowledge(A2DP_CTRL_ACK_SUCCESS);
             }
             break;
@@ -4653,11 +4652,13 @@ static void btif_media_send_aa_frame(uint64_t timestamp_us)
 void disconnect_a2dp_on_vendor_start_failure()
 {
     bt_bdaddr_t bd_addr;
-    APPL_TRACE_IMP("disconnect_a2dp_on_vendor_start_failure");
+    APPL_TRACE_IMP("disconnect_a2dp_on_vendor_start_failure  status = %c",vs_failure_status);
     btif_av_reset_reconfig_flag();
     btif_av_get_peer_addr(&bd_addr);
-    btif_dispatch_sm_event(BTIF_AV_DISCONNECT_REQ_EVT,(char*)&bd_addr,
+    if(vs_failure_status != 13)
+        btif_dispatch_sm_event(BTIF_AV_DISCONNECT_REQ_EVT,(char*)&bd_addr,
             sizeof(bt_bdaddr_t));
+    vs_failure_status = 0;
 }
 
 void btif_media_send_reset_vendor_state()
@@ -4732,6 +4733,8 @@ void btif_media_a2dp_start_cb(tBTM_VSC_CMPL *param)
 
     if (btif_media_cmd_msg_queue != NULL)
     {
+        if(status)
+            vs_failure_status = status;
         fixed_queue_enqueue(btif_media_cmd_msg_queue, p_buf);
     }
     else
@@ -4827,6 +4830,7 @@ void btif_media_selected_codec_cb(tBTM_VSC_CMPL *param)
     {
         APPL_TRACE_ERROR("Error in processing Vendor command response");
         a2dp_cmd_acknowledge(A2DP_CTRL_ACK_FAILURE);
+        vs_failure_status = status;
         disconnect_a2dp_on_vendor_start_failure();
     }
 }
@@ -4895,6 +4899,7 @@ void btif_media_transport_cfg_cb(tBTM_VSC_CMPL *param)
     {
         APPL_TRACE_ERROR("Error in processing Vendor command response");
         a2dp_cmd_acknowledge(A2DP_CTRL_ACK_FAILURE);
+        vs_failure_status = status;
         disconnect_a2dp_on_vendor_start_failure();
     }
 }
@@ -4950,6 +4955,7 @@ void btif_media_a2dp_media_chn_cfg_cb(tBTM_VSC_CMPL *param)
     {
         APPL_TRACE_ERROR("Error in processing Vendor command response");
         a2dp_cmd_acknowledge(A2DP_CTRL_ACK_FAILURE);
+        vs_failure_status = status;
         disconnect_a2dp_on_vendor_start_failure();
     }
 }
@@ -5033,6 +5039,7 @@ void btif_media_a2dp_write_sbc_cfg_cb(tBTM_VSC_CMPL *param)
     {
         APPL_TRACE_ERROR("Error in processing Vendor command response");
         a2dp_cmd_acknowledge(A2DP_CTRL_ACK_FAILURE);
+        vs_failure_status = status;
         disconnect_a2dp_on_vendor_start_failure();
     }
 }
@@ -5103,6 +5110,7 @@ void btif_media_pref_bit_rate_cb(tBTM_VSC_CMPL *param)
     {
         APPL_TRACE_ERROR("Error in processing Vendor command response");
         a2dp_cmd_acknowledge(A2DP_CTRL_ACK_FAILURE);
+        vs_failure_status = status;
         disconnect_a2dp_on_vendor_start_failure();
     }
 }
@@ -5145,6 +5153,7 @@ void btif_media_scmst_cb(tBTM_VSC_CMPL *param)
     {
         APPL_TRACE_ERROR("Error in processing Vendor command response");
         a2dp_cmd_acknowledge(A2DP_CTRL_ACK_FAILURE);
+        vs_failure_status = status;
         disconnect_a2dp_on_vendor_start_failure();
     }
 }
