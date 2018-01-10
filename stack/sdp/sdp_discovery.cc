@@ -315,6 +315,11 @@ static void process_service_search_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
       sdp_disconnect(p_ccb, SDP_INVALID_CONT_STATE);
       return;
     }
+    if (p_reply + cont_len > p_reply_end) {
+      android_errorWriteLog(0x534e4554, "68161546");
+      sdp_disconnect(p_ccb, SDP_INVALID_CONT_STATE);
+      return;
+    }
     /* stay in the same state */
     sdp_snd_service_search_req(p_ccb, cont_len, p_reply);
   } else {
