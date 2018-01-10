@@ -696,6 +696,12 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   }
   p_rec = sdp_update_pbap_record_if_blacklisted(p_rec, p_ccb->device_address);
 
+  if (max_list_len < 4) {
+    sdpu_build_n_send_error(p_ccb, trans_num, SDP_ILLEGAL_PARAMETER, NULL);
+    android_errorWriteLog(0x534e4554, "68776054");
+    return;
+  }
+
   /* Free and reallocate buffer */
   osi_free(p_ccb->rsp_list);
   p_ccb->rsp_list = (uint8_t*)osi_malloc(max_list_len);
@@ -1031,6 +1037,12 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   }
 
   memcpy(&attr_seq_sav, &attr_seq, sizeof(tSDP_ATTR_SEQ));
+
+  if (max_list_len < 4) {
+    sdpu_build_n_send_error(p_ccb, trans_num, SDP_ILLEGAL_PARAMETER, NULL);
+    android_errorWriteLog(0x534e4554, "68817966");
+    return;
+  }
 
   /* Free and reallocate buffer */
   osi_free(p_ccb->rsp_list);
