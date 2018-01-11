@@ -236,7 +236,6 @@ static void update_logging() {
     }
 
     write(logfile_fd, "btsnoop\0\0\0\0\1\0\0\x3\xea", 16);
-    btsnoop_net_open();
   } else {
     if (logfile_fd != INVALID_FD)
       close(logfile_fd);
