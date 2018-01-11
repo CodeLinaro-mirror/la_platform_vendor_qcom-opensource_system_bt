@@ -755,6 +755,12 @@ void bta_dm_remove_device(tBTA_DM_MSG* p_data) {
 
   RawAddress other_address = p_dev->bd_addr;
 
+  if (bta_dm_search_cb.gatt_disc_active && bta_dm_search_cb.peer_bdaddr == p_dev->bd_addr) {
+    APPL_TRACE_WARNING("%s cancel ble discovery, addr: %s", __func__,
+        bta_dm_search_cb.peer_bdaddr.ToString().c_str());
+    bta_dm_cancel_gatt_discovery(bta_dm_search_cb.peer_bdaddr);
+  }
+
   /* If ACL exists for the device in the remove_bond message*/
   bool continue_delete_dev = false;
   uint8_t other_transport = BT_TRANSPORT_INVALID;
