@@ -4838,6 +4838,14 @@ void btm_sec_disconnected (UINT16 handle, UINT8 reason)
             }
             (*btm_cb.api.p_auth_complete_callback) (p_dev_rec->bd_addr,     p_dev_rec->dev_class,
                                                     p_dev_rec->sec_bd_name, result);
+            /*as p_auth_complete_callback may remove p_de_rec from list, so we
+            * need find it again */
+            p_dev_rec = btm_find_dev_by_handle (handle);
+            if(p_dev_rec == NULL)
+            {
+                BTM_TRACE_ERROR("%s p_dev_rec have been removed, return", __func__);
+                return;
+            }
         }
     }
 
