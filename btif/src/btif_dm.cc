@@ -263,6 +263,7 @@ extern bt_status_t btif_hd_execute_service(bool b_enable);
 extern void btif_av_trigger_suspend();
 extern bool btif_av_get_ongoing_multicast();
 extern void btif_av_peer_config_dump();
+extern bool is_codec_config_dump;
 
 /******************************************************************************
  *  Functions
@@ -1247,7 +1248,7 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
 
         /* Trigger SDP on the device */
         pairing_cb.sdp_attempts = 1;
-        btif_dm_get_remote_services(bd_addr);
+        btif_dm_get_remote_services_by_transport(&bd_addr, BT_TRANSPORT_BR_EDR);
       }
     }
     // Do not call bond_state_changed_cb yet. Wait until remote service
@@ -1531,13 +1532,19 @@ static void btif_dm_search_services_evt(uint16_t event, char* p_param) {
 
       BTIF_TRACE_DEBUG("%s:(result=0x%x, services 0x%x)", __func__,
                        p_data->disc_res.result, p_data->disc_res.services);
+      /* retry sdp service search, if sdp fails for pairing bd address,
+      ** report sdp results to APP immediately for non pairing addresses
+      */
       if ((p_data->disc_res.result != BTA_SUCCESS) &&
           (pairing_cb.state == BT_BOND_STATE_BONDING) &&
+          ((p_data->disc_res.bd_addr == pairing_cb.bd_addr) ||
+          (p_data->disc_res.bd_addr == pairing_cb.static_bdaddr.address)) &&
+          (pairing_cb.sdp_attempts > 0) &&
           (pairing_cb.sdp_attempts < BTIF_DM_MAX_SDP_ATTEMPTS_AFTER_PAIRING)) {
         BTIF_TRACE_WARNING("%s:SDP failed after bonding re-attempting",
                            __func__);
         pairing_cb.sdp_attempts++;
-        btif_dm_get_remote_services(bd_addr);
+        btif_dm_get_remote_services_by_transport(&bd_addr, BT_TRANSPORT_BR_EDR);
         return;
       }
       prop[0].type = BT_PROPERTY_UUIDS;
@@ -2096,9 +2103,11 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
     }
 
     case BTA_DM_SOC_LOGGING_EVT: {
-      if (p_data->soc_logging.soc_log_id == (LOG_ID_STATS_A2DP)) {
+      if ((p_data->soc_logging.soc_log_id == (LOG_ID_STATS_A2DP)) &&
+            is_codec_config_dump) {
         BTIF_TRACE_WARNING( " event(%d),dump a2dp configuration", event);
         btif_av_peer_config_dump();
+        is_codec_config_dump = false;
       }
         break;
     }
@@ -2691,6 +2700,26 @@ bt_status_t btif_dm_get_adapter_property(bt_property_t* prop) {
       return BT_STATUS_FAIL;
   }
   return BT_STATUS_SUCCESS;
+}
+
+/*******************************************************************************
+ *
+ * Function         btif_dm_get_remote_services_from_app
+ *
+ * Description      Start SDP to get remote services
+ *
+ * Returns          bt_status_t
+ *
+ ******************************************************************************/
+bt_status_t btif_dm_get_remote_services_from_app(const RawAddress& remote_addr) {
+  if ((pairing_cb.state == BT_BOND_STATE_BONDING) &&
+     (remote_addr == pairing_cb.bd_addr)) {
+    BTIF_TRACE_WARNING("%s():in bonding state, return busy", __FUNCTION__);
+    return BT_STATUS_BUSY;
+  }
+
+  BTIF_TRACE_DEBUG("%s():SDP service search from APP", __FUNCTION__);
+  return btif_dm_get_remote_services(remote_addr);
 }
 
 /*******************************************************************************

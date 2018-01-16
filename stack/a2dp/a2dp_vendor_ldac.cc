@@ -51,8 +51,9 @@ static const tA2DP_LDAC_CIE a2dp_ldac_caps = {
     A2DP_LDAC_VENDOR_ID,  // vendorId
     A2DP_LDAC_CODEC_ID,   // codecId
     // sampleRate
-    (A2DP_LDAC_SAMPLING_FREQ_44100 | A2DP_LDAC_SAMPLING_FREQ_48000 |
-     A2DP_LDAC_SAMPLING_FREQ_88200 | A2DP_LDAC_SAMPLING_FREQ_96000),
+    (A2DP_LDAC_SAMPLING_FREQ_96000 | A2DP_LDAC_SAMPLING_FREQ_48000),
+    /*(A2DP_LDAC_SAMPLING_FREQ_44100 | A2DP_LDAC_SAMPLING_FREQ_48000 |
+     A2DP_LDAC_SAMPLING_FREQ_88200 | A2DP_LDAC_SAMPLING_FREQ_96000),*/
     // channelMode
     (A2DP_LDAC_CHANNEL_MODE_DUAL | A2DP_LDAC_CHANNEL_MODE_STEREO),
     // bits_per_sample
@@ -60,13 +61,23 @@ static const tA2DP_LDAC_CIE a2dp_ldac_caps = {
      BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32)};
 
 /* Default LDAC codec configuration */
-static const tA2DP_LDAC_CIE a2dp_ldac_default_config = {
+static const tA2DP_LDAC_CIE a2dp_ldac_src_default_config = {
     A2DP_LDAC_VENDOR_ID,                // vendorId
     A2DP_LDAC_CODEC_ID,                 // codecId
     A2DP_LDAC_SAMPLING_FREQ_96000,      // sampleRate
     A2DP_LDAC_CHANNEL_MODE_STEREO,      // channelMode
     BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32  // bits_per_sample
 };
+
+/* Default LDAC codec configuration */
+static const tA2DP_LDAC_CIE a2dp_ldac_offload_default_config = {
+    A2DP_LDAC_VENDOR_ID,                // vendorId
+    A2DP_LDAC_CODEC_ID,                 // codecId
+    A2DP_LDAC_SAMPLING_FREQ_96000,      // sampleRate
+    A2DP_LDAC_CHANNEL_MODE_STEREO,      // channelMode
+    BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32// bits_per_sample
+};
+tA2DP_LDAC_CIE a2dp_ldac_default_config;
 
 static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_ldac = {
     a2dp_vendor_ldac_encoder_init,
@@ -521,6 +532,11 @@ A2dpCodecConfigLdac::A2dpCodecConfigLdac(
     : A2dpCodecConfig(BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC, "LDAC",
                       codec_priority) {
   // Compute the local capability
+  if (A2DP_GetOffloadStatus()) {
+    a2dp_ldac_default_config = a2dp_ldac_offload_default_config;
+  } else {
+    a2dp_ldac_default_config = a2dp_ldac_src_default_config;
+  }
   if (a2dp_ldac_caps.sampleRate & A2DP_LDAC_SAMPLING_FREQ_44100) {
     codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
   }
@@ -802,6 +818,32 @@ static bool select_audio_channel_mode(
   return false;
 }
 
+void print_ldac_codec_config(uint8_t codec_config_arry[]) {
+   for(int i = 0; i < AVDT_CODEC_SIZE; i++)
+   {
+      LOG_INFO(LOG_TAG, "%s: codec_config_arry[%d] = %d", __func__, i, codec_config_arry[i]);
+   }
+}
+
+void print_ldac_codec_parameters(btav_a2dp_codec_config_t config) {
+  LOG_DEBUG(
+     LOG_TAG,
+     "codec_type=%d codec_priority=%d "
+     "sample_rate=0x%x bits_per_sample=0x%x "
+     "channel_mode=0x%x codec_specific_1=%" PRIi64
+     " "
+     "codec_specific_2=%" PRIi64
+     " "
+     "codec_specific_3=%" PRIi64
+     " "
+     "codec_specific_4=%" PRIi64,
+     config.codec_type, config.codec_priority,
+     config.sample_rate, config.bits_per_sample,
+     config.channel_mode, config.codec_specific_1,
+     config.codec_specific_2, config.codec_specific_3,
+     config.codec_specific_4);
+}
+
 bool A2dpCodecConfigLdac::setCodecConfig(const uint8_t* p_peer_codec_info,
                                          bool is_capability,
                                          uint8_t* p_result_codec_config) {
@@ -819,6 +861,12 @@ bool A2dpCodecConfigLdac::setCodecConfig(const uint8_t* p_peer_codec_info,
       codec_selectable_capability_;
   btav_a2dp_codec_config_t saved_codec_user_config = codec_user_config_;
   btav_a2dp_codec_config_t saved_codec_audio_config = codec_audio_config_;
+
+  LOG_DEBUG(LOG_TAG, "%s: saved_codec_user_config: ", __func__);
+  print_ldac_codec_parameters(saved_codec_user_config);
+  LOG_DEBUG(LOG_TAG, "%s: saved_codec_audio_config: ", __func__);
+  print_ldac_codec_parameters(saved_codec_audio_config);
+
   uint8_t saved_ota_codec_config[AVDT_CODEC_SIZE];
   uint8_t saved_ota_codec_peer_capability[AVDT_CODEC_SIZE];
   uint8_t saved_ota_codec_peer_config[AVDT_CODEC_SIZE];
@@ -827,6 +875,9 @@ bool A2dpCodecConfigLdac::setCodecConfig(const uint8_t* p_peer_codec_info,
          sizeof(ota_codec_peer_capability_));
   memcpy(saved_ota_codec_peer_config, ota_codec_peer_config_,
          sizeof(ota_codec_peer_config_));
+  print_ldac_codec_config(saved_ota_codec_config);
+  print_ldac_codec_config(saved_ota_codec_peer_capability);
+  print_ldac_codec_config(saved_ota_codec_peer_config);
 
   tA2DP_STATUS status =
       A2DP_ParseInfoLdac(&sink_info_cie, p_peer_codec_info, is_capability);
@@ -836,6 +887,7 @@ bool A2dpCodecConfigLdac::setCodecConfig(const uint8_t* p_peer_codec_info,
     goto fail;
   }
 
+   LOG_DEBUG(LOG_TAG, "%s: is_capability: %d", __func__, is_capability);
   //
   // Build the preferred configuration
   //
@@ -1137,6 +1189,18 @@ bool A2dpCodecConfigLdac::setCodecConfig(const uint8_t* p_peer_codec_info,
   //
   // Copy the codec-specific fields if they are not zero
   //
+   LOG_DEBUG(
+     LOG_TAG,
+     "%s: codec_user_config_:codec_specific_1=%" PRIi64
+     " "
+     "codec_specific_2=%" PRIi64
+     " "
+     "codec_specific_3=%" PRIi64
+     " "
+     "codec_specific_4=%" PRIi64,
+     __func__,  codec_user_config_.codec_specific_1,
+     codec_user_config_.codec_specific_2, codec_user_config_.codec_specific_3,
+     codec_user_config_.codec_specific_4);
   if (codec_user_config_.codec_specific_1 != 0)
     codec_config_.codec_specific_1 = codec_user_config_.codec_specific_1;
   if (codec_user_config_.codec_specific_2 != 0)

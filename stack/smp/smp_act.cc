@@ -1382,11 +1382,16 @@ void smp_idle_terminate(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
  * Description  apply default connection parameter for pairing process
  ******************************************************************************/
 void smp_fast_conn_param(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
-  /* Disable L2CAP connection parameter updates while bonding since
-     some peripherals are not able to revert to fast connection parameters
-     during the start of service discovery. Connection paramter updates
-     get enabled again once service discovery completes. */
-  L2CA_EnableUpdateBleConnParams(p_cb->pairing_bda, false);
+  BD_NAME bdname;
+
+  if (!BTM_GetRemoteDeviceName(p_cb->pairing_bda, bdname) || !*bdname ||
+     (!interop_match_name(INTEROP_DISABLE_LE_CONN_UPDATES, (const char*) bdname))) {
+    /* Disable L2CAP connection parameter updates while bonding since
+    some peripherals are not able to revert to fast connection parameters
+    during the start of service discovery. Connection paramter updates
+    get enabled again once service discovery completes. */
+    L2CA_EnableUpdateBleConnParams(p_cb->pairing_bda, false);
+  }
 }
 
 /*******************************************************************************
@@ -1917,6 +1922,11 @@ void smp_process_secure_connection_long_term_key(void) {
  ******************************************************************************/
 void smp_set_derive_link_key(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
   SMP_TRACE_DEBUG("%s", __func__);
+  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(p_cb->pairing_bda);
+  if (p_dev_rec) {
+    SMP_TRACE_DEBUG("%s: dev_type = %d ", __func__,p_dev_rec->device_type);
+    p_dev_rec->device_type |= BT_DEVICE_TYPE_BREDR;
+  }
   p_cb->derive_lk = true;
   smp_update_key_mask(p_cb, SMP_SEC_KEY_TYPE_LK, false);
   smp_key_distribution(p_cb, NULL);

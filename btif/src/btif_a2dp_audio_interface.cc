@@ -42,6 +42,8 @@
 #include <com/qualcomm/qti/bluetooth_audio/1.0/IBluetoothAudioCallbacks.h>
 #include <com/qualcomm/qti/bluetooth_audio/1.0/types.h>
 #include <hwbinder/ProcessState.h>
+#include <a2dp_vendor_ldac_constants.h>
+#include <a2dp_vendor.h>
 
 using com::qualcomm::qti::bluetooth_audio::V1_0::IBluetoothAudio;
 using com::qualcomm::qti::bluetooth_audio::V1_0::IBluetoothAudioCallbacks;
@@ -66,12 +68,16 @@ Status mapToStatus(uint8_t resp);
 uint8_t btif_a2dp_audio_process_request(uint8_t cmd);
 volatile bool server_died = false;
 static pthread_t audio_hal_monitor;
+typedef std::unique_lock<std::mutex> Lock;
+std::mutex mtx;
+std::condition_variable mCV;
 /*BTIF AV helper */
 extern bool btif_av_is_device_disconnecting();
 extern int btif_get_is_remote_started_idx();
 extern bool btif_av_is_playing_on_other_idx(int current_index);
 extern int btif_get_is_remote_started_idx();
 extern bool reconfig_a2dp;
+extern bool audio_start_awaited;
 bool deinit_pending = false;
 static void btif_a2dp_audio_send_start_req();
 static void btif_a2dp_audio_send_suspend_req();
@@ -121,8 +127,9 @@ struct HidlDeathRecipient : public hidl_death_recipient {
       uint64_t /*cookie*/,
       const wp<::android::hidl::base::V1_0::IBase>& /*who*/) {
     LOG_INFO(LOG_TAG,"serviceDied");
-    //on_hidl_server_died();
+    Lock lk(mtx);
     server_died = true;
+    mCV.notify_one();
   }
 };
 sp<HidlDeathRecipient> BTAudioHidlDeathRecipient = new HidlDeathRecipient();
@@ -204,7 +211,11 @@ Status mapToStatus(uint8_t resp)
 /* Thread to handle hal sever death receipt*/
 static void* server_thread(UNUSED_ATTR void* arg) {
   LOG_INFO(LOG_TAG,"%s",__func__);
-  while (server_died == false);
+  Lock lk(mtx);
+  if (server_died == false) {
+    LOG_INFO(LOG_TAG,"waitin on condition");
+    mCV.wait(lk);
+  }
   if (btAudio != nullptr) {
     LOG_INFO(LOG_TAG,"%s:audio hal died",__func__);
     server_died = false;
@@ -261,7 +272,9 @@ void btif_a2dp_audio_interface_deinit() {
   }
   deinit_pending = false;
   btAudio = nullptr;
+  Lock lk(mtx);
   server_died = true; //Exit thread
+  mCV.notify_one();
   LOG_INFO(LOG_TAG,"btif_a2dp_audio_interface_deinit:Exit");
 }
 
@@ -416,6 +429,7 @@ void btif_a2dp_audio_send_sink_latency()
     if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
   }
 }
+
 void on_hidl_server_died() {
   LOG_INFO(LOG_TAG,"on_hidl_server_died");
   if (btAudio != nullptr) {
@@ -496,6 +510,19 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
           status = A2DP_CTRL_ACK_PENDING;
         }
       }
+
+      if (audio_start_awaited) {
+        if (reconfig_a2dp || (btif_av_is_under_handoff())) {
+          APPL_TRACE_DEBUG("Audio start awaited handle start under handoff");
+          audio_start_awaited = false;
+          btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
+          int idx = btif_av_get_latest_device_idx_to_start();
+          if (btif_av_get_peer_sep(idx) == AVDT_TSEP_SRC)
+            status = A2DP_CTRL_ACK_SUCCESS;
+          break;
+        }
+      }
+
       /* In dual a2dp mode check for stream started first*/
       if (btif_av_stream_started_ready()) {
         /*
@@ -658,9 +685,12 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         {
           int bits_per_sample = 16; // TODO
           int samplerate = A2DP_GetTrackSampleRate(p_codec_info);
-
-          /* BR = (Sampl_Rate * PCM_DEPTH * CHNL)/Compression_Ratio */
-          bitrate = (samplerate * bits_per_sample * 2)/4;
+          if ((A2DP_VendorCodecGetVendorId(p_codec_info)) == A2DP_LDAC_VENDOR_ID) {
+            bitrate = DEFAULT_LDAC_BITRATE; /* Default bitrate for LDAC is 330KBps */
+          } else {
+            /* BR = (Sampl_Rate * PCM_DEPTH * CHNL)/Compression_Ratio */
+            bitrate = (samplerate * bits_per_sample * 2)/4;
+          }
         }
         else if (A2DP_MEDIA_CT_AAC == codec_type)
         {

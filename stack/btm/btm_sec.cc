@@ -4271,6 +4271,7 @@ static void btm_sec_connect_after_reject_timeout(UNUSED_ATTR void* data) {
 
   BTM_TRACE_EVENT("%s", __func__);
   btm_cb.p_collided_dev_rec = 0;
+  btm_cb.collision_start_time = 0;
 
   if (btm_sec_dd_create_conn(p_dev_rec) != BTM_CMD_STARTED) {
     BTM_TRACE_WARNING("Security Manager: %s: failed to start connection",
@@ -4710,7 +4711,7 @@ void btm_sec_disconnected(uint16_t handle, uint8_t reason) {
   p_dev_rec->security_required = BTM_SEC_NONE;
 
   p_callback = p_dev_rec->p_callback;
-
+  p_dev_rec->new_encryption_key_is_p256 = FALSE;
   /* if security is pending, send callback to clean up the security state */
   if (p_callback) {
     p_dev_rec->p_callback =

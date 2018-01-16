@@ -42,6 +42,7 @@
 #include "osi/include/properties.h"
 #include "osi/include/time.h"
 #include "stack_config.h"
+#include "l2c_api.h"
 
 // The number of of packets per btsnoop file before we rotate to the next
 // file. As of right now there are two snoop files that are rotated through.
@@ -64,16 +65,23 @@ typedef enum {
 // Epoch in microseconds since 01/01/0000.
 static const uint64_t BTSNOOP_EPOCH_DELTA = 0x00dcddb30f2f8000ULL;
 
+static bool media_capture = true;
 static int logfile_fd = INVALID_FD;
 static std::mutex btsnoop_mutex;
+static std::mutex btSnoopFd_mutex;
 
 static int32_t packets_per_file;
 static int32_t packet_counter;
+static bool sock_snoop_active = false;
+
+extern bt_logger_interface_t *logger_interface;
+static long int gmt_offset;
 
 // TODO(zachoverflow): merge btsnoop and btsnoop_net together
 void btsnoop_net_open();
 void btsnoop_net_close();
 void btsnoop_net_write(const void* data, size_t length);
+static bool is_avdt_media_packet(const uint8_t *p, bool is_local_cid);
 
 static void delete_btsnoop_files();
 static bool is_btsnoop_enabled();
@@ -87,6 +95,11 @@ static void btsnoop_write_packet(packet_type_t type, uint8_t* packet,
 
 static future_t* start_up(void) {
   std::lock_guard<std::mutex> lock(btsnoop_mutex);
+  time_t t = time(NULL);
+  struct tm tm_cur;
+
+  localtime_r (&t, &tm_cur);
+  gmt_offset = tm_cur.tm_gmtoff;
 
   if (!is_btsnoop_enabled()) {
     delete_btsnoop_files();
@@ -95,7 +108,10 @@ static future_t* start_up(void) {
     packets_per_file = osi_property_get_int32(BTSNOOP_MAX_PACKETS_PROPERTY,
                                               DEFAULT_BTSNOOP_SIZE);
     btsnoop_net_open();
+    START_SNOOP_LOGGING();
   }
+  media_capture = vendor_logging_level&HCI_SNOOP_LOG_FULL;
+  LOG_ERROR(LOG_TAG, "%s: A2DP media snoop-capture status: %d", __func__, media_capture);
 
   return NULL;
 }
@@ -110,6 +126,7 @@ static future_t* shut_down(void) {
   if (logfile_fd != INVALID_FD) close(logfile_fd);
   logfile_fd = INVALID_FD;
 
+  STOP_SNOOP_LOGGING();
   btsnoop_net_close();
 
   return NULL;
@@ -129,6 +146,7 @@ static void capture(const BT_HDR* buffer, bool is_received) {
 
   std::lock_guard<std::mutex> lock(btsnoop_mutex);
   uint64_t timestamp_us = time_gettimeofday_us();
+  timestamp_us += gmt_offset*1000000;
   btsnoop_mem_capture(buffer, timestamp_us);
 
   if (logfile_fd == INVALID_FD) return;
@@ -139,7 +157,8 @@ static void capture(const BT_HDR* buffer, bool is_received) {
       break;
     case MSG_HC_TO_STACK_HCI_ACL:
     case MSG_STACK_TO_HC_HCI_ACL:
-      btsnoop_write_packet(kAclPacket, p, is_received, timestamp_us);
+      if(media_capture || (!is_avdt_media_packet(p, is_received)))
+        btsnoop_write_packet(kAclPacket, p, is_received, timestamp_us);
       break;
     case MSG_HC_TO_STACK_HCI_SCO:
     case MSG_STACK_TO_HC_HCI_SCO:
@@ -188,6 +207,10 @@ static char* get_btsnoop_last_log_path(char* last_log_path,
 
 static void open_next_snoop_file() {
   packet_counter = 0;
+
+  std::lock_guard<std::mutex> lock(btSnoopFd_mutex);
+  if(sock_snoop_active)
+    return;
 
   if (logfile_fd != INVALID_FD) {
     close(logfile_fd);
@@ -271,7 +294,7 @@ static void btsnoop_write_packet(packet_type_t type, uint8_t* packet,
 
   if (logfile_fd != INVALID_FD) {
     packet_counter++;
-    if (packet_counter > packets_per_file) {
+    if (!sock_snoop_active && packet_counter > packets_per_file) {
       open_next_snoop_file();
     }
 
@@ -279,4 +302,23 @@ static void btsnoop_write_packet(packet_type_t type, uint8_t* packet,
                    {reinterpret_cast<void*>(packet), length_he - 1}};
     TEMP_FAILURE_RETRY(writev(logfile_fd, iov, 2));
   }
+}
+
+void update_snoop_fd(int snoop_fd) {
+  std::lock_guard<std::mutex> lock(btSnoopFd_mutex);
+  LOG_INFO(LOG_TAG, "%s Now writing to server socket", __func__);
+  sock_snoop_active = true;
+  logfile_fd = snoop_fd;
+}
+
+static bool is_avdt_media_packet(const uint8_t *p, bool is_received) {
+  uint16_t cid, handle;
+  bool is_local_cid = is_received;
+  /*is_received signifies Rx packet so packet will have local_cid at offset 6
+   * Tx packet with is_received as false and have remote_cid at the offset*/
+
+  handle = (uint16_t)((p[0] + (p[1] << 8)) & 0x0FFF);
+  cid =  (uint16_t)(p[6] + (p[7] << 8));
+
+  return L2CA_isMediaChannel(handle, cid, is_local_cid);
 }

@@ -416,7 +416,7 @@ extern bool btif_av_is_split_a2dp_enabled();
 extern int btif_av_idx_by_bdaddr(RawAddress *bd_addr);
 extern bool btif_av_check_flag_remote_suspend(int index);
 extern bt_status_t btif_hf_check_if_sco_connected();
-
+extern void btif_av_update_current_playing_device(int index);
 extern fixed_queue_t* btu_general_alarm_queue;
 
 /*****************************************************************************
@@ -705,10 +705,15 @@ void btif_rc_clear_priority(RawAddress address) {
  *                 Copies the BD address of current playing device
  *
  ***************************************************************************/
-void btif_rc_get_playing_device(RawAddress address) {
+void btif_rc_get_playing_device(RawAddress *address) {
+  std::unique_lock<std::mutex> lock(btif_rc_cb.lock);
+  if (btif_rc_cb.rc_multi_cb == NULL) {
+    BTIF_TRACE_ERROR("%s: RC multicb is NULL", __func__);
+    return;
+  }
   for (int i = 0; i < btif_max_rc_clients; i++) {
     if (btif_rc_cb.rc_multi_cb[i].rc_play_processed)
-      address = btif_rc_cb.rc_multi_cb[i].rc_addr;
+      *address = btif_rc_cb.rc_multi_cb[i].rc_addr;
   }
 }
 
@@ -724,6 +729,11 @@ void btif_rc_get_playing_device(RawAddress address) {
  *
  ***************************************************************************/
 void btif_rc_clear_playing_state(bool state) {
+  std::unique_lock<std::mutex> lock(btif_rc_cb.lock);
+  if (btif_rc_cb.rc_multi_cb == NULL) {
+    BTIF_TRACE_ERROR("%s: RC multicb is NULL", __func__);
+    return;
+  }
   for (int i = 0; i < btif_max_rc_clients; i++) {
     if (btif_rc_cb.rc_multi_cb[i].rc_play_processed)
       btif_rc_cb.rc_multi_cb[i].rc_play_processed = state;
@@ -891,7 +901,7 @@ void handle_rc_disconnect(tBTA_AV_RC_CLOSE* p_rc_close) {
     HAL_CBACK(bt_rc_ctrl_callbacks, connection_state_cb, false, false,
               &rc_addr);
   }
-  if (rc_features & BTA_AV_FEAT_RCCT) {
+  if (bt_rc_callbacks) {
     HAL_CBACK(bt_rc_callbacks, connection_state_cb, false, false, &rc_addr);
   }
 }
@@ -1243,6 +1253,7 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV* p_data) {
   btif_rc_device_cb_t* p_dev = NULL;
   switch (event) {
     case BTIF_AV_CLEANUP_REQ_EVT: {
+      std::unique_lock<std::mutex> lock(btif_rc_cb.lock);
       if (bt_rc_callbacks) {
         bt_rc_callbacks = NULL;
       }
@@ -1908,17 +1919,6 @@ static void btif_rc_upstreams_evt(uint16_t event, tAVRC_COMMAND* pavrc_cmd,
                 &rc_addr);
     } break;
     case AVRC_PDU_REGISTER_NOTIFICATION: {
-      if (pavrc_cmd->reg_notif.event_id == BTRC_EVT_PLAY_POS_CHANGED &&
-          pavrc_cmd->reg_notif.param == 0) {
-        BTIF_TRACE_WARNING(
-            "%s: Device registering position changed with illegal param 0.",
-            __func__);
-        send_reject_response(p_dev->rc_handle, label, pavrc_cmd->pdu,
-                             AVRC_STS_BAD_PARAM, pavrc_cmd->cmd.opcode);
-        /* de-register this notification for a rejected response */
-        p_dev->rc_notif[BTRC_EVT_PLAY_POS_CHANGED - 1].bNotify = false;
-        return;
-      }
       HAL_CBACK(bt_rc_callbacks, register_notification_cb,
                 (btrc_event_id_t)pavrc_cmd->reg_notif.event_id,
                 pavrc_cmd->reg_notif.param, &rc_addr);
@@ -5443,7 +5443,7 @@ static void cleanup() {
  **************************************************************************/
 static void cleanup_ctrl() {
   BTIF_TRACE_EVENT("%s: ", __func__);
-
+  std::unique_lock<std::mutex> lock(btif_rc_cb.lock);
   if (bt_rc_ctrl_callbacks) {
     bt_rc_ctrl_callbacks = NULL;
   }
@@ -6308,7 +6308,8 @@ static bt_status_t is_device_active_in_handoff(RawAddress *bd_addr) {
       /* Play initiated locally. check the current device and
        * make sure play is not initiated from other remote
        */
-      btif_rc_get_playing_device(RawAddress::kEmpty);
+      RawAddress dummy_address = RawAddress::kEmpty;
+      btif_rc_get_playing_device(&dummy_address);
       if (!(bd_addr->IsEmpty())) {
         /* some other playing device */
         return BT_STATUS_FAIL;
@@ -6326,6 +6327,26 @@ static bt_status_t is_device_active_in_handoff(RawAddress *bd_addr) {
   }
 }
 
+static bt_status_t update_play_status_to_stack(btrc_play_status_t play_state) {
+  BTIF_TRACE_DEBUG("%s", __func__)
+  if (play_state == PLAY_STATUS_PLAYING) {
+    //CHECK for remote suspend
+    //clear remote suspend and intiate start
+    int index = 0;
+    for (index = 0; index < btif_max_rc_clients; index++) {
+      if (btif_av_check_flag_remote_suspend(index) == true) {
+        break;
+      }
+    }
+    if (index == btif_max_rc_clients) {
+      BTIF_TRACE_ERROR("%s:invalid index,remote suspend not set", __func__);
+      return BT_STATUS_FAIL;
+    }
+    btif_av_clear_remote_suspend_flag();
+    btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
+  }
+  return BT_STATUS_SUCCESS;
+}
 static const btrc_interface_t bt_rc_interface = {
     sizeof(bt_rc_interface),
     init,
@@ -6349,6 +6370,7 @@ static const btrc_interface_t bt_rc_interface = {
     search_rsp,
     add_to_now_playing_rsp,
     is_device_active_in_handoff,
+    update_play_status_to_stack,
     cleanup,
 };
 
