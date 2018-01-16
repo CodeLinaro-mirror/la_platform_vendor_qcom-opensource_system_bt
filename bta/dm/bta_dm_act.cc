@@ -1089,14 +1089,14 @@ static void bta_dm_policy_cback(tBTA_SYS_CONN_STATUS status, uint8_t id,
 
     case BTA_SYS_PLCY_CLR:
       if (!p_dev) return;
-      /* clear the policy from the default link policy */
-      p_dev->link_policy &= (~policy);
-      BTM_SetLinkPolicy(p_dev->peer_bdaddr, &(p_dev->link_policy));
 
       if (policy & (HCI_ENABLE_SNIFF_MODE | HCI_ENABLE_PARK_MODE)) {
         /* if clearing sniff/park, wake the link */
         bta_dm_pm_active(p_dev->peer_bdaddr);
       }
+      /* clear the policy from the default link policy */
+      p_dev->link_policy &= (~policy);
+      BTM_SetLinkPolicy(p_dev->peer_bdaddr, &(p_dev->link_policy));
       break;
 
     case BTA_SYS_PLCY_DEF_SET:
