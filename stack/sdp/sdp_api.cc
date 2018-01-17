@@ -917,7 +917,7 @@ uint8_t SDP_GetNumDiRecords(tSDP_DISCOVERY_DB* p_db) {
  * Returns          none
  *
  ******************************************************************************/
-static void SDP_AttrStringCopy(char* dst, tSDP_DISC_ATTR* p_attr,
+void SDP_AttrStringCopy(char* dst, tSDP_DISC_ATTR* p_attr,
                                uint16_t dst_size) {
   if (dst == NULL) return;
   if (p_attr) {

@@ -669,4 +669,17 @@ bool SDP_Dev_Blacklisted_For_Avrcp15 (RawAddress addr);
 // The result with the expanded 128-bit UUID is stored in |p_uuid128|.
 void sdpu_uuid16_to_uuid128(uint16_t uuid16, uint8_t* p_uuid128);
 
+/*******************************************************************************
+ *
+ * Function         SDP_AttrStringCopy
+ *
+ * Description      This function copy given attribute to specified buffer as a
+ *                  string
+ *
+ * Returns          none
+ *
+ ******************************************************************************/
+void SDP_AttrStringCopy(char* dst, tSDP_DISC_ATTR* p_attr, uint16_t dst_size);
+
+
 #endif /* SDP_API_H */

@@ -57,6 +57,11 @@ static const uint8_t UUID_MAP_MNS[] = {0x00, 0x00, 0x11, 0x33, 0x00, 0x00,
 static const uint8_t UUID_SAP[] = {0x00, 0x00, 0x11, 0x2D, 0x00, 0x00,
                                    0x10, 0x00, 0x80, 0x00, 0x00, 0x80,
                                    0x5F, 0x9B, 0x34, 0xFB};
+
+static const uint8_t UUID_DIP[] = {0x00, 0x00, 0x12, 0x00, 0x00, 0x00,
+                                   0x10, 0x00, 0x80, 0x00, 0x00, 0x80,
+                                   0x5F, 0x9B, 0x34, 0xFB};
+
 // TODO:
 // Both the fact that the UUIDs are declared in multiple places, plus the fact
 // that there is a mess of UUID comparison and shortening methods will have to
@@ -345,6 +350,87 @@ static void bta_create_sap_sdp_record(bluetooth_sdp_record* record,
   }
 }
 
+static void bta_create_dip_sdp_record(bluetooth_sdp_record* record,
+                                      tSDP_DISC_REC* p_rec) {
+  tSDP_DISC_ATTR* p_attr;
+
+  APPL_TRACE_DEBUG("%s()", __func__);
+
+  /*hdr is redundancy in dip*/
+  record->dip.hdr.type = SDP_TYPE_DIP;
+  record->dip.hdr.service_name_length = 0;
+  record->dip.hdr.service_name = NULL;
+  record->dip.hdr.rfcomm_channel_number = 0;
+  record->dip.hdr.l2cap_psm = -1;
+  record->dip.hdr.profile_version = 0;
+
+  /* ClientExecutableURL is optional */
+  p_attr = SDP_FindAttributeInRec(p_rec, ATTR_ID_CLIENT_EXE_URL);
+  if (p_attr) {
+    SDP_AttrStringCopy(record->dip.client_executable_url, p_attr,
+                       SDP_MAX_ATTR_LEN);
+    APPL_TRACE_DEBUG("%s() - client_executable_url %s", __func__, record->dip.client_executable_url);
+  }
+  /* Service Description is optional */
+  p_attr =
+      SDP_FindAttributeInRec(p_rec, ATTR_ID_SERVICE_DESCRIPTION);
+  if (p_attr) {
+    SDP_AttrStringCopy(record->dip.service_description, p_attr,
+                     SDP_MAX_ATTR_LEN);
+    APPL_TRACE_DEBUG("%s() - service_description %s", __func__, record->dip.service_description);
+  }
+
+  /* DocumentationURL is optional */
+  p_attr =
+      SDP_FindAttributeInRec(p_rec, ATTR_ID_DOCUMENTATION_URL);
+  if (p_attr) {
+    SDP_AttrStringCopy(record->dip.documentation_url, p_attr,
+                     SDP_MAX_ATTR_LEN);
+    APPL_TRACE_DEBUG("%s() - documentation_url %s", __func__, record->dip.documentation_url);
+  }
+
+  p_attr =
+      SDP_FindAttributeInRec(p_rec, ATTR_ID_SPECIFICATION_ID);
+  if (p_attr)
+    record->dip.spec_id = p_attr->attr_value.v.u16;
+  else
+    APPL_TRACE_ERROR("%s() ATTR_ID_SPECIFICATION_ID not found", __func__);
+
+  p_attr = SDP_FindAttributeInRec(p_rec, ATTR_ID_VENDOR_ID);
+  if (p_attr)
+    record->dip.vendor = p_attr->attr_value.v.u16;
+  else
+    APPL_TRACE_ERROR("%s() ATTR_ID_VENDOR_ID not found", __func__);
+
+
+  p_attr =
+      SDP_FindAttributeInRec(p_rec, ATTR_ID_VENDOR_ID_SOURCE);
+  if (p_attr)
+    record->dip.vendor_id_source = p_attr->attr_value.v.u16;
+  else
+    APPL_TRACE_ERROR("%s() ATTR_ID_VENDOR_ID_SOURCE not found", __func__);
+
+  p_attr = SDP_FindAttributeInRec(p_rec, ATTR_ID_PRODUCT_ID);
+  if (p_attr)
+    record->dip.product = p_attr->attr_value.v.u16;
+  else
+    APPL_TRACE_ERROR("%s() ATTR_ID_PRODUCT_ID not found", __func__);
+
+  p_attr =
+      SDP_FindAttributeInRec(p_rec, ATTR_ID_PRODUCT_VERSION);
+  if (p_attr)
+    record->dip.version = p_attr->attr_value.v.u16;
+  else
+    APPL_TRACE_ERROR("%s() ATTR_ID_PRODUCT_VERSION not found", __func__);
+
+  p_attr = SDP_FindAttributeInRec(p_rec, ATTR_ID_PRIMARY_RECORD);
+  if (p_attr)
+    record->dip.primary_record = (bool)p_attr->attr_value.v.u8;
+  else
+    APPL_TRACE_ERROR("%s() ATTR_ID_PRIMARY_RECORD not found", __func__);
+
+}
+
 static void bta_create_raw_sdp_record(bluetooth_sdp_record* record,
                                       tSDP_DISC_REC* p_rec) {
   tSDP_DISC_ATTR* p_attr;
@@ -422,6 +508,9 @@ static void bta_sdp_search_cback(uint16_t result, void* user_data) {
         } else if (IS_UUID(UUID_SAP, uuid->uu.uuid128)) {
           APPL_TRACE_DEBUG("%s() - found SAP uuid", __func__);
           bta_create_sap_sdp_record(&evt_data.records[count], p_rec);
+        } else if (IS_UUID(UUID_DIP, uuid->uu.uuid128)) {
+          APPL_TRACE_DEBUG("%s() - found DIP uuid", __func__);
+          bta_create_dip_sdp_record(&evt_data.records[count], p_rec);
         } else {
           /* we do not have specific structure for this */
           APPL_TRACE_DEBUG("%s() - profile not identified. using raw data",
