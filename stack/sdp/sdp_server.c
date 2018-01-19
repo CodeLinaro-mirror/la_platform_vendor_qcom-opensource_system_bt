@@ -48,6 +48,7 @@
 /* Maximum number of bytes to reserve out of SDP MTU for response data */
 #define SDP_MAX_SERVICE_RSPHDR_LEN      12
 #define SDP_MAX_SERVATTR_RSPHDR_LEN     10
+#define SDP_MIN_ATTR_REQ_MAX_BYTE_COUNT 7
 #define SDP_MAX_ATTR_RSPHDR_LEN         10
 #define PROFILE_VERSION_POSITION         7
 #define SDP_PROFILE_DESC_LENGTH          8
@@ -609,7 +610,7 @@ static void process_service_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
     /* Get the max list length we can send. Cap it at MTU size minus overhead */
     BE_STREAM_TO_UINT16 (max_list_len, p_req);
 
-    if (!max_list_len)
+    if (max_list_len < SDP_MIN_ATTR_REQ_MAX_BYTE_COUNT)
     {
         sdpu_build_n_send_error (p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX, SDP_TEXT_BAD_MAX_ATTR_LIST);
         return;
@@ -949,7 +950,7 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
     /* Get the max list length we can send. Cap it at our max list length. */
     BE_STREAM_TO_UINT16 (max_list_len, p_req);
 
-    if (!max_list_len)
+    if (max_list_len < SDP_MIN_ATTR_REQ_MAX_BYTE_COUNT)
     {
         sdpu_build_n_send_error (p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX, SDP_TEXT_BAD_MAX_ATTR_LIST);
         return;
