@@ -33,7 +33,7 @@
 
 #include <stdint.h>
 
-#include <hardware/bt_av.h>
+#include <hardware/bt_av_vendor.h>
 
 /*****************************************************************************
  *  Constants & Macros

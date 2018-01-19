@@ -4,6 +4,7 @@ cc_defaults {
     include_dirs: [
         "system/bt",
         "system/bt/audio_a2dp_hw/include",
+        "vendor/qcom/opensource/bluetooth_ext/vhal/include",
     ]
 }
 

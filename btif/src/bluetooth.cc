@@ -33,7 +33,7 @@
 #include <unistd.h>
 
 #include <hardware/bluetooth.h>
-#include <hardware/bt_av.h>
+#include <hardware/bt_av_vendor.h>
 #include <hardware/bt_gatt.h>
 #include <hardware/bt_hd.h>
 #include <hardware/bt_hf.h>

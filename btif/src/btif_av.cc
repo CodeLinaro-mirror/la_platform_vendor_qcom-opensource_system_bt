@@ -27,7 +27,7 @@
 #include <string.h>
 
 #include <hardware/bluetooth.h>
-#include <hardware/bt_av.h>
+#include <hardware/bt_av_vendor.h>
 #include <hardware/bt_rc.h>
 
 #include "audio_a2dp_hw/include/audio_a2dp_hw.h"
