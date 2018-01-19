@@ -35,6 +35,7 @@
 
 #include <hardware/bt_av.h>
 #include <cutils/properties.h>
+#include <hardware/bt_av_vendor.h>
 
 /*****************************************************************************
  *  Constants & Macros

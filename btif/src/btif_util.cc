@@ -37,7 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <hardware/bt_av.h>
+#include "hardware/bt_av_vendor.h"
 
 #include "avrc_defs.h"
 #include "bt_common.h"

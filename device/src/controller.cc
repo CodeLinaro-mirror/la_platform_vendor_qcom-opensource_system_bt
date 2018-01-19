@@ -32,7 +32,7 @@
 #include "stack/include/btm_ble_api.h"
 #include "osi/include/log.h"
 #include "utils/include/bt_utils.h"
-#include <hardware/bt_av.h>
+#include "hardware/bt_av_vendor.h"
 
 #define BTSNOOP_ENABLE_PROPERTY "persist.bluetooth.btsnoopenable"
 

@@ -9,6 +9,7 @@ cc_library_static {
       "system/bt/include",
       "system/bt/utils/include",
       "system/bt/stack/include",
+      "vendor/qcom/opensource/bluetooth_ext/vhal/include",
     ],
     local_include_dirs: [
       "include",
