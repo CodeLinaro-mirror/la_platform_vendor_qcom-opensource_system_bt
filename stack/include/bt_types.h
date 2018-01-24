@@ -294,7 +294,7 @@ typedef struct
                                     ((UINT64)(*((p) + 3)) << 32) + ((UINT64)(*((p) + 2)) << 40) + \
                                     ((UINT64)(*((p) + 1)) << 48) + ((UINT64)(*(p)) << 56)); \
                                     (p) += 8;}
-#define BE_STREAM_TO_ARRAY(p, a, len) {register int ijk; for (ijk = 0; ijk < len; ijk++) ((UINT8 *) a)[ijk] = *p++;}
+#define BE_STREAM_TO_ARRAY(p, a, len) {register int ijk; for (ijk = 0; ijk < (len); ijk++) ((UINT8 *) (a))[ijk] = *(p)++;}
 
 
 /********************************************************************************

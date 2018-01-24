@@ -234,7 +234,7 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
             BE_STREAM_TO_UINT16(player->name.str_len, p);
             player->name.p_str = (uint8_t*)osi_malloc(
                 (player->name.str_len + 1) * sizeof(uint8_t));
-            BE_STREAM_TO_ARRAY(p, player->name.p_str, player->name.str_len);
+            BE_STREAM_TO_ARRAY(p, player->name.p_str, (int)player->name.str_len);
             pkt_len_read += (4 + player->name.str_len);
             AVRC_TRACE_DEBUG(
                 "%s type %d id %d mtype %d stype %d ps %d cs %d name len %d",
@@ -258,7 +258,7 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
             BE_STREAM_TO_UINT16(folder->name.str_len, p);
             folder->name.p_str = (uint8_t*)osi_malloc(
                 (folder->name.str_len + 1) * sizeof(uint8_t));
-            BE_STREAM_TO_ARRAY(p, folder->name.p_str, folder->name.str_len);
+            BE_STREAM_TO_ARRAY(p, folder->name.p_str, (int)folder->name.str_len);
             pkt_len_read += (4 + folder->name.str_len);
             AVRC_TRACE_DEBUG("%s type %d playable %d cs %d name len %d",
                              __func__, folder->type, folder->playable,
@@ -277,8 +277,8 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
             BE_STREAM_TO_UINT16(media->name.charset_id, p);
             BE_STREAM_TO_UINT16(media->name.str_len, p);
             media->name.p_str =
-                (uint8_t*)osi_malloc((media->name.str_len) * sizeof(uint8_t));
-            BE_STREAM_TO_ARRAY(p, media->name.p_str, media->name.str_len);
+                (uint8_t*)osi_malloc((media->name.str_len + 1) * sizeof(uint8_t));
+            BE_STREAM_TO_ARRAY(p, media->name.p_str, (int)media->name.str_len);
 
             BE_STREAM_TO_UINT8(media->attr_count, p);
             AVRC_TRACE_DEBUG("%s media type %d charset id %d len %d attr ct %d",
@@ -296,9 +296,9 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
               BE_STREAM_TO_UINT16(attr_entry->name.charset_id, p);
               BE_STREAM_TO_UINT16(attr_entry->name.str_len, p);
               attr_entry->name.p_str = (uint8_t*)osi_malloc(
-                  attr_entry->name.str_len * sizeof(uint8_t));
+                  (attr_entry->name.str_len + 1) * sizeof(uint8_t));
               BE_STREAM_TO_ARRAY(p, attr_entry->name.p_str,
-                                 attr_entry->name.str_len);
+                                 (int)attr_entry->name.str_len);
               pkt_len_read += (8 + attr_entry->name.str_len);
               AVRC_TRACE_DEBUG("%s media attr id %d cs %d name len %d",
                                __func__, attr_entry->attr_id,
@@ -410,7 +410,7 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
                                __func__, i, pAttr->attr_id, pAttr->name.charset_id, pAttr->name.str_len);
               pAttr->name.p_str =
                   (uint8_t*)osi_malloc((pAttr->name.str_len + 1) * sizeof(uint8_t));
-              BE_STREAM_TO_ARRAY(p, pAttr->name.p_str, pAttr->name.str_len);
+              BE_STREAM_TO_ARRAY(p, pAttr->name.p_str, (int)pAttr->name.str_len);
               pkt_len_read += (8 + pAttr->name.str_len);
              }
         }
@@ -456,7 +456,7 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
                              __func__, i, folder_name->str_len);
             folder_name->p_str =
                 (uint8_t*)osi_malloc((folder_name->str_len + 1) * sizeof(uint8_t));
-            BE_STREAM_TO_ARRAY(p, folder_name->p_str, folder_name->str_len);
+            BE_STREAM_TO_ARRAY(p, folder_name->p_str, (int)folder_name->str_len);
             pkt_len_read += (2 + folder_name->str_len);
           }
       }
@@ -615,7 +615,7 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(
             if (p_result->get_app_attr_txt.p_attrs[xx].str_len != 0)
             {
                 UINT8 *p_str = (UINT8 *)osi_malloc(p_result->get_app_attr_txt.p_attrs[xx].str_len);
-                BE_STREAM_TO_ARRAY(p, p_str, p_result->get_app_attr_txt.p_attrs[xx].str_len);
+                BE_STREAM_TO_ARRAY(p, p_str, (int)p_result->get_app_attr_txt.p_attrs[xx].str_len);
                 p_result->get_app_attr_txt.p_attrs[xx].p_str = p_str;
             } else {
                 p_result->get_app_attr_txt.p_attrs[xx].p_str = NULL;
@@ -645,7 +645,7 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(
             BE_STREAM_TO_UINT8(p_result->get_app_val_txt.p_attrs[i].str_len, p);
             if (p_result->get_app_val_txt.p_attrs[i].str_len != 0) {
                 UINT8 *p_str = (UINT8 *)osi_malloc(p_result->get_app_val_txt.p_attrs[i].str_len);
-                BE_STREAM_TO_ARRAY(p, p_str, p_result->get_app_val_txt.p_attrs[i].str_len);
+                BE_STREAM_TO_ARRAY(p, p_str, (int)p_result->get_app_val_txt.p_attrs[i].str_len);
                 p_result->get_app_val_txt.p_attrs[i].p_str = p_str;
             } else {
                 p_result->get_app_val_txt.p_attrs[i].p_str = NULL;
@@ -679,7 +679,7 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(
                 BE_STREAM_TO_UINT16(p_attrs[i].name.str_len, p);
                 if (p_attrs[i].name.str_len > 0) {
                     p_attrs[i].name.p_str = (UINT8 *)osi_malloc(p_attrs[i].name.str_len);
-                    BE_STREAM_TO_ARRAY(p, p_attrs[i].name.p_str, p_attrs[i].name.str_len);
+                    BE_STREAM_TO_ARRAY(p, p_attrs[i].name.p_str, (int)p_attrs[i].name.str_len);
                 }
             }
             p_result->get_elem_attrs.p_attrs = p_attrs;
@@ -728,7 +728,7 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(
                 BE_STREAM_TO_UINT16(pFolderName[i].str_len, p);
                 if (pFolderName[i].str_len > 0) {
                     pFolderName[i].p_str = (UINT8 *)osi_malloc(pFolderName[i].str_len);
-                    BE_STREAM_TO_ARRAY(p, pFolderName[i].p_str, pFolderName[i].str_len);
+                    BE_STREAM_TO_ARRAY(p, pFolderName[i].p_str, (int)pFolderName[i].str_len);
                 }
             }
             p_result->br_player.p_folders = pFolderName;
