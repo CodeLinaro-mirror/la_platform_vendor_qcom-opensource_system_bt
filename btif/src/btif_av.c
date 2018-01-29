@@ -45,6 +45,7 @@
 #include "btc_common.h"
 #endif
 #include "hardware/bt_av_vendor.h"
+#include "btcore/include/bdaddr.h"
 
 /*****************************************************************************
 **  Constants & Macros
