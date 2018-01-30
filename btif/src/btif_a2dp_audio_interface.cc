@@ -212,7 +212,7 @@ Status mapToStatus(uint8_t resp)
 static void* server_thread(UNUSED_ATTR void* arg) {
   LOG_INFO(LOG_TAG,"%s",__func__);
   Lock lk(mtx);
-  if (server_died == false) {
+  while (server_died == false) {
     LOG_INFO(LOG_TAG,"waitin on condition");
     mCV.wait(lk);
   }
@@ -221,7 +221,6 @@ static void* server_thread(UNUSED_ATTR void* arg) {
     server_died = false;
     on_hidl_server_died();
   }
-  pthread_join(audio_hal_monitor, NULL);
   LOG_INFO(LOG_TAG,"%s EXIT",__func__);
   return NULL;
 }
@@ -240,8 +239,11 @@ void btif_a2dp_audio_interface_init() {
   deinit_pending = false;
   server_died = false;
   int ret = pthread_create(&audio_hal_monitor, (const pthread_attr_t*)NULL, server_thread, nullptr);
-  if (ret != 0)
+  if (ret != 0) {
     LOG_ERROR(LOG_TAG,"pthread create falied");
+  } else {
+    pthread_detach(audio_hal_monitor);
+  }
   btAudio->linkToDeath(BTAudioHidlDeathRecipient, 0);
   LOG_INFO(LOG_TAG,"%s:Init returned",__func__);
 }
