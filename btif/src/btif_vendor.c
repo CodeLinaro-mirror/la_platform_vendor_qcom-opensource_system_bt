@@ -123,19 +123,22 @@ static void cleanup(void)
         bt_vendor_callbacks = NULL;
 }
 
-static void btif_vendor_set_le_bt_name(UINT16 event, char *p_param)
+static void setLeBtName(btvendor_lename_t *name)
 {
-    btvendor_lename_t* name = (btvendor_lename_t *)p_param;
-    if (name == NULL) {
-        LOG_ERROR (LOG_TAG," LE name cannot be set to NULL.");
+    if (name == NULL || name->val == NULL) {
+        BTIF_TRACE_EVENT(" %s LE name cannot be set to NULL.",__FUNCTION__);
         return;
     }
-    BTA_DmSetLeDeviceName((char*) name->val);
-}
 
-static void setLeBtName(btvendor_lename_t *name){
-    btif_transfer_context(btif_vendor_set_le_bt_name,BTIF_VENDOR_SET_LE_BT_NAME,
-                          (char*)name, sizeof(btvendor_lename_t), NULL);
+    char bname [BTM_MAX_LOC_BD_NAME_LEN+1];
+    UINT16 name_len = 0;
+
+    name_len = name->len > BTM_MAX_LOC_BD_NAME_LEN ? BTM_MAX_LOC_BD_NAME_LEN:name->len;
+    memcpy(bname,name->val,name_len);
+    bname[name_len] = '\0';
+
+    BTIF_TRACE_EVENT("%s name : %s len : %d",__FUNCTION__,bname,name_len);
+    BTA_DmSetLeDeviceName(bname);
 }
 
 static const btvendor_interface_t btvendorInterface = {
