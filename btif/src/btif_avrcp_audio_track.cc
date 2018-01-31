@@ -38,9 +38,12 @@ char outputFilename[50] = "/data/misc/bluedroid/output_sample.pcm";
 void* BtifAvrcpAudioTrackCreate(int trackFreq, int channelType) {
   LOG_VERBOSE(LOG_TAG, "%s Track.cpp: btCreateTrack freq %d  channel %d ",
               __func__, trackFreq, channelType);
+  /* [A2DP SINK] Change audiotrack flags from "AUDIO_OUTPUT_FLAG_FAST" to
+     "AUDIO_OUTPUT_FLAG_DEEP_BUFFER" for the reason that quality of A2DP streaming
+     might be easily influenced by other android servies, i.e. p2p scanning */
   sp<android::AudioTrack> track = new android::AudioTrack(
       AUDIO_STREAM_MUSIC, trackFreq, AUDIO_FORMAT_PCM_16_BIT, channelType,
-      (size_t)0 /*frameCount*/, (audio_output_flags_t)AUDIO_OUTPUT_FLAG_FAST,
+      (size_t)0 /*frameCount*/, (audio_output_flags_t)AUDIO_OUTPUT_FLAG_DEEP_BUFFER,
       NULL /*callback_t*/, NULL /*void* user*/, 0 /*notificationFrames*/,
       AUDIO_SESSION_ALLOCATE, android::AudioTrack::TRANSFER_SYNC);
   CHECK(track != NULL);
