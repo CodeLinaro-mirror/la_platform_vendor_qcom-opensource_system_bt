@@ -330,6 +330,12 @@ void l2cble_scanner_conn_comp(uint16_t handle, const RawAddress& bda,
 
   btm_ble_set_conn_st(BLE_CONN_IDLE);
 
+  /* Connected OK, Change link state to connected */
+  if (p_lcb->link_state != LST_CONNECTED) {
+    p_lcb->link_state = LST_CONNECTED;
+    l2cu_process_fixed_chnl_resp(p_lcb);
+  }
+
 #if (BLE_PRIVACY_SPT == TRUE)
   btm_ble_disable_resolving_list(BTM_BLE_RL_INIT, true);
 #endif
