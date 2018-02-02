@@ -23,6 +23,7 @@
 #include "bt_common.h"
 #include "bt_utils.h"
 #include <cutils/log.h>
+#include "log/log.h"
 #include "osi/include/osi.h"
 
 /*****************************************************************************
@@ -703,11 +704,14 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR* p_msg,
       }
       min_len += 1;
       BE_STREAM_TO_UINT8(num_attrs, p);
+      if (num_attrs > AVRC_MAX_APP_ATTR_SIZE) {
+        num_attrs = AVRC_MAX_APP_ATTR_SIZE;
+      }
       AVRC_TRACE_DEBUG("%s attr count = %d ", __func__,
                        p_result->get_app_attr_txt.num_attr);
       p_result->get_app_attr_txt.num_attr = num_attrs;
 
-      p_result->get_app_attr_txt.p_attrs = (tAVRC_APP_SETTING_TEXT*)osi_calloc(
+      p_result->get_app_attr_txt.p_attrs = (tAVRC_APP_SETTING_TEXT*)osi_malloc(
           num_attrs * sizeof(tAVRC_APP_SETTING_TEXT));
       for (int xx = 0; xx < num_attrs; xx++) {
         min_len += 4;
@@ -753,11 +757,14 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR* p_msg,
       }
       min_len += 1;
       BE_STREAM_TO_UINT8(num_vals, p);
+      if (num_vals > AVRC_MAX_APP_ATTR_SIZE) {
+        num_vals = AVRC_MAX_APP_ATTR_SIZE;
+      }
       p_result->get_app_val_txt.num_attr = num_vals;
       AVRC_TRACE_DEBUG("%s value count = %d ", __func__,
                        p_result->get_app_val_txt.num_attr);
 
-      p_result->get_app_val_txt.p_attrs = (tAVRC_APP_SETTING_TEXT*)osi_calloc(
+      p_result->get_app_val_txt.p_attrs = (tAVRC_APP_SETTING_TEXT*)osi_malloc(
           num_vals * sizeof(tAVRC_APP_SETTING_TEXT));
       for (int i = 0; i < num_vals; i++) {
         min_len += 4;
