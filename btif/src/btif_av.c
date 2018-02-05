@@ -1848,6 +1848,7 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
             {
             /* immediately stop transmission of frames while suspend is pending */
                 btif_a2dp_set_tx_flush(TRUE);
+                btif_media_task_aa_tx_flush_req();
             }
 
             if (btif_av_cb[index].peer_sep == AVDT_TSEP_SRC) {
