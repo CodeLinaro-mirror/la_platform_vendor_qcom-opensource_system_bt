@@ -234,7 +234,8 @@ void btif_a2dp_audio_interface_init() {
   {
     LOG_INFO(LOG_TAG,"%s:Calling Init",__func__);
     android::sp<IBluetoothAudioCallbacks> callbacks = new BluetoothAudioCallbacks();
-    btAudio->initialize_callbacks(callbacks);
+    auto ret = btAudio->initialize_callbacks(callbacks);
+    if (!ret.isOk()) LOG_ERROR(LOG_TAG,"hal server is dead ");
   }
   deinit_pending = false;
   server_died = false;
@@ -244,7 +245,8 @@ void btif_a2dp_audio_interface_init() {
   } else {
     pthread_detach(audio_hal_monitor);
   }
-  btAudio->linkToDeath(BTAudioHidlDeathRecipient, 0);
+  auto hidl_death_link = btAudio->linkToDeath(BTAudioHidlDeathRecipient, 0);
+  if (!hidl_death_link.isOk()) LOG_ERROR(LOG_TAG,"hidl_death_link server is dead");
   LOG_INFO(LOG_TAG,"%s:Init returned",__func__);
 }
 
@@ -256,11 +258,13 @@ void btif_a2dp_audio_interface_deinit() {
     tBTA_AV_STATUS status = A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS;
     if (a2dp_cmd_pending == A2DP_CTRL_CMD_START) {
       LOG_INFO(LOG_TAG,"calling method a2dp_on_started");
-      btAudio->a2dp_on_started(mapToStatus(status));
+      auto ret = btAudio->a2dp_on_started(mapToStatus(status));
+      if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_started: server died");
     } else if ((a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND)
         || (a2dp_cmd_pending == A2DP_CTRL_CMD_STOP)) {
       LOG_INFO(LOG_TAG,"calling method a2dp_on_started");
-      btAudio->a2dp_on_suspended(mapToStatus(status));
+      auto ret = btAudio->a2dp_on_suspended(mapToStatus(status));
+      if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_suspended: server died");
     }
     a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
   }
@@ -270,7 +274,8 @@ void btif_a2dp_audio_interface_deinit() {
     if (!ret.isOk()) {
       LOG_ERROR(LOG_TAG,"hal server is dead");
     }
-    btAudio->unlinkToDeath(BTAudioHidlDeathRecipient);
+    auto hidl_death_unlink = btAudio->unlinkToDeath(BTAudioHidlDeathRecipient);
+    if (!hidl_death_unlink.isOk()) LOG_ERROR(LOG_TAG,"hidl_death_unlink server died");
   }
   deinit_pending = false;
   btAudio = nullptr;
@@ -286,7 +291,8 @@ void btif_a2dp_audio_on_started(tBTA_AV_STATUS status)
   if (btAudio != nullptr){
     if (a2dp_cmd_pending == A2DP_CTRL_CMD_START) {
       LOG_INFO(LOG_TAG,"calling method a2dp_on_started");
-      btAudio->a2dp_on_started(mapToStatus(status));
+      auto ret = btAudio->a2dp_on_started(mapToStatus(status));
+      if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
       a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
     }
   }
@@ -298,7 +304,8 @@ void btif_a2dp_audio_on_suspended(tBTA_AV_STATUS status)
   if (btAudio != nullptr) {
     if (a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND || a2dp_cmd_pending == A2DP_CTRL_CMD_STOP) {
       LOG_INFO(LOG_TAG,"calling method a2dp_on_suspended");
-      btAudio->a2dp_on_suspended(mapToStatus(status));
+      auto ret = btAudio->a2dp_on_suspended(mapToStatus(status));
+      if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
       a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
     }
   }
@@ -315,12 +322,14 @@ void btif_a2dp_audio_on_stopped(tBTA_AV_STATUS status)
     } else {
       if (a2dp_cmd_pending == A2DP_CTRL_CMD_STOP || a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND) {
         LOG_INFO(LOG_TAG,"calling method a2dp_on_stopped");
-        btAudio->a2dp_on_stopped(mapToStatus(status));
+        auto ret = btAudio->a2dp_on_stopped(mapToStatus(status));
+        if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_stopped: server died");
         a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
       } else if ((a2dp_cmd_pending == A2DP_CTRL_CMD_START) &&
           (!(btif_av_is_under_handoff() || reconfig_a2dp))) {
         LOG_INFO(LOG_TAG,"Remote disconnected when start under progress");
-        btAudio->a2dp_on_started(mapToStatus(A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS));
+        auto ret = btAudio->a2dp_on_started(mapToStatus(A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS));
+        if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_started: server died");
         a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
       }
     }
@@ -435,7 +444,8 @@ void btif_a2dp_audio_send_sink_latency()
 void on_hidl_server_died() {
   LOG_INFO(LOG_TAG,"on_hidl_server_died");
   if (btAudio != nullptr) {
-    btAudio->unlinkToDeath(BTAudioHidlDeathRecipient);
+    auto hidl_death_unlink = btAudio->unlinkToDeath(BTAudioHidlDeathRecipient);
+    if (!hidl_death_unlink.isOk()) LOG_ERROR(LOG_TAG,"hidl_death_unlink server died");
     btAudio = nullptr;
     usleep(1500000); //sleep for 1.5sec for hal server to restart
     btif_dispatch_sm_event(BTIF_AV_REINIT_AUDIO_IF,NULL,0);
@@ -445,7 +455,7 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
 {
   APPL_TRACE_DEBUG(LOG_TAG,"btif_a2dp_audio_process_request %s", audio_a2dp_hw_dump_ctrl_event((tA2DP_CTRL_CMD)cmd));
   a2dp_cmd_pending = cmd;
-  uint8_t status;
+  uint8_t status = A2DP_CTRL_ACK_FAILURE;
   switch (cmd) {
     case A2DP_CTRL_CMD_CHECK_READY:
       if (btif_a2dp_source_media_task_is_shutting_down()) {
@@ -656,6 +666,12 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         len = 0;
         LOG_INFO(LOG_TAG,"A2DP_CTRL_GET_CODEC_CONFIG");
         A2dpCodecConfig *CodecConfig = bta_av_get_a2dp_current_codec();
+        if (CodecConfig == nullptr)
+        {
+            LOG_INFO(LOG_TAG,"codec config pointer is NULL");
+            status = A2DP_CTRL_ACK_FAILURE;
+            break;
+        }
         bta_av_co_get_peer_params(&peer_param);
         LOG_INFO(LOG_TAG,"enc_update_in_progress = %d", enc_update_in_progress);
         if ((btif_av_stream_started_ready() == FALSE) ||
@@ -685,12 +701,16 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         }
         else if (A2DP_MEDIA_CT_NON_A2DP == codec_type)
         {
-          int bits_per_sample = 16; // TODO
           int samplerate = A2DP_GetTrackSampleRate(p_codec_info);
           if ((A2DP_VendorCodecGetVendorId(p_codec_info)) == A2DP_LDAC_VENDOR_ID) {
-            bitrate = DEFAULT_LDAC_BITRATE; /* Default bitrate for LDAC is 330KBps */
+            if ((samplerate == 44100) || (samplerate == 88200)) {
+              bitrate = DEFAULT_LDAC_BITRATE_441KHZ; /* Default bitrate for LDAC is 606BKBps for 44.1/88.2 KHz */
+            } else {
+              bitrate = DEFAULT_LDAC_BITRATE_48KHZ; /* Default bitrate for LDAC is 660KBps for 48/96 KHz */
+            }
           } else {
             /* BR = (Sampl_Rate * PCM_DEPTH * CHNL)/Compression_Ratio */
+            int bits_per_sample = 16; // TODO
             bitrate = (samplerate * bits_per_sample * 2)/4;
           }
         }

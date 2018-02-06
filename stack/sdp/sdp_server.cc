@@ -58,6 +58,7 @@
 /* Maximum number of bytes to reserve out of SDP MTU for response data */
 #define SDP_MAX_SERVICE_RSPHDR_LEN 12
 #define SDP_MAX_SERVATTR_RSPHDR_LEN 10
+#define SDP_MIN_ATTR_REQ_MAX_BYTE_COUNT 7
 #define SDP_MAX_ATTR_RSPHDR_LEN 10
 #define PBAP_SKIP_GOEP_L2CAP_PSM_LEN    0x06
 #define PBAP_SKIP_SUPP_FEA_LEN          0x08
@@ -164,7 +165,8 @@ int sdp_get_stored_avrc_tg_version(RawAddress addr)
     profile_info_t profile_info = AVRCP_0103_SUPPORT;
     const profile_t profile = AVRCP_ID;
 
-    VLOG(2) << __func__ << " target BD Addr: " << addr.ToString().c_str();
+    SDP_TRACE_DEBUG("%s target BD Addr: %s",\
+             __func__, addr.ToString().c_str());
 
 
     feature = profile_feature_fetch(profile, profile_info);
@@ -179,7 +181,8 @@ int sdp_get_stored_avrc_tg_version(RawAddress addr)
        return stored_ver;
     }
     while (fread(&data, sizeof(data), 1, fp) != 0) {
-        VLOG(2) << __func__ << "Entry: addr " <<  addr.ToString().c_str() << " ver " << data.ver;
+        SDP_TRACE_DEBUG("Entry: addr = %x:%x:%x, ver = 0x%x",\
+                data.addr[0], data.addr[1], data.addr[2], data.ver);
         if(!memcmp(&addr, data.addr, 3)) {
             stored_ver = data.ver;
             SDP_TRACE_DEBUG("Entry found with version: 0x%x", stored_ver);
@@ -645,7 +648,7 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   /* Get the max list length we can send. Cap it at MTU size minus overhead */
   BE_STREAM_TO_UINT16(max_list_len, p_req);
 
-    if (!max_list_len)
+    if (max_list_len < SDP_MIN_ATTR_REQ_MAX_BYTE_COUNT)
     {
         sdpu_build_n_send_error (p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
                                  SDP_TEXT_BAD_MAX_ATTR_LIST);
@@ -979,7 +982,7 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   /* Get the max list length we can send. Cap it at our max list length. */
   BE_STREAM_TO_UINT16(max_list_len, p_req);
 
-    if (!max_list_len)
+    if (max_list_len < SDP_MIN_ATTR_REQ_MAX_BYTE_COUNT)
     {
         sdpu_build_n_send_error (p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
                                  SDP_TEXT_BAD_MAX_ATTR_LIST);

@@ -36,6 +36,9 @@
 #include "btif_common.h"
 #include "btif_sm.h"
 
+#define SOFT_HANDOFF 1
+#define RECONFIG_A2DP_PARAM 2
+
 /*******************************************************************************
  *  Type definitions for callback functions
  ******************************************************************************/
@@ -58,6 +61,7 @@ typedef enum {
   BTIF_AV_INIT_REQ_EVT,
   BTIF_AV_REINIT_AUDIO_IF,
   BTIF_AV_SETUP_CODEC_REQ_EVT,
+  BTIF_AV_TRIGGER_HANDOFF_REQ_EVT,
 } btif_av_sm_event_t;
 
 /*******************************************************************************
