@@ -121,6 +121,42 @@ static void setLeBtName(btvendor_lename_t *name)
     BTA_DmSetLeDeviceName(bname);
 }
 
+static void setScanMode(bt_scan_mode_t scanMode, bool ignoreLeScanModes) {
+    tBTA_DM_DISC disc_mode;
+    tBTA_DM_CONN conn_mode;
+
+    BTIF_TRACE_EVENT("setScanMode mode : %d ignoreLeScanModes %d", scanMode, ignoreLeScanModes);
+
+    switch (scanMode) {
+        case BT_SCAN_MODE_NONE:
+            disc_mode = BTA_DM_NON_DISC;
+            conn_mode = BTA_DM_NON_CONN;
+            break;
+
+        case BT_SCAN_MODE_CONNECTABLE:
+            disc_mode = BTA_DM_NON_DISC;
+            conn_mode = BTA_DM_CONN;
+            break;
+
+        case BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE:
+            disc_mode = BTA_DM_GENERAL_DISC;
+            conn_mode = BTA_DM_CONN;
+            break;
+
+        default:
+            BTIF_TRACE_ERROR("invalid scan mode (0x%x)", scanMode);
+            return BT_STATUS_PARM_INVALID;
+    }
+
+    if (ignoreLeScanModes) {
+        disc_mode |= BTA_DM_LE_IGNORE;
+        conn_mode |= BTA_DM_LE_IGNORE;
+    }
+
+    BTA_DmSetVisibility(disc_mode, conn_mode, BTA_DM_IGNORE, BTA_DM_IGNORE);
+
+}
+
 static const btvendor_interface_t btvendorInterface = {
     sizeof(btvendorInterface),
     init,
@@ -128,6 +164,7 @@ static const btvendor_interface_t btvendorInterface = {
     bredrcleanup,
     cleanup,
     setLeBtName,
+    setScanMode,
 };
 
 
