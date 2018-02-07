@@ -37,7 +37,6 @@
 #include "l2c_api.h"
 #include "osi/include/config.h"
 #include "osi/include/log.h"
-#include "osi/include/log.h"
 #include "port_api.h"
 #include "sdp_api.h"
 #include "stack_config.h"

@@ -5,6 +5,7 @@ external_bt_path := $(top_srcdir)/../../vendor/qcom/opensource/bluetooth
 AM_CFLAGS = -Wall \
         -Wundef \
         -Wstrict-prototypes \
+        -Wno-format-security \
         -Wno-trigraphs \
         -std=c99 \
         -DHAS_NO_BDROID_BUILDCFG
