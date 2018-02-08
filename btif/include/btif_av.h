@@ -430,4 +430,14 @@ void btif_av_peer_config_dump();
 ********************************************************************************/
 int btif_av_get_current_playing_dev_idx();
 
+/*******************************************************************************
+**
+** Function         btif_get_average_delay
+**
+** Description      Returns average of instantaneous delay values
+**
+** Returns          int64_t
+*******************************************************************************/
+int64_t btif_get_average_delay();
+
 #endif /* BTIF_AV_H */
