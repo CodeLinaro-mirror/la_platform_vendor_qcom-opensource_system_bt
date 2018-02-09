@@ -355,7 +355,7 @@ void bta_hh_le_enable(void)
     memset (app_name, 0, LEN_UUID_128 + 1);
     strncpy(app_name, "BTA HH OVER LE", LEN_UUID_128);
 
-    memcpy((void *)app_uuid.uu.uuid128, (void *)app_name, LEN_UUID_128);
+    memset (&app_uuid.uu.uuid128, 0x85, LEN_UUID_128);
 
     BTA_GATTC_AppRegister(&app_uuid, bta_hh_gattc_callback);
 
