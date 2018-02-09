@@ -1239,6 +1239,14 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type,
         event = 0;
         bta_ag_send_error(p_scb, BTA_AG_ERR_OP_NOT_SUPPORTED);
       }
+
+      // if SLC didn't happen yet, just send OK
+      if (!p_scb->svc_conn) {
+        event = 0;
+        APPL_TRACE_WARNING("%s: sending OK from stack for CLCC before SLC ",
+                            __func__);
+        bta_ag_send_ok(p_scb);
+      }
       break;
 
     case BTA_AG_AT_BAC_EVT:
