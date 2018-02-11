@@ -3379,7 +3379,9 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
               btif_a2dp_src_vsc.tx_start_initiated)
             btif_a2dp_src_vsc.vs_configs_exchanged = TRUE;
           else {
-            APPL_TRACE_ERROR("Dont send start, stream suspended")
+            APPL_TRACE_ERROR("Dont send start, stream suspended update fail to Audio");
+            status = 1;//FAIL
+            (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
             break;
           }
 #if (BTA_AV_CO_CP_SCMS_T == TRUE)
@@ -3401,7 +3403,9 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
               btif_a2dp_src_vsc.tx_start_initiated)
             btif_a2dp_src_vsc.vs_configs_exchanged = TRUE;
           else {
-            APPL_TRACE_ERROR("Dont send start, stream suspended")
+            APPL_TRACE_ERROR("Dont send start, stream suspended update fail to Audio");
+            status = 1;//FAIL
+            (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
             break;
           }
           param[0] = VS_QHCI_START_A2DP_MEDIA;
