@@ -1449,12 +1449,16 @@ static int bta_jv_port_data_co_cback(uint16_t port_handle, uint8_t* buf,
                                      uint16_t len, int type) {
   tBTA_JV_RFC_CB* p_cb = bta_jv_rfc_port_to_cb(port_handle);
   tBTA_JV_PCB* p_pcb = bta_jv_rfc_port_to_pcb(port_handle);
+  int ret = 0;
   APPL_TRACE_DEBUG("%s, p_cb:%p, p_pcb:%p, len:%d, type:%d", __func__, p_cb,
                    p_pcb, len, type);
   if (p_pcb != NULL) {
     switch (type) {
       case DATA_CO_CALLBACK_TYPE_INCOMING:
-        return bta_co_rfc_data_incoming(p_pcb->rfcomm_slot_id, (BT_HDR*)buf);
+        bta_jv_pm_conn_busy(p_pcb->p_pm_cb);
+        ret = bta_co_rfc_data_incoming(p_pcb->rfcomm_slot_id, (BT_HDR*)buf);
+        bta_jv_pm_conn_idle(p_pcb->p_pm_cb);
+        return ret;
       case DATA_CO_CALLBACK_TYPE_OUTGOING_SIZE:
         return bta_co_rfc_data_outgoing_size(p_pcb->rfcomm_slot_id, (int*)buf);
       case DATA_CO_CALLBACK_TYPE_OUTGOING:
