@@ -205,20 +205,20 @@ void LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
 
   switch ( TRACE_GET_TYPE(trace_set_mask) ) {
     case TRACE_TYPE_ERROR:
-      LOGE0(buffer);
+      LOGE0("%s",buffer);
       break;
     case TRACE_TYPE_WARNING:
-      LOGW0(buffer);
+      LOGW0("%s",buffer);
       break;
     case TRACE_TYPE_API:
     case TRACE_TYPE_EVENT:
-      LOGI0(buffer);
+      LOGI0("%s",buffer);
       break;
     case TRACE_TYPE_DEBUG:
-      LOGD0(buffer);
+      LOGD0("%s",buffer);
       break;
     default:
-      LOGE0(buffer);
+      LOGE0("%s",buffer);
       break;
     }
 }
