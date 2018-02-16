@@ -28,7 +28,7 @@
 #include <system/audio.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_av.h>
-
+#include "btif_storage.h"
 #include "bt_utils.h"
 #include "bta_api.h"
 #include "btif_media.h"
@@ -438,7 +438,12 @@ static void btif_av_collission_timer_timeout(UNUSED_ATTR void *data)
     bt_bdaddr_t *target_bda = &retry_bda;
     btif_sm_state_t av_state;
     BD_ADDR av_address;
-
+    if(!btif_storage_is_device_bonded(target_bda)){
+     BTIF_TRACE_IMP("btif_av_collission_timer_timeout: not bonded device ");
+     return;
+   }else{
+      BTIF_TRACE_IMP("btif_av_collission_timer_timeout: bonded device ");
+    }
     bdcpy(av_address, target_bda->address);
     av_state = btif_get_conn_state_of_device(av_address);
     BTIF_TRACE_IMP("btif_av_collission_timer_timeout: AV state: %d", av_state);
@@ -3042,10 +3047,10 @@ static void allow_connection(int is_valid, bt_bdaddr_t *bd_addr)
             if (is_valid)
             {
                 BTIF_TRACE_DEBUG("allowconn for RC connection");
-				alarm_set_on_queue(av_open_on_rc_timer,
-						  BTIF_TIMEOUT_AV_OPEN_ON_RC_MS,
-						  btif_initiate_av_open_timer_timeout, NULL,
-						  btu_general_alarm_queue);
+                alarm_set_on_queue(av_open_on_rc_timer,
+                  BTIF_TIMEOUT_AV_OPEN_ON_RC_MS,
+                  btif_initiate_av_open_timer_timeout, NULL,
+                  btu_general_alarm_queue);
                 btif_rc_handler(idle_rc_event, &idle_rc_data);
             }
             else
@@ -3056,21 +3061,25 @@ static void allow_connection(int is_valid, bt_bdaddr_t *bd_addr)
             break;
 
         case BTA_AV_PENDING_EVT:
+            index = btif_av_idx_by_bdaddr(bd_addr->address);
+            if (index >= btif_max_av_clients)
+            {
+                BTIF_TRACE_DEBUG("Invalid index for device");
+                break;
+            }
             if (is_valid)
             {
-                index = btif_av_idx_by_bdaddr(bd_addr->address);
-                if (index >= btif_max_av_clients)
-                {
-                    BTIF_TRACE_DEBUG("Invalid index for device");
-                    break;
-                }
                 BTIF_TRACE_DEBUG("The connection is allowed for the device at index = %d", index);
                 BTA_AvOpen(btif_av_cb[index].peer_bda.address, btif_av_cb[index].bta_handle,
                        TRUE, BTA_SEC_AUTHENTICATE, UUID_SERVCLASS_AUDIO_SOURCE);
             }
             else
             {
-                BTA_AvDisconnect(idle_rc_data.pend.bd_addr);
+                BTIF_TRACE_IMP("Reject incoming AV connection on Index %d", index);
+                btif_report_connection_state(BTAV_CONNECTION_STATE_DISCONNECTED,
+                    &(btif_av_cb[index].peer_bda));
+                BTA_AvClose(btif_av_cb[index].bta_handle);
+                btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_IDLE);
             }
             break;
 

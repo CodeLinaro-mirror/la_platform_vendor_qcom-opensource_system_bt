@@ -59,6 +59,7 @@
 #include "osi/include/metrics.h"
 #include "osi/include/mutex.h"
 #include "osi/include/thread.h"
+#include "device/include/interop.h"
 #include "bt_utils.h"
 #include "a2d_api.h"
 #include "a2d_int.h"
@@ -272,6 +273,8 @@ enum {
 /* Readability constants */
 #define SBC_FRAME_HEADER_SIZE_BYTES 4 // A2DP Spec v1.3, 12.4, Table 12.12
 #define SBC_SCALE_FACTOR_BITS       4 // A2DP Spec v1.3, 12.4, Table 12.13
+
+#define A2DP_AUDIO_ADDL_LATENCY   200
 
 typedef struct {
     // Counter for total updates
@@ -740,6 +743,7 @@ static const char* dump_a2dp_ctrl_event(UINT8 event)
         CASE_RETURN_STR(A2DP_CTRL_GET_CODEC_CONFIG)
         CASE_RETURN_STR(A2DP_CTRL_GET_MULTICAST_STATUS)
         CASE_RETURN_STR(A2DP_CTRL_GET_CONNECTION_STATUS)
+        CASE_RETURN_STR(AUDIO_CTRL_GET_ADDL_LATENCY)
         default:
             return "UNKNOWN MSG ID";
     }
@@ -752,6 +756,7 @@ static void btif_audiopath_detached(void)
     /*  send stop request only if we are actively streaming and haven't received
         a stop request. Potentially audioflinger detached abnormally */
     if (alarm_is_scheduled(btif_media_cb.media_alarm)) {
+        APPL_TRACE_ERROR("%s: media alarm scheduled:");
         /* post stop event and wait for audio path to stop */
         btif_dispatch_sm_event(BTIF_AV_STOP_STREAM_REQ_EVT, NULL, 0);
     }
@@ -868,7 +873,7 @@ static void btif_recv_ctrl_data(void)
             {
                 APPL_TRACE_WARNING("%s: A2DP command %s when media alarm already scheduled",
                                    __func__, dump_a2dp_ctrl_event(cmd));
-                a2dp_cmd_acknowledge(A2DP_CTRL_ACK_FAILURE);
+                a2dp_cmd_acknowledge(A2DP_CTRL_ACK_SUCCESS);
                 break;
             }
 
@@ -948,6 +953,7 @@ static void btif_recv_ctrl_data(void)
                 (bt_split_a2dp_enabled &&  btif_media_cb.peer_sep == AVDT_TSEP_SNK &&
                  btif_media_cb.tx_started == FALSE))
             {
+                 APPL_TRACE_ERROR("%s: media alarm not scheduled", __func__);
                 /* we are already stopped, just ack back */
                 a2dp_cmd_acknowledge(A2DP_CTRL_ACK_SUCCESS);
                 break;
@@ -1156,6 +1162,36 @@ static void btif_recv_ctrl_data(void)
 
             break;
         }
+
+        case AUDIO_CTRL_GET_ADDL_LATENCY:
+        {
+             BTIF_TRACE_ERROR("Get additional audio latency");
+             uint16_t audio_latency = 0;
+             uint8_t latency_ack;
+             bt_bdaddr_t remote_addr;
+             BD_ADDR bd_addr;
+
+             btif_av_get_peer_addr(&remote_addr);
+             bdcpy(bd_addr,remote_addr.address);
+
+             BTIF_TRACE_IMP("TARGET BD ADDRESS %x:%x:%x:%x:%x:%x", bd_addr[0],
+                     bd_addr[1], bd_addr[2], bd_addr[3], bd_addr[4], bd_addr[5]);
+
+             //check for blacklisted device
+             if (interop_match_addr(INTEROP_AUDIO_ADDL_LATENCY, &remote_addr))
+             {
+                 BTIF_TRACE_ERROR("Device blacklisted for latency !!!");
+                 audio_latency = A2DP_AUDIO_ADDL_LATENCY;
+             }
+
+             BTIF_TRACE_ERROR("The additional audio latency: %d",audio_latency);
+
+             latency_ack = A2DP_CTRL_ACK_SUCCESS;
+             UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, &latency_ack, 1);
+             UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, (uint8_t *)&audio_latency, 2);
+             break;
+        }
+
         case A2DP_CTRL_CMD_OFFLOAD_SUPPORTED:
             BTIF_TRACE_ERROR("Split A2DP supported");
             bt_split_a2dp_enabled = TRUE;
@@ -1831,6 +1867,8 @@ BOOLEAN btif_a2dp_on_started(tBTA_AV_START *p_av, BOOLEAN pending_start, tBTA_AV
 
     if (p_av == NULL)
     {
+        APPL_TRACE_ERROR("%s: p_av is null, bt_split_a2dp_enabled: %d",
+                                 __func__, bt_split_a2dp_enabled);
         if (bt_split_a2dp_enabled)
         {
             APPL_TRACE_EVENT("## ON A2DP STARTED  split a2dp enabled##");
@@ -1847,7 +1885,8 @@ BOOLEAN btif_a2dp_on_started(tBTA_AV_START *p_av, BOOLEAN pending_start, tBTA_AV
         }
         return TRUE;
     }
-
+    APPL_TRACE_ERROR("%s: p_av->status: %u, p_av->suspending: %d, p_av->initiator: %d, pending_start: %d",
+                        __func__, p_av->status, p_av->suspending, p_av->initiator, pending_start);
     if (p_av->status == BTA_AV_SUCCESS)
     {
         if (p_av->suspending == FALSE)
@@ -1883,7 +1922,10 @@ BOOLEAN btif_a2dp_on_started(tBTA_AV_START *p_av, BOOLEAN pending_start, tBTA_AV
                     }
                 }
                 else
+                {
+                    APPL_TRACE_ERROR("%s: non-split, calling setup codec API", __func__);
                     btif_a2dp_setup_codec(hdl);
+                }
             }
 
             /* media task is autostarted upon a2dp audiopath connection */
@@ -2075,6 +2117,7 @@ void btif_media_on_cancel_remote_start_alarm() {
 *******************************************************************************/
 void btif_a2dp_on_remote_started()
 {
+    APPL_TRACE_ERROR("%s: starting remote start timer:", __func__);
     btif_media_cb.remote_start_alarm = alarm_new("btif.remote_start_task");
 
     if (!btif_media_cb.remote_start_alarm)

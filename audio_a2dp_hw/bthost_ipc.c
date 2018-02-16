@@ -123,6 +123,7 @@ static const char* dump_a2dp_ctrl_event(char event)
         CASE_RETURN_STR(A2DP_CTRL_GET_CODEC_CONFIG)
         CASE_RETURN_STR(A2DP_CTRL_GET_MULTICAST_STATUS)
         CASE_RETURN_STR(A2DP_CTRL_GET_CONNECTION_STATUS)
+        CASE_RETURN_STR(AUDIO_CTRL_GET_ADDL_LATENCY)
         default:
             return "UNKNOWN MSG ID";
     }
@@ -758,6 +759,27 @@ int a2dp_get_multicast_status(struct a2dp_stream_common *common, uint8_t *mcast_
     return 0;
 }
 
+int audio_get_addl_latency()
+{
+    uint16_t audio_latency;
+    INFO("%s", __func__);
+
+    if (a2dp_command(&audio_stream, AUDIO_CTRL_GET_ADDL_LATENCY) < 0)
+    {
+        ERROR("audio get addl latency failed");
+        return 0;
+    }
+
+    if (a2dp_ctrl_receive(&audio_stream,(uint8_t *)&audio_latency, 2) < 0)
+    {
+        ERROR("receive audio latency failed");
+        return 0;
+    }
+
+    INFO("a2dp get audio latency: %d", audio_latency);
+    return (int)audio_latency;
+}
+
 void a2dp_open_ctrl_path(struct a2dp_stream_common *common)
 {
     int i;
@@ -1084,7 +1106,7 @@ int audio_stream_open()
         INFO("control path open successful");
         /*Delay to ensure Headset is in proper state when START is initiated
         from DUT immediately after the connection due to ongoing music playback. */
-        usleep(1000000);
+        usleep(250000);
         a2dp_command(&audio_stream,A2DP_CTRL_CMD_OFFLOAD_SUPPORTED);
         return 0;
     }
@@ -1258,5 +1280,6 @@ const bt_host_ipc_interface_t BTHOST_IPC_INTERFACE = {
     audio_handoff_triggered,
     clear_a2dpsuspend_flag,
     audio_get_next_codec_config,
-    audio_check_a2dp_ready
+    audio_check_a2dp_ready,
+    audio_get_addl_latency
 };
