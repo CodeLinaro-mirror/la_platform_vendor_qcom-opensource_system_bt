@@ -1085,14 +1085,14 @@ static void bta_dm_policy_cback(tBTA_SYS_CONN_STATUS status, uint8_t id,
 
     case BTA_SYS_PLCY_CLR:
       if (!p_dev) return;
-      /* clear the policy from the default link policy */
-      p_dev->link_policy &= (~policy);
-      BTM_SetLinkPolicy(p_dev->peer_bdaddr, &(p_dev->link_policy));
 
       if (policy & (HCI_ENABLE_SNIFF_MODE | HCI_ENABLE_PARK_MODE)) {
         /* if clearing sniff/park, wake the link */
         bta_dm_pm_active(p_dev->peer_bdaddr);
       }
+      /* clear the policy from the default link policy */
+      p_dev->link_policy &= (~policy);
+      BTM_SetLinkPolicy(p_dev->peer_bdaddr, &(p_dev->link_policy));
       break;
 
     case BTA_SYS_PLCY_DEF_SET:
@@ -3279,6 +3279,14 @@ void bta_dm_acl_change(tBTA_DM_MSG* p_data) {
         (bta_dm_cb.device_list.le_count))
       bta_dm_cb.device_list.le_count--;
     conn.link_down.link_type = p_data->acl_change.transport;
+
+    if ((p_data->acl_change.transport == BT_TRANSPORT_LE) &&
+        bta_dm_search_cb.gatt_disc_active &&
+        bta_dm_search_cb.peer_bdaddr == p_bda) {
+      APPL_TRACE_WARNING("%s cancel gatt discovery, addr: %s", __func__,
+          p_bda.ToString().c_str());
+      bta_dm_cancel_gatt_discovery(bta_dm_search_cb.peer_bdaddr);
+    }
 
     if ((p_data->acl_change.transport == BT_TRANSPORT_BR_EDR) &&
         bta_dm_search_cb.wait_disc &&

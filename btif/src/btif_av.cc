@@ -1273,7 +1273,11 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
     if (btif_av_check_flag_remote_suspend(index)) {
       BTIF_TRACE_EVENT("%s: Resetting remote suspend flag on RC PLAY", __func__);
       btif_av_clear_remote_suspend_flag();
-      btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
+      if(btif_hf_is_call_vr_idle())
+      {
+        BTIF_TRACE_EVENT("%s: No active call, start stream", __func__);
+        btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
+      }
     }
   }
 
@@ -3511,6 +3515,33 @@ bool btif_av_stream_started_ready(void)
   }
   BTIF_TRACE_DEBUG("btif_av_stream_started_ready: %d", status);
   return status;
+}
+
+/*******************************************************************************
+**
+** Function         btif_av_is_start_ack_pending
+**
+** Description      Checks whether start command is sent but not acked by remote
+**
+** Returns          None
+**
+*******************************************************************************/
+
+bool btif_av_is_start_ack_pending(void)
+{
+    int i;
+    bool status = false;
+
+    for (i = 0; i < btif_max_av_clients; i++)
+    {
+        if (btif_av_cb[i].flags & BTIF_AV_FLAG_PENDING_START)
+        {
+            status = true;
+            break;
+        }
+    }
+    BTIF_TRACE_DEBUG("btif_av_is_start_ack_pending: %d", status);
+    return status;
 }
 
 /*******************************************************************************

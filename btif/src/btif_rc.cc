@@ -926,6 +926,11 @@ void handle_rc_passthrough_cmd(tBTA_AV_REMOTE_CMD* p_remote_cmd) {
     return;
   }
 
+  if ((!btif_hf_is_call_vr_idle()) && (p_remote_cmd->rc_id == BTA_AV_RC_PLAY)) {
+    BTIF_TRACE_ERROR("Ignore passthrough commands as call is present.");
+    return;
+  }
+
   btif_rc_device_cb_t* p_dev =
       btif_rc_get_device_by_handle(p_remote_cmd->rc_handle);
   if (p_dev == NULL) {
