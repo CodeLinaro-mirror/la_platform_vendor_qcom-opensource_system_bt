@@ -117,6 +117,19 @@ bool btif_av_stream_ready(void);
 bool btif_av_stream_started_ready(void);
 
 /*******************************************************************************
+**
+** Function         btif_av_is_start_ack_pending
+**
+** Description      Checks whether start ack is pending
+**
+** Returns          None
+**
+*******************************************************************************/
+
+bool btif_av_is_start_ack_pending(void);
+
+
+/*******************************************************************************
  *
  * Function         btif_dispatch_sm_event
  *
