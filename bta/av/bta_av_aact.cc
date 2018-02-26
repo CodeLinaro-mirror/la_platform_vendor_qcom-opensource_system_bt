@@ -960,7 +960,7 @@ void bta_av_role_res(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
         /* update Master/Slave Role for open event */
         if (BTM_GetRole(p_scb->peer_addr, &cur_role) == BTM_SUCCESS)
           av_open.role = cur_role;
-        start.status = BTA_AV_FAIL_ROLE;
+        av_open.status = BTA_AV_FAIL_ROLE;
         if (p_scb->seps[p_scb->sep_idx].tsep == AVDT_TSEP_SRC)
           av_open.sep = AVDT_TSEP_SNK;
          else if (p_scb->seps[p_scb->sep_idx].tsep == AVDT_TSEP_SNK) {
@@ -1995,6 +1995,12 @@ void bta_av_getcap_results(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   uint8_t media_type;
   tAVDT_SEP_INFO* p_info = &p_scb->sep_info[p_scb->sep_info_idx];
   uint16_t uuid_int; /* UUID for which connection was initiatied */
+
+  if (p_scb == NULL)
+  {
+    APPL_TRACE_ERROR("%s: no scb found for handle", __func__);
+    return;
+  }
 
   if (p_scb != NULL && p_scb->p_cap == NULL)
   {
@@ -3399,7 +3405,9 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
               btif_a2dp_src_vsc.tx_start_initiated)
             btif_a2dp_src_vsc.vs_configs_exchanged = TRUE;
           else {
-            APPL_TRACE_ERROR("Dont send start, stream suspended")
+            APPL_TRACE_ERROR("Dont send start, stream suspended update fail to Audio");
+            status = 1;//FAIL
+            (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
             break;
           }
 #if (BTA_AV_CO_CP_SCMS_T == TRUE)
@@ -3421,7 +3429,9 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
               btif_a2dp_src_vsc.tx_start_initiated)
             btif_a2dp_src_vsc.vs_configs_exchanged = TRUE;
           else {
-            APPL_TRACE_ERROR("Dont send start, stream suspended")
+            APPL_TRACE_ERROR("Dont send start, stream suspended update fail to Audio");
+            status = 1;//FAIL
+            (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
             break;
           }
           param[0] = VS_QHCI_START_A2DP_MEDIA;
