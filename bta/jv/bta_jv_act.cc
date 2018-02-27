@@ -993,7 +993,7 @@ static void bta_jv_l2cap_client_cback(uint16_t gap_handle, uint16_t event) {
       break;
 
     case GAP_EVT_CONN_CLOSED:
-      p_cb->state = BTA_JV_ST_NONE;
+     // p_cb->state = BTA_JV_ST_NONE;
       bta_jv_free_sec_id(&p_cb->sec_id);
       evt_data.l2c_close.async = true;
       p_cb->p_cback(BTA_JV_L2CAP_CLOSE_EVT, &evt_data, p_cb->l2cap_socket_id);
