@@ -103,9 +103,9 @@
 #include "oi_codec_sbc_private.h"
 #include "bthost_ipc.h"
 #if (BTA_AV_SINK_INCLUDED == TRUE)
-OI_CODEC_SBC_DECODER_CONTEXT context;
-OI_UINT32 contextData[CODEC_DATA_WORDS(2, SBC_CODEC_FAST_FILTER_BUFFERS)];
-OI_INT16 pcmData[15*SBC_MAX_SAMPLES_PER_FRAME*SBC_MAX_CHANNELS];
+static OI_CODEC_SBC_DECODER_CONTEXT context;
+static uint32_t contextData[CODEC_DATA_WORDS(2, SBC_CODEC_FAST_FILTER_BUFFERS)];
+static int16_t pcmData[15*SBC_MAX_SAMPLES_PER_FRAME*SBC_MAX_CHANNELS];
 #endif
 
 #ifdef BT_AUDIO_SYSTRACE_LOG
@@ -452,19 +452,6 @@ static OI_CODEC_SBC_COMMON_CONTEXT sbc_common_context;
 static void btif_a2dp_data_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
 static void btif_a2dp_ctrl_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
 static void btif_a2dp_encoder_update(void);
-#if (BTA_AV_SINK_INCLUDED == TRUE)
-extern OI_STATUS OI_CODEC_SBC_DecodeFrame(OI_CODEC_SBC_DECODER_CONTEXT *context,
-                                          const OI_BYTE **frameData,
-                                          unsigned long *frameBytes,
-                                          OI_INT16 *pcmData,
-                                          unsigned long *pcmBytes);
-extern OI_STATUS OI_CODEC_SBC_DecoderReset(OI_CODEC_SBC_DECODER_CONTEXT *context,
-                                           unsigned long *decoderData,
-                                           unsigned long decoderDataBytes,
-                                           OI_UINT8 maxChannels,
-                                           OI_UINT8 pcmStride,
-                                           OI_BOOL enhanced);
-#endif
 static void btif_media_flush_q(fixed_queue_t *p_q);
 static void btif_media_task_aa_handle_stop_decoding(void );
 static void btif_media_task_aa_rx_flush(void);
@@ -2368,13 +2355,13 @@ static void btif_media_thread_handle_cmd(fixed_queue_t *queue, UNUSED_ATTR void 
  *******************************************************************************/
 static void btif_media_task_handle_inc_media(tBT_SBC_HDR*p_msg)
 {
-    UINT8 *sbc_start_frame = ((UINT8*)(p_msg + 1) + p_msg->offset + 1);
+    uint8_t *sbc_start_frame = ((uint8_t*)(p_msg + 1) + p_msg->offset + 1);
     int count;
-    UINT32 pcmBytes, availPcmBytes;
-    OI_INT16 *pcmDataPointer = pcmData; /*Will be overwritten on next packet receipt*/
+    uint32_t pcmBytes, availPcmBytes;
+    int16_t *pcmDataPointer = pcmData; /*Will be overwritten on next packet receipt*/
     OI_STATUS status;
     int num_sbc_frames = p_msg->num_frames_to_be_processed;
-    UINT32 sbc_frame_len = p_msg->len - 1;
+    uint32_t sbc_frame_len = p_msg->len - 1;
     availPcmBytes = sizeof(pcmData);
 
     if ((btif_media_cb.peer_sep == AVDT_TSEP_SNK) || (btif_media_cb.rx_flush))
@@ -2397,9 +2384,9 @@ static void btif_media_task_handle_inc_media(tBT_SBC_HDR*p_msg)
     {
         pcmBytes = availPcmBytes;
         status = OI_CODEC_SBC_DecodeFrame(&context, (const OI_BYTE**)&sbc_start_frame,
-                                                        (OI_UINT32 *)&sbc_frame_len,
-                                                        (OI_INT16 *)pcmDataPointer,
-                                                        (OI_UINT32 *)&pcmBytes);
+                                                        (uint32_t *)&sbc_frame_len,
+                                                        (int16_t *)pcmDataPointer,
+                                                        (uint32_t *)&pcmBytes);
         if (!OI_SUCCESS(status)) {
             APPL_TRACE_ERROR("Decoding failure: %d\n", status);
             break;
