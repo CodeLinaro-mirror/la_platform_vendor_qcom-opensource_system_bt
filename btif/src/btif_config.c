@@ -66,13 +66,13 @@ static const char *CONFIG_FILE_PATH = "bt_config.conf";
 static const char *CONFIG_BACKUP_PATH = "bt_config.bak";
 static const char *CONFIG_LEGACY_FILE_PATH = "bt_config.xml";
 #elif ANDROID
-static const char *CONFIG_FILE_PATH = "/etc/bluedroid/bt_config.conf";
-static const char *CONFIG_BACKUP_PATH = "/etc/bluedroid/bt_config.bak";
-static const char *CONFIG_LEGACY_FILE_PATH = "/etc/bluedroid/bt_config.xml";
+static const char *CONFIG_FILE_PATH = "/data/misc/bluedroid/bt_config.conf";
+static const char *CONFIG_BACKUP_PATH = "/data/misc/bluedroid/bt_config.bak";
+static const char *CONFIG_LEGACY_FILE_PATH = "/data/misc/bluedroid/bt_config.xml";
 #else
-static const char *CONFIG_FILE_PATH = "/etc/bluetooth/bt_config.conf";
-static const char *CONFIG_BACKUP_PATH = "/etc/bluetooth/bt_config.bak";
-static const char *CONFIG_LEGACY_FILE_PATH = "/etc/bluetooth/bt_config.xml";
+static const char *CONFIG_FILE_PATH = "/data/misc/bluetooth/bt_config.conf";
+static const char *CONFIG_BACKUP_PATH = "/data/misc/bluetooth/bt_config.bak";
+static const char *CONFIG_LEGACY_FILE_PATH = "/data/misc/bluetooth/bt_config.xml";
 #endif  // defined(OS_GENERIC)
 
 static const period_ms_t CONFIG_SETTLE_PERIOD_MS = 3000;

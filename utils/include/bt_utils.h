@@ -40,9 +40,9 @@ typedef enum {
 /* Run-time configuration file to store AVRCP version info*/
 #ifndef AVRC_PEER_VERSION_CONF_FILE
 #ifdef ANDROID
-#define AVRC_PEER_VERSION_CONF_FILE "/etc/bluedroid/avrc_peer_entries.conf"
+#define AVRC_PEER_VERSION_CONF_FILE "/data/misc/bluedroid/avrc_peer_entries.conf"
 #else
-#define AVRC_PEER_VERSION_CONF_FILE "/etc/bluetooth/avrc_peer_entries.conf"
+#define AVRC_PEER_VERSION_CONF_FILE "/data/misc/bluetooth/avrc_peer_entries.conf"
 #endif
 #endif
 
@@ -68,12 +68,12 @@ typedef enum {
 #define MAX_NAME_LEN                  (50)
 #ifdef ANDROID
 #define IOT_DEV_BASE_CONF_FILE        "/etc/bluetooth/iot_devlist.conf"
-#define IOT_DEV_CONF_FILE             "/etc/bluedroid/iot_devlist.conf"
-#define IOT_DEV_CONF_BKP_FILE         "/etc/bluedroid/iot_devlist_bkp.conf"
+#define IOT_DEV_CONF_FILE             "/data/misc/bluedroid/iot_devlist.conf"
+#define IOT_DEV_CONF_BKP_FILE         "/data/misc/bluedroid/iot_devlist_bkp.conf"
 #else
 #define IOT_DEV_BASE_CONF_FILE        "/etc/bluetooth/iot_devlist.conf"
-#define IOT_DEV_CONF_FILE             "/etc/bluetooth/iot_devlist.conf"
-#define IOT_DEV_CONF_BKP_FILE         "/etc/bluetooth/iot_devlist_bkp.conf"
+#define IOT_DEV_CONF_FILE             "/data/misc/bluetooth/iot_devlist.conf"
+#define IOT_DEV_CONF_BKP_FILE         "/data/misc/bluetooth/iot_devlist_bkp.conf"
 #endif
 #define IOT_ROLE_CHANGE_BLACKLIST     "RoleChangeBlacklistAddr"
 #define IOT_HFP_1_7_BLACKLIST          "Hfp1_7BlacklistAddr"
