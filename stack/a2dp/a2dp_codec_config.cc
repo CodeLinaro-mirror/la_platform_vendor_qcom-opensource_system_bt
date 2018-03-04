@@ -137,6 +137,8 @@ A2dpCodecConfig* A2dpCodecConfig::createCodec(
     // Add a switch statement for each vendor-specific codec
     case BTAV_A2DP_CODEC_INDEX_MAX:
       break;
+    default:
+      break;
   }
 
   if (codec_config != nullptr) {
@@ -1405,6 +1407,8 @@ bool A2DP_IsCodecEnabledInOffload(btav_a2dp_codec_index_t codec_index) {
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_MAX:
     case BTAV_A2DP_CODEC_INDEX_SINK_MAX:
+      break;
+    default:
       break;
     }
   } else {

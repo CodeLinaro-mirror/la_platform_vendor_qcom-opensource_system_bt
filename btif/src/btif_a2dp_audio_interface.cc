@@ -653,7 +653,7 @@ void on_hidl_server_died() {
 uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
 {
   APPL_TRACE_DEBUG(LOG_TAG,"btif_a2dp_audio_process_request %s", audio_a2dp_hw_dump_ctrl_event((tA2DP_CTRL_CMD)cmd));
-  uint8_t status;
+  uint8_t status = A2DP_CTRL_ACK_FAILURE;
   if (property_get("persist.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
           !strcmp(a2dp_hal_imp, "true")) {
     switch (cmd) {
@@ -711,6 +711,12 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         a2dp_local_cmd_pending = cmd;
         LOG_INFO(LOG_TAG,"A2DP_CTRL_GET_CODEC_CONFIG");
         A2dpCodecConfig *CodecConfig = bta_av_get_a2dp_current_codec();
+        if (CodecConfig == nullptr)
+        {
+            LOG_INFO(LOG_TAG,"codec config pointer is NULL");
+            status = A2DP_CTRL_ACK_FAILURE;
+            break;
+        }
         bta_av_co_get_peer_params(&peer_param);
         LOG_INFO(LOG_TAG,"enc_update_in_progress = %d", enc_update_in_progress);
         if ((btif_av_stream_started_ready() == FALSE) ||
@@ -1030,6 +1036,12 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         len = 0;
         LOG_INFO(LOG_TAG,"A2DP_CTRL_GET_CODEC_CONFIG");
         A2dpCodecConfig *CodecConfig = bta_av_get_a2dp_current_codec();
+        if (CodecConfig == nullptr)
+        {
+            LOG_INFO(LOG_TAG,"codec config pointer is NULL");
+            status = A2DP_CTRL_ACK_FAILURE;
+            break;
+        }
         bta_av_co_get_peer_params(&peer_param);
         LOG_INFO(LOG_TAG,"enc_update_in_progress = %d", enc_update_in_progress);
         if ((btif_av_stream_started_ready() == FALSE) ||
@@ -1133,7 +1145,7 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
 
 uint8_t btif_a2dp_audio_snd_ctrl_cmd(uint8_t cmd)
 {
-  uint8_t status;
+  uint8_t status = A2DP_CTRL_ACK_FAILURE;
 
   switch (cmd) {
     case A2DP_CTRL_CMD_START:
