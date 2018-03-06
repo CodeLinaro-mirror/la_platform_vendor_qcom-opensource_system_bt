@@ -885,7 +885,7 @@ static int start_audio_datapath(struct a2dp_stream_common* common) {
     ERROR("Audiopath start failed - in call, move to suspended");
     goto error;
   }
-
+  #ifndef BTA_AV_SPLIT_A2DP_ENABLED
   /* connect socket if not yet connected */
   if (common->audio_fd == AUDIO_SKT_DISCONNECTED) {
     common->audio_fd = skt_connect(A2DP_DATA_PATH, common->buffer_sz);
@@ -894,14 +894,15 @@ static int start_audio_datapath(struct a2dp_stream_common* common) {
       goto error;
     }
   }
+  #endif
   common->state = (a2dp_state_t)AUDIO_A2DP_STATE_STARTED;
   /* update initial sink latency after start stream */
   update_initial_sink_latency = true;
   return 0;
-
 error:
   common->state = (a2dp_state_t)oldstate;
   return -1;
+
 }
 
 static int stop_audio_datapath(struct a2dp_stream_common* common) {
@@ -920,11 +921,11 @@ static int stop_audio_datapath(struct a2dp_stream_common* common) {
   }
 
   common->state = (a2dp_state_t)AUDIO_A2DP_STATE_STOPPED;
-
+  #ifndef BTA_AV_SPLIT_A2DP_ENABLED
   /* disconnect audio path */
   skt_disconnect(common->audio_fd);
   common->audio_fd = AUDIO_SKT_DISCONNECTED;
-
+  #endif
   return 0;
 }
 
@@ -941,10 +942,12 @@ static int suspend_audio_datapath(struct a2dp_stream_common* common,
   else
     common->state = AUDIO_A2DP_STATE_SUSPENDED;
 
+  #ifndef BTA_AV_SPLIT_A2DP_ENABLED
   /* disconnect audio path */
   skt_disconnect(common->audio_fd);
 
   common->audio_fd = AUDIO_SKT_DISCONNECTED;
+  #endif
 
   return 0;
 }
@@ -1222,6 +1225,34 @@ static int out_set_parameters(struct audio_stream* stream,
 
   /* dump params */
   hash_map_utils_dump_string_keys_string_values(params);
+
+  #ifdef BTA_AV_SPLIT_A2DP_ENABLED
+
+  if (params["A2dpSuspended"].compare("true") == 0) {
+    if (out->common.state == AUDIO_A2DP_STATE_SUSPENDED) {
+      INFO("stream suspended");
+      status = -1;
+    } else if ((out->common.state == AUDIO_A2DP_STATE_STOPPED) ||
+              (out->common.state == AUDIO_A2DP_STATE_STANDBY)) {
+      if (start_audio_datapath(&out->common) < 0) {
+        INFO("stream state failed");
+        status = -1;
+      }
+    } else if (out->common.state != AUDIO_A2DP_STATE_STARTED) {
+      ERROR("stream is not in stopped or standby");
+      status = -1;
+    }
+    INFO("stream start completes with status: %d", status);
+  } else if(params["A2dpSuspended"].compare("false") == 0) {
+    INFO("out_set_parameters, value: false");
+    if(out->commmon.state ==  != AUDIO_A2DP_STATE_SUSPENDED)
+      status = suspend_audio_datapath(&out->common, true);
+    else
+      ERROR("stream alreday suspended");
+
+    INFO("stream stop completes with status: %d", status);
+  }
+  #endif
 
   if (params["closing"].compare("true") == 0) {
     DEBUG("stream closing, disallow any writes");

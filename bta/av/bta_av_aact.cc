@@ -3352,6 +3352,7 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
           bta_av_vendor_offload_select_codec(offload_start.p_scb);
           break;
         }
+      case VS_QHCI_WRITE_SBC_CFG://fall through
       case VS_QHCI_A2DP_SELECTED_CODEC:
         {
           uint8_t param[10],index=0;
@@ -3461,6 +3462,60 @@ static uint8_t bta_av_vendor_offload_convert_sample_rate(uint16_t sample_rate) {
   return rate;
 }
 
+
+static void bta_av_vendor_offload_write_sbc_cfg(tBTA_AV_SCB* p_scb)
+{
+  uint8_t index = 0;
+  uint8_t param[40];
+  uint16_t s16ChannelMode;
+  uint16_t s16SamplingFreq;
+  uint16_t s16NumOfSubBands;
+  uint16_t s16NumOfChannels;
+  uint16_t s16NumOfBlocks;
+  uint16_t s16AllocationMethod;
+  int min_bitpool;
+  int max_bitpool;
+
+  min_bitpool = A2DP_GetMinBitpoolSbc(p_scb->cfg.codec_info);
+  max_bitpool = A2DP_GetMaxBitpoolSbc(p_scb->cfg.codec_info);
+  s16ChannelMode = A2DP_GetChannelModeCodeSbc(p_scb->cfg.codec_info);
+  s16NumOfSubBands = A2DP_GetNumberOfSubbandsSbc(p_scb->cfg.codec_info);
+  s16NumOfBlocks = A2DP_GetNumberOfBlocksSbc(p_scb->cfg.codec_info);
+  s16AllocationMethod = A2DP_GetAllocationMethodCodeSbc(p_scb->cfg.codec_info);
+  s16SamplingFreq = A2DP_GetSamplingFrequencyCodeSbc(p_scb->cfg.codec_info);
+  s16NumOfChannels = A2DP_GetTrackChannelCountSbc(p_scb->cfg.codec_info);
+
+  APPL_TRACE_IMP("channel mode: %u", s16ChannelMode);
+  APPL_TRACE_IMP("sampling frequecy: %u", s16SamplingFreq);
+  APPL_TRACE_IMP("allocation method: %u", s16AllocationMethod);
+  APPL_TRACE_IMP("subands: %u", s16NumOfSubBands);
+  APPL_TRACE_IMP("num of blocks: %u", s16NumOfBlocks);
+  APPL_TRACE_IMP("bitpool : <%u>, <%u>", min_bitpool, max_bitpool);
+  param[index++] = VS_QHCI_WRITE_SBC_CFG;
+  param[index++] = (uint8_t)((1 << (3 - s16ChannelMode)) |
+                 (1 << (7 - s16SamplingFreq)));
+  param[index++] = (uint8_t)((1 << s16AllocationMethod) |
+                 (1 << (3 - (s16NumOfSubBands >> 3))) |
+                 (1 << (7 - ((s16NumOfBlocks - 4) >> 2))));
+  param[index++] = min_bitpool;
+  param[index++] = max_bitpool;
+  param[index++] = 0; // Not in use as latency calculation will now be taken care of in SOC
+  param[index++] = 0; // Not in use as latency calculation will now be taken care of in SOC
+  param[index++] = 0; // Not in use as latency calculation will now be taken care of in SOC
+  param[index++] = 0; // Not in use as latency calculation will now be taken care of in SOC
+  param[index++] = 0; // Not in use as latency calculation will now be taken care of in SOC
+#if (BTA_AV_CO_CP_SCMS_T == TRUE)
+  param[index++] = 1;
+#else
+  param[index++] = 0;
+#endif
+  param[index++] = offload_start.cp_flag; //need to verify this flag
+  APPL_TRACE_DEBUG("bta_av_vendor_offload_start: VS_QHCI_WRITE_SBC_CFG");
+  BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE,index,
+                               param, offload_vendor_callback);
+}
+
+
 static void bta_av_vendor_offload_select_codec(tBTA_AV_SCB* p_scb)
 {
   const char *codec_name = A2DP_CodecName(p_scb->cfg.codec_info);
@@ -3542,7 +3597,11 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb)
     offload_start.p_scb = p_scb;
     return;
   } else {
-    bta_av_vendor_offload_select_codec(p_scb);
+    if (get_soc_type() == BT_SOC_SMD) {
+      bta_av_vendor_offload_write_sbc_cfg(p_scb);
+    } else {
+      bta_av_vendor_offload_select_codec(p_scb);
+    }
   }
 
 #if 0 // Use only 1 VSC, TODO:Enable based on FW version
