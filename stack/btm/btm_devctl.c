@@ -523,6 +523,8 @@ tBTM_STATUS BTM_SetLocalLeDeviceName (char *p_name)
     p = (UINT8 *)p_name;
 #endif
     BTM_TRACE_DEBUG("BTM_SetLocalLeDeviceName : name %s",btm_cb.cfg.le_name);
+
+    return BTM_SUCCESS;
 }
 
 
