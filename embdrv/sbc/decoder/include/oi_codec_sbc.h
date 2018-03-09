@@ -304,7 +304,7 @@ OI_STATUS OI_CODEC_SBC_DecoderLimit(OI_CODEC_SBC_DECODER_CONTEXT* context,
  * @param context        Decoder context structure. This must be the context
  *                       must be used each time a frame is decoded.
  *
- * @param enhanced       Set to true to enable Qualcomm proprietary
+ * @param enhanced       Set to true to enable Qualcomm Technologies, Inc
  *                       quality enhancements.
  *
  * @param frequency      One of SBC_FREQ_16000, SBC_FREQ_32000, SBC_FREQ_44100,
