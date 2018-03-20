@@ -85,6 +85,7 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int channelType, int codec_type) 
   trackHolder->track = track;
 
   if (trackHolder->track->initCheck() != 0) {
+    LOG_ERROR(LOG_TAG, "%s: AudioTrack initCheck fail", __func__);
     return nullptr;
   }
 
@@ -177,8 +178,11 @@ void BtifAvrcpSetAudioTrackGain(void* handle, float gain) {
 
 int BtifAvrcpAudioTrackWriteData(void* handle, void* audioBuffer,
                                  int bufferlen) {
+  if (handle == NULL) {
+    return 0;
+  }
   BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(handle);
-  CHECK(trackHolder != NULL);
+
   CHECK(trackHolder->track != NULL);
   int retval = -1;
 #if (DUMP_PCM_DATA == TRUE)
