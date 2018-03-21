@@ -2777,6 +2777,7 @@ void bta_av_str_closed(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     event = BTA_AV_OPEN_EVT;
     p_scb->open_status = BTA_AV_SUCCESS;
 
+    bta_sys_conn_close(BTA_ID_AV, p_scb->hdi, p_scb->peer_addr);
     bta_sys_conn_close(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->peer_addr);
     bta_av_cleanup(p_scb, p_data);
     (*bta_av_cb.p_cback)(event, &data);
@@ -2793,6 +2794,7 @@ void bta_av_str_closed(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       data.close.hndl = p_scb->hndl;
       event = BTA_AV_CLOSE_EVT;
 
+      bta_sys_conn_close(BTA_ID_AV, p_scb->hdi, p_scb->peer_addr);
       bta_sys_conn_close(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->peer_addr);
       bta_av_cleanup(p_scb, p_data);
       (*bta_av_cb.p_cback)(event, &data);
