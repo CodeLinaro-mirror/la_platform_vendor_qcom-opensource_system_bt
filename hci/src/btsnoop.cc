@@ -89,7 +89,6 @@ static void delete_btsnoop_files();
 static bool is_btsnoop_enabled();
 static char* get_btsnoop_log_path(char* log_path);
 static char* get_btsnoop_last_log_path(char* last_log_path, char* log_path);
-static void open_next_snoop_file();
 static void btsnoop_write_packet(packet_type_t type, uint8_t* packet,
                                  bool is_received, uint64_t timestamp_us);
 
@@ -106,7 +105,6 @@ static future_t* start_up(void) {
   if (!is_btsnoop_enabled()) {
     delete_btsnoop_files();
   } else {
-    open_next_snoop_file();
     packets_per_file = osi_property_get_int32(BTSNOOP_MAX_PACKETS_PROPERTY,
                                               DEFAULT_BTSNOOP_SIZE);
     btsnoop_net_open();
@@ -203,40 +201,6 @@ static char* get_btsnoop_last_log_path(char* last_log_path,
   snprintf(last_log_path, PROPERTY_VALUE_MAX + sizeof(".last"), "%s.last",
            btsnoop_path);
   return last_log_path;
-}
-
-static void open_next_snoop_file() {
-  packet_counter = 0;
-
-  std::lock_guard<std::mutex> lock(btSnoopFd_mutex);
-  if(sock_snoop_active)
-    return;
-
-  if (logfile_fd != INVALID_FD) {
-    close(logfile_fd);
-    logfile_fd = INVALID_FD;
-  }
-
-  char log_path[PROPERTY_VALUE_MAX];
-  char last_log_path[PROPERTY_VALUE_MAX + sizeof(".last")];
-  get_btsnoop_log_path(log_path);
-  get_btsnoop_last_log_path(last_log_path, log_path);
-
-  if (!rename(log_path, last_log_path) && errno != ENOENT)
-    LOG_ERROR(LOG_TAG, "%s unable to rename '%s' to '%s': %s", __func__,
-              log_path, last_log_path, strerror(errno));
-
-  mode_t prevmask = umask(0);
-  logfile_fd = open(log_path, O_WRONLY | O_CREAT | O_TRUNC,
-                    S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
-  umask(prevmask);
-  if (logfile_fd == INVALID_FD) {
-    LOG_ERROR(LOG_TAG, "%s unable to open '%s': %s", __func__, log_path,
-              strerror(errno));
-    return;
-  }
-
-  write(logfile_fd, "btsnoop\0\0\0\0\1\0\0\x3\xea", 16);
 }
 
 typedef struct {
@@ -337,9 +301,6 @@ static void btsnoop_write_packet(packet_type_t type, uint8_t* packet,
 
   if (logfile_fd != INVALID_FD) {
     packet_counter++;
-    if (!sock_snoop_active && packet_counter > packets_per_file) {
-      open_next_snoop_file();
-    }
 
     iovec iov[] = {{&header, sizeof(btsnoop_header_t)},
                    {reinterpret_cast<void*>(packet), length_he - 1}};
