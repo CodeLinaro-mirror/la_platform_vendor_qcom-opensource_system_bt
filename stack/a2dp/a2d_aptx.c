@@ -51,7 +51,6 @@
 const char* A2D_APTX_SCHED_LIB_NAME = "libaptXScheduler.so";
 void *A2dAptXSchedLibHandle = NULL;
 thread_t *A2d_aptx_thread = NULL;
-pthread_mutex_t aptx_thread_lock = PTHREAD_MUTEX_INITIALIZER;
 BOOLEAN isA2dAptXEnabled = FALSE;
 
 int (*A2D_aptx_encoder_init)(void);
@@ -66,7 +65,7 @@ A2D_AptXThreadFn (*A2D_aptx_sched_start)(void *encoder,
 BOOLEAN (*A2D_aptx_sched_stop)(void);
 void (*A2D_aptx_encoder_deinit)(void);
 A2D_AptXThreadFn A2d_aptx_thread_fn;
-
+static pthread_mutex_t aptx_mutex_lock = PTHREAD_MUTEX_INITIALIZER;
 /******************************************************************************
 **
 ** Function         A2D_BldAptxInfo
@@ -198,8 +197,10 @@ BOOLEAN A2D_check_and_init_aptX(void)
 {
     A2D_TRACE_DEBUG("%s", __func__);
 
-    if (A2dAptXSchedLibHandle == NULL)
+    if (!isA2dAptXEnabled)
     {
+        pthread_mutex_init(&aptx_mutex_lock, NULL);
+        pthread_mutex_lock(&aptx_mutex_lock);
         A2dAptXSchedLibHandle = dlopen(A2D_APTX_SCHED_LIB_NAME, RTLD_NOW);
 
         if (!A2dAptXSchedLibHandle)
@@ -250,8 +251,12 @@ BOOLEAN A2D_check_and_init_aptX(void)
             A2D_TRACE_ERROR("%s: aptX encoder init failed - %s", __func__, dlerror());
             goto error_exit;
         }
+
+        isA2dAptXEnabled = true;
+        pthread_mutex_unlock(&aptx_mutex_lock);
+        fprintf(stdout, "in %s : isA2dAptXEnabled = %d A2dAptXSchedLibHandle = 0x%08x\n", __func__, isA2dAptXEnabled, A2dAptXSchedLibHandle);
+        A2D_TRACE_EVENT("in %s : isA2dAptXEnabled = %d A2dAptXSchedLibHandle = 0x%08x", __func__, isA2dAptXEnabled, A2dAptXSchedLibHandle);
     }
-    isA2dAptXEnabled = true;
     return isA2dAptXEnabled;
 
  error_exit:;
@@ -261,6 +266,8 @@ BOOLEAN A2D_check_and_init_aptX(void)
        A2dAptXSchedLibHandle = NULL;
     }
     isA2dAptXEnabled = false;
+    pthread_mutex_unlock(&aptx_mutex_lock);
+    pthread_mutex_destroy(&aptx_mutex_lock);
     return isA2dAptXEnabled;
 
 }
@@ -282,8 +289,15 @@ void A2D_start_aptX(void *encoder, A2D_AptXCodecType aptX_codec_type,
                         A2D_AptXSetPriorityFn set_priority_fn,
                         BOOLEAN test, BOOLEAN trace)
 {
+    if (!isA2dAptXEnabled)
+        return ;
     A2D_TRACE_DEBUG("%s", __func__);
     mutex_global_lock();
+    pthread_mutex_lock(&aptx_mutex_lock);
+    if (isA2dAptXEnabled && A2d_aptx_thread) {
+        fprintf(stderr, "in %s : A2d_aptx_thread = 0x%08x already started\n", __func__, A2d_aptx_thread);
+        A2D_TRACE_ERROR("in %s : A2d_aptx_thread = 0x%08x already started", __func__, A2d_aptx_thread);
+    }
 
     A2d_aptx_thread_fn = A2D_aptx_sched_start (encoder, aptX_codec_type,
               use_SCMS_T, is_24bit_audio, sample_rate, format_bits,
@@ -294,7 +308,9 @@ void A2D_start_aptX(void *encoder, A2D_AptXCodecType aptX_codec_type,
     {
         thread_post(A2d_aptx_thread, A2d_aptx_thread_fn, NULL);
     }
+    A2D_TRACE_EVENT("in %s : A2d_aptx_thread = 0x%08x", __func__, A2d_aptx_thread);
 
+    pthread_mutex_unlock(&aptx_mutex_lock);
     mutex_global_unlock();
     return;
 }
@@ -312,14 +328,21 @@ void A2D_start_aptX(void *encoder, A2D_AptXCodecType aptX_codec_type,
 *******************************************************************************/
 void A2D_deinit_aptX(void)
 {
+    if (!isA2dAptXEnabled)
+        return ;
     A2D_TRACE_DEBUG("%s", __func__);
+    pthread_mutex_lock(&aptx_mutex_lock);
 
-    if (isA2dAptXEnabled && A2dAptXSchedLibHandle)
+    if (isA2dAptXEnabled)
     {
+        A2D_TRACE_WARNING("in %s : isA2dAptXEnabled = %d A2dAptXSchedLibHandle = 0x%08x", __func__, isA2dAptXEnabled, A2dAptXSchedLibHandle);
         A2D_aptx_encoder_deinit();
+        dlclose(A2dAptXSchedLibHandle);
+        A2dAptXSchedLibHandle = NULL;
         isA2dAptXEnabled = false;
     }
-
+    pthread_mutex_unlock(&aptx_mutex_lock);
+//    pthread_mutex_destroy(&aptx_mutex_lock);
     return;
 }
 
@@ -334,18 +357,23 @@ void A2D_deinit_aptX(void)
 *******************************************************************************/
 void A2D_stop_aptX(void)
 {
+    if (!isA2dAptXEnabled)
+        return ;
     A2D_TRACE_DEBUG("%s", __func__);
     mutex_global_lock();
+    pthread_mutex_lock(&aptx_mutex_lock);
     if (A2dAptXSchedLibHandle)
     {
         // remove aptX thread
         if (A2d_aptx_thread)
         {
+            A2D_TRACE_EVENT("in %s :A2d_aptx_thread = 0x%08x", __func__, A2d_aptx_thread);
             A2D_aptx_sched_stop();
             thread_free(A2d_aptx_thread);
             A2d_aptx_thread = NULL;
         }
     }
+    pthread_mutex_unlock(&aptx_mutex_lock);
     mutex_global_unlock();
     return;
 }
@@ -370,12 +398,6 @@ void A2D_close_aptX(void)
 
     // de-initialize aptX
     A2D_deinit_aptX();
-
-    if (A2dAptXSchedLibHandle)
-    {
-       dlclose(A2dAptXSchedLibHandle);
-       A2dAptXSchedLibHandle = NULL;
-    }
 
     return;
 }

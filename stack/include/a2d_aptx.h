@@ -96,7 +96,6 @@ extern const char* A2D_APTX_SCHED_LIB_NAME;
 extern void *A2dAptXSchedLibHandle;
 extern BOOLEAN isA2dAptXEnabled;
 extern thread_t *A2d_aptx_thread;
-extern pthread_mutex_t aptx_thread_lock;
 extern A2D_AptXThreadFn A2d_aptx_thread_fn;
 
 /*****************************************************************************

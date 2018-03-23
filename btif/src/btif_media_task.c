@@ -711,13 +711,18 @@ static const char* dump_a2dp_ctrl_event(UINT8 event)
     }
 }
 
+static inline bool aptx_is_started(void)
+{
+    return (isA2dAptXEnabled && (A2d_aptx_thread != NULL));
+}
+
 static void btif_audiopath_detached(void)
 {
     APPL_TRACE_IMP("## AUDIO PATH DETACHED ##");
 
     /*  send stop request only if we are actively streaming and haven't received
         a stop request. Potentially audioflinger detached abnormally */
-    if (alarm_is_scheduled(btif_media_cb.media_alarm)) {
+    if (alarm_is_scheduled(btif_media_cb.media_alarm) || aptx_is_started()) {
         /* post stop event and wait for audio path to stop */
         btif_dispatch_sm_event(BTIF_AV_STOP_STREAM_REQ_EVT, NULL, 0);
     }
@@ -831,7 +836,7 @@ static void btif_recv_ctrl_data(void)
                              __func__, dump_a2dp_ctrl_event(cmd),btif_av_stream_ready());
 
             // TODO: SRC, check for hf_is_call_idle
-            if (alarm_is_scheduled(btif_media_cb.media_alarm))
+            if (alarm_is_scheduled(btif_media_cb.media_alarm) || aptx_is_started())
             {
                 APPL_TRACE_WARNING("%s: A2DP command %s when media alarm already scheduled",
                                    __func__, dump_a2dp_ctrl_event(cmd));
@@ -919,7 +924,7 @@ static void btif_recv_ctrl_data(void)
 
         case A2DP_CTRL_CMD_STOP:
             if ((!bt_split_a2dp_enabled && btif_media_cb.peer_sep == AVDT_TSEP_SNK &&
-                 (!alarm_is_scheduled(btif_media_cb.media_alarm))) ||
+                 (!alarm_is_scheduled(btif_media_cb.media_alarm) && !aptx_is_started())) ||
                 (bt_split_a2dp_enabled &&  btif_media_cb.peer_sep == AVDT_TSEP_SNK &&
                  btif_media_cb.tx_started == FALSE))
             {
@@ -1574,11 +1579,9 @@ void btif_a2dp_stop_media_task(void)
     /* make sure no channels are restarted while shutting down */
     media_task_running = MEDIA_TASK_STATE_SHUTTING_DOWN;
 
-    pthread_mutex_lock(&aptx_thread_lock);
     // remove aptX thread
     A2D_stop_aptX();
-    pthread_mutex_unlock(&aptx_thread_lock);
-    
+
     // Stop timer
     alarm_free(btif_media_cb.media_alarm);
     btif_media_cb.media_alarm = NULL;
@@ -3963,10 +3966,10 @@ static void btif_media_task_aa_stop_tx(void)
     {
         APPL_TRACE_IMP("%s media_alarm is %srunning", __func__,
                          alarm_is_scheduled(btif_media_cb.media_alarm)? "" : "not ");
-        const bool send_ack = alarm_is_scheduled(btif_media_cb.media_alarm) |
+        const bool send_ack = alarm_is_scheduled(btif_media_cb.media_alarm) | aptx_is_started() |
                                              btif_is_remote_start_timer_scheduled();
 
-        if (isA2dAptXEnabled && A2d_aptx_thread)
+        if (aptx_is_started())
         {
             A2D_stop_aptX();
         }
