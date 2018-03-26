@@ -586,7 +586,6 @@ void pan_data_buf_ind_cb (UINT16 handle,
     if (!pcb)
     {
         PAN_TRACE_ERROR ("PAN Data buffer indication for wrong handle %d", handle);
-        osi_free(p_buf);
         return;
     }
 
@@ -594,7 +593,6 @@ void pan_data_buf_ind_cb (UINT16 handle,
     {
         PAN_TRACE_ERROR ("PAN Data indication in wrong state %d for handle %d",
             pcb->con_state, handle);
-        osi_free(p_buf);
         return;
     }
 
@@ -631,7 +629,6 @@ void pan_data_buf_ind_cb (UINT16 handle,
             else if (pan_cb.pan_data_ind_cb)
             {
                 (*pan_cb.pan_data_ind_cb) (pcb->handle, src, dst, protocol, p_data, len, ext, forward);
-                osi_free(p_buf);
             }
 
             return;
@@ -647,7 +644,6 @@ void pan_data_buf_ind_cb (UINT16 handle,
             result = BNEP_Write (dst_pcb->handle, dst, p_data, len, protocol, src, ext);
             if (result != BNEP_SUCCESS && result != BNEP_IGNORE_CMD)
                 PAN_TRACE_ERROR ("Failed to write data for PAN connection handle %d", dst_pcb->handle);
-            osi_free(p_buf);
             return;
         }
     }
@@ -658,10 +654,7 @@ void pan_data_buf_ind_cb (UINT16 handle,
     else if (pan_cb.pan_data_ind_cb)
     {
         (*pan_cb.pan_data_ind_cb) (pcb->handle, src, dst, protocol, p_data, len, ext, forward);
-        osi_free(p_buf);
     }
-    else
-        osi_free(p_buf);
 
     return;
 }
