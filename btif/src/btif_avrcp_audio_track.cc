@@ -65,8 +65,10 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int channelType, int codec_type) 
     offload_info.channel_mask = channelType;
     offload_info.format = media_format;
     offload_info.stream_type = AUDIO_STREAM_MUSIC;
-    offload_info.has_video = FALSE;
-    offload_info.is_streaming = FALSE;
+    /* Note: offload_info.has_video and offload_info.is_streaming is set to true in order
+     * to get offload buffer size changed to 2k in MM Audio code. This is a WAR. */
+    offload_info.has_video = TRUE;
+    offload_info.is_streaming = TRUE;
     offload_info.offload_buffer_size = COMPRESSED_AUDIO_BUFFER_SIZE;
 
     track = new android::AudioTrack(
