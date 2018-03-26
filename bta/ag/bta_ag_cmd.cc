@@ -252,7 +252,8 @@ static void bta_ag_send_result(tBTA_AG_SCB* p_scb, size_t code,
   /* copy argument if any */
   if (result->arg_type == BTA_AG_RES_FMT_INT) {
     p += utl_itoa((uint16_t)int_arg, p);
-  } else if (result->arg_type == BTA_AG_RES_FMT_STR) {
+  } else if (result->arg_type == BTA_AG_RES_FMT_STR &&
+    p_arg != NULL) {
     strcpy(p, p_arg);
     p += strlen(p_arg);
   }
