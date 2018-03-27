@@ -905,7 +905,6 @@ void bta_av_switch_role(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
 void bta_av_role_res(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   bool initiator = false;
   tBTA_AV_START start;
-  tBTA_AV_OPEN av_open;
   tBTA_AV_ROLE_CHANGED role_changed;
   uint8_t cur_role = BTM_ROLE_UNDEFINED;
 
@@ -954,11 +953,11 @@ void bta_av_role_res(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 
       if (p_data->role_res.hci_status != HCI_SUCCESS) {
         /* Open failed because of role switch. */
-        av_open.bd_addr = p_scb->peer_addr;
+        /*av_open.bd_addr = p_scb->peer_addr;
         av_open.chnl = p_scb->chnl;
-        av_open.hndl = p_scb->hndl;
+        av_open.hndl = p_scb->hndl;*/
         /* update Master/Slave Role for open event */
-        if (BTM_GetRole(p_scb->peer_addr, &cur_role) == BTM_SUCCESS)
+        /*if (BTM_GetRole(p_scb->peer_addr, &cur_role) == BTM_SUCCESS)
           av_open.role = cur_role;
         av_open.status = BTA_AV_FAIL_ROLE;
         if (p_scb->seps[p_scb->sep_idx].tsep == AVDT_TSEP_SRC)
@@ -968,7 +967,9 @@ void bta_av_role_res(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
         }
         tBTA_AV bta_av_data;
         bta_av_data.open = av_open;
-        (*bta_av_cb.p_cback)(BTA_AV_OPEN_EVT, &bta_av_data);
+        (*bta_av_cb.p_cback)(BTA_AV_OPEN_EVT, &bta_av_data);*/
+        p_scb->q_info.open.switch_res = BTA_AV_RS_NONE;
+        bta_av_do_disc_a2dp(p_scb, (tBTA_AV_DATA*)&(p_scb->q_info.open));
       } else {
         /* Continue av open process */
         p_scb->q_info.open.switch_res = BTA_AV_RS_DONE;
@@ -2148,7 +2149,7 @@ void bta_av_conn_failed(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
  ******************************************************************************/
 void bta_av_do_start(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   uint8_t policy = HCI_ENABLE_SNIFF_MODE;
-  uint8_t cur_role;
+  uint8_t cur_role = BTM_ROLE_UNDEFINED;
 
   APPL_TRACE_DEBUG("%s: sco_occupied:%d, role:x%x, started:%d", __func__,
                    bta_av_cb.sco_occupied, p_scb->role, p_scb->started);
@@ -2160,15 +2161,16 @@ void bta_av_do_start(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   /* disallow role switch during streaming, only if we are the master role
    * i.e. allow role switch, if we are slave.
    * It would not hurt us, if the peer device wants us to be master */
-  if ((BTM_GetRole(p_scb->peer_addr, &cur_role) == BTM_SUCCESS)) {
-    if (cur_role == BTM_ROLE_MASTER) {
-      policy |= HCI_ENABLE_MASTER_SLAVE_SWITCH;
-    } else {
-      BTM_SetA2dpStreamQoS(p_scb->peer_addr, NULL);
-    }
+  if ((BTM_GetRole(p_scb->peer_addr, &cur_role) == BTM_SUCCESS) &&
+      (cur_role == BTM_ROLE_MASTER)) {
+    policy |= HCI_ENABLE_MASTER_SLAVE_SWITCH;
   }
 
   bta_sys_clear_policy(BTA_ID_AV, policy, p_scb->peer_addr);
+
+  if (cur_role == BTM_ROLE_SLAVE) {
+    BTM_SetA2dpStreamQoS(p_scb->peer_addr, NULL);
+  }
 
   if ((p_scb->started == false) &&
       ((p_scb->role & BTA_AV_ROLE_START_INT) == 0)) {
@@ -2230,6 +2232,11 @@ void bta_av_str_stopped(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     if (BTM_IS_QTI_CONTROLLER() && p_scb->offload_supported) {
       bta_av_vendor_offload_stop();
       p_scb->offload_supported = false;
+    }
+    if (p_scb->role & BTA_AV_ROLE_START_INT) {
+      p_scb->role &= ~BTA_AV_ROLE_START_INT;
+      APPL_TRACE_DEBUG(" %s: role:x%x, started:%d", __func__,
+                       p_scb->role, p_scb->started);
     }
     bta_av_stream_chg(p_scb, false);
     p_scb->co_started = false;
@@ -2777,6 +2784,7 @@ void bta_av_str_closed(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     event = BTA_AV_OPEN_EVT;
     p_scb->open_status = BTA_AV_SUCCESS;
 
+    bta_sys_conn_close(BTA_ID_AV, p_scb->hdi, p_scb->peer_addr);
     bta_sys_conn_close(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->peer_addr);
     bta_av_cleanup(p_scb, p_data);
     (*bta_av_cb.p_cback)(event, &data);
@@ -2793,6 +2801,7 @@ void bta_av_str_closed(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       data.close.hndl = p_scb->hndl;
       event = BTA_AV_CLOSE_EVT;
 
+      bta_sys_conn_close(BTA_ID_AV, p_scb->hdi, p_scb->peer_addr);
       bta_sys_conn_close(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->peer_addr);
       bta_av_cleanup(p_scb, p_data);
       (*bta_av_cb.p_cback)(event, &data);
