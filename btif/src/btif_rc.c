@@ -2311,7 +2311,7 @@ static void send_browsemsg_rsp (UINT8 rc_handle, UINT8 label, tBTA_AV_CODE code,
     status = AVRC_BldBrowseResponse(rc_handle, pbrowsemsg_resp, &p_msg);
     if (status == AVRC_STS_NO_ERROR)
     {
-        BTA_AvMetaRsp(rc_handle, label, 0, p_msg);
+        BTA_AvMetaRsp(rc_handle, label, AVRC_RSP_ACCEPT, p_msg);
     }
     else
     {
