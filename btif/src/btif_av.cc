@@ -1529,6 +1529,10 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
         btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
         btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
       }
+      if (btif_av_is_split_a2dp_enabled()) {
+        HAL_CBACK(bt_av_src_callbacks, reconfig_a2dp_trigger_cb, SOFT_HANDOFF,
+                                          &(btif_av_cb[index].peer_bda), 0, 0);
+      }
       btif_av_cb[index].reconfig_pending = false;
     } break;
 
@@ -1745,9 +1749,6 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
                                        &(btif_av_cb[index].peer_bda), reconfig_a2dp_param_id, reconfig_a2dp_param_val);
             isBitRateChange = false;
             isBitsPerSampleChange = false;
-          } else {
-            HAL_CBACK(bt_av_src_callbacks, reconfig_a2dp_trigger_cb, SOFT_HANDOFF,
-                                            &(btif_av_cb[index].peer_bda), 0, 0);
           }
         }
       }
