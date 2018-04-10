@@ -26,7 +26,9 @@
 
 #include <base/logging.h>
 #ifndef OS_GENERIC
+#ifdef ANDROID
 #include <cutils/trace.h>
+#endif
 #endif
 #include <limits.h>
 #include <string.h>
@@ -50,10 +52,10 @@
 #include "osi/include/time.h"
 #include "uipc.h"
 #include "btif_a2dp_audio_interface.h"
-
+#ifdef ANDROID
 using system_bt_osi::BluetoothMetricsLogger;
 using system_bt_osi::A2dpSessionMetrics;
-
+#endif
 /**
  * The typical runlevel of the tx queue size is ~1 buffer
  * but due to link flow control or thread preemption in lower
@@ -317,8 +319,10 @@ static void btif_a2dp_source_startup_delayed(UNUSED_ATTR void* context) {
   btif_a2dp_source_state = BTIF_A2DP_SOURCE_STATE_RUNNING;
   APPL_TRACE_EVENT("%s: enc_update_in_progress = %d", __func__, enc_update_in_progress);
   enc_update_in_progress = FALSE;
+#ifdef ANDROID
   BluetoothMetricsLogger::GetInstance()->LogBluetoothSessionStart(
       system_bt_osi::CONNECTION_TECHNOLOGY_TYPE_BREDR, 0);
+#endif
 }
 
 void btif_a2dp_source_shutdown(void) {
@@ -366,8 +370,10 @@ static void btif_a2dp_source_shutdown_delayed(UNUSED_ATTR void* context) {
   btif_a2dp_source_state = BTIF_A2DP_SOURCE_STATE_OFF;
   APPL_TRACE_EVENT("%s: enc_update_in_progress = %d", __func__, enc_update_in_progress);
   enc_update_in_progress = FALSE;
+#ifdef ANDROID
   BluetoothMetricsLogger::GetInstance()->LogBluetoothSessionEnd(
       system_bt_osi::DISCONNECT_REASON_UNKNOWN, 0);
+#endif
 }
 
 bool btif_a2dp_source_media_task_is_running(void) {
@@ -558,7 +564,9 @@ void btif_a2dp_source_stop_audio_req(void) {
     btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
   }
   btif_a2dp_source_cb.stats.session_end_us = time_get_os_boottime_us();
+#ifdef ANDROID
   btif_a2dp_source_update_metrics();
+#endif
   btif_a2dp_source_accumulate_stats(&btif_a2dp_source_cb.stats,
                                     &btif_a2dp_source_cb.accumulated_stats);
 }
@@ -808,7 +816,7 @@ static void btif_a2dp_source_audio_tx_stop_event(void) {
     btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
   } else if (pending_cmd == A2DP_CTRL_CMD_START) {
     BTIF_TRACE_ERROR("Ack Pending Start while Disconnect in Progress");
-    btif_a2dp_command_ack(A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS);
+    //btif_a2dp_command_ack(A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS);
   } else {
     BTIF_TRACE_ERROR("Invalid cmd pending for ack");
   }
@@ -834,7 +842,9 @@ static void btif_a2dp_source_audio_handle_timer(UNUSED_ATTR void* context) {
     size_t transmit_queue_length =
         fixed_queue_length(btif_a2dp_source_cb.tx_audio_queue);
 #ifndef OS_GENERIC
+#ifdef ANDROID
     ATRACE_INT("btif TX queue", transmit_queue_length);
+#endif
 #endif
     if (btif_a2dp_source_cb.encoder_interface->set_transmit_queue_length !=
         NULL) {
@@ -1228,7 +1238,7 @@ void btif_a2dp_source_debug_dump(int fd) {
     a2dp_codecs->debug_codec_dump(fd);
   }
 }
-
+#ifdef ANDROID
 void btif_a2dp_source_update_metrics(void) {
   btif_media_stats_t* stats = &btif_a2dp_source_cb.stats;
   scheduling_stats_t* enqueue_stats = &stats->tx_queue_enqueue_stats;
@@ -1271,7 +1281,7 @@ void btif_a2dp_source_update_metrics(void) {
   }
   BluetoothMetricsLogger::GetInstance()->LogA2dpSession(metrics);
 }
-
+#endif
 static void btm_read_rssi_cb(void* data) {
   if (data == nullptr) {
     LOG_ERROR(LOG_TAG, "%s Read RSSI request timed out", __func__);

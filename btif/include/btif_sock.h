@@ -26,3 +26,9 @@ btsock_interface_t* btif_sock_get_interface(void);
 
 bt_status_t btif_sock_init(uid_set_t* uid_set);
 void btif_sock_cleanup(void);
+#ifndef ANDROID
+#ifdef OBEX_SUPPORTED
+bt_status_t btif_obex_sock_init();
+void btif_obex_sock_cleanup(void);
+#endif
+#endif

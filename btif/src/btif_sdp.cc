@@ -67,9 +67,23 @@ static btsdp_callbacks_t* bt_sdp_callbacks = NULL;
 static void btif_sdp_search_comp_evt(uint16_t event, char* p_param) {
   tBTA_SDP_SEARCH_COMP* evt_data = (tBTA_SDP_SEARCH_COMP*)p_param;
   BTIF_TRACE_DEBUG("%s:  event = %d", __func__, event);
+  bluetooth_sdp_record* record;
 
   if (event != BTA_SDP_SEARCH_COMP_EVT) return;
-
+  BTIF_TRACE_DEBUG("%s: Status is: %d, Record count: %d", __func__, (bt_status_t)evt_data->status, evt_data->record_count);
+  for(int i = 0; i < evt_data->record_count || i==0; i++) {
+      record = &(evt_data->records[i]);
+      if (record->hdr.service_name_length > 0) {
+            ALOGD("%s, ServiceName:  %s", __FUNCTION__, record->hdr.service_name);
+      }
+      BTIF_TRACE_DEBUG("L2CAP PSM = %d, "
+             "RFCOMM channel = %d, profile version = 0x%04x, "
+             "supported supported_formats_list_len = %d",
+             record->ops.hdr.l2cap_psm,
+             record->ops.hdr.rfcomm_channel_number,
+             record->ops.hdr.profile_version,
+             record->ops.supported_formats_list_len);
+  }
   HAL_CBACK(bt_sdp_callbacks, sdp_search_cb, (bt_status_t)evt_data->status,
             evt_data->remote_addr, evt_data->uuid, evt_data->record_count,
             evt_data->records);

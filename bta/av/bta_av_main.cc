@@ -448,7 +448,7 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
 
   char avrcp_version[PROPERTY_VALUE_MAX] = {0};
   osi_property_get(AVRCP_VERSION_PROPERTY, avrcp_version, AVRCP_1_4_STRING);
-  LOG_INFO(LOG_TAG, "AVRCP version used for sdp: \"%s\"", avrcp_version);
+  LOG_INFO("bt_bta_av: AVRCP version used for sdp: \"%s\"", avrcp_version);
 
   uint16_t profile_initialized = p_data->api_reg.service_uuid;
   if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
@@ -457,7 +457,7 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
     p_bta_av_cfg = (tBTA_AV_CFG*)&bta_av_cfg;
 
     if (!strncmp(AVRCP_1_3_STRING, avrcp_version, sizeof(AVRCP_1_3_STRING))) {
-      LOG_INFO(LOG_TAG, "AVRCP 1.3 capabilites used");
+      LOG_INFO("bt_bta_av: AVRCP 1.3 capabilites used");
       p_bta_av_cfg = (tBTA_AV_CFG*)&bta_av_cfg_compatibility;
     }
   }
@@ -1162,7 +1162,7 @@ bool bta_av_link_role_ok(tBTA_AV_SCB* p_scb, uint8_t bits) {
   tBTM_STATUS ret;
 
   if (BTM_GetRole(p_scb->peer_addr, &role) == BTM_SUCCESS) {
-    LOG_INFO(LOG_TAG, "%s hndl:x%x role:%d conn_audio:x%x bits:%d features:x%x",
+    LOG_INFO("bt_bta_av: %s hndl:x%x role:%d conn_audio:x%x bits:%d features:x%x",
              __func__, p_scb->hndl, role, bta_av_cb.conn_audio, bits,
              bta_av_cb.features);
     if (BTM_ROLE_MASTER != role &&

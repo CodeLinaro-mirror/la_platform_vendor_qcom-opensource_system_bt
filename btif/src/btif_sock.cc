@@ -68,34 +68,34 @@ bt_status_t btif_sock_init(uid_set_t* uid_set) {
   btsock_thread_init();
   thread_handle = btsock_thread_create(btsock_signaled, NULL);
   if (thread_handle == -1) {
-    LOG_ERROR(LOG_TAG, "%s unable to create btsock_thread.", __func__);
+    LOG_ERROR("bt_btif_sock: %s unable to create btsock_thread.", __func__);
     goto error;
   }
 
   status = btsock_rfc_init(thread_handle, uid_set);
   if (status != BT_STATUS_SUCCESS) {
-    LOG_ERROR(LOG_TAG, "%s error initializing RFCOMM sockets: %d", __func__,
+    LOG_ERROR("bt_btif_sock: %s error initializing RFCOMM sockets: %d", __func__,
               status);
     goto error;
   }
 
   status = btsock_l2cap_init(thread_handle, uid_set);
   if (status != BT_STATUS_SUCCESS) {
-    LOG_ERROR(LOG_TAG, "%s error initializing L2CAP sockets: %d", __func__,
+    LOG_ERROR("bt_btif_sock: %s error initializing L2CAP sockets: %d", __func__,
               status);
     goto error;
   }
 
   thread = thread_new("btif_sock");
   if (!thread) {
-    LOG_ERROR(LOG_TAG, "%s error creating new thread.", __func__);
+    LOG_ERROR("bt_btif_sock: %s error creating new thread.", __func__);
     btsock_rfc_cleanup();
     goto error;
   }
 
   status = btsock_sco_init(thread);
   if (status != BT_STATUS_SUCCESS) {
-    LOG_ERROR(LOG_TAG, "%s error initializing SCO sockets: %d", __func__,
+    LOG_ERROR("bt_btif_sock: %s error initializing SCO sockets: %d", __func__,
               status);
     btsock_rfc_cleanup();
     goto error;
@@ -114,7 +114,7 @@ error:;
 
 void btif_sock_cleanup(void) {
   int saved_handle = thread_handle;
-  if (std::atomic_exchange(&thread_handle, -1) == -1) return;
+  if (thread_handle != -1){ thread_handle = -1;}
 
   btsock_thread_exit(saved_handle);
   btsock_rfc_cleanup();
@@ -152,7 +152,7 @@ static bt_status_t btsock_listen(btsock_type_t type, const char* service_name,
       break;
 
     default:
-      LOG_ERROR(LOG_TAG, "%s unknown/unsupported socket type: %d", __func__,
+      LOG_ERROR("bt_btif_sock: %s unknown/unsupported socket type: %d", __func__,
                 type);
       status = BT_STATUS_UNSUPPORTED;
       break;
@@ -187,7 +187,7 @@ static bt_status_t btsock_connect(const RawAddress* bd_addr, btsock_type_t type,
       break;
 
     default:
-      LOG_ERROR(LOG_TAG, "%s unknown/unsupported socket type: %d", __func__,
+      LOG_ERROR("bt_btif_sock: %s unknown/unsupported socket type: %d", __func__,
                 type);
       status = BT_STATUS_UNSUPPORTED;
       break;
@@ -197,9 +197,8 @@ static bt_status_t btsock_connect(const RawAddress* bd_addr, btsock_type_t type,
 
 // gghai : For JNI HAL compatibility
 static void btsock_request_max_tx_data_length(const RawAddress& remote_device) {
-  LOG_INFO(LOG_TAG, "%s", __func__)
+  LOG_INFO("bt_btif_sock: %s", __func__);
 }
-
 
 static void btsock_signaled(int fd, int type, int flags, uint32_t user_id) {
   switch (type) {

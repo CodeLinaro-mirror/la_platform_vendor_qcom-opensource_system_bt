@@ -56,7 +56,7 @@ void allocation_tracker_init(void) {
   // randomize the canary contents
   for (size_t i = 0; i < canary_size; i++) canary[i] = (char)osi_rand();
 
-  LOG_DEBUG(LOG_TAG, "canary initialized");
+  LOG_DEBUG("bt_osi_allocation_tracker: canary initialized");
 
   enabled = true;
 }
@@ -88,7 +88,7 @@ size_t allocation_tracker_expect_no_allocations(void) {
     if (!allocation->freed) {
       unfreed_memory_size +=
           allocation->size;  // Report back the unfreed byte count
-      LOG_ERROR(LOG_TAG,
+      LOG_ERROR("bt_osi_allocation_tracker: "
                 "%s found unfreed allocation. address: 0x%zx size: %zd bytes",
                 __func__, (uintptr_t)allocation->ptr, allocation->size);
     }
@@ -126,7 +126,7 @@ void* allocation_tracker_notify_alloc(uint8_t allocator_id, void* ptr,
       allocation->size = requested_size;
       allocation->ptr = return_ptr;
     } else {
-      LOG_ERROR(LOG_TAG, "%s Memory not allocated for allocation." ,__func__);
+      LOG_ERROR("bt_osi_allocation_tracker: %s Memory not allocated for allocation." ,__func__);
     }
   }
 

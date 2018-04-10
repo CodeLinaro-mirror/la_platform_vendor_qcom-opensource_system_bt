@@ -532,7 +532,6 @@ static bool select_audio_sample_rate(
     case BTAV_A2DP_CODEC_SAMPLE_RATE_176400:
     case BTAV_A2DP_CODEC_SAMPLE_RATE_192000:
     case BTAV_A2DP_CODEC_SAMPLE_RATE_NONE:
-    default:
       break;
   }
   return false;

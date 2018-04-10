@@ -52,7 +52,7 @@ extern bool bt_logger_enabled;
  * fprintf is only to cause compilation error when LOG_TAG is not provided,
  * which breaks build on Linux (for OS_GENERIC).
  */
-
+#ifdef ANDROID
 #if LOG_NDEBUG
 #define LOG_VERBOSE(tag, fmt, args...)                          \
   do {                                                          \
@@ -87,4 +87,36 @@ extern bool bt_logger_enabled;
            : fprintf(stderr, "%s" fmt, tag, ##args);     \
   } while (0);
 
+#else
+#include <errno.h>
+#include <limits.h>
+#include <stdio.h>
+#ifdef USE_ANDROID_LOGGING
+#include <utils/Log.h>
+#define LOG_TAG "bt_stack"
+#define LOG_VERBOSE(...) ALOGV(__VA_ARGS__)
+#define LOG_DEBUG(...)   ALOGD(__VA_ARGS__)
+#define LOG_INFO(...)   ALOGI(__VA_ARGS__)
+#define LOG_WARN(...)   ALOGW(__VA_ARGS__)
+#define LOG_ERROR(...)   ALOGE(__VA_ARGS__)
+#else
+#include <syslog.h>
+#define LOG_TAG "bt_stack : "
+#define PRI_INFO " I"
+#define PRI_WARN " W"
+#define PRI_ERROR " E"
+#define PRI_DEBUG " D"
+#define PRI_VERB " V"
+#define ALOGV(fmt, arg...) syslog (LOG_WARNING, LOG_TAG fmt, ##arg)
+#define ALOGD(fmt, arg...) syslog (LOG_NOTICE, LOG_TAG fmt, ##arg)
+#define ALOGI(fmt, arg...) syslog (LOG_NOTICE, LOG_TAG fmt, ##arg)
+#define ALOGW(fmt, arg...) syslog (LOG_WARNING, LOG_TAG fmt, ##arg)
+#define ALOGE(fmt, arg...) syslog (LOG_ERR, LOG_TAG fmt, ##arg)
+#define LOG_VERBOSE(fmt, arg...) syslog (LOG_WARNING, LOG_TAG fmt, ##arg)
+#define LOG_DEBUG(fmt, arg...) syslog (LOG_NOTICE, LOG_TAG fmt, ##arg)
+#define LOG_INFO(fmt, arg...)  syslog (LOG_NOTICE, LOG_TAG fmt, ##arg)
+#define LOG_WARN(fmt, arg...)  syslog (LOG_WARNING, LOG_TAG fmt, ##arg)
+#define LOG_ERROR(fmt, arg...) syslog (LOG_ERR, LOG_TAG fmt, ##arg)
+#endif
+#endif
 #endif /* defined(OS_GENERIC) */

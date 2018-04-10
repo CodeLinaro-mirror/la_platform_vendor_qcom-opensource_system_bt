@@ -28,7 +28,7 @@
 #include <base/callback_forward.h>
 #include <hardware/bt_common_types.h>
 #include <memory>
-#include "bt_common.h"
+#include "internal_include/bt_common.h"
 #include "btm_api.h"
 #include "btm_ble_api_types.h"
 #include "osi/include/alarm.h"
@@ -88,7 +88,7 @@ extern bool BTM_SecAddBleKey(const RawAddress& bd_addr,
  ******************************************************************************/
 extern tBTM_STATUS BTM_BleSetAdvParams(uint16_t adv_int_min,
                                        uint16_t adv_int_max,
-                                       tBLE_BD_ADDR* p_dir_bda,
+                                       const RawAddress& p_dir_bda,
                                        tBTM_BLE_ADV_CHNL_MAP chnl_map);
 
 /*******************************************************************************

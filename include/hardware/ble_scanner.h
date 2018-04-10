@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 #include <vector>
+#include <memory>
 #include "bt_common_types.h"
 #include "bt_gatt_client.h"
 #include "bt_gatt_types.h"
@@ -33,11 +34,11 @@ typedef void (*batchscan_threshold_callback)(int client_if);
 
 /** Track ADV VSE callback invoked when tracked device is found or lost */
 typedef void (*track_adv_event_callback)(
-    btgatt_track_adv_info_t *p_track_adv_info);
+    btgatt_track_adv_info_t* p_track_adv_info);
 
 /** Callback for scan results */
 typedef void (*scan_result_callback)(uint16_t event_type, uint8_t addr_type,
-                                     RawAddress *bda, uint8_t primary_phy,
+                                     RawAddress* bda, uint8_t primary_phy,
                                      uint8_t secondary_phy,
                                      uint8_t advertising_sid, int8_t tx_power,
                                      int8_t rssi, uint16_t periodic_adv_int,
@@ -86,14 +87,8 @@ class BleScannerInterface {
       FilterParamSetupCallback cb) = 0;
 
   /** Configure a scan filter condition  */
-  virtual void ScanFilterAddRemove(int action, int filt_type, int filt_index,
-                                   int company_id, int company_id_mask,
-                                   const bluetooth::Uuid *p_uuid,
-                                   const bluetooth::Uuid *p_uuid_mask,
-                                   const RawAddress *bd_addr, char addr_type,
-                                   std::vector<uint8_t> data,
-                                   std::vector<uint8_t> p_mask,
-                                   FilterConfigCallback cb) = 0;
+  virtual void ScanFilterAdd(int filter_index, std::vector<ApcfCommand> filters,
+                             FilterConfigCallback cb) = 0;
 
   /** Clear all scan filter conditions for specific filter index*/
   virtual void ScanFilterClear(int filt_index, FilterConfigCallback cb) = 0;

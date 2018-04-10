@@ -138,14 +138,14 @@ static sco_socket_t* sco_socket_establish_locked(bool is_listening,
   tBTM_STATUS status;
   enh_esco_params_t params;
   if (socketpair(AF_LOCAL, SOCK_STREAM, 0, pair) == -1) {
-    LOG_ERROR(LOG_TAG, "%s unable to allocate socket pair: %s", __func__,
+    LOG_ERROR("bt_btif_sock_sco: %s unable to allocate socket pair: %s", __func__,
               strerror(errno));
     goto error;
   }
 
   sco_socket = sco_socket_new();
   if (!sco_socket) {
-    LOG_ERROR(LOG_TAG, "%s unable to allocate new SCO socket.", __func__);
+    LOG_ERROR("bt_btif_sock_sco: %s unable to allocate new SCO socket.", __func__);
     goto error;
   }
 
@@ -154,13 +154,13 @@ static sco_socket_t* sco_socket_establish_locked(bool is_listening,
                          &sco_socket->sco_handle, connect_completed_cb,
                          disconnect_completed_cb);
   if (status != BTM_CMD_STARTED) {
-    LOG_ERROR(LOG_TAG, "%s unable to create SCO socket: %d", __func__, status);
+    LOG_ERROR("bt_btif_sock_sco: %s unable to create SCO socket: %d", __func__, status);
     goto error;
   }
 
   socket = socket_new_from_fd(pair[1]);
   if (!socket) {
-    LOG_ERROR(LOG_TAG, "%s unable to allocate socket from file descriptor %d.",
+    LOG_ERROR("bt_btif_sock_sco: %s unable to allocate socket from file descriptor %d.",
               __func__, pair[1]);
     goto error;
   }
@@ -224,16 +224,15 @@ static void connection_request_cb(tBTM_ESCO_EVT event,
 
   uint16_t temp;
   sco_socket_t* new_sco_socket;
-
+  sock_connect_signal_t connect_signal;
   if (!sco_socket) {
-    LOG_ERROR(LOG_TAG, "%s unable to find sco_socket for handle: %hu", __func__,
+    LOG_ERROR("bt_btif_sock_sco: %s unable to find sco_socket for handle: %hu", __func__,
               conn_data->sco_inx);
     goto error;
   }
 
   if (sco_socket != listen_sco_socket) {
-    LOG_ERROR(
-        LOG_TAG,
+    LOG_ERROR("bt_btif_sock_sco: "
         "%s received connection request on non-listening socket handle: %hu",
         __func__, conn_data->sco_inx);
     goto error;
@@ -241,7 +240,7 @@ static void connection_request_cb(tBTM_ESCO_EVT event,
 
   new_sco_socket = sco_socket_establish_locked(true, NULL, &client_fd);
   if (!new_sco_socket) {
-    LOG_ERROR(LOG_TAG, "%s unable to allocate new sco_socket.", __func__);
+    LOG_ERROR("bt_btif_sock_sco: %s unable to allocate new sco_socket.", __func__);
     goto error;
   }
 
@@ -250,7 +249,6 @@ static void connection_request_cb(tBTM_ESCO_EVT event,
   sco_socket->sco_handle = new_sco_socket->sco_handle;
   new_sco_socket->sco_handle = temp;
 
-  sock_connect_signal_t connect_signal;
   connect_signal.size = sizeof(connect_signal);
   connect_signal.bd_addr = conn_data->bd_addr;
   connect_signal.channel = 0;
@@ -259,7 +257,7 @@ static void connection_request_cb(tBTM_ESCO_EVT event,
   if (socket_write_and_transfer_fd(sco_socket->socket, &connect_signal,
                                    sizeof(connect_signal),
                                    client_fd) != sizeof(connect_signal)) {
-    LOG_ERROR(LOG_TAG,
+    LOG_ERROR("bt_btif_sock_sco: "
               "%s unable to send new file descriptor to listening socket.",
               __func__);
     goto error;
@@ -280,7 +278,7 @@ static void connect_completed_cb(uint16_t sco_handle) {
 
   sco_socket_t* sco_socket = sco_socket_find_locked(sco_handle);
   if (!sco_socket) {
-    LOG_ERROR(LOG_TAG, "%s SCO socket not found on connect for handle: %hu",
+    LOG_ERROR("bt_btif_sock_sco: %s SCO socket not found on connect for handle: %hu",
               __func__, sco_handle);
     return;
   }
@@ -302,7 +300,7 @@ static void disconnect_completed_cb(uint16_t sco_handle) {
 
   sco_socket_t* sco_socket = sco_socket_find_locked(sco_handle);
   if (!sco_socket) {
-    LOG_ERROR(LOG_TAG, "%s SCO socket not found on disconnect for handle: %hu",
+    LOG_ERROR("bt_btif_sock_sco: %s SCO socket not found on disconnect for handle: %hu",
               __func__, sco_handle);
     return;
   }

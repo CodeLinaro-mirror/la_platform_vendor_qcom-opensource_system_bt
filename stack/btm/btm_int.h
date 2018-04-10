@@ -155,7 +155,7 @@ extern void btm_qos_setup_complete(uint8_t status, uint16_t handle,
                                    FLOW_SPEC* p_flow);
 extern void btm_flow_spec_complete(uint8_t status, uint16_t handle,
                             tBT_FLOW_SPEC* p_flow);
-
+extern tBTM_STATUS BTM_SetA2dpStreamQoS(const RawAddress& bd, tBTM_CMPL_CB* p_cb);
 /* Internal functions provided by btm_sco.cc
  *******************************************
 */

@@ -40,7 +40,7 @@
 #include "osi/include/semaphore.h"
 
 struct thread_t {
-  std::atomic_bool is_joined{false};
+  std::atomic<bool> is_joined{false};
   pthread_t pthread;
   pid_t tid;
   char name[THREAD_NAME_MAX + 1];
@@ -70,7 +70,7 @@ thread_t* thread_new_sized(const char* name, size_t work_queue_capacity) {
 
   thread_t* ret = static_cast<thread_t*>(osi_calloc(sizeof(thread_t)));
   if (ret == NULL) {
-    LOG_ERROR(LOG_TAG, "%s unable to allocate memory" , __func__);
+    LOG_ERROR("bt_osi_thread: %s unable to allocate memory" , __func__);
     return NULL;
   }
   ret->reactor = reactor_new();
@@ -122,8 +122,9 @@ void thread_free(thread_t* thread) {
 void thread_join(thread_t* thread) {
   CHECK(thread != NULL);
 
-  if (!std::atomic_exchange(&thread->is_joined, true))
+  if (!(thread->is_joined))
     pthread_join(thread->pthread, NULL);
+    thread->is_joined = true ;
 }
 
 bool thread_post(thread_t* thread, thread_fn func, void* context) {
@@ -153,7 +154,7 @@ bool thread_set_priority(thread_t* thread, int priority) {
 
   const int rc = setpriority(PRIO_PROCESS, thread->tid, priority);
   if (rc < 0) {
-    LOG_ERROR(LOG_TAG,
+    LOG_ERROR("bt_osi_thread: "
               "%s unable to set thread priority %d for tid %d, error %d",
               __func__, priority, thread->tid, rc);
     return false;
@@ -170,7 +171,7 @@ bool thread_set_rt_priority(thread_t* thread, int priority) {
 
   const int rc = sched_setscheduler(thread->tid, SCHED_FIFO, &rt_params);
   if (rc != 0) {
-    LOG_ERROR(LOG_TAG,
+    LOG_ERROR("bt_osi_thread: "
               "%s unable to set SCHED_FIFO priority %d for tid %d, error %s",
               __func__, priority, thread->tid, strerror(errno));
     return false;
@@ -203,7 +204,7 @@ static void* run_thread(void* start_arg) {
   CHECK(thread != NULL);
 
   if (prctl(PR_SET_NAME, (unsigned long)thread->name) == -1) {
-    LOG_ERROR(LOG_TAG, "%s unable to set thread name: %s", __func__,
+    LOG_ERROR("bt_osi_thread: %s unable to set thread name: %s", __func__,
               strerror(errno));
     start->error = errno;
     semaphore_post(start->start_sem);
@@ -211,7 +212,7 @@ static void* run_thread(void* start_arg) {
   }
   thread->tid = gettid();
 
-  LOG_INFO(LOG_TAG, "%s: thread id %d, thread name %s started", __func__,
+  LOG_INFO("bt_osi_thread: %s: thread id %d, thread name %s started", __func__,
            thread->tid, thread->name);
 
   semaphore_post(start->start_sem);
@@ -239,9 +240,9 @@ static void* run_thread(void* start_arg) {
   }
 
   if (count > fixed_queue_capacity(thread->work_queue))
-    LOG_DEBUG(LOG_TAG, "%s growing event queue on shutdown.", __func__);
+    LOG_DEBUG("bt_osi_thread: %s growing event queue on shutdown.", __func__);
 
-  LOG_WARN(LOG_TAG, "%s: thread id %d, thread name %s exited", __func__,
+  LOG_WARN("bt_osi_thread: %s: thread id %d, thread name %s exited", __func__,
            thread->tid, thread->name);
   return NULL;
 }

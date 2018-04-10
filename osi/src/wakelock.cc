@@ -42,8 +42,9 @@
 #include "osi/include/thread.h"
 #include "osi/include/wakelock.h"
 
+#ifdef ANDROID
 using system_bt_osi::BluetoothMetricsLogger;
-
+#endif
 static bt_os_callouts_t* wakelock_os_callouts = NULL;
 static bool is_native = true;
 
@@ -95,7 +96,7 @@ static void update_wakelock_released_stats(bt_status_t released_status);
 void wakelock_set_os_callouts(bt_os_callouts_t* callouts) {
   wakelock_os_callouts = callouts;
   is_native = (wakelock_os_callouts == NULL);
-  LOG_INFO(LOG_TAG, "%s set to %s", __func__,
+  LOG_INFO("bt_osi_wakelock: %s set to %s", __func__,
            (is_native) ? "native" : "non-native");
 }
 
@@ -112,7 +113,7 @@ bool wakelock_acquire(void) {
   update_wakelock_acquired_stats(status);
 
   if (status != BT_STATUS_SUCCESS)
-    LOG_ERROR(LOG_TAG, "%s unable to acquire wake lock: %d", __func__, status);
+    LOG_ERROR("bt_osi_wakelock: %s unable to acquire wake lock: %d", __func__, status);
 
   return (status == BT_STATUS_SUCCESS);
 }
@@ -124,24 +125,24 @@ static bt_status_t wakelock_acquire_callout(void) {
 
 static bt_status_t wakelock_acquire_native(void) {
   if (wake_lock_fd == INVALID_FD) {
-    LOG_ERROR(LOG_TAG, "%s lock not acquired, invalid fd", __func__);
+    LOG_ERROR("bt_osi_wakelock: %s lock not acquired, invalid fd", __func__);
     return BT_STATUS_PARM_INVALID;
   }
 
   if (wake_unlock_fd == INVALID_FD) {
-    LOG_ERROR(LOG_TAG, "%s not acquiring lock: can't release lock", __func__);
+    LOG_ERROR("bt_osi_wakelock: %s not acquiring lock: can't release lock", __func__);
     return BT_STATUS_PARM_INVALID;
   }
 
   long lock_name_len = strlen(WAKE_LOCK_ID);
   locked_id_len = write(wake_lock_fd, WAKE_LOCK_ID, lock_name_len);
   if (locked_id_len == -1) {
-    LOG_ERROR(LOG_TAG, "%s wake lock not acquired: %s", __func__,
+    LOG_ERROR("bt_osi_wakelock: %s wake lock not acquired: %s", __func__,
               strerror(errno));
     return BT_STATUS_FAIL;
   } else if (locked_id_len < lock_name_len) {
     // TODO (jamuraa): this is weird. maybe we should release and retry.
-    LOG_WARN(LOG_TAG, "%s wake lock truncated to %zd chars", __func__,
+    LOG_WARN("bt_osi_wakelock: %s wake lock truncated to %zd chars", __func__,
              locked_id_len);
   }
   return BT_STATUS_SUCCESS;
@@ -169,16 +170,16 @@ static bt_status_t wakelock_release_callout(void) {
 
 static bt_status_t wakelock_release_native(void) {
   if (wake_unlock_fd == INVALID_FD) {
-    LOG_ERROR(LOG_TAG, "%s lock not released, invalid fd", __func__);
+    LOG_ERROR("bt_osi_wakelock: %s lock not released, invalid fd", __func__);
     return BT_STATUS_PARM_INVALID;
   }
 
   ssize_t wrote_name_len = write(wake_unlock_fd, WAKE_LOCK_ID, locked_id_len);
   if (wrote_name_len == -1) {
-    LOG_ERROR(LOG_TAG, "%s can't release wake lock: %s", __func__,
+    LOG_ERROR("bt_osi_wakelock: %s can't release wake lock: %s", __func__,
               strerror(errno));
   } else if (wrote_name_len < locked_id_len) {
-    LOG_ERROR(LOG_TAG, "%s lock release only wrote %zd, assuming released",
+    LOG_ERROR("bt_osi_wakelock: %s lock release only wrote %zd, assuming released",
               __func__, wrote_name_len);
   }
   return BT_STATUS_SUCCESS;
@@ -191,13 +192,13 @@ static void wakelock_initialize(void) {
 }
 
 static void wakelock_initialize_native(void) {
-  LOG_DEBUG(LOG_TAG, "%s opening wake locks", __func__);
+  LOG_DEBUG("bt_osi_wakelock: %s opening wake locks", __func__);
 
   if (wake_lock_path.empty()) wake_lock_path = DEFAULT_WAKE_LOCK_PATH;
 
   wake_lock_fd = open(wake_lock_path.c_str(), O_RDWR | O_CLOEXEC);
   if (wake_lock_fd == INVALID_FD) {
-    LOG_ERROR(LOG_TAG, "%s can't open wake lock %s: %s", __func__,
+    LOG_ERROR("bt_osi_wakelock: %s can't open wake lock %s: %s", __func__,
               wake_lock_path.c_str(), strerror(errno));
     CHECK(wake_lock_fd != INVALID_FD);
   }
@@ -206,7 +207,7 @@ static void wakelock_initialize_native(void) {
 
   wake_unlock_fd = open(wake_unlock_path.c_str(), O_RDWR | O_CLOEXEC);
   if (wake_unlock_fd == INVALID_FD) {
-    LOG_ERROR(LOG_TAG, "%s can't open wake unlock %s: %s", __func__,
+    LOG_ERROR("bt_osi_wakelock: %s can't open wake unlock %s: %s", __func__,
               wake_unlock_path.c_str(), strerror(errno));
     CHECK(wake_unlock_fd != INVALID_FD);
   }
@@ -227,7 +228,7 @@ void wakelock_set_paths(const char* lock_path, const char* unlock_path) {
 static period_ms_t now(void) {
   struct timespec ts;
   if (clock_gettime(CLOCK_ID, &ts) == -1) {
-    LOG_ERROR(LOG_TAG, "%s unable to get current time: %s", __func__,
+    LOG_ERROR("bt_osi_wakelock: %s unable to get current time: %s", __func__,
               strerror(errno));
     return 0;
   }
@@ -279,9 +280,10 @@ static void update_wakelock_acquired_stats(bt_status_t acquired_status) {
   wakelock_stats.is_acquired = true;
   wakelock_stats.acquired_count++;
   wakelock_stats.last_acquired_timestamp_ms = now_ms;
-
+#ifdef ANDROID
   BluetoothMetricsLogger::GetInstance()->LogWakeEvent(
       system_bt_osi::WAKE_EVENT_ACQUIRED, "", "", now_ms);
+#endif
 }
 
 //
@@ -321,9 +323,10 @@ static void update_wakelock_released_stats(bt_status_t released_status) {
   }
   wakelock_stats.last_acquired_interval_ms = delta_ms;
   wakelock_stats.total_acquired_interval_ms += delta_ms;
-
+#ifdef ANDROID
   BluetoothMetricsLogger::GetInstance()->LogWakeEvent(
       system_bt_osi::WAKE_EVENT_RELEASED, "", "", now_ms);
+#endif
 }
 
 void wakelock_debug_dump(int fd) {

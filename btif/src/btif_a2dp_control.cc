@@ -37,8 +37,8 @@
 #include "btif_av_co.h"
 #include "btif_hf.h"
 #include "osi/include/osi.h"
+#include "osi/include/properties.h"
 #include "uipc.h"
-#include "btif_a2dp_audio_interface.h"
 
 #define A2DP_DATA_READ_POLL_MS 10
 
@@ -58,6 +58,9 @@ extern int btif_max_av_clients;
 static void btif_a2dp_data_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
 static void btif_a2dp_ctrl_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
 static void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd);
+#define CASE_RETURN_STR(const) \
+  case const:                  \
+    return #const;
 
 /* We can have max one command pending */
 static tA2DP_CTRL_CMD a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
@@ -98,7 +101,7 @@ static void btif_a2dp_recv_ctrl_data(void) {
 
   APPL_TRACE_DEBUG("btif_a2dp_recv_ctrl_data: %s", audio_a2dp_hw_dump_ctrl_event(cmd));
 
-  if (property_get("persist.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
+  if (osi_property_get("persist.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
           !strcmp(a2dp_hal_imp, "true")) {
     switch (cmd) {
       uint8_t local_ack;
@@ -277,7 +280,7 @@ static void btif_a2dp_recv_ctrl_data(void) {
       default:
         if (a2dp_cmd_pending != A2DP_CTRL_CMD_NONE)
         {
-          uint8_t err_ack = A2DP_CTRL_ACK_PREVIOUS_COMMAND_PENDING;
+//         uint8_t err_ack = A2DP_CTRL_ACK_PREVIOUS_COMMAND_PENDING;
           APPL_TRACE_ERROR("btif_recv_ctrl_data: warning : previous command pending, queueing command");
           if (a2dp_cmd_pending == cmd)
           {
@@ -287,7 +290,7 @@ static void btif_a2dp_recv_ctrl_data(void) {
           {
             a2dp_cmd_queued = cmd;
           }
-          UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, &err_ack, sizeof(err_ack));
+          //UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, &err_ack, sizeof(err_ack));
         }
         else
         {
@@ -302,7 +305,7 @@ static void btif_a2dp_recv_ctrl_data(void) {
       case A2DP_CTRL_CMD_CHECK_READY:
         if (btif_a2dp_source_media_task_is_shutting_down()) {
           APPL_TRACE_WARNING("%s: A2DP command %s while media task shutting down",
-                  __func__, audio_a2dp_hw_dump_ctrl_event(cmd));
+                             __func__, audio_a2dp_hw_dump_ctrl_event(cmd));
           btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
           return;
         }
@@ -312,7 +315,7 @@ static void btif_a2dp_recv_ctrl_data(void) {
           btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
         } else {
           BTIF_TRACE_DEBUG("%s:A2dp command %s while valid AV connection",
-                  __func__, audio_a2dp_hw_dump_ctrl_event(cmd));
+                           __func__, audio_a2dp_hw_dump_ctrl_event(cmd));
           btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
         }
         break;
@@ -330,21 +333,21 @@ static void btif_a2dp_recv_ctrl_data(void) {
          * Some headsets such as "Sony MW600", don't allow AVDTP START
          * while in a call, and respond with BAD_STATE.
          */
-        if (!bluetooth::headset::btif_hf_is_call_vr_idle()) {
+          if (!bluetooth::headset::btif_hf_is_call_vr_idle()) {
           btif_a2dp_command_ack(A2DP_CTRL_ACK_INCALL_FAILURE);
           break;
         }
 
         if (btif_av_is_handoff_set() && is_block_hal_start) {
           APPL_TRACE_WARNING("%s: A2DP command %s under handoff and HAL Start block",
-                  __func__, audio_a2dp_hw_dump_ctrl_event(cmd));
+                             __func__, audio_a2dp_hw_dump_ctrl_event(cmd));
           btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
           break;
         }
 
         if (btif_a2dp_source_is_streaming()) {
           APPL_TRACE_WARNING("%s: A2DP command %s while source is streaming, return",
-                  __func__, audio_a2dp_hw_dump_ctrl_event(cmd));
+                             __func__, audio_a2dp_hw_dump_ctrl_event(cmd));
           btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
           break;
         }
@@ -353,17 +356,17 @@ static void btif_a2dp_recv_ctrl_data(void) {
         cur_idx = btif_av_get_latest_device_idx_to_start();
 
         APPL_TRACE_IMP("%s: RS Idx %d, Cur Idx %d, A2DP command %s",
-                __func__, rs_idx, cur_idx, audio_a2dp_hw_dump_ctrl_event(cmd));
+          __func__, rs_idx, cur_idx, audio_a2dp_hw_dump_ctrl_event(cmd));
 
         if (btif_a2dp_source_is_remote_start()) {
-          if (((rs_idx != btif_max_av_clients) && (rs_idx == cur_idx))
-                  || (rs_idx == btif_max_av_clients)){
-            btif_a2dp_source_cancel_remote_start();
-            if (rs_idx != btif_max_av_clients)
-              btif_dispatch_sm_event(
-                      BTIF_AV_RESET_REMOTE_STARTED_FLAG_UPDATE_AUDIO_STATE_EVT, NULL, 0);
-                      APPL_TRACE_WARNING("%s: Cancel RS timer for the current index",
-                      __func__);
+            if (((rs_idx != btif_max_av_clients) && (rs_idx == cur_idx))
+                                      || (rs_idx == btif_max_av_clients)){
+              btif_a2dp_source_cancel_remote_start();
+              if (rs_idx != btif_max_av_clients)
+                  btif_dispatch_sm_event(
+                  BTIF_AV_RESET_REMOTE_STARTED_FLAG_UPDATE_AUDIO_STATE_EVT, NULL, 0);
+               APPL_TRACE_WARNING("%s: Cancel RS timer for the current index",
+                                  __func__);
             } else {
               APPL_TRACE_WARNING("%s: RS timer running on other index, ignore",
                       __func__);
@@ -824,7 +827,7 @@ static void btif_a2dp_data_cb(UNUSED_ATTR tUIPC_CH_ID ch_id,
       APPL_TRACE_IMP("command %s pending", audio_a2dp_hw_dump_ctrl_event(a2dp_cmd_pending));
       APPL_TRACE_IMP("command %s queued", audio_a2dp_hw_dump_ctrl_event(a2dp_cmd_queued));
 
-      if (property_get("persist.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
+      if (osi_property_get("persist.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
             !strcmp(a2dp_hal_imp, "true")) {
         /*
          * Send stop request only if we are actively streaming and haven't
@@ -869,7 +872,7 @@ void btif_a2dp_command_ack(tA2DP_CTRL_ACK status) {
           audio_a2dp_hw_dump_ctrl_event(a2dp_cmd_queued), status);
 
   /* Sanity check */
-  if (property_get("persist.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
+  if (osi_property_get("persist.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
           !strcmp(a2dp_hal_imp, "true")) {
     if (a2dp_cmd_pending == A2DP_CTRL_CMD_NONE) {
       APPL_TRACE_ERROR("btif_a2dp_command_ack: warning : no command pending, ignore ack");
@@ -945,4 +948,24 @@ void btif_a2dp_control_reset_audio_delay(void) {
 // For Split-A2DP
 uint16_t btif_a2dp_control_get_audio_delay(void) {
   return (delay_report_stats.audio_delay > 0) ? delay_report_stats.audio_delay : 0;
+}
+const char* audio_a2dp_hw_dump_ctrl_event(tA2DP_CTRL_CMD event) {
+  switch (event) {
+    CASE_RETURN_STR(A2DP_CTRL_CMD_NONE)
+    CASE_RETURN_STR(A2DP_CTRL_CMD_CHECK_READY)
+    CASE_RETURN_STR(A2DP_CTRL_CMD_START)
+    CASE_RETURN_STR(A2DP_CTRL_CMD_CHECK_STREAM_STARTED)
+    CASE_RETURN_STR(A2DP_CTRL_CMD_STOP)
+    CASE_RETURN_STR(A2DP_CTRL_CMD_SUSPEND)
+    CASE_RETURN_STR(A2DP_CTRL_GET_INPUT_AUDIO_CONFIG)
+    CASE_RETURN_STR(A2DP_CTRL_GET_OUTPUT_AUDIO_CONFIG)
+    CASE_RETURN_STR(A2DP_CTRL_SET_OUTPUT_AUDIO_CONFIG)
+    CASE_RETURN_STR(A2DP_CTRL_CMD_OFFLOAD_START)
+    CASE_RETURN_STR(A2DP_CTRL_GET_SINK_LATENCY)
+    CASE_RETURN_STR(A2DP_CTRL_CMD_STREAM_OPEN)
+    default:
+      break;
+  }
+
+  return "UNKNOWN A2DP_CTRL_CMD";
 }

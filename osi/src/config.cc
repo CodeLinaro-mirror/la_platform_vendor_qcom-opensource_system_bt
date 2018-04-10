@@ -69,7 +69,7 @@ config_t* config_new_empty(void) {
 
   config->sections = list_new(section_free);
   if (!config->sections) {
-    LOG_ERROR(LOG_TAG, "%s unable to allocate list for sections.", __func__);
+    LOG_ERROR("bt_osi_config: %s unable to allocate list for sections.", __func__);
     goto error;
   }
 
@@ -88,7 +88,7 @@ config_t* config_new(const char* filename) {
 
   FILE* fp = fopen(filename, "rt");
   if (!fp) {
-    LOG_ERROR(LOG_TAG, "%s unable to open file '%s': %s", __func__, filename,
+    LOG_ERROR("bt_osi_config: %s unable to open file '%s': %s", __func__, filename,
               strerror(errno));
     config_free(config);
     return NULL;
@@ -218,7 +218,7 @@ void config_set_string(config_t* config, const char* section, const char* key,
     if (sec)
       list_append(config->sections, sec);
     else {
-      LOG_ERROR(LOG_TAG,"%s: Unable to allocate memory for section", __func__);
+      LOG_ERROR("bt_osi_config: %s: Unable to allocate memory for section", __func__);
     }
   }
 
@@ -310,21 +310,21 @@ bool config_save(const config_t* config, const char* filename) {
   char* temp_dirname = osi_strdup(filename);
   const char* directoryname = dirname(temp_dirname);
   if (!directoryname) {
-    LOG_ERROR(LOG_TAG, "%s error extracting directory from '%s': %s", __func__,
+    LOG_ERROR("bt_osi_config: %s error extracting directory from '%s': %s", __func__,
               filename, strerror(errno));
     goto error;
   }
 
   dir_fd = open(directoryname, O_RDONLY);
   if (dir_fd < 0) {
-    LOG_ERROR(LOG_TAG, "%s unable to open dir '%s': %s", __func__,
+    LOG_ERROR("bt_osi_config: %s unable to open dir '%s': %s", __func__,
               directoryname, strerror(errno));
     goto error;
   }
 
   fp = fopen(temp_filename, "wt");
   if (!fp) {
-    LOG_ERROR(LOG_TAG, "%s unable to write file '%s': %s", __func__,
+    LOG_ERROR("bt_osi_config: %s unable to write file '%s': %s", __func__,
               temp_filename, strerror(errno));
     goto error;
   }
@@ -334,11 +334,11 @@ bool config_save(const config_t* config, const char* filename) {
     const section_t* section = (const section_t*)list_node(node);
     if (section->name[0] == '#') {
         if (fprintf(fp, "%s", section->name) < 0) {
-            LOG_ERROR(LOG_TAG, "%s unable to write to file '%s': %s", __func__, temp_filename, strerror(errno));
+            LOG_ERROR("bt_osi_config: %s unable to write to file '%s': %s", __func__, temp_filename, strerror(errno));
             goto error;
         }
     } else if (fprintf(fp, "[%s]\n", section->name) < 0) {
-      LOG_ERROR(LOG_TAG, "%s unable to write to file '%s': %s", __func__, temp_filename, strerror(errno));
+      LOG_ERROR("bt_osi_config: %s unable to write to file '%s': %s", __func__, temp_filename, strerror(errno));
       goto error;
     }
 
@@ -346,7 +346,7 @@ bool config_save(const config_t* config, const char* filename) {
          enode != list_end(section->entries); enode = list_next(enode)) {
       const entry_t* entry = (const entry_t*)list_node(enode);
       if (fprintf(fp, "%s = %s\n", entry->key, entry->value) < 0) {
-        LOG_ERROR(LOG_TAG, "%s unable to write to file '%s': %s", __func__,
+        LOG_ERROR("bt_osi_config: %s unable to write to file '%s': %s", __func__,
                   temp_filename, strerror(errno));
         goto error;
       }
@@ -355,7 +355,7 @@ bool config_save(const config_t* config, const char* filename) {
     // Only add a separating newline if there are more sections.
     if (list_next(node) != list_end(config->sections)) {
       if (fputc('\n', fp) == EOF) {
-        LOG_ERROR(LOG_TAG, "%s unable to write to file '%s': %s", __func__,
+        LOG_ERROR("bt_osi_config: %s unable to write to file '%s': %s", __func__,
                   temp_filename, strerror(errno));
         goto error;
       }
@@ -365,12 +365,12 @@ bool config_save(const config_t* config, const char* filename) {
   // Sync written temp file out to disk. fsync() is blocking until data makes it
   // to disk.
   if (fsync(fileno(fp)) < 0) {
-    LOG_WARN(LOG_TAG, "%s unable to fsync file '%s': %s", __func__,
+    LOG_WARN("bt_osi_config: %s unable to fsync file '%s': %s", __func__,
              temp_filename, strerror(errno));
   }
 
   if (fclose(fp) == EOF) {
-    LOG_ERROR(LOG_TAG, "%s unable to close file '%s': %s", __func__,
+    LOG_ERROR("bt_osi_config: %s unable to close file '%s': %s", __func__,
               temp_filename, strerror(errno));
     goto error;
   }
@@ -378,26 +378,26 @@ bool config_save(const config_t* config, const char* filename) {
 
   // Change the file's permissions to Read/Write by User and Group
   if (chmod(temp_filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP) == -1) {
-    LOG_ERROR(LOG_TAG, "%s unable to change file permissions '%s': %s",
+    LOG_ERROR("bt_osi_config: %s unable to change file permissions '%s': %s",
               __func__, filename, strerror(errno));
     goto error;
   }
 
   // Rename written temp file to the actual config file.
   if (rename(temp_filename, filename) == -1) {
-    LOG_ERROR(LOG_TAG, "%s unable to commit file '%s': %s", __func__, filename,
+    LOG_ERROR("bt_osi_config: %s unable to commit file '%s': %s", __func__, filename,
               strerror(errno));
     goto error;
   }
 
   // This should ensure the directory is updated as well.
   if (fsync(dir_fd) < 0) {
-    LOG_WARN(LOG_TAG, "%s unable to fsync dir '%s': %s", __func__,
+    LOG_WARN("bt_osi_config: %s unable to fsync dir '%s': %s", __func__,
              directoryname, strerror(errno));
   }
 
   if (close(dir_fd) < 0) {
-    LOG_ERROR(LOG_TAG, "%s unable to close dir '%s': %s", __func__,
+    LOG_ERROR("bt_osi_config: %s unable to close dir '%s': %s", __func__,
               directoryname, strerror(errno));
     goto error;
   }
@@ -467,7 +467,7 @@ static bool config_parse(FILE* fp, config_t* config) {
     } else if (*line_ptr == '[') {
       size_t len = strlen(line_ptr);
       if (line_ptr[len - 1] != ']') {
-        LOG_DEBUG(LOG_TAG, "%s unterminated section name on line %d.", __func__, line_num);
+        LOG_DEBUG("bt_osi_config: %s unterminated section name on line %d.", __func__, line_num);
         skip_entries = true;
         continue;
       }
@@ -477,11 +477,11 @@ static bool config_parse(FILE* fp, config_t* config) {
     } else {
       char *split = strchr(line_ptr, '=');
       if(skip_entries) {
-        LOG_DEBUG(LOG_TAG, "%s skip entries due invalid section line %d.", __func__, line_num);
+        LOG_DEBUG("bt_osi_config: %s skip entries due invalid section line %d.", __func__, line_num);
         continue;
       }
       if (!split) {
-        LOG_DEBUG(LOG_TAG, "%s no key/value separator found on line %d.", __func__, line_num);
+        LOG_DEBUG("bt_osi_config: %s no key/value separator found on line %d.", __func__, line_num);
         continue;
       }
 

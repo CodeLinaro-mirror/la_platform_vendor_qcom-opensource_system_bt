@@ -137,17 +137,28 @@ const char* dump_uipc_event(tUIPC_EVENT event) {
 static inline int create_server_socket(const char* name) {
   int ret;
   int s = socket(AF_LOCAL, SOCK_STREAM, 0);
+#ifndef ANDROID
+    struct sockaddr_un addr;
+#endif
   if (s < 0) return -1;
 
   BTIF_TRACE_EVENT("create_server_socket %s", name);
 
-  if (osi_socket_local_server_bind(s, name,
 #if defined(OS_GENERIC)
-                                   ANDROID_SOCKET_NAMESPACE_FILESYSTEM
+  if (osi_socket_local_server_bind(s, name,ANDROID_SOCKET_NAMESPACE_FILESYSTEM) < 0)
 #else   // !defined(OS_GENERIC)
-                                   ANDROID_SOCKET_NAMESPACE_ABSTRACT
+#ifdef ANDROID
+  if (osi_socket_local_server_bind(s, name,ANDROID_SOCKET_NAMESPACE_ABSTRACT) < 0)
+#else
+  memset(&addr, 0, sizeof(addr));
+  addr.sun_family = AF_LOCAL;
+  strncpy(addr.sun_path, name, sizeof(addr.sun_path)-1);
+  unlink(name);
+
+  if(bind(s, (struct sockaddr*)&addr, sizeof(addr)) == -1)
+#endif
 #endif  // defined(OS_GENERIC)
-                                   ) < 0) {
+  {
     ret = (errno == EADDRINUSE ? -EADDRINUSE : -1);
     BTIF_TRACE_EVENT("socket failed to create (%s)", strerror(errno));
     close(s);

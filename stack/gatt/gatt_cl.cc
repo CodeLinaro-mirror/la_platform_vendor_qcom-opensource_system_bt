@@ -545,9 +545,9 @@ void gatt_process_prep_write_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
                                  uint8_t* p_data) {
   uint8_t* p = p_data;
 
-  tGATT_VALUE value = {
-      .conn_id = p_clcb->conn_id, .auth_req = GATT_AUTH_REQ_NONE,
-  };
+  tGATT_VALUE value = {};
+      value.conn_id = p_clcb->conn_id;
+      value.auth_req = GATT_AUTH_REQ_NONE;
 
   LOG(ERROR) << StringPrintf("value resp op_code = %s len = %d",
                              gatt_dbg_op_name(op_code), len);
@@ -591,10 +591,9 @@ void gatt_process_notification(tGATT_TCB& tcb, uint8_t op_code, uint16_t len,
   tGATT_REG* p_reg;
   uint16_t conn_id;
   tGATT_STATUS encrypt_status;
-  uint8_t *p = p_data, i,
-          event = (op_code == GATT_HANDLE_VALUE_NOTIF)
-                      ? GATTC_OPTYPE_NOTIFICATION
-                      : GATTC_OPTYPE_INDICATION;
+  uint8_t *p = p_data, i, event = (op_code == GATT_HANDLE_VALUE_NOTIF)
+                                      ? GATTC_OPTYPE_NOTIFICATION
+                                      : GATTC_OPTYPE_INDICATION;
 
   VLOG(1) << __func__;
 

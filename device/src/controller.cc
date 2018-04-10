@@ -103,19 +103,20 @@ void send_soc_log_command(bool value) {
   }
 
   if (soc_type == BT_SOC_SMD) {
-    LOG_INFO(LOG_TAG, "%s for BT_SOC_SMD.", __func__);
+    LOG_INFO("bt_controller: %s for BT_SOC_SMD.", __func__);
     BTM_VendorSpecificCommand(HCI_VS_HOST_LOG_OPCODE,5,param,NULL);
   } else if (soc_type == BT_SOC_CHEROKEE) {
-    LOG_INFO(LOG_TAG, "%s for BT_SOC_CHEROKEE.", __func__);
+    LOG_INFO("bt_controller: %s for BT_SOC_CHEROKEE.", __func__);
     BTM_VendorSpecificCommand(HCI_VS_HOST_LOG_OPCODE, 2, param_cherokee, NULL);
   }
 }
-
+#ifndef QLOGKIT_USERDEBUG
 static bool is_soc_logging_enabled() {
   char btsnoop_enabled[PROPERTY_VALUE_MAX] = {0};
   osi_property_get(BTSNOOP_ENABLE_PROPERTY, btsnoop_enabled, "false");
   return strncmp(btsnoop_enabled, "true", 4) == 0;
 }
+#endif
 
 static future_t* start_up(void) {
   BT_HDR* response;
@@ -138,11 +139,15 @@ static future_t* start_up(void) {
 
   packet_parser->parse_generic_command_complete(response);
 
+  #ifdef QLOGKIT_USERDEBUG
+    send_soc_log_command(true);
+  #else
   if (is_soc_logging_enabled()) {
-    LOG_INFO(LOG_TAG, "%s Send command to enable soc logging ", __func__);
+      LOG_INFO("bt_controller: %s for non-userdebug api ", __func__);
     send_soc_log_command(true);
   }
-
+  #endif
+  LOG_INFO("bt_controller: pp:  %s local version off the controller ", __func__);
   // Read the local version info off the controller next, including
   // information such as manufacturer and supported HCI version
   response = AWAIT_COMMAND(packet_factory->make_read_local_version_info());
@@ -307,12 +312,12 @@ static future_t* start_up(void) {
           AWAIT_COMMAND(packet_factory->make_read_scrambling_supported_freqs());
     if(response) {
       char value[MAX_SCRAMBLING_FREQS_SIZE];
-      LOG_DEBUG(LOG_TAG, "%s sending scrambling support VSC", __func__);
+      LOG_DEBUG("bt_controller: %s sending scrambling support VSC", __func__);
       packet_parser->parse_read_scrambling_supported_freqs_response(
           response, &number_of_scrambling_supported_freqs,
           scrambling_supported_freqs);
 
-      LOG_DEBUG(LOG_TAG, "%s number_of_scrambling_supported_freqs %d", __func__,
+      LOG_DEBUG("bt_controller: %s number_of_scrambling_supported_freqs %d", __func__,
                       number_of_scrambling_supported_freqs);
 
       for ( uint8_t i = 0; i < number_of_scrambling_supported_freqs; i++) {
@@ -339,7 +344,7 @@ static future_t* start_up(void) {
       }
       if(number_of_scrambling_supported_freqs) {
         if(osi_property_set("persist.vendor.bt.soc.scram_freqs", value))
-          LOG_WARN(LOG_TAG, "%s persist.vendor.bt.soc.scram_freqs set to %s",
+          LOG_WARN("bt_controller: %s persist.vendor.bt.soc.scram_freqs set to %s",
               __func__, value);
       } else {
         // reset the property
@@ -356,6 +361,9 @@ static future_t* shut_down(void) {
   readable = false;
   return future_new_immediate(FUTURE_SUCCESS);
 }
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
 
 EXPORT_SYMBOL extern const module_t controller_module = {
     .name = CONTROLLER_MODULE,

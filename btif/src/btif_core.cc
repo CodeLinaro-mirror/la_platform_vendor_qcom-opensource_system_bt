@@ -76,7 +76,11 @@ using bluetooth::Uuid;
 #if defined(OS_GENERIC)
 #define BTE_DID_CONF_FILE "bt_did.conf"
 #else  // !defined(OS_GENERIC)
+#ifdef ANDROID
 #define BTE_DID_CONF_FILE "/etc/bluetooth/bt_did.conf"
+#else
+#define BTE_DID_CONF_FILE "/data/misc/bluetooth/bt_did.conf"
+#endif
 #endif  // defined(OS_GENERIC)
 #endif  // BTE_DID_CONF_FILE
 #define MAX_JNI_WORKQUEUE_COUNT    (1024)
@@ -130,13 +134,15 @@ static const char* BT_JNI_WORKQUEUE_NAME = "bt_jni_workqueue";
 static uid_set_t* uid_set = NULL;
 base::MessageLoop* message_loop_ = NULL;
 base::RunLoop* jni_run_loop = NULL;
+static constexpr char PERSIST_BDADDR_PROPERTY[] =
+    "persist.vendor.service.bdroid.bdaddr";
 
 /*******************************************************************************
  *  Static functions
  ******************************************************************************/
 static void btif_jni_associate();
 static void btif_jni_disassociate();
-
+static void btif_set_local_bdaddr();
 /* sends message to btif task */
 static void btif_sendmsg(void* p_msg);
 
@@ -320,7 +326,7 @@ void btif_thread_post(thread_fn func, void* context) {
 }
 
 void run_message_loop(UNUSED_ATTR void* context) {
-  LOG_INFO(LOG_TAG, "%s entered", __func__);
+  LOG_INFO("bt_btif_core: %s entered", __func__);
 
   // TODO(jpawlowski): exit_manager should be defined in main(), but there is no
   // main method.
@@ -344,7 +350,7 @@ void run_message_loop(UNUSED_ATTR void* context) {
   delete jni_run_loop;
   jni_run_loop = NULL;
 
-  LOG_INFO(LOG_TAG, "%s finished", __func__);
+  LOG_INFO("bt_btif_core: %s finished", __func__);
 }
 /*******************************************************************************
  *
@@ -356,20 +362,22 @@ void run_message_loop(UNUSED_ATTR void* context) {
  *
  ******************************************************************************/
 bt_status_t btif_init_bluetooth() {
-  LOG_INFO(LOG_TAG, "%s entered", __func__);
+  LOG_INFO("bt_btif_core: %s entered", __func__);
 
   bte_main_boot_entry();
 
+  btif_set_local_bdaddr();
+
   bt_jni_workqueue_thread = thread_new_sized(BT_JNI_WORKQUEUE_NAME, MAX_JNI_WORKQUEUE_COUNT);
   if (bt_jni_workqueue_thread == NULL) {
-    LOG_ERROR(LOG_TAG, "%s Unable to create thread %s", __func__,
+    LOG_ERROR("bt_btif_core: %s Unable to create thread %s", __func__,
               BT_JNI_WORKQUEUE_NAME);
     goto error_exit;
   }
 
   thread_post(bt_jni_workqueue_thread, run_message_loop, nullptr);
 
-  LOG_INFO(LOG_TAG, "%s finished", __func__);
+  LOG_INFO("bt_btif_core: %s finished", __func__);
   return BT_STATUS_SUCCESS;
 
 error_exit:;
@@ -378,6 +386,51 @@ error_exit:;
   bt_jni_workqueue_thread = NULL;
 
   return BT_STATUS_FAIL;
+}
+
+static void btif_set_local_bdaddr()
+{
+    char val[PROPERTY_VALUE_MAX] = {0};
+    uint8_t valid_bda = FALSE;
+    int val_size = 0;
+    memset(val, 0, sizeof(val));
+
+    val_size = sizeof(val);
+    if(btif_config_get_str("Adapter", "Address", val, &val_size))
+    {
+       LOG_INFO("bt_btif_core: local bdaddr from bt_config.xml is  %s", val);
+       if (osi_property_set(PERSIST_BDADDR_PROPERTY, val) < 0)
+            BTIF_TRACE_ERROR("Failed to set random BDA in prop %s",PERSIST_BDADDR_PROPERTY);
+
+       return;
+    }
+
+    // Generate new BDA if necessary
+    if (!valid_bda)
+    {
+        const char* bdstr;
+        RawAddress local_addr;
+
+        // No autogen BDA. Generate one now.
+        local_addr.address[0] = 0x22;
+        local_addr.address[1] = 0x22;
+        local_addr.address[2] = (uint8_t) osi_rand();
+        local_addr.address[3] = (uint8_t) osi_rand();
+        local_addr.address[4] = (uint8_t) osi_rand();
+        local_addr.address[5] = (uint8_t) osi_rand();
+
+        // Convert to ascii, and store as a persistent property
+        bdstr = local_addr.ToString().c_str();
+
+        BTIF_TRACE_DEBUG("No preset BDA. Generating BDA: %s for prop %s",
+             bdstr, PERSIST_BDADDR_PROPERTY);
+
+        if (osi_property_set(PERSIST_BDADDR_PROPERTY, bdstr) < 0)
+            BTIF_TRACE_ERROR("Failed to set random BDA in prop %s",PERSIST_BDADDR_PROPERTY);
+
+        //save the bd address to config file
+        btif_config_set_str("Adapter", "Address", bdstr);
+    }
 }
 
 /*******************************************************************************
@@ -392,7 +445,7 @@ error_exit:;
  ******************************************************************************/
 
 void btif_enable_bluetooth_evt(tBTA_STATUS status) {
-  LOG_INFO(LOG_TAG, "%s entered: status %d", __func__, status);
+  LOG_INFO("bt_btif_core: %s entered: status %d", __func__, status);
 
   /* Fetch the local BD ADDR */
   RawAddress local_bd_addr = *controller_get_interface()->get_address();
@@ -427,8 +480,9 @@ void btif_enable_bluetooth_evt(tBTA_STATUS status) {
 
     /* init rfcomm & l2cap api */
     btif_sock_init(uid_set);
-
-
+#ifdef OBEX_SUPPORTED
+    btif_obex_sock_init();
+#endif
     /* load did configuration */
     bte_load_did_conf(BTE_DID_CONF_FILE);
 
@@ -443,13 +497,15 @@ void btif_enable_bluetooth_evt(tBTA_STATUS status) {
   } else {
     /* cleanup rfcomm & l2cap api */
     btif_sock_cleanup();
-
+#ifdef OBEX_SUPPORTED
+    btif_obex_sock_cleanup();
+#endif
     btif_pan_cleanup();
 
     future_ready(stack_manager_get_hack_future(), FUTURE_FAIL);
   }
 
-  LOG_INFO(LOG_TAG, "%s finished", __func__);
+  LOG_INFO("bt_btif_core: %s finished", __func__);
 }
 
 /*******************************************************************************
@@ -464,19 +520,22 @@ void btif_enable_bluetooth_evt(tBTA_STATUS status) {
  *
  ******************************************************************************/
 bt_status_t btif_disable_bluetooth(void) {
-  LOG_INFO(LOG_TAG, "%s entered", __func__);
+  LOG_INFO("bt_btif_core: %s entered", __func__);
 
-  do_in_bta_thread(FROM_HERE, base::Bind(&btm_ble_multi_adv_cleanup));
+  btm_ble_multi_adv_cleanup();
   // TODO(jpawlowski): this should do whole BTA_VendorCleanup(), but it would
   // kill the stack now.
 
   btif_dm_on_disable();
   /* cleanup rfcomm & l2cap api */
   btif_sock_cleanup();
+#ifdef OBEX_SUPPORTED
+  btif_obex_sock_cleanup();
+#endif
   btif_pan_cleanup();
   BTA_DisableBluetooth();
 
-  LOG_INFO(LOG_TAG, "%s finished", __func__);
+  LOG_INFO("bt_btif_core: %s finished", __func__);
 
   return BT_STATUS_SUCCESS;
 }
@@ -494,14 +553,14 @@ bt_status_t btif_disable_bluetooth(void) {
  ******************************************************************************/
 
 void btif_disable_bluetooth_evt(void) {
-  LOG_INFO(LOG_TAG, "%s entered", __func__);
+  LOG_INFO("bt_btif_core: %s entered", __func__);
 
   bte_main_disable();
 
   /* callback to HAL */
   future_ready(stack_manager_get_hack_future(), FUTURE_SUCCESS);
 
-  LOG_INFO(LOG_TAG, "%s finished", __func__);
+  LOG_INFO("bt_btif_core: %s finished", __func__);
 }
 
 /*******************************************************************************
@@ -515,7 +574,7 @@ void btif_disable_bluetooth_evt(void) {
  ******************************************************************************/
 
 bt_status_t btif_cleanup_bluetooth(void) {
-  LOG_INFO(LOG_TAG, "%s entered", __func__);
+  LOG_INFO("bt_btif_core: %s entered", __func__);
 
   BTA_VendorCleanup();
 
@@ -535,7 +594,7 @@ bt_status_t btif_cleanup_bluetooth(void) {
 
   btif_dut_mode = 0;
 
-  LOG_INFO(LOG_TAG, "%s finished", __func__);
+  LOG_INFO("bt_btif_core: %s finished", __func__);
 
   return BT_STATUS_SUCCESS;
 }

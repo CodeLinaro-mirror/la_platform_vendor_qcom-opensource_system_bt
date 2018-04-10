@@ -32,6 +32,7 @@
 #include "bta_sys.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+#include "osi/include/properties.h"
 #include "port_api.h"
 #include "utl.h"
 #include <cutils/properties.h>
@@ -1100,7 +1101,7 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type,
       if ((p_scb->peer_version < HFP_VERSION_1_7) &&
            (!(p_scb->peer_features & BTA_AG_PEER_FEAT_HF_IND))) {
         /* For PTS keep flags as is */
-        if (property_get("bt.pts.certification", value, "false") &&
+        if (osi_property_get("bt.pts.certification", value, "false") &&
             strcmp(value, "true") != 0)
         {
           features  = features & ~(BTA_AG_FEAT_HF_IND | BTA_AG_FEAT_ESCO);
@@ -1112,7 +1113,7 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type,
          APPL_TRACE_WARNING("%s: Remote is hfp 1.7 but does not support HF indicators" \
                   "unset hf indicator bit from BRSF", __func__);
          /* For PTS keep flags as is */
-         if (property_get("bt.pts.certification", value, "false") &&
+         if (osi_property_get("bt.pts.certification", value, "false") &&
              strcmp(value, "true") != 0)
          {
            features = features & ~(BTA_AG_FEAT_HF_IND);
@@ -1241,8 +1242,6 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type,
         event = 0;
         bta_ag_send_error(p_scb, BTA_AG_ERR_OP_NOT_SUPPORTED);
       }
-
-      // if SLC didn't happen yet, just send OK
       if (!p_scb->svc_conn) {
         event = 0;
         APPL_TRACE_WARNING("%s: sending OK from stack for CLCC before SLC ",
@@ -1325,9 +1324,9 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type,
           bta_ag_send_error(p_scb, BTA_AG_ERR_OP_NOT_ALLOWED);
           break;
         }
-        bta_ag_send_ok(p_scb);
-        p_scb->codec_updated = TRUE;
-        bta_ag_sco_open(p_scb, NULL);
+      bta_ag_send_ok(p_scb);
+      p_scb->codec_updated = TRUE;
+      bta_ag_sco_open(p_scb, NULL);
       }
       break;
 
@@ -1709,7 +1708,6 @@ void bta_ag_hfp_result(tBTA_AG_SCB* p_scb, tBTA_AG_API_RESULT* p_result) {
       bta_ag_send_ind(p_scb, p_result->data.ind.id, p_result->data.ind.value,
                       true);
       break;
-
     case BTA_AG_BVRA_RES:
       bta_ag_send_result(p_scb, p_result->result, NULL, p_result->data.state);
       break;

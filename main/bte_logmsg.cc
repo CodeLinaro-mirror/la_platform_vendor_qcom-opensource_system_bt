@@ -59,6 +59,14 @@
 #include "hidd_api.h"
 #endif
 
+#ifdef USE_ANDROID_LOGGING
+#include <utils/Log.h>
+#define LOGI0 ALOGI
+#define LOGD0 ALOGD
+#define LOGW0 ALOGW
+#define LOGE0 ALOGE
+#endif
+
 #include "smp_api.h"
 
 #ifndef DEFAULT_CONF_TRACE_LEVEL
@@ -147,10 +155,49 @@ static tBTTRC_FUNC_MAP bttrc_set_level_map[] = {
 
     {0, 0, NULL, NULL, DEFAULT_CONF_TRACE_LEVEL}};
 
-void LogMsg(uint32_t trace_set_mask, const char* fmt_str, ...) {
+#ifndef ANDROID
+void LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
   char buffer[BTE_LOG_BUF_SIZE];
+  int offset = MSG_BUFFER_OFFSET;
   int trace_layer = TRACE_GET_LAYER(trace_set_mask);
-  if (trace_layer >= TRACE_LAYER_MAX_NUM) trace_layer = 0;
+  if (trace_layer >= TRACE_LAYER_MAX_NUM)
+    trace_layer = 0;
+
+
+  offset += strlen(bt_layer_tags[trace_layer]) + strlen(" : ");
+  snprintf(buffer, offset+1 , "%s : ",
+        bt_layer_tags[trace_layer]);
+
+  va_list ap;
+  va_start(ap, fmt_str);
+  vsnprintf(&buffer[offset], BTE_LOG_MAX_SIZE - offset, fmt_str, ap);
+  va_end(ap);
+
+  switch ( TRACE_GET_TYPE(trace_set_mask) ) {
+    case TRACE_TYPE_ERROR:
+      LOGE0(buffer);
+      break;
+    case TRACE_TYPE_WARNING:
+      LOGW0(buffer);
+      break;
+    case TRACE_TYPE_API:
+    case TRACE_TYPE_EVENT:
+      LOGI0(buffer);
+      break;
+    case TRACE_TYPE_DEBUG:
+      LOGD0(buffer);
+      break;
+    default:
+      LOGE0(buffer);
+      break;
+    }
+}
+#else
+void LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
+  static char buffer[BTE_LOG_BUF_SIZE];
+  int trace_layer = TRACE_GET_LAYER(trace_set_mask);
+  if (trace_layer >= TRACE_LAYER_MAX_NUM)
+    trace_layer = 0;
 
   va_list ap;
   va_start(ap, fmt_str);
@@ -178,6 +225,8 @@ void LogMsg(uint32_t trace_set_mask, const char* fmt_str, ...) {
       break;
   }
 }
+#endif
+
 
 void vnd_LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
   int trace_layer = TRACE_GET_LAYER(trace_set_mask);
@@ -237,7 +286,7 @@ static void load_levels_from_config(const config_t* config) {
 static future_t* init(void) {
   const stack_config_t* stack_config = stack_config_get_interface();
   if (!stack_config->get_trace_config_enabled()) {
-    LOG_INFO(LOG_TAG, "using compile default trace settings");
+    LOG_INFO("bt_bte: using compile default trace settings");
     return NULL;
   }
 
@@ -246,6 +295,10 @@ static future_t* init(void) {
   load_levels_from_config(stack_config->get_all());
   return NULL;
 }
+
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
 
 EXPORT_SYMBOL extern const module_t bte_logmsg_module = {
     .name = BTE_LOGMSG_MODULE,

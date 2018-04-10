@@ -340,6 +340,10 @@ bool bta_pan_hdl_event(BT_HDR* p_msg) {
       bta_pan_api_open((tBTA_PAN_DATA*)p_msg);
       break;
 
+    /* handle set tethering event */
+    case BTA_PAN_API_SET_TETHERING_EVT:
+      bta_pan_set_tethering((tBTA_PAN_DATA *) p_msg);
+      break;
     /* events that require buffer not be released */
     case BTA_PAN_CI_RX_WRITEBUF_EVT:
       freebuf = false;

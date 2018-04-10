@@ -2221,16 +2221,18 @@ static struct fc_channel* fcchan_get(uint16_t chan, char create) {
   static tL2CAP_FIXED_CHNL_REG fcr = {
       .pL2CA_FixedConn_Cb = fcchan_conn_chng_cbk,
       .pL2CA_FixedData_Cb = fcchan_data_cbk,
-      .default_idle_tout = 0xffff,
+      .pL2CA_FixedCong_Cb = NULL,
       .fixed_chnl_opts =
           {
               .mode = L2CAP_FCR_BASIC_MODE,
+              .tx_win_sz = 1,
               .max_transmit = 0xFF,
               .rtrans_tout = 2000,
               .mon_tout = 12000,
               .mps = 670,
-              .tx_win_sz = 1,
           },
+      .default_idle_tout = 0xffff,
+      .pL2CA_FixedTxComplete_Cb = NULL,
   };
 
   while (t && t->chan != chan) t = t->next;

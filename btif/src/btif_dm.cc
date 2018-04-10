@@ -194,6 +194,7 @@ typedef struct {
 
 #define BTA_SERVICE_ID_TO_SERVICE_MASK(id) (1 << (id))
 
+
 #define MAX_BTIF_BOND_EVENT_ENTRIES 15
 
 /* This flag will be true if HCI_Inquiry is in progress */
@@ -263,9 +264,10 @@ extern void btif_av_trigger_suspend();
 extern bool btif_av_get_ongoing_multicast();
 extern void btif_av_peer_config_dump();
 extern bool is_codec_config_dump;
+/*
 extern void btif_vendor_iot_device_broadcast_event(RawAddress* bd_addr,
 	            uint16_t error, uint16_t error_info, uint32_t event_mask,
-	            uint8_t power_level, uint8_t rssi, uint8_t link_quality);
+	            uint8_t power_level, uint8_t rssi, uint8_t link_quality);*/
 /******************************************************************************
  *  Functions
  *****************************************************************************/
@@ -455,7 +457,7 @@ static uint32_t get_cod(const RawAddress* remote_bdaddr) {
                              sizeof(uint32_t), &remote_cod);
   if (btif_storage_get_remote_device_property(
           (RawAddress*)remote_bdaddr, &prop_name) == BT_STATUS_SUCCESS) {
-    LOG_INFO(LOG_TAG, "%s remote_cod = 0x%08x", __func__, remote_cod);
+    LOG_INFO("bt_btif_sock: %s remote_cod = 0x%08x", __func__, remote_cod);
     return remote_cod & COD_MASK;
   }
 
@@ -504,12 +506,12 @@ bool check_sdp_bl(const RawAddress* remote_bdaddr) {
   uint16_t lmp_subver = 0;
 
   if (remote_bdaddr->IsEmpty()) {
-    LOG_WARN(LOG_TAG, "%s: remote_bdaddr = NULL, returning false", __func__);
+    LOG_WARN("bt_btif_sock: %s: remote_bdaddr = NULL, returning false", __func__);
     return false;
   }
 
   if (interop_match_addr(INTEROP_DISABLE_SDP_AFTER_PAIRING, remote_bdaddr)) {
-    LOG_WARN(LOG_TAG, "%s: device is in blacklist for skipping sdp", __func__);
+    LOG_WARN("bt_btif_sock: %s: device is in blacklist for skipping sdp", __func__);
     return true;
   }
 
@@ -519,7 +521,7 @@ bool check_sdp_bl(const RawAddress* remote_bdaddr) {
                              sizeof(bt_bdname_t), &bdname);
   if (btif_storage_get_remote_device_property(
           remote_bdaddr, &prop_name) != BT_STATUS_SUCCESS) {
-    LOG_WARN(LOG_TAG, "%s: BT_PROPERTY_BDNAME failed, returning false",
+    LOG_WARN("bt_btif_sock: %s: BT_PROPERTY_BDNAME failed, returning false",
              __func__);
     return false;
   }
@@ -608,7 +610,7 @@ static void btif_update_remote_version_property(RawAddress* p_bd) {
 
   btm_status = BTM_ReadRemoteVersion(*p_bd, &lmp_ver, &mfct_set, &lmp_subver);
 
-  LOG_DEBUG(LOG_TAG, "remote version info [%s]: %x, %x, %x",
+  LOG_DEBUG("bt_btif_sock: remote version info [%s]: %x, %x, %x",
             p_bd->ToString().c_str(), lmp_ver, mfct_set, lmp_subver);
 
   if (btm_status == BTM_SUCCESS) {
@@ -1098,7 +1100,7 @@ static void btif_dm_ssp_cfm_req_evt(tBTA_DM_SP_CFM_REQ* p_ssp_cfm_req) {
   cod = devclass2uint(p_ssp_cfm_req->dev_class);
 
   if (cod == 0) {
-    LOG_DEBUG(LOG_TAG, "%s cod is 0, set as unclassified", __func__);
+    LOG_DEBUG("bt_btif_sock: %s cod is 0, set as unclassified", __func__);
     cod = COD_UNCLASSIFIED;
   }
 
@@ -1132,7 +1134,7 @@ static void btif_dm_ssp_key_notif_evt(tBTA_DM_SP_KEY_NOTIF* p_ssp_key_notif) {
   cod = devclass2uint(p_ssp_key_notif->dev_class);
 
   if (cod == 0) {
-    LOG_DEBUG(LOG_TAG, "%s cod is 0, set as unclassified", __func__);
+    LOG_DEBUG("bt_btif_sock: %s cod is 0, set as unclassified", __func__);
     cod = COD_UNCLASSIFIED;
   }
 
@@ -1196,7 +1198,7 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
     
     if ((p_auth_cmpl->bd_addr != pairing_cb.bd_addr) &&
         (!pairing_cb.ble.is_penc_key_rcvd)) {
-      LOG_INFO(LOG_TAG,
+      LOG_INFO("bt_btif_sock: "
                "%s skipping SDP since we did not initiate pairing to %s.",
                __func__, p_auth_cmpl->bd_addr.ToString().c_str());
       return;
@@ -1209,7 +1211,7 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
 
     if (check_sdp_bl(&bd_addr) && check_cod_hid(&bd_addr)) {
       bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDED);
-      LOG_WARN(LOG_TAG,
+      LOG_WARN("bt_btif_sock: "
                "%s: HID Connection from "
                "blacklisted device, skipping sdp",
                __func__);
@@ -1554,7 +1556,7 @@ static void btif_dm_search_services_evt(uint16_t event, char* p_param) {
 
         for (i = 0; i < p_data->disc_res.num_uuids; i++) {
           std::string temp = ((p_data->disc_res.p_uuid_list + i))->ToString();
-          LOG_INFO(LOG_TAG, "%s index:%d uuid:%s", __func__, i, temp.c_str());
+          LOG_INFO("bt_btif_sock: %s index:%d uuid:%s", __func__, i, temp.c_str());
         }
       }
 
@@ -2091,15 +2093,14 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       }
         break;
     }
-
+/*
     case BTA_DM_IOT_INFO_EVT: {
       tBTA_DM_IOT_INFO_DATA iot_info = p_data->iot_info;
       BTIF_TRACE_WARNING("BTA_DM_IOT_INFO_EVT");
       btif_vendor_iot_device_broadcast_event(&iot_info.bd_addr, iot_info.error_type, iot_info.error_info,
               iot_info.event_mask, iot_info.event_power_level, iot_info.event_rssi, iot_info.event_link_quality);
       break;
-    }
-
+    }*/
     case BTA_DM_REM_NAME_EVT:
       BTIF_TRACE_DEBUG("BTA_DM_REM_NAME_EVT");
 
@@ -3000,8 +3001,13 @@ bool btif_dm_get_smp_config(tBTE_APPL_CFG* p_cfg) {
 
 bool btif_dm_proc_rmt_oob(const RawAddress& bd_addr, BT_OCTET16 p_c,
                           BT_OCTET16 p_r) {
+#ifdef ANDROID
   const char* path_a = "/data/misc/bluedroid/LOCAL/a.key";
   const char* path_b = "/data/misc/bluedroid/LOCAL/b.key";
+#else
+  const char* path_a = "/data/misc/bluetooth/LOCAL/a.key";
+  const char* path_b = "/data/misc/bluetooth/LOCAL/b.key";
+#endif
   const char* path = NULL;
   char prop_oob[PROPERTY_VALUE_MAX];
   osi_property_get("service.brcm.bt.oob", prop_oob, "3");
@@ -3510,8 +3516,10 @@ static void btif_stats_add_bond_event(const RawAddress& bd_addr,
   uint32_t cod = get_cod(&bd_addr);
   uint64_t ts =
       event->timestamp.tv_sec * 1000 + event->timestamp.tv_nsec / 1000000;
+#ifdef ANDROID
   system_bt_osi::BluetoothMetricsLogger::GetInstance()->LogPairEvent(
       0, ts, cod, device_type);
+#endif
 }
 
 void btif_debug_bond_event_dump(int fd) {

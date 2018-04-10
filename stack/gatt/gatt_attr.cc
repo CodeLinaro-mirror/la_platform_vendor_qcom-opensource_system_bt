@@ -284,9 +284,20 @@ void gatt_profile_db_init(void) {
   Uuid char_uuid = Uuid::From16Bit(GATT_UUID_GATT_SRV_CHGD);
 
   btgatt_db_element_t service[] = {
-      {.type = BTGATT_DB_PRIMARY_SERVICE, .uuid = service_uuid},
-      {.type = BTGATT_DB_CHARACTERISTIC,
+      {.id = 0,
+       .uuid = service_uuid,
+       .type = BTGATT_DB_PRIMARY_SERVICE,
+       .attribute_handle = 0,
+       .start_handle = 0,
+       .end_handle = 0,
+       .properties = 0,
+       .permissions = 0},
+      {.id = 0,
        .uuid = char_uuid,
+       .type = BTGATT_DB_CHARACTERISTIC,
+       .attribute_handle = 0,
+       .start_handle = 0,
+       .end_handle = 0,
        .properties = GATT_CHAR_PROP_BIT_INDICATE,
        .permissions = 0}};
 

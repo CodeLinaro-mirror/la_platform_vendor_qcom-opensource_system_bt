@@ -21,7 +21,7 @@
 #include <base/rand_util.h>
 #include <base/strings/stringprintf.h>
 #include <algorithm>
-
+#include <cstring>
 namespace bluetooth {
 
 static_assert(sizeof(Uuid) == 16, "Uuid must be 16 bytes long!");

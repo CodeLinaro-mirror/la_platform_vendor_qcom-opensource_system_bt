@@ -35,7 +35,11 @@ typedef enum {
 
 /* Run-time configuration file to store AVRCP version info*/
 #ifndef AVRC_PEER_VERSION_CONF_FILE
+#ifdef ANDROID
 #define AVRC_PEER_VERSION_CONF_FILE "/data/misc/bluedroid/avrc_peer_entries.conf"
+#else
+#define AVRC_PEER_VERSION_CONF_FILE "/data/misc/bluetooth/avrc_peer_entries.conf"
+#endif
 #endif
 #define LOG_ID_STATS_A2DP      (0x06 << 8) | 0x00
 typedef enum {

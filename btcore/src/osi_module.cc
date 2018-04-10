@@ -36,6 +36,10 @@ future_t* osi_clean_up(void) {
   return future_new_immediate(FUTURE_SUCCESS);
 }
 
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
+
 EXPORT_SYMBOL extern const module_t osi_module = {.name = OSI_MODULE,
                                                   .init = osi_init,
                                                   .start_up = NULL,

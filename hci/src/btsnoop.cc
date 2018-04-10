@@ -55,7 +55,11 @@
 
 #define BTSNOOP_ENABLE_PROPERTY "persist.bluetooth.btsnoopenable"
 #define BTSNOOP_PATH_PROPERTY "persist.bluetooth.btsnooppath"
+#ifdef ANDROID
 #define DEFAULT_BTSNOOP_PATH "/data/misc/bluetooth/logs/btsnoop_hci.log"
+#else
+#define DEFAULT_BTSNOOP_PATH "/data/misc/bluetooth/btsnoop_hci.log"
+#endif
 #define BTSNOOP_MAX_PACKETS_PROPERTY "persist.bluetooth.btsnoopsize"
 
 typedef enum {
@@ -105,6 +109,7 @@ static future_t* start_up(void) {
 
   if (!is_btsnoop_enabled()) {
     delete_btsnoop_files();
+    LOG_VERBOSE("bt_snoop: %s: btsnoop_not_enabled ", __func__);
   } else {
     open_next_snoop_file();
     packets_per_file = (//osi_property_get_int32(BTSNOOP_MAX_PACKETS_PROPERTY, // gghai
@@ -112,7 +117,7 @@ static future_t* start_up(void) {
     btsnoop_net_open();
     START_SNOOP_LOGGING();
   }
-  LOG_DEBUG(LOG_TAG, "%s: vendor_logging_level values is %d ", __func__, vendor_logging_level);
+  LOG_DEBUG("bt_snoop: %s: vendor_logging_level values is %d ", __func__, vendor_logging_level);
 
   return NULL;
 }
@@ -133,6 +138,9 @@ static future_t* shut_down(void) {
   return NULL;
 }
 
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
 EXPORT_SYMBOL extern const module_t btsnoop_module = {
     .name = BTSNOOP_MODULE,
     .init = NULL,
@@ -178,7 +186,7 @@ const btsnoop_t* btsnoop_get_interface() {
 
 // Internal functions
 static void delete_btsnoop_files() {
-  LOG_VERBOSE(LOG_TAG, "Deleting snoop log if it exists");
+  LOG_VERBOSE("bt_snoop: Deleting snoop log if it exists");
   char log_path[PROPERTY_VALUE_MAX];
   char last_log_path[PROPERTY_VALUE_MAX + sizeof(".last")];
   get_btsnoop_log_path(log_path);
@@ -189,9 +197,8 @@ static void delete_btsnoop_files() {
 
 static bool is_btsnoop_enabled() {
   char btsnoop_enabled[PROPERTY_VALUE_MAX] = {0};
-  osi_property_get(BTSNOOP_ENABLE_PROPERTY, btsnoop_enabled, "false");
+  osi_property_get(BTSNOOP_ENABLE_PROPERTY, btsnoop_enabled, "true");
   bool ret = strncmp(btsnoop_enabled, "true", 4) == 0;
-  LOG_ERROR(LOG_TAG, "%s is_btsnoop_enabled = %d", __func__, ret);
   return true;
 }
 
@@ -225,7 +232,7 @@ static void open_next_snoop_file() {
   get_btsnoop_last_log_path(last_log_path, log_path);
 
   if (!rename(log_path, last_log_path) && errno != ENOENT)
-    LOG_ERROR(LOG_TAG, "%s unable to rename '%s' to '%s': %s", __func__,
+    LOG_ERROR("bt_snoop: %s unable to rename '%s' to '%s': %s", __func__,
               log_path, last_log_path, strerror(errno));
 
   mode_t prevmask = umask(0);
@@ -233,7 +240,7 @@ static void open_next_snoop_file() {
                     S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
   umask(prevmask);
   if (logfile_fd == INVALID_FD) {
-    LOG_ERROR(LOG_TAG, "%s unable to open '%s': %s", __func__, log_path,
+    LOG_ERROR("bt_snoop: %s unable to open '%s': %s", __func__, log_path,
               strerror(errno));
     return;
   }
@@ -350,7 +357,7 @@ static void btsnoop_write_packet(packet_type_t type, uint8_t* packet,
 
 void update_snoop_fd(int snoop_fd) {
   std::lock_guard<std::mutex> lock(btSnoopFd_mutex);
-  LOG_INFO(LOG_TAG, "%s Now writing to server socket", __func__);
+  LOG_INFO("bt_snoop: %s Now writing to server socket", __func__);
   sock_snoop_active = true;
   logfile_fd = snoop_fd;
 }

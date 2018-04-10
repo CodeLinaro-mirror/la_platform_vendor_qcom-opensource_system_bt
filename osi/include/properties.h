@@ -23,8 +23,16 @@
 #define PROPERTY_VALUE_MAX 92
 #else
 #include <cutils/properties.h>
+#ifndef PROP_VALUE_MAX
+#define PROP_VALUE_MAX 92
+#endif
 #endif  // defined(OS_GENERIC)
 
+#ifndef ANDROID
+extern int property_set_bt(const char* , const char* );
+extern int property_get_bt(const char* , char* , const char* );
+extern int32_t property_get_bt_int32(const char* , int32_t );
+#endif
 // Get value associated with key |key| into |value|.
 // Returns the length of the value which will never be greater than
 // PROPERTY_VALUE_MAX - 1 and will always be zero terminated.

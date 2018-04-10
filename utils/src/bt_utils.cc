@@ -38,15 +38,26 @@
 #include <mutex>
 
 #define A2DP_RT_PRIORITY 1
-#ifndef OS_GENERIC
+#ifdef ANDROID
 #include <cutils/sched_policy.h>
+#else
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <string.h>
+#include <sys/un.h>
+#include <sys/time.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#define SOCKETNAME  "/data/misc/bluetooth/btprop"
 #endif
 
 #include "bt_types.h"
 #include "btcore/include/module.h"
 #include "osi/include/compat.h"
+
 #include "osi/include/log.h"
 #include "osi/include/properties.h"
+
 
 typedef struct {
   bt_soc_type soc_type;
@@ -73,9 +84,30 @@ static int g_TaskIDs[TASK_HIGH_MAX];
 static bt_soc_type soc_type;
 static void init_soc_type();
 
+#ifndef ANDROID
+static int bt_prop_socket;      /* This end of connection*/
+#endif
 static future_t* init(void) {
   int i;
 
+#ifndef ANDROID
+  int len;    /* length of sockaddr */
+  struct sockaddr_un name;
+  if( (bt_prop_socket = socket(AF_UNIX, SOCK_STREAM, 0) ) < 0) {
+    perror("socket");
+    exit(1);
+  }
+  /*Create the address of the server.*/
+  memset(&name, 0, sizeof(struct sockaddr_un));
+  name.sun_family = AF_UNIX;
+  strlcpy(name.sun_path, SOCKETNAME, sizeof(name.sun_path));
+  len = sizeof(name.sun_family) + strlen(name.sun_path);
+  /*Connect to the server.*/
+  if (connect(bt_prop_socket, (struct sockaddr *) &name, len) < 0){
+      perror("connect");
+      exit(1);
+  }
+#endif
   for (i = 0; i < TASK_HIGH_MAX; i++) {
     g_DoSchedulingGroupOnce[i] = PTHREAD_ONCE_INIT;
     g_DoSchedulingGroup[i] = true;
@@ -87,9 +119,16 @@ static future_t* init(void) {
 }
 
 static future_t* clean_up(void) {
+#ifndef ANDROID
+  shutdown(bt_prop_socket, SHUT_RDWR);
+  close(bt_prop_socket);
+#endif
   return NULL;
 }
 
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
 EXPORT_SYMBOL extern const module_t bt_utils_module = {.name = BT_UTILS_MODULE,
                                                        .init = init,
                                                        .start_up = NULL,
@@ -117,6 +156,96 @@ static void check_do_scheduling_group(void) {
   }
 }
 
+#ifndef ANDROID
+int property_get_bt(const char *key, char *value, const char *default_value)
+{
+    char prop_string[200] = {'\0'};
+    int ret, bytes_read = 0, i = 0;
+
+    snprintf(prop_string, sizeof(prop_string), "get_property %s,", key);
+    ret = send(bt_prop_socket, prop_string, strlen(prop_string), 0);
+    do
+    {
+        bytes_read = recv(bt_prop_socket, &value[i], 1, 0);
+        if (bytes_read == 1)
+        {
+            if (value[i] == ',')
+            {
+                value[i] = '\0';
+                break;
+            }
+            i++;
+        }
+    } while(1);
+    ALOGD("property_get_bt: key(%s) has value: %s", key, value);
+    if (!i && default_value)
+    {
+        ALOGD("property_get_bt: Copied default =%s", default_value);
+        strlcpy(value, default_value, strlen(default_value)+1);
+        return 1;
+    }
+    return 0;
+}
+int property_set_bt(const char *key, const char *value)
+{
+    char prop_string[200] = {'\0'};
+    int ret;
+    snprintf(prop_string, sizeof(prop_string), "set_property %s %s,", key, value);
+    ALOGD("property_set_bt: setting key(%s) to value: %s\n", key, value);
+    ret = send(bt_prop_socket, prop_string, strlen(prop_string), 0);
+    return 0;
+}
+
+static intmax_t property_get_bt_imax(const char *key, intmax_t lower_bound,
+                intmax_t upper_bound, intmax_t default_value, bool i32) {
+    if (!key) {
+        return default_value;
+    }
+
+    intmax_t result = default_value;
+    char buf[PROPERTY_VALUE_MAX] = {'\0'};
+    char *end = NULL;
+
+    int len = property_get_bt(key, buf, "");
+    if (len > 0) {
+        int tmp = errno;
+        errno = 0;
+
+        // Infer base automatically
+        if (i32)
+            sscanf(key, "%"SCNd32, &result);
+        else
+            sscanf(key, "%"SCNd64, &result);
+        if (( result == INTMAX_MIN || result == INTMAX_MAX) && errno == ERANGE) {
+            // Over or underflow
+            result = default_value;
+            ALOGE("%s(%s,%" PRIdMAX ") - overflow", __FUNCTION__, key,
+                default_value);
+        } else if (result < lower_bound || result > upper_bound) {
+            // Out of range of requested bounds 
+            result = default_value;
+            ALOGE("%s(%s,%" PRIdMAX ") - out of range", __FUNCTION__, key,
+                default_value);
+        } else if (end == buf) {
+            // Numeric conversion failed
+            result = default_value;
+            ALOGE("%s(%s,%" PRIdMAX ") - conversion failed", __FUNCTION__, key,
+                default_value);
+        }
+        errno = tmp;
+    }
+
+    return result;
+}
+
+int64_t property_get_bt_int64(const char *key, int64_t default_value) {
+    return (int64_t)property_get_bt_imax(key, INT64_MIN, INT64_MAX, default_value, 0);
+}
+
+int32_t property_get_bt_int32(const char *key, int32_t default_value) {
+    return (int32_t)property_get_bt_imax(key, INT32_MIN, INT32_MAX, default_value, 1);
+}
+#endif
 /*****************************************************************************
  *
  * Function        raise_priority_a2dp
@@ -127,6 +256,7 @@ static void check_do_scheduling_group(void) {
  *
  ******************************************************************************/
 void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task) {
+#ifdef ANDROID
   int rc = 0;
   int tid = gettid();
 
@@ -139,12 +269,14 @@ void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task) {
 #if defined(OS_GENERIC)
     rc = -1;
 #else   // !defined(OS_GENERIC)
+#ifdef ANDROID
     pthread_once(&g_DoSchedulingGroupOnce[g_TaskIdx],
                  check_do_scheduling_group);
     if (g_TaskIdx < TASK_HIGH_MAX && g_DoSchedulingGroup[g_TaskIdx]) {
       // set_sched_policy does not support tid == 0
       rc = set_sched_policy(tid, SP_AUDIO_SYS);
     }
+#endif
 #endif  // defined(OS_GENERIC)
 
     g_TaskIDs[high_task] = tid;
@@ -168,6 +300,7 @@ void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task) {
                 __func__, A2DP_RT_PRIORITY, tid, strerror(errno));
     }
   }
+#endif
 }
 
 /*****************************************************************************
@@ -183,10 +316,11 @@ void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task) {
 static void init_soc_type() {
   int ret = 0;
   char bt_soc_type[PROPERTY_VALUE_MAX];
-
+  LOG_INFO("bt_utils: %s", __func__);
   ALOGI("init_soc_type");
 
   soc_type = BT_SOC_DEFAULT;
+#if defined(ANDROID)
   ret = property_get("qcom.bluetooth.soc", bt_soc_type, NULL);
   if (ret != 0) {
     int i;
@@ -199,6 +333,11 @@ static void init_soc_type() {
       }
     }
   }
+#elif defined(BT_SOC_TYPE_ROME)
+    soc_type = BT_SOC_ROME;
+#elif defined(BT_SOC_TYPE_CHEROKEE)
+    soc_type = BT_SOC_CHEROKEE;
+#endif
 }
 
 /*****************************************************************************

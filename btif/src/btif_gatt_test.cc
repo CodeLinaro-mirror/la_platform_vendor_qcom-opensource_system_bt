@@ -69,7 +69,7 @@ static btif_test_cb_t test_cb;
 static void btif_test_connect_cback(tGATT_IF, const RawAddress&,
                                     uint16_t conn_id, bool connected,
                                     tGATT_DISCONN_REASON, tBT_TRANSPORT) {
-  LOG_DEBUG(LOG_TAG, "%s: conn_id=%d, connected=%d", __func__, conn_id,
+  LOG_DEBUG("bt_btif_gatt :%s: conn_id=%d, connected=%d", __func__, conn_id,
             connected);
   test_cb.conn_id = connected ? conn_id : 0;
 }
@@ -77,7 +77,7 @@ static void btif_test_connect_cback(tGATT_IF, const RawAddress&,
 static void btif_test_command_complete_cback(uint16_t conn_id, tGATTC_OPTYPE op,
                                              tGATT_STATUS status,
                                              tGATT_CL_COMPLETE* p_data) {
-  LOG_DEBUG(LOG_TAG, "%s: op_code=0x%02x, conn_id=0x%x. status=0x%x", __func__,
+  LOG_DEBUG("bt_btif_gatt :%s: op_code=0x%02x, conn_id=0x%x. status=0x%x", __func__,
             op, conn_id, status);
 
   switch (op) {
@@ -93,7 +93,7 @@ static void btif_test_command_complete_cback(uint16_t conn_id, tGATTC_OPTYPE op,
       break;
 
     default:
-      LOG_DEBUG(LOG_TAG, "%s: Unknown op_code (0x%02x)", __func__, op);
+      LOG_DEBUG("bt_btif_gatt :%s: Unknown op_code (0x%02x)", __func__, op);
       break;
   }
 }
@@ -101,62 +101,63 @@ static void btif_test_command_complete_cback(uint16_t conn_id, tGATTC_OPTYPE op,
 static void btif_test_discovery_result_cback(UNUSED_ATTR uint16_t conn_id,
                                              tGATT_DISC_TYPE disc_type,
                                              tGATT_DISC_RES* p_data) {
-  LOG_DEBUG(LOG_TAG, "------ GATT Discovery result %-22s -------",
+
+  LOG_DEBUG("bt_btif_gatt :------ GATT Discovery result %-22s -------",
             disc_name[disc_type]);
-  LOG_DEBUG(LOG_TAG, "      Attribute handle: 0x%04x (%d)", p_data->handle,
+  LOG_DEBUG("bt_btif_gatt :      Attribute handle: 0x%04x (%d)", p_data->handle,
             p_data->handle);
 
   if (disc_type != GATT_DISC_CHAR_DSCPT) {
-    LOG_DEBUG(LOG_TAG, "        Attribute type: %s",
+    LOG_DEBUG("bt_btif_gatt :        Attribute type: %s",
               p_data->type.ToString().c_str());
   }
 
   switch (disc_type) {
     case GATT_DISC_SRVC_ALL:
-      LOG_DEBUG(LOG_TAG, "          Handle range: 0x%04x ~ 0x%04x (%d ~ %d)",
+      LOG_DEBUG("bt_btif_gatt :          Handle range: 0x%04x ~ 0x%04x (%d ~ %d)",
                 p_data->handle, p_data->value.group_value.e_handle,
                 p_data->handle, p_data->value.group_value.e_handle);
-      LOG_DEBUG(LOG_TAG, "          Service UUID: %s",
+      LOG_DEBUG("bt_btif_gatt :          Service UUID: %s",
                 p_data->value.group_value.service_type.ToString().c_str());
       break;
 
     case GATT_DISC_SRVC_BY_UUID:
-      LOG_DEBUG(LOG_TAG, "          Handle range: 0x%04x ~ 0x%04x (%d ~ %d)",
+      LOG_DEBUG("bt_btif_gatt :          Handle range: 0x%04x ~ 0x%04x (%d ~ %d)",
                 p_data->handle, p_data->value.handle, p_data->handle,
                 p_data->value.handle);
       break;
 
     case GATT_DISC_INC_SRVC:
-      LOG_DEBUG(LOG_TAG, "          Handle range: 0x%04x ~ 0x%04x (%d ~ %d)",
+      LOG_DEBUG("bt_btif_gatt :          Handle range: 0x%04x ~ 0x%04x (%d ~ %d)",
                 p_data->value.incl_service.s_handle,
                 p_data->value.incl_service.e_handle,
                 p_data->value.incl_service.s_handle,
                 p_data->value.incl_service.e_handle);
-      LOG_DEBUG(LOG_TAG, "          Service UUID: %s",
+      LOG_DEBUG("bt_btif_gatt :          Service UUID: %s",
                 p_data->value.incl_service.service_type.ToString().c_str());
       break;
 
     case GATT_DISC_CHAR:
-      LOG_DEBUG(LOG_TAG, "            Properties: 0x%02x",
+      LOG_DEBUG("bt_btif_gatt :            Properties: 0x%02x",
                 p_data->value.dclr_value.char_prop);
-      LOG_DEBUG(LOG_TAG, "   Characteristic UUID: %s",
+      LOG_DEBUG("bt_btif_gatt :   Characteristic UUID: %s",
                 p_data->value.dclr_value.char_uuid.ToString().c_str());
       break;
 
     case GATT_DISC_CHAR_DSCPT:
-      LOG_DEBUG(LOG_TAG, "       Descriptor UUID: %s",
+      LOG_DEBUG("bt_btif_gatt :       Descriptor UUID: %s",
                 p_data->type.ToString().c_str());
       break;
   }
 
-  LOG_DEBUG(LOG_TAG,
+  LOG_DEBUG("bt_btif_gatt :"
             "-----------------------------------------------------------");
 }
 
 static void btif_test_discovery_complete_cback(
     UNUSED_ATTR uint16_t conn_id, UNUSED_ATTR tGATT_DISC_TYPE disc_type,
     tGATT_STATUS status) {
-  LOG_DEBUG(LOG_TAG, "%s: status=%d", __func__, status);
+  LOG_DEBUG("bt_btif_gatt :%s: status=%d", __func__, status);
 }
 
 static tGATT_CBACK btif_test_callbacks = {btif_test_connect_cback,
@@ -178,7 +179,7 @@ bt_status_t btif_gattc_test_command_impl(int command,
   switch (command) {
     case 0x01: /* Enable */
     {
-      LOG_DEBUG(LOG_TAG, "%s: ENABLE - enable=%d", __func__, params->u1);
+      LOG_DEBUG("bt_btif_gatt :%s: ENABLE - enable=%d", __func__, params->u1);
       if (params->u1) {
         std::array<uint8_t, Uuid::kNumBytes128> tmp;
         tmp.fill(0xAE);
@@ -194,7 +195,8 @@ bt_status_t btif_gattc_test_command_impl(int command,
 
     case 0x02: /* Connect */
     {
-      LOG_DEBUG(LOG_TAG, "%s: CONNECT - device=%s (dev_type=%d, addr_type=%d)",
+      LOG_DEBUG("bt_btif_gatt :"
+               "%s: CONNECT - device=%s (dev_type=%d, addr_type=%d)",
                 __func__, params->bda1->ToString().c_str(), params->u1,
                 params->u2);
 
@@ -204,14 +206,14 @@ bt_status_t btif_gattc_test_command_impl(int command,
 
       if (!GATT_Connect(test_cb.gatt_if, *params->bda1, true, BT_TRANSPORT_LE,
                         false)) {
-        LOG_ERROR(LOG_TAG, "%s: GATT_Connect failed!", __func__);
+        LOG_ERROR("bt_btif_gatt :%s: GATT_Connect failed!", __func__);
       }
       break;
     }
 
     case 0x03: /* Disconnect */
     {
-      LOG_DEBUG(LOG_TAG, "%s: DISCONNECT - conn_id=%d", __func__,
+      LOG_DEBUG("bt_btif_gatt :%s: DISCONNECT - conn_id=%d", __func__,
                 test_cb.conn_id);
       GATT_Disconnect(test_cb.conn_id);
       break;
@@ -223,7 +225,7 @@ bt_status_t btif_gattc_test_command_impl(int command,
       memset(&param, 0, sizeof(tGATT_DISC_PARAM));
 
       if (params->u1 >= GATT_DISC_MAX) {
-        LOG_ERROR(LOG_TAG, "%s: DISCOVER - Invalid type (%d)!", __func__,
+        LOG_ERROR("bt_btif_gatt :%s: DISCOVER - Invalid type (%d)!", __func__,
                   params->u1);
         return (bt_status_t)0;
       }
@@ -232,7 +234,7 @@ bt_status_t btif_gattc_test_command_impl(int command,
       param.e_handle = params->u3;
       param.service = *params->uuid1;
 
-      LOG_DEBUG(LOG_TAG,
+      LOG_DEBUG("bt_btif_gatt :"
                 "%s: DISCOVER (%s), conn_id=%d, uuid=%s, handles=0x%04x-0x%04x",
                 __func__, disc_name[params->u1], test_cb.conn_id,
                 param.service.ToString().c_str(), params->u2, params->u3);
@@ -241,7 +243,7 @@ bt_status_t btif_gattc_test_command_impl(int command,
     }
 
     case 0xF0: /* Pairing configuration */
-      LOG_DEBUG(LOG_TAG,
+      LOG_DEBUG("bt_btif_gatt :"
                 "%s: Setting pairing config auth=%d, iocaps=%d, keys=%d/%d/%d",
                 __func__, params->u1, params->u2, params->u3, params->u4,
                 params->u5);
@@ -254,7 +256,7 @@ bt_status_t btif_gattc_test_command_impl(int command,
       break;
 
     default:
-      LOG_ERROR(LOG_TAG, "%s: UNKNOWN TEST COMMAND 0x%02x", __func__, command);
+      LOG_ERROR("bt_btif_gatt :%s: UNKNOWN TEST COMMAND 0x%02x", __func__, command);
       break;
   }
   return (bt_status_t)0;

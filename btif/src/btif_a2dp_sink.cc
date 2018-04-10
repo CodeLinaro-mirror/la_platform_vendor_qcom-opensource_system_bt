@@ -292,7 +292,7 @@ static void btif_a2dp_sink_audio_handle_stop_decoding(void) {
 
   alarm_free(btif_a2dp_sink_cb.decode_alarm);
   btif_a2dp_sink_cb.decode_alarm = NULL;
-#ifndef OS_GENERIC
+#ifdef ANDROID
   BtifAvrcpAudioTrackPause(btif_a2dp_sink_cb.audio_track);
 #endif
 }
@@ -307,7 +307,7 @@ static void btif_decode_alarm_cb(UNUSED_ATTR void* context) {
 static void btif_a2dp_sink_clear_track_event(void) {
   APPL_TRACE_DEBUG("%s", __func__);
 
-#ifndef OS_GENERIC
+#ifdef ANDROID
   BtifAvrcpAudioTrackStop(btif_a2dp_sink_cb.audio_track);
   BtifAvrcpAudioTrackDelete(btif_a2dp_sink_cb.audio_track);
 #endif
@@ -318,7 +318,7 @@ static void btif_a2dp_sink_audio_handle_start_decoding(void) {
   if (btif_a2dp_sink_cb.decode_alarm != NULL)
     return;  // Already started decoding
 
-#ifndef OS_GENERIC
+#ifdef ANDROID
   BtifAvrcpAudioTrackStart(btif_a2dp_sink_cb.audio_track);
 #endif
 
@@ -368,7 +368,7 @@ static void btif_a2dp_sink_handle_inc_media(tBT_SBC_HDR* p_msg) {
     p_msg->len = sbc_frame_len + 1;
   }
 
-#ifndef OS_GENERIC
+#ifdef ANDROID
   BtifAvrcpAudioTrackWriteData(
       btif_a2dp_sink_cb.audio_track, (void*)btif_a2dp_sink_pcm_data,
       (sizeof(btif_a2dp_sink_pcm_data) - availPcmBytes));
@@ -489,7 +489,7 @@ static void btif_a2dp_sink_decoder_update_event(
 
   APPL_TRACE_DEBUG("%s: A2dpSink: SBC create track", __func__);
   btif_a2dp_sink_cb.audio_track =
-#ifndef OS_GENERIC
+#ifdef ANDROID
       BtifAvrcpAudioTrackCreate(sample_rate, channel_type);
 #else
       NULL;
@@ -585,7 +585,7 @@ static void btif_a2dp_sink_set_focus_state_event(
 
 void btif_a2dp_sink_set_audio_track_gain(float gain) {
   APPL_TRACE_DEBUG("%s set gain to %f", __func__, gain);
-#ifndef OS_GENERIC
+#ifdef ANDROID
   BtifAvrcpSetAudioTrackGain(btif_a2dp_sink_cb.audio_track, gain);
 #endif
 }

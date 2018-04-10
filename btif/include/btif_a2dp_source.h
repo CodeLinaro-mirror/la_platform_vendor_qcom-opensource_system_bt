@@ -113,11 +113,11 @@ BT_HDR* btif_a2dp_source_audio_readbuf(void);
 // |fd| is the file descriptor to use for writing the ASCII formatted
 // information.
 void btif_a2dp_source_debug_dump(int fd);
-
+#ifdef ANDROID
 // Update the A2DP Source related metrics.
 // This function should be called before collecting the metrics.
 void btif_a2dp_source_update_metrics(void);
-
+#endif
 // Honor remote avdtp start
 // This function will start a 3 second timer. If the a2dp streaming is
 // started within this time, then the timer will be cancelled. Else-If

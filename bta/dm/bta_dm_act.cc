@@ -4604,7 +4604,7 @@ void bta_dm_ble_observe(tBTA_DM_MSG* p_data) {
  ******************************************************************************/
 void bta_dm_ble_set_adv_params(uint16_t adv_int_min, uint16_t adv_int_max,
                                tBLE_BD_ADDR* p_dir_bda) {
-  BTM_BleSetAdvParams(adv_int_min, adv_int_max, p_dir_bda,
+  BTM_BleSetAdvParams(adv_int_min, adv_int_max, p_dir_bda->bda,
                       BTA_DM_BLE_ADV_CHNL_MAP);
 }
 

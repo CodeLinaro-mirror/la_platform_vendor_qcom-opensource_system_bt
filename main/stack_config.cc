@@ -41,15 +41,19 @@ static future_t* init() {
 #if defined(OS_GENERIC)
   const char* path = "bt_stack.conf";
 #else  // !defined(OS_GENERIC)
+#ifdef ANDROID
   const char* path = "/etc/bluetooth/bt_stack.conf";
+#else
+  const char* path = "/data/misc/bluetooth/bt_stack.conf";
+#endif
 #endif  // defined(OS_GENERIC)
   CHECK(path != NULL);
 
-  LOG_INFO(LOG_TAG, "%s attempt to load stack conf from %s", __func__, path);
+  LOG_INFO("bt_stack_config: %s attempt to load stack conf from %s", __func__, path);
 
   config = config_new(path);
   if (!config) {
-    LOG_INFO(LOG_TAG, "%s file >%s< not found", __func__, path);
+    LOG_INFO("bt_stack_config: %s file >%s< not found", __func__, path);
     config = config_new_empty();
   }
 
@@ -61,6 +65,10 @@ static future_t* clean_up() {
   config = NULL;
   return future_new_immediate(FUTURE_SUCCESS);
 }
+
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
 
 EXPORT_SYMBOL extern const module_t stack_config_module = {
     .name = STACK_CONFIG_MODULE,

@@ -34,6 +34,7 @@
 #include "osi/include/osi.h"
 
 using bluetooth::Uuid;
+bool is_tethering_enabled = FALSE;
 
 /******************************************************************************/
 /*            L O C A L    F U N C T I O N     P R O T O T Y P E S            */
@@ -531,6 +532,12 @@ void bnep_process_setup_conn_req(tBNEP_CONN* p_bcb, uint8_t* p_setup,
                                  uint8_t len) {
   BNEP_TRACE_EVENT("BNEP - %s for CID: 0x%x", __func__, p_bcb->l2cap_cid);
 
+  if (is_tethering_enabled == FALSE)
+  {
+     BNEP_TRACE_WARNING ("BNEP - tethering is not enabled");
+     bnep_send_conn_responce (p_bcb, BNEP_SETUP_CONN_NOT_ALLOWED);
+     return;
+  }
   if (p_bcb->con_state != BNEP_STATE_CONN_SETUP &&
       p_bcb->con_state != BNEP_STATE_SEC_CHECKING &&
       p_bcb->con_state != BNEP_STATE_CONNECTED) {

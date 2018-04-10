@@ -514,7 +514,7 @@ void bta_av_rc_opened(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
       APPL_TRACE_DEBUG("bta_av_rc_opened shdl:%d, srch %d", i + 1,
                        p_scb->rc_handle);
       shdl = i + 1;
-      LOG_INFO(LOG_TAG, "%s allow incoming AVRCP connections:%d", __func__,
+      LOG_INFO("bt_bta_av: %s allow incoming AVRCP connections:%d", __func__,
                p_scb->use_rc);
       alarm_cancel(p_scb->avrc_ct_timer);
       disc = p_scb->hndl;

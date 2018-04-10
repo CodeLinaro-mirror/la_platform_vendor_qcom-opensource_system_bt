@@ -345,6 +345,7 @@ static void bta_sdp_search_cback(uint16_t result, void* user_data) {
   memset(&evt_data, 0, sizeof(evt_data));
   evt_data.remote_addr = bta_sdp_cb.remote_addr;
   evt_data.uuid = uuid;
+  APPL_TRACE_DEBUG("%s - UUID: %s UUID as 16 bit %04x", __func__,(uuid.ToString()).c_str(), uuid.As16Bit());
 
   if (result == SDP_SUCCESS || result == SDP_DB_FULL) {
     tSDP_DISC_REC* p_rec = NULL;
@@ -357,20 +358,20 @@ static void bta_sdp_search_cback(uint16_t result, void* user_data) {
       }
 
       status = BTA_SDP_SUCCESS;
-      if (uuid == UUID_MAP_MAS) {
+      if (uuid.As16Bit() == UUID_MAP_MAS.As16Bit()) {
         APPL_TRACE_DEBUG("%s() - found MAP (MAS) uuid", __func__);
         bta_create_mas_sdp_record(&evt_data.records[count], p_rec);
-      } else if (uuid == UUID_MAP_MNS) {
+      } else if (uuid.As16Bit() == UUID_MAP_MNS.As16Bit()) {
         APPL_TRACE_DEBUG("%s() - found MAP (MNS) uuid", __func__);
         bta_create_mns_sdp_record(&evt_data.records[count], p_rec);
-      } else if (uuid == UUID_PBAP_PSE) {
+      } else if (uuid.As16Bit() == UUID_PBAP_PSE.As16Bit()) {
         APPL_TRACE_DEBUG("%s() - found PBAP (PSE) uuid", __func__);
         bta_create_pse_sdp_record(&evt_data.records[count], p_rec);
-      } else if (uuid == UUID_OBEX_OBJECT_PUSH) {
+      } else if (uuid.As16Bit() == UUID_OBEX_OBJECT_PUSH.As16Bit()) {
         APPL_TRACE_DEBUG("%s() - found Object Push Server (OPS) uuid",
                          __func__);
         bta_create_ops_sdp_record(&evt_data.records[count], p_rec);
-      } else if (uuid == UUID_SAP) {
+      } else if (uuid.As16Bit() == UUID_SAP.As16Bit()) {
         APPL_TRACE_DEBUG("%s() - found SAP uuid", __func__);
         bta_create_sap_sdp_record(&evt_data.records[count], p_rec);
       } else {

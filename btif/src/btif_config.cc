@@ -58,10 +58,16 @@ static const char* CONFIG_FILE_PATH = "bt_config.conf";
 static const char* CONFIG_BACKUP_PATH = "bt_config.bak";
 static const char* CONFIG_LEGACY_FILE_PATH = "bt_config.xml";
 #else   // !defined(OS_GENERIC)
+#ifdef ANDROID
 static const char* CONFIG_FILE_PATH = "/data/misc/bluedroid/bt_config.conf";
 static const char* CONFIG_BACKUP_PATH = "/data/misc/bluedroid/bt_config.bak";
 static const char* CONFIG_LEGACY_FILE_PATH =
     "/data/misc/bluedroid/bt_config.xml";
+#else
+static const char* CONFIG_FILE_PATH = "/data/misc/bluetooth/bt_config.conf";
+static const char* CONFIG_BACKUP_PATH = "/data/misc/bluetooth/bt_config.bak";
+static const char *CONFIG_LEGACY_FILE_PATH = "/data/misc/bluetooth/bt_config.xml";
+#endif
 #endif  // defined(OS_GENERIC)
 static const period_ms_t CONFIG_SETTLE_PERIOD_MS = 3000;
 
@@ -96,7 +102,7 @@ bool btif_get_device_type(const RawAddress& bda, int* p_device_type) {
 
   if (!btif_config_get_int(bd_addr_str, "DevType", p_device_type)) return false;
 
-  LOG_DEBUG(LOG_TAG, "%s: Device [%s] type %d", __func__, bd_addr_str,
+  LOG_DEBUG("bt_btif_config: %s: Device [%s] type %d", __func__, bd_addr_str,
             *p_device_type);
   return true;
 }
@@ -109,7 +115,7 @@ bool btif_get_address_type(const RawAddress& bda, int* p_addr_type) {
 
   if (!btif_config_get_int(bd_addr_str, "AddrType", p_addr_type)) return false;
 
-  LOG_DEBUG(LOG_TAG, "%s: Device [%s] address type %d", __func__, bd_addr_str,
+  LOG_DEBUG("bt_btif_config: %s: Device [%s] address type %d", __func__, bd_addr_str,
             *p_addr_type);
   return true;
 }
@@ -130,22 +136,24 @@ static future_t* init(void) {
   config = btif_config_open(CONFIG_FILE_PATH);
   btif_config_source = ORIGINAL;
   if (!config) {
-    LOG_WARN(LOG_TAG, "%s unable to load config file: %s; using backup.",
+    LOG_WARN("bt_btif_config: %s unable to load config file: %s; using backup.",
              __func__, CONFIG_FILE_PATH);
     config = btif_config_open(CONFIG_BACKUP_PATH);
     btif_config_source = BACKUP;
     file_source = "Backup";
   }
+#ifdef ANDROID
   if (!config) {
-    LOG_WARN(LOG_TAG,
+    LOG_WARN("bt_btif_config: "
              "%s unable to load backup; attempting to transcode legacy file.",
              __func__);
     config = btif_config_transcode(CONFIG_LEGACY_FILE_PATH);
     btif_config_source = LEGACY;
     file_source = "Legacy";
   }
+#endif
   if (!config) {
-    LOG_ERROR(LOG_TAG,
+    LOG_ERROR("bt_btif_config: "
               "%s unable to transcode legacy file; creating empty config.",
               __func__);
     config = config_new_empty();
@@ -157,7 +165,7 @@ static future_t* init(void) {
     config_set_string(config, INFO_SECTION, FILE_SOURCE, file_source.c_str());
 
   if (!config) {
-    LOG_ERROR(LOG_TAG, "%s unable to allocate a config object.", __func__);
+    LOG_ERROR("bt_btif_config: %s unable to allocate a config object.", __func__);
     goto error;
   }
 
@@ -187,7 +195,7 @@ static future_t* init(void) {
   // write back to disk.
   config_timer = alarm_new("btif.config");
   if (!config_timer) {
-    LOG_ERROR(LOG_TAG, "%s unable to create alarm.", __func__);
+    LOG_ERROR("bt_btif_config: %s unable to create alarm.", __func__);
     goto error;
   }
 
@@ -209,7 +217,7 @@ static config_t* btif_config_open(const char* filename) {
   if (!config) return NULL;
 
   if (!config_has_section(config, "Adapter")) {
-    LOG_ERROR(LOG_TAG, "Config is missing adapter section");
+    LOG_ERROR("bt_btif_config: Config is missing adapter section");
     config_free(config);
     return NULL;
   }
@@ -233,6 +241,10 @@ static future_t* clean_up(void) {
   config = NULL;
   return future_new_immediate(FUTURE_SUCCESS);
 }
+
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
 
 EXPORT_SYMBOL module_t btif_config_module = {.name = BTIF_CONFIG_MODULE,
                                              .init = init,

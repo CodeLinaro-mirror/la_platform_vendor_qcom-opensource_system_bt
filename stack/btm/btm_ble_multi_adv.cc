@@ -19,7 +19,7 @@
 
 #include <base/bind.h>
 #include <base/logging.h>
-#include <base/memory/weak_ptr.h>
+
 #include <base/strings/string_number_conversions.h>
 #include <base/time/time.h>
 #include <string.h>
@@ -157,7 +157,7 @@ class BleAdvertisingManagerImpl;
 /* a temporary type for holding all the data needed in callbacks below*/
 struct CreatorParams {
   uint8_t inst_id;
-  base::WeakPtr<BleAdvertisingManagerImpl> self;
+  BleAdvertisingManagerImpl* self;
   IdTxPowerStatusCb cb;
   tBTM_BLE_ADV_PARAMS params;
   std::vector<uint8_t> advertise_data;
@@ -171,18 +171,16 @@ struct CreatorParams {
 
 using c_type = std::unique_ptr<CreatorParams>;
 
-BleAdvertisingManager* instance;
-base::WeakPtr<BleAdvertisingManagerImpl> instance_weakptr;
 
 class BleAdvertisingManagerImpl
     : public BleAdvertisingManager,
       public BleAdvertiserHciInterface::AdvertisingEventObserver {
  public:
-  BleAdvertisingManagerImpl(BleAdvertiserHciInterface* interface)
-      : hci_interface(interface), weak_factory_(this) {
+  BleAdvertisingManagerImpl(BleAdvertiserHciInterface* interface) {
+    this->hci_interface = interface;
     hci_interface->ReadInstanceCount(
         base::Bind(&BleAdvertisingManagerImpl::ReadInstanceCountCb,
-                   weak_factory_.GetWeakPtr()));
+                   base::Unretained(this)));
   }
 
   ~BleAdvertisingManagerImpl() { adv_inst.clear(); }
@@ -231,7 +229,7 @@ class BleAdvertisingManagerImpl
   void GenerateRpa(base::Callback<void(RawAddress)> cb) {
     btm_gen_resolvable_private_addr(
         Bind(&BleAdvertisingManagerImpl::OnRpaGenerationComplete,
-             weak_factory_.GetWeakPtr(), std::move(cb)));
+             base::Unretained(this), std::move(cb)));
   }
 
   void ConfigureRpa(AdvertisingInstance* p_inst, MultiAdvCb configuredCb) {
@@ -253,8 +251,9 @@ class BleAdvertisingManagerImpl
           /* Connectable advertising set must be disabled when updating RPA */
           bool restart = p_inst->IsEnabled() && p_inst->IsConnectable();
 
-          if (!instance_weakptr.get()) return;
-          auto hci_interface = instance_weakptr.get()->GetHciInterface();
+          auto hci_interface =
+              ((BleAdvertisingManagerImpl*)BleAdvertisingManager::Get())
+                  ->GetHciInterface();
 
           if (restart) {
             p_inst->enable_status = false;
@@ -333,7 +332,7 @@ class BleAdvertisingManagerImpl
     /* a temporary type for holding all the data needed in callbacks below*/
     struct CreatorParams {
       uint8_t inst_id;
-      base::WeakPtr<BleAdvertisingManagerImpl> self;
+      BleAdvertisingManagerImpl* self;
       MultiAdvCb cb;
       tBTM_BLE_ADV_PARAMS params;
       std::vector<uint8_t> advertise_data;
@@ -345,7 +344,7 @@ class BleAdvertisingManagerImpl
     std::unique_ptr<CreatorParams> c;
     c.reset(new CreatorParams());
 
-    c->self = weak_factory_.GetWeakPtr();
+    c->self = this;
     c->cb = std::move(cb);
     c->params = *params;
     c->advertise_data = std::move(advertise_data);
@@ -433,7 +432,7 @@ class BleAdvertisingManagerImpl
     std::unique_ptr<CreatorParams> c;
     c.reset(new CreatorParams());
 
-    c->self = weak_factory_.GetWeakPtr();
+    c->self = this;
     c->cb = std::move(cb);
     c->params = *params;
     c->advertise_data = std::move(advertise_data);
@@ -613,7 +612,7 @@ class BleAdvertisingManagerImpl
     uint16_t duration = c->duration;
     uint8_t maxExtAdvEvents = c->maxExtAdvEvents;
     RegisterCb timeout_cb = std::move(c->timeout_cb);
-    base::WeakPtr<BleAdvertisingManagerImpl> self = c->self;
+    BleAdvertisingManagerImpl* self = c->self;
     MultiAdvCb enable_cb = Bind(
         [](c_type c, uint8_t status) {
           if (!c->self) {
@@ -646,9 +645,9 @@ class BleAdvertisingManagerImpl
 
     p_inst->timeout_timer = alarm_new("btm_ble.adv_timeout");
 
-    base::Closure cb = Bind(
-        &BleAdvertisingManagerImpl::Enable, weak_factory_.GetWeakPtr(), inst_id,
-        0 /* disable */, std::move(timeout_cb), 0, 0, base::Bind(DoNothing));
+    base::Closure cb = Bind(&BleAdvertisingManagerImpl::Enable,
+                            base::Unretained(this), inst_id, 0 /* disable */,
+                            std::move(timeout_cb), 0, 0, base::Bind(DoNothing));
 
     // schedule disable when the timeout passes
     alarm_set_closure(FROM_HERE, p_inst->timeout_timer, duration * 10,
@@ -681,8 +680,8 @@ class BleAdvertisingManagerImpl
     if (enable && p_inst->address_update_required) {
       p_inst->address_update_required = false;
       ConfigureRpa(p_inst, base::Bind(&BleAdvertisingManagerImpl::EnableFinish,
-                                      weak_factory_.GetWeakPtr(), p_inst,
-                                      enable, std::move(cb)));
+                                      base::Unretained(this), p_inst, enable,
+                                      std::move(cb)));
       return;
     }
 
@@ -696,7 +695,7 @@ class BleAdvertisingManagerImpl
       // TODO(jpawlowski): HCI implementation that can't do duration should
       // emulate it, not EnableWithTimerCb.
       myCb = Bind(&BleAdvertisingManagerImpl::EnableWithTimerCb,
-                  weak_factory_.GetWeakPtr(), p_inst->inst_id, std::move(cb),
+                  base::Unretained(this), p_inst->inst_id, std::move(cb),
                   p_inst->duration, p_inst->timeout_cb);
     } else {
       myCb = std::move(cb);
@@ -803,7 +802,7 @@ class BleAdvertisingManagerImpl
     DivideAndSendData(
         inst_id, data, cb,
         base::Bind(&BleAdvertisingManagerImpl::SetDataAdvDataSender,
-                   weak_factory_.GetWeakPtr(), is_scan_rsp));
+                   base::Unretained(this), is_scan_rsp));
   }
 
   void SetDataAdvDataSender(uint8_t is_scan_rsp, uint8_t inst_id,
@@ -1051,9 +1050,6 @@ class BleAdvertisingManagerImpl
     }
   }
 
-  base::WeakPtr<BleAdvertisingManagerImpl> GetWeakPtr() {
-    return weak_factory_.GetWeakPtr();
-  }
 
   void CancelAdvAlarms() {
     AdvertisingInstance* p_inst = &adv_inst[0];
@@ -1077,29 +1073,28 @@ class BleAdvertisingManagerImpl
   // Member variables should appear before the WeakPtrFactory, to ensure
   // that any WeakPtrs are invalidated before its members
   // variable's destructors are executed, rendering them invalid.
-  base::WeakPtrFactory<BleAdvertisingManagerImpl> weak_factory_;
 };
 
+BleAdvertisingManager* instance;
+
 void btm_ble_adv_raddr_timer_timeout(void* data) {
-  BleAdvertisingManagerImpl* ptr = instance_weakptr.get();
-  if (ptr) ptr->ConfigureRpa((AdvertisingInstance*)data, base::Bind(DoNothing));
+  ((BleAdvertisingManagerImpl*)BleAdvertisingManager::Get())
+      ->ConfigureRpa((AdvertisingInstance*)data, base::Bind(DoNothing));
 }
 }  // namespace
 
 void BleAdvertisingManager::Initialize(BleAdvertiserHciInterface* interface) {
   instance = new BleAdvertisingManagerImpl(interface);
-  instance_weakptr = ((BleAdvertisingManagerImpl*)instance)->GetWeakPtr();
 }
 
 bool BleAdvertisingManager::IsInitialized() { return instance; }
 
-base::WeakPtr<BleAdvertisingManager> BleAdvertisingManager::Get() {
-  return instance_weakptr;
+BleAdvertisingManager* BleAdvertisingManager::Get() {
+  CHECK(instance);
+  return instance;
 };
 
 void BleAdvertisingManager::CleanUp() {
-  if (instance_weakptr.get()) instance_weakptr.get()->CancelAdvAlarms();
-
   delete instance;
   instance = nullptr;
 };
@@ -1111,11 +1106,11 @@ void btm_ble_adv_init() {
   BleAdvertiserHciInterface::Initialize();
   BleAdvertisingManager::Initialize(BleAdvertiserHciInterface::Get());
   BleAdvertiserHciInterface::Get()->SetAdvertisingEventObserver(
-      (BleAdvertisingManagerImpl*)BleAdvertisingManager::Get().get());
+      (BleAdvertisingManagerImpl*)BleAdvertisingManager::Get());
 
   if (BleAdvertiserHciInterface::Get()->QuirkAdvertiserZeroHandle()) {
     // If handle 0 can't be used, register advertiser for it, but never use it.
-    BleAdvertisingManager::Get().get()->RegisterAdvertiser(Bind(DoNothing2));
+    BleAdvertisingManager::Get()->RegisterAdvertiser(Bind(DoNothing2));
   }
 }
 
@@ -1147,7 +1142,7 @@ void test_timeout_cb(uint8_t status) { timeout_triggered = true; }
 // verify that if duration passed, or is about to pass, recomputation will shut
 // down the advertiser completly
 void testRecomputeTimeout1() {
-  auto manager = (BleAdvertisingManagerImpl*)BleAdvertisingManager::Get().get();
+  auto manager = (BleAdvertisingManagerImpl*)BleAdvertisingManager::Get();
 
   TimeTicks start = TimeTicks::Now();
   TimeTicks end = start + TimeDelta::FromMilliseconds(111);
@@ -1167,7 +1162,7 @@ void testRecomputeTimeout1() {
 // verify that duration and maxExtAdvEvents are properly adjusted when
 // recomputing.
 void testRecomputeTimeout2() {
-  auto manager = (BleAdvertisingManagerImpl*)BleAdvertisingManager::Get().get();
+  auto manager = (BleAdvertisingManagerImpl*)BleAdvertisingManager::Get();
 
   TimeTicks start = TimeTicks::Now();
   TimeTicks end = start + TimeDelta::FromMilliseconds(250);
@@ -1190,7 +1185,7 @@ void testRecomputeTimeout2() {
 // verify that if maxExtAdvEvents were sent, or are close to end, recomputation
 // wil shut down the advertiser completly
 void testRecomputeTimeout3() {
-  auto manager = (BleAdvertisingManagerImpl*)BleAdvertisingManager::Get().get();
+  auto manager = (BleAdvertisingManagerImpl*)BleAdvertisingManager::Get();
 
   TimeTicks start = TimeTicks::Now();
   TimeTicks end = start + TimeDelta::FromMilliseconds(495);

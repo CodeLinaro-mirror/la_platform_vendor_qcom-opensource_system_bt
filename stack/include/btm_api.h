@@ -25,7 +25,7 @@
 #ifndef BTM_API_H
 #define BTM_API_H
 
-#include "bt_target.h"
+#include "internal_include/bt_target.h"
 #include "device/include/esco_parameters.h"
 #include "hcidefs.h"
 #include "sdp_api.h"

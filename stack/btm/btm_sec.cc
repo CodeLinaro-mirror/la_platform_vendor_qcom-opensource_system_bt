@@ -230,7 +230,7 @@ bool BTM_SecRegister(tBTM_APPL_INFO* p_cb_info) {
 
   BTM_TRACE_EVENT("%s application registered", __func__);
 
-  LOG_INFO(LOG_TAG, "%s p_cb_info->p_le_callback == 0x%p", __func__,
+  LOG_INFO("bt_btm_sec: %s p_cb_info->p_le_callback == 0x%p", __func__,
            p_cb_info->p_le_callback);
   if (p_cb_info->p_le_callback) {
     BTM_TRACE_EVENT("%s SMP_Register( btm_proc_smp_cback )", __func__);
@@ -240,11 +240,11 @@ bool BTM_SecRegister(tBTM_APPL_INFO* p_cb_info) {
       btm_ble_reset_id();
     }
   } else {
-    LOG_WARN(LOG_TAG, "%s p_cb_info->p_le_callback == NULL", __func__);
+    LOG_WARN("bt_btm_sec: %s p_cb_info->p_le_callback == NULL", __func__);
   }
 
   btm_cb.api = *p_cb_info;
-  LOG_INFO(LOG_TAG, "%s btm_cb.api.p_le_callback = 0x%p ", __func__,
+  LOG_INFO("bt_btm_sec: %s btm_cb.api.p_le_callback = 0x%p ", __func__,
            btm_cb.api.p_le_callback);
   BTM_TRACE_EVENT("%s application registered", __func__);
   return (true);
@@ -860,7 +860,7 @@ void BTM_PINCodeReply(const RawAddress& bd_addr, uint8_t res, uint8_t pin_len,
       btm_sec_change_pairing_state(BTM_PAIR_STATE_WAIT_AUTH_COMPLETE);
       btm_cb.acl_disc_reason = HCI_ERR_HOST_REJECT_SECURITY;
 
-      LOG_INFO(LOG_TAG, "%s: Negative pin code reply: btm_cb.pairing_flags : %d", __func__, btm_cb.pairing_flags);
+      LOG_INFO("bt_btm_sec: %s: Negative pin code reply: btm_cb.pairing_flags : %d", __func__, btm_cb.pairing_flags);
       btsnd_hcic_pin_code_neg_reply(bd_addr);
     } else {
       p_dev_rec->security_required = BTM_SEC_NONE;
@@ -2334,8 +2334,7 @@ tBTM_STATUS btm_sec_l2cap_access_req(const RawAddress& bd_addr, uint16_t psm,
       sequence
       because of data path issues. Delay this disconnect a little bit
       */
-      LOG_INFO(
-          LOG_TAG,
+      LOG_INFO("bt_btm_sec: "
           "%s peer should have initiated security process by now (SM4 to SM4)",
           __func__);
       p_dev_rec->p_callback = p_callback;
@@ -3373,7 +3372,7 @@ void btm_io_capabilities_req(const RawAddress& p) {
   }
 
   if (err_code != 0) {
-    LOG_INFO(LOG_TAG, "%s: btsnd_hcic_io_cap_req_neg_reply: err_code : %d" , __func__, err_code);
+    LOG_INFO("bt_btm_sec: %s: btsnd_hcic_io_cap_req_neg_reply: err_code : %d" , __func__, err_code);
     btsnd_hcic_io_cap_req_neg_reply(evt_data.bd_addr, err_code);
     return;
   }
@@ -4647,7 +4646,7 @@ void btm_sec_disconnected(uint16_t handle, uint8_t reason) {
   p_dev_rec->rs_disc_pending = BTM_SEC_RS_NOT_PENDING; /* reset flag */
 
 #if (BTM_DISC_DURING_RS == TRUE)
-  LOG_INFO(LOG_TAG, "%s clearing pending flag handle:%d reason:%d", __func__,
+  LOG_INFO("bt_btm_sec: %s clearing pending flag handle:%d reason:%d", __func__,
            handle, reason);
   p_dev_rec->rs_disc_pending = BTM_SEC_RS_NOT_PENDING; /* reset flag */
 #endif
@@ -4893,7 +4892,7 @@ void btm_sec_link_key_request(const RawAddress& bda) {
   l2c_pin_code_request(bda);
 
   /* The link key is not in the database and it is not known to the manager */
-  LOG_INFO(LOG_TAG, "%s: btsnd_hcic_link_key_neg_reply: p_dev_rec->sec_flags : %d" , __func__, p_dev_rec->sec_flags);
+  LOG_INFO("bt_btm_sec: %s: btsnd_hcic_link_key_neg_reply: p_dev_rec->sec_flags : %d" , __func__, p_dev_rec->sec_flags);
   btsnd_hcic_link_key_neg_reply(bda);
 }
 
@@ -4931,7 +4930,7 @@ static void btm_sec_pairing_timeout(UNUSED_ATTR void* data) {
 
     case BTM_PAIR_STATE_WAIT_LOCAL_PIN:
       if ((btm_cb.pairing_flags & BTM_PAIR_FLAGS_PRE_FETCH_PIN) == 0) {
-        LOG_INFO(LOG_TAG, "%s: btsnd_hcic_pin_code_neg_reply: btm_cb.pairing_flags : %d" , __func__, btm_cb.pairing_flags);
+        LOG_INFO("bt_btm_sec: %s: btsnd_hcic_pin_code_neg_reply: btm_cb.pairing_flags : %d" , __func__, btm_cb.pairing_flags);
         btsnd_hcic_pin_code_neg_reply(p_cb->pairing_bda);
       }
       btm_sec_change_pairing_state(BTM_PAIR_STATE_IDLE);
@@ -4955,7 +4954,7 @@ static void btm_sec_pairing_timeout(UNUSED_ATTR void* data) {
 
 #if (BTM_LOCAL_IO_CAPS != BTM_IO_CAP_NONE)
     case BTM_PAIR_STATE_KEY_ENTRY:
-      LOG_INFO(LOG_TAG, "%s: btsnd_hcic_user_passkey_neg_reply: BTM_LOCAL_IO_CAPS : %d" , __func__, BTM_LOCAL_IO_CAPS);
+      LOG_INFO("bt_btm_sec: %s: btsnd_hcic_user_passkey_neg_reply: BTM_LOCAL_IO_CAPS : %d" , __func__, BTM_LOCAL_IO_CAPS);
       btsnd_hcic_user_passkey_neg_reply(p_cb->pairing_bda);
       /* btm_sec_change_pairing_state (BTM_PAIR_STATE_IDLE); */
       break;
@@ -5044,14 +5043,14 @@ void btm_sec_pin_code_request(const RawAddress& p_bda) {
   if (btm_cb.pairing_state != BTM_PAIR_STATE_IDLE) {
     if ((p_bda == btm_cb.pairing_bda) &&
         (btm_cb.pairing_state == BTM_PAIR_STATE_WAIT_AUTH_COMPLETE)) {
-      LOG_INFO(LOG_TAG, "%s: btsnd_hcic_pin_code_neg_reply: btm_cb.pairing_state : %d", __func__, btm_cb.pairing_state);
+      LOG_INFO("bt_btm_sec: %s: btsnd_hcic_pin_code_neg_reply: btm_cb.pairing_state : %d", __func__, btm_cb.pairing_state);
       btsnd_hcic_pin_code_neg_reply(p_bda);
       return;
     } else if ((btm_cb.pairing_state != BTM_PAIR_STATE_WAIT_PIN_REQ) ||
                p_bda != btm_cb.pairing_bda) {
       BTM_TRACE_WARNING("btm_sec_pin_code_request() rejected - state: %s",
                         btm_pair_state_descr(btm_cb.pairing_state));
-      LOG_INFO(LOG_TAG,"%s btsnd_hcic_pin_code_neg_reply", __func__);
+      LOG_INFO("bt_btm_sec: %s btsnd_hcic_pin_code_neg_reply", __func__);
       btsnd_hcic_pin_code_neg_reply(p_bda);
       return;
     }

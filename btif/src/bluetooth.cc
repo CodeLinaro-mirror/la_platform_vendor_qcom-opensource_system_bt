@@ -48,6 +48,9 @@
 #ifdef WIPOWER_SUPPORTED
 #include <hardware/wipower.h>
 #endif
+#ifdef OBEX_SUPPORTED
+#include <hardware/bt_obex_sock.h>
+#endif
 #include <hardware/vendor.h>
 #include <hardware/vendor_socket.h>
 
@@ -75,7 +78,9 @@
 
 /* Test interface includes */
 #include "mca_api.h"
-
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
 /*******************************************************************************
  *  Static variables
  ******************************************************************************/
@@ -119,11 +124,15 @@ extern btsdp_interface_t* btif_sdp_get_interface();
 extern wipower_interface_t *get_wipower_interface();
 #endif
 
+#ifdef OBEX_SUPPORTED
+extern btsock_interface_t_v1 *btif_obex_get_interface();
+#endif
+
 /* List all test interface here */
 extern btmcap_test_interface_t* stack_mcap_get_interface();
 /* vendor  */
 extern btvendor_interface_t *btif_vendor_get_interface();
-/* vendor socket*/
+
 extern btvendor_interface_t *btif_vendor_socket_get_interface();
 
 /*******************************************************************************
@@ -145,8 +154,7 @@ static bool is_profile(const char* p1, const char* p2) {
  ****************************************************************************/
 
 static int init(bt_callbacks_t* callbacks) {
-  LOG_INFO(LOG_TAG, "QTI OMR1 stack: %s", __func__);
-
+  LOG_INFO("bt_btif: %s", __func__);
   if (interface_ready()) return BT_STATUS_DONE;
 
 #ifdef BLUEDROID_DEBUG
@@ -160,7 +168,7 @@ static int init(bt_callbacks_t* callbacks) {
 }
 
 static int enable(bool start_restricted) {
-  LOG_INFO(LOG_TAG, "QTI OMR1 stack: %s: start restricted = %d", __func__, start_restricted);
+  LOG_INFO("bt_btif: %s: start restricted = %d", __func__, start_restricted);
 
   restricted_mode = start_restricted;
 
@@ -316,6 +324,7 @@ static int read_energy_info() {
 }
 
 static void dump(int fd, const char** arguments) {
+#ifdef ANDRIOD
   if (arguments != NULL && arguments[0] != NULL) {
     if (strncmp(arguments[0], "--proto-bin", 11) == 0) {
       system_bt_osi::BluetoothMetricsLogger::GetInstance()->WriteBase64(fd,
@@ -323,6 +332,7 @@ static void dump(int fd, const char** arguments) {
       return;
     }
   }
+#endif
   btif_debug_conn_dump(fd);
   btif_debug_bond_event_dump(fd);
   btif_debug_a2dp_dump(fd);
@@ -339,7 +349,7 @@ static void dump(int fd, const char** arguments) {
 }
 
 static const void* get_profile_interface(const char* profile_id) {
-  LOG_INFO(LOG_TAG, "%s: id = %s", __func__, profile_id);
+  LOG_INFO("bt_btif: %s: id = %s", __func__, profile_id);
 
   /* sanity check */
   if (interface_ready() == false) return NULL;
@@ -384,15 +394,17 @@ static const void* get_profile_interface(const char* profile_id) {
   if (is_profile(profile_id, BT_PROFILE_AV_RC_CTRL_ID))
     return btif_rc_ctrl_get_interface();
 
-  if (is_profile(profile_id, BT_PROFILE_VENDOR_ID))
-    return btif_vendor_get_interface();
-
-  if (is_profile(profile_id, BT_PROFILE_VENDOR_SOCKET_ID))
-    return btif_vendor_socket_get_interface();
+ // if (is_profile(profile_id, BT_PROFILE_VENDOR_ID))
+  //  return btif_vendor_get_interface();
 
 #ifdef WIPOWER_SUPPORTED
   if (is_profile(profile_id, BT_PROFILE_WIPOWER_VENDOR_ID))
     return get_wipower_interface();
+#endif
+
+#ifdef OBEX_SUPPORTED
+  if (is_profile(profile_id, BT_PROFILE_OBEX_ID))
+    return btif_obex_get_interface();
 #endif
 
   if (is_profile(profile_id, BT_TEST_INTERFACE_MCAP_ID))
@@ -402,7 +414,7 @@ static const void* get_profile_interface(const char* profile_id) {
 }
 
 int dut_mode_configure(uint8_t enable) {
-  LOG_INFO(LOG_TAG, "%s", __func__);
+  LOG_INFO("bt_btif: %s", __func__);
 
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
@@ -411,7 +423,7 @@ int dut_mode_configure(uint8_t enable) {
 }
 
 int dut_mode_send(uint16_t opcode, uint8_t* buf, uint8_t len) {
-  LOG_INFO(LOG_TAG, "%s", __func__);
+  LOG_INFO("bt_btif: %s", __func__);
 
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
@@ -420,7 +432,7 @@ int dut_mode_send(uint16_t opcode, uint8_t* buf, uint8_t len) {
 }
 
 int le_test_mode(uint16_t opcode, uint8_t* buf, uint8_t len) {
-  LOG_INFO(LOG_TAG, "%s", __func__);
+  LOG_INFO("bt_btif: %s", __func__);
 
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
@@ -433,22 +445,17 @@ static int set_os_callouts(bt_os_callouts_t* callouts) {
   return BT_STATUS_SUCCESS;
 }
 
-// gghai: for JNI HAL compatibility
-static void dumpMetrics(std::string* output) {
-  LOG_INFO(LOG_TAG, "%s", __func__);
-}
-
 static int config_clear(void) {
-  LOG_INFO(LOG_TAG, "%s", __func__);
+  LOG_INFO("bt_btif: %s", __func__);
   return btif_config_clear() ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
 }
-
+#ifdef ANDROID
 static bluetooth::avrcp::ServiceInterface* get_avrcp_service(void) {
   //return bluetooth::avrcp::AvrcpService::GetServiceInterface();
   LOG_ERROR(LOG_TAG, "%s: Avrcp Interface not available", __func__);
   return NULL;
 }
-
+#endif
 EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     sizeof(bluetoothInterface),
     init,
@@ -479,9 +486,54 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     set_os_callouts,
     read_energy_info,
     dump,
+	NULL,
+#ifdef ANDROID
     dumpMetrics,
+#endif
     config_clear,
     interop_database_clear,
     interop_database_add,
+#ifdef ANDROID
     get_avrcp_service,
+#endif
 };
+const bt_interface_t* bluetooth__get_bluetooth_interface() {
+  /* fixme -- add property to disable bt interface ? */
+
+  return &bluetoothInterface;
+}
+
+static int close_bluetooth_stack(UNUSED_ATTR struct hw_device_t* device) {
+  cleanup();
+  return 0;
+}
+
+static int open_bluetooth_stack(const struct hw_module_t* module,
+                                UNUSED_ATTR char const* name,
+                                struct hw_device_t** abstraction) {
+  static bluetooth_device_t device;
+  device.common.tag = HARDWARE_DEVICE_TAG;
+  device.common.version = 0;
+  device.common.close = close_bluetooth_stack;
+  device.get_bluetooth_interface = bluetooth__get_bluetooth_interface;
+  device.common.module = (struct hw_module_t*)module;
+  *abstraction = (struct hw_device_t*)&device;
+  return 0;
+}
+
+static struct hw_module_methods_t bt_stack_module_methods = {
+    .open = open_bluetooth_stack,
+};
+
+#ifndef ANDROID
+#define EXPORT_SYMBOL   __attribute__((visibility("default")))
+#endif
+
+EXPORT_SYMBOL struct hw_module_t HAL_MODULE_INFO_SYM = {
+    .tag = HARDWARE_MODULE_TAG,
+    .version_major = 1,
+    .version_minor = 0,
+    .id = BT_HARDWARE_MODULE_ID,
+    .name = "Bluetooth Stack",
+    .author = "The Android Open Source Project",
+    .methods = &bt_stack_module_methods};

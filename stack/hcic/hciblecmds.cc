@@ -28,7 +28,7 @@
 #include "btu.h"
 #include "hcidefs.h"
 #include "hcimsgs.h"
-
+#include <bitset>
 #include <base/bind.h>
 #include <stddef.h>
 #include <string.h>

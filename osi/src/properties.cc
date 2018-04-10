@@ -19,9 +19,10 @@
 #include <string.h>
 
 #include "osi/include/properties.h"
+#ifdef ANDROID
 #include "hardware/vendor.h"
-
 bt_property_callout_t* property_callouts = NULL;
+#endif
 
 int osi_property_get(const char* key, char* value, const char* default_value) {
 #if defined(OS_GENERIC)
@@ -39,7 +40,11 @@ int osi_property_get(const char* key, char* value, const char* default_value) {
   value[len] = '\0';
   return len;
 #else
+#ifdef ANDROID
   return property_get(key, value, default_value);
+#else
+  return property_get_bt(key, value, default_value);
+#endif
 #endif  // defined(OS_GENERIC)
 }
 
@@ -50,7 +55,11 @@ if(property_callouts)
 
   return -1;
 #else
+#ifdef ANDROID
   return property_set(key, value);
+#else
+  return property_set_bt(key, value);
+#endif
 #endif  // defined(OS_GENERIC)
 }
 
@@ -61,10 +70,15 @@ if(property_callouts)
 
   return default_value;
 #else
+#ifdef ANDROID
   return property_get_int32(key, default_value);
+#else
+  return property_get_bt_int32(key, default_value);
+#endif
 #endif  // defined(OS_GENERIC)
 }
-
+#ifdef ANDROID
 void set_prop_callouts(bt_property_callout_t* callouts) {
   property_callouts = callouts;
 }
+#endif

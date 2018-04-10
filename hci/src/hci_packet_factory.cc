@@ -26,7 +26,7 @@
 #include "hcidefs.h"
 #include "hcimsgs.h"
 #include "osi/include/allocator.h"
-
+#include "osi/include/log.h"
 static const allocator_t* buffer_allocator;
 
 static BT_HDR* make_packet(size_t data_size);

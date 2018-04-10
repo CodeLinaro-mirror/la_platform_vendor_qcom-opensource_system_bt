@@ -614,7 +614,7 @@ bool L2CA_SetConnectionCallbacks(uint16_t local_cid,
 
   tL2C_CCB* channel_control_block = l2cu_find_ccb_by_cid(NULL, local_cid);
   if (!channel_control_block) {
-    LOG_ERROR(LOG_TAG,
+    LOG_ERROR("bt_l2cap: "
               "%s no channel control block found for L2CAP LCID=0x%04x.",
               __func__, local_cid);
     return false;

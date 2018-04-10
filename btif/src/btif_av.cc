@@ -36,7 +36,7 @@
 #include "bta_api.h"
 #include "btif_storage.h"
 #include "btif_a2dp.h"
-#include "btif_hf.h"
+#include "bta/av/bta_av_int.h"
 #include "btif_a2dp_audio_interface.h"
 #include "btif_a2dp_control.h"
 #include "btif_a2dp_sink.h"
@@ -50,7 +50,7 @@
 #include "btif/include/btif_a2dp_source.h"
 #include "device/include/interop.h"
 #include "device/include/controller.h"
-
+#include "btif_hf.h"
 extern bool isDevUiReq;
 bool isBitRateChange = false;
 bool isBitsPerSampleChange = false;
@@ -101,8 +101,6 @@ typedef enum {
 /* Default sink latency value while delay report is not supported by SNK */
 #define BTIF_AV_DEFAULT_SINK_LATENCY 0
 #define BTIF_AV_DEFAULT_MULTICAST_SINK_LATENCY 200
-
-/* Param id for bitrate and bits per sample */
 #define BITRATE_PARAM_ID 1
 #define BITSPERSAMPLE_PARAM_ID 2
 
@@ -269,7 +267,6 @@ void btif_av_reset_codec_reconfig_flag();
 void btif_av_reinit_audio_interface();
 bool btif_av_is_suspend_stop_pending_ack();
 static void allow_connection(int is_valid, RawAddress *bd_addr); // gghai
-
 
 const char* dump_av_sm_state_name(btif_av_state_t state) {
   switch (state) {
@@ -896,7 +893,7 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
           if (btif_av_is_split_a2dp_enabled()) {
             BTIF_TRACE_DEBUG("Split a2dp enabled:initialize interface ");
             btif_a2dp_audio_if_init = true;
-            btif_a2dp_audio_interface_init();
+           // btif_a2dp_audio_interface_init();
           } else {
             BTIF_TRACE_DEBUG("Split a2dp not enabled");
           }
@@ -1421,7 +1418,7 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
       if (!btif_av_is_connected_on_other_idx(index)) {
         if (btif_av_is_split_a2dp_enabled()) {
           btif_a2dp_audio_if_init = false;
-          btif_a2dp_audio_interface_deinit();
+          //btif_a2dp_audio_interface_deinit();
         }
       }
 /* SPLITA2DP */
@@ -1473,7 +1470,7 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
         if (btif_av_is_split_a2dp_enabled()) {
           if (btif_a2dp_audio_if_init) {
             btif_a2dp_audio_if_init = false;
-            btif_a2dp_audio_interface_deinit();
+            //btif_a2dp_audio_interface_deinit();
           }
         }
 /* SPLITA2DP */
@@ -1784,7 +1781,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
       } else {
         if (btif_a2dp_audio_if_init) {
           btif_a2dp_audio_if_init = false;
-          btif_a2dp_audio_interface_deinit();
+          //btif_a2dp_audio_interface_deinit();
         }
       }
       // inform the application that we are disconnecting
@@ -1821,8 +1818,8 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
           uint8_t* old_codec_cfg = NULL;
           cur_codec_cfg = bta_av_co_get_peer_codec_info(curr_hdl);
           if (cur_codec_cfg != NULL) {
-           BTIF_TRACE_EVENT("BTA_AV_SUSPEND_EVT: Current codec = ");
-           for (int i = 0; i < AVDT_CODEC_SIZE; i++)
+          BTIF_TRACE_EVENT("BTA_AV_SUSPEND_EVT: Current codec = ");
+          for (int i = 0; i < AVDT_CODEC_SIZE; i++)
              BTIF_TRACE_EVENT("%d ",cur_codec_cfg[i]);
           }
           int other_index = btif_av_get_other_connected_idx(index);
@@ -2010,7 +2007,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
       if (!btif_av_is_connected_on_other_idx(index)) {
         if (btif_av_is_split_a2dp_enabled()) {
           btif_a2dp_audio_if_init = false;
-          btif_a2dp_audio_interface_deinit();
+         // btif_a2dp_audio_interface_deinit();
         }
       }
 /* SPLITA2DP */
@@ -2107,7 +2104,7 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
       uuid = (int)*p_param;
       if (btif_a2dp_audio_if_init) {
         btif_a2dp_audio_if_init = false;
-        btif_a2dp_audio_interface_deinit();
+        //btif_a2dp_audio_interface_deinit();
       }
       if (uuid == BTA_A2DP_SOURCE_SERVICE_ID) {
         if (bt_av_src_callbacks) {
@@ -2861,7 +2858,6 @@ static bt_status_t init_src(
   }
   return status;
 }
-
 static bt_status_t init_src( // gghai
     btav_source_callbacks_t* callbacks,
     int max_connected_audio_devices,
@@ -2876,7 +2872,6 @@ static bt_status_t init_src( // gghai
 
   return init_src(callbacks, codec_priorities, max_connected_audio_devices, a2dp_multicast_state);
 }
-
 
 /*******************************************************************************
  *
@@ -3552,7 +3547,6 @@ bool btif_av_is_start_ack_pending(void)
 }
 
 /*******************************************************************************
-**
 ** Function         btif_av_is_suspend_stop_pending_ack
 **
 ** Description      Checks whether suspend/stop is pending ack when state is started
@@ -3667,12 +3661,12 @@ bt_status_t btif_av_execute_service(bool b_enable) {
             (state == BTIF_AV_STATE_STARTED)) {
           BTIF_TRACE_DEBUG("Moving State from opened/started to Idle due to BT ShutDown");
           if (btif_av_is_split_a2dp_enabled()) {
-            btif_a2dp_audio_interface_deinit();
+            //btif_a2dp_audio_interface_deinit();
             btif_a2dp_audio_if_init = false;
           } else {
              tA2DP_CTRL_CMD pending_cmd = btif_a2dp_get_pending_command();
-             BTIF_TRACE_DEBUG("%s: a2dp-ctrl-cmd : %s", __func__,
-                                     audio_a2dp_hw_dump_ctrl_event(pending_cmd));
+//             BTIF_TRACE_DEBUG("%s: a2dp-ctrl-cmd : %s", __func__,
+//                                     audio_a2dp_hw_dump_ctrl_event(pending_cmd));
              if (pending_cmd) {
                  btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
              }
@@ -4118,15 +4112,15 @@ void btif_av_move_idle(RawAddress bd_addr) {
   /* inform the application that ACL is disconnected and move to idle state */
   index = btif_av_idx_by_bdaddr(&bd_addr);
   if (index == btif_max_av_clients) {
-    BTIF_TRACE_IMP("btif_av_move_idle: Already in IDLE");
+    BTIF_TRACE_DEBUG("btif_av_move_idle: Already in IDLE");
     return;
   }
   btif_sm_state_t state = btif_sm_get_state(btif_av_cb[index].sm_handle);
-  BTIF_TRACE_IMP("ACL Disconnected state %d  is same device %d",state,
+  BTIF_TRACE_DEBUG("ACL Disconnected state %d  is same device %d",state,
            memcmp (&bd_addr, &(btif_av_cb[index].peer_bda), sizeof(bd_addr)));
   if (state == BTIF_AV_STATE_OPENING &&
       (memcmp (&bd_addr, &(btif_av_cb[index].peer_bda), sizeof(bd_addr)) == 0)) {
-    BTIF_TRACE_IMP("Moving BTIF State from Opening to Idle due to ACL disconnect");
+    BTIF_TRACE_DEBUG("Moving BTIF State from Opening to Idle due to ACL disconnect");
     btif_report_connection_state(BTAV_CONNECTION_STATE_DISCONNECTED, &(btif_av_cb[index].peer_bda));
     BTA_AvClose(btif_av_cb[index].bta_handle);
     btif_av_check_and_start_collission_timer(index);
@@ -4474,7 +4468,7 @@ void btif_av_reset_codec_reconfig_flag() {
 ********************************************************************************/
 void btif_av_reinit_audio_interface() {
   BTIF_TRACE_DEBUG(LOG_TAG,"btif_av_reint_audio_interface");
-  btif_a2dp_audio_interface_init();
+  //btif_a2dp_audio_interface_init();
 }
 /*SPLITA2DP*/
 

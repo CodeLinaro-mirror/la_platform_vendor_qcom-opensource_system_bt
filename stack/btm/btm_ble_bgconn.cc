@@ -25,7 +25,7 @@
 #include <base/logging.h>
 #include <string.h>
 #include <unordered_map>
-
+#include <bitset>
 #include "bt_types.h"
 #include "bt_utils.h"
 #include "btm_int.h"

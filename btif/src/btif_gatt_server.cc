@@ -61,10 +61,10 @@ using std::vector;
 #define CHECK_BTGATT_INIT()                                      \
   do {                                                           \
     if (bt_gatt_callbacks == NULL) {                             \
-      LOG_WARN(LOG_TAG, "%s: BTGATT not initialized", __func__); \
+      LOG_WARN("bt_btif_gatt :%s: BTGATT not initialized", __func__); \
       return BT_STATUS_NOT_READY;                                \
     } else {                                                     \
-      LOG_VERBOSE(LOG_TAG, "%s", __func__);                      \
+      LOG_VERBOSE("bt_btif_gatt :%s", __func__);                      \
     }                                                            \
   } while (0)
 
@@ -124,7 +124,7 @@ static void btapp_gatts_free_req_data(uint16_t event, tBTA_GATTS* p_data) {
 }
 
 static void btapp_gatts_handle_cback(uint16_t event, char* p_param) {
-  LOG_VERBOSE(LOG_TAG, "%s: Event %d", __func__, event);
+  LOG_VERBOSE("bt_btif_gatt :%s: Event %d", __func__, event);
 
   tBTA_GATTS* p_data = (tBTA_GATTS*)p_param;
   switch (event) {
@@ -231,7 +231,7 @@ static void btapp_gatts_handle_cback(uint16_t event, char* p_param) {
     case BTA_GATTS_OPEN_EVT:
     case BTA_GATTS_CANCEL_OPEN_EVT:
     case BTA_GATTS_CLOSE_EVT:
-      LOG_DEBUG(LOG_TAG, "%s: Empty event (%d)!", __func__, event);
+      LOG_DEBUG("bt_btif_gatt :%s: Empty event (%d)!", __func__, event);
       break;
 
     case BTA_GATTS_PHY_UPDATE_EVT:
@@ -248,7 +248,7 @@ static void btapp_gatts_handle_cback(uint16_t event, char* p_param) {
       break;
 
     default:
-      LOG_ERROR(LOG_TAG, "%s: Unhandled event (%d)!", __func__, event);
+      LOG_ERROR("bt_btif_gatt :%s: Unhandled event (%d)!", __func__, event);
       break;
   }
 
@@ -351,7 +351,6 @@ static void on_service_added_cb(uint8_t status, int server_if,
   HAL_CBACK(bt_gatt_callbacks, server->service_added_cb, status, server_if,
             std::move(service));
 }
-
 static void add_service_impl(int server_if,
                              vector<btgatt_db_element_t> service) {
   // TODO(jpawlowski): btif should be a pass through layer, and no checks should

@@ -17,7 +17,7 @@
  ******************************************************************************/
 
 #include "btcore/include/property.h"
-#include <base/logging.h>
+#include <chrome/base/logging.h>
 #include <string.h>
 #include "btcore/include/device_class.h"
 #include "osi/include/allocator.h"

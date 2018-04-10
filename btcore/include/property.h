@@ -22,7 +22,7 @@
 #include <hardware/bluetooth.h>
 #include <stdint.h>
 #include <stdlib.h>
-
+#include "raw_address.h"
 #include "btcore/include/device_class.h"
 
 // Copies an array of consecutive properties of |count| to a newly

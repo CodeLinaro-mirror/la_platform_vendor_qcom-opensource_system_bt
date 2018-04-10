@@ -100,6 +100,7 @@ static bt_status_t btpan_connect(const RawAddress* bd_addr, int local_role,
 static bt_status_t btpan_disconnect(const RawAddress* bd_addr);
 static bt_status_t btpan_enable(int local_role);
 static int btpan_get_local_role(void);
+static void btpan_set_tethering(bool enable);
 
 static void btpan_tap_fd_signaled(int fd, int type, int flags,
                                   uint32_t user_id);
@@ -109,7 +110,7 @@ static void btu_exec_tap_fd_read(void* p_param);
 
 static btpan_interface_t pan_if = {
     sizeof(pan_if), btpan_jni_init,   btpan_enable,     btpan_get_local_role,
-    btpan_connect,  btpan_disconnect, btpan_jni_cleanup};
+    btpan_connect,  btpan_disconnect, btpan_jni_cleanup, btpan_set_tethering};
 
 btpan_interface_t* btif_pan_get_interface() { return &pan_if; }
 
@@ -177,6 +178,10 @@ static void btpan_jni_cleanup() {
   jni_initialized = false;
 }
 
+static void btpan_set_tethering(bool enable)
+{
+    BTA_SetTethering(enable);
+}
 static inline int bta_role_to_btpan(int bta_pan_role) {
   int btpan_role = 0;
   BTIF_TRACE_DEBUG("bta_pan_role:0x%x", bta_pan_role);
@@ -417,7 +422,7 @@ int btpan_tap_send(int tap_fd, const RawAddress& src, const RawAddress& dst,
     char packet[TAP_MAX_PKT_WRITE_LEN + sizeof(tETH_HDR)];
     memcpy(packet, &eth_hdr, sizeof(tETH_HDR));
     if (len > TAP_MAX_PKT_WRITE_LEN) {
-      LOG_ERROR(LOG_TAG, "btpan_tap_send eth packet size:%d is exceeded limit!",
+      LOG_ERROR("bt_btif_pan: btpan_tap_send eth packet size:%d is exceeded limit!",
                 len);
       return -1;
     }
@@ -613,7 +618,7 @@ static void bta_pan_callback_transfer(uint16_t event, char* p_param) {
       bt_status_t status;
       btpan_conn_t* conn = btpan_find_conn_handle(p_data->open.handle);
 
-      LOG_VERBOSE(LOG_TAG, "%s pan connection open status: %d", __func__,
+      LOG_VERBOSE("bt_btif_pan: %s pan connection open status: %d", __func__,
                   p_data->open.status);
       if (p_data->open.status == BTA_PAN_SUCCESS) {
         state = BTPAN_STATE_CONNECTED;
@@ -635,7 +640,7 @@ static void bta_pan_callback_transfer(uint16_t event, char* p_param) {
       break;
     }
     case BTA_PAN_CLOSE_EVT: {
-      LOG_INFO(LOG_TAG, "%s: event = BTA_PAN_CLOSE_EVT handle %d", __func__,
+      LOG_INFO("bt_btif_pan: %s: event = BTA_PAN_CLOSE_EVT handle %d", __func__,
                p_data->close.handle);
       btpan_conn_t* conn = btpan_find_conn_handle(p_data->close.handle);
       btpan_close_conn(conn);
