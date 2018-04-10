@@ -2088,14 +2088,10 @@ void BTA_VendorCleanup (void)
     BTM_BleGetVendorCapabilities(&cmn_ble_vsc_cb);
 
 #if (BLE_INCLUDED == TRUE && BLE_ANDROID_CONTROLLER_SCAN_FILTER == TRUE)
-    if (cmn_ble_vsc_cb.max_filter > 0)
-    {
-        btm_ble_adv_filter_cleanup();
+    btm_ble_adv_filter_cleanup();
 #if BLE_PRIVACY_SPT == TRUE
-        btm_ble_resolving_list_cleanup ();
+    btm_ble_resolving_list_cleanup ();
 #endif
-    }
-
     if (cmn_ble_vsc_cb.tot_scan_results_strg > 0)
         btm_ble_batchscan_cleanup();
 #endif

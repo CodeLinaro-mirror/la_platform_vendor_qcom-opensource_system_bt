@@ -115,6 +115,7 @@ void module_shut_down(const module_t *module) {
   assert(metadata != NULL);
   assert(module != NULL);
   module_state_t state = get_module_state(module);
+  LOG_INFO("in %s : %s %d", __func__, module->name, state);
 
   // Only something to do if the module was actually started
   if (state < MODULE_STATE_STARTED)
@@ -136,7 +137,7 @@ void module_clean_up(const module_t *module) {
   assert(module != NULL);
   module_state_t state = get_module_state(module);
   assert(state <= MODULE_STATE_INITIALIZED);
-
+  LOG_INFO("in %s : %s %d", __func__, module->name, state);
   // Only something to do if the module was actually initialized
   if (state < MODULE_STATE_INITIALIZED)
     return;

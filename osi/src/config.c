@@ -15,9 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-
-#define LOG_TAG "bt_osi_config"
-
 #include "osi/include/config.h"
 
 #include <assert.h>
@@ -35,6 +32,11 @@
 #include "osi/include/list.h"
 #include "osi/include/log.h"
 #include "osi/include/compat.h"
+
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif
+#define LOG_TAG "bt_osi_config"
 
 typedef struct {
   char *key;
@@ -75,12 +77,14 @@ config_t *config_new_empty(void) {
   return config;
 
 error:;
-  config_free(config);
+  bt_config_free(config);
   return NULL;
 }
 
 config_t *config_new(const char *filename) {
   assert(filename != NULL);
+
+  LOG_INFO("enter %s : filename=%s", __func__, filename);
 
   config_t *config = config_new_empty();
   if (!config)
@@ -89,14 +93,15 @@ config_t *config_new(const char *filename) {
   FILE *fp = fopen(filename, "rt");
   if (!fp) {
     LOG_ERROR(LOG_TAG, "%s unable to open file '%s': %s", __func__, filename, strerror(errno));
-    config_free(config);
+    bt_config_free(config);
     return NULL;
   }
 
   if (!config_parse(fp, config)) {
-    config_free(config);
+    bt_config_free(config);
     config = NULL;
   }
+  LOG_INFO("exit %s : filename=%s, config=0x%08x", __func__, filename, config);
 
   fclose(fp);
   return config;
@@ -104,7 +109,7 @@ config_t *config_new(const char *filename) {
 
 config_t *config_new_clone(const config_t *src) {
   assert(src != NULL);
-
+  LOG_INFO("enter %s : src=0x%08x", __func__, src);
   config_t *ret = config_new_empty();
 
   assert(ret != NULL);
@@ -123,15 +128,21 @@ config_t *config_new_clone(const config_t *src) {
     }
   }
 
+  LOG_INFO("exit %s : ret=0x%08x", __func__, ret);
   return ret;
 }
 
-void config_free(config_t *config) {
+/*
+ * distinguish from config_free@libcutils.so
+ */
+void bt_config_free(config_t *config) {
+  LOG_INFO("enter %s : config=0x%08x", __func__, config);
   if (!config)
     return;
 
   list_free(config->sections);
   osi_free(config);
+  LOG_INFO("exit %s : config=0x%08x", __func__, config);
 }
 
 bool config_has_section(const config_t *config, const char *section) {

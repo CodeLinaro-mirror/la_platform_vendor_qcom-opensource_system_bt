@@ -16,8 +16,6 @@
  *
  ******************************************************************************/
 
-#define LOG_TAG "bt_btif_config"
-
 #include "btif_config.h"
 
 #include <assert.h>
@@ -42,6 +40,11 @@
 #include "osi/include/config.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif
+#define LOG_TAG "bt_btif_config"
 
 /**
  * TODO(apanicke): cutils/properties.h is only being used to pull-in runtime
@@ -221,7 +224,7 @@ static future_t *init(void) {
 
 error:
   alarm_free(config_timer);
-  config_free(config);
+  bt_config_free(config);
   pthread_mutex_unlock(&lock);
   pthread_mutex_destroy(&lock);
   config_timer = NULL;
@@ -237,7 +240,7 @@ static config_t *btif_config_open(const char *filename) {
 
   if (!config_has_section(config, "Adapter")) {
     LOG_ERROR(LOG_TAG, "Config is missing adapter section");
-    config_free(config);
+    bt_config_free(config);
     return NULL;
   }
 
@@ -253,7 +256,7 @@ static future_t *clean_up(void) {
   btif_config_flush();
 
   alarm_free(config_timer);
-  config_free(config);
+  bt_config_free(config);
   pthread_mutex_destroy(&lock);
   config_timer = NULL;
   config = NULL;
@@ -484,7 +487,7 @@ bool btif_config_clear(void) {
   alarm_cancel(config_timer);
 
   pthread_mutex_lock(&lock);
-  config_free(config);
+  bt_config_free(config);
 
   config = config_new_empty();
   if (config == NULL) {
@@ -514,7 +517,7 @@ static void btif_config_write(UNUSED_ATTR UINT16 event, UNUSED_ATTR char *p_para
   config_t *config_paired = config_new_clone(config);
   btif_config_remove_unpaired(config_paired);
   config_save(config_paired, CONFIG_FILE_PATH);
-  config_free(config_paired);
+  bt_config_free(config_paired);
   pthread_mutex_unlock(&lock);
 }
 

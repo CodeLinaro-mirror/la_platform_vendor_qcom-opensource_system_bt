@@ -90,5 +90,61 @@ void btm_free (void)
         fixed_queue_free(btm_cb.sec_pending_q,NULL);
         btm_cb.sec_pending_q =  NULL;
     }
+
+    if (btm_cb.sec_collision_timer) {
+        alarm_free(btm_cb.sec_collision_timer);
+        btm_cb.sec_collision_timer = NULL;
+    }
+    if (btm_cb.pairing_timer) {
+        alarm_free(btm_cb.pairing_timer);
+        btm_cb.pairing_timer = NULL;
+    }
+
+    if (btm_cb.btm_inq_vars.remote_name_timer) {
+        alarm_free(btm_cb.btm_inq_vars.remote_name_timer);
+        btm_cb.btm_inq_vars.remote_name_timer = NULL;
+    }
+
+#if BTM_SCO_HCI_INCLUDED == TRUE
+    {
+        int i;
+        for (i = 0; i < BTM_MAX_SCO_LINKS; i++) {
+            if (btm_cb.sco_cb.sco_db[i].xmit_data_q) {
+                fixed_queue_free(btm_cb.sco_cb.sco_db[i].xmit_data_q);
+                btm_cb.sco_cb.sco_db[i].xmit_data_q = NULL;
+            }
+        }
+    }
+#endif
+
+    if (btm_cb.sec_dev_rec) {
+        list_free(btm_cb.sec_dev_rec);
+        btm_cb.sec_dev_rec = NULL;
+    }
+
+    if (btm_cb.devcb.read_local_name_timer) {
+        alarm_free(btm_cb.devcb.read_local_name_timer);
+        btm_cb.devcb.read_local_name_timer = NULL;
+    }
+    if (btm_cb.devcb.read_rssi_timer) {
+        alarm_free(btm_cb.devcb.read_rssi_timer);
+        btm_cb.devcb.read_rssi_timer = NULL;
+    }
+    if (btm_cb.devcb.read_link_quality_timer) {
+        alarm_free(btm_cb.devcb.read_link_quality_timer);
+        btm_cb.devcb.read_link_quality_timer = NULL;
+    }
+    if (btm_cb.devcb.read_inq_tx_power_timer) {
+        alarm_free(btm_cb.devcb.read_inq_tx_power_timer);
+        btm_cb.devcb.read_inq_tx_power_timer = NULL;
+    }
+    if (btm_cb.devcb.qos_setup_timer) {
+        alarm_free(btm_cb.devcb.qos_setup_timer);
+        btm_cb.devcb.qos_setup_timer = NULL;
+    }
+    if (btm_cb.devcb.read_tx_power_timer) {
+        alarm_free(btm_cb.devcb.read_tx_power_timer);
+        btm_cb.devcb.read_tx_power_timer = NULL;
+    }
 }
 

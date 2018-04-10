@@ -120,6 +120,9 @@ void btu_free_core(void)
 
 #if BLE_INCLUDED == TRUE
     gatt_free();
+#if (defined(SMP_INCLUDED) && SMP_INCLUDED == TRUE)
+    SMP_Deinit();
+#endif
     btm_ble_free();
 #endif
 }

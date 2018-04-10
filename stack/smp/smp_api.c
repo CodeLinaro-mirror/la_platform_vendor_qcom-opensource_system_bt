@@ -71,6 +71,18 @@ void SMP_Init(void)
         SMP_TRACE_ERROR ("%s PTS FAILURE MODE IN EFFECT (CASE %d)", __func__, smp_cb.cert_failure);
 }
 
+void SMP_Deinit(void)
+{
+    if (smp_cb.smp_rsp_timer_ent) {
+        alarm_free(smp_cb.smp_rsp_timer_ent);
+        smp_cb.smp_rsp_timer_ent = NULL;
+    }
+
+    if (smp_cb.delayed_auth_timer_ent) {
+        alarm_free(smp_cb.delayed_auth_timer_ent);
+        smp_cb.delayed_auth_timer_ent = NULL;
+    }
+}
 
 /*******************************************************************************
 **

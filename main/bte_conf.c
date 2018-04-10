@@ -79,6 +79,6 @@ void bte_load_did_conf(const char *p_path) {
         }
     }
 
-    config_free(config);
+    bt_config_free(config);
 }
 
