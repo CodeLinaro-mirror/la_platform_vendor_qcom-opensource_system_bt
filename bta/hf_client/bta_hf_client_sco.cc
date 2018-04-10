@@ -233,6 +233,7 @@ static void bta_hf_client_sco_disc_cback(uint16_t sco_idx) {
 static void bta_hf_client_sco_create(tBTA_HF_CLIENT_CB* client_cb,
                                      bool is_orig) {
   tBTM_STATUS status;
+  enh_esco_params_t params;
 
   APPL_TRACE_DEBUG("%s: %d", __func__, is_orig);
 
@@ -243,7 +244,18 @@ static void bta_hf_client_sco_create(tBTA_HF_CLIENT_CB* client_cb,
     return;
   }
 
-  enh_esco_params_t params = esco_parameters_for_codec(ESCO_CODEC_MSBC_T1);
+#if (BTIF_HF_CLIENT_WBS_INCLUDED == TRUE)
+  if (client_cb->peer_features & BTA_HF_CLIENT_PEER_CODEC) {
+    APPL_TRACE_DEBUG("%s: ESCO_CODEC_MSBC_T1", __func__);
+    params = esco_parameters_for_codec(ESCO_CODEC_MSBC_T1);
+  } else {
+    APPL_TRACE_DEBUG("%s: ESCO_CODEC_CVSD", __func__);
+    params = esco_parameters_for_codec(ESCO_CODEC_CVSD);
+  }
+#else
+  APPL_TRACE_DEBUG("%s: ESCO_CODEC_CVSD", __func__);
+  params = esco_parameters_for_codec(ESCO_CODEC_CVSD);
+#endif
 
   /* if initiating set current scb and peer bd addr */
   if (is_orig) {
