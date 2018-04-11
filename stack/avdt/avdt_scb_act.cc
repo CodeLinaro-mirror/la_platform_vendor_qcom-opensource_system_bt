@@ -249,8 +249,7 @@ void avdt_scb_hdl_pkt_no_frag(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   uint16_t ex_len;
   uint8_t pad_len = 0;
 
-  if ((p_scb != NULL) && (p_scb->cs.p_sink_data_cback != NULL))
-  {
+  if ((p_scb != NULL) && (p_scb->cs.p_sink_data_cback != NULL)) {
       AVDT_TRACE_DEBUG(" Get current codec = %d", btif_a2dp_sink_get_codec_type());
       // for vendor specific codec without RTP
       if (btif_a2dp_sink_get_codec_type() == A2DP_MEDIA_CT_NON_A2DP)

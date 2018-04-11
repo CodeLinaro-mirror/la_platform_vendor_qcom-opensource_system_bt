@@ -45,7 +45,7 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int channelType, int codec_type) 
   audio_format_t media_format = (audio_format_t)0;
   sp<android::AudioTrack> track = NULL;
 
-  if (codec_type == A2DP_MEDIA_CT_SBC) {
+  if (codec_type == A2DP_MEDIA_CT_SBC || codec_type == A2DP_MEDIA_CT_AAC) {
       /* [A2DP SINK] Change audiotrack flags from "AUDIO_OUTPUT_FLAG_FAST" to
          "AUDIO_OUTPUT_FLAG_DEEP_BUFFER" for the reason that quality of A2DP streaming
          might be easily influenced by other android servies, i.e. p2p scanning */
@@ -54,9 +54,8 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int channelType, int codec_type) 
       (size_t)0 /*frameCount*/, (audio_output_flags_t)AUDIO_OUTPUT_FLAG_DEEP_BUFFER,
       NULL /*callback_t*/, NULL /*void* user*/, 0 /*notificationFrames*/,
       AUDIO_SESSION_ALLOCATE, android::AudioTrack::TRANSFER_SYNC);
-  } else if (codec_type == A2DP_MEDIA_CT_AAC || codec_type == A2DP_MEDIA_CT_NON_A2DP) {
-    media_format = (audio_format_t)
-            (codec_type == A2DP_MEDIA_CT_AAC ? AUDIO_FORMAT_AAC_LATM_LC : AUDIO_FORMAT_APTX);
+  } else if (codec_type == A2DP_MEDIA_CT_NON_A2DP) {
+    media_format = (audio_format_t)AUDIO_FORMAT_APTX;
     audio_attributes_t mAttributes;
     stream_type_to_audio_attributes(AUDIO_STREAM_MUSIC, &mAttributes);
 

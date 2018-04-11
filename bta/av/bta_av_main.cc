@@ -629,6 +629,13 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
       for (int i = codec_index_min; i < codec_index_max; i++) {
         btav_a2dp_codec_index_t codec_index =
             static_cast<btav_a2dp_codec_index_t>(i);
+
+        /* Not supported currently */
+        if (codec_index == BTAV_A2DP_CODEC_INDEX_SINK_APTX) {
+            APPL_TRACE_WARNING("APTX decoder is not supported currently!!!");
+            continue;
+        }
+
         if (!(*bta_av_a2dp_cos.init)(codec_index, &cs.cfg)) {
           continue;
         }

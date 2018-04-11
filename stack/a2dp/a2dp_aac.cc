@@ -31,6 +31,7 @@
 
 #include <base/logging.h>
 #include "a2dp_aac_encoder.h"
+#include "a2dp_aac_decoder.h"
 #include "bt_utils.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
@@ -151,9 +152,13 @@ static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_aac = {
 
 tA2DP_AAC_CIE a2dp_aac_caps, a2dp_aac_default_config;
 
+static const tA2DP_DECODER_INTERFACE a2dp_decoder_interface_aac = {
+    a2dp_aac_decoder_init, a2dp_aac_decoder_cleanup,
+    a2dp_aac_decoder_decode_packet,
+};
 UNUSED_ATTR static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityAac(
     const tA2DP_AAC_CIE* p_cap, const uint8_t* p_codec_info,
-    bool is_peer_codec_info);
+    bool is_capability);
 
 // Builds the AAC Media Codec Capabilities byte sequence beginning from the
 // LOSC octet. |media_type| is the media type |AVDT_MEDIA_TYPE_*|.
@@ -280,7 +285,7 @@ bool A2DP_IsPeerSinkCodecValidAac(const uint8_t* p_codec_info) {
          (A2DP_ParseInfoAac(&cfg_cie, p_codec_info, true) == A2DP_SUCCESS);
 }
 
-bool A2DP_IsSinkCodecSupportedAac(UNUSED_ATTR const uint8_t* p_codec_info) {
+bool A2DP_IsSinkCodecSupportedAac(const uint8_t* p_codec_info) {
   return A2DP_CodecInfoMatchesCapabilityAac(&a2dp_aac_sink_caps, p_codec_info,
                                             false) == A2DP_SUCCESS;
 }
@@ -513,12 +518,6 @@ int A2DP_GetSinkTrackChannelTypeAac(const uint8_t* p_codec_info) {
   return -1;
 }
 
-int A2DP_GetSinkFramesCountToProcessAac(
-    UNUSED_ATTR uint64_t time_interval_ms,
-    UNUSED_ATTR const uint8_t* p_codec_info) {
-  return -1;
-}
-
 int A2DP_GetObjectTypeCodeAac(const uint8_t* p_codec_info) {
   tA2DP_AAC_CIE aac_cie;
 
@@ -735,6 +734,13 @@ const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceAac(
   return &a2dp_encoder_interface_aac;
 }
 
+const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceAac(
+    const uint8_t* p_codec_info) {
+  if (!A2DP_IsSinkCodecValidAac(p_codec_info)) return NULL;
+
+  return &a2dp_decoder_interface_aac;
+}
+
 bool A2DP_AdjustCodecAac(uint8_t* p_codec_info) {
   tA2DP_AAC_CIE cfg_cie;
 
@@ -809,7 +815,7 @@ UNUSED_ATTR static void build_codec_config(const tA2DP_AAC_CIE& config_cie,
 
 A2dpCodecConfigAac::A2dpCodecConfigAac(
     btav_a2dp_codec_priority_t codec_priority)
-    : A2dpCodecConfig(BTAV_A2DP_CODEC_INDEX_SOURCE_AAC, "AAC",
+    : A2dpCodecConfig(BTAV_A2DP_CODEC_INDEX_SOURCE_AAC, A2DP_CodecIndexStrAac(),
         codec_priority) {
 
   if (A2DP_GetOffloadStatus()) {
@@ -1433,6 +1439,12 @@ A2dpCodecConfigAacSink::~A2dpCodecConfigAacSink() {}
 
 bool A2dpCodecConfigAacSink::init() {
   if (!isValid()) return false;
+
+  // Load the decoder
+  if (!A2DP_LoadDecoderAac()) {
+    LOG_ERROR(LOG_TAG, "%s: cannot load the decoder", __func__);
+    return false;
+  }
 
   return true;
 }

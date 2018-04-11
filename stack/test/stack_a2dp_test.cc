@@ -617,12 +617,6 @@ TEST_F(StackA2dpTest, test_a2dp_get_sink_track_channel_type) {
   EXPECT_EQ(A2DP_GetSinkTrackChannelType(codec_info_non_a2dp), -1);
 }
 
-TEST_F(StackA2dpTest, test_a2dp_get_sink_frames_count_to_process) {
-  EXPECT_EQ(A2DP_GetSinkFramesCountToProcess(20, codec_info_sbc), 7);
-  EXPECT_EQ(A2DP_GetSinkFramesCountToProcess(20, codec_info_aac), -1);
-  EXPECT_EQ(A2DP_GetSinkFramesCountToProcess(20, codec_info_non_a2dp), -1);
-}
-
 TEST_F(StackA2dpTest, test_a2dp_get_object_type_code_aac) {
   EXPECT_EQ(A2DP_GetObjectTypeCodeAac(codec_info_sbc), -1);
   EXPECT_EQ(A2DP_GetObjectTypeCodeAac(codec_info_aac), 0x80);

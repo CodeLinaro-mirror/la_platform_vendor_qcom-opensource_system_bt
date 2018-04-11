@@ -401,13 +401,12 @@ static tA2DP_STATUS bta_av_audio_sink_getconfig(
       /* By default, no content protection */
       *p_num_protect = 0;
 
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-      p_peer->cp_active = false;
-      bta_av_co_cb.cp.active = false;
-#endif
-
       *p_sep_info_idx = p_src->sep_info_idx;
       memcpy(p_codec_info, p_peer->codec_config, AVDT_CODEC_SIZE);
+
+      /* Save the codec information which will be used in software decoding */
+      bta_av_co_save_new_codec_config(p_peer, p_codec_info, *p_num_protect, p_protect_info);
+
       result = A2DP_SUCCESS;
     }
     /* Protect access to bta_av_co_cb.codec_config */
@@ -928,6 +927,7 @@ static const tBTA_AV_CO_SINK* bta_av_co_find_peer_src_supports_codec(
         if (peer_codec_index != iter->codecIndex()) {
           continue;
         }
+
         if (A2DP_IsPeerSourceCodecSupported(p_codec_caps)) {
           return &p_peer->srcs[index];
         }
@@ -1165,6 +1165,19 @@ const tA2DP_ENCODER_INTERFACE* bta_av_co_get_encoder_interface(void) {
   mutex_global_unlock();
 
   return encoder_interface;
+}
+
+const tA2DP_DECODER_INTERFACE* bta_av_co_get_decoder_interface(void) {
+  /* Protect access to bta_av_co_cb.codec_config */
+  mutex_global_lock();
+
+  const tA2DP_DECODER_INTERFACE* decoder_interface =
+      A2DP_GetDecoderInterface(bta_av_co_cb.codec_config);
+
+  /* Protect access to bta_av_co_cb.codec_config */
+  mutex_global_unlock();
+
+  return decoder_interface;
 }
 
 bool bta_av_co_set_codec_user_config(

@@ -1180,30 +1180,6 @@ int A2DP_GetSinkTrackChannelType(const uint8_t* p_codec_info) {
   return -1;
 }
 
-int A2DP_GetSinkFramesCountToProcess(uint64_t time_interval_ms,
-                                     const uint8_t* p_codec_info) {
-  tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
-
-  LOG_VERBOSE(LOG_TAG, "%s: codec_type = 0x%x", __func__, codec_type);
-
-  switch (codec_type) {
-    case A2DP_MEDIA_CT_SBC:
-      return A2DP_GetSinkFramesCountToProcessSbc(time_interval_ms,
-                                                 p_codec_info);
-    case A2DP_MEDIA_CT_AAC:
-      return A2DP_GetSinkFramesCountToProcessAac(time_interval_ms,
-                                                 p_codec_info);
-    case A2DP_MEDIA_CT_NON_A2DP:
-      return A2DP_VendorGetSinkFramesCountToProcess(time_interval_ms,
-                                                    p_codec_info);
-    default:
-      break;
-  }
-
-  LOG_ERROR(LOG_TAG, "%s: unsupported codec type 0x%x", __func__, codec_type);
-  return -1;
-}
-
 bool A2DP_GetPacketTimestamp(const uint8_t* p_codec_info, const uint8_t* p_data,
                              uint32_t* p_timestamp) {
   tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
@@ -1263,6 +1239,28 @@ const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterface(
   LOG_ERROR(LOG_TAG, "%s: unsupported codec type 0x%x", __func__, codec_type);
   return NULL;
 }
+
+const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterface(
+    const uint8_t* p_codec_info) {
+  tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
+
+  LOG_DEBUG(LOG_TAG, "%s: codec_type = 0x%x", __func__, codec_type);
+
+  switch (codec_type) {
+    case A2DP_MEDIA_CT_SBC:
+      return A2DP_GetDecoderInterfaceSbc(p_codec_info);
+    case A2DP_MEDIA_CT_AAC:
+      return A2DP_GetDecoderInterfaceAac(p_codec_info);
+    case A2DP_MEDIA_CT_NON_A2DP:
+      return A2DP_VendorGetDecoderInterface(p_codec_info);
+    default:
+      break;
+  }
+
+  LOG_ERROR(LOG_TAG, "%s: unsupported codec type 0x%x", __func__, codec_type);
+  return NULL;
+}
+
 
 bool A2DP_AdjustCodec(uint8_t* p_codec_info) {
   tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
