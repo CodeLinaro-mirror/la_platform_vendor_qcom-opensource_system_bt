@@ -33,7 +33,7 @@
 #include "device/include/controller.h"
 #include "device/include/interop.h"
 #include "stack_config.h"
-
+#include "cutils/log.h"
 #if (BLE_INCLUDED == TRUE)
 
 extern fixed_queue_t *btu_general_alarm_queue;
@@ -841,6 +841,10 @@ void l2cble_process_sig_cmd (tL2C_LCB *p_lcb, UINT8 *p, UINT16 pkt_len)
             break;
 
         case L2CAP_CMD_DISC_REQ:
+            if (p + 4 >= p_pkt_end) {
+              android_errorWriteLog(0x534e4554, "63146237");
+              return;
+            }
             STREAM_TO_UINT16 (lcid, p);
             STREAM_TO_UINT16 (rcid, p);
 
