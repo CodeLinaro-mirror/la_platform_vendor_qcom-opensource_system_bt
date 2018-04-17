@@ -125,7 +125,6 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
   void SetParameters(uint8_t advertiser_id, AdvertiseParameters params,
                      ParametersCallback cb) override {
     VLOG(1) << __func__;
-    std::vector<RawAddress> bd_list;
 
     if (!BleAdvertisingManager::IsInitialized()) return;
     tBTM_BLE_ADV_PARAMS* p_params = new tBTM_BLE_ADV_PARAMS;
@@ -134,7 +133,7 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
     do_in_bta_thread(FROM_HERE, Bind(&BleAdvertisingManager::SetParameters,
                                      BleAdvertisingManager::Get(),
                                      advertiser_id, base::Owned(p_params),
-                                     bd_list, jni_thread_wrapper(FROM_HERE, cb)));
+                                     jni_thread_wrapper(FROM_HERE, cb)));
   }
 
   void SetData(int advertiser_id, bool set_scan_rsp, vector<uint8_t> data,
@@ -188,7 +187,6 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
                            PeriodicAdvertisingParameters periodic_params,
                            std::vector<uint8_t> periodic_data,
                            uint16_t duration, uint8_t maxExtAdvEvents,
-                           std::vector<RawAddress> bd_addr_list,
                            IdStatusCallback timeout_cb) override {
     VLOG(1) << __func__;
 
@@ -206,7 +204,7 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
              base::Owned(p_params), std::move(advertise_data),
              std::move(scan_response_data), base::Owned(p_periodic_params),
              std::move(periodic_data), duration, maxExtAdvEvents,
-             std::move(bd_addr_list), jni_thread_wrapper(FROM_HERE, timeout_cb)));
+             jni_thread_wrapper(FROM_HERE, timeout_cb)));
   }
 
   void SetPeriodicAdvertisingParameters(
@@ -247,18 +245,6 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
                      Bind(&BleAdvertisingManager::SetPeriodicAdvertisingEnable,
                           BleAdvertisingManager::Get(), advertiser_id, enable,
                           jni_thread_wrapper(FROM_HERE, cb)));
-  }
-
-  void UpdateAdvertisingWhiteList(int advertiser_id, RawAddress bd_addr, bool to_add,
-        StatusCallback cb) override {
-    VLOG(1) << __func__ << " advertiser_id: " << +advertiser_id;
-
-    do_in_bta_thread(
-            FROM_HERE,
-            Bind(&BleAdvertisingManager::UpdateAdvertisingWhiteList,
-                 BleAdvertisingManager::Get(), advertiser_id,
-                 bd_addr, to_add,
-                 jni_thread_wrapper(FROM_HERE, cb)));
   }
 };
 
