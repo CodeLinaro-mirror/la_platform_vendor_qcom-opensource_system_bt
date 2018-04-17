@@ -3765,8 +3765,9 @@ bt_status_t btif_av_sink_execute_service(bool b_enable) {
     /* Added BTA_AV_FEAT_NO_SCO_SSPD - this ensures that the BTA does not
      * auto-suspend av streaming on AG events(SCO or Call). The suspend shall
      * be initiated by the app/audioflinger layers
+     *
+     * Added BTA_AV_FEAT_BROWSE to enable AVRCP browsing feature
      */
-
     osi_property_get("persist.bt.a2dp.delay_report_sink", value, "false");
     delay_report_enabled = (strcmp(value, "true") == 0);
     if (delay_report_enabled)
@@ -3774,7 +3775,8 @@ bt_status_t btif_av_sink_execute_service(bool b_enable) {
 
     BTA_AvEnable(BTA_SEC_AUTHENTICATE, BTA_AV_FEAT_NO_SCO_SSPD|BTA_AV_FEAT_RCCT|
                                         BTA_AV_FEAT_METADATA|BTA_AV_FEAT_VENDOR|
-                                        BTA_AV_FEAT_ADV_CTRL|BTA_AV_FEAT_RCTG|feat_delay_rpt,
+                                        BTA_AV_FEAT_ADV_CTRL|BTA_AV_FEAT_RCTG|
+                                        BTA_AV_FEAT_BROWSE|feat_delay_rpt,
                                         bte_av_callback);
     BTA_AvRegister(BTA_AV_CHNL_AUDIO, BTIF_AVK_SERVICE_NAME, 0,
                    bte_av_sink_media_callback, UUID_SERVCLASS_AUDIO_SINK);
