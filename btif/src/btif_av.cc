@@ -356,7 +356,7 @@ static void btif_initiate_av_open_timer_timeout(UNUSED_ATTR void* data) {
           /*
            * Check if A2DP conneciton is with same device
            */
-          if(btif_av_cb[0].peer_bda == peer_addr)
+          if(btif_av_cb[0].peer_bda != peer_addr)
           {
               BTIF_TRACE_WARNING(" %s Disconnecting AVRCP ", __FUNCTION__);
               BTA_AvCloseRc(btif_rc_get_connected_peer_handle(peer_addr));
