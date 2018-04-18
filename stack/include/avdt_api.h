@@ -493,7 +493,7 @@ extern void AVDT_Deregister(void);
  * Returns          void
  *
  ******************************************************************************/
-void AVDT_UpdateServiceBusyState(bool state);
+void AVDT_UpdateServiceBusyState(bool state, uint8_t hdl);
 
 /*******************************************************************************
  *

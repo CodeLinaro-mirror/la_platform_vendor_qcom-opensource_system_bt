@@ -1030,10 +1030,12 @@ static tBTA_AV_CO_SINK* bta_av_co_audio_codec_selected(
   ** In case of acceptor or remote initiated connection need to update enocder with codec config
   ** details as sent by remote during set config
   */
-  if (p_peer->acp == true && isDevUiReq != true) {
+  if (bt_split_a2dp_enabled) {
+    if (p_peer->acp == true && isDevUiReq != true) {
       /* check if sample rate or channel mode is zero */
       if (( codec_config.ota_codec_peer_config_[9] != 0) && ( codec_config.ota_codec_peer_config_[10] != 0)) {
         memcpy(codec_config.ota_codec_config_, codec_config.ota_codec_peer_config_, AVDT_CODEC_SIZE);
+      }
     }
   }
 
