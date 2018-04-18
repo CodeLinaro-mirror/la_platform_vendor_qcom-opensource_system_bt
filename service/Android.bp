@@ -183,7 +183,10 @@ cc_binary {
 cc_library_static {
     name: "libbluetoothtbd_hal",
     defaults: ["fluoride_defaults"],
-    include_dirs: ["system/bt"],
+    include_dirs: [
+        "system/bt",
+        "vendor/qcom/opensource/bluetooth_ext/vhal/include",
+    ],
     srcs: [
         "hal/bluetooth_gatt_interface.cc",
         "hal/bluetooth_interface.cc",

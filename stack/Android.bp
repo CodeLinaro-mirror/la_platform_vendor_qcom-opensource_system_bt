@@ -200,6 +200,7 @@ cc_test {
     include_dirs: [
         "system/bt",
         "system/bt/include",
+        "vendor/qcom/opensource/bluetooth_ext/vhal/include",
     ],
     srcs: ["test/stack_a2dp_test.cc"],
     shared_libs: [
@@ -269,6 +270,7 @@ cc_test {
         "system/bt/hci/include",
         "system/bt/include",
         "system/bt/utils/include",
+        "vendor/qcom/opensource/bluetooth_ext/vhal/include",
     ],
     srcs: [
         "btm/btm_ble_multi_adv.cc",
