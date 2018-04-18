@@ -23,6 +23,10 @@
 
 #include <gtest/gtest.h>
 
+#include "osi/include/log.h"
+#include "osi/include/osi.h"
+#include "osi/include/properties.h"
+
 #include "stack/include/a2dp_aac.h"
 #include "stack/include/a2dp_api.h"
 #include "stack/include/a2dp_codec_api.h"
@@ -183,6 +187,15 @@ static bool has_shared_library(const char* name) {
   return false;
 }
 
+static bool is_aptx_decoder_supported() {
+    char value[PROPERTY_VALUE_MAX] = {0};
+    osi_property_get("persist.bt.a2dp.decoder.aptx", value, "false");
+    if (!strncmp("false", value, sizeof("false"))) {
+        return false;
+    }
+    return true;
+}
+
 }  // namespace
 
 class StackA2dpTest : public ::testing::Test {
@@ -222,6 +235,10 @@ class StackA2dpTest : public ::testing::Test {
           break;
         case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
           supported = true;
+          break;
+        case BTAV_A2DP_CODEC_INDEX_SINK_APTX:
+          // Codec aptX is supported only if hardware decoder in ADSP is ready
+          supported = is_aptx_decoder_supported();
           break;
         case BTAV_A2DP_CODEC_INDEX_MAX:
           // Needed to avoid using "default:" case so we can capture when
