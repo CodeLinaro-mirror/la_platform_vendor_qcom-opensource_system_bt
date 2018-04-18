@@ -121,6 +121,8 @@ typedef uint8_t tBTA_HF_CLIENT_AT_RESULT_TYPE;
                                      */
 #define BTA_HF_CLIENT_BINP_EVT 20 /* binp number event */
 #define BTA_HF_CLIENT_RING_INDICATION 21 /* HF Client ring indication */
+#define BTA_HF_CLIENT_CGMI_EVT 22 /* AG manufacturer identification */
+#define BTA_HF_CLIENT_CGMM_EVT 23 /* AG manufacturer model */
 #define BTA_HF_CLIENT_DISABLE_EVT 30     /* HF Client disabled */
 
 typedef uint8_t tBTA_HF_CLIENT_EVT;
@@ -236,6 +238,21 @@ typedef struct {
   uint16_t value;
 } tBTA_HF_CLIENT_VAL;
 
+/* data associated with BTA_HF_CLIENT_CGMI_EVT event */
+#define BTA_HF_CLIENT_MANUFACTURER_ID_LEN 2048
+typedef struct {
+  RawAddress bd_addr;
+  char name[BTA_HF_CLIENT_MANUFACTURER_ID_LEN + 1];
+} tBTA_HF_CLIENT_CGMI;
+
+/* data associated with BTA_HF_CLIENT_CGMI_EVT event */
+#define BTA_HF_CLIENT_MANUFACTURER_MODEL_LEN 2048
+typedef struct {
+  RawAddress bd_addr;
+  char model[BTA_HF_CLIENT_MANUFACTURER_MODEL_LEN + 1];
+} tBTA_HF_CLIENT_CGMM;
+
+
 /* union of data associated with AG callback */
 typedef union {
   // Common BD ADDR field for all tyepdefs
@@ -250,6 +267,8 @@ typedef union {
   tBTA_HF_CLIENT_AT_RESULT result;
   tBTA_HF_CLIENT_CLCC clcc;
   tBTA_HF_CLIENT_CNUM cnum;
+  tBTA_HF_CLIENT_CGMI cgmi;
+  tBTA_HF_CLIENT_CGMM cgmm;
 } tBTA_HF_CLIENT;
 
 typedef uint32_t tBTA_HF_CLIENT_FEAT;

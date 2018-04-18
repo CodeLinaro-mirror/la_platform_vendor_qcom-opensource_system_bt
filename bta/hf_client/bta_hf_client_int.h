@@ -98,6 +98,10 @@ enum {
   BTA_HF_CLIENT_AT_CNUM,
   BTA_HF_CLIENT_AT_NREC,
   BTA_HF_CLIENT_AT_BINP,
+  BTA_HF_CLIENT_AT_CGMI_QUERY,
+  BTA_HF_CLIENT_AT_CGMI,
+  BTA_HF_CLIENT_AT_CGMM_QUERY,
+  BTA_HF_CLIENT_AT_CGMM,
 };
 
 /*****************************************************************************
@@ -301,6 +305,8 @@ extern void bta_hf_client_send_at_nrec(tBTA_HF_CLIENT_CB* client_cb);
 extern void bta_hf_client_send_at_binp(tBTA_HF_CLIENT_CB* client_cb,
                                        uint32_t action);
 extern void bta_hf_client_send_at_bia(tBTA_HF_CLIENT_CB* client_cb);
+extern void bta_hf_client_send_at_cgmi(tBTA_HF_CLIENT_CB* client_cb, bool query);
+extern void bta_hf_client_send_at_cgmm(tBTA_HF_CLIENT_CB* client_cb, bool query);
 
 /* AT API Functions */
 void bta_hf_client_at_init(tBTA_HF_CLIENT_CB* client_cb);
@@ -322,6 +328,9 @@ extern void bta_hf_client_clcc(tBTA_HF_CLIENT_CB* client_cb, uint32_t idx,
 extern void bta_hf_client_cnum(tBTA_HF_CLIENT_CB* client_cb, char* number,
                                uint16_t service);
 extern void bta_hf_client_binp(tBTA_HF_CLIENT_CB* client_cb, char* number);
+extern void bta_hf_client_cgmi(tBTA_HF_CLIENT_CB* client_cb, char *str);
+extern void bta_hf_client_cgmm(tBTA_HF_CLIENT_CB* client_cb, char *str);
+
 
 /* Action functions */
 extern void bta_hf_client_start_close(tBTA_HF_CLIENT_DATA* p_data);
