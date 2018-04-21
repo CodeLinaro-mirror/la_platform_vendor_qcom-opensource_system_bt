@@ -67,6 +67,7 @@ typedef struct {
 #define MAX_SDP_SLOTS 128
 static sdp_slot_t sdp_slots[MAX_SDP_SLOTS];
 
+#define PBAP_LEGACY_VERSION 0x0101
 /*****************************************************************************
  * LOCAL Functions
  *****************************************************************************/
@@ -594,9 +595,13 @@ static int add_pbaps_sdp(const bluetooth_sdp_pse_record* rec) {
                              (uint8_t*)&rec->supported_repositories);
 
   /* Add supported feature 4 bytes*/
-  UINT32_TO_BE_STREAM(p_temp, rec->supported_features);
-  status &= SDP_AddAttribute(sdp_handle, ATTR_ID_PBAP_SUPPORTED_FEATURES,
-                             UINT_DESC_TYPE, (uint32_t)4, temp);
+  if (rec->hdr.profile_version > PBAP_LEGACY_VERSION) {
+      APPL_TRACE_DEBUG("%s: Add supported features for pbap profile version %d",
+            __func__, rec->hdr.profile_version);
+      UINT32_TO_BE_STREAM(p_temp, rec->supported_features);
+      status &= SDP_AddAttribute(sdp_handle, ATTR_ID_PBAP_SUPPORTED_FEATURES,
+                                 UINT_DESC_TYPE, (uint32_t)4, temp);
+  }
 
   /* Add the L2CAP PSM if present */
   if (rec->hdr.l2cap_psm != -1) {
