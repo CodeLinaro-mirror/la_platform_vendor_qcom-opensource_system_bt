@@ -527,6 +527,7 @@ typedef struct {
   tAVDT_CTRL_CBACK* p_conn_cback;  /* connection callback function */
   uint8_t trace_level;             /* trace level */
   bool conn_in_progress;           /* outgoing connection in progress */
+  uint8_t conn_in_progress_hdl;    /* handle for outgoing connection in progress */
 } tAVDT_CB;
 
 /*****************************************************************************

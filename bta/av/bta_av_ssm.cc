@@ -544,7 +544,7 @@ void bta_av_ssm_execute(tBTA_AV_SCB* p_scb, uint16_t event,
 
   if ((p_scb->state != BTA_AV_OPENING_SST) &&
       (state_table[event][BTA_AV_SNEXT_STATE] == BTA_AV_OPENING_SST)) {
-    AVDT_UpdateServiceBusyState(true);
+    AVDT_UpdateServiceBusyState(true,  p_scb->hndl);
   } else if(AVDT_GetServiceBusyState() == true) {
     bool keep_busy = true;
 
@@ -566,7 +566,7 @@ void bta_av_ssm_execute(tBTA_AV_SCB* p_scb, uint16_t event,
         }
       }
       if (keep_busy == false)
-        AVDT_UpdateServiceBusyState(false);
+        AVDT_UpdateServiceBusyState(false, p_scb->hndl);
     }
   }
 

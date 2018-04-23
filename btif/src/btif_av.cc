@@ -1529,6 +1529,10 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
         btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
         btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
       }
+      if (btif_av_is_split_a2dp_enabled()) {
+        HAL_CBACK(bt_av_src_callbacks, reconfig_a2dp_trigger_cb, SOFT_HANDOFF,
+                                          &(btif_av_cb[index].peer_bda), 0, 0);
+      }
       btif_av_cb[index].reconfig_pending = false;
     } break;
 
@@ -1745,9 +1749,6 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
                                        &(btif_av_cb[index].peer_bda), reconfig_a2dp_param_id, reconfig_a2dp_param_val);
             isBitRateChange = false;
             isBitsPerSampleChange = false;
-          } else {
-            HAL_CBACK(bt_av_src_callbacks, reconfig_a2dp_trigger_cb, SOFT_HANDOFF,
-                                            &(btif_av_cb[index].peer_bda), 0, 0);
           }
         }
       }
@@ -3108,6 +3109,15 @@ static bt_status_t connect_int(RawAddress* bd_addr, uint16_t uuid) {
   connect_req.uuid = uuid;
   BTIF_TRACE_EVENT("%s", __func__);
 
+  if (!btif_storage_is_device_bonded(bd_addr))
+  {
+    BTIF_TRACE_WARNING("%s()## connect_int ## Device Not Bonded %s \n", __func__,
+                      bd_addr->ToString().c_str());
+    /* inform the application of the disconnection as the connection is not processed */
+    btif_report_connection_state(BTAV_CONNECTION_STATE_DISCONNECTED, bd_addr);
+    btif_queue_advance();
+    return BT_STATUS_SUCCESS;
+  }
   for (i = 0; i < btif_max_av_clients;) {
     if (btif_av_get_valid_idx(i)) {
       if (*bd_addr == btif_av_cb[i].peer_bda) {

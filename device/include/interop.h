@@ -200,7 +200,10 @@ typedef enum {
   // To avoid degrading the user experience with those devices, LE connection update
   // is not requested explictly for those devices.
   INTEROP_DISABLE_LE_CONN_UPDATES,
-
+  //Few remote sends avrcp browsing request just after host sends avrcp browsing request leading
+  //collision which results in browsing channel open failure. For such devices, collision timer
+  //is used avoid collision.
+  INTEROP_AVRCP_BROWSE_OPEN_CHANNEL_COLLISION,
 
   END_OF_INTEROP_LIST
 } interop_feature_t;

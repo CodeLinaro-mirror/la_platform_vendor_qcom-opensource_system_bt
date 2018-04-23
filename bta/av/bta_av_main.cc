@@ -252,6 +252,9 @@ static void bta_av_api_enable(tBTA_AV_DATA* p_data) {
     bta_av_cb.accept_signalling_timer[j] =
       alarm_new("bta_av.accept_signalling_timer");
   }
+
+  bta_av_cb.browsing_channel_open_timer =
+  alarm_new("bta_av.browsing_channel_open_timer");
   /* store parameters */
   bta_av_cb.p_cback = p_data->api_enable.p_cback;
   bta_av_cb.features = p_data->api_enable.features;
@@ -514,18 +517,7 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
         uint16_t profile_version = AVRC_REV_1_0;
 
         if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
-          if (!strncmp(AVRCP_1_6_STRING, avrcp_version,
-                       sizeof(AVRCP_1_6_STRING))) {
-            profile_version = AVRC_REV_1_6;
-          } else if (!strncmp(AVRCP_1_5_STRING, avrcp_version,
-                              sizeof(AVRCP_1_5_STRING))) {
-            profile_version = AVRC_REV_1_5;
-          } else if (!strncmp(AVRCP_1_3_STRING, avrcp_version,
-                              sizeof(AVRCP_1_3_STRING))) {
-            profile_version = AVRC_REV_1_3;
-          } else {
-            profile_version = AVRC_REV_1_4;
-          }
+          profile_version = AVRC_REV_1_6;
         } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
           // Initialize AVRCP1.4 to provide Absolute Volume control.
           profile_version = AVRC_REV_1_4;
