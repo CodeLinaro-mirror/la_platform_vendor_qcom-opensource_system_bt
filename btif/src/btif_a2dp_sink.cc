@@ -221,22 +221,22 @@ uint8_t btif_a2dp_sink_get_codec_type(void) {
 
 static void btif_a2dp_sink_command_ready(fixed_queue_t* queue,
                                          UNUSED_ATTR void* context) {
-  tBTIF_MEDIA_SINK_HDR* p_msg = (tBTIF_MEDIA_SINK_HDR*)fixed_queue_dequeue(queue);
+  BT_HDR* p_pkt = (BT_HDR*)fixed_queue_dequeue(queue);
 
-  LOG_VERBOSE(LOG_TAG, "%s: event %d %s", __func__, p_msg->hdr.event,
-              dump_media_event(p_msg->hdr.event));
+  LOG_VERBOSE(LOG_TAG, "%s: event %d %s", __func__, p_pkt->event,
+              dump_media_event(p_pkt->event));
 
-  switch (p_msg->hdr.event) {
+  switch (p_pkt->event) {
     case BTIF_MEDIA_SINK_DECODER_UPDATE:
       btif_a2dp_sink_decoder_update_event(
-          (tBTIF_MEDIA_SINK_DECODER_UPDATE*)p_msg);
+          (tBTIF_MEDIA_SINK_DECODER_UPDATE*)p_pkt);
       break;
     case BTIF_MEDIA_SINK_CLEAR_TRACK:
       btif_a2dp_sink_clear_track_event();
       break;
     case BTIF_MEDIA_SINK_SET_FOCUS_STATE: {
       btif_a2dp_sink_focus_state_t state =
-          ((tBTIF_MEDIA_SINK_FOCUS_UPDATE*)p_msg)->focus_state;
+          ((tBTIF_MEDIA_SINK_FOCUS_UPDATE*)p_pkt)->focus_state;
       btif_a2dp_sink_set_focus_state_event(state);
       break;
     }
@@ -244,12 +244,12 @@ static void btif_a2dp_sink_command_ready(fixed_queue_t* queue,
       btif_a2dp_sink_audio_rx_flush_event();
       break;
     default:
-      APPL_TRACE_ERROR("ERROR in %s unknown event %d", __func__, p_msg->hdr.event);
+      APPL_TRACE_ERROR("ERROR in %s unknown event %d", __func__, p_pkt->event);
       break;
   }
 
-  osi_free(p_msg);
-  LOG_VERBOSE(LOG_TAG, "%s: %s DONE", __func__, dump_media_event(p_msg->hdr.event));
+  osi_free(p_pkt);
+  LOG_VERBOSE(LOG_TAG, "%s: %s DONE", __func__, dump_media_event(p_pkt->event));
 }
 
 void btif_a2dp_sink_update_decoder(const uint8_t* p_codec_info) {
@@ -397,12 +397,12 @@ static void btif_a2dp_sink_avk_handle_timer(UNUSED_ATTR void* context) {
     APPL_TRACE_DEBUG("Number of packets in queue %d",
                      fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue));
 
-    if(btif_is_sink_delay_report_supported()) {
+    if (btif_is_sink_delay_report_supported()) {
       struct timespec ts_now;
       uint64_t curr_time;
       clock_gettime(CLOCK_BOOTTIME, &ts_now);
       curr_time= (uint64_t)ts_now.tv_sec * 1000000000 + ts_now.tv_nsec;
-      if(curr_time > p_msg->enque_ns) {
+      if (curr_time > p_msg->enque_ns) {
         inst_delay_total += curr_time-p_msg->enque_ns;
       }
     }
@@ -413,7 +413,7 @@ static void btif_a2dp_sink_avk_handle_timer(UNUSED_ATTR void* context) {
     osi_free(p_msg);
   }
 
-  if(btif_is_sink_delay_report_supported()) {
+  if (btif_is_sink_delay_report_supported()) {
     inst_delay=inst_delay_total;
     btif_update_reported_delay(inst_delay);
   }
@@ -502,7 +502,7 @@ uint32_t get_audiotrack_latency() {
 void btif_handle_incoming_encoded_data() {
     BTIF_TRACE_DEBUG("%s", __func__);
     uint8_t *start_frame_addr;
-    tBTIF_MEDIA_SINK_HDR* p_msg = NULL;
+    tBTIF_MEDIA_SINK_HDR *p_msg = NULL;
 #ifndef OS_GENERIC
     if (!is_track_started) {
         is_track_started = true;
@@ -512,7 +512,7 @@ void btif_handle_incoming_encoded_data() {
     p_msg = (tBTIF_MEDIA_SINK_HDR *)fixed_queue_dequeue(btif_a2dp_sink_cb.rx_audio_queue);
     // Write encoded media packet to AudioTrack
     if (p_msg != NULL && btif_a2dp_sink_cb.audio_track != NULL) {
-        start_frame_addr = ((uint8_t*)(p_msg + 1) + p_msg->hdr.offset);
+        start_frame_addr = (p_msg->hdr.data + p_msg->hdr.offset);
         BtifAvrcpAudioTrackWriteData(
             btif_a2dp_sink_cb.audio_track, (void*)start_frame_addr,
             p_msg->hdr.len);
@@ -533,18 +533,23 @@ uint8_t btif_a2dp_sink_enqueue_buf(BT_HDR* p_pkt) {
   }
 
   /* Allocate and queue this buffer */
+  /* enque_ns_offset is the size of member enque_ns in tBTIF_MEDIA_SINK_HDR
+   * This offeset is to avoid overlap between playload stored in
+   * p_msg->hdr.data and p_msg->enque_ns as they are using the same addr
+   */
+  size_t enque_ns_offset = sizeof(uint64_t);
   tBTIF_MEDIA_SINK_HDR* p_msg = reinterpret_cast<tBTIF_MEDIA_SINK_HDR*>(
-      osi_malloc(sizeof(tBTIF_MEDIA_SINK_HDR) + p_pkt->offset + p_pkt->len));
+      osi_malloc(sizeof(tBTIF_MEDIA_SINK_HDR) + p_pkt->offset + p_pkt->len + enque_ns_offset));
   memcpy(p_msg, p_pkt, sizeof(*p_msg));
-  p_msg->hdr.offset = 0;
+  p_msg->hdr.offset = enque_ns_offset;
 
-  if(btif_is_sink_delay_report_supported()) {
+  if (btif_is_sink_delay_report_supported()) {
     struct timespec ts_now;
     clock_gettime(CLOCK_BOOTTIME, &ts_now);
     p_msg->enque_ns = (uint64_t)ts_now.tv_sec * 1000000000 + ts_now.tv_nsec;
   }
 
-  memcpy(p_msg->hdr.data, p_pkt->data + p_pkt->offset, p_pkt->len);
+  memcpy(p_msg->hdr.data + p_msg->hdr.offset, p_pkt->data + p_pkt->offset, p_pkt->len);
   fixed_queue_enqueue(btif_a2dp_sink_cb.rx_audio_queue, p_msg);
 
   if ((btif_a2dp_sink_cb.codec_type == A2DP_MEDIA_CT_SBC ||
