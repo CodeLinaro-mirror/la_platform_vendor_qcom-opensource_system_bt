@@ -780,6 +780,8 @@ static void send_post_slc_cmd(tBTA_HF_CLIENT_CB* client_cb) {
   bta_hf_client_send_at_cops(client_cb, false);
   bta_hf_client_send_at_btrh(client_cb, true, 0);
   bta_hf_client_send_at_clip(client_cb, true);
+  bta_hf_client_send_at_cgmi(client_cb, true);
+  bta_hf_client_send_at_cgmm(client_cb, true);
 }
 
 /*******************************************************************************

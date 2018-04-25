@@ -48,7 +48,7 @@
 #include <string.h>
 
 #include <hardware/bluetooth.h>
-#include <hardware/bt_hf_client.h>
+#include <hardware/bt_hf_client_vendor.h>
 
 #include "bt_target.h"
 #include "bt_utils.h"
@@ -995,6 +995,12 @@ static void btif_hf_client_upstreams_evt(uint16_t event, char* p_param) {
       break;
     case BTA_HF_CLIENT_RING_INDICATION:
       HAL_CBACK(bt_hf_client_callbacks, ring_indication_cb, &cb->peer_bda);
+      break;
+    case BTA_HF_CLIENT_CGMI_EVT:
+      HAL_CBACK(bt_hf_client_callbacks, cgmi_cb, &cb->peer_bda, p_data->cgmi.name);
+      break;
+    case BTA_HF_CLIENT_CGMM_EVT:
+      HAL_CBACK(bt_hf_client_callbacks, cgmm_cb, &cb->peer_bda, p_data->cgmm.model);
       break;
     default:
       BTIF_TRACE_WARNING("%s: Unhandled event: %d", __func__, event);

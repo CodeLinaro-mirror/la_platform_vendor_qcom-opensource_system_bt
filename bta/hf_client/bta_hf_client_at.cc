@@ -261,6 +261,12 @@ static void bta_hf_client_handle_ok(tBTA_HF_CLIENT_CB* client_cb) {
         client_cb->send_at_reply = true;
       }
       break;
+    case BTA_HF_CLIENT_AT_CGMI_QUERY:
+      bta_hf_client_send_at_cgmi(client_cb, false);
+      break;
+    case BTA_HF_CLIENT_AT_CGMM_QUERY:
+      bta_hf_client_send_at_cgmm(client_cb, false);
+      break;
     case BTA_HF_CLIENT_AT_NONE:
       bta_hf_client_stop_at_hold_timer(client_cb);
       break;
@@ -546,6 +552,21 @@ static void bta_hf_client_handle_btrh(tBTA_HF_CLIENT_CB* client_cb,
   bta_hf_client_evt_val(client_cb, BTA_HF_CLIENT_BTRH_EVT, code);
 }
 
+static void bta_hf_client_handle_cgmi(tBTA_HF_CLIENT_CB* client_cb,
+                                      char *manf_id) {
+  APPL_TRACE_DEBUG("%s %s", __func__, manf_id);
+
+  bta_hf_client_cgmi(client_cb, manf_id);
+}
+
+static void bta_hf_client_handle_cgmm(tBTA_HF_CLIENT_CB* client_cb,
+                                      char *manf_model) {
+  APPL_TRACE_DEBUG("%s %s", __func__, manf_model);
+
+  bta_hf_client_cgmm(client_cb, manf_model);
+}
+
+
 /*******************************************************************************
  *
  * Function         bta_hf_client_cback_ind
@@ -756,6 +777,50 @@ void bta_hf_client_binp(tBTA_HF_CLIENT_CB* client_cb, char* number) {
 
   evt.number.bd_addr = client_cb->peer_addr;
   bta_hf_client_app_callback(BTA_HF_CLIENT_BINP_EVT, &evt);
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_hf_client_cgmi
+ *
+ * Description      Send CGMI event to application.
+ *
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void bta_hf_client_cgmi(tBTA_HF_CLIENT_CB* client_cb, char *str) {
+  tBTA_HF_CLIENT evt;
+
+  memset(&evt, 0, sizeof(evt));
+
+  strlcpy(evt.cgmi.name, str, BTA_HF_CLIENT_MANUFACTURER_ID_LEN + 1);
+  evt.cgmi.name[BTA_HF_CLIENT_MANUFACTURER_ID_LEN] = '\0';
+
+  evt.cgmi.bd_addr = client_cb->peer_addr;
+  bta_hf_client_app_callback(BTA_HF_CLIENT_CGMI_EVT, &evt);
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_hf_client_cgmm
+ *
+ * Description      Send CGMM event to application.
+ *
+ *
+ * Returns          void
+ *
+*******************************************************************************/
+void bta_hf_client_cgmm(tBTA_HF_CLIENT_CB* client_cb, char *str) {
+  tBTA_HF_CLIENT evt;
+
+  memset(&evt, 0, sizeof(evt));
+
+  strlcpy(evt.cgmm.model, str, BTA_HF_CLIENT_MANUFACTURER_MODEL_LEN + 1);
+  evt.cgmm.model[BTA_HF_CLIENT_MANUFACTURER_MODEL_LEN] = '\0';
+
+  evt.cgmm.bd_addr = client_cb->peer_addr;
+  bta_hf_client_app_callback(BTA_HF_CLIENT_CGMM_EVT, &evt);
 }
 
 /******************************************************************************
@@ -1436,6 +1501,67 @@ static char* bta_hf_client_skip_unknown(tBTA_HF_CLIENT_CB* client_cb,
   return buffer;
 }
 
+static char *bta_hf_client_parse_cgmi(tBTA_HF_CLIENT_CB* client_cb,
+                                      char *buffer) {
+  /* 2048 chars max, plus \0 here */
+  char manf_id[BTA_HF_CLIENT_MANUFACTURER_ID_LEN + 1];
+  int i = 0;
+
+  // if current cmd is not CGMI, return from here
+  if(client_cb->at_cb.current_cmd != BTA_HF_CLIENT_AT_CGMI)
+    return buffer;
+
+  // no prefix in the response from AG
+  AT_CHECK_EVENT(buffer, "");
+
+  for(; *buffer != '\r'; i++, buffer++)
+    manf_id[i] = *buffer;
+
+  manf_id[i] = '\0';
+
+  AT_CHECK_RN(buffer);
+
+  bta_hf_client_handle_cgmi(client_cb, manf_id);
+  // check for OK Response in end
+  AT_CHECK_EVENT(buffer, "OK");
+  AT_CHECK_RN(buffer);
+
+  bta_hf_client_handle_ok(client_cb);
+
+  return buffer;
+}
+
+static char *bta_hf_client_parse_cgmm(tBTA_HF_CLIENT_CB* client_cb,
+                                      char *buffer) {
+  /* 2048 chars max, plus \0 here */
+  char manf_model[BTA_HF_CLIENT_MANUFACTURER_MODEL_LEN + 1];
+  int i = 0;
+
+  // if current cmd is not CGMM, return from here
+  if(client_cb->at_cb.current_cmd != BTA_HF_CLIENT_AT_CGMM)
+    return buffer;
+
+  // no prefix in the response from AG
+  AT_CHECK_EVENT(buffer, "");
+
+  for(; *buffer != '\r'; i++, buffer++)
+    manf_model[i] = *buffer;
+
+  manf_model[i] = '\0';
+
+  AT_CHECK_RN(buffer);
+
+  bta_hf_client_handle_cgmm(client_cb, manf_model);
+  // check for OK Response in end
+  AT_CHECK_EVENT(buffer, "OK");
+  AT_CHECK_RN(buffer);
+
+  bta_hf_client_handle_ok(client_cb);
+
+  return buffer;
+}
+
+
 /******************************************************************************
  *       SUPPORTED EVENT MESSAGES
  ******************************************************************************/
@@ -1459,6 +1585,7 @@ static const tBTA_HF_CLIENT_PARSER_CALLBACK bta_hf_client_parser_cb[] = {
     bta_hf_client_parse_ccwa,        bta_hf_client_parse_cops,
     bta_hf_client_parse_binp,        bta_hf_client_parse_clcc,
     bta_hf_client_parse_cnum,        bta_hf_client_parse_btrh,
+    bta_hf_client_parse_cgmi,        bta_hf_client_parse_cgmm,
     bta_hf_client_parse_busy,        bta_hf_client_parse_delayed,
     bta_hf_client_parse_no_carrier,  bta_hf_client_parse_no_answer,
     bta_hf_client_parse_blacklisted, bta_hf_client_skip_unknown};
@@ -1994,6 +2121,54 @@ void bta_hf_client_send_at_bia(tBTA_HF_CLIENT_CB* client_cb) {
   }
 
   bta_hf_client_send_at(client_cb, BTA_HF_CLIENT_AT_BIA, buf, at_len);
+}
+
+void bta_hf_client_send_at_cgmi(tBTA_HF_CLIENT_CB* client_cb,
+                                bool query) {
+  char buf[BTA_HF_CLIENT_AT_MAX_LEN];
+  int at_len;
+  tBTA_HF_CLIENT_AT_CMD cmd;
+
+  APPL_TRACE_DEBUG("%s", __func__);
+
+  if (query == true) {
+    at_len = snprintf(buf, sizeof(buf), "AT+CGMI=?\r");
+    cmd = BTA_HF_CLIENT_AT_CGMI_QUERY;
+  } else {
+    at_len = snprintf(buf, sizeof(buf), "AT+CGMI\r");
+    cmd = BTA_HF_CLIENT_AT_CGMI;
+  }
+
+  if (at_len < 0) {
+    APPL_TRACE_ERROR("HFPClient: AT command Framing error");
+    return;
+  }
+
+  bta_hf_client_send_at(client_cb, cmd, buf, at_len);
+}
+
+void bta_hf_client_send_at_cgmm(tBTA_HF_CLIENT_CB* client_cb,
+                                bool query) {
+  char buf[BTA_HF_CLIENT_AT_MAX_LEN];
+  int at_len;
+  tBTA_HF_CLIENT_AT_CMD cmd;
+
+  APPL_TRACE_DEBUG("%s", __func__);
+
+  if (query == true) {
+    at_len = snprintf(buf, sizeof(buf), "AT+CGMM=?\r");
+    cmd = BTA_HF_CLIENT_AT_CGMM_QUERY;
+  } else {
+    at_len = snprintf(buf, sizeof(buf), "AT+CGMM\r");
+    cmd = BTA_HF_CLIENT_AT_CGMM;
+  }
+
+  if (at_len < 0) {
+    APPL_TRACE_ERROR("HFPClient: AT command Framing error");
+    return;
+  }
+
+  bta_hf_client_send_at(client_cb, cmd, buf, at_len);
 }
 
 void bta_hf_client_at_init(tBTA_HF_CLIENT_CB* client_cb) {
