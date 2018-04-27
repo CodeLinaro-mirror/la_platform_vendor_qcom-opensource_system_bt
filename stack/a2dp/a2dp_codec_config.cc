@@ -38,6 +38,9 @@
 #include "a2dp_vendor_aptx_hd.h"
 #include "a2dp_vendor_ldac.h"
 #include "osi/include/log.h"
+#include "osi/include/osi.h"
+#include "osi/include/properties.h"
+
 
 /* The Media Type offset within the codec info byte array */
 #define A2DP_MEDIA_TYPE_OFFSET 1
@@ -510,6 +513,17 @@ bool A2dpCodecs::init(bool isMulticastEnabled, bool isShoEnabled) {
   for (int i = BTAV_A2DP_CODEC_INDEX_MIN; i < BTAV_A2DP_CODEC_INDEX_MAX; i++) {
     btav_a2dp_codec_index_t codec_index =
         static_cast<btav_a2dp_codec_index_t>(i);
+
+    /* check if aptX decoder is supported */
+    if (codec_index == BTAV_A2DP_CODEC_INDEX_SINK_APTX) {
+      char value[PROPERTY_VALUE_MAX] = {0};
+      osi_property_get("persist.bt.a2dp.decoder.aptx", value, "false");
+      if (!strncmp("false", value, sizeof("false"))) {
+        LOG_WARN(LOG_TAG, "%s: aptX decoder is not supported currently!!!",
+                 __func__);
+        continue;
+      }
+    }
 
     if ((isMulticastEnabled == true) &&
         (codec_index != BTAV_A2DP_CODEC_INDEX_SOURCE_SBC)) {
