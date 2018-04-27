@@ -1668,14 +1668,17 @@ UINT8 *btm_ble_build_adv_data(tBTM_BLE_AD_MASK *p_data_mask, UINT8 **p_dst,
             len -= (MAX_UUID_SIZE + MIN_ADV_LENGTH);
             data_mask &= ~BTM_BLE_AD_BIT_SERVICE_128SOL;
         }
+
+        BTM_TRACE_DEBUG("%s: len:%d, data_mask: %d", __func__, len, data_mask);
         /* 16bits/32bits/128bits Service Data */
         if (len > MIN_ADV_LENGTH && data_mask & BTM_BLE_AD_BIT_SERVICE_DATA &&
-            p_data && p_data->service_data.len != 0)
+            p_data && p_data->service_data.service_uuid.len > 0)
         {
             if (len  > (p_data->service_data.service_uuid.len + MIN_ADV_LENGTH))
             {
-                if (p_data->service_data.len > (len - MIN_ADV_LENGTH))
-                    cp_len = len - MIN_ADV_LENGTH- p_data->service_data.service_uuid.len;
+                if (p_data->service_data.len > (len - MIN_ADV_LENGTH -
+                    p_data->service_data.service_uuid.len))
+                    cp_len = len - MIN_ADV_LENGTH - p_data->service_data.service_uuid.len;
                 else
                     cp_len = p_data->service_data.len;
 
