@@ -141,7 +141,7 @@ enum {
 #define BTA_AV_RC_HANDLE_NONE 0xFF
 
 /* size of database for service discovery */
-#define BTA_AV_DISC_BUF_SIZE 1000
+#define BTA_AV_DISC_BUF_SIZE 2000
 
 /* maximum length of AVDTP security data */
 #define BTA_AV_SECURITY_MAX_LEN 400
@@ -590,6 +590,7 @@ typedef struct {
   tBTA_AV_RCB rcb[BTA_AV_NUM_RCB];       /* RCB control block */
   tBTA_AV_LCB lcb[BTA_AV_NUM_LINKS + 1]; /* link control block */
   alarm_t* link_signalling_timer;
+  alarm_t* browsing_channel_open_timer;  /* timer to initiate avrcp browsing open channel*/
   alarm_t*
       accept_signalling_timer[BTA_AV_NUM_STRS];  /* timer to monitor signalling when accepting */
   uint32_t sdp_a2dp_handle;     /* SDP record handle for audio src */

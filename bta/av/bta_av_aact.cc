@@ -84,6 +84,7 @@
 #define MAX_2MBPS_AVDTP_MTU 663
 #define BTIF_A2DP_MAX_BITPOOL_MQ 35
 
+uint8_t last_sent_vsc_cmd = 0;
 extern bool enc_update_in_progress;
 extern bool tx_enc_update_initiated;
 extern tBTIF_A2DP_SOURCE_VSC btif_a2dp_src_vsc;
@@ -1183,6 +1184,7 @@ void bta_av_cleanup(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
   uint8_t role = BTA_AV_ROLE_AD_INT;
 
   APPL_TRACE_DEBUG("%s", __func__);
+  last_sent_vsc_cmd = 0;
 
   /* free any buffers */
   osi_free_and_reset((void**)&p_scb->p_cap);
@@ -1457,29 +1459,37 @@ void bta_av_setconfig_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     else
       p_scb->avdt_version = AVDT_VERSION;
 
-    /* For any codec used by the SNK as INT, discover req is not sent in bta_av_config_ind.
-     * This is done since we saw an IOT issue with APTX codec. Thus, we now take same
-     * path for all codecs as for SBC. call disc_res now */
-    /* this is called in A2DP SRC path only, In case of SINK we don't need it  */
-    if (local_sep == AVDT_TSEP_SRC)
-      p_scb->p_cos->disc_res(p_scb->hndl, num, num, 0, p_scb->peer_addr,
-                             UUID_SERVCLASS_AUDIO_SOURCE);
+    if (A2DP_GetCodecType(p_scb->cfg.codec_info) == A2DP_MEDIA_CT_SBC || num > 1) {
+        /* For any codec used by the SNK as INT, discover req is not sent in bta_av_config_ind.
+         * This is done since we saw an IOT issue with APTX codec. Thus, we now take same
+         * path for all codecs as for SBC. call disc_res now */
+        /* this is called in A2DP SRC path only, In case of SINK we don't need it  */
+        if (local_sep == AVDT_TSEP_SRC)
+          p_scb->p_cos->disc_res(p_scb->hndl, num, num, 0, p_scb->peer_addr,
+                                 UUID_SERVCLASS_AUDIO_SOURCE);
 
-    for (i = 1; i < num; i++) {
-      APPL_TRACE_DEBUG("%s: sep_info[%d] SEID: %d", __func__, i, p_seid[i - 1]);
-      /* initialize the sep_info[] to get capabilities */
-      p_scb->sep_info[i].in_use = false;
-      p_scb->sep_info[i].tsep = AVDT_TSEP_SNK;
-      p_scb->sep_info[i].media_type = p_scb->media_type;
-      p_scb->sep_info[i].seid = p_seid[i - 1];
-    }
+        for (i = 1; i < num; i++) {
+          APPL_TRACE_DEBUG("%s: sep_info[%d] SEID: %d", __func__, i, p_seid[i - 1]);
+          /* initialize the sep_info[] to get capabilities */
+          p_scb->sep_info[i].in_use = false;
+          p_scb->sep_info[i].tsep = AVDT_TSEP_SNK;
+          p_scb->sep_info[i].media_type = p_scb->media_type;
+          p_scb->sep_info[i].seid = p_seid[i - 1];
+        }
 
-    /* only in case of local sep as SRC we need to look for other SEPs, In case
-     * of SINK we don't */
-    if (local_sep == AVDT_TSEP_SRC) {
-      /* Make sure UUID has been initialized... */
-      if (p_scb->uuid_int == 0) p_scb->uuid_int = UUID_SERVCLASS_AUDIO_SOURCE;
-        bta_av_next_getcap(p_scb, p_data);
+        /* only in case of local sep as SRC we need to look for other SEPs, In case
+         * of SINK we don't */
+        if (local_sep == AVDT_TSEP_SRC) {
+          /* Make sure UUID has been initialized... */
+          if (p_scb->uuid_int == 0) p_scb->uuid_int = UUID_SERVCLASS_AUDIO_SOURCE;
+            bta_av_next_getcap(p_scb, p_data);
+        }
+    } else {
+        if (local_sep == AVDT_TSEP_SRC)
+          if (p_scb->uuid_int == 0) p_scb->uuid_int = UUID_SERVCLASS_AUDIO_SOURCE/*p_scb->open_api.uuid*/;
+            /* we do not know the peer device and it is using non-SBC codec
+             * we need to know all the SEPs on SNK */
+          bta_av_discover_req(p_scb, NULL);
     }
   }
 }
@@ -1499,6 +1509,7 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   uint16_t mtu;
   uint8_t cur_role;
 
+  last_sent_vsc_cmd = 0;
   msg.hdr.layer_specific = p_scb->hndl;
   msg.is_up = true;
   msg.peer_addr = p_scb->peer_addr;
@@ -1652,6 +1663,7 @@ void bta_av_security_cfm(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 void bta_av_do_close(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
   APPL_TRACE_DEBUG("%s: p_scb->co_started=%d", __func__, p_scb->co_started);
 
+  last_sent_vsc_cmd = 0;
   /* stop stream if started */
   if (p_scb->co_started) {
     bta_av_str_stopped(p_scb, NULL);
@@ -3410,6 +3422,7 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
         {
           uint8_t param[2];
           APPL_TRACE_DEBUG("VS_QHCI_WRITE_A2DP_MEDIA_CHANNEL_CFG successful");
+          APPL_TRACE_DEBUG("%s: Last cached VSC command: 0x0%x", __func__, last_sent_vsc_cmd);
           if (!btif_a2dp_src_vsc.vs_configs_exchanged &&
               btif_a2dp_src_vsc.tx_start_initiated)
             btif_a2dp_src_vsc.vs_configs_exchanged = TRUE;
@@ -3423,6 +3436,13 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
           param[0] = VS_QHCI_A2DP_WRITE_SCMS_T_CP;
           param[1] = offload_start.cp_flag;
 #else
+          if (last_sent_vsc_cmd == VS_QHCI_START_A2DP_MEDIA) {
+            APPL_TRACE_DEBUG("%s: START VSC already exchanged.", __func__);
+            status = 0;
+            (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
+            return;
+          }
+          last_sent_vsc_cmd = VS_QHCI_START_A2DP_MEDIA;
           param[0] = VS_QHCI_START_A2DP_MEDIA;
           param[1] = 0;
 #endif
@@ -3434,6 +3454,7 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
         {
           uint8_t param[2];
           APPL_TRACE_DEBUG("VS_QHCI_A2DP_WRITE_SCMS_T_CP successful");
+          APPL_TRACE_DEBUG("%s: Last cached VSC command: 0x0%x", __func__, last_sent_vsc_cmd);
           if (!btif_a2dp_src_vsc.vs_configs_exchanged &&
               btif_a2dp_src_vsc.tx_start_initiated)
             btif_a2dp_src_vsc.vs_configs_exchanged = TRUE;
@@ -3443,6 +3464,13 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
             (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
             break;
           }
+          if (last_sent_vsc_cmd == VS_QHCI_START_A2DP_MEDIA) {
+            APPL_TRACE_DEBUG("%s: START VSC already exchanged.", __func__);
+            status = 0;
+            (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
+            return;
+          }
+          last_sent_vsc_cmd = VS_QHCI_START_A2DP_MEDIA;
           param[0] = VS_QHCI_START_A2DP_MEDIA;
           param[1] = 0;
           BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE,2,
@@ -3529,6 +3557,7 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb)
   unsigned char status = 0;
   //uint16_t sample_rate;
   APPL_TRACE_DEBUG("%s: enc_update_in_progress = %d", __func__, enc_update_in_progress);
+  APPL_TRACE_DEBUG("%s: Last cached VSC command: 0x0%x", __func__, last_sent_vsc_cmd);
   APPL_TRACE_IMP("bta_av_vendor_offload_start: vsc flags:-"
     "vs_configs_exchanged:%u tx_started:%u tx_start_initiated:%u"
     "tx_enc_update_initiated:%u", btif_a2dp_src_vsc.vs_configs_exchanged, btif_a2dp_src_vsc.tx_started,
@@ -3546,6 +3575,13 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb)
     if(btif_a2dp_src_vsc.vs_configs_exchanged) {
       param[0] = VS_QHCI_START_A2DP_MEDIA;
       param[1] = 0;
+      if (last_sent_vsc_cmd == VS_QHCI_START_A2DP_MEDIA) {
+        APPL_TRACE_DEBUG("%s: START VSC already exchanged.", __func__);
+        status = 0;
+        (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
+        return;
+      }
+      last_sent_vsc_cmd = VS_QHCI_START_A2DP_MEDIA;
       BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE,2, param,
           offload_vendor_callback);
       return;
@@ -3599,13 +3635,22 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb)
 void bta_av_vendor_offload_stop()
 {
   uint8_t param[2];
+  unsigned char status = 0;
   APPL_TRACE_DEBUG("bta_av_vendor_offload_stop, btif_a2dp_src_vsc.tx_started: %u,"
       "btif_a2dp_src_vsc.tx_stop_initiated: %u",
       btif_a2dp_src_vsc.tx_started, btif_a2dp_src_vsc.tx_stop_initiated);
+  APPL_TRACE_DEBUG("%s: Last cached VSC command: 0x0%x", __func__, last_sent_vsc_cmd);
   if (btif_a2dp_src_vsc.tx_started && !btif_a2dp_src_vsc.tx_stop_initiated) {
     btif_a2dp_src_vsc.tx_stop_initiated = TRUE;
     param[0] = VS_QHCI_STOP_A2DP_MEDIA;
     param[1] = 0;
+    if (last_sent_vsc_cmd == VS_QHCI_STOP_A2DP_MEDIA) {
+      APPL_TRACE_DEBUG("%s: STOP VSC already exchanged.", __func__);
+      status = 0;
+      (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_STOP_RSP_EVT, (tBTA_AV*)&status);
+      return;
+    }
+    last_sent_vsc_cmd = VS_QHCI_STOP_A2DP_MEDIA;
     BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE, 2, param,
         offload_vendor_callback);
   } else if((btif_a2dp_src_vsc.tx_start_initiated || tx_enc_update_initiated)

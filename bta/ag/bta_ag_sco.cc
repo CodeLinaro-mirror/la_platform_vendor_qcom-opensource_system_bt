@@ -730,6 +730,8 @@ static void bta_ag_sco_event(tBTA_AG_SCB* p_scb, uint8_t event) {
               //remote initiated transfer
               APPL_TRACE_WARNING("%s:Ignoring SCO XFER @ state: %d",
                                             __func__, p_sco->state);
+              //call app cb so that btif and app layers are in sync
+              bta_ag_cback_sco(p_scb, BTA_AG_AUDIO_CLOSE_EVT);
           }
           break;
 
@@ -789,6 +791,9 @@ static void bta_ag_sco_event(tBTA_AG_SCB* p_scb, uint8_t event) {
               //remote initiated transfer
               APPL_TRACE_WARNING("%s:Ignoring SCO XFER @ state: %d",
                                                __func__, p_sco->state);
+
+              //call app cb so that btif and app layers are in sync
+              bta_ag_cback_sco(p_scb, BTA_AG_AUDIO_CLOSE_EVT);
           }
           break;
 
@@ -1087,6 +1092,7 @@ static void bta_ag_sco_event(tBTA_AG_SCB* p_scb, uint8_t event) {
               p_sco->p_xfer_scb = NULL;
               p_sco->state = BTA_AG_SCO_OPENING_ST;
           }
+          sco_init_rmt_xfer = true;
           break;
         }
 

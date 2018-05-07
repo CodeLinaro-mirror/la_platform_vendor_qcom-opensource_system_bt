@@ -47,6 +47,8 @@ using base::StringPrintf;
 extern fixed_queue_t* btu_general_alarm_queue;
 tL2C_AVDT_CHANNEL_INFO av_media_channels[MAX_ACTIVE_AVDT_CONN];
 
+static std::mutex channel_control_mutex;
+
 /*******************************************************************************
  *
  * Function         L2CA_Register
@@ -2205,6 +2207,8 @@ void L2CA_SetMediaStreamChannel(uint16_t local_media_cid, bool status)
     uint16_t i;
     int set_channel = -1;
 
+    std::lock_guard<std::mutex> lock(channel_control_mutex);
+
     if(status)
     {
         for(i = 0; i < MAX_ACTIVE_AVDT_CONN; i++)
@@ -2271,6 +2275,8 @@ bool L2CA_isMediaChannel(uint16_t handle, uint16_t channel_id, bool is_local_cid
 {
     int i;
     bool ret = false;
+
+    std::lock_guard<std::mutex> lock(channel_control_mutex);
 
     for(i = 0; i < MAX_ACTIVE_AVDT_CONN; i++)
     {
