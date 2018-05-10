@@ -788,6 +788,12 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
       /* change state to open based on the status */
       if (p_bta_data->open.status == BTA_AV_SUCCESS) {
         /* inform the application of the event */
+        if (btif_av_is_split_a2dp_enabled() &&
+          btif_a2dp_audio_if_init != true) {
+          BTIF_TRACE_DEBUG("Got OPEN_EVT in IDLE state, init audio interface");
+          btif_a2dp_audio_interface_init();
+          btif_a2dp_audio_if_init = true;
+        }
         btif_report_connection_state(state, &(btif_av_cb[index].peer_bda));
         btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_OPENED);
         /* BTIF AV State updated, now check
@@ -1612,7 +1618,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
                                           int index) {
   tBTA_AV* p_av = (tBTA_AV*)p_data;
   RawAddress *bt_addr = nullptr;
-
+  RawAddress playing_address = RawAddress::kEmpty;
   btif_sm_state_t state = BTIF_AV_STATE_IDLE;
   int i;
   bool hal_suspend_pending = false;
@@ -1624,6 +1630,13 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
 
   switch (event) {
     case BTIF_SM_ENTER_EVT:
+      btif_rc_get_playing_device(&playing_address);
+      if (!playing_address.IsEmpty() &&
+          (playing_address == btif_av_cb[index].peer_bda) &&
+          (btif_av_cb[index].flags == BTIF_AV_FLAG_PENDING_START)) {
+          BTIF_TRACE_IMP("%s Clear play process flag",__func__);
+          btif_rc_clear_playing_state(false);
+      }
       /* Ack from entry point of started handler instead of open state to avoid
        * race condition
        */
@@ -4494,5 +4507,6 @@ void btif_av_reset_codec_reconfig_flag() {
 void btif_av_reinit_audio_interface() {
   BTIF_TRACE_DEBUG(LOG_TAG,"btif_av_reint_audio_interface");
   btif_a2dp_audio_interface_init();
+  btif_a2dp_audio_if_init = true;
 }
 /*SPLITA2DP*/
