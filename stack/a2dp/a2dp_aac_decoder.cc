@@ -58,7 +58,7 @@ bool a2dp_aac_decoder_init(decoded_data_callback_t decode_callback) {
 void a2dp_aac_decoder_cleanup(void) {
   if (a2dp_aac_decoder_cb.has_aac_handle)
     aacDecoder_Close(a2dp_aac_decoder_cb.aac_handle);
-  free(a2dp_aac_decoder_cb.decode_buf);
+  osi_free(a2dp_aac_decoder_cb.decode_buf);
   memset(&a2dp_aac_decoder_cb, 0, sizeof(a2dp_aac_decoder_cb));
 }
 
