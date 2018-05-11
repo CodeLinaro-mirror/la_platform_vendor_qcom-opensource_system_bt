@@ -944,7 +944,8 @@ tBTM_STATUS btm_ble_clear_scan_pf_filter(tBTM_BLE_SCAN_COND_OP action,
     tBLE_BD_ADDR *p_target = (p_cond == NULL)? NULL : &p_cond->target_addr;
     tBTM_BLE_PF_COUNT *p_bda_filter;
     tBTM_STATUS     st = BTM_WRONG_MODE;
-    UINT8           param[20], *p;
+    UINT8           len = (BTM_BLE_ADV_FILT_META_HDR_LENGTH + BTM_BLE_PF_FEAT_SEL_LEN);
+    UINT8           param[len], *p;
 
     if (BTM_BLE_SCAN_COND_CLEAR != action)
     {
@@ -953,7 +954,7 @@ tBTM_STATUS btm_ble_clear_scan_pf_filter(tBTM_BLE_SCAN_COND_OP action,
     }
 
     p = param;
-    memset(param, 0, 20);
+    memset(param, 0, len);
 
     p_bda_filter = btm_ble_find_addr_filter_counter(p_target);
 
@@ -1017,10 +1018,7 @@ tBTM_STATUS btm_ble_clear_scan_pf_filter(tBTM_BLE_SCAN_COND_OP action,
     UINT8_TO_STREAM(p, BTM_BLE_PF_LOGIC_OR);
 
     if ((st = BTM_VendorSpecificCommand (HCI_BLE_ADV_FILTER_OCF,
-                               (UINT8)(BTM_BLE_ADV_FILT_META_HDR_LENGTH + BTM_BLE_PF_FEAT_SEL_LEN),
-                                param,
-                                btm_ble_scan_pf_cmpl_cback))
-            != BTM_NO_RESOURCES)
+              len, param, btm_ble_scan_pf_cmpl_cback)) != BTM_NO_RESOURCES)
     {
         if (p_target)
             memcpy(&btm_ble_adv_filt_cb.cur_filter_target, p_target, sizeof(tBLE_BD_ADDR));
