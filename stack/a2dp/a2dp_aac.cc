@@ -562,84 +562,82 @@ bool A2DP_BuildCodecHeaderAac(UNUSED_ATTR const uint8_t* p_codec_info,
   return true;
 }
 
-bool A2DP_DumpCodecInfoAac(const uint8_t* p_codec_info) {
+std::string A2DP_CodecInfoStringAac(const uint8_t* p_codec_info) {
+  std::stringstream res;
+  std::string field;
   tA2DP_STATUS a2dp_status;
   tA2DP_AAC_CIE aac_cie;
 
-  LOG_VERBOSE(LOG_TAG, "%s", __func__);
-
   a2dp_status = A2DP_ParseInfoAac(&aac_cie, p_codec_info, true);
   if (a2dp_status != A2DP_SUCCESS) {
-    LOG_ERROR(LOG_TAG, "%s: A2DP_ParseInfoAac fail:%d", __func__, a2dp_status);
-    return false;
+    res << "A2DP_ParseInfoAac fail: " << loghex(a2dp_status);
+    return res.str();
   }
 
-  LOG_VERBOSE(LOG_TAG, "\tobjectType: 0x%x", aac_cie.objectType);
-  if (aac_cie.objectType & A2DP_AAC_OBJECT_TYPE_MPEG2_LC) {
-    LOG_VERBOSE(LOG_TAG, "\tobjectType: (MPEG-2 AAC LC)");
-  }
-  if (aac_cie.objectType & A2DP_AAC_OBJECT_TYPE_MPEG4_LC) {
-    LOG_VERBOSE(LOG_TAG, "\tobjectType: (MPEG-4 AAC LC)");
-  }
-  if (aac_cie.objectType & A2DP_AAC_OBJECT_TYPE_MPEG4_LTP) {
-    LOG_VERBOSE(LOG_TAG, "\tobjectType: (MPEG-4 AAC LTP)");
-  }
-  if (aac_cie.objectType & A2DP_AAC_OBJECT_TYPE_MPEG4_SCALABLE) {
-    LOG_VERBOSE(LOG_TAG, "\tobjectType: (MPEG-4 AAC Scalable)");
-  }
+  res << "\tname: AAC\n";
 
-  LOG_VERBOSE(LOG_TAG, "\tsamp_freq: 0x%x", aac_cie.sampleRate);
-  if (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_8000) {
-    LOG_VERBOSE(LOG_TAG, "\tsamp_freq: (8000)");
-  }
-  if (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_11025) {
-    LOG_VERBOSE(LOG_TAG, "\tsamp_freq: (11025)");
-  }
-  if (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_12000) {
-    LOG_VERBOSE(LOG_TAG, "\tsamp_freq: (12000)");
-  }
-  if (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_16000) {
-    LOG_VERBOSE(LOG_TAG, "\tsamp_freq: (16000)");
-  }
-  if (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_22050) {
-    LOG_VERBOSE(LOG_TAG, "\tsamp_freq: (22050)");
-  }
-  if (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_24000) {
-    LOG_VERBOSE(LOG_TAG, "\tsamp_freq: (24000)");
-  }
-  if (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_32000) {
-    LOG_VERBOSE(LOG_TAG, "\tsamp_freq: (32000)");
-  }
-  if (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_44100) {
-    LOG_VERBOSE(LOG_TAG, "\tsamp_freq: (44100)");
-  }
-  if (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_48000) {
-    LOG_VERBOSE(LOG_TAG, "\tsamp_freq: (48000)");
-  }
-  if (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_64000) {
-    LOG_VERBOSE(LOG_TAG, "\tsamp_freq: (64000)");
-  }
-  if (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_88200) {
-    LOG_VERBOSE(LOG_TAG, "\tsamp_freq: (88200)");
-  }
-  if (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_96000) {
-    LOG_VERBOSE(LOG_TAG, "\tsamp_freq: (96000)");
-  }
+  // Object type
+  field.clear();
+  AppendField(&field, (aac_cie.objectType == 0), "NONE");
+  AppendField(&field, (aac_cie.objectType & A2DP_AAC_OBJECT_TYPE_MPEG2_LC),
+              "(MPEG-2 AAC LC)");
+  AppendField(&field, (aac_cie.objectType & A2DP_AAC_OBJECT_TYPE_MPEG4_LC),
+              "(MPEG-4 AAC LC)");
+  AppendField(&field, (aac_cie.objectType & A2DP_AAC_OBJECT_TYPE_MPEG4_LTP),
+              "(MPEG-4 AAC LTP)");
+  AppendField(&field,
+              (aac_cie.objectType & A2DP_AAC_OBJECT_TYPE_MPEG4_SCALABLE),
+              "(MPEG-4 AAC Scalable)");
+  res << "\tobjectType: " << field << " (" << loghex(aac_cie.objectType)
+      << ")\n";
 
-  LOG_VERBOSE(LOG_TAG, "\tch_mode: 0x%x", aac_cie.channelMode);
-  if (aac_cie.channelMode == A2DP_AAC_CHANNEL_MODE_MONO) {
-    LOG_VERBOSE(LOG_TAG, "\tch_mode: (Mono)");
-  }
-  if (aac_cie.channelMode == A2DP_AAC_CHANNEL_MODE_STEREO) {
-    LOG_VERBOSE(LOG_TAG, "\tch_mode: (Stereo)");
-  }
+  // Sample frequency
+  field.clear();
+  AppendField(&field, (aac_cie.sampleRate == 0), "NONE");
+  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_8000),
+              "8000");
+  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_11025),
+              "11025");
+  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_12000),
+              "12000");
+  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_16000),
+              "16000");
+  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_22050),
+              "22050");
+  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_24000),
+              "24000");
+  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_32000),
+              "32000");
+  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_44100),
+              "44100");
+  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_48000),
+              "48000");
+  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_64000),
+              "64000");
+  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_88200),
+              "88200");
+  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_96000),
+              "96000");
+  res << "\tsamp_freq: " << field << " (" << loghex(aac_cie.sampleRate)
+      << ")\n";
 
-  LOG_VERBOSE(LOG_TAG, "\tvariableBitRateSupport: %s",
-              (aac_cie.variableBitRateSupport != 0) ? "true" : "false");
+  // Channel mode
+  field.clear();
+  AppendField(&field, (aac_cie.channelMode == 0), "NONE");
+  AppendField(&field, (aac_cie.channelMode == A2DP_AAC_CHANNEL_MODE_MONO),
+              "Mono");
+  AppendField(&field, (aac_cie.channelMode == A2DP_AAC_CHANNEL_MODE_STEREO),
+              "Stereo");
+  res << "\tch_mode: " << field << " (" << loghex(aac_cie.channelMode) << ")\n";
 
-  LOG_VERBOSE(LOG_TAG, "\tbitRate: %u", aac_cie.bitRate);
+  // Variable bit rate support
+  res << "\tvariableBitRateSupport: " << std::boolalpha
+      << (aac_cie.variableBitRateSupport != 0) << "\n";
 
-  return true;
+  // Bit rate
+  res << "\tbitRate: " << std::to_string(aac_cie.bitRate) << "\n";
+
+  return res.str();
 }
 
 const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceAac(
@@ -1297,7 +1295,7 @@ bool A2dpCodecConfigAacBase::setCodecConfig(const uint8_t* p_peer_codec_info,
   if (codec_user_config_.codec_specific_4 != 0)
     codec_config_.codec_specific_4 = codec_user_config_.codec_specific_4;
 
-  // Create a local copy of the peer codec capability, and the
+  // Create a local copy of the peer codec capability/config, and the
   // result codec config.
   if (is_capability) {
     status = A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie,
@@ -1324,6 +1322,76 @@ fail:
          sizeof(ota_codec_peer_capability_));
   memcpy(ota_codec_peer_config_, saved_ota_codec_peer_config,
          sizeof(ota_codec_peer_config_));
+  return false;
+}
+bool A2dpCodecConfigAacBase::setPeerCodecCapabilities(
+    const uint8_t* p_peer_codec_capabilities) {
+  std::lock_guard<std::recursive_mutex> lock(codec_mutex_);
+  tA2DP_AAC_CIE peer_info_cie;
+  uint8_t channelMode;
+  uint16_t sampleRate;
+  const tA2DP_AAC_CIE* p_a2dp_aac_caps =
+      (is_source_) ? &a2dp_aac_source_caps : &a2dp_aac_sink_caps;
+
+  // Save the internal state
+  btav_a2dp_codec_config_t saved_codec_selectable_capability =
+      codec_selectable_capability_;
+  uint8_t saved_ota_codec_peer_capability[AVDT_CODEC_SIZE];
+  memcpy(saved_ota_codec_peer_capability, ota_codec_peer_capability_,
+         sizeof(ota_codec_peer_capability_));
+
+  tA2DP_STATUS status =
+      A2DP_ParseInfoAac(&peer_info_cie, p_peer_codec_capabilities, true);
+  if (status != A2DP_SUCCESS) {
+    LOG_ERROR(LOG_TAG, "%s: can't parse peer's capabilities: error = %d",
+              __func__, status);
+    goto fail;
+  }
+
+  // Compute the selectable capability - sample rate
+  sampleRate = p_a2dp_aac_caps->sampleRate & peer_info_cie.sampleRate;
+  if (sampleRate & A2DP_AAC_SAMPLING_FREQ_44100) {
+    codec_selectable_capability_.sample_rate |=
+        BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
+  }
+  if (sampleRate & A2DP_AAC_SAMPLING_FREQ_48000) {
+    codec_selectable_capability_.sample_rate |=
+        BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
+  }
+  if (sampleRate & A2DP_AAC_SAMPLING_FREQ_88200) {
+    codec_selectable_capability_.sample_rate |=
+        BTAV_A2DP_CODEC_SAMPLE_RATE_88200;
+  }
+  if (sampleRate & A2DP_AAC_SAMPLING_FREQ_96000) {
+    codec_selectable_capability_.sample_rate |=
+        BTAV_A2DP_CODEC_SAMPLE_RATE_96000;
+  }
+
+  // Compute the selectable capability - bits per sample
+  codec_selectable_capability_.bits_per_sample =
+      p_a2dp_aac_caps->bits_per_sample;
+
+  // Compute the selectable capability - channel mode
+  channelMode = p_a2dp_aac_caps->channelMode & peer_info_cie.channelMode;
+  if (channelMode & A2DP_AAC_CHANNEL_MODE_MONO) {
+    codec_selectable_capability_.channel_mode |=
+        BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
+  }
+  if (channelMode & A2DP_AAC_CHANNEL_MODE_STEREO) {
+    codec_selectable_capability_.channel_mode |=
+        BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
+  }
+
+  status = A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie,
+                             ota_codec_peer_capability_);
+  CHECK(status == A2DP_SUCCESS);
+  return true;
+
+fail:
+  // Restore the internal state
+  codec_selectable_capability_ = saved_codec_selectable_capability;
+  memcpy(ota_codec_peer_capability_, saved_ota_codec_peer_capability,
+         sizeof(ota_codec_peer_capability_));
   return false;
 }
 

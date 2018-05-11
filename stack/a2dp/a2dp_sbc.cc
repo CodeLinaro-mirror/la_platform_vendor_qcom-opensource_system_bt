@@ -684,80 +684,69 @@ bool A2DP_BuildCodecHeaderSbc(UNUSED_ATTR const uint8_t* p_codec_info,
   return true;
 }
 
-bool A2DP_DumpCodecInfoSbc(const uint8_t* p_codec_info) {
+std::string A2DP_CodecInfoStringSbc(const uint8_t* p_codec_info) {
+  std::stringstream res;
+  std::string field;
   tA2DP_STATUS a2dp_status;
   tA2DP_SBC_CIE sbc_cie;
 
-  LOG_VERBOSE(LOG_TAG, "%s", __func__);
-
   a2dp_status = A2DP_ParseInfoSbc(&sbc_cie, p_codec_info, true);
   if (a2dp_status != A2DP_SUCCESS) {
-    LOG_ERROR(LOG_TAG, "%s: A2DP_ParseInfoSbc fail:%d", __func__, a2dp_status);
-    return false;
+    res << "A2DP_ParseInfoSbc fail: " << loghex(a2dp_status);
+    return res.str();
   }
 
-  LOG_VERBOSE(LOG_TAG, "\tsamp_freq: 0x%x", sbc_cie.samp_freq);
-  if (sbc_cie.samp_freq & A2DP_SBC_IE_SAMP_FREQ_16) {
-    LOG_VERBOSE(LOG_TAG, "\tsamp_freq: (16000)");
-  }
-  if (sbc_cie.samp_freq & A2DP_SBC_IE_SAMP_FREQ_32) {
-    LOG_VERBOSE(LOG_TAG, "\tsamp_freq: (32000)");
-  }
-  if (sbc_cie.samp_freq & A2DP_SBC_IE_SAMP_FREQ_44) {
-    LOG_VERBOSE(LOG_TAG, "\tsamp_freq: (44100)");
-  }
-  if (sbc_cie.samp_freq & A2DP_SBC_IE_SAMP_FREQ_48) {
-    LOG_VERBOSE(LOG_TAG, "\tsamp_freq: (48000)");
-  }
+  res << "\tname: SBC\n";
 
-  LOG_VERBOSE(LOG_TAG, "\tch_mode: 0x%x", sbc_cie.ch_mode);
-  if (sbc_cie.ch_mode & A2DP_SBC_IE_CH_MD_MONO) {
-    LOG_VERBOSE(LOG_TAG, "\tch_mode: (Mono)");
-  }
-  if (sbc_cie.ch_mode & A2DP_SBC_IE_CH_MD_DUAL) {
-    LOG_VERBOSE(LOG_TAG, "\tch_mode: (Dual)");
-  }
-  if (sbc_cie.ch_mode & A2DP_SBC_IE_CH_MD_STEREO) {
-    LOG_VERBOSE(LOG_TAG, "\tch_mode: (Stereo)");
-  }
-  if (sbc_cie.ch_mode & A2DP_SBC_IE_CH_MD_JOINT) {
-    LOG_VERBOSE(LOG_TAG, "\tch_mode: (Joint)");
-  }
+  // Sample frequency
+  field.clear();
+  AppendField(&field, (sbc_cie.samp_freq == 0), "NONE");
+  AppendField(&field, (sbc_cie.samp_freq & A2DP_SBC_IE_SAMP_FREQ_16), "16000");
+  AppendField(&field, (sbc_cie.samp_freq & A2DP_SBC_IE_SAMP_FREQ_32), "32000");
+  AppendField(&field, (sbc_cie.samp_freq & A2DP_SBC_IE_SAMP_FREQ_44), "44100");
+  AppendField(&field, (sbc_cie.samp_freq & A2DP_SBC_IE_SAMP_FREQ_48), "48000");
+  res << "\tsamp_freq: " << field << " (" << loghex(sbc_cie.samp_freq) << ")\n";
 
-  LOG_VERBOSE(LOG_TAG, "\tblock_len: 0x%x", sbc_cie.block_len);
-  if (sbc_cie.block_len & A2DP_SBC_IE_BLOCKS_4) {
-    LOG_VERBOSE(LOG_TAG, "\tblock_len: (4)");
-  }
-  if (sbc_cie.block_len & A2DP_SBC_IE_BLOCKS_8) {
-    LOG_VERBOSE(LOG_TAG, "\tblock_len: (8)");
-  }
-  if (sbc_cie.block_len & A2DP_SBC_IE_BLOCKS_12) {
-    LOG_VERBOSE(LOG_TAG, "\tblock_len: (12)");
-  }
-  if (sbc_cie.block_len & A2DP_SBC_IE_BLOCKS_16) {
-    LOG_VERBOSE(LOG_TAG, "\tblock_len: (16)");
-  }
+  // Channel mode
+  field.clear();
+  AppendField(&field, (sbc_cie.ch_mode == 0), "NONE");
+  AppendField(&field, (sbc_cie.ch_mode & A2DP_SBC_IE_CH_MD_MONO), "Mono");
+  AppendField(&field, (sbc_cie.ch_mode & A2DP_SBC_IE_CH_MD_DUAL), "Dual");
+  AppendField(&field, (sbc_cie.ch_mode & A2DP_SBC_IE_CH_MD_STEREO), "Stereo");
+  AppendField(&field, (sbc_cie.ch_mode & A2DP_SBC_IE_CH_MD_JOINT), "Joint");
+  res << "\tch_mode: " << field << " (" << loghex(sbc_cie.ch_mode) << ")\n";
 
-  LOG_VERBOSE(LOG_TAG, "\tnum_subbands: 0x%x", sbc_cie.num_subbands);
-  if (sbc_cie.num_subbands & A2DP_SBC_IE_SUBBAND_4) {
-    LOG_VERBOSE(LOG_TAG, "\tnum_subbands: (4)");
-  }
-  if (sbc_cie.num_subbands & A2DP_SBC_IE_SUBBAND_8) {
-    LOG_VERBOSE(LOG_TAG, "\tnum_subbands: (8)");
-  }
+  // Block length
+  field.clear();
+  AppendField(&field, (sbc_cie.block_len == 0), "NONE");
+  AppendField(&field, (sbc_cie.block_len & A2DP_SBC_IE_BLOCKS_4), "4");
+  AppendField(&field, (sbc_cie.block_len & A2DP_SBC_IE_BLOCKS_8), "8");
+  AppendField(&field, (sbc_cie.block_len & A2DP_SBC_IE_BLOCKS_12), "12");
+  AppendField(&field, (sbc_cie.block_len & A2DP_SBC_IE_BLOCKS_16), "16");
+  res << "\tblock_len: " << field << " (" << loghex(sbc_cie.block_len) << ")\n";
 
-  LOG_VERBOSE(LOG_TAG, "\talloc_method: 0x%x)", sbc_cie.alloc_method);
-  if (sbc_cie.alloc_method & A2DP_SBC_IE_ALLOC_MD_S) {
-    LOG_VERBOSE(LOG_TAG, "\talloc_method: (SNR)");
-  }
-  if (sbc_cie.alloc_method & A2DP_SBC_IE_ALLOC_MD_L) {
-    LOG_VERBOSE(LOG_TAG, "\talloc_method: (Loundess)");
-  }
+  // Number of subbands
+  field.clear();
+  AppendField(&field, (sbc_cie.num_subbands == 0), "NONE");
+  AppendField(&field, (sbc_cie.num_subbands & A2DP_SBC_IE_SUBBAND_4), "4");
+  AppendField(&field, (sbc_cie.num_subbands & A2DP_SBC_IE_SUBBAND_8), "8");
+  res << "\tnum_subbands: " << field << " (" << loghex(sbc_cie.num_subbands)
+      << ")\n";
 
-  LOG_VERBOSE(LOG_TAG, "\tBit pool Min:%d Max:%d", sbc_cie.min_bitpool,
-              sbc_cie.max_bitpool);
+  // Allocation method
+  field.clear();
+  AppendField(&field, (sbc_cie.alloc_method == 0), "NONE");
+  AppendField(&field, (sbc_cie.alloc_method & A2DP_SBC_IE_ALLOC_MD_S), "SNR");
+  AppendField(&field, (sbc_cie.alloc_method & A2DP_SBC_IE_ALLOC_MD_L),
+              "Loundess");
+  res << "\talloc_method: " << field << " (" << loghex(sbc_cie.alloc_method)
+      << ")\n";
 
-  return true;
+  // Min/max bitloop
+  res << "\tBit pool Min: " << std::to_string(sbc_cie.min_bitpool)
+      << " Max: " << std::to_string(sbc_cie.max_bitpool);
+
+  return res.str();
 }
 
 const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceSbc(
@@ -1436,12 +1425,13 @@ bool A2dpCodecConfigSbcBase::setCodecConfig(const uint8_t* p_peer_codec_info,
   // Create a local copy of the peer codec capability/config, and the
   // result codec config.
   if (is_capability) {
-    memcpy(ota_codec_peer_capability_, p_peer_codec_info,
-           sizeof(ota_codec_peer_capability_));
+    status = A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie,
+                               ota_codec_peer_capability_);
   } else {
-    memcpy(ota_codec_peer_config_, p_peer_codec_info,
-           sizeof(ota_codec_peer_config_));
+    status = A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie,
+                               ota_codec_peer_config_);
   }
+  CHECK(status == A2DP_SUCCESS);
   status = A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie,
                              ota_codec_config_);
   CHECK(status == A2DP_SUCCESS);
@@ -1459,6 +1449,77 @@ fail:
          sizeof(ota_codec_peer_capability_));
   memcpy(ota_codec_peer_config_, saved_ota_codec_peer_config,
          sizeof(ota_codec_peer_config_));
+  return false;
+}
+
+bool A2dpCodecConfigSbcBase::setPeerCodecCapabilities(
+    const uint8_t* p_peer_codec_capabilities) {
+  std::lock_guard<std::recursive_mutex> lock(codec_mutex_);
+  tA2DP_SBC_CIE peer_info_cie;
+  uint8_t samp_freq;
+  uint8_t ch_mode;
+  const tA2DP_SBC_CIE* p_a2dp_sbc_caps =
+      (is_source_) ? &a2dp_sbc_source_caps : &a2dp_sbc_sink_caps;
+
+  // Save the internal state
+  btav_a2dp_codec_config_t saved_codec_selectable_capability =
+      codec_selectable_capability_;
+  uint8_t saved_ota_codec_peer_capability[AVDT_CODEC_SIZE];
+  memcpy(saved_ota_codec_peer_capability, ota_codec_peer_capability_,
+         sizeof(ota_codec_peer_capability_));
+
+  tA2DP_STATUS status =
+      A2DP_ParseInfoSbc(&peer_info_cie, p_peer_codec_capabilities, true);
+  if (status != A2DP_SUCCESS) {
+    LOG_ERROR(LOG_TAG, "%s: can't parse peer's capabilities: error = %d",
+              __func__, status);
+    goto fail;
+  }
+
+  // Compute the selectable capability - sample rate
+  samp_freq = p_a2dp_sbc_caps->samp_freq & peer_info_cie.samp_freq;
+  if (samp_freq & A2DP_SBC_IE_SAMP_FREQ_44) {
+    codec_selectable_capability_.sample_rate |=
+        BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
+  }
+  if (samp_freq & A2DP_SBC_IE_SAMP_FREQ_48) {
+    codec_selectable_capability_.sample_rate |=
+        BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
+  }
+
+  // Compute the selectable capability - bits per sample
+  codec_selectable_capability_.bits_per_sample =
+      p_a2dp_sbc_caps->bits_per_sample;
+
+  // Compute the selectable capability - channel mode
+  ch_mode = p_a2dp_sbc_caps->ch_mode & peer_info_cie.ch_mode;
+  if (ch_mode & A2DP_SBC_IE_CH_MD_MONO) {
+    codec_selectable_capability_.channel_mode |=
+        BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
+  }
+  if (ch_mode & A2DP_SBC_IE_CH_MD_JOINT) {
+    codec_selectable_capability_.channel_mode |=
+        BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
+  }
+  if (ch_mode & A2DP_SBC_IE_CH_MD_STEREO) {
+    codec_selectable_capability_.channel_mode |=
+        BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
+  }
+  if (ch_mode & A2DP_SBC_IE_CH_MD_DUAL) {
+    codec_selectable_capability_.channel_mode |=
+        BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
+  }
+
+  status = A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie,
+                             ota_codec_peer_capability_);
+  CHECK(status == A2DP_SUCCESS);
+  return true;
+
+fail:
+  // Restore the internal state
+  codec_selectable_capability_ = saved_codec_selectable_capability;
+  memcpy(ota_codec_peer_capability_, saved_ota_codec_peer_capability,
+         sizeof(ota_codec_peer_capability_));
   return false;
 }
 

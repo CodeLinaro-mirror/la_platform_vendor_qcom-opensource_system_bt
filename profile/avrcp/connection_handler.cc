@@ -42,7 +42,8 @@ ConnectionHandler* ConnectionHandler::Get() {
 }
 
 bool ConnectionHandler::Initialize(const ConnectionCallback& callback,
-                                   AvrcpInterface* avrcp, SdpInterface* sdp) {
+                                   AvrcpInterface* avrcp, SdpInterface* sdp,
+                                   VolumeInterface* vol) {
   CHECK(instance_ == nullptr);
   CHECK(avrcp != nullptr);
   CHECK(sdp != nullptr);
@@ -53,6 +54,7 @@ bool ConnectionHandler::Initialize(const ConnectionCallback& callback,
   instance_->connection_cb_ = callback;
   instance_->avrc_ = avrcp;
   instance_->sdp_ = sdp;
+  instance_->vol_ = vol;
 
   // Set up the AVRCP acceptor connection
   if (!instance_->AvrcpConnect(false, RawAddress::kAny)) {
@@ -73,6 +75,8 @@ bool ConnectionHandler::CleanUp() {
   }
   instance_->device_map_.clear();
   instance_->feature_map_.clear();
+
+  instance_->weak_ptr_factory_.InvalidateWeakPtrs();
 
   delete instance_;
   instance_ = nullptr;
@@ -166,10 +170,10 @@ bool ConnectionHandler::AvrcpConnect(bool initiator, const RawAddress& bdaddr) {
   tAVRC_CONN_CB open_cb;
   if (initiator) {
     open_cb.ctrl_cback = base::Bind(&ConnectionHandler::InitiatorControlCb,
-                                    base::Unretained(this));
+                                    weak_ptr_factory_.GetWeakPtr());
   } else {
     open_cb.ctrl_cback = base::Bind(&ConnectionHandler::AcceptorControlCb,
-                                    base::Unretained(this));
+                                    weak_ptr_factory_.GetWeakPtr());
   }
   open_cb.msg_cback =
       base::Bind(&ConnectionHandler::MessageCb, base::Unretained(this));
@@ -217,10 +221,13 @@ void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event,
       // devices SDP is completed after the device connects AVRCP so that
       // information isn't very useful when trying to control our
       // capabilities. For now always use AVRCP 1.6.
-      std::shared_ptr<Device> newDevice =
-          std::make_shared<Device>(*peer_addr, !supports_browsing,
-                                   base::Bind(&ConnectionHandler::SendMessage,
-                                              base::Unretained(this), handle));
+      auto&& callback = base::Bind(&ConnectionHandler::SendMessage,
+                                   base::Unretained(this), handle);
+      auto&& ctrl_mtu = avrc_->GetPeerMtu(handle) - AVCT_HDR_LEN;
+      auto&& browse_mtu = avrc_->GetBrowseMtu(handle) - AVCT_HDR_LEN;
+      std::shared_ptr<Device> newDevice = std::make_shared<Device>(
+          *peer_addr, !supports_browsing, callback, ctrl_mtu, browse_mtu);
+
       device_map_[handle] = newDevice;
       // TODO (apanicke): Create the device with all of the interfaces it
       // needs. Return the new device where the service will register the
@@ -229,17 +236,21 @@ void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event,
 
       if (feature_iter->second & BTA_AV_FEAT_ADV_CTRL) {
         newDevice->RegisterVolumeChanged();
+      } else if (instance_->vol_ != nullptr) {
+        instance_->vol_->DeviceConnected(newDevice->GetAddress());
       }
+
     } break;
 
     case AVRC_CLOSE_IND_EVT: {
       LOG(INFO) << __PRETTY_FUNCTION__ << ": Connection Closed Event";
 
-      if (device_map_[handle] == nullptr) {
+      if (device_map_.find(handle) == device_map_.end()) {
         LOG(WARNING)
             << "Connection Close received from device that doesn't exist";
         return;
       }
+      avrc_->Close(handle);
       feature_map_.erase(device_map_[handle]->GetAddress());
       device_map_[handle]->DeviceDisconnected();
       device_map_.erase(handle);
@@ -274,10 +285,13 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event,
     case AVRC_OPEN_IND_EVT: {
       LOG(INFO) << __PRETTY_FUNCTION__ << ": Connection Opened Event";
 
-      std::shared_ptr<Device> newDevice =
-          std::make_shared<Device>(*peer_addr, false,
-                                   base::Bind(&ConnectionHandler::SendMessage,
-                                              base::Unretained(this), handle));
+      auto&& callback = base::Bind(&ConnectionHandler::SendMessage,
+                                   base::Unretained(this), handle);
+      auto&& ctrl_mtu = avrc_->GetPeerMtu(handle) - AVCT_HDR_LEN;
+      auto&& browse_mtu = avrc_->GetBrowseMtu(handle) - AVCT_HDR_LEN;
+      std::shared_ptr<Device> newDevice = std::make_shared<Device>(
+          *peer_addr, false, callback, ctrl_mtu, browse_mtu);
+
       device_map_[handle] = newDevice;
       connection_cb_.Run(newDevice);
 
@@ -301,6 +315,8 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event,
         // connected that doesn't support absolute volume.
         if (features & BTA_AV_FEAT_ADV_CTRL) {
           device->RegisterVolumeChanged();
+        } else if (instance_->vol_ != nullptr) {
+          instance_->vol_->DeviceConnected(device->GetAddress());
         }
       };
 
@@ -313,11 +329,12 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event,
     case AVRC_CLOSE_IND_EVT: {
       LOG(INFO) << __PRETTY_FUNCTION__ << ": Connection Closed Event";
 
-      if (device_map_[handle] == nullptr) {
+      if (device_map_.find(handle) == device_map_.end()) {
         LOG(WARNING)
             << "Connection Close received from device that doesn't exist";
         return;
       }
+      avrc_->Close(handle);
       feature_map_.erase(device_map_[handle]->GetAddress());
       device_map_[handle]->DeviceDisconnected();
       device_map_.erase(handle);

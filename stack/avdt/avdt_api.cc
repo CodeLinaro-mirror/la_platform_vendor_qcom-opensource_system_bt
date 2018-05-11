@@ -473,7 +473,8 @@ uint16_t AVDT_OpenReq(uint8_t handle, const RawAddress& bd_addr,
 
   /* send event to scb */
   if (result == AVDT_SUCCESS) {
-    A2DP_DumpCodecInfo(p_cfg->codec_info);
+    AVDT_TRACE_DEBUG("%s: codec: %s", __func__,
+                     A2DP_CodecInfoString(p_cfg->codec_info).c_str());
 
     evt.msg.config_cmd.hdr.seid = seid;
     evt.msg.config_cmd.hdr.ccb_idx = avdt_ccb_to_idx(p_ccb);
@@ -1237,6 +1238,8 @@ void stack_debug_avdtp_api_dump(int fd) {
       dprintf(fd, "\n    Stream control block: %zu\n", i);
       dprintf(fd, "      SEP codec: %s\n",
               A2DP_CodecName(scb.stream_config.cfg.codec_info));
+      dprintf(fd, "      SEP protocol service capabilities: 0x%x\n",
+              scb.stream_config.cfg.psc_mask);
       dprintf(fd, "      SEP type: 0x%x\n", scb.stream_config.tsep);
       dprintf(fd, "      Media type: 0x%x\n", scb.stream_config.media_type);
       dprintf(fd, "      MTU: %d\n", scb.stream_config.mtu);

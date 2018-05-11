@@ -34,6 +34,8 @@ class A2dpCodecConfigLdac : public A2dpCodecConfig {
   period_ms_t encoderIntervalMs() const override;
   bool setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
                       uint8_t* p_result_codec_config) override;
+  bool setPeerCodecCapabilities(
+      const uint8_t* p_peer_codec_capabilities) override;
 
  private:
   bool useRtpHeaderMarkerBit() const override;
@@ -124,10 +126,10 @@ bool A2DP_VendorGetPacketTimestampLdac(const uint8_t* p_codec_info,
 bool A2DP_VendorBuildCodecHeaderLdac(const uint8_t* p_codec_info, BT_HDR* p_buf,
                                      uint16_t frames_per_packet);
 
-// Decodes and displays A2DP LDAC codec info when using |LOG_DEBUG|.
-// |p_codec_info| is a pointer to the LDAC codec_info to decode and display.
-// Returns true if the codec information is valid, otherwise false.
-bool A2DP_VendorDumpCodecInfoLdac(const uint8_t* p_codec_info);
+// Decodes A2DP LDAC codec info into a human readable string.
+// |p_codec_info| is a pointer to the LDAC codec_info to decode.
+// Returns a string describing the codec information.
+std::string A2DP_VendorCodecInfoStringLdac(const uint8_t* p_codec_info);
 
 // Gets the A2DP LDAC encoder interface that can be used to encode and prepare
 // A2DP packets for transmission - see |tA2DP_ENCODER_INTERFACE|.
