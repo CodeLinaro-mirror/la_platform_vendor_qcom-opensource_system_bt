@@ -356,9 +356,9 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
           __func__, set_br_pl_rsp->status, set_br_pl_rsp->num_items,
           set_br_pl_rsp->charset_id, set_br_pl_rsp->folder_depth);
       pkt_len_read += 10;
-
+      /* Fix avrcp browsing crash issue */
       set_br_pl_rsp->p_folders = (tAVRC_NAME*)osi_malloc(
-          set_br_pl_rsp->num_items * sizeof(tAVRC_NAME));
+          set_br_pl_rsp->folder_depth * sizeof(tAVRC_NAME));
 
       /* Read each of the folder in the depth */
       for (uint32_t i = 0; i < set_br_pl_rsp->folder_depth; i++) {
