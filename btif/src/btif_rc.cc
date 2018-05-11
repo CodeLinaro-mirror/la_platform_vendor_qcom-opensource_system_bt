@@ -5032,6 +5032,11 @@ static void handle_get_folder_items_response(tBTA_AV_META_MSG* pmeta_msg,
     BTIF_TRACE_DEBUG("%s HAL CBACK get_folder_items_cb finished", __func__);
 
     /* Release the memory block for items since we OWN the object */
+    for (uint8_t i = 0; i < item_count; i++) {
+      if (AVRC_ITEM_MEDIA == btrc_items[i].item_type) {
+        osi_free(btrc_items[i].media.p_attrs);
+      }
+    }
     osi_free(btrc_items);
   } else {
     BTIF_TRACE_ERROR("%s: Error %d", __func__, p_rsp->status);
