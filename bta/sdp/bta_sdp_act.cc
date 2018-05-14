@@ -22,7 +22,7 @@
 
 #include <arpa/inet.h>
 #include <hardware/bluetooth.h>
-#include <hardware/bt_sdp.h>
+#include <hardware/bt_sdp_vendor.h>
 #include <stdlib.h>
 #include <string.h>
 

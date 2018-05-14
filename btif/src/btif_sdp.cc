@@ -32,7 +32,7 @@
 #include <string.h>
 
 #include <hardware/bluetooth.h>
-#include <hardware/bt_sdp.h>
+#include <hardware/bt_sdp_vendor.h>
 
 #include "bta_api.h"
 #include "bta_sdp_api.h"

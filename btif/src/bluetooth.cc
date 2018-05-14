@@ -43,7 +43,7 @@
 #include <hardware/bt_mce.h>
 #include <hardware/bt_pan.h>
 #include <hardware/bt_rc.h>
-#include <hardware/bt_sdp.h>
+#include <hardware/bt_sdp_vendor.h>
 #include <hardware/bt_sock.h>
 #ifdef WIPOWER_SUPPORTED
 #include <hardware/wipower.h>
