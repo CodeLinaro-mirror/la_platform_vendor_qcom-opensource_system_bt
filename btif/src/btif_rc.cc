@@ -2089,10 +2089,7 @@ static void btif_rc_upstreams_evt(uint16_t event, tAVRC_COMMAND* pavrc_cmd,
         HAL_CBACK(bt_rc_callbacks, play_item_cb, pavrc_cmd->play_item.scope,
                   pavrc_cmd->play_item.uid_counter, pavrc_cmd->play_item.uid,
                   &rc_addr);
-        /* This command will trigger playback or
-         * dual a2dp handoff.. Let it play on this device.
-         */
-        p_dev->rc_play_processed = TRUE;
+
         /* Trigger DUAL Handoff when support single streaming */
         if (btif_av_is_playing() &&
             (btif_av_get_multicast_state() == false)) {
@@ -2111,6 +2108,9 @@ static void btif_rc_upstreams_evt(uint16_t event, tAVRC_COMMAND* pavrc_cmd,
             } else
               APPL_TRACE_WARNING("%s:Play item Invalid", __func__);
           }
+        } else {
+          /* Let PLAY_ITEM command to playback on the corresponding device */
+          p_dev->rc_play_processed = true;
         }
       }
     } break;
