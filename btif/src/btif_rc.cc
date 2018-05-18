@@ -4206,15 +4206,33 @@ static void handle_get_capability_response(tBTA_AV_META_MSG* pmeta_msg,
 
     for (xx = 0; xx < p_rsp->count; xx++) {
       /* Skip registering for Play position change notification */
-      if ((p_rsp->param.event_id[xx] == AVRC_EVT_PLAY_STATUS_CHANGE) ||
-          (p_rsp->param.event_id[xx] == AVRC_EVT_TRACK_CHANGE) ||
-          (p_rsp->param.event_id[xx] == AVRC_EVT_APP_SETTING_CHANGE) ||
-          (p_rsp->param.event_id[xx] == AVRC_EVT_UIDS_CHANGE)) {
-        p_event = (btif_rc_supported_event_t*)osi_malloc(
-            sizeof(btif_rc_supported_event_t));
-        p_event->event_id = p_rsp->param.event_id[xx];
-        p_event->status = eNOT_REGISTERED;
-        list_append(p_dev->rc_supported_event_list, p_event);
+      switch (p_rsp->param.event_id[xx]) {
+        case AVRC_EVT_PLAY_POS_CHANGED:
+        case AVRC_EVT_BATTERY_STATUS_CHANGE:
+        case AVRC_EVT_SYSTEM_STATUS_CHANGE:
+        case AVRC_EVT_TRACK_REACHED_END:
+        case AVRC_EVT_TRACK_REACHED_START:
+          break;
+
+        case AVRC_EVT_UIDS_CHANGE:
+          if (BTA_AvIsBrowsingSupported () == FALSE) {
+            break;
+          } else {
+            // Fall through in else case
+          }
+        case AVRC_EVT_PLAY_STATUS_CHANGE:
+        case AVRC_EVT_TRACK_CHANGE:
+        case AVRC_EVT_APP_SETTING_CHANGE:
+          p_event = (btif_rc_supported_event_t*)osi_malloc(
+          sizeof(btif_rc_supported_event_t));
+          p_event->event_id = p_rsp->param.event_id[xx];
+          p_event->status = eNOT_REGISTERED;
+          list_append(p_dev->rc_supported_event_list, p_event);
+          break;
+
+        default:
+          BTIF_TRACE_ERROR("%s Unknown event: 0x%02X", __FUNCTION__, p_rsp->param.event_id[xx]);
+          break;
       }
     }
     if (list_is_empty(p_dev->rc_supported_event_list)) {
@@ -4436,6 +4454,8 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
         break;
 
       case AVRC_EVT_UIDS_CHANGE:
+        HAL_CBACK(bt_rc_vendor_ctrl_callbacks, uids_changed_cb,
+                  &rc_addr, p_rsp->param.uid_counter);
         break;
 
       case AVRC_EVT_TRACK_REACHED_END:
