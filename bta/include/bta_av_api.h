@@ -721,6 +721,18 @@ void BTA_AvOffloadStartRsp(tBTA_AV_HNDL hndl, tBTA_AV_STATUS status);
  */
 int BTA_AvObtainPeerChannelIndex(const RawAddress& peer_address);
 
+/*******************************************************************************
+**
+** Function         BTA_AvIsBrowsingSupported
+**
+** Description      Check to see if browsing is supported by local device.
+**                  This API does not result in any message being posted, it just
+**                  checks the local supported features for browsing support and
+**                  returns TRUE or FALSE.
+** Returns          TRUE/FALSE based on browse support in local device
+**
+*******************************************************************************/
+bool BTA_AvIsBrowsingSupported(void);
 /**
  * Dump debug-related information for the BTA AV module.
  *
