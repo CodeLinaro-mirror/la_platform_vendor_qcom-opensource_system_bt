@@ -653,3 +653,23 @@ void BTA_AvMetaCmd(uint8_t rc_handle, uint8_t label, tBTA_AV_CMD cmd_code,
 
   bta_sys_sendmsg(p_buf);
 }
+
+/*******************************************************************************
+**
+** Function         BTA_AvIsBrowsingSupported
+**
+** Description      Check to see if browsing is supported by local device.
+**                  This API does not result in any message being posted, it just
+**                  checks the local supported features for browsing support and
+**                  returns TRUE or FALSE.
+** Returns          TRUE/FALSE based on browse support in local device
+**
+*******************************************************************************/
+bool BTA_AvIsBrowsingSupported (void) {
+    if (p_bta_av_cfg->avrc_ct_cat & AVRC_SUPF_CT_BROWSE) {
+        return TRUE;
+    }
+
+    BTIF_TRACE_DEBUG("Browsing NOT enabled!");
+    return FALSE;
+}

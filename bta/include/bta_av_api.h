@@ -855,4 +855,17 @@ void BTA_AvOffloadStart(tBTA_AV_HNDL hndl, bool do_scrambling);
  ******************************************************************************/
 void BTA_AvOffloadStartRsp(tBTA_AV_HNDL hndl, tBTA_AV_STATUS status);
 
+/*******************************************************************************
+**
+** Function         BTA_AvIsBrowsingSupported
+**
+** Description      Check to see if browsing is supported by local device.
+**                  This API does not result in any message being posted, it just
+**                  checks the local supported features for browsing support and
+**                  returns TRUE or FALSE.
+** Returns          TRUE/FALSE based on browse support in local device
+**
+*******************************************************************************/
+bool BTA_AvIsBrowsingSupported(void);
+
 #endif /* BTA_AV_API_H */
