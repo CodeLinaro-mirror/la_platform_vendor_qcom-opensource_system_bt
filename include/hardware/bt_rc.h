@@ -628,6 +628,8 @@ typedef void (*btrc_ctrl_get_cover_art_psm_callback)(const RawAddress& bd_addr,
 typedef void (*btrc_ctrl_search_rsp_callback)(const RawAddress& bd_addr, uint8_t status,
                                               uint16_t uid_counter, uint32_t num_items);
 
+typedef void (* btrc_ctrl_uids_changed_callback)(const RawAddress& bd_addr,
+                                                 uint16_t uid_counter);
 /** BT-RC Controller callback structure. */
 typedef struct {
   /** set to sizeof(BtRcCallbacks) */
@@ -656,6 +658,7 @@ typedef struct {
   btrc_ctrl_available_player_changed_callback available_player_changed_cb;
   btrc_ctrl_get_cover_art_psm_callback get_cover_art_psm_cb;
   btrc_ctrl_search_rsp_callback search_rsp_cb;
+  btrc_ctrl_uids_changed_callback uids_changed_cb;
 } btrc_ctrl_callbacks_t;
 
 /** Represents the standard BT-RC AVRCP Controller interface. */
@@ -704,7 +707,7 @@ typedef struct {
                                      uint32_t end);
 
   /** change the folder path */
-  bt_status_t (*change_folder_path_cmd)(const RawAddress& bd_addr,
+  bt_status_t (*change_folder_path_cmd)(const RawAddress& bd_addr, uint16_t uid_counter,
                                         uint8_t direction, uint8_t* uid);
 
   /** set browsed player */
