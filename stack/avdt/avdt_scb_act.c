@@ -684,6 +684,8 @@ void avdt_scb_hdl_pkt_frag(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
 *******************************************************************************/
 void avdt_scb_hdl_pkt(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
 {
+    if(p_scb == NULL)
+        return;
 #if AVDT_REPORTING == TRUE
     UINT8 *p;
 #endif
