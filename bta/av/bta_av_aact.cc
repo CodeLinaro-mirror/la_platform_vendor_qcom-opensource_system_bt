@@ -95,7 +95,7 @@ static void bta_av_st_rc_timer(tBTA_AV_SCB* p_scb,
 
 static void bta_av_vendor_offload_select_codec(tBTA_AV_SCB* p_scb);
 
-static uint8_t bta_av_vendor_offload_convert_sample_rate(uint16_t sample_rate);
+//static uint8_t bta_av_vendor_offload_convert_sample_rate(uint16_t sample_rate);
 
 /* state machine states */
 enum {
@@ -383,7 +383,8 @@ static void bta_av_update_flow_spec(tBTA_AV_SCB* p_scb) {
     flow_spec.peak_bandwidth = (660*1000)/8; /* bytes/second */
 
   } else if (strcmp(codec_name,"LDAC") == 0) {
-    flow_spec.peak_bandwidth = (660*1000)/8; /* bytes/second */
+    /* For ABR mode default peak bandwidth is 0 */
+    flow_spec.peak_bandwidth = 0; /* bytes/second */
 
   } else if (strcmp(codec_name,"AAC") == 0) {
     flow_spec.peak_bandwidth = (320*1000)/8; /* bytes/second */
@@ -997,20 +998,8 @@ void bta_av_role_res(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_av_delay_rpt(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
-  //tBTA_AV_DELAY_RPT delay_rpt;
-
+  APPL_TRACE_DEBUG("%s: delay report value: %d", __func__, p_data->str_msg.msg.delay_rpt_cmd.delay);
   p_scb->p_cos->delay(p_scb->hndl, p_data->str_msg.msg.delay_rpt_cmd.delay);
-/*  delay_rpt.bd_addr = p_data->str_msg.bd_addr;
-  delay_rpt.hndl = p_scb->hndl; 
-*/
-  /* Sink report delay value in 1/10 milliseconds, BTA layer report delay value
-   * in milliseconds to upper layer */
-/*  delay_rpt.sink_delay = (p_data->str_msg.msg.delay_rpt_cmd.delay) / 10;
-
-  APPL_TRACE_DEBUG("%s: delay report value: %d, handle: %d", __func__,
-                                      delay_rpt.sink_delay, delay_rpt.hndl);
-  (*bta_av_cb.p_cback)(BTA_AV_DELAY_REPORT_EVT, (tBTA_AV *) &delay_rpt);
-*/
 }
 
 /*******************************************************************************
@@ -2375,9 +2364,16 @@ void bta_av_reconfig(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
                      p_rcfg->suspend,
                      p_scb->recfg_sup,
                      p_scb->suspend_sup);
-  if ((p_scb->rcfg_idx == p_scb->sep_info_idx) && p_rcfg->suspend &&
-      p_scb->recfg_sup && p_scb->suspend_sup) {
+  btav_a2dp_codec_index_t curr_codec_index = A2DP_SourceCodecIndex(p_scb->cfg.codec_info);
+  btav_a2dp_codec_index_t rcfg_codec_index = A2DP_SourceCodecIndex(p_cfg->codec_info);
+  APPL_TRACE_DEBUG("curr_index: %d, rcfg_index: %d",curr_codec_index,rcfg_codec_index);
+  // p_scb->sep_info_idx > p_scb->num_seps condition satified for remote initiated SetConfig
+  if ((p_scb->rcfg_idx == p_scb->sep_info_idx ||
+      (p_scb->sep_info_idx > p_scb->num_seps &&
+      curr_codec_index == rcfg_codec_index)) &&
+      p_rcfg->suspend && p_scb->recfg_sup && p_scb->suspend_sup) {
       APPL_TRACE_DEBUG("p_scb->started:%d", p_scb->started);
+      if (p_scb->sep_info_idx > p_scb->num_seps) p_scb->sep_info_idx = p_scb->rcfg_idx;
     if (p_scb->started) {
       // Suspend->Reconfigure->Start
       stop.flush = false;
@@ -3502,7 +3498,7 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
   }
 }
 
-static uint8_t bta_av_vendor_offload_convert_sample_rate(uint16_t sample_rate) {
+/* static uint8_t bta_av_vendor_offload_convert_sample_rate(uint16_t sample_rate) {
   uint8_t rate;
   switch (sample_rate) {
     case 44100:
@@ -3517,7 +3513,7 @@ static uint8_t bta_av_vendor_offload_convert_sample_rate(uint16_t sample_rate) {
       break;
   }
   return rate;
-}
+} */
 
 static void bta_av_vendor_offload_select_codec(tBTA_AV_SCB* p_scb)
 {
@@ -3557,6 +3553,7 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb)
 {
   uint8_t param[40];// codec_type;//index = 0;
   unsigned char status = 0;
+  uint16_t bitrate = 0;
   //uint16_t sample_rate;
   APPL_TRACE_DEBUG("%s: enc_update_in_progress = %d", __func__, enc_update_in_progress);
   APPL_TRACE_DEBUG("%s: Last cached VSC command: 0x0%x", __func__, last_sent_vsc_cmd);
@@ -3598,9 +3595,12 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb)
   if(p_scb->do_scrambling) {
     uint8_t *p_param = param;
     *p_param++ = VS_QHCI_SCRAMBLE_A2DP_MEDIA;
-    UINT8_TO_STREAM(p_param,
-        bta_av_vendor_offload_convert_sample_rate(offload_start.sample_rate));
-
+    bitrate = A2DP_GetTrackBitRate(p_scb->cfg.codec_info);
+    if (bitrate == 0) {
+      UINT8_TO_STREAM(p_param, 1);
+    } else {
+      UINT8_TO_STREAM(p_param, 2);
+    }
     UINT16_TO_STREAM(p_param,offload_start.acl_hdl);
 
     BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE,4, param,

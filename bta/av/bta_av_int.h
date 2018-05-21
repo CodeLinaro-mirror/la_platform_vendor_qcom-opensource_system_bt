@@ -590,6 +590,7 @@ typedef struct {
   tBTA_AV_RCB rcb[BTA_AV_NUM_RCB];       /* RCB control block */
   tBTA_AV_LCB lcb[BTA_AV_NUM_LINKS + 1]; /* link control block */
   alarm_t* link_signalling_timer;
+  alarm_t* browsing_channel_open_timer;  /* timer to initiate avrcp browsing open channel*/
   alarm_t*
       accept_signalling_timer[BTA_AV_NUM_STRS];  /* timer to monitor signalling when accepting */
   uint32_t sdp_a2dp_handle;     /* SDP record handle for audio src */
@@ -665,7 +666,6 @@ extern tBTA_AV_CB bta_av_cb;
 extern tBTA_AV_CFG* p_bta_av_cfg;
 extern const tBTA_AV_CFG bta_avk_cfg;
 extern const tBTA_AV_CFG bta_av_cfg;
-extern const tBTA_AV_CFG bta_av_cfg_compatibility;
 
 /* rc id config struct */
 extern uint16_t* p_bta_av_rc_id;
