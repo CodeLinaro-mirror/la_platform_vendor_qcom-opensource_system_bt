@@ -321,7 +321,7 @@ void get_folder_item_type_folder(const tAVRC_ITEM* avrc_item,
 void get_folder_item_type_player(const tAVRC_ITEM* avrc_item,
                                  btrc_folder_items_t* btrc_item);
 static bt_status_t get_folder_items_cmd(RawAddress* bd_addr, uint8_t scope,
-                                        uint8_t start_item, uint8_t num_items);
+                                        uint32_t start_item, uint32_t end_item);
 
 static void btif_rc_upstreams_evt(uint16_t event, tAVRC_COMMAND* p_param,
                                   uint8_t ctype, uint8_t label,
@@ -3885,6 +3885,10 @@ static void handle_get_folder_items_response(tBTA_AV_META_MSG* pmeta_msg,
       switch (avrc_item->item_type) {
         case AVRC_ITEM_MEDIA:
           BTIF_TRACE_DEBUG("%s setting type to %d", __func__, BTRC_ITEM_MEDIA);
+          /* Allocate Space for Attributes */
+          btrc_item->media.num_attrs = avrc_item->u.media.attr_count;
+          btrc_item->media.p_attrs = (btrc_element_attr_val_t*)osi_malloc(
+              btrc_item->media.num_attrs * sizeof(btrc_element_attr_val_t));
           get_folder_item_type_media(avrc_item, btrc_item);
           break;
 
@@ -3910,7 +3914,22 @@ static void handle_get_folder_items_response(tBTA_AV_META_MSG* pmeta_msg,
               (const btrc_folder_items_t*)btrc_items, item_count);
     BTIF_TRACE_DEBUG("%s HAL CBACK get_folder_items_cb finished", __func__);
 
-    /* Release the memory block for items since we OWN the object */
+    /* Release the memory block for items and attributes allocated here */
+    for (uint8_t i = 0; i < item_count; i++) {
+      btrc_folder_items_t* btrc_item = &(btrc_items[i]);
+      switch (btrc_item->item_type) {
+        case BTRC_ITEM_MEDIA:
+          osi_free(btrc_item->media.p_attrs);
+          break;
+        case BTRC_ITEM_PLAYER:
+        case BTRC_ITEM_FOLDER:
+          /*Nothing to free*/
+          break;
+        default:
+          BTIF_TRACE_WARNING("%s free unspecified type", __func__);
+      }
+    }
+
     osi_free(btrc_items);
   } else {
     BTIF_TRACE_ERROR("%s: Error %d", __func__, p_rsp->status);
@@ -3957,11 +3976,6 @@ void get_folder_item_type_media(const tAVRC_ITEM* avrc_item,
   memset(btrc_item_media->name, 0, BTRC_MAX_ATTR_STR_LEN * sizeof(uint8_t));
   memcpy(btrc_item_media->name, avrc_item_media->name.p_str,
          sizeof(uint8_t) * (avrc_item_media->name.str_len));
-
-  /* Copy the parameters */
-  btrc_item_media->num_attrs = avrc_item_media->attr_count;
-  btrc_item_media->p_attrs = (btrc_element_attr_val_t*)osi_malloc(
-      btrc_item_media->num_attrs * sizeof(btrc_element_attr_val_t));
 
   /* Extract each attribute */
   for (int i = 0; i < avrc_item_media->attr_count; i++) {
@@ -4083,6 +4097,8 @@ void get_folder_item_type_player(const tAVRC_ITEM* avrc_item,
   btrc_item_player->major_type = avrc_item_player->major_type;
   /* Sub type */
   btrc_item_player->sub_type = avrc_item_player->sub_type;
+  /* Play status */
+  btrc_item_player->play_status = avrc_item_player->play_status;
   /* Features */
   memcpy(btrc_item_player->features, avrc_item_player->features,
          BTRC_FEATURE_BIT_MASK_SIZE);
@@ -4491,18 +4507,18 @@ static bt_status_t get_playback_state_cmd(RawAddress* bd_addr) {
  * Description      Fetch the now playing list
  *
  * Paramters        start_item: First item to fetch (0 to fetch from beganning)
- *                  end_item: Last item to fetch (0xff to fetch until end)
+ *                  end_item: Last item to fetch (0xffffffff to fetch until end)
  *
  * Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
  *                  BT_STATUS_FAIL.
  *
  **************************************************************************/
 static bt_status_t get_now_playing_list_cmd(RawAddress* bd_addr,
-                                            uint8_t start_item,
-                                            uint8_t num_items) {
-  BTIF_TRACE_DEBUG("%s start, end: (%d, %d)", __func__, start_item, num_items);
+                                            uint32_t start_item,
+                                            uint32_t end_item) {
+  BTIF_TRACE_DEBUG("%s start, end: (%d, %d)", __func__, start_item, end_item);
   return get_folder_items_cmd(bd_addr, AVRC_SCOPE_NOW_PLAYING, start_item,
-                              num_items);
+                              end_item);
 }
 
 /***************************************************************************
@@ -4512,17 +4528,17 @@ static bt_status_t get_now_playing_list_cmd(RawAddress* bd_addr,
  * Description      Fetch the currently selected folder list
  *
  * Paramters        start_item: First item to fetch (0 to fetch from beganning)
- *                  end_item: Last item to fetch (0xff to fetch until end)
+ *                  end_item: Last item to fetch (0xffffffff to fetch until end)
  *
  * Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
  *                  BT_STATUS_FAIL.
  *
  **************************************************************************/
-static bt_status_t get_folder_list_cmd(RawAddress* bd_addr, uint8_t start_item,
-                                       uint8_t num_items) {
-  BTIF_TRACE_DEBUG("%s start, end: (%d, %d)", __func__, start_item, num_items);
+static bt_status_t get_folder_list_cmd(RawAddress* bd_addr, uint32_t start_item,
+                                       uint32_t end_item) {
+  BTIF_TRACE_DEBUG("%s start, end: (%d, %d)", __func__, start_item, end_item);
   return get_folder_items_cmd(bd_addr, AVRC_SCOPE_FILE_SYSTEM, start_item,
-                              num_items);
+                              end_item);
 }
 
 /***************************************************************************
@@ -4532,17 +4548,17 @@ static bt_status_t get_folder_list_cmd(RawAddress* bd_addr, uint8_t start_item,
  * Description      Fetch the player list
  *
  * Paramters        start_item: First item to fetch (0 to fetch from beganning)
- *                  end_item: Last item to fetch (0xff to fetch until end)
+ *                  end_item: Last item to fetch (0xffffffff to fetch until end)
  *
  * Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
  *                  BT_STATUS_FAIL.
  *
  **************************************************************************/
-static bt_status_t get_player_list_cmd(RawAddress* bd_addr, uint8_t start_item,
-                                       uint8_t num_items) {
-  BTIF_TRACE_DEBUG("%s start, end: (%d, %d)", __func__, start_item, num_items);
+static bt_status_t get_player_list_cmd(RawAddress* bd_addr, uint32_t start_item,
+                                       uint32_t end_item) {
+  BTIF_TRACE_DEBUG("%s start, end: (%d, %d)", __func__, start_item, end_item);
   return get_folder_items_cmd(bd_addr, AVRC_SCOPE_PLAYER_LIST, start_item,
-                              num_items);
+                              end_item);
 }
 
 /***************************************************************************
@@ -4554,7 +4570,7 @@ static bt_status_t get_player_list_cmd(RawAddress* bd_addr, uint8_t start_item,
  * Paramters        direction: Direction (Up/Down) to change folder
  *                  uid: The UID of folder to move to
  *                  start_item: First item to fetch (0 to fetch from beganning)
- *                  end_item: Last item to fetch (0xff to fetch until end)
+ *                  end_item: Last item to fetch (0xffffffff to fetch until end)
  *
  * Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
  *                  BT_STATUS_FAIL.
@@ -4706,14 +4722,15 @@ static bt_status_t set_addressed_player_cmd(RawAddress* bd_addr, uint16_t id) {
  * Paramters        scope: AVRC_SCOPE_NOW_PLAYING (etc) for various browseable
  *                  content
  *                  start_item: First item to fetch (0 to fetch from beganning)
- *                  end_item: Last item to fetch (0xff to fetch until end)
+ *                  end_item: Last item to fetch (0xffff to fetch until end)
  *
  * Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
  *                  BT_STATUS_FAIL.
  *
  **************************************************************************/
 static bt_status_t get_folder_items_cmd(RawAddress* bd_addr, uint8_t scope,
-                                        uint8_t start_item, uint8_t end_item) {
+                                        uint32_t start_item,
+                                        uint32_t end_item) {
   /* Check that both avrcp and browse channel are connected. */
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
   BTIF_TRACE_DEBUG("%s", __func__);
