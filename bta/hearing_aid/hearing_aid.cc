@@ -70,7 +70,7 @@ Uuid VOLUME_UUID               = Uuid::FromString("00e4ca9e-ab14-41e4-8823-f9e70
 Uuid LE_PSM_UUID               = Uuid::FromString("2d410339-82b6-42aa-b34e-e2e01df8cc1a");
 // clang-format on
 
-constexpr uint16_t MIN_CE_LEN_1M = 0x0008;
+constexpr uint16_t MIN_CE_LEN_1M = 0x0006;
 
 void hearingaid_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data);
 void encryption_callback(const RawAddress*, tGATT_TRANSPORT, void*,
@@ -951,6 +951,7 @@ class HearingAidImpl : public HearingAid {
 
     VLOG(2) << __func__ << ": " << address;
 
+    bool connected = hearingDevice->accepting_audio;
     hearingDevice->accepting_audio = false;
 
     if (hearingDevice->connecting_actively) {
@@ -972,7 +973,8 @@ class HearingAidImpl : public HearingAid {
 
     hearingDevices.Remove(address);
 
-    callbacks->OnConnectionState(ConnectionState::DISCONNECTED, address);
+    if (connected)
+      callbacks->OnConnectionState(ConnectionState::DISCONNECTED, address);
   }
 
   void OnGattDisconnected(tGATT_STATUS status, uint16_t conn_id,

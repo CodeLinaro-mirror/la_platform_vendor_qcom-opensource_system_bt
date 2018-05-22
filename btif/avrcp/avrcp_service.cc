@@ -115,9 +115,9 @@ class MediaInterfaceWrapper : public MediaInterface {
  public:
   MediaInterfaceWrapper(MediaInterface* cb) : wrapped_(cb){};
 
-  void SendKeyEvent(uint8_t key, uint8_t status) override {
+  void SendKeyEvent(uint8_t key, KeyState state) override {
     do_in_jni_thread(base::Bind(&MediaInterface::SendKeyEvent,
-                                base::Unretained(wrapped_), key, status));
+                                base::Unretained(wrapped_), key, state));
   }
 
   void GetSongInfo(SongInfoCallback info_cb) override {
@@ -273,13 +273,16 @@ void AvrcpService::Init(MediaInterface* media_interface,
   instance_->media_interface_ = new MediaInterfaceWrapper(media_interface);
   media_interface->RegisterUpdateCallback(instance_);
 
+  VolumeInterfaceWrapper* wrapped_volume_interface = nullptr;
   if (volume_interface != nullptr) {
-    instance_->volume_interface_ = new VolumeInterfaceWrapper(volume_interface);
+    wrapped_volume_interface = new VolumeInterfaceWrapper(volume_interface);
   }
+
+  instance_->volume_interface_ = wrapped_volume_interface;
 
   ConnectionHandler::Initialize(
       base::Bind(&AvrcpService::DeviceCallback, base::Unretained(instance_)),
-      &avrcp_interface_, &sdp_interface_, volume_interface);
+      &avrcp_interface_, &sdp_interface_, wrapped_volume_interface);
   instance_->connection_handler_ = ConnectionHandler::Get();
 }
 
@@ -402,19 +405,19 @@ bool AvrcpService::ServiceInterfaceImpl::Cleanup() {
 
 void AvrcpService::DebugDump(int fd) {
   if (instance_ == nullptr) {
-    dprintf(fd, "AVRCP Target Service not started");
+    dprintf(fd, "\nAVRCP Target Service not started\n");
     return;
   }
 
-  dprintf(fd, "Avrcp Service:\n");
-
   auto device_list = instance_->connection_handler_->GetListOfDevices();
-  dprintf(fd, "Number of connected deviced: %zu\n", device_list.size());
+  dprintf(fd, "\nAVRCP Target Native Service: %zu devices\n",
+          device_list.size());
+
   std::stringstream stream;
   for (auto device : device_list) {
-    stream << device;
+    stream << *device << std::endl;
   }
-  dprintf(fd, "%s\n", stream.str().c_str());
+  dprintf(fd, "%s", stream.str().c_str());
 }
 
 }  // namespace avrcp
