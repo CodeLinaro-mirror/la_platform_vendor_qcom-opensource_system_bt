@@ -73,6 +73,7 @@ static int number =0;
 #endif
 
 static char a2dp_hal_imp[PROPERTY_VALUE_MAX] = "false";
+static int open_ctrl_chnl_fail_count = 0;
 
 /*****************************************************************************
  *  Constants & Macros
@@ -499,15 +500,20 @@ static int a2dp_ctrl_send(struct a2dp_stream_common* common, const void* buffer,
 static int a2dp_command(struct a2dp_stream_common* common, tA2DP_CTRL_CMD cmd) {
   char ack;
 
-  INFO("A2DP COMMAND %s", audio_a2dp_hw_dump_ctrl_event(cmd));
+  INFO("A2DP COMMAND %s, fail count %d", audio_a2dp_hw_dump_ctrl_event(cmd),
+                                               open_ctrl_chnl_fail_count);
 
-  if (common->ctrl_fd == AUDIO_SKT_DISCONNECTED) {
+  if ((common->ctrl_fd == AUDIO_SKT_DISCONNECTED)
+      && (open_ctrl_chnl_fail_count < 5)) {
     INFO("starting up or recovering from previous error");
     a2dp_open_ctrl_path(common);
     if (common->ctrl_fd == AUDIO_SKT_DISCONNECTED) {
       ERROR("failure to open ctrl path");
       return -1;
     }
+  } else if (open_ctrl_chnl_fail_count >= 5) {
+    WARN("control channel open alreday failed 5 times, bailing out");
+    return -1;
   }
 
   /* send command */
@@ -887,7 +893,11 @@ static void a2dp_open_ctrl_path(struct a2dp_stream_common* common) {
       }
 
       /* success, now check if stack is ready */
-      if (check_a2dp_ready(common) == 0) break;
+      if (check_a2dp_ready(common) == 0) {
+        open_ctrl_chnl_fail_count = 0;
+        WARN("a2dp_open_ctrl_path : Fail count reset to 0");
+        break;
+      }
 
       ERROR("error :No active a2dp connection, wait 250 ms and retry");
       usleep(250000);
@@ -897,6 +907,13 @@ static void a2dp_open_ctrl_path(struct a2dp_stream_common* common) {
 
     /* ctrl channel not ready, wait a bit */
     usleep(250000);
+  }
+  INFO("a2dp_open_ctrl_path : ctrl_fd: %d", common->ctrl_fd);
+  if (common->ctrl_fd <= 0)
+  {
+    open_ctrl_chnl_fail_count += 1;
+    WARN("a2dp_open_ctrl_path : Fail count raised to: %d",
+                                    open_ctrl_chnl_fail_count);
   }
 }
 
