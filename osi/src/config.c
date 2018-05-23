@@ -460,8 +460,7 @@ static bool config_parse(FILE *fp, config_t *config) {
         skip_entries = true;
         continue;
       }
-      strncpy(section, line_ptr + 1, len - 2);
-      section[len - 2] = '\0';
+      strlcpy(section, line_ptr + 1, len - 1);
       skip_entries = false;
     } else {
       char *split = strchr(line_ptr, '=');
