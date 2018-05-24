@@ -37,6 +37,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <cutils/properties.h>
 
 #include "bdaddr.h"
 #include "bt_utils.h"
@@ -82,6 +83,8 @@
 #define VENDOR_PAYLOAD_MAXLENGTH   (260)
 #define VENDOR_MAX_CMD_HDR_SIZE    (3)
 #define VENDOR_BD_ADDR_TYPE        (1)
+
+#define PERSIST_EXPORT_BDADDR_PROPERTY "persist.export.bdaddr"
 
 /************************************************************************************
 **  Local type definitions
@@ -519,11 +522,16 @@ static void btif_fetch_local_bdaddr(bt_bdaddr_t *local_addr)
 **
 *******************************************************************************/
 bt_status_t btif_init_bluetooth() {
+  bdstr_t bdstr;
   bte_main_boot_entry();
 
   /* As part of the init, fetch the local BD ADDR */
   memset(&btif_local_bd_addr, 0, sizeof(bt_bdaddr_t));
   btif_fetch_local_bdaddr(&btif_local_bd_addr);
+  /* export bd address to other mode ,such as audio for ffv*/
+  bdaddr_to_string(&btif_local_bd_addr, bdstr, sizeof(bdstr));
+  property_set(PERSIST_EXPORT_BDADDR_PROPERTY, bdstr);
+  BTIF_TRACE_WARNING("%s:property_set(%s, %s)",__func__,PERSIST_EXPORT_BDADDR_PROPERTY, bdstr);
 
   bt_jni_workqueue_thread = thread_new(BT_JNI_WORKQUEUE_NAME);
   if (bt_jni_workqueue_thread == NULL) {
@@ -590,6 +598,11 @@ void btif_enable_bluetooth_evt(tBTA_STATUS status)
         //save the bd address to config file
         btif_config_set_str("Adapter", "Address", bdstr);
         btif_config_save();
+
+        /* export bd address to other mode ,such as audio for ffv*/
+        bdaddr_to_string(&btif_local_bd_addr, bdstr, sizeof(bdstr));
+        property_set(PERSIST_EXPORT_BDADDR_PROPERTY, bdstr);
+        BTIF_TRACE_WARNING("%s:property_set(%s, %s)",__func__,PERSIST_EXPORT_BDADDR_PROPERTY, bdstr);
 
         //fire HAL callback for property change
         prop.type = BT_PROPERTY_BDADDR;
