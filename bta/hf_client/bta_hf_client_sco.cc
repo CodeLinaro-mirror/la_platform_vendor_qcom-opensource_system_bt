@@ -122,7 +122,8 @@ static void bta_hf_client_sco_conn_rsp(tBTA_HF_CLIENT_CB* client_cb,
       if (client_cb->negotiated_codec == BTA_AG_CODEC_CVSD)
         resp = esco_parameters_for_codec(ESCO_CODEC_CVSD);
       if (client_cb->negotiated_codec == BTA_AG_CODEC_MSBC) {
-        resp = esco_parameters_for_codec(ESCO_CODEC_MSBC_T1);
+        /* HFP spec recommends to use T2 for mSBC. */
+        resp = esco_parameters_for_codec(ESCO_CODEC_MSBC_T2);
       } else {
         // default codec
         resp = esco_parameters_for_codec(ESCO_CODEC_CVSD);
@@ -246,8 +247,9 @@ static void bta_hf_client_sco_create(tBTA_HF_CLIENT_CB* client_cb,
 
 #if (BTIF_HF_CLIENT_WBS_INCLUDED == TRUE)
   if (client_cb->peer_features & BTA_HF_CLIENT_PEER_CODEC) {
-    APPL_TRACE_DEBUG("%s: ESCO_CODEC_MSBC_T1", __func__);
-    params = esco_parameters_for_codec(ESCO_CODEC_MSBC_T1);
+    APPL_TRACE_DEBUG("%s: ESCO_CODEC_MSBC_T2", __func__);
+    /* HFP spec recommends to use T2 for mSBC. */
+    params = esco_parameters_for_codec(ESCO_CODEC_MSBC_T2);
   } else {
     APPL_TRACE_DEBUG("%s: ESCO_CODEC_CVSD", __func__);
     params = esco_parameters_for_codec(ESCO_CODEC_CVSD);
