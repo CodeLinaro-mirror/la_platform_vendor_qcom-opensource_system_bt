@@ -33,6 +33,7 @@
 #include "hcimsgs.h"
 #include "l2c_int.h"
 #include "l2cdefs.h"
+#include "log/log.h"
 #include "osi/include/osi.h"
 #include "stack_config.h"
 
@@ -116,6 +117,10 @@ bool L2CA_UpdateBleConnParams(const RawAddress& rem_bda, uint16_t min_int,
     LOG(WARNING) << __func__ << " - BD_ADDR " << rem_bda << " not LE";
     return (false);
   }
+
+  VLOG(2) << __func__ << ": BD_ADDR=" << rem_bda << ", min_int=" << min_int
+          << ", max_int=" << max_int << ", min_ce_len=" << min_ce_len
+          << ", max_ce_len=" << max_ce_len;
 
   p_lcb->min_interval = min_int;
   p_lcb->max_interval = max_int;
@@ -807,6 +812,10 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       break;
 
     case L2CAP_CMD_DISC_REQ:
+      if (p + 4 > p_pkt_end) {
+        android_errorWriteLog(0x534e4554, "74121659");
+        return;
+      }
       STREAM_TO_UINT16(lcid, p);
       STREAM_TO_UINT16(rcid, p);
 

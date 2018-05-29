@@ -114,6 +114,10 @@ class Device {
       uint8_t label, bool interim, std::string curr_song_id,
       std::vector<SongInfo> song_list);
 
+  // GET CAPABILITY
+  virtual void HandleGetCapabilities(
+      uint8_t label, const std::shared_ptr<GetCapabilitiesRequest>& pkt);
+
   // REGISTER NOTIFICATION
   virtual void HandleNotification(
       uint8_t label, const std::shared_ptr<RegisterNotificationRequest>& pkt);
@@ -162,6 +166,16 @@ class Device {
   virtual void GetNowPlayingListResponse(
       uint8_t label, std::shared_ptr<GetFolderItemsRequest> pkt,
       std::string curr_song_id, std::vector<SongInfo> song_list);
+
+  // GET TOTAL NUMBER OF ITEMS
+  virtual void HandleGetTotalNumberOfItems(
+      uint8_t label, std::shared_ptr<GetTotalNumberOfItemsRequest> pkt);
+  virtual void GetTotalNumberOfItemsMediaPlayersResponse(
+      uint8_t label, uint16_t curr_player, std::vector<MediaPlayerInfo> list);
+  virtual void GetTotalNumberOfItemsVFSResponse(uint8_t label,
+                                                std::vector<ListItem> items);
+  virtual void GetTotalNumberOfItemsNowPlayingResponse(
+      uint8_t label, std::string curr_song_id, std::vector<SongInfo> song_list);
 
   // GET ITEM ATTRIBUTES
   virtual void HandleGetItemAttributes(
@@ -229,6 +243,7 @@ class Device {
     active_labels_.erase(label);
     send_message_cb_.Run(label, browse, std::move(message));
   }
+  base::WeakPtrFactory<Device> weak_ptr_factory_;
 
   // TODO (apanicke): Initialize all the variables in the constructor.
   RawAddress address_;

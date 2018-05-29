@@ -63,6 +63,8 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd);
 
 static void btif_a2dp_audio_send_start_req();
 static void btif_a2dp_audio_send_suspend_req();
+static void btif_a2dp_audio_interface_init();
+static void btif_a2dp_audio_interface_deinit();
 // Delay reporting
 // static void btif_a2dp_audio_send_sink_latency();
 
@@ -172,7 +174,7 @@ static void btif_a2dp_get_codec_configuration(
   p_codec_info->encodedAudioBitrate = CodecConfig->getTrackBitRate();
 }
 
-void btif_a2dp_audio_interface_init() {
+static void btif_a2dp_audio_interface_init() {
   LOG_INFO(LOG_TAG, "%s", __func__);
 
   btAudio = IBluetoothAudioOffload::getService();
@@ -181,19 +183,19 @@ void btif_a2dp_audio_interface_init() {
   LOG_DEBUG(
       LOG_TAG, "%s: IBluetoothAudioOffload::getService() returned %p (%s)",
       __func__, btAudio.get(), (btAudio->isRemote() ? "remote" : "local"));
+
   LOG_INFO(LOG_TAG, "%s:Init returned", __func__);
 }
 
-void btif_a2dp_audio_interface_deinit() {
+static void btif_a2dp_audio_interface_deinit() {
   LOG_INFO(LOG_TAG, "%s: start", __func__);
   btAudio = nullptr;
-  LOG_INFO(LOG_TAG, "%s: exit", __func__);
 }
 
 void btif_a2dp_audio_interface_start_session() {
   LOG_INFO(LOG_TAG, "%s", __func__);
+  btif_a2dp_audio_interface_init();
   CHECK(btAudio != nullptr);
-
   CodecConfiguration codec_info;
   btif_a2dp_get_codec_configuration(&codec_info);
   android::sp<IBluetoothAudioHost> host_if = new BluetoothAudioHost();
@@ -207,6 +209,7 @@ void btif_a2dp_audio_interface_end_session() {
   if (!ret.isOk()) {
     LOG_ERROR(LOG_TAG, "HAL server is dead");
   }
+  btif_a2dp_audio_interface_deinit();
 }
 
 void btif_a2dp_audio_on_started(tBTA_AV_STATUS status) {
@@ -265,7 +268,7 @@ void btif_a2dp_audio_send_suspend_req() {
 }*/
 
 uint8_t btif_a2dp_audio_process_request(uint8_t cmd) {
-  APPL_TRACE_DEBUG(LOG_TAG, "%s: cmd: %s", __func__,
+  APPL_TRACE_DEBUG("%s: cmd: %s", __func__,
                    audio_a2dp_hw_dump_ctrl_event((tA2DP_CTRL_CMD)cmd));
   a2dp_cmd_pending = cmd;
   uint8_t status;
@@ -277,6 +280,9 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd) {
        * while in a call, and respond with BAD_STATE.
        */
       if (!bluetooth::headset::IsCallIdle()) {
+        APPL_TRACE_WARNING("%s: A2DP command %s failed as call state is busy",
+                           __func__,
+                           audio_a2dp_hw_dump_ctrl_event((tA2DP_CTRL_CMD)cmd));
         status = A2DP_CTRL_ACK_INCALL_FAILURE;
         break;
       }
@@ -346,7 +352,7 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd) {
       status = A2DP_CTRL_ACK_FAILURE;
       break;
   }
-  APPL_TRACE_DEBUG("a2dp-ctrl-cmd : %s DONE",
-                   audio_a2dp_hw_dump_ctrl_event((tA2DP_CTRL_CMD)cmd));
+  APPL_TRACE_DEBUG("a2dp-ctrl-cmd : %s DONE returning status %d",
+                   audio_a2dp_hw_dump_ctrl_event((tA2DP_CTRL_CMD)cmd), status);
   return status;
 }

@@ -1186,6 +1186,7 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type,
 
     case BTA_AG_AT_BAC_EVT:
       bta_ag_send_ok(p_scb);
+      p_scb->received_at_bac = true;
 
       /* store available codecs from the peer */
       if ((p_scb->peer_features & BTA_AG_PEER_FEAT_CODEC) &&
@@ -1757,7 +1758,8 @@ void bta_ag_send_bcs(tBTA_AG_SCB* p_scb) {
  ******************************************************************************/
 void bta_ag_send_ring(tBTA_AG_SCB* p_scb,
                       UNUSED_ATTR const tBTA_AG_DATA& data) {
-  if (p_scb->callsetup_ind != BTA_AG_CALLSETUP_INCOMING) {
+  if ((p_scb->conn_service == BTA_AG_HFP) &&
+      p_scb->callsetup_ind != BTA_AG_CALLSETUP_INCOMING) {
     APPL_TRACE_DEBUG("%s: don't send the ring since there is no MT call setup",
                      __func__);
     return;

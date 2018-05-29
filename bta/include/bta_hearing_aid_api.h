@@ -21,7 +21,6 @@
 #include <base/callback_forward.h>
 #include <hardware/bt_hearing_aid.h>
 
-using bluetooth::Uuid;
 
 /** Implementations of HearingAid will also implement this interface */
 class HearingAidAudioReceiver {
@@ -41,12 +40,14 @@ class HearingAid {
   static void CleanUp();
   static bool IsInitialized();
   static HearingAid* Get();
+  static void DebugDump(int fd);
 
   static void AddFromStorage(const RawAddress& address, uint16_t psm,
                              uint8_t capabilities, uint16_t codec,
                              uint16_t audioControlPointHandle,
                              uint16_t volumeHandle, uint64_t hiSyncId,
-                             uint16_t render_delay, uint16_t preparation_delay);
+                             uint16_t render_delay, uint16_t preparation_delay,
+                             uint16_t is_white_listed);
 
   virtual void Connect(const RawAddress& address) = 0;
   virtual void Disconnect(const RawAddress& address) = 0;
@@ -83,4 +84,5 @@ class HearingAidAudioSource {
   static void Stop();
   static void Initialize();
   static void CleanUp();
+  static void DebugDump(int fd);
 };
