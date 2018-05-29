@@ -114,6 +114,10 @@ class Device {
       uint8_t label, bool interim, std::string curr_song_id,
       std::vector<SongInfo> song_list);
 
+  // GET CAPABILITY
+  virtual void HandleGetCapabilities(
+      uint8_t label, const std::shared_ptr<GetCapabilitiesRequest>& pkt);
+
   // REGISTER NOTIFICATION
   virtual void HandleNotification(
       uint8_t label, const std::shared_ptr<RegisterNotificationRequest>& pkt);
@@ -239,6 +243,7 @@ class Device {
     active_labels_.erase(label);
     send_message_cb_.Run(label, browse, std::move(message));
   }
+  base::WeakPtrFactory<Device> weak_ptr_factory_;
 
   // TODO (apanicke): Initialize all the variables in the constructor.
   RawAddress address_;
