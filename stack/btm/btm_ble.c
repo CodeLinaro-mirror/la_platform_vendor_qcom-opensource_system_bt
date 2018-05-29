@@ -1131,6 +1131,7 @@ BOOLEAN btm_ble_start_sec_check(BD_ADDR bd_addr, UINT16 psm, BOOLEAN is_originat
         return status;
 
     tL2C_LCB *p_lcb = l2cu_find_lcb_by_bd_addr(bd_addr, BT_TRANSPORT_LE);
+    if (p_lcb == NULL) return FALSE;
     p_lcb->sec_act = sec_act;
     BTM_SetEncryption(bd_addr, BT_TRANSPORT_LE, p_callback, p_ref_data, ble_sec_act);
 

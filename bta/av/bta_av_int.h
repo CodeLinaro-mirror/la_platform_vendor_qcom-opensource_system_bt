@@ -590,7 +590,7 @@ typedef struct
     UINT8   lidx;   /* (index+1) to LCB */
     tBTA_AV_FEAT        peer_features;  /* peer features mask */
 } tBTA_AV_RCB;
-#define BTA_AV_NUM_RCB      (BTA_AV_NUM_STRS  + 2)
+#define BTA_AV_NUM_RCB      (BTA_AV_NUM_STRS  + 2 + 1)
 
 enum
 {
