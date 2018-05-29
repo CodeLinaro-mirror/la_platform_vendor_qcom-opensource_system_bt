@@ -638,6 +638,7 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   uint16_t dut_profile_version;
   /* Extract the record handle */
   BE_STREAM_TO_UINT32(rec_handle, p_req);
+  param_len -= sizeof(rec_handle);
 
   if (p_req > p_req_end) {
     sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_SERV_REC_HDL,
@@ -647,6 +648,7 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
 
   /* Get the max list length we can send. Cap it at MTU size minus overhead */
   BE_STREAM_TO_UINT16(max_list_len, p_req);
+  param_len -= sizeof(max_list_len);
 
     if (max_list_len < SDP_MIN_ATTR_REQ_MAX_BYTE_COUNT)
     {
