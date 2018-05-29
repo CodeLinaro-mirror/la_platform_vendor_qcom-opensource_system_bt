@@ -65,7 +65,9 @@ cc_library_shared {
     whole_static_libs: [
         "libbt-bta_qti",
         "libbtdevice_qti",
+        "libbt-bta-ext",
         "libbtdevice_ext",
+        "libbt-stack_ext",
         "libbtif_qti",
         "libbtif_ext",
         "libbt-hci_qti",
@@ -74,6 +76,7 @@ cc_library_shared {
         "libbt-utils_qti",
         "libbtcore_qti",
         "libosi_qti",
+        "libbt-stack_ext",
         "libosi_ext",
     ],
     // Shared library link options.
