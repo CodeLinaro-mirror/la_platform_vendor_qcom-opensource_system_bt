@@ -42,14 +42,13 @@
 #include <hardware/bt_hl.h>
 #include <hardware/bt_mce.h>
 #include <hardware/bt_pan.h>
-#include <hardware/bt_rc.h>
+#include <hardware/bt_rc_vendor.h>
 #include <hardware/bt_sdp_vendor.h>
 #include <hardware/bt_sock.h>
 #ifdef WIPOWER_SUPPORTED
 #include <hardware/wipower.h>
 #endif
 #include <hardware/vendor.h>
-#include <hardware/bt_vendor_rc.h>
 
 #include "bt_utils.h"
 #include "bta/include/bta_hf_client_api.h"

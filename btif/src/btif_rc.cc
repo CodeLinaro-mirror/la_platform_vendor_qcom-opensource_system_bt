@@ -38,8 +38,7 @@
 #include <mutex>
 
 #include <hardware/bluetooth.h>
-#include <hardware/bt_rc.h>
-#include <hardware/bt_vendor_rc.h>
+#include <hardware/bt_rc_vendor.h>
 #include "avrc_defs.h"
 #include "bt_common.h"
 #include "bta_api.h"
