@@ -5067,6 +5067,32 @@ static void handle_get_folder_items_response(tBTA_AV_META_MSG* pmeta_msg,
 
 /***************************************************************************
  *
+ * Function         handle_search_response
+ *
+ * Description      handles the search response, calls HAL callback to
+ *                  send the result.
+ * Returns          None
+ *
+ **************************************************************************/
+static void handle_search_response(tBTA_AV_META_MSG* pmeta_msg,
+                                   tAVRC_SEARCH_RSP* p_rsp) {
+
+  btif_rc_device_cb_t* p_dev =
+      btif_rc_get_device_by_handle(pmeta_msg->rc_handle);
+
+  if (p_dev == NULL) {
+    BTIF_TRACE_ERROR("%s: p_dev NULL", __func__);
+    return;
+  }
+
+  RawAddress rc_addr = p_dev->rc_addr;
+
+  HAL_CBACK(bt_rc_vendor_ctrl_callbacks, search_rsp_cb, &rc_addr,
+            p_rsp->status, p_rsp->uid_counter, p_rsp->num_items);
+}
+
+/***************************************************************************
+ *
  * Function         get_folder_item_type_media
  *
  * Description      Converts the AVRC representation of a folder item with
@@ -5406,6 +5432,9 @@ static void handle_avk_rc_metamsg_rsp(tBTA_AV_META_MSG* pmeta_msg) {
         break;
       case AVRC_PDU_SET_BROWSED_PLAYER:
         handle_set_browsed_player_response(pmeta_msg, &avrc_response.br_player);
+        break;
+      case AVRC_PDU_SEARCH:
+        handle_search_response(pmeta_msg, &avrc_response.search);
         break;
       default:
         BTIF_TRACE_ERROR("%s cannot handle browse pdu %d", __func__,
@@ -6676,6 +6705,77 @@ static bt_status_t get_media_element_attributes_vendor (RawAddress *bd_addr, uin
   return BT_STATUS_SUCCESS;
 }
 
+/***************************************************************************
+ *
+ * Function         search
+ *
+ * Description      Send search command
+ *
+ * Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
+ *                  BT_STATUS_FAIL.
+ *
+ **************************************************************************/
+static bt_status_t search_cmd(RawAddress *bd_addr, uint16_t charset_id, uint16_t len, uint8_t *str) {
+  /* Check that both avrcp and browse channel are connected. */
+  btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
+  if (p_dev == NULL) {
+    BTIF_TRACE_ERROR("%s: p_dev NULL", __func__);
+    return BT_STATUS_FAIL;
+  }
+  BTIF_TRACE_DEBUG("%s", __func__);
+  CHECK_RC_CONNECTED(p_dev);
+  CHECK_BR_CONNECTED(p_dev);
+
+  tAVRC_COMMAND avrc_cmd = {0};
+
+  avrc_cmd.search.pdu = AVRC_PDU_SEARCH;
+  avrc_cmd.search.status = AVRC_STS_NO_ERROR;
+  avrc_cmd.search.string.charset_id = charset_id;
+  avrc_cmd.search.string.str_len = len;
+  avrc_cmd.search.string.p_str = str;  // not duplicate str, because it'll be copied into p_msg with enough buffer
+
+  BT_HDR* p_msg = NULL;
+  tAVRC_STS status = AVRC_BldCommand(&avrc_cmd, &p_msg);
+  if (status != AVRC_STS_NO_ERROR) {
+    BTIF_TRACE_ERROR("%s failed to build command status %d", __func__, status);
+    return BT_STATUS_FAIL;
+  }
+
+  rc_transaction_t* p_transaction = NULL;
+  bt_status_t tran_status = get_transaction(&p_transaction);
+  if (tran_status != BT_STATUS_SUCCESS || p_transaction == NULL) {
+    osi_free(p_msg);
+    BTIF_TRACE_ERROR("%s: failed to obtain transaction details. status: 0x%02x",
+                     __func__, tran_status);
+    return BT_STATUS_FAIL;
+  }
+
+  BTIF_TRACE_DEBUG("%s msgreq being sent out with label %d", __func__,
+                   p_transaction->lbl);
+  BTA_AvMetaCmd(p_dev->rc_handle, p_transaction->lbl, AVRC_CMD_CTRL, p_msg);
+  return BT_STATUS_SUCCESS;
+}
+
+/***************************************************************************
+ *
+ * Function         get_search_list_cmd
+ *
+ * Description      Fetch the search list
+ *
+ * Paramters        start_item: First item to fetch (0 to fetch from beganning)
+ *                  end_item: Last item to fetch (0xff to fetch until end)
+ *
+ * Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
+ *                  BT_STATUS_FAIL.
+ *
+ **************************************************************************/
+static bt_status_t get_search_list_cmd(RawAddress* bd_addr, uint8_t start_item,
+                                       uint8_t num_items) {
+  BTIF_TRACE_DEBUG("%s start, end: (%d, %d)", __func__, start_item, num_items);
+  return get_folder_items_cmd(bd_addr, AVRC_SCOPE_SEARCH, start_item,
+                              num_items);
+}
+
 /*******************************************************************************
 **
 ** Function        cleanup_vendor
@@ -6685,8 +6785,7 @@ static bt_status_t get_media_element_attributes_vendor (RawAddress *bd_addr, uin
 ** Returns         bt_status_t
 **
 *******************************************************************************/
-static void cleanup_vendor( void )
-{
+static void cleanup_vendor(void) {
   BTIF_TRACE_EVENT("%s", __FUNCTION__);
   bt_rc_vendor_ctrl_callbacks = NULL;
 }
@@ -6695,6 +6794,8 @@ static const btrc_vendor_ctrl_interface_t btAvrcpCtrlVendorInterface = {
   sizeof(btrc_vendor_ctrl_interface_t),
   init_vendor,
   get_media_element_attributes_vendor,
+  search_cmd,
+  get_search_list_cmd,
   cleanup_vendor,
 };
 
@@ -6707,8 +6808,7 @@ static const btrc_vendor_ctrl_interface_t btAvrcpCtrlVendorInterface = {
 ** Returns          btrc_vendor_ctrl_interface_t
 **
 *******************************************************************************/
-const btrc_vendor_ctrl_interface_t *btif_rc_vendor_ctrl_get_interface(void)
-{
+const btrc_vendor_ctrl_interface_t *btif_rc_vendor_ctrl_get_interface(void) {
   BTIF_TRACE_IMP("%s", __FUNCTION__);
   return &btAvrcpCtrlVendorInterface;
 }

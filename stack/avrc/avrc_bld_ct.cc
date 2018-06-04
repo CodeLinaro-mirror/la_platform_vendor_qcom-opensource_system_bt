@@ -487,6 +487,37 @@ static tAVRC_STS avrc_bld_set_addressed_player_cmd(
 }
 
 /*******************************************************************************
+**
+** Function         avrc_bld_search_cmd
+**
+** Description      This function builds the search command.
+**
+** Returns          AVRC_STS_NO_ERROR, if the command is built successfully
+**                  Otherwise, the error code.
+**
+*******************************************************************************/
+static tAVRC_STS avrc_bld_search_cmd(BT_HDR* p_pkt, tAVRC_SEARCH_CMD cmd) {
+  uint8_t* p_data;
+  uint8_t* p_start;
+  uint16_t length;
+
+  AVRC_TRACE_API("%s ", __FUNCTION__);
+
+  p_start = (uint8_t *)(p_pkt + 1) + p_pkt->offset;
+  p_data = p_start + 1; /* PDU ID */
+
+  /* SEARCH_PDU_PARAM_SIZE: 4 = charset (2) + length (2) */
+  length = 4 + cmd.string.str_len;
+  UINT16_TO_BE_STREAM(p_data, length);
+  UINT16_TO_BE_STREAM(p_data, cmd.string.charset_id);
+  UINT16_TO_BE_STREAM(p_data, cmd.string.str_len);
+  ARRAY_TO_BE_STREAM(p_data, cmd.string.p_str, cmd.string.str_len);
+
+  p_pkt->len = (p_data - p_start);
+  return AVRC_STS_NO_ERROR;
+}
+
+/*******************************************************************************
  *
  * Function         avrc_bld_init_cmd_buffer
  *
@@ -651,6 +682,12 @@ tAVRC_STS AVRC_BldCommand(tAVRC_COMMAND* p_cmd, BT_HDR** pp_pkt) {
       break;
     case AVRC_PDU_SET_ADDRESSED_PLAYER:
       status = avrc_bld_set_addressed_player_cmd(p_pkt, &(p_cmd->addr_player));
+      break;
+    case AVRC_PDU_SEARCH:
+      status = avrc_bld_search_cmd(p_pkt, p_cmd->search);
+      break;
+    default:
+      /* warn! un-handled pdu */
       break;
   }
 
