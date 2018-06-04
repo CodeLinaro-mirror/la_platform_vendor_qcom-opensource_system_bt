@@ -1938,12 +1938,19 @@ bt_status_t btif_hf_execute_service(bool b_enable) {
   uint8_t no_of_codecs = 0;
   uint8_t* codecs;
   char value[PROPERTY_VALUE_MAX];
+  int iRetry = 10;
 
   BTIF_TRACE_EVENT("%s: enable: %d", __FUNCTION__, b_enable);
 
   if (b_enable) {
     /* Enable and register with BTA-AG */
-    BTA_AgEnable(BTA_AG_PARSE, bte_hf_evt);
+    while(BTA_FAILURE == BTA_AgEnable(BTA_AG_PARSE, bte_hf_evt) && iRetry > 0)
+    {
+        iRetry--;
+        BTIF_TRACE_ERROR("%s: BTA_AgEnable failure, sleep  0.2sec for proviously AG be clean, (%d)time", __func__, iRetry);
+        usleep(200000); // sleep for 0.2sec for proviously AG be clean
+    }
+
     codecs = controller_get_interface()->get_local_supported_codecs(&no_of_codecs);
     if (codecs != NULL)
     {
