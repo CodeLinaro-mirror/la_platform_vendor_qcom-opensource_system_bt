@@ -4326,7 +4326,8 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
            * Attributes will be fetched after the AVRCP procedure
            */
           BE_STREAM_TO_UINT64(p_dev->rc_playing_uid, p_data);
-          get_element_attribute_cmd(0, attr_list, p_dev);
+          /* Fix the issue that progress bar can not be showed in UI */
+          get_element_attribute_cmd(AVRC_MAX_NUM_MEDIA_ATTR_ID, attr_list, p_dev);
         }
         break;
 
@@ -4427,7 +4428,8 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
           } else {
                uint8_t* p_data = p_rsp->param.track;
                BE_STREAM_TO_UINT64(p_dev->rc_playing_uid, p_data);
-               get_element_attribute_cmd(0, NULL, p_dev);
+               /* Fix the issue that progress bar can not be showed in UI */
+               get_element_attribute_cmd(AVRC_MAX_NUM_MEDIA_ATTR_ID, attr_list, p_dev);
           }
           break;
       case AVRC_EVT_APP_SETTING_CHANGE: {
