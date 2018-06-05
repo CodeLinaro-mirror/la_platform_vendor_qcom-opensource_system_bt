@@ -6008,7 +6008,8 @@ static char *btm_pair_state_descr (tBTM_PAIRING_STATE state)
 
     return("???");
 #else
-    sprintf(btm_cb.state_temp_buffer,"%hhu",state);
+    snprintf(btm_cb.state_temp_buffer, sizeof(btm_cb.state_temp_buffer),
+                                "%hhu",state);
 
     return(btm_cb.state_temp_buffer);
 #endif

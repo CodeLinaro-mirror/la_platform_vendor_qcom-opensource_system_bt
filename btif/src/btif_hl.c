@@ -4094,16 +4094,17 @@ static bt_status_t register_application(bthl_reg_param_t *p_reg_param, int *app_
     p_acb->app_id = btif_hl_get_next_app_id();
 
     if (p_reg_param->application_name != NULL )
-        strncpy(p_acb->application_name, p_reg_param->application_name, BTIF_HL_APPLICATION_NAME_LEN);
+        strlcpy(p_acb->application_name, p_reg_param->application_name,
+                                            BTIF_HL_APPLICATION_NAME_LEN + 1);
 
     if (p_reg_param->provider_name != NULL )
-        strncpy(p_acb->provider_name, p_reg_param->provider_name, BTA_PROVIDER_NAME_LEN);
+        strlcpy(p_acb->provider_name, p_reg_param->provider_name, BTA_PROVIDER_NAME_LEN + 1);
 
     if (p_reg_param->srv_name != NULL )
-        strncpy(p_acb->srv_name, p_reg_param->srv_name, BTA_SERVICE_NAME_LEN);
+        strlcpy(p_acb->srv_name, p_reg_param->srv_name, BTA_SERVICE_NAME_LEN + 1);
 
     if (p_reg_param->srv_desp != NULL )
-        strncpy(p_acb->srv_desp, p_reg_param->srv_desp, BTA_SERVICE_DESP_LEN);
+        strlcpy(p_acb->srv_desp, p_reg_param->srv_desp, BTA_SERVICE_DESP_LEN + 1);
 
     p_sup = &p_acb->sup_feature;
     p_sup->advertize_source_sdp = TRUE;
@@ -4146,7 +4147,7 @@ static bt_status_t register_application(bthl_reg_param_t *p_reg_param, int *app_
             p_data->max_tx_apdu_size = btif_hl_get_max_tx_apdu_size(p_cfg->mdep_role, p_data->data_type);
 
             if (p_mdep_cfg->mdep_description != NULL )
-                strncpy(p_data->desp, p_mdep_cfg->mdep_description, BTA_SERVICE_DESP_LEN);
+                strlcpy(p_data->desp, p_mdep_cfg->mdep_description, BTA_HL_MDEP_DESP_LEN + 1);
 
             if ( !btif_hl_get_bta_channel_type(p_mdep_cfg->channel_type, &(p_acb->channel_type[i])))
             {

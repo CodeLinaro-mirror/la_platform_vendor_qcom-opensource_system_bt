@@ -209,7 +209,7 @@ void config_set_int(config_t *config, const char *section, const char *key, int 
   assert(key != NULL);
 
   char value_str[32] = { 0 };
-  sprintf(value_str, "%d", value);
+  snprintf(value_str, sizeof(value_str), "%d", value);
   config_set_string(config, section, key, value_str);
 }
 
@@ -438,7 +438,7 @@ static bool config_parse(FILE *fp, config_t *config) {
   char section[1024] = { '\0' };
   char comment[1024] = { '\0' };
   bool skip_entries = false;
-  strcpy(section, CONFIG_DEFAULT_SECTION);
+  strlcpy(section, CONFIG_DEFAULT_SECTION, sizeof(section));
 
   while (fgets(line, sizeof(line), fp)) {
     char *line_ptr = trim(line);
@@ -471,8 +471,7 @@ static bool config_parse(FILE *fp, config_t *config) {
         skip_entries = true;
         continue;
       }
-      strncpy(section, line_ptr + 1, len - 2);
-      section[len - 2] = '\0';
+      strlcpy(section, line_ptr + 1, len - 1);
       skip_entries = false;
     } else {
       char *split = strchr(line_ptr, '=');
