@@ -1638,9 +1638,14 @@ UINT8 bta_av_get_codec_type(tBTA_AV_HNDL hndl)
 {
     APPL_TRACE_DEBUG("%s: hdl = %x", __func__, hndl);
     tBTA_AV_SCB *p_scb = bta_av_hndl_to_scb(hndl);
-    bta_av_cb.codec_type = p_scb->codec_type;
-    APPL_TRACE_DEBUG("%s [bta_av_cb.codec_type] %x", __func__, bta_av_cb.codec_type);
-    return bta_av_cb.codec_type;
+    if(p_scb != NULL){
+        bta_av_cb.codec_type = p_scb->codec_type;
+        APPL_TRACE_DEBUG("%s [bta_av_cb.codec_type] %x", __func__, bta_av_cb.codec_type);
+        return bta_av_cb.codec_type;
+    }
+    else{
+        return A2D_MEDIA_INVALID_CODEC_CT;
+    }
 }
 
 /*******************************************************************************
