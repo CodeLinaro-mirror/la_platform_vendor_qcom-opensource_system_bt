@@ -534,6 +534,8 @@ static UINT8 avrc_proc_far_msg(UINT8 handle, UINT8 label, UINT8 cr, BT_HDR **pp_
             if (p_rsp)
             {
                 AVCT_MsgReq( handle, label, AVCT_RSP, p_rsp);
+                GKI_freebuf(*pp_pkt);
+                *pp_pkt = NULL;
                 drop_code = 3;
             }
             else if (p_msg->hdr.opcode == AVRC_OP_DROP)
