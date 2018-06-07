@@ -355,6 +355,79 @@ TEST_F(AvrcpDeviceTest, getElementAttributesMtuTest) {
       1, TestAvrcpPacket::Make(get_element_attributes_request_full));
 }
 
+TEST_F(AvrcpDeviceTest, getTotalNumberOfItemsMediaPlayersTest) {
+  MockMediaInterface interface;
+  NiceMock<MockA2dpInterface> a2dp_interface;
+
+  test_device->RegisterInterfaces(&interface, &a2dp_interface, nullptr);
+
+  std::vector<MediaPlayerInfo> player_list = {
+      {0, "player1", true}, {1, "player2", true}, {2, "player3", true},
+  };
+
+  EXPECT_CALL(interface, GetMediaPlayerList(_))
+      .Times(1)
+      .WillOnce(InvokeCb<0>(0, player_list));
+
+  auto expected_response = GetTotalNumberOfItemsResponseBuilder::MakeBuilder(
+      Status::NO_ERROR, 0, player_list.size());
+  EXPECT_CALL(response_cb,
+              Call(1, true, matchPacket(std::move(expected_response))))
+      .Times(1);
+
+  SendBrowseMessage(1, TestBrowsePacket::Make(
+                           get_total_number_of_items_request_media_players));
+}
+
+TEST_F(AvrcpDeviceTest, getTotalNumberOfItemsVFSTest) {
+  MockMediaInterface interface;
+  NiceMock<MockA2dpInterface> a2dp_interface;
+
+  test_device->RegisterInterfaces(&interface, &a2dp_interface, nullptr);
+
+  std::vector<ListItem> vfs_list = {
+      {ListItem::FOLDER, {"id1", true, "folder1"}, SongInfo()},
+      {ListItem::FOLDER, {"id2", true, "folder2"}, SongInfo()},
+  };
+
+  EXPECT_CALL(interface, GetFolderItems(_, "", _))
+      .Times(1)
+      .WillOnce(InvokeCb<2>(vfs_list));
+
+  auto expected_response = GetTotalNumberOfItemsResponseBuilder::MakeBuilder(
+      Status::NO_ERROR, 0, vfs_list.size());
+  EXPECT_CALL(response_cb,
+              Call(1, true, matchPacket(std::move(expected_response))))
+      .Times(1);
+
+  SendBrowseMessage(
+      1, TestBrowsePacket::Make(get_total_number_of_items_request_vfs));
+}
+
+TEST_F(AvrcpDeviceTest, getTotalNumberOfItemsNowPlayingTest) {
+  MockMediaInterface interface;
+  NiceMock<MockA2dpInterface> a2dp_interface;
+
+  test_device->RegisterInterfaces(&interface, &a2dp_interface, nullptr);
+
+  std::vector<SongInfo> now_playing_list = {
+      {"test_id1", {}}, {"test_id2", {}}, {"test_id3", {}},
+      {"test_id4", {}}, {"test_id5", {}},
+  };
+
+  EXPECT_CALL(interface, GetNowPlayingList(_))
+      .WillRepeatedly(InvokeCb<0>("test_id1", now_playing_list));
+
+  auto expected_response = GetTotalNumberOfItemsResponseBuilder::MakeBuilder(
+      Status::NO_ERROR, 0, now_playing_list.size());
+  EXPECT_CALL(response_cb,
+              Call(1, true, matchPacket(std::move(expected_response))))
+      .Times(1);
+
+  SendBrowseMessage(
+      1, TestBrowsePacket::Make(get_total_number_of_items_request_now_playing));
+}
+
 TEST_F(AvrcpDeviceTest, getMediaPlayerListTest) {
   MockMediaInterface interface;
   NiceMock<MockA2dpInterface> a2dp_interface;
@@ -651,6 +724,10 @@ TEST_F(AvrcpDeviceTest, volumeChangedTest) {
 
   test_device->RegisterInterfaces(&interface, &a2dp_interface, &vol_interface);
 
+  // Pretend the device is active
+  EXPECT_CALL(a2dp_interface, active_peer())
+      .WillRepeatedly(Return(test_device->GetAddress()));
+
   auto reg_notif =
       RegisterNotificationRequestBuilder::MakeBuilder(Event::VOLUME_CHANGED, 0);
   EXPECT_CALL(response_cb, Call(_, false, matchPacket(std::move(reg_notif))))
@@ -678,6 +755,46 @@ TEST_F(AvrcpDeviceTest, volumeChangedTest) {
   SendMessage(1, response);
 }
 
+TEST_F(AvrcpDeviceTest, volumeChangedNonActiveTest) {
+  MockMediaInterface interface;
+  NiceMock<MockA2dpInterface> a2dp_interface;
+  MockVolumeInterface vol_interface;
+
+  test_device->RegisterInterfaces(&interface, &a2dp_interface, &vol_interface);
+
+  // Pretend the device isn't active
+  EXPECT_CALL(a2dp_interface, active_peer())
+      .WillRepeatedly(Return(RawAddress::kEmpty));
+
+  auto reg_notif =
+      RegisterNotificationRequestBuilder::MakeBuilder(Event::VOLUME_CHANGED, 0);
+  EXPECT_CALL(response_cb, Call(_, false, matchPacket(std::move(reg_notif))))
+      .Times(1);
+  test_device->RegisterVolumeChanged();
+
+  EXPECT_CALL(vol_interface, DeviceConnected(test_device->GetAddress(), _))
+      .Times(1)
+      .WillOnce(InvokeCb<1>(0x30));
+  auto set_vol = SetAbsoluteVolumeRequestBuilder::MakeBuilder(0x30);
+  EXPECT_CALL(response_cb, Call(_, false, matchPacket(std::move(set_vol))))
+      .Times(1);
+
+  auto response = TestAvrcpPacket::Make(interim_volume_changed_notification);
+  SendMessage(1, response);
+
+  // Ensure that SetVolume is never called
+  EXPECT_CALL(vol_interface, SetVolume(0x47)).Times(0);
+
+  auto reg_notif2 =
+      RegisterNotificationRequestBuilder::MakeBuilder(Event::VOLUME_CHANGED, 0);
+  EXPECT_CALL(response_cb, Call(_, false, matchPacket(std::move(reg_notif2))))
+      .Times(1);
+  response = TestAvrcpPacket::Make(changed_volume_changed_notification);
+  SendMessage(1, response);
+  response = TestAvrcpPacket::Make(interim_volume_changed_notification);
+  SendMessage(1, response);
+}
+
 TEST_F(AvrcpDeviceTest, volumeRejectedTest) {
   MockMediaInterface interface;
   NiceMock<MockA2dpInterface> a2dp_interface;
@@ -695,6 +812,178 @@ TEST_F(AvrcpDeviceTest, volumeRejectedTest) {
   SendMessage(1, response);
 
   EXPECT_CALL(response_cb, Call(_, _, _)).Times(0);
+}
+
+TEST_F(AvrcpDeviceTest, playPushedActiveDeviceTest) {
+  MockMediaInterface interface;
+  NiceMock<MockA2dpInterface> a2dp_interface;
+  MockVolumeInterface vol_interface;
+
+  test_device->RegisterInterfaces(&interface, &a2dp_interface, &vol_interface);
+
+  // Pretend the device is active
+  EXPECT_CALL(a2dp_interface, active_peer())
+      .WillRepeatedly(Return(test_device->GetAddress()));
+
+  auto play_pushed = PassThroughPacketBuilder::MakeBuilder(false, true, 0x44);
+  auto play_pushed_response =
+      PassThroughPacketBuilder::MakeBuilder(true, true, 0x44);
+  EXPECT_CALL(response_cb,
+              Call(_, false, matchPacket(std::move(play_pushed_response))))
+      .Times(1);
+
+  PlayStatus status = {0x1234, 0x5678, PlayState::PLAYING};
+  EXPECT_CALL(interface, GetPlayStatus(_))
+      .Times(1)
+      .WillOnce(InvokeCb<0>(status));
+
+  EXPECT_CALL(interface, SendKeyEvent(0x44, KeyState::PUSHED)).Times(1);
+
+  auto play_pushed_pkt = TestAvrcpPacket::Make();
+  play_pushed->Serialize(play_pushed_pkt);
+
+  SendMessage(1, play_pushed_pkt);
+}
+
+TEST_F(AvrcpDeviceTest, playPushedInactiveDeviceTest) {
+  MockMediaInterface interface;
+  NiceMock<MockA2dpInterface> a2dp_interface;
+  MockVolumeInterface vol_interface;
+
+  test_device->RegisterInterfaces(&interface, &a2dp_interface, &vol_interface);
+
+  // Pretend the device is not active
+  EXPECT_CALL(a2dp_interface, active_peer())
+      .WillRepeatedly(Return(RawAddress::kEmpty));
+
+  auto play_pushed = PassThroughPacketBuilder::MakeBuilder(false, true, 0x44);
+  auto play_pushed_response =
+      PassThroughPacketBuilder::MakeBuilder(true, true, 0x44);
+  EXPECT_CALL(response_cb,
+              Call(_, false, matchPacket(std::move(play_pushed_response))))
+      .Times(1);
+
+  // Expect that the device will try to set itself as active
+  EXPECT_CALL(interface, SetActiveDevice(test_device->GetAddress())).Times(1);
+
+  // No play command should be sent since the music is already playing
+  PlayStatus status = {0x1234, 0x5678, PlayState::PLAYING};
+  EXPECT_CALL(interface, GetPlayStatus(_))
+      .Times(1)
+      .WillOnce(InvokeCb<0>(status));
+  EXPECT_CALL(interface, SendKeyEvent(0x44, KeyState::PUSHED)).Times(0);
+
+  auto play_pushed_pkt = TestAvrcpPacket::Make();
+  play_pushed->Serialize(play_pushed_pkt);
+
+  SendMessage(1, play_pushed_pkt);
+}
+
+TEST_F(AvrcpDeviceTest, mediaKeyActiveDeviceTest) {
+  MockMediaInterface interface;
+  NiceMock<MockA2dpInterface> a2dp_interface;
+  MockVolumeInterface vol_interface;
+
+  test_device->RegisterInterfaces(&interface, &a2dp_interface, &vol_interface);
+
+  // Pretend the device is active
+  EXPECT_CALL(a2dp_interface, active_peer())
+      .WillRepeatedly(Return(test_device->GetAddress()));
+
+  auto play_released =
+      PassThroughPacketBuilder::MakeBuilder(false, false, 0x44);
+  auto play_released_response =
+      PassThroughPacketBuilder::MakeBuilder(true, false, 0x44);
+  EXPECT_CALL(response_cb,
+              Call(_, false, matchPacket(std::move(play_released_response))))
+      .Times(1);
+
+  EXPECT_CALL(interface, GetPlayStatus(_)).Times(0);
+
+  EXPECT_CALL(interface, SendKeyEvent(0x44, KeyState::RELEASED)).Times(1);
+
+  auto play_released_pkt = TestAvrcpPacket::Make();
+  play_released->Serialize(play_released_pkt);
+
+  SendMessage(1, play_released_pkt);
+}
+
+TEST_F(AvrcpDeviceTest, mediaKeyInactiveDeviceTest) {
+  MockMediaInterface interface;
+  NiceMock<MockA2dpInterface> a2dp_interface;
+  MockVolumeInterface vol_interface;
+
+  test_device->RegisterInterfaces(&interface, &a2dp_interface, &vol_interface);
+
+  // Pretend the device is not active
+  EXPECT_CALL(a2dp_interface, active_peer())
+      .WillRepeatedly(Return(RawAddress::kEmpty));
+
+  auto play_released =
+      PassThroughPacketBuilder::MakeBuilder(false, false, 0x44);
+  auto play_released_response =
+      PassThroughPacketBuilder::MakeBuilder(true, false, 0x44);
+  EXPECT_CALL(response_cb,
+              Call(_, false, matchPacket(std::move(play_released_response))))
+      .Times(1);
+
+  EXPECT_CALL(interface, GetPlayStatus(_)).Times(0);
+
+  // Expect that the key event wont be sent to the media interface
+  EXPECT_CALL(interface, SendKeyEvent(0x44, KeyState::RELEASED)).Times(0);
+
+  auto play_released_pkt = TestAvrcpPacket::Make();
+  play_released->Serialize(play_released_pkt);
+
+  SendMessage(1, play_released_pkt);
+}
+
+TEST_F(AvrcpDeviceTest, getCapabilitiesTest) {
+  MockMediaInterface interface;
+  NiceMock<MockA2dpInterface> a2dp_interface;
+
+  test_device->RegisterInterfaces(&interface, &a2dp_interface, nullptr);
+
+  // GetCapabilities with CapabilityID COMPANY_ID
+  auto request_company_id_response =
+      GetCapabilitiesResponseBuilder::MakeCompanyIdBuilder(0x001958);
+  request_company_id_response->AddCompanyId(0x002345);
+  EXPECT_CALL(
+      response_cb,
+      Call(1, false, matchPacket(std::move(request_company_id_response))))
+      .Times(1);
+
+  auto request_company_id =
+      TestAvrcpPacket::Make(get_capabilities_request_company_id);
+  SendMessage(1, request_company_id);
+
+  // GetCapabilities with CapabilityID EVENTS_SUPPORTED
+  auto request_events_supported_response =
+      GetCapabilitiesResponseBuilder::MakeEventsSupportedBuilder(
+          Event::PLAYBACK_STATUS_CHANGED);
+  request_events_supported_response->AddEvent(Event::TRACK_CHANGED);
+  request_events_supported_response->AddEvent(Event::PLAYBACK_POS_CHANGED);
+
+  EXPECT_CALL(
+      response_cb,
+      Call(2, false, matchPacket(std::move(request_events_supported_response))))
+      .Times(1);
+
+  auto request_events_supported =
+      TestAvrcpPacket::Make(get_capabilities_request);
+  SendMessage(2, request_events_supported);
+
+  // GetCapabilities with CapabilityID UNKNOWN
+  auto request_unknown_response = RejectBuilder::MakeBuilder(
+      CommandPdu::GET_CAPABILITIES, Status::INVALID_PARAMETER);
+
+  EXPECT_CALL(response_cb,
+              Call(3, false, matchPacket(std::move(request_unknown_response))))
+      .Times(1);
+
+  auto request_unknown =
+      TestAvrcpPacket::Make(get_capabilities_request_unknown);
+  SendMessage(3, request_unknown);
 }
 
 }  // namespace avrcp

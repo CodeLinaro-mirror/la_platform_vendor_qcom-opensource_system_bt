@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright 2016 The Android Open Source Project
+ *  Copyright 2018 The Android Open Source Project
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,23 +16,6 @@
  *
  ******************************************************************************/
 
-#ifndef BTA_CLOSURE_API_H
-#define BTA_CLOSURE_API_H
+#include <base/message_loop/message_loop.h>
 
-#include <base/bind.h>
-#include <base/callback_forward.h>
-#include <base/location.h>
-
-#include <hardware/bluetooth.h>
-
-/*
- * This method post a closure for execution on bta thread. Please see
- * documentation at
- * https://www.chromium.org/developers/coding-style/important-abstractions-and-data-structures
- * for how to handle dynamic memory ownership/smart pointers with base::Owned(),
- * base::Passed(), base::ConstRef() and others.
- */
-bt_status_t do_in_bta_thread(const tracked_objects::Location& from_here,
-                             const base::Closure& task);
-
-#endif /* BTA_CLOSURE_API_H */
+base::MessageLoop* get_message_loop() { return nullptr; }
