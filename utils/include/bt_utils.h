@@ -44,6 +44,7 @@ typedef enum {
     BT_SOC_AR3K,
     BT_SOC_ROME,
     BT_SOC_CHEROKEE,
+    BT_SOC_NAPLES_UART,
     /* Add chipset type here */
     BT_SOC_RESERVED
 } bt_soc_type;
