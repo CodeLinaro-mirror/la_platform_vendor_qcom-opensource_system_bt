@@ -74,6 +74,7 @@ void BTA_AvVendorCmd(uint8_t rc_handle, uint8_t label, tBTA_AV_CODE cmd_code,
                      uint8_t* p_data, uint16_t len) {}
 void BTA_AvVendorRsp(uint8_t rc_handle, uint8_t label, tBTA_AV_CODE rsp_code,
                      uint8_t* p_data, uint16_t len, uint32_t company_id) {}
+bool BTA_AvIsBrowsingSupported(void) {return false;}
 void btif_av_clear_remote_suspend_flag(void) {}
 bool btif_av_is_connected(void) { return false; }
 bool btif_av_is_sink_enabled(void) { return false; }
