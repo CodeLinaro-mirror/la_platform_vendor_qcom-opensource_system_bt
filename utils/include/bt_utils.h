@@ -56,5 +56,6 @@ typedef enum {
 void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task);
 bool is_device_present(char* header, unsigned char* device_details);
 bt_soc_type get_soc_type();
+bool is_iot_info_report_enabled();
 
 #endif /* BT_UTILS_H */
