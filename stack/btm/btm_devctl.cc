@@ -833,6 +833,29 @@ void btm_vendor_specific_evt(uint8_t* p, uint8_t evt_len) {
 }
 
 /*******************************************************************************
+**
+** Function         btm_enable_soc_iot_info_report
+**
+** Description      enable/disable bt soc iot info report.
+**
+** Returns          void
+**
+*******************************************************************************/
+void btm_enable_soc_iot_info_report(bool enable) {
+  uint8_t param[3] = {0x15, 0x00, 0x00};
+
+  uint16_t event_mask = 1 << SOC_ERROR_AUDIO_GLITCH | 1 << SOC_ERROR_SCO_MISSES |
+                        1 << SOC_ERROR_LSTO | 1 << SOC_ERROR_CONN_FAIL;
+
+  if (enable) {
+    *((uint16_t*)(param + 1)) = event_mask;
+  }
+
+  BTM_TRACE_WARNING("%s, enable=%d", __func__, enable);
+  BTM_VendorSpecificCommand(HCI_VS_HOST_LOG_OPCODE, 3, param, NULL);
+}
+
+/*******************************************************************************
  *
  * Function         BTM_WritePageTimeout
  *

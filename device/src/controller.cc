@@ -148,6 +148,12 @@ static future_t* start_up(void) {
     }
   #endif
 
+  if (soc_type == BT_SOC_CHEROKEE) {
+    bool enabled = is_iot_info_report_enabled();
+    LOG_INFO(LOG_TAG, "%s enable soc iot info report, enable=%d, ", __func__, enabled);
+    btm_enable_soc_iot_info_report(enabled);
+  }
+
   // Read the local version info off the controller next, including
   // information such as manufacturer and supported HCI version
   response = AWAIT_COMMAND(packet_factory->make_read_local_version_info());
