@@ -4906,7 +4906,7 @@ static void handle_get_elem_attr_response(tBTA_AV_META_MSG* pmeta_msg,
     }
     if (p_dev->rc_element_attr_app_req == TRUE) {
       if (bt_rc_vendor_ctrl_callbacks) {
-        HAL_CBACK(bt_rc_vendor_ctrl_callbacks, media_element_attr_rsp_cb,
+        HAL_CBACK(bt_rc_vendor_ctrl_callbacks, element_attr_rsp_cb,
          &rc_addr, p_rsp->num_attrs, p_attr);
       }
       p_dev->rc_element_attr_app_req = FALSE;
@@ -5090,6 +5090,60 @@ static void handle_search_response(tBTA_AV_META_MSG* pmeta_msg,
 
   HAL_CBACK(bt_rc_vendor_ctrl_callbacks, search_rsp_cb, &rc_addr,
             p_rsp->status, p_rsp->uid_counter, p_rsp->num_items);
+}
+
+/***************************************************************************
+ *
+ * Function         handle_get_item_attr_response
+ *
+ * Description      handles the get item attr response, calls HAL callback to
+ *                  send the result.
+ * Returns          None
+ *
+ **************************************************************************/
+static void handle_get_item_attr_response(tBTA_AV_META_MSG* pmeta_msg,
+                                          tAVRC_GET_ATTRS_RSP* p_rsp) {
+
+  btif_rc_device_cb_t* p_dev =
+      btif_rc_get_device_by_handle(pmeta_msg->rc_handle);
+
+  if (p_dev == NULL) {
+    BTIF_TRACE_ERROR("%s: p_dev NULL", __func__);
+    return;
+  }
+
+  RawAddress rc_addr = p_dev->rc_addr;
+
+  if ((p_rsp->status == AVRC_STS_NO_ERROR) &&
+      p_rsp->num_attrs && p_rsp->p_attrs) {
+    uint8_t index = 0;
+    uint8_t num_attrs = p_rsp->num_attrs;
+    btrc_element_attr_val_t *p_attr_val = (btrc_element_attr_val_t*)osi_malloc(
+                                          num_attrs * sizeof(btrc_element_attr_val_t));
+
+    for (index = 0; index < num_attrs; index++) {
+      btrc_element_attr_val_t *temp_attr_val = &p_attr_val[index];
+      tAVRC_ATTR_ENTRY* p_attr = &p_rsp->p_attrs[index];
+
+      temp_attr_val->attr_id = p_attr->attr_id;
+      memset(temp_attr_val->text, 0, sizeof(temp_attr_val->text));
+      memcpy(temp_attr_val->text, p_attr->name.p_str, p_attr->name.str_len);
+    }
+
+    HAL_CBACK(bt_rc_vendor_ctrl_callbacks, item_attr_rsp_cb, &rc_addr,
+              num_attrs, p_attr_val);
+
+    osi_free(p_attr_val);
+
+    // free item attributes
+    for (index = 0; index < num_attrs; index++) {
+      tAVRC_ATTR_ENTRY* p_attr = &p_rsp->p_attrs[index];
+      osi_free(p_attr->name.p_str);
+    }
+    osi_free(p_rsp->p_attrs);
+  } else {
+    HAL_CBACK(bt_rc_vendor_ctrl_callbacks, item_attr_rsp_cb, &rc_addr, 0, NULL);
+  }
 }
 
 /***************************************************************************
@@ -5436,6 +5490,9 @@ static void handle_avk_rc_metamsg_rsp(tBTA_AV_META_MSG* pmeta_msg) {
         break;
       case AVRC_PDU_SEARCH:
         handle_search_response(pmeta_msg, &avrc_response.search);
+        break;
+      case AVRC_PDU_GET_ITEM_ATTRIBUTES:
+        handle_get_item_attr_response(pmeta_msg, &avrc_response.get_attrs);
         break;
       default:
         BTIF_TRACE_ERROR("%s cannot handle browse pdu %d", __func__,
@@ -6685,8 +6742,8 @@ static bt_status_t init_vendor( btrc_vendor_ctrl_callbacks_t* callbacks )
  *
  * Description      API to get media element attributes.
  *                  Normally this is fetched automatically when current track
- *                    info is required. In some cases, we might need to call
- *                    this API to explicitly get specific attributes.
+ *                  info is required. In some cases, we might need to call
+ *                  this API to explicitly get specific attributes.
  * Returns
  *
  *****************************************************************************/
@@ -6777,6 +6834,60 @@ static bt_status_t get_search_list_cmd(RawAddress* bd_addr, uint8_t start_item,
                               num_items);
 }
 
+/***************************************************************************
+ *
+ * Function         get_item_attr_cmd
+ *
+ * Description      Send get item attributes command
+ *
+ * Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
+ *                  BT_STATUS_FAIL.
+ *
+ **************************************************************************/
+bt_status_t get_item_attr_cmd(RawAddress* bd_addr, uint8_t scope, uint8_t* uid,
+    uint16_t uid_counter, uint8_t num_attr, uint32_t* p_attr_list) {
+  /* Check that both avrcp and browse channel are connected. */
+  btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
+  if (p_dev == NULL) {
+    BTIF_TRACE_ERROR("%s: p_dev NULL", __func__);
+    return BT_STATUS_FAIL;
+  }
+  BTIF_TRACE_DEBUG("%s scope: %d, uid_counter: %d, num_attr: %d", __func__, scope, uid_counter, num_attr);
+  CHECK_RC_CONNECTED(p_dev);
+  CHECK_BR_CONNECTED(p_dev);
+
+  tAVRC_COMMAND avrc_cmd = {0};
+
+  avrc_cmd.get_attrs.pdu = AVRC_PDU_GET_ITEM_ATTRIBUTES;
+  avrc_cmd.get_attrs.status = AVRC_STS_NO_ERROR;
+  avrc_cmd.get_attrs.scope = scope;
+  memcpy(avrc_cmd.get_attrs.uid, uid, AVRC_UID_SIZE);
+  avrc_cmd.get_attrs.uid_counter = uid_counter;
+  avrc_cmd.get_attrs.attr_count = num_attr;
+  avrc_cmd.get_attrs.p_attr_list = p_attr_list;
+
+  BT_HDR* p_msg = NULL;
+  tAVRC_STS status = AVRC_BldCommand(&avrc_cmd, &p_msg);
+  if (status != AVRC_STS_NO_ERROR) {
+    BTIF_TRACE_ERROR("%s failed to build command status %d", __func__, status);
+    return BT_STATUS_FAIL;
+  }
+
+  rc_transaction_t* p_transaction = NULL;
+  bt_status_t tran_status = get_transaction(&p_transaction);
+  if (tran_status != BT_STATUS_SUCCESS || p_transaction == NULL) {
+    osi_free(p_msg);
+    BTIF_TRACE_ERROR("%s: failed to obtain transaction details. status: 0x%02x",
+                     __func__, tran_status);
+    return BT_STATUS_FAIL;
+  }
+
+  BTIF_TRACE_DEBUG("%s msgreq being sent out with label %d", __func__,
+                   p_transaction->lbl);
+  BTA_AvMetaCmd(p_dev->rc_handle, p_transaction->lbl, AVRC_CMD_CTRL, p_msg);
+  return BT_STATUS_SUCCESS;
+}
+
 /*******************************************************************************
 **
 ** Function        cleanup_vendor
@@ -6797,6 +6908,7 @@ static const btrc_vendor_ctrl_interface_t btAvrcpCtrlVendorInterface = {
   get_media_element_attributes_vendor,
   search_cmd,
   get_search_list_cmd,
+  get_item_attr_cmd,
   cleanup_vendor,
 };
 

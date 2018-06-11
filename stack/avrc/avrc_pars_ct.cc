@@ -385,6 +385,35 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
       break;
     }
 
+    case AVRC_PDU_GET_ITEM_ATTRIBUTES: {
+      tAVRC_GET_ATTRS_RSP* get_attrs_rsp = &(p_rsp->get_attrs);
+      /* Copyback the PDU */
+      get_attrs_rsp->pdu = pdu;
+      BE_STREAM_TO_UINT8(get_attrs_rsp->status, p);
+      BE_STREAM_TO_UINT8(get_attrs_rsp->num_attrs, p);
+      pkt_len_read += 2;
+
+      uint8_t num_attrs = get_attrs_rsp->num_attrs;
+      if (num_attrs > 0) {
+        get_attrs_rsp->p_attrs = (tAVRC_ATTR_ENTRY*)
+          osi_malloc(num_attrs * (sizeof(tAVRC_ATTR_ENTRY)));
+
+        for (uint8_t i = 0; i < num_attrs; i++) {
+          tAVRC_ATTR_ENTRY* p_attr = &get_attrs_rsp->p_attrs[i];
+          BE_STREAM_TO_UINT32(p_attr->attr_id, p);
+          BE_STREAM_TO_UINT16(p_attr->name.charset_id, p);
+          BE_STREAM_TO_UINT16(p_attr->name.str_len, p);
+
+          p_attr->name.p_str = (uint8_t*)osi_malloc(p_attr->name.str_len);
+          BE_STREAM_TO_ARRAY(p, p_attr->name.p_str, p_attr->name.str_len);
+          pkt_len_read += 8 + p_attr->name.str_len;
+        }
+      } else {
+        get_attrs_rsp->p_attrs = NULL;
+      }
+      break;
+    }
+
     default:
       AVRC_TRACE_ERROR("%s pdu %d not handled", __func__, pdu);
   }
