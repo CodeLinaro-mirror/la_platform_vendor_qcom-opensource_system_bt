@@ -565,6 +565,10 @@ bool IsHighQualityCodecSelected(const RawAddress& remote_bd_addr) {
 
   if (btif_av_is_device_connected(remote_bd_addr)) {
     A2dpCodecConfig* current_codec = bta_av_get_a2dp_current_codec();
+    if (current_codec == NULL) {
+      BTM_TRACE_DEBUG("%s current_codec is NULL", __func__);
+      return false;
+    }
     btav_a2dp_codec_config_t codec_config;
     codec_config = current_codec->getCodecConfig();
 
