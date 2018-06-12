@@ -496,7 +496,7 @@ static tAVRC_STS avrc_bld_set_addressed_player_cmd(
 **                  Otherwise, the error code.
 **
 *******************************************************************************/
-static tAVRC_STS avrc_bld_search_cmd(BT_HDR* p_pkt, tAVRC_SEARCH_CMD cmd) {
+static tAVRC_STS avrc_bld_search_cmd(BT_HDR* p_pkt, tAVRC_SEARCH_CMD* cmd) {
   uint8_t* p_data;
   uint8_t* p_start;
   uint16_t length;
@@ -507,11 +507,11 @@ static tAVRC_STS avrc_bld_search_cmd(BT_HDR* p_pkt, tAVRC_SEARCH_CMD cmd) {
   p_data = p_start + 1; /* PDU ID */
 
   /* SEARCH_PDU_PARAM_SIZE: 4 = charset (2) + length (2) */
-  length = 4 + cmd.string.str_len;
+  length = 4 + cmd->string.str_len;
   UINT16_TO_BE_STREAM(p_data, length);
-  UINT16_TO_BE_STREAM(p_data, cmd.string.charset_id);
-  UINT16_TO_BE_STREAM(p_data, cmd.string.str_len);
-  ARRAY_TO_BE_STREAM(p_data, cmd.string.p_str, cmd.string.str_len);
+  UINT16_TO_BE_STREAM(p_data, cmd->string.charset_id);
+  UINT16_TO_BE_STREAM(p_data, cmd->string.str_len);
+  ARRAY_TO_BE_STREAM(p_data, cmd->string.p_str, cmd->string.str_len);
 
   p_pkt->len = (p_data - p_start);
   return AVRC_STS_NO_ERROR;
@@ -527,7 +527,7 @@ static tAVRC_STS avrc_bld_search_cmd(BT_HDR* p_pkt, tAVRC_SEARCH_CMD cmd) {
 **                  Otherwise, the error code.
 **
 *******************************************************************************/
-static tAVRC_STS avrc_bld_get_item_attr_cmd(BT_HDR* p_pkt, tAVRC_GET_ATTRS_CMD cmd)
+static tAVRC_STS avrc_bld_get_item_attr_cmd(BT_HDR* p_pkt, tAVRC_GET_ATTRS_CMD* cmd)
 {
   uint8_t* p_data;
   uint8_t* p_start;
@@ -539,20 +539,50 @@ static tAVRC_STS avrc_bld_get_item_attr_cmd(BT_HDR* p_pkt, tAVRC_GET_ATTRS_CMD c
   p_data = p_start + 1; /* PDU ID */
 
   /* 12 = 1 (scope) + 8 (uid) + 2 (uid_counter) + 1 (attr_count)  */
-  length = 12 + cmd.attr_count * sizeof(uint32_t);
+  length = 12 + cmd->attr_count * sizeof(uint32_t);
   UINT16_TO_BE_STREAM(p_data, length);
-  UINT8_TO_BE_STREAM(p_data, cmd.scope);
-  ARRAY_TO_BE_STREAM(p_data, cmd.uid, AVRC_UID_SIZE);
-  UINT16_TO_BE_STREAM(p_data, cmd.uid_counter);
-  UINT8_TO_BE_STREAM(p_data, cmd.attr_count);
-  for (uint8_t index = 0; index < cmd.attr_count; index++) {
-    uint32_t attr_id = cmd.p_attr_list[index];
+  UINT8_TO_BE_STREAM(p_data, cmd->scope);
+  ARRAY_TO_BE_STREAM(p_data, cmd->uid, AVRC_UID_SIZE);
+  UINT16_TO_BE_STREAM(p_data, cmd->uid_counter);
+  UINT8_TO_BE_STREAM(p_data, cmd->attr_count);
+  for (uint8_t index = 0; index < cmd->attr_count; index++) {
+    uint32_t attr_id = cmd->p_attr_list[index];
     UINT32_TO_BE_STREAM(p_data, attr_id);
   }
 
   p_pkt->len = (p_data - p_start);
   return AVRC_STS_NO_ERROR;
 }
+
+/*******************************************************************************
+**
+** Function         avrc_bld_get_num_of_items_cmd
+**
+** Description      This function builds the get total number of items command.
+**
+** Returns          AVRC_STS_NO_ERROR, if the command is built successfully
+**                  Otherwise, the error code.
+**
+*******************************************************************************/
+static tAVRC_STS avrc_bld_get_num_of_items_cmd(BT_HDR* p_pkt, tAVRC_GET_NUM_OF_ITEMS_CMD* cmd)
+{
+  uint8_t* p_data;
+  uint8_t* p_start;
+  uint16_t length;
+
+  AVRC_TRACE_API("%s ", __FUNCTION__);
+
+  p_start = (uint8_t *)(p_pkt + 1) + p_pkt->offset;
+  p_data = p_start + 1; /* PDU ID */
+
+  length = 1; /* scope */
+  UINT16_TO_BE_STREAM(p_data, length);
+  UINT8_TO_BE_STREAM(p_data, cmd->scope);
+
+  p_pkt->len = (p_data - p_start);
+  return AVRC_STS_NO_ERROR;
+}
+
 
 /*******************************************************************************
  *
@@ -721,10 +751,13 @@ tAVRC_STS AVRC_BldCommand(tAVRC_COMMAND* p_cmd, BT_HDR** pp_pkt) {
       status = avrc_bld_set_addressed_player_cmd(p_pkt, &(p_cmd->addr_player));
       break;
     case AVRC_PDU_SEARCH:
-      status = avrc_bld_search_cmd(p_pkt, p_cmd->search);
+      status = avrc_bld_search_cmd(p_pkt, &(p_cmd->search));
       break;
     case AVRC_PDU_GET_ITEM_ATTRIBUTES:
-      status = avrc_bld_get_item_attr_cmd(p_pkt, p_cmd->get_attrs);
+      status = avrc_bld_get_item_attr_cmd(p_pkt, &(p_cmd->get_attrs));
+      break;
+    case AVRC_PDU_GET_TOTAL_NUM_OF_ITEMS:
+      status = avrc_bld_get_num_of_items_cmd(p_pkt, &(p_cmd->get_num_of_items));
       break;
     default:
       /* warn! un-handled pdu */

@@ -414,6 +414,17 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
       break;
     }
 
+    case AVRC_PDU_GET_TOTAL_NUM_OF_ITEMS: {
+      tAVRC_GET_NUM_OF_ITEMS_RSP* num_of_items_rsp = &(p_rsp->get_num_of_items);
+      /* Copyback the PDU */
+      num_of_items_rsp->pdu = pdu;
+      BE_STREAM_TO_UINT8(num_of_items_rsp->status, p);
+      BE_STREAM_TO_UINT16(num_of_items_rsp->uid_counter, p);
+      BE_STREAM_TO_UINT32(num_of_items_rsp->num_items, p);
+      pkt_len_read += 7;
+      break;
+    }
+
     default:
       AVRC_TRACE_ERROR("%s pdu %d not handled", __func__, pdu);
   }
