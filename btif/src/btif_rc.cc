@@ -242,6 +242,8 @@ typedef struct {
   bool rc_procedure_complete;
   bool rc_play_processed;
   bool rc_element_attr_app_req;  /* flag to track get_element_attr req */
+  uint16_t rc_addressed_player_id;
+  uint16_t uid_counter;
 } btif_rc_device_cb_t;
 
 typedef struct {
@@ -898,6 +900,7 @@ void handle_rc_disconnect(tBTA_AV_RC_CLOSE* p_rc_close) {
     p_dev->rc_pending_play = false;
     p_dev->rc_play_processed = false;
     p_dev->rc_addr = RawAddress::kEmpty;
+    p_dev->uid_counter = 0;
     btif_rc_init_txn_label_queue(p_dev);
   }
   if (get_num_connected_devices() == 0) {
@@ -4214,6 +4217,7 @@ static void handle_get_capability_response(tBTA_AV_META_MSG* pmeta_msg,
           break;
 
         case AVRC_EVT_UIDS_CHANGE:
+        case AVRC_EVT_ADDR_PLAYER_CHANGE:
           if (BTA_AvIsBrowsingSupported () == FALSE) {
             break;
           } else {
@@ -4340,6 +4344,8 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
         break;
 
       case AVRC_EVT_ADDR_PLAYER_CHANGE:
+        BTIF_TRACE_DEBUG("%s: Interim AVRC_EVT_ADDR_PLAYER_CHANGE: current id 0x%2X, new id 0x%2X",
+          __func__, p_dev->rc_addressed_player_id, p_rsp->param.addr_player.player_id);
         break;
 
       case AVRC_EVT_UIDS_CHANGE:
@@ -4452,6 +4458,13 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
         break;
 
       case AVRC_EVT_ADDR_PLAYER_CHANGE:
+        BTIF_TRACE_DEBUG("%s: AVRC_EVT_ADDR_PLAYER_CHANGE: current id 0x%2X, new id 0x%2X",
+          __func__, p_dev->rc_addressed_player_id, p_rsp->param.addr_player.player_id);
+        p_dev->rc_addressed_player_id = p_rsp->param.addr_player.player_id;
+        p_dev->uid_counter = p_rsp->param.addr_player.uid_counter;
+        HAL_CBACK(bt_rc_vendor_ctrl_callbacks, addressed_player_update_cb,
+            &rc_addr, p_rsp->param.addr_player.player_id,
+            p_rsp->param.addr_player.uid_counter);
         break;
 
       case AVRC_EVT_UIDS_CHANGE:
@@ -4496,15 +4509,33 @@ static void handle_app_attr_response(tBTA_AV_META_MSG* pmeta_msg,
 
   for (xx = 0; xx < p_rsp->num_attr; xx++) {
     uint8_t st_index;
+    int i;
+    int ignore = FALSE;
 
     if (p_rsp->attrs[xx] > AVRC_PLAYER_SETTING_LOW_MENU_EXT) {
       st_index = p_dev->rc_app_settings.num_ext_attrs;
-      p_dev->rc_app_settings.ext_attrs[st_index].attr_id = p_rsp->attrs[xx];
-      p_dev->rc_app_settings.num_ext_attrs++;
+      /* If p_dev->rc_app_settings.ext_attrs already has the attribute, ignore it */
+      for (i = 0; i < st_index; i++) {
+        if (p_dev->rc_app_settings.ext_attrs[i].attr_id == p_rsp->attrs[xx]) {
+          ignore = TRUE;
+        }
+      }
+      if (!ignore) {
+        p_dev->rc_app_settings.ext_attrs[st_index].attr_id = p_rsp->attrs[xx];
+        p_dev->rc_app_settings.num_ext_attrs++;
+      }
     } else {
       st_index = p_dev->rc_app_settings.num_attrs;
-      p_dev->rc_app_settings.attrs[st_index].attr_id = p_rsp->attrs[xx];
-      p_dev->rc_app_settings.num_attrs++;
+      /* If p_dev->rc_app_settings.attrs already has the attribute, ignore it */
+      for (i = 0; i < st_index; i++) {
+        if (p_dev->rc_app_settings.attrs[i].attr_id == p_rsp->attrs[xx]) {
+          ignore = TRUE;
+        }
+      }
+      if (!ignore) {
+        p_dev->rc_app_settings.attrs[st_index].attr_id = p_rsp->attrs[xx];
+        p_dev->rc_app_settings.num_attrs++;
+      }
     }
   }
   p_dev->rc_app_settings.attr_index = 0;
@@ -5336,6 +5367,9 @@ void get_folder_item_type_player(const tAVRC_ITEM* avrc_item,
   btrc_item_player->major_type = avrc_item_player->major_type;
   /* Sub type */
   btrc_item_player->sub_type = avrc_item_player->sub_type;
+  /* Play status */
+  btrc_item_player->play_status = avrc_item_player->play_status;
+  BTIF_TRACE_DEBUG("%s update play status %d", __func__, btrc_item_player->play_status);
   /* Features */
   memcpy(btrc_item_player->features, avrc_item_player->features,
          BTRC_FEATURE_BIT_MASK_SIZE);
@@ -5672,7 +5706,7 @@ static bt_status_t getcapabilities_cmd(uint8_t cap_id,
  *
  * Description      Get supported List Player Attributes
  *
- * Returns          void
+ * Returns          bt_status_t
  *
  **************************************************************************/
 static bt_status_t list_player_app_setting_attrib_cmd(
@@ -5737,6 +5771,29 @@ static bt_status_t get_player_app_setting_cmd(uint8_t num_attrib,
   }
 
   return build_and_send_vendor_cmd(&avrc_cmd, AVRC_CMD_STATUS, p_dev);
+}
+
+/***************************************************************************
+ *
+ * Function         fetch_player_app_setting_cmd
+ *
+ * Description      fetch PAS supported values and PAS current values
+ *
+ * Returns          bt_status_t
+ *
+ **************************************************************************/
+static bt_status_t fetch_player_app_setting_cmd(RawAddress* bd_addr) {
+  BTIF_TRACE_DEBUG("%s", __func__);
+
+  btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
+  CHECK_RC_CONNECTED(p_dev);
+
+  /*
+  * Start from list PAS attributes, then get supported values and currrent values
+  * in response handler
+  */
+  BTIF_TRACE_DEBUG("%s, list player app setting attribute", __func__);
+  return list_player_app_setting_attrib_cmd(p_dev);
 }
 
 /***************************************************************************
@@ -6988,6 +7045,7 @@ static const btrc_vendor_ctrl_interface_t btAvrcpCtrlVendorInterface = {
   get_search_list_cmd,
   get_item_attr_cmd,
   get_num_of_items_cmd,
+  fetch_player_app_setting_cmd,
   cleanup_vendor,
 };
 
