@@ -202,6 +202,7 @@ extern bool is_block_hal_start;
     btif_rc_handler(e, d);         \
   } break;
 
+void btif_av_flow_spec_cmd(int index, int bitrate);
 static bool btif_av_state_idle_handler(btif_sm_event_t event, void* data, int idx);
 static bool btif_av_state_opening_handler(btif_sm_event_t event, void* data, int idx);
 static bool btif_av_state_opened_handler(btif_sm_event_t event, void* data, int idx);
@@ -252,6 +253,7 @@ extern fixed_queue_t* btu_general_alarm_queue;
 extern void btif_media_send_reset_vendor_state();
 extern tBTIF_A2DP_SOURCE_VSC btif_a2dp_src_vsc;
 extern uint8_t* bta_av_co_get_peer_codec_info(uint8_t hdl);
+extern void bta_av_vendor_offload_stop(void);
 /*****************************************************************************
  * Local helper functions
  *****************************************************************************/
@@ -1161,8 +1163,13 @@ static bool btif_av_state_closing_handler(btif_sm_event_t event, void* p_data, i
           if (btif_av_is_playing()) {
               APPL_TRACE_DEBUG("Keep playing on other device");
           } else {
-             APPL_TRACE_DEBUG("Not playing on other devie: Set Flush");
-             btif_a2dp_source_set_tx_flush(true);
+             if (btif_av_cb[index].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING) {
+                 APPL_TRACE_DEBUG("Not playing on other device: Stop media task as local suspend pending");
+                 btif_a2dp_on_stopped(NULL);
+             } else {
+                APPL_TRACE_DEBUG("Not playing on other devie: Set Flush");
+                btif_a2dp_source_set_tx_flush(true);
+             }
           }
         } else {
           /* Single connections scenario:
@@ -1186,9 +1193,7 @@ static bool btif_av_state_closing_handler(btif_sm_event_t event, void* p_data, i
         if (btif_av_is_connected_on_other_idx(index)) {
           if (!btif_av_is_playing()) {
             APPL_TRACE_WARNING("Suspend the AV Data channel");
-            //Flush and close media channel
-            btif_a2dp_source_set_tx_flush(true);
-            btif_a2dp_source_stop_audio_req();
+            //Stop media task
             btif_a2dp_on_stopped(NULL);
           }
         } else {
@@ -1569,9 +1574,14 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
     } break;
 
     case BTA_AV_OFFLOAD_START_RSP_EVT:
-      APPL_TRACE_WARNING("Offload Start Rsp is unsupported in opened state");
-      if (btif_av_cb[index].flags & BTIF_AV_FLAG_REMOTE_SUSPEND)
+      APPL_TRACE_WARNING("Offload Start Rsp is unsupported in opened state, status = %d", p_av->status);
+      if (btif_av_cb[index].flags & BTIF_AV_FLAG_REMOTE_SUSPEND) {
+        if (p_av->status == BTA_AV_SUCCESS) {
+          btif_a2dp_src_vsc.tx_started = TRUE;
+          bta_av_vendor_offload_stop();
+        }
         btif_a2dp_on_offload_started(BTA_AV_FAIL_UNSUPPORTED);
+      }
       break;
 
     case BTA_AV_RC_OPEN_EVT: {
@@ -1741,6 +1751,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
 
     case BTIF_AV_SOURCE_CONFIG_REQ_EVT:
       btif_av_cb[index].reconfig_pending = true;
+      btif_av_flow_spec_cmd(index, reconfig_a2dp_param_val);
       btif_update_source_codec(p_data);
       break;
 
@@ -3215,14 +3226,14 @@ static bt_status_t codec_config_src(
         cp.bits_per_sample, cp.channel_mode, cp.codec_specific_1,
         cp.codec_specific_2, cp.codec_specific_3, cp.codec_specific_4);
 
-        if (btif_av_is_split_a2dp_enabled()) {
           A2dpCodecConfig* current_codec = bta_av_get_a2dp_current_codec();
           if (current_codec != nullptr) {
             btav_a2dp_codec_config_t codec_config;
             codec_config = current_codec->getCodecConfig();
             isBitRateChange = false;
             isBitsPerSampleChange = false;
-            if (codec_config.codec_specific_1 != cp.codec_specific_1) {
+            if ((codec_config.codec_specific_1 != cp.codec_specific_1) &&
+              (codec_config.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC)) {
               switch (cp.codec_specific_1)
               {
               case 1000:
@@ -3246,7 +3257,9 @@ static bt_status_t codec_config_src(
                 else
                   reconfig_a2dp_param_val = 330000;
                 break;
-              case 1003: break;
+              case 1003:
+                reconfig_a2dp_param_val = 0;
+                break;
               }
               if (codec_config.codec_specific_1 != 0) {
                 reconfig_a2dp_param_id = BITRATE_PARAM_ID;
@@ -3289,7 +3302,6 @@ static bt_status_t codec_config_src(
           }
           else
             codec_cfg_change = true;
-        }
     isDevUiReq = true;
     btif_transfer_context(btif_av_handle_event, BTIF_AV_SOURCE_CONFIG_REQ_EVT,
                           reinterpret_cast<char*>(&cp), sizeof(cp), NULL);
@@ -4509,5 +4521,18 @@ void btif_av_reinit_audio_interface() {
   BTIF_TRACE_DEBUG(LOG_TAG,"btif_av_reint_audio_interface");
   btif_a2dp_audio_interface_init();
   btif_a2dp_audio_if_init = true;
+}
+
+void btif_av_flow_spec_cmd(int index, int bitrate) {
+  tBT_FLOW_SPEC flow_spec;
+  memset(&flow_spec, 0x00, sizeof(flow_spec));
+  flow_spec.flow_direction = 0x00;     /* flow direction - out going */
+  flow_spec.service_type = 0x02;       /* Guaranteed */
+  flow_spec.token_rate = 0x00;         /* bytes/second - no token rate is specified*/
+  flow_spec.token_bucket_size = 0x00;  /* bytes - no token bucket is needed*/
+  flow_spec.latency = 0xFFFFFFFF;      /* microseconds - default value */
+  flow_spec.peak_bandwidth = bitrate/8;/*bytes per second */
+  BTM_FlowSpec (btif_av_cb[index].peer_bda, &flow_spec, NULL);
+  APPL_TRACE_DEBUG("%s peak_bandwidth %d",__func__, flow_spec.peak_bandwidth);
 }
 /*SPLITA2DP*/
