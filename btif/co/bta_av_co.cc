@@ -490,7 +490,7 @@ tA2DP_STATUS bta_av_co_audio_getconfig(tBTA_AV_HNDL hndl, uint8_t* p_codec_info,
     APPL_TRACE_EVENT("%s: no need to fetch more SEPs", __func__);
     *p_sep_info_idx = p_peer->num_seps;
     if (p_peer->reconfig_needed) {
-      APPL_TRACE_DEBUG("%s: call BTA_AvReconfig(x%x)", __func__, hndl);
+      APPL_TRACE_WARNING("%s: call BTA_AvReconfig(x%x)", __func__, hndl);
       BTA_AvReconfig(hndl, true, p_sink->sep_info_idx, p_peer->codec_config,
                      *p_num_protect, bta_av_co_cp_scmst);
     }
@@ -1182,7 +1182,7 @@ bool bta_av_co_set_codec_user_config(
       goto done;
     }
 
-    APPL_TRACE_DEBUG("%s: call BTA_AvReconfig(x%x)", __func__, p_peer->handle);
+    APPL_TRACE_WARNING("%s: call BTA_AvReconfig(x%x)", __func__, p_peer->handle);
     BTA_AvReconfig(p_peer->handle, true, p_sink->sep_info_idx,
                    p_peer->codec_config, num_protect, bta_av_co_cp_scmst);
   }
@@ -1337,7 +1337,7 @@ bool bta_av_co_set_codec_audio_config(
       APPL_TRACE_WARNING("%s: not all peer's capabilities have been retrieved",
                          __func__);
     } else {
-      APPL_TRACE_DEBUG("%s: call BTA_AvReconfig(x%x)", __func__,
+      APPL_TRACE_WARNING("%s: call BTA_AvReconfig(x%x)", __func__,
                        p_peer->handle);
       BTA_AvReconfig(p_peer->handle, true, p_sink->sep_info_idx,
                      p_peer->codec_config, num_protect, bta_av_co_cp_scmst);
