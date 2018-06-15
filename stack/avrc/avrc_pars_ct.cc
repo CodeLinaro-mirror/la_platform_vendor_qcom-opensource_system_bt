@@ -651,7 +651,15 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR* p_msg,
 
     case AVRC_PDU_SET_ADDRESSED_PLAYER:
       if (len != 1) {
-        AVRC_TRACE_ERROR("%s pdu: %d len %d", __func__, p_result->pdu, len);
+        AVRC_TRACE_ERROR("%s can't parse set addressed player resp, len %d", __func__, len);
+        return AVRC_STS_BAD_CMD;
+      }
+      BE_STREAM_TO_UINT8(p_result->rsp.status, p);
+      break;
+
+    case AVRC_PDU_ADD_TO_NOW_PLAYING:
+      if (len != 1) {
+        AVRC_TRACE_ERROR("%s can't parse add to now playing resp, len %d", __func__, len);
         return AVRC_STS_BAD_CMD;
       }
       BE_STREAM_TO_UINT8(p_result->rsp.status, p);
