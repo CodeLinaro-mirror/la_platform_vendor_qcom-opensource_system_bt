@@ -4221,6 +4221,7 @@ static void handle_get_capability_response(tBTA_AV_META_MSG* pmeta_msg,
         case AVRC_EVT_UIDS_CHANGE:
         case AVRC_EVT_ADDR_PLAYER_CHANGE:
         case AVRC_EVT_AVAL_PLAYERS_CHANGE:
+        case AVRC_EVT_NOW_PLAYING_CHANGE:
           if (BTA_AvIsBrowsingSupported () == FALSE) {
             break;
           } else {
@@ -4455,6 +4456,7 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
       } break;
 
       case AVRC_EVT_NOW_PLAYING_CHANGE:
+        HAL_CBACK(bt_rc_vendor_ctrl_callbacks, now_playing_changed_cb, &rc_addr);
         break;
 
       case AVRC_EVT_AVAL_PLAYERS_CHANGE:
