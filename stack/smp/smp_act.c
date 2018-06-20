@@ -16,7 +16,6 @@
  *
  ******************************************************************************/
 
-#include <log/log.h>
 #include <string.h>
 #include "device/include/interop.h"
 #include "include/bt_target.h"
@@ -725,7 +724,7 @@ void smp_process_pairing_public_key(tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
     memcpy(pt.y, p_cb->peer_publ_key.y, BT_OCTET32_LEN);
 
     if (!ECC_ValidatePoint(&pt)) {
-        android_errorWriteLog(0x534e4554, "72377774");
+        SMP_TRACE_ERROR("%s pairing failed", __func__);
         smp_sm_event(p_cb, SMP_AUTH_CMPL_EVT, &reason);
         return;
     }
