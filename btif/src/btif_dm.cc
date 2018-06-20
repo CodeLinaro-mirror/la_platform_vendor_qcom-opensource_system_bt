@@ -253,7 +253,7 @@ static void btif_stats_add_bond_event(const RawAddress& bd_addr,
  *****************************************************************************/
 extern bt_status_t btif_hf_execute_service(bool b_enable);
 extern bt_status_t btif_av_execute_service(bool b_enable);
-extern bt_status_t btif_av_sink_execute_service(bool b_enable);
+extern bt_status_t btif_avk_sink_execute_service(bool b_enable);
 extern bt_status_t btif_hh_execute_service(bool b_enable);
 extern bt_status_t btif_hf_client_execute_service(bool b_enable);
 extern bt_status_t btif_sdp_execute_service(bool b_enable);
@@ -322,7 +322,7 @@ bt_status_t btif_in_execute_service_request(tBTA_SERVICE_ID service_id,
       btif_av_execute_service(b_enable);
     } break;
     case BTA_A2DP_SINK_SERVICE_ID: {
-      btif_av_sink_execute_service(b_enable);
+      btif_avk_sink_execute_service(b_enable);
     } break;
     case BTA_HID_SERVICE_ID: {
       btif_hh_execute_service(b_enable);

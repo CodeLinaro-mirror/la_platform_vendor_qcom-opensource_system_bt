@@ -41,6 +41,7 @@
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
+#include <cutils/properties.h>
 #include "utl.h"
 #include <errno.h>
 #include <hardware/vendor.h>
@@ -50,6 +51,7 @@
 #if (BTA_AR_INCLUDED == TRUE)
 #include "bta_ar_api.h"
 #endif
+  #include "bta_ar_int_ext.h"
 
 /*****************************************************************************
  *  Constants
@@ -358,6 +360,7 @@ uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, uint8_t role, uint8_t shdl,
   ccb.p_msg_cback = bta_av_rc_msg_cback;
   ccb.company_id = p_bta_av_cfg->company_id;
   ccb.conn = role;
+  ccb.av_sep_type = BTA_AV_RC_PROFILE_SRC;
   /* note: BTA_AV_FEAT_RCTG = AVRC_CT_TARGET, BTA_AV_FEAT_RCCT = AVRC_CT_CONTROL
    */
   ccb.control = p_cb->features & (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_RCCT |
@@ -479,7 +482,7 @@ tBTA_AV_LCB* bta_av_find_lcb(const RawAddress& addr, uint8_t op) {
       p_lcb = &p_cb->lcb[xx];
       if (op == BTA_AV_LCB_FREE) {
         p_cb->conn_lcb &= ~mask; /* clear the connect mask */
-        APPL_TRACE_DEBUG("conn_lcb: 0x%x", p_cb->conn_lcb);
+        APPL_TRACE_DEBUG("Removed Mask conn_lcb: 0x%x", p_cb->conn_lcb);
       }
       break;
     }
@@ -916,7 +919,7 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
         (p_data->rc_msg.msg.hdr.ctype == AVRC_CMD_GEN_INQ)) {
       /* check if operation is supported */
       char avrcp_ct_support[PROPERTY_VALUE_MAX];
-      osi_property_get("bluetooth.pts.avrcp_ct.support", avrcp_ct_support,
+      property_get("bluetooth.pts.avrcp_ct.support", avrcp_ct_support,
                        "false");
       if (p_data->rc_msg.msg.pass.op_id == AVRC_ID_VENDOR) {
         p_data->rc_msg.msg.hdr.ctype = BTA_AV_RSP_NOT_IMPL;
@@ -1555,7 +1558,7 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
     /* disconnected. */
     APPL_TRACE_DEBUG("%s: bta_av_cb.conn_lcb is %d", __func__,
                      bta_av_cb.conn_lcb);
-
+    dealloc_ar_device_info(p_data->str_msg.bd_addr);
     p_lcb = bta_av_find_lcb(p_data->str_msg.bd_addr, BTA_AV_LCB_FREE);
     if (p_lcb && (p_lcb->conn_msk || bta_av_cb.conn_lcb)) {
       APPL_TRACE_DEBUG("conn_msk: 0x%x", p_lcb->conn_msk);
@@ -1682,7 +1685,7 @@ uint16_t bta_get_dut_avrcp_version() {
     // This api get avrcp version stored in property
     uint16_t profile_version = AVRC_REV_1_0;
     char avrcp_version[PROPERTY_VALUE_MAX] = {0};
-    osi_property_get(AVRCP_VERSION_PROPERTY, avrcp_version,
+    property_get(AVRCP_VERSION_PROPERTY, avrcp_version,
                      AVRCP_1_4_STRING);
 
     if (!strncmp(AVRCP_1_6_STRING, avrcp_version,
@@ -1779,8 +1782,10 @@ tBTA_AV_FEAT bta_av_check_peer_features(uint16_t service_uuid) {
   tSDP_DISC_ATTR* p_attr;
   uint16_t peer_rc_version = 0;
   uint16_t categories = 0;
+  char dy_version[PROPERTY_VALUE_MAX] = "false";
 
   APPL_TRACE_DEBUG("bta_av_check_peer_features service_uuid:x%x", service_uuid);
+  property_get("persist.avrcp.enable.dy_version", dy_version, "false");
   /* loop through all records we found */
   while (true) {
     /* get next record; if none found, we're done */
@@ -1850,6 +1855,8 @@ tBTA_AV_FEAT bta_av_check_peer_features(uint16_t service_uuid) {
           }
         }
       }
+      if (!strncmp("false", dy_version, 5))
+                return peer_features;
       if ((peer_rc_version >= AVRC_REV_1_4) &&
               ((peer_features & BTA_AV_FEAT_BROWSE) || (peer_features & BTA_AV_FEAT_CA)))
       {

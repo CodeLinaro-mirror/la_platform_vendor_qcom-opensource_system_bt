@@ -44,6 +44,17 @@ class A2dpCodecConfigAac : public A2dpCodecConfig {
   void debug_codec_dump(int fd) override;
 };
 
+// data type for the AAC Codec Information Element */
+// NOTE: bits_per_sample is needed only for AAC encoder initialization.
+typedef struct {
+  uint8_t objectType;             /* Object Type */
+  uint16_t sampleRate;            /* Sampling Frequency */
+  uint8_t channelMode;            /* STEREO/MONO */
+  uint8_t variableBitRateSupport; /* Variable Bit Rate Support*/
+  uint32_t bitRate;               /* Bit rate */
+  btav_a2dp_codec_bits_per_sample_t bits_per_sample;
+} tA2DP_AAC_CIE;
+
 // Checks whether the codec capabilities contain a valid A2DP AAC Source
 // codec.
 // NOTE: only codecs that are implemented are considered valid.
@@ -205,8 +216,8 @@ bool A2DP_DumpCodecInfoAac(const uint8_t* p_codec_info);
 // |p_codec_info| contains the codec information.
 // Returns the A2DP AAC encoder interface if the |p_codec_info| is valid and
 // supported, otherwise NULL.
-const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceAac(
-    const uint8_t* p_codec_info);
+/*const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceAac(
+    const uint8_t* p_codec_info);*/
 
 // Adjusts the A2DP AAC codec, based on local support and Bluetooth
 // specification.
@@ -226,4 +237,21 @@ const char* A2DP_CodecIndexStrAac(void);
 // configuration entry pointed by |p_cfg|.
 bool A2DP_InitCodecConfigAac(tAVDT_CFG* p_cfg);
 
+//Update AAC capabilities
+void update_aac_cap(btav_a2dp_codec_config_t config);
+
+//Reset a2dp_aac_caps_initialized variable
+void reset_a2dp_aac_caps_initialized();
+
+//Update AAC local capabilities
+void update_local_capability_aac(btav_a2dp_codec_config_t* loc_cap);
+
+// Builds the AAC Media Codec Capabilities byte sequence beginning from the
+// LOSC octet. |media_type| is the media type |AVDT_MEDIA_TYPE_*|.
+// |p_ie| is a pointer to the AAC Codec Information Element information.
+// The result is stored in |p_result|. Returns A2DP_SUCCESS on success,
+// otherwise the corresponding A2DP error status code.
+tA2DP_STATUS A2DP_BuildInfoAac(uint8_t media_type,
+                                      const tA2DP_AAC_CIE* p_ie,
+                                      uint8_t* p_result);
 #endif  // A2DP_AAC_H

@@ -26,6 +26,11 @@
 
 #include "bta_ar_api.h"
 #include "bta_ar_int.h"
+#include "btm_api.h"
+#include "bta_ar_int_ext.h"
+
+extern bool bta_av_is_scb_available();
+extern bool bta_avk_is_scb_available();
 
 /* AV control block */
 tBTA_AR_CB bta_ar_cb;
@@ -62,6 +67,7 @@ static uint8_t bta_ar_id(tBTA_SYS_ID sys_id) {
 void bta_ar_init(void) {
   /* initialize control block */
   memset(&bta_ar_cb, 0, sizeof(tBTA_AR_CB));
+  bta_ar_ext_init();
 }
 
 /*******************************************************************************
@@ -73,13 +79,136 @@ void bta_ar_init(void) {
  * Returns          void
  *
  ******************************************************************************/
-static void bta_ar_avdt_cback(uint8_t handle, const RawAddress* bd_addr,
-                              uint8_t event, tAVDT_CTRL* p_data) {
-  /* route the AVDT registration callback to av or avk */
-  if (bta_ar_cb.p_av_conn_cback)
-    (*bta_ar_cb.p_av_conn_cback)(handle, bd_addr, event, p_data);
-  if (bta_ar_cb.p_avk_conn_cback)
-    (*bta_ar_cb.p_avk_conn_cback)(handle, bd_addr, event, p_data);
+static void bta_ar_avdt_cback(uint8_t handle, const RawAddress* bd_addr, uint8_t event, tAVDT_CTRL *p_data)
+{
+    /* route the AVDT registration callback to av or avk */
+    // TODO: SRC_SNK: add cod here
+    DEV_CLASS device_class;
+    uint16_t service_class; uint8_t major_class, minor_class;
+    bool sink_only_device = false;
+    bool src_only_device = false;
+    BTM_GetCOD(bd_addr, device_class);
+    uint8_t sep_type; uint8_t set_config_sep_type;
+    APPL_TRACE_DEBUG("%s BD_ADDR %s event %d COD = [%x][%x][%x]", __FUNCTION__,bd_addr->ToString().c_str(), event,
+        device_class[2],device_class[1],device_class[0]);
+    BTM_COD_MINOR_CLASS(minor_class, device_class);
+    BTM_COD_MAJOR_CLASS(major_class, device_class);
+    BTM_COD_SERVICE_CLASS(service_class, device_class);
+    sink_only_device = (service_class & BTM_COD_SERVICE_RENDERING) && !(service_class & BTM_COD_SERVICE_CAPTURING);
+    src_only_device = (service_class & BTM_COD_SERVICE_CAPTURING) && !(service_class & BTM_COD_SERVICE_RENDERING);
+    APPL_TRACE_DEBUG(" %s Major_Class [%x], Minor Class [%x], Service_Class [%x], src_only %d, sink_only %d",__FUNCTION__,
+         major_class, minor_class, service_class, src_only_device, sink_only_device);
+
+    switch(event)
+    {
+    case AVDT_CONNECT_IND_EVT:
+        if(src_only_device)
+        {
+            /* Remote is a src only device, send indication only to avk */
+            if (bta_ar_cb.p_avk_conn_cback)
+            {
+                update_avdtp_connection_info(*bd_addr, AVDT_AR_EXT_CONNECT_IND_EVT, BTA_AR_EXT_AVK_MASK);
+                APPL_TRACE_DEBUG(" %s Calling AVK Conn Cback ", __FUNCTION__);
+                (*bta_ar_cb.p_avk_conn_cback)(handle, bd_addr, event, p_data);
+            }
+            break;
+        }
+        if(sink_only_device)
+        {
+            /* Remote is a sink only device, send indication only to av */
+            if (bta_ar_cb.p_av_conn_cback)
+            {
+                update_avdtp_connection_info(*bd_addr, AVDT_AR_EXT_CONNECT_IND_EVT, BTA_AR_EXT_AV_MASK);
+                APPL_TRACE_DEBUG(" %s Calling AV Conn Cback ", __FUNCTION__);
+                (*bta_ar_cb.p_av_conn_cback)(handle, bd_addr, event, p_data);
+            }
+            break;
+        }
+        /* didn't fall in any of the above condition, send it to both av and avk */
+        if (bta_ar_cb.p_av_conn_cback && bta_av_is_scb_available())
+        {
+            update_avdtp_connection_info(*bd_addr, AVDT_AR_EXT_CONNECT_IND_EVT, BTA_AR_EXT_AV_MASK);
+            APPL_TRACE_DEBUG(" %s Calling AV Conn Cback ", __FUNCTION__);
+            (*bta_ar_cb.p_av_conn_cback)(handle, bd_addr, event, p_data);
+        }
+        if (bta_ar_cb.p_avk_conn_cback && bta_avk_is_scb_available())
+        {
+            update_avdtp_connection_info(*bd_addr, AVDT_AR_EXT_CONNECT_IND_EVT, BTA_AR_EXT_AVK_MASK);
+            APPL_TRACE_DEBUG(" %s Calling AVK Conn Cback ", __FUNCTION__);
+            (*bta_ar_cb.p_avk_conn_cback)(handle, bd_addr, event, p_data);
+        }
+        break;
+    case AVDT_DISCONNECT_IND_EVT:
+        sep_type = get_remote_sep_type(*bd_addr);
+        if(sep_type & BTA_AR_EXT_AV_MASK)
+        {
+            /* connection ind was sent to AV earlier */
+            if (bta_ar_cb.p_av_conn_cback)
+            {
+                APPL_TRACE_DEBUG(" %s Calling AV DiscConn Cback ", __FUNCTION__);
+                (*bta_ar_cb.p_av_conn_cback)(handle, bd_addr, event, p_data);
+            }
+        }
+        if (sep_type & BTA_AR_EXT_AVK_MASK)
+        {
+            /* connection ind was sent to AVK earlier */
+            if (bta_ar_cb.p_avk_conn_cback)
+            {
+                APPL_TRACE_DEBUG(" %s Calling AVK DisConn Cback ", __FUNCTION__);
+                (*bta_ar_cb.p_avk_conn_cback)(handle, bd_addr, event, p_data);
+            }
+        }
+        break;
+    case AVDT_SETCONFIG_CMD_EVT:
+        set_config_sep_type = p_data->setconf_cmd_ind.sep_configured;
+        sep_type = get_remote_sep_type(*bd_addr);
+        APPL_TRACE_DEBUG(" %s current_sep_mask %d  set_config_set_type %d",__FUNCTION__
+                ,sep_type, set_config_sep_type);
+        if ((set_config_sep_type == AVDT_TSEP_SNK) && (sep_type & BTA_AR_EXT_AVK_MASK))
+        {
+            /* setconfig was done on SINK SEP */
+            if (sep_type & BTA_AR_EXT_AV_MASK)
+            {
+                /* Connect ind was send to AV earlier, send disc to AV now. */
+                if (bta_ar_cb.p_av_conn_cback)
+                {
+                    APPL_TRACE_DEBUG(" %s fake AV DiscConn Cback after AVK setconfig",__FUNCTION__);
+                    /* remove AV Mask */
+                    update_avdtp_connection_info(*bd_addr, AVDT_AR_EXT_DISCONNECT_IND_EVT, BTA_AR_EXT_AV_MASK);
+                    (*bta_ar_cb.p_av_conn_cback)(handle, bd_addr, AVDT_DISCONNECT_IND_EVT, p_data);
+                }
+            }
+        }
+        if ((set_config_sep_type == AVDT_TSEP_SRC) && (sep_type & BTA_AR_EXT_AV_MASK))
+        {
+            /* setconfig was done on SRC SEP */
+            if (sep_type & BTA_AR_EXT_AVK_MASK)
+            {
+                /* Connect ind was send to AVK earlier, send disc to AVK now. */
+                if (bta_ar_cb.p_avk_conn_cback)
+                {
+                    APPL_TRACE_DEBUG(" %s fake AVK DiscConn Cback after AV setconfig", __FUNCTION__);
+                    /* remove AVK Mask */
+                    update_avdtp_connection_info(*bd_addr, AVDT_AR_EXT_DISCONNECT_IND_EVT, BTA_AR_EXT_AVK_MASK);
+                    (*bta_ar_cb.p_avk_conn_cback)(handle, bd_addr, AVDT_DISCONNECT_IND_EVT, p_data);
+                }
+            }
+        }
+        break;
+        /* for all other messages */
+    default:
+        if (bta_ar_cb.p_av_conn_cback)
+        {
+            APPL_TRACE_DEBUG(" %s Calling AV Conn Cback ", __FUNCTION__);
+            (*bta_ar_cb.p_av_conn_cback)(handle, bd_addr, event, p_data);
+        }
+        if (bta_ar_cb.p_avk_conn_cback)
+        {
+            APPL_TRACE_DEBUG(" %s Calling AVK Conn Cback ", __FUNCTION__);
+            (*bta_ar_cb.p_avk_conn_cback)(handle, bd_addr, event, p_data);
+        }
+        break;
+    }
 }
 
 /*******************************************************************************

@@ -43,6 +43,7 @@
 #include "l2c_api.h"
 #include "l2cdefs.h"
 #include "utl.h"
+#include "avdt_int.h"
 
 #if (BTA_AR_INCLUDED == TRUE)
 #include "bta_ar_api.h"
@@ -182,6 +183,7 @@ static void bta_av_sys_rs_cback(tBTA_SYS_CONN_STATUS status, uint8_t id,
 
 static void bta_av_api_enable_multicast(tBTA_AV_DATA *p_data);
 static void bta_av_api_update_max_av_clients(tBTA_AV_DATA * p_data);
+static void bta_av_api_update_supp_codecs(tBTA_AV_DATA *p_data);
 
 bool bta_av_multiple_streams_started(void);
 
@@ -211,6 +213,7 @@ const tBTA_AV_NSM_ACT bta_av_nsm_act[] = {
     bta_av_api_update_max_av_clients,
     bta_av_api_enable_multicast,    /* BTA_AV_ENABLE_MULTICAST_EVT */
     bta_av_rc_collission_detected, /* BTA_AV_RC_COLLISSION_DETECTED_EVT */
+    bta_av_api_update_supp_codecs, /* BTA_AV_UPDATE_SUPP_CODECS */
 };
 
 /*****************************************************************************
@@ -373,6 +376,7 @@ void bta_av_conn_cback(UNUSED_ATTR uint8_t handle, const RawAddress* bd_addr,
                        uint8_t event, tAVDT_CTRL* p_data) {
   uint16_t evt = 0;
   tBTA_AV_SCB* p_scb = NULL;
+  APPL_TRACE_DEBUG("%s event :%d",__func__, event);
 
 #if (BTA_AR_INCLUDED == TRUE)
   if (event == BTA_AR_AVDT_CONN_EVT || event == AVDT_CONNECT_IND_EVT ||
@@ -401,6 +405,33 @@ void bta_av_conn_cback(UNUSED_ATTR uint8_t handle, const RawAddress* bd_addr,
     VLOG(1) << "conn_cback bd_addr:" << bd_addr;
     bta_sys_sendmsg(p_msg);
   }
+}
+
+bool bta_av_is_scb_available()
+{
+    tBTA_AV_CB   *p_cb = &bta_av_cb;
+    int     xx;
+    uint8_t   mask;
+    for(xx=0; xx<BTA_AV_NUM_LINKS; xx++)
+    {
+        mask = 1 << xx;
+        APPL_TRACE_DEBUG(" %s The current conn_lcb: 0x%x index = %d", __func__, p_cb->conn_lcb, xx);
+
+        /* look for a p_lcb with its p_scb registered */
+        if((!(mask & p_cb->conn_lcb)) && (p_cb->p_scb[xx] != NULL))
+        {
+            /* Check if the SCB is Free before using for
+             * ACP connection
+             */
+            if (p_cb->p_scb[xx]->state == BTA_AV_INIT_ST)
+            {
+                APPL_TRACE_DEBUG(" %s SCB is free @ %d", __func__, xx);
+                return true;
+            }
+        }
+    }
+    APPL_TRACE_DEBUG(" %s SCB is not free ", __func__);
+    return false;
 }
 
 #if (AVDT_REPORTING == TRUE)
@@ -601,6 +632,26 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
       for (int i = codec_index_min; i < codec_index_max; i++) {
         btav_a2dp_codec_index_t codec_index =
             static_cast<btav_a2dp_codec_index_t>(i);
+
+        if(!(A2DP_GetOffloadStatus())){
+          if((codec_index == BTAV_A2DP_CODEC_INDEX_SOURCE_AAC)&&(!is_aac_encoder_available())){
+            ALOGD("AAC encoder missing, AAC SEP not created");
+            continue;
+          }
+          if((codec_index == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX)&&(!is_aptx_encoder_available())){
+            ALOGD("aptX encoder missing, aptX SEP not created");
+            continue;
+          }
+          if((codec_index == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD)&&(!is_aptxhd_encoder_available())){
+            ALOGD("aptX HD encoder missing, aptX HD SEP not created");
+            continue;
+          }
+          if((codec_index == BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC)&&(!is_ldac_encoder_available())){
+            ALOGD("LDAC encoder missing, LDAC SEP not created");
+            continue;
+          }
+        }
+
         if (!(*bta_av_a2dp_cos.init)(codec_index, &cs.cfg)) {
           continue;
         }
@@ -842,6 +893,26 @@ static void bta_av_api_enable_multicast(tBTA_AV_DATA *p_data)
 }
 
 /*******************************************************************************
+**
+** Function         bta_av_api_update_supp_codecs
+**
+** Description      Update Avdtp supported codecs
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+static void bta_av_api_update_supp_codecs(tBTA_AV_DATA *p_data)
+{
+    APPL_TRACE_DEBUG("bta_av_api_update_supp_codecs: num_codec_configs : %d",
+        p_data->update_supp_codecs.num_codec_configs);
+    avdt_scb_update_supported_codecs(p_data->update_supp_codecs.codec_type,
+        p_data->update_supp_codecs.vnd_id, p_data->update_supp_codecs.codec_id,
+        p_data->update_supp_codecs.num_codec_configs,
+        p_data->update_supp_codecs.codec_info, AVDT_TSEP_SRC);
+}
+
+/*******************************************************************************
  *
  * Function         bta_av_is_multicast_enabled
  *
@@ -853,6 +924,24 @@ static void bta_av_api_enable_multicast(tBTA_AV_DATA *p_data)
 bool bta_av_is_multicast_enabled()
 {
   return is_multicast_enabled;
+}
+
+/*******************************************************************************
+
+ * Function         is_pump_encoded_data_supported
+ *
+ * Description      This function checks if feature to pump encoded data from upper layer to Flourid
+e stack is supported
+ *
+ * Returns          bool
+ *
+ ******************************************************************************/
+bool is_pump_encoded_data_supported()
+{
+  if((bta_av_cb.features & BTA_AV_FEAT_ENCODED_DATA) == BTA_AV_FEAT_ENCODED_DATA) {
+    return true;
+  }
+  return false;
 }
 
 /*******************************************************************************
@@ -1522,6 +1611,8 @@ const char* bta_av_evt_code(uint16_t evt_code) {
       return "API_STOP";
     case BTA_AV_ENABLE_MULTICAST_EVT:
       return "MULTICAST_ENABLE";
+    case BTA_AV_UPDATE_SUPP_CODECS:
+      return "UPDATE_SUPPORTED_CODECS";
     default:
       return "unknown";
   }

@@ -53,6 +53,7 @@
 #include "osi/include/list.h"
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
+#include <cutils/properties.h>
 #include "stack/sdp/sdpint.h"
 #define RC_INVALID_TRACK_ID (0xFFFFFFFFFFFFFFFFULL)
 
@@ -825,7 +826,7 @@ void handle_rc_connect(tBTA_AV_RC_OPEN* p_rc_open) {
   RawAddress rc_addr = p_dev->rc_addr;
   if (p_dev->rc_features && bt_rc_callbacks != NULL) {
     if (BTA_AV_FEAT_RCCT)
-      //HAL_CBACK(bt_rc_callbacks, connection_state_cb, true, false, &rc_addr); // gghai
+      HAL_CBACK(bt_rc_callbacks, connection_state_cb, true, &rc_addr); // gghai
     handle_rc_features(p_dev);
   }
 
@@ -901,9 +902,9 @@ void handle_rc_disconnect(tBTA_AV_RC_CLOSE* p_rc_close) {
     HAL_CBACK(bt_rc_ctrl_callbacks, connection_state_cb, false, false,
               &rc_addr);
   }
-  /*if (bt_rc_callbacks) {
-    HAL_CBACK(bt_rc_callbacks, connection_state_cb, false, false, &rc_addr);
-  }*/ // gghai
+  if (bt_rc_callbacks) {
+    HAL_CBACK(bt_rc_callbacks, connection_state_cb, false, &rc_addr);
+  }
 }
 
 /***************************************************************************
@@ -1954,7 +1955,7 @@ static void btif_rc_upstreams_evt(uint16_t event, tAVRC_COMMAND* pavrc_cmd,
       fill_pdu_queue(IDX_GET_FOLDER_ITEMS_RSP, ctype, label, true, p_dev, pavrc_cmd->pdu);
       HAL_CBACK(bt_rc_callbacks, get_folder_items_cb,
                 pavrc_cmd->get_items.scope, pavrc_cmd->get_items.start_item,
-                pavrc_cmd->get_items.end_item, num_attr, attr_ids, &rc_addr);
+                pavrc_cmd->get_items.end_item, num_attr, attr_ids, AVCT_GetBrowseMtu(p_dev->rc_handle), &rc_addr);
     } break;
 
     case AVRC_PDU_SET_ADDRESSED_PLAYER: {
@@ -6159,18 +6160,19 @@ static const btrc_interface_t bt_rc_interface = {
     register_notification_rsp,
     set_volume,
     set_addressed_player_rsp,
-    set_browsed_player_rsp,
+    NULL,
     get_folder_items_list_rsp,
-    change_path_rsp,
-    get_item_attr_rsp,
-    play_item_rsp,
-    get_total_num_of_items_rsp,
-    search_rsp,
-    add_to_now_playing_rsp,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    send_passthrough_cmd,
 #ifdef BT_AV_SHO_FEATURE // gghai
     is_device_active_in_handoff,
     update_play_status_to_stack,
 #endif
+    send_passthrough_cmd,
     cleanup,
 };
 
@@ -6355,7 +6357,7 @@ static void sleep_ms(period_ms_t timeout_ms) {
 
 static bool absolute_volume_disabled() {
   char volume_disabled[PROPERTY_VALUE_MAX] = {0};
-  osi_property_get("persist.bluetooth.disableabsvol", volume_disabled, "false");
+  property_get("persist.bluetooth.disableabsvol", volume_disabled, "false");
   if (strncmp(volume_disabled, "true", 4) == 0) {
     BTIF_TRACE_WARNING("%s: Absolute volume disabled by property", __func__);
     return true;

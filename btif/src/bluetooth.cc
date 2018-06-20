@@ -34,15 +34,18 @@
 
 #include <hardware/bluetooth.h>
 #include <hardware/bt_av.h>
+#include <hardware/bt_av_vendor.h>
 #include <hardware/bt_gatt.h>
 #include <hardware/bt_hd.h>
 #include <hardware/bt_hf.h>
+#include <hardware/bt_hf_vendor.h>
 #include <hardware/bt_hf_client.h>
 #include <hardware/bt_hh.h>
 #include <hardware/bt_hl.h>
 #include <hardware/bt_mce.h>
 #include <hardware/bt_pan.h>
 #include <hardware/bt_rc.h>
+#include <hardware/bt_rc_vendor.h>
 #include <hardware/bt_sdp.h>
 #include <hardware/bt_sock.h>
 #ifdef WIPOWER_SUPPORTED
@@ -94,11 +97,13 @@ bool restricted_mode = false;
 
 /* list all extended interfaces here */
 
-/* handsfree profile - client */
+/* handsfree profile */
 extern bthf_client_interface_t* btif_hf_client_get_interface();
 /* advanced audio profile */
 extern btav_source_interface_t* btif_av_get_src_interface();
-extern btav_sink_interface_t* btif_av_get_sink_interface();
+extern btav_vendor_interface_t* btif_av_get_src_vendor_interface();
+extern btav_sink_interface_t* btif_avk_get_sink_interface();
+extern btav_sink_vendor_interface_t *btif_avk_get_sink_vendor_interface();
 /*rfc l2cap*/
 extern btsock_interface_t* btif_sock_get_interface();
 /* hid host profile */
@@ -116,7 +121,9 @@ extern const btgatt_interface_t* btif_gatt_get_interface();
 /* avrc target */
 extern btrc_interface_t* btif_rc_get_interface();
 /* avrc controller */
-extern btrc_interface_t* btif_rc_ctrl_get_interface();
+extern btrc_ctrl_interface_t* btif_avk_rc_ctrl_get_interface();
+/* vendor avrc controller */
+extern btrc_ctrl_vendor_interface_t *btif_avk_rc_ctrl_vendor_get_interface();
 /*SDP search client*/
 extern btsdp_interface_t* btif_sdp_get_interface();
 
@@ -356,7 +363,10 @@ static const void* get_profile_interface(const char* profile_id) {
 
   /* check for supported profile interfaces */
   if (is_profile(profile_id, BT_PROFILE_HANDSFREE_ID))
-    return bluetooth::headset::GetInterface();
+    return bluetooth::headset::btif_hf_get_interface();
+
+  if (is_profile(profile_id, BT_PROFILE_HANDSFREE_VENDOR_ID))
+    return bluetooth::headset::btif_hf_vendor_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_HANDSFREE_CLIENT_ID))
     return btif_hf_client_get_interface();
@@ -370,8 +380,14 @@ static const void* get_profile_interface(const char* profile_id) {
   if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_ID))
     return btif_av_get_src_interface();
 
+  if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_VENDOR_ID))
+    return btif_av_get_src_vendor_interface();
+
   if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_SINK_ID))
-    return btif_av_get_sink_interface();
+    return btif_avk_get_sink_interface();
+
+  if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_SINK_VENDOR_ID))
+    return btif_avk_get_sink_vendor_interface();
 
   if (is_profile(profile_id, BT_PROFILE_HIDHOST_ID))
     return btif_hh_get_interface();
@@ -392,7 +408,10 @@ static const void* get_profile_interface(const char* profile_id) {
     return btif_rc_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_AV_RC_CTRL_ID))
-    return btif_rc_ctrl_get_interface();
+    return btif_avk_rc_ctrl_get_interface();
+
+  if (is_profile(profile_id, BT_PROFILE_AV_RC_CTRL_VENDOR_ID))
+    return btif_avk_rc_ctrl_vendor_get_interface();
 
  // if (is_profile(profile_id, BT_PROFILE_VENDOR_ID))
   //  return btif_vendor_get_interface();

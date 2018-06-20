@@ -31,31 +31,21 @@
 
 #include <base/logging.h>
 #include "a2dp_vendor.h"
-#include "a2dp_vendor_ldac_encoder.h"
+//#include "a2dp_vendor_ldac_encoder.h"
 #include "bt_utils.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
 
-// data type for the LDAC Codec Information Element */
-// NOTE: bits_per_sample is needed only for LDAC encoder initialization.
-typedef struct {
-  uint32_t vendorId;
-  uint16_t codecId;    /* Codec ID for LDAC */
-  uint8_t sampleRate;  /* Sampling Frequency */
-  uint8_t channelMode; /* STEREO/DUAL/MONO */
-  btav_a2dp_codec_bits_per_sample_t bits_per_sample;
-} tA2DP_LDAC_CIE;
-
 /* LDAC Source codec capabilities */
-static const tA2DP_LDAC_CIE a2dp_ldac_caps = {
+static const tA2DP_LDAC_CIE a2dp_ldac_src_caps = {
     A2DP_LDAC_VENDOR_ID,  // vendorId
     A2DP_LDAC_CODEC_ID,   // codecId
     // sampleRate
-    (A2DP_LDAC_SAMPLING_FREQ_96000 | A2DP_LDAC_SAMPLING_FREQ_48000),
-    /*(A2DP_LDAC_SAMPLING_FREQ_44100 | A2DP_LDAC_SAMPLING_FREQ_48000 |
-     A2DP_LDAC_SAMPLING_FREQ_88200 | A2DP_LDAC_SAMPLING_FREQ_96000),*/
+     (A2DP_LDAC_SAMPLING_FREQ_44100 | A2DP_LDAC_SAMPLING_FREQ_48000 |
+     A2DP_LDAC_SAMPLING_FREQ_88200 | A2DP_LDAC_SAMPLING_FREQ_96000),
     // channelMode
-    (A2DP_LDAC_CHANNEL_MODE_DUAL | A2DP_LDAC_CHANNEL_MODE_STEREO),
+    (A2DP_LDAC_CHANNEL_MODE_DUAL | A2DP_LDAC_CHANNEL_MODE_STEREO
+      | A2DP_LDAC_CHANNEL_MODE_MONO),
     // bits_per_sample
     (BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16 | BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24 |
      BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32)};
@@ -77,16 +67,17 @@ static const tA2DP_LDAC_CIE a2dp_ldac_offload_default_config = {
     A2DP_LDAC_CHANNEL_MODE_STEREO,      // channelMode
     BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32// bits_per_sample
 };
-tA2DP_LDAC_CIE a2dp_ldac_default_config;
+tA2DP_LDAC_CIE a2dp_ldac_caps, a2dp_ldac_default_config;
+int a2dp_ldac_caps_initialized = 0;
 
-static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_ldac = {
+/*static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_ldac = {
     a2dp_vendor_ldac_encoder_init,
     a2dp_vendor_ldac_encoder_cleanup,
     a2dp_vendor_ldac_feeding_reset,
     a2dp_vendor_ldac_feeding_flush,
     a2dp_vendor_ldac_get_encoder_interval_ms,
     a2dp_vendor_ldac_send_frames,
-    a2dp_vendor_ldac_set_transmit_queue_length};
+    a2dp_vendor_ldac_set_transmit_queue_length};*/
 
 UNUSED_ATTR static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityLdac(
     const tA2DP_LDAC_CIE* p_cap, const uint8_t* p_codec_info,
@@ -97,7 +88,7 @@ UNUSED_ATTR static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityLdac(
 // |p_ie| is a pointer to the LDAC Codec Information Element information.
 // The result is stored in |p_result|. Returns A2DP_SUCCESS on success,
 // otherwise the corresponding A2DP error status code.
-static tA2DP_STATUS A2DP_BuildInfoLdac(uint8_t media_type,
+tA2DP_STATUS A2DP_BuildInfoLdac(uint8_t media_type,
                                        const tA2DP_LDAC_CIE* p_ie,
                                        uint8_t* p_result) {
   if (p_ie == NULL || p_result == NULL) {
@@ -455,12 +446,12 @@ bool A2DP_VendorDumpCodecInfoLdac(const uint8_t* p_codec_info) {
   return true;
 }
 
-const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterfaceLdac(
+/*const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterfaceLdac(
     const uint8_t* p_codec_info) {
   if (!A2DP_IsVendorSourceCodecValidLdac(p_codec_info)) return NULL;
 
   return &a2dp_encoder_interface_ldac;
-}
+}*/
 
 bool A2DP_VendorAdjustCodecLdac(uint8_t* p_codec_info) {
   tA2DP_LDAC_CIE cfg_cie;
@@ -527,44 +518,51 @@ UNUSED_ATTR static void build_codec_config(const tA2DP_LDAC_CIE& config_cie,
   }
 }
 
+void update_local_capability_ldac(btav_a2dp_codec_config_t* loc_cap){
+  if (a2dp_ldac_caps.sampleRate & A2DP_LDAC_SAMPLING_FREQ_44100) {
+    loc_cap->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
+  }
+  if (a2dp_ldac_caps.sampleRate & A2DP_LDAC_SAMPLING_FREQ_48000) {
+    loc_cap->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
+  }
+  if (a2dp_ldac_caps.sampleRate & A2DP_LDAC_SAMPLING_FREQ_88200) {
+    loc_cap->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_88200;
+  }
+  if (a2dp_ldac_caps.sampleRate & A2DP_LDAC_SAMPLING_FREQ_96000) {
+    loc_cap->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_96000;
+  }
+  if (a2dp_ldac_caps.sampleRate & A2DP_LDAC_SAMPLING_FREQ_176400) {
+    loc_cap->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_176400;
+  }
+  if (a2dp_ldac_caps.sampleRate & A2DP_LDAC_SAMPLING_FREQ_192000) {
+    loc_cap->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_192000;
+  }
+  loc_cap->bits_per_sample = a2dp_ldac_caps.bits_per_sample;
+  if (a2dp_ldac_caps.channelMode & A2DP_LDAC_CHANNEL_MODE_MONO) {
+    loc_cap->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
+  }
+  if (a2dp_ldac_caps.channelMode & A2DP_LDAC_CHANNEL_MODE_STEREO) {
+    loc_cap->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
+  }
+  if (a2dp_ldac_caps.channelMode & A2DP_LDAC_CHANNEL_MODE_DUAL) {
+    loc_cap->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
+  }
+}
+
 A2dpCodecConfigLdac::A2dpCodecConfigLdac(
     btav_a2dp_codec_priority_t codec_priority)
     : A2dpCodecConfig(BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC, "LDAC",
                       codec_priority) {
-  // Compute the local capability
+ if(!a2dp_ldac_caps_initialized){
+  a2dp_ldac_caps = a2dp_ldac_src_caps;
   if (A2DP_GetOffloadStatus()) {
     a2dp_ldac_default_config = a2dp_ldac_offload_default_config;
   } else {
     a2dp_ldac_default_config = a2dp_ldac_src_default_config;
   }
-  if (a2dp_ldac_caps.sampleRate & A2DP_LDAC_SAMPLING_FREQ_44100) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
-  }
-  if (a2dp_ldac_caps.sampleRate & A2DP_LDAC_SAMPLING_FREQ_48000) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
-  }
-  if (a2dp_ldac_caps.sampleRate & A2DP_LDAC_SAMPLING_FREQ_88200) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_88200;
-  }
-  if (a2dp_ldac_caps.sampleRate & A2DP_LDAC_SAMPLING_FREQ_96000) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_96000;
-  }
-  if (a2dp_ldac_caps.sampleRate & A2DP_LDAC_SAMPLING_FREQ_176400) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_176400;
-  }
-  if (a2dp_ldac_caps.sampleRate & A2DP_LDAC_SAMPLING_FREQ_192000) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_192000;
-  }
-  codec_local_capability_.bits_per_sample = a2dp_ldac_caps.bits_per_sample;
-  if (a2dp_ldac_caps.channelMode & A2DP_LDAC_CHANNEL_MODE_MONO) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
-  }
-  if (a2dp_ldac_caps.channelMode & A2DP_LDAC_CHANNEL_MODE_STEREO) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
-  }
-  if (a2dp_ldac_caps.channelMode & A2DP_LDAC_CHANNEL_MODE_DUAL) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
-  }
+  a2dp_ldac_caps_initialized = 1;
+ }
+ update_local_capability_ldac(&codec_local_capability_);
 }
 
 A2dpCodecConfigLdac::~A2dpCodecConfigLdac() {}
@@ -581,13 +579,10 @@ bool A2dpCodecConfigLdac::init() {
       return false;
     }
   }
-  // Load the encoder
-  if (!A2DP_VendorLoadEncoderLdac()) {
-    LOG_ERROR(LOG_TAG, "%s: cannot load the encoder", __func__);
+  else{
+    ALOGD("LDAC encoder not enabled in non split mode, A2dpCodecConfigLdac::init failed");
     return false;
   }
-
-  return true;
 }
 
 bool A2dpCodecConfigLdac::useRtpHeaderMarkerBit() const { return false; }
@@ -1238,4 +1233,61 @@ fail:
   memcpy(ota_codec_peer_config_, saved_ota_codec_peer_config,
          sizeof(ota_codec_peer_config_));
   return false;
+}
+
+void update_ldac_cap(btav_a2dp_codec_config_t config){
+  switch (config.sample_rate) {
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_44100:
+      a2dp_ldac_caps.sampleRate = a2dp_ldac_caps.sampleRate|A2DP_LDAC_SAMPLING_FREQ_44100;
+      break;
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_48000:
+      a2dp_ldac_caps.sampleRate = a2dp_ldac_caps.sampleRate|A2DP_LDAC_SAMPLING_FREQ_48000;
+      break;
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_88200:
+      a2dp_ldac_caps.sampleRate = a2dp_ldac_caps.sampleRate|A2DP_LDAC_SAMPLING_FREQ_88200;
+      break;
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_96000:
+      a2dp_ldac_caps.sampleRate = a2dp_ldac_caps.sampleRate|A2DP_LDAC_SAMPLING_FREQ_96000;
+      break;
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_176400:
+      a2dp_ldac_caps.sampleRate = a2dp_ldac_caps.sampleRate|A2DP_LDAC_SAMPLING_FREQ_176400;
+      break;
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_192000:
+      a2dp_ldac_caps.sampleRate = a2dp_ldac_caps.sampleRate|A2DP_LDAC_SAMPLING_FREQ_192000;
+      break;
+    default:
+      break;
+  }
+  switch (config.channel_mode) {
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_MONO:
+      a2dp_ldac_caps.channelMode = a2dp_ldac_caps.channelMode|A2DP_LDAC_CHANNEL_MODE_MONO;
+      break;
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO:
+      a2dp_ldac_caps.channelMode = a2dp_ldac_caps.channelMode|A2DP_LDAC_CHANNEL_MODE_STEREO;
+      break;
+    default:
+      break;
+  }
+}
+
+void reset_a2dp_ldac_caps_initialized()
+{
+  a2dp_ldac_caps_initialized = 0;
+}
+
+bool A2dpCodecConfigLdac::updateEncoderUserConfig(
+    UNUSED_ATTR const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
+    UNUSED_ATTR bool* p_restart_input, UNUSED_ATTR bool* p_restart_output,
+    UNUSED_ATTR bool* p_config_updated) {
+  // TODO: This method applies only to Source codecs
+  return false;
+}
+
+period_ms_t A2dpCodecConfigLdac::encoderIntervalMs() const {
+  // TODO: This method applies only to Source codecs
+  return 0;
+}
+
+void A2dpCodecConfigLdac::debug_codec_dump(int fd) {
+  return;
 }

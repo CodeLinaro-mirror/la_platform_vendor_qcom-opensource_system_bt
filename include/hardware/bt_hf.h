@@ -280,7 +280,7 @@ typedef struct {
   /** Combined device status change notification */
   bt_status_t (*device_status_notification)(bthf_network_state_t ntk_state,
                                             bthf_service_type_t svc_type,
-                                            int signal, int batt_chg);
+                                            int signal, int batt_chg, RawAddress* bd_addr);
 
   /** Response for COPS command */
   bt_status_t (*cops_response)(const char* cops, RawAddress* bd_addr);
@@ -319,7 +319,7 @@ typedef struct {
   bt_status_t (*phone_state_change)(int num_active, int num_held,
                                     bthf_call_state_t call_setup_state,
                                     const char* number,
-                                    bthf_call_addrtype_t type);
+                                    bthf_call_addrtype_t type, RawAddress* bd_addr);
 
   /** Closes the interface. */
   void (*cleanup)(void);
@@ -335,6 +335,14 @@ typedef struct {
    * @param bd_addr remote device address
    */
   bt_status_t (*send_bsir)(bool value, RawAddress* bd_addr);
+
+  /**
+   * Set the current active headset device for SCO audio
+   *
+   * @param active_device_addr remote device address
+   */
+  bt_status_t (*set_active_device)(RawAddress* active_device_addr);
+
 } bthf_interface_t;
 
 __END_DECLS

@@ -633,6 +633,7 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   bool is_cont = false;
   bool is_hfp_fallback = FALSE;
   uint16_t attr_len;
+  char dy_version[PROPERTY_VALUE_MAX] = "false";
   bool is_avrcp_fallback = FALSE;
   bool is_avrcp_browse_bit_reset = FALSE;
   uint16_t dut_profile_version;
@@ -720,6 +721,7 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
     p_ccb->cont_info.next_attr_index = 0;
     p_ccb->cont_info.attr_offset = 0;
   }
+  property_get("persist.avrcp.enable.dy_version", dy_version, "false");
 
   dut_profile_version = get_dut_avrcp_version();
   /* Search for attributes that match the list given to us */
@@ -736,11 +738,13 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
       *  There is no point in resetting CA bit, because if DUT 1.6, we have to show 1.6
       *  even if remote misbhevaes. If we DUT is not 1.6 then there would be no ca bit
       */
-    if (dut_profile_version < AVRC_REV_1_6) {
+    if (!strncmp("true", dy_version, 4)){
+     if (dut_profile_version < AVRC_REV_1_6) {
         is_avrcp_fallback = sdp_fallback_avrcp_version (p_attr, p_ccb->device_address);
         // check for browse bit will happen always, because minimum DUT version is 1.4 now.
         is_avrcp_browse_bit_reset = sdp_reset_avrcp_browsing_bit(
                 p_rec->attribute[1], p_attr, p_ccb->device_address);
+     }
     }
 
       is_hfp_fallback = sdp_change_hfp_version (p_attr, p_ccb->device_address);
@@ -969,6 +973,7 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   bool is_avrcp_fallback = FALSE;
   bool is_avrcp_browse_bit_reset = FALSE;
   uint16_t dut_profile_version;
+  char dy_version[PROPERTY_VALUE_MAX] = "false";
 
   /* Extract the UUID sequence to search for */
   p_req = sdpu_extract_uid_seq(p_req, param_len, &uid_seq);
@@ -1045,6 +1050,7 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
     p_ccb->cont_info.last_attr_seq_desc_sent = false;
     p_ccb->cont_info.attr_offset = 0;
   }
+  property_get("persist.avrcp.enable.dy_version", dy_version, "false");
 
   /* Get a list of handles that match the UUIDs given to us */
   for (p_rec = sdp_db_service_search(p_ccb->cont_info.prev_sdp_rec, &uid_seq);
@@ -1109,11 +1115,13 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
           *  There is no point in resetting CA bit, because if DUT 1.6, we have to show 1.6
           *  even if remote misbhevaes. If we DUT is not 1.6 then there would be no ca bit
           */
-        if (dut_profile_version < AVRC_REV_1_6) {
+        if (!strncmp("true", dy_version, 4)){
+         if (dut_profile_version < AVRC_REV_1_6) {
             is_avrcp_fallback = sdp_fallback_avrcp_version (p_attr, p_ccb->device_address);
             // check for browse bit will happen always, because minimum DUT version is 1.4 now.
             is_avrcp_browse_bit_reset = sdp_reset_avrcp_browsing_bit(
                     p_rec->attribute[1], p_attr, p_ccb->device_address);
+         }
         }
 
         is_hfp_fallback = sdp_change_hfp_version (p_attr, p_ccb->device_address);

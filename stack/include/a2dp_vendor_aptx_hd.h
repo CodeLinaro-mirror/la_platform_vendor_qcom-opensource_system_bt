@@ -44,6 +44,19 @@ class A2dpCodecConfigAptxHd : public A2dpCodecConfig {
   void debug_codec_dump(int fd) override;
 };
 
+// data type for the aptX-HD Codec Information Element */
+typedef struct {
+  uint32_t vendorId;
+  uint16_t codecId;    /* Codec ID for aptX-HD */
+  uint8_t sampleRate;  /* Sampling Frequency */
+  uint8_t channelMode; /* STEREO/DUAL/MONO */
+  uint8_t acl_sprint_reserved0;
+  uint8_t acl_sprint_reserved1;
+  uint8_t acl_sprint_reserved2;
+  uint8_t acl_sprint_reserved3;
+  btav_a2dp_codec_bits_per_sample_t bits_per_sample;
+} tA2DP_APTX_HD_CIE;
+
 // Checks whether the codec capabilities contain a valid A2DP aptX-HD Source
 // codec.
 // NOTE: only codecs that are implemented are considered valid.
@@ -144,4 +157,21 @@ const char* A2DP_VendorCodecIndexStrAptxHd(void);
 // configuration entry pointed by |p_cfg|.
 bool A2DP_VendorInitCodecConfigAptxHd(tAVDT_CFG* p_cfg);
 
+//Update APTXHD capabilities
+void update_aptxhd_cap(btav_a2dp_codec_config_t config);
+
+//Reset a2dp_aptxhd_caps_initialized variable
+void reset_a2dp_aptxhd_caps_initialized();
+
+//Update APTXHD local capabilities
+void update_local_capability_aptxhd(btav_a2dp_codec_config_t* loc_cap);
+
+// Builds the aptX-HD Media Codec Capabilities byte sequence beginning from the
+// LOSC octet. |media_type| is the media type |AVDT_MEDIA_TYPE_*|.
+// |p_ie| is a pointer to the aptX-HD Codec Information Element information.
+// The result is stored in |p_result|. Returns A2DP_SUCCESS on success,
+// otherwise the corresponding A2DP error status code.
+tA2DP_STATUS A2DP_BuildInfoAptxHd(uint8_t media_type,
+                                         const tA2DP_APTX_HD_CIE* p_ie,
+                                         uint8_t* p_result);
 #endif  // A2DP_VENDOR_APTX_HD_H

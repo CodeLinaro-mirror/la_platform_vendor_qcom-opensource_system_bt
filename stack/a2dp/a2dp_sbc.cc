@@ -37,20 +37,9 @@
 #include "embdrv/sbc/encoder/include/sbc_encoder.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+#include "hardware/bt_av_vendor.h"
 
 #define A2DP_SBC_MAX_BITPOOL 53
-
-/* data type for the SBC Codec Information Element */
-typedef struct {
-  uint8_t samp_freq;    /* Sampling frequency */
-  uint8_t ch_mode;      /* Channel mode */
-  uint8_t block_len;    /* Block length */
-  uint8_t num_subbands; /* Number of subbands */
-  uint8_t alloc_method; /* Allocation method */
-  uint8_t min_bitpool;  /* Minimum bitpool */
-  uint8_t max_bitpool;  /* Maximum bitpool */
-  btav_a2dp_codec_bits_per_sample_t bits_per_sample;
-} tA2DP_SBC_CIE;
 
 /* SBC SRC codec capablilities */
 static const tA2DP_SBC_CIE a2dp_sbc_src_caps = {
@@ -112,6 +101,7 @@ const tA2DP_SBC_CIE a2dp_sbc_offload_default_config = {
     BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16 /* bits_per_sample */
 };
 tA2DP_SBC_CIE a2dp_sbc_caps, a2dp_sbc_default_config;
+int a2dp_sbc_caps_initialized = 0;
 
 static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_sbc = {
     a2dp_sbc_encoder_init,
@@ -134,7 +124,7 @@ static void A2DP_ParseMplHeaderSbc(uint8_t* p_src, bool* p_frag, bool* p_start,
 // |p_ie| is a pointer to the SBC Codec Information Element information.
 // The result is stored in |p_result|. Returns A2DP_SUCCESS on success,
 // otherwise the corresponding A2DP error status code.
-static tA2DP_STATUS A2DP_BuildInfoSbc(uint8_t media_type,
+tA2DP_STATUS A2DP_BuildInfoSbc(uint8_t media_type,
                                       const tA2DP_SBC_CIE* p_ie,
                                       uint8_t* p_result) {
   if (p_ie == NULL || p_result == NULL ||
@@ -1053,38 +1043,70 @@ UNUSED_ATTR static void build_codec_config(const tA2DP_SBC_CIE& config_cie,
   }
 }
 
+void update_local_capability_sbc(btav_a2dp_codec_config_t* loc_cap){
+  if (a2dp_sbc_caps.samp_freq & A2DP_SBC_IE_SAMP_FREQ_44) {
+    loc_cap->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
+  }
+  if (a2dp_sbc_caps.samp_freq & A2DP_SBC_IE_SAMP_FREQ_48) {
+    loc_cap->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
+  }
+  loc_cap->bits_per_sample = a2dp_sbc_caps.bits_per_sample;
+  if (a2dp_sbc_caps.ch_mode & A2DP_SBC_IE_CH_MD_MONO) {
+    loc_cap->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
+  }
+  if (a2dp_sbc_caps.ch_mode & A2DP_SBC_IE_CH_MD_JOINT) {
+    loc_cap->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
+  }
+  if (a2dp_sbc_caps.ch_mode & A2DP_SBC_IE_CH_MD_STEREO) {
+    loc_cap->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
+  }
+  if (a2dp_sbc_caps.ch_mode & A2DP_SBC_IE_CH_MD_DUAL) {
+    loc_cap->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
+  }
+  if (a2dp_sbc_caps.block_len & A2DP_SBC_IE_BLOCKS_4) {
+    loc_cap->codec_specific_1 |= SBC_BLOCKS_4;
+  }
+  if (a2dp_sbc_caps.block_len & A2DP_SBC_IE_BLOCKS_8) {
+    loc_cap->codec_specific_1 |= SBC_BLOCKS_8;
+  }
+  if (a2dp_sbc_caps.block_len & A2DP_SBC_IE_BLOCKS_12) {
+    loc_cap->codec_specific_1 |= SBC_BLOCKS_12;
+  }
+  if (a2dp_sbc_caps.block_len & A2DP_SBC_IE_BLOCKS_16) {
+    loc_cap->codec_specific_1 |= SBC_BLOCKS_16;
+  }
+  if (a2dp_sbc_caps.num_subbands & A2DP_SBC_IE_SUBBAND_4) {
+    loc_cap->codec_specific_2 |= SBC_SUBBAND_4;
+  }
+  if (a2dp_sbc_caps.num_subbands & A2DP_SBC_IE_SUBBAND_8) {
+    loc_cap->codec_specific_2 |= SBC_SUBBAND_8;
+  }
+  if (a2dp_sbc_caps.alloc_method & A2DP_SBC_IE_ALLOC_MD_S) {
+    loc_cap->codec_specific_3 |= SBC_ALLOC_SNR;
+  }
+  if (a2dp_sbc_caps.alloc_method & A2DP_SBC_IE_ALLOC_MD_L) {
+    loc_cap->codec_specific_3 |= SBC_ALLOC_LOUDNESS;
+  }
+  loc_cap->codec_specific_4 = a2dp_sbc_caps.max_bitpool;
+  loc_cap->codec_specific_5 = a2dp_sbc_caps.min_bitpool;
+}
+
 A2dpCodecConfigSbc::A2dpCodecConfigSbc(
     btav_a2dp_codec_priority_t codec_priority)
     : A2dpCodecConfig(BTAV_A2DP_CODEC_INDEX_SOURCE_SBC, "SBC", codec_priority) {
   LOG_DEBUG(LOG_TAG,"%s",__func__);
-  if (A2DP_GetOffloadStatus() && !A2DP_IsScramblingSupported()) {
+  if(!a2dp_sbc_caps_initialized){
+    if (A2DP_GetOffloadStatus() && !A2DP_IsScramblingSupported()) {
       a2dp_sbc_caps = a2dp_sbc_offload_caps;
       a2dp_sbc_default_config = a2dp_sbc_offload_default_config;
+    }
+    else {
+      a2dp_sbc_caps = a2dp_sbc_src_caps;
+      a2dp_sbc_default_config = a2dp_sbc_src_default_config;
+    }
+    a2dp_sbc_caps_initialized = 1;
   }
-  else {
-    a2dp_sbc_caps = a2dp_sbc_src_caps;
-    a2dp_sbc_default_config = a2dp_sbc_src_default_config;
-  }
-  // Compute the local capability
-  if (a2dp_sbc_caps.samp_freq & A2DP_SBC_IE_SAMP_FREQ_44) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
-  }
-  if (a2dp_sbc_caps.samp_freq & A2DP_SBC_IE_SAMP_FREQ_48) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
-  }
-  codec_local_capability_.bits_per_sample = a2dp_sbc_caps.bits_per_sample;
-  if (a2dp_sbc_caps.ch_mode & A2DP_SBC_IE_CH_MD_MONO) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
-  }
-  if (a2dp_sbc_caps.ch_mode & A2DP_SBC_IE_CH_MD_JOINT) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
-  }
-  if (a2dp_sbc_caps.ch_mode & A2DP_SBC_IE_CH_MD_STEREO) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
-  }
-  if (a2dp_sbc_caps.ch_mode & A2DP_SBC_IE_CH_MD_DUAL) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
-  }
+  update_local_capability_sbc(&codec_local_capability_);
 }
 
 A2dpCodecConfigSbc::~A2dpCodecConfigSbc() {}
@@ -1269,6 +1291,240 @@ static bool select_audio_channel_mode(
   return false;
 }
 
+//
+// Selects the best block length from |block_len|.
+// The result is stored in |p_result| and |p_codec_config|.
+// Returns true if a selection was made, otherwise false.
+//
+static bool select_best_block_length(uint8_t block_len, tA2DP_SBC_CIE* p_result,
+                                     btav_a2dp_codec_config_t* p_codec_config) {
+  if (block_len & A2DP_SBC_IE_BLOCKS_4) {
+    p_result->block_len = A2DP_SBC_IE_BLOCKS_4;
+    p_codec_config->codec_specific_1 = SBC_BLOCKS_4;
+    return true;
+  }
+  if (block_len & A2DP_SBC_IE_BLOCKS_8) {
+    p_result->block_len = A2DP_SBC_IE_BLOCKS_8;
+    p_codec_config->codec_specific_1 = SBC_BLOCKS_8;
+    return true;
+  }
+  if (block_len & A2DP_SBC_IE_BLOCKS_12) {
+    p_result->block_len = A2DP_SBC_IE_BLOCKS_12;
+    p_codec_config->codec_specific_1 = SBC_BLOCKS_12;
+    return true;
+  }
+  if (block_len & A2DP_SBC_IE_BLOCKS_16) {
+    p_result->block_len = A2DP_SBC_IE_BLOCKS_16;
+    p_codec_config->codec_specific_1 = SBC_BLOCKS_16;
+    return true;
+  }
+  return false;
+}
+
+//
+// Selects the block length from |p_codec_audio_config|.
+// |block_len| contains the capability.
+// The result is stored in |p_result| and |p_codec_config|.
+// Returns true if a selection was made, otherwise false.
+//
+static bool select_audio_block_length(
+    const btav_a2dp_codec_config_t* p_codec_audio_config, uint8_t block_len,
+    tA2DP_SBC_CIE* p_result, btav_a2dp_codec_config_t* p_codec_config) {
+  switch (p_codec_audio_config->codec_specific_1) {
+    case SBC_BLOCKS_4:
+      if (block_len & A2DP_SBC_IE_BLOCKS_4) {
+        p_result->block_len = A2DP_SBC_IE_BLOCKS_4;
+        p_codec_config->codec_specific_1 = SBC_BLOCKS_4;
+        return true;
+      }
+      break;
+    case SBC_BLOCKS_8:
+      if (block_len & A2DP_SBC_IE_BLOCKS_8) {
+        p_result->block_len = A2DP_SBC_IE_BLOCKS_8;
+        p_codec_config->codec_specific_1 = SBC_BLOCKS_8;
+        return true;
+      }
+      break;
+    case SBC_BLOCKS_12:
+      if (block_len & A2DP_SBC_IE_BLOCKS_12) {
+        p_result->block_len = A2DP_SBC_IE_BLOCKS_12;
+        p_codec_config->codec_specific_1 = SBC_BLOCKS_12;
+        return true;
+      }
+      break;
+    case SBC_BLOCKS_16:
+      if (block_len & A2DP_SBC_IE_BLOCKS_16) {
+        p_result->block_len = A2DP_SBC_IE_BLOCKS_16;
+        p_codec_config->codec_specific_1 = SBC_BLOCKS_16;
+        return true;
+      }
+      break;
+  }
+  return false;
+}
+
+//
+// Selects the best no of sub-bands from |num_subbands|.
+// The result is stored in |p_result| and |p_codec_config|.
+// Returns true if a selection was made, otherwise false.
+//
+static bool select_best_num_subbands(uint8_t num_subbands, tA2DP_SBC_CIE* p_result,
+                                     btav_a2dp_codec_config_t* p_codec_config) {
+  if (num_subbands & A2DP_SBC_IE_SUBBAND_4) {
+    p_result->num_subbands = A2DP_SBC_IE_SUBBAND_4;
+    p_codec_config->codec_specific_2 = SBC_SUBBAND_4;
+    return true;
+  }
+  if (num_subbands & A2DP_SBC_IE_SUBBAND_8) {
+    p_result->num_subbands = A2DP_SBC_IE_SUBBAND_8;
+    p_codec_config->codec_specific_2 = SBC_SUBBAND_8;
+    return true;
+  }
+  return false;
+}
+
+//
+// Selects the no of sub-bands from |p_codec_audio_config|.
+// |num_subbands| contains the capability.
+// The result is stored in |p_result| and |p_codec_config|.
+// Returns true if a selection was made, otherwise false.
+//
+static bool select_audio_num_subbands(
+    const btav_a2dp_codec_config_t* p_codec_audio_config, uint8_t num_subbands,
+    tA2DP_SBC_CIE* p_result, btav_a2dp_codec_config_t* p_codec_config) {
+  switch (p_codec_audio_config->codec_specific_2) {
+    case SBC_SUBBAND_4:
+      if (num_subbands & A2DP_SBC_IE_SUBBAND_4) {
+        p_result->num_subbands = A2DP_SBC_IE_SUBBAND_4;
+        p_codec_config->codec_specific_2 = SBC_SUBBAND_4;
+        return true;
+      }
+      break;
+    case SBC_SUBBAND_8:
+      if (num_subbands & A2DP_SBC_IE_SUBBAND_8) {
+        p_result->num_subbands = A2DP_SBC_IE_SUBBAND_8;
+        p_codec_config->codec_specific_2 = SBC_SUBBAND_8;
+        return true;
+      }
+      break;
+  }
+  return false;
+}
+
+//
+// Selects the best allocation method from |alloc_method|.
+// The result is stored in |p_result| and |p_codec_config|.
+// Returns true if a selection was made, otherwise false.
+//
+static bool select_best_alloc_method(uint8_t alloc_method, tA2DP_SBC_CIE* p_result,
+                                     btav_a2dp_codec_config_t* p_codec_config) {
+  if (alloc_method & A2DP_SBC_IE_ALLOC_MD_S) {
+    p_result->alloc_method = A2DP_SBC_IE_ALLOC_MD_S;
+    p_codec_config->codec_specific_3 = SBC_ALLOC_SNR;
+    return true;
+  }
+  if (alloc_method & A2DP_SBC_IE_ALLOC_MD_L) {
+    p_result->alloc_method = A2DP_SBC_IE_ALLOC_MD_L;
+    p_codec_config->codec_specific_3 = SBC_ALLOC_LOUDNESS;
+    return true;
+  }
+  return false;
+}
+
+//
+// Selects the allocation method from |p_codec_audio_config|.
+// |alloc_method| contains the capability.
+// The result is stored in |p_result| and |p_codec_config|.
+// Returns true if a selection was made, otherwise false.
+//
+static bool select_audio_alloc_method(
+    const btav_a2dp_codec_config_t* p_codec_audio_config, uint8_t alloc_method,
+    tA2DP_SBC_CIE* p_result, btav_a2dp_codec_config_t* p_codec_config) {
+  switch (p_codec_audio_config->codec_specific_3) {
+    case SBC_ALLOC_SNR:
+      if (alloc_method & A2DP_SBC_IE_ALLOC_MD_S) {
+        p_result->alloc_method = A2DP_SBC_IE_ALLOC_MD_S;
+        p_codec_config->codec_specific_3 = SBC_ALLOC_SNR;
+        return true;
+      }
+      break;
+    case SBC_ALLOC_LOUDNESS:
+      if (alloc_method & A2DP_SBC_IE_ALLOC_MD_L) {
+        p_result->alloc_method = A2DP_SBC_IE_ALLOC_MD_L;
+        p_codec_config->codec_specific_3 = SBC_ALLOC_LOUDNESS;
+        return true;
+      }
+      break;
+  }
+  return false;
+}
+
+//
+// Selects the best max_bitpool from |max_bitpool|.
+// The result is stored in |p_result| and |p_codec_config|.
+// Returns true if a selection was made, otherwise false.
+//
+static bool select_best_max_bitpool(uint8_t max_bitpool, tA2DP_SBC_CIE* p_result,
+                                     btav_a2dp_codec_config_t* p_codec_config) {
+  if (max_bitpool <= A2DP_SBC_IE_MAX_BITPOOL) {
+    p_result->max_bitpool = max_bitpool;
+    p_codec_config->codec_specific_4 = max_bitpool;
+    return true;
+  }
+  return false;
+}
+
+//
+// Selects the max_bitpool from |p_codec_audio_config|.
+// |max_bitpool| contains the capability.
+// The result is stored in |p_result| and |p_codec_config|.
+// Returns true if a selection was made, otherwise false.
+//
+
+static bool select_audio_max_bitpool(
+    const btav_a2dp_codec_config_t* p_codec_audio_config, uint8_t max_bitpool,
+    tA2DP_SBC_CIE* p_result, btav_a2dp_codec_config_t* p_codec_config) {
+if((p_codec_audio_config->codec_specific_4 <= max_bitpool)&&(p_codec_audio_config->codec_specific_4 != 0)&&(p_codec_audio_config->codec_specific_4 <= A2DP_SBC_IE_MAX_BITPOOL))
+  {
+    p_result->max_bitpool = p_codec_audio_config->codec_specific_4;
+    p_codec_config->codec_specific_4 = p_codec_audio_config->codec_specific_4;
+    return true;
+  }
+  return false;
+}
+
+//
+// Selects the best min_bitpool from |min_bitpool|.
+// The result is stored in |p_result| and |p_codec_config|.
+// Returns true if a selection was made, otherwise false.
+//
+static bool select_best_min_bitpool(uint8_t min_bitpool, tA2DP_SBC_CIE* p_result,
+                                     btav_a2dp_codec_config_t* p_codec_config) {
+  if (min_bitpool >= A2DP_SBC_IE_MIN_BITPOOL) {
+    p_result->min_bitpool = min_bitpool;
+    p_codec_config->codec_specific_5 = min_bitpool;
+    return true;
+  }
+  return false;
+}
+//
+// Selects the min_bitpool from |p_codec_audio_config|.
+// |min_bitpool| contains the capability.
+// The result is stored in |p_result| and |p_codec_config|.
+// Returns true if a selection was made, otherwise false.
+//
+static bool select_audio_min_bitpool(
+    const btav_a2dp_codec_config_t* p_codec_audio_config, uint8_t min_bitpool,
+    tA2DP_SBC_CIE* p_result, btav_a2dp_codec_config_t* p_codec_config) {
+if((p_codec_audio_config->codec_specific_5 >= min_bitpool)&&(p_codec_audio_config->codec_specific_5 != 0)&&(p_codec_audio_config->codec_specific_5 >= A2DP_SBC_IE_MIN_BITPOOL))
+  {
+    p_result->min_bitpool = p_codec_audio_config->codec_specific_5;
+    p_codec_config->codec_specific_5 = p_codec_audio_config->codec_specific_5;
+    return true;
+  }
+  return false;
+}
+
 bool A2dpCodecConfigSbc::setCodecConfig(const uint8_t* p_peer_codec_info,
                                         bool is_capability,
                                         uint8_t* p_result_codec_config) {
@@ -1280,6 +1536,8 @@ bool A2dpCodecConfigSbc::setCodecConfig(const uint8_t* p_peer_codec_info,
   uint8_t block_len;
   uint8_t num_subbands;
   uint8_t alloc_method;
+  uint8_t max_bitpool;
+  uint8_t min_bitpool;
 
   // Save the internal state
   btav_a2dp_codec_config_t saved_codec_config = codec_config_;
@@ -1551,15 +1809,86 @@ bool A2dpCodecConfigSbc::setCodecConfig(const uint8_t* p_peer_codec_info,
   // Select the block length
   //
   block_len = a2dp_sbc_caps.block_len & sink_info_cie.block_len;
-  if (block_len & A2DP_SBC_IE_BLOCKS_16) {
-    result_config_cie.block_len = A2DP_SBC_IE_BLOCKS_16;
-  } else if (block_len & A2DP_SBC_IE_BLOCKS_12) {
-    result_config_cie.block_len = A2DP_SBC_IE_BLOCKS_12;
-  } else if (block_len & A2DP_SBC_IE_BLOCKS_8) {
-    result_config_cie.block_len = A2DP_SBC_IE_BLOCKS_8;
-  } else if (block_len & A2DP_SBC_IE_BLOCKS_4) {
-    result_config_cie.block_len = A2DP_SBC_IE_BLOCKS_4;
-  } else {
+  codec_config_.codec_specific_1 = 0;
+  switch (codec_user_config_.codec_specific_1) {
+    case SBC_BLOCKS_4:
+      if (block_len & A2DP_SBC_IE_BLOCKS_4) {
+        result_config_cie.block_len = A2DP_SBC_IE_BLOCKS_4;
+        codec_capability_.codec_specific_1 = codec_user_config_.codec_specific_1;
+        codec_config_.codec_specific_1 = codec_user_config_.codec_specific_1;
+      }
+      break;
+    case SBC_BLOCKS_8:
+      if (block_len & A2DP_SBC_IE_BLOCKS_8) {
+        result_config_cie.block_len = A2DP_SBC_IE_BLOCKS_8;
+        codec_capability_.codec_specific_1 = codec_user_config_.codec_specific_1;
+        codec_config_.codec_specific_1 = codec_user_config_.codec_specific_1;
+      }
+      break;
+    case SBC_BLOCKS_12:
+      if (block_len & A2DP_SBC_IE_BLOCKS_12) {
+        result_config_cie.block_len = A2DP_SBC_IE_BLOCKS_12;
+        codec_capability_.codec_specific_1 = codec_user_config_.codec_specific_1;
+        codec_config_.codec_specific_1 = codec_user_config_.codec_specific_1;
+      }
+      break;
+    case SBC_BLOCKS_16:
+      if (block_len & A2DP_SBC_IE_BLOCKS_16) {
+        result_config_cie.block_len = A2DP_SBC_IE_BLOCKS_16;
+        codec_capability_.codec_specific_1 = codec_user_config_.codec_specific_1;
+        codec_config_.codec_specific_1 = codec_user_config_.codec_specific_1;
+      }
+      break;
+  }
+
+  // Select the block length if there is no user preference
+  do {
+    // Compute the selectable capability
+    if (block_len & A2DP_SBC_IE_BLOCKS_4) {
+      codec_selectable_capability_.codec_specific_1 |= SBC_BLOCKS_4;
+    }
+    if (block_len & A2DP_SBC_IE_BLOCKS_8) {
+      codec_selectable_capability_.codec_specific_1 |= SBC_BLOCKS_8;
+    }
+    if (block_len & A2DP_SBC_IE_BLOCKS_12) {
+      codec_selectable_capability_.codec_specific_1 |= SBC_BLOCKS_12;
+    }
+    if (block_len & A2DP_SBC_IE_BLOCKS_16) {
+      codec_selectable_capability_.codec_specific_1 |= SBC_BLOCKS_16;
+    }
+
+    if (codec_config_.codec_specific_1 != 0) break;
+
+    // Compute the common capability
+    if (block_len & A2DP_SBC_IE_BLOCKS_4)
+      codec_capability_.codec_specific_1 |= SBC_BLOCKS_4;
+    if (block_len & A2DP_SBC_IE_BLOCKS_8)
+      codec_capability_.codec_specific_1 |= SBC_BLOCKS_8;
+    if (block_len & A2DP_SBC_IE_BLOCKS_12)
+      codec_capability_.codec_specific_1 |= SBC_BLOCKS_12;
+    if (block_len & A2DP_SBC_IE_BLOCKS_16)
+      codec_capability_.codec_specific_1 |= SBC_BLOCKS_16;
+
+    // No user preference - try the codec audio config
+    if (select_audio_block_length(&codec_audio_config_, block_len,
+                                 &result_config_cie, &codec_config_)) {
+      break;
+    }
+
+    // No user preference - try the default config
+    if (select_best_block_length(
+            a2dp_sbc_default_config.block_len & sink_info_cie.block_len,
+            &result_config_cie, &codec_config_)) {
+      break;
+    }
+
+    // No user preference - use the best match
+    if (select_best_block_length(block_len, &result_config_cie,
+                                &codec_config_)) {
+      break;
+    }
+  } while (false);
+  if (codec_config_.codec_specific_1 == 0) {
     LOG_ERROR(LOG_TAG,
               "%s: cannot match block length: source caps = 0x%x "
               "sink info = 0x%x",
@@ -1571,11 +1900,62 @@ bool A2dpCodecConfigSbc::setCodecConfig(const uint8_t* p_peer_codec_info,
   // Select the number of sub-bands
   //
   num_subbands = a2dp_sbc_caps.num_subbands & sink_info_cie.num_subbands;
-  if (num_subbands & A2DP_SBC_IE_SUBBAND_8) {
-    result_config_cie.num_subbands = A2DP_SBC_IE_SUBBAND_8;
-  } else if (num_subbands & A2DP_SBC_IE_SUBBAND_4) {
-    result_config_cie.num_subbands = A2DP_SBC_IE_SUBBAND_4;
-  } else {
+  codec_config_.codec_specific_2 = 0;
+  switch (codec_user_config_.codec_specific_2) {
+    case SBC_SUBBAND_4:
+      if (num_subbands & A2DP_SBC_IE_SUBBAND_4) {
+        result_config_cie.num_subbands = A2DP_SBC_IE_SUBBAND_4;
+        codec_capability_.codec_specific_2 = codec_user_config_.codec_specific_2;
+        codec_config_.codec_specific_2 = codec_user_config_.codec_specific_2;
+      }
+      break;
+    case SBC_SUBBAND_8:
+      if (num_subbands & A2DP_SBC_IE_SUBBAND_8) {
+        result_config_cie.num_subbands = A2DP_SBC_IE_SUBBAND_8;
+        codec_capability_.codec_specific_2 = codec_user_config_.codec_specific_2;
+        codec_config_.codec_specific_2 = codec_user_config_.codec_specific_2;
+      }
+      break;
+
+  }
+
+  // Select the sub-bands if there is no user preference
+  do {
+    // Compute the selectable capability
+    if (num_subbands & A2DP_SBC_IE_SUBBAND_4) {
+      codec_selectable_capability_.codec_specific_2 |= SBC_SUBBAND_4;
+    }
+    if (num_subbands & A2DP_SBC_IE_SUBBAND_8) {
+      codec_selectable_capability_.codec_specific_2 |= SBC_SUBBAND_8;
+    }
+
+    if (codec_config_.codec_specific_2 != 0) break;
+
+    // Compute the common capability
+    if (num_subbands & A2DP_SBC_IE_SUBBAND_4)
+      codec_capability_.codec_specific_2 |= SBC_SUBBAND_4;
+    if (num_subbands & A2DP_SBC_IE_SUBBAND_8)
+      codec_capability_.codec_specific_2 |= SBC_SUBBAND_8;
+
+    // No user preference - use the codec audio config
+    if (select_audio_num_subbands(&codec_audio_config_, num_subbands,
+                                  &result_config_cie, &codec_config_)) {
+      break;
+    }
+
+    // No user preference - try the default config
+    if (select_best_num_subbands(
+            a2dp_sbc_default_config.num_subbands & sink_info_cie.num_subbands,
+            &result_config_cie, &codec_config_)) {
+      break;
+    }
+
+    // No user preference - use the best match
+    if (select_best_num_subbands(num_subbands, &result_config_cie, &codec_config_)) {
+      break;
+    }
+  } while (false);
+  if (codec_config_.codec_specific_2 == 0) {
     LOG_ERROR(LOG_TAG,
               "%s: cannot match number of sub-bands: source caps = 0x%x "
               "sink info = 0x%x",
@@ -1587,11 +1967,61 @@ bool A2dpCodecConfigSbc::setCodecConfig(const uint8_t* p_peer_codec_info,
   // Select the allocation method
   //
   alloc_method = a2dp_sbc_caps.alloc_method & sink_info_cie.alloc_method;
-  if (alloc_method & A2DP_SBC_IE_ALLOC_MD_L) {
-    result_config_cie.alloc_method = A2DP_SBC_IE_ALLOC_MD_L;
-  } else if (alloc_method & A2DP_SBC_IE_ALLOC_MD_S) {
-    result_config_cie.alloc_method = A2DP_SBC_IE_ALLOC_MD_S;
-  } else {
+  codec_config_.codec_specific_3 = 0;
+  switch (codec_user_config_.codec_specific_3) {
+    case SBC_ALLOC_SNR:
+      if (alloc_method & A2DP_SBC_IE_ALLOC_MD_S) {
+        result_config_cie.alloc_method = A2DP_SBC_IE_ALLOC_MD_S;
+        codec_capability_.codec_specific_3 = codec_user_config_.codec_specific_3;
+        codec_config_.codec_specific_3 = codec_user_config_.codec_specific_3;
+      }
+      break;
+    case SBC_ALLOC_LOUDNESS:
+      if (alloc_method & A2DP_SBC_IE_ALLOC_MD_L) {
+        result_config_cie.alloc_method = A2DP_SBC_IE_ALLOC_MD_L;
+        codec_capability_.codec_specific_3 = codec_user_config_.codec_specific_3;
+        codec_config_.codec_specific_3 = codec_user_config_.codec_specific_3;
+      }
+      break;
+  }
+
+  // Select the channel mode if there is no user preference
+  do {
+    // Compute the selectable capability
+    if (alloc_method & A2DP_SBC_IE_ALLOC_MD_S) {
+      codec_selectable_capability_.codec_specific_3 |= SBC_ALLOC_SNR;
+    }
+    if (alloc_method & A2DP_SBC_IE_ALLOC_MD_L) {
+      codec_selectable_capability_.codec_specific_3 |= SBC_ALLOC_LOUDNESS;
+    }
+
+    if (codec_config_.codec_specific_3 != 0) break;
+
+    // Compute the common capability
+    if (alloc_method & A2DP_SBC_IE_ALLOC_MD_S)
+      codec_capability_.codec_specific_3 |= SBC_ALLOC_SNR;
+    if (alloc_method & A2DP_SBC_IE_ALLOC_MD_L)
+      codec_capability_.codec_specific_3 |= SBC_ALLOC_LOUDNESS;
+
+    // No user preference - use the codec audio config
+    if (select_audio_alloc_method(&codec_audio_config_, alloc_method,
+                                  &result_config_cie, &codec_config_)) {
+      break;
+    }
+
+    // No user preference - try the default config
+    if (select_best_alloc_method(
+            a2dp_sbc_default_config.alloc_method & sink_info_cie.alloc_method,
+            &result_config_cie, &codec_config_)) {
+      break;
+    }
+
+    // No user preference - use the best match
+    if (select_best_alloc_method(alloc_method, &result_config_cie, &codec_config_)) {
+      break;
+    }
+  } while (false);
+  if (codec_config_.codec_specific_3 == 0) {
     LOG_ERROR(LOG_TAG,
               "%s: cannot match allocation method: source caps = 0x%x "
               "sink info = 0x%x",
@@ -1600,14 +2030,91 @@ bool A2dpCodecConfigSbc::setCodecConfig(const uint8_t* p_peer_codec_info,
   }
 
   //
-  // Select the min/max bitpool
+  // Select the max bitpool
   //
-  result_config_cie.min_bitpool = a2dp_sbc_caps.min_bitpool;
-  if (result_config_cie.min_bitpool < sink_info_cie.min_bitpool)
-    result_config_cie.min_bitpool = sink_info_cie.min_bitpool;
-  result_config_cie.max_bitpool = a2dp_sbc_caps.max_bitpool;
-  if (result_config_cie.max_bitpool > sink_info_cie.max_bitpool)
-    result_config_cie.max_bitpool = sink_info_cie.max_bitpool;
+  if(a2dp_sbc_caps.max_bitpool > sink_info_cie.max_bitpool)
+    max_bitpool = sink_info_cie.max_bitpool;
+  else
+    max_bitpool = a2dp_sbc_caps.max_bitpool;
+
+  codec_config_.codec_specific_4 = 0;
+  if((codec_user_config_.codec_specific_4 < max_bitpool)&&(codec_user_config_.codec_specific_4 != 0))
+  {
+        result_config_cie.max_bitpool = codec_user_config_.codec_specific_4;
+        codec_capability_.codec_specific_4 = codec_user_config_.codec_specific_4;
+        codec_config_.codec_specific_4 = codec_user_config_.codec_specific_4;
+  }
+
+   // Select the max bitpool if there is no user preference
+  do {
+
+    // Compute the selectable capability
+    codec_selectable_capability_.codec_specific_4 = max_bitpool;
+    if (codec_config_.codec_specific_4 != 0) break;
+
+    // Compute the common capability
+      codec_capability_.codec_specific_4 = max_bitpool;
+
+    // No user preference - use the codec audio config
+    if (select_audio_max_bitpool(&codec_audio_config_, max_bitpool,
+                                 &result_config_cie, &codec_config_)) {
+      break;
+    }
+
+    // No user preference - try the default config
+    if (select_best_max_bitpool(((a2dp_sbc_default_config.max_bitpool < sink_info_cie.max_bitpool)?a2dp_sbc_default_config.max_bitpool:sink_info_cie.max_bitpool),
+            &result_config_cie, &codec_config_)) {
+      break;
+    }
+
+  // No user preference - use the best match
+    if (select_best_max_bitpool(max_bitpool,
+            &result_config_cie, &codec_config_)) {
+      break;
+    }
+  } while (false);
+
+  //
+  // Select the min bitpool
+  //
+  if(a2dp_sbc_caps.min_bitpool < sink_info_cie.min_bitpool)
+    min_bitpool = sink_info_cie.min_bitpool;
+  else
+    min_bitpool = a2dp_sbc_caps.min_bitpool;
+  codec_config_.codec_specific_5 = 0;
+  if((codec_user_config_.codec_specific_5 > min_bitpool)&&(codec_user_config_.codec_specific_5 != 0))
+  {
+    result_config_cie.min_bitpool = codec_user_config_.codec_specific_5;
+    codec_capability_.codec_specific_5 = codec_user_config_.codec_specific_5;
+    codec_config_.codec_specific_5 = codec_user_config_.codec_specific_5;
+  }
+   // Select the min bitpool if there is no user preference
+  do {
+    // Compute the selectable capability
+    codec_selectable_capability_.codec_specific_5 = min_bitpool;
+    if (codec_config_.codec_specific_5 != 0) break;
+    // Compute the common capability
+      codec_capability_.codec_specific_5 = min_bitpool;
+
+    // No user preference - use the codec audio config
+    if (select_audio_min_bitpool(&codec_audio_config_, min_bitpool,
+                                 &result_config_cie, &codec_config_)) {
+      break;
+    }
+
+    // No user preference - try the default config
+    if (select_best_min_bitpool(((a2dp_sbc_default_config.min_bitpool > sink_info_cie.min_bitpool)?a2dp_sbc_default_config.min_bitpool:sink_info_cie.min_bitpool),
+            &result_config_cie, &codec_config_)) {
+      break;
+    }
+
+  // No user preference - use the best match
+    if (select_best_min_bitpool(min_bitpool,
+            &result_config_cie, &codec_config_)) {
+      break;
+    }
+  } while (false);
+
   if (result_config_cie.min_bitpool > result_config_cie.max_bitpool) {
     LOG_ERROR(LOG_TAG,
         "%s: result_min bitpool > max bitpool, make both = min "
@@ -1621,18 +2128,6 @@ bool A2dpCodecConfigSbc::setCodecConfig(const uint8_t* p_peer_codec_info,
                         p_result_codec_config) != A2DP_SUCCESS) {
     goto fail;
   }
-
-  //
-  // Copy the codec-specific fields if they are not zero
-  //
-  if (codec_user_config_.codec_specific_1 != 0)
-    codec_config_.codec_specific_1 = codec_user_config_.codec_specific_1;
-  if (codec_user_config_.codec_specific_2 != 0)
-    codec_config_.codec_specific_2 = codec_user_config_.codec_specific_2;
-  if (codec_user_config_.codec_specific_3 != 0)
-    codec_config_.codec_specific_3 = codec_user_config_.codec_specific_3;
-  if (codec_user_config_.codec_specific_4 != 0)
-    codec_config_.codec_specific_4 = codec_user_config_.codec_specific_4;
 
   // Create a local copy of the peer codec capability/config, and the
   // result codec config.
@@ -1700,4 +2195,73 @@ bool A2dpCodecConfigSbcSink::updateEncoderUserConfig(
 period_ms_t A2dpCodecConfigSbcSink::encoderIntervalMs() const {
   // TODO: This method applies only to Source codecs
   return 0;
+}
+
+void update_sbc_cap(btav_a2dp_codec_config_t config)
+{
+  switch (config.sample_rate) {
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_44100:
+      a2dp_sbc_caps.samp_freq = a2dp_sbc_caps.samp_freq|A2DP_SBC_IE_SAMP_FREQ_44;
+      break;
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_48000:
+      a2dp_sbc_caps.samp_freq = a2dp_sbc_caps.samp_freq|A2DP_SBC_IE_SAMP_FREQ_48;
+      break;
+    default:
+      break;
+  }
+  switch (config.channel_mode) {
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_MONO:
+      a2dp_sbc_caps.ch_mode = a2dp_sbc_caps.ch_mode|A2DP_SBC_IE_CH_MD_MONO;
+      break;
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO:
+      a2dp_sbc_caps.ch_mode = a2dp_sbc_caps.ch_mode|A2DP_SBC_IE_CH_MD_STEREO;
+      break;
+    default:
+      break;
+  }
+  switch (config.codec_specific_1) {
+    case SBC_BLOCKS_4:
+      a2dp_sbc_caps.block_len = a2dp_sbc_caps.block_len|A2DP_SBC_IE_BLOCKS_4;
+      break;
+    case SBC_BLOCKS_8:
+      a2dp_sbc_caps.block_len = a2dp_sbc_caps.block_len|A2DP_SBC_IE_BLOCKS_8;
+      break;
+    case SBC_BLOCKS_12:
+      a2dp_sbc_caps.block_len = a2dp_sbc_caps.block_len|A2DP_SBC_IE_BLOCKS_12;
+      break;
+    case SBC_BLOCKS_16:
+      a2dp_sbc_caps.block_len = a2dp_sbc_caps.block_len|A2DP_SBC_IE_BLOCKS_16;
+      break;
+    default:
+      break;
+  }
+  switch (config.codec_specific_2) {
+    case SBC_SUBBAND_4:
+      a2dp_sbc_caps.num_subbands = a2dp_sbc_caps.num_subbands|A2DP_SBC_IE_SUBBAND_4;
+      break;
+    case SBC_SUBBAND_8:
+      a2dp_sbc_caps.num_subbands = a2dp_sbc_caps.num_subbands|A2DP_SBC_IE_SUBBAND_8;
+      break;
+    default:
+      break;
+  }
+  switch (config.codec_specific_3) {
+    case SBC_ALLOC_SNR:
+      a2dp_sbc_caps.alloc_method = a2dp_sbc_caps.alloc_method|A2DP_SBC_IE_ALLOC_MD_S;
+      break;
+    case SBC_ALLOC_LOUDNESS:
+      a2dp_sbc_caps.alloc_method = a2dp_sbc_caps.alloc_method|A2DP_SBC_IE_ALLOC_MD_L;
+      break;
+    default:
+      break;
+  }
+  if((config.codec_specific_4 > a2dp_sbc_caps.max_bitpool) && (config.codec_specific_4 <= A2DP_SBC_IE_MAX_BITPOOL))
+   a2dp_sbc_caps.max_bitpool = config.codec_specific_4;
+  if((config.codec_specific_5 < a2dp_sbc_caps.min_bitpool) && (config.codec_specific_5 >= A2DP_SBC_IE_MIN_BITPOOL))
+   a2dp_sbc_caps.min_bitpool = config.codec_specific_5;
+}
+
+void reset_a2dp_sbc_caps_initialized()
+{
+  a2dp_sbc_caps_initialized = 0;
 }

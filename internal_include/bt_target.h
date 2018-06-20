@@ -85,7 +85,11 @@
 #endif
 
 #ifndef BTA_AV_SINK_INCLUDED
-#define BTA_AV_SINK_INCLUDED FALSE
+#define BTA_AV_SINK_INCLUDED TRUE
+#endif
+
+#ifndef BTA_AV_INCLUDED
+#define BTA_AV_INCLUDED TRUE
 #endif
 
 #ifndef BTA_DISABLE_DELAY
@@ -1120,12 +1124,12 @@
 
 /* Number of simultaneous links to different peer devices. */
 #ifndef AVDT_NUM_LINKS
-#define AVDT_NUM_LINKS 2
+#define AVDT_NUM_LINKS 4
 #endif
 
 /* Number of simultaneous stream endpoints. */
 #ifndef AVDT_NUM_SEPS
-#define AVDT_NUM_SEPS 6
+#define AVDT_NUM_SEPS 11
 #endif
 
 /* Number of transport channels setup by AVDT for all media streams */
@@ -1333,18 +1337,40 @@
 
 /******************************************************************************
  *
+ * CODECS
+ *
+ *****************************************************************************/
+
+#ifndef AAC_DECODER_INCLUDED
+#define AAC_DECODER_INCLUDED        TRUE
+#endif
+
+#ifndef MP3_DECODER_INCLUDED
+#define MP3_DECODER_INCLUDED        TRUE
+#endif
+
+#ifndef APTX_CLASSIC_DECODER_INCLUDED
+#define APTX_CLASSIC_DECODER_INCLUDED        TRUE
+#endif
+
+#ifndef A2D_M24_INCLUDED
+#define A2D_M24_INCLUDED A2D_INCLUDED
+#endif
+
+/******************************************************************************
+ *
  * AVCTP
  *
  *****************************************************************************/
 
 /* Number of simultaneous ACL links to different peer devices. */
 #ifndef AVCT_NUM_LINKS
-#define AVCT_NUM_LINKS 2
+#define AVCT_NUM_LINKS 3
 #endif
 
 /* Number of simultaneous AVCTP connections. */
 #ifndef AVCT_NUM_CONN
-#define AVCT_NUM_CONN 3
+#define AVCT_NUM_CONN 7
 #endif
 
 /******************************************************************************
@@ -1364,10 +1390,46 @@
 #define AVRC_ADV_CTRL_INCLUDED TRUE
 #endif
 
+#ifndef AVRC_CTLR_INCLUDED
+#define AVRC_CTLR_INCLUDED TRUE
+#endif
+
 #ifndef DUMP_PCM_DATA
 #define DUMP_PCM_DATA FALSE
 #endif
 
+#ifndef SDP_AVRCP_1_6
+#ifdef ANDROID
+#define SDP_AVRCP_1_6               TRUE
+#else
+#define SDP_AVRCP_1_6               FALSE
+#endif
+#endif
+
+#ifndef  SDP_AVRCP_1_5
+#ifdef ANDROID
+#define SDP_AVRCP_1_5               FALSE
+#else
+#define SDP_AVRCP_1_5               TRUE
+#endif
+#endif
+
+#if (defined(SDP_AVRCP_1_6) && (SDP_AVRCP_1_6 == TRUE))
+#ifndef AVCT_COVER_ART_INCLUDED
+#define AVCT_COVER_ART_INCLUDED     TRUE
+#endif
+#endif
+
+#if ((defined(SDP_AVRCP_1_6) && (SDP_AVRCP_1_6 == TRUE)) || \
+        (defined(SDP_AVRCP_1_5) && (SDP_AVRCP_1_5 == TRUE)))
+#ifndef AVCT_BROWSE_INCLUDED
+#define AVCT_BROWSE_INCLUDED        TRUE
+#else
+#ifndef AVCT_BROWSE_INCLUDED
+#define AVCT_BROWSE_INCLUDED        FALSE
+#endif
+#endif
+#endif
 /******************************************************************************
  *
  * MCAP

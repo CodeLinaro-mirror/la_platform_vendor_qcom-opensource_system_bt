@@ -446,6 +446,7 @@ typedef struct {
   uint32_t time_stamp;
   uint8_t m_pt;
   tAVDT_DATA_OPT_MASK opt;
+  bool encoded_data_enabled;
 } tAVDT_SCB_APIWRITE;
 
 /* type for AVDT_SCB_TC_CLOSE_EVT */
@@ -477,6 +478,7 @@ typedef struct {
   uint16_t media_seq;               /* media packet sequence number */
   bool allocated;                   /* whether scb is allocated or unused */
   bool in_use;                      /* whether stream being used by peer */
+  bool is_required;                 /* whether codec is required */
   uint8_t role;       /* initiator/acceptor role in current procedure */
   bool remove;        /* whether CB is marked for removal */
   uint8_t state;      /* state machine state */

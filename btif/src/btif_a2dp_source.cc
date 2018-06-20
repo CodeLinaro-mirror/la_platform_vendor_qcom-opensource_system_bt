@@ -64,6 +64,7 @@ using system_bt_osi::A2dpSessionMetrics;
 #define MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ (MAX_PCM_FRAME_NUM_PER_TICK * 2)
 #define BTIF_UNBLOCK_AUDIO_START_TOUT 2000
 #define BTIF_REMOTE_START_TOUT 3000
+#define STACK_OVERHEAD 13
 enum {
   BTIF_A2DP_SOURCE_STATE_OFF,
   BTIF_A2DP_SOURCE_STATE_STARTING_UP,
@@ -747,6 +748,35 @@ void btif_a2dp_source_on_suspended(tBTA_AV_SUSPEND* p_av_suspend) {
 void btif_a2dp_source_set_tx_flush(bool enable) {
   APPL_TRACE_EVENT("## DROP TX %d ##", enable);
   btif_a2dp_source_cb.tx_flush = enable;
+}
+
+size_t btif_media_writebuf_vendor(bt_bdaddr_t *bd_addr, const void* buffer, size_t length, uint8_t codectype){
+    if(buffer == NULL)
+        return 0;
+    BTIF_TRACE_IMP("AV %s , data size = %d", __FUNCTION__,length);
+
+    if(length > 0 && btif_a2dp_source_cb.tx_audio_queue != NULL) {
+
+        if (fixed_queue_length(btif_a2dp_source_cb.tx_audio_queue) < MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ){
+            BT_HDR *p_buf = (BT_HDR *)osi_malloc(length + sizeof(BT_HDR)+STACK_OVERHEAD);// 13 is overhead for stack headers
+            p_buf->len = length;
+            p_buf->offset = STACK_OVERHEAD;// overhead for stack headers
+            uint8_t* data_ptr;
+            data_ptr = (uint8_t*)(p_buf + 1)+p_buf->offset;
+            memcpy(data_ptr, buffer ,length);
+            fixed_queue_enqueue(btif_a2dp_source_cb.tx_audio_queue, p_buf);
+        }
+        else{
+            APPL_TRACE_DEBUG("### discarded frame ###");
+            while(fixed_queue_length(btif_a2dp_source_cb.tx_audio_queue) == 0){
+                osi_free(fixed_queue_try_dequeue(btif_a2dp_source_cb.tx_audio_queue));
+            }
+            return 0;
+        }
+        bta_av_ci_src_data_ready(BTA_AV_CHNL_AUDIO);
+        return length;
+    }
+    return 0;
 }
 
 static void btif_a2dp_source_audio_tx_start_event(void) {

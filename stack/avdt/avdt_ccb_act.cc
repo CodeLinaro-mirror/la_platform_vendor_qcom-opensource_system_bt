@@ -206,7 +206,10 @@ void avdt_ccb_hdl_discover_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
   for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++) {
     if (effective_num_seps == num_codecs)
       break;
-    if ((p_scb->allocated) && (!p_scb->in_use)) {
+    if ((p_scb->allocated) && (!p_scb->in_use) && (p_scb->is_required)) {
+        AVDT_TRACE_DEBUG("%s: SCB[%d] sep_type[%d] in_use[%d] is_required[%d] codec_type[%d]",
+            __func__, i, p_scb->cs.tsep, p_scb->in_use, p_scb->is_required,
+            p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX]);
        effective_num_seps++;
        if (bta_av_co_audio_is_aac_wl_enabled(&p_ccb->peer_addr)) {
          if (p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == A2DP_MEDIA_CT_AAC &&

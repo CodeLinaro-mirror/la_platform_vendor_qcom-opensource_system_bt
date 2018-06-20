@@ -1,10 +1,6 @@
 /******************************************************************************
- * Copyright (C) 2017, The Linux Foundation. All rights reserved.
- * Not a Contribution.
- ******************************************************************************/
-/******************************************************************************
  *
- *  Copyright (C) 2009-2012 Broadcom Corporation
+ *  Copyright 2009-2012 Broadcom Corporation
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -21,6 +17,7 @@
  ******************************************************************************/
 
 #include "audio_a2dp_hw.h"
+#include "osi/include/properties.h"
 
 #define CASE_RETURN_STR(const) \
   case const:                  \
@@ -30,19 +27,21 @@ const char* audio_a2dp_hw_dump_ctrl_event(tA2DP_CTRL_CMD event) {
   switch (event) {
     CASE_RETURN_STR(A2DP_CTRL_CMD_NONE)
     CASE_RETURN_STR(A2DP_CTRL_CMD_CHECK_READY)
-    CASE_RETURN_STR(A2DP_CTRL_CMD_START)
     CASE_RETURN_STR(A2DP_CTRL_CMD_CHECK_STREAM_STARTED)
+    CASE_RETURN_STR(A2DP_CTRL_CMD_START)
     CASE_RETURN_STR(A2DP_CTRL_CMD_STOP)
     CASE_RETURN_STR(A2DP_CTRL_CMD_SUSPEND)
     CASE_RETURN_STR(A2DP_CTRL_GET_INPUT_AUDIO_CONFIG)
     CASE_RETURN_STR(A2DP_CTRL_GET_OUTPUT_AUDIO_CONFIG)
     CASE_RETURN_STR(A2DP_CTRL_SET_OUTPUT_AUDIO_CONFIG)
     CASE_RETURN_STR(A2DP_CTRL_CMD_OFFLOAD_START)
-    CASE_RETURN_STR(A2DP_CTRL_GET_SINK_LATENCY)
-    CASE_RETURN_STR(A2DP_CTRL_CMD_STREAM_OPEN)
-    default:
-      break;
+    CASE_RETURN_STR(A2DP_CTRL_GET_PRESENTATION_POSITION)
   }
 
   return "UNKNOWN A2DP_CTRL_CMD";
+}
+
+bool delay_reporting_enabled() {
+  //return !osi_property_get_bool("persist.bluetooth.disabledelayreports", false);
+	  return false;
 }

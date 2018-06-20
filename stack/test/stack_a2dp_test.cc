@@ -862,7 +862,7 @@ TEST_F(A2dpCodecConfigTest, setCodecConfig) {
   EXPECT_NE(codec_config, nullptr);
   EXPECT_TRUE(a2dp_codecs->setCodecConfig(
       codec_info_sbc_sink_capability, true /* is_capability */,
-      codec_info_result, true /* select_current_codec */));
+      codec_info_result, true /* select_current_codec */, nullptr));
   EXPECT_EQ(a2dp_codecs->getCurrentCodecConfig(), codec_config);
   // Compare the result codec with the local test codec info
   for (size_t i = 0; i < codec_info_sbc[0] + 1; i++) {
@@ -879,7 +879,7 @@ TEST_F(A2dpCodecConfigTest, setCodecConfig) {
   EXPECT_NE(codec_config, nullptr);
   EXPECT_TRUE(a2dp_codecs->setCodecConfig(
       codec_info_aac_sink_capability, true /* is_capability */,
-      codec_info_result, true /* select_current_codec */));
+      codec_info_result, true /* select_current_codec */, nullptr));
   EXPECT_EQ(a2dp_codecs->getCurrentCodecConfig(), codec_config);
   // Compare the result codec with the local test codec info
   for (size_t i = 0; i < codec_info_aac[0] + 1; i++) {
@@ -895,7 +895,7 @@ TEST_F(A2dpCodecConfigTest, setCodecConfig) {
   EXPECT_NE(codec_config, nullptr);
   EXPECT_TRUE(a2dp_codecs->setCodecConfig(
       codec_info_sbc, false /* is_capability */, codec_info_result,
-      true /* select_current_codec */));
+      true /* select_current_codec */, nullptr));
   EXPECT_EQ(a2dp_codecs->getCurrentCodecConfig(), codec_config);
   // Compare the result codec with the local test codec info
   for (size_t i = 0; i < codec_info_sbc[0] + 1; i++) {
@@ -911,7 +911,7 @@ TEST_F(A2dpCodecConfigTest, setCodecConfig) {
   EXPECT_NE(codec_config, nullptr);
   EXPECT_TRUE(a2dp_codecs->setCodecConfig(
       codec_info_aac, false /* is_capability */, codec_info_result,
-      true /* select_current_codec */));
+      true /* select_current_codec */, nullptr));
   EXPECT_EQ(a2dp_codecs->getCurrentCodecConfig(), codec_config);
   // Compare the result codec with the local test codec info
   for (size_t i = 0; i < codec_info_aac[0] + 1; i++) {
@@ -925,7 +925,7 @@ TEST_F(A2dpCodecConfigTest, setCodecConfig) {
   memset(codec_info_sbc_test1, 0, sizeof(codec_info_sbc_test1));
   EXPECT_FALSE(a2dp_codecs->setCodecConfig(
       codec_info_sbc_test1, true /* is_capability */, codec_info_result,
-      true /* select_current_codec */));
+      true /* select_current_codec */, nullptr));
   delete a2dp_codecs;
 }
 

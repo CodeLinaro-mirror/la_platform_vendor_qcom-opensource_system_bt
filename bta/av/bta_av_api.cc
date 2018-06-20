@@ -653,3 +653,32 @@ void BTA_AvMetaCmd(uint8_t rc_handle, uint8_t label, tBTA_AV_CMD cmd_code,
 
   bta_sys_sendmsg(p_buf);
 }
+
+/*******************************************************************************
+**
+** Function         BTA_AvUpdateCodecSupport
+**
+** Description      Update Avdtp Codec Support
+**
+** Returns          void
+**
+*******************************************************************************/
+void BTA_AvUpdateCodecSupport(uint8_t *p_codec_type_list, uint8_t *p_vnd_list, uint8_t *p_codec_id_list, uint8_t codec_info[][AVDT_CODEC_SIZE], uint8_t num_codec_configs)
+{
+    tBTA_AV_UPDATE_SUPP_CODECS  *p_buf;
+
+    if (p_codec_type_list == NULL || p_vnd_list == NULL || p_codec_id_list == NULL)
+        return;
+
+    if ((p_buf = (tBTA_AV_UPDATE_SUPP_CODECS *) osi_calloc((uint8_t) (sizeof
+        (tBTA_AV_UPDATE_SUPP_CODECS)))) != NULL)
+    {
+        p_buf->hdr.event = BTA_AV_UPDATE_SUPP_CODECS;
+        p_buf->num_codec_configs = num_codec_configs;
+        memcpy(p_buf->codec_type, p_codec_type_list, num_codec_configs);
+        memcpy(p_buf->vnd_id, p_vnd_list, num_codec_configs);
+        memcpy(p_buf->codec_id, p_codec_id_list, num_codec_configs);
+        memcpy(p_buf->codec_info, codec_info, num_codec_configs * AVDT_CODEC_SIZE);
+        bta_sys_sendmsg(p_buf);
+    }
+}
