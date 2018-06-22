@@ -2972,9 +2972,8 @@ bt_status_t btif_dm_get_adapter_property(bt_property_t *prop)
         case BT_PROPERTY_BDNAME:
         {
             bt_bdname_t *bd_name = (bt_bdname_t*)prop->val;
-            strncpy((char *)bd_name->name, (char *)btif_get_default_local_name(),
-                   sizeof(bd_name->name) - 1);
-            bd_name->name[sizeof(bd_name->name) - 1] = 0;
+            strlcpy((char *)bd_name->name, (char *)btif_get_default_local_name(),
+                   sizeof(bd_name->name));
             prop->len = strlen((char *)bd_name->name);
         }
         break;
@@ -3285,8 +3284,7 @@ BOOLEAN btif_dm_get_smp_config(tBTE_APPL_CFG* p_cfg) {
     char* pch;
     char* endptr;
 
-    strncpy(conf, recv, 64);
-    conf[63] = 0; // null terminate
+    strlcpy(conf, recv, 64);
 
     if ((pch = strtok(conf, ",")) != NULL)
         p_cfg->ble_auth_req = (UINT8) strtoul(pch, &endptr, 16);
@@ -3825,15 +3823,14 @@ static char* btif_get_default_local_name() {
         int max_len = sizeof(btif_default_local_name) - 1;
         if (BTM_DEF_LOCAL_NAME[0] != '\0')
         {
-            strncpy(btif_default_local_name, BTM_DEF_LOCAL_NAME, max_len);
+            strlcpy(btif_default_local_name, BTM_DEF_LOCAL_NAME, max_len + 1);
         }
         else
         {
             char prop_model[PROPERTY_VALUE_MAX];
             osi_property_get(PROPERTY_PRODUCT_MODEL, prop_model, "");
-            strncpy(btif_default_local_name, prop_model, max_len);
+            strlcpy(btif_default_local_name, prop_model, max_len + 1);
         }
-        btif_default_local_name[max_len] = '\0';
     }
     return btif_default_local_name;
 }

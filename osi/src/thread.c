@@ -84,7 +84,7 @@ thread_t *thread_new_sized(const char *name, size_t work_queue_capacity) {
   if (!start.start_sem)
     goto error;
 
-  strncpy(ret->name, name, THREAD_NAME_MAX);
+  strlcpy(ret->name, name, THREAD_NAME_MAX + 1);
   start.thread = ret;
   start.error = 0;
   pthread_create(&ret->pthread, NULL, run_thread, &start);

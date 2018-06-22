@@ -353,7 +353,7 @@ void bta_hh_le_enable(void)
         bta_hh_cb.le_cb_index[xx]       = BTA_HH_IDX_INVALID;
 
     memset (app_name, 0, LEN_UUID_128 + 1);
-    strncpy(app_name, "BTA HH OVER LE", LEN_UUID_128);
+    strlcpy(app_name, "BTA HH OVER LE", LEN_UUID_128 + 1);
 
     memset (&app_uuid.uu.uuid128, 0x85, LEN_UUID_128);
 
