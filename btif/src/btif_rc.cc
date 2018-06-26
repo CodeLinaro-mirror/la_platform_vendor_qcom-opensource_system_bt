@@ -4353,6 +4353,8 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
         break;
 
       case AVRC_EVT_UIDS_CHANGE:
+        HAL_CBACK(bt_rc_vendor_ctrl_callbacks, uids_changed_cb,
+                  &rc_addr, p_rsp->param.uid_counter);
         break;
 
       case AVRC_EVT_TRACK_REACHED_END:
@@ -5934,9 +5936,9 @@ static bt_status_t get_player_list_cmd(RawAddress* bd_addr, uint8_t start_item,
  *                  BT_STATUS_FAIL.
  *
  **************************************************************************/
-static bt_status_t change_folder_path_cmd(RawAddress* bd_addr,
+static bt_status_t change_folder_path_cmd(RawAddress* bd_addr, uint16_t uid_counter,
                                           uint8_t direction, uint8_t* uid) {
-  BTIF_TRACE_DEBUG("%s: direction %d", __func__, direction);
+  BTIF_TRACE_DEBUG("%s: uid_counter %d, direction %d", __func__, uid_counter, direction);
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
   if (p_dev == NULL) {
     BTIF_TRACE_ERROR("%s: p_dev NULL", __func__);
@@ -5950,7 +5952,7 @@ static bt_status_t change_folder_path_cmd(RawAddress* bd_addr,
   avrc_cmd.chg_path.pdu = AVRC_PDU_CHANGE_PATH;
   avrc_cmd.chg_path.status = AVRC_STS_NO_ERROR;
   // TODO(sanketa): Improve for database aware clients.
-  avrc_cmd.chg_path.uid_counter = 0;
+  avrc_cmd.chg_path.uid_counter = uid_counter;
   avrc_cmd.chg_path.direction = direction;
 
   memset(avrc_cmd.chg_path.folder_uid, 0, AVRC_UID_SIZE * sizeof(uint8_t));
