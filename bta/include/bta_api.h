@@ -1193,6 +1193,32 @@ extern tBTA_STATUS BTA_DmHciRawCommand (uint16_t opcode, uint8_t param_len, uint
 extern void BTA_DmSetWifiState(bool status);
 
 /*******************************************************************************
+ *
+ *
+ * Function         BTA_DmBredrCleanup
+ *
+ * Description      This function do bredr cleanup
+ *
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+extern void BTA_DmBredrCleanup(void);
+
+/*******************************************************************************
+ *
+ *
+ * Function         BTA_DmBredrStartup
+ *
+ * Description      This function do bredr startup
+ *
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+extern void BTA_DmBredrStartup(void);
+
+/*******************************************************************************
 **
  * Function         BTA_DmSearch
  *
