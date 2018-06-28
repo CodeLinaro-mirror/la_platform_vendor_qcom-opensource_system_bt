@@ -7153,6 +7153,29 @@ static bt_status_t abort_continuing_response_cmd(RawAddress* bd_addr, uint8_t pd
   return build_and_send_vendor_cmd(&avrc_cmd, AVRC_CMD_CTRL, p_dev);
 }
 
+/***************************************************************************
+ *
+ * Function         disconnect
+ *
+ * Description      release avrcp connection
+ *
+ * Returns          void
+ *
+ **************************************************************************/
+static bt_status_t disconnect(RawAddress* bd_addr) {
+  BTIF_TRACE_DEBUG("%s: ", __func__);
+  btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
+  if (p_dev == NULL) {
+    BTIF_TRACE_ERROR("%s: p_dev NULL", __func__);
+    return BT_STATUS_FAIL;
+  }
+  CHECK_RC_CONNECTED(p_dev);
+
+  BTIF_TRACE_DEBUG("%s: close rc_handle: %d", __func__, p_dev->rc_handle);
+  BTA_AvCloseRc(p_dev->rc_handle);
+  return BT_STATUS_SUCCESS;
+}
+
 /*******************************************************************************
 **
 ** Function        cleanup_vendor
@@ -7179,6 +7202,7 @@ static const btrc_vendor_ctrl_interface_t btAvrcpCtrlVendorInterface = {
   fetch_player_app_setting_cmd,
   request_continuing_response_cmd,
   abort_continuing_response_cmd,
+  disconnect,
   cleanup_vendor,
 };
 
