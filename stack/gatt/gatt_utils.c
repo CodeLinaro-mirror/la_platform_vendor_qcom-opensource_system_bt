@@ -2846,7 +2846,7 @@ BOOLEAN gatt_update_listen_mode(void)
         }
         else
         {
-            if ((connectability & BTM_BLE_CONNECTABLE) == 0)
+            if ((connectability & BTM_BLE_CONNECTABLE) == BTM_BLE_CONNECTABLE)
             {
                if (stack_config_get_interface()->get_pts_le_nonconn_adv_enabled())
                   connectability = BTM_BLE_ADV_STOP;
