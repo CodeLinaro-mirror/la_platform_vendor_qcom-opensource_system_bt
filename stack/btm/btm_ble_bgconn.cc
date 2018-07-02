@@ -588,7 +588,7 @@ bool btm_ble_start_auto_conn(bool start) {
       btm_ble_set_conn_st(BLE_BG_CONN);
     }
     //Resume advs
-    if(is_background_advertiser) {
+    if(is_background_advertiser && BleAdvertisingManager::Get()) {
       BleAdvertisingManager::Get()->Resume();
     }
   } else {
@@ -601,7 +601,7 @@ bool btm_ble_start_auto_conn(bool start) {
                       p_cb->conn_state);
       exec = false;
     }
-    if(BleAdvertisingManager::IsInitialized()) {
+    if(BleAdvertisingManager::IsInitialized() && BleAdvertisingManager::Get()) {
       BleAdvertisingManager::Get()->Suspend();
     }
   }
@@ -639,7 +639,7 @@ bool btm_ble_suspend_bg_conn(void) {
  ******************************************************************************/
 static void btm_suspend_wl_activity(tBTM_BLE_WL_STATE wl_state) {
   if ((wl_state & BTM_BLE_WL_INIT) || (BleAdvertisingManager::IsInitialized()
-      && BleAdvertisingManager::Get()->IsWhiteListAdvActive())) {
+      && BleAdvertisingManager::Get() && BleAdvertisingManager::Get()->IsWhiteListAdvActive())) {
     btm_ble_start_auto_conn(false);
   }
 }
@@ -670,7 +670,7 @@ static void btm_resume_wl_activity(tBTM_BLE_WL_STATE wl_state) {
 bool btm_ble_resume_bg_conn(void) {
   tBTM_BLE_CB* p_cb = &btm_cb.ble_ctr_cb;
   if (p_cb->bg_conn_type == BTM_BLE_CONN_AUTO || (BleAdvertisingManager::IsInitialized()
-      && BleAdvertisingManager::Get()->IsWhiteListAdvActive())) {
+      && BleAdvertisingManager::Get() && BleAdvertisingManager::Get()->IsWhiteListAdvActive())) {
     return btm_ble_start_auto_conn(true);
   }
 
