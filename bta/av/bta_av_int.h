@@ -633,6 +633,7 @@ typedef struct {
   uint8_t shdl;               /* stream handle (hdi + 1) */
   uint8_t lidx;               /* (index+1) to LCB */
   tBTA_AV_FEAT peer_features; /* peer features mask */
+  uint16_t  cover_art_psm;  /* l2cap psm for cover art on remote */
 } tBTA_AV_RCB;
 #define BTA_AV_NUM_RCB (BTA_AV_NUM_STRS + 2)
 
@@ -865,5 +866,7 @@ extern void bta_av_open_at_inc(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_offload_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_offload_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_vendor_offload_stop(tBTA_AV_SCB* p_scb);
-
+#if (TWS_ENABLED == TRUE)
+extern void bta_av_set_tws_chn_mode(tBTA_AV_SCB* p_scb, bool adjust);
+#endif
 #endif /* BTA_AV_INT_H */

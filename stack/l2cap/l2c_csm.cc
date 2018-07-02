@@ -180,7 +180,7 @@ static void l2c_csm_closed(tL2C_CCB* p_ccb, uint16_t event, void* p_data) {
     case L2CEVT_LP_CONNECT_CFM_NEG: /* Link failed          */
       /* Disconnect unless ACL collision and upper layer wants to handle it */
       if (((p_ci->status != HCI_ERR_CONNECTION_EXISTS) && (p_ci->status != HCI_ERR_CONTROLLER_BUSY))
-          || interop_match_addr(INTEROP_DISABLE_CONNECTION_AFTER_COLLISION, &p_ccb->p_lcb->remote_bd_addr)
+          || interop_match_addr_or_name(INTEROP_DISABLE_CONNECTION_AFTER_COLLISION, &p_ccb->p_lcb->remote_bd_addr)
           || !btm_acl_notif_conn_collision(p_ccb->p_lcb->remote_bd_addr)) {
         L2CAP_TRACE_API(
             "L2CAP - Calling ConnectCfm_Cb(), CID: 0x%04x  Status: %d",
@@ -1153,13 +1153,19 @@ static void l2c_csm_open(tL2C_CCB* p_ccb, uint16_t event, void* p_data) {
     case L2CEVT_L2CAP_RECV_FLOW_CONTROL_CREDIT:
       credit = (uint16_t*)p_data;
       L2CAP_TRACE_DEBUG("%s Credits received %d", __func__, *credit);
-      if ((p_ccb->peer_conn_cfg.credits + *credit) > L2CAP_LE_MAX_CREDIT) {
+      if ((p_ccb->peer_conn_cfg.credits + *credit) > L2CAP_LE_CREDIT_MAX) {
         /* we have received credits more than max coc credits,
          * so disconnecting the Le Coc Channel
          */
         l2cble_send_peer_disc_req(p_ccb);
       } else {
         p_ccb->peer_conn_cfg.credits += *credit;
+
+        tL2CA_CREDITS_RECEIVED_CB* cr_cb =
+            p_ccb->p_rcb->api.pL2CA_CreditsReceived_Cb;
+        if (p_ccb->p_lcb->transport == BT_TRANSPORT_LE && (cr_cb)) {
+          (*cr_cb)(p_ccb->local_cid, *credit, p_ccb->peer_conn_cfg.credits);
+        }
         l2c_link_check_send_pkts(p_ccb->p_lcb, NULL, NULL);
       }
       break;

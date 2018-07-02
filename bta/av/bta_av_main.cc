@@ -843,6 +843,10 @@ static void bta_av_api_to_ssm(tBTA_AV_DATA* p_data) {
   tBTA_AV_SCB *p_scb = bta_av_hndl_to_scb(p_data->hdr.layer_specific);
   RawAddress tws_pair_addr;
   bool tws_pair_found = false;
+  if (p_scb == NULL) {
+    APPL_TRACE_ERROR("failed to alloc SCB");
+    return;
+  }
   if (p_scb->tws_device) {
     tws_device++;
     if (BTM_SecGetTwsPlusPeerDev(p_scb->peer_addr, tws_pair_addr) == true) {
@@ -864,11 +868,11 @@ static void bta_av_api_to_ssm(tBTA_AV_DATA* p_data) {
   }
   APPL_TRACE_DEBUG("bta_av_api_to_ssm: num tws devices = %d",tws_device);
 #endif //TWS_ENABLED
-  if ((is_multicast_enabled == TRUE) ||
+  if (is_multicast_enabled == TRUE
 #if (TWS_ENABLED == TRUE)
-      (tws_device > 1) ||
+     ||  tws_device > 1
 #endif
-      ((event == BTA_AV_AP_STOP_EVT) && (bta_av_multiple_streams_started() == TRUE))) {
+     ) {
     /* Send START request to all Open Stream connections.*/
     for (xx=0; xx < BTA_AV_NUM_STRS; xx++)
       if (is_multicast_enabled) {
@@ -918,6 +922,7 @@ static void bta_av_api_set_tws_earbud_role(tBTA_AV_DATA * p_data)
     return;
   }
   p_scb->channel_mode = p_data->tws_set_earbud_role.chn_mode;
+  bta_av_set_tws_chn_mode(p_scb, true);
 //  p_scb->tws_device = true;
 }
 static void bta_av_api_set_is_tws_device(tBTA_AV_DATA * p_data)

@@ -23,6 +23,9 @@
  *
  ******************************************************************************/
 
+
+#include <cutils/log.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,7 +43,6 @@
 #include <errno.h>
 #include "device/include/interop.h"
 #include "btif/include/btif_storage.h"
-#include "device/include/interop_config.h"
 #include "device/include/profile_config.h"
 #include <cutils/properties.h>
 #include <hardware/bluetooth.h>
@@ -75,7 +77,7 @@
 /******************************************************************************/
 static void process_service_search(tCONN_CB* p_ccb, uint16_t trans_num,
                                    uint16_t param_len, uint8_t* p_req,
-                                   UNUSED_ATTR uint8_t* p_req_end);
+                                   uint8_t* p_req_end);
 
 static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
                                      uint16_t param_len, uint8_t* p_req,
@@ -83,7 +85,7 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
 
 static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
                                             uint16_t param_len, uint8_t* p_req,
-                                            UNUSED_ATTR uint8_t* p_req_end);
+                                            uint8_t* p_req_end);
 
 static bool is_device_blacklisted_for_pbap (RawAddress remote_address,
                                             bool check_for_1_2);
@@ -407,7 +409,7 @@ bool sdp_change_hfp_version (tSDP_ATTRIBUTE *p_attr, RawAddress remote_address)
         if (((p_attr->value_ptr[3] << 8) | (p_attr->value_ptr[4])) ==
                 UUID_SERVCLASS_HF_HANDSFREE)
         {
-            is_blacklisted = interop_database_match_addr(INTEROP_HFP_1_7_BLACKLIST,
+            is_blacklisted = interop_match_addr_or_name(INTEROP_HFP_1_7_BLACKLIST,
                                                            &remote_address);
             SDP_TRACE_DEBUG("%s: HF version is 1.7 for BD addr: %s",\
                            __func__, remote_address.ToString().c_str());
@@ -447,11 +449,25 @@ void sdp_server_handle_client_req(tCONN_CB* p_ccb, BT_HDR* p_msg) {
   alarm_set_on_mloop(p_ccb->sdp_conn_timer, SDP_INACT_TIMEOUT_MS,
                      sdp_conn_timer_timeout, p_ccb);
 
+  if (p_req + sizeof(pdu_id) + sizeof(trans_num) > p_req_end) {
+    android_errorWriteLog(0x534e4554, "69384124");
+    trans_num = 0;
+    sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
+                            SDP_TEXT_BAD_HEADER);
+  }
+
   /* The first byte in the message is the pdu type */
   pdu_id = *p_req++;
 
   /* Extract the transaction number and parameter length */
   BE_STREAM_TO_UINT16(trans_num, p_req);
+
+  if (p_req + sizeof(param_len) > p_req_end) {
+    android_errorWriteLog(0x534e4554, "69384124");
+    sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
+                            SDP_TEXT_BAD_HEADER);
+  }
+
   BE_STREAM_TO_UINT16(param_len, p_req);
 
   if ((p_req + param_len) != p_req_end) {
@@ -495,7 +511,7 @@ void sdp_server_handle_client_req(tCONN_CB* p_ccb, BT_HDR* p_msg) {
  ******************************************************************************/
 static void process_service_search(tCONN_CB* p_ccb, uint16_t trans_num,
                                    uint16_t param_len, uint8_t* p_req,
-                                   UNUSED_ATTR uint8_t* p_req_end) {
+                                   uint8_t* p_req_end) {
   uint16_t max_replies, cur_handles, rem_handles, cont_offset;
   tSDP_UUID_SEQ uid_seq;
   uint8_t *p_rsp, *p_rsp_start, *p_rsp_param_len;
@@ -513,23 +529,21 @@ static void process_service_search(tCONN_CB* p_ccb, uint16_t trans_num,
   }
 
   /* Get the max replies we can send. Cap it at our max anyways. */
-  BE_STREAM_TO_UINT16(max_replies, p_req);
-
-    if (!max_replies)
-    {
-        sdpu_build_n_send_error (p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
-                                 SDP_TEXT_BAD_MAX_ATTR_LIST);
-        return;
-    }
-
-    if (max_replies > SDP_MAX_RECORDS)
-        max_replies = SDP_MAX_RECORDS;
-
-  if ((!p_req) || (p_req > p_req_end)) {
+  if (p_req + sizeof(max_replies) + sizeof(uint8_t) > p_req_end) {
+    android_errorWriteLog(0x534e4554, "69384124");
     sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
                             SDP_TEXT_BAD_MAX_RECORDS_LIST);
     return;
   }
+  BE_STREAM_TO_UINT16(max_replies, p_req);
+    
+  if (!max_replies) {
+    sdpu_build_n_send_error (p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
+                             SDP_TEXT_BAD_MAX_ATTR_LIST);
+    return;
+  }
+
+  if (max_replies > SDP_MAX_RECORDS) max_replies = SDP_MAX_RECORDS;
 
   /* Get a list of handles that match the UUIDs given to us */
   for (num_rsp_handles = 0; num_rsp_handles < max_replies;) {
@@ -543,7 +557,8 @@ static void process_service_search(tCONN_CB* p_ccb, uint16_t trans_num,
 
   /* Check if this is a continuation request */
   if (*p_req) {
-    if (*p_req++ != SDP_CONTINUATION_LEN || (p_req >= p_req_end)) {
+    if (*p_req++ != SDP_CONTINUATION_LEN ||
+        (p_req + sizeof(cont_offset) > p_req_end)) {
       sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE,
                               SDP_TEXT_BAD_CONT_LEN);
       return;
@@ -654,14 +669,16 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   bool is_avrcp_browse_bit_reset = FALSE;
   bool is_avrcp_cover_bit_reset = FALSE;
   uint16_t dut_profile_version;
-  /* Extract the record handle */
-  BE_STREAM_TO_UINT32(rec_handle, p_req);
 
-  if (p_req > p_req_end) {
+  if (p_req + sizeof(rec_handle) + sizeof(max_list_len) > p_req_end) {
+    android_errorWriteLog(0x534e4554, "69384124");
     sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_SERV_REC_HDL,
                             SDP_TEXT_BAD_HANDLE);
     return;
   }
+
+  /* Extract the record handle */
+  BE_STREAM_TO_UINT32(rec_handle, p_req);
 
   /* Get the max list length we can send. Cap it at MTU size minus overhead */
   BE_STREAM_TO_UINT16(max_list_len, p_req);
@@ -678,7 +695,8 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
 
   p_req = sdpu_extract_attr_seq(p_req, param_len, &attr_seq);
 
-  if ((!p_req) || (!attr_seq.num_attr) || (p_req > p_req_end)) {
+  if ((!p_req) || (!attr_seq.num_attr) ||
+      (p_req + sizeof(uint8_t) > p_req_end)) {
     sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
                             SDP_TEXT_BAD_ATTR_LIST);
     return;
@@ -701,7 +719,8 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
 
   /* Check if this is a continuation request */
   if (*p_req) {
-    if (*p_req++ != SDP_CONTINUATION_LEN) {
+    if (*p_req++ != SDP_CONTINUATION_LEN ||
+        (p_req + sizeof(cont_offset) > p_req_end)) {
       sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE,
                               SDP_TEXT_BAD_CONT_LEN);
       return;
@@ -1000,7 +1019,7 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
  ******************************************************************************/
 static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
                                             uint16_t param_len, uint8_t* p_req,
-                                            UNUSED_ATTR uint8_t* p_req_end) {
+                                            uint8_t* p_req_end) {
   uint16_t max_list_len;
   int16_t rem_len;
   uint16_t len_to_send, cont_offset;
@@ -1023,7 +1042,8 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   /* Extract the UUID sequence to search for */
   p_req = sdpu_extract_uid_seq(p_req, param_len, &uid_seq);
 
-  if ((!p_req) || (!uid_seq.num_uids)) {
+  if ((!p_req) || (!uid_seq.num_uids) ||
+      (p_req + sizeof(uint16_t) > p_req_end)) {
     sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
                             SDP_TEXT_BAD_UUID_LIST);
     return;
@@ -1044,7 +1064,8 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
 
   p_req = sdpu_extract_attr_seq(p_req, param_len, &attr_seq);
 
-  if ((!p_req) || (!attr_seq.num_attr)) {
+  if ((!p_req) || (!attr_seq.num_attr) ||
+      (p_req + sizeof(uint8_t) > p_req_end)) {
     sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
                             SDP_TEXT_BAD_ATTR_LIST);
     return;
@@ -1058,7 +1079,8 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
 
   /* Check if this is a continuation request */
   if (*p_req) {
-    if (*p_req++ != SDP_CONTINUATION_LEN) {
+    if (*p_req++ != SDP_CONTINUATION_LEN ||
+        (p_req + sizeof(uint16_t) > p_req_end)) {
       sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE,
                               SDP_TEXT_BAD_CONT_LEN);
       return;
@@ -1448,27 +1470,11 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
 ***************************************************************************************/
 static bool is_device_blacklisted_for_pbap (RawAddress remote_address, bool check_for_1_2)
 {
-  bt_property_t prop_name;
-  bt_bdname_t bdname;
-
-  memset(&bdname, 0, sizeof(bt_bdname_t));
-  BTIF_STORAGE_FILL_PROPERTY(&prop_name, BT_PROPERTY_BDNAME,
-                         sizeof(bt_bdname_t), &bdname);
-  if (btif_storage_get_remote_device_property(&remote_address,
-                                        &prop_name) != BT_STATUS_SUCCESS) {
-    SDP_TRACE_DEBUG("%s: BT_PROPERTY_BDNAME failed", __func__);
-  }
-  if (check_for_1_2 && (interop_match_addr(INTEROP_ADV_PBAP_VER_1_1, &remote_address) ||
-      (strlen((const char *)bdname.name) != 0 &&
-      interop_match_name(INTEROP_ADV_PBAP_VER_1_1,
-      (const char *)bdname.name)))) {
+  if (check_for_1_2 && interop_match_addr_or_name(INTEROP_ADV_PBAP_VER_1_1, &remote_address)) {
     SDP_TRACE_DEBUG("%s: device is blacklisted for pbap version < 1.2 ", __func__);
     return true;
   }
-  if (!check_for_1_2 && (interop_match_addr(INTEROP_ADV_PBAP_VER_1_2, &remote_address) ||
-      (strlen((const char *)bdname.name) != 0 &&
-      interop_match_name(INTEROP_ADV_PBAP_VER_1_2,
-      (const char *)bdname.name)))) {
+  if (!check_for_1_2 && interop_match_addr_or_name(INTEROP_ADV_PBAP_VER_1_2, &remote_address)) {
     SDP_TRACE_DEBUG("%s: device is blacklisted for pbap version 1.2 ", __func__);
     return true;
   }
@@ -1727,7 +1733,7 @@ void check_and_store_pce_profile_version(tSDP_DISC_REC* p_sdp_rec) {
   FILE *fp;
   bool has_entry = FALSE;
   struct pce_entry entry;
-  UINT16 peer_pce_version;
+  uint16_t peer_pce_version;
 
   RawAddress remote_addr = p_sdp_rec->remote_bd_addr;
   SDP_FindProfileVersionInRec(p_sdp_rec, UUID_SERVCLASS_PHONE_ACCESS, &peer_pce_version);
