@@ -78,7 +78,13 @@
 #endif  // defined(OS_GENERIC)
 #endif  // BTE_DID_CONF_FILE
 
-#define VENDOR_PERSISTENCE_PATH    "/data/misc/bluetooth"
+static const char *btnv_dirs[] = {
+"/data/misc/bluetooth",
+"/persist/bluetooth",
+"/firmware/image/",
+NULL
+};
+
 #define VENDOR_BT_NV_FILE_NAME     ".bt_nv.bin"
 #define VENDOR_PAYLOAD_MAXLENGTH   (260)
 #define VENDOR_MAX_CMD_HDR_SIZE    (3)
@@ -343,6 +349,23 @@ static bool btif_fetch_property(const char *key, bt_bdaddr_t *addr) {
     }
     return FALSE;
 }
+
+static int open_btnv_files(char *filename)
+{
+    int addr_fd;
+    char **p = btnv_dirs;
+
+   BTIF_TRACE_DEBUG("%s \n",__func__);
+    while (*p) {
+        snprintf(filename, NAME_MAX, "%s/%s",*p,VENDOR_BT_NV_FILE_NAME);
+        BTIF_TRACE_DEBUG("Opening file '%s' for reading\n",filename);
+        if((addr_fd = open(filename, O_RDONLY)) > 0)
+            return addr_fd;
+        p++;
+    }
+    return -1;
+}
+
 static bool fetch_vendor_addr (bt_bdaddr_t *local_addr)
 {
     int addr_fd, i;
@@ -352,11 +375,8 @@ static bool fetch_vendor_addr (bt_bdaddr_t *local_addr)
     unsigned char header[VENDOR_MAX_CMD_HDR_SIZE];
     char filename[NAME_MAX];
 
-    snprintf(filename, NAME_MAX, "%s/%s",VENDOR_PERSISTENCE_PATH,VENDOR_BT_NV_FILE_NAME);
-    BTIF_TRACE_VERBOSE("Opening file '%s' for reading\n",filename);
-
     /* Open the Vendor BD Addr file */
-    addr_fd = open(filename, O_RDONLY);
+    addr_fd = open_btnv_files(filename);
     if(addr_fd < 0)
     {
         BTIF_TRACE_ERROR("Open of Vendor BD addr file failed\n");
