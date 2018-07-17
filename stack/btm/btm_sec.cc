@@ -955,9 +955,15 @@ tBTM_STATUS btm_sec_bond_by_transport(const RawAddress& bd_addr,
 
   /* Other security process is in progress */
   if (btm_cb.pairing_state != BTM_PAIR_STATE_IDLE) {
-    BTM_TRACE_ERROR("BTM_SecBond: already busy in state: %s",
-                    btm_pair_state_descr(btm_cb.pairing_state));
-    return (BTM_WRONG_MODE);
+    if (btm_cb.pairing_bda == bd_addr) {
+      BTM_TRACE_ERROR("BTM_SecBond: pairing in progress for this device: %s",
+                       btm_pair_state_descr(btm_cb.pairing_state));
+      return (BTM_CMD_STARTED);
+    } else {
+      BTM_TRACE_ERROR("BTM_SecBond: already busy in state: %s",
+                       btm_pair_state_descr(btm_cb.pairing_state));
+      return (BTM_WRONG_MODE);
+    }
   }
 
   p_dev_rec = btm_find_or_alloc_dev(bd_addr);
@@ -4172,14 +4178,10 @@ void btm_sec_encrypt_change(uint16_t handle, uint8_t status,
 
   if (p_acl && p_acl->transport == BT_TRANSPORT_LE) {
     if (status == HCI_ERR_AUTH_FAILURE ||
+        status == HCI_ERR_KEY_MISSING ||
         status == HCI_ERR_ENCRY_MODE_NOT_ACCEPTABLE) {
       p_dev_rec->sec_flags &= ~(BTM_SEC_LE_LINK_KEY_KNOWN);
       p_dev_rec->ble.key_type = BTM_LE_KEY_NONE;
-    } else if (status == HCI_ERR_KEY_MISSING) {
-      btm_sec_disconnect(handle, status);
-    }
-    else if (status == HCI_ERR_KEY_MISSING) {
-        btm_sec_disconnect(handle, status);
     }
     btm_ble_link_encrypted(p_dev_rec->ble.pseudo_addr, encr_enable);
     return;

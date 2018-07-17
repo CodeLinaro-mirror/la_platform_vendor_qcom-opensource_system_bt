@@ -253,6 +253,7 @@ extern fixed_queue_t* btu_general_alarm_queue;
 extern void btif_media_send_reset_vendor_state();
 extern tBTIF_A2DP_SOURCE_VSC btif_a2dp_src_vsc;
 extern uint8_t* bta_av_co_get_peer_codec_info(uint8_t hdl);
+extern void bta_av_vendor_offload_stop(void);
 /*****************************************************************************
  * Local helper functions
  *****************************************************************************/
@@ -1573,9 +1574,14 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
     } break;
 
     case BTA_AV_OFFLOAD_START_RSP_EVT:
-      APPL_TRACE_WARNING("Offload Start Rsp is unsupported in opened state");
-      if (btif_av_cb[index].flags & BTIF_AV_FLAG_REMOTE_SUSPEND)
+      APPL_TRACE_WARNING("Offload Start Rsp is unsupported in opened state, status = %d", p_av->status);
+      if (btif_av_cb[index].flags & BTIF_AV_FLAG_REMOTE_SUSPEND) {
+        if (p_av->status == BTA_AV_SUCCESS) {
+          btif_a2dp_src_vsc.tx_started = TRUE;
+          bta_av_vendor_offload_stop();
+        }
         btif_a2dp_on_offload_started(BTA_AV_FAIL_UNSUPPORTED);
+      }
       break;
 
     case BTA_AV_RC_OPEN_EVT: {
@@ -2002,6 +2008,16 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
       remote_start_cancelled = false;
       // if not successful, remain in current state
       if (p_av->suspend.status != BTA_AV_SUCCESS) {
+        if (btif_av_cb[index].is_suspend_for_remote_start) {
+          BTIF_TRACE_DEBUG("Suspend sent for remote start failed");
+          btif_av_cb[index].is_suspend_for_remote_start = false;
+          if (!btif_av_is_playing_on_other_idx(index) &&
+                  (index == btif_av_get_latest_device_idx_to_start())) {
+            BTIF_TRACE_DEBUG("other index not playing, setup codec");
+            btif_dispatch_sm_event(BTIF_AV_SETUP_CODEC_REQ_EVT, NULL, 0);
+          }
+        }
+
         btif_av_cb[index].flags &= ~BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING;
 
         if (btif_av_cb[index].peer_sep == AVDT_TSEP_SNK)
