@@ -1151,7 +1151,7 @@ void BleAdvertisingManager::Initialize(BleAdvertiserHciInterface* interface) {
 bool BleAdvertisingManager::IsInitialized() { return instance; }
 
 base::WeakPtr<BleAdvertisingManager> BleAdvertisingManager::Get() {
-  CHECK(instance);
+  CHECK(instance_weakptr);
   return instance_weakptr;
 };
 
