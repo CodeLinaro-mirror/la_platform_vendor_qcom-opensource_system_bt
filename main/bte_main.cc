@@ -68,11 +68,7 @@
 #if defined(OS_GENERIC)
 #define BTE_BLE_STACK_CONF_FILE "ble_stack.conf"
 #else  // !defined(OS_GENERIC)
-#ifdef ANDROID
 #define BTE_BLE_STACK_CONF_FILE "/etc/bluetooth/ble_stack.conf"
-#else
-#define BTE_BLE_STACK_CONF_FILE "/data/misc/bluetooth/ble_stack.conf"
-#endif
 #endif  // defined(OS_GENERIC)
 #endif  // BT_BLE_STACK_CONF_FILE
 
