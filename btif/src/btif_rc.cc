@@ -851,6 +851,47 @@ void handle_rc_connect(tBTA_AV_RC_OPEN* p_rc_open) {
 }
 
 /***************************************************************************
+ *  Function       handle_rc_browse_disconnect
+ *
+ *  - Argument:    tBTA_AV_RC_BROWSE_CLOSE     browse RC close data structure
+ *
+ *  - Description: browse RC disconnection event handler
+ *
+ ***************************************************************************/
+void handle_rc_browse_disconnect(tBTA_AV_RC_BROWSE_CLOSE* p_rc_browse_close) {
+  btif_rc_device_cb_t* p_dev = NULL;
+  BTIF_TRACE_IMP("%s: rc_handle: %d", __func__, p_rc_browse_close->rc_handle);
+
+  p_dev = btif_rc_get_device_by_handle(p_rc_browse_close->rc_handle);
+  if (p_dev == NULL) {
+    BTIF_TRACE_ERROR("%s: Got disconnect from invalid rc handle", __func__);
+    return;
+  }
+
+  RawAddress rc_addr = p_dev->rc_addr;
+
+  if (p_rc_browse_close->rc_handle != p_dev->rc_handle &&
+      p_dev->rc_addr != p_rc_browse_close->peer_addr) {
+    BTIF_TRACE_ERROR("Got disconnect of unknown device");
+    return;
+  }
+
+  /* check if there is another device connected */
+  if (p_dev->rc_state == BTRC_CONNECTION_STATE_CONNECTED) {
+    p_dev->br_connected = false;
+  }
+
+  /* report connection state if device is AVRCP target */
+  if (bt_rc_ctrl_callbacks != NULL) {
+    HAL_CBACK(bt_rc_ctrl_callbacks, connection_state_cb, true, false,
+              &rc_addr);
+  }
+  if (bt_rc_callbacks) {
+    HAL_CBACK(bt_rc_callbacks, connection_state_cb, true, false, &rc_addr);
+  }
+}
+
+/***************************************************************************
  *  Function       handle_rc_disconnect
  *
  *  - Argument:    tBTA_AV_RC_CLOSE     RC close data structure
@@ -1301,6 +1342,8 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV* p_data) {
 
     case BTA_AV_RC_BROWSE_CLOSE_EVT: {
       BTIF_TRACE_DEBUG("%s: BTA_AV_RC_BROWSE_CLOSE_EVT", __func__);
+      /* AVRCP_CT: Handle disconnection of browse channel */
+      handle_rc_browse_disconnect(&(p_data->rc_browse_close));
     } break;
 
     case BTA_AV_REMOTE_CMD_EVT: {
