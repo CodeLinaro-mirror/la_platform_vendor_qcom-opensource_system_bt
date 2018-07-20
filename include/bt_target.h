@@ -381,16 +381,16 @@
 /* Default class of device
 * {SERVICE_CLASS, MAJOR_CLASS, MINOR_CLASS}
 *
-* SERVICE_CLASS:0x2C (Bit18 - Rendering, Bit19 - Capturing, Bit21 - Audio)
+* SERVICE_CLASS:0x26 (Bit17 - Networking, Bit18 - Rendering, Bit21 - Audio)
 * MAJOR_CLASS:0x04 - Audio/Video
-* MINOR_CLASS:0X14 - Loudspeaker
+* MINOR_CLASS:0X08 - Hands-free Device
 *
 * Detailed information can be found in below link
 * https://www.bluetooth.com/specifications/assigned-numbers/baseband
 */
 #ifndef BTA_DM_COD
 #define BTA_DM_COD \
-  { 0x2c, 0x04, 0x14 }
+  { 0x26, 0x04, 0x08 }
 #endif
 
 /* The number of SCO links. */
