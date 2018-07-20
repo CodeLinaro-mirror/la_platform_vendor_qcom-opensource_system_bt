@@ -753,6 +753,7 @@ typedef struct
 typedef struct
 {
     BD_ADDR         bd_addr;            /* BD address peer device. */
+    DEV_CLASS       dc;
 #if BLE_INCLUDED == TRUE
     tBTA_TRANSPORT  link_type;
 #endif
