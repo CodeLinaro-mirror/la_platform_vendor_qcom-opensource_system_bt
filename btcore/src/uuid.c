@@ -129,27 +129,12 @@ void uuid_to_string(const bt_uuid_t *uuid, uuid_string_t *uuid_string) {
   assert(uuid != NULL);
   assert(uuid_string != NULL);
 
-  char *string = uuid_string->string;
-
-  for (int i = 0; i < 4; i++) {
-    string += sprintf(string, "%02x", uuid->uu[i]);
-  }
-  string += sprintf(string, "-");
-  for (int i = 4; i < 6; i++) {
-    string += sprintf(string, "%02x", uuid->uu[i]);
-  }
-  string += sprintf(string, "-");
-  for (int i = 6; i < 8; i++) {
-    string += sprintf(string, "%02x", uuid->uu[i]);
-  }
-  string += sprintf(string, "-");
-  for (int i = 8; i < 10; i++) {
-    string += sprintf(string, "%02x", uuid->uu[i]);
-  }
-  string += sprintf(string, "-");
-  for (int i = 10; i < 16; i++) {
-    string += sprintf(string, "%02x", uuid->uu[i]);
-  }
+  snprintf(uuid_string->string, sizeof(uuid_string->string),
+      "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+      uuid->uu[0], uuid->uu[1], uuid->uu[2], uuid->uu[3], uuid->uu[4],
+      uuid->uu[5], uuid->uu[6], uuid->uu[7], uuid->uu[8], uuid->uu[9],
+      uuid->uu[10], uuid->uu[11], uuid->uu[12], uuid->uu[13],
+      uuid->uu[14], uuid->uu[15]);
 }
 
 static bool uuid_is_base(const bt_uuid_t *uuid) {
