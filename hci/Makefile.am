@@ -21,8 +21,8 @@ AM_CPPFLAGS = -Iinclude -I../include \
         -I$(external_bt_path)/vhal/include \
         -I$(external_bt_path)/system_bt_ext/bta/ar \
         -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/hal/include \
-        -I$(WORKSPACE)/vendor/qcom/proprietary/bluetooth/hidl_transport/hidl \
-        -I$(bdroid_C_INCLUDES)
+        -I$(bdroid_C_INCLUDES) \
+        -I${D}${includedir}
 
 if MDM_ROME
 AM_CFLAGS += -DBT_SOC_TYPE_ROME
