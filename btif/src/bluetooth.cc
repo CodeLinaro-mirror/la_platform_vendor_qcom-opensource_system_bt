@@ -48,6 +48,7 @@
 #include <hardware/bt_rc_vendor.h>
 #include <hardware/bt_sdp.h>
 #include <hardware/bt_sock.h>
+#include "hardware/bt_hh_vendor.h"
 #ifdef WIPOWER_SUPPORTED
 #include <hardware/wipower.h>
 #endif
@@ -133,6 +134,10 @@ extern wipower_interface_t *get_wipower_interface();
 
 #ifdef OBEX_SUPPORTED
 extern btsock_interface_t_v1 *btif_obex_get_interface();
+#endif
+
+#if (defined BTA_HH_INCLUDED && BTA_HH_INCLUDED == TRUE)
+extern bthh_vendor_interface_t *btif_hh_vendor_get_interface();
 #endif
 
 /* List all test interface here */
@@ -424,6 +429,11 @@ static const void* get_profile_interface(const char* profile_id) {
 #ifdef OBEX_SUPPORTED
   if (is_profile(profile_id, BT_PROFILE_OBEX_ID))
     return btif_obex_get_interface();
+#endif
+
+#if (defined BTA_HH_INCLUDED && BTA_HH_INCLUDED == TRUE)
+  if (is_profile(profile_id, BT_PROFILE_HID_VENDOR_ID))
+    return btif_hh_vendor_get_interface();
 #endif
 
   if (is_profile(profile_id, BT_TEST_INTERFACE_MCAP_ID))

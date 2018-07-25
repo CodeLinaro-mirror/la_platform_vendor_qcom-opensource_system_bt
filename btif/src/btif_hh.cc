@@ -44,6 +44,7 @@
 #include "l2c_api.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+#include "hardware/bt_hh_vendor.h"
 
 #define BTIF_HH_APP_ID_MI 0x01
 #define BTIF_HH_APP_ID_KB 0x02
@@ -111,6 +112,7 @@ typedef struct hid_kb_list {
 btif_hh_cb_t btif_hh_cb;
 
 static bthh_callbacks_t* bt_hh_callbacks = NULL;
+static bthh_vendor_callbacks_t* bt_hh_vendor_callbacks = NULL;
 
 /* List of HID keyboards for which the NUMLOCK state needs to be
  * turned ON by default. Add devices to this list to apply the
@@ -1097,6 +1099,12 @@ static void btif_hh_upstreams_evt(uint16_t event, char* p_param) {
       LOG_INFO("bt_btif_hh: BTA_HH API_ERR");
       break;
 
+    case BTA_HH_SEND_RAW_DATA_EVT:
+       BTIF_TRACE_DEBUG( "BTA_HH_SEND_RAW_DATA_EVT");
+       HAL_CBACK(bt_hh_vendor_callbacks, raw_hid_data_cb,p_data->raw_data.data,
+                 p_data->raw_data.len,p_data->raw_data.rpt_id_flag);
+       break;
+
     default:
       BTIF_TRACE_WARNING("%s: Unhandled event: %d", __func__, event);
       break;
@@ -1135,6 +1143,8 @@ void bte_hh_evt(tBTA_HH_EVT event, tBTA_HH* p_data) {
     param_len = sizeof(tBTA_HH_CBDATA);
   else if ((BTA_HH_ADD_DEV_EVT == event) || (BTA_HH_RMV_DEV_EVT == event))
     param_len = sizeof(tBTA_HH_DEV_INFO);
+  else if (BTA_HH_SEND_RAW_DATA_EVT == event)
+    param_len = sizeof(tBTA_HH_RAW_DATA)+(p_data->raw_data.len);
   else if (BTA_HH_API_ERR_EVT == event)
     param_len = 0;
   /* switch context to btif task context (copy full union size for convenience)
@@ -1237,6 +1247,24 @@ static bt_status_t init(bthh_callbacks_t* callbacks) {
    */
   btif_enable_service(BTA_HID_SERVICE_ID);
   return BT_STATUS_SUCCESS;
+}
+
+/*******************************************************************************
+ *
+ * Function         btif_hh_vendor_init
+ *
+ * Description     initializes the hh vendor interface
+ *
+ * Returns         bt_status_t
+ *
+ ******************************************************************************/
+static bt_status_t init_vendor( bthh_vendor_callbacks_t* callbacks )
+{
+    BTIF_TRACE_EVENT("%s", __FUNCTION__);
+
+    bt_hh_vendor_callbacks = callbacks;
+
+    return BT_STATUS_SUCCESS;
 }
 
 /*******************************************************************************
@@ -1681,6 +1709,25 @@ static void cleanup(void) {
 
 }
 
+/*******************************************************************************
+ *
+ * Function         cleanup_vendor
+ *
+ * Description      Closes the HH vendor interface
+ *
+ * Returns          bt_status_t
+ *
+ ******************************************************************************/
+
+static bt_status_t cleanup_vendor( void )
+{
+    BTIF_TRACE_EVENT("%s", __FUNCTION__);
+
+    bt_hh_vendor_callbacks = NULL;
+
+    return BT_STATUS_SUCCESS;
+}
+
 static const bthh_interface_t bthhInterface = {
     sizeof(bthhInterface),
     init,
@@ -1697,6 +1744,13 @@ static const bthh_interface_t bthhInterface = {
     send_data,
     cleanup,
 };
+
+static const bthh_vendor_interface_t bthhVendorInterface = {
+    sizeof(bthh_vendor_interface_t),
+    init_vendor,
+    cleanup_vendor,
+};
+
 
 /*******************************************************************************
  *
@@ -1730,4 +1784,19 @@ bt_status_t btif_hh_execute_service(bool b_enable) {
 const bthh_interface_t* btif_hh_get_interface() {
   BTIF_TRACE_EVENT("%s", __func__);
   return &bthhInterface;
+}
+
+/*******************************************************************************
+ *
+ * Function         btif_hh_vendor_get_interface
+ *
+ * Description      Get the hh vendor callback interface
+ *
+ * Returns          bthh_vendor_interface_t
+ *
+ ******************************************************************************/
+const bthh_vendor_interface_t *btif_hh_vendor_get_interface(void)
+{
+    BTIF_TRACE_IMP("%s", __FUNCTION__);
+    return &bthhVendorInterface;
 }
