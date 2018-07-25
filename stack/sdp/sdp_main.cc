@@ -122,6 +122,13 @@ void sdp_init(void) {
   }
 }
 
+void sdp_free(void) {
+  for (int i = 0; i < SDP_MAX_CONNECTIONS; i++) {
+    alarm_free(sdp_cb.ccb[i].sdp_conn_timer);
+    sdp_cb.ccb[i].sdp_conn_timer = NULL;
+ }
+}
+
 #if (SDP_DEBUG == TRUE)
 /*******************************************************************************
  *

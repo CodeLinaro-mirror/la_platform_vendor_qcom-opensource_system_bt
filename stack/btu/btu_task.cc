@@ -138,9 +138,11 @@ void btu_task_shut_down(UNUSED_ATTR void* context) {
   if (run_loop_ && message_loop_) {
     message_loop_->task_runner()->PostTask(FROM_HERE, run_loop_->QuitClosure());
   }
-
   module_clean_up(get_module(BTE_LOGMSG_MODULE));
 
   bta_sys_free();
   btu_free_core();
+
+  thread_free(message_loop_thread_);
+
 }
