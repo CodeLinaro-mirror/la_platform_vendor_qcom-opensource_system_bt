@@ -28,6 +28,7 @@
 #include <base/bind.h>
 #include <base/callback.h>
 #include <base/logging.h>
+#include <cutils/log.h>
 #include <string.h>
 
 #include "bt_common.h"
@@ -156,6 +157,8 @@ static void bta_dm_ctrl_features_rd_cmpl_cback(tBTM_STATUS result);
 #ifndef BTA_DM_SWITCH_DELAY_TIMER_MS
 #define BTA_DM_SWITCH_DELAY_TIMER_MS 500
 #endif
+
+#define BTA_MAX_SERVICES 32
 
 static void bta_dm_reset_sec_dev_pending(const RawAddress& remote_bd_addr);
 static void bta_dm_remove_sec_dev_entry(const RawAddress& remote_bd_addr);
@@ -568,9 +571,19 @@ static void bta_dm_disable_timer_cback(void* data) {
   bool trigger_disc = false;
   uint32_t param = PTR_TO_UINT(data);
 
-  APPL_TRACE_EVENT("%s trial %u", __func__, param);
+  APPL_TRACE_WARNING("%s trial %u", __func__, param);
 
-  if (BTM_GetNumAclLinks() && (param == 0)) {
+  if (param == 2) {
+    if (BTM_GetNumAclLinks()) {
+      for (i = 0; i < bta_dm_cb.device_list.count; i++) {
+        transport = bta_dm_cb.device_list.peer_device[i].transport;
+        if (BT_TRANSPORT_BR_EDR == transport) {
+          btm_remove_acl(bta_dm_cb.device_list.peer_device[i].peer_bdaddr,
+                  transport);
+        }
+      }
+    }
+  }else if (BTM_GetNumAclLinks() && (param == 0)) {
     for (i = 0; i < bta_dm_cb.device_list.count; i++) {
       transport = bta_dm_cb.device_list.peer_device[i].transport;
       btm_remove_acl(bta_dm_cb.device_list.peer_device[i].peer_bdaddr,
@@ -626,6 +639,48 @@ void bta_dm_set_wifi_state(tBTA_DM_MSG *p_data) {
   BTM_SetWifiState((bool)p_data->wifi_state.status);
   if (p_data->wifi_state.status == true)
     bta_dm_adjust_roles(FALSE);
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_dm_bredr_cleanup
+ *
+ * Description      do bredr cleanup
+ *
+ *
+ * Returns          void
+ *
+ *****************************************************************************/
+void bta_dm_bredr_cleanup(tBTA_DM_MSG *p_data) {
+  alarm_set_on_mloop(bta_dm_cb.disable_timer, BTA_DM_DISABLE_TIMER_MS,
+                    bta_dm_disable_timer_cback, UINT_TO_PTR(2));
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_dm_bredr_startup
+ *
+ * Description      do bredr startup
+ *
+ *
+ * Returns          void
+ *
+ *****************************************************************************/
+void bta_dm_bredr_startup(tBTA_DM_MSG *p_data) {
+  uint8_t i;
+  tBT_TRANSPORT transport = BT_TRANSPORT_BR_EDR;
+  if (alarm_is_scheduled(bta_dm_cb.disable_timer)) {
+    alarm_cancel(bta_dm_cb.disable_timer);
+    if (BTM_GetNumAclLinks()) {
+      for (i = 0; i < bta_dm_cb.device_list.count; i++) {
+        transport = bta_dm_cb.device_list.peer_device[i].transport;
+        if (BT_TRANSPORT_BR_EDR == transport) {
+          btm_remove_acl(bta_dm_cb.device_list.peer_device[i].peer_bdaddr,
+                         transport);
+        }
+      }
+    }
+  }
 }
 
 /*******************************************************************************
@@ -1568,7 +1623,7 @@ void bta_dm_sdp_result(tBTA_DM_MSG* p_data) {
   tBT_UUID service_uuid;
 
   uint32_t num_uuids = 0;
-  uint8_t uuid_list[32][MAX_UUID_SIZE];  // assuming a max of 32 services
+  uint8_t uuid_list[BTA_MAX_SERVICES][MAX_UUID_SIZE];  // assuming a max of 32 services
 
   if ((p_data->sdp_event.sdp_result == SDP_SUCCESS) ||
       (p_data->sdp_event.sdp_result == SDP_NO_RECS_MATCH) ||
@@ -1636,8 +1691,12 @@ void bta_dm_sdp_result(tBTA_DM_MSG* p_data) {
                 bta_service_id_to_uuid_lkup_tbl[bta_dm_search_cb.service_index -
                                                 1];
             /* Add to the list of UUIDs */
-            sdpu_uuid16_to_uuid128(tmp_svc, uuid_list[num_uuids]);
-            num_uuids++;
+            if (num_uuids < BTA_MAX_SERVICES) {
+              sdpu_uuid16_to_uuid128(tmp_svc, uuid_list[num_uuids]);
+              num_uuids++;
+            } else {
+              android_errorWriteLog(0x534e4554, "74016921");
+            }
           }
         }
       }
@@ -1669,8 +1728,12 @@ void bta_dm_sdp_result(tBTA_DM_MSG* p_data) {
             SDP_FindServiceInDb_128bit(bta_dm_search_cb.p_sdp_db, p_sdp_rec);
         if (p_sdp_rec) {
           if (SDP_FindServiceUUIDInRec_128bit(p_sdp_rec, &temp_uuid)) {
-            memcpy(uuid_list[num_uuids], temp_uuid.uu.uuid128, MAX_UUID_SIZE);
-            num_uuids++;
+            if (num_uuids < BTA_MAX_SERVICES) {
+              memcpy(uuid_list[num_uuids], temp_uuid.uu.uuid128, MAX_UUID_SIZE);
+              num_uuids++;
+            } else {
+              android_errorWriteLog(0x534e4554, "74016921");
+            }
           }
         }
       } while (p_sdp_rec);
