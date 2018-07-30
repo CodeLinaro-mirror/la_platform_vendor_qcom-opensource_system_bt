@@ -1122,7 +1122,7 @@ uint8_t btif_a2dp_audio_snd_ctrl_cmd(uint8_t cmd)
         APPL_TRACE_DEBUG("%s: remote started idx = %d, latest playing  idx = %d",__func__,
                          remote_start_idx, latest_playing_idx);
         if ((remote_start_idx < btif_max_av_clients) &&
-         ((latest_playing_idx < btif_max_av_clients && latest_playing_idx == remote_start_idx) ||
+         ((latest_playing_idx < btif_max_av_clients && latest_playing_idx != remote_start_idx) ||
          (btif_av_is_playing_on_other_idx(remote_start_idx)))) {
           APPL_TRACE_WARNING("%s: Already playing on other index, don't cancel remote start timer",__func__);
           status = A2DP_CTRL_ACK_PENDING;
@@ -1133,6 +1133,7 @@ uint8_t btif_a2dp_audio_snd_ctrl_cmd(uint8_t cmd)
           status = A2DP_CTRL_ACK_PENDING;
         }
       }
+
       /* In dual a2dp mode check for stream started first*/
       if (btif_av_stream_started_ready()) {
         /*
