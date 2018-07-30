@@ -1,6 +1,6 @@
 # sources and intermediate files are separated
 
-external_bt_path := $(top_srcdir)/../../vendor/qcom/opensource/bluetooth_ext
+external_bt_path := $(top_srcdir)/../../bluetooth_ext
 
 AM_CFLAGS = -Wall \
         -Wundef \
@@ -43,7 +43,7 @@ cpp_sources = \
         src/thread.cc \
         src/time.cc \
         src/wakelock.cc \
-        $(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/osi/src/vnd_log.cc
+        ${external_bt_path}/system_bt_ext/osi/src/vnd_log.cc
 
 common_LDFLAGS = -lpthread
 common_CFLAGS =  $(AM_CFLAGS) -fPIC -D_GNU_SOURCE

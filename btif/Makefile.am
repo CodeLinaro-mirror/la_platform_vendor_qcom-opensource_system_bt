@@ -1,6 +1,6 @@
 # sources and intermediate files are separated
 
-external_bt_path := $(WORKSPACE)/vendor/qcom/opensource
+external_bt_path := $(top_srcdir)/../../bluetooth_ext
 
 AM_CFLAGS = -Wall \
         -Wundef \
@@ -44,8 +44,8 @@ AM_CPPFLAGS = \
         -I../internal_include \
         -I${WORKSPACE}/external/tinyxml2 \
         -I${WORKSPACE}/external/zlib \
-        -I${external_bt_path}/bluetooth_ext/vhal/include \
-        -I$(external_bt_path)/bluetooth_ext/system_bt_ext \
+        -I${external_bt_path}/vhal/include \
+        -I$(external_bt_path)/system_bt_ext \
         -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/hal/include \
         -I$(WORKSPACE)/frameworks/av/include \
         -I$(WORKSPACE)/system/media/audio/include \
