@@ -824,6 +824,8 @@ static void bta_av_a2dp_sdp_cback(bool found, tA2DP_Service* p_service) {
 static void bta_av_adjust_seps_idx(tBTA_AV_SCB* p_scb, uint8_t avdt_handle) {
   APPL_TRACE_DEBUG("%s: codec: %s", __func__,
                    A2DP_CodecName(p_scb->cfg.codec_info));
+  APPL_TRACE_WARNING("%s: codec: %s and codec_index = %d", __func__,
+          A2DP_CodecName(p_scb->cfg.codec_info), A2DP_SourceCodecIndex(p_scb->cfg.codec_info));
   for (int i = 0; i < BTAV_A2DP_CODEC_INDEX_MAX; i++) {
     APPL_TRACE_DEBUG("%s: av_handle: %d codec: %s", __func__,
                      p_scb->seps[i].av_handle,
@@ -2347,6 +2349,7 @@ void bta_av_reconfig(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     bta_av_ssm_execute(p_scb, BTA_AV_SDP_DISC_OK_EVT, NULL);
     return;
   }
+  btav_a2dp_codec_index_t curr_codec_index = A2DP_SourceCodecIndex(p_scb->cfg.codec_info);
   p_cfg = &p_scb->cfg;
 
   alarm_cancel(p_scb->avrc_ct_timer);
@@ -2368,15 +2371,21 @@ void bta_av_reconfig(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   // can Suspend->Reconfigure->Start.
   // Otherwise, we have to Close->Configure->Open->Start or
   // Close->Configure->Open for streams that are / are not started.
-   APPL_TRACE_DEBUG("rcfg_idx:%d,sep_info_idx:%d,suspend:%d,recfg_sup:%d,suspend_sup:%d",
+  btav_a2dp_codec_index_t rcfg_codec_index = A2DP_SourceCodecIndex(p_cfg->codec_info);
+  APPL_TRACE_WARNING("curr_index: %d, rcfg_index: %d",curr_codec_index,rcfg_codec_index);
+  // p_scb->sep_info_idx > p_scb->num_seps condition satified for remote initiated SetConfig 
+  APPL_TRACE_WARNING("rcfg_idx:%d,sep_info_idx:%d,suspend:%d,recfg_sup:%d,suspend_sup:%d",
                      p_scb->rcfg_idx,
                      p_scb->sep_info_idx,
                      p_rcfg->suspend,
                      p_scb->recfg_sup,
                      p_scb->suspend_sup);
-  if ((p_scb->rcfg_idx == p_scb->sep_info_idx) && p_rcfg->suspend &&
-      p_scb->recfg_sup && p_scb->suspend_sup) {
-      APPL_TRACE_DEBUG("p_scb->started:%d", p_scb->started);
+  if ((p_scb->rcfg_idx == p_scb->sep_info_idx ||
+      (p_scb->sep_info_idx > p_scb->num_seps &&
+      curr_codec_index == rcfg_codec_index)) &&
+      p_rcfg->suspend && p_scb->recfg_sup && p_scb->suspend_sup) {
+      APPL_TRACE_WARNING("p_scb->started:%d", p_scb->started);
+      if (p_scb->sep_info_idx > p_scb->num_seps) p_scb->sep_info_idx = p_scb->rcfg_idx;
     if (p_scb->started) {
       // Suspend->Reconfigure->Start
       stop.flush = false;
@@ -2385,14 +2394,14 @@ void bta_av_reconfig(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       bta_av_str_stopped(p_scb, (tBTA_AV_DATA*)&stop);
     } else {
       // Reconfigure
-      APPL_TRACE_DEBUG("%s: reconfig", __func__);
+      APPL_TRACE_WARNING("%s: reconfig", __func__);
       A2DP_DumpCodecInfo(p_scb->cfg.codec_info);
       AVDT_ReconfigReq(p_scb->avdt_handle, &p_scb->cfg);
       p_scb->cfg.psc_mask = p_scb->cur_psc_mask;
     }
   } else {
     // Close the stream first, and then Configure it
-    APPL_TRACE_DEBUG("%s: Close/Open started: %d state: %d num_protect: %d",
+    APPL_TRACE_WARNING("%s: Close/Open started: %d state: %d num_protect: %d",
                      __func__, p_scb->started, p_scb->state,
                      p_cfg->num_protect);
     if (p_scb->started) {
@@ -3561,8 +3570,9 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb)
   APPL_TRACE_DEBUG("%s: Last cached VSC command: 0x0%x", __func__, last_sent_vsc_cmd);
   APPL_TRACE_IMP("bta_av_vendor_offload_start: vsc flags:-"
     "vs_configs_exchanged:%u tx_started:%u tx_start_initiated:%u"
-    "tx_enc_update_initiated:%u", btif_a2dp_src_vsc.vs_configs_exchanged, btif_a2dp_src_vsc.tx_started,
-    btif_a2dp_src_vsc.tx_start_initiated, tx_enc_update_initiated);
+    "tx_enc_update_initiated:%u tx_stop_initiated: %u", btif_a2dp_src_vsc.vs_configs_exchanged,
+    btif_a2dp_src_vsc.tx_started, btif_a2dp_src_vsc.tx_start_initiated, tx_enc_update_initiated,
+    btif_a2dp_src_vsc.tx_stop_initiated);
   enc_update_in_progress = FALSE;
   if (!btif_hf_is_call_vr_idle()) {
     APPL_TRACE_IMP("ignore VS start request as Call is not idle");
@@ -3573,15 +3583,15 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb)
       && (!btif_a2dp_src_vsc.tx_start_initiated || tx_enc_update_initiated)) {
     btif_a2dp_src_vsc.tx_start_initiated = TRUE;
     tx_enc_update_initiated = FALSE;
+    if (last_sent_vsc_cmd == VS_QHCI_START_A2DP_MEDIA) {
+      APPL_TRACE_DEBUG("%s: START VSC already exchanged.", __func__);
+      status = 0;
+      (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
+      return;
+    }
     if(btif_a2dp_src_vsc.vs_configs_exchanged) {
       param[0] = VS_QHCI_START_A2DP_MEDIA;
       param[1] = 0;
-      if (last_sent_vsc_cmd == VS_QHCI_START_A2DP_MEDIA) {
-        APPL_TRACE_DEBUG("%s: START VSC already exchanged.", __func__);
-        status = 0;
-        (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
-        return;
-      }
       last_sent_vsc_cmd = VS_QHCI_START_A2DP_MEDIA;
       BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE,2, param,
           offload_vendor_callback);
@@ -3638,8 +3648,11 @@ void bta_av_vendor_offload_stop()
   uint8_t param[2];
   unsigned char status = 0;
   APPL_TRACE_DEBUG("bta_av_vendor_offload_stop, btif_a2dp_src_vsc.tx_started: %u,"
-      "btif_a2dp_src_vsc.tx_stop_initiated: %u",
-      btif_a2dp_src_vsc.tx_started, btif_a2dp_src_vsc.tx_stop_initiated);
+      "btif_a2dp_src_vsc.tx_stop_initiated: %u"
+      "vs_configs_exchanged:%u tx_enc_update_initiated:%u tx_start_initiated:%u",
+      btif_a2dp_src_vsc.tx_started, btif_a2dp_src_vsc.tx_stop_initiated,
+      btif_a2dp_src_vsc.vs_configs_exchanged, tx_enc_update_initiated,
+      btif_a2dp_src_vsc.tx_start_initiated);
   APPL_TRACE_DEBUG("%s: Last cached VSC command: 0x0%x", __func__, last_sent_vsc_cmd);
   if (btif_a2dp_src_vsc.tx_started && !btif_a2dp_src_vsc.tx_stop_initiated) {
     btif_a2dp_src_vsc.tx_stop_initiated = TRUE;
