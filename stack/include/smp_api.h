@@ -45,6 +45,17 @@ extern void SMP_Init(void);
 
 /*******************************************************************************
  *
+ * Function         SMP_Init
+ *
+ * Description      This function deinitializes the SMP unit.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+extern void SMP_Deinit(void);
+
+/*******************************************************************************
+ *
  * Function         SMP_SetTraceLevel
  *
  * Description      This function sets the trace level for SMP.  If called with

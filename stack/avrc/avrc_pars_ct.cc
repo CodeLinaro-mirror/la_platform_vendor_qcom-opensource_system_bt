@@ -134,14 +134,23 @@ void avrc_parse_notification_rsp(uint8_t* p_stream,
       break;
 
     case AVRC_EVT_ADDR_PLAYER_CHANGE:
+      BE_STREAM_TO_UINT16(p_rsp->param.addr_player.player_id, p_stream);
+      BE_STREAM_TO_UINT16(p_rsp->param.addr_player.uid_counter, p_stream);
       break;
 
     case AVRC_EVT_UIDS_CHANGE:
       break;
 
+    case AVRC_EVT_PLAY_POS_CHANGED:
+      BE_STREAM_TO_UINT32(p_rsp->param.play_pos, p_stream);
+      break;
+
+    case AVRC_EVT_VOLUME_CHANGE:
+      BE_STREAM_TO_UINT8(p_rsp->param.volume, p_stream);
+      break;
+
     case AVRC_EVT_TRACK_REACHED_END:
     case AVRC_EVT_TRACK_REACHED_START:
-    case AVRC_EVT_PLAY_POS_CHANGED:
     case AVRC_EVT_BATTERY_STATUS_CHANGE:
     case AVRC_EVT_SYSTEM_STATUS_CHANGE:
     default:
@@ -323,6 +332,12 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
       change_path_rsp->pdu = pdu;
       /* Read the status */
       BE_STREAM_TO_UINT8(change_path_rsp->status, p);
+      if (change_path_rsp->status != AVRC_STS_NO_ERROR) {
+        AVRC_TRACE_ERROR(
+            "%s Stopping further parsing because status is error %d",
+            __func__, change_path_rsp->status);
+        return change_path_rsp->status;
+      }
       /* Read the number of items in folder */
       BE_STREAM_TO_UINT32(change_path_rsp->num_items, p);
       pkt_len_read += 5;
@@ -332,6 +347,51 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
                        change_path_rsp->num_items);
       break;
     }
+    case AVRC_PDU_GET_ITEM_ATTRIBUTES: {
+        tAVRC_GET_ATTRS_RSP* get_attrs_rsp = &(p_rsp->get_attrs);
+        /* Copyback the PDU */
+        get_attrs_rsp->pdu = pdu;
+        /* Read the status */
+        BE_STREAM_TO_UINT8(get_attrs_rsp->status, p);
+
+      if (get_attrs_rsp->status != AVRC_STS_NO_ERROR) {
+        AVRC_TRACE_ERROR(
+            "%s Stopping further parsing because status is error %d",
+            __func__, get_attrs_rsp->status);
+        return get_attrs_rsp->status;
+      }
+
+        /* Read the number of items in folder */
+        BE_STREAM_TO_UINT8(get_attrs_rsp->num_attrs, p);
+        pkt_len_read += 2;
+
+        AVRC_TRACE_DEBUG(
+          "%s AVRC_PDU_GET_ITEM_ATTRIBUTES status %d num_attrs %d ",
+          __func__, get_attrs_rsp->status, get_attrs_rsp->num_attrs);
+
+        if(get_attrs_rsp->num_attrs > 0)
+        {
+            get_attrs_rsp->p_attrs = (tAVRC_ATTR_ENTRY*)osi_malloc(
+                get_attrs_rsp->num_attrs * sizeof(tAVRC_ATTR_ENTRY));
+
+            /* Read each of the attr */
+            for (uint32_t i = 0; i < get_attrs_rsp->num_attrs; i++) {
+              tAVRC_ATTR_ENTRY* pAttr = &(get_attrs_rsp->p_attrs[i]);
+              BE_STREAM_TO_UINT32(pAttr->attr_id, p);
+              BE_STREAM_TO_UINT16(pAttr->name.charset_id, p);
+              BE_STREAM_TO_UINT16(pAttr->name.str_len, p);
+
+              AVRC_TRACE_DEBUG("%s AVRC_PDU_GET_ITEM_ATTRIBUTES attr: %d attr_id: %d charset_id: %d str_len: %d",
+                               __func__, i, pAttr->attr_id, pAttr->name.charset_id, pAttr->name.str_len);
+              pAttr->name.p_str = (uint8_t*)osi_malloc((pAttr->name.str_len + 1) * sizeof(uint8_t));
+              BE_STREAM_TO_ARRAY(p, pAttr->name.p_str, pAttr->name.str_len);
+              pkt_len_read += (8 + pAttr->name.str_len);
+             }
+              }
+      else
+           get_attrs_rsp->p_attrs = NULL;
+         break;
+       }
 
     case AVRC_PDU_SET_BROWSED_PLAYER: {
       tAVRC_SET_BR_PLAYER_RSP* set_br_pl_rsp = &(p_rsp->br_player);
@@ -345,6 +405,7 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
         AVRC_TRACE_ERROR(
             "%s Stopping further parsing because player not browsable sts %d",
             __func__, set_br_pl_rsp->status);
+        return set_br_pl_rsp->status;
         break;
       }
       BE_STREAM_TO_UINT16(set_br_pl_rsp->uid_counter, p);
@@ -602,6 +663,43 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR* p_msg,
         return AVRC_STS_BAD_CMD;
       }
       BE_STREAM_TO_UINT8(p_result->rsp.status, p);
+      break;
+
+    case AVRC_PDU_SET_BROWSED_PLAYER:
+        if (len == 0)
+           break;
+       uint8_t folder_depth;
+       BE_STREAM_TO_UINT8(p_result->br_player.status, p);
+       BE_STREAM_TO_UINT16(p_result->br_player.uid_counter, p);
+       BE_STREAM_TO_UINT32(p_result->br_player.num_items, p);
+       BE_STREAM_TO_UINT16(p_result->br_player.charset_id, p);
+       BE_STREAM_TO_UINT8(folder_depth, p);
+       p_result->br_player.folder_depth = folder_depth;
+       if(folder_depth)
+        {
+            tAVRC_NAME *pFolderName =
+                (tAVRC_NAME*)osi_malloc(folder_depth * sizeof(tAVRC_NAME));
+            for (int i = 0; i < folder_depth; i++) {
+                BE_STREAM_TO_UINT16(pFolderName[i].str_len, p);
+                if (pFolderName[i].str_len > 0) {
+                    pFolderName[i].p_str = (uint8_t *)osi_malloc(pFolderName[i].str_len);
+                    BE_STREAM_TO_ARRAY(p, pFolderName[i].p_str, pFolderName[i].str_len);
+                }
+            }
+            p_result->br_player.p_folders = pFolderName;
+        }
+      break;
+
+   case AVRC_PDU_PLAY_ITEM:
+        if (len == 0)
+           break;
+       BE_STREAM_TO_UINT8(p_result->play_item.status, p);
+      break;
+
+   case AVRC_PDU_ADD_TO_NOW_PLAYING:
+        if (len == 0)
+          break;
+       BE_STREAM_TO_UINT8(p_result->add_to_play.status, p);
       break;
 
     default:

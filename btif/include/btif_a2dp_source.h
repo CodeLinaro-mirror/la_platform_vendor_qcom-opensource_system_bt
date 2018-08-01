@@ -105,6 +105,10 @@ void btif_a2dp_source_on_suspended(tBTA_AV_SUSPEND* p_av_suspend);
 // If |enable| is true, the discarding is enabled, otherwise is disabled.
 void btif_a2dp_source_set_tx_flush(bool enable);
 
+//Write encoded data from BT-App to buffer
+size_t btif_media_writebuf_vendor(bt_bdaddr_t *bd_addr,
+           const void* buffer, size_t length, uint8_t codectype);
+
 // Get the next A2DP buffer to send.
 // Returns the next A2DP buffer to send if available, otherwise NULL.
 BT_HDR* btif_a2dp_source_audio_readbuf(void);

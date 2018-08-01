@@ -38,7 +38,7 @@ typedef enum {
 #ifdef ANDROID
 #define AVRC_PEER_VERSION_CONF_FILE "/data/misc/bluedroid/avrc_peer_entries.conf"
 #else
-#define AVRC_PEER_VERSION_CONF_FILE "/data/misc/bluetooth/avrc_peer_entries.conf"
+#define AVRC_PEER_VERSION_CONF_FILE "/etc/bluetooth/avrc_peer_entries.conf"
 #endif
 #endif
 #define LOG_ID_STATS_A2DP      (0x06 << 8) | 0x00

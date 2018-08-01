@@ -114,6 +114,7 @@ typedef enum {
 typedef enum {
   BTRC_NOTIFICATION_TYPE_INTERIM = 0,
   BTRC_NOTIFICATION_TYPE_CHANGED = 1,
+  BTRC_NOTIFICATION_TYPE_REJECT = 2,
 } btrc_notification_type_t;
 
 typedef enum {
@@ -131,6 +132,7 @@ typedef enum {
   BTRC_MEDIA_ATTR_NUM_TRACKS = 0x05,
   BTRC_MEDIA_ATTR_GENRE = 0x06,
   BTRC_MEDIA_ATTR_PLAYING_TIME = 0x07,
+  BTRC_MEDIA_ATTR_COVER_ART = 0x08,
 } btrc_media_attr_t;
 
 typedef enum {
@@ -229,6 +231,9 @@ typedef union {
   btrc_addr_player_changed_t addr_player_changed;
   btrc_uids_changed_t uids_changed;
   btrc_now_playing_changed_t now_playing_changed;
+  uint16_t player_id;
+  btrc_addr_player_changed_t addr_player;
+  uint8_t volume;
 } btrc_register_notification_t;
 
 typedef struct {
@@ -359,7 +364,7 @@ typedef void (*btrc_set_browsed_player_callback)(uint16_t player_id,
 */
 typedef void (*btrc_get_folder_items_callback)(
     uint8_t scope, uint32_t start_item, uint32_t end_item, uint8_t num_attr,
-    uint32_t* p_attr_ids, RawAddress* bd_addr);
+    uint32_t* p_attr_ids, uint16_t size, RawAddress* bd_addr);
 
 /** Callback for changing browsed path on TG **/
 typedef void (*btrc_change_path_callback)(uint8_t direction,
@@ -394,6 +399,9 @@ typedef void (*btrc_add_to_now_playing_callback)(uint8_t scope, uint8_t* uid,
                                                  uint16_t uid_counter,
                                                  RawAddress* bd_addr);
 
+/** Callback to est mAvrcpConnected TRUE for source. */
+typedef void (* btavrc_connection_state_callback) (bool state, RawAddress* bd_addr);
+
 /** BT-RC Target callback structure. */
 typedef struct {
   /** set to sizeof(BtRcCallbacks) */
@@ -419,6 +427,7 @@ typedef struct {
   btrc_get_total_num_of_items_callback get_total_num_of_items_cb;
   btrc_search_callback search_cb;
   btrc_add_to_now_playing_callback add_to_now_playing_cb;
+  btavrc_connection_state_callback connection_state_cb;
 } btrc_callbacks_t;
 
 /** Represents the standard BT-RC AVRCP Target interface. */
@@ -552,6 +561,10 @@ typedef struct {
   /* add_to_now playing list response from TG to CT */
   bt_status_t (*add_to_now_playing_rsp)(RawAddress* bd_addr,
                                         btrc_status_t rsp_status);
+
+  /* send pass through command to target */
+  bt_status_t (*send_pass_through_cmd) (bt_bdaddr_t *bd_addr, uint8_t key_code,
+            uint8_t key_state );
 
   /** Closes the interface. */
   void (*cleanup)(void);
@@ -698,6 +711,16 @@ typedef struct {
   void (*cleanup)(void);
 } btrc_ctrl_interface_t;
 
+typedef enum {
+    BTRC_PLAYER_VAL_OFF_EQUALIZER = 0x01,
+    BTRC_PLAYER_VAL_ON_EQUALIZER = 0x02,
+} btrc_player_equalizer_val_t;
+
+typedef enum {
+    BTRC_PLAYER_VAL_OFF_SCAN = 0x01,
+    BTRC_PLAYER_VAL_ON_SCAN = 0x02,
+    BTRC_PLAYER_VAL_GRP_SCAN = 0x03,
+} btrc_player_scan_val_t;
 __END_DECLS
 
 #endif /* ANDROID_INCLUDE_BT_RC_H */

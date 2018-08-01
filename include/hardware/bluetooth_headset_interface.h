@@ -41,9 +41,14 @@ class Interface {
    * @param inband_ringing_enabled whether inband ringtone is enabled
    * @return BT_STATUS_SUCCESS on success
    */
+
+#ifdef ANDROID
   virtual bt_status_t Init(Callbacks* callbacks, int max_hf_clients,
                            bool inband_ringing_enabled) = 0;
-
+#else
+  virtual bt_status_t Init(bthf_callbacks_t* callbacks, int max_hf_clients,
+                           bool inband_ringing_enabled) = 0;
+#endif
   /**
    * Connect to headset
    *

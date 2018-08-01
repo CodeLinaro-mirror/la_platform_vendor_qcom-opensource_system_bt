@@ -79,6 +79,7 @@ typedef uint8_t tBTA_AV_STATUS;
   0x0800 /* start stream when 2nd SNK was accepted   */
 #define BTA_AV_FEAT_CA          0x1000  /* use cover art */
 #define BTA_AV_FEAT_APP_SETTING 0x2000 /* Player app setting support */
+#define BTA_AV_FEAT_ENCODED_DATA 0x4000 /* Send encoded data from upper layer support*/
 
 /* Internal features */
 #define BTA_AV_FEAT_AVRC_UI_UPDATE 0x4000 /* UI notification for browsing capable remote*/
@@ -250,9 +251,10 @@ typedef uint8_t tBTA_AV_ERR;
 #define BTA_AV_RC_COLL_DETECTED_EVT 26  /* RC channel collission detected */
 #define BTA_AV_DELAY_REPORT_EVT 27      /* update delay report */
 #define BTA_AV_OFFLOAD_STOP_RSP_EVT 28 /* a2dp offload start response */
+#define BTA_AV_MTU_CONFIG_EVT    29     /*Update mtu value to upper layer*/
 
 /* Max BTA event */
-#define BTA_AV_MAX_EVT 29
+#define BTA_AV_MAX_EVT 30
 
 typedef uint8_t tBTA_AV_EVT;
 
@@ -444,6 +446,15 @@ typedef struct {
   tBTA_AV_LATENCY sink_delay;
 } tBTA_AV_DELAY_RPT;
 
+/* data associated with MTU callback*/
+typedef struct
+{
+    uint16_t mtu;
+    uint8_t packet_type;
+    tBTA_AV_HNDL hndl;    /* Handle associated with the stream. */
+} tBTA_AV_MTU_CONFIG;
+
+
 /* union of data associated with AV callback */
 typedef union {
   tBTA_AV_CHNL chnl;
@@ -472,6 +483,7 @@ typedef union {
   tBTA_AV_STATUS status;
   tBTA_AV_ROLE_CHANGED role_changed;
   tBTA_AV_DELAY_RPT delay_rpt;
+  tBTA_AV_MTU_CONFIG  mtu_config;
 } tBTA_AV;
 
 typedef struct {
@@ -852,5 +864,16 @@ void BTA_AvOffloadStart(tBTA_AV_HNDL hndl, bool do_scrambling);
  *
  ******************************************************************************/
 void BTA_AvOffloadStartRsp(tBTA_AV_HNDL hndl, tBTA_AV_STATUS status);
+
+/*******************************************************************************
+**
+** Function         BTA_AvUpdateCodecSupport
+**
+** Description      Update Avdtp Codec Support
+**
+** Returns          void
+**
+*******************************************************************************/
+void BTA_AvUpdateCodecSupport(uint8_t *p_codec_type_list, uint8_t *p_vnd_list, uint8_t *p_codec_id_list, uint8_t codec_info[][AVDT_CODEC_SIZE], uint8_t num_codec_configs);
 
 #endif /* BTA_AV_API_H */

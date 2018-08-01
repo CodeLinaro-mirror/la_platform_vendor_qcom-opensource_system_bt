@@ -30,7 +30,7 @@
 #include <string.h>
 
 #include <base/logging.h>
-#include "a2dp_aac_encoder.h"
+//#include "a2dp_aac_encoder.h"
 #include "bt_utils.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
@@ -39,17 +39,6 @@
 #define A2DP_AAC_DEFAULT_BITRATE 320000  // 320 kbps
 #define A2DP_AAC_MIN_BITRATE 64000       // 64 kbps
 #define A2DP_AAC_DEFAULT_OFFLOAD_BITRATE 165000  // 165 kbps
-
-// data type for the AAC Codec Information Element */
-// NOTE: bits_per_sample is needed only for AAC encoder initialization.
-typedef struct {
-  uint8_t objectType;             /* Object Type */
-  uint16_t sampleRate;            /* Sampling Frequency */
-  uint8_t channelMode;            /* STEREO/MONO */
-  uint8_t variableBitRateSupport; /* Variable Bit Rate Support*/
-  uint32_t bitRate;               /* Bit rate */
-  btav_a2dp_codec_bits_per_sample_t bits_per_sample;
-} tA2DP_AAC_CIE;
 
 /* AAC Source codec capabilities */
 static const tA2DP_AAC_CIE a2dp_aac_src_caps = {
@@ -124,7 +113,7 @@ static const tA2DP_AAC_CIE a2dp_aac_default_offload_scram_config = {
     BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16    // bits_per_sample
 };
 
-static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_aac = {
+/*static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_aac = {
     a2dp_aac_encoder_init,
     a2dp_aac_encoder_cleanup,
     a2dp_aac_feeding_reset,
@@ -132,9 +121,10 @@ static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_aac = {
     a2dp_aac_get_encoder_interval_ms,
     a2dp_aac_send_frames,
     nullptr  // set_transmit_queue_length
-};
+};*/
 
 tA2DP_AAC_CIE a2dp_aac_caps, a2dp_aac_default_config;
+int a2dp_aac_caps_initialized = 0;
 
 UNUSED_ATTR static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityAac(
     const tA2DP_AAC_CIE* p_cap, const uint8_t* p_codec_info,
@@ -145,7 +135,7 @@ UNUSED_ATTR static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityAac(
 // |p_ie| is a pointer to the AAC Codec Information Element information.
 // The result is stored in |p_result|. Returns A2DP_SUCCESS on success,
 // otherwise the corresponding A2DP error status code.
-static tA2DP_STATUS A2DP_BuildInfoAac(uint8_t media_type,
+tA2DP_STATUS A2DP_BuildInfoAac(uint8_t media_type,
                                       const tA2DP_AAC_CIE* p_ie,
                                       uint8_t* p_result) {
   if (p_ie == NULL || p_result == NULL) {
@@ -660,12 +650,12 @@ bool A2DP_DumpCodecInfoAac(const uint8_t* p_codec_info) {
   return true;
 }
 
-const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceAac(
+/*const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceAac(
     const uint8_t* p_codec_info) {
   if (!A2DP_IsSourceCodecValidAac(p_codec_info)) return NULL;
 
   return &a2dp_encoder_interface_aac;
-}
+}*/
 
 bool A2DP_AdjustCodecAac(uint8_t* p_codec_info) {
   tA2DP_AAC_CIE cfg_cie;
@@ -727,42 +717,47 @@ UNUSED_ATTR static void build_codec_config(const tA2DP_AAC_CIE& config_cie,
   }
 }
 
+void update_local_capability_aac(btav_a2dp_codec_config_t* loc_cap){
+  if (a2dp_aac_caps.sampleRate & A2DP_AAC_SAMPLING_FREQ_44100) {
+    loc_cap->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
+  }
+  if (a2dp_aac_caps.sampleRate & A2DP_AAC_SAMPLING_FREQ_48000) {
+    loc_cap->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
+  }
+  if (a2dp_aac_caps.sampleRate & A2DP_AAC_SAMPLING_FREQ_88200) {
+    loc_cap->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_88200;
+  }
+  if (a2dp_aac_caps.sampleRate & A2DP_AAC_SAMPLING_FREQ_96000) {
+    loc_cap->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_96000;
+  }
+  loc_cap->bits_per_sample = a2dp_aac_caps.bits_per_sample;
+  if (a2dp_aac_caps.channelMode & A2DP_AAC_CHANNEL_MODE_MONO) {
+    loc_cap->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
+  }
+  if (a2dp_aac_caps.channelMode & A2DP_AAC_CHANNEL_MODE_STEREO) {
+    loc_cap->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
+  }
+}
+
 A2dpCodecConfigAac::A2dpCodecConfigAac(
     btav_a2dp_codec_priority_t codec_priority)
     : A2dpCodecConfig(BTAV_A2DP_CODEC_INDEX_SOURCE_AAC, "AAC", codec_priority) {
-
-  if (A2DP_GetOffloadStatus()) {
-    if(!A2DP_IsScramblingSupported()) {
+  if(!a2dp_aac_caps_initialized){
+    if (A2DP_GetOffloadStatus()) {
+      if(!A2DP_IsScramblingSupported()) {
       a2dp_aac_caps = a2dp_aac_offload_caps;
       a2dp_aac_default_config = a2dp_aac_default_offload_config;
-    } else {
+      } else {
       a2dp_aac_caps = a2dp_aac_offload_scram_caps;
       a2dp_aac_default_config = a2dp_aac_default_offload_scram_config;
-    }
-  } else {
+      }
+    } else {
     a2dp_aac_caps = a2dp_aac_src_caps;
     a2dp_aac_default_config = a2dp_aac_default_src_config;
+    }
+  a2dp_aac_caps_initialized = 1;
   }
-  // Compute the local capability
-  if (a2dp_aac_caps.sampleRate & A2DP_AAC_SAMPLING_FREQ_44100) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
-  }
-  if (a2dp_aac_caps.sampleRate & A2DP_AAC_SAMPLING_FREQ_48000) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
-  }
-  if (a2dp_aac_caps.sampleRate & A2DP_AAC_SAMPLING_FREQ_88200) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_88200;
-  }
-  if (a2dp_aac_caps.sampleRate & A2DP_AAC_SAMPLING_FREQ_96000) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_96000;
-  }
-  codec_local_capability_.bits_per_sample = a2dp_aac_caps.bits_per_sample;
-  if (a2dp_aac_caps.channelMode & A2DP_AAC_CHANNEL_MODE_MONO) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
-  }
-  if (a2dp_aac_caps.channelMode & A2DP_AAC_CHANNEL_MODE_STEREO) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
-  }
+  update_local_capability_aac(&codec_local_capability_);
 }
 
 A2dpCodecConfigAac::~A2dpCodecConfigAac() {}
@@ -779,13 +774,10 @@ bool A2dpCodecConfigAac::init() {
       return false;
     }
   }
-  // Load the encoder
-  if (!A2DP_LoadEncoderAac()) {
-    LOG_ERROR(LOG_TAG, "%s: cannot load the encoder", __func__);
+  else{
+    ALOGD("AAC encoder not enabled in non split mode, A2dpCodecConfigAac::init failed");
     return false;
   }
-
-  return true;
 }
 
 bool A2dpCodecConfigAac::useRtpHeaderMarkerBit() const { return true; }
@@ -1344,4 +1336,54 @@ fail:
   memcpy(ota_codec_peer_config_, saved_ota_codec_peer_config,
          sizeof(ota_codec_peer_config_));
   return false;
+}
+
+void update_aac_cap(btav_a2dp_codec_config_t config){
+  switch (config.sample_rate) {
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_44100:
+      a2dp_aac_caps.sampleRate = a2dp_aac_caps.sampleRate|A2DP_AAC_SAMPLING_FREQ_44100;
+      break;
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_48000:
+      a2dp_aac_caps.sampleRate = a2dp_aac_caps.sampleRate|A2DP_AAC_SAMPLING_FREQ_48000;
+      break;
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_88200:
+      a2dp_aac_caps.sampleRate = a2dp_aac_caps.sampleRate|A2DP_AAC_SAMPLING_FREQ_88200;
+      break;
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_96000:
+      a2dp_aac_caps.sampleRate = a2dp_aac_caps.sampleRate|A2DP_AAC_SAMPLING_FREQ_96000;
+    default:
+      break;
+  }
+  switch (config.channel_mode) {
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_MONO:
+      a2dp_aac_caps.channelMode = a2dp_aac_caps.channelMode|A2DP_AAC_CHANNEL_MODE_MONO;
+      break;
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO:
+      a2dp_aac_caps.channelMode = a2dp_aac_caps.channelMode|A2DP_AAC_CHANNEL_MODE_STEREO;
+      break;
+    default:
+      break;
+  }
+}
+
+void reset_a2dp_aac_caps_initialized()
+{
+  a2dp_aac_caps_initialized = 0;
+}
+
+bool A2dpCodecConfigAac::updateEncoderUserConfig(
+    UNUSED_ATTR const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
+    UNUSED_ATTR bool* p_restart_input, UNUSED_ATTR bool* p_restart_output,
+    UNUSED_ATTR bool* p_config_updated) {
+  // TODO: This method applies only to Source codecs
+  return false;
+}
+
+period_ms_t A2dpCodecConfigAac::encoderIntervalMs() const {
+  // TODO: This method applies only to Source codecs
+  return 0;
+}
+
+void A2dpCodecConfigAac::debug_codec_dump(int fd) {
+  return;
 }

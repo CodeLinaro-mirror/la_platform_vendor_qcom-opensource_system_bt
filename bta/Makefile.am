@@ -1,6 +1,6 @@
 # sources and intermediate files are separated
 
-external_bt_path := $(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext
+external_bt_path := $(top_srcdir)/../../bluetooth_ext
 
 AM_CFLAGS = -Wall \
         -Wundef \
@@ -23,6 +23,7 @@ AM_CPPFLAGS = -Iinclude \
         -I../hci/include \
         -I../include \
         -I../stack/include \
+        -I../stack/avdt \
         -I../stack/btm \
         -I../udrv/include \
         -I../vnd/include \
@@ -32,8 +33,10 @@ AM_CPPFLAGS = -Iinclude \
         -I$(external_bt_path)/system_bt_ext \
         -I$(external_bt_path)/vhal/include \
         -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/hal/include \
-        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/system_bt_ext/bta/ar
-
+        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/ar \
+        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/avk \
+        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/include \
+        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/stack/include
 
 if MDM_CHEROKEE
 AM_CPPFLAGS += -DBTA_AV_SPLIT_A2DP_ENABLED
@@ -117,6 +120,18 @@ cpp_sources = \
         sys/bta_sys_main.cc \
         sys/utl.cc
 
+cpp_sources+= \
+        $(external_bt_path)/system_bt_ext/bta/avk/bta_avk_act.cc \
+        $(external_bt_path)/system_bt_ext/bta/avk/bta_avk_ci.cc \
+        $(external_bt_path)/system_bt_ext/bta/avk/bta_avk_api.cc \
+        $(external_bt_path)/system_bt_ext/bta/avk/bta_avk_aact.cc \
+        $(external_bt_path)/system_bt_ext/bta/avk/bta_avk_main.cc \
+        $(external_bt_path)/system_bt_ext/bta/avk/bta_avk_cfg.cc \
+        $(external_bt_path)/system_bt_ext/bta/avk/bta_avk_ssm.cc \
+        $(external_bt_path)/system_bt_ext/bta/avk/bta_avk_sbc.cc \
+        $(external_bt_path)/system_bt_ext/bta/avk/bta_avk_aac.cc \
+        $(external_bt_path)/system_bt_ext/bta/avk/bta_avk_mp3.cc\
+        $(external_bt_path)/system_bt_ext/bta/ar/bta_ar_ext.cc
 
 library_includedir = $(pkgincludedir)\
 library_include_HEADERS = $(h_sources)

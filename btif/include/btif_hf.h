@@ -21,13 +21,16 @@
 
 #include <stdbool.h>
 #include <hardware/bluetooth_headset_interface.h>
+#include <hardware/bt_hf.h>
+#include <hardware/bt_hf_vendor.h>
 
 
 namespace bluetooth {
 namespace headset {
 
 Interface* GetInterface();
-
+const bthf_interface_t* btif_hf_get_interface();
+const bthf_vendor_interface_t *btif_hf_vendor_get_interface();
 
 // Check whether there is a Hands-Free call in progress.
 // Returns true if no call is in progress.

@@ -56,7 +56,7 @@
 #if (BTA_AR_INCLUDED == TRUE)
 #include "bta_ar_api.h"
 #endif
-
+#include "bta_ar_int_ext.h"
 /*****************************************************************************
  *  Constants
  ****************************************************************************/
@@ -84,6 +84,7 @@
 #define MAX_2MBPS_AVDTP_MTU 663
 #define BTIF_A2DP_MAX_BITPOOL_MQ 35
 #define UNUSED(x) (void)(x)
+extern uint16_t pump_encoded_data;
 extern bool enc_update_in_progress;
 extern bool tx_enc_update_initiated;
 extern tBTIF_A2DP_SOURCE_VSC btif_a2dp_src_vsc;
@@ -1508,6 +1509,7 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   uint8_t* p;
   uint16_t mtu;
   uint8_t cur_role;
+  tBTA_AV_MTU_CONFIG mtu_config;
 
   msg.hdr.layer_specific = p_scb->hndl;
   msg.is_up = true;
@@ -1521,6 +1523,8 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 
   p_scb->stream_mtu =
       p_data->str_msg.msg.open_ind.peer_mtu - AVDT_MEDIA_HDR_SIZE;
+  mtu_config.mtu = p_data->str_msg.msg.open_ind.peer_mtu;
+  mtu_config.hndl = p_scb->hndl;
   mtu = bta_av_chk_mtu(p_scb, p_scb->stream_mtu);
   APPL_TRACE_DEBUG("%s: l2c_cid: 0x%x stream_mtu: %d mtu: %d", __func__,
                    p_scb->l2c_cid, p_scb->stream_mtu, mtu);
@@ -1582,6 +1586,9 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     tBTA_AV bta_av_data;
     bta_av_data.open = open;
     (*bta_av_cb.p_cback)(BTA_AV_OPEN_EVT, &bta_av_data);
+    mtu_config.packet_type = open.edr;
+    APPL_TRACE_DEBUG("bta_av_str_opened BTA_AV_MTU_CONFIG_EVT");
+    (*bta_av_cb.p_cback)(BTA_AV_MTU_CONFIG_EVT, (tBTA_AV *) &mtu_config);
     if (open.starting) {
       bta_av_ssm_execute(p_scb, BTA_AV_AP_START_EVT, NULL);
     }
@@ -1709,7 +1716,7 @@ void bta_av_connect_req(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
                      p_scb->coll_mask);
     return;
   }
-
+  update_avdtp_connection_info(p_scb->peer_addr, AVDT_AR_EXT_CONNECT_REQ_EVT, BTA_AR_EXT_AV_MASK);
   result = AVDT_ConnectReq(p_scb->peer_addr, p_scb->sec_mask,
                   bta_av_dt_cback[p_scb->hdi]);
   if (result != AVDT_SUCCESS) {
@@ -2449,8 +2456,8 @@ void bta_av_data_path(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
 
     if (p_buf) {
       /* use the offset area for the time stamp */
-      *(uint32_t*)(p_buf + 1) = timestamp;
-
+      if(!pump_encoded_data)
+        *(uint32_t*)(p_buf + 1) = timestamp;
       /* dup the data to other channels */
       bta_av_dup_audio_buf(p_scb, p_buf);
     }
@@ -2467,6 +2474,9 @@ void bta_av_data_path(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
       opt = AVDT_DATA_OPT_NONE;
       if (p_scb->no_rtp_hdr) {
         opt |= AVDT_DATA_OPT_NO_RTP;
+      }
+      if(is_pump_encoded_data_supported()){
+        opt |= BTA_AV_FEAT_ENCODED_DATA;
       }
 
       //
@@ -3025,8 +3035,10 @@ void bta_av_rcfg_connect(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
     /* let bta_av_rcfg_failed report fail */
     bta_av_rcfg_failed(p_scb, NULL);
   } else
-    AVDT_ConnectReq(p_scb->peer_addr, p_scb->sec_mask,
-                    bta_av_dt_cback[p_scb->hdi]);
+    {
+      update_avdtp_connection_info(p_scb->peer_addr, AVDT_AR_EXT_CONNECT_REQ_EVT, BTA_AR_EXT_AV_MASK);
+      AVDT_ConnectReq(p_scb->peer_addr, p_scb->sec_mask, bta_av_dt_cback[p_scb->hdi]);
+    }
 }
 
 /*******************************************************************************
@@ -3056,8 +3068,10 @@ void bta_av_rcfg_discntd(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
     /* report close event & go to init state */
     bta_av_ssm_execute(p_scb, BTA_AV_STR_DISC_FAIL_EVT, NULL);
   } else
-    AVDT_ConnectReq(p_scb->peer_addr, p_scb->sec_mask,
-                    bta_av_dt_cback[p_scb->hdi]);
+    {
+      update_avdtp_connection_info(p_scb->peer_addr, AVDT_AR_EXT_CONNECT_REQ_EVT, BTA_AR_EXT_AV_MASK);
+      AVDT_ConnectReq(p_scb->peer_addr, p_scb->sec_mask, bta_av_dt_cback[p_scb->hdi]);
+    }
 }
 
 /*******************************************************************************

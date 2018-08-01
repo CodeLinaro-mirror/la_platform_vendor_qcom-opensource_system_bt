@@ -273,7 +273,7 @@ class A2dpCodecs {
   // Initializes all supported codecs.
   // Returns true if at least one Source codec and one Sink codec were
   // initialized, otherwise false.
-  bool init(bool isMulticastEnabled = false, bool isShoEnabled = false);
+  bool init(bool isMulticastEnabled = false, bool isShoEnabled = false, std::vector<btav_a2dp_codec_config_t> codec_user_list = std::vector<btav_a2dp_codec_config_t> ());
 
   // Finds the Source codec that corresponds to the A2DP over-the-air
   // |p_codec_info| information.
@@ -334,7 +334,7 @@ class A2dpCodecs {
   // Returns true on success, othewise false.
   bool setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
                       uint8_t* p_result_codec_config,
-                      bool select_current_codec);
+                      bool select_current_codec, A2dpCodecConfig* codec_config);
 
   // Sets the user prefered codec configuration.
   // |codec_user_config| contains the preferred codec configuration.
@@ -405,8 +405,7 @@ class A2dpCodecs {
   // Returns true on success, otherwise false.
   bool getCodecConfigAndCapabilities(
       btav_a2dp_codec_config_t* p_codec_config,
-      std::vector<btav_a2dp_codec_config_t>* p_codecs_local_capabilities,
-      std::vector<btav_a2dp_codec_config_t>* p_codecs_selectable_capabilities);
+      std::vector<btav_a2dp_codec_config_t>* p_codecs_local_capabilities);
 
   // Dumps codec-related information.
   // The information is written in user-friendly form to file descriptor |fd|.
@@ -661,6 +660,11 @@ void A2DP_SetOffloadStatus(bool offload_status, char *offload_cap,
 bool A2DP_GetOffloadStatus();
 bool A2DP_IsScramblingSupported();
 bool A2DP_IsCodecEnabledInOffload(btav_a2dp_codec_index_t codec_index);
+bool is_aac_encoder_available();
+bool is_aptx_encoder_available();
+bool is_aptxhd_encoder_available();
+bool is_ldac_encoder_available();
+
 // Decodes and displays A2DP codec info when using |LOG_DEBUG|.
 // |p_codec_info| is a pointer to the codec_info to decode and display.
 // Returns true if the codec information is valid, otherwise false.

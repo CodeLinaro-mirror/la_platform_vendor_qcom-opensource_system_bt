@@ -54,6 +54,12 @@
 /* The index to access the codec type in codec_info[]. */
 #define AVDT_CODEC_TYPE_INDEX 2
 
+/* The index to access the vendorId in codec_info[]. */
+#define AVDT_VENDOR_ID_TYPE_INDEX    3
+
+/* The index to access the codecId in codec_info[]. */
+#define AVDT_CODEC_ID_TYPE_INDEX     7
+
 /* The size in bytes of a Adaptation Layer header. */
 #define AVDT_AL_HDR_SIZE 3
 
@@ -234,8 +240,9 @@ typedef uint8_t AVDT_REPORT_TYPE;
 #define AVDT_REPORT_DISCONN_EVT 19   /* Reporting channel disconnected */
 #define AVDT_DELAY_REPORT_EVT 20     /* Delay report received */
 #define AVDT_DELAY_REPORT_CFM_EVT 21 /* Delay report response received */
+#define AVDT_SETCONFIG_CMD_EVT      22      /* SetConfig command received from remote */
 
-#define AVDT_MAX_EVT (AVDT_DELAY_REPORT_CFM_EVT)
+#define AVDT_MAX_EVT (AVDT_SETCONFIG_CMD_EVT)
 
 /* PSM for AVDT */
 #define AVDT_PSM 0x0019
@@ -362,6 +369,12 @@ typedef struct {
   uint16_t delay;    /* Delay value */
 } tAVDT_DELAY_RPT;
 
+/* This data structure is associated with the SetConfig Done indication to AR module. */
+typedef struct {
+    tAVDT_EVT_HDR   hdr;                         /* Event header */
+    uint8_t sep_configured;                      /* Sep Type that was configured */
+} tAVDT_SetConfig_Cmd;
+
 /* Union of all control callback event data structures */
 typedef union {
   tAVDT_EVT_HDR hdr;
@@ -381,6 +394,7 @@ typedef union {
   tAVDT_EVT_HDR disconnect_ind;
   tAVDT_EVT_HDR report_conn;
   tAVDT_DELAY_RPT delay_rpt_cmd;
+  tAVDT_SetConfig_Cmd setconf_cmd_ind;
 } tAVDT_CTRL;
 
 /* This is the control callback function.  This function passes control events
@@ -432,7 +446,7 @@ typedef struct {
 #define AVDT_DATA_OPT_NONE 0x00          /* No option still add RTP header */
 #define AVDT_DATA_OPT_NO_RTP (0x01 << 0) /* Skip adding RTP header */
 
-typedef uint8_t tAVDT_DATA_OPT_MASK;
+typedef uint16_t tAVDT_DATA_OPT_MASK;
 
 /*****************************************************************************
  *  External Function Declarations
@@ -941,6 +955,46 @@ extern uint16_t AVDT_GetSignalChannel(uint8_t handle,
 **
 *******************************************************************************/
 extern void AVDT_UpdateMaxAvClients(uint8_t num_clients);
+
+/*******************************************************************************
+**
+** Function         AVDT_SINK_Activate
+**
+** Description      Activate SEP of A2DP Sink. In Use parameter is adjusted.
+**                  In Use will be made false in case of activation. A2DP SRC
+**                  will receive in_use as false and can open A2DP Sink
+**                  connection
+**
+** Returns          void
+**
+*******************************************************************************/
+extern void AVDT_SINK_Activate(void);
+
+/*******************************************************************************
+**
+** Function         AVDT_SINK_Deactivate
+**
+** Description      Deactivate SEP of A2DP Sink. In Use parameter is adjusted.
+**                  In Use will be made TRUE in case of activation. A2DP SRC
+**                  will receive in_use as true and will not open A2DP Sink
+**                  connection
+**
+** Returns          void.
+**
+*******************************************************************************/
+extern void AVDT_SINK_Deactivate(void);
+
+/*******************************************************************************
+**
+** Function         avdt_scb_update_supported_codecs
+**
+** Description      Update supported codecs
+**
+** Returns          void.
+**
+*******************************************************************************/
+extern void avdt_scb_update_supported_codecs(uint8_t *p_codec_type, uint8_t *p_vnd, uint8_t *p_codec_id, uint8_t num_codec_cfg, uint8_t codec_info[][AVDT_CODEC_SIZE], uint8_t tsep);
+
 
 /*******************************************************************************
  *

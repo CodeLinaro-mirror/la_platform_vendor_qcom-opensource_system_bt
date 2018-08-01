@@ -31,6 +31,7 @@
 #include "bt_utils.h"
 #include "btm_api.h"
 #include "osi/include/osi.h"
+#include "bta_ar_int_ext.h"
 
 /* packet header length lookup table */
 const uint8_t avct_lcb_pkt_type_len[] = {AVCT_HDR_LEN_SINGLE,
@@ -206,38 +207,94 @@ void avct_lcb_unbind_disc(UNUSED_ATTR tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_lcb_open_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
-  tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
-  int i;
-  bool bind = false;
+void avct_lcb_open_ind(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
+{
+    tAVCT_CCB   *p_ccb = &avct_cb.ccb[0];
+    int         i;
+    bool     bind = FALSE;
+    DEV_CLASS device_class;
+    uint16_t service_class;
+    uint8_t major_class;
+    uint8_t minor_class;
+    bool sink_only_cod = false;
+    bool src_only_cod = false;
 
-  for (i = 0; i < AVCT_NUM_CONN; i++, p_ccb++) {
-    /* if ccb allocated and */
-    if (p_ccb->allocated) {
-      /* if bound to this lcb send connect confirm event */
-      if (p_ccb->p_lcb == p_lcb) {
-        bind = true;
-        L2CA_SetTxPriority(p_lcb->ch_lcid, L2CAP_CHNL_PRIORITY_HIGH);
-        p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_CONNECT_CFM_EVT, 0,
-                               &p_lcb->peer_addr);
-      }
-      /* if unbound acceptor and lcb doesn't already have a ccb for this PID */
-      else if ((p_ccb->p_lcb == NULL) && (p_ccb->cc.role == AVCT_ACP) &&
-               (avct_lcb_has_pid(p_lcb, p_ccb->cc.pid) == NULL)) {
-        /* bind ccb to lcb and send connect ind event */
-        bind = true;
-        p_ccb->p_lcb = p_lcb;
-        L2CA_SetTxPriority(p_lcb->ch_lcid, L2CAP_CHNL_PRIORITY_HIGH);
-        p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_CONNECT_IND_EVT, 0,
-                               &p_lcb->peer_addr);
-      }
+    /* First check, if AVDTP was done earlier and we have any info from avdtp */
+    uint8_t avdtp_conn_type = get_remote_sep_type(p_lcb->peer_addr);
+    AVCT_TRACE_DEBUG(" avdtp_conn_type %d ", avdtp_conn_type);
+
+    if(avdtp_conn_type == 0)
+    {
+        /* In this case, index was not found, Check COD once */
+        BTM_GetCOD(&(p_lcb->peer_addr), device_class);
+        sink_only_cod = (service_class & BTM_COD_SERVICE_RENDERING) && !(service_class & BTM_COD_SERVICE_CAPTURING);
+        src_only_cod = (service_class & BTM_COD_SERVICE_CAPTURING) && !(service_class & BTM_COD_SERVICE_RENDERING);
+        APPL_TRACE_DEBUG(" %s Major_Class [%x], Minor Class [%x], Service_Class [%x], src_only %d, sink_only %d",__FUNCTION__,
+                 major_class, minor_class, service_class, src_only_cod, sink_only_cod);
+        /* If from COD we come to know that its src or Sink only */
+        if(sink_only_cod)
+        {
+            /* remote is SInk only, this indication should go to AV */
+            avdtp_conn_type = BTA_AR_EXT_AV_MASK;
+        }
+        if(src_only_cod)
+        {
+            /* remote is Src only, this indication should go to AVK */
+            avdtp_conn_type = BTA_AR_EXT_AVK_MASK;
+        }
     }
-  }
+    AVCT_TRACE_DEBUG(" avdtp_conn_type COD update %d ", avdtp_conn_type);
 
-  /* if no ccbs bound to this lcb, disconnect */
-  if (bind == false) {
-    avct_lcb_event(p_lcb, AVCT_LCB_INT_CLOSE_EVT, p_data);
-  }
+    for (i = 0; i < AVCT_NUM_CONN; i++, p_ccb++)
+    {
+        AVCT_TRACE_DEBUG("avct_lcb_open_ind, %d index = %d ", p_ccb->allocated, i);
+        /* if ccb allocated and */
+        if (p_ccb->allocated)
+        {
+            /* if bound to this lcb send connect confirm event */
+            AVCT_TRACE_DEBUG("%s profile id 0x%0X : role %s ccb_sep = %d",__FUNCTION__, p_ccb->cc.pid,
+                (p_ccb->cc.role) ? "AVCT_ACP" : "AVCT_INT", p_ccb->cc.av_sep_type);
+            if (p_ccb->p_lcb == p_lcb)
+            {
+                AVCT_TRACE_DEBUG("avct_lcb_open_ind, bind true");
+                bind = TRUE;
+                L2CA_SetTxPriority(p_lcb->ch_lcid, L2CAP_CHNL_PRIORITY_HIGH);
+                p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_CONNECT_CFM_EVT,
+                                       0, &(p_lcb->peer_addr));
+            }
+            /* if unbound acceptor and lcb doesn't already have a ccb for this PID */
+            else if ((p_ccb->p_lcb == NULL) && (p_ccb->cc.role == AVCT_ACP) &&
+                     (avct_lcb_has_pid(p_lcb, p_ccb->cc.pid) == NULL))
+            {
+                if((avdtp_conn_type & BTA_AR_EXT_AV_MASK) && !(avdtp_conn_type & BTA_AR_EXT_AVK_MASK))
+                {
+                    /* Remote is pure A2DP Src, we should send indication to AV profile only */
+                    if(p_ccb->cc.av_sep_type != BTA_AV_RC_PROFILE_SRC)
+                        continue;
+                }
+                if((avdtp_conn_type & BTA_AR_EXT_AVK_MASK) && !(avdtp_conn_type & BTA_AR_EXT_AV_MASK))
+                {
+                    /* Remote is pure A2DP Sink, we should send indication to AV profile only */
+                    if(p_ccb->cc.av_sep_type != BTA_AV_RC_PROFILE_SINK)
+                        continue;
+                }
+                /* bind ccb to lcb and send connect ind event */
+                AVCT_TRACE_DEBUG("avct_lcb_open_ind, bind and update");
+                bind = TRUE;
+                p_ccb->p_lcb = p_lcb;
+                L2CA_SetTxPriority(p_lcb->ch_lcid, L2CAP_CHNL_PRIORITY_HIGH);
+                p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_CONNECT_IND_EVT,
+                                    0, &(p_lcb->peer_addr));
+            }
+        }
+    }
+
+    /* if no ccbs bound to this lcb, disconnect */
+    if (bind == FALSE)
+    {
+        AVCT_TRACE_DEBUG("avct_lcb_open_ind, send disconnect");
+        avct_lcb_event(p_lcb, AVCT_LCB_INT_CLOSE_EVT, p_data);
+    }
 }
 
 /*******************************************************************************

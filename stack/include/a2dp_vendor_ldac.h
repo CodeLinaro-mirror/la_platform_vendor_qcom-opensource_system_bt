@@ -44,6 +44,16 @@ class A2dpCodecConfigLdac : public A2dpCodecConfig {
   void debug_codec_dump(int fd) override;
 };
 
+// data type for the LDAC Codec Information Element */
+// NOTE: bits_per_sample is needed only for LDAC encoder initialization.
+typedef struct {
+  uint32_t vendorId;
+  uint16_t codecId;    /* Codec ID for LDAC */
+  uint8_t sampleRate;  /* Sampling Frequency */
+  uint8_t channelMode; /* STEREO/DUAL/MONO */
+  btav_a2dp_codec_bits_per_sample_t bits_per_sample;
+} tA2DP_LDAC_CIE;
+
 // Checks whether the codec capabilities contain a valid A2DP LDAC Source
 // codec.
 // NOTE: only codecs that are implemented are considered valid.
@@ -150,4 +160,21 @@ const char* A2DP_VendorCodecIndexStrLdac(void);
 // configuration entry pointed by |p_cfg|.
 bool A2DP_VendorInitCodecConfigLdac(tAVDT_CFG* p_cfg);
 
+//Update LDAC capabilities
+void update_ldac_cap(btav_a2dp_codec_config_t config);
+
+//Reset a2dp_ldac_caps_initialized variable
+void reset_a2dp_ldac_caps_initialized();
+
+//Update LDAC local capabilities
+void update_local_capability_ldac(btav_a2dp_codec_config_t* loc_cap);
+
+// Builds the LDAC Media Codec Capabilities byte sequence beginning from the
+// LOSC octet. |media_type| is the media type |AVDT_MEDIA_TYPE_*|.
+// |p_ie| is a pointer to the LDAC Codec Information Element information.
+// The result is stored in |p_result|. Returns A2DP_SUCCESS on success,
+// otherwise the corresponding A2DP error status code.
+tA2DP_STATUS A2DP_BuildInfoLdac(uint8_t media_type,
+                                       const tA2DP_LDAC_CIE* p_ie,
+                                       uint8_t* p_result);
 #endif  // A2DP_VENDOR_LDAC_H

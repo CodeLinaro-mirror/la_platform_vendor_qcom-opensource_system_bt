@@ -61,7 +61,6 @@ typedef enum {
 
   // Add an entry for each sink codec here
   BTAV_A2DP_CODEC_INDEX_SINK_SBC = BTAV_A2DP_CODEC_INDEX_SINK_MIN,
-  BTAV_A2DP_CODEC_INDEX_SINK_AAC,
 
   BTAV_A2DP_CODEC_INDEX_SINK_MAX,
 
@@ -128,6 +127,7 @@ typedef struct {
   int64_t codec_specific_2;  // Codec-specific value 2
   int64_t codec_specific_3;  // Codec-specific value 3
   int64_t codec_specific_4;  // Codec-specific value 4
+  int64_t codec_specific_5;  // Codec-specific value 5
 
   std::string ToString() const {
     std::string codec_name_str;
@@ -151,9 +151,9 @@ typedef struct {
       case BTAV_A2DP_CODEC_INDEX_SINK_SBC:
         codec_name_str = "SBC (Sink)";
         break;
-      case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
-        codec_name_str = "AAC (Sink)";
-        break;
+  //    case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
+   //     codec_name_str = "AAC (Sink)";
+   //     break;
       case BTAV_A2DP_CODEC_INDEX_MAX:
         codec_name_str = "Unknown(CODEC_INDEX_MAX)";
         break;
@@ -248,8 +248,7 @@ typedef void (*btav_audio_state_callback)(const RawAddress& bd_addr,
  */
 typedef void (*btav_audio_source_config_callback)(
     const RawAddress& bd_addr, btav_a2dp_codec_config_t codec_config,
-    std::vector<btav_a2dp_codec_config_t> codecs_local_capabilities,
-    std::vector<btav_a2dp_codec_config_t> codecs_selectable_capabilities);
+    std::vector<btav_a2dp_codec_config_t> codecs_local_capabilities);
 
 /** Callback for audio configuration change.
  *  Used only for the A2DP Sink interface.

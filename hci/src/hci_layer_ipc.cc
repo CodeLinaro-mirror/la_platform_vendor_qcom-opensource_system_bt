@@ -55,8 +55,8 @@
 
 using android::hardware::hidl_vec;
 
-#define LOG_PATH "/data/misc/bluetooth/logs/firmware_events.log"
-#define LAST_LOG_PATH "/data/misc/bluetooth/logs/firmware_events.log.last"
+#define LOG_PATH "/etc/bluetooth/firmware_events.log"
+#define LAST_LOG_PATH "/etc/bluetooth/firmware_events.log.last"
 using android::hardware::bluetooth::V1_0::HciPacket;
 #define CTRL_SOCK "/data/misc/bluetooth/ctrl_sock"
 #define BT_SOCK "/data/misc/bluetooth/bt_sock"

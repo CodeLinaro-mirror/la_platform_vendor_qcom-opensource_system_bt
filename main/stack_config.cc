@@ -41,11 +41,7 @@ static future_t* init() {
 #if defined(OS_GENERIC)
   const char* path = "bt_stack.conf";
 #else  // !defined(OS_GENERIC)
-#ifdef ANDROID
   const char* path = "/etc/bluetooth/bt_stack.conf";
-#else
-  const char* path = "/data/misc/bluetooth/bt_stack.conf";
-#endif
 #endif  // defined(OS_GENERIC)
   CHECK(path != NULL);
 

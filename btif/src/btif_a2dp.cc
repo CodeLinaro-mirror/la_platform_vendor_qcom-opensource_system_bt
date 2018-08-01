@@ -126,33 +126,16 @@ void btif_a2dp_on_stopped(tBTA_AV_SUSPEND* p_av_suspend) {
     btif_a2dp_sink_on_stopped(p_av_suspend);
     return;
   }
-  if (!btif_av_is_split_a2dp_enabled()) {
-    btif_a2dp_source_on_stopped(p_av_suspend);
-  } else { //TODO send command to btif_a2dp_audio_interface
-    if (btif_a2dp_audio_if_init) {
-      if (p_av_suspend != NULL) {
-    //    btif_a2dp_audio_on_stopped(p_av_suspend->status);
-      }
-    }
-    else
-        APPL_TRACE_EVENT("btif_a2dp_on_stopped, audio interface not up");
-  }
+  btif_a2dp_source_on_stopped(p_av_suspend);
 }
 
 void btif_a2dp_on_suspended(tBTA_AV_SUSPEND* p_av_suspend) {
   APPL_TRACE_EVENT("## ON A2DP SUSPENDED ##");
   int idx = btif_av_get_latest_playing_device_idx();
-  if (!btif_av_is_split_a2dp_enabled()) {
-    if (btif_av_get_peer_sep(idx) == AVDT_TSEP_SRC) {
-      btif_a2dp_sink_on_suspended(p_av_suspend);
-    } else {
-      btif_a2dp_source_on_suspended(p_av_suspend);
-    }
+  if (btif_av_get_peer_sep(idx) == AVDT_TSEP_SRC) {
+    btif_a2dp_sink_on_suspended(p_av_suspend);
   } else {
-     if (p_av_suspend != NULL) {
-		 APPL_TRACE_EVENT("btif_a2dp_audio_on_stopped");
-    //   btif_a2dp_audio_on_suspended(p_av_suspend->status);
-    }
+    btif_a2dp_source_on_suspended(p_av_suspend);
   }
 }
 
@@ -177,27 +160,7 @@ void btif_a2dp_on_offload_started(tBTA_AV_STATUS status) {
       ack = A2DP_CTRL_ACK_FAILURE;
       break;
   }
-  if (btif_av_is_split_a2dp_enabled()) {
-    btif_av_reset_reconfig_flag();
-    // btif_a2dp_audio_on_started(status);
-    if (ack != BTA_AV_SUCCESS &&
-        btif_av_stream_started_ready()) {
-      /* Offload request will return with failure from btif_av sm if
-      ** suspend is triggered for remote start. Disconnect only if SoC
-      ** returned failure for offload VSC
-      */
-      APPL_TRACE_ERROR("%s offload start failed", __func__);
-      RawAddress bd_addr;
-      btif_av_get_peer_addr(&bd_addr);
-     /* status 13 means that there is a sco connection request during start vs cmd
-        in such case, will not disconnect the stack, this trigger connect again*/
-      if (status != BTIF_A2DP_START_BLOCK_SCO_CONNECTED)
-          btif_dispatch_sm_event(BTIF_AV_DISCONNECT_REQ_EVT, (void *)bd_addr.address,
-                             sizeof(RawAddress));
-    }
-  } else {
     btif_a2dp_command_ack(ack);
-  }
 }
 
 void btif_a2dp_honor_remote_start() {

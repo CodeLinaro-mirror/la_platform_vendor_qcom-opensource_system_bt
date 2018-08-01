@@ -1,6 +1,6 @@
 # sources and intermediate files are separated
 
-external_bt_path := $(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext
+external_bt_path := $(top_srcdir)/../../bluetooth_ext
 
 AM_CFLAGS = -Wall \
         -Wundef \
@@ -11,6 +11,7 @@ AM_CFLAGS = -Wall \
 
 AM_CPPFLAGS= \
         -I../ \
+        -I../audio_a2dp_hw/include \
         -I../bta/include \
         -I../bta/sys \
         -I../bta/dm \
@@ -41,6 +42,8 @@ AM_CPPFLAGS= \
         -I${WORKSPACE}/external/tinyxml2 \
         -I${WORKSPACE}/external/zlib \
         -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/hal/include \
+        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/stack/include \
+        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/udrv/include \
         -I$(external_bt_path)/vhal/include
 
 if MDM_ROME
@@ -97,8 +100,16 @@ c_sources = \
     ../embdrv/sbc/decoder/srce/synthesis-dct8.c \
     ../embdrv/sbc/decoder/srce/synthesis-8-generated.c
 
-c_sources += \
-    ../udrv/ulinux/uipc.cc
+cpp_sources += \
+    ../udrv/ulinux/uipc.cc \
+    $(external_bt_path)/system_bt_ext/btif/src/btif_avk_media_task.cc \
+    $(external_bt_path)/system_bt_ext/btif/src/btif_avk.cc \
+    $(external_bt_path)/system_bt_ext/btif/src/btif_avk_rc.cc \
+    $(external_bt_path)/system_bt_ext/btif/src/btif_avk_media_aac.cc \
+    $(external_bt_path)/system_bt_ext/btif/src/btif_avk_media_mp3.cc \
+    $(external_bt_path)/system_bt_ext/btif/src/btif_avk_media_aptx.cc \
+    $(external_bt_path)/system_bt_ext/btif/co/bta_avk_co.cc \
+    $(external_bt_path)/system_bt_ext/udrv/ulinux/uipc_avk.cc
 
 # BTC
 if BTC_SUPPORT

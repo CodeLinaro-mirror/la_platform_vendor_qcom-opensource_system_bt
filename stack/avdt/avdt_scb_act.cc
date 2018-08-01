@@ -39,6 +39,10 @@
 #include "btu.h"
 #include "osi/include/osi.h"
 
+#define PUMP_ENCODED_DATA 0x4000
+
+extern uint8_t bta_avk_get_current_codec();
+
 /* This table is used to lookup the callback event that matches a particular
  * state machine API request event.  Note that state machine API request
  * events are at the beginning of the event list starting at zero, thus
@@ -241,6 +245,19 @@ void avdt_scb_hdl_pkt_no_frag(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   uint16_t ex_len;
   uint8_t pad_len = 0;
 
+  if ((p_scb != NULL)&&(p_scb->cs.p_sink_data_cback != NULL))
+    {
+        AVDT_TRACE_DEBUG(" Get current codec = %d",bta_avk_get_current_codec());
+        if (bta_avk_get_current_codec() == 0xff)// this is a vendor specific codec, no RTP here
+        {
+            // This must be a case of Sink as for Src, p_data_cback is made NULL
+            p_data->p_pkt->layer_specific = 0;
+            AVDT_TRACE_DEBUG("AVDTP Recv Packet, APTX len =  %d", p_data->p_pkt->len);
+            (*p_scb->cs.p_sink_data_cback)(avdt_scb_to_hdl(p_scb), p_data->p_pkt, 0, 0);
+            return;
+        }
+    }
+
   p = p_start = (uint8_t*)(p_data->p_pkt + 1) + p_data->p_pkt->offset;
 
   /* parse media packet header */
@@ -277,8 +294,10 @@ void avdt_scb_hdl_pkt_no_frag(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   }
   /* adjust offset and length and send it up */
   else {
-    p_data->p_pkt->len -= (offset + pad_len);
-    p_data->p_pkt->offset += offset;
+        //p_data->p_pkt->len -= (offset + pad_len);
+        //p_data->p_pkt->offset += offset;
+        // remove padding here itself.
+        p_data->p_pkt->len -= (pad_len);
 
     if (p_scb->cs.p_sink_data_cback != NULL) {
       /* report sequence number */
@@ -510,7 +529,7 @@ void avdt_set_scbs_busy(tAVDT_SCB *ptr_scb) {
   uint8_t reg_id = ptr_scb->cs.registration_id;
   int i = 0;
   for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++) {
-    AVDT_TRACE_DEBUG(" avdt_set_scbs_busy SCB[%d] reg_id, sep_type ", i, p_scb->cs.registration_id, p_scb->cs.tsep);
+    AVDT_TRACE_DEBUG(" avdt_set_scbs_busy SCB[%d] reg_id[%d], sep_type[%d] ", i, p_scb->cs.registration_id, p_scb->cs.tsep);
     if ((p_scb->allocated) && (p_scb->cs.registration_id == reg_id) && (p_scb->cs.tsep == ptr_scb->cs.tsep)) {
       AVDT_TRACE_DEBUG(" Setting SCB[%d].in_use as true", i);
       p_scb->in_use = TRUE;
@@ -523,7 +542,7 @@ void avdt_set_scbs_free(tAVDT_SCB *ptr_scb) {
   uint8_t reg_id = ptr_scb->cs.registration_id;
   int i = 0;
   for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++) {
-    AVDT_TRACE_DEBUG(" avdt_set_scbs_free SCB[%d] reg_id, sep_type ", i, p_scb->cs.registration_id, p_scb->cs.tsep);
+    AVDT_TRACE_DEBUG(" avdt_set_scbs_free SCB[%d] reg_id[%d], sep_type[%d] ", i, p_scb->cs.registration_id, p_scb->cs.tsep);
     if ((p_scb->allocated) && (p_scb->cs.registration_id == reg_id) && (p_scb->cs.tsep == ptr_scb->cs.tsep)) {
       AVDT_TRACE_DEBUG(" Setting SCB[%d].in_use as false ", i);
       p_scb->in_use = FALSE;
@@ -588,10 +607,11 @@ bool avdt_check_sep_state(tAVDT_SCB *p_scb) {
  ******************************************************************************/
 void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   tAVDT_CFG* p_cfg;
-  AVDT_TRACE_WARNING("avdt_scb_hdl_setconfig_cmd: SCB in use: %d, Conn in progress: %d, avdt_check_sep_state: %d",
-       p_scb->in_use, avdt_cb.conn_in_progress, avdt_check_sep_state(p_scb));
+  tAVDT_CTRL avdt_ctrl;
+  AVDT_TRACE_WARNING("avdt_scb_hdl_setconfig_cmd: SCB in use: %d, Conn in progress: %d, avdt_check_sep_state: %d, SCB is required: %d ",
+       p_scb->in_use, avdt_cb.conn_in_progress, avdt_check_sep_state(p_scb), p_scb->is_required);
 
-  if ((!p_scb->in_use) && !(avdt_check_sep_state(p_scb)) &&
+  if ((!p_scb->in_use) && (p_scb->is_required) && !(avdt_check_sep_state(p_scb)) &&
       (!avdt_cb.conn_in_progress)) {
     A2DP_DumpCodecInfo(p_scb->cs.cfg.codec_info);
     A2DP_DumpCodecInfo(p_data->msg.config_cmd.p_cfg->codec_info);
@@ -612,6 +632,10 @@ void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
                                 p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
                                 AVDT_CONFIG_IND_EVT,
                                 (tAVDT_CTRL*)&p_data->msg.config_cmd);
+      /* Once we have send SetConfig command, we should inform ar module as well */
+      avdt_ctrl.setconf_cmd_ind.sep_configured = p_scb->cs.tsep;
+      if (avdt_cb.p_conn_cback != NULL)
+        avdt_cb.p_conn_cback(0, &(p_scb->p_ccb->peer_addr), AVDT_SETCONFIG_CMD_EVT, &avdt_ctrl);
     } else {
       p_data->msg.hdr.err_code = AVDT_ERR_UNSUP_CFG;
       p_data->msg.hdr.err_param = 0;
@@ -994,7 +1018,8 @@ void avdt_scb_hdl_write_req(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   }
 
   /* Build a media packet, and add an RTP header if required. */
-  if (add_rtp_header) {
+  if ((add_rtp_header) &&  ((p_data->apiwrite.opt & PUMP_ENCODED_DATA) != PUMP_ENCODED_DATA)) {
+    AVDT_TRACE_DEBUG("avdt_scb_hdl_write_req , encoded_data_enabled is false");
     ssrc = avdt_scb_gen_ssrc(p_scb);
 
     p_data->apiwrite.p_buf->len += AVDT_MEDIA_HDR_SIZE;

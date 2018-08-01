@@ -30,6 +30,7 @@
 #include "audio_a2dp_hw/include/audio_a2dp_hw.h"
 #include "bt_common.h"
 #include "btif_a2dp.h"
+#include "a2dp_sbc.h"
 #include "btif_a2dp_control.h"
 #include "btif_a2dp_sink.h"
 #include "btif_a2dp_source.h"
@@ -48,12 +49,15 @@ struct {
   struct timespec timestamp = {};
 } delay_report_stats;
 
+extern bool bt_split_a2dp_enabled;
 extern int btif_av_get_latest_device_idx_to_start();
 extern int btif_get_is_remote_started_idx();
 extern tBTA_AV_HNDL btif_av_get_av_hdl_from_idx(int idx);
 extern bool btif_av_is_playing_on_other_idx(int current_index);
 extern bool btif_av_is_handoff_set();
 extern int btif_max_av_clients;
+
+uint8_t codec_info[30];
 
 static void btif_a2dp_data_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
 static void btif_a2dp_ctrl_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
@@ -69,6 +73,9 @@ static tA2DP_CTRL_CMD a2dp_local_cmd_pending = A2DP_CTRL_CMD_NONE;
 static char a2dp_hal_imp[PROPERTY_VALUE_MAX] = "false";
 
 bool is_block_hal_start = false;
+
+static uint8_t multicast_query = FALSE;
+
 
 void btif_a2dp_control_init(void) {
   a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
@@ -387,14 +394,16 @@ static void btif_a2dp_recv_ctrl_data(void) {
             if (hdl >= 0)
               btif_a2dp_source_setup_codec(hdl);
           }
-          UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
+          if(!btif_av_is_split_a2dp_enabled())
+            UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
           btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
           APPL_TRACE_WARNING("%s: A2DP command %s while AV stream is alreday started",
                   __func__, audio_a2dp_hw_dump_ctrl_event(cmd));
           break;
         } else if (btif_av_stream_ready()) {
           /* Setup audio data channel listener */
-          UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
+          if(!btif_av_is_split_a2dp_enabled())
+            UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
           /*
            * Post start event and wait for audio path to open.
            * If we are the source, the ACK will be sent after the start
@@ -407,7 +416,8 @@ static void btif_a2dp_recv_ctrl_data(void) {
           break;
         } else if (btif_av_is_handoff_set() && !(is_block_hal_start)) {
           APPL_TRACE_DEBUG("%s: Entertain Audio Start after stream open", __func__);
-          UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
+          if(!btif_av_is_split_a2dp_enabled())
+            UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
           btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
           int idx = btif_av_get_latest_device_idx_to_start();
           if (btif_av_get_peer_sep(idx) == AVDT_TSEP_SRC)
@@ -611,6 +621,115 @@ static void btif_a2dp_recv_ctrl_data(void) {
         break;
       }
 
+      case A2DP_CTRL_GET_CONNECTION_STATUS:
+      if(btif_av_is_connected())
+      {
+        APPL_TRACE_DEBUG("got valid connection");
+        btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
+      }
+      else
+        btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
+      break;
+
+      case A2DP_CTRL_GET_CODEC_CONFIG: 
+        {
+            uint8_t p_codec_info[AVDT_CODEC_SIZE];
+            uint8_t codec_type;
+            tA2DP_ENCODER_INIT_PEER_PARAMS peer_param;
+            uint32_t bitrate = 0;
+            uint8_t len = 0;
+            LOG_INFO(LOG_TAG,"A2DP_CTRL_GET_CODEC_CONFIG");
+            A2dpCodecConfig *CodecConfig = bta_av_get_a2dp_current_codec();
+            if (CodecConfig == nullptr)
+            {
+                LOG_INFO(LOG_TAG,"codec config pointer is NULL");
+                btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
+                break;
+            }
+            bta_av_co_get_peer_params(&peer_param);
+            //LOG_INFO(LOG_TAG,"enc_update_in_progress = %d", enc_update_in_progress);
+            if ((btif_av_stream_started_ready() == FALSE))
+            {
+                LOG_INFO(LOG_TAG,"A2DP_CTRL_GET_CODEC_CONFIG: stream not started");
+                btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
+                break;
+            }
+            memset(p_codec_info, 0, AVDT_CODEC_SIZE);
+            memset(codec_info, 0, 30);
+            if (!CodecConfig->copyOutOtaCodecConfig(p_codec_info))
+            {
+              LOG_INFO(LOG_TAG,"No valid codec config");
+              btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
+              break;
+            }
+            btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
+            memcpy(&codec_info[1], &p_codec_info, p_codec_info[0] + 1);
+
+            codec_type = A2DP_GetCodecType((const uint8_t*)p_codec_info);
+            LOG_INFO(LOG_TAG,"codec_type = %x",codec_type);
+            if (A2DP_MEDIA_CT_SBC == codec_type)
+            {
+              bitrate = A2DP_GetOffloadBitrateSbc(CodecConfig, peer_param.is_peer_edr);
+              LOG_INFO(LOG_TAG,"bitrate = %d", bitrate);
+              bitrate *= 1000;
+            }
+            else if (A2DP_MEDIA_CT_NON_A2DP == codec_type)
+            {
+              int samplerate = A2DP_GetTrackSampleRate(p_codec_info);
+              /*if ((A2DP_VendorCodecGetVendorId(p_codec_info)) == A2DP_LDAC_VENDOR_ID) {
+                if ((samplerate == 44100) || (samplerate == 88200)) {
+                  bitrate = DEFAULT_LDAC_BITRATE_441KHZ; /* Default bitrate for LDAC is 606BKBps for 44.1/88.2 KHz 
+                } else {
+                  bitrate = DEFAULT_LDAC_BITRATE_48KHZ; /* Default bitrate for LDAC is 660KBps for 48/96KHz 
+                }
+              } else {
+                /* BR = (Sampl_Rate * PCM_DEPTH * CHNL)/Compression_Ratio */
+
+                int bits_per_sample = 16; // TODO
+                bitrate = (samplerate * bits_per_sample * 2)/4;
+
+              //}
+            }
+            else if (A2DP_MEDIA_CT_AAC == codec_type)
+            {
+              bitrate = 0;//Bitrate is present in codec info
+            }
+            codec_info[0] = 0; //playing device handle
+            len = p_codec_info[0] + 2;
+            codec_info[len++] = (uint8_t)(peer_param.peer_mtu & 0x00FF);
+            codec_info[len++] = (uint8_t)(((peer_param.peer_mtu & 0xFF00) >> 8) & 0x00FF);
+            codec_info[len++] = (uint8_t)(bitrate & 0x00FF);
+            codec_info[len++] = (uint8_t)(((bitrate & 0xFF00) >> 8) & 0x00FF);
+            codec_info[len++] = (uint8_t)(((bitrate & 0xFF0000) >> 16) & 0x00FF);
+            codec_info[len++] = (uint8_t)(((bitrate & 0xFF000000) >> 24) & 0x00FF);
+            LOG_INFO(LOG_TAG,"len  = %d", len);
+            UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, &len, 1);
+            UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, codec_info, len);
+            break;
+        }
+      case A2DP_CTRL_GET_MULTICAST_STATUS:
+        {
+            uint8_t playing_devices = (uint8_t)btif_av_get_num_playing_devices();
+            bool multicast_state = btif_av_get_multicast_state();
+            btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
+            multicast_query = FALSE;
+            if ((btif_max_av_clients > 1 && playing_devices == btif_max_av_clients) &&
+                multicast_state)
+            {
+                multicast_query = TRUE;
+            }
+            BTIF_TRACE_ERROR("multicast status = %d",multicast_query);
+            UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, &multicast_query, 1);
+            UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, &playing_devices, 1);
+
+            break;
+        }
+
+      case A2DP_CTRL_CMD_OFFLOAD_SUPPORTED:
+        BTIF_TRACE_ERROR("Split A2DP supported");
+        bt_split_a2dp_enabled = TRUE;
+        btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
+        break;
       default:
         APPL_TRACE_ERROR("%s: UNSUPPORTED CMD (%d)", __func__, cmd);
         btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
@@ -682,14 +801,16 @@ void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd) {
           if (hdl >= 0)
             btif_a2dp_source_setup_codec(hdl);
         }
-        UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
+        if(!btif_av_is_split_a2dp_enabled())
+            UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
         btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
         APPL_TRACE_WARNING("%s: A2DP command %s while AV stream is alreday started",
                 __func__, audio_a2dp_hw_dump_ctrl_event(cmd));
         break;
       } else if (btif_av_stream_ready()) {
         /* Setup audio data channel listener */
-        UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
+        if(!btif_av_is_split_a2dp_enabled())
+            UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
         /*
          * Post start event and wait for audio path to open.
          * If we are the source, the ACK will be sent after the start
@@ -702,7 +823,8 @@ void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd) {
         break;
       } else if (btif_av_is_handoff_set() && !(is_block_hal_start)) {
         APPL_TRACE_DEBUG("%s: Entertain Audio Start after stream open", __func__);
-        UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
+        if(!btif_av_is_split_a2dp_enabled())
+            UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
         btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
         int idx = btif_av_get_latest_device_idx_to_start();
         if (btif_av_get_peer_sep(idx) == AVDT_TSEP_SRC)

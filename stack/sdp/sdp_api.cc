@@ -39,6 +39,7 @@
 #include "avrc_defs.h"
 
 #include "osi/include/osi.h"
+#include <cutils/properties.h>
 
 using bluetooth::Uuid;
 
@@ -1147,6 +1148,11 @@ uint8_t SDP_SetTraceLevel(uint8_t new_level) {
 bool SDP_Dev_Blacklisted_For_Avrcp15 (RawAddress addr)
 {
     int ver;
+    char dy_version[PROPERTY_VALUE_MAX] = "false";
+    property_get("persist.avrcp.enable.dy_version", dy_version, "false");
+    if (!strncmp("false", dy_version, 5))
+        return false;
+
     bool ret = sdp_dev_blacklisted_for_avrcp15(addr);
     SDP_TRACE_ERROR("%s", __func__);
     if (ret != TRUE)

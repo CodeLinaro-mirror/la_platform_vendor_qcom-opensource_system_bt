@@ -114,7 +114,8 @@ enum {
   BTA_AV_API_STOP_EVT,
   BTA_AV_UPDATE_MAX_AV_CLIENTS_EVT,
   BTA_AV_ENABLE_MULTICAST_EVT, /* Event for enable and disable multicast */
-  BTA_AV_RC_COLLISSION_DETECTED_EVT
+  BTA_AV_RC_COLLISSION_DETECTED_EVT,
+  BTA_AV_UPDATE_SUPP_CODECS
 };
 
 /* events for AV control block state machine */
@@ -126,13 +127,13 @@ enum {
 
 /* events that do not go through state machine */
 #define BTA_AV_FIRST_NSM_EVT BTA_AV_API_ENABLE_EVT
-#define BTA_AV_LAST_NSM_EVT BTA_AV_RC_COLLISSION_DETECTED_EVT
+#define BTA_AV_LAST_NSM_EVT BTA_AV_UPDATE_SUPP_CODECS
 
 /* API events passed to both SSMs (by bta_av_api_to_ssm) */
 #define BTA_AV_FIRST_A2S_API_EVT BTA_AV_API_START_EVT
 #define BTA_AV_FIRST_A2S_SSM_EVT BTA_AV_AP_START_EVT
 
-#define BTA_AV_LAST_EVT BTA_AV_RC_COLLISSION_DETECTED_EVT
+#define BTA_AV_LAST_EVT BTA_AV_UPDATE_SUPP_CODECS
 
 /* maximum number of SEPS in stream discovery results */
 #define BTA_AV_NUM_SEPS 32
@@ -151,7 +152,7 @@ enum {
 #define BTA_AV_QUEUE_DATA_CHK_NUM L2CAP_HIGH_PRI_MIN_XMIT_QUOTA
 
 /* the number of ACL links with AVDT */
-#define BTA_AV_NUM_LINKS AVDT_NUM_LINKS
+#define BTA_AV_NUM_LINKS (AVDT_NUM_LINKS/2)
 
 #define BTA_AV_BE_STREAM_TO_CO_ID(u32, p)                                 \
   {                                                                       \
@@ -261,6 +262,17 @@ typedef struct
   BT_HDR hdr;
   bool is_multicast_enabled;
 } tBTA_AV_ENABLE_MULTICAST;
+
+/* data type for tBTA_AV_UPDATE_SUPP_CODECS */
+typedef struct
+{
+    BT_HDR hdr;
+    uint8_t  codec_type[BTAV_A2DP_CODEC_INDEX_SOURCE_MAX]; /* Codec Type */
+    uint8_t  vnd_id[BTAV_A2DP_CODEC_INDEX_SOURCE_MAX]; /* Vendor Id */
+    uint8_t  codec_id[BTAV_A2DP_CODEC_INDEX_SOURCE_MAX]; /* Codec Id */
+    uint8_t  codec_info[BTAV_A2DP_CODEC_INDEX_SOURCE_MAX][AVDT_CODEC_SIZE];
+    uint8_t  num_codec_configs;          /* Number of codec configurations*/
+} tBTA_AV_UPDATE_SUPP_CODECS;
 
 /* data type for BTA_AV_UPDATE_MAX_AV_CLIENTS_EVTT */
 typedef struct
@@ -451,6 +463,7 @@ typedef union {
   tBTA_AV_API_OFFLOAD_START api_offload_start;
   tBTA_AV_API_STATUS_RSP api_status_rsp;
   tBTA_AV_ENABLE_MULTICAST multicast_state;
+  tBTA_AV_UPDATE_SUPP_CODECS update_supp_codecs;
   tBTA_AV_MAX_CLIENT max_av_clients;
 } tBTA_AV_DATA;
 
@@ -697,6 +710,8 @@ extern bool bta_av_is_scb_init(tBTA_AV_SCB* p_scb);
 extern void bta_av_set_scb_sst_incoming(tBTA_AV_SCB* p_scb);
 extern tBTA_AV_LCB* bta_av_find_lcb(const RawAddress& addr, uint8_t op);
 extern bool bta_av_is_multicast_enabled();
+extern bool is_pump_encoded_data_supported();
+extern bool bta_av_is_scb_available();
 
 /* main functions */
 extern void bta_av_api_deregister(tBTA_AV_DATA* p_data);

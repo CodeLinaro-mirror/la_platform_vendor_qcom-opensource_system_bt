@@ -50,6 +50,21 @@
 #define A2DP_SET_ZERO_BIT 0  /* all bits clear */
 #define A2DP_SET_MULTL_BIT 2 /* multiple bits are set */
 
+
+#define A2D_NON_A2DP_MEDIA_CT 0xFF  /* NON A2DP media codec */
+#define A2D_BAD_ALLOC_MTHD    0xC9  /* None or multiple values have been selected for Allocation Method */
+
+/* AV Media Codec Type (Audio Codec ID) */
+#define A2D_MEDIA_CT_SBC        0x00    /* SBC media codec type */
+#define A2D_MEDIA_CT_M12        0x01    /* MPEG-1, 2 Audio media codec type */
+#define A2D_MEDIA_CT_M24        0x02    /* MPEG-2, 4 AAC media codec type */
+#define A2D_MEDIA_CT_ATRAC      0x04    /* ATRAC family media codec type */
+
+/* AV Media Types */
+#define A2D_MEDIA_TYPE_AUDIO    0x00    /* audio media type + RFA */
+#define A2D_MEDIA_TYPE_VIDEO    0x10    /* video media type + RFA */
+#define A2D_MEDIA_TYPE_MULTI    0x20    /* multimedia media type + RFA */
+
 /*****************************************************************************
  *  type definitions
  ****************************************************************************/

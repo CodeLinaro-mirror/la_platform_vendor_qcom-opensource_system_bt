@@ -1,6 +1,6 @@
 # sources and intermediate files are separated
 
-external_bt_path := $(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext
+external_bt_path := $(top_srcdir)/../../bluetooth_ext
 
 AM_CFLAGS = -Wall \
         -Wundef \
@@ -15,6 +15,7 @@ endif
 AM_CPPFLAGS = \
         -I.. \
         -I../include \
+        -Ia2dp \
         -Iinclude \
         -Iavct \
         -Ibtm \
@@ -47,13 +48,15 @@ AM_CPPFLAGS = \
         -I$(external_bt_path)/system_bt_ext \
         -I$(external_bt_path)/vhal/include \
         -I$(external_bt_path)/system_bt_ext/bta/ar \
-        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/hal/include
+        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/hal/include \
+        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/stack/include
 if MDM_CHEROKEE
 AM_CPPFLAGS += -DBTA_AV_SPLIT_A2DP_ENABLED
 endif
 
 
 cpp_sources:= \
+       ./a2dp/a2dp_aac.cc \
        ./a2dp/a2dp_api.cc \
        ./a2dp/a2dp_codec_config.cc \
        ./a2dp/a2dp_sbc.cc \
@@ -64,6 +67,7 @@ cpp_sources:= \
        ./a2dp/a2dp_vendor_aptx_hd.cc \
        ./a2dp/a2dp_vendor_aptx_encoder.cc \
        ./a2dp/a2dp_vendor_aptx_hd_encoder.cc \
+       ./a2dp/a2dp_vendor_ldac.cc \
        ./avct/avct_api.cc \
        ./avct/avct_bcb_act.cc \
        ./avct/avct_ccb.cc \
@@ -177,6 +181,13 @@ cpp_sources:= \
        ./srvc/srvc_battery.cc \
        ./srvc/srvc_dis.cc \
        ./srvc/srvc_eng.cc
+
+cpp_sources+= \
+        $(external_bt_path)/system_bt_ext/stack/a2dp/a2d_aac.cc \
+        $(external_bt_path)/system_bt_ext/stack/a2dp/a2d_aptx.cc \
+        $(external_bt_path)/system_bt_ext/stack/a2dp/a2d_aptx_hd.cc \
+        $(external_bt_path)/system_bt_ext/stack/a2dp/a2d_mp3.cc \
+        $(external_bt_path)/system_bt_ext/stack/a2dp/a2d_sbc.cc
 
 if SSR_CLEANUP_SUPPORT
 AM_CPPFLAGS += -DSSR_CLEANUP=TRUE

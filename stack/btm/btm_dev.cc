@@ -37,6 +37,21 @@
 #include "hcimsgs.h"
 #include "l2c_api.h"
 
+void BTM_GetCOD(const RawAddress* bd_addr, DEV_CLASS_PTR dev_class)
+{
+    BTM_TRACE_API("%s", __FUNCTION__);
+    tBTM_SEC_DEV_REC  *p_dev_rec = NULL;
+    p_dev_rec = btm_find_dev (*bd_addr);
+    if (p_dev_rec == NULL)
+    {
+        BTM_TRACE_API("%s, record not found", __FUNCTION__);
+        return 0;
+    }
+    dev_class[0] = p_dev_rec->dev_class[0];
+    dev_class[1] = p_dev_rec->dev_class[1];
+    dev_class[2] = p_dev_rec->dev_class[2];
+}
+
 /*******************************************************************************
  *
  * Function         BTM_SecAddDevice
@@ -88,7 +103,10 @@ bool BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class,
     p_dev_rec->bond_type = BOND_TYPE_UNKNOWN;
   }
 
-  if (dev_class) memcpy(p_dev_rec->dev_class, dev_class, DEV_CLASS_LEN);
+  if (dev_class) {
+    BTM_TRACE_API("%s p_dev_rec->dev_class=%x %x %x  dev_class=%x %x %x", __FUNCTION__, p_dev_rec->dev_class[0],p_dev_rec->dev_class[1],p_dev_rec->dev_class[2], dev_class[0],dev_class[1],dev_class[2]);
+    memcpy(p_dev_rec->dev_class, dev_class, DEV_CLASS_LEN);
+  }
 
   memset(p_dev_rec->sec_bd_name, 0, sizeof(tBTM_BD_NAME));
 
@@ -233,12 +251,16 @@ tBTM_SEC_DEV_REC* btm_sec_alloc_dev(const RawAddress& bd_addr) {
   /* outgoing connection */
   p_inq_info = BTM_InqDbRead(bd_addr);
   if (p_inq_info != NULL) {
+   BTM_TRACE_API("%s p_dev_rec->dev_class=%x %x %x  dev_class=%x %x %x", __FUNCTION__, p_dev_rec->dev_class[0],p_dev_rec->dev_class[1],p_dev_rec->dev_class[2], p_inq_info->results.dev_class[0],p_inq_info->results.dev_class[1],p_inq_info->results.dev_class[2]);
     memcpy(p_dev_rec->dev_class, p_inq_info->results.dev_class, DEV_CLASS_LEN);
 
     p_dev_rec->device_type = p_inq_info->results.device_type;
     p_dev_rec->ble.ble_addr_type = p_inq_info->results.ble_addr_type;
   } else if (bd_addr == btm_cb.connecting_bda)
+  {
+    BTM_TRACE_API("%s p_dev_rec->dev_class=%x %x %x  dev_class=%x %x %x", __FUNCTION__, p_dev_rec->dev_class[0],p_dev_rec->dev_class[1],p_dev_rec->dev_class[2], btm_cb.connecting_dc[0],btm_cb.connecting_dc[1],btm_cb.connecting_dc[2]);
     memcpy(p_dev_rec->dev_class, btm_cb.connecting_dc, DEV_CLASS_LEN);
+  }
 
   /* update conn params, use default value for background connection params */
   memset(&p_dev_rec->conn_params, 0xff, sizeof(tBTM_LE_CONN_PRAMS));

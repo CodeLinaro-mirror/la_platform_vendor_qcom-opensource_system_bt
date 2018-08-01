@@ -37,6 +37,7 @@
 #include "bt_utils.h"
 #include "btu.h"
 #include "osi/include/osi.h"
+#include "a2dp_constants.h"
 
 /*****************************************************************************
  * state machine constants and types
@@ -839,6 +840,7 @@ tAVDT_SCB* avdt_scb_alloc(tAVDT_CS* p_cs) {
       memset(p_scb, 0, sizeof(tAVDT_SCB));
       p_scb->allocated = true;
       p_scb->p_ccb = NULL;
+      p_scb->is_required = TRUE;
 
       memcpy(&p_scb->cs, p_cs, sizeof(tAVDT_CS));
       p_scb->transport_channel_timer =
@@ -1022,4 +1024,81 @@ void avdt_scb_set_max_av_client(uint8_t max_clients) {
  ******************************************************************************/
 uint8_t avdt_scb_get_max_av_client() {
     return max_av_clients;
+}
+
+
+/******************************************************************************
+**
+** Function         avdt_scb_update_supported_codecs
+**
+** Description      Updates the codecs supported by acceptor
+**
+** Returns          void
+**
+******************************************************************************/
+void avdt_scb_update_supported_codecs(uint8_t *p_codec_type, uint8_t *p_vnd,
+                              uint8_t *p_codec_id, uint8_t num_codec_cfg,
+                              uint8_t codec_info[][AVDT_CODEC_SIZE], uint8_t tsep)
+{
+    int i = 0, j = 0;
+    tAVDT_SCB *p_scb;
+
+    if (codec_info == NULL || p_codec_type == NULL || p_vnd == NULL ||
+        p_codec_id == NULL)
+        return;
+
+    /* Update the codec info as per upper layers supported configuration */
+    do {
+        p_scb = &avdt_cb.scb[0];
+        for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++) {
+            if (p_scb != NULL && (p_scb->allocated) &&
+                (p_scb->cs.tsep == tsep) &&
+                (p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] ==codec_info[j][AVDT_CODEC_TYPE_INDEX]) &&
+                (p_vnd[j] == p_scb->cs.cfg.codec_info[AVDT_VENDOR_ID_TYPE_INDEX]) &&
+                (p_codec_id[j] == p_scb->cs.cfg.codec_info[AVDT_CODEC_ID_TYPE_INDEX])) {
+                AVDT_TRACE_DEBUG(" Updating codec info for SCB[%d] sep_type[%d] "
+                    "codec type [%d]",i, p_scb->cs.tsep,
+                    codec_info[j][AVDT_CODEC_TYPE_INDEX]);
+                memcpy(p_scb->cs.cfg.codec_info, codec_info[j],
+                    AVDT_CODEC_SIZE);
+            }
+        }
+        j ++;
+    } while (j < num_codec_cfg);
+
+    p_scb = &avdt_cb.scb[0];
+    for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++) {
+        if (p_scb != NULL && (p_scb->allocated) && (p_scb->cs.tsep == tsep)) {
+            /* update is_required as false for all SCB*/
+            p_scb->is_required = FALSE;
+            AVDT_TRACE_DEBUG(" Setting SCB[%d] sep_type[%d] is_required as false",
+                i, p_scb->cs.tsep);
+        }
+    }
+
+    j = 0;
+    /* Update is_required flag to TRUE for those SCB that are alowed by upper layers to be
+     * visible to remote device as supported. */
+    do
+    {
+        p_scb = &avdt_cb.scb[0];
+        /* for all allocated scbs */
+        for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++)
+        {
+            if (p_scb != NULL && (p_scb->allocated) && (p_scb->cs.tsep == tsep) &&
+                !p_scb->is_required && ((((p_codec_id[j] == A2DP_MEDIA_CT_SBC)||(p_codec_id[j] == A2DP_MEDIA_CT_AAC)) &&
+                p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == p_codec_type[j]) ||
+                (p_codec_type[j] == A2DP_MEDIA_CT_NON_A2DP &&
+                (p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == p_codec_type[j]) &&
+                (p_vnd[j] == p_scb->cs.cfg.codec_info[AVDT_VENDOR_ID_TYPE_INDEX]) &&
+                p_codec_id[j] == p_scb->cs.cfg.codec_info[AVDT_CODEC_ID_TYPE_INDEX])))
+            {
+                /* update is_required as true for SCB required by upper layers */
+                AVDT_TRACE_DEBUG(" Setting SCB[%d] sep_type[%d] is_required as true",
+                i, p_scb->cs.tsep);
+                p_scb->is_required = TRUE;
+            }
+        }
+        j ++;
+    } while (j < num_codec_cfg);
 }

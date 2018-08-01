@@ -1068,7 +1068,7 @@ bt_status_t btif_hf_client_execute_service(bool b_enable) {
 
 /*******************************************************************************
  *
- * Function         btif_hf_get_interface
+ * Function         btif_hf_client_get_interface
  *
  * Description      Get the hf callback interface
  *
@@ -1076,6 +1076,7 @@ bt_status_t btif_hf_client_execute_service(bool b_enable) {
  *
  ******************************************************************************/
 const bthf_client_interface_t* btif_hf_client_get_interface(void) {
+  ALOGD("%s", __func__);
   BTIF_TRACE_EVENT("%s", __func__);
   return &bthfClientInterface;
 }

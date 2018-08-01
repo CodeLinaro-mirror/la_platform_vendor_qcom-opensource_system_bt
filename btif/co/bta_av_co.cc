@@ -43,6 +43,7 @@
 #include "osi/include/mutex.h"
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
+#include <cutils/properties.h>
 #include "device/include/interop.h"
 #include "device/include/controller.h"
 
@@ -158,6 +159,7 @@ extern int btif_max_av_clients;
 extern tBTA_AV_HNDL btif_av_get_reconfig_dev_hndl();
 extern void btif_av_reset_codec_reconfig_flag();
 extern bool bt_split_a2dp_enabled;
+extern uint16_t pump_encoded_data;
 /*******************************************************************************
  **
  ** Function         bta_av_co_cp_get_flag
@@ -262,6 +264,7 @@ uint8_t* bta_av_co_get_peer_codec_info(tBTA_AV_HNDL hndl) {
  ******************************************************************************/
 bool bta_av_co_audio_init(btav_a2dp_codec_index_t codec_index,
                           tAVDT_CFG* p_cfg) {
+  APPL_TRACE_DEBUG("%s", __func__);
   return A2DP_InitCodecConfig(codec_index, p_cfg);
 }
 
@@ -757,22 +760,20 @@ void* bta_av_co_audio_src_data_path(const uint8_t* p_codec_info,
    * p_buf->layer_specific : number of audio frames in the packet
    * p_buf->word[0] : timestamp
    */
-  if (!A2DP_GetPacketTimestamp(p_codec_info, (const uint8_t*)(p_buf + 1),
-                               p_timestamp) ||
-      !A2DP_BuildCodecHeader(p_codec_info, p_buf, p_buf->layer_specific)) {
-    APPL_TRACE_ERROR("%s: unsupported codec type (%d)", __func__,
-                     A2DP_GetCodecType(p_codec_info));
-  }
-
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-  if (bta_av_co_cb.cp.active) {
-    p_buf->len++;
-    p_buf->offset--;
-    uint8_t* p = (uint8_t*)(p_buf + 1) + p_buf->offset;
-    *p = bta_av_co_cp_get_flag();
-  }
-#endif
-
+  if (p_buf != NULL && (!pump_encoded_data)){
+    if (!A2DP_GetPacketTimestamp(p_codec_info, (const uint8_t*)(p_buf + 1),
+            p_timestamp) || !A2DP_BuildCodecHeader(p_codec_info, p_buf, p_buf->layer_specific)) {
+      APPL_TRACE_ERROR("%s: unsupported codec type (%d)", __func__, A2DP_GetCodecType(p_codec_info));
+    }
+    #if (BTA_AV_CO_CP_SCMS_T == TRUE)
+    if (bta_av_co_cb.cp.active) {
+      p_buf->len++;
+      p_buf->offset--;
+      uint8_t* p = (uint8_t*)(p_buf + 1) + p_buf->offset;
+      *p = bta_av_co_cp_get_flag();
+    }
+    #endif
+ }
   return p_buf;
 }
 
@@ -891,6 +892,7 @@ bool bta_av_co_audio_is_aac_wl_enabled(RawAddress *remote_bdaddr) {
  ******************************************************************************/
 static bool bta_av_co_audio_sink_supports_cp(const tBTA_AV_CO_SINK* p_sink) {
   APPL_TRACE_DEBUG("%s", __func__);
+  APPL_TRACE_DEBUG("bta_av_co_cp_get_flag %d",bta_av_co_cp_get_flag());
 
   /* Check if content protection is enabled for this stream */
   if (bta_av_co_cp_get_flag() != AVDT_CP_SCMS_COPY_FREE) {
@@ -1022,7 +1024,7 @@ static tBTA_AV_CO_SINK* bta_av_co_audio_codec_selected(
   }
   if (!bta_av_co_cb.codecs->setCodecConfig(
           p_sink->codec_caps, true /* is_capability */, new_codec_config,
-          true /* select_current_codec */)) {
+          true /* select_current_codec */, &codec_config)) {
     APPL_TRACE_DEBUG("%s: cannot set source codec %s", __func__,
                      codec_config.name().c_str());
     return NULL;
@@ -1081,7 +1083,7 @@ static bool bta_av_co_audio_update_selectable_codec(
   }
   if (!bta_av_co_cb.codecs->setCodecConfig(
           p_sink->codec_caps, true /* is_capability */, new_codec_config,
-          false /* select_current_codec */)) {
+          false /* select_current_codec */, &codec_config)) {
     APPL_TRACE_DEBUG("%s: cannot update source codec %s", __func__,
                      codec_config.name().c_str());
     return false;
@@ -1472,12 +1474,12 @@ bool bta_av_co_is_scrambling_enabled() {
   uint8_t no_of_freqs = 0;
   uint8_t *freqs = NULL;
   char value[PROPERTY_VALUE_MAX] = {'\0'};
-  osi_property_get("persist.vendor.bt.splita2dp.44_1_war", value, "true");
+  property_get("persist.vendor.bt.splita2dp.44_1_war", value, "true");
 
   if(strcmp(value, "true")) {
     return false;
   }
-  freqs = controller_get_interface()->get_scrambling_supported_freqs(&no_of_freqs);
+  //  freqs = controller_get_interface()->get_scrambling_supported_freqs(&no_of_freqs);
 
   if(no_of_freqs == 0) {
     return false;
@@ -1485,12 +1487,32 @@ bool bta_av_co_is_scrambling_enabled() {
   return true;
 }
 
-void bta_av_co_init(
-    const std::vector<btav_a2dp_codec_config_t>& codec_priorities) {
+
+/* Remove duplicate codecs from list. This will be used for hiding/showing codecs
+ * for response to AVDTP discover command */
+std::vector<btav_a2dp_codec_config_t> remove_codec_duplicate(const std::vector<btav_a2dp_codec_config_t>& p_codec_config_list){
+    uint8_t list_size = BTAV_A2DP_CODEC_INDEX_SOURCE_MAX-BTAV_A2DP_CODEC_INDEX_SOURCE_MIN;
+    uint8_t codec_type_added[list_size];
+    memset(codec_type_added, 0, list_size);
+    std::vector<btav_a2dp_codec_config_t> p_codec_config_list_without_duplicate;
+    for (auto config : p_codec_config_list){
+        if (!codec_type_added[config.codec_type]){
+          codec_type_added[config.codec_type] = 1;
+          p_codec_config_list_without_duplicate.push_back(config);
+        }
+    }
+    return p_codec_config_list_without_duplicate;
+}
+
+
+void bta_av_co_init(std::vector<btav_a2dp_codec_config_t>& codec_user_list) {
   APPL_TRACE_DEBUG("%s", __func__);
-  RawAddress bt_addr;
   char value[PROPERTY_VALUE_MAX] = {'\0'};
-  /* Reset the control block */
+
+  /* Reset the current config */
+  /* Protect access to bta_av_co_cb.codec_config */
+  mutex_global_lock();
+
   bta_av_co_cb.reset();
 
 #if (BTA_AV_CO_CP_SCMS_T == TRUE)
@@ -1499,14 +1521,18 @@ void bta_av_co_init(
   bta_av_co_cp_set_flag(AVDT_CP_SCMS_COPY_FREE);
 #endif
 
-  /* Reset the current config */
-  /* Protect access to bta_av_co_cb.codec_config */
-  mutex_global_lock();
-  bta_av_co_cb.codecs = new A2dpCodecs(codec_priorities);
+  std::vector<btav_a2dp_codec_config_t> codec_user_list_without_duplicate = remove_codec_duplicate(codec_user_list);
+  APPL_TRACE_DEBUG("codec_user_list_without_duplicate (for incoming connection)");
+  for (auto config : codec_user_list_without_duplicate)
+    APPL_TRACE_DEBUG("type %d, prio %d", config.codec_type, config.codec_priority);
+
+  /* Reset the control block */
+
+  bta_av_co_cb.codecs = new A2dpCodecs(codec_user_list_without_duplicate);
 /* SPLITA2DP */
   bool a2dp_offload = btif_av_is_split_a2dp_enabled();
   bool isScramblingSupported = bta_av_co_is_scrambling_enabled();
-  osi_property_get("persist.vendor.bt.a2dp_offload_cap", value, "false");
+  property_get("persist.bt.a2dp_offload_cap", value, "false");
   A2DP_SetOffloadStatus(a2dp_offload, value, isScramblingSupported);
 /* SPLITA2DP */
   bool isMcastSupported = btif_av_is_multicast_supported();
@@ -1515,12 +1541,7 @@ void bta_av_co_init(
     isMcastSupported = false;
     isShoSupported = false;
   }
-  bta_av_co_cb.codecs->init(isMcastSupported, isShoSupported);
+  bta_av_co_cb.codecs->init(isMcastSupported, isShoSupported, codec_user_list);
   A2DP_InitDefaultCodec(bta_av_co_cb.codec_config);
   mutex_global_unlock();
-
-  // NOTE: Unconditionally dispatch the event to make sure a callback with
-  // the most recent codec info is generated.
-  bt_addr = RawAddress::kAny;
-  btif_dispatch_sm_event(BTIF_AV_SOURCE_CONFIG_UPDATED_EVT, (void *)bt_addr.address, sizeof(RawAddress));
 }

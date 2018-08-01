@@ -1,6 +1,6 @@
 # sources and intermediate files are separated
 
-external_bt_path := $(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext
+external_bt_path := $(top_srcdir)/../../bluetooth_ext
 
 AM_CFLAGS = -Wall \
         -Wundef \
@@ -21,15 +21,13 @@ AM_CPPFLAGS = \
         -I$(external_bt_path)/system_bt_ext \
         -I$(external_bt_path)/vhal/include \
         -I$(external_bt_path)/system_bt_ext/device/include \
-        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/hal/include \
-        -I${WORKSPACE}/external/libchrome \
-        -I${WORKSPACE}/external/googletest/googletest/include
+        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/hal/include
 
 cpp_sources = \
         src/controller.cc \
         src/esco_parameters.cc \
-        $(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/device/src/interop.cc \
-        $(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/device/src/profile_config.cc
+        ${external_bt_path}/system_bt_ext/device/src/interop.cc \
+        ${external_bt_path}/system_bt_ext/device/src/profile_config.cc
 
 common_LDFLAGS = -lpthread
 common_CFLAGS =  $(AM_CFLAGS) -fPIC -D_GNU_SOURCE

@@ -76,11 +76,7 @@ using bluetooth::Uuid;
 #if defined(OS_GENERIC)
 #define BTE_DID_CONF_FILE "bt_did.conf"
 #else  // !defined(OS_GENERIC)
-#ifdef ANDROID
 #define BTE_DID_CONF_FILE "/etc/bluetooth/bt_did.conf"
-#else
-#define BTE_DID_CONF_FILE "/data/misc/bluetooth/bt_did.conf"
-#endif
 #endif  // defined(OS_GENERIC)
 #endif  // BTE_DID_CONF_FILE
 #define MAX_JNI_WORKQUEUE_COUNT    (1024)

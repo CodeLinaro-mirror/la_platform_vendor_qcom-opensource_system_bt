@@ -2644,6 +2644,39 @@ void btm_ble_init(void) {
 #endif
 }
 
+void btm_ble_free(void)
+{
+  tBTM_BLE_CB *p_cb = &btm_cb.ble_ctr_cb;
+
+  BTM_TRACE_DEBUG("%s", __func__);
+
+  if(p_cb->conn_pending_q)
+  {
+    fixed_queue_free(p_cb->conn_pending_q,NULL);
+    p_cb->conn_pending_q = NULL;
+  }
+
+  if (btm_cb.ble_ctr_cb.observer_timer) {
+    alarm_free(btm_cb.ble_ctr_cb.observer_timer);
+    btm_cb.ble_ctr_cb.observer_timer = NULL;
+  }
+  if (btm_cb.ble_ctr_cb.inq_var.fast_adv_timer) {
+    alarm_free(btm_cb.ble_ctr_cb.inq_var.fast_adv_timer);
+    btm_cb.ble_ctr_cb.inq_var.fast_adv_timer = NULL;
+  }
+  if (btm_cb.ble_ctr_cb.inq_var.inquiry_timer) {
+    alarm_free(btm_cb.ble_ctr_cb.inq_var.inquiry_timer);
+    btm_cb.ble_ctr_cb.inq_var.inquiry_timer = NULL;
+  }
+  if (btm_cb.ble_ctr_cb.addr_mgnt_cb.refresh_raddr_timer) {
+    alarm_free(btm_cb.ble_ctr_cb.addr_mgnt_cb.refresh_raddr_timer);
+    btm_cb.ble_ctr_cb.addr_mgnt_cb.refresh_raddr_timer = NULL;
+  }
+
+#if BLE_VND_INCLUDED == FALSE
+  btm_ble_adv_filter_cleanup();
+#endif
+}
 /*******************************************************************************
  *
  * Function         btm_ble_topology_check

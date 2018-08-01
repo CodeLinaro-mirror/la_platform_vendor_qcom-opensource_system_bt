@@ -62,6 +62,18 @@ class A2dpCodecConfigSbcSink : public A2dpCodecConfig {
       bool* p_config_updated) override;
 };
 
+/* data type for the SBC Codec Information Element */
+typedef struct {
+  uint8_t samp_freq;    /* Sampling frequency */
+  uint8_t ch_mode;      /* Channel mode */
+  uint8_t block_len;    /* Block length */
+  uint8_t num_subbands; /* Number of subbands */
+  uint8_t alloc_method; /* Allocation method */
+  uint8_t min_bitpool;  /* Minimum bitpool */
+  uint8_t max_bitpool;  /* Maximum bitpool */
+  btav_a2dp_codec_bits_per_sample_t bits_per_sample;
+} tA2DP_SBC_CIE;
+
 // Checks whether the codec capabilities contain a valid A2DP SBC Source codec.
 // NOTE: only codecs that are implemented are considered valid.
 // Returns true if |p_codec_info| contains information about a valid SBC codec,
@@ -263,4 +275,22 @@ bool A2DP_InitCodecConfigSbcSink(tAVDT_CFG* p_cfg);
 // |is_peer_edr| flag is true if peer is edr else false
 // Returns |uint16_t| bitrate value
 uint16_t A2DP_GetOffloadBitrateSbc(A2dpCodecConfig* config, bool is_peer_edr);
+
+//Update SBC capabilities
+void update_sbc_cap(btav_a2dp_codec_config_t config);
+
+//Reset a2dp_sbc_caps_initialized variable
+void reset_a2dp_sbc_caps_initialized();
+
+//Update SBC local capabilities
+void update_local_capability_sbc(btav_a2dp_codec_config_t* loc_cap);
+
+// Builds the SBC Media Codec Capabilities byte sequence beginning from the
+// LOSC octet. |media_type| is the media type |AVDT_MEDIA_TYPE_*|.
+// |p_ie| is a pointer to the SBC Codec Information Element information.
+// The result is stored in |p_result|. Returns A2DP_SUCCESS on success,
+// otherwise the corresponding A2DP error status code.
+tA2DP_STATUS A2DP_BuildInfoSbc(uint8_t media_type,
+                                      const tA2DP_SBC_CIE* p_ie,
+                                      uint8_t* p_result);
 #endif  // A2DP_SBC_H

@@ -36,19 +36,6 @@
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
 
-// data type for the aptX-HD Codec Information Element */
-typedef struct {
-  uint32_t vendorId;
-  uint16_t codecId;    /* Codec ID for aptX-HD */
-  uint8_t sampleRate;  /* Sampling Frequency */
-  uint8_t channelMode; /* STEREO/DUAL/MONO */
-  uint8_t acl_sprint_reserved0;
-  uint8_t acl_sprint_reserved1;
-  uint8_t acl_sprint_reserved2;
-  uint8_t acl_sprint_reserved3;
-  btav_a2dp_codec_bits_per_sample_t bits_per_sample;
-} tA2DP_APTX_HD_CIE;
-
 /* aptX-HD Source codec capabilities */
 static const tA2DP_APTX_HD_CIE a2dp_aptx_hd_src_caps = {
 //static const tA2DP_APTX_HD_CIE a2dp_aptx_hd_caps = {
@@ -102,6 +89,7 @@ static const tA2DP_APTX_HD_CIE a2dp_aptx_hd_default_offload_config = {
     BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24 /* bits_per_sample */
 };
 tA2DP_APTX_HD_CIE a2dp_aptx_hd_caps, a2dp_aptx_hd_default_config;
+int a2dp_aptxhd_caps_initialized = 0;
 
 static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_aptx_hd = {
     a2dp_vendor_aptx_hd_encoder_init,
@@ -122,7 +110,7 @@ UNUSED_ATTR static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityAptxHd(
 // |p_ie| is a pointer to the aptX-HD Codec Information Element information.
 // The result is stored in |p_result|. Returns A2DP_SUCCESS on success,
 // otherwise the corresponding A2DP error status code.
-static tA2DP_STATUS A2DP_BuildInfoAptxHd(uint8_t media_type,
+tA2DP_STATUS A2DP_BuildInfoAptxHd(uint8_t media_type,
                                          const tA2DP_APTX_HD_CIE* p_ie,
                                          uint8_t* p_result) {
   if (p_ie == NULL || p_result == NULL) {
@@ -454,11 +442,27 @@ bool A2DP_VendorInitCodecConfigAptxHd(tAVDT_CFG* p_cfg) {
   return true;
 }
 
+void update_local_capability_aptxhd(btav_a2dp_codec_config_t* loc_cap){
+  if (a2dp_aptx_hd_caps.sampleRate & A2DP_APTX_HD_SAMPLERATE_44100) {
+    loc_cap->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
+  }
+  if (a2dp_aptx_hd_caps.sampleRate & A2DP_APTX_HD_SAMPLERATE_48000) {
+    loc_cap->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
+  }
+  loc_cap->bits_per_sample = a2dp_aptx_hd_caps.bits_per_sample;
+  if (a2dp_aptx_hd_caps.channelMode & A2DP_APTX_HD_CHANNELS_MONO) {
+    loc_cap->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
+  }
+  if (a2dp_aptx_hd_caps.channelMode & A2DP_APTX_HD_CHANNELS_STEREO) {
+    loc_cap->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
+  }
+}
+
 A2dpCodecConfigAptxHd::A2dpCodecConfigAptxHd(
     btav_a2dp_codec_priority_t codec_priority)
     : A2dpCodecConfig(BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD, "aptX-HD",
                       codec_priority) {
-  // Compute the local capability
+  if(!a2dp_aptxhd_caps_initialized){
     if (A2DP_GetOffloadStatus() && !A2DP_IsScramblingSupported()) {
       a2dp_aptx_hd_caps = a2dp_aptx_hd_offload_caps;
       a2dp_aptx_hd_default_config = a2dp_aptx_hd_default_offload_config;
@@ -466,19 +470,9 @@ A2dpCodecConfigAptxHd::A2dpCodecConfigAptxHd(
       a2dp_aptx_hd_caps = a2dp_aptx_hd_src_caps;
       a2dp_aptx_hd_default_config = a2dp_aptx_hd_default_src_config;
     }
-  if (a2dp_aptx_hd_caps.sampleRate & A2DP_APTX_HD_SAMPLERATE_44100) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
+    a2dp_aptxhd_caps_initialized = 1;
   }
-  if (a2dp_aptx_hd_caps.sampleRate & A2DP_APTX_HD_SAMPLERATE_48000) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
-  }
-  codec_local_capability_.bits_per_sample = a2dp_aptx_hd_caps.bits_per_sample;
-  if (a2dp_aptx_hd_caps.channelMode & A2DP_APTX_HD_CHANNELS_MONO) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
-  }
-  if (a2dp_aptx_hd_caps.channelMode & A2DP_APTX_HD_CHANNELS_STEREO) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
-  }
+  update_local_capability_aptxhd(&codec_local_capability_);
 }
 
 A2dpCodecConfigAptxHd::~A2dpCodecConfigAptxHd() {}
@@ -953,4 +947,32 @@ fail:
   memcpy(ota_codec_peer_config_, saved_ota_codec_peer_config,
          sizeof(ota_codec_peer_config_));
   return false;
+}
+
+void update_aptxhd_cap(btav_a2dp_codec_config_t config){
+  switch (config.sample_rate) {
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_44100:
+      a2dp_aptx_hd_caps.sampleRate = a2dp_aptx_hd_caps.sampleRate|A2DP_APTX_HD_SAMPLERATE_44100;
+      break;
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_48000:
+      a2dp_aptx_hd_caps.sampleRate = a2dp_aptx_hd_caps.sampleRate|A2DP_APTX_HD_SAMPLERATE_48000;
+      break;
+    default:
+      break;
+  }
+  switch (config.channel_mode) {
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_MONO:
+      a2dp_aptx_hd_caps.channelMode = a2dp_aptx_hd_caps.channelMode|A2DP_APTX_HD_CHANNELS_MONO;
+      break;
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO:
+      a2dp_aptx_hd_caps.channelMode = a2dp_aptx_hd_caps.channelMode|A2DP_APTX_HD_CHANNELS_STEREO;
+      break;
+    default:
+      break;
+  }
+}
+
+void reset_a2dp_aptxhd_caps_initialized()
+{
+  a2dp_aptxhd_caps_initialized = 0;
 }

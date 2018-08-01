@@ -41,6 +41,8 @@
 /* Control block for AVDT */
 tAVDT_CB avdt_cb;
 
+extern uint16_t pump_encoded_data;
+
 void avdt_ccb_idle_ccb_timer_timeout(void* data) {
   tAVDT_CCB* p_ccb = (tAVDT_CCB*)data;
   uint8_t avdt_event = AVDT_CCB_IDLE_TOUT_EVT;
@@ -970,6 +972,7 @@ uint16_t AVDT_WriteReqOpt(uint8_t handle, BT_HDR* p_pkt, uint32_t time_stamp,
     evt.apiwrite.time_stamp = time_stamp;
     evt.apiwrite.m_pt = m_pt;
     evt.apiwrite.opt = opt;
+    evt.apiwrite.encoded_data_enabled = pump_encoded_data;
     avdt_scb_event(p_scb, AVDT_SCB_API_WRITE_REQ_EVT, &evt);
   }
 
@@ -1296,4 +1299,64 @@ uint8_t AVDT_SetTraceLevel(uint8_t new_level) {
  ******************************************************************************/
 void AVDT_UpdateMaxAvClients(uint8_t max_clients) {
     avdt_scb_set_max_av_client(max_clients);
+}
+
+/*******************************************************************************
+**
+** Function         AVDT_SINK_Activate
+**
+** Description      Activate SEP of A2DP Sink. In Use parameter is adjusted.
+**                  In Use will be made false in case of activation. A2DP SRC
+**                  will receive in_use as false and can open A2DP Sink
+**                  connection
+**
+** Returns          void.
+**
+*******************************************************************************/
+void AVDT_SINK_Activate()
+{
+    tAVDT_SCB           *p_scb = &avdt_cb.scb[0];
+    int                 i;
+    AVDT_TRACE_DEBUG("AVDT_SINK_Activate");
+    /* for all allocated scbs */
+    for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++)
+    {
+        if ((p_scb->allocated) && (p_scb->cs.tsep == AVDT_TSEP_SNK))
+        {
+            AVDT_TRACE_DEBUG("AVDT_SINK_Activate found scb");
+            /* update in_use */
+            p_scb->in_use = FALSE;
+            break;
+        }
+    }
+}
+
+/*******************************************************************************
+**
+** Function         AVDT_SINK_Deactivate
+**
+** Description      Deactivate SEP of A2DP Sink. In Use parameter is adjusted.
+**                  In Use will be made TRUE in case of activation. A2DP SRC
+**                  will receive in_use as true and will not open A2DP Sink
+**                  connection
+**
+** Returns          void.
+**
+*******************************************************************************/
+void AVDT_SINK_Deactivate()
+{
+    tAVDT_SCB           *p_scb = &avdt_cb.scb[0];
+    int                 i;
+    AVDT_TRACE_DEBUG("AVDT_SINK_Deactivate");
+    /* for all allocated scbs */
+    for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++)
+    {
+        if ((p_scb->allocated) && (p_scb->cs.tsep == AVDT_TSEP_SNK))
+        {
+            AVDT_TRACE_DEBUG("AVDT_SINK_Deactivate, found scb");
+            /* update in_use */
+            p_scb->in_use = TRUE;
+            break;
+        }
+    }
 }
