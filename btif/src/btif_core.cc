@@ -386,47 +386,52 @@ error_exit:;
 
 static void btif_set_local_bdaddr()
 {
-    char val[PROPERTY_VALUE_MAX] = {0};
-    uint8_t valid_bda = FALSE;
-    int val_size = 0;
-    memset(val, 0, sizeof(val));
+  char val[PROPERTY_VALUE_MAX] = {0};
+  char bdaddr[PROPERTY_VALUE_MAX] = {0};
+  int val_size = 0;
+  memset(val, 0, sizeof(val));
 
-    val_size = sizeof(val);
-    if(btif_config_get_str("Adapter", "Address", val, &val_size))
-    {
-       LOG_INFO("bt_btif_core: local bdaddr from bt_config.xml is  %s", val);
-       if (osi_property_set(PERSIST_BDADDR_PROPERTY, val) < 0)
-            BTIF_TRACE_ERROR("Failed to set random BDA in prop %s",PERSIST_BDADDR_PROPERTY);
+  val_size = sizeof(val);
 
-       return;
-    }
+  if (btif_config_get_str("Adapter", "Address", val, &val_size)
+                                && RawAddress::IsValidAddress(val)) {
+     LOG_INFO("bt_btif_core: local bdaddr from bt_config.xml is  %s", val);
+     if (osi_property_set(PERSIST_BDADDR_PROPERTY, val) < 0)
+       BTIF_TRACE_ERROR("Failed to set random BDA in prop");
+     return;
+  }
 
-    // Generate new BDA if necessary
-    if (!valid_bda)
-    {
-        const char* bdstr;
-        RawAddress local_addr;
+  else if (!osi_property_get(PERSIST_BDADDR_PROPERTY, bdaddr, NULL)
+                       && RawAddress::IsValidAddress(bdaddr)) {
+     LOG_INFO("bt_btif_core: BD address from property");
+     btif_config_set_str("Adapter", "Address", bdaddr);
+     return;
+  }
 
-        // No autogen BDA. Generate one now.
-        local_addr.address[0] = 0x22;
-        local_addr.address[1] = 0x22;
-        local_addr.address[2] = (uint8_t) osi_rand();
-        local_addr.address[3] = (uint8_t) osi_rand();
-        local_addr.address[4] = (uint8_t) osi_rand();
-        local_addr.address[5] = (uint8_t) osi_rand();
+  // Generate new BDA if necessary
+  const char bdstr[18];
+  uint8_t local_addr[6];
 
-        // Convert to ascii, and store as a persistent property
-        bdstr = local_addr.ToString().c_str();
+  // No autogen BDA. Generate one now.
+  local_addr[0] = 0x22;
+  local_addr[1] = 0x22;
+  local_addr[2] = (uint8_t) osi_rand();
+  local_addr[3] = (uint8_t) osi_rand();
+  local_addr[4] = (uint8_t) osi_rand();
+  local_addr[5] = (uint8_t) osi_rand();
 
-        BTIF_TRACE_DEBUG("No preset BDA. Generating BDA: %s for prop %s",
-             bdstr, PERSIST_BDADDR_PROPERTY);
+  // Convert to ascii, and store as a persistent property
+  snprintf(bdstr, 18, "%02x:%02x:%02x:%02x:%02x:%02x", local_addr[0], local_addr[1],
+                        local_addr[2], local_addr[3], local_addr[4], local_addr[5]);
 
-        if (osi_property_set(PERSIST_BDADDR_PROPERTY, bdstr) < 0)
-            BTIF_TRACE_ERROR("Failed to set random BDA in prop %s",PERSIST_BDADDR_PROPERTY);
+  LOG_INFO("bt_btif_core: No preset BDA. Generating BDA: %s",bdstr);
 
-        //save the bd address to config file
-        btif_config_set_str("Adapter", "Address", bdstr);
-    }
+  if (osi_property_set(PERSIST_BDADDR_PROPERTY, bdstr) < 0)
+    BTIF_TRACE_ERROR("Failed to set random BDA in prop");
+
+  //save the bd address to config file
+  btif_config_set_str("Adapter", "Address", bdstr);
+
 }
 
 /*******************************************************************************
