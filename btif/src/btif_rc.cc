@@ -3084,9 +3084,9 @@ static bt_status_t register_notification_rsp(
         }
         avrc_rsp.reg_notif.param.player_setting.num_attr = p_param->player_setting.num_attr;
         memcpy(&avrc_rsp.reg_notif.param.player_setting.attr_id,
-                                   p_param->player_setting.attr_ids, 2);
+                                   p_param->player_setting.attr_ids, p_param->player_setting.num_attr);
         memcpy(&avrc_rsp.reg_notif.param.player_setting.attr_value,
-                                   p_param->player_setting.attr_values, 2);
+                                   p_param->player_setting.attr_values, p_param->player_setting.num_attr);
         break;
       case BTRC_EVT_PLAY_POS_CHANGED:
         avrc_rsp.reg_notif.param.play_pos = p_param->song_pos;
@@ -3229,7 +3229,7 @@ static bt_status_t get_folder_items_list_rsp(RawAddress* bd_addr,
           item.u.folder.type = cur_item->folder.type;
           item.u.folder.playable = cur_item->folder.playable;
           item.u.folder.name.charset_id = AVRC_CHARSET_ID_UTF8;
-          item.u.folder.name.str_len = strlen((char*)cur_item->folder.name);
+          item.u.folder.name.str_len = (uint16_t)strlen((char*)cur_item->folder.name);
           item.u.folder.name.p_str = cur_item->folder.name;
         } break;
 
@@ -3239,7 +3239,7 @@ static bt_status_t get_folder_items_list_rsp(RawAddress* bd_addr,
           memcpy(item.u.media.uid, cur_item->media.uid, sizeof(tAVRC_UID));
           item.u.media.type = cur_item->media.type;
           item.u.media.name.charset_id = cur_item->media.charset_id;
-          item.u.media.name.str_len = strlen((char*)cur_item->media.name);
+          item.u.media.name.str_len = (uint16_t)strlen((char*)cur_item->media.name);
           item.u.media.name.p_str = cur_item->media.name;
           item.u.media.attr_count = cur_item->media.num_attrs;
 
@@ -6659,14 +6659,14 @@ static const btrc_interface_t bt_rc_interface = {
     register_notification_rsp,
     set_volume,
     set_addressed_player_rsp,
-    NULL,
+    set_browsed_player_rsp,
     get_folder_items_list_rsp,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    send_passthrough_cmd,
+    change_path_rsp,
+    get_item_attr_rsp,
+    play_item_rsp,
+    get_total_num_of_items_rsp,
+    search_rsp,
+    add_to_now_playing_rsp,
 #ifdef BT_AV_SHO_FEATURE // gghai
     is_device_active_in_handoff,
     update_play_status_to_stack,
