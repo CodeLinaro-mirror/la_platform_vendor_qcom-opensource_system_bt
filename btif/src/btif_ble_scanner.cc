@@ -327,6 +327,10 @@ class BleScannerInterfaceImpl : public BleScannerInterface {
 
       case BTM_BLE_PF_SRVC_UUID:
       case BTM_BLE_PF_SRVC_SOL_UUID: {
+        if(p_uuid_mask->IsEmpty()) {
+          BTIF_TRACE_DEBUG("%s uuid mask is empty", __func__);
+          p_uuid_mask = NULL;
+        }
         if (p_uuid_mask == NULL) {
           do_in_bta_thread(
               FROM_HERE,
@@ -383,7 +387,10 @@ class BleScannerInterfaceImpl : public BleScannerInterface {
   void ScanFilterAdd(int filter_index, std::vector<ApcfCommand> filters,
                      FilterConfigCallback cb) override {
     int action = 0;
-	for (const ApcfCommand& filter : filters) {
+    for (ApcfCommand filter : filters) {
+      if(filter.type == BTM_BLE_PF_LOCAL_NAME)
+        filter.data = filter.name;
+
       ScanFilterAddRemove(action, filter.type, filter_index, filter.company,
               filter.company_mask, &filter.uuid, &filter.uuid_mask,
               &filter.address, filter.addr_type, filter.data, filter.data_mask,
@@ -410,12 +417,13 @@ class BleScannerInterfaceImpl : public BleScannerInterface {
                                 jni_thread_wrapper(FROM_HERE, std::move(cb))));
   }
 
-  void SetScanParameters(int scan_interval, int scan_window,
+  void SetScanParameters(int scan_phy, std::vector<uint32_t> scan_interval,
+                         std::vector<uint32_t> scan_window,
                          Callback cb) override {
     if (!stack_manager_get_interface()->get_stack_is_running()) return;
     do_in_bta_thread(
-        FROM_HERE, base::Bind(&BTM_BleSetScanParams, scan_interval, scan_window,
-                              BTM_BLE_SCAN_MODE_ACTI,
+        FROM_HERE, base::Bind(&BTM_BleSetScanParams, scan_phy, scan_interval,
+                              scan_window, BTM_BLE_SCAN_MODE_ACTI,
                               jni_thread_wrapper(FROM_HERE, std::move(cb))));
   }
 

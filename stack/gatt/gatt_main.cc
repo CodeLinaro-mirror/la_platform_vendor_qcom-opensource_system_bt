@@ -42,7 +42,7 @@ using base::StringPrintf;
 #define GATT_L2C_CFG_CFM_DONE (1 << 1)
 
 /* minimum GATT MTU size over BR/EDR link
-*/
+ */
 #define GATT_MIN_BR_MTU_SIZE 48
 
 /******************************************************************************/
@@ -81,7 +81,8 @@ static const tL2CAP_APPL_INFO dyn_info = {gatt_l2cif_connect_ind_cback,
                                           NULL,
                                           gatt_l2cif_data_ind_cback,
                                           gatt_l2cif_congest_cback,
-                                          NULL};
+                                          NULL,
+                                          NULL /* tL2CA_CREDITS_RECEIVED_CB */};
 
 tGATT_CB gatt_cb;
 
@@ -340,27 +341,31 @@ void gatt_update_app_use_link_flag(tGATT_IF gatt_if, tGATT_TCB* p_tcb,
   if (!gatt_update_app_hold_link_status(gatt_if, p_tcb, is_add)) return;
 
   if (!check_acl_link ||
-      p_tcb->att_lcid !=
-          L2CAP_ATT_CID || /* only update link idle timer for fixed channel */
       (BTM_GetHCIConnHandle(p_tcb->peer_bda, p_tcb->transport) ==
        GATT_INVALID_ACL_HANDLE)) {
     return;
   }
 
   if (is_add) {
-    VLOG(1) << "disable link idle timer";
-    /* acl link is connected disable the idle timeout */
-    GATT_SetIdleTimeout(p_tcb->peer_bda, GATT_LINK_NO_IDLE_TIMEOUT,
-                        p_tcb->transport);
+    if (p_tcb->att_lcid == L2CAP_ATT_CID) {
+      VLOG(1) << "disable link idle timer";
+      /* acl link is connected disable the idle timeout */
+      GATT_SetIdleTimeout(p_tcb->peer_bda, GATT_LINK_NO_IDLE_TIMEOUT,
+                          p_tcb->transport);
+    }
   } else {
     if (p_tcb->app_hold_link.empty()) {
-      /* acl link is connected but no application needs to use the link
-         so set the timeout value to GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP seconds
-         */
-      VLOG(1) << " start link idle timer = "
-              << GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP << " sec";
-      GATT_SetIdleTimeout(p_tcb->peer_bda, GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP,
-                          p_tcb->transport);
+      // acl link is connected but no application needs to use the link
+      if (p_tcb->att_lcid == L2CAP_ATT_CID) {
+        /* for fixed channel, set the timeout value to
+           GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP seconds */
+        VLOG(1) << " start link idle timer = "
+                << GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP << " sec";
+        GATT_SetIdleTimeout(p_tcb->peer_bda, GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP,
+                            p_tcb->transport);
+      } else
+        // disconnect the dynamic channel
+        gatt_disconnect(p_tcb);
     }
   }
 }
@@ -519,8 +524,18 @@ static void gatt_channel_congestion(tGATT_TCB* p_tcb, bool congested) {
   }
 }
 
-void gatt_notify_phy_updated(tGATT_TCB* p_tcb, uint8_t tx_phy, uint8_t rx_phy,
-                             uint8_t status) {
+void gatt_notify_phy_updated(uint8_t status, uint16_t handle, uint8_t tx_phy,
+                             uint8_t rx_phy) {
+  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev_by_handle(handle);
+  if (!p_dev_rec) {
+    BTM_TRACE_WARNING("%s: No Device Found!", __func__);
+    return;
+  }
+
+  tGATT_TCB* p_tcb =
+      gatt_find_tcb_by_addr(p_dev_rec->ble.pseudo_addr, BT_TRANSPORT_LE);
+  if (p_tcb == NULL) return;
+
   for (int i = 0; i < GATT_MAX_APPS; i++) {
     tGATT_REG* p_reg = &gatt_cb.cl_rcb[i];
     if (p_reg->in_use && p_reg->app_cb.p_phy_update_cb) {
@@ -985,8 +1000,11 @@ void gatt_data_process(tGATT_TCB& tcb, BT_HDR* p_buf) {
   pseudo_op_code = op_code & (~GATT_WRITE_CMD_MASK);
 
   if (pseudo_op_code >= GATT_OP_CODE_MAX) {
-    LOG(ERROR) << "ATT - Rcvd L2CAP data, unknown cmd: 0x" << std::hex
-               << op_code;
+    /* Note: PTS: GATT/SR/UNS/BI-01-C mandates error on unsupported ATT request.
+     */
+    LOG(ERROR) << __func__
+               << ": ATT - Rcvd L2CAP data, unknown cmd: 0x" << std::hex << op_code;
+    gatt_send_error_rsp(tcb, GATT_REQ_NOT_SUPPORTED, op_code, 0, false);
     return;
   }
 
