@@ -75,6 +75,7 @@
 #include "device/include/interop.h"
 #include "device/include/controller.h"
 #include "bt_vendor_av.h"
+#include "btif/include/btif_storage.h"
 bool isDevUiReq = false;
 
 /*****************************************************************************
@@ -763,7 +764,7 @@ void bta_av_co_audio_close(tBTA_AV_HNDL hndl) {
   tBTA_AV_CO_PEER* p_peer;
 
   APPL_TRACE_DEBUG("%s hndl = 0x%x", __func__, hndl);
-  btif_av_reset_audio_delay();
+  btif_av_reset_audio_delay(hndl);
 
   /* Retrieve the peer info */
   p_peer = bta_av_co_get_peer(hndl);
@@ -885,7 +886,7 @@ void bta_av_co_audio_drop(tBTA_AV_HNDL hndl) {
  ******************************************************************************/
 void bta_av_co_audio_delay(tBTA_AV_HNDL hndl, uint16_t delay) {
   APPL_TRACE_ERROR("%s: handle: x%x, delay:0x%x", __func__, hndl, delay);
-  btif_av_set_audio_delay(delay);
+  btif_av_set_audio_delay(delay, hndl);
 }
 
 void bta_av_co_audio_update_mtu(tBTA_AV_HNDL hndl, uint16_t mtu) {
@@ -1013,6 +1014,7 @@ static const tBTA_AV_CO_SINK* bta_av_co_find_peer_src_supports_codec(
 //
 static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer) {
   tBTA_AV_CO_SINK* p_sink = NULL;
+  char remote_name[BTM_MAX_REM_BD_NAME_LEN] = "";
 
   // Update all selectable codecs.
   // This is needed to update the selectable parameters for each codec.
@@ -1036,16 +1038,23 @@ static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer) {
       continue;
     }
 #endif
-    if (bta_av_co_audio_is_aac_wl_enabled(&p_peer->addr)) {
-      if ((!strcmp(iter->name().c_str(),"AAC")) && (!interop_match_addr(INTEROP_ENABLE_AAC_CODEC, &p_peer->addr)))
-      {
-        APPL_TRACE_DEBUG("This device is not present in white-list remote devices");
+    if (!strcmp(iter->name().c_str(),"AAC")) {
+      if (bta_av_co_audio_is_aac_wl_enabled(&p_peer->addr) &&
+          btif_storage_get_stored_remote_name(p_peer->addr, remote_name) &&
+          interop_match_addr(INTEROP_ENABLE_AAC_CODEC, &p_peer->addr) &&
+          interop_match_name(INTEROP_ENABLE_AAC_CODEC, remote_name)) {
+        APPL_TRACE_DEBUG("%s: AAC is supported for this WL remote device", __func__);
+        p_sink = bta_av_co_audio_codec_selected(*iter, p_peer);
+      } else {
+          APPL_TRACE_DEBUG("%s: RD is not present in name and address based check for AAC or WL disabled.",
+                               __func__);
       }
-      else
-      {
-       APPL_TRACE_DEBUG("AAC is supported for this WL remote device");
-       p_sink = bta_av_co_audio_codec_selected(*iter, p_peer);
-      }
+    } else {
+      APPL_TRACE_DEBUG("%s: non-AAC codec has been selected.", __func__);
+      p_sink = bta_av_co_audio_codec_selected(*iter, p_peer);
+    }
+
+#if 0
     } else {
       if ((!strcmp(iter->name().c_str(),"AAC")) && (interop_match_addr_or_name(INTEROP_DISABLE_AAC_CODEC, &p_peer->addr)))
       {
@@ -1057,6 +1066,8 @@ static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer) {
        p_sink = bta_av_co_audio_codec_selected(*iter, p_peer);
       }
     }
+#endif
+
     if (p_sink != NULL) {
       APPL_TRACE_DEBUG("%s: selected codec %s", __func__, iter->name().c_str());
       break;
@@ -1230,6 +1241,7 @@ void bta_av_co_get_peer_params(tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params) {
     min_mtu = p_peer->mtu;
     if (min_mtu > BTA_AV_MAX_A2DP_MTU)
         min_mtu = BTA_AV_MAX_A2DP_MTU;
+    if(min_mtu == 0) min_mtu = 672;
     APPL_TRACE_DEBUG("%s updating peer MTU to %d for index %d",
                                     __func__, min_mtu, index);
   }
@@ -1283,6 +1295,13 @@ bool bta_av_co_set_codec_user_config(
     APPL_TRACE_ERROR("%s: no open peer to configure", __func__);
     success = false;
     goto done;
+  }
+
+  if(codec_user_config.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE
+            && codec_user_config.codec_specific_4 > 0) {
+    APPL_TRACE_DEBUG("%s: Updating Encoder Mode to: %x", __func__, codec_user_config.codec_specific_4);
+    BTA_AvUpdateEncoderMode(codec_user_config.codec_specific_4);
+    return success;
   }
 
   // Find the peer SEP codec to use
@@ -1619,6 +1638,8 @@ void bta_av_co_init(
   RawAddress bt_addr;
   char value[PROPERTY_VALUE_MAX] = {'\0'};
   tBTA_AV_CO_PEER* p_peer;
+  /* Protect access to bta_av_co_cb.codec_config */
+  mutex_global_lock();
   /* Reset the control block */
   bta_av_co_cb.reset();
 
@@ -1628,9 +1649,6 @@ void bta_av_co_init(
   bta_av_co_cp_set_flag(AVDT_CP_SCMS_COPY_FREE);
 #endif
 
-  /* Reset the current config */
-  /* Protect access to bta_av_co_cb.codec_config */
-  mutex_global_lock();
 /* SPLITA2DP */
   bool a2dp_offload = btif_av_is_split_a2dp_enabled();
   bool isScramblingSupported = bta_av_co_is_scrambling_enabled();

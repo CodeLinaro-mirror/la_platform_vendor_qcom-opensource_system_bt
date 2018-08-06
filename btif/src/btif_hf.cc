@@ -1100,10 +1100,16 @@ bt_status_t HeadsetInterface::ConnectAudio(RawAddress* bd_addr) {
   // if SCO is setting up, don't allow SCO connection
   for (int i = 0; i < btif_max_hf_clients; i++) {
     if (btif_hf_cb[i].audio_state == BTHF_AUDIO_STATE_CONNECTING) {
-       BTIF_TRACE_ERROR("%s: SCO setting up with %s, not allowing SCO connection with %s",
-        __func__, btif_hf_cb[i].connected_bda.ToString().c_str(),
-       bd_addr->ToString().c_str());
-       return BT_STATUS_FAIL;
+       if (*bd_addr == btif_hf_cb[i].connected_bda) {
+          BTIF_TRACE_WARNING("%s: SCO setting up with same active device %s: ",
+           __func__, btif_hf_cb[i].connected_bda.ToString().c_str());
+          return BT_STATUS_SUCCESS;
+       } else {
+          BTIF_TRACE_ERROR("%s: SCO setting up with %s, not allowing SCO connection with %s",
+           __func__, btif_hf_cb[i].connected_bda.ToString().c_str(),
+          bd_addr->ToString().c_str());
+          return BT_STATUS_FAIL;
+       }
     }
   }
 
@@ -1636,6 +1642,8 @@ bt_status_t HeadsetInterface::PhoneStateChange(
            BTIF_TRACE_DEBUG("%s: Moving the audio_state to CONNECTING for device %s",
                   __FUNCTION__, bd_addr->ToString().c_str());
            btif_hf_cb[idx].audio_state = BTHF_AUDIO_STATE_CONNECTING;
+           btif_transfer_context(btif_in_hf_generic_evt, BTIF_HFP_CB_AUDIO_CONNECTING,
+                                 (char*)(&btif_hf_cb[idx].connected_bda), sizeof(RawAddress), NULL);
        } else {
            BTIF_TRACE_IMP("%s: SCO is already connected with device %s, not intiating SCO",
             __func__, bd_addr->ToString().c_str());
@@ -1674,10 +1682,19 @@ bt_status_t HeadsetInterface::PhoneStateChange(
             if (num_active > control_block.num_active) {
               res = BTA_AG_IN_CALL_CONN_RES;
               if (is_active_device(*bd_addr)) {
-                ag_res.audio_handle = control_block.handle;
-                BTIF_TRACE_DEBUG("%s: Moving the audio_state to CONNECTING for device %s",
-                      __FUNCTION__, bd_addr->ToString().c_str());
-                control_block.audio_state = BTHF_AUDIO_STATE_CONNECTING;
+                // initiate SCO only if it is not connected already
+                if (btif_hf_cb[idx].audio_state != BTHF_AUDIO_STATE_CONNECTED) {
+                  ag_res.audio_handle = control_block.handle;
+                  BTIF_TRACE_DEBUG("%s: Moving the audio_state to CONNECTING for device %s",
+                         __FUNCTION__, bd_addr->ToString().c_str());
+                  control_block.audio_state = BTHF_AUDIO_STATE_CONNECTING;
+                  btif_transfer_context(btif_in_hf_generic_evt, BTIF_HFP_CB_AUDIO_CONNECTING,
+                               (char*)(&btif_hf_cb[idx].connected_bda), sizeof(RawAddress), NULL);
+                } else {
+                  BTIF_TRACE_IMP("%s: SCO is already connected with device %s, not intiating SCO",
+                         __func__, bd_addr->ToString().c_str());
+                  ag_res.audio_handle = BTA_AG_HANDLE_SCO_NO_CHANGE;
+                }
               }
             } else if (num_held > control_block.num_held)
               res = BTA_AG_IN_CALL_HELD_RES;
@@ -1726,6 +1743,8 @@ bt_status_t HeadsetInterface::PhoneStateChange(
           BTIF_TRACE_DEBUG("%s: Moving the audio_state to CONNECTING for device %s",
                      __FUNCTION__, bd_addr->ToString().c_str());
           control_block.audio_state = BTHF_AUDIO_STATE_CONNECTING;
+          btif_transfer_context(btif_in_hf_generic_evt, BTIF_HFP_CB_AUDIO_CONNECTING,
+                                (char*)(&btif_hf_cb[idx].connected_bda), sizeof(RawAddress), NULL);
         }
         else
         {
@@ -1743,6 +1762,8 @@ bt_status_t HeadsetInterface::PhoneStateChange(
           BTIF_TRACE_DEBUG("%s: Moving the audio_state to CONNECTING for device %s",
                       __FUNCTION__, bd_addr->ToString().c_str());
           control_block.audio_state = BTHF_AUDIO_STATE_CONNECTING;
+          btif_transfer_context(btif_in_hf_generic_evt, BTIF_HFP_CB_AUDIO_CONNECTING,
+                                (char*)(&btif_hf_cb[idx].connected_bda), sizeof(RawAddress), NULL);
         }
         else
         {

@@ -724,6 +724,11 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
     case BTIF_AV_CONNECT_REQ_EVT: {
         btif_av_connect_req_t* connect_req_p = (btif_av_connect_req_t*)p_data;
         btif_av_cb[index].peer_bda = *connect_req_p->target_bda;
+        A2dpCodecs* a2dp_codecs = bta_av_get_peer_a2dp_codecs(*connect_req_p->target_bda);
+        if (a2dp_codecs == nullptr) {
+           BTIF_TRACE_DEBUG("%s: initialize peer codecs, if null", __func__);
+           bta_av_co_peer_init(btif_av_cb[index].codec_priorities, index);
+        }
         BTA_AvOpen(btif_av_cb[index].peer_bda, btif_av_cb[index].bta_handle, true,
                    BTA_SEC_AUTHENTICATE, connect_req_p->uuid);
 #if (TWS_ENABLED == TRUE)
@@ -3164,6 +3169,9 @@ void btif_av_trigger_dual_handoff(bool handoff, RawAddress address) {
   btif_sm_state_t state = BTIF_AV_STATE_IDLE;
   BTIF_TRACE_DEBUG("%s()", __func__);
 
+  /*clear remote suspend flag unconditionally, which was set when one remote does suspend*/
+  btif_av_clear_remote_suspend_flag();
+
   /* Get the current playing device */
   index = btif_av_get_latest_playing_device_idx();
   other_idx = btif_av_get_other_connected_idx(index);
@@ -3558,6 +3566,10 @@ static const btav_sink_interface_t bt_av_sink_interface = {
     update_audio_focus_state,
     update_audio_track_gain,
 };
+
+RawAddress btif_av_get_addr_by_index(int idx) {
+  return (idx < btif_max_av_clients) ? btif_av_cb[idx].peer_bda:RawAddress::kEmpty;
+}
 
 /*******************************************************************************
  *
@@ -4730,10 +4742,32 @@ bool btif_av_is_tws_connected() {
 #endif
 /*SPLITA2DP*/
 
-void btif_av_set_audio_delay(uint16_t delay) {
-  btif_a2dp_control_set_audio_delay(delay);
+
+void btif_av_set_audio_delay(uint16_t delay, tBTA_AV_HNDL hndl) {
+  int index = HANDLE_TO_INDEX(hndl);
+  if (index >= 0 && index < btif_max_av_clients) {
+    btif_a2dp_control_set_audio_delay(delay, index);
+  } else {
+    BTIF_TRACE_ERROR("%s: Invalid index for connection", __func__);
+    btif_a2dp_control_set_audio_delay(delay, 0);
+  }
 }
 
-void btif_av_reset_audio_delay(void) { btif_a2dp_control_reset_audio_delay(); }
+void btif_av_reset_audio_delay(tBTA_AV_HNDL hndl) {
+  int index = HANDLE_TO_INDEX(hndl);
+  if (index >= 0 && index < btif_max_av_clients) {
+    btif_a2dp_control_reset_audio_delay(index);
+  } else {
+    BTIF_TRACE_ERROR("%s: Invalid index for connection", __func__);
+    btif_a2dp_control_reset_audio_delay(0);
+  }
+}
 
-uint16_t btif_av_get_audio_delay(void) { return btif_a2dp_control_get_audio_delay(); }
+uint16_t btif_av_get_audio_delay(int index) {
+  if (index >= 0 && index < btif_max_av_clients) {
+    return btif_a2dp_control_get_audio_delay(index);
+  } else {
+    BTIF_TRACE_ERROR("%s: Invalid index for connection", __func__);
+    return btif_a2dp_control_get_audio_delay(0);
+  }
+}
