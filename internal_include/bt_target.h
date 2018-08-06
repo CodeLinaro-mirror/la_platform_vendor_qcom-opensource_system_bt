@@ -104,6 +104,10 @@
 #define AVDT_VERSION 0x0102
 #endif
 
+#ifndef BTIF_HF_CLIENT_WBS_INCLUDED
+#define BTIF_HF_CLIENT_WBS_INCLUDED TRUE
+#endif
+
 #ifndef BTA_AG_AT_MAX_LEN
 #define BTA_AG_AT_MAX_LEN 512
 #endif

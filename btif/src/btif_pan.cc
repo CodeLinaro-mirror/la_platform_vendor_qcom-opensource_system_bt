@@ -331,7 +331,9 @@ static int tap_if_up(const char* devname, const RawAddress* addr) {
   memset(&ifr, 0, sizeof(ifr));
   strlcpy(ifr.ifr_name, devname, IF_NAMESIZE);
 
+#ifdef ANDROID
   ifr.ifr_flags |= IFF_UP;
+#endif
   ifr.ifr_flags |= IFF_MULTICAST;
 
   err = ioctl(sk, SIOCSIFFLAGS, (caddr_t)&ifr);
@@ -379,7 +381,11 @@ void btpan_set_flow_control(bool enable) {
 int btpan_tap_open() {
   struct ifreq ifr;
   int fd, err;
-  const char* clonedev = "/dev/tun";
+#ifdef ANDROID
+  const char *clonedev = "/dev/tun";
+#else
+  const char *clonedev = "/dev/net/tun";
+#endif
 
   /* open the clone device */
 
