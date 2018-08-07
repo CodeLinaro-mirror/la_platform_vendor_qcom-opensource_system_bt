@@ -76,6 +76,11 @@
 #include "device/include/controller.h"
 #include "bt_vendor_av.h"
 #include "btif/include/btif_storage.h"
+#include <hardware/bt_gatt.h>
+
+#define MAX_2MBPS_AVDTP_MTU 663
+extern const btgatt_interface_t* btif_gatt_get_interface();
+
 bool isDevUiReq = false;
 
 /*****************************************************************************
@@ -764,7 +769,7 @@ void bta_av_co_audio_close(tBTA_AV_HNDL hndl) {
   tBTA_AV_CO_PEER* p_peer;
 
   APPL_TRACE_DEBUG("%s hndl = 0x%x", __func__, hndl);
-  btif_av_reset_audio_delay();
+  btif_av_reset_audio_delay(hndl);
 
   /* Retrieve the peer info */
   p_peer = bta_av_co_get_peer(hndl);
@@ -886,7 +891,7 @@ void bta_av_co_audio_drop(tBTA_AV_HNDL hndl) {
  ******************************************************************************/
 void bta_av_co_audio_delay(tBTA_AV_HNDL hndl, uint16_t delay) {
   APPL_TRACE_ERROR("%s: handle: x%x, delay:0x%x", __func__, hndl, delay);
-  btif_av_set_audio_delay(delay);
+  btif_av_set_audio_delay(delay, hndl);
 }
 
 void bta_av_co_audio_update_mtu(tBTA_AV_HNDL hndl, uint16_t mtu) {
@@ -1241,6 +1246,11 @@ void bta_av_co_get_peer_params(tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params) {
     min_mtu = p_peer->mtu;
     if (min_mtu > BTA_AV_MAX_A2DP_MTU)
         min_mtu = BTA_AV_MAX_A2DP_MTU;
+    if(min_mtu == 0) {
+      APPL_TRACE_WARNING("%s min_mtu received as 0, updating to: %d",
+                               __func__, MAX_2MBPS_AVDTP_MTU);
+      min_mtu = MAX_2MBPS_AVDTP_MTU;
+    }
     APPL_TRACE_DEBUG("%s updating peer MTU to %d for index %d",
                                     __func__, min_mtu, index);
   }
@@ -1294,6 +1304,30 @@ bool bta_av_co_set_codec_user_config(
     APPL_TRACE_ERROR("%s: no open peer to configure", __func__);
     success = false;
     goto done;
+  }
+
+  if(codec_user_config.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE) {
+    if (codec_user_config.codec_specific_4 > 0 ) {
+      const uint16_t ENCODER_MODE_MASK = 0x3000;
+      uint16_t encoder_mode = codec_user_config.codec_specific_4 & ENCODER_MODE_MASK;
+      if (encoder_mode > 0) {
+        APPL_TRACE_DEBUG("%s: Updating Encoder Mode to: %x", __func__, encoder_mode);
+        BTA_AvUpdateEncoderMode(encoder_mode);
+      }
+
+      const uint32_t BLESCAN_MASK = 0x060000;
+      const uint32_t BLESCAN_OFF = 0x020000;
+      const uint32_t BLESCAN_ON = 0x040000;
+      uint32_t blescan_mode = codec_user_config.codec_specific_4 & BLESCAN_MASK;
+      if (blescan_mode & BLESCAN_OFF) {
+        APPL_TRACE_DEBUG("%s: Disabling BLE Scanning", __func__);
+        btif_gatt_get_interface()->scanner->Scan(false);
+      } else if (blescan_mode & BLESCAN_ON) {
+        APPL_TRACE_DEBUG("%s: Enabling BLE Scanning", __func__);
+        //btif_gatt_get_interface()->scanner->Scan(true);
+      }
+      return success;
+    }
   }
 
   // Find the peer SEP codec to use
