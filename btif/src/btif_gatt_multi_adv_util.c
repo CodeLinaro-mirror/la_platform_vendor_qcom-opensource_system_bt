@@ -331,20 +331,56 @@ BOOLEAN btif_gattc_copy_datacb(int cbindex, const btif_adv_data_t *p_adv_data,
     }
 
     if (p_adv_data->service_data_len > 0 &&
-        p_adv_data->p_service_data != NULL &&
-        p_adv_data->service_data_len < MAX_SIZE_PROPRIETARY_ELEMENT)
+        p_adv_data->p_service_data != NULL)
     {
-      BTIF_TRACE_DEBUG("%s - In service_data", __func__);
-      tBTA_BLE_PROPRIETARY *p_prop = &p_multi_adv_data_cb->inst_cb[cbindex].data.proprietary;
-      p_prop->num_elem = 1;
+        BTIF_TRACE_DEBUG("%s - In service_data: p_adv_data->service_data_len: %d",
+          __func__, p_adv_data->service_data_len);
 
-      tBTA_BLE_PROP_ELEM *p_elem = &p_prop->elem[0];
-      p_elem->adv_type = BTM_BLE_AD_TYPE_SERVICE_DATA;
-      p_elem->len = p_adv_data->service_data_len;
-      memcpy(p_elem->val, p_adv_data->p_service_data,
-             p_adv_data->service_data_len);
+        tBTA_BLE_SERVICE_DATA *p_service_data =
+              &p_multi_adv_data_cb->inst_cb[cbindex].data.service_data;
+        bool is_valid_len_of_service_data_uuid = true;
 
-      p_multi_adv_data_cb->inst_cb[cbindex].mask |= BTM_BLE_AD_BIT_PROPRIETARY;
+        switch(p_adv_data->p_service_data[SERVICE_DATA_UUID_LEN_IDX]) {
+        case LEN_UUID_16:
+            p_service_data->service_uuid.len = LEN_UUID_16;
+            break;
+        case LEN_UUID_32:
+            p_service_data->service_uuid.len = LEN_UUID_32;
+            break;
+        case LEN_UUID_128:
+            p_service_data->service_uuid.len = LEN_UUID_128;
+            break;
+        default:
+            BTIF_TRACE_ERROR("%s - incorrect p_adv_data->service_data uuid len:%d",
+                __func__, p_adv_data->p_service_data[SERVICE_DATA_UUID_LEN_IDX]);
+            is_valid_len_of_service_data_uuid = false;
+            break;
+      }
+
+      if (is_valid_len_of_service_data_uuid) {
+        //copy the service data uuid
+          memcpy(&p_service_data->service_uuid.uu.uuid16,
+                 &p_adv_data->p_service_data[SERVICE_DATA_UUID_IDX],
+                  p_service_data->service_uuid.len);
+          p_service_data->len = p_adv_data->service_data_len - p_service_data->service_uuid.len - 1;
+
+          if (p_service_data->len > MAX_SIZE_SERVICE_DATA) {
+              BTIF_TRACE_WARNING("%s -: p_service_data->len > MAX_SIZE_SERVICE_DATA: %d",
+                      __func__, p_service_data->len);
+              p_service_data->len = MAX_SIZE_SERVICE_DATA;
+          }
+
+         if (p_service_data->len > 0) {
+              //copy the arbitrary data into value
+              memcpy(p_service_data->val,
+                     p_adv_data->p_service_data + SERVICE_DATA_UUID_IDX
+                     + p_service_data->service_uuid.len,
+                     p_service_data->len);
+          }
+
+          p_multi_adv_data_cb->inst_cb[cbindex].mask |= BTM_BLE_AD_BIT_SERVICE_DATA;
+      }
+
     }
 
     if (p_adv_data->service_uuid_len && p_adv_data->p_service_uuid)

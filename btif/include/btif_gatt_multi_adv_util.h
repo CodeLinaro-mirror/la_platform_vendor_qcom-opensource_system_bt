@@ -32,6 +32,10 @@
 #define ADV_FLAGS_LIMITED BTA_DM_LIMITED_DISC
 #define ADV_FLAGS_GENERAL BTA_DM_GENERAL_DISC
 
+//Index to parse service data provide by upper layer
+#define SERVICE_DATA_UUID_LEN_IDX 0
+#define SERVICE_DATA_UUID_IDX 1
+
 typedef struct
 {
     int client_if;
