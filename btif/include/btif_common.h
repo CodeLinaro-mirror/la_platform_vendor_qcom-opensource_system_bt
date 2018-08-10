@@ -128,6 +128,7 @@ enum {
   BTIF_DM_CB_START = BTIF_SIG_CB_START(BTIF_DM),
   BTIF_DM_CB_DISCOVERY_STARTED, /* Discovery has started */
   BTIF_DM_CB_CREATE_BOND,       /* Create bond */
+  BTIF_DM_CB_ADD_OOB_BOND_DEVICE, /* Add out of band device */
   BTIF_DM_CB_REMOVE_BOND,       /*Remove bond */
   BTIF_DM_CB_HID_REMOTE_NAME,   /* Remote name callback for HID device */
   BTIF_DM_CB_BOND_STATE_BONDING,

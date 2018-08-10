@@ -240,6 +240,20 @@ bt_status_t btif_dm_create_bond_out_of_band(
 
 /*******************************************************************************
  *
+ * Function         btif_dm_add_oob_bond_device
+ *
+ * Description      add a bond out of band device.
+ *
+ * Returns          bt_status_t
+ *
+ ******************************************************************************/
+
+bt_status_t btif_dm_add_oob_bond_device(const RawAddress *bd_addr, LINK_KEY link_key,
+                                        uint8_t key_type, uint8_t pin_len);
+
+
+/*******************************************************************************
+ *
  * Function         btif_dm_cancel_bond
  *
  * Description      Initiate bonding with the specified device
