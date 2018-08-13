@@ -242,6 +242,10 @@ static int prop2cfg(const RawAddress* remote_bd_addr, bt_property_t* prop) {
         bt_uuid_t* p_uuid = (bt_uuid_t*)prop->val + i;
         memset(buf, 0, sizeof(buf));
         uuid_to_string_legacy(p_uuid, buf, sizeof(buf));
+        if (strlen(value) + strlen(buf) + 1 > (int) sizeof(value) - 1) {
+          android_errorWriteLog(0x534e4554, "73963551");
+          return false;
+        }
         strlcat(value, buf, size);
         strlcat(value, " ", size);
       }
@@ -809,7 +813,7 @@ bt_status_t btif_storage_remove_bonded_device(
 bt_status_t btif_storage_is_device_bonded(RawAddress *remote_bd_addr) {
 
   
-  char bdstr[17] = {'\0'};
+  char bdstr[18] = {'\0'};
   snprintf(bdstr, sizeof(bdstr), "%02x:%02x:%02x:%02x:%02x:%02x",
                                   remote_bd_addr->address[0],
                                   remote_bd_addr->address[1],
