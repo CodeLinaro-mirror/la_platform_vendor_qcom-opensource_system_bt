@@ -369,6 +369,13 @@ static bt_status_t register_notification_cmd(uint8_t label, uint8_t event_id,
 static bt_status_t get_element_attribute_cmd(uint8_t num_attribute,
                                              uint32_t* p_attr_ids,
                                              btif_rc_device_cb_t* p_dev);
+bt_status_t get_item_attr_cmd(RawAddress* bd_addr, uint8_t scope, uint8_t* uid,
+                              uint16_t uid_counter,
+                              uint8_t num_attr,
+                              uint32_t* p_attr_list);
+void get_attribute_cmd(uint8_t num_attr, uint32_t* p_attr_list,
+                       btif_rc_device_cb_t* p_dev);
+
 static bt_status_t getcapabilities_cmd(uint8_t cap_id,
                                        btif_rc_device_cb_t* p_dev);
 static bt_status_t list_player_app_setting_attrib_cmd(
@@ -2355,7 +2362,7 @@ static void rc_ctrl_procedure_complete(btif_rc_device_cb_t* p_dev) {
       AVRC_MEDIA_ATTR_ID_ALBUM,       AVRC_MEDIA_ATTR_ID_TRACK_NUM,
       AVRC_MEDIA_ATTR_ID_NUM_TRACKS,  AVRC_MEDIA_ATTR_ID_GENRE,
       AVRC_MEDIA_ATTR_ID_PLAYING_TIME, AVRC_MEDIA_ATTR_ID_COVER_ART};
-  get_element_attribute_cmd(AVRC_MAX_NUM_MEDIA_ATTR_ID, attr_list, p_dev);
+  get_attribute_cmd(AVRC_MAX_NUM_MEDIA_ATTR_ID, attr_list, p_dev);
 }
 
 /***************************************************************************
@@ -4377,7 +4384,7 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
            */
           BE_STREAM_TO_UINT64(p_dev->rc_playing_uid, p_data);
           /* Fix the issue that progress bar can not be showed in UI */
-          get_element_attribute_cmd(AVRC_MAX_NUM_MEDIA_ATTR_ID, attr_list, p_dev);
+          get_attribute_cmd(AVRC_MAX_NUM_MEDIA_ATTR_ID, attr_list, p_dev);
         }
         break;
 
@@ -4466,26 +4473,25 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
          */
         if (p_rsp->param.play_status == AVRC_PLAYSTATE_PLAYING) {
           rc_start_play_status_timer(p_dev);
-          get_element_attribute_cmd(AVRC_MAX_NUM_MEDIA_ATTR_ID, attr_list,
-                                    p_dev);
+          get_attribute_cmd(AVRC_MAX_NUM_MEDIA_ATTR_ID, attr_list, p_dev);
         } else {
           rc_stop_play_status_timer(p_dev);
         }
         HAL_CBACK(bt_rc_ctrl_callbacks, play_status_changed_cb, &rc_addr,
                   (btrc_play_status_t)p_rsp->param.play_status);
-
         break;
 
       case AVRC_EVT_TRACK_CHANGE:
-          if (rc_is_track_id_valid(p_rsp->param.track) != true) {
-               break;
-          } else {
-               uint8_t* p_data = p_rsp->param.track;
-               BE_STREAM_TO_UINT64(p_dev->rc_playing_uid, p_data);
-               /* Fix the issue that progress bar can not be showed in UI */
-               get_element_attribute_cmd(AVRC_MAX_NUM_MEDIA_ATTR_ID, attr_list, p_dev);
-          }
+        if (rc_is_track_id_valid(p_rsp->param.track) != true) {
           break;
+        } else {
+          uint8_t* p_data = p_rsp->param.track;
+          BE_STREAM_TO_UINT64(p_dev->rc_playing_uid, p_data);
+          /* Fix the issue that progress bar can not be showed in UI */
+          get_attribute_cmd(AVRC_MAX_NUM_MEDIA_ATTR_ID, attr_list, p_dev);
+        }
+        break;
+
       case AVRC_EVT_APP_SETTING_CHANGE: {
         btrc_player_settings_t app_settings;
         uint16_t xx;
@@ -5007,7 +5013,7 @@ static void handle_get_elem_attr_response(tBTA_AV_META_MSG* pmeta_msg,
         AVRC_MEDIA_ATTR_ID_ALBUM,       AVRC_MEDIA_ATTR_ID_TRACK_NUM,
         AVRC_MEDIA_ATTR_ID_NUM_TRACKS,  AVRC_MEDIA_ATTR_ID_GENRE,
         AVRC_MEDIA_ATTR_ID_PLAYING_TIME, AVRC_MEDIA_ATTR_ID_COVER_ART};
-    get_element_attribute_cmd(AVRC_MAX_NUM_MEDIA_ATTR_ID, attr_list, p_dev);
+    get_attribute_cmd(AVRC_MAX_NUM_MEDIA_ATTR_ID, attr_list, p_dev);
   } else {
     BTIF_TRACE_ERROR("%s: Error in get element attr procedure: %d", __func__,
                      p_rsp->status);
@@ -6593,6 +6599,33 @@ static bt_status_t send_passthrough_cmd(RawAddress* bd_addr, uint8_t key_code,
 
 /**********************************************************************
  *
+ * Function         get_attribute_cmd
+ *
+ * Description      Get Attribute for attributeIds
+ *
+ * Returns          void
+ *
+ ********************************************************************/
+void get_attribute_cmd(uint8_t num_attr, uint32_t* p_attr_list,
+                       btif_rc_device_cb_t* p_dev) {
+  if ((BTA_AvIsBrowsingSupported() == TRUE) &&
+      (p_dev->rc_features & BTA_AV_FEAT_BROWSE) &&
+      (p_dev->rc_playing_uid != RC_INVALID_TRACK_ID)) {
+    uint8_t uid[AVRC_UID_SIZE] = {0};
+    uint8_t *p_uid = uid;
+    UINT64_TO_BE_STREAM(p_uid, p_dev->rc_playing_uid);
+    get_item_attr_cmd(&(p_dev->rc_addr),
+            AVRC_SCOPE_NOW_PLAYING,
+            uid,
+            p_dev->uid_counter,
+            num_attr, p_attr_list);
+  } else {
+    get_element_attribute_cmd(num_attr, p_attr_list, p_dev);
+  }
+}
+
+/**********************************************************************
+ *
  * Function        is_device_active_in_handoff
  *
  * Description     Check if this is the active device during hand-off
@@ -6930,7 +6963,7 @@ static bt_status_t get_media_element_attributes_vendor (RawAddress *bd_addr, uin
 
   if (p_dev->rc_procedure_complete == TRUE) {
     p_dev->rc_element_attr_app_req = TRUE;
-    return get_element_attribute_cmd(num_attrib, p_attr_ids, p_dev);
+    get_attribute_cmd(num_attrib, p_attr_ids, p_dev);
   }
 
   return BT_STATUS_SUCCESS;
