@@ -103,7 +103,7 @@ void post_to_hci_message_loop(const tracked_objects::Location& from_here,
                               BT_HDR* p_msg) {
   base::MessageLoop* hci_message_loop = get_message_loop();
   if (!hci_message_loop || !hci_message_loop->task_runner().get()) {
-    LOG_ERROR("bt_main: %s: HCI message loop not running, accessed from %s",
+    LOG_ERROR(LOG_TAG, "%s: HCI message loop not running, accessed from %s",
               __func__, from_here.ToString().c_str());
     return;
   }
@@ -127,7 +127,7 @@ void bte_main_boot_entry(void) {
 
   hci = hci_layer_get_interface();
   if (!hci) {
-    LOG_ERROR("bt_main: %s could not get hci layer interface.", __func__);
+    LOG_ERROR(LOG_TAG, "%s could not get hci layer interface.", __func__);
     return;
   }
 

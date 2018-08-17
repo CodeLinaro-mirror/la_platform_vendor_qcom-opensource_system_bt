@@ -537,7 +537,7 @@ static uint32_t get_cod(const RawAddress* remote_bdaddr) {
                              sizeof(uint32_t), &remote_cod);
   if (btif_storage_get_remote_device_property(
           (RawAddress*)remote_bdaddr, &prop_name) == BT_STATUS_SUCCESS) {
-    LOG_INFO("bt_btif_sock: %s remote_cod = 0x%08x", __func__, remote_cod);
+    LOG_INFO(LOG_TAG, "%s remote_cod = 0x%08x", __func__, remote_cod);
     return remote_cod & COD_MASK;
   }
 
@@ -586,12 +586,12 @@ bool check_sdp_bl(const RawAddress* remote_bdaddr) {
   uint16_t lmp_subver = 0;
 
   if (remote_bdaddr->IsEmpty()) {
-    LOG_WARN("bt_btif_sock: %s: remote_bdaddr = NULL, returning false", __func__);
+    LOG_WARN(LOG_TAG, "%s: remote_bdaddr = NULL, returning false", __func__);
     return false;
   }
 
   if (interop_match_addr_or_name(INTEROP_DISABLE_SDP_AFTER_PAIRING, remote_bdaddr)) {
-    LOG_WARN(LOG_TAG "%s: device is in blacklist for skipping sdp", __func__);
+    LOG_WARN(LOG_TAG, "%s: device is in blacklist for skipping sdp", __func__);
     return true;
   }
 
@@ -678,7 +678,7 @@ static void btif_update_remote_version_property(RawAddress* p_bd) {
 
   btm_status = BTM_ReadRemoteVersion(*p_bd, &lmp_ver, &mfct_set, &lmp_subver);
 
-  LOG_DEBUG("bt_btif_sock: remote version info [%s]: %x, %x, %x",
+  LOG_DEBUG(LOG_TAG, "remote version info [%s]: %x, %x, %x",
             p_bd->ToString().c_str(), lmp_ver, mfct_set, lmp_subver);
 
   if (btm_status == BTM_SUCCESS) {
@@ -1174,7 +1174,7 @@ static void btif_dm_ssp_cfm_req_evt(tBTA_DM_SP_CFM_REQ* p_ssp_cfm_req) {
   cod = devclass2uint(p_ssp_cfm_req->dev_class);
 
   if (cod == 0) {
-    LOG_DEBUG("bt_btif_sock: %s cod is 0, set as unclassified", __func__);
+    LOG_DEBUG(LOG_TAG, "%s cod is 0, set as unclassified", __func__);
     cod = COD_UNCLASSIFIED;
   }
 
@@ -1209,7 +1209,7 @@ static void btif_dm_ssp_key_notif_evt(tBTA_DM_SP_KEY_NOTIF* p_ssp_key_notif) {
   cod = devclass2uint(p_ssp_key_notif->dev_class);
 
   if (cod == 0) {
-    LOG_DEBUG("bt_btif_sock: %s cod is 0, set as unclassified", __func__);
+    LOG_DEBUG(LOG_TAG, "%s cod is 0, set as unclassified", __func__);
     cod = COD_UNCLASSIFIED;
   }
 
@@ -1279,7 +1279,7 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
 
     if ((p_auth_cmpl->bd_addr != pairing_cb.bd_addr) &&
         (!pairing_cb.ble.is_penc_key_rcvd)) {
-      LOG_INFO("bt_btif_sock: "
+      LOG_INFO(LOG_TAG,
                "%s skipping SDP since we did not initiate pairing to %s.",
                __func__, p_auth_cmpl->bd_addr.ToString().c_str());
       return;
@@ -1632,7 +1632,7 @@ static void btif_dm_search_services_evt(uint16_t event, char* p_param) {
 
         for (i = 0; i < p_data->disc_res.num_uuids; i++) {
           std::string temp = ((p_data->disc_res.p_uuid_list + i))->ToString();
-          LOG_INFO("bt_btif_sock: %s index:%d uuid:%s", __func__, i, temp.c_str());
+          LOG_INFO(LOG_TAG, "%s index:%d uuid:%s", __func__, i, temp.c_str());
         }
       }
 

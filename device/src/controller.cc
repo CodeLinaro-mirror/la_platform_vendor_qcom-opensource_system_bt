@@ -103,10 +103,10 @@ void send_soc_log_command(bool value) {
   }
 
   if (soc_type == BT_SOC_SMD) {
-    LOG_INFO("bt_controller: %s for BT_SOC_SMD.", __func__);
+    LOG_INFO(LOG_TAG, "%s for BT_SOC_SMD.", __func__);
     BTM_VendorSpecificCommand(HCI_VS_HOST_LOG_OPCODE,5,param,NULL);
   } else if (soc_type == BT_SOC_CHEROKEE) {
-    LOG_INFO("bt_controller: %s for BT_SOC_CHEROKEE.", __func__);
+    LOG_INFO(LOG_TAG, "%s for BT_SOC_CHEROKEE.", __func__);
     BTM_VendorSpecificCommand(HCI_VS_HOST_LOG_OPCODE, 2, param_cherokee, NULL);
   }
 }
@@ -143,11 +143,11 @@ static future_t* start_up(void) {
     send_soc_log_command(true);
   #else
   if (is_soc_logging_enabled()) {
-      LOG_INFO("bt_controller: %s for non-userdebug api ", __func__);
+      LOG_INFO(LOG_TAG, "%s for non-userdebug api ", __func__);
     send_soc_log_command(true);
   }
   #endif
-  LOG_INFO("bt_controller: pp:  %s local version off the controller ", __func__);
+  LOG_INFO(LOG_TAG, "pp:  %s local version off the controller ", __func__);
   // Read the local version info off the controller next, including
   // information such as manufacturer and supported HCI version
   response = AWAIT_COMMAND(packet_factory->make_read_local_version_info());
@@ -311,13 +311,12 @@ static future_t* start_up(void) {
     response =
           AWAIT_COMMAND(packet_factory->make_read_scrambling_supported_freqs());
     if(response) {
-
       LOG_DEBUG(LOG_TAG, "%s sending scrambling support VSC", __func__);
       packet_parser->parse_read_scrambling_supported_freqs_response(
           response, &number_of_scrambling_supported_freqs,
           scrambling_supported_freqs);
 
-      LOG_DEBUG("bt_controller: %s number_of_scrambling_supported_freqs %d", __func__,
+      LOG_DEBUG(LOG_TAG, "%s number_of_scrambling_supported_freqs %d", __func__,
                       number_of_scrambling_supported_freqs);
     }
   }

@@ -2006,7 +2006,7 @@ void btm_ble_conn_complete(uint8_t* p, UNUSED_ATTR uint16_t evt_len,
     if (!match && BTM_BLE_IS_RESOLVE_BDA(bda)) {
       tBTM_SEC_DEV_REC* match_rec = btm_ble_resolve_random_addr(bda);
       if (match_rec) {
-        LOG_INFO("bt_btm_ble: %s matched and resolved random address", __func__);
+        LOG_INFO(LOG_TAG, "%s matched and resolved random address", __func__);
         match = true;
         match_rec->ble.active_addr_type = BTM_BLE_ADDR_RRA;
         match_rec->ble.cur_rand_addr = bda;
@@ -2017,7 +2017,7 @@ void btm_ble_conn_complete(uint8_t* p, UNUSED_ATTR uint16_t evt_len,
           bda = match_rec->bd_addr;
         }
       } else {
-        LOG_INFO("bt_btm_ble: %s unable to match and resolve random address",
+        LOG_INFO(LOG_TAG, "%s unable to match and resolve random address",
                  __func__);
       }
     }

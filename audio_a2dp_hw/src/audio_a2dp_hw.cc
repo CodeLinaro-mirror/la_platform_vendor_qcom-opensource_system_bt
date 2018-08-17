@@ -70,7 +70,7 @@
 // sockets
 #define WRITE_POLL_MS 20
 
-#define FNLOG() LOG_VERBOSE(LOG_TAG, "%s", __func__);
+#define FNLOG() LOG_VERBOSE("%s", __func__);
 #define DEBUG(fmt, ...) \
   LOG_VERBOSE(LOG_TAG, "%s: " fmt, __func__, ##__VA_ARGS__)
 #define INFO(fmt, ...) LOG_INFO(LOG_TAG, "%s: " fmt, __func__, ##__VA_ARGS__)

@@ -50,7 +50,7 @@ bool interop_match_addr(const interop_feature_t feature,
 
   if (interop_match_fixed_(feature, addr) ||
       interop_match_dynamic_(feature, addr)) {
-    LOG_WARN("bt_device_interop: %s() Device %s is a match for interop workaround %s.",
+    LOG_WARN(LOG_TAG, "%s() Device %s is a match for interop workaround %s.",
              __func__, addr->ToString().c_str(),
              interop_feature_string_(feature));
     return true;
@@ -69,7 +69,7 @@ bool interop_match_name(const interop_feature_t feature, const char* name) {
         strlen(name) >= interop_name_database[i].length &&
         strncmp(name, interop_name_database[i].name,
                 interop_name_database[i].length) == 0) {
-      LOG_WARN("bt_device_interop: "
+      LOG_WARN(LOG_TAG, ""
                "%s() Device with name: %s is a match for interop workaround %s",
                __func__, name, interop_feature_string_(feature));
       return true;
@@ -87,7 +87,7 @@ bool interop_match_manufacturer(const interop_feature_t feature,
   for (size_t i = 0; i != db_size; ++i) {
     if (feature == interop_manufacturer_database[i].feature &&
         manufacturer == interop_manufacturer_database[i].manufacturer) {
-      LOG_WARN("bt_device_interop: "
+      LOG_WARN(LOG_TAG, ""
                "%s() Device with manufacturer id: %d is a match for interop "
                "workaround %s",
                __func__, manufacturer, interop_feature_string_(feature));
@@ -106,7 +106,7 @@ bool interop_match_vendor_product_ids(const interop_feature_t feature,
   for (size_t i = 0; i != db_size; ++i) {
     if (vendor_id == interop_hid_multitouch_database[i].vendor_id &&
         product_id == interop_hid_multitouch_database[i].product_id) {
-      LOG_WARN("bt_device_interop: "
+      LOG_WARN(LOG_TAG, ""
                "%s() Device with vendor_id: %d product_id: %d is a match for "
                "interop workaround %s",
                __func__, vendor_id, product_id,

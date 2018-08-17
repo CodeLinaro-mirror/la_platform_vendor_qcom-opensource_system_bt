@@ -97,7 +97,7 @@ void btif_gattc_init_dev_cb(void) {
 }
 
 void btif_gatts_upstreams_evt(uint16_t event, char* p_param) {
-  LOG_VERBOSE("bt_btif_scanner: %s: Event %d", __func__, event);
+  LOG_VERBOSE(LOG_TAG, "%s: Event %d", __func__, event);
 
   tBTA_GATTC* p_data = (tBTA_GATTC*)p_param;
   switch (event) {
@@ -111,7 +111,7 @@ void btif_gatts_upstreams_evt(uint16_t event, char* p_param) {
     }
 
     default:
-      LOG_DEBUG("bt_btif_scanner: %s: Unhandled event (%d)", __func__, event);
+      LOG_DEBUG(LOG_TAG, "%s: Unhandled event (%d)", __func__, event);
       break;
   }
 }
@@ -161,7 +161,7 @@ void bta_scan_results_cb_impl(RawAddress bd_addr, tBT_DEVICE_TYPE device_type,
         if (remote_name_len > BD_NAME_LEN + 1 ||
             (remote_name_len == BD_NAME_LEN + 1 &&
              p_eir_remote_name[BD_NAME_LEN] != '\0')) {
-          LOG_INFO("bt_btif_scanner: "
+          LOG_INFO(LOG_TAG, ""
                    "%s dropping invalid packet - device name too long: %d",
                    __func__, remote_name_len);
           return;
@@ -172,7 +172,7 @@ void bta_scan_results_cb_impl(RawAddress bd_addr, tBT_DEVICE_TYPE device_type,
         if (remote_name_len < BD_NAME_LEN + 1)
           bdname.name[remote_name_len] = '\0';
 
-        LOG_VERBOSE("bt_btif_scanner: %s BLE device name=%s len=%d dev_type=%d",
+        LOG_VERBOSE(LOG_TAG, "%s BLE device name=%s len=%d dev_type=%d",
                     __func__, bdname.name, remote_name_len, device_type);
         btif_dm_update_ble_remote_properties(bd_addr, bdname.name, device_type);
       }
@@ -378,7 +378,7 @@ class BleScannerInterfaceImpl : public BleScannerInterface {
       }
 
       default:
-        LOG_ERROR("bt_btif_scanner: %s: Unknown filter type (%d)!", __func__, action);
+        LOG_ERROR(LOG_TAG, "%s: Unknown filter type (%d)!", __func__, action);
         return;
     }
   }

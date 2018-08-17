@@ -76,7 +76,7 @@ extern void sco_data_received(BT_HDR* packet);
 static std::mutex bthci_mutex;
 
 void hci_initialize() {
-  LOG_INFO("bt_hci_le: %s", __func__);
+  LOG_INFO(LOG_TAG, "%s", __func__);
   std::lock_guard<std::mutex> lock(bthci_mutex);
   char value[PROPERTY_VALUE_MAX] = {'\0'};
   property_get_bt(BT_VND_START, value, false);
@@ -196,44 +196,44 @@ void hci_close() {
 }
 
 void hci_transmit(BT_HDR* packet) {
-  LOG_DEBUG("bt_hci: %s", __func__);
+  LOG_DEBUG(LOG_TAG, "%s", __func__);
   HciPacket data;
   serial_data_type_t type;
   std::lock_guard<std::mutex> lock(bthci_mutex);
 
-  LOG_INFO("bt_hci_le: %s: %d", __func__,data.size());
+  LOG_INFO(LOG_TAG, "%s: %d", __func__,data.size());
   uint16_t event = packet->event & MSG_EVT_MASK;
   switch (event & MSG_EVT_MASK) {
     case MSG_STACK_TO_HC_HCI_CMD:
     {
-      LOG_DEBUG("bt_hci: %s MSG_STACK_TO_HC_HCI_CMD", __func__);
+      LOG_DEBUG(LOG_TAG, "%s MSG_STACK_TO_HC_HCI_CMD", __func__);
       type = DATA_TYPE_COMMAND;
       transmit_data(type, packet->data + packet->offset, packet->len);
       break;
     }
     case MSG_STACK_TO_HC_HCI_ACL:
     {
-      LOG_DEBUG("bt_hci: %s MSG_STACK_TO_HC_HCI_ACL", __func__);
+      LOG_DEBUG(LOG_TAG, "%s MSG_STACK_TO_HC_HCI_ACL", __func__);
       type = DATA_TYPE_ACL;
       transmit_data(type, packet->data + packet->offset, packet->len);
       break;
     }
     case MSG_STACK_TO_HC_HCI_SCO:
     {
-      LOG_DEBUG("bt_hci: %s MSG_STACK_TO_HC_HCI_SCO", __func__);
+      LOG_DEBUG(LOG_TAG, "%s MSG_STACK_TO_HC_HCI_SCO", __func__);
       type = DATA_TYPE_SCO;
       transmit_data(type, packet->data + packet->offset, packet->len);
       break;
     }
     default:
-      LOG_ERROR("bt_hci_le: Unknown packet type (%d)", event);
+      LOG_ERROR(LOG_TAG, "Unknown packet type (%d)", event);
       break;
   }
 }
 
 int hci_open_firmware_log_file() {
   if (rename(LOG_PATH, LAST_LOG_PATH) == -1 && errno != ENOENT) {
-    LOG_ERROR("bt_hci_le: %s unable to rename '%s' to '%s': %s", __func__,
+    LOG_ERROR(LOG_TAG, "%s unable to rename '%s' to '%s': %s", __func__,
               LOG_PATH, LAST_LOG_PATH, strerror(errno));
   }
 
@@ -242,7 +242,7 @@ int hci_open_firmware_log_file() {
                         S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
   umask(prevmask);
   if (logfile_fd == INVALID_FD) {
-    LOG_ERROR("bt_hci_le: %s unable to open '%s': %s", __func__, LOG_PATH,
+    LOG_ERROR(LOG_TAG, "%s unable to open '%s': %s", __func__, LOG_PATH,
               strerror(errno));
   }
 

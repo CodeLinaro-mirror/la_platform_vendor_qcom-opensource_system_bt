@@ -288,7 +288,7 @@ static void load_levels_from_config(const config_t* config) {
 static future_t* init(void) {
   const stack_config_t* stack_config = stack_config_get_interface();
   if (!stack_config->get_trace_config_enabled()) {
-    LOG_INFO("bt_bte: using compile default trace settings");
+    LOG_INFO(LOG_TAG, "using compile default trace settings");
     return NULL;
   }
 

@@ -170,7 +170,7 @@ static bool is_profile(const char* p1, const char* p2) {
  ****************************************************************************/
 
 static int init(bt_callbacks_t* callbacks) {
-  LOG_INFO("bt_btif: %s", __func__);
+  LOG_INFO(LOG_TAG, "%s", __func__);
   if (interface_ready()) return BT_STATUS_DONE;
 
 #ifdef BLUEDROID_DEBUG
@@ -184,7 +184,7 @@ static int init(bt_callbacks_t* callbacks) {
 }
 
 static int enable(bool start_restricted) {
-  LOG_INFO("bt_btif: %s: start restricted = %d", __func__, start_restricted);
+  LOG_INFO(LOG_TAG, "%s: start restricted = %d", __func__, start_restricted);
 
   restricted_mode = start_restricted;
 
@@ -365,7 +365,7 @@ static void dump(int fd, const char** arguments) {
 }
 
 static const void* get_profile_interface(const char* profile_id) {
-  LOG_INFO("bt_btif: %s: id = %s", __func__, profile_id);
+  LOG_INFO(LOG_TAG, "%s: id = %s", __func__, profile_id);
 
   /* sanity check */
   if (interface_ready() == false) return NULL;
@@ -450,7 +450,7 @@ static const void* get_profile_interface(const char* profile_id) {
 }
 
 int dut_mode_configure(uint8_t enable) {
-  LOG_INFO("bt_btif: %s", __func__);
+  LOG_INFO(LOG_TAG, "%s", __func__);
 
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
@@ -459,7 +459,7 @@ int dut_mode_configure(uint8_t enable) {
 }
 
 int dut_mode_send(uint16_t opcode, uint8_t* buf, uint8_t len) {
-  LOG_INFO("bt_btif: %s", __func__);
+  LOG_INFO(LOG_TAG, "%s", __func__);
 
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
@@ -468,7 +468,7 @@ int dut_mode_send(uint16_t opcode, uint8_t* buf, uint8_t len) {
 }
 
 int le_test_mode(uint16_t opcode, uint8_t* buf, uint8_t len) {
-  LOG_INFO("bt_btif: %s", __func__);
+  LOG_INFO(LOG_TAG, "%s", __func__);
 
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
@@ -482,7 +482,7 @@ static int set_os_callouts(bt_os_callouts_t* callouts) {
 }
 
 static int config_clear(void) {
-  LOG_INFO("bt_btif: %s", __func__);
+  LOG_INFO(LOG_TAG, "%s", __func__);
   return btif_config_clear() ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
 }
 #ifdef ANDROID

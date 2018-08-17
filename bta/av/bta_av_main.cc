@@ -1397,7 +1397,7 @@ bool bta_av_link_role_ok(tBTA_AV_SCB* p_scb, uint8_t bits) {
   tBTM_STATUS ret;
 
   if (BTM_GetRole(p_scb->peer_addr, &role) == BTM_SUCCESS) {
-    LOG_INFO("bt_bta_av: %s hndl:x%x role:%d conn_audio:x%x bits:%d features:x%x",
+    LOG_INFO(LOG_TAG, "%s hndl:x%x role:%d conn_audio:x%x bits:%d features:x%x",
              __func__, p_scb->hndl, role, bta_av_cb.conn_audio, bits,
              bta_av_cb.features);
     if (BTM_ROLE_MASTER != role &&

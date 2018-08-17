@@ -515,7 +515,7 @@ static void bta_gattc_explore_srvc(uint16_t conn_id,
     }
   }
   /* no service found at all, the end of server discovery*/
-  LOG_WARN("bt_bta_gattc: %s no more services found", __func__);
+  LOG_WARN(LOG_TAG, "%s no more services found", __func__);
 
 #if (BTA_GATT_DEBUG == TRUE)
   bta_gattc_display_cache_server(p_srvc_cb->p_srvc_cache);
@@ -1254,7 +1254,7 @@ void bta_gattc_get_gatt_db(uint16_t conn_id, uint16_t start_handle,
                            int* count) {
   tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
 
-  LOG_DEBUG("bt_bta_gattc: %s", __func__);
+  LOG_DEBUG(LOG_TAG, "%s", __func__);
   if (p_clcb == NULL) {
     APPL_TRACE_ERROR("Unknown conn ID: %d", conn_id);
     return;

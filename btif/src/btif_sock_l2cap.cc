@@ -176,12 +176,12 @@ static char packet_put_tail_l(l2cap_socket* sock, const void* data,
   struct packet* p = packet_alloc((const uint8_t*)data, len);
 
   if (sock->bytes_buffered >= L2CAP_MAX_RX_BUFFER) {
-    LOG_ERROR("bt_btif_sock: packet_put_tail_l: buffer overflow");
+    LOG_ERROR(LOG_TAG, "packet_put_tail_l: buffer overflow");
     return false;
   }
 
   if (!p) {
-    LOG_ERROR("bt_btif_sock: packet_put_tail_l: unable to allocate packet...");
+    LOG_ERROR(LOG_TAG, "packet_put_tail_l: unable to allocate packet...");
     return false;
   }
 

@@ -191,7 +191,7 @@ void message_loop_run(UNUSED_ATTR void* context) {
 }
 
 static future_t* hci_module_start_up(void) {
-  LOG_INFO("bt_hci: %s", __func__);
+  LOG_INFO(LOG_TAG, "%s", __func__);
 
   // The host is only allowed to send at most one command initially,
   // as per the Bluetooth spec, Volume 2, Part E, 4.4 (Command Flow Control)
@@ -211,28 +211,28 @@ static future_t* hci_module_start_up(void) {
 
   startup_timer = alarm_new("hci.startup_timer");
   if (!startup_timer) {
-    LOG_ERROR("bt_hci: %s unable to create startup timer.", __func__);
+    LOG_ERROR(LOG_TAG, "%s unable to create startup timer.", __func__);
     goto error;
   }
 
   command_response_timer = alarm_new("hci.command_response_timer");
   if (!command_response_timer) {
-    LOG_ERROR("bt_hci: %s unable to create command response timer.", __func__);
+    LOG_ERROR(LOG_TAG, "%s unable to create command response timer.", __func__);
     goto error;
   }
 
   thread = thread_new("hci_thread");
   if (!thread) {
-    LOG_ERROR("bt_hci: %s unable to create thread.", __func__);
+    LOG_ERROR(LOG_TAG, "%s unable to create thread.", __func__);
     goto error;
   }
   if (!thread_set_rt_priority(thread, BT_HCI_RT_PRIORITY)) {
-    LOG_ERROR("bt_hci: %s unable to make thread RT.", __func__);
+    LOG_ERROR(LOG_TAG, "%s unable to make thread RT.", __func__);
   }
 
   commands_pending_response = list_new(NULL);
   if (!commands_pending_response) {
-    LOG_ERROR("bt_hci: "
+    LOG_ERROR(LOG_TAG, ""
               "%s unable to create list for commands pending response.",
               __func__);
     goto error;
@@ -248,7 +248,7 @@ static future_t* hci_module_start_up(void) {
 
   thread_post(thread, message_loop_run, NULL);
 
-  LOG_DEBUG("bt_hci: %s starting async portion", __func__);
+  LOG_DEBUG(LOG_TAG, "%s starting async portion", __func__);
   return local_startup_future;
 
 error:
@@ -257,7 +257,7 @@ error:
 }
 
 static future_t* hci_module_shut_down() {
-  LOG_INFO("bt_hci: %s", __func__);
+  LOG_INFO(LOG_TAG, "%s", __func__);
 
   // Close HCI to prevent callbacks.
   hci_close();
@@ -369,7 +369,7 @@ static void transmit_downward(uint16_t type, void* data) {
   if (type == MSG_STACK_TO_HC_HCI_CMD) {
     // TODO(zachoverflow): eliminate this call
     transmit_command((BT_HDR*)data, NULL, NULL, NULL);
-    LOG_WARN("bt_hci: "
+    LOG_WARN(LOG_TAG, ""
              "%s legacy transmit of command. Use transmit_command instead.",
              __func__);
   } else {
@@ -380,7 +380,7 @@ static void transmit_downward(uint16_t type, void* data) {
 // Start up functions
 
 static void event_finish_startup(UNUSED_ATTR void* context) {
-  LOG_INFO("bt_hci: %s", __func__);
+  LOG_INFO(LOG_TAG, "%s", __func__);
   std::lock_guard<std::recursive_mutex> lock(commands_pending_response_mutex);
   alarm_cancel(startup_timer);
   // added null check if startup_future has become null
@@ -395,7 +395,7 @@ static void event_finish_startup(UNUSED_ATTR void* context) {
 }
 
 static void startup_timer_expired(UNUSED_ATTR void* context) {
-  LOG_ERROR("bt_hci: %s", __func__);
+  LOG_ERROR(LOG_TAG, "%s", __func__);
 
   std::lock_guard<std::recursive_mutex> lock(commands_pending_response_mutex);
   if(startup_future != NULL) {
@@ -500,7 +500,7 @@ static void hci_timeout_abort(UNUSED_ATTR void *context) {
 static void command_timed_out(void* original_wait_entry) {
   std::unique_lock<std::recursive_mutex> lock(commands_pending_response_mutex);
 
-  LOG_ERROR("bt_hci: %s: %d commands pending response", __func__,
+  LOG_ERROR(LOG_TAG, "%s: %d commands pending response", __func__,
             get_num_waiting_commands());
 
   for (const list_node_t* node = list_begin(commands_pending_response);
@@ -512,18 +512,18 @@ static void command_timed_out(void* original_wait_entry) {
         std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - wait_entry->timestamp)
             .count();
-    LOG_ERROR("bt_hci: %s: Waited %d ms for a response to opcode: 0x%x %s",
+    LOG_ERROR(LOG_TAG, "%s: Waited %d ms for a response to opcode: 0x%x %s",
               __func__, wait_time_ms, wait_entry->opcode,
               (wait_entry == original_wait_entry) ? "*matches timer*" : "");
 
     // Dump the length field and the first byte of the payload, if present.
     uint8_t* command = wait_entry->command->data + wait_entry->command->offset;
     if (wait_entry->command->len > 3) {
-      LOG_ERROR("bt_hci: %s: Size %d Hex %02x %02x %02x %02x", __func__,
+      LOG_ERROR(LOG_TAG, "%s: Size %d Hex %02x %02x %02x %02x", __func__,
                 wait_entry->command->len, command[0], command[1], command[2],
                 command[3]);
     } else {
-      LOG_ERROR("bt_hci: %s: Size %d Hex %02x %02x %02x", __func__,
+      LOG_ERROR(LOG_TAG, "%s: Size %d Hex %02x %02x %02x", __func__,
                 wait_entry->command->len, command[0], command[1], command[2]);
     }
 
@@ -609,7 +609,7 @@ static bool filter_incoming_event(BT_HDR* packet) {
 
     if (!wait_entry) {
       if (opcode != HCI_COMMAND_NONE) {
-        LOG_WARN("bt_hci: "
+        LOG_WARN(LOG_TAG, ""
                  "%s command complete event with no matching command (opcode: "
                  "0x%04x).",
                  __func__, opcode);
@@ -637,7 +637,7 @@ static bool filter_incoming_event(BT_HDR* packet) {
     wait_entry = get_waiting_command(opcode);
 
     if (!wait_entry) {
-      LOG_WARN("bt_hci: "
+      LOG_WARN(LOG_TAG, ""
           LOG_TAG,
           "%s command status event with no matching command. opcode: 0x%04x",
           __func__, opcode);
@@ -719,7 +719,7 @@ static waiting_command_t* get_waiting_command(command_opcode_t opcode) {
         (((wait_entry->opcode & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC) &&
          (((opcode & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC) ||
             opcode == 0))) {
-      LOG_DEBUG("bt_hci: %s Treat it as valid, wait_entry opcode 0x%x opcode 0x%x",
+      LOG_DEBUG(LOG_TAG, "%s Treat it as valid, wait_entry opcode 0x%x opcode 0x%x",
                 __func__, wait_entry->opcode, opcode);
     } else {
       continue;

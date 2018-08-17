@@ -136,7 +136,7 @@ static void reassemble_and_dispatch(UNUSED_ATTR BT_HDR* packet) {
     if (boundary_flag == START_PACKET_BOUNDARY) {
       auto map_iter = partial_packets.find(handle);
       if (map_iter != partial_packets.end()) {
-        LOG_WARN("bt_hci_packet_fragmenter: "
+        LOG_WARN(LOG_TAG, ""
                  "%s found unfinished packet for handle with start packet. "
                  "Dropping old.",
                  __func__);
@@ -147,7 +147,7 @@ static void reassemble_and_dispatch(UNUSED_ATTR BT_HDR* packet) {
       }
 
       if (acl_length < L2CAP_HEADER_SIZE) {
-        LOG_WARN("bt_hci_packet_fragmenter: %s L2CAP packet too small (%d < %d). Dropping it.",
+        LOG_WARN(LOG_TAG, "%s L2CAP packet too small (%d < %d). Dropping it.",
                  __func__, packet->len, L2CAP_HEADER_SIZE);
         buffer_allocator->free(packet);
         return;
@@ -161,7 +161,7 @@ static void reassemble_and_dispatch(UNUSED_ATTR BT_HDR* packet) {
       if (check_uint16_overflow(l2cap_length,
                                 (L2CAP_HEADER_SIZE + HCI_ACL_PREAMBLE_SIZE)) ||
           ((full_length + sizeof(BT_HDR)) > BT_DEFAULT_BUFFER_SIZE)) {
-        LOG_ERROR("bt_hci_packet_fragmenter: %s Dropping L2CAP packet with invalid length (%d).",
+        LOG_ERROR(LOG_TAG, "%s Dropping L2CAP packet with invalid length (%d).",
                   __func__, l2cap_length);
         buffer_allocator->free(packet);
         return;
@@ -169,7 +169,7 @@ static void reassemble_and_dispatch(UNUSED_ATTR BT_HDR* packet) {
 
       if (full_length <= packet->len) {
         if (full_length < packet->len)
-          LOG_WARN("bt_hci_packet_fragmenter: "
+          LOG_WARN(LOG_TAG, ""
                    "%s found l2cap full length %d less than the hci length %d.",
                    __func__, l2cap_length, packet->len);
 
@@ -197,7 +197,7 @@ static void reassemble_and_dispatch(UNUSED_ATTR BT_HDR* packet) {
     } else {
       auto map_iter = partial_packets.find(handle);
       if (map_iter == partial_packets.end()) {
-        LOG_WARN("bt_hci_packet_fragmenter: "
+        LOG_WARN(LOG_TAG, ""
                  "%s got continuation for unknown packet. Dropping it.",
                  __func__);
         buffer_allocator->free(packet);
@@ -210,7 +210,7 @@ static void reassemble_and_dispatch(UNUSED_ATTR BT_HDR* packet) {
           partial_packet->offset + (packet->len - HCI_ACL_PREAMBLE_SIZE);
       if (projected_offset >
           partial_packet->len) {  // len stores the expected length
-        LOG_WARN("bt_hci_packet_fragmenter: "
+        LOG_WARN(LOG_TAG, ""
                  "%s got packet which would exceed expected length of %d. "
                  "Truncating.",
                  __func__, partial_packet->len);
