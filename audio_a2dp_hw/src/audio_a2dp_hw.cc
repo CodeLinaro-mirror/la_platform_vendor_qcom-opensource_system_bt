@@ -1764,7 +1764,7 @@ static int adev_open_output_stream(struct audio_hw_device* dev,
   struct a2dp_audio_device* a2dp_dev = (struct a2dp_audio_device*)dev;
   struct a2dp_stream_out* out;
   int ret = 0;
-
+  open_ctrl_chnl_fail_count = 0;
   INFO("opening output");
   // protect against adev->output and stream_out from being inconsistent
   std::lock_guard<std::recursive_mutex> lock(*a2dp_dev->mutex);
