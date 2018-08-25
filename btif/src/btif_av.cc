@@ -495,7 +495,7 @@ static void btif_av_collission_timer_timeout(UNUSED_ATTR void *data) {
   btif_sm_state_t av_state;
   RawAddress av_address;
 
-  if(!btif_storage_is_device_bonded(target_bda)){
+  if(btif_storage_is_device_bonded(target_bda) != BT_STATUS_SUCCESS){
     BTIF_TRACE_IMP("btif_av_collission_timer_timeout: not bonded device ");
     return;
   }else{
@@ -1991,6 +1991,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
           BTIF_TRACE_IMP("%s Don't update audio state as remote started and suspended", __func__);
           if (btif_av_cb[index].flags & BTIF_AV_FLAG_REMOTE_SUSPEND)
             btif_av_cb[index].flags &= ~BTIF_AV_FLAG_REMOTE_SUSPEND;
+          btif_report_audio_state(BTAV_AUDIO_STATE_STOPPED, &(btif_av_cb[index].peer_bda));
       }
       else
       {
@@ -3144,7 +3145,7 @@ static bt_status_t connect_int(RawAddress* bd_addr, uint16_t uuid) {
   connect_req.uuid = uuid;
   BTIF_TRACE_EVENT("%s", __func__);
 
-  if (!btif_storage_is_device_bonded(bd_addr))
+  if (btif_storage_is_device_bonded(bd_addr) != BT_STATUS_SUCCESS)
   {
     BTIF_TRACE_WARNING("%s()## connect_int ## Device Not Bonded %s \n", __func__,
                       bd_addr->ToString().c_str());
@@ -3446,6 +3447,10 @@ static const btav_sink_interface_t bt_av_sink_interface = {
     update_audio_focus_state,
     update_audio_track_gain,
 };
+
+RawAddress btif_av_get_addr_by_index(int idx) {
+  return (idx < btif_max_av_clients) ? btif_av_cb[idx].peer_bda:RawAddress::kEmpty;
+}
 
 /*******************************************************************************
  *
