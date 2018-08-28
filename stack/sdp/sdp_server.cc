@@ -140,6 +140,10 @@ static bool check_remote_pbap_version_102(RawAddress remote_addr);
 #define SDP_TEXT_BAD_MAX_ATTR_LIST   NULL
 #endif
 
+#ifndef SDP_ENABLE_PTS_PBAP
+#define SDP_ENABLE_PTS_PBAP  "vendor.bt.pts.pbap"
+#endif
+
 #define PBAP_1_2 0x0102
 
 struct blacklist_entry
@@ -529,7 +533,7 @@ static void process_service_search(tCONN_CB* p_ccb, uint16_t trans_num,
   }
 
   /* Get the max replies we can send. Cap it at our max anyways. */
-  if (p_req + sizeof(max_replies) + sizeof(uint8_t) > p_req_end) {
+  if (p_req + sizeof(max_replies) > p_req_end) {
     android_errorWriteLog(0x534e4554, "69384124");
     sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
                             SDP_TEXT_BAD_MAX_RECORDS_LIST);
@@ -695,8 +699,7 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
 
   p_req = sdpu_extract_attr_seq(p_req, param_len, &attr_seq);
 
-  if ((!p_req) || (!attr_seq.num_attr) ||
-      (p_req + sizeof(uint8_t) > p_req_end)) {
+  if ((!p_req) || (!attr_seq.num_attr)) {
     sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
                             SDP_TEXT_BAD_ATTR_LIST);
     return;
@@ -1064,8 +1067,7 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
 
   p_req = sdpu_extract_attr_seq(p_req, param_len, &attr_seq);
 
-  if ((!p_req) || (!attr_seq.num_attr) ||
-      (p_req + sizeof(uint8_t) > p_req_end)) {
+  if ((!p_req) || (!attr_seq.num_attr)) {
     sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
                             SDP_TEXT_BAD_ATTR_LIST);
     return;
@@ -1541,7 +1543,7 @@ static uint16_t sdp_update_pbap_blacklist_len(tCONN_CB* p_ccb, tSDP_ATTR_SEQ* at
   bool is_pbap_102_blacklisted = is_device_blacklisted_for_pbap(p_ccb->device_address, true);
   static bool running_pts = false;
   char pts_property[6];
-  osi_property_get("vendor.bt.pbap.pts", pts_property, "false");
+  osi_property_get(SDP_ENABLE_PTS_PBAP, pts_property, "false");
   if (!strncmp("true", pts_property, 4)) {
     SDP_TRACE_DEBUG("%s pts running= %d", __func__, pts_property);
     running_pts = true;
@@ -1624,7 +1626,7 @@ static tSDP_RECORD *sdp_upgrade_pse_record(tSDP_RECORD * p_rec,
   static bool is_pbap_102_blacklisted = is_device_blacklisted_for_pbap(remote_address, true);
   static bool running_pts = false;
   char pts_property[6];
-  osi_property_get("vendor.bt.pbap.pts", pts_property, "false");
+  osi_property_get(SDP_ENABLE_PTS_PBAP, pts_property, "false");
   if (!strncmp("true", pts_property, 4)) {
     SDP_TRACE_DEBUG("%s pts running= %d", __func__, pts_property);
     running_pts = true;

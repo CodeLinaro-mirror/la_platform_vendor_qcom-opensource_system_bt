@@ -709,6 +709,10 @@
 #define L2CAP_MAX_RX_BUFFER 0x100000
 #endif
 
+#ifndef L2CAP_NO_IDLE_TIMEOUT
+#define L2CAP_NO_IDLE_TIMEOUT 0xFFFF
+#endif
+
 /******************************************************************************
  *
  * BLE
@@ -1158,8 +1162,12 @@
 #endif
 
 /* Number of simultaneous stream endpoints. */
+#if defined (AVDT_NUM_SEPS) && (AVDT_NUM_SEPS < 14)
+#undef AVDT_NUM_SEPS
+#endif
+
 #ifndef AVDT_NUM_SEPS
-#define AVDT_NUM_SEPS 6
+#define AVDT_NUM_SEPS 14
 #endif
 
 /* Number of transport channels setup by AVDT for all media streams */

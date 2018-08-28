@@ -337,6 +337,23 @@ tBTA_AV_SCB* bta_av_hndl_to_scb(uint16_t handle) {
 }
 
 /*******************************************************************************
+**
+** Function         bta_avk_is_avdt_sync
+**
+** Description      If the current connection supports AVDT1.3
+**
+** Returns          true for supports AVDT1.3, false for not.
+**
+*******************************************************************************/
+bool bta_avk_is_avdt_sync(uint16_t handle) {
+  tBTA_AV_SCB* p_scb = bta_av_hndl_to_scb(handle);
+  if (p_scb && (p_scb->avdt_version >= AVDT_VERSION_SYNC))
+    return true;
+  else
+    return false;
+}
+
+/*******************************************************************************
  *
  * Function         bta_av_alloc_scb
  *
@@ -938,6 +955,10 @@ static void bta_av_api_set_tws_earbud_role(tBTA_AV_DATA * p_data)
 {
   APPL_TRACE_DEBUG("bta_av_api_set_earbud_role = %d",p_data->tws_set_earbud_role.chn_mode);
   tBTA_AV_SCB *p_scb = bta_av_hndl_to_scb(p_data->hdr.layer_specific);
+  if (p_scb == NULL) {
+    APPL_TRACE_ERROR("bta_av_api_set_tws_earbud_role: scb not found");
+    return;
+  }
   if (p_scb->started) {
     APPL_TRACE_ERROR("%:already streaming,not overwriting ch role",__func__);
     return;
@@ -950,6 +971,10 @@ static void bta_av_api_set_is_tws_device(tBTA_AV_DATA * p_data)
 {
   APPL_TRACE_DEBUG("bta_av_api_set_is_tws_device = %d", p_data->tws_set_device.is_tws_device);
   tBTA_AV_SCB *p_scb = bta_av_hndl_to_scb(p_data->hdr.layer_specific);
+  if (p_scb == NULL) {
+    APPL_TRACE_ERROR("bta_av_api_set_is_tws_device: scb not found");
+    return;
+  }
   p_scb->tws_device = p_data->tws_set_device.is_tws_device;
 }
 #endif
