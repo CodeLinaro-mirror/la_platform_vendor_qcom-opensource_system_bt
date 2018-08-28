@@ -3984,6 +3984,79 @@ static void bta_dm_eir_search_services(tBTM_INQ_RESULTS* p_result,
 #if (BTA_EIR_CANNED_UUID_LIST != TRUE)
 /*******************************************************************************
  *
+ * Function         bta_dm_remove_cust_uuid
+ *
+ * Description      remove the uuid from custom uuid list
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+static void bta_dm_remove_cust_uuid(tBT_UUID uu) {
+    APPL_TRACE_DEBUG("bta_dm_remove_cust_uuid");
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_dm_add_cust_uuid
+ *
+ * Description      add an available uuid into custom uuid list
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+static void bta_dm_add_cust_uuid(tBT_UUID uu) {
+  uint8_t c_uu_idx = 0;
+
+  APPL_TRACE_DEBUG("bta_dm_add_custom_uuid");
+  APPL_TRACE_DEBUG("support %d cust uuid", BTA_EIR_SERVER_NUM_CUSTOM_UUID);
+
+  for (c_uu_idx = 0; c_uu_idx < BTA_EIR_SERVER_NUM_CUSTOM_UUID; c_uu_idx++) {
+    APPL_TRACE_VERBOSE("[%d].len:%d",c_uu_idx, bta_dm_cb.custom_uuid[c_uu_idx].len);
+
+    if (bta_dm_cb.custom_uuid[c_uu_idx].len == 0) {
+      if (uu.len == LEN_UUID_16) {
+        APPL_TRACE_VERBOSE("add a 16bit uuid, to %d",c_uu_idx);
+        bta_dm_cb.custom_uuid[c_uu_idx].len = LEN_UUID_16;
+        bta_dm_cb.custom_uuid[c_uu_idx].uu.uuid16 = uu.uu.uuid16;
+      } else if (uu.len == LEN_UUID_32) {
+        APPL_TRACE_VERBOSE("add a 32bit uuid, to %d",c_uu_idx);
+        bta_dm_cb.custom_uuid[c_uu_idx].len = LEN_UUID_32;
+        bta_dm_cb.custom_uuid[c_uu_idx].uu.uuid32 = uu.uu.uuid32;
+      } else if (uu.len == LEN_UUID_128) {
+        APPL_TRACE_VERBOSE("add a 128bit uuid, to %d",c_uu_idx);
+        bta_dm_cb.custom_uuid[c_uu_idx].len = LEN_UUID_128;
+        memcpy(bta_dm_cb.custom_uuid[c_uu_idx].uu.uuid128, uu.uu.uuid128, LEN_UUID_128);
+      } else {
+        APPL_TRACE_WARNING("unknown type, do nothing");
+      }
+      break;
+    }else {
+      APPL_TRACE_WARNING("cust uuid full");
+    }
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_dm_eir_update_cust_uuid
+ *
+ * Description      This function adds or removes custom service UUID in EIR database.
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+void bta_dm_eir_update_cust_uuid(tBT_UUID uu, bool adding)
+{
+    if (adding) {
+      bta_dm_add_cust_uuid(uu);
+      bta_dm_set_eir(NULL);
+    } else {
+      bta_dm_remove_cust_uuid(uu);
+    }
+}
+
+/*******************************************************************************
+ *
  * Function         bta_dm_eir_update_uuid
  *
  * Description      This function adds or removes service UUID in EIR database.

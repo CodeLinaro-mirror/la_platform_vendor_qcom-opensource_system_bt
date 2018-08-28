@@ -477,6 +477,20 @@ void bta_sys_eir_register(tBTA_SYS_EIR_CBACK* p_cback) {
 
 /*******************************************************************************
  *
+ * Function         bta_sys_cust_eir_register
+ *
+ * Description      Called by BTA DM to register EIR utility function that can
+ *                  be used by the other BTA modules to add/remove custom UUID.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void bta_sys_cust_eir_register(tBTA_SYS_CUST_EIR_CBACK* p_cback) {
+  bta_sys_cb.cust_eir_cb = p_cback;
+}
+
+/*******************************************************************************
+ *
  * Function         bta_sys_add_uuid
  *
  * Description      Called by BTA subsystems to indicate to DM that new service
@@ -504,6 +518,38 @@ void bta_sys_add_uuid(uint16_t uuid16) {
 void bta_sys_remove_uuid(uint16_t uuid16) {
   if (bta_sys_cb.eir_cb) {
     bta_sys_cb.eir_cb(uuid16, false);
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_sys_add_cust_uuid
+ *
+ * Description      Called by BTA subsystems to indicate to DM that the custom service
+ *                  class UUID is removed.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void bta_sys_add_cust_uuid(tBT_UUID uu) {
+  if (bta_sys_cb.cust_eir_cb) {
+    bta_sys_cb.cust_eir_cb(uu, true);
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_sys_remove_cust_uuid
+ *
+ * Description      Called by BTA subsystems to indicate to DM that the service
+ *                  class UUID is removed.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void bta_sys_remove_cust_uuid(tBT_UUID uu) {
+  if (bta_sys_cb.cust_eir_cb) {
+    bta_sys_cb.cust_eir_cb(uu, false);
   }
 }
 #endif

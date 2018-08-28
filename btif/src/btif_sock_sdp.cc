@@ -205,6 +205,13 @@ static int add_sdp_by_uuid(const char* name, const uint8_t* uuid,
       "add_sdp_by_uuid: service registered successfully, "
       "service_name: %s, handle: 0x%08x",
       name, handle);
+
+  // Write the custom 128-bit UUID to EIR
+  tBT_UUID t;
+  t.len = LEN_UUID_128;
+  memcpy(t.uu.uuid128, uuid, LEN_UUID_128);
+  bta_sys_add_cust_uuid(t);
+
   return handle;
 
 error:

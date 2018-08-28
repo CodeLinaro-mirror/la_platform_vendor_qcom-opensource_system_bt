@@ -906,6 +906,7 @@ extern tBTA_DM_PEER_DEVICE* bta_dm_find_peer_device(
 
 void bta_dm_eir_update_uuid(uint16_t uuid16, bool adding);
 
+void bta_dm_eir_update_cust_uuid(tBT_UUID uu, bool adding);
 extern void bta_dm_enable_test_mode(tBTA_DM_MSG* p_data);
 extern void bta_dm_disable_test_mode(tBTA_DM_MSG* p_data);
 extern void bta_dm_execute_callback(tBTA_DM_MSG* p_data);
