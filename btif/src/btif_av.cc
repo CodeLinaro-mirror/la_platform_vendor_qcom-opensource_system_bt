@@ -1991,6 +1991,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
           BTIF_TRACE_IMP("%s Don't update audio state as remote started and suspended", __func__);
           if (btif_av_cb[index].flags & BTIF_AV_FLAG_REMOTE_SUSPEND)
             btif_av_cb[index].flags &= ~BTIF_AV_FLAG_REMOTE_SUSPEND;
+          btif_report_audio_state(BTAV_AUDIO_STATE_STOPPED, &(btif_av_cb[index].peer_bda));
       }
       else
       {
