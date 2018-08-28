@@ -1348,6 +1348,11 @@ single PDU.
 #define BTA_EIR_CANNED_UUID_LIST FALSE
 #endif
 
+/* Write 128bit UUID to EIR when a service based on RFCOMM channel is created. */
+#ifndef BTA_EIR_SUPPORT_128BIT_UUID
+#define BTA_EIR_SUPPORT_128BIT_UUID FALSE
+#endif
+
 /* Number of supported customer UUID in EIR */
 #ifndef BTA_EIR_SERVER_NUM_CUSTOM_UUID
 #define BTA_EIR_SERVER_NUM_CUSTOM_UUID 8

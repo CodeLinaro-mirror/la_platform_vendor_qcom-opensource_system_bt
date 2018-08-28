@@ -3418,7 +3418,8 @@ static void bta_dm_set_eir(char* local_name) {
     for (custom_uuid_idx = 0; custom_uuid_idx < BTA_EIR_SERVER_NUM_CUSTOM_UUID;
          custom_uuid_idx++) {
       const Uuid& curr = bta_dm_cb.custom_uuid[custom_uuid_idx];
-      if (curr.GetShortestRepresentationSize() == Uuid::kNumBytes128) {
+      if (!curr.IsEmpty() &&
+          curr.GetShortestRepresentationSize() == Uuid::kNumBytes128) {
         if (num_uuid < max_num_uuid) {
           ARRAY16_TO_STREAM(p, curr.To128BitBE().data());
           num_uuid++;
@@ -3543,6 +3544,67 @@ static void bta_dm_eir_search_services(tBTM_INQ_RESULTS* p_result,
 }
 
 #if (BTA_EIR_CANNED_UUID_LIST != TRUE)
+#if (BTA_EIR_SUPPORT_128BIT_UUID == TRUE)
+/*******************************************************************************
+ *
+ * Function         bta_dm_remove_cust_uuid
+ *
+ * Description      remove the uuid from custom uuid list
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+static void bta_dm_remove_cust_uuid(const Uuid& uu) {
+  APPL_TRACE_DEBUG("bta_dm_remove_cust_uuid");
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_dm_add_cust_uuid
+ *
+ * Description      add an available uuid into custom uuid list
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+static void bta_dm_add_cust_uuid(const Uuid& uuid) {
+  uint8_t c_uu_idx = 0;
+
+  APPL_TRACE_DEBUG("bta_dm_add_cust_uuid:");
+  APPL_TRACE_DEBUG("\tsupport max %d cust uuid",BTA_EIR_SERVER_NUM_CUSTOM_UUID);
+
+  size_t uuid_len = uuid.GetShortestRepresentationSize();
+
+  for (c_uu_idx = 0; c_uu_idx < BTA_EIR_SERVER_NUM_CUSTOM_UUID; c_uu_idx++) {
+    const Uuid& curr = bta_dm_cb.custom_uuid[c_uu_idx];
+    if (curr.IsEmpty()) {
+      APPL_TRACE_VERBOSE("\t[%d] is empty, uuid_len: 0x%x (%d)", c_uu_idx, uuid_len, uuid_len);
+      APPL_TRACE_VERBOSE("\tuuid: %s", uuid.ToString().c_str());
+      bta_dm_cb.custom_uuid[c_uu_idx] = Uuid(uuid);
+      break;
+    }
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_dm_eir_update_cust_uuid
+ *
+ * Description      This function adds or removes custom service UUID in EIR database.
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+void bta_dm_eir_update_cust_uuid(const Uuid& uu, bool adding)
+{
+  if (adding) {
+    bta_dm_add_cust_uuid(uu);
+    bta_dm_set_eir(NULL);
+  } else {
+    bta_dm_remove_cust_uuid(uu);
+  }
+}
+#endif
 /*******************************************************************************
  *
  * Function         bta_dm_eir_update_uuid
