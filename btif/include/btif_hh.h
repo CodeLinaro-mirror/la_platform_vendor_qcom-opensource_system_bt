@@ -29,7 +29,7 @@
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 18, 00))
 #include "osi/include/fixed_queue.h"
 #endif  //  (LINUX_VERSION_CODE > KERNEL_VERSION(3,18,00))
-
+#include "hardware/bt_hh_vendor.h"
 /*******************************************************************************
  *  Constants & Macros
  ******************************************************************************/
@@ -105,7 +105,7 @@ typedef struct {
  ******************************************************************************/
 
 extern btif_hh_cb_t btif_hh_cb;
-
+extern bthh_vendor_callbacks_t *bt_hh_vendor_callbacks;
 extern btif_hh_device_t* btif_hh_find_connected_dev_by_handle(uint8_t handle);
 extern void btif_hh_remove_device(RawAddress bd_addr);
 extern bool btif_hh_add_added_dev(const RawAddress& bda,

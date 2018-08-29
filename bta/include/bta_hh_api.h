@@ -70,6 +70,7 @@
 #define BTA_HH_DATA_EVT 15
 #define BTA_HH_API_ERR_EVT 16     /* API error is caught */
 #define BTA_HH_UPDATE_SCPP_EVT 17 /* update scan paramter complete */
+#define BTA_HH_SEND_RAW_DATA_EVT 18     /*send raw hid report*/
 
 typedef uint16_t tBTA_HH_EVT;
 
@@ -283,6 +284,14 @@ typedef struct {
 
 } tBTA_HH_HSDATA;
 
+/* Send raw data to app*/
+typedef struct
+{
+  uint8_t   len;
+  uint8_t   rpt_id_flag;
+  uint8_t   data[];
+}tBTA_HH_RAW_DATA;
+
 /* union of data associated with HD callback */
 typedef union {
   tBTA_HH_DEV_INFO dev_info; /* BTA_HH_ADD_DEV_EVT, BTA_HH_RMV_DEV_EVT   */
@@ -299,6 +308,7 @@ typedef union {
                                       BTA_HH_GET_RPT_EVT
                                       BTA_HH_GET_PROTO_EVT
                                       BTA_HH_GET_IDLE_EVT */
+  tBTA_HH_RAW_DATA        raw_data;           /*BTA_HH_SEND_RAW_DATA_EVT*/
 } tBTA_HH;
 
 /* BTA HH callback function */

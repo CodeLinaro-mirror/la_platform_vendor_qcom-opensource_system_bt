@@ -1743,6 +1743,7 @@ void bta_hh_le_input_rpt_notify(tBTA_GATTC_NOTIFY* p_data) {
   uint8_t app_id;
   uint8_t* p_buf;
   tBTA_HH_LE_RPT* p_rpt;
+  tBTA_HH_RAW_DATA *raw_data = NULL;
 
   if (p_dev_cb == NULL) {
     APPL_TRACE_ERROR(
@@ -1786,6 +1787,14 @@ void bta_hh_le_input_rpt_notify(tBTA_GATTC_NOTIFY* p_data) {
 
   APPL_TRACE_DEBUG("Notification received on report ID: %d", p_rpt->rpt_id);
 
+  /*new callback to send raw hid report.*/
+  raw_data = (tBTA_HH_RAW_DATA *)osi_malloc(sizeof(tBTA_HH_RAW_DATA));
+  if(raw_data ==NULL) {
+    APPL_TRACE_ERROR("Could not allocate memory to tBTA_HH_RAW_DATA raw_data.");
+    return;
+  }
+  memset(&(raw_data->rpt_id_flag),0,sizeof(uint8_t));
+
   /* need to append report ID to the head of data */
   if (p_rpt->rpt_id != 0) {
     p_buf = (uint8_t*)osi_malloc(p_data->len + 1);
@@ -1793,9 +1802,16 @@ void bta_hh_le_input_rpt_notify(tBTA_GATTC_NOTIFY* p_data) {
     p_buf[0] = p_rpt->rpt_id;
     memcpy(&p_buf[1], p_data->value, p_data->len);
     ++p_data->len;
+    raw_data->len = p_data->len;
+    raw_data->rpt_id_flag = 1;
   } else {
     p_buf = p_data->value;
+    raw_data->len = p_data->len;
+    raw_data->rpt_id_flag = 0;
   }
+
+  memcpy(raw_data->data, p_buf, raw_data->len*sizeof(uint8_t));
+  (* bta_hh_cb.p_cback)(BTA_HH_SEND_RAW_DATA_EVT, (tBTA_HH *)raw_data);
 
   bta_hh_co_data((uint8_t)p_dev_cb->hid_handle, p_buf, p_data->len,
                  p_dev_cb->mode, 0, /* no sub class*/
