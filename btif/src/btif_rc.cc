@@ -2335,7 +2335,11 @@ static bt_status_t get_play_status_rsp(RawAddress* bd_addr,
   {
       BTIF_TRACE_ERROR("%s: clear remote suspend flag: %d",__FUNCTION__, av_index);
       btif_av_clear_remote_suspend_flag();
-      btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
+      if (btif_hf_check_if_sco_connected() == BT_STATUS_SUCCESS) {
+        BTIF_TRACE_ERROR("Ignore sending avdtp_start due to avrcp playing state since sco is present");
+      } else {
+        btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
+      }
   }
 
   avrc_rsp.get_play_status.pdu = AVRC_PDU_GET_PLAY_STATUS;
@@ -2716,8 +2720,13 @@ static bt_status_t register_notification_rsp_sho_mcast(
                             avrc_rsp.reg_notif.param.play_status);
       if ((avrc_rsp.reg_notif.param.play_status == PLAY_STATUS_PLAYING) &&
           (btif_av_check_flag_remote_suspend(av_index))) {
-          BTIF_TRACE_ERROR("%s: clear remote suspend flag: %d",__FUNCTION__,av_index );
+          BTIF_TRACE_ERROR("%s: clear remote suspend flag: %d",__FUNCTION__, av_index);
           btif_av_clear_remote_suspend_flag();
+          if (btif_hf_check_if_sco_connected() == BT_STATUS_SUCCESS) {
+            BTIF_TRACE_ERROR("Ignore sending avdtp_start due to avrcp playing state since sco is present");
+            break;
+          }
+
           btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
       }
       break;
@@ -2827,9 +2836,14 @@ static bt_status_t register_notification_rsp(
         if ((avrc_rsp.reg_notif.param.play_status == PLAY_STATUS_PLAYING) &&
             (btif_av_check_flag_remote_suspend(av_index)))
         {
-            BTIF_TRACE_ERROR("%s: clear remote suspend flag: %d",__FUNCTION__,av_index );
-            btif_av_clear_remote_suspend_flag();
-            btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
+           BTIF_TRACE_ERROR("%s: clear remote suspend flag: %d",__FUNCTION__, av_index);
+           btif_av_clear_remote_suspend_flag();
+           if (btif_hf_check_if_sco_connected() == BT_STATUS_SUCCESS) {
+             BTIF_TRACE_ERROR("Ignore sending avdtp_start due to avrcp playing state since sco is present");
+             break;
+           }
+
+           btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
         }
         break;
       case BTRC_EVT_TRACK_CHANGE:
@@ -6356,7 +6370,14 @@ static bt_status_t update_play_status_to_stack(btrc_play_status_t play_state) {
       BTIF_TRACE_ERROR("%s:invalid index,remote suspend not set", __func__);
       return BT_STATUS_FAIL;
     }
+
+    BTIF_TRACE_ERROR("%s: clear remote suspend flag: %d",__FUNCTION__, index);
     btif_av_clear_remote_suspend_flag();
+    if (btif_hf_check_if_sco_connected() == BT_STATUS_SUCCESS) {
+      BTIF_TRACE_ERROR("Ignore sending avdtp_start due to avrcp playing state since sco is present");
+      return BT_STATUS_SUCCESS;
+    }
+
     btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
   }
   return BT_STATUS_SUCCESS;
