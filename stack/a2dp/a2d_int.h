@@ -29,7 +29,6 @@
 /*****************************************************************************
 **  Constants
 *****************************************************************************/
-#define A2D_VERSION             0x0102
 
 /* Number of attributes in A2D SDP record. */
 #define A2D_NUM_ATTR            6
@@ -54,6 +53,7 @@ typedef struct
     tA2D_FIND_CB    find;   /* find service control block */
     UINT8           trace_level;
     UINT16          avdt_sdp_ver;   /* AVDTP version */
+    UINT16          a2dp_sdp_ver;   /* A2DP version*/
 } tA2D_CB;
 
 
@@ -75,8 +75,12 @@ extern tA2D_CB *a2d_cb_ptr;
 /* Used only for conformance testing */
 extern void a2d_set_avdt_sdp_ver (UINT16 avdt_sdp_ver);
 
-/* Used to check local version of AVDTP */
+extern void a2d_set_a2dp_sdp_ver (UINT16 a2dp_sdp_ver);
+
+/* Used to check local version of AVDTP/A2DP */
 extern int a2d_get_avdt_sdp_ver ();
+
+extern int a2d_get_a2dp_sdp_ver ();
 
 #ifdef __cplusplus
 }
