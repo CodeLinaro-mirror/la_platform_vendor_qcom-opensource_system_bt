@@ -42,6 +42,9 @@
 #endif
 #define AVDT_VERSION_SYNC           0x0103
 
+#define A2D_VERSION                 0x0102
+#define A2D_VERSION_SYNC            0x0103
+
 /* API function return value result codes. */
 #define AVDT_SUCCESS                0       /* Function successful */
 #define AVDT_BAD_PARAMS             1       /* Invalid parameters */
