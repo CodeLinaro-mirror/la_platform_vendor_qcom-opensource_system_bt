@@ -782,12 +782,20 @@ static void bta_av_a2d_sdp_cback(BOOLEAN found, tA2D_Service *p_service)
 
     tBTA_AV_SDP_RES *p_msg =
         (tBTA_AV_SDP_RES *)osi_malloc(sizeof(tBTA_AV_SDP_RES));
-    p_msg->hdr.event = (found) ?
-        BTA_AV_SDP_DISC_OK_EVT : BTA_AV_SDP_DISC_FAIL_EVT;
-    if (found && (p_service != NULL))
-        p_scb->avdt_version = p_service->avdt_version;
-    else
-        p_scb->avdt_version = 0x00;
+    if (!found && (p_scb->skip_sdp == true)) {
+        p_msg->hdr.event = BTA_AV_SDP_DISC_OK_EVT;
+        p_scb->avdt_version = AVDT_VERSION;
+        p_scb->skip_sdp = false;
+        APPL_TRACE_WARNING("%s: Continue AVDTP signaling process for incoming A2dp connection",
+                           __func__);
+    }else {
+        p_msg->hdr.event = (found) ?
+            BTA_AV_SDP_DISC_OK_EVT : BTA_AV_SDP_DISC_FAIL_EVT;
+        if (found && (p_service != NULL))
+            p_scb->avdt_version = p_service->avdt_version;
+        else
+            p_scb->avdt_version = 0x00;
+    }
     APPL_TRACE_DEBUG(" %s ~~ p_scb->avdt_version [%d]", __func__,p_scb->avdt_version);
     p_msg->hdr.layer_specific = bta_av_cb.handle;
 
@@ -1137,7 +1145,7 @@ void bta_av_do_disc_a2d (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
 
     bta_sys_conn_open(BTA_ID_AV, p_scb->hdi, p_scb->peer_addr);
 
-    if (p_scb->skip_sdp == TRUE)
+    if (p_scb->skip_sdp == TRUE && (a2d_get_avdt_sdp_ver() < AVDT_VERSION_SYNC))
     {
         tA2D_Service a2d_ser;
         a2d_ser.avdt_version = AVDT_VERSION;
