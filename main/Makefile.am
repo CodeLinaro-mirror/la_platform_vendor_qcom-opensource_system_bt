@@ -38,9 +38,7 @@ AM_CPPFLAGS= \
         -I$(external_bt_path)/system_bt_ext/bta/ar \
         -I$(external_bt_path)/system_bt_ext/btif/include \
         -I$(external_bt_path)/system_bt_ext/udrv/include \
-        -I$(external_bt_path)/system_bt_ext \
-        -I$(external_bt_path)/system_bt_ext/include/ \
-        -I$(external_bt_path)/system_bt_ext/device/include/ \
+        -I$(external_bt_path)/system_bt_ext/ \
         -I${WORKSPACE}/external/tinyxml2 \
         -I${WORKSPACE}/external/zlib \
         -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/hal/include \
@@ -111,17 +109,7 @@ cpp_sources += \
     $(external_bt_path)/system_bt_ext/btif/src/btif_avk_media_mp3.cc \
     $(external_bt_path)/system_bt_ext/btif/src/btif_avk_media_aptx.cc \
     $(external_bt_path)/system_bt_ext/btif/co/bta_avk_co.cc \
-    $(external_bt_path)/system_bt_ext/udrv/ulinux/uipc_avk.cc \
-    $(external_bt_path)/system_bt_ext/btif/src/btif_gap.cc \
-    $(external_bt_path)/system_bt_ext/btif/src/btif_gatt_qual.cc \
-    $(external_bt_path)/system_bt_ext/btif/src/btif_l2cap.cc \
-    $(external_bt_path)/system_bt_ext/btif/src/btif_mcap.cc \
-    $(external_bt_path)/system_bt_ext/btif/src/btif_rfcomm.cc \
-    $(external_bt_path)/system_bt_ext/btif/src/btif_smp.cc \
-    $(external_bt_path)/system_bt_ext/btif/src/btif_tws_plus.cc \
-    $(external_bt_path)/system_bt_ext/btif/src/btif_twsp_hf.cc \
-    $(external_bt_path)/system_bt_ext/btif/src/btif_vendor.cc \
-    $(external_bt_path)/system_bt_ext/btif/src/btif_vendor_socket.cc
+    $(external_bt_path)/system_bt_ext/udrv/ulinux/uipc_avk.cc
 
 # BTC
 if BTC_SUPPORT
@@ -167,7 +155,7 @@ library_includedir = $(pkgincludedir)
 lib_LTLIBRARIES = libbluetoothdefault.la
 libbluetoothdefault_la_CC = @CC@
 libbluetoothdefault_la_SOURCES = $(c_sources) $(cpp_sources)
-libbluetoothdefault_la_CPPFLAGS = $(AM_CPPFLAGS) $(common_CPPFLAGS) -std=c++11 -fpermissive -g -O2
+libbluetoothdefault_la_CPPFLAGS = $(AM_CPPFLAGS) $(common_CPPFLAGS) -std=c++11 -fpermissive
 libbluetoothdefault_la_CFLAGS = $(common_CFLAGS)
 libbluetoothdefault_la_LDFLAGS = $(common_LDFLAGS)
 

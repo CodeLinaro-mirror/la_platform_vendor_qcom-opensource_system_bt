@@ -18,7 +18,6 @@ AM_CPPFLAGS = -Iinclude \
         -Isys \
         -Idm \
         -Ihh \
-        -Iag \
         -I../ \
         -I../btcore/include \
         -I../hci/include \
@@ -37,8 +36,7 @@ AM_CPPFLAGS = -Iinclude \
         -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/ar \
         -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/avk \
         -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/include \
-        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/stack/include \
-        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/tws_plus
+        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/stack/include
 
 if MDM_CHEROKEE
 AM_CPPFLAGS += -DBTA_AV_SPLIT_A2DP_ENABLED
@@ -133,12 +131,7 @@ cpp_sources+= \
         $(external_bt_path)/system_bt_ext/bta/avk/bta_avk_sbc.cc \
         $(external_bt_path)/system_bt_ext/bta/avk/bta_avk_aac.cc \
         $(external_bt_path)/system_bt_ext/bta/avk/bta_avk_mp3.cc\
-        $(external_bt_path)/system_bt_ext/bta/ar/bta_ar_ext.cc \
-        $(external_bt_path)/system_bt_ext/bta/tws_plus/bta_tws_plus_api.cc \
-        $(external_bt_path)/system_bt_ext/bta/tws_plus/bta_tws_plus_act.cc \
-        $(external_bt_path)/system_bt_ext/bta/tws_plus/bta_tws_plus_main.cc \
-        $(external_bt_path)/system_bt_ext/bta/tws_plus/ag/bta_ag_twsp_dev.cc \
-        $(external_bt_path)/system_bt_ext/bta/tws_plus/ag/bta_ag_twsp_sco.cc
+        $(external_bt_path)/system_bt_ext/bta/ar/bta_ar_ext.cc
 
 library_includedir = $(pkgincludedir)\
 library_include_HEADERS = $(h_sources)

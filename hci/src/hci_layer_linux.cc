@@ -245,9 +245,8 @@ void hci_close() {
   rfkill(1);
 }
 
-bool hci_transmit(BT_HDR* packet) {
+void hci_transmit(BT_HDR* packet) {
   uint8_t type;
-  bool status = true;
 
   CHECK(bt_vendor_fd != -1);
 
@@ -263,7 +262,6 @@ bool hci_transmit(BT_HDR* packet) {
       type = 3;
       break;
     default:
-      status = false;
       LOG(FATAL) << "Unknown packet type " << event;
       break;
   }
@@ -275,16 +273,9 @@ bool hci_transmit(BT_HDR* packet) {
 
   *(addr) = store;
 
-  if (ret != packet->len + 1) {
-    status = false;
-    LOG(ERROR) << "Should have send whole packet";
-  }
+  if (ret != packet->len + 1) LOG(ERROR) << "Should have send whole packet";
 
-  if (ret == -1) { 
-    status = false;
-    LOG(FATAL) << strerror(errno);
-  }
-  return status;
+  if (ret == -1) LOG(FATAL) << strerror(errno);
 }
 
 static int wait_hcidev(void) {

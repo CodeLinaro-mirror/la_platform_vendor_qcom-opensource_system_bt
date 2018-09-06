@@ -168,7 +168,7 @@ void smp_send_app_cback(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
 
           if (!(p_cb->loc_auth_req & SMP_SC_SUPPORT_BIT) ||
               lmp_version_below(p_cb->pairing_bda, HCI_PROTO_VERSION_4_2) ||
-              interop_match_addr_or_name(INTEROP_DISABLE_LE_SECURE_CONNECTIONS,
+              interop_match_addr(INTEROP_DISABLE_LE_SECURE_CONNECTIONS,
                                  (const RawAddress*)&p_cb->pairing_bda)) {
             p_cb->loc_auth_req &= ~SMP_KP_SUPPORT_BIT;
             p_cb->local_i_key &= ~SMP_SEC_KEY_TYPE_LK;
@@ -179,7 +179,7 @@ void smp_send_app_cback(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
             p_cb->loc_auth_req &= ~SMP_H7_SUPPORT_BIT;
           }
 
-          if (interop_match_addr_or_name(INTEROP_DISABLE_LE_SECURE_CONNECTIONS,
+          if (interop_match_addr(INTEROP_DISABLE_LE_SECURE_CONNECTIONS,
                                  (const RawAddress*)&p_cb->pairing_bda)) {
             p_cb->loc_auth_req &= ~SMP_SC_SUPPORT_BIT;
             p_cb->loc_auth_req &= ~SMP_KP_SUPPORT_BIT;
@@ -1368,7 +1368,6 @@ void smp_br_send_pair_response(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
 void smp_pairing_cmpl(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
   if (p_cb->total_tx_unacked == 0) {
     /* process the pairing complete */
-    p_cb->status = *(uint8_t*)p_data;
     smp_proc_pairing_cmpl(p_cb);
   }
 }
@@ -1402,7 +1401,10 @@ void smp_idle_terminate(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
  * Description  apply default connection parameter for pairing process
  ******************************************************************************/
 void smp_fast_conn_param(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
-  if (!interop_match_addr_or_name(INTEROP_DISABLE_LE_CONN_UPDATES, &p_cb->pairing_bda)) {
+  BD_NAME bdname;
+
+  if (!BTM_GetRemoteDeviceName(p_cb->pairing_bda, bdname) || !*bdname ||
+     (!interop_match_name(INTEROP_DISABLE_LE_CONN_UPDATES, (const char*) bdname))) {
     /* Disable L2CAP connection parameter updates while bonding since
     some peripherals are not able to revert to fast connection parameters
     during the start of service discovery. Connection paramter updates

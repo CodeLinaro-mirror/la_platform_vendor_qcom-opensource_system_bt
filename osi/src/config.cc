@@ -35,7 +35,6 @@
 #include "osi/include/list.h"
 #include "osi/include/log.h"
 #include "osi/include/compat.h"
-#include "log/log.h"
 
 typedef struct {
   char* key;
@@ -223,28 +222,18 @@ void config_set_string(config_t* config, const char* section, const char* key,
     }
   }
 
-  std::string value_string = value;
-  std::string value_no_newline;
-  size_t newline_position = value_string.find("\n");
-  if (newline_position != std::string::npos) {
-    android_errorWriteLog(0x534e4554, "70808273");
-    value_no_newline = value_string.substr(0, newline_position);
-  } else {
-    value_no_newline = value_string;
-  }
-
   if (sec) {
     for (const list_node_t* node = list_begin(sec->entries);
          node != list_end(sec->entries); node = list_next(node)) {
       entry_t* entry = static_cast<entry_t*>(list_node(node));
       if (!strcmp(entry->key, key)) {
         osi_free(entry->value);
-        entry->value = osi_strdup(value_no_newline.c_str());
+        entry->value = osi_strdup(value);
         return;
       }
     }
 
-    entry_t* entry = entry_new(key, value_no_newline.c_str());
+    entry_t* entry = entry_new(key, value);
     list_append(sec->entries, entry);
   }
 }
@@ -412,8 +401,7 @@ bool config_save(const config_t* config, const char* filename) {
               directoryname, strerror(errno));
     goto error;
   }
-  //sync() will ensure bt_config is saved to NVRAM and prevent file curruption
-  sync();
+
   osi_free(temp_filename);
   osi_free(temp_dirname);
   return true;

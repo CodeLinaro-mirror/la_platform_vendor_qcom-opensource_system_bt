@@ -42,11 +42,7 @@ const uint32_t bta_av_meta_caps_co_ids[] = {AVRC_CO_METADATA, AVRC_CO_BROADCOM};
 
 /* AVRCP supported categories */
 #define BTA_AV_RC_SUPF_CT (AVRC_SUPF_CT_CAT2)
-#define BTA_AVK_RC_SUPF_CT       (AVRC_SUPF_CT_CAT1 |                       \
-                                  AVRC_SUPF_CT_BROWSE |                     \
-                                  AVRC_SUPF_CT_COVER_ART_GET_IMAGE_PROP |   \
-                                  AVRC_SUPF_CT_COVER_ART_GET_IMAGE |        \
-                                  AVRC_SUPF_CT_COVER_ART_GET_THUMBNAIL)
+#define BTA_AVK_RC_SUPF_CT (AVRC_SUPF_CT_CAT1 | AVRC_SUPF_CT_BROWSE)
 #define BTA_AVK_RC_SUPF_TG (AVRC_SUPF_TG_CAT2)
 
 /* AVRCP Controller and Targer default name */
@@ -121,6 +117,18 @@ const uint8_t bta_avk_meta_caps_evt_ids[] = {
   (sizeof(bta_avk_meta_caps_evt_ids) / sizeof(bta_avk_meta_caps_evt_ids[0]))
 #endif /* BTA_AVK_NUM_RC_EVT_IDS */
 
+// These are the only events used with AVRCP1.3
+const uint8_t bta_av_meta_caps_evt_ids_avrcp13[] = {
+    AVRC_EVT_PLAY_STATUS_CHANGE, AVRC_EVT_TRACK_CHANGE,
+    AVRC_EVT_PLAY_POS_CHANGED,
+};
+
+#ifndef BTA_AV_NUM_RC_EVT_IDS_AVRCP13
+#define BTA_AV_NUM_RC_EVT_IDS_AVRCP13         \
+  (sizeof(bta_av_meta_caps_evt_ids_avrcp13) / \
+   sizeof(bta_av_meta_caps_evt_ids_avrcp13[0]))
+#endif /* BTA_AVK_NUM_RC_EVT_IDS_AVRCP13 */
+
 /* the MTU for the AVRCP browsing channel */
 #ifndef BTA_AV_MAX_RC_BR_MTU
 #define BTA_AV_MAX_RC_BR_MTU 1008
@@ -194,6 +202,42 @@ const tBTA_AV_CFG bta_avk_cfg = {
     NULL,                      /* action function to register VDP */
     {0},                       /* Default AVRCP controller name */
     {0},                       /* Default AVRCP target name */
+};
+
+/* This configuration to be used when we are using AVRCP1.3 */
+const tBTA_AV_CFG bta_av_cfg_compatibility = {
+    BTA_AV_RC_COMP_ID, /* AVRCP Company ID */
+#if (AVRC_METADATA_INCLUDED == TRUE)
+    512,                  /* AVRCP MTU at L2CAP for control channel */
+    BTA_AV_MAX_RC_BR_MTU, /* AVRCP MTU at L2CAP for browsing channel */
+#else
+    48,                   /* AVRCP MTU at L2CAP for control channel */
+    BTA_AV_MAX_RC_BR_MTU, /* AVRCP MTU at L2CAP for browsing channel */
+#endif
+    BTA_AV_RC_SUPF_CT, /* AVRCP controller categories */
+    AVRC_SUPF_TG_CAT1, /* Only support CAT1 for AVRCP1.3 */
+    672,               /* AVDTP signaling channel MTU at L2CAP */
+    BTA_AV_MAX_A2DP_MTU, /* AVDTP audio transport channel MTU at L2CAP
+                          */
+    bta_av_audio_flush_to, /* AVDTP audio transport channel flush
+                              timeout */
+    6,                  /* AVDTP audio channel max data queue size */
+    BTA_AV_MAX_VDP_MTU, /* AVDTP video transport channel MTU at L2CAP */
+    600,                /* AVDTP video transport channel flush timeout */
+    false,              /* true, to accept AVRC 1.3 group nevigation command */
+    2,                  /* company id count in p_meta_co_ids */
+    BTA_AV_NUM_RC_EVT_IDS_AVRCP13,    /* event id count for AVRCP1.3*/
+    BTA_AV_RC_PASS_RSP_CODE,          /* the default response code for pass
+                                         through commands */
+    bta_av_meta_caps_co_ids,          /* the metadata Get Capabilities response
+                                         for company id */
+    bta_av_meta_caps_evt_ids_avrcp13, /* the the metadata Get Capabilities
+                                         response for event id, compatible
+                                         with AVRCP1.3*/
+    NULL,              /* the action function table for VDP stream */
+    NULL,              /* action function to register VDP */
+    BTA_AV_RC_CT_NAME, /* Default AVRCP controller name */
+    BTA_AV_RC_TG_NAME  /* Default AVRCP target name */
 };
 
 tBTA_AV_CFG* p_bta_av_cfg = NULL;

@@ -26,7 +26,6 @@
 #include <stdbool.h>
 
 #include "audio_a2dp_hw/include/audio_a2dp_hw.h"
-#include "osi/include/properties.h"
 #include "bt_common.h"
 #include "bta_av_api.h"
 #include "btif_a2dp.h"
@@ -44,7 +43,6 @@
 extern bool btif_a2dp_audio_if_init;
 extern tBTIF_A2DP_SOURCE_VSC btif_a2dp_src_vsc;
 extern void btif_av_reset_reconfig_flag();
-static char a2dp_hal_imp[PROPERTY_VALUE_MAX] = "false";
 
 void btif_a2dp_on_idle(int index) {
   APPL_TRACE_EVENT("## ON A2DP IDLE ## peer_sep = %d", btif_av_get_peer_sep(index));
@@ -113,30 +111,8 @@ bool btif_a2dp_on_started(tBTA_AV_START* p_av_start, bool pending_start,
   } else if (pending_start) {
     APPL_TRACE_WARNING("%s: A2DP start request failed: status = %d", __func__,
                        p_av_start->status);
-    if (property_get("persist.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
-        !strcmp(a2dp_hal_imp, "true")) {
-      int index = (hdl & BTA_AV_HNDL_MSK) - 1;
-      RawAddress addr = btif_av_get_addr_by_index(index);
-      if (btif_av_is_split_a2dp_enabled()) {
-        btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
-        //btif_a2dp_audio_reset_pending_cmds();
-      } else {
-        btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
-        btif_a2dp_pending_cmds_reset();
-      }
-      if (!addr.IsEmpty()) {
-        btif_dispatch_sm_event(BTIF_AV_DISCONNECT_REQ_EVT, (void *)addr.address,
-            sizeof(RawAddress));
-        BTIF_TRACE_DEBUG("%s:Trigger disconnect for peer device on Start fail by Remote", __func__);
-      }
-    } else {
-      if (btif_av_is_split_a2dp_enabled()) {
-        btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
-      } else {
-        if (pending_cmd == A2DP_CTRL_CMD_START)
-          btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
-      }
-    }
+    if (pending_cmd == A2DP_CTRL_CMD_START)
+      btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
     ack = true;
   }
   return ack;

@@ -270,7 +270,7 @@ uint16_t AVRC_AddRecord(uint16_t service_uuid, const char* p_service_name,
 
   /* add supported categories */
   p = temp;
-  if (profile_version == AVRC_REV_1_6 && service_uuid == UUID_SERVCLASS_AV_REM_CTRL_TARGET) {
+  if (profile_version == AVRC_REV_1_6) {
       /* Add cover art supported bit */
       categories |= AVRC_SUPF_TG_PLAYER_COVER_ART;
   }

@@ -1,38 +1,5 @@
 /******************************************************************************
  *
- *  Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
- *  Not a Contribution.
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted (subject to the limitations in the
- *  disclaimer below) provided that the following conditions are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- *  * Redistributions in binary form must reproduce the above
- *    copyright notice, this list of conditions and the following
- *    disclaimer in the documentation and/or other materials provided
- *    with the distribution.
- *
- *  * Neither the name of The Linux Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
- * GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
- * HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  *  Copyright (C) 2003-2012 Broadcom Corporation
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -69,10 +36,6 @@
 #include "port_api.h"
 #include "utl.h"
 #include <cutils/properties.h>
-#if (TWS_AG_ENABLED == TRUE)
-#include "bta_ag_twsp_dev.h"
-#include "bta_ag_twsp.h"
-#endif
 
 /*****************************************************************************
  *  Constants
@@ -182,12 +145,6 @@ void bta_ag_deregister(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
   /* set dealloc */
   p_scb->dealloc = true;
 
-  if (p_scb->p_disc_db) {
-    APPL_TRACE_DEBUG(" %s Cancel pending SDP ",__func__);
-    (void)SDP_CancelServiceSearch(p_scb->p_disc_db);
-    bta_ag_free_db(p_scb, NULL);
-  }
-
   /* remove sdp records */
   bta_ag_del_records(p_scb, p_data);
 
@@ -238,7 +195,9 @@ void bta_ag_start_open(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
 
   /* Check if RFCOMM has any incoming connection to avoid collision. */
   if (PORT_IsOpening(pending_bd_addr)) {
-    if (bta_ag_cb.max_hf_clients > 1)
+    char value[PROPERTY_VALUE_MAX];
+    if (osi_property_get("persist.bt.max.hs.connections", value, "") &&
+                !strcmp(value, "2") )
     {
       // Abort the outgoing connection if incoming connection is from the same device
       if (pending_bd_addr == p_scb->peer_addr)
@@ -397,10 +356,6 @@ void bta_ag_open_fail(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_ag_rfc_fail(tBTA_AG_SCB* p_scb, UNUSED_ATTR tBTA_AG_DATA* p_data) {
-  RawAddress peer_addr = p_scb->peer_addr;
-  tBTA_AG_DATA data;
-
-  memset(&data, 0, sizeof(data));
   /* reinitialize stuff */
   p_scb->conn_handle = 0;
   p_scb->conn_service = 0;
@@ -416,9 +371,8 @@ void bta_ag_rfc_fail(tBTA_AG_SCB* p_scb, UNUSED_ATTR tBTA_AG_DATA* p_data) {
   /* reopen registered servers */
   bta_ag_start_servers(p_scb, p_scb->reg_services);
 
-  data.api_open.bd_addr = peer_addr;
   /* call open cback w. failure */
-  bta_ag_cback_open(p_scb, &data, BTA_AG_FAIL_RFCOMM);
+  bta_ag_cback_open(p_scb, NULL, BTA_AG_FAIL_RFCOMM);
 }
 
 /*******************************************************************************
@@ -467,11 +421,12 @@ void bta_ag_rfc_close(tBTA_AG_SCB* p_scb, UNUSED_ATTR tBTA_AG_DATA* p_data) {
   /* call close call-out */
   bta_ag_co_data_close(close.hdr.handle);
 
+  if (bta_ag_get_active_device() == p_scb->peer_addr) {
+    bta_clear_active_device();
+  }
+
   /* call close cback */
   (*bta_ag_cb.p_cback)(BTA_AG_CLOSE_EVT, (tBTA_AG*)&close);
-#if (TWS_AG_ENABLED == TRUE)
-  reset_twsp_device(bta_ag_scb_to_idx(p_scb)-1);
-#endif
 
   /* if not deregistering (deallocating) reopen registered servers */
   if (p_scb->dealloc == false) {
@@ -481,16 +436,8 @@ void bta_ag_rfc_close(tBTA_AG_SCB* p_scb, UNUSED_ATTR tBTA_AG_DATA* p_data) {
       (void)SDP_CancelServiceSearch(p_scb->p_disc_db);
       bta_ag_free_db(p_scb, NULL);
     }
-    APPL_TRACE_DEBUG("%s: sending sco_shutdown", __func__);
-    /* Make sure SCO state is BTA_AG_SCO_SHUTDOWN_ST */
-    bta_ag_sco_shutdown(p_scb, NULL);
-
     /* Clear peer bd_addr so instance can be reused */
     p_scb->peer_addr = RawAddress::kEmpty;
-
-    if (bta_ag_get_active_device() == p_scb->peer_addr) {
-       bta_clear_active_device();
-    }
 
     /* start only unopened server */
     services = p_scb->reg_services;
@@ -502,6 +449,8 @@ void bta_ag_rfc_close(tBTA_AG_SCB* p_scb, UNUSED_ATTR tBTA_AG_DATA* p_data) {
 
     p_scb->conn_handle = 0;
 
+    /* Make sure SCO state is BTA_AG_SCO_SHUTDOWN_ST */
+    bta_ag_sco_shutdown(p_scb, NULL);
 
     /* Check if all the SLCs are down */
     for (i = 0; i < BTA_AG_MAX_NUM_CLIENTS; i++) {
@@ -563,10 +512,6 @@ void bta_ag_rfc_open(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
     /* if hfp start timer for service level conn */
     bta_sys_start_timer(p_scb->ring_timer, p_bta_ag_cfg->conn_tout,
                         BTA_AG_SVC_TIMEOUT_EVT, bta_ag_scb_to_idx(p_scb));
-#if (TWS_AG_ENABLED == TRUE)
-    //Update TWS+ data structure
-    update_twsp_device(bta_ag_scb_to_idx(p_scb)-1, p_scb);
-#endif
   } else {
     /* else service level conn is open */
     bta_ag_svc_conn_open(p_scb, p_data);
@@ -599,7 +544,7 @@ void bta_ag_rfc_acp_open(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
   /* get bd addr of peer */
   if (PORT_SUCCESS != (status = PORT_CheckConnection(p_data->rfc.port_handle,
                                                      dev_addr, &lcid))) {
-    APPL_TRACE_ERROR(
+    APPL_TRACE_DEBUG(
         "bta_ag_rfc_acp_open error PORT_CheckConnection returned status %d",
         status);
   }
@@ -612,8 +557,10 @@ void bta_ag_rfc_acp_open(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
 
       VLOG(1) << __func__ << "ag_scb addr:" << ag_scb->peer_addr;
       if (dev_addr == ag_scb->peer_addr) {
+        char value[PROPERTY_VALUE_MAX];
         /* Read the property if multi hf is enabled */
-        if (bta_ag_cb.max_hf_clients > 1)
+        if (osi_property_get("persist.bt.max.hs.connections", value, "") &&
+                    !strcmp(value, "2") )
         {
           /* If incoming and outgoing device are same, nothing more to do.*/
           /* Outgoing conn will be aborted because we have successful incoming conn.*/
@@ -639,6 +586,7 @@ void bta_ag_rfc_acp_open(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
           bta_ag_resume_open(other_scb);
         }
       }
+
       break;
     }
   }
@@ -706,8 +654,6 @@ void bta_ag_rfc_data(tBTA_AG_SCB* p_scb, UNUSED_ATTR tBTA_AG_DATA* p_data) {
 
     if (strstr(buf, "AT+IPHONEACCEV") != NULL) {
         APPL_TRACE_IMP("%s: AT+IPHONEACCEV received, not coming out of sniff", __func__);
-    } else if (strstr(buf, "AT+CHUP") != NULL) {
-        APPL_TRACE_IMP("%s: AT+CHUP received, not coming out of sniff", __func__);
     } else {
         APPL_TRACE_IMP("%s: setting sys busy", __func__);
         bta_sys_busy(BTA_ID_AG, p_scb->app_id, p_scb->peer_addr);
@@ -721,8 +667,6 @@ void bta_ag_rfc_data(tBTA_AG_SCB* p_scb, UNUSED_ATTR tBTA_AG_DATA* p_data) {
     } else {
       if (strstr(buf, "AT+IPHONEACCEV") != NULL) {
           APPL_TRACE_IMP("%s: AT+IPHONEACCEV received, not setting idle", __func__);
-      } else if (strstr(buf, "AT+CHUP") != NULL) {
-          APPL_TRACE_IMP("%s: AT+CHUP received, not setting idle", __func__);
       } else {
           APPL_TRACE_IMP("%s: resetting idle timer", __func__);
           bta_sys_idle(BTA_ID_AG, p_scb->app_id, p_scb->peer_addr);
@@ -749,12 +693,7 @@ void bta_ag_rfc_data(tBTA_AG_SCB* p_scb, UNUSED_ATTR tBTA_AG_DATA* p_data) {
 void bta_ag_start_close(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
   /* Take the link out of sniff and set L2C idle time to 0 */
   bta_dm_pm_active(p_scb->peer_addr);
-
-  if (p_scb->svc_conn) {
-    APPL_TRACE_WARNING("%s: SLC is up, probably user initiated HF disconnection" \
-                       " setting L2CAP idle timer to 0 from AG", __func__);
-    L2CA_SetIdleTimeoutByBdAddr(p_scb->peer_addr, 0, BT_TRANSPORT_BR_EDR);
-  }
+  L2CA_SetIdleTimeoutByBdAddr(p_scb->peer_addr, 0, BT_TRANSPORT_BR_EDR);
 
   /* if SCO is open close SCO and wait on RFCOMM close */
   if (bta_ag_sco_is_open(p_scb)) {
@@ -888,35 +827,7 @@ void bta_ag_svc_conn_open(tBTA_AG_SCB* p_scb,
       bta_ag_api_set_active_device(&data);
     }
     (*bta_ag_cb.p_cback)(BTA_AG_CONN_EVT, (tBTA_AG*)&evt);
-
-#if (TWS_AG_ENABLED == TRUE)
-    /* if this is TWSP device and SCO is active on primary sm
-     * trigger SCO_OPEN for this scb*/
-    if (is_twsp_device(p_scb->peer_addr)) {
-        tBTA_AG_SCB* other_scb = NULL;
-        other_scb = get_other_twsp_scb(p_scb->peer_addr);
-        if (other_scb != NULL) {
-            tBTA_AG_SCO_CB *related_sco = NULL;
-            if (other_scb == bta_ag_cb.main_sm_scb) {
-                related_sco = &(bta_ag_cb.sco);
-            } else if(other_scb == bta_ag_cb.sec_sm_scb) {
-                APPL_TRACE_DEBUG("%s:TWS+ peer SCO is selected", __func__);
-                related_sco = &(bta_ag_cb.twsp_sco);
-            } else {
-                APPL_TRACE_ERROR("%s: Invalid SCB", __func__);
-            }
-
-            if (related_sco != NULL && (related_sco->state ==  BTA_AG_SCO_OPENING_ST
-                     || related_sco->state == BTA_AG_SCO_OPEN_ST)) {
-                APPL_TRACE_DEBUG("%s: triggering secondary twsp sco cn", __func__);
-                bta_ag_sco_open(p_scb, p_data);
-            } else {
-                APPL_TRACE_DEBUG("other SCB is not initialized, no need of tws sco trigger");
-            }
-        }
-    }
-#endif
-    }
+  }
 }
 
 /*******************************************************************************
@@ -1010,43 +921,4 @@ void bta_ag_setcodec(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
   }
 
   (*bta_ag_cb.p_cback)(BTA_AG_WBS_EVT, (tBTA_AG*)&val);
-}
-
-/*******************************************************************************
- *
- * Function         bta_ag_collision_timer_cback
- *
- * Description      AG connection collision timer callback
- *
- *
- * Returns          void
- *
- ******************************************************************************/
-static void bta_ag_collision_timer_cback(void* data) {
-  tBTA_AG_SCB* p_scb = (tBTA_AG_SCB*)data;
-
-  APPL_TRACE_DEBUG("%s", __func__);
-
-  /* If the peer haven't opened AG connection     */
-  /* we will restart opening process.             */
-  bta_ag_resume_open(p_scb);
-}
-
-void bta_ag_handle_collision(tBTA_AG_SCB* p_scb,
-                             tBTA_AG_DATA* data) {
-  /* Cancel SDP if it had been started. */
-  if (p_scb->p_disc_db) {
-    SDP_CancelServiceSearch(p_scb->p_disc_db);
-    bta_ag_free_db(p_scb, NULL);
-  }
-
-  /* reopen registered servers */
-  /* Collision may be detected before or after we close servers. */
-  if (bta_ag_is_server_closed(p_scb)) {
-    bta_ag_start_servers(p_scb, p_scb->reg_services);
-  }
-
-  /* Start timer to han */
-  alarm_set_on_mloop(p_scb->collision_timer, BTA_AG_COLLISION_TIMEOUT_MS,
-                     bta_ag_collision_timer_cback, p_scb);
 }

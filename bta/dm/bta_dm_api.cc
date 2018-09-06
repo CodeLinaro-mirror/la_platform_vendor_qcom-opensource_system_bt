@@ -1007,10 +1007,9 @@ void BTA_DmSearchExt(tBTA_DM_INQ* p_dm_inq, tBTA_SERVICE_MASK_EXT* p_services,
  * Returns          void
  *
  ******************************************************************************/
-void BTA_DmBleUpdateConnectionParams(const RawAddress& bd_addr,
-                                     uint16_t min_int, uint16_t max_int,
-                                     uint16_t latency, uint16_t timeout,
-                                     uint16_t min_ce_len, uint16_t max_ce_len) {
+void BTA_DmBleUpdateConnectionParam(const RawAddress& bd_addr, uint16_t min_int,
+                                    uint16_t max_int, uint16_t latency,
+                                    uint16_t timeout) {
   tBTA_DM_API_UPDATE_CONN_PARAM* p_msg =
       (tBTA_DM_API_UPDATE_CONN_PARAM*)osi_calloc(
           sizeof(tBTA_DM_API_UPDATE_CONN_PARAM));
@@ -1021,8 +1020,6 @@ void BTA_DmBleUpdateConnectionParams(const RawAddress& bd_addr,
   p_msg->max_int = max_int;
   p_msg->latency = latency;
   p_msg->timeout = timeout;
-  p_msg->min_ce_len = min_ce_len;
-  p_msg->max_ce_len = max_ce_len;
 
   bta_sys_sendmsg(p_msg);
 }

@@ -46,7 +46,6 @@ AM_CPPFLAGS = \
         -I${WORKSPACE}/external/zlib \
         -I${external_bt_path}/vhal/include \
         -I$(external_bt_path)/system_bt_ext \
-        -I$(external_bt_path)/system_bt_ext/btif/include \
         -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/hal/include \
         -I$(WORKSPACE)/frameworks/av/include \
         -I$(WORKSPACE)/system/media/audio/include \

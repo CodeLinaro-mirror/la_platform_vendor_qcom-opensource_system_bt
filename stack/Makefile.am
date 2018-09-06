@@ -46,14 +46,10 @@ AM_CPPFLAGS = \
         -I../types \
         -I../internal_include \
         -I$(external_bt_path)/system_bt_ext \
-        -I$(external_bt_path)/system_bt_ext/stack/btm \
         -I$(external_bt_path)/vhal/include \
         -I$(external_bt_path)/system_bt_ext/bta/ar \
-        -I$(external_bt_path)/system_bt_ext/stack/include/ \
         -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/hal/include \
-        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/stack/include \
-        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/include
-
+        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/stack/include
 if MDM_CHEROKEE
 AM_CPPFLAGS += -DBTA_AV_SPLIT_A2DP_ENABLED
 endif
@@ -67,8 +63,6 @@ cpp_sources:= \
        ./a2dp/a2dp_sbc_encoder.cc \
        ./a2dp/a2dp_sbc_up_sample.cc \
        ./a2dp/a2dp_vendor.cc \
-       ./a2dp/a2dp_vendor_aptx_adaptive.cc \
-       ./a2dp/a2dp_vendor_aptx_adaptive_encoder.cc \
        ./a2dp/a2dp_vendor_aptx.cc \
        ./a2dp/a2dp_vendor_aptx_hd.cc \
        ./a2dp/a2dp_vendor_aptx_encoder.cc \
@@ -193,8 +187,7 @@ cpp_sources+= \
         $(external_bt_path)/system_bt_ext/stack/a2dp/a2d_aptx.cc \
         $(external_bt_path)/system_bt_ext/stack/a2dp/a2d_aptx_hd.cc \
         $(external_bt_path)/system_bt_ext/stack/a2dp/a2d_mp3.cc \
-        $(external_bt_path)/system_bt_ext/stack/a2dp/a2d_sbc.cc \
-        $(external_bt_path)/system_bt_ext/stack/btm/btm_csb.cc
+        $(external_bt_path)/system_bt_ext/stack/a2dp/a2d_sbc.cc
 
 if SSR_CLEANUP_SUPPORT
 AM_CPPFLAGS += -DSSR_CLEANUP=TRUE

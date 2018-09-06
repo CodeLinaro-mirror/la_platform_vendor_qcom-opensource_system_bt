@@ -1,35 +1,6 @@
 /******************************************************************************
- *  Copyright (C) 2017, The Linux Foundation. All rights reserved.
- *  Not a Contribution.
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted (subject to the limitations in the
- *  disclaimer below) provided that the following conditions are met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-
-    * Redistributions in binary form must reproduce the above
-      copyright notice, this list of conditions and the following
-      disclaimer in the documentation and/or other materials provided
-      with the distribution.
-
-    * Neither the name of The Linux Foundation nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
- *  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
- *  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
- *  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
- *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
  ******************************************************************************/
 /******************************************************************************
  *
@@ -312,7 +283,6 @@ typedef struct {
   tBTA_AV_EDR edr; /* 0, if peer device does not support EDR */
   uint8_t sep;     /*  sep type of peer device */
   uint8_t role;    /* 0x00 master, 0x01 slave , 0xFF unkown */
-  bool tws_device;
 } tBTA_AV_OPEN;
 
 /* data associated with BTA_AV_CLOSE_EVT */
@@ -369,7 +339,6 @@ typedef struct {
   tBTA_AV_FEAT peer_features;
   RawAddress peer_addr;
   tBTA_AV_STATUS status;
-  uint16_t cover_art_psm;  /* l2cap psm for cover art on remote */
 } tBTA_AV_RC_OPEN;
 
 /* data associated with BTA_AV_RC_CLOSE_EVT */
@@ -402,7 +371,6 @@ typedef struct {
   uint8_t rc_handle;
   tBTA_AV_FEAT peer_features;
   RawAddress peer_addr;
-  uint16_t cover_art_psm;  /* l2cap psm for cover art on remote */
 } tBTA_AV_RC_FEAT;
 
 /* data associated with BTA_AV_REMOTE_CMD_EVT */
@@ -732,19 +700,6 @@ void BTA_AvReconfig(tBTA_AV_HNDL hndl, bool suspend, uint8_t sep_info_idx,
 
 /*******************************************************************************
  *
- * Function         BTA_AvUpdateEncoderMode
- *
- * Description      Update current encoder mode to SoC by sending
- *                  Vendor Specific Command. It is called based on
- *                  Encoder feedback of Low Latency and High Quality
- *                  modes
- * Returns          void
- *
- ******************************************************************************/
-void BTA_AvUpdateEncoderMode(uint16_t enc_mode);
-
-/*******************************************************************************
- *
  * Function         BTA_AvProtectReq
  *
  * Description      Send a content protection request.  This function can only
@@ -921,6 +876,4 @@ void BTA_AvOffloadStartRsp(tBTA_AV_HNDL hndl, tBTA_AV_STATUS status);
 *******************************************************************************/
 void BTA_AvUpdateCodecSupport(uint8_t *p_codec_type_list, uint8_t *p_vnd_list, uint8_t *p_codec_id_list, uint8_t codec_info[][AVDT_CODEC_SIZE], uint8_t num_codec_configs);
 
-void BTA_AvUpdateTWSDevice(bool isTwsDevice, tBTA_AV_HNDL hndl);
-void BTA_AVSetEarbudRole(uint8_t role, tBTA_AV_HNDL hndl);
 #endif /* BTA_AV_API_H */

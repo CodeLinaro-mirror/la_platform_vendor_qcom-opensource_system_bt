@@ -62,7 +62,6 @@ typedef enum {
   BTIF_AV_REINIT_AUDIO_IF,
   BTIF_AV_SETUP_CODEC_REQ_EVT,
   BTIF_AV_TRIGGER_HANDOFF_REQ_EVT,
-  BTIF_AV_ENCODER_MODE_CHANGED_EVT,
 } btif_av_sm_event_t;
 
 /*******************************************************************************
@@ -436,35 +435,20 @@ int btif_av_get_current_playing_dev_idx();
  *
  * @param delay the delay to set in units of 1/10ms
  */
-void btif_av_set_audio_delay(uint16_t delay, tBTA_AV_HNDL hndl);
+void btif_av_set_audio_delay(uint16_t delay);
 
 /**
  * Reset the audio delay and count of audio bytes sent to zero.
  */
-void btif_av_reset_audio_delay(tBTA_AV_HNDL hndl);
+void btif_av_reset_audio_delay(void);
 
 /**
- * Function         btif_av_get_audio_delay
+ * Function         btif_av_set_audio_delay
  *
  * Description      Get the audio delay for the stream.
  *
  * Returns          uint16_t
  */
-uint16_t btif_av_get_audio_delay(int index);
-
-void initialize_audio_hidl();
-void deinit_audio_hal();
-
-RawAddress btif_av_get_addr_by_index(int idx);
-
-/*******************************************************************************
-**
-** Function         btif_get_average_delay
-**
-** Description      Returns average of instantaneous delay values
-**
-** Returns          int64_t
-*******************************************************************************/
-int64_t btif_get_average_delay();
+uint16_t btif_av_get_audio_delay(void);
 
 #endif /* BTIF_AV_H */

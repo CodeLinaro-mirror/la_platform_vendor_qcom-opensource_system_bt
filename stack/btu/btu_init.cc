@@ -91,8 +91,6 @@ void btu_free_core(void) {
 
   SMP_Deinit();
 
-  sdp_free();
-
   gatt_free();
 
   sdp_free();

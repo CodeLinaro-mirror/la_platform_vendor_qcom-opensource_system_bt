@@ -146,10 +146,8 @@ void btif_gattc_upstreams_evt(uint16_t event, char* p_param) {
       }
 
       if (p_data->open.status == BTA_GATT_OK)
-#if (!defined(BTA_SKIP_BLE_START_ENCRYPTION) || BTA_SKIP_BLE_START_ENCRYPTION == FALSE)
         btif_gatt_check_encrypted_link(p_data->open.remote_bda,
                                        p_data->open.transport);
-#endif
       break;
     }
 
@@ -537,11 +535,10 @@ bt_status_t btif_gattc_configure_mtu(int conn_id, int mtu) {
 
 void btif_gattc_conn_parameter_update_impl(RawAddress addr, int min_interval,
                                            int max_interval, int latency,
-                                           int timeout, uint16_t min_ce_len,
-                                           uint16_t max_ce_len) {
+                                           int timeout) {
   if (BTA_DmGetConnectionState(addr))
     BTA_DmBleUpdateConnectionParams(addr, min_interval, max_interval, latency,
-                                    timeout, min_ce_len, max_ce_len);
+                                    timeout);
   else
     BTA_DmSetBlePrefConnParams(addr, min_interval, max_interval, latency,
                                timeout);
@@ -549,13 +546,11 @@ void btif_gattc_conn_parameter_update_impl(RawAddress addr, int min_interval,
 
 bt_status_t btif_gattc_conn_parameter_update(const RawAddress& bd_addr,
                                              int min_interval, int max_interval,
-                                             int latency, int timeout,
-                                             uint16_t min_ce_len,
-                                             uint16_t max_ce_len) {
+                                             int latency, int timeout) {
   CHECK_BTGATT_INIT();
-  return do_in_jni_thread(Bind(
-      base::IgnoreResult(&btif_gattc_conn_parameter_update_impl), bd_addr,
-      min_interval, max_interval, latency, timeout, min_ce_len, max_ce_len));
+  return do_in_jni_thread(
+      Bind(base::IgnoreResult(&btif_gattc_conn_parameter_update_impl), bd_addr,
+           min_interval, max_interval, latency, timeout));
 }
 
 bt_status_t btif_gattc_set_preferred_phy(const RawAddress& bd_addr,

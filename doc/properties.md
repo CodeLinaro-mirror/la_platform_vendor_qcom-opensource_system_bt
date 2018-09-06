@@ -14,7 +14,7 @@ it's used.
 
 * ``` debug.sys.noschedgroups ```
 * ``` persist.service.bdroid.bdaddr ```
-* ``` ro.vendor.bluetooth.hfp.ver ```
+* ``` ro.bluetooth.hfp.ver ```
 * ``` ro.bt.bdaddr_path ```
 * ``` ro.product.model ```
 * ``` service.brcm.bt.oob ```

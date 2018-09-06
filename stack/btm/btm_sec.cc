@@ -955,15 +955,9 @@ tBTM_STATUS btm_sec_bond_by_transport(const RawAddress& bd_addr,
 
   /* Other security process is in progress */
   if (btm_cb.pairing_state != BTM_PAIR_STATE_IDLE) {
-    if (btm_cb.pairing_bda == bd_addr) {
-      BTM_TRACE_ERROR("BTM_SecBond: pairing in progress for this device: %s",
-                       btm_pair_state_descr(btm_cb.pairing_state));
-      return (BTM_CMD_STARTED);
-    } else {
-      BTM_TRACE_ERROR("BTM_SecBond: already busy in state: %s",
-                       btm_pair_state_descr(btm_cb.pairing_state));
-      return (BTM_WRONG_MODE);
-    }
+    BTM_TRACE_ERROR("BTM_SecBond: already busy in state: %s",
+                    btm_pair_state_descr(btm_cb.pairing_state));
+    return (BTM_WRONG_MODE);
   }
 
   p_dev_rec = btm_find_or_alloc_dev(bd_addr);
@@ -3032,7 +3026,7 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr,
     p_dev_rec->process_existing_rnr = FALSE;
     if (status == HCI_SUCCESS) {
       strlcpy((char*)p_dev_rec->sec_bd_name, (char*)p_bd_name,
-              BTM_MAX_REM_BD_NAME_LEN + 1);
+              BTM_MAX_REM_BD_NAME_LEN);
       p_dev_rec->sec_flags |= BTM_SEC_NAME_KNOWN;
       BTM_TRACE_EVENT("setting BTM_SEC_NAME_KNOWN sec_flags:0x%x",
                       p_dev_rec->sec_flags);
@@ -3549,7 +3543,7 @@ void btm_proc_sp_req_evt(tBTM_SP_EVT event, uint8_t* p) {
     memcpy(evt_data.cfm_req.dev_class, p_dev_rec->dev_class, DEV_CLASS_LEN);
 
     strlcpy((char*)evt_data.cfm_req.bd_name, (char*)p_dev_rec->sec_bd_name,
-            BTM_MAX_REM_BD_NAME_LEN + 1);
+            BTM_MAX_REM_BD_NAME_LEN);
 
     switch (event) {
       case BTM_SP_CFM_REQ_EVT:
@@ -3788,7 +3782,7 @@ void btm_rem_oob_req(uint8_t* p) {
     evt_data.bd_addr = p_dev_rec->bd_addr;
     memcpy(evt_data.dev_class, p_dev_rec->dev_class, DEV_CLASS_LEN);
     strlcpy((char*)evt_data.bd_name, (char*)p_dev_rec->sec_bd_name,
-            BTM_MAX_REM_BD_NAME_LEN + 1);
+            BTM_MAX_REM_BD_NAME_LEN);
 
     btm_sec_change_pairing_state(BTM_PAIR_STATE_WAIT_LOCAL_OOB_RSP);
     if ((*btm_cb.api.p_sp_callback)(BTM_SP_RMT_OOB_EVT,
@@ -4177,10 +4171,14 @@ void btm_sec_encrypt_change(uint16_t handle, uint8_t status,
 
   if (p_acl && p_acl->transport == BT_TRANSPORT_LE) {
     if (status == HCI_ERR_AUTH_FAILURE ||
-        status == HCI_ERR_KEY_MISSING ||
         status == HCI_ERR_ENCRY_MODE_NOT_ACCEPTABLE) {
       p_dev_rec->sec_flags &= ~(BTM_SEC_LE_LINK_KEY_KNOWN);
       p_dev_rec->ble.key_type = BTM_LE_KEY_NONE;
+    } else if (status == HCI_ERR_KEY_MISSING) {
+      btm_sec_disconnect(handle, status);
+    }
+    else if (status == HCI_ERR_KEY_MISSING) {
+        btm_sec_disconnect(handle, status);
     }
     btm_ble_link_encrypted(p_dev_rec->ble.pseudo_addr, encr_enable);
     return;
@@ -4312,7 +4310,7 @@ void btm_sec_connected(const RawAddress& bda, uint16_t handle, uint8_t status,
   tACL_CONN* p_acl_cb;
   uint8_t bit_shift = 0;
 
-  btm_acl_resubmit_page(bda, status == HCI_SUCCESS);
+  btm_acl_resubmit_page();
 
   if (p_dev_rec) {
     VLOG(2) << __func__ << "Security Manager: in state: "

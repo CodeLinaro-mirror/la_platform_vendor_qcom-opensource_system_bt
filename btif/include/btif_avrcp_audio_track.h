@@ -38,11 +38,6 @@
 void* BtifAvrcpAudioTrackCreate(int trackFreq, int channelType);
 
 /**
- * Gets latency from audio track.
- */
-int BtifAvrcpAudioTrackLatency(void* handle);
-
-/**
  * Starts the audio track.
  */
 void BtifAvrcpAudioTrackStart(void* handle);

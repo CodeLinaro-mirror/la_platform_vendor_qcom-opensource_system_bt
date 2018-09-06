@@ -23,7 +23,6 @@
 #include "device/include/controller.h"
 #include "stack/btm/ble_advertiser_hci_interface.h"
 #include "stack/include/ble_advertiser.h"
-#include "stack_config.h"
 
 using ::testing::Args;
 using ::testing::Contains;
@@ -62,10 +61,6 @@ void btm_gen_resolvable_private_addr(base::Callback<void(uint8_t[8])> cb) {
   uint8_t fake_rand[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   cb.Run(fake_rand);
 }
-
-const stack_config_t interface = {};
-
-const stack_config_t* stack_config_get_interface(void) { return &interface; }
 
 alarm_callback_t last_alarm_cb = nullptr;
 void* last_alarm_data = nullptr;

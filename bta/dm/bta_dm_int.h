@@ -471,8 +471,6 @@ typedef struct {
   uint16_t max_int;
   uint16_t latency;
   uint16_t timeout;
-  uint16_t min_ce_len;
-  uint16_t max_ce_len;
 } tBTA_DM_API_UPDATE_CONN_PARAM;
 
 /* union of all data types */
@@ -641,7 +639,6 @@ extern tBTA_DM_CONNECTED_SRVCS bta_dm_conn_srvcs;
 /* DM control block */
 typedef struct {
   bool is_bta_dm_active;
-  int bta_dm_hw_status;
   tBTA_DM_ACTIVE_LINK device_list;
   tBTA_DM_SEC_CBACK* p_sec_cback;
   tBTA_BLE_ENERGY_INFO_CBACK* p_energy_info_cback;
@@ -746,16 +743,6 @@ enum {
   BTA_DM_SEARCH_ACTIVE,
   BTA_DM_SEARCH_CANCELLING,
   BTA_DM_DISCOVER_ACTIVE
-
-};
-
-/* DM HW status event state */
-enum {
-
-  BTA_DM_HW_OFF = 1,
-  BTA_DM_HW_TURNING_ON,
-  BTA_DM_HW_ON,
-  BTA_DM_HW_TURNING_OFF,
 
 };
 

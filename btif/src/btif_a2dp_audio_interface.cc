@@ -2,35 +2,6 @@
  * Copyright (C) 2017, The Linux Foundation. All rights reserved.
  *
  *  Not a Contribution
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted (subject to the limitations in the
- *  disclaimer below) provided that the following conditions are met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-
-    * Redistributions in binary form must reproduce the above
-      copyright notice, this list of conditions and the following
-      disclaimer in the documentation and/or other materials provided
-      with the distribution.
-
-    * Neither the name of The Linux Foundation nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
- *  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
- *  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
- *  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
- *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 /******************************************************************************
  *
@@ -73,8 +44,6 @@
 #include <hwbinder/ProcessState.h>
 #include <a2dp_vendor_ldac_constants.h>
 #include <a2dp_vendor.h>
-#include "bta/av/bta_av_int.h"
-#include "btif_bat.h"
 
 using com::qualcomm::qti::bluetooth_audio::V1_0::IBluetoothAudio;
 using com::qualcomm::qti::bluetooth_audio::V1_0::IBluetoothAudioCallbacks;
@@ -106,7 +75,6 @@ volatile bool server_died = false;
 static pthread_t audio_hal_monitor;
 typedef std::unique_lock<std::mutex> Lock;
 std::mutex mtx;
-std::mutex mtxBtAudio;
 std::condition_variable mCV;
 /*BTIF AV helper */
 extern bool btif_av_is_device_disconnecting();
@@ -130,7 +98,7 @@ extern bool enc_update_in_progress;
 extern tBTA_AV_HNDL btif_av_get_av_hdl_from_idx(int idx);
 extern void btif_av_reset_reconfig_flag();
 extern tBTIF_A2DP_SOURCE_VSC btif_a2dp_src_vsc;
-//extern void bta_av_vendor_offload_stop(void);
+extern void bta_av_vendor_offload_stop(void);
 
 #if 0
 typedef enum {
@@ -170,15 +138,6 @@ struct HidlDeathRecipient : public hidl_death_recipient {
   }
 };
 sp<HidlDeathRecipient> BTAudioHidlDeathRecipient = new HidlDeathRecipient();
-
-bool isBAEnabled()
-{
-    LOG_INFO(LOG_TAG,"%s:",__func__);
-    if (btif_ba_get_state() > BTIF_BA_STATE_IDLE_AUDIO_NS)
-        return true;
-    else
-        return false;
-}
 
 class BluetoothAudioCallbacks : public IBluetoothAudioCallbacks {
  public:
@@ -257,27 +216,22 @@ Status mapToStatus(uint8_t resp)
 /* Thread to handle hal sever death receipt*/
 static void* server_thread(UNUSED_ATTR void* arg) {
   LOG_INFO(LOG_TAG,"%s",__func__);
-  {
-    Lock lk(mtx);
-    while (server_died == false) {
-      LOG_INFO(LOG_TAG,"waitin on condition");
-      mCV.wait(lk);
-    }
-    server_died = false;
+  Lock lk(mtx);
+  while (server_died == false) {
+    LOG_INFO(LOG_TAG,"waitin on condition");
+    mCV.wait(lk);
   }
-  on_hidl_server_died();
+  if (btAudio != nullptr) {
+    LOG_INFO(LOG_TAG,"%s:audio hal died",__func__);
+    server_died = false;
+    on_hidl_server_died();
+  }
   LOG_INFO(LOG_TAG,"%s EXIT",__func__);
   return NULL;
 }
 
-uint8_t btif_a2dp_audio_interface_get_pending_cmd() {
-    LOG_INFO(LOG_TAG," pending_cmd = %d", a2dp_cmd_pending);
-    return a2dp_cmd_pending;
-}
-
 void btif_a2dp_audio_interface_init() {
   LOG_INFO(LOG_TAG,"btif_a2dp_audio_interface_init");
-  Lock lock(mtxBtAudio);
   btAudio = IBluetoothAudio::getService();
   CHECK(btAudio != nullptr);
   LOG_INFO(LOG_TAG, "%s: IBluetoothAudio::getService() returned %p (%s)",
@@ -304,34 +258,32 @@ void btif_a2dp_audio_interface_init() {
 void btif_a2dp_audio_interface_deinit() {
   LOG_INFO(LOG_TAG,"btif_a2dp_audio_interface_deinit");
   deinit_pending = true;
-  {
-    Lock lock(mtxBtAudio);
-    if (btAudio != nullptr) {
-      tBTA_AV_STATUS status = A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS;
-      if (a2dp_cmd_pending == A2DP_CTRL_CMD_START) {
-        LOG_INFO(LOG_TAG,"calling method a2dp_on_started");
-        auto ret = btAudio->a2dp_on_started(mapToStatus(status));
-        if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_started: server died");
-      } else if ((a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND)
-          || (a2dp_cmd_pending == A2DP_CTRL_CMD_STOP)) {
-        LOG_INFO(LOG_TAG,"calling method a2dp_on_started");
-        auto ret = btAudio->a2dp_on_suspended(mapToStatus(status));
-        if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_suspended: server died");
-      }
-      a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
-    }
 
-    if (btAudio != nullptr) {
-      auto ret = btAudio->deinitialize_callbacks();
-      if (!ret.isOk()) {
-        LOG_ERROR(LOG_TAG,"hal server is dead");
-      }
-      auto hidl_death_unlink = btAudio->unlinkToDeath(BTAudioHidlDeathRecipient);
-      if (!hidl_death_unlink.isOk()) LOG_ERROR(LOG_TAG,"hidl_death_unlink server died");
+  if (btAudio != nullptr) {
+    tBTA_AV_STATUS status = A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS;
+    if (a2dp_cmd_pending == A2DP_CTRL_CMD_START) {
+      LOG_INFO(LOG_TAG,"calling method a2dp_on_started");
+      auto ret = btAudio->a2dp_on_started(mapToStatus(status));
+      if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_started: server died");
+    } else if ((a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND)
+        || (a2dp_cmd_pending == A2DP_CTRL_CMD_STOP)) {
+      LOG_INFO(LOG_TAG,"calling method a2dp_on_started");
+      auto ret = btAudio->a2dp_on_suspended(mapToStatus(status));
+      if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_suspended: server died");
     }
-    deinit_pending = false;
-    btAudio = nullptr;
+    a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
   }
+
+  if (btAudio != nullptr) {
+    auto ret = btAudio->deinitialize_callbacks();
+    if (!ret.isOk()) {
+      LOG_ERROR(LOG_TAG,"hal server is dead");
+    }
+    auto hidl_death_unlink = btAudio->unlinkToDeath(BTAudioHidlDeathRecipient);
+    if (!hidl_death_unlink.isOk()) LOG_ERROR(LOG_TAG,"hidl_death_unlink server died");
+  }
+  deinit_pending = false;
+  btAudio = nullptr;
   Lock lk(mtx);
   server_died = true; //Exit thread
   mCV.notify_one();
@@ -342,10 +294,9 @@ void btif_a2dp_audio_on_started(tBTA_AV_STATUS status)
 {
   uint8_t ack = status;
 
-  LOG_INFO(LOG_TAG,"btif_a2dp_audio_on_started : status = %d",status);
-  Lock lock(mtxBtAudio);
+  LOG_INFO(LOG_TAG,"btif_a2dp_audio_on_started : status = %d", status);
   if (btAudio != nullptr){
-    if (property_get("persist.vendor.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
+    if (property_get("persist.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
             !strcmp(a2dp_hal_imp, "true")) {
       if (a2dp_cmd_pending == A2DP_CTRL_CMD_NONE)
       {
@@ -411,9 +362,8 @@ void btif_a2dp_audio_on_suspended(tBTA_AV_STATUS status)
   uint8_t ack = status;
 
   LOG_INFO(LOG_TAG,"btif_a2dp_audio_on_suspended : status = %d", status);
-  Lock lock(mtxBtAudio);
   if (btAudio != nullptr){
-    if (property_get("persist.vendor.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
+    if (property_get("persist.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
             !strcmp(a2dp_hal_imp, "true")) {
       if (a2dp_cmd_pending == A2DP_CTRL_CMD_NONE)
       {
@@ -481,13 +431,11 @@ void btif_a2dp_audio_on_stopped(tBTA_AV_STATUS status)
   LOG_INFO(LOG_TAG,"btif_a2dp_audio_on_stopped : status = %d",status);
   APPL_TRACE_IMP("%s tx_started: %d, tx_stop_initiated: %d",
          __func__, btif_a2dp_src_vsc.tx_started, btif_a2dp_src_vsc.tx_stop_initiated);
-  Lock lock(mtxBtAudio);
   if (btAudio != nullptr){
-    if (btif_a2dp_src_vsc.tx_started && !btif_a2dp_src_vsc.tx_stop_initiated &&
-        btif_a2dp_src_vsc.multi_vsc_support) {//Is this handling required? If so in which scenario?
-      bta_av_vendor_offload_stop(NULL);
+    if (btif_a2dp_src_vsc.tx_started && !btif_a2dp_src_vsc.tx_stop_initiated) {
+      bta_av_vendor_offload_stop();
     } else {
-      if (property_get("persist.vendor.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
+      if (property_get("persist.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
               !strcmp(a2dp_hal_imp, "true")) {
         if (a2dp_cmd_pending == A2DP_CTRL_CMD_NONE)
         {
@@ -567,10 +515,9 @@ void btif_a2dp_audio_on_stopped(tBTA_AV_STATUS status)
 void btif_a2dp_audio_send_start_req()
 {
   uint8_t resp;
-  Lock lock(mtxBtAudio);
   resp = btif_a2dp_audio_process_request(A2DP_CTRL_CMD_START);
   if (btAudio != nullptr) {
-      auto ret =  btAudio->a2dp_on_started(mapToStatus(resp));
+    auto ret =  btAudio->a2dp_on_started(mapToStatus(resp));
     if (resp != A2DP_CTRL_ACK_PENDING) {
       /*
        * Reset pending command. This is to avoid returning unsolicited
@@ -587,7 +534,6 @@ void btif_a2dp_audio_send_suspend_req()
 {
   uint8_t resp;
   resp = btif_a2dp_audio_process_request(A2DP_CTRL_CMD_SUSPEND);
-  Lock lock(mtxBtAudio);
   if (btAudio != nullptr) {
     auto ret =  btAudio->a2dp_on_suspended(mapToStatus(resp));
     if (resp != A2DP_CTRL_ACK_PENDING) {
@@ -606,7 +552,6 @@ void btif_a2dp_audio_send_stop_req()
 {
   uint8_t resp;
   resp = btif_a2dp_audio_process_request(A2DP_CTRL_CMD_STOP);
-  Lock lock(mtxBtAudio);
   if (btAudio != nullptr) {
     auto ret =  btAudio->a2dp_on_stopped(mapToStatus(resp));
     if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
@@ -616,7 +561,6 @@ void btif_a2dp_audio_send_a2dp_ready_status()
 {
   uint8_t resp;
   resp = btif_a2dp_audio_process_request(A2DP_CTRL_CMD_CHECK_READY);
-  Lock lock(mtxBtAudio);
   if (btAudio != nullptr) {
     auto ret = btAudio->a2dp_on_check_ready(mapToStatus(resp));
     if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
@@ -630,7 +574,6 @@ void btif_a2dp_audio_send_codec_config()
   resp = btif_a2dp_audio_process_request(A2DP_CTRL_GET_CODEC_CONFIG);
   LOG_INFO(LOG_TAG,"resp  = %d",resp);
   data.setToExternal(codec_info,len);
-  Lock lock(mtxBtAudio);
   if (btAudio != nullptr) {
     auto ret = btAudio->a2dp_on_get_codec_config(mapToStatus(resp), data);
     if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
@@ -641,7 +584,6 @@ void btif_a2dp_audio_send_mcast_status()
   uint8_t mcast = 0;
   LOG_INFO(LOG_TAG,"btif_a2dp_audio_send_mcast_status:multicast");
   //Mulitcast not supported currently
-  Lock lock(mtxBtAudio);
   if (btAudio != nullptr) {
     auto ret = btAudio->a2dp_on_get_multicast_status(mcast);
     if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
@@ -651,7 +593,6 @@ void btif_a2dp_audio_send_num_connected_devices()
 {
   uint8_t num_dev = 1;
   LOG_INFO(LOG_TAG,"send_num_connected_devices");
-  Lock lock(mtxBtAudio);
   if (btAudio != nullptr) {
     auto ret = btAudio->a2dp_on_get_num_connected_devices(num_dev);
     if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
@@ -662,7 +603,6 @@ void btif_a2dp_audio_send_connection_status()
   uint8_t resp;
   LOG_INFO(LOG_TAG,"send_connection_status");
   resp = btif_a2dp_audio_process_request(A2DP_CTRL_GET_CONNECTION_STATUS);
-  Lock lock(mtxBtAudio);
   if (btAudio != nullptr) {
     auto ret = btAudio->a2dp_on_get_connection_status(mapToStatus(resp));
     if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
@@ -670,17 +610,8 @@ void btif_a2dp_audio_send_connection_status()
 }
 void btif_a2dp_audio_send_sink_latency()
 {
-  uint16_t sink_latency;
-
-  if (isBAEnabled()) {
-    sink_latency = btif_get_ba_latency();
-  }
-  else {
-    int idx = btif_av_get_current_playing_dev_idx();
-    sink_latency = btif_av_get_audio_delay(idx);
-  }
-  LOG_INFO(LOG_TAG,"send_sink_latency = %d", sink_latency);
-  Lock lock(mtxBtAudio);
+  LOG_INFO(LOG_TAG,"send_sink_latency");
+  uint16_t sink_latency = btif_av_get_audio_delay();
   if (btAudio != nullptr) {
     auto ret = btAudio->a2dp_on_get_sink_latency(sink_latency);
     if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
@@ -689,20 +620,19 @@ void btif_a2dp_audio_send_sink_latency()
 
 void on_hidl_server_died() {
   LOG_INFO(LOG_TAG,"on_hidl_server_died");
-  Lock lock(mtxBtAudio);
   if (btAudio != nullptr) {
     auto hidl_death_unlink = btAudio->unlinkToDeath(BTAudioHidlDeathRecipient);
     if (!hidl_death_unlink.isOk()) LOG_ERROR(LOG_TAG,"hidl_death_unlink server died");
     btAudio = nullptr;
-    usleep(500000); //sleep for 0.5sec for hal server to restart
+    usleep(1500000); //sleep for 1.5sec for hal server to restart
     btif_dispatch_sm_event(BTIF_AV_REINIT_AUDIO_IF,NULL,0);
   }
 }
 uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
 {
-  APPL_TRACE_WARNING(LOG_TAG,"btif_a2dp_audio_process_request %s", audio_a2dp_hw_dump_ctrl_event((tA2DP_CTRL_CMD)cmd));
+  APPL_TRACE_DEBUG(LOG_TAG,"btif_a2dp_audio_process_request %s", audio_a2dp_hw_dump_ctrl_event((tA2DP_CTRL_CMD)cmd));
   uint8_t status = A2DP_CTRL_ACK_FAILURE;
-  if (property_get("persist.vendor.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
+  if (property_get("persist.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
           !strcmp(a2dp_hal_imp, "true")) {
     switch (cmd) {
       case A2DP_CTRL_CMD_CHECK_READY:
@@ -716,10 +646,7 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         } else if (deinit_pending) {
           APPL_TRACE_WARNING("%s:deinit pending return disconnected",__func__);
           status = A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS;
-        } else if (isBAEnabled()) {
-          status = A2DP_CTRL_ACK_SUCCESS;
-          break;
-        }else if (btif_av_is_under_handoff() || reconfig_a2dp || btif_a2dp_src_vsc.tx_started) {
+        } else if (btif_av_is_under_handoff() || reconfig_a2dp || btif_a2dp_src_vsc.tx_started) {
           /*There can be instances where because of remote start received early, reconfig
           flag may get reset, for such case check for tx_started flag set as well,
           this would help returning proper status to MM*/
@@ -808,8 +735,11 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         {
           int samplerate = A2DP_GetTrackSampleRate(p_codec_info);
           if ((A2DP_VendorCodecGetVendorId(p_codec_info)) == A2DP_LDAC_VENDOR_ID) {
-            bitrate = A2DP_GetTrackBitRate(p_codec_info);
-            LOG_INFO(LOG_TAG,"bitrate = %d", bitrate);
+            if ((samplerate == 44100) || (samplerate == 88200)) {
+              bitrate = DEFAULT_LDAC_BITRATE_441KHZ; /* Default bitrate for LDAC is 606BKBps for 44.1/88.2 KHz */
+            } else {
+              bitrate = DEFAULT_LDAC_BITRATE_48KHZ; /* Default bitrate for LDAC is 660KBps for 48/96KHz */
+            }
           } else {
             /* BR = (Sampl_Rate * PCM_DEPTH * CHNL)/Compression_Ratio */
             int bits_per_sample = 16; // TODO
@@ -893,11 +823,6 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
           status = A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS;
           break;
         }
-        if (isBAEnabled())
-        {
-          status = A2DP_CTRL_ACK_SUCCESS;
-          break;
-        }
         /*There can be instances where because of remote start received early, reconfig
         flag may get reset, for such case check for tx_started flag set as well,
         this would help returning proper status to MM*/
@@ -933,20 +858,11 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
           status = A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS;
           break;
         }
-        if (isBAEnabled())
-        {
-          ba_send_message(BTIF_BA_AUDIO_START_REQ_EVT, 0, NULL, false);
-          status = A2DP_CTRL_ACK_PENDING;
-          break;
-        }
         if (btif_a2dp_source_is_remote_start()) {
           int remote_start_idx = btif_get_is_remote_started_idx();
-          int latest_playing_idx = btif_av_get_latest_device_idx_to_start();
-          APPL_TRACE_DEBUG("%s: remote started idx = %d latest playing = %d",__func__,
-                           remote_start_idx, latest_playing_idx);
+          APPL_TRACE_DEBUG("%s: remote started idx = %d",__func__, remote_start_idx);
           if ((remote_start_idx < btif_max_av_clients) &&
-            ((latest_playing_idx < btif_max_av_clients && latest_playing_idx != remote_start_idx) ||
-             btif_av_is_playing_on_other_idx(remote_start_idx))) {
+                  btif_av_is_playing_on_other_idx(remote_start_idx)) {
             APPL_TRACE_WARNING("%s: Already playing on other index, don't cancel remote start timer",__func__);
             status = A2DP_CTRL_ACK_PENDING;
           } else {
@@ -962,7 +878,6 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
             APPL_TRACE_DEBUG("Audio start awaited handle start under handoff");
             audio_start_awaited = false;
             btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
-            status = A2DP_CTRL_ACK_PENDING;
             int idx = btif_av_get_latest_device_idx_to_start();
             if (btif_av_get_peer_sep(idx) == AVDT_TSEP_SRC)
               status = A2DP_CTRL_ACK_SUCCESS;
@@ -1030,12 +945,6 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         break;
 
       case A2DP_CTRL_CMD_STOP: {
-        if (isBAEnabled())
-        {
-          ba_send_message(BTIF_BA_AUDIO_STOP_REQ_EVT, 0, NULL, false);
-          status = A2DP_CTRL_ACK_PENDING;
-          break;
-        }
         int idx = btif_av_get_latest_playing_device_idx();
         if (deinit_pending) {
           APPL_TRACE_WARNING("%s:deinit pending return disconnected",__func__);
@@ -1061,11 +970,6 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         if (deinit_pending) {
           APPL_TRACE_WARNING("%s:deinit pending return disconnected",__func__);
           status = A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS;
-          break;
-        }
-        if (isBAEnabled()) {
-          ba_send_message(BTIF_BA_AUDIO_PAUSE_REQ_EVT, 0, NULL, false);
-          status = A2DP_CTRL_ACK_PENDING;
           break;
         }
         if (reconfig_a2dp ||
@@ -1109,22 +1013,6 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         uint32_t bitrate = 0;
         len = 0;
         LOG_INFO(LOG_TAG,"A2DP_CTRL_GET_CODEC_CONFIG");
-        memset(p_codec_info, 0, AVDT_CODEC_SIZE);
-        memset(codec_info, 0, 30);
-        if (isBAEnabled())
-        {
-            getBACodecConfig(p_codec_info);
-            codec_info[0] = 0; //playing device handle
-            memcpy(&codec_info[1], &p_codec_info, p_codec_info[0] + 1);
-            len = codec_info[1] + 1;
-            for(uint8_t k = 0; k<(p_codec_info[0] + 1); k++ )
-            {
-                LOG_INFO(LOG_TAG,"codec_value[%d] = %x = %d",k,codec_info[k], codec_info[k]);
-            }
-            status = A2DP_CTRL_ACK_SUCCESS;
-            // break it from here, we filled all relevant value
-            break;
-        }
         A2dpCodecConfig *CodecConfig = bta_av_get_a2dp_current_codec();
         if (CodecConfig == nullptr)
         {
@@ -1141,6 +1029,8 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
             status = A2DP_CTRL_ACK_FAILURE;
             break;
         }
+        memset(p_codec_info, 0, AVDT_CODEC_SIZE);
+        memset(codec_info, 0, 30);
         if (!CodecConfig->copyOutOtaCodecConfig(p_codec_info))
         {
           LOG_INFO(LOG_TAG,"No valid codec config");
@@ -1161,8 +1051,11 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         {
           int samplerate = A2DP_GetTrackSampleRate(p_codec_info);
           if ((A2DP_VendorCodecGetVendorId(p_codec_info)) == A2DP_LDAC_VENDOR_ID) {
-            bitrate = A2DP_GetTrackBitRate(p_codec_info);
-            LOG_INFO(LOG_TAG,"bitrate = %d", bitrate);
+            if ((samplerate == 44100) || (samplerate == 88200)) {
+              bitrate = DEFAULT_LDAC_BITRATE_441KHZ; /* Default bitrate for LDAC is 606BKBps for 44.1/88.2 KHz */
+            } else {
+              bitrate = DEFAULT_LDAC_BITRATE_48KHZ; /* Default bitrate for LDAC is 660KBps for 48/96KHz */
+            }
           } else {
             /* BR = (Sampl_Rate * PCM_DEPTH * CHNL)/Compression_Ratio */
             int bits_per_sample = 16; // TODO
@@ -1185,12 +1078,7 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         status = A2DP_CTRL_ACK_SUCCESS;
         break;
       }
-    case A2DP_CTRL_GET_CONNECTION_STATUS:
-        if (isBAEnabled())
-        {
-          status = A2DP_CTRL_ACK_SUCCESS;
-          break;
-        }
+      case A2DP_CTRL_GET_CONNECTION_STATUS:
         if (btif_av_is_connected() && !(btif_a2dp_source_media_task_is_shutting_down()))
         {
           BTIF_TRACE_DEBUG("got valid connection");
@@ -1253,22 +1141,11 @@ uint8_t btif_a2dp_audio_snd_ctrl_cmd(uint8_t cmd)
         status = A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS;
         break;
       }
-
-      if (isBAEnabled())
-      {
-          ba_send_message(BTIF_BA_AUDIO_START_REQ_EVT, 0, NULL, false);
-          status = A2DP_CTRL_ACK_PENDING;
-          break;
-      }
-
       if (btif_a2dp_source_is_remote_start()) {
         int remote_start_idx = btif_get_is_remote_started_idx();
-        int latest_playing_idx = btif_av_get_latest_device_idx_to_start();
-        APPL_TRACE_DEBUG("%s: remote started idx = %d, latest playing  idx = %d",__func__,
-                         remote_start_idx, latest_playing_idx);
+        APPL_TRACE_DEBUG("%s: remote started idx = %d",__func__, remote_start_idx);
         if ((remote_start_idx < btif_max_av_clients) &&
-         ((latest_playing_idx < btif_max_av_clients && latest_playing_idx != remote_start_idx) ||
-         (btif_av_is_playing_on_other_idx(remote_start_idx)))) {
+            btif_av_is_playing_on_other_idx(remote_start_idx)) {
           APPL_TRACE_WARNING("%s: Already playing on other index, don't cancel remote start timer",__func__);
           status = A2DP_CTRL_ACK_PENDING;
         } else {
@@ -1284,7 +1161,6 @@ uint8_t btif_a2dp_audio_snd_ctrl_cmd(uint8_t cmd)
           APPL_TRACE_DEBUG("Audio start awaited handle start under handoff");
           audio_start_awaited = false;
           btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
-          status = A2DP_CTRL_ACK_PENDING;
           int idx = btif_av_get_latest_device_idx_to_start();
           if (btif_av_get_peer_sep(idx) == AVDT_TSEP_SRC)
             status = A2DP_CTRL_ACK_SUCCESS;
@@ -1353,12 +1229,6 @@ uint8_t btif_a2dp_audio_snd_ctrl_cmd(uint8_t cmd)
 
     case A2DP_CTRL_CMD_STOP:
       {
-        if (isBAEnabled())
-        {
-            ba_send_message(BTIF_BA_AUDIO_STOP_REQ_EVT, 0, NULL, false);
-            status = A2DP_CTRL_ACK_PENDING;
-            break;
-        }
         int idx = btif_av_get_latest_playing_device_idx();
         if (deinit_pending) {
           APPL_TRACE_WARNING("%s:deinit pending return disconnected",__func__);
@@ -1386,14 +1256,6 @@ uint8_t btif_a2dp_audio_snd_ctrl_cmd(uint8_t cmd)
         status = A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS;
         break;
       }
-
-      if (isBAEnabled())
-      {
-          ba_send_message(BTIF_BA_AUDIO_PAUSE_REQ_EVT, 0, NULL, false);
-          status = A2DP_CTRL_ACK_PENDING;
-          break;
-      }
-
       if (reconfig_a2dp ||
           btif_a2dp_source_is_remote_start()) {
         LOG_INFO(LOG_TAG,"Suspend called due to reconfig");
@@ -1421,11 +1283,6 @@ uint8_t btif_a2dp_audio_snd_ctrl_cmd(uint8_t cmd)
   APPL_TRACE_DEBUG("a2dp_snd_ctrl_cmd : %s DONE",
                    audio_a2dp_hw_dump_ctrl_event((tA2DP_CTRL_CMD)cmd));
   return status;
-}
-
-void btif_a2dp_audio_reset_pending_cmds() {
-  a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
-  a2dp_cmd_queued = A2DP_CTRL_CMD_NONE;
 }
 
 /*
