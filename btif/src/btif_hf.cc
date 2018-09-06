@@ -1163,8 +1163,13 @@ static bt_status_t connect_int(RawAddress* bd_addr, uint16_t uuid) {
                          bd_addr->ToString().c_str());
     btif_hf_cb[i].state = BTHF_CONNECTION_STATE_DISCONNECTED;
     /* inform the application of the disconnection as the connection is not processed */
+#ifdef ANDROID
     HAL_HF_CBACK(bt_hf_callbacks, ConnectionStateCallback, btif_hf_cb[i].state,
                   bd_addr);
+#else
+    HAL_HF_CBACK(bt_hf_callbacks, connection_state_cb, btif_hf_cb[i].state,
+                  bd_addr);
+#endif
     btif_queue_advance_by_uuid(UUID_SERVCLASS_AG_HANDSFREE, bd_addr);
     return BT_STATUS_SUCCESS;
   }

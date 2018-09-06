@@ -37,13 +37,14 @@
 #include "bt_types.h"
 #include "bt_utils.h"
 #include "btu.h"
-#include "btif/include/btif_av.h"
+#include "btif/include/btif_avk.h"
 #include "osi/include/osi.h"
 #include "stack/include/a2dp_sbc_constants.h"
 
 #define PUMP_ENCODED_DATA 0x4000
 
 extern uint8_t bta_avk_get_current_codec();
+
 
 /* This table is used to lookup the callback event that matches a particular
  * state machine API request event.  Note that state machine API request
@@ -63,10 +64,12 @@ const uint8_t avdt_scb_cback_evt[] = {
     0                      /* API_ABORT_REQ_EVT (no event) */
 };
 
-#define INIT_DELAY_RPT    4000      /* Initial deg=fault Delay Sent after SETCONFIG*/
+#define INIT_ESTMT_DELAY  50        /* Initial deg=fault Delay Sent after SETCONFIG*/
                                     /* Delay value given is 1/10 millisecond */
 #define accure_range      150       /* Value difference considered for sending next DELAY_REPORT*/
                                     /* Delay value given is 1/10 millisecond */
+#define INIT_DELAY_RPT    1100
+
 static alarm_t* delay_rpt_alarm = NULL;
 static uint16_t reported_delay = INIT_DELAY_RPT;
 
@@ -616,6 +619,7 @@ bool avdt_check_sep_state(tAVDT_SCB *p_scb) {
  ******************************************************************************/
 void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   tAVDT_CFG* p_cfg;
+  tA2DP_CODEC_TYPE codec_type;
   tAVDT_CTRL avdt_ctrl;
   AVDT_TRACE_WARNING("avdt_scb_hdl_setconfig_cmd: SCB in use: %d, Conn in progress: %d, avdt_check_sep_state: %d, SCB is required: %d ",
        p_scb->in_use, avdt_cb.conn_in_progress, avdt_check_sep_state(p_scb), p_scb->is_required);
@@ -730,6 +734,7 @@ void avdt_scb_hdl_setconfig_rej(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
 void avdt_scb_hdl_setconfig_rsp(tAVDT_SCB* p_scb,
                                 UNUSED_ATTR tAVDT_SCB_EVT* p_data) {
   tAVDT_EVT_HDR single;
+  int rendering_delay = btif_avk_get_rendering_delay();
 
   if (p_scb->p_ccb != NULL) {
     /* save configuration */
@@ -737,7 +742,7 @@ void avdt_scb_hdl_setconfig_rsp(tAVDT_SCB* p_scb,
     p_scb->role = AVDT_CONF_INT;
 
     if ((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
-      reported_delay = INIT_DELAY_RPT;
+      reported_delay = (rendering_delay + INIT_ESTMT_DELAY) * 10;
       AVDT_TRACE_DEBUG(" %s ~~ support DELAY_RPT , begin init Delay report procedure",__func__);
       AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay);
     }
@@ -1003,7 +1008,7 @@ void avdt_scb_hdl_tc_close_sto(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
  *
  ******************************************************************************/
 static void avdt_delay_rpt_tmr_hdlr(void* data) {
-  uint64_t average_delay = btif_get_average_delay();
+  uint64_t average_delay = btif_avk_get_average_delay();
 
   if (average_delay == 0)
     return;
@@ -1459,13 +1464,14 @@ void avdt_scb_snd_setconfig_req(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
  *
  ******************************************************************************/
 void avdt_scb_snd_setconfig_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
+  int rendering_delay = btif_avk_get_rendering_delay();
   if (p_scb->p_ccb != NULL) {
     memcpy(&p_scb->curr_cfg, &p_scb->req_cfg, sizeof(tAVDT_CFG));
     p_scb->role = AVDT_CONF_ACP;
 
     avdt_msg_send_rsp(p_scb->p_ccb, AVDT_SIG_SETCONFIG, &p_data->msg);
     if ((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
-      reported_delay = INIT_DELAY_RPT;
+      reported_delay = (rendering_delay + INIT_ESTMT_DELAY) * 10;
       AVDT_TRACE_DEBUG(" %s ~~ support DELAY_RPT , begin init Delay report procedure", __func__);
       AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay);
     }

@@ -166,6 +166,10 @@ typedef enum {
   // Disable role switch for headsets/car-kits.
   // Some car kits allow role switch but when the Phone initiates role switch,
   // the Remote device will go into bad state that will lead to LMP time out.
+
+  INTEROP_INCREASE_COLL_DETECT_TIMEOUT,
+
+
   INTEROP_DISABLE_ROLE_SWITCH,
   
   // Some remotes are very strict in receiving the call active

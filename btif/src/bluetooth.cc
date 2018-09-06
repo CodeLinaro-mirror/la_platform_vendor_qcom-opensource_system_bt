@@ -443,8 +443,8 @@ static const void* get_profile_interface(const char* profile_id) {
   if (is_profile(profile_id, BT_TEST_INTERFACE_MCAP_ID))
     return stack_mcap_get_interface();
 
-  if (is_profile(profile_id, BT_PROFILE_BAT_ID))
-    return btif_bat_get_interface();
+  /*if (is_profile(profile_id, BT_PROFILE_BAT_ID))
+    return btif_bat_get_interface();*/
 
   return NULL;
 }

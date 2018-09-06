@@ -90,6 +90,7 @@ bool aac_encoder_available = true;
 bool aptx_encoder_available = true;
 bool aptxhd_encoder_available = true;
 bool ldac_encoder_available = true;
+
 bool aptxtws_offload = false;
 static void init_btav_a2dp_codec_config(
     btav_a2dp_codec_config_t* codec_config, btav_a2dp_codec_index_t codec_index,

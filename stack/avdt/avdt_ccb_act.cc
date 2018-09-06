@@ -40,6 +40,7 @@
 #include "btu.h"
 #include "osi/include/osi.h"
 #include "a2dp_constants.h"
+#include "osi/include/properties.h"
 #include "device/include/interop.h"
 #include "btif/include/btif_storage.h"
 

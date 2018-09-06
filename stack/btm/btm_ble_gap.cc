@@ -32,6 +32,7 @@
 #include <string.h>
 #include <list>
 #include <vector>
+#include <bitset>
 
 #include "bt_types.h"
 #include "bt_utils.h"

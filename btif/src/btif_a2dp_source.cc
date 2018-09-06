@@ -52,6 +52,7 @@
 #include "osi/include/time.h"
 #include "uipc.h"
 #include "btif_a2dp_audio_interface.h"
+#include "osi/include/properties.h"
 #ifdef ANDROID
 using system_bt_osi::BluetoothMetricsLogger;
 using system_bt_osi::A2dpSessionMetrics;

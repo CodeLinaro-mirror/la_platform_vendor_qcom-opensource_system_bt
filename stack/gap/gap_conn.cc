@@ -713,7 +713,8 @@ void gap_credits_received_cb(uint16_t l2cap_cid, uint16_t credits_received,
   tGAP_CCB* p_ccb = gap_find_ccb_by_cid(l2cap_cid);
   if (!p_ccb) return;
 
-  tGAP_CB_DATA data{.coc_credits = {.credits_received = credits_received,
+  tGAP_CB_DATA data{.coc_credits = {.gap_handle = 0,
+                                    .credits_received = credits_received,
                                     .credit_count = credit_count}};
   p_ccb->p_callback(p_ccb->gap_handle, GAP_EVT_LE_COC_CREDITS, &data);
 }

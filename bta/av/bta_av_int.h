@@ -167,10 +167,11 @@ enum {
 #define BTA_AV_FIRST_A2S_API_EVT BTA_AV_API_START_EVT
 #define BTA_AV_FIRST_A2S_SSM_EVT BTA_AV_AP_START_EVT
 
+#define BTA_AV_LAST_EVT BTA_AV_UPDATE_SUPP_CODECS
 #if (TWS_ENABLED == TRUE)
 #define BTA_AV_LAST_EVT BTA_AV_SET_TWS_DEVICE_EVT
 #else
-#define BTA_AV_LAST_EVT BTA_AV_UPDATE_ENCODER_MODE_EVT
+#define BTA_AV_LAST_EVT BTA_AV_RC_COLLISSION_DETECTED_EVT
 #endif
 
 /* Info ID from updating aptX Adaptive Encoder mode */
@@ -314,7 +315,6 @@ typedef struct
     uint8_t  codec_info[BTAV_A2DP_CODEC_INDEX_SOURCE_MAX][AVDT_CODEC_SIZE];
     uint8_t  num_codec_configs;          /* Number of codec configurations*/
 } tBTA_AV_UPDATE_SUPP_CODECS;
-
 #if (TWS_ENABLED == TRUE)
 /* data type for BTA_AV_TWS_SET_EARBUD_ROLE_EVT */
 typedef struct

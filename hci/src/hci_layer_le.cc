@@ -145,13 +145,14 @@ void hci_close() {
   }
 }
 
-void hci_transmit(BT_HDR* packet) {
+bool hci_transmit(BT_HDR* packet) {
   HciPacket data;
+  bool status = true;
   std::lock_guard<std::mutex> lock(bthci_mutex);
 
   if(btHci == nullptr) {
-    LOG_INFO("bt_hci_le: %s: Link with Bluetooth HIDL service is closed", __func__);
-    return;
+    LOG_INFO(LOG_TAG, "%s: Link with Bluetooth HIDL service is closed", __func__);
+    return false;
   }
 
     data.insert(data.begin(), (packet->data + packet->offset), (packet->data + packet->offset + packet->len));
@@ -164,28 +165,36 @@ void hci_transmit(BT_HDR* packet) {
     case MSG_STACK_TO_HC_HCI_CMD:
     {
       auto hidl_daemon_status = btHci->send_hci_cmd(data);
-      if(hidl_daemon_status)
-        LOG_ERROR("bt_hci_le: %s: send Command failed, HIDL daemon is dead", __func__);
+      if(hidl_daemon_status) {
+        LOG_ERROR(LOG_TAG, "%s: send Command failed, HIDL daemon is dead", __func__);
+        status = false;
+      }
       break;
     }
     case MSG_STACK_TO_HC_HCI_ACL:
     {
       auto hidl_daemon_status = btHci->send_acl_cmd(data);
-      if(hidl_daemon_status)
-        LOG_ERROR("bt_hci_le: %s: send acl packet failed, HIDL daemon is dead", __func__);
+      if(hidl_daemon_status) {
+        LOG_ERROR(LOG_TAG, "%s: send acl packet failed, HIDL daemon is dead", __func__);
+        status = false;
+      }
       break;
     }
     case MSG_STACK_TO_HC_HCI_SCO:
     {
       auto hidl_daemon_status = btHci->send_sco_data(data);
-      if(hidl_daemon_status)
-        LOG_ERROR("bt_hci_le: %s: send sco data failed, HIDL daemon is dead", __func__);
+      if(hidl_daemon_status) {
+        LOG_ERROR(LOG_TAG, "%s: send sco data failed, HIDL daemon is dead", __func__);
+        status = false;
+      }
       break;
     }
     default:
-      LOG_ERROR("bt_hci_le: Unknown packet type (%d)", event);
+      LOG_ERROR(LOG_TAG, "Unknown packet type (%d)", event);
+      status = false;
       break;
   }
+  return status;
 }
 
 int hci_open_firmware_log_file() {

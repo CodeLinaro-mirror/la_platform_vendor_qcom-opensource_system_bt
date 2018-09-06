@@ -26,6 +26,7 @@
 #include <stdbool.h>
 
 #include "audio_a2dp_hw/include/audio_a2dp_hw.h"
+#include "osi/include/properties.h"
 #include "bt_common.h"
 #include "bta_av_api.h"
 #include "btif_a2dp.h"
@@ -118,7 +119,7 @@ bool btif_a2dp_on_started(tBTA_AV_START* p_av_start, bool pending_start,
       RawAddress addr = btif_av_get_addr_by_index(index);
       if (btif_av_is_split_a2dp_enabled()) {
         btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
-        btif_a2dp_audio_reset_pending_cmds();
+        //btif_a2dp_audio_reset_pending_cmds();
       } else {
         btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
         btif_a2dp_pending_cmds_reset();

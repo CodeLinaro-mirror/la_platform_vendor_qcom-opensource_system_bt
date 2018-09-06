@@ -526,9 +526,10 @@ void bta_ag_resume_open(tBTA_AG_SCB* p_scb) {
   if (p_scb->state == BTA_AG_INIT_ST) {
     LOG(INFO) << __func__ << ": Resume connection to " << p_scb->peer_addr
               << ", handle" << bta_ag_scb_to_idx(p_scb);
-    tBTA_AG_DATA open_data = {.api_open.bd_addr = p_scb->peer_addr,
-                              .api_open.services = p_scb->open_services,
-                              .api_open.sec_mask = p_scb->cli_sec_mask};
+    tBTA_AG_DATA open_data;
+    open_data.api_open.bd_addr = p_scb->peer_addr;
+    open_data.api_open.services = p_scb->open_services;
+    open_data.api_open.sec_mask = p_scb->cli_sec_mask;
    // TODO: check if we don't need handle
 
     bta_ag_sm_execute(p_scb, BTA_AG_API_OPEN_EVT, &open_data);

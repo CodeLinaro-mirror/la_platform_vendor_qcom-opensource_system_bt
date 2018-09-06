@@ -680,7 +680,6 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
       for (int i = codec_index_min; i < codec_index_max; i++) {
         btav_a2dp_codec_index_t codec_index =
             static_cast<btav_a2dp_codec_index_t>(i);
-
         APPL_TRACE_DEBUG("%s: codec_index = %d", __func__, codec_index);
         A2dpCodecs* a2dp_codecs = bta_av_get_a2dp_codecs();
         if (a2dp_codecs != nullptr) {

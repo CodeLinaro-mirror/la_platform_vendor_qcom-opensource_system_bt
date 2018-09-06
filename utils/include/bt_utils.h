@@ -43,7 +43,11 @@ typedef enum {
 #endif
 /* Runtime configuration file to store PCE version file*/
 #ifndef PCE_PEER_VERSION_CONF_FILE
+#ifdef ANDROID
 #define PCE_PEER_VERSION_CONF_FILE "/data/misc/bluedroid/pce_peer_entries.conf"
+#else
+#define PCE_PEER_VERSION_CONF_FILE "/etc/bluetooth/pce_peer_entries.conf"
+#endif
 #endif
 
 #define LOG_ID_STATS_A2DP      (0x06 << 8) | 0x00

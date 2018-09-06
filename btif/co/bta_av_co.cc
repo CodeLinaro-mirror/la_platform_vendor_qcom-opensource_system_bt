@@ -1651,7 +1651,7 @@ bt_status_t bta_av_set_a2dp_current_codec(tBTA_AV_HNDL hndl) {
 bool bta_av_co_is_scrambling_enabled() {
   uint8_t no_of_freqs = 0;
   uint8_t *freqs = NULL;
-  //  freqs = controller_get_interface()->get_scrambling_supported_freqs(&no_of_freqs);
+  //freqs = controller_get_interface()->get_scrambling_supported_freqs(&no_of_freqs);
 
   if(no_of_freqs == 0) {
     return false;
@@ -1712,10 +1712,10 @@ void bta_av_co_init(std::vector<btav_a2dp_codec_config_t>& codec_user_list) {
   for (size_t i = 0; i < BTA_AV_CO_NUM_ELEMENTS(bta_av_co_cb.peers); i++) {
     p_peer = &bta_av_co_cb.peers[i];
     if (p_peer != NULL)
-      p_peer->codecs = new A2dpCodecs(codec_priorities);
+      p_peer->codecs = new A2dpCodecs(codec_user_list_without_duplicate);
 
     if (p_peer->codecs != nullptr)
-      p_peer->codecs->init(isMcastSupported, isShoSupported);
+      p_peer->codecs->init(isMcastSupported, isShoSupported, codec_user_list);
 
   }
   A2DP_InitDefaultCodec(bta_av_co_cb.codec_config);
@@ -1723,11 +1723,16 @@ void bta_av_co_init(std::vector<btav_a2dp_codec_config_t>& codec_user_list) {
 }
 
 
-void bta_av_co_peer_init(
-    const std::vector<btav_a2dp_codec_config_t>& codec_priorities, int index) {
+void bta_av_co_peer_init(std::vector<btav_a2dp_codec_config_t>& codec_user_list, int index) {
   APPL_TRACE_DEBUG("%s", __func__);
 
   tBTA_AV_CO_PEER* p_peer;
+
+  std::vector<btav_a2dp_codec_config_t> codec_user_list_without_duplicate = remove_codec_duplicate(codec_user_list);
+  APPL_TRACE_DEBUG("codec_user_list_without_duplicate (for incoming connection)");
+  for (auto config : codec_user_list_without_duplicate)
+    APPL_TRACE_DEBUG("type %d, prio %d", config.codec_type, config.codec_priority);
+
   bool a2dp_offload = btif_av_is_split_a2dp_enabled();
   bool isMcastSupported = btif_av_is_multicast_supported();
   bool isShoSupported = (btif_max_av_clients > 1) ? true : false;
@@ -1738,8 +1743,8 @@ void bta_av_co_peer_init(
 
   p_peer = &bta_av_co_cb.peers[index];
   if (p_peer != NULL)
-    p_peer->codecs = new A2dpCodecs(codec_priorities);
+    p_peer->codecs = new A2dpCodecs(codec_user_list_without_duplicate);
 
   if (p_peer->codecs != nullptr)
-    p_peer->codecs->init(isMcastSupported, isShoSupported);
+    p_peer->codecs->init(isMcastSupported, isShoSupported, codec_user_list);
 }

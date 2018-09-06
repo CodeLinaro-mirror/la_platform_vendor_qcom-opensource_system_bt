@@ -1377,7 +1377,7 @@
 #define A2D_INCLUDED TRUE
 #endif
 #ifndef TWS_ENABLED
-#define TWS_ENABLED TRUE
+#define TWS_ENABLED FALSE
 #endif
 /******************************************************************************
  *
@@ -1418,7 +1418,7 @@
 #endif
 
 #ifndef TWS_AG_ENABLED
-#define TWS_AG_ENABLED TRUE
+#define TWS_AG_ENABLED FALSE
 #endif
 
 /******************************************************************************

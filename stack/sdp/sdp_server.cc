@@ -785,9 +785,7 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
         // check for browse bit will happen always, because minimum DUT version is 1.4 now.
         is_avrcp_browse_bit_reset = sdp_reset_avrcp_browsing_bit(
                 p_rec->attribute[1], p_attr, p_ccb->device_address);
-        is_avrcp_cover_bit_reset = sdp_reset_avrcp_cover_art_bit(
-                p_rec->attribute[1], p_attr, p_ccb->device_address);
-     }
+      }
     }
 
       is_hfp_fallback = sdp_change_hfp_version (p_attr, p_ccb->device_address);
@@ -1167,14 +1165,12 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
           *  even if remote misbhevaes. If we DUT is not 1.6 then there would be no ca bit
           */
         if (!strncmp("true", dy_version, 4)){
-         if (dut_profile_version < AVRC_REV_1_6) {
-            is_avrcp_fallback = sdp_fallback_avrcp_version (p_attr, p_ccb->device_address);
-            // check for browse bit will happen always, because minimum DUT version is 1.4 now.
-            is_avrcp_browse_bit_reset = sdp_reset_avrcp_browsing_bit(
-                    p_rec->attribute[1], p_attr, p_ccb->device_address);
-            is_avrcp_cover_bit_reset = sdp_reset_avrcp_cover_art_bit(
-                    p_rec->attribute[1], p_attr, p_ccb->device_address);
-         }
+          if (dut_profile_version < AVRC_REV_1_6) {
+             is_avrcp_fallback = sdp_fallback_avrcp_version (p_attr, p_ccb->device_address);
+             // check for browse bit will happen always, because minimum DUT version is 1.4 now.
+             is_avrcp_browse_bit_reset = sdp_reset_avrcp_browsing_bit(
+                     p_rec->attribute[1], p_attr, p_ccb->device_address);
+          }
         }
 
         is_hfp_fallback = sdp_change_hfp_version (p_attr, p_ccb->device_address);

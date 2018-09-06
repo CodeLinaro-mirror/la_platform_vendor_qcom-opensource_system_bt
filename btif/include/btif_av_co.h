@@ -58,8 +58,7 @@ bool bta_av_co_set_codec_audio_config(
 // |codec_priorities| contains the A2DP Source codec priorities to use.
 void bta_av_co_init(std::vector<btav_a2dp_codec_config_t>& codec_priorities);
 
-void bta_av_co_peer_init(
-    const std::vector<btav_a2dp_codec_config_t>& codec_priorities, int index);
+void bta_av_co_peer_init(std::vector<btav_a2dp_codec_config_t>& codec_priorities, int index);
 
 // Gets the initialized A2DP codecs.
 // Returns a pointer to the |A2dpCodecs| object with the initialized A2DP

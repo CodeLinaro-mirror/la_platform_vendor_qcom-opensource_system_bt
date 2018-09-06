@@ -97,7 +97,6 @@ static char* get_btsnoop_last_log_path(char* last_log_path, char* log_path);
 static void open_next_snoop_file();
 static void btsnoop_write_packet(packet_type_t type, uint8_t* packet,
                                  bool is_received, uint64_t timestamp_us);
-void btlogger_write(const void* data, size_t length);
 
 // Module lifecycle functions
 
@@ -351,10 +350,6 @@ static void btsnoop_write_packet(packet_type_t type, uint8_t* packet,
     if (!sock_snoop_active && packet_counter > packets_per_file) {
       open_next_snoop_file();
     }
-    btlogger_write(&header, sizeof(btsnoop_header_t));
-    btlogger_write(packet, length_he - 1);
-  }
-}
 
     struct pollfd fds;
     fds.fd = logfile_fd;

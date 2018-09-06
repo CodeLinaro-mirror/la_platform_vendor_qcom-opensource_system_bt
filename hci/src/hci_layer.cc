@@ -536,7 +536,7 @@ static void command_timed_out(void* original_wait_entry) {
     return;
   }
 
-  LOG_ERROR(LOG_TAG, "%s: requesting a firmware dump.", __func__);
+  LOG_ERROR(LOG_TAG "%s: requesting a firmware dump.", __func__);
 
   /* Allocate a buffer to hold the HCI command. */
   BT_HDR* bt_hdr =
@@ -560,7 +560,7 @@ static void command_timed_out(void* original_wait_entry) {
 
   hci_timeout_abort_timer = alarm_new("hci.hci_timeout_abort_timer");
   if (!hci_timeout_abort_timer) {
-    LOG_ERROR(LOG_TAG, "%s unable to create hardware error timer.", __func__);
+    LOG_ERROR(LOG_TAG "%s unable to create hardware error timer.", __func__);
     usleep(2000000);
     kill(getpid(), SIGKILL);
   }

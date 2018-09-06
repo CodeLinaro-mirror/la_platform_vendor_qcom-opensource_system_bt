@@ -988,6 +988,7 @@ static int suspend_audio_datapath(struct a2dp_stream_common* common,
   skt_disconnect(common->audio_fd);
 
   common->audio_fd = AUDIO_SKT_DISCONNECTED;
+
   return 0;
 }
 

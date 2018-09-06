@@ -67,8 +67,6 @@
 #include <mutex>
 
 #include <hardware/bluetooth.h>
-#include <hardware/bt_rc_ext.h>
-
 #include <hardware/bt_rc.h>
 #include <hardware/bt_vendor_rc.h>
 #include "avrc_defs.h"
@@ -508,7 +506,7 @@ static btif_rc_device_cb_t* get_connected_device_from_index(int index) {
   }
   return (&btif_rc_cb.rc_multi_cb[index]);
 }
-/*
+
 static btif_rc_device_cb_t* get_connected_device() {
   BTIF_TRACE_DEBUG("%s", __func__);
   int index;
@@ -524,7 +522,7 @@ static btif_rc_device_cb_t* get_connected_device() {
   }
   return NULL;
 }
-*/
+
 static int get_num_connected_devices() {
   int connected_devices = 0;
 
@@ -938,7 +936,7 @@ void handle_rc_disconnect(tBTA_AV_RC_CLOSE* p_rc_close) {
     BTIF_TRACE_ERROR("Got disconnect of unknown device");
     return;
   }
-
+ 
   /* Clean up AVRCP procedure flags */
   memset(&p_dev->rc_app_settings, 0, sizeof(btif_rc_player_app_settings_t));
   p_dev->rc_features_processed = false;
@@ -985,7 +983,7 @@ void handle_rc_disconnect(tBTA_AV_RC_CLOSE* p_rc_close) {
   }
 }
 
-bool is_ba_transmitter_enabled()
+/*bool is_ba_transmitter_enabled()
 {
     bool ret = false;
     if (btif_ba_get_state() > BTIF_BA_STATE_IDLE_AUDIO_NS) {
@@ -993,7 +991,7 @@ bool is_ba_transmitter_enabled()
     }
     LOG_INFO(LOG_TAG,"%s: ret = %d",__func__, ret);
     return ret;
-}
+}*/
 
 /***************************************************************************
  *  Function       handle_rc_vendor_passthrough_cmd
@@ -2465,7 +2463,7 @@ static bt_status_t init(btrc_callbacks_t* callbacks, int max_connections) {
   return result;
 }
 
-/*static bt_status_t init(btrc_callbacks_t* callbacks) {
+static bt_status_t init(btrc_callbacks_t* callbacks) {
   int max_connections = 1;
   char prop_connected_devices[PROPERTY_VALUE_MAX];
   property_get("persist.bluetooth.maxconnectedaudiodevices", prop_connected_devices, "1");
@@ -2477,7 +2475,7 @@ static bt_status_t init(btrc_callbacks_t* callbacks, int max_connections) {
   BTIF_TRACE_DEBUG("%s: max_connections changed to = %d", __func__, max_connections);
   bt_status_t ret = init(callbacks, max_connections);
   return ret;
-}*/
+}
 
 
 /*******************************************************************************
@@ -3124,7 +3122,7 @@ static bt_status_t register_notification_rsp(
   return BT_STATUS_SUCCESS;
 }
 
-/*static bt_status_t register_notification_rsp(
+static bt_status_t register_notification_rsp(
     btrc_event_id_t event_id, btrc_notification_type_t type,
     btrc_register_notification_t* p_param) {
   RawAddress *addr = NULL;
@@ -3141,7 +3139,6 @@ static bt_status_t register_notification_rsp(
 
   return register_notification_rsp(event_id, type, p_param, addr);
 }
-*/
 
 
 /***************************************************************************
@@ -3883,7 +3880,7 @@ static bt_status_t set_volume(uint8_t volume, RawAddress*bd_addr) {
   return (bt_status_t)status;
 }
 
-/*static bt_status_t set_volume(uint8_t volume) {
+static bt_status_t set_volume(uint8_t volume) {
   RawAddress *addr = NULL;
   btif_rc_device_cb_t *p_dev = NULL;
 
@@ -3898,7 +3895,7 @@ static bt_status_t set_volume(uint8_t volume, RawAddress*bd_addr) {
     return BT_STATUS_UNHANDLED;
 
   return set_volume(volume, addr);
-}*/
+}
 
 
 /***************************************************************************
@@ -6670,7 +6667,7 @@ static const btrc_interface_t bt_rc_interface = {
     get_total_num_of_items_rsp,
     search_rsp,
     add_to_now_playing_rsp,
-#ifdef BT_AV_SHO_FEATURE
+#ifdef BT_AV_SHO_FEATURE // gghai
     is_device_active_in_handoff,
     update_play_status_to_stack,
 #endif
