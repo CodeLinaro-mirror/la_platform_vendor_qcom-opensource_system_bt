@@ -488,6 +488,21 @@ extern bool BTM_ReadConnectedTransportAddress(RawAddress* remote_bda,
  ******************************************************************************/
 extern bool BTM_BleConfigPrivacy(bool enable);
 
+#if (defined LPM_SLEEP_WAKEUP && LPM_SLEEP_WAKEUP == TRUE)
+/*******************************************************************************
+ *
+ * Function         BTM_BleIsLocalPrivacyEnabled
+ *
+ * Description      This function checks if privacy was enabled by the app.
+ *
+ * Parameters       None.
+ *
+ * Returns          bool    TRUE - privacy enabled (RPA); otherwise Public.
+ *
+ ******************************************************************************/
+extern bool BTM_BleIsLocalPrivacyEnabled(void);
+#endif
+
 /*******************************************************************************
  *
  * Function         BTM_BleLocalPrivacyEnabled

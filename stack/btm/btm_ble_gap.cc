@@ -668,6 +668,35 @@ bool BTM_BleConfigPrivacy(bool privacy_mode) {
 #endif
 }
 
+#if (defined LPM_SLEEP_WAKEUP && LPM_SLEEP_WAKEUP == TRUE)
+/*******************************************************************************
+ *
+ * Function         BTM_BleIsLocalPrivacyEnabled
+ *
+ * Description      This function checks if privacy was enabled by the app.
+ *
+ * Parameters       None.
+ *
+ * Returns          bool    TRUE - privacy enabled (RPA); otherwise Public.
+ *
+ ******************************************************************************/
+bool BTM_BleIsLocalPrivacyEnabled(void) {
+#if (BLE_PRIVACY_SPT == TRUE)
+  tBTM_BLE_CB* p_cb = &btm_cb.ble_ctr_cb;
+
+  BTM_TRACE_EVENT("%s: own_addr_type: %x", __func__, p_cb->addr_mgnt_cb.own_addr_type);
+
+  if (p_cb->addr_mgnt_cb.own_addr_type != BLE_ADDR_PUBLIC)
+    return true;
+
+  return false;
+#else
+  return false;
+#endif
+}
+
+#endif
+
 /*******************************************************************************
  *
  * Function          BTM_BleMaxMultiAdvInstanceCount

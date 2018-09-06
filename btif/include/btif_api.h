@@ -460,4 +460,16 @@ void btif_debug_bond_event_dump(int fd);
  ******************************************************************************/
 void btif_dm_get_link_key(const RawAddress *bd_addr);
 
+#if (defined LPM_SLEEP_WAKEUP && LPM_SLEEP_WAKEUP == TRUE)
+/*******************************************************************************
+**
+** Function         btif_dm_lpm_sleep_ind
+**
+** Description     HOST SLEEP indication to controller
+**
+** Returns          void
+**
+*******************************************************************************/
+bt_status_t btif_dm_lpm_sleep_ind(bool isSleep);
+#endif
 #endif /* BTIF_API_H */

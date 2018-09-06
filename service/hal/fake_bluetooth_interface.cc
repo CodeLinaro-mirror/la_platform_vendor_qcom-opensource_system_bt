@@ -77,6 +77,9 @@ bt_interface_t fake_bt_iface = {
     nullptr, /* interop_database_add */
     nullptr, /* get_avrcp_service */
     nullptr, /* obfuscate_address */
+#if (defined LPM_SLEEP_WAKEUP && LPM_SLEEP_WAKEUP == TRUE)
+    nullptr  /* host send lpm to controller */
+#endif
 };
 
 }  // namespace

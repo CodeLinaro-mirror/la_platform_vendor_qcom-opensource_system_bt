@@ -905,8 +905,173 @@ static void remove_devices_with_sample_ltk() {
   }
 }
 
+#if (defined LPM_SLEEP_WAKEUP && LPM_SLEEP_WAKEUP == TRUE)
 /*******************************************************************************
- *
+**
+** Function         btif_in_fetch_bredr_linkkey
+**
+** Description      BTIF storage API - Get device LinkKey
+**
+** Returns          BT_STATUS_SUCCESS if the device is bonded
+**                  BT_STATUS_FAIL otherwise
+**
+*******************************************************************************/
+bt_status_t btif_in_fetch_bredr_linkkey(const RawAddress& remote_bd_addr, LinkKey link_key)
+{
+  size_t size = link_key.size();
+
+  if (!btif_config_get_bin(remote_bd_addr.ToString().c_str(), "LinkKey", link_key.data(), &size)) {
+    return BT_STATUS_FAIL;
+  }
+  return BT_STATUS_SUCCESS;
+}
+/*******************************************************************************
+**
+** Function         btif_storage_is_device_bonded
+**
+** Description      BTIF storage API - checks if device present in bonded list
+**
+** Returns          BT_STATUS_SUCCESS if the device is bonded
+**                  BT_STATUS_FAIL otherwise
+**
+*******************************************************************************/
+bt_status_t btif_storage_is_device_bonded(RawAddress *remote_bd_addr) {
+  char bdstr[17] = {'\0'};
+  snprintf(bdstr, sizeof(bdstr), "%02x:%02x:%02x:%02x:%02x:%02x",
+                                  remote_bd_addr->address[0],
+                                  remote_bd_addr->address[1],
+                                  remote_bd_addr->address[2],
+                                  remote_bd_addr->address[3],
+                                  remote_bd_addr->address[4],
+                                  remote_bd_addr->address[5]);
+  if((btif_config_exist(bdstr, "LinkKey")) &&
+     (btif_config_exist(bdstr, "LinkKeyType")))
+    return BT_STATUS_SUCCESS;
+  else
+    return BT_STATUS_FAIL;
+}
+
+bt_status_t btif_in_fetch_ble_peer_addr_type(const RawAddress& remote_bd_addr, uint8_t& addr_type)
+{
+    BT_OCTET32 leKeyPid;
+    size_t size = BT_OCTET32_LEN;
+
+    memset(leKeyPid,0,BT_OCTET32_LEN);
+    if (!btif_config_get_bin(remote_bd_addr.ToString().c_str(), "LE_KEY_PID", (uint8_t*)leKeyPid, &size)) {
+        return BT_STATUS_FAIL;
+    }
+
+    //First 16 bytes will be irk, next byte is addr_type
+    addr_type = leKeyPid[OCTET16_LEN];
+
+    return BT_STATUS_SUCCESS;
+}
+
+/* Fetch aidentity address */
+bt_status_t btif_in_fetch_ble_peer_id_addr(const RawAddress& remote_bd_addr, RawAddress& remote_id_addr)
+{
+    BT_OCTET32 leKeyPid;
+    int i;
+    size_t size = BT_OCTET32_LEN;
+
+    memset(leKeyPid, 0, BT_OCTET32_LEN);
+    if (!btif_config_get_bin(remote_bd_addr.ToString().c_str(), "LE_KEY_PID", (uint8_t*)leKeyPid, &size)) {
+        return BT_STATUS_FAIL;
+    }
+
+    // First 16 bytes will be irk, next byte is addr_type, next 6 bytes are identity address */
+    i = OCTET16_LEN + 1;
+    memcpy(remote_id_addr.address, leKeyPid + i, 6);
+
+    return BT_STATUS_SUCCESS;
+}
+
+bt_status_t btif_in_fetch_ble_ltk(const RawAddress& remote_bd_addr, Octet16 ltk)
+{
+    BT_OCTET32 leKeyPenc;
+    size_t size = BT_OCTET32_LEN;
+
+    memset(leKeyPenc,0,BT_OCTET32_LEN);
+    if (!btif_config_get_bin(remote_bd_addr.ToString().c_str(), "LE_KEY_PENC", (uint8_t*)leKeyPenc, &size)) {
+        return BT_STATUS_FAIL;
+    }
+
+    //memcpy(ltk, leKeyPenc, OCTET16_LEN);
+    for(int i =(OCTET16_LEN -1); i>= 0; --i)
+       ltk[15-i] = leKeyPenc[i];
+
+    return BT_STATUS_SUCCESS;
+}
+
+bt_status_t btif_in_fetch_ble_peer_irk(const RawAddress& remote_bd_addr, Octet16 irk)
+{
+    BT_OCTET32 leKeyPid;
+    size_t size = BT_OCTET32_LEN;
+
+    memset(leKeyPid,0,BT_OCTET32_LEN);
+    if (!btif_config_get_bin(remote_bd_addr.ToString().c_str(), "LE_KEY_PID", (uint8_t*)leKeyPid, &size)) {
+        return BT_STATUS_FAIL;
+  }
+
+    //memcpy(irk, leKeyPid, OCTET16_LEN);
+    for(int i =(OCTET16_LEN -1); i>= 0; --i)
+        irk[15-i] = leKeyPid[i];
+    return BT_STATUS_SUCCESS;
+}
+
+bt_status_t btif_in_fetch_ble_local_irk(Octet16 irk)
+{
+    BT_OCTET32 leKeyPenc;
+    size_t size = BT_OCTET32_LEN;
+
+    memset(leKeyPenc,0,BT_OCTET32_LEN);
+    if (!btif_config_get_bin("Adapter", "LE_LOCAL_KEY_IRK", (uint8_t*)leKeyPenc, &size)) {
+        return BT_STATUS_FAIL;
+  }
+
+    //memcpy(irk, leKeyPenc, OCTET16_LEN);
+    for(int i =(OCTET16_LEN -1); i>= 0; --i)
+        irk[15-i] = leKeyPenc[i];
+    return BT_STATUS_SUCCESS;
+}
+
+bt_status_t btif_in_fetch_ble_rand(const RawAddress& remote_bd_addr, BT_OCTET8 rand)
+{
+    BT_OCTET32 leKeyPenc;
+    size_t size = BT_OCTET32_LEN;
+
+    memset(leKeyPenc,0,BT_OCTET32_LEN);
+    if (!btif_config_get_bin(remote_bd_addr.ToString().c_str(), "LE_KEY_PENC", (uint8_t*)leKeyPenc, &size)) {
+        return BT_STATUS_FAIL;
+  }
+
+    //First 16 bytes will be ltk, next 8 bytes will be rand
+    //memcpy(rand,  (leKeyPenc +OCTET16_LEN), BT_OCTET8_LEN);
+    for(int i =(OCTET16_LEN + BT_OCTET8_LEN -1); i>= OCTET16_LEN; --i)
+        rand[23-i] = leKeyPenc[i];
+    return BT_STATUS_SUCCESS;
+}
+
+bt_status_t btif_in_fetch_ble_ediv(const RawAddress& remote_bd_addr, uint16_t& ediv)
+{
+    BT_OCTET32 leKeyPenc;
+    size_t size = BT_OCTET32_LEN;
+
+    memset(leKeyPenc,0,BT_OCTET32_LEN);
+    if (!btif_config_get_bin(remote_bd_addr.ToString().c_str(), "LE_KEY_PENC", (uint8_t*)leKeyPenc, &size)) {
+        return BT_STATUS_FAIL;
+  }
+
+  BTIF_TRACE_DEBUG("btif_in_fetch_ble_ediv- ediv[0]:%02x  ediv[1]:%02x", leKeyPenc[OCTET16_LEN + BT_OCTET8_LEN], leKeyPenc[OCTET16_LEN + BT_OCTET8_LEN + 1]);
+  //First 16 bytes will be ltk, next 8 bytes will be rand, next 2 bytes will be ediv
+  //ediv =( leKeyPenc[OCTET16_LEN + BT_OCTET8_LEN] << 8) + leKeyPenc[OCTET16_LEN + BT_OCTET8_LEN + 1];
+  ediv = ( leKeyPenc[OCTET16_LEN + BT_OCTET8_LEN + 1] << 8) + leKeyPenc[OCTET16_LEN + BT_OCTET8_LEN];
+  BTIF_TRACE_DEBUG("btif_in_fetch_ble_ediv:%d",ediv);
+
+  return BT_STATUS_SUCCESS;
+}
+#endif
+/*******************************************************************************
  * Function         btif_storage_load_bonded_devices
  *
  * Description      BTIF storage API - Loads all the bonded devices from NVRAM

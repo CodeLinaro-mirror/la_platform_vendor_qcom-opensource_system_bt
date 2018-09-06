@@ -53,6 +53,11 @@
 //typedef uint8_t Link_Key[KEY_LEN]; /* Link Key */
 typedef std::array<uint8_t, KEY_LEN> Link_Key;
 
+/* Enable/Disable LPM SLEEP WAKEUP Feature*/
+#ifndef LPM_SLEEP_WAKEUP
+#define LPM_SLEEP_WAKEUP TRUE
+#endif
+
 /** Bluetooth Device Name */
 typedef struct { uint8_t name[249]; } __attribute__((packed)) bt_bdname_t;
 
@@ -640,6 +645,12 @@ typedef struct {
    * @return a string of uint8_t that is unique to this MAC address
    */
   std::string (*obfuscate_address)(const RawAddress& address);
+  /**
+   *  HOST SLEEP indication to controller
+   */
+#if (defined LPM_SLEEP_WAKEUP && LPM_SLEEP_WAKEUP == TRUE)
+  int (*lpm_sleep_ind)(uint8_t isSleep);
+#endif
 } bt_interface_t;
 
 #define BLUETOOTH_INTERFACE_STRING "bluetoothInterface"
