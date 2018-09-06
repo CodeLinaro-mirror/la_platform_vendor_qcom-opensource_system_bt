@@ -62,7 +62,7 @@ using system_bt_osi::A2dpSessionMetrics;
  * layers we might need to temporarily buffer up data.
  */
 #define MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ (MAX_PCM_FRAME_NUM_PER_TICK * 2)
-#define BTIF_UNBLOCK_AUDIO_START_TOUT 2000
+#define BTIF_UNBLOCK_AUDIO_START_TOUT 3000
 #define BTIF_REMOTE_START_TOUT 3000
 #define STACK_OVERHEAD 13
 enum {
@@ -94,6 +94,7 @@ typedef struct {
 /* tBTIF_A2DP_SOURCE_ENCODER_USER_CONFIG_UPDATE msg structure */
 typedef struct {
   BT_HDR hdr;
+  RawAddress bd_addr;
   btav_a2dp_codec_config_t user_config;
 } tBTIF_A2DP_SOURCE_ENCODER_USER_CONFIG_UPDATE;
 
@@ -213,6 +214,7 @@ static void btm_read_automatic_flush_timeout_cb(void* data);
 static void btm_read_tx_power_cb(void* data);
 static void btif_a2dp_source_unblock_audio_start_timeout(void* context);
 static void btif_a2dp_source_remote_start_timeout(void* context);
+static char a2dp_hal_imp[PROPERTY_VALUE_MAX] = "false";
 UNUSED_ATTR static const char* dump_media_event(uint16_t event) {
   switch (event) {
     CASE_RETURN_STR(BTIF_MEDIA_AUDIO_TX_START)
@@ -517,6 +519,64 @@ bt_status_t btif_a2dp_source_setup_codec(tBTA_AV_HNDL hndl) {
   if (status == BT_STATUS_SUCCESS) {
     /* Init the encoding task */
     btif_a2dp_source_encoder_init();
+
+    A2dpCodecConfig* current_codec = bta_av_get_a2dp_current_codec();
+    btav_a2dp_codec_config_t codec_config;
+    APPL_TRACE_DEBUG("%s: codec_config.codec_type:%d", __func__, codec_config.codec_type);
+
+    //get the current codec config, so that we can get the codec type.
+    if (current_codec != nullptr) {
+      codec_config = current_codec->getCodecConfig();
+    } else {
+      APPL_TRACE_ERROR("%s: current codec is null, returns fail.", __func__);
+      return BT_STATUS_FAIL;
+    }
+
+    uint8_t p_codec_info[AVDT_CODEC_SIZE];
+    memset(p_codec_info, 0, AVDT_CODEC_SIZE);
+
+    //copy peer codec info to p_codec_info
+    if (!current_codec->copyOutOtaCodecConfig(p_codec_info)) {
+      APPL_TRACE_ERROR("%s: Fetching peer codec info returns fail.", __func__);
+      return BT_STATUS_FAIL;
+    }
+
+    //int index = 0;
+    //index = HANDLE_TO_INDEX(hndl);
+    RawAddress peer_bda;
+    btif_av_get_peer_addr(&peer_bda);
+
+    tBT_FLOW_SPEC flow_spec;
+    memset(&flow_spec, 0x00, sizeof(flow_spec));
+
+    flow_spec.flow_direction = 0x00;     /* flow direction - out going */
+    flow_spec.service_type = 0x02;       /* Guaranteed */
+    flow_spec.token_rate = 0x00;         /* bytes/second - no token rate is specified*/
+    flow_spec.token_bucket_size = 0x00;  /* bytes - no token bucket is needed*/
+    flow_spec.latency = 0xFFFFFFFF;      /* microseconds - default value */
+
+    if (codec_config.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_SBC) {
+      flow_spec.peak_bandwidth = (345*1000)/8; /* bytes/second */
+
+    } else if (codec_config.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX)  {
+      flow_spec.peak_bandwidth = (380*1000)/8; /* bytes/second */
+
+    } else if (codec_config.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD) {
+      flow_spec.peak_bandwidth = (660*1000)/8; /* bytes/second */
+
+    } else if (codec_config.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC) {
+      /* For ABR mode default peak bandwidth is 0, for static it will be fetched */
+      uint32_t bitrate = 0;
+      bitrate = A2DP_GetTrackBitRate(p_codec_info);
+      APPL_TRACE_DEBUG(LOG_TAG,"bitrate = %d", bitrate);
+
+      flow_spec.peak_bandwidth = bitrate/8;  /* bytes/second */
+
+    } else if (codec_config.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_AAC) {
+      flow_spec.peak_bandwidth = (320*1000)/8; /* bytes/second */
+    }
+    APPL_TRACE_DEBUG("%s: peak_bandwidth: %d", __func__, flow_spec.peak_bandwidth);
+    BTM_FlowSpec (peer_bda, &flow_spec, NULL);
   } else {
     APPL_TRACE_ERROR("%s() can not setup current codec", __func__);
     status = BT_STATUS_FAIL;
@@ -634,13 +694,14 @@ static void btif_a2dp_source_encoder_init_event(BT_HDR* p_msg) {
 }
 
 void btif_a2dp_source_encoder_user_config_update_req(
-    const btav_a2dp_codec_config_t& codec_user_config) {
+    const btav_a2dp_codec_config_t& codec_user_config, const RawAddress& bd_addr) {
   tBTIF_A2DP_SOURCE_ENCODER_USER_CONFIG_UPDATE* p_buf =
       ( tBTIF_A2DP_SOURCE_ENCODER_USER_CONFIG_UPDATE*)osi_malloc(
           sizeof(tBTIF_A2DP_SOURCE_ENCODER_USER_CONFIG_UPDATE));
 
   p_buf->user_config = codec_user_config;
   p_buf->hdr.event = BTIF_MEDIA_SOURCE_ENCODER_USER_CONFIG_UPDATE;
+  p_buf->bd_addr = bd_addr;
   fixed_queue_enqueue(btif_a2dp_source_cb.cmd_msg_queue, p_buf);
 }
 
@@ -649,7 +710,7 @@ static void btif_a2dp_source_encoder_user_config_update_event(BT_HDR* p_msg) {
       (tBTIF_A2DP_SOURCE_ENCODER_USER_CONFIG_UPDATE*)p_msg;
 
   APPL_TRACE_DEBUG("%s", __func__);
-  if (!bta_av_co_set_codec_user_config(p_user_config->user_config)) {
+  if (!bta_av_co_set_codec_user_config(p_user_config->user_config, p_user_config->bd_addr)) {
     APPL_TRACE_ERROR("%s: cannot update codec user configuration", __func__);
   }
 }
@@ -699,8 +760,20 @@ void btif_a2dp_source_on_stopped(tBTA_AV_SUSPEND* p_av_suspend) {
         APPL_TRACE_WARNING("%s: A2DP stop request failed: status = %d",
                            __func__, p_av_suspend->status);
         if ((pending_cmd == A2DP_CTRL_CMD_STOP) ||
-            (pending_cmd == A2DP_CTRL_CMD_SUSPEND))
+            (pending_cmd == A2DP_CTRL_CMD_SUSPEND)) {
           btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
+          if (property_get("persist.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
+              !strcmp(a2dp_hal_imp, "true")) {
+            btif_a2dp_pending_cmds_reset();
+            int index = ((p_av_suspend->hndl) & BTA_AV_HNDL_MSK) - 1;
+            RawAddress addr = btif_av_get_addr_by_index(index);
+            if (!addr.IsEmpty()) {
+              btif_dispatch_sm_event(BTIF_AV_DISCONNECT_REQ_EVT, (void *)addr.address,
+                  sizeof(RawAddress));
+              BTIF_TRACE_DEBUG("%s: Disconnect for peer device on Start fail by Remote",__func__);
+            }
+          }
+        }
       }
       return;
     }
@@ -729,8 +802,20 @@ void btif_a2dp_source_on_suspended(tBTA_AV_SUSPEND* p_av_suspend) {
         APPL_TRACE_WARNING("%s: A2DP suspend request failed: status = %d",
                          __func__, p_av_suspend->status);
         if ((pending_cmd == A2DP_CTRL_CMD_STOP) ||
-            (pending_cmd == A2DP_CTRL_CMD_SUSPEND))
+            (pending_cmd == A2DP_CTRL_CMD_SUSPEND)) {
           btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
+          if (property_get("persist.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
+              !strcmp(a2dp_hal_imp, "true")) {
+            btif_a2dp_pending_cmds_reset();
+            int index = ((p_av_suspend->hndl) & BTA_AV_HNDL_MSK) - 1;
+            RawAddress addr = btif_av_get_addr_by_index(index);
+            if (!addr.IsEmpty()) {
+              btif_dispatch_sm_event(BTIF_AV_DISCONNECT_REQ_EVT, (void *)addr.address,
+                  sizeof(RawAddress));
+              BTIF_TRACE_DEBUG("%s: Disconnect for peer device on Start fail by Remote",__func__);
+            }
+          }
+        }
       }
     }
   }

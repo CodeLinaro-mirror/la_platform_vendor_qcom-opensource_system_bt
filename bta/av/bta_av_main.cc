@@ -1,6 +1,35 @@
 /******************************************************************************
- * Copyright (C) 2017, The Linux Foundation. All rights reserved.
- * Not a Contribution.
+ *  Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ *  Not a Contribution.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted (subject to the limitations in the
+ *  disclaimer below) provided that the following conditions are met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided
+      with the distribution.
+
+    * Neither the name of The Linux Foundation nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+
+ *  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ *  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ *  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************/
 /******************************************************************************
  *
@@ -68,26 +97,6 @@
 /* the delay time in milliseconds to retry role switch */
 #ifndef BTA_AV_RS_TIME_VAL
 #define BTA_AV_RS_TIME_VAL 1000
-#endif
-
-#ifndef AVRCP_VERSION_PROPERTY
-#define AVRCP_VERSION_PROPERTY "persist.bluetooth.avrcpversion"
-#endif
-
-#ifndef AVRCP_1_6_STRING
-#define AVRCP_1_6_STRING "avrcp16"
-#endif
-
-#ifndef AVRCP_1_5_STRING
-#define AVRCP_1_5_STRING "avrcp15"
-#endif
-
-#ifndef AVRCP_1_4_STRING
-#define AVRCP_1_4_STRING "avrcp14"
-#endif
-
-#ifndef AVRCP_1_3_STRING
-#define AVRCP_1_3_STRING "avrcp13"
 #endif
 
 /* state machine states */
@@ -189,6 +198,10 @@ bool bta_av_multiple_streams_started(void);
 
 extern int btif_get_is_remote_started_idx();
 extern int btif_max_av_clients;
+#if (TWS_ENABLED == TRUE)
+static void bta_av_api_set_tws_earbud_role(tBTA_AV_DATA * p_data);
+static void bta_av_api_set_is_tws_device(tBTA_AV_DATA * p_data);
+#endif
 
 /* action functions */
 const tBTA_AV_NSM_ACT bta_av_nsm_act[] = {
@@ -214,6 +227,11 @@ const tBTA_AV_NSM_ACT bta_av_nsm_act[] = {
     bta_av_api_enable_multicast,    /* BTA_AV_ENABLE_MULTICAST_EVT */
     bta_av_rc_collission_detected, /* BTA_AV_RC_COLLISSION_DETECTED_EVT */
     bta_av_api_update_supp_codecs, /* BTA_AV_UPDATE_SUPP_CODECS */
+    bta_av_update_enc_mode, /* BTA_AV_UPDATE_ENCODER_MODE_EVT */
+#if (TWS_ENABLED == TRUE)
+    bta_av_api_set_tws_earbud_role, /* BTA_AV_SET_EARBUD_ROLE_EVT */
+    bta_av_api_set_is_tws_device, /* BTA_AV_SET_TWS_DEVICE_EVT */
+#endif
 };
 
 /*****************************************************************************
@@ -255,6 +273,9 @@ static void bta_av_api_enable(tBTA_AV_DATA* p_data) {
     bta_av_cb.accept_signalling_timer[j] =
       alarm_new("bta_av.accept_signalling_timer");
   }
+
+  bta_av_cb.browsing_channel_open_timer =
+  alarm_new("bta_av.browsing_channel_open_timer");
   /* store parameters */
   bta_av_cb.p_cback = p_data->api_enable.p_cback;
   bta_av_cb.features = p_data->api_enable.features;
@@ -316,6 +337,23 @@ tBTA_AV_SCB* bta_av_hndl_to_scb(uint16_t handle) {
     p_scb = bta_av_cb.p_scb[idx - 1];
   }
   return p_scb;
+}
+
+/*******************************************************************************
+**
+** Function         bta_avk_is_avdt_sync
+**
+** Description      If the current connection supports AVDT1.3
+**
+** Returns          true for supports AVDT1.3, false for not.
+**
+*******************************************************************************/
+bool bta_avk_is_avdt_sync(uint16_t handle) {
+  tBTA_AV_SCB* p_scb = bta_av_hndl_to_scb(handle);
+  if (p_scb && (p_scb->avdt_version >= AVDT_VERSION_SYNC))
+    return true;
+  else
+    return false;
 }
 
 /*******************************************************************************
@@ -477,20 +515,11 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
   registr.app_id = p_data->api_reg.app_id;
   registr.chnl = (tBTA_AV_CHNL)p_data->hdr.layer_specific;
 
-  char avrcp_version[PROPERTY_VALUE_MAX] = {0};
-  osi_property_get(AVRCP_VERSION_PROPERTY, avrcp_version, AVRCP_1_4_STRING);
-  LOG_INFO("bt_bta_av: AVRCP version used for sdp: \"%s\"", avrcp_version);
-
   uint16_t profile_initialized = p_data->api_reg.service_uuid;
   if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
     p_bta_av_cfg = (tBTA_AV_CFG*)&bta_avk_cfg;
   } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
     p_bta_av_cfg = (tBTA_AV_CFG*)&bta_av_cfg;
-
-    if (!strncmp(AVRCP_1_3_STRING, avrcp_version, sizeof(AVRCP_1_3_STRING))) {
-      LOG_INFO("bt_bta_av: AVRCP 1.3 capabilites used");
-      p_bta_av_cfg = (tBTA_AV_CFG*)&bta_av_cfg_compatibility;
-    }
   }
 
   APPL_TRACE_DEBUG("%s(): profile: 0x%x, channle: 0x%x", __func__,
@@ -596,8 +625,13 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
       cs.flush_to = L2CAP_DEFAULT_FLUSH_TO;
       btav_a2dp_codec_index_t codec_index_min =
           BTAV_A2DP_CODEC_INDEX_SOURCE_MIN;
+#if (TWS_ENABLED == TRUE)
+      btav_a2dp_codec_index_t codec_index_max =
+          (btav_a2dp_codec_index_t)BTAV_VENDOR_A2DP_CODEC_INDEX_SOURCE_MAX;
+#else
       btav_a2dp_codec_index_t codec_index_max =
           BTAV_A2DP_CODEC_INDEX_SOURCE_MAX;
+#endif
 
 #if (AVDT_REPORTING == TRUE)
       if (bta_av_cb.features & BTA_AV_FEAT_REPORT) {
@@ -614,16 +648,30 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
       if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
         cs.tsep = AVDT_TSEP_SRC;
         codec_index_min = BTAV_A2DP_CODEC_INDEX_SOURCE_MIN;
+#if (TWS_ENABLED == TRUE)
+        codec_index_max = (btav_a2dp_codec_index_t)
+                            BTAV_VENDOR_A2DP_CODEC_INDEX_SOURCE_MAX;
+#else
         codec_index_max = BTAV_A2DP_CODEC_INDEX_SOURCE_MAX;
+#endif
       } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
         cs.tsep = AVDT_TSEP_SNK;
         cs.p_sink_data_cback = bta_av_sink_data_cback;
+#if (TWS_ENABLED == TRUE)
+        codec_index_min = (btav_a2dp_codec_index_t)BTAV_VENDOR_A2DP_CODEC_INDEX_SINK_MIN;
+        codec_index_max = (btav_a2dp_codec_index_t)BTAV_VENDOR_A2DP_CODEC_INDEX_SINK_MAX;
+#else
         codec_index_min = BTAV_A2DP_CODEC_INDEX_SINK_MIN;
         codec_index_max = BTAV_A2DP_CODEC_INDEX_SINK_MAX;
+#endif
       }
 
       /* Initialize handles to zero */
+#if (TWS_ENABLED == TRUE)
+      for (int xx = 0; xx < BTAV_VENDOR_A2DP_CODEC_INDEX_MAX; xx++) {
+#else
       for (int xx = 0; xx < BTAV_A2DP_CODEC_INDEX_MAX; xx++) {
+#endif
         p_scb->seps[xx].av_handle = 0;
       }
 
@@ -632,6 +680,25 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
       for (int i = codec_index_min; i < codec_index_max; i++) {
         btav_a2dp_codec_index_t codec_index =
             static_cast<btav_a2dp_codec_index_t>(i);
+
+        APPL_TRACE_DEBUG("%s: codec_index = %d", __func__, codec_index);
+        A2dpCodecs* a2dp_codecs = bta_av_get_a2dp_codecs();
+        if (a2dp_codecs != nullptr) {
+          std::list<A2dpCodecConfig*> list_codec =
+                        a2dp_codecs->orderedSourceCodecs();
+          bool found = false;
+          for (auto it = list_codec.begin(); it != list_codec.end(); it++) {
+            if ((*it)->codecIndex() == codec_index) {
+              APPL_TRACE_DEBUG("%s: Hit the codec in ordered source", __func__);
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            APPL_TRACE_DEBUG("%s: Can't support codec in ordered source", __func__);
+            continue;
+          }
+        }
 
         if(!(A2DP_GetOffloadStatus())){
           if((codec_index == BTAV_A2DP_CODEC_INDEX_SOURCE_AAC)&&(!is_aac_encoder_available())){
@@ -720,12 +787,8 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
            *
            * We create 1.4 for SINK since we support browsing.
            */
-          if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
-            bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL,
-                            p_bta_av_cfg->avrc_ct_cat, BTA_ID_AV,
-                            (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
-                            AVRC_REV_1_4);
-          } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
+          if ((profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) ||
+              (profile_initialized == UUID_SERVCLASS_AUDIO_SINK)) {
             bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL,
                             p_bta_av_cfg->avrc_ct_cat, BTA_ID_AV,
                             (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
@@ -864,10 +927,56 @@ static void bta_av_api_to_ssm(tBTA_AV_DATA* p_data) {
    * streams are not yet started. We need to take care of this
    * during suspend to ensure we suspend both streams.
    */
-  if (is_multicast_enabled == TRUE) {
+#if (TWS_ENABLED == TRUE)
+  int tws_device = 0;
+  tBTA_AV_SCB *p_scb = bta_av_hndl_to_scb(p_data->hdr.layer_specific);
+  RawAddress tws_pair_addr;
+  bool tws_pair_found = false;
+  if (p_scb == NULL) {
+    APPL_TRACE_ERROR("failed to alloc SCB");
+    return;
+  }
+  if (p_scb->tws_device) {
+    tws_device++;
+    if (BTM_SecGetTwsPlusPeerDev(p_scb->peer_addr, tws_pair_addr) == true) {
+      APPL_TRACE_DEBUG("%s: tws pair found",__func__);
+      tws_pair_found = true;
+    } else {
+      APPL_TRACE_DEBUG("%s:tws pair not found",__func__);
+      tws_pair_found = false;
+    }
+    for (int i = 0; i < BTA_AV_NUM_STRS; i++) {
+      if (bta_av_cb.p_scb[i] != NULL &&
+        bta_av_cb.p_scb[i] != p_scb) {
+        if (bta_av_cb.p_scb[i]->tws_device &&
+          bta_av_cb.p_scb[i]->peer_addr == tws_pair_addr) {
+          tws_device++;
+        }
+      }
+    }
+  }
+  APPL_TRACE_DEBUG("bta_av_api_to_ssm: num tws devices = %d",tws_device);
+#endif //TWS_ENABLED
+  if (is_multicast_enabled == TRUE
+#if (TWS_ENABLED == TRUE)
+     ||  tws_device > 1
+#endif
+     ) {
     /* Send START request to all Open Stream connections.*/
     for (xx=0; xx < BTA_AV_NUM_STRS; xx++)
-      bta_av_ssm_execute(bta_av_cb.p_scb[xx], event, p_data);
+      if (is_multicast_enabled) {
+        bta_av_ssm_execute(bta_av_cb.p_scb[xx], event, p_data);
+      }
+#if (TWS_ENABLED == TRUE)
+      else {
+          if (tws_device > 1 &&
+           ((bta_av_cb.p_scb[xx] != NULL && bta_av_cb.p_scb[xx]->tws_device &&
+            bta_av_cb.p_scb[xx]->peer_addr != p_scb->peer_addr) ||
+             (tws_pair_found && bta_av_cb.p_scb[xx]->peer_addr !=  tws_pair_addr))) {
+            bta_av_ssm_execute(bta_av_cb.p_scb[xx], event, p_data);
+          }
+      }
+#endif
   } else {
     /* In Dual A2dp Handoff, process this fucntion on specific handles.*/
     APPL_TRACE_DEBUG("bta_av_api_to_ssm: on Handle 0x%x",p_data->hdr.layer_specific);
@@ -892,6 +1001,26 @@ static void bta_av_api_enable_multicast(tBTA_AV_DATA *p_data)
                    is_multicast_enabled);
 }
 
+#if (TWS_ENABLED == TRUE)
+static void bta_av_api_set_tws_earbud_role(tBTA_AV_DATA * p_data)
+{
+  APPL_TRACE_DEBUG("bta_av_api_set_earbud_role = %d",p_data->tws_set_earbud_role.chn_mode);
+  tBTA_AV_SCB *p_scb = bta_av_hndl_to_scb(p_data->hdr.layer_specific);
+  if (p_scb->started) {
+    APPL_TRACE_ERROR("%:already streaming,not overwriting ch role",__func__);
+    return;
+  }
+  p_scb->channel_mode = p_data->tws_set_earbud_role.chn_mode;
+  bta_av_set_tws_chn_mode(p_scb, true);
+//  p_scb->tws_device = true;
+}
+static void bta_av_api_set_is_tws_device(tBTA_AV_DATA * p_data)
+{
+  APPL_TRACE_DEBUG("bta_av_api_set_is_tws_device = %d", p_data->tws_set_device.is_tws_device);
+  tBTA_AV_SCB *p_scb = bta_av_hndl_to_scb(p_data->hdr.layer_specific);
+  p_scb->tws_device = p_data->tws_set_device.is_tws_device;
+}
+#endif
 /*******************************************************************************
 **
 ** Function         bta_av_api_update_supp_codecs
@@ -974,7 +1103,20 @@ bool bta_av_chk_start(tBTA_AV_SCB* p_scb) {
   bool start = false;
   tBTA_AV_SCB* p_scbi;
   int i;
-
+#if (TWS_ENABLED == TRUE)
+  RawAddress tws_pair_addr;
+  bool tws_pair_found = false;
+  if (p_scb->tws_device) {
+    if (BTM_SecGetTwsPlusPeerDev(p_scb->peer_addr,
+                                 tws_pair_addr) == false) {
+      APPL_TRACE_DEBUG("%s:tws pair not found", __func__);
+      tws_pair_found = false;
+    } else {
+      APPL_TRACE_DEBUG("%s:tws pair found", __func__);
+      tws_pair_found = true;
+    }
+  }
+#endif
   APPL_TRACE_DEBUG("%s(): Audio open count: 0x%x", __func__,
                    bta_av_cb.audio_open_cnt);
   if (p_scb->chnl == BTA_AV_CHNL_AUDIO) {
@@ -990,7 +1132,12 @@ bool bta_av_chk_start(tBTA_AV_SCB* p_scb) {
       for (i = 0; i < BTA_AV_NUM_STRS; i++) {
         p_scbi = bta_av_cb.p_scb[i];
         if (p_scbi && p_scbi->chnl == BTA_AV_CHNL_AUDIO && p_scbi->co_started) {
-          if (is_multicast_enabled == TRUE)
+          if (is_multicast_enabled == TRUE
+#if (TWS_ENABLED == TRUE)
+              || (p_scb->tws_device && p_scbi->tws_device && tws_pair_found &&
+                 p_scbi->peer_addr == tws_pair_addr)
+#endif
+            )
             start = true;
           else {
             start = false;
@@ -1613,6 +1760,8 @@ const char* bta_av_evt_code(uint16_t evt_code) {
       return "MULTICAST_ENABLE";
     case BTA_AV_UPDATE_SUPP_CODECS:
       return "UPDATE_SUPPORTED_CODECS";
+    case BTA_AV_UPDATE_ENCODER_MODE_EVT:
+      return "UPDATE_ENCODER_MODE";
     default:
       return "unknown";
   }

@@ -41,6 +41,11 @@ typedef enum {
 #define AVRC_PEER_VERSION_CONF_FILE "/etc/bluetooth/avrc_peer_entries.conf"
 #endif
 #endif
+/* Runtime configuration file to store PCE version file*/
+#ifndef PCE_PEER_VERSION_CONF_FILE
+#define PCE_PEER_VERSION_CONF_FILE "/data/misc/bluedroid/pce_peer_entries.conf"
+#endif
+
 #define LOG_ID_STATS_A2DP      (0x06 << 8) | 0x00
 typedef enum {
     BT_SOC_DEFAULT = 0,

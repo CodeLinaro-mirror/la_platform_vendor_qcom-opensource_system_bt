@@ -367,13 +367,13 @@ void bta_gattc_get_disc_range(tBTA_GATTC_SERV* p_srvc_cb, uint16_t* p_s_hdl,
 
   if (is_srvc) {
     p_rec = p_srvc_cb->p_srvc_list + p_srvc_cb->cur_srvc_idx;
-    *p_s_hdl = p_rec->s_handle;
+    *p_s_hdl = p_rec ? p_rec->s_handle : 0;
   } else {
     p_rec = p_srvc_cb->p_srvc_list + p_srvc_cb->cur_char_idx;
-    *p_s_hdl = p_rec->s_handle + 1;
+    *p_s_hdl = p_rec ? p_rec->s_handle + 1 : 0;
   }
 
-  *p_e_hdl = p_rec->e_handle;
+  *p_e_hdl = p_rec ? p_rec->e_handle : 0;
 #if (BTA_GATT_DEBUG == TRUE)
   APPL_TRACE_DEBUG("discover range [%d ~ %d]", p_rec->s_handle,
                    p_rec->e_handle);
@@ -587,7 +587,7 @@ static void bta_gattc_char_dscpt_disc_cmpl(uint16_t conn_id,
                                            tBTA_GATTC_SERV* p_srvc_cb) {
   tBTA_GATTC_ATTR_REC* p_rec = NULL;
 
-  if (--p_srvc_cb->total_char > 0) {
+  if((p_srvc_cb->total_char != 0) && (-- p_srvc_cb->total_char > 0)) {
     p_rec = p_srvc_cb->p_srvc_list + (++p_srvc_cb->cur_char_idx);
     /* add the next characteristic into cache */
     bta_gattc_add_char_to_cache(p_srvc_cb, p_rec->char_decl_handle,

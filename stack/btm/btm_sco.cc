@@ -185,7 +185,8 @@ static void btm_esco_conn_rsp(uint16_t sco_inx, uint8_t hci_status,
     /* Use Enhanced Synchronous commands if supported */
     if (controller_get_interface()
             ->supports_enhanced_setup_synchronous_connection() &&
-        (osi_property_get("qcom.bluetooth.soc", value, "qcombtsoc") &&
+        ((osi_property_get("qcom.bluetooth.soc", value, "qcombtsoc") ||
+         osi_property_get("vendor.bluetooth.soc", value, "qcombtsoc"))&&
          strcmp(value, "cherokee") == 0)) {
       /* Use the saved SCO routing */
       p_setup->input_data_path = p_setup->output_data_path =
@@ -438,7 +439,8 @@ static tBTM_STATUS btm_send_connect_request(uint16_t acl_handle,
     /* Use Enhanced Synchronous commands if supported */
     if (controller_get_interface()
             ->supports_enhanced_setup_synchronous_connection() &&
-        (osi_property_get("qcom.bluetooth.soc", value, "qcombtsoc") &&
+         ((osi_property_get("qcom.bluetooth.soc", value, "qcombtsoc") ||
+         osi_property_get("vendor.bluetooth.soc", value, "qcombtsoc"))&&
          strcmp(value, "cherokee") == 0)) {
       /* Use the saved SCO routing */
       p_setup->input_data_path = p_setup->output_data_path =
@@ -1040,15 +1042,17 @@ uint16_t btm_find_scb_by_handle(uint16_t handle) {
  *
  ******************************************************************************/
 tBTM_STATUS BTM_RemoveSco(uint16_t sco_inx) {
+  BTM_TRACE_DEBUG("%s", __func__);
 #if (BTM_MAX_SCO_LINKS > 0)
+  if (sco_inx >= BTM_MAX_SCO_LINKS)
+    return (BTM_UNKNOWN_ADDR);
+
   tSCO_CONN* p = &btm_cb.sco_cb.sco_db[sco_inx];
   uint16_t tempstate;
   tBTM_PM_STATE state = BTM_PM_ST_INVALID;
 
-  BTM_TRACE_DEBUG("%s", __func__);
-
   /* Validity check */
-  if ((sco_inx >= BTM_MAX_SCO_LINKS) || (p->state == SCO_ST_UNUSED))
+  if (p->state == SCO_ST_UNUSED)
     return (BTM_UNKNOWN_ADDR);
 
   /* If no HCI handle, simply drop the connection and return */
@@ -1535,8 +1539,9 @@ tBTM_STATUS BTM_ChangeEScoLinkParms(uint16_t sco_inx,
     /* Use Enhanced Synchronous commands if supported */
     if (controller_get_interface()
             ->supports_enhanced_setup_synchronous_connection() &&
-         (osi_property_get("qcom.bluetooth.soc", value, "qcombtsoc") &&
-          strcmp(value, "cherokee") == 0)) {
+         ((osi_property_get("qcom.bluetooth.soc", value, "qcombtsoc") ||
+         osi_property_get("vendor.bluetooth.soc", value, "qcombtsoc")) &&
+         strcmp(value, "cherokee") == 0)) {
       /* Use the saved SCO routing */
       p_setup->input_data_path = p_setup->output_data_path =
           btm_cb.sco_cb.sco_route;
