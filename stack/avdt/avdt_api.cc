@@ -37,10 +37,13 @@
 #include "btu.h"
 #include "l2c_api.h"
 #include "stack/include/a2dp_codec_api.h"
+#include "btif/include/btif_avk.h"
 
 /* Control block for AVDT */
 tAVDT_CB avdt_cb;
 
+#define accure_range      150       /* Value difference considered for sending next DELAY_REPORT*/
+                                    /* Delay value given is 1/10 millisecond */
 extern uint16_t pump_encoded_data;
 
 void avdt_ccb_idle_ccb_timer_timeout(void* data) {
@@ -87,6 +90,34 @@ void avdt_delay_report_timer_timeout(void* data) {
   tAVDT_SCB_EVT avdt_scb_evt;
   avdt_scb_evt.msg.single = single;
   avdt_scb_event(p_scb, AVDT_SCB_API_OPEN_REQ_EVT, &avdt_scb_evt);
+}
+
+/*******************************************************************************
+ *
+ * Function         avdt_delay_rpt_tmr_hdlr
+ *
+ * Description      Timer to trigger checking average_delay,
+ *                  compare the latest reported delay,
+ *                  if the current delay is out of accure range,
+ *                  start a new Delay report procedure.
+ *
+ * Returns          Nothing.
+ *
+ ******************************************************************************/
+void avdt_delay_rpt_tmr_hdlr(void* data) {
+  tAVDT_SCB *p_scb = (tAVDT_SCB *)data;
+  uint64_t average_delay = btif_avk_get_average_delay(p_scb->p_ccb->peer_addr);
+  if (average_delay == 0)
+    return;
+
+  uint16_t delay_ms = (uint16_t)(average_delay / 100000); /* report value is in 1/10 millisecond */
+
+  if (abs(p_scb->reported_delay - delay_ms) >= accure_range) {
+    p_scb->reported_delay = delay_ms;
+    AVDT_TRACE_DEBUG("reported_delay %d, delay_ms %d average_delay %d", p_scb->reported_delay, delay_ms, average_delay);
+    AVDT_TRACE_DEBUG(" %s ~~ average delay is changed, update delay report  ",__func__);
+    AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, p_scb->reported_delay);
+  }
 }
 
 /*******************************************************************************

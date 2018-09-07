@@ -844,11 +844,12 @@ tAVDT_SCB* avdt_scb_alloc(tAVDT_CS* p_cs) {
 
       memcpy(&p_scb->cs, p_cs, sizeof(tAVDT_CS));
       p_scb->transport_channel_timer =
-          alarm_new("avdt_scb.transport_channel_timer");
-      p_scb->delay_report_timer =
-          alarm_new("avdt_scb.delay_report_timer");
+        alarm_new("avdt_scb.transport_channel_timer");
+      if(p_scb->cs.tsep == AVDT_TSEP_SRC)
+        p_scb->delay_report_timer =
+           alarm_new("avdt_scb.delay_report_timer");
       AVDT_TRACE_DEBUG("%s: hdl=%d, psc_mask:0x%x", __func__, i + 1,
-                       p_cs->cfg.psc_mask);
+           p_cs->cfg.psc_mask);
       break;
     }
   }

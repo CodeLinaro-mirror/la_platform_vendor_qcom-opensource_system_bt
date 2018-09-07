@@ -113,7 +113,7 @@ typedef struct {
 } btif_hf_client_cb_t;
 
 /* Max devices supported by BTIF (useful to match the value in BTA) */
-#define HF_CLIENT_MAX_DEVICES 10
+#define HF_CLIENT_MAX_DEVICES 1
 typedef struct {
   btif_hf_client_cb_t cb[HF_CLIENT_MAX_DEVICES];
 } btif_hf_client_cb_arr_t;
