@@ -77,10 +77,10 @@ extern const btgatt_callbacks_t* bt_gatt_callbacks;
 #define CHECK_BTGATT_INIT()                                      \
   do {                                                           \
     if (bt_gatt_callbacks == NULL) {                             \
-      LOG_WARN("bt_btif_gattc: %s: BTGATT not initialized", __func__); \
+      LOG_WARN(LOG_TAG, "%s: BTGATT not initialized", __func__); \
       return BT_STATUS_NOT_READY;                                \
     } else {                                                     \
-      LOG_VERBOSE("bt_btif_gattc: %s", __func__);                      \
+      LOG_VERBOSE(LOG_TAG, "%s", __func__);                      \
     }                                                            \
   } while (0)
 
@@ -96,7 +96,7 @@ namespace {
 uint8_t rssi_request_client_if;
 
 void btif_gattc_upstreams_evt(uint16_t event, char* p_param) {
-  LOG_VERBOSE("bt_btif_gattc: %s: Event %d", __func__, event);
+  LOG_VERBOSE(LOG_TAG, "%s: Event %d", __func__, event);
 
   tBTA_GATTC* p_data = (tBTA_GATTC*)p_param;
   switch (event) {
@@ -146,8 +146,10 @@ void btif_gattc_upstreams_evt(uint16_t event, char* p_param) {
       }
 
       if (p_data->open.status == BTA_GATT_OK)
+#if (!defined(BTA_SKIP_BLE_START_ENCRYPTION) || BTA_SKIP_BLE_START_ENCRYPTION == FALSE)
         btif_gatt_check_encrypted_link(p_data->open.remote_bda,
                                        p_data->open.transport);
+#endif
       break;
     }
 
@@ -159,7 +161,7 @@ void btif_gattc_upstreams_evt(uint16_t event, char* p_param) {
     }
 
     case BTA_GATTC_ACL_EVT:
-      LOG_DEBUG("bt_btif_gattc: BTA_GATTC_ACL_EVT: status = %d", p_data->status);
+      LOG_DEBUG(LOG_TAG, "BTA_GATTC_ACL_EVT: status = %d", p_data->status);
       /* Ignore for now */
       break;
 
@@ -192,7 +194,7 @@ void btif_gattc_upstreams_evt(uint16_t event, char* p_param) {
       break;
 
     default:
-      LOG_ERROR("bt_btif_gattc: %s: Unhandled event (%d)!", __func__, event);
+      LOG_ERROR(LOG_TAG, "%s: Unhandled event (%d)!", __func__, event);
       break;
   }
 }
@@ -535,10 +537,11 @@ bt_status_t btif_gattc_configure_mtu(int conn_id, int mtu) {
 
 void btif_gattc_conn_parameter_update_impl(RawAddress addr, int min_interval,
                                            int max_interval, int latency,
-                                           int timeout) {
+                                           int timeout, uint16_t min_ce_len,
+                                           uint16_t max_ce_len) {
   if (BTA_DmGetConnectionState(addr))
     BTA_DmBleUpdateConnectionParams(addr, min_interval, max_interval, latency,
-                                    timeout);
+                                    timeout, min_ce_len, max_ce_len);
   else
     BTA_DmSetBlePrefConnParams(addr, min_interval, max_interval, latency,
                                timeout);
@@ -546,11 +549,13 @@ void btif_gattc_conn_parameter_update_impl(RawAddress addr, int min_interval,
 
 bt_status_t btif_gattc_conn_parameter_update(const RawAddress& bd_addr,
                                              int min_interval, int max_interval,
-                                             int latency, int timeout) {
+                                             int latency, int timeout,
+                                             uint16_t min_ce_len,
+                                             uint16_t max_ce_len) {
   CHECK_BTGATT_INIT();
-  return do_in_jni_thread(
-      Bind(base::IgnoreResult(&btif_gattc_conn_parameter_update_impl), bd_addr,
-           min_interval, max_interval, latency, timeout));
+  return do_in_jni_thread(Bind(
+      base::IgnoreResult(&btif_gattc_conn_parameter_update_impl), bd_addr,
+      min_interval, max_interval, latency, timeout, min_ce_len, max_ce_len));
 }
 
 bt_status_t btif_gattc_set_preferred_phy(const RawAddress& bd_addr,

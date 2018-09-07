@@ -65,7 +65,7 @@ void btsnoop_net_open() {
   listen_thread_valid_ =
       (pthread_create(&listen_thread_, NULL, listen_fn_, NULL) == 0);
   if (!listen_thread_valid_)
-    LOG_ERROR("bt_snoop_net: %s pthread_create failed: %s", __func__,
+    LOG_ERROR(LOG_TAG, "%s pthread_create failed: %s", __func__,
               strerror(errno));
 }
 
@@ -75,7 +75,7 @@ static int notify_listen_thread() {
 
   OSI_NO_INTR(ret = write(notification_write_fd, &buffer, 1));
   if ( ret < 0){
-    LOG_ERROR("bt_snoop_net: "
+    LOG_ERROR(LOG_TAG, ""
         "%s: Error in notifying the listen thread to exit",__func__);
     return -1;
   }
@@ -98,7 +98,7 @@ void btsnoop_net_close() {
     safe_close_(&client_socket_);
     safe_close_(&notification_listen_fd);
     safe_close_(&notification_write_fd);
-    LOG_WARN("bt_snoop_net: %s stopped the btsnoop listen thread", __func__);
+    LOG_WARN(LOG_TAG, "%s stopped the btsnoop listen thread", __func__);
     listen_thread_valid_ = false;
   }
 }
@@ -117,7 +117,7 @@ void btsnoop_net_write(const void* data, size_t length) {
       safe_close_(&client_socket_);
     }
     else if (ret == -1 && errno == EAGAIN) {
-      LOG_ERROR("bt_snoop_net: %s Dropping snoop pkts because of congestion", __func__);
+      LOG_ERROR(LOG_TAG, "%s Dropping snoop pkts because of congestion", __func__);
     }
   }
 }
@@ -135,7 +135,7 @@ static void* listen_fn_(UNUSED_ATTR void* context) {
 
   // Set up the communication channel
   if (pipe2(self_pipe_fds, O_NONBLOCK)){
-    LOG_ERROR("bt_snoop_net: "
+    LOG_ERROR(LOG_TAG, ""
         "%s:Unable to establish a communication channel to the listen thread ",
         __func__);
     return NULL;
@@ -151,7 +151,7 @@ static void* listen_fn_(UNUSED_ATTR void* context) {
 
   listen_socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (listen_socket_ == -1) {
-    LOG_ERROR("bt_snoop_net: %s socket creation failed: %s", __func__,
+    LOG_ERROR(LOG_TAG, "%s socket creation failed: %s", __func__,
               strerror(errno));
     goto cleanup;
   }
@@ -163,7 +163,7 @@ static void* listen_fn_(UNUSED_ATTR void* context) {
 
   if (setsockopt(listen_socket_, SOL_SOCKET, SO_REUSEADDR, &enable,
                  sizeof(enable)) == -1) {
-    LOG_ERROR("bt_snoop_net: %s unable to set SO_REUSEADDR: %s", __func__,
+    LOG_ERROR(LOG_TAG, "%s unable to set SO_REUSEADDR: %s", __func__,
               strerror(errno));
     goto cleanup;
   }
@@ -173,13 +173,13 @@ static void* listen_fn_(UNUSED_ATTR void* context) {
   addr.sin_addr.s_addr = htonl(LOCALHOST_);
   addr.sin_port = htons(LISTEN_PORT_);
   if (bind(listen_socket_, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
-    LOG_ERROR("bt_snoop_net: %s unable to bind listen socket: %s", __func__,
+    LOG_ERROR(LOG_TAG, "%s unable to bind listen socket: %s", __func__,
               strerror(errno));
     goto cleanup;
   }
 
   if (listen(listen_socket_, 10) == -1) {
-    LOG_ERROR("bt_snoop_net: %s unable to listen: %s", __func__, strerror(errno));
+    LOG_ERROR(LOG_TAG, "%s unable to listen: %s", __func__, strerror(errno));
     goto cleanup;
   }
 
@@ -196,7 +196,7 @@ static void* listen_fn_(UNUSED_ATTR void* context) {
 
     sock_fds = save_sock_fds;
     if ((select(fd_max + 1, &sock_fds, NULL, NULL, NULL)) == -1) {
-      LOG_ERROR("bt_snoop_net: %s select failed %s", __func__, strerror(errno));
+      LOG_ERROR(LOG_TAG, "%s select failed %s", __func__, strerror(errno));
       if(errno == EINTR)
         continue;
       goto cleanup;
@@ -210,10 +210,10 @@ static void* listen_fn_(UNUSED_ATTR void* context) {
                   (socklen_t *)&length));
       if (client_socket == -1) {
         if (errno == EINVAL || errno == EBADF) {
-          LOG_WARN("bt_snoop_net: %s error accepting LOCAL socket: %s", __func__, strerror(errno));
+          LOG_WARN(LOG_TAG, "%s error accepting LOCAL socket: %s", __func__, strerror(errno));
           break;
         }
-        LOG_WARN("bt_snoop_net: %s error accepting LOCAL socket: %s", __func__, strerror(errno));
+        LOG_WARN(LOG_TAG, "%s error accepting LOCAL socket: %s", __func__, strerror(errno));
         continue;
       }
       OSI_NO_INTR(write(client_socket, "btsnoop\0\0\0\0\1\0\0\x3\xea", 16));
@@ -225,19 +225,19 @@ static void* listen_fn_(UNUSED_ATTR void* context) {
         if (errno == EINVAL || errno == EBADF) {
           break;
         }
-        LOG_WARN("bt_snoop_net: %s error accepting socket: %s", __func__,
+        LOG_WARN(LOG_TAG, "%s error accepting socket: %s", __func__,
                  strerror(errno));
         continue;
       }
     } else if((notification_listen_fd != -1) && FD_ISSET(notification_listen_fd, &sock_fds)) {
-      LOG_WARN("bt_snoop_net: %s exting from listen_fn_ thread ", __func__);
+      LOG_WARN(LOG_TAG, "%s exting from listen_fn_ thread ", __func__);
       return NULL;
     }
 
     socket_timeout.tv_sec = 0;
     socket_timeout.tv_usec = 5000;
     if(setsockopt(client_socket, SOL_SOCKET, SO_SNDTIMEO, &socket_timeout, sizeof(socket_timeout)) < 0) {
-      LOG_WARN("bt_snoop_net: %s fail to set socket option %s", __func__,
+      LOG_WARN(LOG_TAG, "%s fail to set socket option %s", __func__,
                strerror(errno));
       close(client_socket);
       continue;
@@ -259,7 +259,7 @@ cleanup:
 
 static void safe_close_(int* fd) {
   CHECK(fd != NULL);
-  if (*fd != -1) {
+  if (fd != NULL && *fd != -1) {
     close(*fd);
     *fd = -1;
   }

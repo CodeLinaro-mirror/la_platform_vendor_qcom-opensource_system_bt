@@ -44,6 +44,7 @@
 typedef enum {
   BTIF_QUEUE_CONNECT_EVT,
   BTIF_QUEUE_ADVANCE_EVT,
+  BTIF_QUEUE_ADVANCE_BY_UUID_EVT,
   BTIF_QUEUE_CLEANUP_EVT
 } btif_queue_event_t;
 
@@ -72,7 +73,7 @@ extern thread_t *bt_jni_workqueue_thread;
 static void queue_int_add(connect_node_t* p_param) {
   uint16_t counter = 0;
   if (!connect_queue) {
-    LOG_INFO("bt_btif_queue: %s: allocating profile queue", __func__);
+    LOG_INFO(LOG_TAG, "%s: allocating profile queue", __func__);
     connect_queue = list_new(osi_free);
     CHECK(connect_queue != NULL);
   }
@@ -86,11 +87,11 @@ static void queue_int_add(connect_node_t* p_param) {
       if (p_param->uuid == UUID_SERVCLASS_AUDIO_SOURCE ||
           p_param->uuid == UUID_SERVCLASS_AG_HANDSFREE) {
           counter++;
-          LOG_INFO("bt_btif_queue: %s add  connect request for uuid: %04x",
+          LOG_INFO(LOG_TAG, "%s add  connect request for uuid: %04x",
                __func__, counter);
           continue;
       }
-      LOG_INFO("bt_btif_queue: %s dropping duplicate connect request for uuid: %04x",
+      LOG_INFO(LOG_TAG, "%s dropping duplicate connect request for uuid: %04x",
                __func__, p_param->uuid);
       return;
     }
@@ -98,7 +99,7 @@ static void queue_int_add(connect_node_t* p_param) {
   uint16_t max_conn = p_param->max_connections;
   if ((counter >= max_conn && p_param->uuid == UUID_SERVCLASS_AUDIO_SOURCE) ||
       (counter >= max_conn && p_param->uuid == UUID_SERVCLASS_AG_HANDSFREE)) {
-          LOG_INFO("bt_btif_queue: %s connect request exceeded max supported connection: %04x",
+          LOG_INFO(LOG_TAG, "%s connect request exceeded max supported connection: %04x",
                __func__, p_param->uuid);
           return;
   }
@@ -110,7 +111,7 @@ static void queue_int_add(connect_node_t* p_param) {
 static void queue_int_advance() {
   if (connect_queue && !list_is_empty(connect_queue)) {
     connect_node_t* p_head = (connect_node_t*)list_front(connect_queue);
-    LOG_INFO("bt_btif_queue: "
+    LOG_INFO(LOG_TAG, ""
              "%s: removing connection request UUID=%04X, bd_addr=%s, busy=%d",
              __func__, p_head->uuid, p_head->bda.ToString().c_str(),
              p_head->busy);
@@ -118,13 +119,52 @@ static void queue_int_advance() {
   }
 }
 
+static void queue_int_advance_by_uuid(connect_node_t* p_param) {
+
+  if (!connect_queue || list_is_empty(connect_queue)) return;
+
+  list_node_t* node = list_begin(connect_queue);
+  connect_node_t* p_head = (connect_node_t*)list_node(node);
+
+  if (p_head == NULL)
+    return;
+
+  if (((p_head->bda == p_param->bda) || (p_param->bda.IsEmpty()))
+       && (p_head->uuid == p_param->uuid)) {
+    LOG_WARN(LOG_TAG,"%s: queue advance UUID=%04X, bd_addr=%s",
+        __func__, p_head->uuid, p_head->bda.ToString().c_str());
+    btif_queue_advance();
+    return;
+  }
+
+  // move the node to next
+  node = list_next(node);
+
+  for (; node != list_end(connect_queue);) {
+    p_head = (connect_node_t*)list_node(node);
+    node = list_next(node);
+
+    if (((p_head->bda == p_param->bda) || (p_param->bda.IsEmpty()))
+        && (p_head->uuid == p_param->uuid)) {
+      LOG_WARN(LOG_TAG,"%s: deleting entry from queue UUID=%04X, bd_addr=%s",
+               __func__, p_head->uuid, p_head->bda.ToString().c_str());
+      list_remove(connect_queue,p_head);
+      return;
+    }
+  }
+
+  LOG_WARN(LOG_TAG,"%s: no entry found in queue UUID=%04X, bd_addr=%s",
+         __func__, p_param->uuid, p_param->bda.ToString().c_str());
+  return;
+}
+
 static void queue_int_cleanup(uint16_t* p_uuid) {
   if (!p_uuid) {
-    LOG_ERROR("bt_btif_queue: %s: UUID is null", __func__);
+    LOG_ERROR(LOG_TAG, "%s: UUID is null", __func__);
     return;
   }
   uint16_t uuid = *p_uuid;
-  LOG_INFO("bt_btif_queue: %s: UUID=%04X", __func__, uuid);
+  LOG_INFO(LOG_TAG, "%s: UUID=%04X", __func__, uuid);
   if (!connect_queue) {
     return;
   }
@@ -134,7 +174,7 @@ static void queue_int_cleanup(uint16_t* p_uuid) {
     connection_request = (connect_node_t*)list_node(node);
     node = list_next(node);
     if (connection_request->uuid == uuid) {
-      LOG_INFO("bt_btif_queue: "
+      LOG_INFO(LOG_TAG, ""
                "%s: removing connection request UUID=%04X, bd_addr=%s, busy=%d",
                __func__, connection_request->uuid,
                connection_request->bda.ToString().c_str(),
@@ -152,6 +192,10 @@ static void queue_int_handle_evt(uint16_t event, char* p_param) {
 
     case BTIF_QUEUE_ADVANCE_EVT:
       queue_int_advance();
+      break;
+
+    case BTIF_QUEUE_ADVANCE_BY_UUID_EVT:
+      queue_int_advance_by_uuid((connect_node_t*)p_param);
       break;
 
     case BTIF_QUEUE_CLEANUP_EVT:
@@ -224,6 +268,28 @@ void btif_queue_advance() {
                         NULL, 0, NULL);
 }
 
+/*******************************************************************************
+ *
+ * Function         btif_queue_advance_by_uuid
+ *
+ * Description      remove the connected uuid entry from queue,
+ *                  adavance queue if entry found at head of the queue
+ *
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+void btif_queue_advance_by_uuid(uint16_t uuid, const RawAddress* bda) {
+
+   connect_node_t* node = (connect_node_t*)osi_malloc(sizeof(connect_node_t));
+   memset(node, 0, sizeof(connect_node_t));
+   node->bda = *bda;
+   node->uuid = uuid;
+
+   btif_transfer_context(queue_int_handle_evt, BTIF_QUEUE_ADVANCE_BY_UUID_EVT,
+                               (char*)node, sizeof(connect_node_t), NULL);
+}
+
 // This function dispatches the next pending connect request. It is called from
 // stack_manager when the stack comes up.
 bt_status_t btif_queue_connect_next(void) {
@@ -231,7 +297,7 @@ bt_status_t btif_queue_connect_next(void) {
 
   connect_node_t* p_head = (connect_node_t*)list_front(connect_queue);
 
-  LOG_INFO("bt_btif_queue: "
+  LOG_INFO(LOG_TAG, ""
            "%s: executing connection request UUID=%04X, bd_addr=%s, busy=%d",
            __func__, p_head->uuid, p_head->bda.ToString().c_str(),
            p_head->busy);
@@ -253,7 +319,7 @@ bt_status_t btif_queue_connect_next(void) {
  *
  ******************************************************************************/
 void btif_queue_release() {
-  LOG_INFO("bt_btif_queue: %s", __func__);
+  LOG_INFO(LOG_TAG, "%s", __func__);
   list_free(connect_queue);
   connect_queue = NULL;
 }

@@ -166,13 +166,12 @@ typedef enum {
   // Disable role switch for headsets/car-kits.
   // Some car kits allow role switch but when the Phone initiates role switch,
   // the Remote device will go into bad state that will lead to LMP time out.
-  INTEROP_DISABLE_ROLE_SWITCH,
-  
-  // When connection fails due to collision, DUT will reconnect A2dp
-  // every 2s till it succeeds. But some remotes will refuse reconnection
-  // from DUT, thus increase this collision timeout.
+
   INTEROP_INCREASE_COLL_DETECT_TIMEOUT,
 
+
+  INTEROP_DISABLE_ROLE_SWITCH,
+  
   // Some remotes are very strict in receiving the call active
   // indicator and SCO connection request order for MT call.
   // If CIEV1,1 and SCO connection request are sent back to back
@@ -201,6 +200,15 @@ typedef enum {
   // is not requested explictly for those devices.
   INTEROP_DISABLE_LE_CONN_UPDATES,
 
+  // Devices requiring this workaround do not handle Bluetooth PBAP 1.1 version correctly,
+  // leading them to go in bad state. So for better interoperability respond with PBAP 1.2
+  // as supported version.
+  INTEROP_ADV_PBAP_VER_1_2,
+
+  //Few remote sends avrcp browsing request just after host sends avrcp browsing request leading
+  //collision which results in browsing channel open failure. For such devices, collision timer
+  //is used avoid collision.
+  INTEROP_AVRCP_BROWSE_OPEN_CHANNEL_COLLISION,
 
   END_OF_INTEROP_LIST
 } interop_feature_t;
@@ -219,6 +227,11 @@ bool interop_match_addr(const interop_feature_t feature,
 // exists for "TEST", this function will return true. |name| cannot be null and
 // must be null terminated.
 bool interop_match_name(const interop_feature_t feature, const char* name);
+
+// This api will lookup remote name with |addr| by btif_storage api internally.
+// Then if either interop_match_addr or interop_match_name is matched, this function
+// will return true.
+bool interop_match_addr_or_name(const interop_feature_t feature, const RawAddress* addr);
 
 // Check if a given |manufacturer| matches a known interoperability workaround
 // as identified by the |interop_feature_t| enum. This API is used for

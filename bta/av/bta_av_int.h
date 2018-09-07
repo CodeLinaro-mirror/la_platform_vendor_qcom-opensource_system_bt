@@ -1,6 +1,35 @@
 /******************************************************************************
- * Copyright (C) 2017, The Linux Foundation. All rights reserved.
- * Not a Contribution.
+ *  Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ *  Not a Contribution.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted (subject to the limitations in the
+ *  disclaimer below) provided that the following conditions are met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided
+      with the distribution.
+
+    * Neither the name of The Linux Foundation nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+
+ *  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ *  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ *  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************/
 /******************************************************************************
  *
@@ -36,7 +65,7 @@
 #include "osi/include/list.h"
 #include "stack/a2dp/a2dp_int.h"
 #include "stack/include/a2dp_api.h"
-
+#include "bt_vendor_av.h"
 /*****************************************************************************
  *  Constants
  ****************************************************************************/
@@ -115,7 +144,12 @@ enum {
   BTA_AV_UPDATE_MAX_AV_CLIENTS_EVT,
   BTA_AV_ENABLE_MULTICAST_EVT, /* Event for enable and disable multicast */
   BTA_AV_RC_COLLISSION_DETECTED_EVT,
-  BTA_AV_UPDATE_SUPP_CODECS
+  BTA_AV_UPDATE_SUPP_CODECS,
+  BTA_AV_UPDATE_ENCODER_MODE_EVT,
+#if (TWS_ENABLED == TRUE)
+  BTA_AV_SET_EARBUD_ROLE_EVT, /* Set TWS earbud role */
+  BTA_AV_SET_TWS_DEVICE_EVT, /* Update TWS state */
+#endif
 };
 
 /* events for AV control block state machine */
@@ -134,6 +168,14 @@ enum {
 #define BTA_AV_FIRST_A2S_SSM_EVT BTA_AV_AP_START_EVT
 
 #define BTA_AV_LAST_EVT BTA_AV_UPDATE_SUPP_CODECS
+#if (TWS_ENABLED == TRUE)
+#define BTA_AV_LAST_EVT BTA_AV_SET_TWS_DEVICE_EVT
+#else
+#define BTA_AV_LAST_EVT BTA_AV_RC_COLLISSION_DETECTED_EVT
+#endif
+
+/* Info ID from updating aptX Adaptive Encoder mode */
+#define BTA_AV_ENCODER_MODE_CHANGE_ID 5
 
 /* maximum number of SEPS in stream discovery results */
 #define BTA_AV_NUM_SEPS 32
@@ -142,7 +184,7 @@ enum {
 #define BTA_AV_RC_HANDLE_NONE 0xFF
 
 /* size of database for service discovery */
-#define BTA_AV_DISC_BUF_SIZE 1000
+#define BTA_AV_DISC_BUF_SIZE 2000
 
 /* maximum length of AVDTP security data */
 #define BTA_AV_SECURITY_MAX_LEN 400
@@ -273,6 +315,21 @@ typedef struct
     uint8_t  codec_info[BTAV_A2DP_CODEC_INDEX_SOURCE_MAX][AVDT_CODEC_SIZE];
     uint8_t  num_codec_configs;          /* Number of codec configurations*/
 } tBTA_AV_UPDATE_SUPP_CODECS;
+#if (TWS_ENABLED == TRUE)
+/* data type for BTA_AV_TWS_SET_EARBUD_ROLE_EVT */
+typedef struct
+{
+  BT_HDR hdr;
+  uint8_t chn_mode;
+} tBTA_AV_TWS_SET_EARBUD_ROLE;
+/* data type for BTA_AV_ENABLE_TWS_DEVICE_EVT */
+typedef struct
+{
+  BT_HDR hdr;
+  bool is_tws_device;
+} tBTA_AV_SET_TWS_DEVICE;
+
+#endif
 
 /* data type for BTA_AV_UPDATE_MAX_AV_CLIENTS_EVTT */
 typedef struct
@@ -340,6 +397,13 @@ typedef struct {
   bool suspend;
   uint8_t sep_info_idx;
 } tBTA_AV_API_RCFG;
+
+/* data type for BTA_AV_UPDATE_ENCODER_MODE_EVT */
+typedef struct {
+  BT_HDR hdr;
+  uint16_t enc_mode;
+} tBTA_AV_ENC_MODE;
+
 
 /* data type for BTA_AV_CI_SETCONFIG_OK_EVT and BTA_AV_CI_SETCONFIG_FAIL_EVT */
 typedef struct {
@@ -465,6 +529,11 @@ typedef union {
   tBTA_AV_ENABLE_MULTICAST multicast_state;
   tBTA_AV_UPDATE_SUPP_CODECS update_supp_codecs;
   tBTA_AV_MAX_CLIENT max_av_clients;
+  tBTA_AV_ENC_MODE encoder_mode;
+#if (TWS_ENABLED == TRUE)
+  tBTA_AV_TWS_SET_EARBUD_ROLE tws_set_earbud_role;
+  tBTA_AV_SET_TWS_DEVICE tws_set_device;
+#endif
 } tBTA_AV_DATA;
 
 typedef union {
@@ -507,7 +576,11 @@ typedef struct {
   const tBTA_AV_ACT* p_act_tbl; /* the action table for stream state machine */
   const tBTA_AV_CO_FUNCTS* p_cos; /* the associated callout functions */
   bool sdp_discovery_started; /* variable to determine whether SDP is started */
+#if (TWS_ENABLED == TRUE)
+  tBTA_AV_SEP seps[BTAV_VENDOR_A2DP_CODEC_INDEX_MAX];
+#else
   tBTA_AV_SEP seps[BTAV_A2DP_CODEC_INDEX_MAX];
+#endif
   tAVDT_CFG* p_cap;  /* buffer used for get capabilities */
   list_t* a2dp_list; /* used for audio channels only */
   tBTA_AV_Q_INFO q_info;
@@ -564,6 +637,11 @@ typedef struct {
   bool skip_sdp; /* Decides if sdp to be done prior to profile connection */
   bool offload_supported;
   bool do_scrambling;
+//#ifdef TWS_ENABLED
+  bool tws_device; //true for earbud false otherwise
+  uint8_t channel_mode; //L:0 R:1 S:2 M:3
+  bool offload_started;
+//#endif
 } tBTA_AV_SCB;
 
 #define BTA_AV_RC_ROLE_MASK 0x10
@@ -580,6 +658,7 @@ typedef struct {
   uint8_t shdl;               /* stream handle (hdi + 1) */
   uint8_t lidx;               /* (index+1) to LCB */
   tBTA_AV_FEAT peer_features; /* peer features mask */
+  uint16_t  cover_art_psm;  /* l2cap psm for cover art on remote */
 } tBTA_AV_RCB;
 #define BTA_AV_NUM_RCB (BTA_AV_NUM_STRS + 2)
 
@@ -603,6 +682,7 @@ typedef struct {
   tBTA_AV_RCB rcb[BTA_AV_NUM_RCB];       /* RCB control block */
   tBTA_AV_LCB lcb[BTA_AV_NUM_LINKS + 1]; /* link control block */
   alarm_t* link_signalling_timer;
+  alarm_t* browsing_channel_open_timer;  /* timer to initiate avrcp browsing open channel*/
   alarm_t*
       accept_signalling_timer[BTA_AV_NUM_STRS];  /* timer to monitor signalling when accepting */
   uint32_t sdp_a2dp_handle;     /* SDP record handle for audio src */
@@ -644,6 +724,12 @@ typedef struct {
   uint16_t acl_hdl;
   uint16_t l2c_rcid;
   uint16_t mtu;
+//#ifdef TWS_ENABLED
+  uint8_t stream_start;// Start Stream:1
+  uint8_t split_acl; // BR-EDR Device:0 TWS Device:1
+  uint8_t ch_mode; //None:0 Left:1 Right:2
+  uint16_t ttp; //time to play
+//#endif
   uint8_t codec_info[20];
   tBTA_AV_SCB* p_scb;
 }tBT_VENDOR_A2DP_OFFLOAD;
@@ -665,7 +751,9 @@ extern tBT_VENDOR_A2DP_OFFLOAD offload_start;
 #define VS_QHCI_A2DP_OFFLOAD_START            0x0A
 #define VS_QHCI_GET_SCRAMBLING_FREQS          0x11
 #define VS_QHCI_SCRAMBLE_A2DP_MEDIA           0x12
+#define VS_QHCI_ENCODER_MODE_CHANGE           0X13
 #define A2DP_TRANSPORT_TYPE_SLIMBUS     0
+#define QHCI_INVALID_VSC 0x01
 /* SPLITA2DP */
 /*****************************************************************************
  *  Global data
@@ -678,7 +766,6 @@ extern tBTA_AV_CB bta_av_cb;
 extern tBTA_AV_CFG* p_bta_av_cfg;
 extern const tBTA_AV_CFG bta_avk_cfg;
 extern const tBTA_AV_CFG bta_av_cfg;
-extern const tBTA_AV_CFG bta_av_cfg_compatibility;
 
 /* rc id config struct */
 extern uint16_t* p_bta_av_rc_id;
@@ -738,6 +825,7 @@ extern void bta_av_rc_disc(uint8_t disc);
 extern void bta_av_conn_chg(tBTA_AV_DATA* p_data);
 extern void bta_av_dereg_comp(tBTA_AV_DATA* p_data);
 extern void bta_av_rc_collission_detected(tBTA_AV_DATA *p_data);
+extern void bta_av_update_enc_mode(tBTA_AV_DATA* p_data);
 
 /* sm action functions */
 extern void bta_av_disable(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data);
@@ -806,6 +894,8 @@ extern void bta_av_delay_rpt(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_open_at_inc(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_offload_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_offload_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
-extern void bta_av_vendor_offload_stop(void);
-
+extern void bta_av_vendor_offload_stop(tBTA_AV_SCB* p_scb);
+#if (TWS_ENABLED == TRUE)
+extern void bta_av_set_tws_chn_mode(tBTA_AV_SCB* p_scb, bool adjust);
+#endif
 #endif /* BTA_AV_INT_H */

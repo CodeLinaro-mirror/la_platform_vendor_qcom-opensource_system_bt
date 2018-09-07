@@ -44,10 +44,13 @@
 #include "osi/include/osi.h"
 #include "smp_api.h"
 #include "btif/include/btif_storage.h"
+#include "stack_config.h"
 
 extern bool aes_cipher_msg_auth_code(BT_OCTET16 key, uint8_t* input,
                                      uint16_t length, uint16_t tlen,
                                      uint8_t* p_signature);
+extern void gatt_notify_phy_updated(uint8_t status, uint16_t handle,
+                                    uint8_t tx_phy, uint8_t rx_phy);
 
 /******************************************************************************/
 /* External Function to be called by other modules                            */
@@ -95,7 +98,7 @@ bool BTM_SecAddBleDevice(const RawAddress& bd_addr, BD_NAME bd_name,
   if (bd_name && bd_name[0]) {
     p_dev_rec->sec_flags |= BTM_SEC_NAME_KNOWN;
     strlcpy((char*)p_dev_rec->sec_bd_name, (char*)bd_name,
-            BTM_MAX_REM_BD_NAME_LEN);
+            BTM_MAX_REM_BD_NAME_LEN + 1);
   }
   p_dev_rec->device_type |= dev_type;
   p_dev_rec->ble.ble_addr_type = addr_type;
@@ -134,7 +137,7 @@ bool BTM_GetRemoteDeviceName(const RawAddress& bd_addr, BD_NAME bd_name)
   if (btif_storage_get_remote_device_property(
       &bd_addr, &prop_name) == BT_STATUS_SUCCESS) {
     APPL_TRACE_DEBUG("%s, NV name = %s", __func__, bdname.name);
-    strlcpy((char*) bd_name, (char*) bdname.name, BD_NAME_LEN);
+    strlcpy((char*) bd_name, (char*) bdname.name, BD_NAME_LEN + 1);
     ret = TRUE;
   }
   return ret;
@@ -835,6 +838,7 @@ bool BTM_UseLeLink(const RawAddress& bd_addr) {
 tBTM_STATUS BTM_SetBleDataLength(const RawAddress& bd_addr,
                                  uint16_t tx_pdu_length) {
   tACL_CONN* p_acl = btm_bda_to_acl(bd_addr, BT_TRANSPORT_LE);
+  uint16_t tx_time = BTM_BLE_DATA_TX_TIME_MAX_LEGACY;
 
   if (p_acl == NULL) {
     BTM_TRACE_ERROR("%s: Wrong mode: no LE link exist or LE not supported",
@@ -859,9 +863,11 @@ tBTM_STATUS BTM_SetBleDataLength(const RawAddress& bd_addr,
   else if (tx_pdu_length < BTM_BLE_DATA_SIZE_MIN)
     tx_pdu_length = BTM_BLE_DATA_SIZE_MIN;
 
+  if (controller_get_interface()->get_bt_version()->hci_version >= HCI_PROTO_VERSION_5_0)
+    tx_time = BTM_BLE_DATA_TX_TIME_MAX;
+
   /* always set the TxTime to be max, as controller does not care for now */
-  btsnd_hcic_ble_set_data_length(p_acl->hci_handle, tx_pdu_length,
-                                 BTM_BLE_DATA_TX_TIME_MAX);
+  btsnd_hcic_ble_set_data_length(p_acl->hci_handle, tx_pdu_length, tx_time);
 
   return BTM_SUCCESS;
 }
@@ -916,7 +922,7 @@ void BTM_BleReadPhy(
       !controller_get_interface()->supports_ble_coded_phy()) {
     BTM_TRACE_ERROR("%s failed, request not supported in local controller!",
                     __func__);
-    cb.Run(0, 0, HCI_ERR_ILLEGAL_COMMAND);
+    cb.Run(0, 0, GATT_REQ_NOT_SUPPORTED);
     return;
   }
 
@@ -1003,21 +1009,23 @@ void BTM_BleSetPhy(const RawAddress& bd_addr, uint8_t tx_phys, uint8_t rx_phys,
       "= 0x%04x",
       __func__, all_phys, tx_phys, rx_phys, phy_options);
 
+  uint16_t handle = p_acl->hci_handle;
+
   // checking if local controller supports it!
   if (!controller_get_interface()->supports_ble_2m_phy() &&
       !controller_get_interface()->supports_ble_coded_phy()) {
     BTM_TRACE_ERROR("%s failed, request not supported in local controller!",
                     __func__);
+    gatt_notify_phy_updated(GATT_REQ_NOT_SUPPORTED, handle, tx_phys, rx_phys);
     return;
   }
 
   if (!HCI_LE_2M_PHY_SUPPORTED(p_acl->peer_le_features) &&
       !HCI_LE_CODED_PHY_SUPPORTED(p_acl->peer_le_features)) {
     BTM_TRACE_ERROR("%s failed, peer does not support request", __func__);
+    gatt_notify_phy_updated(GATT_REQ_NOT_SUPPORTED, handle, tx_phys, rx_phys);
     return;
   }
-
-  uint16_t handle = p_acl->hci_handle;
 
   const uint8_t len = HCIC_PARAM_SIZE_BLE_SET_PHY;
   uint8_t data[len];
@@ -1497,6 +1505,7 @@ void btm_ble_link_sec_check(const RawAddress& bd_addr,
                             tBTM_BLE_SEC_REQ_ACT* p_sec_req_act) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
   uint8_t req_sec_level = BTM_LE_SEC_NONE, cur_sec_level = BTM_LE_SEC_NONE;
+  bool le_fresh_pairing_enabled = false;
 
   BTM_TRACE_DEBUG("btm_ble_link_sec_check auth_req =0x%x", auth_req);
 
@@ -1533,7 +1542,14 @@ void btm_ble_link_sec_check(const RawAddress& bd_addr,
         cur_sec_level = BTM_LE_SEC_NONE;
     }
 
-    if (cur_sec_level >= req_sec_level) {
+    if(stack_config_get_interface()->get_pts_le_fresh_pairing_enabled()) {
+      if (cur_sec_level == req_sec_level) {
+        BTM_TRACE_DEBUG("LE fresh pairing enabled");
+        le_fresh_pairing_enabled = true;
+      }
+    }
+
+    if (!le_fresh_pairing_enabled && (cur_sec_level >= req_sec_level)) {
       /* To avoid re-encryption on an encrypted link for an equal condition
        * encryption */
       *p_sec_req_act = BTM_BLE_SEC_REQ_ACT_ENCRYPT;
@@ -1608,10 +1624,11 @@ tBTM_STATUS btm_ble_set_encryption(const RawAddress& bd_addr,
           break;
         }
       }
-
-      if (SMP_Pair(bd_addr) == SMP_STARTED) {
-        cmd = BTM_CMD_STARTED;
-        p_rec->sec_state = BTM_SEC_STATE_AUTHENTICATING;
+      if(!stack_config_get_interface()->get_pts_le_sec_request_disabled()) {
+        if (SMP_Pair(bd_addr) == SMP_STARTED) {
+          cmd = BTM_CMD_STARTED;
+          p_rec->sec_state = BTM_SEC_STATE_AUTHENTICATING;
+        }
       }
       break;
 
@@ -1989,7 +2006,7 @@ void btm_ble_conn_complete(uint8_t* p, UNUSED_ATTR uint16_t evt_len,
     if (!match && BTM_BLE_IS_RESOLVE_BDA(bda)) {
       tBTM_SEC_DEV_REC* match_rec = btm_ble_resolve_random_addr(bda);
       if (match_rec) {
-        LOG_INFO("bt_btm_ble: %s matched and resolved random address", __func__);
+        LOG_INFO(LOG_TAG, "%s matched and resolved random address", __func__);
         match = true;
         match_rec->ble.active_addr_type = BTM_BLE_ADDR_RRA;
         match_rec->ble.cur_rand_addr = bda;
@@ -2000,7 +2017,7 @@ void btm_ble_conn_complete(uint8_t* p, UNUSED_ATTR uint16_t evt_len,
           bda = match_rec->bd_addr;
         }
       } else {
-        LOG_INFO("bt_btm_ble: %s unable to match and resolve random address",
+        LOG_INFO(LOG_TAG, "%s unable to match and resolve random address",
                  __func__);
       }
     }
@@ -2046,9 +2063,20 @@ void btm_ble_conn_complete(uint8_t* p, UNUSED_ATTR uint16_t evt_len,
  *
  *****************************************************************************/
 void btm_ble_create_ll_conn_complete(uint8_t status) {
-  if (status != HCI_SUCCESS) {
-    btm_ble_set_conn_st(BLE_CONN_IDLE);
-    btm_ble_update_mode_operation(HCI_ROLE_UNKNOWN, NULL, status);
+  if (status == HCI_SUCCESS) return;
+
+  btm_ble_set_conn_st(BLE_CONN_IDLE);
+  btm_ble_update_mode_operation(HCI_ROLE_UNKNOWN, NULL, status);
+
+  VLOG(1) << "LE Create Connection attempt failed, status=0x"
+          << std::hex << status;
+
+  if (status == HCI_ERR_COMMAND_DISALLOWED) {
+    /* There is already either direct connect, or whitelist connection
+     * pending, but we don't know which one, or to which state should we
+     * transition now. This can be triggered only in case of rare race
+     * condition. Crash to recover. */
+    LOG(FATAL) << "LE Create Connection - command disallowed";
   }
 }
 /*****************************************************************************

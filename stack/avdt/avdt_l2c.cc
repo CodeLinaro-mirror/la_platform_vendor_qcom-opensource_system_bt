@@ -52,19 +52,18 @@ void avdt_l2c_congestion_ind_cback(uint16_t lcid, bool is_congested);
 void avdt_l2c_data_ind_cback(uint16_t lcid, BT_HDR* p_buf);
 
 /* L2CAP callback function structure */
-const tL2CAP_APPL_INFO avdt_l2c_appl = {
-    avdt_l2c_connect_ind_cback,
-    avdt_l2c_connect_cfm_cback,
-    NULL,
-    avdt_l2c_config_ind_cback,
-    avdt_l2c_config_cfm_cback,
-    avdt_l2c_disconnect_ind_cback,
-    avdt_l2c_disconnect_cfm_cback,
-    NULL,
-    avdt_l2c_data_ind_cback,
-    avdt_l2c_congestion_ind_cback,
-    NULL /* tL2CA_TX_COMPLETE_CB */
-};
+const tL2CAP_APPL_INFO avdt_l2c_appl = {avdt_l2c_connect_ind_cback,
+                                        avdt_l2c_connect_cfm_cback,
+                                        NULL,
+                                        avdt_l2c_config_ind_cback,
+                                        avdt_l2c_config_cfm_cback,
+                                        avdt_l2c_disconnect_ind_cback,
+                                        avdt_l2c_disconnect_cfm_cback,
+                                        NULL,
+                                        avdt_l2c_data_ind_cback,
+                                        avdt_l2c_congestion_ind_cback,
+                                        NULL, /* tL2CA_TX_COMPLETE_CB */
+                                        NULL /* tL2CA_CREDITS_RECEIVED_CB */};
 
 /*******************************************************************************
  *
@@ -200,7 +199,7 @@ void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid,
       p_tbl->state = AVDT_AD_ST_SEC_ACP;
       p_tbl->cfg_flags = AVDT_L2C_CFG_CONN_ACP;
 
-      if (interop_match_addr(INTEROP_2MBPS_LINK_ONLY, &bd_addr)) {
+      if (interop_match_addr_or_name(INTEROP_2MBPS_LINK_ONLY, &bd_addr)) {
         // Disable 3DH packets for AVDT ACL to improve sensitivity on HS
         tACL_CONN* p_acl_cb = btm_bda_to_acl(bd_addr, BT_TRANSPORT_BR_EDR);
         btm_set_packet_types(
@@ -323,7 +322,7 @@ void avdt_l2c_connect_cfm_cback(uint16_t lcid, uint16_t result) {
             p_tbl->lcid = lcid;
             p_tbl->cfg_flags = AVDT_L2C_CFG_CONN_INT;
 
-            if (interop_match_addr(INTEROP_2MBPS_LINK_ONLY,
+            if (interop_match_addr_or_name(INTEROP_2MBPS_LINK_ONLY,
                                    (const RawAddress*)&p_ccb->peer_addr)) {
               // Disable 3DH packets for AVDT ACL to improve sensitivity on HS
               tACL_CONN* p_acl_cb =

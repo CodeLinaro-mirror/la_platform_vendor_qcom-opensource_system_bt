@@ -562,7 +562,13 @@ bt_status_t btif_hh_virtual_unplug(const RawAddress* bd_addr) {
     BTA_HhSendCtrl(p_dev->dev_handle, BTA_HH_CTRL_VIRTUAL_CABLE_UNPLUG);
     return BT_STATUS_SUCCESS;
   } else {
-    BTIF_TRACE_ERROR("%s: Error, device %s not opened.", __func__, bd_str);
+    BTIF_TRACE_ERROR("%s: Error, device %s not opened, status = %d", __func__,
+                     bd_addr->ToString().c_str(), btif_hh_cb.status);
+    if ((btif_hh_cb.pending_conn_address == *bd_addr) &&
+       (btif_hh_cb.status == BTIF_HH_DEV_CONNECTING)) {
+          btif_hh_cb.status = (BTIF_HH_STATUS)BTIF_HH_DEV_DISCONNECTED;
+          btif_hh_cb.pending_conn_address = RawAddress::kEmpty;
+    }
     return BT_STATUS_FAIL;
   }
 }
@@ -624,6 +630,7 @@ bt_status_t btif_hh_connect(const RawAddress* bd_addr) {
    pagescan mode, we will do 2 retries to connect before giving up */
   tBTA_SEC sec_mask = BTUI_HH_SECURITY;
   btif_hh_cb.status = BTIF_HH_DEV_CONNECTING;
+  btif_hh_cb.pending_conn_address = *bd_addr;
   BTA_HhOpen(*bd_addr, BTA_HH_PROTO_RPT_MODE, sec_mask);
 
   // TODO(jpawlowski); make cback accept const and remove tmp!
@@ -786,6 +793,7 @@ static void btif_hh_upstreams_evt(uint16_t event, char* p_param) {
     case BTA_HH_OPEN_EVT:
       BTIF_TRACE_WARNING("%s: BTA_HH_OPN_EVT: handle=%d, status =%d", __func__,
                          p_data->conn.handle, p_data->conn.status);
+      btif_hh_cb.pending_conn_address = RawAddress::kEmpty;
       if (p_data->conn.status == BTA_HH_OK) {
         p_dev = btif_hh_find_connected_dev_by_handle(p_data->conn.handle);
         if (p_dev == NULL) {
@@ -972,7 +980,7 @@ static void btif_hh_upstreams_evt(uint16_t event, char* p_param) {
       }
       if (p_dev->fd < 0) {
         LOG_ERROR(
-            "bt_btif_hh: "
+            LOG_TAG, ""
             "BTA_HH_GET_DSCP_EVT: Error, failed to find the uhid driver...");
         return;
       }
@@ -1096,7 +1104,7 @@ static void btif_hh_upstreams_evt(uint16_t event, char* p_param) {
       break;
 
     case BTA_HH_API_ERR_EVT:
-      LOG_INFO("bt_btif_hh: BTA_HH API_ERR");
+      LOG_INFO(LOG_TAG, "BTA_HH API_ERR");
       break;
 
     case BTA_HH_SEND_RAW_DATA_EVT:
@@ -1596,7 +1604,7 @@ static bt_status_t set_report(RawAddress* bd_addr,
     /* Build a SetReport data buffer */
     // TODO
     hex_bytes_filled = ascii_2_hex(report, len, hexbuf);
-    LOG_INFO("bt_btif_hh: Hex bytes filled, hex value: %d", hex_bytes_filled);
+    LOG_INFO(LOG_TAG, "Hex bytes filled, hex value: %d", hex_bytes_filled);
     if (hex_bytes_filled) {
       BT_HDR* p_buf = create_pbuf(hex_bytes_filled, hexbuf);
       if (p_buf == NULL) {

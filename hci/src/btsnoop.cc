@@ -43,6 +43,7 @@
 #include "osi/include/time.h"
 #include "stack_config.h"
 #include "l2c_api.h"
+#include <poll.h>
 
 // The number of of packets per btsnoop file before we rotate to the next
 // file. As of right now there are two snoop files that are rotated through.
@@ -109,7 +110,7 @@ static future_t* start_up(void) {
 
   if (!is_btsnoop_enabled()) {
     delete_btsnoop_files();
-    LOG_VERBOSE("bt_snoop: %s: btsnoop_not_enabled ", __func__);
+    LOG_VERBOSE(LOG_TAG, "%s: btsnoop_not_enabled ", __func__);
   } else {
     open_next_snoop_file();
     packets_per_file = (//osi_property_get_int32(BTSNOOP_MAX_PACKETS_PROPERTY, // gghai
@@ -117,7 +118,7 @@ static future_t* start_up(void) {
     btsnoop_net_open();
     START_SNOOP_LOGGING();
   }
-  LOG_DEBUG("bt_snoop: %s: vendor_logging_level values is %d ", __func__, vendor_logging_level);
+  LOG_DEBUG(LOG_TAG, "%s: vendor_logging_level values is %d ", __func__, vendor_logging_level);
 
   return NULL;
 }
@@ -186,7 +187,7 @@ const btsnoop_t* btsnoop_get_interface() {
 
 // Internal functions
 static void delete_btsnoop_files() {
-  LOG_VERBOSE("bt_snoop: Deleting snoop log if it exists");
+  LOG_VERBOSE(LOG_TAG, "Deleting snoop log if it exists");
   char log_path[PROPERTY_VALUE_MAX];
   char last_log_path[PROPERTY_VALUE_MAX + sizeof(".last")];
   get_btsnoop_log_path(log_path);
@@ -232,7 +233,7 @@ static void open_next_snoop_file() {
   get_btsnoop_last_log_path(last_log_path, log_path);
 
   if (!rename(log_path, last_log_path) && errno != ENOENT)
-    LOG_ERROR("bt_snoop: %s unable to rename '%s' to '%s': %s", __func__,
+    LOG_ERROR(LOG_TAG, "%s unable to rename '%s' to '%s': %s", __func__,
               log_path, last_log_path, strerror(errno));
 
   mode_t prevmask = umask(0);
@@ -240,7 +241,7 @@ static void open_next_snoop_file() {
                     S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
   umask(prevmask);
   if (logfile_fd == INVALID_FD) {
-    LOG_ERROR("bt_snoop: %s unable to open '%s': %s", __func__, log_path,
+    LOG_ERROR(LOG_TAG, "%s unable to open '%s': %s", __func__, log_path,
               strerror(errno));
     return;
   }
@@ -309,6 +310,7 @@ static void btsnoop_write_packet(packet_type_t type, uint8_t* packet,
                                  bool is_received, uint64_t timestamp_us) {
   uint32_t length_he = 0;
   uint32_t flags = 0;
+  int status = 0;
 
   switch (type) {
     case kCommandPacket:
@@ -349,15 +351,27 @@ static void btsnoop_write_packet(packet_type_t type, uint8_t* packet,
       open_next_snoop_file();
     }
 
+    struct pollfd fds;
+    fds.fd = logfile_fd;
+    fds.events = POLLOUT;
     iovec iov[] = {{&header, sizeof(btsnoop_header_t)},
                    {reinterpret_cast<void*>(packet), length_he - 1}};
-    TEMP_FAILURE_RETRY(writev(logfile_fd, iov, 2));
+
+    status = poll(&fds, 1, 0);
+    if(status > 0 && fds.revents & POLLOUT) {
+      TEMP_FAILURE_RETRY(writev(logfile_fd, iov, 2));
+    } else if (status == 0) {
+      LOG_WARN(LOG_TAG, "%s poll() timeout", __func__);
+    } else if (status == -1) {
+      LOG_ERROR(LOG_TAG, "%s poll failed errno %d (%s)",
+                    __func__, errno, strerror(errno));
+    }
   }
 }
 
 void update_snoop_fd(int snoop_fd) {
   std::lock_guard<std::mutex> lock(btSnoopFd_mutex);
-  LOG_INFO("bt_snoop: %s Now writing to server socket", __func__);
+  LOG_INFO(LOG_TAG, "%s Now writing to server socket", __func__);
   sock_snoop_active = true;
   logfile_fd = snoop_fd;
 }

@@ -106,7 +106,7 @@ BT_HDR* BluetoothHciCallbacks::WrapPacketAndCopy(uint16_t event, const hidl_vec<
 
 void BluetoothHciCallbacks::initializationComplete(Status status) {
     CHECK(status == Status::SUCCESS);
-    LOG_INFO("bt_hci_le: %s", __func__);
+    LOG_INFO(LOG_TAG, "%s", __func__);
     initialization_complete();
 }
 
@@ -126,7 +126,7 @@ void BluetoothHciCallbacks::scoDataReceived(const hidl_vec<uint8_t>& data) {
 }
 
 void hci_initialize() {
-  LOG_INFO("bt_hci_le: %s", __func__);
+  LOG_INFO(LOG_TAG, "%s", __func__);
   vnd_interface_open();
   CHECK(btHci != nullptr);
   btHci->init(&hci_callbacks);
@@ -139,58 +139,67 @@ void hci_close() {
   if (btHci != nullptr) {
     auto hidl_daemon_status = btHci->cleanup();
     if(!hidl_daemon_status)
-      LOG_ERROR("bt_hci_le: %s: HIDL daemon is dead", __func__);
+      LOG_ERROR(LOG_TAG, "%s: HIDL daemon is dead", __func__);
 
     btHci = nullptr;
   }
 }
 
-void hci_transmit(BT_HDR* packet) {
+bool hci_transmit(BT_HDR* packet) {
   HciPacket data;
+  bool status = true;
   std::lock_guard<std::mutex> lock(bthci_mutex);
 
   if(btHci == nullptr) {
-    LOG_INFO("bt_hci_le: %s: Link with Bluetooth HIDL service is closed", __func__);
-    return;
+    LOG_INFO(LOG_TAG, "%s: Link with Bluetooth HIDL service is closed", __func__);
+    return false;
   }
 
     data.insert(data.begin(), (packet->data + packet->offset), (packet->data + packet->offset + packet->len));
     /*To print data
     for(int n : data) {
-       LOG_INFO("bt_hci_le: %s: %x", __func__,n);
+       LOG_INFO(LOG_TAG, "%s: %x", __func__,n);
     }*/
   uint16_t event = packet->event & MSG_EVT_MASK;
   switch (event & MSG_EVT_MASK) {
     case MSG_STACK_TO_HC_HCI_CMD:
     {
       auto hidl_daemon_status = btHci->send_hci_cmd(data);
-      if(hidl_daemon_status)
-        LOG_ERROR("bt_hci_le: %s: send Command failed, HIDL daemon is dead", __func__);
+      if(hidl_daemon_status) {
+        LOG_ERROR(LOG_TAG, "%s: send Command failed, HIDL daemon is dead", __func__);
+        status = false;
+      }
       break;
     }
     case MSG_STACK_TO_HC_HCI_ACL:
     {
       auto hidl_daemon_status = btHci->send_acl_cmd(data);
-      if(hidl_daemon_status)
-        LOG_ERROR("bt_hci_le: %s: send acl packet failed, HIDL daemon is dead", __func__);
+      if(hidl_daemon_status) {
+        LOG_ERROR(LOG_TAG, "%s: send acl packet failed, HIDL daemon is dead", __func__);
+        status = false;
+      }
       break;
     }
     case MSG_STACK_TO_HC_HCI_SCO:
     {
       auto hidl_daemon_status = btHci->send_sco_data(data);
-      if(hidl_daemon_status)
-        LOG_ERROR("bt_hci_le: %s: send sco data failed, HIDL daemon is dead", __func__);
+      if(hidl_daemon_status) {
+        LOG_ERROR(LOG_TAG, "%s: send sco data failed, HIDL daemon is dead", __func__);
+        status = false;
+      }
       break;
     }
     default:
-      LOG_ERROR("bt_hci_le: Unknown packet type (%d)", event);
+      LOG_ERROR(LOG_TAG, "Unknown packet type (%d)", event);
+      status = false;
       break;
   }
+  return status;
 }
 
 int hci_open_firmware_log_file() {
   if (rename(LOG_PATH, LAST_LOG_PATH) == -1 && errno != ENOENT) {
-    LOG_ERROR("bt_hci_le: %s unable to rename '%s' to '%s': %s", __func__,
+    LOG_ERROR(LOG_TAG, "%s unable to rename '%s' to '%s': %s", __func__,
               LOG_PATH, LAST_LOG_PATH, strerror(errno));
   }
 
@@ -199,7 +208,7 @@ int hci_open_firmware_log_file() {
                         S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
   umask(prevmask);
   if (logfile_fd == INVALID_FD) {
-    LOG_ERROR("bt_hci_le: %s unable to open '%s': %s", __func__, LOG_PATH,
+    LOG_ERROR(LOG_TAG, "%s unable to open '%s': %s", __func__, LOG_PATH,
               strerror(errno));
   }
 
@@ -218,20 +227,20 @@ void vnd_interface_open(void)
 {
   if(btHci != NULL)
   {
-    LOG_ERROR("bt_hci_le: %s, Vendor Interface is already initialized",  __func__);
+    LOG_ERROR(LOG_TAG, "%s, Vendor Interface is already initialized",  __func__);
     return;
   }
 
   lib_handle = dlopen(TRANSPORT_LIBRARY_NAME, RTLD_LAZY);
 
   if (!lib_handle) {
-    LOG_ERROR("bt_hci_le: %s unable to open %s: %s", __func__, TRANSPORT_LIBRARY_NAME, dlerror());
+    LOG_ERROR(LOG_TAG, "%s unable to open %s: %s", __func__, TRANSPORT_LIBRARY_NAME, dlerror());
     return;
   }
 
   btHci = (bt_vnd_interface_t *)dlsym(lib_handle, TRANSPORT_LIBRARY_SYMBOL_NAME);
   if (btHci == NULL) {
-    LOG_ERROR("bt_hci_le: %s unable to find symbol %s in %s: %s", __func__, TRANSPORT_LIBRARY_SYMBOL_NAME, TRANSPORT_LIBRARY_NAME, dlerror());
+    LOG_ERROR(LOG_TAG, "%s unable to find symbol %s in %s: %s", __func__, TRANSPORT_LIBRARY_SYMBOL_NAME, TRANSPORT_LIBRARY_NAME, dlerror());
     return;
   }
 }

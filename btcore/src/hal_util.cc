@@ -31,7 +31,7 @@
 // TODO(armansito): All logging macros should include __func__ by default (see
 // Bug: 22671731)
 #define HULOGERR(fmt, args...)                                          \
-  LOG_ERROR("hal_util: [%s] failed to load the Bluetooth library: " fmt, \
+  LOG_ERROR(LOG_TAG, "[%s] failed to load the Bluetooth library: " fmt, \
             __func__, ##args)
 
 // TODO(armansito): It might be better to pass the library name in a more
@@ -67,7 +67,7 @@ static int load_bt_library(const struct hw_module_t** module) {
   hmi->dso = handle;
 
   // Success.
-  LOG_INFO("hal_util: [%s] loaded HAL id=%s path=%s hmi=%p handle=%p", __func__,
+  LOG_INFO(LOG_TAG, "[%s] loaded HAL id=%s path=%s hmi=%p handle=%p", __func__,
            id, kBluetoothLibraryName, hmi, handle);
 
   *module = hmi;

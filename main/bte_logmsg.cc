@@ -112,6 +112,8 @@ static tBTTRC_FUNC_MAP bttrc_set_level_map[] = {
 #endif
     {BTTRC_ID_STK_AVRC, BTTRC_ID_STK_AVRC, AVRC_SetTraceLevel, "TRC_AVRC",
      DEFAULT_CONF_TRACE_LEVEL},
+    {BTTRC_ID_STK_AVCT, BTTRC_ID_STK_AVCT, AVCT_SetTraceLevel, "TRC_AVCT",
+     DEFAULT_CONF_TRACE_LEVEL},
 #if (AVDT_INCLUDED == TRUE)
 //{BTTRC_ID_AVDT_SCB, BTTRC_ID_AVDT_CCB, NULL, "TRC_AVDT_SCB",
 // DEFAULT_CONF_TRACE_LEVEL},
@@ -286,7 +288,7 @@ static void load_levels_from_config(const config_t* config) {
 static future_t* init(void) {
   const stack_config_t* stack_config = stack_config_get_interface();
   if (!stack_config->get_trace_config_enabled()) {
-    LOG_INFO("bt_bte: using compile default trace settings");
+    LOG_INFO(LOG_TAG, "using compile default trace settings");
     return NULL;
   }
 
