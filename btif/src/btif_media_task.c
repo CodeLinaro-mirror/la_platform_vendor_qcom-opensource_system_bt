@@ -3842,6 +3842,9 @@ int btif_media_task_cb_packet_send(uint8_t* packet, int length, int pcm_bytes_en
             osi_free(fixed_queue_try_dequeue(btif_media_cb.TxAaQ));
         }
 
+	if(!btif_media_cb.media_feeding.cfg.pcm.num_channel)
+            return 0;
+
         BT_HDR *p_buf = (BT_HDR *)osi_malloc(BTIF_MEDIA_AA_BUF_SIZE);
 
         int rtpTimestamp = (pcm_bytes_encoded / btif_media_cb.media_feeding.cfg.pcm.num_channel / bytes_per_frame);
