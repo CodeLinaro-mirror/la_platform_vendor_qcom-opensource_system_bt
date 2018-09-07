@@ -2739,6 +2739,136 @@ void btif_dm_get_ble_ediv(const RawAddress& remote_bd_addr, uint16_t& ediv) {
 
 /*******************************************************************************
 **
+** Function         btif_dm_lpm_set_le_adv_params_vsc_cback
+**
+** Description     Set LE advertisement params VSC Cback
+**
+** Returns          void
+**
+*******************************************************************************/
+void btif_dm_lpm_set_le_adv_params_vsc_cback(tBTM_VSC_CMPL* p_params) {
+  uint8_t status = 0xFF;
+  uint8_t* p;
+
+  BTIF_TRACE_DEBUG("%s", __FUNCTION__);
+
+  /* Check status of command complete event */
+  if ((p_params->opcode == HCI_VS_LPM_OPCODE) &&
+      (p_params->param_len > 0)) {
+    p = p_params->p_param_buf;
+    STREAM_TO_UINT8(status, p);
+  }
+
+  if (status == HCI_SUCCESS) {
+    BTIF_TRACE_DEBUG("LPM set LE adv params Success");
+  } else {
+    BTIF_TRACE_ERROR("LPM set LE adv params Failed");
+  }
+}
+
+
+/*******************************************************************************
+**
+** Function         btif_dm_lpm_le_adv_params
+**
+** Description      set the LE advertisement params to be used in LPM
+**
+** Parameters:      None
+**
+** Returns          void
+**
+*******************************************************************************/
+void btif_dm_lpm_le_adv_params(const RawAddress& bdaddr) {
+  uint8_t           sub_op_code = LPM_SET_ADV_PARAMS_OPCODE, *pp;
+  uint16_t          adv_int_min = 0;
+  uint16_t          adv_int_max = 0;
+  uint8_t           adv_type = 0;
+  uint8_t           adv_filter_policy = 0;
+  uint8_t           own_addr_type = 0;
+  uint8_t           peer_addr_type = 0;
+  uint8_t           adv_chnl_map = 0x07;
+  uint8_t           adv_data_len = 0;
+
+  char conf[LPM_CONFIG_LENGHT];
+  const std::string* recv = stack_config_get_interface()->get_lpm_le_adv_params_configuration();
+  char* pch;
+  char* ptr;
+  char* endptr;
+
+  own_addr_type = BTM_BleIsLocalPrivacyEnabled() ? BLE_ADDR_RANDOM : BLE_ADDR_PUBLIC;
+  if (!stack_config_get_interface()->get_lpm_le_adv_params_configuration()) {
+    BTIF_TRACE_DEBUG ("%s: LPM ble adv params is not defined", __func__);
+    return;
+  }
+
+  strlcpy(conf, recv->c_str(), LPM_CONFIG_LENGHT);
+
+  if ((pch = strtok_r(conf, ",", &ptr)) != NULL)
+    adv_int_min = (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s adv_int_min:0x%04x", __FUNCTION__, adv_int_min);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    adv_int_max =  (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s adv_int_max:0x%04x", __FUNCTION__, adv_int_max);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    adv_type =  (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s adv_int_max:0x%04x", __FUNCTION__, adv_type);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    adv_filter_policy =  (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s adv_int_max:0x%04x", __FUNCTION__, adv_filter_policy);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL) {
+    adv_data_len = strlen(pch);
+    if (adv_data_len > 32) {
+      BTIF_TRACE_DEBUG ("%s: adv_data length is more than 32", __func__);
+      return;
+    }
+  } else {
+    return;
+  }
+
+  uint8_t adv_data[adv_data_len];
+  for (int i = 0; i < adv_data_len; i++)
+    adv_data[i] = pch[i];
+
+  uint8_t param[LPM_SET_ADV_PARAMS_LENGTH + adv_data_len];
+  pp = param;
+  memset(param, 0, sizeof(param));
+
+  UINT8_TO_STREAM(pp, sub_op_code);
+  UINT16_TO_STREAM(pp, adv_int_min);
+  UINT16_TO_STREAM(pp, adv_int_max);
+  UINT8_TO_STREAM(pp, adv_type);
+  UINT8_TO_STREAM(pp, own_addr_type);
+
+  btif_dm_get_ble_peer_addr_type(bdaddr, peer_addr_type);
+  UINT8_TO_STREAM(pp, peer_addr_type);
+
+  BDADDR_TO_STREAM(pp, bdaddr);
+  UINT8_TO_STREAM(pp, adv_chnl_map);
+  UINT8_TO_STREAM(pp, adv_filter_policy);
+  UINT8_TO_STREAM(pp, adv_data_len);
+  for (int i = 0; i < adv_data_len; i++)
+    UINT8_TO_STREAM(pp, adv_data[i]);
+
+  BTM_VendorSpecificCommand(HCI_VS_LPM_OPCODE,
+                            (LPM_SET_ADV_PARAMS_LENGTH + adv_data_len),
+                            param,
+                            btif_dm_lpm_set_le_adv_params_vsc_cback);
+}
+
+/*******************************************************************************
+**
 ** Function         btif_dm_add_device_whitelist_vsc_cback
 **
 ** Description      Add device to whitelist VSC callback
@@ -2761,6 +2891,7 @@ void btif_dm_add_device_whitelist_vsc_cback(tBTM_VSC_CMPL* pCmplEvt) {
 
   if (status == HCI_SUCCESS) {
     BTIF_TRACE_DEBUG("Adding device to whitelist is successful");
+    btif_dm_lpm_le_adv_params(pairing_cb.bd_addr);
   } else
     BTIF_TRACE_ERROR("Adding device to whitelist Failed");
 }
@@ -2785,12 +2916,9 @@ void btif_dm_add_device_whitelist(const RawAddress& bdaddr) {
   BT_OCTET8         rand;
   uint16_t          ediv;
   RawAddress        id_addr;
-
-  /* Configuration paramters */
-  uint8_t           wake_mode;
-  uint8_t           wakeupFilteringFlags;
-  uint8_t           wakeSources;
-  uint16_t          delay_to_sleep;
+  bool              isRpa = false;
+  uint8_t           ble_own_addr_type;
+  uint8_t           privacy_mode = 1;
 
   pp = param;
   memset(param, 0, sizeof(param));
@@ -2803,40 +2931,44 @@ void btif_dm_add_device_whitelist(const RawAddress& bdaddr) {
   UINT8_TO_STREAM (pp, sub_code);
 
   btif_dm_get_ble_peer_id_addr(bdaddr, id_addr);
-  /* Check if identity address is zero meaning public or static addressg
-      then we could just provide the storage address as it is.g
-      Otherwise in case of RPA, provide the identity address to the controller */
+  // Check if identity address is zero meaning public or static addressg
+  // then we could just provide the storage address as it is
+  // Otherwise in case of RPA, provide the identity address to the controller
   if ((id_addr != RawAddress::kEmpty) && (id_addr != bdaddr)) {
     BTIF_TRACE_EVENT("%s Device is a RPA based", __FUNCTION__);
     BDADDR_TO_STREAM(pp, id_addr);
+    isRpa = true;
   } else {
     BDADDR_TO_STREAM(pp, bdaddr);
   }
 
   btif_dm_get_ble_peer_addr_type(bdaddr, addr_type);
   UINT8_TO_STREAM (pp, addr_type);
+  memset(link_key.data(), 0, link_key.size());
+  btif_dm_get_bredr_linkkey(bdaddr, link_key);
+  ARRAY16_TO_STREAM(pp, link_key);
 
-  btif_lpm_config_params(&wake_mode, &wakeupFilteringFlags, &wakeSources, &delay_to_sleep,  id_addr, 0, 0, 0);
+  if (isRpa) btif_dm_get_ble_peer_irk(bdaddr, pirk);
 
-  // If source is BLE scan alone then skip fetching various keys (ltk, ...).g
-  // This is a firmware bug. Once that is fixed then this check can be removed.
-  if (wakeSources != LPM_CONFIG_WAKE_SOURCE_BLE_SCAN) {
-    memset(link_key.data(), 0, link_key.size());
-    btif_dm_get_bredr_linkkey(bdaddr, link_key);
-    ARRAY16_TO_STREAM(pp, link_key);
+  ble_own_addr_type = BTM_BleIsLocalPrivacyEnabled()? BLE_ADDR_RANDOM : BLE_ADDR_PUBLIC;
 
-    btif_dm_get_ble_ltk(bdaddr, ltk);
-    btif_dm_get_ble_peer_irk(bdaddr, pirk);
+  if (BLE_ADDR_RANDOM == ble_own_addr_type) {
     btif_dm_get_ble_local_irk(lirk);
-    btif_dm_get_ble_rand(bdaddr,  rand);
-    btif_dm_get_ble_ediv(bdaddr, ediv);
-
-    ARRAY16_TO_STREAM(pp, ltk);
-    ARRAY16_TO_STREAM(pp, pirk);
-    ARRAY16_TO_STREAM(pp, lirk);
-    ARRAY8_TO_STREAM(pp, rand);
-    UINT16_TO_STREAM (pp, ediv);
   }
+
+  btif_dm_get_ble_ltk(bdaddr, ltk);
+  btif_dm_get_ble_peer_irk(bdaddr, pirk);
+  btif_dm_get_ble_local_irk(lirk);
+  btif_dm_get_ble_rand(bdaddr,  rand);
+  btif_dm_get_ble_ediv(bdaddr, ediv);
+
+  ARRAY16_TO_STREAM(pp, ltk);
+  ARRAY16_TO_STREAM(pp, pirk);
+  ARRAY16_TO_STREAM(pp, lirk);
+  ARRAY8_TO_STREAM(pp, rand);
+  UINT16_TO_STREAM (pp, ediv);
+  ARRAY8_TO_STREAM(pp, rand);
+  UINT8_TO_STREAM (pp, privacy_mode);
 
   BTM_VendorSpecificCommand (HCI_VS_LPM_OPCODE,
                              LPM_ADD_DEV_INFO_LENGTH, param, btif_dm_add_device_whitelist_vsc_cback);
@@ -2894,7 +3026,7 @@ void btif_dm_remove_device_whitelist(const RawAddress& bdaddr) {
 
   btif_dm_get_ble_peer_id_addr(bdaddr, id_addr);
 
-  // Check if identity address is zero meaning public or static addressg
+  // Check if identity address is zero meaning public or static address
   // then we could just provide the storage address as it is.
   // Otherwise in case of RPA, provide the identity address to the controller.
   if ((id_addr != RawAddress::kEmpty) && (id_addr != bdaddr)) {

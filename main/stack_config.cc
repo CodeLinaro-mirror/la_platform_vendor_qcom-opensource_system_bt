@@ -37,6 +37,7 @@ const char* PTS_SMP_FAILURE_CASE_KEY = "PTS_SmpFailureCase";
 const char* LPM_SLEEP_WAKEUP_CONFIG_KEY = "LMP_WAKEUP_CONFIG";
 const char* LPM_PAGE_SCAN_PARAMS_KEY = "LPM_PAGE_SCAN_PARAMS";
 const char* LPM_BLE_SCAN_PARAMS_KEY = "LPM_BLE_SCAN_PARAMS";
+const char* LPM_LE_ADV_PARAMS_KEY = "LPM_LE_ADV_PARAMS";
 
 static std::unique_ptr<config_t> config;
 }  // namespace
@@ -122,6 +123,9 @@ static const std::string* get_lpm_page_scan_configuration(void) {
 static const std::string* get_lpm_ble_scan_configuration(void) {
   return config_get_string(*config, CONFIG_DEFAULT_SECTION, LPM_BLE_SCAN_PARAMS_KEY, NULL);
 }
+static const std::string* get_lpm_le_adv_params_configuration(void) {
+  return config_get_string(*config, CONFIG_DEFAULT_SECTION, LPM_LE_ADV_PARAMS_KEY, NULL);
+}
 
 static config_t* get_all(void) { return config.get(); }
 
@@ -131,6 +135,6 @@ const stack_config_t interface = {
     get_pts_crosskey_sdp_disable, get_pts_smp_options,
     get_pts_smp_failure_case,     get_all,
     get_lpm_sleep_wake_configuration, get_lpm_page_scan_configuration,
-    get_lpm_ble_scan_configuration};
+    get_lpm_ble_scan_configuration, get_lpm_le_adv_params_configuration};
 
 const stack_config_t* stack_config_get_interface(void) { return &interface; }
