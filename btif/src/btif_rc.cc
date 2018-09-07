@@ -6610,7 +6610,8 @@ void get_attribute_cmd(uint8_t num_attr, uint32_t* p_attr_list,
                        btif_rc_device_cb_t* p_dev) {
   if ((BTA_AvIsBrowsingSupported() == TRUE) &&
       (p_dev->rc_features & BTA_AV_FEAT_BROWSE) &&
-      (p_dev->rc_playing_uid != RC_INVALID_TRACK_ID)) {
+      (p_dev->rc_playing_uid != RC_INVALID_TRACK_ID) &&
+      (p_dev->rc_playing_uid != 0)) {
     uint8_t uid[AVRC_UID_SIZE] = {0};
     uint8_t *p_uid = uid;
     UINT64_TO_BE_STREAM(p_uid, p_dev->rc_playing_uid);
