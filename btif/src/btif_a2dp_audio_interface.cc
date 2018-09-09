@@ -125,6 +125,7 @@ static void btif_a2dp_audio_send_mcast_status();
 static void btif_a2dp_audio_send_num_connected_devices();
 static void btif_a2dp_audio_send_connection_status();
 static void btif_a2dp_audio_send_sink_latency();
+void btif_a2dp_update_sink_latency_change();
 extern int btif_max_av_clients;
 extern bool enc_update_in_progress;
 extern tBTA_AV_HNDL btif_av_get_av_hdl_from_idx(int idx);
@@ -390,10 +391,9 @@ void btif_a2dp_audio_on_started(tBTA_AV_STATUS status)
             LOG_INFO(LOG_TAG,"calling method a2dp_on_started");
             auto ret = btAudio->a2dp_on_started(mapToStatus(status));
             if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
+            a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
           }
         }
-        /* clear pending and queued*/
-        a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
       }
     } else {
       if (a2dp_cmd_pending == A2DP_CTRL_CMD_START) {
@@ -458,10 +458,9 @@ void btif_a2dp_audio_on_suspended(tBTA_AV_STATUS status)
             LOG_INFO(LOG_TAG,"calling method a2dp_on_suspended");
             auto ret = btAudio->a2dp_on_suspended(mapToStatus(status));
             if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
+            a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
           }
         }
-        /* clear pending and queued*/
-        a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
       }
     } else {
       if (a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND || a2dp_cmd_pending == A2DP_CTRL_CMD_STOP) {
@@ -537,15 +536,15 @@ void btif_a2dp_audio_on_stopped(tBTA_AV_STATUS status)
               LOG_INFO(LOG_TAG,"calling method a2dp_on_stopped");
               auto ret = btAudio->a2dp_on_stopped(mapToStatus(status));
               if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_stopped: server died");
+              a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
             } else if ((a2dp_cmd_pending == A2DP_CTRL_CMD_START) &&
                     (!(btif_av_is_under_handoff() || reconfig_a2dp))) {
               LOG_INFO(LOG_TAG, "Remote disconnected when start under progress");
               auto ret = btAudio->a2dp_on_started(mapToStatus(A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS));
               if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_started: server died");
+              a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
             }
           }
-          /* clear pending and queued*/
-          a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
         }
       } else {
         if (a2dp_cmd_pending == A2DP_CTRL_CMD_STOP || a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND) {
@@ -685,6 +684,10 @@ void btif_a2dp_audio_send_sink_latency()
     auto ret = btAudio->a2dp_on_get_sink_latency(sink_latency);
     if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
   }
+}
+
+void btif_a2dp_update_sink_latency_change() {
+  btif_a2dp_audio_send_sink_latency();
 }
 
 void on_hidl_server_died() {
@@ -1107,6 +1110,7 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         uint8_t codec_type;
         tA2DP_ENCODER_INIT_PEER_PARAMS peer_param;
         uint32_t bitrate = 0;
+        uint32_t bits_per_sample = 0;
         len = 0;
         LOG_INFO(LOG_TAG,"A2DP_CTRL_GET_CODEC_CONFIG");
         memset(p_codec_info, 0, AVDT_CODEC_SIZE);
@@ -1162,7 +1166,6 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
           int samplerate = A2DP_GetTrackSampleRate(p_codec_info);
           if ((A2DP_VendorCodecGetVendorId(p_codec_info)) == A2DP_LDAC_VENDOR_ID) {
             bitrate = A2DP_GetTrackBitRate(p_codec_info);
-            LOG_INFO(LOG_TAG,"bitrate = %d", bitrate);
           } else {
             /* BR = (Sampl_Rate * PCM_DEPTH * CHNL)/Compression_Ratio */
             int bits_per_sample = 16; // TODO
@@ -1173,6 +1176,8 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         {
           bitrate = 0;//Bitrate is present in codec info
         }
+        bits_per_sample = CodecConfig->getAudioBitsPerSample();
+        LOG_INFO(LOG_TAG,"bitrate = %d, bits_per_sample = %d", bitrate, bits_per_sample);
         codec_info[0] = 0; //playing device handle
         len = p_codec_info[0] + 2;
         codec_info[len++] = (uint8_t)(peer_param.peer_mtu & 0x00FF);
@@ -1181,6 +1186,8 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         codec_info[len++] = (uint8_t)(((bitrate & 0xFF00) >> 8) & 0x00FF);
         codec_info[len++] = (uint8_t)(((bitrate & 0xFF0000) >> 16) & 0x00FF);
         codec_info[len++] = (uint8_t)(((bitrate & 0xFF000000) >> 24) & 0x00FF);
+        *(uint32_t *)&codec_info[len] = (uint32_t)bits_per_sample;
+        len = len+4;
         LOG_INFO(LOG_TAG,"len  = %d", len);
         status = A2DP_CTRL_ACK_SUCCESS;
         break;
