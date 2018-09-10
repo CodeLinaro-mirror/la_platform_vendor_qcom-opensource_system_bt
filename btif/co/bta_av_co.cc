@@ -1495,6 +1495,8 @@ void bta_av_co_init(
   APPL_TRACE_DEBUG("%s", __func__);
   RawAddress bt_addr;
   char value[PROPERTY_VALUE_MAX] = {'\0'};
+  /* Protect access to bta_av_co_cb.codec_config */
+  mutex_global_lock();
   /* Reset the control block */
   bta_av_co_cb.reset();
 
@@ -1505,8 +1507,6 @@ void bta_av_co_init(
 #endif
 
   /* Reset the current config */
-  /* Protect access to bta_av_co_cb.codec_config */
-  mutex_global_lock();
   bta_av_co_cb.codecs = new A2dpCodecs(codec_priorities);
 /* SPLITA2DP */
   bool a2dp_offload = btif_av_is_split_a2dp_enabled();
