@@ -692,7 +692,7 @@ tBTA_JV_STATUS BTA_JvL2capReady(UINT32 handle, UINT32 *p_data_size)
 **
 *******************************************************************************/
 tBTA_JV_STATUS BTA_JvL2capWrite(UINT32 handle, UINT32 req_id, UINT8 *p_data,
-        UINT16 len, void *user_data)
+        UINT16 len, UINT32 user_id)
 {
     tBTA_JV_STATUS status = BTA_JV_FAILURE;
 
@@ -707,7 +707,7 @@ tBTA_JV_STATUS BTA_JvL2capWrite(UINT32 handle, UINT32 req_id, UINT8 *p_data,
         p_msg->p_data = p_data;
         p_msg->p_cb = &bta_jv_cb.l2c_cb[handle];
         p_msg->len = len;
-        p_msg->user_data = user_data;
+        p_msg->user_id = user_id;
 
         bta_sys_sendmsg(p_msg);
 
@@ -731,7 +731,7 @@ tBTA_JV_STATUS BTA_JvL2capWrite(UINT32 handle, UINT32 req_id, UINT8 *p_data,
 **
 *******************************************************************************/
 tBTA_JV_STATUS BTA_JvL2capWriteFixed(UINT16 channel, BD_ADDR *addr, UINT32 req_id,
-        tBTA_JV_L2CAP_CBACK *p_cback, UINT8 *p_data, UINT16 len, void *user_data)
+        tBTA_JV_L2CAP_CBACK *p_cback, UINT8 *p_data, UINT16 len, UINT32 user_id)
 {
     tBTA_JV_API_L2CAP_WRITE_FIXED *p_msg =
         (tBTA_JV_API_L2CAP_WRITE_FIXED *)osi_malloc(sizeof(tBTA_JV_API_L2CAP_WRITE_FIXED));
@@ -745,7 +745,7 @@ tBTA_JV_STATUS BTA_JvL2capWriteFixed(UINT16 channel, BD_ADDR *addr, UINT32 req_i
     p_msg->p_data = p_data;
     p_msg->p_cback = p_cback;
     p_msg->len = len;
-    p_msg->user_data = user_data;
+    p_msg->user_id = user_id;
 
     bta_sys_sendmsg(p_msg);
 

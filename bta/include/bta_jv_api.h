@@ -251,6 +251,7 @@ typedef struct
     UINT32          handle;     /* The connection handle */
     UINT32          req_id;     /* The req_id in the associated BTA_JvL2capWrite() */
     UINT16          len;        /* The length of the data written. */
+    UINT8*          p_data;     /* The buffer where data is held */
     BOOLEAN         cong;       /* congestion status */
 } tBTA_JV_L2CAP_WRITE;
 
@@ -262,6 +263,7 @@ typedef struct
     UINT16          channel;    /* The connection channel */
     BD_ADDR         addr;       /* The peer address */
     UINT32          req_id;     /* The req_id in the associated BTA_JvL2capWrite() */
+    UINT8*          p_data;     /* The buffer where data is held */
     UINT16          len;        /* The length of the data written. */
     BOOLEAN         cong;       /* congestion status */
 } tBTA_JV_L2CAP_WRITE_FIXED;
@@ -696,7 +698,7 @@ tBTA_JV_STATUS BTA_JvL2capReady(UINT32 handle, UINT32 *p_data_size);
 **
 *******************************************************************************/
 tBTA_JV_STATUS BTA_JvL2capWrite(UINT32 handle, UINT32 req_id,
-                                               UINT8 *p_data, UINT16 len, void *user_data);
+                                               UINT8 *p_data, UINT16 len, UINT32 user_id);
 
 
 /*******************************************************************************
@@ -714,7 +716,7 @@ tBTA_JV_STATUS BTA_JvL2capWrite(UINT32 handle, UINT32 req_id,
 *******************************************************************************/
 tBTA_JV_STATUS BTA_JvL2capWriteFixed(UINT16 channel, BD_ADDR *addr, UINT32 req_id,
                                                tBTA_JV_L2CAP_CBACK *p_cback,
-                                               UINT8 *p_data, UINT16 len, void *user_data);
+                                               UINT8 *p_data, UINT16 len, UINT32 user_id);
 
 /*******************************************************************************
 **

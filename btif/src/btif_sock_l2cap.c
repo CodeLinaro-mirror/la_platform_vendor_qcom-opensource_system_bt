@@ -788,12 +788,12 @@ static void btsock_l2cap_cbk(tBTA_JV_EVT event, tBTA_JV *p_data, void *user_data
 
     case BTA_JV_L2CAP_WRITE_EVT:
         APPL_TRACE_DEBUG("BTA_JV_L2CAP_WRITE_EVT: id: %u", sock_id);
-        on_l2cap_write_done(UINT_TO_PTR(p_data->l2c_write.req_id), p_data->l2c_write.len, sock_id);
+        on_l2cap_write_done(p_data->l2c_write.p_data, p_data->l2c_write.len, sock_id);
         break;
 
     case BTA_JV_L2CAP_WRITE_FIXED_EVT:
         APPL_TRACE_DEBUG("BTA_JV_L2CAP_WRITE_FIXED_EVT: id: %u", sock_id);
-        on_l2cap_write_fixed_done(UINT_TO_PTR(p_data->l2c_write_fixed.req_id), p_data->l2c_write.len, sock_id);
+        on_l2cap_write_fixed_done(p_data->l2c_write_fixed.p_data, p_data->l2c_write.len, sock_id);
         break;
 
     case BTA_JV_L2CAP_CONG_EVT:
@@ -1048,7 +1048,7 @@ void btsock_l2cap_signaled(int fd, int flags, uint32_t user_id)
 
                 if (!(flags & SOCK_THREAD_FD_EXCEPTION) || (ioctl(sock->our_fd, FIONREAD, &size)
                         == 0 && size)) {
-                    uint8_t *buffer = osi_malloc(L2CAP_MAX_SDU_LENGTH);
+                    uint8_t *buffer = (uint8_t*)osi_malloc(L2CAP_MAX_SDU_LENGTH);
                     /* Apparently we hijack the req_id (UINT32) to pass the pointer to the buffer to
                      * the write complete callback, which call a free... wonder if this works on a
                      * 64 bit platform? */
@@ -1094,8 +1094,7 @@ void btsock_l2cap_signaled(int fd, int flags, uint32_t user_id)
                         }
                     } else {
                         if (BTA_JvL2capWrite(sock->handle, PTR_TO_UINT(buffer),
-                                             buffer, count,
-                                             UINT_TO_PTR(user_id)) != BTA_JV_SUCCESS) {
+                                             buffer, count, user_id) != BTA_JV_SUCCESS) {
                           // On fail, free the buffer
                           on_l2cap_write_done(buffer, count, user_id);
                         }
