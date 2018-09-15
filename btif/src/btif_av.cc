@@ -280,6 +280,7 @@ void btif_av_update_current_playing_device(int index);
 static void btif_av_check_rc_connection_priority(void *p_data);
 static bt_status_t connect_int(RawAddress* bd_addr, uint16_t uuid);
 int btif_get_is_remote_started_idx();
+bool btif_av_is_state_opened(int i);
 static void btif_av_reset_remote_started_flag();
 extern void btif_a2dp_update_sink_latency_change();
 
@@ -555,12 +556,10 @@ static void btif_update_source_codec(void* p_data) {
   btif_a2dp_source_encoder_user_config_update_req(req->codec_config, req->bd_addr);
 
   if (req->codec_config.codec_specific_4 > 0) {
-    BTIF_TRACE_DEBUG("%s: codec_specific_4 > 0", __func__);
     A2dpCodecConfig* current_codec = bta_av_get_a2dp_current_codec();
     if (current_codec != nullptr) {
       btav_a2dp_codec_config_t codec_config;
       codec_config = current_codec->getCodecConfig();
-      BTIF_TRACE_DEBUG("%s: get codec_config", __func__);
       if(codec_config.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE) {
         int index = btif_max_av_clients;
         const uint16_t ENCODER_MODE_MASK = 0x3000;
@@ -572,8 +571,6 @@ static void btif_update_source_codec(void* p_data) {
           index = btif_av_get_latest_playing_device_idx();
         else
           index = btif_av_get_latest_device_idx_to_start();
-
-        BTIF_TRACE_DEBUG("%s: Aptx Adaptive Codec: index = %d, encoder_mode = %d", __func__, index, encoder_mode);
 
         if(index >= btif_max_av_clients) return;
 
@@ -1655,6 +1652,12 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
         }
       }
 /* SPLITA2DP */
+      /* change state to idle, send acknowledgement if start is pending */
+      if (btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START) {
+        btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
+        btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
+      }
+      btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_CLOSING);
       /* inform the application that we are disconnecting */
       btif_report_connection_state(BTAV_CONNECTION_STATE_DISCONNECTING,
                                    &(btif_av_cb[index].peer_bda));
@@ -2759,24 +2762,11 @@ bool btif_av_is_current_device(RawAddress address) {
  ******************************************************************************/
 int btif_av_get_latest_device_idx_to_start() {
   int i;
-  // No playing device, get the latest
   for (i = 0; i < btif_max_av_clients; i++)
     if (btif_av_cb[i].current_playing)
       break;
-  if (i == btif_max_av_clients) {
-    BTIF_TRACE_ERROR("Play on default opened device");
-    for (i = 0; i < btif_max_av_clients; i++) {
-      btif_sm_state_t state = BTIF_AV_STATE_IDLE;
-      //i = 0; // play on default
-      state = btif_sm_get_state(btif_av_cb[i].sm_handle);
-      if (state == BTIF_AV_STATE_OPENED)
-        break;
-    }
-  }
-  if (i == btif_max_av_clients) {
-    BTIF_TRACE_ERROR("No valid AV device found, play on default");
-    i = 0;
-  }
+  if (i == btif_max_av_clients)
+    BTIF_TRACE_ERROR("%s:No valid active device found",__func__);
   return i;
 }
 
@@ -4893,6 +4883,9 @@ bool btif_av_is_tws_connected() {
 #endif
 /*SPLITA2DP*/
 
+bool btif_av_is_state_opened(int i) {
+  return (btif_sm_get_state(btif_av_cb[i].sm_handle) == BTIF_AV_STATE_OPENED);
+}
 
 void btif_av_set_audio_delay(uint16_t delay, tBTA_AV_HNDL hndl) {
   int index = HANDLE_TO_INDEX(hndl);

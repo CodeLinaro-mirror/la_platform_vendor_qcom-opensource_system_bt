@@ -93,7 +93,7 @@ android::sp<IBluetoothAudio> btAudio;
   case const:                  \
     return #const;
 
-uint8_t codec_info[30];
+uint8_t codec_info[32];
 uint8_t len,a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
 uint8_t a2dp_cmd_queued = A2DP_CTRL_CMD_NONE;
 uint8_t a2dp_local_cmd_pending = A2DP_CTRL_CMD_NONE;
@@ -131,6 +131,7 @@ extern bool enc_update_in_progress;
 extern tBTA_AV_HNDL btif_av_get_av_hdl_from_idx(int idx);
 extern void btif_av_reset_reconfig_flag();
 extern tBTIF_A2DP_SOURCE_VSC btif_a2dp_src_vsc;
+extern bool btif_av_is_state_opened(int i);
 //extern void bta_av_vendor_offload_stop(void);
 
 #if 0
@@ -391,10 +392,9 @@ void btif_a2dp_audio_on_started(tBTA_AV_STATUS status)
             LOG_INFO(LOG_TAG,"calling method a2dp_on_started");
             auto ret = btAudio->a2dp_on_started(mapToStatus(status));
             if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
+            a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
           }
         }
-        /* clear pending and queued*/
-        a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
       }
     } else {
       if (a2dp_cmd_pending == A2DP_CTRL_CMD_START) {
@@ -459,10 +459,9 @@ void btif_a2dp_audio_on_suspended(tBTA_AV_STATUS status)
             LOG_INFO(LOG_TAG,"calling method a2dp_on_suspended");
             auto ret = btAudio->a2dp_on_suspended(mapToStatus(status));
             if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
+            a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
           }
         }
-        /* clear pending and queued*/
-        a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
       }
     } else {
       if (a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND || a2dp_cmd_pending == A2DP_CTRL_CMD_STOP) {
@@ -538,15 +537,15 @@ void btif_a2dp_audio_on_stopped(tBTA_AV_STATUS status)
               LOG_INFO(LOG_TAG,"calling method a2dp_on_stopped");
               auto ret = btAudio->a2dp_on_stopped(mapToStatus(status));
               if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_stopped: server died");
+              a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
             } else if ((a2dp_cmd_pending == A2DP_CTRL_CMD_START) &&
                     (!(btif_av_is_under_handoff() || reconfig_a2dp))) {
               LOG_INFO(LOG_TAG, "Remote disconnected when start under progress");
               auto ret = btAudio->a2dp_on_started(mapToStatus(A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS));
               if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_started: server died");
+              a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
             }
           }
-          /* clear pending and queued*/
-          a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
         }
       } else {
         if (a2dp_cmd_pending == A2DP_CTRL_CMD_STOP || a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND) {
@@ -833,7 +832,6 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         codec_info[len++] = (uint8_t)(((bitrate & 0xFF00) >> 8) & 0x00FF);
         codec_info[len++] = (uint8_t)(((bitrate & 0xFF0000) >> 16) & 0x00FF);
         codec_info[len++] = (uint8_t)(((bitrate & 0xFF000000) >> 24) & 0x00FF);
-        LOG_INFO(LOG_TAG,"len  = %d", len);
         status = A2DP_CTRL_ACK_SUCCESS;
         a2dp_local_cmd_pending = A2DP_CTRL_CMD_NONE;
         break;
@@ -1018,15 +1016,18 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
            * If we are the source, the ACK will be sent after the start
            * procedure is completed, othewise send it now.
            */
-          btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
           int idx = btif_av_get_latest_device_idx_to_start();
-          if (btif_av_get_peer_sep(idx) == AVDT_TSEP_SRC) {
-            status = A2DP_CTRL_ACK_SUCCESS;
+          if (idx < btif_max_av_clients &&
+              btif_av_is_state_opened(idx)) {
+            btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
+            if (btif_av_get_peer_sep(idx) == AVDT_TSEP_SRC) {
+              status = A2DP_CTRL_ACK_SUCCESS;
+              break;
+            }
+            /*Return pending and ack when start stream cfm received from remote*/
+            status = A2DP_CTRL_ACK_PENDING;
             break;
           }
-          /*Return pending and ack when start stream cfm received from remote*/
-          status = A2DP_CTRL_ACK_PENDING;
-          break;
         }
 
         APPL_TRACE_WARNING("%s: A2DP command %s while AV stream is not ready",
@@ -1190,7 +1191,6 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         codec_info[len++] = (uint8_t)(((bitrate & 0xFF000000) >> 24) & 0x00FF);
         *(uint32_t *)&codec_info[len] = (uint32_t)bits_per_sample;
         len = len+4;
-        LOG_INFO(LOG_TAG,"len  = %d", len);
         status = A2DP_CTRL_ACK_SUCCESS;
         break;
       }
