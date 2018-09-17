@@ -2315,6 +2315,15 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             break;
         }
 #endif
+        case BTA_DM_DI_DISC_RESULT_EVT:
+        {
+            bt_sdp_did_get_record di;
+            BTIF_TRACE_DEBUG("it's pnp from pairing!!");
+            /* call vendor callback */
+            memcpy((void *)&di, (void *)&p_data->di_rec, sizeof(bt_sdp_did_get_record));
+            HAL_CBACK(bt_vendor_callbacks, did_info_cb, di);
+            break;
+        }
 
         case BTA_DM_AUTHORIZE_EVT:
         case BTA_DM_SIG_STRENGTH_EVT:

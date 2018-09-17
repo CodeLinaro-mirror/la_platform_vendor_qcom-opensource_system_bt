@@ -1705,13 +1705,28 @@ void bta_dm_sdp_result (tBTA_DM_MSG *p_data)
         || (p_data->sdp_event.sdp_result == SDP_DB_FULL))
     {
         APPL_TRACE_DEBUG("sdp_result::0x%x", p_data->sdp_event.sdp_result);
+
         do
         {
 
             p_sdp_rec = NULL;
-            if( bta_dm_search_cb.service_index == (BTA_USER_SERVICE_ID+1) )
+            if (bta_dm_search_cb.services == BTA_USER_SERVICE_MASK)
             {
+                bt_uuid_t           *p_user_uuid;
+                if (bta_dm_search_cb.uuid.len == LEN_UUID_128)
+                {
+                    p_user_uuid = bta_dm_search_cb.uuid.uu.uuid128;
+                    uuid_128_to_16(p_user_uuid, &service);
+                }
+                else if (bta_dm_search_cb.uuid.len == LEN_UUID_16)
+                {
+                    service = bta_dm_search_cb.uuid.uu.uuid16;
+                }
+
                 p_sdp_rec = SDP_FindServiceUUIDInDb(bta_dm_search_cb.p_sdp_db, &bta_dm_search_cb.uuid, p_sdp_rec);
+
+                if (!p_sdp_rec)
+                    p_sdp_rec = SDP_FindServiceInDb(bta_dm_search_cb.p_sdp_db, service, p_sdp_rec);
 
                 if (p_sdp_rec && SDP_FindProtocolListElemInRec(p_sdp_rec, UUID_PROTOCOL_RFCOMM, &pe))
                 {
@@ -1778,6 +1793,17 @@ void bta_dm_sdp_result (tBTA_DM_MSG *p_data)
                         /* Add to the list of UUIDs */
                         sdpu_uuid16_to_uuid128(tmp_svc, uuid_list[num_uuids]);
                         num_uuids++;
+                    }
+                    else  /* service == UUID_SERVCLASS_PNP_INFORMATION */
+                    {
+                        tBTA_DM_SEC sec_event;
+                        tSDP_DI_GET_RECORD * di_rec = &sec_event.di_rec;
+                        memset (&sec_event, 0, sizeof(tBTA_DM_SEC));
+
+                        APPL_TRACE_DEBUG("it's pnp service!!");
+                        /* callback to BT-IF */
+                         if (SDP_GetDiRecord(1, di_rec, bta_dm_search_cb.p_sdp_db) == SDP_SUCCESS)
+                            bta_dm_cb.p_sec_cback(BTA_DM_DI_DISC_RESULT_EVT, &sec_event);
                     }
                 }
             }
@@ -2232,7 +2258,7 @@ static void bta_dm_find_services ( BD_ADDR bd_addr)
             if (uuid.len == 0)
                 uuid.len = LEN_UUID_16;
 
-            if (bta_dm_search_cb.service_index == BTA_USER_SERVICE_ID) {
+            if (bta_dm_search_cb.services == BTA_USER_SERVICE_MASK) {
                 memcpy(&uuid, &bta_dm_search_cb.uuid, sizeof(tSDP_UUID));
             }
 
