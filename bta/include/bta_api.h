@@ -604,6 +604,8 @@ typedef UINT8 tBTA_SIG_STRENGTH_MASK;
 #define BTA_DM_LE_FEATURES_READ         27      /* Cotroller specific LE features are read */
 #define BTA_DM_ENER_INFO_READ           28      /* Energy info read */
 #define BTA_DM_LE_ADV_EXT_FEATURES_READ 29      /* LE Adv extension features are read */
+#define BTA_DM_DI_DISC_RESULT_EVT       30      /* DI Discovery result */
+
 typedef UINT8 tBTA_DM_SEC_EVT;
 
 /* Structure associated with BTA_DM_ENABLE_EVT */
@@ -904,6 +906,7 @@ typedef union
     tBTA_DM_BLE_KEY      ble_key;        /* BLE SMP keys used when pairing */
     tBTA_BLE_LOCAL_ID_KEYS  ble_id_keys;  /* IR event */
     BT_OCTET16              ble_er;       /* ER event data */
+    tSDP_DI_GET_RECORD      di_rec;       /* DI Discovery result */
 } tBTA_DM_SEC;
 
 /* Security callback */
