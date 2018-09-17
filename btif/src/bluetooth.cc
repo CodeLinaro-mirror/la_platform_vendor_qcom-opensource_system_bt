@@ -106,6 +106,8 @@ extern btav_source_interface_t* btif_av_get_src_interface();
 extern btav_vendor_interface_t* btif_av_get_src_vendor_interface();
 extern btav_sink_interface_t* btif_avk_get_sink_interface();
 extern btav_sink_vendor_interface_t *btif_avk_get_sink_vendor_interface();
+extern btav_sink_vendor_interface_t *btif_avk_get_sink_split_vendor_interface();
+extern btav_sink_interface_t* btif_avk_get_sink_split_interface();
 /*rfc l2cap*/
 extern btsock_interface_t* btif_sock_get_interface();
 /* hid host profile */
@@ -397,6 +399,12 @@ static const void* get_profile_interface(const char* profile_id) {
 
   if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_SINK_VENDOR_ID))
     return btif_avk_get_sink_vendor_interface();
+
+  if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_SINK_SPLIT_VENDOR_ID))
+    return btif_avk_get_sink_split_vendor_interface();
+
+  if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_SINK_SPLIT_ID))
+    return btif_avk_get_sink_split_interface();
 
   if (is_profile(profile_id, BT_PROFILE_HIDHOST_ID))
     return btif_hh_get_interface();

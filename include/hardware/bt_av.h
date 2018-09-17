@@ -107,6 +107,8 @@ typedef enum {
   BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO = 0x1 << 1
 } btav_a2dp_codec_channel_mode_t;
 
+#define CMD_ACCEPTED 0
+#define CMD_REJECTED 1
 /*
  * Structure for representing codec capability or configuration.
  * It is used for configuring A2DP codec preference, and for reporting back
@@ -260,6 +262,14 @@ typedef void (*btav_audio_sink_config_callback)(const RawAddress& bd_addr,
                                                 uint32_t sample_rate,
                                                 uint8_t channel_count);
 
+/** Callback for informing start indication to application.
+ */
+typedef void (*btav_audio_sink_start_ind_callback)(const RawAddress& bd_addr );
+
+/** Callback for informing suspend indication to application.
+ */
+typedef void (*btav_audio_sink_suspend_ind_callback)(const RawAddress& bd_addr );
+
 /** BT-AV A2DP Source callback structure. */
 typedef struct {
   /** set to sizeof(btav_source_callbacks_t) */
@@ -276,6 +286,8 @@ typedef struct {
   btav_connection_state_callback connection_state_cb;
   btav_audio_state_callback audio_state_cb;
   btav_audio_sink_config_callback audio_config_cb;
+  btav_audio_sink_start_ind_callback start_ind_cb;
+  btav_audio_sink_suspend_ind_callback suspend_ind_cb;
 } btav_sink_callbacks_t;
 
 /**
@@ -344,6 +356,18 @@ typedef struct {
 
   /** Sets the audio track gain. */
   void (*set_audio_track_gain)(float gain);
+
+  /** response to start indication */
+  bt_status_t (*start_ind_rsp)(const RawAddress& bd_addr, int accepted);
+
+  /** response to suspend indication */
+  bt_status_t (*suspend_ind_rsp)(const RawAddress& bd_addr, int accepted);
+
+  /** start request to remote   */
+  bt_status_t (*start_req)(const RawAddress& bd_addr);
+
+  /** suspend request to remote   */
+  bt_status_t (*suspend_req)(const RawAddress& bd_addr);
 } btav_sink_interface_t;
 
 __END_DECLS

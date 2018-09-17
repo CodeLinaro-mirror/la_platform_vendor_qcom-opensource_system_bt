@@ -93,8 +93,9 @@ typedef uint8_t tBTA_STATUS;
 #define BTA_BLE_SERVICE_ID 31  /* GATT profile */
 #define BTA_USER_SERVICE_ID 32 /* User requested UUID */
 #define BTA_TWS_PLUS_SERVICE_ID 33 /* TWS PLUS */
+#define BTA_A2DP_SPLIT_SINK_SERVICE_ID 34
 
-#define BTA_MAX_SERVICE_ID 34
+#define BTA_MAX_SERVICE_ID 35
 
 /* service IDs (BTM_SEC_SERVICE_FIRST_EMPTY + 1) to (BTM_SEC_MAX_SERVICES - 1)
  * are used by BTA JV */
