@@ -80,8 +80,24 @@ AC_ARG_ENABLE(rome,
   [ROME=none]
 )
 
-AM_CONDITIONAL([MDM_ROME], [test "x$TARGET" = "xmdm9607" -o "x$TARGET" = "xmdm9635" -o "x$TARGET" = "xmdm9640" -o "x$TARGET" = "xmdm9650" -o "x$TARGET" = "xapq8096" -o "x$TARGET" = "xsdx20" -o "x$ROME" = "xqsap"	-o "x$ROME" = "xrobot-rome" -o "x$TARGET" = "xapq8009" -o "x$TARGET" = "xsdxpoorwills"])
-AM_CONDITIONAL([MDM_PRONTO], [test "x$TARGET" = "xapq8017" -o "x$TARGET" = "xapq8053" -o "x$TARGET" = "xapq8016"])
+AC_ARG_ENABLE([pronto],
+        [  --enable-pronto Enable Pronto],
+        [case "${enableval}" in
+            yes) pronto=true ;;
+            no)  pronto=false ;;
+            *) AC_MSG_ERROR([bad value ${enableval} for --enable-pronto]) ;;
+        esac],[pronto=false])
+
+AC_ARG_ENABLE([som],
+        [  --enable-som Enable Rome or Naples],
+        [case "${enableval}" in
+            yes) som=true ;;
+            no)  som=false ;;
+            *) AC_MSG_ERROR([bad value ${enableval} for --enable-som]) ;;
+        esac],[som=false])
+
+AM_CONDITIONAL([MDM_ROME], [test "x$TARGET" = "xmdm9607" -o "x$TARGET" = "xmdm9635" -o "x$TARGET" = "xmdm9640" -o "x$TARGET" = "xmdm9650" -o "x$TARGET" = "xapq8096" -o "x$TARGET" = "xsdx20" -o "x$ROME" = "xqsap" -o "x$ROME" = "xrobot-rome" -o "x$TARGET" = "xsdxpoorwills" -o "x$som" = "xtrue"])
+AM_CONDITIONAL([MDM_PRONTO], [test "x$TARGET" = "xapq8017" -o "x$TARGET" = "xapq8053" -o "x$TARGET" = "xapq8016" -o "x$pronto" = "xtrue"])
 AM_CONDITIONAL([MDM_CHEROKEE], [test "x$TARGET" = "xapq8098" -o "x$TARGET" = "xqcs605"])
 AM_CONDITIONAL([BT_AUDIO_HAL_INTEGRATION], [test "x$TARGET" = "xapq8009" -o "x$TARGET" = "xapq8017" -o "x$TARGET" = "xapq8053" -o "x$TARGET" = "xapq8098" -o "x$TARGET" = "xqcs605"])
 # BTC support

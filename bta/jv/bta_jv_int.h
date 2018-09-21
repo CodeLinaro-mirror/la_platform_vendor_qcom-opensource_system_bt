@@ -231,7 +231,7 @@ typedef struct
     tBTA_JV_L2C_CB      *p_cb;
     UINT8               *p_data;
     UINT16              len;
-    void                *user_data;
+    UINT32              user_id;
 } tBTA_JV_API_L2CAP_WRITE;
 
 /* data type for BTA_JV_API_L2CAP_WRITE_FIXED_EVT */
@@ -244,7 +244,7 @@ typedef struct
     tBTA_JV_L2CAP_CBACK *p_cback;
     UINT8               *p_data;
     UINT16              len;
-    void                *user_data;
+    UINT32              user_id;
 } tBTA_JV_API_L2CAP_WRITE_FIXED;
 
 /* data type for BTA_JV_API_RFCOMM_CONNECT_EVT */

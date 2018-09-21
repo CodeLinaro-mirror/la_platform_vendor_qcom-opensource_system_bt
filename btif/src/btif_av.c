@@ -48,6 +48,7 @@
 #include "device/include/interop.h"
 #include "btif_storage.h"
 #include "audio_a2dp_hw.h"
+#include "btcore/include/bdaddr.h"
 
 /*****************************************************************************
 **  Constants & Macros

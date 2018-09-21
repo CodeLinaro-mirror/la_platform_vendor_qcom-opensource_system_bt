@@ -1394,6 +1394,7 @@ void bta_jv_l2cap_write(tBTA_JV_MSG *p_data)
         evt_data.status = BTA_JV_FAILURE;
         evt_data.handle = ls->handle;
         evt_data.req_id = ls->req_id;
+        evt_data.p_data = ls->p_data;
         evt_data.cong   = ls->p_cb->cong;
         evt_data.len    = 0;
         bta_jv_pm_conn_busy(ls->p_cb->p_pm_cb);
@@ -1402,7 +1403,7 @@ void bta_jv_l2cap_write(tBTA_JV_MSG *p_data)
         {
            evt_data.status = BTA_JV_SUCCESS;
         }
-        ls->p_cb->p_cback(BTA_JV_L2CAP_WRITE_EVT, (tBTA_JV *)&evt_data, ls->user_data);
+        ls->p_cb->p_cback(BTA_JV_L2CAP_WRITE_EVT, (tBTA_JV *)&evt_data, ls->user_id);
     } else {
         /* As this pointer is checked in the API function, this occurs only when the channel is
          * disconnected after the API function is called, but before the message is handled. */
@@ -1429,6 +1430,7 @@ void bta_jv_l2cap_write_fixed(tBTA_JV_MSG *p_data)
     evt_data.channel = ls->channel;
     memcpy(evt_data.addr, ls->addr, sizeof(evt_data.addr));
     evt_data.req_id  = ls->req_id;
+    evt_data.p_data = ls->p_data;
     evt_data.len     = 0;
 
 
@@ -1438,7 +1440,7 @@ void bta_jv_l2cap_write_fixed(tBTA_JV_MSG *p_data)
 
     L2CA_SendFixedChnlData(ls->channel, ls->addr, msg);
 
-    ls->p_cback(BTA_JV_L2CAP_WRITE_FIXED_EVT, (tBTA_JV *)&evt_data, ls->user_data);
+    ls->p_cback(BTA_JV_L2CAP_WRITE_FIXED_EVT, (tBTA_JV *)&evt_data, ls->user_id);
 }
 
 /*******************************************************************************
