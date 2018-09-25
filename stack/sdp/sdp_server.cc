@@ -513,7 +513,7 @@ static void process_service_search(tCONN_CB* p_ccb, uint16_t trans_num,
     return;
   }
 
-  if (p_req + sizeof(max_replies) + sizeof(uint8_t) > p_req_end) {
+  if (p_req + sizeof(max_replies) > p_req_end) {
     android_errorWriteLog(0x534e4554, "69384124");
     sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
                             SDP_TEXT_BAD_MAX_RECORDS_LIST);
@@ -664,9 +664,11 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
 
   /* Extract the record handle */
   BE_STREAM_TO_UINT32(rec_handle, p_req);
+  param_len -= sizeof(rec_handle);
 
   /* Get the max list length we can send. Cap it at MTU size minus overhead */
   BE_STREAM_TO_UINT16(max_list_len, p_req);
+  param_len -= sizeof(max_list_len);
 
     if (max_list_len < SDP_MIN_ATTR_REQ_MAX_BYTE_COUNT)
     {
@@ -680,8 +682,7 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
 
   p_req = sdpu_extract_attr_seq(p_req, param_len, &attr_seq);
 
-  if ((!p_req) || (!attr_seq.num_attr) ||
-      (p_req + sizeof(uint8_t) > p_req_end)) {
+  if ((!p_req) || (!attr_seq.num_attr)) {
     sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
                             SDP_TEXT_BAD_ATTR_LIST);
     return;
@@ -1061,8 +1062,7 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
 
   p_req = sdpu_extract_attr_seq(p_req, param_len, &attr_seq);
 
-  if ((!p_req) || (!attr_seq.num_attr) ||
-      (p_req + sizeof(uint8_t) > p_req_end)) {
+  if ((!p_req) || (!attr_seq.num_attr)) {
     sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
                             SDP_TEXT_BAD_ATTR_LIST);
     return;
