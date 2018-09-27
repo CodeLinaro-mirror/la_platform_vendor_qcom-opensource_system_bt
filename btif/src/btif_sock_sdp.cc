@@ -66,6 +66,8 @@ static const tBTA_PBS_CFG bta_pbs_cfg = {
     BTA_PBS_REPOSIT_LOCAL,                          // supported_repositories
 };
 
+static bool enable_pts_iopt = false;
+
 // object format lookup table
 #define OBEX_PUSH_NUM_FORMATS 7
 
@@ -97,6 +99,14 @@ static const tBTA_OP_FMT bta_ops_obj_fmt[OBEX_PUSH_NUM_FORMATS] = {
 
 #define NO_OF_EMAIL_ACCOUNTS_PROPERTY "persist.bluetooth.emailaccountcount"
 #define DEFAULT_ACTIVE_ACCOUNTS "0"
+#define BTA_PCE_DEFAULT_VERSION 0x0102 /* PBAP PCE version 1.2 */
+
+// For PTS test, check whether bt.pts.iopt is set true or not.
+static bool is_pts_iopt_enabled() {
+  char pts_iopt[PROPERTY_VALUE_MAX] = {0};
+  property_get("bt.pts.iopt", pts_iopt, "false");
+  return !strcmp(pts_iopt, "true");
+}
 
 // Adds a protocol list and service name (if provided) to an SDP record given by
 // |sdp_handle|, and marks it as browseable. This is a shortcut for defining a
@@ -228,6 +238,7 @@ error:
 static int add_pbap_sdp(const char* name, const int channel) {
   APPL_TRACE_DEBUG("add_pbap_sdp: scn %d, service_name %s", channel, name);
 
+  uint16_t service = 0;
   uint32_t handle = SDP_CreateRecord();
   if (handle == 0) {
     APPL_TRACE_ERROR(
@@ -237,7 +248,10 @@ static int add_pbap_sdp(const char* name, const int channel) {
     return 0;
   }
 
-  uint16_t service = UUID_SERVCLASS_PBAP_PSE;
+  // For PTS test, add pce service in sdp record.
+  enable_pts_iopt = is_pts_iopt_enabled();
+
+  service = enable_pts_iopt ? UUID_SERVCLASS_PBAP_PCE : UUID_SERVCLASS_PBAP_PSE;
 
   // Create the base SDP record.
   const char* stage = "create_base_record";
@@ -250,9 +264,17 @@ static int add_pbap_sdp(const char* name, const int channel) {
 
   // Add in the phone access descriptor
   stage = "profile_descriptor_list";
-  if (!SDP_AddProfileDescriptorList(handle, UUID_SERVCLASS_PHONE_ACCESS,
-                                    BTA_PBS_DEFAULT_VERSION))
-    goto error;
+
+  if (enable_pts_iopt) {
+    if (!SDP_AddProfileDescriptorList(handle, UUID_SERVCLASS_PHONE_ACCESS,
+                                      BTA_PCE_DEFAULT_VERSION))
+      goto error;
+  } else {
+    if (!SDP_AddProfileDescriptorList(handle, UUID_SERVCLASS_PHONE_ACCESS,
+                                      BTA_PBS_DEFAULT_VERSION))
+      goto error;
+  }
+
 
   // Set up our supported repositories
   stage = "supported_repositories";
@@ -261,7 +283,12 @@ static int add_pbap_sdp(const char* name, const int channel) {
     goto error;
 
   // Notify the system that we've got a new service class UUID.
-  bta_sys_add_uuid(UUID_SERVCLASS_PBAP_PSE);
+  if (enable_pts_iopt) {
+    bta_sys_add_uuid(UUID_SERVCLASS_PBAP_PCE);
+  } else {
+    bta_sys_add_uuid(UUID_SERVCLASS_PBAP_PSE);
+  }
+
   APPL_TRACE_DEBUG(
       "add_pbap_sdp: service registered successfully, "
       "service_name: %s, handle: 0x%08x",
@@ -516,7 +543,7 @@ static int add_rfc_sdp_by_uuid(const char* name, const uint8_t* uuid,
 
   if (UUID_MATCHES(UUID_OBEX_OBJECT_PUSH, uuid)) {
     handle = add_ops_sdp(name, final_channel);
-  } else if (UUID_MATCHES(UUID_PBAP_PSE, uuid)) {
+  } else if (UUID_MATCHES(UUID_PBAP_PSE, uuid) || UUID_MATCHES(UUID_PBAP_PCE, uuid)) {
     // PBAP Server is always channel 19
     handle = add_pbap_sdp(name, final_channel);
   } else if (UUID_MATCHES(UUID_SPP, uuid)) {
