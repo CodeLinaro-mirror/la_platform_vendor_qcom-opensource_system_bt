@@ -74,7 +74,8 @@ typedef enum {
     BTIF_GATTS_STOP_SERVICE,
     BTIF_GATTS_DELETE_SERVICE,
     BTIF_GATTS_SEND_INDICATION,
-    BTIF_GATTS_SEND_RESPONSE
+    BTIF_GATTS_SEND_RESPONSE,
+    BTIF_GATTS_SRV_CHNG_IND
 } btif_gatts_event_t;
 
 /************************************************************************************
@@ -510,6 +511,9 @@ static void btgatts_handle_event(uint16_t event, char* p_param)
                       0, rsp_struct.attr_value.handle);
             break;
         }
+        case BTIF_GATTS_SRV_CHNG_IND:
+            BTA_GATTS_SrvChngInd();
+            break;
 
         default:
             LOG_ERROR(LOG_TAG, "%s: Unknown event (%d)!", __FUNCTION__, event);
@@ -674,6 +678,14 @@ static bt_status_t btif_gatts_send_response(int conn_id, int trans_id,
                                  (char*) &btif_cb, sizeof(btif_gatts_cb_t), NULL);
 }
 
+static bt_state_t btif_gatts_service_change_ind()
+{
+    CHECK_BTGATT_INIT();
+    btif_gatts_cb_t btif_cb;
+    return btif_transfer_context(btgatts_handle_event, BTIF_GATTS_SRV_CHNG_IND,
+                                 (char*) &btif_cb, sizeof(btif_gatts_cb_t), NULL);
+}
+
 const btgatt_server_interface_t btgattServerInterface = {
     btif_gatts_register_app,
     btif_gatts_unregister_app,
@@ -687,7 +699,8 @@ const btgatt_server_interface_t btgattServerInterface = {
     btif_gatts_stop_service,
     btif_gatts_delete_service,
     btif_gatts_send_indication,
-    btif_gatts_send_response
+    btif_gatts_send_response,
+    btif_gatts_service_change_ind
 };
 
 #endif

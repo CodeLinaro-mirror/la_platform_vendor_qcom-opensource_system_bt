@@ -378,6 +378,28 @@ void BTA_GATTS_SendRsp (UINT16 conn_id, UINT32 trans_id,
     bta_sys_sendmsg(p_buf);
 }
 
+
+/*******************************************************************************
+**
+** Function         BTA_GATTS_SrvChngInd
+**
+** Description      This function is calls service change indications
+**
+** Returns          None
+**
+*******************************************************************************/
+void BTA_GATTS_SrvChngInd ()
+{
+    APPL_TRACE_ERROR("BTA_GATTS_SrvChngInd");
+    BT_HDR *p_buf = (BT_HDR *)osi_malloc(sizeof(BT_HDR));
+
+    p_buf->event = BTA_GATTS_API_SRVC_HNDL_IND_EVT;
+
+    bta_sys_sendmsg(p_buf);
+}
+
+
+
 /*******************************************************************************
 **
 ** Function         BTA_GATTS_Open
