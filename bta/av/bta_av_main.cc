@@ -223,6 +223,15 @@ tBT_VENDOR_A2DP_OFFLOAD offload_start;
 static const char* bta_av_st_code(uint8_t state);
 
 static bool is_multicast_enabled = false;
+static bool enable_pts_iopt = false;
+
+/* For PTS test, check whether bt.pts.iopt is set true or not.*/
+static bool is_pts_iopt_enabled() {
+  char pts_iopt[PROPERTY_VALUE_MAX] = {0};
+  property_get("bt.pts.iopt", pts_iopt, "false");
+  return !strcmp(pts_iopt, "true");
+}
+
 /*******************************************************************************
  *
  * Function         bta_av_api_enable
@@ -457,6 +466,8 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
   char* p_service_name;
   tBTA_UTL_COD cod;
 
+  enable_pts_iopt = is_pts_iopt_enabled();
+
   memset(&cs, 0, sizeof(tAVDT_CS));
 
   registr.status = BTA_AV_FAIL_RESOURCES;
@@ -548,10 +559,13 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
           profile_version = AVRC_REV_1_4;
         }
 
-        bta_ar_reg_avrc(
-            UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
-            p_bta_av_cfg->avrc_tg_cat, BTA_ID_AV,
-            (bta_av_cb.features & BTA_AV_FEAT_BROWSE), profile_version);
+        // register avrcp tg by default, but ignored when doing PTS test.
+        if (!enable_pts_iopt) {
+          bta_ar_reg_avrc(
+              UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
+              p_bta_av_cfg->avrc_tg_cat, BTA_ID_AV,
+              (bta_av_cb.features & BTA_AV_FEAT_BROWSE), profile_version);
+        }
 #endif
       }
 

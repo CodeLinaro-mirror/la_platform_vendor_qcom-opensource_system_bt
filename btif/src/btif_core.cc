@@ -127,6 +127,7 @@ static uint8_t btif_dut_mode = 0;
 thread_t* bt_jni_workqueue_thread;
 static const char* BT_JNI_WORKQUEUE_NAME = "bt_jni_workqueue";
 static uid_set_t* uid_set = NULL;
+static bool enable_pts_iopt = false;
 base::MessageLoop* message_loop_ = NULL;
 base::RunLoop* jni_run_loop = NULL;
 
@@ -139,6 +140,12 @@ static void btif_jni_disassociate();
 /* sends message to btif task */
 static void btif_sendmsg(void* p_msg);
 
+// For PTS test, check whether bt.pts.iopt is set true or not.
+static bool is_pts_iopt_enabled() {
+  char pts_iopt[PROPERTY_VALUE_MAX] = {0};
+  property_get("bt.pts.iopt", pts_iopt, "false");
+  return !strcmp(pts_iopt, "true");
+}
 /*******************************************************************************
  *  Externs
  ******************************************************************************/
@@ -358,6 +365,7 @@ bt_status_t btif_init_bluetooth() {
   LOG_INFO(LOG_TAG, "%s entered", __func__);
 
   bte_main_boot_entry();
+  enable_pts_iopt = is_pts_iopt_enabled();
 
   bt_jni_workqueue_thread = thread_new_sized(BT_JNI_WORKQUEUE_NAME, MAX_JNI_WORKQUEUE_COUNT);
   if (bt_jni_workqueue_thread == NULL) {
@@ -399,6 +407,7 @@ void btif_enable_bluetooth_evt(tBTA_STATUS status) {
   std::string bdstr = local_bd_addr.ToString();
 
   char val[PROPERTY_VALUE_MAX] = "";
+
   int val_size = 0;
   if ((btif_config_get_str("Adapter", "Address", val, &val_size) == 0) ||
       strcmp(bdstr.c_str(), val) == 0) {
@@ -432,7 +441,10 @@ void btif_enable_bluetooth_evt(tBTA_STATUS status) {
     bte_load_did_conf(BTE_DID_CONF_FILE);
 
     /* init pan */
-    btif_pan_init();
+    /* register PAN by default, but ignore when doing PTS test.*/
+    if (!enable_pts_iopt)
+      btif_pan_init();
+
 
 #ifdef BTIF_DM_OOB_TEST
     btif_dm_load_local_oob();
@@ -443,7 +455,9 @@ void btif_enable_bluetooth_evt(tBTA_STATUS status) {
     /* cleanup rfcomm & l2cap api */
     btif_sock_cleanup();
 
-    btif_pan_cleanup();
+    /* cleanup pan if pts isn't enabled. */
+    if (!enable_pts_iopt)
+      btif_pan_cleanup();
 
     future_ready(stack_manager_get_hack_future(), FUTURE_FAIL);
   }
@@ -464,7 +478,6 @@ void btif_enable_bluetooth_evt(tBTA_STATUS status) {
  ******************************************************************************/
 bt_status_t btif_disable_bluetooth(void) {
   LOG_INFO(LOG_TAG, "%s entered", __func__);
-
   do_in_bta_thread(FROM_HERE, base::Bind(&btm_ble_multi_adv_cleanup));
   // TODO(jpawlowski): this should do whole BTA_VendorCleanup(), but it would
   // kill the stack now.
@@ -472,7 +485,11 @@ bt_status_t btif_disable_bluetooth(void) {
   btif_dm_on_disable();
   /* cleanup rfcomm & l2cap api */
   btif_sock_cleanup();
-  btif_pan_cleanup();
+
+  /* cleanup pan if pts isn't enabled */
+  if (!enable_pts_iopt)
+    btif_pan_cleanup();
+
   BTA_DisableBluetooth();
 
   LOG_INFO(LOG_TAG, "%s finished", __func__);
