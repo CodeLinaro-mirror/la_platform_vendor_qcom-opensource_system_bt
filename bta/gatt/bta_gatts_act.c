@@ -964,3 +964,18 @@ static void bta_gatts_cong_cback (UINT16 conn_id, BOOLEAN congested)
     }
 }
 #endif /* BTA_GATT_INCLUDED */
+
+/*******************************************************************************
+**
+** Function         bta_gatts_srvc_hndl_ind
+**
+** Description      intimate service handle indication.
+**
+** Returns          none.
+**
+*******************************************************************************/
+void bta_gatts_srvc_hndl_ind()
+{
+    gatt_proc_srv_chg();
+}
+
