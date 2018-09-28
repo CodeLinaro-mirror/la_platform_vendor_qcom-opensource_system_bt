@@ -513,7 +513,7 @@ static void process_service_search(tCONN_CB* p_ccb, uint16_t trans_num,
     return;
   }
 
-  if (p_req + sizeof(max_replies) + sizeof(uint8_t) > p_req_end) {
+  if (p_req + sizeof(max_replies) > p_req_end) {
     android_errorWriteLog(0x534e4554, "69384124");
     sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
                             SDP_TEXT_BAD_MAX_RECORDS_LIST);
@@ -682,8 +682,7 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
 
   p_req = sdpu_extract_attr_seq(p_req, param_len, &attr_seq);
 
-  if ((!p_req) || (!attr_seq.num_attr) ||
-      (p_req + sizeof(uint8_t) > p_req_end)) {
+  if ((!p_req) || (!attr_seq.num_attr)) {
     sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
                             SDP_TEXT_BAD_ATTR_LIST);
     return;
@@ -1063,8 +1062,7 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
 
   p_req = sdpu_extract_attr_seq(p_req, param_len, &attr_seq);
 
-  if ((!p_req) || (!attr_seq.num_attr) ||
-      (p_req + sizeof(uint8_t) > p_req_end)) {
+  if ((!p_req) || (!attr_seq.num_attr)) {
     sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX,
                             SDP_TEXT_BAD_ATTR_LIST);
     return;
