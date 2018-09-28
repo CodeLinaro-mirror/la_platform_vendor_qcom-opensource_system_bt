@@ -43,7 +43,7 @@
 #endif
 
 /* Maximum number of HF devices supported simultaneously */
-#define HF_CLIENT_MAX_DEVICES 10
+#define HF_CLIENT_MAX_DEVICES 1
 
 enum {
   /* these events are handled by the state machine */

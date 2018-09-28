@@ -477,7 +477,7 @@ typedef struct {
   tAVDT_CFG curr_cfg;               /* current configuration */
   tAVDT_CFG req_cfg;                /* requested configuration */
   alarm_t* transport_channel_timer; /* transport channel connect timer */
-  alarm_t* delay_report_timer;
+  alarm_t* delay_report_timer;      /* Timeout for delay reporting in SRC and Periodic alarm for sending delay report in SINK*/
   BT_HDR* p_pkt;                    /* packet waiting to be sent */
   tAVDT_CCB* p_ccb;                 /* ccb associated with this scb */
   uint16_t media_seq;               /* media packet sequence number */
@@ -491,6 +491,7 @@ typedef struct {
   uint8_t curr_evt;   /* current event; set only by state machine */
   bool cong;          /* Whether media transport channel is congested */
   uint8_t close_code; /* Error code received in close response */
+  uint16_t reported_delay; /* last reported delay value */
 } tAVDT_SCB;
 
 /* type for action functions */
@@ -700,6 +701,7 @@ extern void avdt_ccb_ret_ccb_timer_timeout(void* data);
 extern void avdt_ccb_rsp_ccb_timer_timeout(void* data);
 extern void avdt_scb_transport_channel_timer_timeout(void* data);
 extern void avdt_delay_report_timer_timeout(void* data);
+extern void avdt_delay_rpt_tmr_hdlr(void* data);
 
 /*****************************************************************************
  * macros
