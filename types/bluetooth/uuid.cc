@@ -18,10 +18,11 @@
 
 #include "uuid.h"
 
-#include <base/rand_util.h>
-#include <base/strings/stringprintf.h>
+#include <time.h>
 #include <algorithm>
 #include <cstring>
+#include <stdint.h>
+#include <stdlib.h>
 namespace bluetooth {
 
 static_assert(sizeof(Uuid) == 16, "Uuid must be 16 bytes long!");
@@ -145,9 +146,11 @@ const UUID128Bit Uuid::To128BitLE() const {
 const UUID128Bit& Uuid::To128BitBE() const { return uu; }
 
 Uuid Uuid::GetRandom() {
-  Uuid uuid;
-  base::RandBytes(uuid.uu.data(), uuid.uu.size());
-  return uuid;
+  Uuid u = kBase;
+  srand(time(0));
+  for(int i = 0; i<16; i++)
+    u.uu[i] = ((uint8_t) rand());
+  return u;
 }
 
 bool Uuid::IsEmpty() const { return *this == kEmpty; }
@@ -162,9 +165,10 @@ bool Uuid::operator==(const Uuid& rhs) const { return uu == rhs.uu; }
 bool Uuid::operator!=(const Uuid& rhs) const { return uu != rhs.uu; }
 
 std::string Uuid::ToString() const {
-  return base::StringPrintf(
-      "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+  char string_local[37];
+  snprintf(string_local, 37, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
       uu[0], uu[1], uu[2], uu[3], uu[4], uu[5], uu[6], uu[7], uu[8], uu[9],
       uu[10], uu[11], uu[12], uu[13], uu[14], uu[15]);
+ return string_local;
 }
 }  // namespace bluetooth
