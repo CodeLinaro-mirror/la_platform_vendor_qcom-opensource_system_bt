@@ -3066,7 +3066,7 @@ static bool get_src_codec_config(uint8_t * codecinfo, uint8_t *codectype)
 static bt_status_t init_src_vendor(btav_vendor_callbacks_t* callbacks, int max_a2dp_connections,
                             int a2dp_multicast_state, uint8_t streaming_prarm, const char* offload_cap)
 {
-    bt_status_t status;
+    bt_status_t status = BT_STATUS_FAIL;
 
     BTIF_TRACE_EVENT("%s with max conn = %d", __FUNCTION__, max_a2dp_connections);
 
@@ -3113,7 +3113,7 @@ static bt_status_t init_src_vendor(btav_vendor_callbacks_t* callbacks, int max_a
 static bt_status_t init_sink_vendor(btav_vendor_callbacks_t* callbacks, int max,
                              int a2dp_multicast_state)
 {
-    bt_status_t status;
+    bt_status_t status = BT_STATUS_FAIL;
 
     BTIF_TRACE_EVENT("%s", __FUNCTION__);
 

@@ -485,7 +485,7 @@ static BOOLEAN check_cached_remote_name(tBTA_DM_SEARCH *p_search_data,
     {
         if (p_remote_name && p_remote_name_len)
         {
-            strcpy((char *)p_remote_name, (char *)bdname.name);
+            strlcpy((char *)p_remote_name, (char *)bdname.name, 249);
             *p_remote_name_len = strlen((char *)p_remote_name);
         }
         return TRUE;
@@ -2997,9 +2997,8 @@ bt_status_t btif_dm_get_adapter_property(bt_property_t *prop)
         case BT_PROPERTY_BDNAME:
         {
             bt_bdname_t *bd_name = (bt_bdname_t*)prop->val;
-            strncpy((char *)bd_name->name, (char *)btif_get_default_local_name(),
-                   sizeof(bd_name->name) - 1);
-            bd_name->name[sizeof(bd_name->name) - 1] = 0;
+            strlcpy((char *)bd_name->name, (char *)btif_get_default_local_name(),
+                   sizeof(bd_name->name));
             prop->len = strlen((char *)bd_name->name);
         }
         break;
@@ -3314,31 +3313,31 @@ BOOLEAN btif_dm_get_smp_config(tBTE_APPL_CFG* p_cfg) {
     const char* recv = stack_config_get_interface()->get_pts_smp_options();
     char* pch;
     char* endptr;
+    char* savep;
 
-    strncpy(conf, recv, 64);
-    conf[63] = 0; // null terminate
+    strlcpy(conf, recv, 64);
 
-    if ((pch = strtok(conf, ",")) != NULL)
+    if ((pch = strtok_r(conf, ",", &savep)) != NULL)
         p_cfg->ble_auth_req = (UINT8) strtoul(pch, &endptr, 16);
     else
         return FALSE;
 
-    if ((pch = strtok(NULL, ",")) != NULL)
+    if ((pch = strtok_r(NULL, ",", &savep)) != NULL)
         p_cfg->ble_io_cap =  (UINT8) strtoul(pch, &endptr, 16);
     else
         return FALSE;
 
-    if ((pch = strtok(NULL, ",")) != NULL)
+    if ((pch = strtok_r(NULL, ",", &savep)) != NULL)
         p_cfg->ble_init_key =  (UINT8) strtoul(pch, &endptr, 16);
     else
         return FALSE;
 
-    if ((pch = strtok(NULL, ",")) != NULL)
+    if ((pch = strtok_r(NULL, ",", &savep)) != NULL)
         p_cfg->ble_resp_key =  (UINT8) strtoul(pch, &endptr, 16);
     else
         return FALSE;
 
-    if ((pch = strtok(NULL, ",")) != NULL)
+    if ((pch = strtok_r(NULL, ",", &savep)) != NULL)
         p_cfg->ble_max_key_size =  (UINT8) strtoul(pch, &endptr, 16);
     else
         return FALSE;
@@ -3384,15 +3383,17 @@ BOOLEAN btif_dm_proc_rmt_oob(BD_ADDR bd_addr,  BT_OCTET16 p_c, BT_OCTET16 p_r)
             fclose(fp);
         }
         BTIF_TRACE_DEBUG("----%s: TRUE", __func__);
-        sprintf(t, "%02x:%02x:%02x:%02x:%02x:%02x",
+        snprintf(t, sizeof(t), "%02x:%02x:%02x:%02x:%02x:%02x",
                 oob_cb.bdaddr[0], oob_cb.bdaddr[1], oob_cb.bdaddr[2],
                 oob_cb.bdaddr[3], oob_cb.bdaddr[4], oob_cb.bdaddr[5]);
         BTIF_TRACE_DEBUG("----%s: peer_bdaddr = %s", __func__, t);
-        sprintf(t, "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+        snprintf(t, sizeof(t),
+                "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
                 p_c[0], p_c[1], p_c[2],  p_c[3],  p_c[4],  p_c[5],  p_c[6],  p_c[7],
                 p_c[8], p_c[9], p_c[10], p_c[11], p_c[12], p_c[13], p_c[14], p_c[15]);
         BTIF_TRACE_DEBUG("----%s: c = %s", __func__, t);
-        sprintf(t, "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+        snprintf(t, sizeof(t),
+                "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
                 p_r[0], p_r[1], p_r[2],  p_r[3],  p_r[4],  p_r[5],  p_r[6],  p_r[7],
                 p_r[8], p_r[9], p_r[10], p_r[11], p_r[12], p_r[13], p_r[14], p_r[15]);
         BTIF_TRACE_DEBUG("----%s: r = %s", __func__, t);
@@ -3875,15 +3876,14 @@ static char* btif_get_default_local_name() {
         int max_len = sizeof(btif_default_local_name) - 1;
         if (BTM_DEF_LOCAL_NAME[0] != '\0')
         {
-            strncpy(btif_default_local_name, BTM_DEF_LOCAL_NAME, max_len);
+            strlcpy(btif_default_local_name, BTM_DEF_LOCAL_NAME, max_len + 1);
         }
         else
         {
             char prop_model[PROPERTY_VALUE_MAX];
             osi_property_get(PROPERTY_PRODUCT_MODEL, prop_model, "");
-            strncpy(btif_default_local_name, prop_model, max_len);
+            strlcpy(btif_default_local_name, prop_model, max_len + 1);
         }
-        btif_default_local_name[max_len] = '\0';
     }
     return btif_default_local_name;
 }
