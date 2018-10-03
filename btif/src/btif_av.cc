@@ -701,10 +701,6 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
         idle_rc_event = event;
         HAL_CBACK(bt_av_src_callbacks, connection_priority_cb,
            &(btif_av_cb[index].peer_bda));
-        if (event == BTA_AV_PENDING_EVT)
-          BTA_AvOpen(btif_av_cb[index].peer_bda,
-                     btif_av_cb[index].bta_handle, true,
-                     BTA_SEC_AUTHENTICATE, UUID_SERVCLASS_AUDIO_SOURCE);
       }
       if (bt_av_sink_callbacks != NULL) {
         if (event == BTA_AV_PENDING_EVT)
