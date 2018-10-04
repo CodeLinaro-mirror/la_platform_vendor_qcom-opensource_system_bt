@@ -716,6 +716,10 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
             ALOGD("LDAC encoder missing, LDAC SEP not created");
             continue;
           }
+          if(codec_index == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE){
+            ALOGD("APTX_ADAPTIVE is not enabled in non split, APTX_ADAPTIVE SEP not created");
+            continue;
+          }
         }
 
         if (!(*bta_av_a2dp_cos.init)(codec_index, &cs.cfg)) {
