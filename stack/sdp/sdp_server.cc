@@ -156,7 +156,7 @@ uint16_t get_dut_avrcp_version() {
                         sizeof(AVRCP_1_5_STRING))) {
       profile_version = AVRC_REV_1_5;
     } else {
-      profile_version = AVRC_REV_1_4;
+      profile_version = AVRC_REV_1_0;
     }
     return profile_version;
 }
@@ -281,6 +281,9 @@ bool sdp_fallback_avrcp_version (tSDP_ATTRIBUTE *p_attr, RawAddress remote_addre
                      }
                      if((dut_profile_version == AVRC_REV_1_5) && (ver != AVRC_REV_1_5)) {
                         return TRUE;
+                     }
+                     if((dut_profile_version == AVRC_REV_1_0) && (ver != AVRC_REV_1_0)) {
+                        return TRUE;// do fallback to older version in record
                      }
                      /*
                       * We don't have a check for 1.4, because for 1.3 we always write
@@ -903,6 +906,9 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
           break;
           case AVRC_REV_1_4:
               p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x04;
+          break;
+          case AVRC_REV_1_0:
+              p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x00;
           break;
       }
       is_avrcp_fallback = FALSE;

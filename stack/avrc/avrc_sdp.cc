@@ -220,7 +220,7 @@ uint16_t AVRC_AddRecord(uint16_t service_uuid, const char* p_service_name,
   for (index = 1; index < AVRC_NUM_PROTO_ELEMS; index++) {
     avrc_proto_desc_list[index].num_params = 1;
     avrc_proto_desc_list[index].protocol_uuid = UUID_PROTOCOL_AVCTP;
-    avrc_proto_desc_list[index].params[0] = AVCT_REV_1_4;
+    avrc_proto_desc_list[index].params[0] = AVCT_REV_1_0;
     avrc_proto_desc_list[index].params[1] = 0;
   }
   result &= SDP_AddProtocolList(sdp_handle, AVRC_NUM_PROTO_ELEMS,
@@ -275,6 +275,11 @@ uint16_t AVRC_AddRecord(uint16_t service_uuid, const char* p_service_name,
       /* Add cover art supported bit */
       categories |= AVRC_SUPF_TG_PLAYER_COVER_ART;
   }
+
+  if (profile_version == AVRC_REV_1_0) {
+    categories &= ~AVRC_SUPF_CT_BROWSE;
+  }
+
   UINT16_TO_BE_STREAM(p, categories);
   result &= SDP_AddAttribute(sdp_handle, ATTR_ID_SUPPORTED_FEATURES,
                              UINT_DESC_TYPE, (uint32_t)2, (uint8_t*)temp);

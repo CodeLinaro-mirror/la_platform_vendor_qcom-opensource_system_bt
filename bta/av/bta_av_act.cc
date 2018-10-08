@@ -1732,7 +1732,7 @@ uint16_t bta_get_dut_avrcp_version() {
                         sizeof(AVRCP_1_5_STRING))) {
       profile_version = AVRC_REV_1_5;
     } else {
-      profile_version = AVRC_REV_1_4;
+      profile_version = AVRC_REV_1_0;
     }
     APPL_TRACE_DEBUG(" %s AVRCP version used for sdp: \"%s\"",
              __func__,avrcp_version);

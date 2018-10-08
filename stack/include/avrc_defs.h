@@ -58,6 +58,10 @@
 #define AVRCP_1_3_STRING "avrcp13"
 #endif
 
+#ifndef AVRCP_1_0_STRING
+#define AVRCP_1_0_STRING "avrcp10"
+#endif
+
 /* defines from the spec */
 #define AVRC_PACKET_LEN 512 /* You must support 512 byte RC packets */
 

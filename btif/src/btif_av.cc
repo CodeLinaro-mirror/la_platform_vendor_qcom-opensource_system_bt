@@ -3780,9 +3780,7 @@ bt_status_t btif_av_sink_execute_service(bool b_enable) {
      * auto-suspend av streaming on AG events(SCO or Call). The suspend shall
      * be initiated by the app/audioflinger layers
      */
-    BTA_AvEnable(BTA_SEC_AUTHENTICATE, BTA_AV_FEAT_NO_SCO_SSPD|BTA_AV_FEAT_RCCT|
-                                        BTA_AV_FEAT_METADATA|BTA_AV_FEAT_VENDOR|
-                                        BTA_AV_FEAT_ADV_CTRL|BTA_AV_FEAT_RCTG,
+    BTA_AvEnable(BTA_SEC_AUTHENTICATE, BTA_AV_FEAT_NO_SCO_SSPD|BTA_AV_FEAT_RCCT,
                                         bte_av_callback);
     BTA_AvRegister(BTA_AV_CHNL_AUDIO, BTIF_AVK_SERVICE_NAME, 0,
                    bte_av_sink_media_callback, UUID_SERVCLASS_AUDIO_SINK);
