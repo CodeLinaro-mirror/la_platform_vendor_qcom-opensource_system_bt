@@ -49,6 +49,7 @@
 #include "btif_util.h"
 #include "btu.h"
 #include "device/include/interop.h"
+#include "log/log.h"
 #include "osi/include/list.h"
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
@@ -2954,11 +2955,12 @@ static bt_status_t get_folder_items_list_rsp(RawAddress* bd_addr,
     /* create single item and build response iteratively for all num_items */
     for (item_cnt = 0; item_cnt < num_items; item_cnt++) {
       cur_item = &p_items[item_cnt];
-      item.item_type = p_items->item_type;
+      item.item_type = cur_item->item_type;
       /* build respective item based on item_type. All items should be of same
        * type within
        * a response */
-      switch (p_items->item_type) {
+      BTIF_TRACE_DEBUG("cur_item->item_type:%d,p_items->item_type:%d",cur_item->item_type,p_items->item_type);
+      switch (cur_item->item_type) {
         case AVRC_ITEM_PLAYER: {
           item.u.player.name.charset_id = cur_item->player.charset_id;
           memcpy(&(item.u.player.features), &(cur_item->player.features),
@@ -4586,6 +4588,12 @@ static void handle_app_cur_val_response(tBTA_AV_META_MSG* pmeta_msg,
   RawAddress rc_addr = p_dev->rc_addr;
 
   app_settings.num_attr = p_rsp->num_val;
+
+  if (app_settings.num_attr > BTRC_MAX_APP_SETTINGS) {
+    android_errorWriteLog(0x534e4554, "73824150");
+    app_settings.num_attr = BTRC_MAX_APP_SETTINGS;
+  }
+
   for (xx = 0; xx < app_settings.num_attr; xx++) {
     app_settings.attr_ids[xx] = p_rsp->p_vals[xx].attr_id;
     app_settings.attr_values[xx] = p_rsp->p_vals[xx].attr_val;
