@@ -18,8 +18,8 @@
 
 #include "raw_address.h"
 
-#include <base/strings/string_split.h>
-#include <base/strings/stringprintf.h>
+#include <iostream>
+#include <cstring>
 #include <stdint.h>
 #include <algorithm>
 #include <vector>
@@ -34,17 +34,28 @@ RawAddress::RawAddress(const uint8_t (&addr)[6]) {
 };
 
 std::string RawAddress::ToString() const {
-  return base::StringPrintf("%02x:%02x:%02x:%02x:%02x:%02x", address[0],
+  char Address[18];
+  snprintf(Address, 18, "%02x:%02x:%02x:%02x:%02x:%02x", address[0],
                             address[1], address[2], address[3], address[4],
                             address[5]);
+  return Address;
 }
 
 bool RawAddress::FromString(const std::string& from, RawAddress& to) {
   RawAddress new_addr;
+  std::string delimiter = ":";
+  std::vector<std::string> byte_tokens;
+  size_t pos = 0;
   if (from.length() != 17) return false;
 
-  std::vector<std::string> byte_tokens =
-      base::SplitString(from, ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  while (1) {
+    size_t found = from.find(delimiter, pos);
+    if (found == std::string::npos)
+        break;
+    byte_tokens.push_back(from.substr(pos, found - pos));
+    pos = found + 1;
+  }
+  byte_tokens.push_back(from.substr(pos));
 
   if (byte_tokens.size() != 6) return false;
 
