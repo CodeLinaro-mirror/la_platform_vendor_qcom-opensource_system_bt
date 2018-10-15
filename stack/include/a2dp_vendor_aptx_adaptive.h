@@ -61,8 +61,8 @@ typedef struct {
   uint8_t eoc0;
   uint8_t eoc1;
   uint8_t eoc2;
-
   btav_a2dp_codec_bits_per_sample_t bits_per_sample;
+  uint8_t reserved_data[A2DP_APTX_ADAPTIVE_RESERVED_DATA];
 } tA2DP_APTX_ADAPTIVE_CIE;
 
 class A2dpCodecConfigAptxAdaptive: public A2dpCodecConfig {
