@@ -1707,6 +1707,7 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
     btif_sm_state_t state = BTIF_AV_STATE_IDLE;
     int i;
     BOOLEAN hal_suspend_pending = FALSE;
+    tBTIF_STATUS status;
 
     BTIF_TRACE_IMP("%s event:%s flags %x  index =%d", __FUNCTION__,
                      dump_av_sm_event_name(event), btif_av_cb[index].flags, index);
@@ -1734,6 +1735,16 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
                 }
                 else
                 {
+                    /* make sure the codec is inited, if started remotely*/
+                    status = btif_a2dp_setup_codec(btif_av_cb[index].bta_handle);
+                    if (status == BTIF_SUCCESS)
+                    {
+                        BTIF_TRACE_IMP("%s setup codec success", __func__);
+                    }
+                    else
+                    {
+                        BTIF_TRACE_IMP("%s setup codec failed", __func__);
+                    }
                     BTIF_TRACE_IMP("%s Do not update media task on remote start for index =%d",
                         __FUNCTION__, index);
                 }
