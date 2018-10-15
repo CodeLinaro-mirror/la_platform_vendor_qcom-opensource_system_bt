@@ -1567,6 +1567,13 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
                                           &(btif_av_cb[index].peer_bda), 0, 0);
       }
       btif_av_cb[index].reconfig_pending = false;
+
+      if ((btif_av_cb[index].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING) &&
+          (p_av->reconfig.status == BTA_AV_SUCCESS))
+      {
+        APPL_TRACE_IMP("reconfig done, clear local suspend pending flag");
+        btif_av_cb[index].flags &= ~BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING;
+      }
     } break;
 
     case BTIF_AV_CONNECT_REQ_EVT: {
