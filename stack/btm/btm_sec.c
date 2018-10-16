@@ -2778,6 +2778,9 @@ void btm_sec_conn_req (UINT8 *bda, UINT8 *dc)
         }
         if (p_dev_rec)
         {
+            /*Update remote device COD to p_dev_rec*/
+            memcpy(p_dev_rec->dev_class, dc, DEV_CLASS_LEN);
+            BTM_TRACE_DEBUG("%s, p_dev_rec COD: 0x%x, 0x%x, 0x%x", __func__, p_dev_rec->dev_class[0], p_dev_rec->dev_class[1], p_dev_rec->dev_class[2]);
             p_dev_rec->sm4 |= BTM_SM4_CONN_PEND;
         }
     }
