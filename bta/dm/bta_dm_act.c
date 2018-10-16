@@ -1799,13 +1799,16 @@ void bta_dm_sdp_result (tBTA_DM_MSG *p_data)
                     else  /* service == UUID_SERVCLASS_PNP_INFORMATION */
                     {
                         tBTA_DM_SEC sec_event;
-                        tSDP_DI_GET_RECORD * di_rec = &sec_event.di_rec;
+                        tBTA_DM_SDP_DI_REC * di_rec = &sec_event.di_rec;
                         memset (&sec_event, 0, sizeof(tBTA_DM_SEC));
 
                         APPL_TRACE_DEBUG("it's pnp service!!");
                         /* callback to BT-IF */
-                         if (SDP_GetDiRecord(1, di_rec, bta_dm_search_cb.p_sdp_db) == SDP_SUCCESS)
+                        if (SDP_GetDiRecord(1, &di_rec->rec, bta_dm_search_cb.p_sdp_db) == SDP_SUCCESS)
+                        {
+                            bdcpy(di_rec->bd_addr, bta_dm_search_cb.peer_bdaddr);
                             bta_dm_cb.p_sec_cback(BTA_DM_DI_DISC_RESULT_EVT, &sec_event);
+                        }
                     }
                 }
             }

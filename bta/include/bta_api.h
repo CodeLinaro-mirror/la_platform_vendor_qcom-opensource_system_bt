@@ -786,6 +786,13 @@ typedef struct
     UINT8           level_flags; /* indicates individual flags */
 } tBTA_DM_BUSY_LEVEL;
 
+/* Structure associated with tBTA_DM_SDP_DI_REC_EVT */
+typedef struct
+{
+    BD_ADDR                 bd_addr;      /* BD address peer device. */
+    tSDP_DI_GET_RECORD      rec;          /* DI Discovery result */
+} tBTA_DM_SDP_DI_REC;
+
 #define BTA_IO_CAP_OUT      BTM_IO_CAP_OUT      /* 0 DisplayOnly */
 #define BTA_IO_CAP_IO       BTM_IO_CAP_IO       /* 1 DisplayYesNo */
 #define BTA_IO_CAP_IN       BTM_IO_CAP_IN       /* 2 KeyboardOnly */
@@ -906,7 +913,7 @@ typedef union
     tBTA_DM_BLE_KEY      ble_key;        /* BLE SMP keys used when pairing */
     tBTA_BLE_LOCAL_ID_KEYS  ble_id_keys;  /* IR event */
     BT_OCTET16              ble_er;       /* ER event data */
-    tSDP_DI_GET_RECORD      di_rec;       /* DI Discovery result */
+    tBTA_DM_SDP_DI_REC      di_rec;       /* DI Discovery result */
 } tBTA_DM_SEC;
 
 /* Security callback */

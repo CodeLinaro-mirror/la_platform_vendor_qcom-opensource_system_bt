@@ -2344,10 +2344,10 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
 #endif
         case BTA_DM_DI_DISC_RESULT_EVT:
         {
-            bt_sdp_did_get_record di;
+            bt_sdp_did_info di;
             BTIF_TRACE_DEBUG("it's pnp from pairing!!");
             /* call vendor callback */
-            memcpy((void *)&di, (void *)&p_data->di_rec, sizeof(bt_sdp_did_get_record));
+            memcpy((void *)&di, (void *)&p_data->di_rec, sizeof(bt_sdp_did_info));
             HAL_CBACK(bt_vendor_callbacks, did_info_cb, di);
             break;
         }
