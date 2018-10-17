@@ -53,7 +53,8 @@ enum
     BTA_GATTS_API_CANCEL_OPEN_EVT,
     BTA_GATTS_API_CLOSE_EVT,
     BTA_GATTS_API_LISTEN_EVT,
-    BTA_GATTS_API_DISABLE_EVT
+    BTA_GATTS_API_DISABLE_EVT,
+    BTA_GATTS_API_SRVC_HNDL_IND_EVT
 };
 typedef UINT16 tBTA_GATTS_INT_EVT;
 
@@ -247,6 +248,8 @@ extern void bta_gatts_open (tBTA_GATTS_CB *p_cb, tBTA_GATTS_DATA * p_msg);
 extern void bta_gatts_cancel_open (tBTA_GATTS_CB *p_cb, tBTA_GATTS_DATA * p_msg);
 extern void bta_gatts_close (tBTA_GATTS_CB *p_cb, tBTA_GATTS_DATA * p_msg);
 extern void bta_gatts_listen(tBTA_GATTS_CB *p_cb, tBTA_GATTS_DATA * p_msg);
+extern void bta_gatts_srvc_hndl_ind();
+
 
 extern BOOLEAN bta_gatts_uuid_compare(tBT_UUID tar, tBT_UUID src);
 extern tBTA_GATTS_RCB *bta_gatts_find_app_rcb_by_app_if(tBTA_GATTS_IF server_if);

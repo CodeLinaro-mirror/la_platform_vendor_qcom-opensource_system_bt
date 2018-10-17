@@ -132,6 +132,12 @@ BOOLEAN bta_gatts_hdl_event(BT_HDR *p_msg)
             }
             break;
 
+        case BTA_GATTS_API_SRVC_HNDL_IND_EVT:
+           {
+               bta_gatts_srvc_hndl_ind();
+           }
+           break;
+
         default:
             break;
     }
