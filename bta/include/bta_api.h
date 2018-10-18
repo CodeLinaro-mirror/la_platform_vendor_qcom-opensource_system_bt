@@ -789,6 +789,7 @@ typedef struct
 /* Structure associated with tBTA_DM_SDP_DI_REC_EVT */
 typedef struct
 {
+    UINT8                   status;       /* success or fail */
     BD_ADDR                 bd_addr;      /* BD address peer device. */
     tSDP_DI_GET_RECORD      rec;          /* DI Discovery result */
 } tBTA_DM_SDP_DI_REC;
