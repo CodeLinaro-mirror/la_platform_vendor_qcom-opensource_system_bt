@@ -2347,7 +2347,9 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             bt_sdp_did_info di;
             BTIF_TRACE_DEBUG("it's pnp from pairing!!");
             /* call vendor callback */
-            memcpy((void *)&di, (void *)&p_data->di_rec, sizeof(bt_sdp_did_info));
+            di.status = ((p_data->di_rec.status == BTA_SUCCESS) ? BT_STATUS_SUCCESS : BT_STATUS_FAIL);
+            memcpy((void *)&di.bd_addr, (void *)&p_data->di_rec.bd_addr, sizeof(bt_bdaddr_t));
+            memcpy((void *)&di.rec, (void *)&p_data->di_rec.rec, sizeof(bt_sdp_did_get_record));
             HAL_CBACK(bt_vendor_callbacks, did_info_cb, di);
             break;
         }

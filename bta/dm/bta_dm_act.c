@@ -1702,6 +1702,20 @@ void bta_dm_sdp_result (tBTA_DM_MSG *p_data)
     UINT32 num_uuids = 0;
     UINT8  uuid_list[32][MAX_UUID_SIZE]; // assuming a max of 32 services
 
+    if (bta_dm_search_cb.services == BTA_USER_SERVICE_MASK)
+    {
+        bt_uuid_t           *p_user_uuid;
+        if (bta_dm_search_cb.uuid.len == LEN_UUID_128)
+        {
+            p_user_uuid = bta_dm_search_cb.uuid.uu.uuid128;
+            uuid_128_to_16(p_user_uuid, &service);
+        }
+        else if (bta_dm_search_cb.uuid.len == LEN_UUID_16)
+        {
+            service = bta_dm_search_cb.uuid.uu.uuid16;
+        }
+    }
+
     if((p_data->sdp_event.sdp_result == SDP_SUCCESS)
         || (p_data->sdp_event.sdp_result == SDP_NO_RECS_MATCH)
         || (p_data->sdp_event.sdp_result == SDP_DB_FULL))
@@ -1714,17 +1728,6 @@ void bta_dm_sdp_result (tBTA_DM_MSG *p_data)
             p_sdp_rec = NULL;
             if (bta_dm_search_cb.services == BTA_USER_SERVICE_MASK)
             {
-                bt_uuid_t           *p_user_uuid;
-                if (bta_dm_search_cb.uuid.len == LEN_UUID_128)
-                {
-                    p_user_uuid = bta_dm_search_cb.uuid.uu.uuid128;
-                    uuid_128_to_16(p_user_uuid, &service);
-                }
-                else if (bta_dm_search_cb.uuid.len == LEN_UUID_16)
-                {
-                    service = bta_dm_search_cb.uuid.uu.uuid16;
-                }
-
                 p_sdp_rec = SDP_FindServiceUUIDInDb(bta_dm_search_cb.p_sdp_db, &bta_dm_search_cb.uuid, p_sdp_rec);
 
                 if (!p_sdp_rec)
@@ -1796,20 +1799,22 @@ void bta_dm_sdp_result (tBTA_DM_MSG *p_data)
                         sdpu_uuid16_to_uuid128(tmp_svc, uuid_list[num_uuids]);
                         num_uuids++;
                     }
-                    else  /* service == UUID_SERVCLASS_PNP_INFORMATION */
-                    {
-                        tBTA_DM_SEC sec_event;
-                        tBTA_DM_SDP_DI_REC * di_rec = &sec_event.di_rec;
-                        memset (&sec_event, 0, sizeof(tBTA_DM_SEC));
+                }
 
-                        APPL_TRACE_DEBUG("it's pnp service!!");
-                        /* callback to BT-IF */
-                        if (SDP_GetDiRecord(1, &di_rec->rec, bta_dm_search_cb.p_sdp_db) == SDP_SUCCESS)
-                        {
-                            bdcpy(di_rec->bd_addr, bta_dm_search_cb.peer_bdaddr);
-                            bta_dm_cb.p_sec_cback(BTA_DM_DI_DISC_RESULT_EVT, &sec_event);
-                        }
-                    }
+                if (service == UUID_SERVCLASS_PNP_INFORMATION)
+                {
+                    tBTA_DM_SEC sec_event;
+                    tBTA_DM_SDP_DI_REC * di_rec = &sec_event.di_rec;
+                    memset (&sec_event, 0, sizeof(tBTA_DM_SEC));
+
+                    APPL_TRACE_DEBUG("it's pnp service!!");
+                    /* callback to BT-IF */
+                    if (SDP_GetDiRecord(1, &di_rec->rec, bta_dm_search_cb.p_sdp_db) == SDP_SUCCESS)
+                        di_rec->status = BTA_SUCCESS;
+                    else
+                        di_rec->status = BTA_FAILURE;
+                    bdcpy(di_rec->bd_addr, bta_dm_search_cb.peer_bdaddr);
+                    bta_dm_cb.p_sec_cback(BTA_DM_DI_DISC_RESULT_EVT, &sec_event);
                 }
             }
 
@@ -1929,6 +1934,22 @@ void bta_dm_sdp_result (tBTA_DM_MSG *p_data)
         if(p_data->sdp_event.sdp_result == SDP_CONN_FAILED || p_data->sdp_event.sdp_result == SDP_CONN_REJECTED
            || p_data->sdp_event.sdp_result == SDP_SECURITY_ERR)
             bta_dm_search_cb.wait_disc = FALSE;
+
+        if (bta_dm_search_cb.services == BTA_USER_SERVICE_MASK)
+        {
+            if (service == UUID_SERVCLASS_PNP_INFORMATION)
+            {
+                tBTA_DM_SEC sec_event;
+                tBTA_DM_SDP_DI_REC * di_rec = &sec_event.di_rec;
+                memset (&sec_event, 0, sizeof(tBTA_DM_SEC));
+
+                APPL_TRACE_DEBUG("it's failure case to get di info!");
+                /* callback to BT-IF */
+                di_rec->status = BTA_FAILURE;
+                bdcpy(di_rec->bd_addr, bta_dm_search_cb.peer_bdaddr);
+                bta_dm_cb.p_sec_cback(BTA_DM_DI_DISC_RESULT_EVT, &sec_event);
+            }
+        }
 
         /* not able to connect go to next device */
         if (bta_dm_search_cb.p_sdp_db)
