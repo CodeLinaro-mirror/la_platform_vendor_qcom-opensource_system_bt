@@ -813,7 +813,17 @@ void btm_sco_conn_req(const RawAddress& bda, DEV_CLASS dev_class,
      * If the sco state is in the SCO_ST_CONNECTING state, we still need
      * to return accept sco to avoid race conditon for sco creation
      */
-    int rem_bd_matches = p->rem_bd_known && p->esco.data.bd_addr == bda;
+    /* [HF_AUDIO] Ignore to add the checking 'p->esco.data.bd_addr == bda'.
+     * Otherwise the new SCO from phone2 can't be accepted at all, if
+     * BTM_MAX_SCO_LINKS is defined as '1' and the 1st SCO from phone1
+     * is disconnected. The reason lies in:
+     * (1) Some BT chip may not support multi SCO.
+     * (2) When the 1st SCO from phone1 is disconnected, BTM_CreateSco
+     *     is called to make sco_db[0] enter into SCO_ST_LISTENING state
+     *     so that rem_bd_known is set as 'true'. However p->esco.data.bd_addr
+     *     may be different bda. This results into rem_bd_matches is set as 0.
+     */
+    int rem_bd_matches = p->rem_bd_known;
     if (((p->state == SCO_ST_CONNECTING) && rem_bd_matches) ||
         ((p->state == SCO_ST_LISTENING) &&
          (rem_bd_matches || !p->rem_bd_known))) {

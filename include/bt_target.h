@@ -395,7 +395,8 @@
 
 /* The number of SCO links. */
 #ifndef BTM_MAX_SCO_LINKS
-#define BTM_MAX_SCO_LINKS 3
+/* Set 1 for BT chip which can only support 1 SCO. */
+#define BTM_MAX_SCO_LINKS 1
 #endif
 
 /* The preferred type of SCO links (2-eSCO, 0-SCO). */
