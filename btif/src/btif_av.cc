@@ -1566,6 +1566,12 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
       BTIF_TRACE_ERROR(
           "%s: BTIF_AV_OFFLOAD_START_REQ_EVT: Stream not Started Opened",
           __func__);
+      if (btif_av_cb[index].flags & BTIF_AV_FLAG_REMOTE_SUSPEND) {
+        APPL_TRACE_WARNING("%s: Ack success to MM although VSCs of START exchange didn't start : %d",
+                               __func__, btif_av_cb[index].flags);
+        btif_a2dp_on_offload_started(BTA_AV_FAIL_UNSUPPORTED);
+        break;
+      }
       btif_a2dp_on_offload_started(BTA_AV_FAIL);
     } break;
 
@@ -1576,6 +1582,8 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
           btif_a2dp_src_vsc.tx_started = TRUE;
           bta_av_vendor_offload_stop();
         }
+        APPL_TRACE_WARNING("%s: Ack success to MM although VSCs of STRAT Failed: %d",
+                               __func__, btif_av_cb[index].flags);
         btif_a2dp_on_offload_started(BTA_AV_FAIL_UNSUPPORTED);
       }
       break;
@@ -1943,8 +1951,10 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
          * when stream is suspended, but flag is things ge tossed up
          */
         BTIF_TRACE_EVENT("Clear before suspending");
-        if ((btif_av_cb[index].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING) == 0)
+        if ((btif_av_cb[index].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING) == 0) {
           btif_av_cb[index].flags |= BTIF_AV_FLAG_REMOTE_SUSPEND;
+          bta_av_sniff_enable(false, btif_av_cb[index].peer_bda);
+        }
         for (int i = 0; i < btif_max_av_clients; i++)
           if ((i != index) && btif_av_get_ongoing_multicast()) {
             multicast_disabled = true;
@@ -1990,14 +2000,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
         btif_av_cb[index].is_device_playing = false;
         btif_av_cb[index].current_playing = false;
         btif_av_update_current_playing_device(index);
-      } else if (!enable_multicast && remote_start_cancelled) {
-          BTIF_TRACE_IMP("%s Don't update audio state as remote started and suspended", __func__);
-          if (btif_av_cb[index].flags & BTIF_AV_FLAG_REMOTE_SUSPEND)
-            btif_av_cb[index].flags &= ~BTIF_AV_FLAG_REMOTE_SUSPEND;
-          btif_report_audio_state(BTAV_AUDIO_STATE_STOPPED, &(btif_av_cb[index].peer_bda));
-      }
-      else
-      {
+      } else {
         if (!((btif_av_cb[index].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING)
                                           || (p_av->suspend.initiator == true)))
         {
@@ -4163,6 +4166,7 @@ void btif_av_clear_remote_suspend_flag(void) {
   for (i = 0; i < btif_max_av_clients; i++) {
     BTIF_TRACE_DEBUG("%s(): flag :%x", __func__, btif_av_cb[i].flags);
     btif_av_cb[i].flags  &= ~BTIF_AV_FLAG_REMOTE_SUSPEND;
+    bta_av_sniff_enable(true, btif_av_cb[i].peer_bda);
   }
 }
 
