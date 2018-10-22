@@ -49,6 +49,7 @@
 #include "btif_util.h"
 #include "btu.h"
 #include "device/include/interop.h"
+#include "log/log.h"
 #include "osi/include/list.h"
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
@@ -241,6 +242,7 @@ typedef struct {
   uint64_t rc_playing_uid;
   bool rc_procedure_complete;
   bool rc_play_processed;
+  bool rc_ignore_play_released;
 } btif_rc_device_cb_t;
 
 typedef struct {
@@ -816,6 +818,7 @@ void handle_rc_connect(tBTA_AV_RC_OPEN* p_rc_open) {
   p_dev->rc_connected = true;
   p_dev->rc_handle = p_rc_open->rc_handle;
   p_dev->rc_state = BTRC_CONNECTION_STATE_CONNECTED;
+  p_dev->rc_ignore_play_released = false;
   btif_rc_init_txn_label_queue(p_dev);
   /* on locally initiated connection we will get remote features as part of
    * connect */
@@ -887,6 +890,7 @@ void handle_rc_disconnect(tBTA_AV_RC_CLOSE* p_rc_close) {
     p_dev->rc_volume = MAX_VOLUME;
     p_dev->rc_pending_play = false;
     p_dev->rc_play_processed = false;
+    p_dev->rc_ignore_play_released = false;
     p_dev->rc_addr = RawAddress::kEmpty;
     btif_rc_init_txn_label_queue(p_dev);
   }
@@ -1034,8 +1038,33 @@ void handle_rc_passthrough_cmd(tBTA_AV_REMOTE_CMD* p_remote_cmd) {
   /* pass all commands up */
   BTIF_TRACE_DEBUG("%s: rc_features: %d, cmd->rc_id: %d, pressed: %d", __func__,
                    p_dev->rc_features, p_remote_cmd->rc_id, pressed);
-  HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, pressed,
-            &rc_addr);
+
+  if (p_remote_cmd->rc_id == BTA_AV_RC_PLAY) {
+    if (pressed)  {
+      HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, 1,
+                &rc_addr);
+      sleep_ms(30);
+      APPL_TRACE_WARNING("%s: Send fake play release command", __func__);
+      HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, 0,
+                &rc_addr);
+      p_dev->rc_ignore_play_released = true;
+    } else {
+      if (p_dev->rc_ignore_play_released) {
+        APPL_TRACE_WARNING("%s: Ignore release command", __func__);
+        p_dev->rc_ignore_play_released = false;
+      } else {
+        APPL_TRACE_WARNING("%s: fake pressed command", __func__);
+        HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, 1,
+                  &rc_addr);
+        sleep_ms(30);
+        HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, 0,
+                  &rc_addr);
+      }
+    }
+  } else {
+    HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, pressed,
+              &rc_addr);
+  }
 }
 
 /***************************************************************************
@@ -2954,11 +2983,12 @@ static bt_status_t get_folder_items_list_rsp(RawAddress* bd_addr,
     /* create single item and build response iteratively for all num_items */
     for (item_cnt = 0; item_cnt < num_items; item_cnt++) {
       cur_item = &p_items[item_cnt];
-      item.item_type = p_items->item_type;
+      item.item_type = cur_item->item_type;
       /* build respective item based on item_type. All items should be of same
        * type within
        * a response */
-      switch (p_items->item_type) {
+      BTIF_TRACE_DEBUG("cur_item->item_type:%d,p_items->item_type:%d",cur_item->item_type,p_items->item_type);
+      switch (cur_item->item_type) {
         case AVRC_ITEM_PLAYER: {
           item.u.player.name.charset_id = cur_item->player.charset_id;
           memcpy(&(item.u.player.features), &(cur_item->player.features),
@@ -4586,6 +4616,12 @@ static void handle_app_cur_val_response(tBTA_AV_META_MSG* pmeta_msg,
   RawAddress rc_addr = p_dev->rc_addr;
 
   app_settings.num_attr = p_rsp->num_val;
+
+  if (app_settings.num_attr > BTRC_MAX_APP_SETTINGS) {
+    android_errorWriteLog(0x534e4554, "73824150");
+    app_settings.num_attr = BTRC_MAX_APP_SETTINGS;
+  }
+
   for (xx = 0; xx < app_settings.num_attr; xx++) {
     app_settings.attr_ids[xx] = p_rsp->p_vals[xx].attr_id;
     app_settings.attr_values[xx] = p_rsp->p_vals[xx].attr_val;
