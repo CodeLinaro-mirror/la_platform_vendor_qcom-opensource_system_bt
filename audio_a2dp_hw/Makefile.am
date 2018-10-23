@@ -23,7 +23,7 @@ cpp_sources = \
         src/audio_a2dp_hw.cc \
         src/audio_a2dp_hw_utils.cc
 
-common_LDFLAGS = -lpthread  -lrt ../osi/libbtosi.la
+common_LDFLAGS = -lpthread  -lrt ../osi/libbtosi.la -lchrome
 common_CFLAGS =  $(AM_CFLAGS) -fPIC -D_GNU_SOURCE
 
 library_includedir = $(pkgincludedir)
