@@ -351,10 +351,9 @@ void btif_a2dp_audio_on_started(tBTA_AV_STATUS status)
             LOG_INFO(LOG_TAG,"calling method a2dp_on_started");
             auto ret = btAudio->a2dp_on_started(mapToStatus(status));
             if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
+            a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
           }
         }
-        /* clear pending and queued*/
-        a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
       }
     } else {
       if (a2dp_cmd_pending == A2DP_CTRL_CMD_START) {
@@ -419,10 +418,9 @@ void btif_a2dp_audio_on_suspended(tBTA_AV_STATUS status)
             LOG_INFO(LOG_TAG,"calling method a2dp_on_suspended");
             auto ret = btAudio->a2dp_on_suspended(mapToStatus(status));
             if (!ret.isOk()) LOG_ERROR(LOG_TAG,"server died");
+            a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
           }
         }
-        /* clear pending and queued*/
-        a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
       }
     } else {
       if (a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND || a2dp_cmd_pending == A2DP_CTRL_CMD_STOP) {
@@ -497,15 +495,15 @@ void btif_a2dp_audio_on_stopped(tBTA_AV_STATUS status)
               LOG_INFO(LOG_TAG,"calling method a2dp_on_stopped");
               auto ret = btAudio->a2dp_on_stopped(mapToStatus(status));
               if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_stopped: server died");
+              a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
             } else if ((a2dp_cmd_pending == A2DP_CTRL_CMD_START) &&
                     (!(btif_av_is_under_handoff() || reconfig_a2dp))) {
               LOG_INFO(LOG_TAG, "Remote disconnected when start under progress");
               auto ret = btAudio->a2dp_on_started(mapToStatus(A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS));
               if (!ret.isOk()) LOG_ERROR(LOG_TAG,"a2dp_on_started: server died");
+              a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
             }
           }
-          /* clear pending and queued*/
-          a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
         }
       } else {
         if (a2dp_cmd_pending == A2DP_CTRL_CMD_STOP || a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND) {
@@ -719,8 +717,7 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         }
         bta_av_co_get_peer_params(&peer_param);
         LOG_INFO(LOG_TAG,"enc_update_in_progress = %d", enc_update_in_progress);
-        if ((btif_av_stream_started_ready() == FALSE) ||
-                (enc_update_in_progress == TRUE))
+        if (enc_update_in_progress)
         {
           LOG_INFO(LOG_TAG,"A2DP_CTRL_GET_CODEC_CONFIG: stream not started");
           if (btif_av_is_start_ack_pending() == FALSE)
@@ -882,9 +879,12 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         }
         if (btif_a2dp_source_is_remote_start()) {
           int remote_start_idx = btif_get_is_remote_started_idx();
-          APPL_TRACE_DEBUG("%s: remote started idx = %d",__func__, remote_start_idx);
+          int latest_playing_idx = btif_av_get_latest_device_idx_to_start();
+          APPL_TRACE_DEBUG("%s: remote started idx = %d latest playing = %d",__func__,
+                           remote_start_idx, latest_playing_idx);
           if ((remote_start_idx < btif_max_av_clients) &&
-                  btif_av_is_playing_on_other_idx(remote_start_idx)) {
+            ((latest_playing_idx < btif_max_av_clients && latest_playing_idx != remote_start_idx) ||
+             btif_av_is_playing_on_other_idx(remote_start_idx))) {
             APPL_TRACE_WARNING("%s: Already playing on other index, don't cancel remote start timer",__func__);
             status = A2DP_CTRL_ACK_PENDING;
           } else {
@@ -900,6 +900,7 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
             APPL_TRACE_DEBUG("Audio start awaited handle start under handoff");
             audio_start_awaited = false;
             btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
+            status = A2DP_CTRL_ACK_PENDING;
             int idx = btif_av_get_latest_device_idx_to_start();
             if (btif_av_get_peer_sep(idx) == AVDT_TSEP_SRC)
               status = A2DP_CTRL_ACK_SUCCESS;
@@ -1010,6 +1011,7 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
          * audioflinger close the channel. This can happen if we are
          * remotely suspended, clear REMOTE SUSPEND flag.
          */
+        btif_av_clear_remote_suspend_flag();
         status = A2DP_CTRL_ACK_SUCCESS;
         break;
 
@@ -1044,8 +1046,7 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         }
         bta_av_co_get_peer_params(&peer_param);
         LOG_INFO(LOG_TAG,"enc_update_in_progress = %d", enc_update_in_progress);
-        if ((btif_av_stream_started_ready() == FALSE) ||
-            (enc_update_in_progress == TRUE))
+        if (enc_update_in_progress)
         {
             LOG_INFO(LOG_TAG,"A2DP_CTRL_GET_CODEC_CONFIG: stream not started");
             status = A2DP_CTRL_ACK_FAILURE;
@@ -1165,9 +1166,12 @@ uint8_t btif_a2dp_audio_snd_ctrl_cmd(uint8_t cmd)
       }
       if (btif_a2dp_source_is_remote_start()) {
         int remote_start_idx = btif_get_is_remote_started_idx();
-        APPL_TRACE_DEBUG("%s: remote started idx = %d",__func__, remote_start_idx);
+        int latest_playing_idx = btif_av_get_latest_device_idx_to_start();
+        APPL_TRACE_DEBUG("%s: remote started idx = %d, latest playing  idx = %d",__func__,
+                         remote_start_idx, latest_playing_idx);
         if ((remote_start_idx < btif_max_av_clients) &&
-            btif_av_is_playing_on_other_idx(remote_start_idx)) {
+         ((latest_playing_idx < btif_max_av_clients && latest_playing_idx != remote_start_idx) ||
+         (btif_av_is_playing_on_other_idx(remote_start_idx)))) {
           APPL_TRACE_WARNING("%s: Already playing on other index, don't cancel remote start timer",__func__);
           status = A2DP_CTRL_ACK_PENDING;
         } else {
@@ -1183,6 +1187,7 @@ uint8_t btif_a2dp_audio_snd_ctrl_cmd(uint8_t cmd)
           APPL_TRACE_DEBUG("Audio start awaited handle start under handoff");
           audio_start_awaited = false;
           btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
+          status = A2DP_CTRL_ACK_PENDING;
           int idx = btif_av_get_latest_device_idx_to_start();
           if (btif_av_get_peer_sep(idx) == AVDT_TSEP_SRC)
             status = A2DP_CTRL_ACK_SUCCESS;
@@ -1202,9 +1207,9 @@ uint8_t btif_a2dp_audio_snd_ctrl_cmd(uint8_t cmd)
           status = A2DP_CTRL_ACK_PENDING;
           break;
         } else if (btif_a2dp_src_vsc.tx_started == FALSE) {
-          int idx = btif_get_is_remote_started_idx();
+          int idx = btif_av_get_latest_playing_device_idx();
           uint8_t hdl = 0;
-          APPL_TRACE_DEBUG("%s: remote started idx = %d",__func__, idx);
+          APPL_TRACE_DEBUG("%s: latest playing idx = %d",__func__, idx);
           if (idx < btif_max_av_clients) {
             hdl = btif_av_get_av_hdl_from_idx(idx);
             APPL_TRACE_DEBUG("%s: hdl = %d, enc_update_in_progress = %d",__func__, hdl,
@@ -1294,6 +1299,7 @@ uint8_t btif_a2dp_audio_snd_ctrl_cmd(uint8_t cmd)
        * audioflinger close the channel. This can happen if we are
        * remotely suspended, clear REMOTE SUSPEND flag.
        */
+      btif_av_clear_remote_suspend_flag();
       status = A2DP_CTRL_ACK_SUCCESS;
       break;
 
