@@ -29,7 +29,7 @@
 #include <vector>
 
 #include "bt_target.h"  // Must be first to define build configuration
-
+#include "bt_utils.h"
 #include "bta/gatt/bta_gattc_int.h"
 #include "device/include/controller.h"
 #include "stack/include/btu.h"  // do_in_main_thread
@@ -73,6 +73,9 @@ void BTA_GATTC_Disable(void) {
  */
 void BTA_GATTC_AppRegister(tBTA_GATTC_CBACK* p_client_cb,
                            BtaAppRegisterCallback cb, bool eatt_support) {
+  if (!is_ble_supported())
+    return;
+
   if (!bta_sys_is_register(BTA_ID_GATTC))
     bta_sys_register(BTA_ID_GATTC, &bta_gattc_reg);
 

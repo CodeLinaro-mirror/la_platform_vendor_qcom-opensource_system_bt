@@ -44,6 +44,7 @@
 
 #include "bt_types.h"
 #include "btcore/include/module.h"
+#include "common/os_utils.h"
 #include "osi/include/compat.h"
 #include "osi/include/log.h"
 #include "osi/include/properties.h"
@@ -173,3 +174,14 @@ bool is_pts_a2dpsink() {
     return strncmp(pts_mode, "true", PROPERTY_VALUE_MAX) == 0;
 }
 #endif
+
+/**
+ * Check whether BLE is supported or not
+ * true: supported
+ * false: unsupported
+**/
+bool is_ble_supported() {
+  return is_default_bluetooth() ?
+      osi_property_get_bool("vendor.bt.is_ble_supported", true) :
+      osi_property_get_bool("vendor.bt.is_ble_supported1", true);
+}

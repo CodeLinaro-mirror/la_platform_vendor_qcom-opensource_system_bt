@@ -32,6 +32,7 @@
 #include <string.h>
 
 #include "bt_types.h"
+#include "bt_utils.h"
 #include "btif/include/btif_storage.h"
 #include "common/metrics.h"
 #include "common/time_util.h"
@@ -224,16 +225,21 @@ bool BTM_SecRegister(const tBTM_APPL_INFO* p_cb_info) {
 
   LOG_INFO("%s p_cb_info->p_le_callback == 0x%p", __func__,
            p_cb_info->p_le_callback);
-  if (p_cb_info->p_le_callback) {
-    BTM_TRACE_EVENT("%s SMP_Register( btm_proc_smp_cback )", __func__);
-    SMP_Register(btm_proc_smp_cback);
-    Octet16 zero{0};
-    /* if no IR is loaded, need to regenerate all the keys */
-    if (btm_cb.devcb.id_keys.ir == zero) {
-      btm_ble_reset_id();
+
+  if (is_ble_supported()) {
+    if (p_cb_info->p_le_callback) {
+      BTM_TRACE_EVENT("%s SMP_Register( btm_proc_smp_cback )", __func__);
+      SMP_Register(btm_proc_smp_cback);
+      Octet16 zero{0};
+      /* if no IR is loaded, need to regenerate all the keys */
+      if (btm_cb.devcb.id_keys.ir == zero) {
+        btm_ble_reset_id();
+      }
+    } else {
+      LOG_WARN("%s p_cb_info->p_le_callback == NULL", __func__);
     }
   } else {
-    LOG_WARN("%s p_cb_info->p_le_callback == NULL", __func__);
+    LOG_WARN("%s BLE isn't supported", __func__);
   }
 
   btm_cb.api = *p_cb_info;
@@ -3805,11 +3811,13 @@ void btm_sec_disconnected(uint16_t handle, tHCI_REASON reason) {
       btm_pair_state_descr(btm_cb.pairing_state),
       hci_reason_code_text(reason).c_str(), p_dev_rec->security_required);
 
-  // TODO Should this be gated by the transport check below ?
-  btm_ble_update_mode_operation(HCI_ROLE_UNKNOWN, &p_dev_rec->bd_addr,
-                                HCI_SUCCESS);
-  /* see sec_flags processing in btm_acl_removed */
+  if (is_ble_supported()) {
+    // TODO Should this be gated by the transport check below ?
+    btm_ble_update_mode_operation(HCI_ROLE_UNKNOWN, &p_dev_rec->bd_addr,
+                                  HCI_SUCCESS);
+  }
 
+  /* see sec_flags processing in btm_acl_removed */
   if (transport == BT_TRANSPORT_LE) {
     p_dev_rec->ble_hci_handle = HCI_INVALID_HANDLE;
     p_dev_rec->sec_flags &= ~(BTM_SEC_LE_AUTHENTICATED | BTM_SEC_LE_ENCRYPTED |
@@ -4923,6 +4931,8 @@ static bool btm_sec_use_smp_br_chnl(tBTM_SEC_DEV_REC* p_dev_rec) {
 
   BTM_TRACE_DEBUG("%s() link_key_type = 0x%x", __func__,
                   p_dev_rec->link_key_type);
+
+  if (!is_ble_supported()) return false;
 
   if ((p_dev_rec->link_key_type != BTM_LKEY_TYPE_UNAUTH_COMB_P_256) &&
       (p_dev_rec->link_key_type != BTM_LKEY_TYPE_AUTH_COMB_P_256))

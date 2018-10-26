@@ -40,6 +40,7 @@ typedef enum {
  ******************************************************************************/
 
 void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task);
+bool is_ble_supported();
 
 #if A2DP_SINK_PTS_TEST
 void set_a2dp_error_code(tA2DP_STATUS err);

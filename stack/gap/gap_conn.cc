@@ -19,6 +19,7 @@
 #include <base/strings/stringprintf.h>
 #include <string.h>
 #include "bt_target.h"
+#include "bt_utils.h"
 #include "device/include/controller.h"
 #include "gap_api.h"
 #include "l2c_api.h"
@@ -1002,5 +1003,5 @@ extern void gap_attr_db_init(void);
  */
 void GAP_Init(void) {
   gap_conn_init();
-  gap_attr_db_init();
+  if (is_ble_supported()) gap_attr_db_init();
 }
