@@ -48,6 +48,10 @@
 #include "osi/include/log.h"
 #include "osi/include/properties.h"
 
+#ifndef IS_BLE_SUPPORTED_PROP
+#define IS_BLE_SUPPORTED_PROP "persist.vendor.bt.is_ble_supported"
+#endif
+
 /*******************************************************************************
  *  Type definitions for callback functions
  ******************************************************************************/
@@ -152,4 +156,18 @@ void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task) {
                 __func__, A2DP_RT_PRIORITY, tid, strerror(errno));
     }
   }
+}
+
+/**
+ * Check whether BLE is supported or not
+ * true: supported
+ * false: unsupported
+**/
+bool is_ble_supported() {
+  char value[PROPERTY_VALUE_MAX] = {0};
+  osi_property_get(IS_BLE_SUPPORTED_PROP, value, "true");
+  if (strcasecmp(value, "true") == 0) {
+    return true;
+  }
+  return false;
 }
