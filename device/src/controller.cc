@@ -53,6 +53,11 @@ const uint8_t SCO_HOST_BUFFER_SIZE = 0xff;
 #define MAX_SCRAMBLING_FREQS_SIZE 64
 #define UNUSED(x) (void)(x)
 
+#define CHECK_RET(c)        if (!(c)) return
+#define CHECK_RET_BOOL(c)   if (!(c)) return false
+#define CHECK_RET_BYTE(c)   if (!(c)) return 0xff
+#define CHECK_RET_USHORT(c) if (!(c)) return 0xffff
+
 static const hci_t* hci;
 static const hci_packet_factory_t* packet_factory;
 static const hci_packet_parser_t* packet_parser;
@@ -480,55 +485,55 @@ static bool supports_ble(void) {
 
 static bool supports_ble_privacy(void) {
   CHECK(readable);
-  CHECK(ble_supported);
+  CHECK_RET_BOOL(ble_supported);
   return HCI_LE_ENHANCED_PRIVACY_SUPPORTED(features_ble.as_array);
 }
 
 static bool supports_ble_set_privacy_mode() {
   CHECK(readable);
-  CHECK(ble_supported);
+  CHECK_RET_BOOL(ble_supported);
   return HCI_LE_ENHANCED_PRIVACY_SUPPORTED(features_ble.as_array) &&
          HCI_LE_SET_PRIVACY_MODE_SUPPORTED(supported_commands);
 }
 
 static bool supports_ble_packet_extension(void) {
   CHECK(readable);
-  CHECK(ble_supported);
+  CHECK_RET_BOOL(ble_supported);
   return HCI_LE_DATA_LEN_EXT_SUPPORTED(features_ble.as_array);
 }
 
 static bool supports_ble_connection_parameters_request(void) {
   CHECK(readable);
-  CHECK(ble_supported);
+  CHECK_RET_BOOL(ble_supported);
   return HCI_LE_CONN_PARAM_REQ_SUPPORTED(features_ble.as_array);
 }
 
 static bool supports_ble_offload_features(void) {
   assert(readable);
-  assert(ble_supported);
+  CHECK_RET_BOOL(ble_supported);
   return ble_offload_features_supported;
 }
 static bool supports_ble_2m_phy(void) {
   CHECK(readable);
-  CHECK(ble_supported);
+  CHECK_RET_BOOL(ble_supported);
   return HCI_LE_2M_PHY_SUPPORTED(features_ble.as_array);
 }
 
 static bool supports_ble_coded_phy(void) {
   CHECK(readable);
-  CHECK(ble_supported);
+  CHECK_RET_BOOL(ble_supported);
   return HCI_LE_CODED_PHY_SUPPORTED(features_ble.as_array);
 }
 
 static bool supports_ble_extended_advertising(void) {
   CHECK(readable);
-  CHECK(ble_supported);
+  CHECK_RET_BOOL(ble_supported);
   return HCI_LE_EXTENDED_ADVERTISING_SUPPORTED(features_ble.as_array);
 }
 
 static bool supports_ble_periodic_advertising(void) {
   CHECK(readable);
-  CHECK(ble_supported);
+  CHECK_RET_BOOL(ble_supported);
   return HCI_LE_PERIODIC_ADVERTISING_SUPPORTED(features_ble.as_array);
 }
 
@@ -539,7 +544,7 @@ static uint16_t get_acl_data_size_classic(void) {
 
 static uint16_t get_acl_data_size_ble(void) {
   CHECK(readable);
-  CHECK(ble_supported);
+  CHECK_RET_USHORT(ble_supported);
   return acl_data_size_ble;
 }
 
@@ -555,19 +560,19 @@ static uint16_t get_acl_packet_size_ble(void) {
 
 static uint16_t get_ble_suggested_default_data_length(void) {
   CHECK(readable);
-  CHECK(ble_supported);
+  CHECK_RET_USHORT(ble_supported);
   return ble_suggested_default_data_length;
 }
 
 static uint16_t get_ble_maxium_advertising_data_length(void) {
   CHECK(readable);
-  CHECK(ble_supported);
+  CHECK_RET_USHORT(ble_supported);
   return ble_maxium_advertising_data_length;
 }
 
 static uint8_t get_ble_number_of_supported_advertising_sets(void) {
   CHECK(readable);
-  CHECK(ble_supported);
+  CHECK_RET_BYTE(ble_supported);
   return ble_number_of_supported_advertising_sets;
 }
 
@@ -578,19 +583,19 @@ static uint16_t get_acl_buffer_count_classic(void) {
 
 static uint8_t get_acl_buffer_count_ble(void) {
   CHECK(readable);
-  CHECK(ble_supported);
+  CHECK_RET_BYTE(ble_supported);
   return acl_buffer_count_ble;
 }
 
 static uint8_t get_ble_white_list_size(void) {
   CHECK(readable);
-  CHECK(ble_supported);
+  CHECK_RET_BYTE(ble_supported);
   return ble_white_list_size;
 }
 
 static uint8_t get_ble_resolving_list_max_size(void) {
   CHECK(readable);
-  CHECK(ble_supported);
+  CHECK_RET_BYTE(ble_supported);
   return ble_resolving_list_max_size;
 }
 
@@ -600,7 +605,7 @@ static void set_ble_resolving_list_max_size(int resolving_list_max_size) {
   if (resolving_list_max_size != 0) {
     CHECK(readable);
   }
-  CHECK(ble_supported);
+  CHECK_RET(ble_supported);
   ble_resolving_list_max_size = resolving_list_max_size;
 }
 
