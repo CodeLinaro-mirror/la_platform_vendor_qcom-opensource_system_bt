@@ -1218,6 +1218,16 @@ extern void BTA_GATTS_HandleValueIndication (UINT16 conn_id, UINT16 attr_id,
 extern void BTA_GATTS_SendRsp (UINT16 conn_id, UINT32 trans_id,
                                tBTA_GATT_STATUS status, tBTA_GATTS_RSP *p_msg);
 
+/*******************************************************************************
+**
+** Function         BTA_GATTS_SrvChngInd
+**
+** Description      This function is calls service change indications
+**
+** Returns          None
+**
+*******************************************************************************/
+extern void BTA_GATTS_SrvChngInd ();
 
 /*******************************************************************************
 **
