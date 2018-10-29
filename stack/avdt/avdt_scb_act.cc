@@ -278,6 +278,7 @@ void avdt_scb_hdl_pkt_no_frag(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
     if (offset > len) goto length_error;
     p += 2;
     BE_STREAM_TO_UINT16(ex_len, p);
+    offset += ex_len * 4;
     p += ex_len * 4;
   }
 
