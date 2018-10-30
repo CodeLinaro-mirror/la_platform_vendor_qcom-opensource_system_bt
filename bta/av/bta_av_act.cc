@@ -102,6 +102,10 @@
 #define AVRC_CONNECT_RETRY_DELAY_MS 2000
 #endif
 
+#ifndef BTA_AV_RC_DISC_RETRY_DELAY_MS
+#define BTA_AV_RC_DISC_RETRY_DELAY_MS 3500
+#endif
+
 struct blacklist_entry
 {
     int ver;
@@ -649,7 +653,15 @@ void bta_av_rc_opened(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
     if (p_cb->features & BTA_AV_FEAT_RCTG)
       rc_open.peer_features |= BTA_AV_FEAT_RCCT;
 
-    bta_av_rc_disc(disc);
+    if (bta_av_cb.disc != 0) {
+      /* AVRC discover db is in use */
+      APPL_TRACE_IMP("%s avrcp sdp is in progress, sdhl=%d, disc=%d", __func__, shdl, disc);
+      if (shdl != 0 && disc != 0)
+        bta_sys_start_timer(p_scb->avrc_ct_timer, BTA_AV_RC_DISC_RETRY_DELAY_MS,
+                            BTA_AV_AVRC_RETRY_DISC_EVT, disc);
+    } else {
+      bta_av_rc_disc(disc);
+    }
   }
   tBTA_AV bta_av_data;
   bta_av_data.rc_open = rc_open;
@@ -1568,6 +1580,7 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
   tBTA_AV_CB* p_cb = &bta_av_cb;
   uint32_t xx;
   uint8_t mask;
+  uint16_t timeout = 0;
   tBTA_AV_LCB* p_lcb = NULL;
 
   APPL_TRACE_IMP("%s:bta_av_sig_chg event: %d, conn_acp: %d", __func__, event,
@@ -1650,11 +1663,19 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
             /* Possible collision : need to avoid outgoing processing while the
              * timer is running */
             p_cb->p_scb[xx]->coll_mask = BTA_AV_COLL_INC_TMR;
+            timeout = bta_sink_time_out();
+            /* Add 500msec offset to timeout if there is an outstanding
+             * incoming connection */
+            for (uint32_t i = 0; i < BTA_AV_NUM_LINKS; i++) {
+              if ((p_cb->p_scb[i]->coll_mask & BTA_AV_COLL_INC_TMR) && i != xx)
+                timeout += 500;
+            }
             APPL_TRACE_DEBUG("%s: AV signalling timer started for index = %d", __func__, xx);
             APPL_TRACE_DEBUG("%s: Remote Addr: %s", __func__,
                             p_cb->p_scb[xx]->peer_addr.ToString().c_str());
             alarm_set_on_mloop(p_cb->accept_signalling_timer[xx],
-                               bta_sink_time_out(),
+                               //bta_sink_time_out(),
+                               timeout,
                                bta_av_accept_signalling_timer_cback,
                                UINT_TO_PTR(xx));
           }
@@ -1770,20 +1791,21 @@ static void bta_av_accept_signalling_timer_cback(void* data) {
     if (p_scb->coll_mask & BTA_AV_COLL_INC_TMR) {
       p_scb->coll_mask &= ~BTA_AV_COLL_INC_TMR;
 
+      APPL_TRACE_DEBUG("%s: stream state opening: SDP started = %d", __func__,
+                       p_scb->sdp_discovery_started);
+      if (p_scb->sdp_discovery_started) {
+        /* We are still doing SDP. Run the timer again. */
+        p_scb->coll_mask |= BTA_AV_COLL_INC_TMR;
+        alarm_set_on_mloop(p_cb->accept_signalling_timer[inx],
+                           bta_sink_time_out(),
+                           bta_av_accept_signalling_timer_cback,
+                           UINT_TO_PTR(inx));
+        APPL_TRACE_DEBUG("%s:sdp in progress,starting timer loop",__func__);
+        return;
+      }
       if (bta_av_is_scb_opening(p_scb)) {
-        APPL_TRACE_DEBUG("%s: stream state opening: SDP started = %d", __func__,
-                         p_scb->sdp_discovery_started);
-        if (p_scb->sdp_discovery_started) {
-          /* We are still doing SDP. Run the timer again. */
-          p_scb->coll_mask |= BTA_AV_COLL_INC_TMR;
-          alarm_set_on_mloop(p_cb->accept_signalling_timer[inx],
-                             bta_sink_time_out(),
-                             bta_av_accept_signalling_timer_cback,
-                             UINT_TO_PTR(inx));
-        } else {
           /* SNK did not start signalling, resume signalling process. */
           bta_av_discover_req(p_scb, NULL);
-        }
       } else if (bta_av_is_scb_incoming(p_scb)) {
         /* Stay in incoming state if SNK does not start signalling */
 
@@ -2446,6 +2468,13 @@ void bta_av_rc_disc(uint8_t disc) {
       APPL_TRACE_DEBUG("disc %d", p_cb->disc);
     }
   }
+}
+
+void bta_av_rc_retry_disc(tBTA_AV_DATA* p_data)
+{
+  uint8_t disc = p_data->hdr.layer_specific;
+  APPL_TRACE_IMP("%s: disc=%d", __func__, disc);
+  bta_av_rc_disc(disc);
 }
 
 /*******************************************************************************
