@@ -842,7 +842,7 @@ void btm_hci_event(UINT8 *p, UINT8 event_code, UINT8 param_len)
 **
 *******************************************************************************/
 void btm_vsc_complete (UINT8 *p, UINT16 opcode, UINT16 evt_len,
-                       tBTM_CMPL_CB *p_vsc_cplt_cback)
+                       tBTM_VSC_CMPL_CB *p_vsc_cplt_cback)
 {
     tBTM_VSC_CMPL   vcs_cplt_params;
 

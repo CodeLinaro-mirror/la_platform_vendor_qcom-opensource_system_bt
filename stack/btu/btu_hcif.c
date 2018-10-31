@@ -934,7 +934,7 @@ static void btu_hcif_hdl_command_complete (UINT16 opcode, UINT8 *p, UINT16 evt_l
 
         default:
             if ((opcode & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC)
-                btm_vsc_complete (p, opcode, evt_len, (tBTM_CMPL_CB *)p_cplt_cback);
+                btm_vsc_complete (p, opcode, evt_len, (tBTM_VSC_CMPL_CB *)p_cplt_cback);
             break;
     }
 }
@@ -1123,7 +1123,7 @@ static void btu_hcif_hdl_command_status (UINT16 opcode, UINT8 status, UINT8 *p_c
 */
                     default:
                         if ((opcode & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC)
-                            btm_vsc_complete (&status, opcode, 1, (tBTM_CMPL_CB *)p_vsc_status_cback);
+                            btm_vsc_complete (&status, opcode, 1, (tBTM_VSC_CMPL_CB *)p_vsc_status_cback);
                         break;
                 }
 
@@ -1131,7 +1131,7 @@ static void btu_hcif_hdl_command_status (UINT16 opcode, UINT8 status, UINT8 *p_c
             else
             {
                 if ((opcode & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC)
-                    btm_vsc_complete (&status, opcode, 1, (tBTM_CMPL_CB *)p_vsc_status_cback);
+                    btm_vsc_complete (&status, opcode, 1, (tBTM_VSC_CMPL_CB *)p_vsc_status_cback);
             }
     }
 }
