@@ -574,10 +574,7 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
         uint16_t profile_version = AVRC_REV_1_0;
 
         if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
-          profile_version = AVRC_REV_1_6;
-        } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
-          // Initialize AVRCP1.4 to provide Absolute Volume control.
-          profile_version = AVRC_REV_1_4;
+          profile_version = AVRC_REV_1_5;
         }
 
         bta_ar_reg_avrc(
@@ -795,7 +792,7 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
             bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL,
                             p_bta_av_cfg->avrc_ct_cat, BTA_ID_AV,
                             (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
-                            AVRC_REV_1_6);
+                            AVRC_REV_1_5);
           }
 #endif
         }
