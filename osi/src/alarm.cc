@@ -43,6 +43,7 @@
 #include "osi/include/list.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+#include "osi/include/properties.h"
 #include "osi/include/semaphore.h"
 #include "osi/include/thread.h"
 #include "osi/include/wakelock.h"
@@ -113,6 +114,7 @@ struct alarm_t {
 // unit tests to run faster. It should not be modified by production code.
 int64_t TIMER_INTERVAL_FOR_WAKELOCK_IN_MS = 3000;
 static const clockid_t CLOCK_ID = CLOCK_BOOTTIME;
+static clockid_t CLOCK_ID_ALARM = CLOCK_BOOTTIME_ALARM;
 
 // This mutex ensures that the |alarm_set|, |alarm_cancel|, and alarm callback
 // functions execute serially and not concurrently. As a result, this mutex
@@ -312,6 +314,8 @@ static bool lazy_initialize(void) {
   // the |timer| variable is valid ourselves.
   bool timer_initialized = false;
   bool wakeup_timer_initialized = false;
+  char boottime_alarm_value[PROPERTY_VALUE_MAX] = {0};
+  osi_property_get("persist.bt.clock_boottime_alarm", boottime_alarm_value, "true");
 
   std::lock_guard<std::mutex> lock(alarms_mutex);
 
@@ -324,11 +328,12 @@ static bool lazy_initialize(void) {
   if (!timer_create_internal(CLOCK_ID, &timer)) goto error;
   timer_initialized = true;
 
-  if (!timer_create_internal(CLOCK_BOOTTIME_ALARM, &wakeup_timer)) {
-    if (!timer_create_internal(CLOCK_BOOTTIME, &wakeup_timer)) {
-      goto error;
-    }
+  if (!strncmp(boottime_alarm_value, "true", sizeof("true"))) {
+    CLOCK_ID_ALARM = CLOCK_BOOTTIME_ALARM;
+  } else {
+    CLOCK_ID_ALARM = CLOCK_BOOTTIME;
   }
+  if (!timer_create_internal(CLOCK_ID_ALARM, &wakeup_timer)) goto error;
   wakeup_timer_initialized = true;
 
   alarm_expired = semaphore_new(0);
