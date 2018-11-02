@@ -790,6 +790,37 @@ void btm_sco_disc_chk_pend_for_modechange(uint16_t hci_handle) {
 #endif
 }
 
+static bool btm_is_multi_sco_supported(void) {
+  bool is_supported = true;
+
+  osi_property_get("qcom.bluetooth.soc", value, "qcombtsoc");
+  if (strcmp(value, "rome") == 0) {
+    is_supported = false;
+  } else {
+    /* TODO: add other bt chipset */
+    is_supported = false;
+  }
+
+  return is_supported;
+}
+
+static bool btm_is_other_sco_in_active(void) {
+#if (BTM_MAX_SCO_LINKS > 0)
+  uint16_t xx;
+  tSCO_CONN* p = &btm_cb.sco_cb.sco_db[0];
+
+  for (xx = 0; xx < BTM_MAX_SCO_LINKS; xx++, p++) {
+    if ((p->state == SCO_ST_CONNECTED) || (p->state == SCO_ST_CONNECTING) ||
+        (p->state == SCO_ST_PEND_UNPARK)) {
+      return true;
+    }
+  }
+
+#endif
+  return false;
+}
+
+
 /*******************************************************************************
  *
  * Function         btm_sco_conn_req
@@ -834,12 +865,15 @@ void btm_sco_conn_req(const RawAddress& bda, DEV_CLASS dev_class,
             /* Reject request if SCO is desired but no SCO packets delected */
             ||
             (link_type == BTM_LINK_TYPE_SCO &&
-             !(p_sco->def_esco_parms.packet_types & BTM_SCO_LINK_ONLY_MASK))) {
+             !(p_sco->def_esco_parms.packet_types & BTM_SCO_LINK_ONLY_MASK))
+            || (!btm_is_multi_sco_supported() && btm_is_other_sco_in_active())) {
           btm_esco_conn_rsp(xx, HCI_ERR_HOST_REJECT_RESOURCES, bda, NULL);
         } else /* Accept the request */
         {
           btm_esco_conn_rsp(xx, HCI_SUCCESS, bda, NULL);
         }
+      } else if (!btm_is_multi_sco_supported() && btm_is_other_sco_in_active()) {
+        btm_esco_conn_rsp(xx, HCI_ERR_HOST_REJECT_RESOURCES, bda, NULL);
       } else /* Notify upper layer of connect indication */
       {
         evt_data.bd_addr = bda;
