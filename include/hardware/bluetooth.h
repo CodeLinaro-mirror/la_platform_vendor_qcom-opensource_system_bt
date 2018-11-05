@@ -50,6 +50,9 @@
 #define BT_PROFILE_AV_RC_CTRL_ID "avrcp_ctrl"
 #define BT_PROFILE_HEARING_AID_ID "hearing_aid"
 
+#define LINK_KEY_LEN 16
+typedef uint8_t LINK_KEY[LINK_KEY_LEN]; /* Link Key */
+
 /** Bluetooth test interface IDs */
 #define BT_TEST_INTERFACE_MCAP_ID "mcap_test"
 
@@ -498,6 +501,9 @@ typedef struct {
   /** Create Bluetooth Bond using out of band data */
   int (*create_bond_out_of_band)(const RawAddress* bd_addr, int transport,
                                  const bt_out_of_band_data_t* oob_data);
+  /** Add out of band bond device */
+  int (*add_out_of_band_bond_device)(const RawAddress *bd_addr, LINK_KEY link_key,
+                                     uint8_t key_type, uint8_t pin_len);
 
   /** Remove Bond */
   int (*remove_bond)(const RawAddress* bd_addr);
