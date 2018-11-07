@@ -1229,6 +1229,16 @@
 #define DUMP_PCM_DATA FALSE
 #endif
 
+/******************************************************************************
+ *
+ * A2DP
+ *
+ *****************************************************************************/
+/* Support delay repoting in Sink role */
+#ifndef A2DP_SINK_DELAY_REPORT
+#define A2DP_SINK_DELAY_REPORT TRUE
+#endif
+
 #ifndef SDP_AVRCP_CT_1_6
 #define SDP_AVRCP_CT_1_6            TRUE
 #endif
