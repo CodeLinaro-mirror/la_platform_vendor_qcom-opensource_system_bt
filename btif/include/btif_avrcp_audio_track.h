@@ -39,6 +39,13 @@
 void* BtifAvrcpAudioTrackCreate(int trackFreq, int channelType, int codec_type,
         audio_format_t media_format);
 
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+/**
+ * Gets latency from audio track.
+ */
+int BtifAvrcpAudioTrackLatency(void* handle);
+#endif
+
 /**
  * Starts the audio track.
  */
