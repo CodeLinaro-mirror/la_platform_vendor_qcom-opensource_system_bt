@@ -529,6 +529,7 @@ static void btif_a2dp_sink_decoder_update_event(
                    p_buf->codec_info[5], p_buf->codec_info[6]);
 
   uint8_t codec_type = A2DP_GetCodecType(p_buf->codec_info);
+  audio_format_t media_format = A2DP_GetVendorCodecFormat(p_buf->codec_info);
   int sample_rate = A2DP_GetTrackSampleRate(p_buf->codec_info);
   if (sample_rate == -1) {
     LOG_ERROR(LOG_TAG, "%s: cannot get the track frequency", __func__);
@@ -568,7 +569,7 @@ static void btif_a2dp_sink_decoder_update_event(
   APPL_TRACE_DEBUG("%s: create audio track", __func__);
   btif_a2dp_sink_cb.audio_track =
 #ifndef OS_GENERIC
-      BtifAvrcpAudioTrackCreate(sample_rate, channel_type, codec_type);
+      BtifAvrcpAudioTrackCreate(sample_rate, channel_type, codec_type, media_format);
 #else
       NULL;
 #endif

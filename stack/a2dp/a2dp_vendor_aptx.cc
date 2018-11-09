@@ -191,8 +191,17 @@ static tA2DP_STATUS A2DP_ParseInfoAptx(tA2DP_APTX_CIE* p_ie,
 static bool A2DP_IsVendorCodecAptxEnabled() {
   bool support;
   char value[PROPERTY_VALUE_MAX] = {0};
-  osi_property_get("persist.bt.a2dp.decoder.aptx", value, "false");
-  support = strncmp("false", value, sizeof("false"));
+  int type;
+
+  osi_property_get("persist.bt.a2dp.decoder.aptx", value, "0");
+  type = atoi(value);
+  /* Bit mask
+  * 0: aptX not supported
+  * 1: aptX classic
+  * 2: aptX-HD
+  * 3: support both aptX classic and aptX-HD
+  */
+  support = (type & 0x1) != 0;
   LOG_DEBUG(LOG_TAG, "%s aptX decoder is %s supported", __func__, support ? "" : "not");
   return support;
 }
@@ -711,7 +720,7 @@ bool A2dpCodecConfigAptxBase::setCodecConfig(const uint8_t* p_peer_codec_info,
       (is_source_) ? &a2dp_aptx_source_default_config : &a2dp_aptx_sink_default_config;
 
   const tA2DP_APTX_CIE* p_a2dp_aptx_cap =
-      (is_source_) ? &a2dp_aptx_source_caps : &a2dp_aptx_sink_default_config;
+      (is_source_) ? &a2dp_aptx_source_caps : &a2dp_aptx_sink_caps;
 
   // Save the internal state
   btav_a2dp_codec_config_t saved_codec_config = codec_config_;

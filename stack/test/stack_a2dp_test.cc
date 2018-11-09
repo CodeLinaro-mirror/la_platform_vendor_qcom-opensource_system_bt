@@ -226,6 +226,9 @@ class StackA2dpTest : public ::testing::Test {
         case BTAV_A2DP_CODEC_INDEX_SINK_APTX:
           supported = true;
           break;
+        case BTAV_A2DP_CODEC_INDEX_SINK_APTX_HD:
+          supported = true;
+          break;
         case BTAV_A2DP_CODEC_INDEX_MAX:
           // Needed to avoid using "default:" case so we can capture when
           // a new codec is added, and it can be included here.

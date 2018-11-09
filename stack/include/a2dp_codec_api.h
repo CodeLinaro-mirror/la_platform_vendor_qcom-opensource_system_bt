@@ -28,9 +28,8 @@
 #include <map>
 #include <mutex>
 #include <string>
-
+#include <system/audio.h>
 #include <hardware/bt_av.h>
-
 #include "a2dp_api.h"
 #include "audio_a2dp_hw/include/audio_a2dp_hw.h"
 #include "avdt_api.h"
@@ -561,6 +560,10 @@ typedef struct {
 // Gets the A2DP codec type.
 // |p_codec_info| contains information about the codec capabilities.
 tA2DP_CODEC_TYPE A2DP_GetCodecType(const uint8_t* p_codec_info);
+
+// Gets the A2DP vendor codec format.
+// |p_codec_info| contains information about the codec capabilities.
+audio_format_t A2DP_GetVendorCodecFormat(const uint8_t* p_codec_info);
 
 // Checks whether the codec capabilities contain a valid A2DP Source codec.
 // NOTE: only codecs that are implemented are considered valid.

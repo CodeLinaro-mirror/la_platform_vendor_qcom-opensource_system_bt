@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <media/AudioTrack.h>
 
 /**
  * Implements an API to be used by A2DP to do streaming of music over a media
@@ -35,7 +36,8 @@
  * should eventually be
  * deleted using BtifAvrcpAudioTrackDelete (see below).
  */
-void* BtifAvrcpAudioTrackCreate(int trackFreq, int channelType, int codec_type);
+void* BtifAvrcpAudioTrackCreate(int trackFreq, int channelType, int codec_type,
+        audio_format_t media_format);
 
 /**
  * Starts the audio track.

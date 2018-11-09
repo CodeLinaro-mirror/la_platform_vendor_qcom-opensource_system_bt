@@ -76,6 +76,12 @@ bool A2DP_IsVendorPeerSourceCodecValid(
       return A2DP_IsVendorPeerSourceCodecValidAptx(p_codec_info);
     }
 
+    // Check for aptX-HD
+    if (vendor_id == A2DP_APTX_HD_VENDOR_ID &&
+        codec_id == A2DP_APTX_HD_CODEC_ID_BLUETOOTH) {
+      return A2DP_IsVendorPeerSourceCodecValidAptxHd(p_codec_info);
+    }
+
     return false;
 }
 
@@ -116,20 +122,33 @@ bool A2DP_IsVendorSinkCodecSupported(UNUSED_ATTR const uint8_t* p_codec_info) {
     return A2DP_IsSinkCodecSupportedAptx(p_codec_info);
   }
 
+  // Check for aptX-HD
+  if (vendor_id == A2DP_APTX_HD_VENDOR_ID &&
+      codec_id == A2DP_APTX_HD_CODEC_ID_BLUETOOTH) {
+    return A2DP_IsSinkCodecSupportedAptxHd(p_codec_info);
+  }
+
   return false;
 }
 
 bool A2DP_IsVendorPeerSourceCodecSupported(
-    UNUSED_ATTR const uint8_t* p_codec_info) {
-    uint32_t vendor_id = A2DP_VendorCodecGetVendorId(p_codec_info);
-    uint16_t codec_id = A2DP_VendorCodecGetCodecId(p_codec_info);
-    LOG_DEBUG(LOG_TAG, "%s: vendor_id: %d codec_id:%d", __func__, vendor_id, codec_id);
+  UNUSED_ATTR const uint8_t* p_codec_info) {
+  uint32_t vendor_id = A2DP_VendorCodecGetVendorId(p_codec_info);
+  uint16_t codec_id = A2DP_VendorCodecGetCodecId(p_codec_info);
+  LOG_DEBUG(LOG_TAG, "%s: vendor_id: %d codec_id:%d", __func__, vendor_id, codec_id);
 
-    // Check for aptX
-    if (vendor_id == A2DP_APTX_VENDOR_ID &&
-        codec_id == A2DP_APTX_CODEC_ID_BLUETOOTH) {
-      return A2DP_IsPeerSourceCodecSupportedAptx(p_codec_info);
-    }
+  // Check for aptX
+  if (vendor_id == A2DP_APTX_VENDOR_ID &&
+      codec_id == A2DP_APTX_CODEC_ID_BLUETOOTH) {
+    return A2DP_IsPeerSourceCodecSupportedAptx(p_codec_info);
+  }
+
+  // Check for aptX-HD
+  if (vendor_id == A2DP_APTX_HD_VENDOR_ID &&
+      codec_id == A2DP_APTX_HD_CODEC_ID_BLUETOOTH) {
+    return A2DP_IsSinkCodecSupportedAptxHd(p_codec_info);
+  }
+
   return false;
 }
 
@@ -377,6 +396,12 @@ int A2DP_VendorGetSinkTrackChannelType(
     return A2DP_VendorGetTrackChannelTypeAptx(p_codec_info);
   }
 
+  // Check for aptX-HD
+  if (vendor_id == A2DP_APTX_HD_VENDOR_ID &&
+      codec_id == A2DP_APTX_HD_CODEC_ID_BLUETOOTH) {
+    return A2DP_VendorGetTrackChannelTypeAptxHd(p_codec_info);
+  }
+
   return -1;
 }
 
@@ -526,10 +551,20 @@ btav_a2dp_codec_index_t A2DP_VendorSourceCodecIndex(
 }
 
 btav_a2dp_codec_index_t A2DP_VendorSinkCodecIndex(const uint8_t* p_codec_info) {
-  // uint32_t vendor_id = A2DP_VendorCodecGetVendorId(p_codec_info);
-  // uint16_t codec_id = A2DP_VendorCodecGetCodecId(p_codec_info);
+  uint32_t vendor_id = A2DP_VendorCodecGetVendorId(p_codec_info);
+  uint16_t codec_id = A2DP_VendorCodecGetCodecId(p_codec_info);
 
-  // Add checks based on <vendor_id, codec_id>
+  // Check for aptX
+  if (vendor_id == A2DP_APTX_VENDOR_ID &&
+      codec_id == A2DP_APTX_CODEC_ID_BLUETOOTH) {
+    return A2DP_VendorSinkCodecIndexAptx(p_codec_info);
+  }
+
+  // Check for aptX-HD
+  if (vendor_id == A2DP_APTX_HD_VENDOR_ID &&
+      codec_id == A2DP_APTX_HD_CODEC_ID_BLUETOOTH) {
+    return A2DP_VendorSinkCodecIndexAptxHd(p_codec_info);
+  }
 
   return BTAV_A2DP_CODEC_INDEX_MAX;
 }
@@ -548,6 +583,8 @@ const char* A2DP_VendorCodecIndexStr(btav_a2dp_codec_index_t codec_index) {
       return A2DP_VendorCodecIndexStrAptxSink();
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD:
       return A2DP_VendorCodecIndexStrAptxHd();
+    case BTAV_A2DP_CODEC_INDEX_SINK_APTX_HD:
+      return A2DP_VendorCodecIndexStrAptxHdSink();
     case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
       return A2DP_VendorCodecIndexStrLdac();
     // Add a switch statement for each vendor-specific codec
@@ -575,6 +612,8 @@ bool A2DP_VendorInitCodecConfig(btav_a2dp_codec_index_t codec_index,
       return A2DP_VendorInitCodecConfigAptxSink(p_cfg);
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD:
       return A2DP_VendorInitCodecConfigAptxHd(p_cfg);
+    case BTAV_A2DP_CODEC_INDEX_SINK_APTX_HD:
+      return A2DP_VendorInitCodecConfigAptxHdSink(p_cfg);
     case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
       return A2DP_VendorInitCodecConfigLdac(p_cfg);
     // Add a switch statement for each vendor-specific codec

@@ -39,9 +39,10 @@ char outputFilename[50] = "/data/misc/bluedroid/output_sample.pcm";
 
 #define COMPRESSED_AUDIO_BUFFER_SIZE 2048
 
-void* BtifAvrcpAudioTrackCreate(int trackFreq, int channelType, int codec_type) {
-  LOG_DEBUG(LOG_TAG, "%s Track.cpp: btCreateTrack freq %d  channel %d codec: %d",
-              __func__, trackFreq, channelType, codec_type);
+void* BtifAvrcpAudioTrackCreate(int trackFreq, int channelType, int codec_type,
+        audio_format_t media_format) {
+  LOG_DEBUG(LOG_TAG, "%s Track.cpp: btCreateTrack freq %d  channel %d codec: %d media_format: %d",
+              __func__, trackFreq, channelType, codec_type, media_format);
   sp<android::AudioTrack> track = NULL;
   if (codec_type == A2DP_MEDIA_CT_SBC || codec_type == A2DP_MEDIA_CT_AAC) {
     /* [A2DP SINK] Change audiotrack flags from "AUDIO_OUTPUT_FLAG_FAST" to
@@ -52,8 +53,7 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int channelType, int codec_type) 
     (size_t)0 /*frameCount*/, (audio_output_flags_t)AUDIO_OUTPUT_FLAG_DEEP_BUFFER,
     NULL /*callback_t*/, NULL /*void* user*/, 0 /*notificationFrames*/,
     AUDIO_SESSION_ALLOCATE, android::AudioTrack::TRANSFER_SYNC);
-  } else if (codec_type == A2DP_MEDIA_CT_NON_A2DP) {
-    audio_format_t media_format = (audio_format_t)AUDIO_FORMAT_APTX;
+  } else if (codec_type == A2DP_MEDIA_CT_NON_A2DP && media_format != AUDIO_FORMAT_INVALID) {
     audio_attributes_t mAttributes;
     stream_type_to_audio_attributes(AUDIO_STREAM_MUSIC, &mAttributes);
 
@@ -91,7 +91,7 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int channelType, int codec_type) 
 #if (DUMP_PCM_DATA == TRUE)
   outputPcmSampleFile = fopen(outputFilename, "ab");
   if (!outputPcmSampleFile) {
-    LOG_ERROR(LOG_TAG, "%s: Create file %s faied:%s", __func__, outputFilename, strerror(errno));
+    LOG_ERROR(LOG_TAG, "%s: Create file %s failed:%s", __func__, outputFilename, strerror(errno));
   }
 #endif
   trackHolder->track->setVolume(1, 1);

@@ -129,7 +129,10 @@ A2dpCodecConfig* A2dpCodecConfig::createCodec(
       codec_config = new A2dpCodecConfigAptxSink(codec_priority);
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD:
-      codec_config = new A2dpCodecConfigAptxHd(codec_priority);
+      codec_config = new A2dpCodecConfigAptxHdSource(codec_priority);
+      break;
+    case BTAV_A2DP_CODEC_INDEX_SINK_APTX_HD:
+      codec_config = new A2dpCodecConfigAptxHdSink(codec_priority);
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
       codec_config = new A2dpCodecConfigLdac(codec_priority);
@@ -997,6 +1000,33 @@ tA2DP_CODEC_TYPE A2DP_GetCodecType(const uint8_t* p_codec_info) {
   return (tA2DP_CODEC_TYPE)(p_codec_info[AVDT_CODEC_TYPE_INDEX]);
 }
 
+audio_format_t A2DP_GetVendorCodecFormat(const uint8_t* p_codec_info) {
+  tA2DP_CODEC_TYPE codec_type;
+  uint32_t vendor_id;
+  uint16_t codec_id;
+
+  codec_type = A2DP_GetCodecType(p_codec_info);
+  if (codec_type != A2DP_MEDIA_CT_NON_A2DP) {
+    LOG_WARN(LOG_TAG, "%s: Invalid codec_type:0x%x", __func__, codec_type);
+    return AUDIO_FORMAT_INVALID;
+  }
+  vendor_id = A2DP_VendorCodecGetVendorId(p_codec_info);
+  codec_id = A2DP_VendorCodecGetCodecId(p_codec_info);
+
+  // AUDIO_FORMAT_APTX and AUDIO_FORMAT_APTX_HD are audio_format_t type, which
+  // is defined in system/media/audio/include/system/audio-base.h
+  // Check for aptX
+  if (vendor_id == A2DP_APTX_VENDOR_ID && // Check for aptX
+      codec_id == A2DP_APTX_CODEC_ID_BLUETOOTH) {
+    return AUDIO_FORMAT_APTX;
+  } else if (vendor_id == A2DP_APTX_HD_VENDOR_ID && // Check for aptX-HD
+      codec_id == A2DP_APTX_HD_CODEC_ID_BLUETOOTH) {
+    return AUDIO_FORMAT_APTX_HD;
+  } else {
+    return AUDIO_FORMAT_INVALID;
+  }
+}
+
 bool A2DP_IsSourceCodecValid(const uint8_t* p_codec_info) {
   tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
 
@@ -1386,7 +1416,7 @@ btav_a2dp_codec_index_t A2DP_SinkCodecIndex(const uint8_t* p_codec_info) {
       return A2DP_SinkCodecIndexAac(p_codec_info);
     case A2DP_MEDIA_CT_NON_A2DP:
       /* Support APTX classic/HD here */
-      return A2DP_VendorSinkCodecIndexAptx(p_codec_info);
+      return A2DP_VendorSinkCodecIndex(p_codec_info);
     default:
       break;
   }
