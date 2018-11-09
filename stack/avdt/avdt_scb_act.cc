@@ -233,6 +233,18 @@ void avdt_scb_hdl_pkt_no_frag(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
   uint8_t pad_len = 0;
   uint16_t len = p_data->p_pkt->len;
 
+  if (!A2DP_UsesRtpHeader(p_scb->curr_cfg.num_protect, p_scb->curr_cfg.codec_info)) {
+    AVDT_TRACE_DEBUG("No RTP header");
+    p_data->p_pkt->layer_specific = 0;
+    if (p_scb->stream_config.p_sink_data_cback != NULL) {
+      (*p_scb->stream_config.p_sink_data_cback)(avdt_scb_to_hdl(p_scb), p_data->p_pkt, 0, 0);
+    } else {
+      AVDT_TRACE_ERROR("p_sink_data_cback is NULL");
+      osi_free_and_reset((void**)&p_data->p_pkt);
+    }
+    return;
+  }
+
   p = p_start = (uint8_t*)(p_data->p_pkt + 1) + p_data->p_pkt->offset;
 
   /* parse media packet header */
