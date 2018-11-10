@@ -66,6 +66,7 @@
 #include "bta_av_api.h"
 #include "bta_av_int.h"
 #include "l2c_api.h"
+#include "log/log.h"
 #include "osi/include/list.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
@@ -908,11 +909,16 @@ tBTA_AV_EVT bta_av_proc_meta_cmd(tAVRC_RESPONSE* p_rc_rsp,
       case AVRC_PDU_GET_CAPABILITIES:
         /* process GetCapabilities command without reporting the event to app */
         evt = 0;
+        if (p_vendor->vendor_len != 5) {
+          android_errorWriteLog(0x534e4554, "111893951");
+          p_rc_rsp->get_caps.status = AVRC_STS_INTERNAL_ERR;
+          break;
+        }
         u8 = *(p_vendor->p_vendor_data + 4);
         p = p_vendor->p_vendor_data + 2;
         p_rc_rsp->get_caps.capability_id = u8;
         BE_STREAM_TO_UINT16(u16, p);
-        if ((u16 != 1) || (p_vendor->vendor_len != 5)) {
+        if (u16 != 1) {
           p_rc_rsp->get_caps.status = AVRC_STS_INTERNAL_ERR;
         } else {
           p_rc_rsp->get_caps.status = AVRC_STS_NO_ERROR;
@@ -1667,7 +1673,8 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
             /* Add 500msec offset to timeout if there is an outstanding
              * incoming connection */
             for (uint32_t i = 0; i < BTA_AV_NUM_LINKS; i++) {
-              if ((p_cb->p_scb[i]->coll_mask & BTA_AV_COLL_INC_TMR) && i != xx)
+              if ((p_cb->p_scb[i] != NULL &&
+                  p_cb->p_scb[i]->coll_mask & BTA_AV_COLL_INC_TMR) && i != xx)
                 timeout += 500;
             }
             APPL_TRACE_DEBUG("%s: AV signalling timer started for index = %d", __func__, xx);
@@ -2162,6 +2169,7 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
       {
           bta_sys_start_timer(p_scb->avrc_ct_timer, AVRC_CONNECT_RETRY_DELAY_MS,
                                  BTA_AV_SDP_AVRC_DISC_EVT,p_scb->hndl);
+          return;
       }
   }
 #if (BTA_AV_SINK_INCLUDED == TRUE)
