@@ -45,6 +45,7 @@
 #include <sys/un.h>
 #include <sys/time.h>
 #include <fcntl.h>
+#include <unistd.h> 
 #define SOCKETNAME  "/data/misc/bluetooth/btprop"
 #endif
 #include "bt_types.h"
@@ -1171,6 +1172,22 @@ bool remove_iot_device(const char *filename, char* header,
     return true;
 }
 
+/*
+bool is_prontoEnabled(void)
+{   
+    if((access("/dev/smd2",F_OK))!=-1)
+        return true;
+    return false;
+}
+*/
+
+bool is_NaplesEnabled(void)
+{   
+    if((access("/dev/ttyHS0",F_OK))!=-1)
+        return true;
+    return false;
+}
+
 /*****************************************************************************
 **
 ** Function        init_soc_type
@@ -1203,10 +1220,20 @@ static void init_soc_type()
             }
         }
     }
-#elif defined(BT_SOC_TYPE_ROME)
-    soc_type = BT_SOC_ROME;
-#elif defined(BT_SOC_TYPE_CHEROKEE)
+
+#else
+    /*
+    if (!is_prontoEnabled()) {
+        soc_type = BT_SOC_ROME;
+    }
+    */
+    
+    if (is_NaplesEnabled()) {
+        soc_type = BT_SOC_ROME;
+    }
+#if defined(BT_SOC_TYPE_CHEROKEE)
     soc_type = BT_SOC_CHEROKEE;
+#endif
 #endif
 }
 

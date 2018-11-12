@@ -43,9 +43,6 @@
 #ifdef ANDROID
 static const char *CONFIG_FILE_PATH = "/data/misc/bluedroid/bt_config.conf";
 static const char *LEGACY_CONFIG_FILE_PATH = "/data/misc/bluedroid/bt_config.xml";
-#elif HCI_USE_MCT
-static const char *CONFIG_FILE_PATH = "/data/misc/bluetooth/bt_config.conf";
-static const char *LEGACY_CONFIG_FILE_PATH = "/data/misc/bluetooth/bt_config.xml";
 #else
 static const char *CONFIG_FILE_PATH = "/data/misc/bluetooth/bt_config.conf";
 static const char *LEGACY_CONFIG_FILE_PATH = "/data/misc/bluetooth/bt_config.xml";

@@ -17,6 +17,7 @@
  ******************************************************************************/
 
 #include "hci_hal.h"
+#include "bt_utils.h"
 #include "hci_internals.h"
 #if (defined(REMOVE_EAGER_THREADS) && (REMOVE_EAGER_THREADS == TRUE))
 #include <assert.h>
@@ -27,11 +28,12 @@
 #endif
 
 const hci_hal_t *hci_hal_get_interface() {
-#if HCI_USE_MCT
-  return hci_hal_mct_get_interface();
-#else
-  return hci_hal_h4_get_interface();
-#endif
+  if (!is_NaplesEnabled()) {
+    return hci_hal_mct_get_interface();
+  }
+  else {
+    return hci_hal_h4_get_interface();
+  }
 }
 
 #if (defined(REMOVE_EAGER_THREADS) && (REMOVE_EAGER_THREADS == TRUE))
