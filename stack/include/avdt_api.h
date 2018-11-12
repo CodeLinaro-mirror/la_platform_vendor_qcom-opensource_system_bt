@@ -1033,6 +1033,8 @@ extern void avdt_scb_update_supported_codecs(uint8_t *p_codec_type, uint8_t *p_v
 extern uint16_t AVDT_SendReport(uint8_t handle, AVDT_REPORT_TYPE type,
                                 tAVDT_REPORT_DATA* p_data);
 
+//extern void AVDT_UpdateLinkPktType(uint8_t hdl, uint16_t packet_type);
+
 /******************************************************************************
  *
  * Function         AVDT_SetTraceLevel

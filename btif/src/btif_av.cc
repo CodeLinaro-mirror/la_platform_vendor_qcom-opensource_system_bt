@@ -91,6 +91,7 @@ static int reconfig_a2dp_param_val = 0;
 #include "a2dp_aac.h"
 #include "a2dp_vendor_aptx.h"
 #include "a2dp_vendor_aptx_hd.h"
+#include "a2dp_vendor_aptx_adaptive.h"
 #include "a2dp_vendor_ldac.h"
 
 /*****************************************************************************
@@ -174,6 +175,8 @@ typedef struct {
   bool offload_state;
 #endif
   bool avdt_sync; /* for AVDT1.3 delay reporting */
+  uint16_t codec_latency;
+  uint16_t aptx_mode;
 } btif_av_cb_t;
 
 typedef struct {
@@ -206,7 +209,7 @@ static btif_av_cb_t btif_av_cb[BTIF_AV_NUM_CB] = {
     , false, false
 #endif
     , false
-    },
+    , 0, 0x1000},
     { 0, {{0}}, false, 0, 0, 0, 0, std::vector<btav_a2dp_codec_config_t>(), false,
     false, false, BTIF_AV_STATE_IDLE, BTA_A2DP_SOURCE_SERVICE_ID,
     false, false, false, 0, false, false
@@ -214,7 +217,7 @@ static btif_av_cb_t btif_av_cb[BTIF_AV_NUM_CB] = {
     , false, false
 #endif
     , false
-    },
+    , 0, 0x1000},
 };
 
 static alarm_t* av_open_on_rc_timer = NULL;
@@ -338,7 +341,9 @@ extern tA2DP_SBC_CIE a2dp_sbc_caps;
 extern tA2DP_AAC_CIE a2dp_aac_caps;
 extern tA2DP_APTX_CIE a2dp_aptx_caps;
 extern tA2DP_APTX_HD_CIE a2dp_aptx_hd_caps;
+extern tA2DP_APTX_ADAPTIVE_CIE a2dp_aptx_adaptive_caps;
 extern tA2DP_LDAC_CIE a2dp_ldac_caps;
+
 extern bool bta_avk_is_avdt_sync(uint16_t handle);
 
 /*****************************************************************************
@@ -669,7 +674,31 @@ bt_status_t check_valid_param(std::vector<btav_a2dp_codec_config_t> p_codec_list
                         return BT_STATUS_PARM_INVALID;
                 }
                 break;
-                case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
+            case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE:
+                switch (cp.sample_rate) {
+                    case BTAV_A2DP_CODEC_SAMPLE_RATE_48000:
+                        break;
+                    default:
+                        BTIF_TRACE_ERROR(" %s Invalid APTX AD freq = %d",
+                            __func__, cp.sample_rate);
+                        return BT_STATUS_PARM_INVALID;
+                }
+                switch (cp.channel_mode) {
+                    case BTAV_A2DP_CODEC_CHANNEL_MODE_MONO:
+                    case BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO:
+                        break;
+                    default:
+                        BTIF_TRACE_ERROR(" %s Invalid AptX AD channel mode = %d",
+                            __func__, cp.channel_mode);
+                        return BT_STATUS_PARM_INVALID;
+                }
+                if (A2DP_BitsSet(cp.codec_specific_4) == A2DP_SET_ZERO_BIT) {
+                    BTIF_TRACE_ERROR(" %s Invalid APTX AD mode info = %lx",
+                        __func__, cp.codec_specific_4);
+                    return BT_STATUS_PARM_INVALID;
+                }
+        break;
+            case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
                 switch (cp.sample_rate) {
                     case BTAV_A2DP_CODEC_SAMPLE_RATE_44100:
                     case BTAV_A2DP_CODEC_SAMPLE_RATE_48000:
@@ -736,6 +765,11 @@ static void btif_update_source_codec_capability(std::vector<btav_a2dp_codec_conf
               vnd_id_list[j] = A2DP_APTX_HD_VENDOR_ID;
               codec_id_list[j] = A2DP_APTX_HD_CODEC_ID_BLUETOOTH;
               break;
+          case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE:
+              codec_type_list[j] = A2DP_MEDIA_CT_NON_A2DP;
+              vnd_id_list[j] = A2DP_APTX_ADAPTIVE_VENDOR_ID;
+              codec_id_list[j] = A2DP_APTX_ADAPTIVE_CODEC_ID_BLUETOOTH;
+              break;
           case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
               codec_type_list[j] = A2DP_MEDIA_CT_NON_A2DP;
               vnd_id_list[j] = A2DP_LDAC_VENDOR_ID;
@@ -763,6 +797,8 @@ static void btif_update_source_codec_capability(std::vector<btav_a2dp_codec_conf
     A2DP_BuildInfoAptx(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aptx_caps, codec_info[j ++]);
   if (codec_type_added[BTAV_A2DP_CODEC_INDEX_SOURCE_AAC])
     A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aac_caps, codec_info[j ++]);
+  if (codec_type_added[BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE])
+    A2DP_BuildInfoAptxAdaptive(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aptx_adaptive_caps, codec_info[j ++]);
   A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &a2dp_sbc_caps, codec_info[j ++]);
   BTIF_TRACE_DEBUG(" %s Num_codec_configs = %d", __func__, j);
   for (uint8_t i = 0; i < j; i ++) {
@@ -4084,7 +4120,12 @@ static bt_status_t codec_config_src(const RawAddress& bd_addr,
           }
 
     isDevUiReq = true;
-    codec_cfg_change = true;
+    if (cp.codec_specific_4 == 0 ||
+         cp.codec_type != BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE)
+      codec_cfg_change = true;
+    else {
+      BTIF_TRACE_WARNING("%s: Dont set codec_cfg_change for Aptx mode change call", __func__);
+    }
     
     codec_bda = bd_addr;
     BTIF_TRACE_DEBUG("%s: current codec_bda: %s", __func__, codec_bda.ToString().c_str());
@@ -5545,6 +5586,15 @@ void btif_av_reset_audio_delay(tBTA_AV_HNDL hndl) {
 }
 
 uint16_t btif_av_get_audio_delay(int index) {
+  A2dpCodecConfig* current_codec = bta_av_get_a2dp_current_codec();
+  if(current_codec != nullptr) {
+    if(current_codec->codecIndex() == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE) {
+      BTIF_TRACE_WARNING("%s: Updating Aptx Adaptive specific delay: %d",
+          __func__, btif_av_cb[index].codec_latency);
+      return btif_av_cb[index].codec_latency;
+    }
+  }
+
   if (index >= 0 && index < btif_max_av_clients) {
     return btif_a2dp_control_get_audio_delay(index);
   } else {
@@ -5552,6 +5602,19 @@ uint16_t btif_av_get_audio_delay(int index) {
     return btif_a2dp_control_get_audio_delay(0);
   }
 }
+
+uint16_t btif_av_get_aptx_mode_info() {
+  int index = btif_max_av_clients;
+  if (btif_av_stream_started_ready())
+    index = btif_av_get_latest_playing_device_idx();
+  else
+    index = btif_av_get_latest_device_idx_to_start();
+
+  if(index >= btif_max_av_clients) return 0;
+
+  return btif_av_cb[index].aptx_mode;
+}
+
 
 /*******************************************************************************
 **
