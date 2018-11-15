@@ -2779,6 +2779,10 @@ void btm_sec_conn_req (UINT8 *bda, UINT8 *dc)
             /* accept the connection -> allocate a device record */
             p_dev_rec = btm_sec_alloc_dev (bda);
         }
+        else
+        {
+            memcpy (p_dev_rec->dev_class, btm_cb.connecting_dc, DEV_CLASS_LEN);
+        }
         if (p_dev_rec)
         {
             p_dev_rec->sm4 |= BTM_SM4_CONN_PEND;

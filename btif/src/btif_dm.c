@@ -226,6 +226,7 @@ static void btif_dm_cb_create_bond(bt_bdaddr_t *bd_addr, tBTA_TRANSPORT transpor
 static void btif_dm_cb_hid_remote_name(tBTM_REMOTE_DEV_NAME *p_remote_name);
 static void btif_update_remote_properties(BD_ADDR bd_addr, BD_NAME bd_name,
                                           DEV_CLASS dev_class, tBT_DEVICE_TYPE dev_type);
+static void btif_dm_update_cod(BD_ADDR * bd_addr, DEV_CLASS dev_class);
 #if (defined(BLE_INCLUDED) && (BLE_INCLUDED == TRUE))
 static btif_dm_local_key_cb_t ble_local_key_cb;
 static void btif_dm_ble_key_notif_evt(tBTA_DM_SP_KEY_NOTIF *p_ssp_key_notif);
@@ -791,6 +792,42 @@ static void btif_update_remote_properties(BD_ADDR bd_addr, BD_NAME bd_name,
                      status, &bdaddr, num_properties, properties);
 }
 
+static void btif_dm_update_cod(BD_ADDR * bd_addr, DEV_CLASS dev_class) {
+    bt_property_t prop_cod;
+    bt_status_t status;
+    uint32_t cod = devclass2uint(dev_class);
+    if (check_cod(bd_addr, cod))
+    {
+        BTIF_TRACE_DEBUG("%s: dev class not changed", __func__);
+        return;
+    }
+    else
+    {
+        if (cod == 0)
+        {
+            /* Try to retrieve cod from storage */
+            BTIF_TRACE_DEBUG("%s cod is 0, checking cod from storage", __func__);
+            BTIF_STORAGE_FILL_PROPERTY(&prop_cod,
+                               BT_PROPERTY_CLASS_OF_DEVICE, sizeof(cod), &cod);
+            status = btif_storage_get_remote_device_property(
+                            bd_addr, &prop_cod);
+            BTIF_TRACE_DEBUG("%s cod retrieved from storage is 0x%06x", __func__, cod);
+            if (cod == 0) {
+                BTIF_TRACE_DEBUG("%s cod is again 0, set as unclassified", __func__);
+                cod = COD_UNCLASSIFIED;
+            }
+        }
+
+        BTIF_STORAGE_FILL_PROPERTY(&prop_cod,
+                             BT_PROPERTY_CLASS_OF_DEVICE, sizeof(cod), &cod);
+        status = btif_storage_set_remote_device_property(bd_addr, &prop_cod);
+        ASSERTC(status == BT_STATUS_SUCCESS, "failed to save remote device class",
+                           status);
+
+        HAL_CBACK(bt_hal_cbacks, remote_device_properties_cb,
+                     status, &bd_addr, 1, &prop_cod);
+    }
+}
 /*******************************************************************************
 **
 ** Function         btif_dm_cb_hid_remote_name
@@ -2089,6 +2126,7 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             }
 #endif
             btif_update_remote_version_property(&bd_addr);
+            btif_dm_update_cod(&bd_addr, p_data->link_up.dc);
 
             HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
                       &bd_addr, BT_ACL_STATE_CONNECTED);
