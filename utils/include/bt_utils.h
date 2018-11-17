@@ -88,5 +88,7 @@ bool add_iot_device(const char *filename, char* header,
 bool remove_iot_device(const char *filename, char* header,
     unsigned char* device_details, tBLACKLIST_METHOD method_type);
 bt_soc_type get_soc_type();
+//bool is_prontoEnabled(void);
+bool is_NaplesEnabled(void);
 #define UNUSED(x) (void)(x)
 #endif /* BT_UTILS_H */
