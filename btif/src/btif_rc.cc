@@ -81,6 +81,7 @@
 #include "btif_util.h"
 #include "btu.h"
 #include "device/include/interop.h"
+#include "log/log.h"
 #include "osi/include/list.h"
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
@@ -279,6 +280,7 @@ typedef struct {
   uint64_t rc_playing_uid;
   bool rc_procedure_complete;
   bool rc_play_processed;
+  bool rc_ignore_play_released;
 #if (TWS_ENABLED == TRUE)
   uint8_t tws_earbud_role;
   uint8_t tws_earbud_state;
@@ -467,6 +469,7 @@ extern fixed_queue_t* btu_general_alarm_queue;
 extern void btif_av_set_earbud_state(const RawAddress& bd_addr, uint8_t tws_earbud_state);
 extern void btif_av_set_earbud_role(const RawAddress& bd_addr, uint8_t tws_earbud_role);
 extern bool btif_av_is_tws_enabled_for_dev(const RawAddress& rc_addr);
+extern bool btif_av_current_device_is_tws();
 extern fixed_queue_t* btu_general_alarm_queue;
 
 /*****************************************************************************
@@ -892,6 +895,7 @@ void handle_rc_connect(tBTA_AV_RC_OPEN* p_rc_open) {
   p_dev->rc_connected = true;
   p_dev->rc_handle = p_rc_open->rc_handle;
   p_dev->rc_state = BTRC_CONNECTION_STATE_CONNECTED;
+  p_dev->rc_ignore_play_released = false;
   btif_rc_init_txn_label_queue(p_dev);
   /* on locally initiated connection we will get remote features as part of
    * connect */
@@ -965,6 +969,7 @@ void handle_rc_disconnect(tBTA_AV_RC_CLOSE* p_rc_close) {
 #endif
     p_dev->rc_pending_play = false;
     p_dev->rc_play_processed = false;
+    p_dev->rc_ignore_play_released = false;
     p_dev->rc_addr = RawAddress::kEmpty;
     btif_rc_init_txn_label_queue(p_dev);
   }
@@ -1186,8 +1191,33 @@ skip:
   /* pass all commands up */
   BTIF_TRACE_DEBUG("%s: rc_features: %d, cmd->rc_id: %d, pressed: %d", __func__,
                    p_dev->rc_features, p_remote_cmd->rc_id, pressed);
-  HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, pressed,
-            &rc_addr);
+
+  if (p_remote_cmd->rc_id == BTA_AV_RC_PLAY) {
+    if (pressed)  {
+      HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, 1,
+                &rc_addr);
+      sleep_ms(30);
+      APPL_TRACE_WARNING("%s: Send fake play release command", __func__);
+      HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, 0,
+                &rc_addr);
+      p_dev->rc_ignore_play_released = true;
+    } else {
+      if (p_dev->rc_ignore_play_released) {
+        APPL_TRACE_WARNING("%s: Ignore release command", __func__);
+        p_dev->rc_ignore_play_released = false;
+      } else {
+        APPL_TRACE_WARNING("%s: fake pressed command", __func__);
+        HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, 1,
+                  &rc_addr);
+        sleep_ms(30);
+        HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, 0,
+                  &rc_addr);
+      }
+    }
+  } else {
+    HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, pressed,
+              &rc_addr);
+  }
 }
 
 /***************************************************************************
@@ -1337,6 +1367,7 @@ void handle_rc_metamsg_cmd(tBTA_AV_META_MSG* pmeta_msg) {
     return;
   }
 
+  BTIF_TRACE_EVENT("%s: pmeta_msg->len: %d", __func__, pmeta_msg->len);
   if (pmeta_msg->len < 3) {
     BTIF_TRACE_WARNING("%s: Invalid length. opcode: 0x%x, len: 0x%x", __func__,
                        pmeta_msg->p_msg->hdr.opcode, pmeta_msg->len);
@@ -2579,7 +2610,11 @@ static bt_status_t get_play_status_rsp(RawAddress* bd_addr,
   {
       BTIF_TRACE_ERROR("%s: clear remote suspend flag: %d",__FUNCTION__, av_index);
       btif_av_clear_remote_suspend_flag();
-      btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
+      if(bluetooth::headset::btif_hf_check_if_sco_connected() == BT_STATUS_SUCCESS) {
+         BTIF_TRACE_ERROR("Ignore sending avdtp_start due to avrcp playing state since sco is present.");
+      } else {
+         btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
+      }
   }
 
   avrc_rsp.get_play_status.pdu = AVRC_PDU_GET_PLAY_STATUS;
@@ -2959,9 +2994,17 @@ static bt_status_t register_notification_rsp_sho_mcast(
       BTIF_TRACE_DEBUG("%s: play_status: %d",__FUNCTION__,
                             avrc_rsp.reg_notif.param.play_status);
       if ((avrc_rsp.reg_notif.param.play_status == PLAY_STATUS_PLAYING) &&
-          (btif_av_check_flag_remote_suspend(av_index))) {
+          (btif_av_check_flag_remote_suspend(av_index))
+#if (TWS_ENABLED == TRUE)
+         && !BTM_SecIsTwsPlusDev(p_dev->rc_addr)
+#endif
+         ) {
           BTIF_TRACE_ERROR("%s: clear remote suspend flag: %d",__FUNCTION__,av_index );
           btif_av_clear_remote_suspend_flag();
+          if (bluetooth::headset::btif_hf_check_if_sco_connected() == BT_STATUS_SUCCESS) {
+               BTIF_TRACE_ERROR("Ignore sending avdtp_start due to avrcp playing state since sco is present.");
+               break;
+            }
           btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
       }
       break;
@@ -3070,10 +3113,18 @@ static bt_status_t register_notification_rsp(
         BTIF_TRACE_ERROR("%s: play_status: %d",__FUNCTION__,
                               avrc_rsp.reg_notif.param.play_status);
         if ((avrc_rsp.reg_notif.param.play_status == PLAY_STATUS_PLAYING) &&
-            (btif_av_check_flag_remote_suspend(av_index)))
+            (btif_av_check_flag_remote_suspend(av_index))
+#if (TWS_ENABLED == TRUE)
+            && !BTM_SecIsTwsPlusDev(btif_rc_cb.rc_multi_cb[idx].rc_addr)
+#endif
+           )
         {
             BTIF_TRACE_ERROR("%s: clear remote suspend flag: %d",__FUNCTION__,av_index );
             btif_av_clear_remote_suspend_flag();
+            if (bluetooth::headset::btif_hf_check_if_sco_connected() == (BT_STATUS_SUCCESS)) {
+               BTIF_TRACE_ERROR("Ignore sending avdtp_start due to avrcp playing state since sco is present.");
+               break;
+            }
             btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
         }
         break;
@@ -3213,11 +3264,12 @@ static bt_status_t get_folder_items_list_rsp(RawAddress* bd_addr,
     /* create single item and build response iteratively for all num_items */
     for (item_cnt = 0; item_cnt < num_items; item_cnt++) {
       cur_item = &p_items[item_cnt];
-      item.item_type = p_items->item_type;
+      item.item_type = cur_item->item_type;
       /* build respective item based on item_type. All items should be of same
        * type within
        * a response */
-      switch (p_items->item_type) {
+      BTIF_TRACE_DEBUG("cur_item->item_type:%d,p_items->item_type:%d",cur_item->item_type,p_items->item_type);
+      switch (cur_item->item_type) {
         case AVRC_ITEM_PLAYER: {
           item.u.player.name.charset_id = cur_item->player.charset_id;
           memcpy(&(item.u.player.features), &(cur_item->player.features),
@@ -4874,6 +4926,12 @@ static void handle_app_cur_val_response(tBTA_AV_META_MSG* pmeta_msg,
   RawAddress rc_addr = p_dev->rc_addr;
 
   app_settings.num_attr = p_rsp->num_val;
+
+  if (app_settings.num_attr > BTRC_MAX_APP_SETTINGS) {
+    android_errorWriteLog(0x534e4554, "73824150");
+    app_settings.num_attr = BTRC_MAX_APP_SETTINGS;
+  }
+
   for (xx = 0; xx < app_settings.num_attr; xx++) {
     app_settings.attr_ids[xx] = p_rsp->p_vals[xx].attr_id;
     app_settings.attr_values[xx] = p_rsp->p_vals[xx].attr_val;
@@ -6649,6 +6707,12 @@ static bt_status_t update_play_status_to_stack(btrc_play_status_t play_state) {
     //CHECK for remote suspend
     //clear remote suspend and intiate start
     int index = 0;
+#if (TWS_ENABLED == TRUE)
+    if (btif_av_current_device_is_tws()) {
+      BTIF_TRACE_ERROR("%s:do not trigger start for TWS+ device for remote suspend",__func__);
+      return BT_STATUS_FAIL;
+    }
+#endif
     for (index = 0; index < btif_max_rc_clients; index++) {
       if (btif_av_check_flag_remote_suspend(index) == true) {
         break;
@@ -6659,6 +6723,10 @@ static bt_status_t update_play_status_to_stack(btrc_play_status_t play_state) {
       return BT_STATUS_FAIL;
     }
     btif_av_clear_remote_suspend_flag();
+   if (bluetooth::headset::btif_hf_check_if_sco_connected() == BT_STATUS_SUCCESS) {
+         BTIF_TRACE_ERROR("Ignore sending avdtp_start due to avrcp playing state since sco is present.");
+         return BT_STATUS_SUCCESS;
+     }
     btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
   }
   return BT_STATUS_SUCCESS;

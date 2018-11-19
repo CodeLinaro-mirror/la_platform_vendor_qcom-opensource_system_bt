@@ -55,7 +55,7 @@ extern tBTA_AV_HNDL btif_av_get_av_hdl_from_idx(int idx);
 extern bool btif_av_is_playing_on_other_idx(int current_index);
 extern bool btif_av_is_handoff_set();
 extern int btif_max_av_clients;
-
+extern bool btif_av_is_state_opened(int i);
 static void btif_a2dp_data_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
 static void btif_a2dp_ctrl_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
 static void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd);
@@ -265,6 +265,27 @@ static void btif_a2dp_recv_ctrl_data(void) {
         UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, &local_ack, sizeof(local_ack));
         break;
 
+      case A2DP_CTRL_GET_PRESENTATION_POSITION: {
+        btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
+        int idx = btif_av_get_current_playing_dev_idx();
+
+        APPL_TRACE_DEBUG("Delay Rpt: total bytes read = %d", delay_report_stats.total_bytes_read);
+        APPL_TRACE_DEBUG("Delay Rpt: delay = %d, index: %d", delay_report_stats.audio_delay[idx]);
+        UIPC_Send(UIPC_CH_ID_AV_CTRL, 0,
+                  (uint8_t*)&(delay_report_stats.total_bytes_read),
+                  sizeof(uint64_t));
+        UIPC_Send(UIPC_CH_ID_AV_CTRL, 0,
+                  (uint8_t*)&(delay_report_stats.audio_delay[idx]), sizeof(uint16_t));
+
+        uint32_t seconds = delay_report_stats.timestamp.tv_sec;
+        UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, (uint8_t*)&seconds, sizeof(seconds));
+
+        uint32_t nsec = delay_report_stats.timestamp.tv_nsec;
+        UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, (uint8_t*)&nsec, sizeof(nsec));
+        APPL_TRACE_DEBUG("Delay Rpt: seconds = %d, nsec = %d" ,seconds, nsec);
+        break;
+      }
+
       default:
         if (a2dp_cmd_pending != A2DP_CTRL_CMD_NONE)
         {
@@ -388,11 +409,13 @@ static void btif_a2dp_recv_ctrl_data(void) {
            * If we are the source, the ACK will be sent after the start
            * procedure is completed, othewise send it now.
            */
-          btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
-          int idx = btif_av_get_latest_device_idx_to_start();
-          if (btif_av_get_peer_sep(idx) == AVDT_TSEP_SRC)
-            btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
+          if (cur_idx <  btif_max_av_clients &&
+              btif_av_is_state_opened(cur_idx)) {
+            btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
+            if (btif_av_get_peer_sep(cur_idx) == AVDT_TSEP_SRC)
+              btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
           break;
+          }
         } else if (btif_av_is_handoff_set() && !(is_block_hal_start)) {
           APPL_TRACE_DEBUG("%s: Entertain Audio Start after stream open", __func__);
           UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
@@ -453,6 +476,7 @@ static void btif_a2dp_recv_ctrl_data(void) {
          * audioflinger close the channel. This can happen if we are
          * remotely suspended, clear REMOTE SUSPEND flag.
          */
+        btif_av_clear_remote_suspend_flag();
         btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
         break;
 
@@ -693,11 +717,13 @@ void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd) {
          * If we are the source, the ACK will be sent after the start
          * procedure is completed, othewise send it now.
          */
-        btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
-        int idx = btif_av_get_latest_device_idx_to_start();
-        if (btif_av_get_peer_sep(idx) == AVDT_TSEP_SRC)
-          btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
-        break;
+        if (cur_idx <  btif_max_av_clients &&
+                btif_av_is_state_opened(cur_idx)) {
+          btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
+          if (btif_av_get_peer_sep(cur_idx) == AVDT_TSEP_SRC)
+            btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
+          break;
+        }
       } else if (btif_av_is_handoff_set() && !(is_block_hal_start)) {
         APPL_TRACE_DEBUG("%s: Entertain Audio Start after stream open", __func__);
         UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
@@ -758,6 +784,7 @@ void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd) {
        * audioflinger close the channel. This can happen if we are
        * remotely suspended, clear REMOTE SUSPEND flag.
        */
+      btif_av_clear_remote_suspend_flag();
       btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
       break;
 
