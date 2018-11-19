@@ -1400,3 +1400,61 @@ void AVDT_SINK_Deactivate()
         }
     }
 }
+
+/*******************************************************************************
+ *
+ * Function         AVDT_SndPendingSigStart_Rsp
+ *
+ * Description      Send pending Start Response to remote
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+
+void AVDT_SndPendingSigStart_Rsp(uint8_t handle, bool accepted )
+{
+    AVDT_TRACE_DEBUG("%s", __func__);
+    tAVDT_SCB *p_scb = avdt_scb_by_hdl(handle);
+    tAVDT_SCB_EVT evt;
+    if (p_scb != NULL)
+    {
+        AVDT_TRACE_DEBUG("%s accepted = %d ", __func__,accepted);
+        if (accepted) {
+          evt.msg.hdr.err_code = AVDT_SUCCESS;
+        } else {
+          evt.msg.hdr.err_code = AVDT_BAD_PARAMS;
+        }
+        avdt_scb_event(p_scb, AVDT_SCB_API_PENDING_START_RSP_EVT, &evt);
+    } else {
+        AVDT_TRACE_DEBUG("%s Improper SCB, can not send SIG START", __func__);
+    }
+}
+
+/*******************************************************************************
+ *
+ * Function         AVDT_SndPendingSigSuspend_Rsp
+ *
+ * Description      Send pending Start Response to remote
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+
+void AVDT_SndPendingSigSuspend_Rsp(uint8_t handle, bool accepted )
+{
+    AVDT_TRACE_DEBUG("%s", __func__);
+    tAVDT_SCB *p_scb = avdt_scb_by_hdl(handle);
+    tAVDT_SCB_EVT evt;
+    if (p_scb != NULL)
+    {
+        AVDT_TRACE_DEBUG("%s accepted = %d ", __func__,accepted);
+        if (accepted) {
+          evt.msg.hdr.err_code = AVDT_SUCCESS;
+        } else {
+          evt.msg.hdr.err_code = AVDT_BAD_PARAMS;
+        }
+        avdt_scb_event(p_scb, AVDT_SCB_API_PENDING_SUSPEND_RSP_EVT, &evt);
+    } else {
+        AVDT_TRACE_DEBUG("%s Improper SCB, can not send SIG SUSPEND", __func__);
+    }
+}

@@ -45,6 +45,7 @@ AM_CPPFLAGS= \
         -I${WORKSPACE}/external/zlib \
         -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/hal/include \
         -I${WORKSPACE}/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/stack/include \
+        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/bthost_ipc \
         -I${WORKSPACE}/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/udrv/include \
         -I$(external_bt_path)/vhal/include
 
@@ -105,7 +106,9 @@ c_sources = \
 cpp_sources += \
     ../udrv/ulinux/uipc.cc \
     $(external_bt_path)/system_bt_ext/btif/src/btif_avk_media_task.cc \
+    $(external_bt_path)/system_bt_ext/btif/src/btif_avk_split_media_task.cc \
     $(external_bt_path)/system_bt_ext/btif/src/btif_avk.cc \
+    $(external_bt_path)/system_bt_ext/btif/src/btif_avk_split.cc \
     $(external_bt_path)/system_bt_ext/btif/src/btif_avk_rc.cc \
     $(external_bt_path)/system_bt_ext/btif/src/btif_avk_media_aac.cc \
     $(external_bt_path)/system_bt_ext/btif/src/btif_avk_media_mp3.cc \

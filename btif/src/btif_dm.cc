@@ -273,6 +273,7 @@ static btif_dm_pairing_cb_t pairing_cb;
 static btif_dm_oob_cb_t oob_cb;
 static uint16_t num_active_br_edr_links;
 static uint16_t num_active_le_links;
+static bool is_split_sink_enabled = FALSE;
 static void btif_dm_generic_evt(uint16_t event, char* p_param);
 static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
                                    tBTA_TRANSPORT transport);
@@ -303,6 +304,7 @@ static void btif_stats_add_bond_event(const RawAddress& bd_addr,
 extern bt_status_t btif_hf_execute_service(bool b_enable);
 extern bt_status_t btif_av_execute_service(bool b_enable);
 extern bt_status_t btif_avk_sink_execute_service(bool b_enable);
+extern bt_status_t btif_avk_split_sink_execute_service(bool b_enable);
 extern bt_status_t btif_hh_execute_service(bool b_enable);
 extern bt_status_t btif_hf_client_execute_service(bool b_enable);
 extern bt_status_t btif_sdp_execute_service(bool b_enable);
@@ -320,6 +322,11 @@ extern void btif_vendor_iot_device_broadcast_event(RawAddress* bd_addr,
 /******************************************************************************
  *  Functions
  *****************************************************************************/
+
+bool is_a2dp_split_sink_enabled() {
+  BTIF_TRACE_DEBUG("%s: Sink Enabeld %d", __func__,is_split_sink_enabled);
+  return is_split_sink_enabled;
+}
 
 static bool is_empty_128bit(uint8_t* data) {
   static const uint8_t zero[16] = {0};
@@ -401,6 +408,11 @@ bt_status_t btif_in_execute_service_request(tBTA_SERVICE_ID service_id,
     case BTA_A2DP_SINK_SERVICE_ID: {
       btif_avk_sink_execute_service(b_enable);
     } break;
+    case BTA_A2DP_SPLIT_SINK_SERVICE_ID: {
+      is_split_sink_enabled = b_enable;
+      btif_avk_split_sink_execute_service(b_enable);
+      break;
+    }
     case BTA_HID_SERVICE_ID: {
       btif_hh_execute_service(b_enable);
     } break;

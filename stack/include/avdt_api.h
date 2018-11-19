@@ -440,6 +440,7 @@ typedef struct {
   uint8_t media_type; /* Media type: AVDT_MEDIA_TYPE_* */
   uint16_t nsc_mask;  /* Nonsupported protocol command messages */
   uint8_t registration_id;/* All SCBs created during single registration will have same value.*/
+  bool is_split_enabled; /* variable to indicate is split is enabled on this SEP */
 } tAVDT_CS;
 
 /* AVDT data option mask is used in the write request */
@@ -983,6 +984,28 @@ extern void AVDT_SINK_Activate(void);
 **
 *******************************************************************************/
 extern void AVDT_SINK_Deactivate(void);
+
+/*******************************************************************************
+ *
+ * Function         AVDT_SndPendingSigStart_Rsp
+ *
+ * Description      Send pending Start Response to remote
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+extern void AVDT_SndPendingSigStart_Rsp(uint8_t handle, bool accepted);
+
+/*******************************************************************************
+ *
+ * Function         AVDT_SndPendingSigSuspend_Rsp
+ *
+ * Description      Send pending Start Response to remote
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+extern void AVDT_SndPendingSigSuspend_Rsp(uint8_t handle, bool accepted);
 
 /*******************************************************************************
 **

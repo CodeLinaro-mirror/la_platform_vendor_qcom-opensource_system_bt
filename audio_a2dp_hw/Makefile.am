@@ -23,7 +23,7 @@ cpp_sources = \
         src/audio_a2dp_hw.cc \
         src/audio_a2dp_hw_utils.cc
 
-common_LDFLAGS = -lpthread  -lrt ../osi/libbtosi.la
+common_LDFLAGS = -lpthread  -lrt ../osi/libbtosi.la -lchrome
 common_CFLAGS =  $(AM_CFLAGS) -fPIC -D_GNU_SOURCE
 
 library_includedir = $(pkgincludedir)
@@ -34,16 +34,4 @@ libaudioa2dpdefault_la_SOURCES = $(cpp_sources)
 libaudioa2dpdefault_la_CPPFLAGS =$(AM_CPPFLAGS)  $(common_CFLAGS)
 libaudioa2dpdefault_la_CFLAGS = $(common_CFLAGS)
 libaudioa2dpdefault_la_LDFLAGS = $(common_LDFLAGS)
-
-########BT_HOST_IPC########
-
-ipc_sources = \
-           src/bthost_ipc.cc
-
-library_includedir = $(pkgincludedir)
-lib_LTLIBRARIES +=  libbthost_if.la
-libbthost_if_la_SOURCES = $(ipc_sources)
-libbthost_if_la_CPPFLAGS =$(AM_CPPFLAGS)    $(common_CFLAGS)
-libbthost_if_la_CFLAGS = $(common_CFLAGS)
-libbthost_if_la_LDFLAGS = $(common_LDFLAGS) -avoid-version
 

@@ -729,7 +729,14 @@ void avdt_scb_hdl_setconfig_rej(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
 void avdt_scb_hdl_setconfig_rsp(tAVDT_SCB* p_scb,
                                 UNUSED_ATTR tAVDT_SCB_EVT* p_data) {
   tAVDT_EVT_HDR single;
-  int rendering_delay = btif_avk_get_rendering_delay(p_scb->p_ccb->peer_addr);
+  int rendering_delay;
+  if (p_scb->cs.is_split_enabled) {
+    rendering_delay = btif_avk_split_get_rendering_delay(p_scb->p_ccb->peer_addr);
+    APPL_TRACE_DEBUG(" %s split enabled, rendering delay = %d",__func__,rendering_delay);
+  } else {
+    rendering_delay = btif_avk_get_rendering_delay(p_scb->p_ccb->peer_addr);
+    APPL_TRACE_DEBUG(" %s non-split, rendering delay = %d",__func__,rendering_delay);
+  }
 
   if (p_scb->p_ccb != NULL) {
     /* save configuration */
@@ -770,13 +777,54 @@ void avdt_scb_hdl_start_cmd(tAVDT_SCB* p_scb,
                             UNUSED_ATTR tAVDT_SCB_EVT* p_data) {
   if(p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT) {
     if((!alarm_is_scheduled(p_scb->delay_report_timer)) && (p_scb->cs.tsep == AVDT_TSEP_SNK)) {
-      alarm_set(p_scb->delay_report_timer, (period_ms_t)1000 ,(alarm_callback_t)avdt_delay_rpt_tmr_hdlr, (void*)p_scb);
+      alarm_set(p_scb->delay_report_timer, (period_ms_t)1000 ,
+                     (alarm_callback_t)avdt_delay_rpt_tmr_hdlr, (void*)p_scb);
       AVDT_TRACE_DEBUG(" %s ~~ set delay report timer",__func__);
     }
   }
   (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
                             p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
                             AVDT_START_IND_EVT, NULL);
+}
+
+/*******************************************************************************
+ *
+ * Function         avdt_scb_hdl_pending_start_rsp
+ *
+ * Description      This function send a indication to ccb to send response
+ *                  for a pending start request.
+ *
+ * Returns          Nothing.
+ *
+ ******************************************************************************/
+void avdt_scb_hdl_pending_start_rsp(tAVDT_SCB* p_scb,
+                            tAVDT_SCB_EVT* p_data) {
+  tAVDT_CCB           *p_ccb = p_scb->p_ccb;
+  tAVDT_CCB_EVT avdt_ccb_evt;
+  AVDT_TRACE_DEBUG(" %s send event to ccb error_code =%d", __func__,p_data->msg.hdr.err_code);
+  avdt_ccb_evt.msg.hdr.err_code = p_data->msg.hdr.err_code;
+
+  avdt_ccb_event(p_ccb, AVDT_CCB_API_PENDING_START_RSP_EVT, &avdt_ccb_evt);
+}
+
+/*******************************************************************************
+ *
+ * Function         avdt_scb_hdl_pending_suspend_rsp
+ *
+ * Description      This function send a indication to ccb to send response
+ *                  for a pending start request.
+ *
+ * Returns          Nothing.
+ *
+ ******************************************************************************/
+void avdt_scb_hdl_pending_suspend_rsp(tAVDT_SCB* p_scb,
+                            tAVDT_SCB_EVT* p_data) {
+  tAVDT_CCB           *p_ccb = p_scb->p_ccb;
+  tAVDT_CCB_EVT avdt_ccb_evt;
+  AVDT_TRACE_DEBUG(" %s send event to ccb error_code =%d", __func__,p_data->msg.hdr.err_code);
+  avdt_ccb_evt.msg.hdr.err_code = p_data->msg.hdr.err_code;
+
+  avdt_ccb_event(p_ccb, AVDT_CCB_API_PENDING_SUSPEND_RSP_EVT, &avdt_ccb_evt);
 }
 
 /*******************************************************************************
@@ -814,8 +862,10 @@ void avdt_scb_hdl_start_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
 void avdt_scb_hdl_suspend_cmd(tAVDT_SCB* p_scb,
                               UNUSED_ATTR tAVDT_SCB_EVT* p_data) {
   if((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
-    alarm_cancel(p_scb->delay_report_timer);
-    AVDT_TRACE_DEBUG(" %s ~~ cancelled delay report timer",__func__);
+      if(!p_scb->cs.is_split_enabled) {
+          alarm_cancel(p_scb->delay_report_timer);
+          AVDT_TRACE_DEBUG(" %s ~~ cancelled delay report timer",__func__);
+      }
   }
   (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
                             p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
@@ -834,8 +884,10 @@ void avdt_scb_hdl_suspend_cmd(tAVDT_SCB* p_scb,
  ******************************************************************************/
 void avdt_scb_hdl_suspend_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   if((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
-    alarm_cancel(p_scb->delay_report_timer);
-    AVDT_TRACE_DEBUG(" %s ~~ cancelled delay report timer",__func__);
+    if(!p_scb->cs.is_split_enabled) {
+      alarm_cancel(p_scb->delay_report_timer);
+      AVDT_TRACE_DEBUG(" %s ~~ cancelled delay report timer",__func__);
+    }
   }
   (*p_scb->cs.p_ctrl_cback)(
       avdt_scb_to_hdl(p_scb), p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
@@ -1034,11 +1086,14 @@ void avdt_scb_hdl_tc_open(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   alarm_cancel(p_scb->transport_channel_timer);
 
   if ((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
-    p_scb->delay_report_timer =
+    // in case of split mode, no need for timer, 
+    if(!p_scb->cs.is_split_enabled) {
+        p_scb->delay_report_timer =
            alarm_new_periodic("avdt.delayreport");
-    alarm_set(p_scb->delay_report_timer, (period_ms_t)1000 ,(alarm_callback_t)avdt_delay_rpt_tmr_hdlr,
-              (void*)p_scb);
-    AVDT_TRACE_DEBUG(" %s ~~ start update delay report timer",__func__);
+        alarm_set(p_scb->delay_report_timer, (period_ms_t)1000 ,
+            (alarm_callback_t)avdt_delay_rpt_tmr_hdlr, (void*)p_scb);
+        AVDT_TRACE_DEBUG(" %s ~~ start update delay report timer",__func__);
+    }
   }
 
   event =
@@ -1454,7 +1509,14 @@ void avdt_scb_snd_setconfig_req(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
  *
  ******************************************************************************/
 void avdt_scb_snd_setconfig_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
-  int rendering_delay = btif_avk_get_rendering_delay(p_scb->p_ccb->peer_addr);
+  int rendering_delay;
+  if (p_scb->cs.is_split_enabled) {
+    rendering_delay = btif_avk_split_get_rendering_delay(p_scb->p_ccb->peer_addr);
+    APPL_TRACE_DEBUG(" %s split enabled, rendering delay = %d",__func__,rendering_delay);
+  } else {
+    rendering_delay = btif_avk_get_rendering_delay(p_scb->p_ccb->peer_addr);
+    APPL_TRACE_DEBUG(" %s non-split, rendering delay = %d",__func__,rendering_delay);
+  }
   if (p_scb->p_ccb != NULL) {
     memcpy(&p_scb->curr_cfg, &p_scb->req_cfg, sizeof(tAVDT_CFG));
     p_scb->role = AVDT_CONF_ACP;
