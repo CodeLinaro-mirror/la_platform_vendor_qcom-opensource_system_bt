@@ -34,6 +34,8 @@
 #include "bt_target.h"
 #include "bt_types.h"
 #include "btm_api.h"
+#include "btm_int.h"
+#include "btm_int_types.h"
 #include "btu.h"
 #include "l2c_api.h"
 #include "stack/include/a2dp_codec_api.h"
@@ -1481,4 +1483,27 @@ void AVDT_SndPendingSigSuspend_Rsp(uint8_t handle, bool accepted )
     } else {
         AVDT_TRACE_DEBUG("%s Improper SCB, can not send SIG SUSPEND", __func__);
     }
+}
+
+/*******************************************************************************
+ *
+ * Function         AVDT_UpdateLinkPktType
+ *
+ * Description      Sends command to change packet type for a link
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void AVDT_UpdateLinkPktType(uint8_t hdl, uint16_t packet_type) {
+        tAVDT_SCB* p_scb = NULL;
+        tAVDT_CCB* p_ccb = NULL;
+        tACL_CONN* p_acl_cb = NULL;
+
+        p_scb = avdt_scb_by_hdl(hdl);
+        if (p_scb != NULL)
+                p_ccb = avdt_scb_by_hdl(hdl)->p_ccb;
+        if (p_ccb != NULL)
+                p_acl_cb = btm_bda_to_acl(p_ccb->peer_addr, BT_TRANSPORT_BR_EDR);
+        if (p_acl_cb != NULL)
+                btm_set_packet_types(p_acl_cb, packet_type);
 }

@@ -662,6 +662,9 @@ bool A2dpCodecs::init(bool isMulticastEnabled, bool isShoEnabled, std::vector<bt
       case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD:
        update_local_capability_aptxhd(&(cp->codec_local_capability_));
        break;
+     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE:
+       update_local_capability_aptxad(&(cp->codec_local_capability_));
+       break;
       case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
        update_local_capability_ldac(&(cp->codec_local_capability_));
        break;
@@ -705,7 +708,7 @@ bool A2dpCodecs::init(bool isMulticastEnabled, bool isShoEnabled, std::vector<bt
       if(codec_index == BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC)
         ldac_encoder_available = false;
       if(codec_index == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE)
-        aptxhd_encoder_available = false;
+        aptxad_encoder_available = false;
       continue;
     }
 
