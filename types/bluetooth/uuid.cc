@@ -19,10 +19,15 @@
 #include "uuid.h"
 
 #include <time.h>
+#include <sys/time.h>
+
 #include <algorithm>
 #include <cstring>
 #include <stdint.h>
 #include <stdlib.h>
+
+#define USEC_PER_SEC 1000000L
+
 namespace bluetooth {
 
 static_assert(sizeof(Uuid) == 16, "Uuid must be 16 bytes long!");
@@ -147,7 +152,13 @@ const UUID128Bit& Uuid::To128BitBE() const { return uu; }
 
 Uuid Uuid::GetRandom() {
   Uuid u = kBase;
-  srand(time(0));
+
+  struct timespec now;
+  unsigned long long now_us;
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  now_us = now.tv_sec * USEC_PER_SEC + now.tv_nsec / 1000;
+
+  srand(now_us);
   for(int i = 0; i<16; i++)
     u.uu[i] = ((uint8_t) rand());
   return u;
