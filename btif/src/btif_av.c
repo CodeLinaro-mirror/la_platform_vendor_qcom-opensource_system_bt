@@ -48,6 +48,7 @@
 #include "device/include/interop.h"
 #include "btif_storage.h"
 #include "audio_a2dp_hw.h"
+#include "btcore/include/bdaddr.h"
 
 /*****************************************************************************
 **  Constants & Macros
@@ -850,7 +851,7 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
         case BTA_AV_MTU_CONFIG_EVT:
         {
             tBTA_AV *p_bta_data = (tBTA_AV*)p_data;
-            BTIF_TRACE_DEBUG("event: BTA_AV_MTU_CONFIG_EVT");
+            BTIF_TRACE_DEBUG("event: BTA_AV_MTU_CONFIG_EVT mtu = %d",p_bta_data->mtu_config.mtu);
             HAL_CBACK(bt_av_src_vendor_callbacks, mtu_packettype_cb, p_bta_data->mtu_config.mtu,
                 p_bta_data->mtu_config.packet_type,&btif_av_cb[index].peer_bda);
         }
@@ -1145,7 +1146,7 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
         case BTA_AV_MTU_CONFIG_EVT:
         {
             tBTA_AV *p_bta_data = (tBTA_AV*)p_data;
-            BTIF_TRACE_DEBUG("event: BTA_AV_MTU_CONFIG_EVT");
+            BTIF_TRACE_DEBUG("event: BTA_AV_MTU_CONFIG_EVT mtu = %d",p_bta_data->mtu_config.mtu);
             HAL_CBACK(bt_av_src_vendor_callbacks, mtu_packettype_cb, p_bta_data->mtu_config.mtu,p_bta_data->mtu_config.packet_type,&btif_av_cb[index].peer_bda);
         }
             break;
@@ -1649,7 +1650,7 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
         case BTA_AV_MTU_CONFIG_EVT:
         {
             bt_bdaddr_t peer_addr;
-            BTIF_TRACE_DEBUG("event: BTA_AV_MTU_CONFIG_EVT");
+            BTIF_TRACE_DEBUG("event: BTA_AV_MTU_CONFIG_EVT mtu = %d",p_av->mtu_config.mtu);
             HAL_CBACK(bt_av_src_vendor_callbacks, mtu_packettype_cb, p_av->mtu_config.mtu,p_av->mtu_config.packet_type,&btif_av_cb[index].peer_bda);
         }
             break;
@@ -1706,6 +1707,7 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
     btif_sm_state_t state = BTIF_AV_STATE_IDLE;
     int i;
     BOOLEAN hal_suspend_pending = FALSE;
+    tBTIF_STATUS status;
 
     BTIF_TRACE_IMP("%s event:%s flags %x  index =%d", __FUNCTION__,
                      dump_av_sm_event_name(event), btif_av_cb[index].flags, index);
@@ -1733,6 +1735,16 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
                 }
                 else
                 {
+                    /* make sure the codec is inited, if started remotely*/
+                    status = btif_a2dp_setup_codec(btif_av_cb[index].bta_handle);
+                    if (status == BTIF_SUCCESS)
+                    {
+                        BTIF_TRACE_IMP("%s setup codec success", __func__);
+                    }
+                    else
+                    {
+                        BTIF_TRACE_IMP("%s setup codec failed", __func__);
+                    }
                     BTIF_TRACE_IMP("%s Do not update media task on remote start for index =%d",
                         __FUNCTION__, index);
                 }
