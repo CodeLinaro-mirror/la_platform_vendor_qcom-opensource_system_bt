@@ -854,7 +854,7 @@ size_t btif_media_writebuf_vendor(bt_bdaddr_t *bd_addr, const void* buffer, size
         }
         else{
             APPL_TRACE_DEBUG("### discarded frame ###");
-            while(fixed_queue_length(btif_a2dp_source_cb.tx_audio_queue) == 0){
+            while(fixed_queue_length(btif_a2dp_source_cb.tx_audio_queue) != 0){
                 osi_free(fixed_queue_try_dequeue(btif_a2dp_source_cb.tx_audio_queue));
             }
             return 0;
