@@ -398,8 +398,9 @@ typedef struct
     UINT16 offset;
     A2D_APTX_ENC_PARAMS aptxEncoderParams;
     A2D_APTX_HD_ENC_PARAMS aptxhdEncoderParams;
-    UINT16 as16PcmBuffer[1024];
-    UINT32 as32PcmBuffer[1024];
+    //UINT16 as16PcmBuffer[1024];
+    //UINT32 as32PcmBuffer[1024];
+    UINT16 pcmBuffer[SBC_MAX_NUM_FRAME * SBC_MAX_NUM_OF_BLOCKS * SBC_MAX_NUM_OF_CHANNELS * SBC_MAX_NUM_OF_SUBBANDS];
     UINT8* sbcBufferReadPtr;
     UINT8  asDataBuffer[20000];
     UINT8* dataBufferReadPtr;
@@ -1384,6 +1385,16 @@ static void btif_a2dp_encoder_init(tBTA_AV_HNDL hdl)
     msg.SamplingFreq = freq_block_tbl[sbc_config.samp_freq >> 5];
     msg.MtuSize = minmtu;
     msg.CodecType = BTIF_AV_CODEC_SBC;
+    switch (sbc_config.ch_mode) {
+    case A2D_SBC_IE_CH_MD_MONO:
+        msg.NumOfChannels = 1;
+    case A2D_SBC_IE_CH_MD_DUAL:
+    case A2D_SBC_IE_CH_MD_STEREO:
+    case A2D_SBC_IE_CH_MD_JOINT:
+        msg.NumOfChannels = 2;
+    default:
+        break;
+  }
 
     APPL_TRACE_EVENT("msg.ChannelMode %x", msg.ChannelMode);
 
@@ -2975,6 +2986,7 @@ static void btif_media_task_enc_init(BT_HDR *p_msg)
     btif_media_cb.encoder.s16NumOfBlocks = pInitAudio->NumOfBlocks;
     btif_media_cb.encoder.s16AllocationMethod = pInitAudio->AllocationMethod;
     btif_media_cb.encoder.s16SamplingFreq = pInitAudio->SamplingFreq;
+    btif_media_cb.encoder.s16NumOfChannels = pInitAudio->NumOfChannels;
 
     btif_media_cb.encoder.u16BitRate = btif_media_task_get_sbc_rate();
 
@@ -3018,9 +3030,9 @@ static void btif_media_task_enc_update(BT_HDR *p_msg)
     tBTIF_MEDIA_UPDATE_AUDIO * pUpdateAudio = (tBTIF_MEDIA_UPDATE_AUDIO *) p_msg;
     SBC_ENC_PARAMS *pstrEncParams = &btif_media_cb.encoder;
     UINT16 s16SamplingFreq;
-    SINT16 s16BitPool = 0;
-    SINT16 s16BitRate;
-    SINT16 s16FrameLen;
+    int16_t s16BitPool = 0;
+    int16_t s16BitRate;
+    int16_t s16FrameLen;
     UINT8 protect = 0;
 
     APPL_TRACE_DEBUG("%s : minmtu %d, maxbp %d minbp %d", __func__,
@@ -3118,7 +3130,7 @@ static void btif_media_task_enc_update(BT_HDR *p_msg)
 
             if ((pstrEncParams->s16ChannelMode == SBC_JOINT_STEREO) ||
                 (pstrEncParams->s16ChannelMode == SBC_STEREO)) {
-                s16BitPool = (SINT16)((pstrEncParams->u16BitRate *
+                s16BitPool = (int16_t)((pstrEncParams->u16BitRate *
                         pstrEncParams->s16NumOfSubBands * 1000 / s16SamplingFreq)
                         - ((32 + (4 * pstrEncParams->s16NumOfSubBands *
                         pstrEncParams->s16NumOfChannels)
@@ -3144,7 +3156,7 @@ static void btif_media_task_enc_update(BT_HDR *p_msg)
                 else
                     s16BitPool = (s16BitPool > 128) ? 128 : s16BitPool;
             } else {
-                s16BitPool = (SINT16)(((pstrEncParams->s16NumOfSubBands *
+                s16BitPool = (int16_t)(((pstrEncParams->s16NumOfSubBands *
                         pstrEncParams->u16BitRate * 1000)
                         / (s16SamplingFreq * pstrEncParams->s16NumOfChannels))
                         - (((32 / pstrEncParams->s16NumOfChannels) +
@@ -4615,7 +4627,7 @@ BOOLEAN btif_media_aa_read_feeding(tUIPC_CH_ID channel_id)
 
     if (sbc_sampling == btif_media_cb.media_feeding.cfg.pcm.sampling_freq) {
         read_size = bytes_needed - btif_media_cb.media_feeding_state.pcm.aa_feed_residue;
-        nb_byte_read = get_pcm_data_from_buffer(((UINT8 *)btif_media_cb.encoder.as32PcmBuffer) +
+        nb_byte_read = get_pcm_data_from_buffer(((UINT8 *)btif_media_cb.pcmBuffer) +
                   btif_media_cb.media_feeding_state.pcm.aa_feed_residue,
                   read_size);
         if (nb_byte_read == read_size) {
@@ -4732,7 +4744,7 @@ BOOLEAN btif_media_aa_read_feeding(tUIPC_CH_ID channel_id)
     if(btif_media_cb.media_feeding_state.pcm.aa_feed_residue >= bytes_needed)
     {
         /* Copy the output pcm samples in SBC encoding buffer */
-        memcpy((UINT8 *)btif_media_cb.encoder.as32PcmBuffer,
+        memcpy((UINT8 *)btif_media_cb.pcmBuffer,
                 (UINT8 *)up_sampled_buffer,
                 bytes_needed);
         /* update the residue */
@@ -4766,6 +4778,7 @@ static void btif_media_aa_prep_sbc_2_send(UINT8 nb_frame,
     UINT16 blocm_x_subband = btif_media_cb.encoder.s16NumOfSubBands *
                              btif_media_cb.encoder.s16NumOfBlocks;
 
+    uint8_t last_frame_len = 0;
     BOOLEAN feed_result = FALSE;
     UINT8 *tmpPtr;
     UINT32 tmpLength;
@@ -4790,9 +4803,10 @@ static void btif_media_aa_prep_sbc_2_send(UINT8 nb_frame,
             if(btif_media_cb.data_codec_type == A2DP_SRC_AUDIO_CODEC_PCM)
             {
                /* Write @ of allocated buffer in encoder.pu8Packet */
-               btif_media_cb.encoder.pu8Packet = (UINT8 *) (p_buf + 1) + p_buf->offset + p_buf->len;
+               UINT8* output = (UINT8 *) (p_buf + 1) + p_buf->offset + p_buf->len;
+               UINT16* input = btif_media_cb.pcmBuffer;
                /* Fill allocated buffer with 0 */
-               memset(btif_media_cb.encoder.as32PcmBuffer, 0, blocm_x_subband
+               memset(btif_media_cb.pcmBuffer, 0, blocm_x_subband
                                * btif_media_cb.encoder.s16NumOfChannels * 2);
                 feed_result = btif_media_aa_read_feeding(UIPC_CH_ID_AV_AUDIO);
                 if (feed_result)
@@ -4800,11 +4814,11 @@ static void btif_media_aa_prep_sbc_2_send(UINT8 nb_frame,
                 {
                     size_t frames  = blocm_x_subband * btif_media_cb.encoder.s16NumOfChannels;
                 /* LE supports only 16bit sample */
-                    memcpy_by_audio_format(btif_media_cb.encoder.as16PcmBuffer, AUDIO_FORMAT_PCM_16_BIT, btif_media_cb.encoder.as32PcmBuffer, AUDIO_FORMAT_PCM_16_BIT, frames);
-                    SBC_Encoder(&(btif_media_cb.encoder));
-
+                    //memcpy_by_audio_format(btif_media_cb.encoder.as16PcmBuffer, AUDIO_FORMAT_PCM_16_BIT, btif_media_cb.encoder.as32PcmBuffer, AUDIO_FORMAT_PCM_16_BIT, frames);
+                    uint16_t output_len = SBC_Encode(&(btif_media_cb.encoder), input, output);
+                    last_frame_len = output_len;
                 /* Update SBC frame length */
-                    p_buf->len += btif_media_cb.encoder.u16PacketLength;
+                    p_buf->len += output_len;
                     nb_frame--;
                     p_buf->layer_specific++;
                  }
@@ -4840,7 +4854,7 @@ static void btif_media_aa_prep_sbc_2_send(UINT8 nb_frame,
                     return;
                 }
             }
-        } while (((p_buf->len + btif_media_cb.encoder.u16PacketLength) < btif_media_cb.TxAaMtuSize)
+        } while (((p_buf->len + last_frame_len) < btif_media_cb.TxAaMtuSize)
                 && (p_buf->layer_specific < 0x0F) && nb_frame);
 
         if(p_buf->len)
