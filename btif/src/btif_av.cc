@@ -3456,12 +3456,31 @@ static bt_status_t init_src(
   }
   return status;
 }
+
 static bt_status_t init_src( // gghai
     btav_source_callbacks_t* callbacks,
     int max_connected_audio_devices,
     std::vector<btav_a2dp_codec_config_t> codec_priorities) {
   int a2dp_multicast_state = 0;
 
+  if(codec_priorities.empty()) {
+      BTIF_TRACE_IMP("%s: Codec priorities set default value", __func__);
+      for (int i = BTAV_A2DP_CODEC_INDEX_SOURCE_MAX -1; i >= BTAV_A2DP_CODEC_INDEX_SOURCE_MIN; i--) {
+        btav_a2dp_codec_config_t codec_config = {
+        .codec_type = static_cast<btav_a2dp_codec_index_t>(i),
+        .codec_priority = static_cast<btav_a2dp_codec_priority_t>((1000*i)+1),
+        .sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_NONE,
+        .bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE,
+        .channel_mode = BTAV_A2DP_CODEC_CHANNEL_MODE_NONE,
+        .codec_specific_1 = 0,
+        .codec_specific_2 = 0,
+        .codec_specific_3 = 0,
+        .codec_specific_4 = 0,
+        .codec_specific_5 = 0,
+        };
+    codec_priorities.push_back(codec_config);
+    }
+  }
   if(max_connected_audio_devices > BTIF_AV_NUM_CB) {
     BTIF_TRACE_ERROR("%s: App setting maximum allowable connections(%d) to more than limit(%d)",
             __func__, max_connected_audio_devices, BTIF_AV_NUM_CB);
