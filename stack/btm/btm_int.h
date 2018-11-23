@@ -142,6 +142,7 @@ extern void btm_pm_proc_cmd_status(uint8_t status);
 extern void btm_pm_proc_mode_change(uint8_t hci_status, uint16_t hci_handle,
                                     uint8_t mode, uint16_t interval);
 extern void btm_pm_proc_ssr_evt(uint8_t* p, uint16_t evt_len);
+extern bool btm_pm_is_mode_pend_link(uint16_t hci_handle);
 extern tBTM_STATUS btm_read_power_mode_state(const RawAddress& remote_bda,
                                              tBTM_PM_STATE* pmState);
 #if (BTM_SCO_INCLUDED == TRUE)
@@ -198,7 +199,7 @@ extern void btm_ble_resolving_list_remove_dev(tBTM_SEC_DEV_REC* p_dev_rec);
 
 /* Vendor Specific Command complete evt handler */
 extern void btm_vsc_complete(uint8_t* p, uint16_t cc_opcode, uint16_t evt_len,
-                             tBTM_CMPL_CB* p_vsc_cplt_cback);
+                             tBTM_VSC_CMPL_CB* p_vsc_cplt_cback);
 extern void btm_inq_db_reset(void);
 extern void btm_vendor_specific_evt(uint8_t* p, uint8_t evt_len);
 extern void btm_delete_stored_link_key_complete(uint8_t* p);
