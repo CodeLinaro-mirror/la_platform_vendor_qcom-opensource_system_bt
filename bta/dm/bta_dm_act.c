@@ -61,7 +61,7 @@ static UINT8 bta_dm_authorize_cback (BD_ADDR bd_addr, DEV_CLASS dev_class, BD_NA
 static UINT8 bta_dm_pin_cback (BD_ADDR bd_addr, DEV_CLASS dev_class, BD_NAME bd_name, BOOLEAN min_16_digit);
 static UINT8 bta_dm_new_link_key_cback(BD_ADDR bd_addr, DEV_CLASS dev_class, BD_NAME bd_name, LINK_KEY key, UINT8 key_type);
 static UINT8 bta_dm_authentication_complete_cback(BD_ADDR bd_addr, DEV_CLASS dev_class,BD_NAME bd_name, int result);
-static void bta_dm_local_name_cback(BD_ADDR bd_addr);
+static void bta_dm_local_name_cback(void* p_name);
 static BOOLEAN bta_dm_check_av(UINT16 event);
 static void bta_dm_bl_change_cback (tBTM_BL_EVENT_DATA *p_data);
 
@@ -1702,18 +1702,36 @@ void bta_dm_sdp_result (tBTA_DM_MSG *p_data)
     UINT32 num_uuids = 0;
     UINT8  uuid_list[32][MAX_UUID_SIZE]; // assuming a max of 32 services
 
+    if (bta_dm_search_cb.services == BTA_USER_SERVICE_MASK)
+    {
+        bt_uuid_t           *p_user_uuid;
+        if (bta_dm_search_cb.uuid.len == LEN_UUID_128)
+        {
+            p_user_uuid = bta_dm_search_cb.uuid.uu.uuid128;
+            uuid_128_to_16(p_user_uuid, &service);
+        }
+        else if (bta_dm_search_cb.uuid.len == LEN_UUID_16)
+        {
+            service = bta_dm_search_cb.uuid.uu.uuid16;
+        }
+    }
+
     if((p_data->sdp_event.sdp_result == SDP_SUCCESS)
         || (p_data->sdp_event.sdp_result == SDP_NO_RECS_MATCH)
         || (p_data->sdp_event.sdp_result == SDP_DB_FULL))
     {
         APPL_TRACE_DEBUG("sdp_result::0x%x", p_data->sdp_event.sdp_result);
+
         do
         {
 
             p_sdp_rec = NULL;
-            if( bta_dm_search_cb.service_index == (BTA_USER_SERVICE_ID+1) )
+            if (bta_dm_search_cb.services == BTA_USER_SERVICE_MASK)
             {
                 p_sdp_rec = SDP_FindServiceUUIDInDb(bta_dm_search_cb.p_sdp_db, &bta_dm_search_cb.uuid, p_sdp_rec);
+
+                if (!p_sdp_rec)
+                    p_sdp_rec = SDP_FindServiceInDb(bta_dm_search_cb.p_sdp_db, service, p_sdp_rec);
 
                 if (p_sdp_rec && SDP_FindProtocolListElemInRec(p_sdp_rec, UUID_PROTOCOL_RFCOMM, &pe))
                 {
@@ -1781,6 +1799,22 @@ void bta_dm_sdp_result (tBTA_DM_MSG *p_data)
                         sdpu_uuid16_to_uuid128(tmp_svc, uuid_list[num_uuids]);
                         num_uuids++;
                     }
+                }
+
+                if (service == UUID_SERVCLASS_PNP_INFORMATION)
+                {
+                    tBTA_DM_SEC sec_event;
+                    tBTA_DM_SDP_DI_REC * di_rec = &sec_event.di_rec;
+                    memset (&sec_event, 0, sizeof(tBTA_DM_SEC));
+
+                    APPL_TRACE_DEBUG("it's pnp service!!");
+                    /* callback to BT-IF */
+                    if (SDP_GetDiRecord(1, &di_rec->rec, bta_dm_search_cb.p_sdp_db) == SDP_SUCCESS)
+                        di_rec->status = BTA_SUCCESS;
+                    else
+                        di_rec->status = BTA_FAILURE;
+                    bdcpy(di_rec->bd_addr, bta_dm_search_cb.peer_bdaddr);
+                    bta_dm_cb.p_sec_cback(BTA_DM_DI_DISC_RESULT_EVT, &sec_event);
                 }
             }
 
@@ -1900,6 +1934,22 @@ void bta_dm_sdp_result (tBTA_DM_MSG *p_data)
         if(p_data->sdp_event.sdp_result == SDP_CONN_FAILED || p_data->sdp_event.sdp_result == SDP_CONN_REJECTED
            || p_data->sdp_event.sdp_result == SDP_SECURITY_ERR)
             bta_dm_search_cb.wait_disc = FALSE;
+
+        if (bta_dm_search_cb.services == BTA_USER_SERVICE_MASK)
+        {
+            if (service == UUID_SERVCLASS_PNP_INFORMATION)
+            {
+                tBTA_DM_SEC sec_event;
+                tBTA_DM_SDP_DI_REC * di_rec = &sec_event.di_rec;
+                memset (&sec_event, 0, sizeof(tBTA_DM_SEC));
+
+                APPL_TRACE_DEBUG("it's failure case to get di info!");
+                /* callback to BT-IF */
+                di_rec->status = BTA_FAILURE;
+                bdcpy(di_rec->bd_addr, bta_dm_search_cb.peer_bdaddr);
+                bta_dm_cb.p_sec_cback(BTA_DM_DI_DISC_RESULT_EVT, &sec_event);
+            }
+        }
 
         /* not able to connect go to next device */
         if (bta_dm_search_cb.p_sdp_db)
@@ -2234,7 +2284,7 @@ static void bta_dm_find_services ( BD_ADDR bd_addr)
             if (uuid.len == 0)
                 uuid.len = LEN_UUID_16;
 
-            if (bta_dm_search_cb.service_index == BTA_USER_SERVICE_ID) {
+            if (bta_dm_search_cb.services == BTA_USER_SERVICE_MASK) {
                 memcpy(&uuid, &bta_dm_search_cb.uuid, sizeof(tSDP_UUID));
             }
 
@@ -3103,7 +3153,7 @@ static UINT8 bta_dm_sp_cback (tBTM_SP_EVT event, tBTM_SP_EVT_DATA *p_data)
 ** Returns          void
 **
 *******************************************************************************/
-static void bta_dm_local_name_cback(UINT8 *p_name)
+static void bta_dm_local_name_cback(void *p_name)
 {
     tBTA_DM_SEC sec_event;
     UNUSED(p_name);
