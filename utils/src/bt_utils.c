@@ -1172,22 +1172,6 @@ bool remove_iot_device(const char *filename, char* header,
     return true;
 }
 
-/*
-bool is_prontoEnabled(void)
-{   
-    if((access("/dev/smd2",F_OK))!=-1)
-        return true;
-    return false;
-}
-*/
-
-bool is_NaplesEnabled(void)
-{   
-    if((access("/dev/ttyHS0",F_OK))!=-1)
-        return true;
-    return false;
-}
-
 /*****************************************************************************
 **
 ** Function        init_soc_type
@@ -1222,18 +1206,26 @@ static void init_soc_type()
     }
 
 #else
-    /*
-    if (!is_prontoEnabled()) {
-        soc_type = BT_SOC_ROME;
+    ret = property_get("qcom.bluetooth.soc", bt_soc_type, NULL);
+    if (ret != 0) {
+        ALOGI( "qcom.bluetooth.soc set to %s\n", bt_soc_type);
+        if (!strncasecmp(bt_soc_type, "rome", sizeof("rome"))) {
+            soc_type = BT_SOC_ROME;
+        }
+        else if (!strncasecmp(bt_soc_type, "naples_uart", sizeof("naples_uart"))) {
+            soc_type = BT_SOC_ROME;
+        }
+        else if (!strncasecmp(bt_soc_type, "cherokee", sizeof("cherokee"))) {
+            soc_type = BT_SOC_CHEROKEE;
+        }
+        else {
+            ALOGI( "qcom.bluetooth.soc not set, so using default.\n");
+            soc_type = BT_SOC_DEFAULT;
+        }
     }
-    */
-    
-    if (is_NaplesEnabled()) {
-        soc_type = BT_SOC_ROME;
+    else {
+        ret = BT_SOC_DEFAULT;
     }
-#if defined(BT_SOC_TYPE_CHEROKEE)
-    soc_type = BT_SOC_CHEROKEE;
-#endif
 #endif
 }
 

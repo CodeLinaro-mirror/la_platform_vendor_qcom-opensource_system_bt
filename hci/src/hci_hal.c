@@ -28,7 +28,7 @@
 #endif
 
 const hci_hal_t *hci_hal_get_interface() {
-  if (!is_NaplesEnabled()) {
+  if (BT_SOC_SMD == get_soc_type()) {
     return hci_hal_mct_get_interface();
   }
   else {
