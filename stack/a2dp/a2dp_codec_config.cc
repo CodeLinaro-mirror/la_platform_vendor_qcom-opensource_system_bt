@@ -123,7 +123,10 @@ A2dpCodecConfig* A2dpCodecConfig::createCodec(
       codec_config = new A2dpCodecConfigAacSink(codec_priority);
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX:
-      codec_config = new A2dpCodecConfigAptx(codec_priority);
+      codec_config = new A2dpCodecConfigAptxSource(codec_priority);
+      break;
+    case BTAV_A2DP_CODEC_INDEX_SINK_APTX:
+      codec_config = new A2dpCodecConfigAptxSink(codec_priority);
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD:
       codec_config = new A2dpCodecConfigAptxHd(codec_priority);
@@ -1382,7 +1385,8 @@ btav_a2dp_codec_index_t A2DP_SinkCodecIndex(const uint8_t* p_codec_info) {
     case A2DP_MEDIA_CT_AAC:
       return A2DP_SinkCodecIndexAac(p_codec_info);
     case A2DP_MEDIA_CT_NON_A2DP:
-      return A2DP_VendorSinkCodecIndex(p_codec_info);
+      /* Support APTX classic/HD here */
+      return A2DP_VendorSinkCodecIndexAptx(p_codec_info);
     default:
       break;
   }
