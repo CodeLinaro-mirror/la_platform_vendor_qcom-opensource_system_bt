@@ -80,7 +80,7 @@ static uint8_t bta_dm_authentication_complete_cback(const RawAddress& bd_addr,
                                                     DEV_CLASS dev_class,
                                                     BD_NAME bd_name,
                                                     int result);
-static void bta_dm_local_name_cback(const RawAddress& bd_addr);
+static void bta_dm_local_name_cback(void * p_name);
 static bool bta_dm_check_av(uint16_t event);
 static void bta_dm_bl_change_cback(tBTM_BL_EVENT_DATA* p_data);
 
@@ -302,6 +302,7 @@ void bta_dm_enable(tBTA_DM_MSG* p_data) {
     bta_dm_cb.p_sec_cback = p_data->enable.p_sec_cback;
   /* notify BTA DM is now active */
   bta_dm_cb.is_bta_dm_active = true;
+  bta_dm_cb.bta_dm_hw_status = BTA_DM_HW_OFF;
 
   /* send a message to BTA SYS */
   tBTA_SYS_HW_MSG* sys_enable_event =
@@ -388,6 +389,13 @@ static void bta_dm_sys_hw_cback(tBTA_SYS_HW_EVT status) {
   }
 
   if (status == BTA_SYS_HW_OFF_EVT) {
+
+    if (bta_dm_cb.bta_dm_hw_status != BTA_DM_HW_ON) {
+      APPL_TRACE_ERROR("BLuetooth HW chip is already OFF, ignoring BTA_SYS_HW_OFF_EVT");
+      return;
+    }
+
+    bta_dm_cb.bta_dm_hw_status = BTA_DM_HW_TURNING_OFF;
     if (bta_dm_cb.p_sec_cback != NULL)
       bta_dm_cb.p_sec_cback(BTA_DM_DISABLE_EVT, NULL);
 
@@ -403,6 +411,7 @@ static void bta_dm_sys_hw_cback(tBTA_SYS_HW_EVT status) {
     bta_sys_hw_unregister(BTA_SYS_HW_BLUETOOTH);
     /* notify BTA DM is now unactive */
     bta_dm_cb.is_bta_dm_active = false;
+    bta_dm_cb.bta_dm_hw_status = BTA_DM_HW_OFF;
   } else if (status == BTA_SYS_HW_ON_EVT) {
     /* FIXME: We should not unregister as the SYS shall invoke this callback on
      * a H/W error.
@@ -411,6 +420,11 @@ static void bta_dm_sys_hw_cback(tBTA_SYS_HW_EVT status) {
      */
     // bta_sys_hw_unregister( BTA_SYS_HW_BLUETOOTH);
 
+    if (bta_dm_cb.bta_dm_hw_status != BTA_DM_HW_OFF) {
+        APPL_TRACE_ERROR("BLuetooth HW chip is already on, ignoring BTA_SYS_HW_ON_EVT");
+        return;
+    }
+    bta_dm_cb.bta_dm_hw_status = BTA_DM_HW_TURNING_ON;
     /* save security callback */
     temp_cback = bta_dm_cb.p_sec_cback;
     /* make sure the control block is properly initialized */
@@ -488,7 +502,7 @@ static void bta_dm_sys_hw_cback(tBTA_SYS_HW_EVT status) {
     bta_sys_policy_register((tBTA_SYS_CONN_CBACK*)bta_dm_policy_cback);
 
     bta_dm_gattc_register();
-
+    bta_dm_cb.bta_dm_hw_status = BTA_DM_HW_ON;
   } else
     APPL_TRACE_DEBUG(" --- ignored event");
 }
@@ -2967,7 +2981,7 @@ static uint8_t bta_dm_sp_cback(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data) {
  * Returns          void
  *
  ******************************************************************************/
-static void bta_dm_local_name_cback(UNUSED_ATTR const RawAddress& p_name) {
+static void bta_dm_local_name_cback(UNUSED_ATTR void * p_name) {
   tBTA_DM_SEC sec_event;
 
   sec_event.enable.status = BTA_SUCCESS;
