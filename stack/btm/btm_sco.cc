@@ -39,6 +39,7 @@
 #include "hcidefs.h"
 #include "hcimsgs.h"
 #include "osi/include/osi.h"
+#include "osi/include/properties.h"
 
 #if (BTM_SCO_INCLUDED == TRUE)
 
@@ -682,6 +683,29 @@ void btm_sco_disc_chk_pend_for_modechange(uint16_t hci_handle) {
 #endif
 }
 
+static bool btm_is_multi_sco_supported(void) {
+  char value[PROPERTY_VALUE_MAX] = {0};
+  osi_property_get("bt.hf.multi_sco", value, "true");
+  return strcmp(value, "true") == 0 ? true : false;
+}
+
+static bool btm_exist_active_sco(void) {
+#if (BTM_MAX_SCO_LINKS > 0)
+  uint16_t xx;
+  tSCO_CONN* p = &btm_cb.sco_cb.sco_db[0];
+
+  for (xx = 0; xx < BTM_MAX_SCO_LINKS; xx++, p++) {
+    if ((p->state == SCO_ST_CONNECTED) || (p->state == SCO_ST_CONNECTING) ||
+        (p->state == SCO_ST_PEND_UNPARK)) {
+      return true;
+    }
+  }
+
+#endif
+  return false;
+}
+
+
 /*******************************************************************************
  *
  * Function         btm_sco_conn_req
@@ -726,13 +750,16 @@ void btm_sco_conn_req(const RawAddress& bda, DEV_CLASS dev_class,
             /* Reject request if SCO is desired but no SCO packets delected */
             ||
             (link_type == BTM_LINK_TYPE_SCO &&
-             !(p_sco->def_esco_parms.packet_types & BTM_SCO_LINK_ONLY_MASK))) {
+             !(p_sco->def_esco_parms.packet_types & BTM_SCO_LINK_ONLY_MASK))
+            || (!btm_is_multi_sco_supported() && btm_exist_active_sco())) {
           btm_esco_conn_rsp(sco_index, HCI_ERR_HOST_REJECT_RESOURCES, bda,
                             nullptr);
         } else {
           /* Accept the request */
           btm_esco_conn_rsp(sco_index, HCI_SUCCESS, bda, nullptr);
         }
+      } else if (!btm_is_multi_sco_supported() && btm_exist_active_sco()) {
+        btm_esco_conn_rsp(sco_index, HCI_ERR_HOST_REJECT_RESOURCES, bda, nullptr);
       } else {
         /* Notify upper layer of connect indication */
         evt_data.bd_addr = bda;
