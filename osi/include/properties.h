@@ -29,8 +29,6 @@
 #endif  // defined(OS_GENERIC)
 
 #ifndef ANDROID
-extern int property_set_bt(const char* , const char* );
-extern int property_get_bt(const char* , char* , const char* );
 extern int32_t property_get_bt_int32(const char* , int32_t );
 #endif
 // Get value associated with key |key| into |value|.
