@@ -170,7 +170,7 @@ library_includedir = $(pkgincludedir)
 lib_LTLIBRARIES = libbluetoothdefault.la
 libbluetoothdefault_la_CC = @CC@
 libbluetoothdefault_la_SOURCES = $(c_sources) $(cpp_sources)
-libbluetoothdefault_la_CPPFLAGS = $(AM_CPPFLAGS) $(common_CPPFLAGS) -std=c++11 -fpermissive -g -O2
+libbluetoothdefault_la_CPPFLAGS = $(AM_CPPFLAGS) $(common_CPPFLAGS) -std=c++11 -fpermissive -O2
 libbluetoothdefault_la_CFLAGS = $(common_CFLAGS)
 libbluetoothdefault_la_LDFLAGS = $(common_LDFLAGS)
 
