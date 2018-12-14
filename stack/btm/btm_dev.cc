@@ -31,6 +31,7 @@
 #include "bt_types.h"
 #include "btm_api.h"
 #include "btm_int.h"
+#include "btif/include/btif_api.h"
 #include "btu.h"
 #include "device/include/controller.h"
 #include "hcidefs.h"
@@ -511,9 +512,9 @@ static tBTM_SEC_DEV_REC* btm_find_oldest_dev_rec(void) {
 tBTM_SEC_DEV_REC* btm_sec_allocate_dev_rec(void) {
   tBTM_SEC_DEV_REC* p_dev_rec = NULL;
 
-  if (list_length(btm_cb.sec_dev_rec) > BTM_SEC_MAX_DEVICE_RECORDS) {
+  if (list_length(btm_cb.sec_dev_rec) >= BTM_SEC_MAX_DEVICE_RECORDS) {
     p_dev_rec = btm_find_oldest_dev_rec();
-    list_remove(btm_cb.sec_dev_rec, p_dev_rec);
+    btif_dm_remove_bond(&(p_dev_rec->bd_addr));
   }
 
   p_dev_rec =

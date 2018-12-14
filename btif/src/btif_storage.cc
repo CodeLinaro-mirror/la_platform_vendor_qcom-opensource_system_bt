@@ -118,6 +118,8 @@
 #define STORAGE_HID_DESC_LEN_SIZE (4)
 #define STORAGE_HID_DESC_MAX_SIZE (2 * 512)
 
+#define BT_LINKKEY_FOUND 0x02
+
 /* <18 char bd addr> <space> LIST< <36 char uuid> <;> > <keytype (dec)> <pinlen>
  */
 #define BTIF_REMOTE_SERVICES_ENTRY_SIZE_MAX      \
@@ -477,6 +479,7 @@ static bt_status_t btif_in_fetch_bonded_devices(
           }
         }
         bt_linkkey_file_found = true;
+        add |= BT_LINKKEY_FOUND;
         p_bonded_devices->devices[p_bonded_devices->num_devices++] = bd_addr;
       } else {
         bt_linkkey_file_found = false;
@@ -1208,7 +1211,10 @@ static bt_status_t btif_in_fetch_bonded_ble_device(
 
     // Fill in the bonded devices
     if (device_added) {
-      p_bonded_devices->devices[p_bonded_devices->num_devices++] = bd_addr;
+      if (!(add & BT_LINKKEY_FOUND)) {
+          p_bonded_devices->devices[p_bonded_devices->num_devices++] = bd_addr;
+      }
+
       btif_gatts_add_bonded_dev_from_nv(bd_addr);
     }
 
