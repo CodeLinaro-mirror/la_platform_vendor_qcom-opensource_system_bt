@@ -554,6 +554,13 @@ void bta_dm_disable(UNUSED_ATTR tBTA_DM_MSG* p_data) {
   bta_dm_cb.disabling = true;
 
   BTM_BleClearBgConnDev();
+
+  /* Disable soc iot info report */
+  if ((soc_type == BT_SOC_SMD || soc_type == BT_SOC_CHEROKEE) &&
+      is_iot_info_report_enabled()) {
+    btm_enable_soc_iot_info_report(false);
+  }
+
   /* Disable SOC Logging */
   if (soc_type == BT_SOC_SMD) {
     uint8_t param[5] = {0x10,0x02,0x00,0x00,0x01};
@@ -3093,6 +3100,11 @@ static void bta_dm_vnd_info_report_cback (uint8_t evt_len, uint8_t *p_data) {
   STREAM_TO_UINT32(p_msg->event_mask, p_data);
   STREAM_TO_UINT8(p_msg->event_power_level, p_data);
   STREAM_TO_INT8(p_msg->event_rssi, p_data);
+  // for SOC_ERROR_CONN_FAIL error, set event_mask as fail reason.
+  if (soc_error_type == SOC_ERROR_CONN_FAIL) {
+    STREAM_TO_UINT8(p_msg->event_mask, p_data);
+  }
+
   if (p_msg->error_type == BT_SOC_A2DP_GLITCH) {
     STREAM_TO_UINT8(p_msg->event_link_quality, p_data);
     STREAM_SKIP_UINT16(p_data); // currently overflow count is not required.
@@ -4406,8 +4418,11 @@ static uint8_t bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
 
     case BTM_LE_NC_REQ_EVT:
       sec_event.key_notif.bd_addr = bda;
-      strlcpy((char*)sec_event.key_notif.bd_name, bta_dm_get_remname(),
-              (BD_NAME_LEN + 1));
+      p_name = BTM_SecReadDevName(bda);
+      if (p_name != NULL)
+        strlcpy((char*)sec_event.key_notif.bd_name, p_name, BD_NAME_LEN + 1);
+      else
+        sec_event.key_notif.bd_name[0] = 0;
       sec_event.key_notif.passkey = p_data->key_notif;
       bta_dm_cb.p_sec_cback(BTA_DM_BLE_NC_REQ_EVT, &sec_event);
       break;
