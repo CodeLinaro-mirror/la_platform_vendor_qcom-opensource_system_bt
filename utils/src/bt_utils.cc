@@ -157,45 +157,6 @@ static void check_do_scheduling_group(void) {
 }
 
 #ifndef ANDROID
-int property_get_bt(const char *key, char *value, const char *default_value)
-{
-    char prop_string[200] = {'\0'};
-    int ret, bytes_read = 0, i = 0;
-
-    snprintf(prop_string, sizeof(prop_string), "get_property %s,", key);
-    ret = send(bt_prop_socket, prop_string, strlen(prop_string), 0);
-    do
-    {
-        bytes_read = recv(bt_prop_socket, &value[i], 1, 0);
-        if (bytes_read == 1)
-        {
-            if (value[i] == ',')
-            {
-                value[i] = '\0';
-                break;
-            }
-            i++;
-        }
-    } while(1);
-    ALOGD("property_get_bt: key(%s) has value: %s", key, value);
-    if (!i && default_value)
-    {
-        ALOGD("property_get_bt: Copied default =%s", default_value);
-        strlcpy(value, default_value, strlen(default_value)+1);
-        return 1;
-    }
-    return 0;
-}
-int property_set_bt(const char *key, const char *value)
-{
-    char prop_string[200] = {'\0'};
-    int ret;
-    snprintf(prop_string, sizeof(prop_string), "set_property %s %s,", key, value);
-    ALOGD("property_set_bt: setting key(%s) to value: %s\n", key, value);
-    ret = send(bt_prop_socket, prop_string, strlen(prop_string), 0);
-    return 0;
-}
-
 static intmax_t property_get_bt_imax(const char *key, intmax_t lower_bound,
                 intmax_t upper_bound, intmax_t default_value, bool i32) {
     if (!key) {
@@ -206,7 +167,7 @@ static intmax_t property_get_bt_imax(const char *key, intmax_t lower_bound,
     char buf[PROPERTY_VALUE_MAX] = {'\0'};
     char *end = NULL;
 
-    int len = property_get_bt(key, buf, "");
+    int len = property_get(key, buf, "");
     if (len > 0) {
         int tmp = errno;
         errno = 0;

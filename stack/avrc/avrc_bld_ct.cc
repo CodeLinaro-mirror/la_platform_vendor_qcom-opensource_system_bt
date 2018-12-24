@@ -408,7 +408,7 @@ static tAVRC_STS avrc_bld_search_cmd(BT_HDR* p_pkt,
     UINT16_TO_BE_STREAM(p_data, 4 + nLen);
     UINT16_TO_BE_STREAM(p_data, cmd->string.charset_id);
     UINT16_TO_BE_STREAM(p_data, cmd->string.str_len);
-    ARRAY_TO_BE_STREAM_REVERSE(p_data, cmd->string.p_str, nLen);
+    ARRAY_TO_BE_STREAM(p_data, cmd->string.p_str, nLen);
     p_pkt->len = (p_data - p_start);
     return AVRC_STS_NO_ERROR;
 }

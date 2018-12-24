@@ -333,6 +333,7 @@ static void bta_av_rc_msg_cback(uint8_t handle, uint8_t label, uint8_t opcode,
     data_len = (uint16_t)p_msg->pass.pass_len;
   }
 
+  APPL_TRACE_IMP("%s data_len: %u", __func__, data_len);
   /* Create a copy of the message */
   tBTA_AV_RC_MSG* p_buf =
       (tBTA_AV_RC_MSG*)osi_malloc(sizeof(tBTA_AV_RC_MSG) + data_len);
@@ -358,6 +359,7 @@ static void bta_av_rc_msg_cback(uint8_t handle, uint8_t label, uint8_t opcode,
 
   if (opcode == AVRC_OP_BROWSE) {
     /* set p_pkt to NULL, so avrc would not free the buffer */
+    APPL_TRACE_IMP("%s browse packet length: %d", __func__, p_msg->browse.browse_len);
     p_msg->browse.p_browse_pkt = NULL;
   }
 
@@ -1014,8 +1016,10 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
       if (p_data->rc_msg.msg.pass.op_id == AVRC_ID_VENDOR) {
         p_data->rc_msg.msg.hdr.ctype = BTA_AV_RSP_NOT_IMPL;
 #if (TWS_ENABLED == TRUE)
-        p_data->rc_msg.msg.hdr.ctype = bta_av_is_twsplus_command(
-                                        p_data->rc_msg.msg.pass.p_pass_data);
+        if (p_data->rc_msg.msg.pass.p_pass_data != NULL) {
+          p_data->rc_msg.msg.hdr.ctype = bta_av_is_twsplus_command(
+                                          p_data->rc_msg.msg.pass.p_pass_data);
+        }
 #endif
 #if (AVRC_METADATA_INCLUDED == TRUE)
         if (p_cb->features & BTA_AV_FEAT_METADATA
@@ -1140,6 +1144,7 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
     av.meta_msg.p_msg = &p_data->rc_msg.msg;
     av.meta_msg.p_data = p_data->rc_msg.msg.browse.p_browse_data;
     av.meta_msg.len = p_data->rc_msg.msg.browse.browse_len;
+    APPL_TRACE_DEBUG("%s: meta msg length: %d", __func__, av.meta_msg.len);
     evt = BTA_AV_META_MSG_EVT;
   }
 

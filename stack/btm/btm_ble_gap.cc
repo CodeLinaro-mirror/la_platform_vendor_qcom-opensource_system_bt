@@ -2175,6 +2175,17 @@ static void btm_ble_process_adv_pkt_cont(
       return; /* assumption: one result per event */
     }
   }
+
+  uint8_t result = btm_ble_is_discoverable(bda, adv_data);
+  if (result == 0) {
+    cache.Clear(addr_type, bda);
+    //btm_clr_inq_db(&bda);
+    LOG_WARN(LOG_TAG,
+             "%s device no longer discoverable, discarding advertising packet",
+             __func__);
+    return;
+  }
+
   /* If existing entry, use that, else get  a new one (possibly reusing the
    * oldest) */
   if (p_i == NULL) {
@@ -2195,15 +2206,6 @@ static void btm_ble_process_adv_pkt_cont(
   btm_ble_update_inq_result(p_i, addr_type, bda, evt_type, primary_phy,
                             secondary_phy, advertising_sid, tx_power, rssi,
                             periodic_adv_int, adv_data);
-
-  uint8_t result = btm_ble_is_discoverable(bda, adv_data);
-  if (result == 0) {
-    cache.Clear(addr_type, bda);
-    LOG_WARN(LOG_TAG,
-             "%s device no longer discoverable, discarding advertising packet",
-             __func__);
-    return;
-  }
 
   if (!update) result &= ~BTM_BLE_INQ_RESULT;
   /* If the number of responses found and limited, issue a cancel inquiry */

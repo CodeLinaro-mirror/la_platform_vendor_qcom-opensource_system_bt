@@ -784,7 +784,8 @@ void btif_a2dp_source_on_stopped(tBTA_AV_SUSPEND* p_av_suspend) {
   btif_a2dp_source_cb.tx_flush = true;
 
   /* request to stop media task */
-  btif_a2dp_source_audio_tx_flush_req();
+  if(!btif_av_is_split_a2dp_enabled())
+    btif_a2dp_source_audio_tx_flush_req();
   btif_a2dp_source_stop_audio_req();
 
   /* once stream is fully stopped we will ack back */
@@ -898,20 +899,23 @@ static void btif_a2dp_source_audio_tx_stop_event(void) {
       alarm_is_scheduled(btif_a2dp_source_cb.media_alarm) ? "" : "not ",
       btif_a2dp_source_is_streaming() ? "true" : "false");
 
-  const bool send_ack = btif_a2dp_source_is_streaming()| btif_a2dp_source_is_remote_start();
+  bool send_ack = true;
 
   uint8_t p_buf[AUDIO_STREAM_OUTPUT_BUFFER_SZ * 2];
   uint16_t event;
+  if(!btif_av_is_split_a2dp_enabled()) {
+    send_ack = btif_a2dp_source_is_streaming()| btif_a2dp_source_is_remote_start();
+    // Keep track of audio data still left in the pipe
+    btif_a2dp_control_log_bytes_read(
+        UIPC_Read(UIPC_CH_ID_AV_AUDIO, &event, p_buf, sizeof(p_buf)));
 
-  // Keep track of audio data still left in the pipe
-  btif_a2dp_control_log_bytes_read(
-      UIPC_Read(UIPC_CH_ID_AV_AUDIO, &event, p_buf, sizeof(p_buf)));
+    /* Stop the timer first */
+    alarm_free(btif_a2dp_source_cb.media_alarm);
+    btif_a2dp_source_cb.media_alarm = NULL;
 
-  /* Stop the timer first */
-  alarm_free(btif_a2dp_source_cb.media_alarm);
-  btif_a2dp_source_cb.media_alarm = NULL;
+    UIPC_Close(UIPC_CH_ID_AV_AUDIO);
+  }
 
-  UIPC_Close(UIPC_CH_ID_AV_AUDIO);
 
   /*
    * Try to send acknowldegment once the media stream is

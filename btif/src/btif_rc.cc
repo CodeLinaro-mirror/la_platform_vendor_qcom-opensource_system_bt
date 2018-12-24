@@ -1336,6 +1336,7 @@ void handle_rc_metamsg_cmd(tBTA_AV_META_MSG* pmeta_msg) {
     return;
   }
 
+  BTIF_TRACE_EVENT("%s: pmeta_msg->len: %d", __func__, pmeta_msg->len);
   if (pmeta_msg->len < 3) {
     BTIF_TRACE_WARNING("%s: Invalid length. opcode: 0x%x, len: 0x%x", __func__,
                        pmeta_msg->p_msg->hdr.opcode, pmeta_msg->len);
@@ -1820,7 +1821,6 @@ static uint8_t opcode_from_pdu(uint8_t pdu) {
     case AVRC_PDU_GET_FOLDER_ITEMS:
     case AVRC_PDU_CHANGE_PATH:
     case AVRC_PDU_GET_ITEM_ATTRIBUTES:
-    case AVRC_PDU_ADD_TO_NOW_PLAYING:
     case AVRC_PDU_SEARCH:
     case AVRC_PDU_GET_TOTAL_NUM_OF_ITEMS:
     case AVRC_PDU_GENERAL_REJECT:
