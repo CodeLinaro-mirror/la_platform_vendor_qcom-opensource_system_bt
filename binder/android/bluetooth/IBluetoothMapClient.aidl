@@ -37,4 +37,7 @@ interface IBluetoothMapClient {
     boolean sendMessage(in BluetoothDevice device, in Uri[] contacts, in  String message,
         in PendingIntent sentIntent, in PendingIntent deliveryIntent);
     boolean getUnreadMessages(in BluetoothDevice device);
+    boolean setMessageStatus(in BluetoothDevice device, in String handle,
+        in int status);
+    boolean abort(in BluetoothDevice device);
 }
