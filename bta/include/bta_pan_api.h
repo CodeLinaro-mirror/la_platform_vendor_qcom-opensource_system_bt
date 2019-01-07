@@ -225,6 +225,19 @@ extern void BTA_PanClose(UINT16 handle);
 *******************************************************************************/
 extern void BTA_PanSetPmState(UINT16 handle, tBTA_PAN_PM_CONN_STATE state);
 
+
+/*******************************************************************************
+**
+** Function         BTA_SetTethering
+**
+** Description      Notify BT tethering status to BNEP layer.
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+void BTA_SetTethering(BOOLEAN enable);
+
 #ifdef __cplusplus
 }
 #endif
