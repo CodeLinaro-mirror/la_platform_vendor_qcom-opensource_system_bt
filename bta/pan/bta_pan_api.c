@@ -245,6 +245,27 @@ void BTA_PanSetPmState(UINT16 handle, tBTA_PAN_PM_CONN_STATE state)
 
 }
 
+/*******************************************************************************
+**
+** Function         BTA_SetTethering
+**
+** Description      Notifying BT tethering status to BNEP layer.
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+void BTA_SetTethering(BOOLEAN enable)
+{
+    tBTA_PAN_SET_TETHERING *p_buf =
+            (tBTA_PAN_SET_TETHERING *)osi_malloc(sizeof(tBTA_PAN_SET_TETHERING));
+
+    p_buf->hdr.event = BTA_PAN_API_SET_TETHERING_EVT;
+    p_buf->enable = enable;
+
+    bta_sys_sendmsg(p_buf);
+}
+
 #else
 
 void BTA_PanEnable(tBTA_PAN_CBACK p_cback)
@@ -281,6 +302,11 @@ void BTA_PanSetPmState(UINT16 handle, tBTA_PAN_PM_CONN_STATE state)
 {
     UNUSED(handle);
     UNUSED(state);
+}
+
+void BTA_SetTethering(BOOLEAN enable)
+{
+    UNUSED(enable);
 }
 
 #endif /* BTA_PAN_INCLUDED */

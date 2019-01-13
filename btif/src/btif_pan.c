@@ -187,6 +187,11 @@ static void btpan_jni_cleanup()
     jni_initialized = false;
 }
 
+static void btpan_set_tethering(bool enable)
+{
+    BTA_SetTethering(enable);
+}
+
 static inline int bta_role_to_btpan(int bta_pan_role)
 {
     int btpan_role = 0;
