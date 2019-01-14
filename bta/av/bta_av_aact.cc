@@ -357,6 +357,7 @@ static void notify_start_failed(tBTA_AV_SCB* p_scb) {
   (*bta_av_cb.p_cback)(BTA_AV_START_EVT, &bta_av_data);
 }
 
+#if (HCI_FLOW_SPEC_INCLUDED == TRUE)
 static void bta_av_update_flow_spec(tBTA_AV_SCB* p_scb) {
 
   const char *codec_name;
@@ -391,6 +392,7 @@ static void bta_av_update_flow_spec(tBTA_AV_SCB* p_scb) {
                                 flow_spec.peak_bandwidth);
   BTM_FlowSpec (p_scb->peer_addr, &flow_spec, NULL);
 }
+#endif
 
 /*******************************************************************************
  *
@@ -1529,7 +1531,9 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   p_scb->l2c_bufs = 0;
   p_scb->p_cos->open(p_scb->hndl, mtu);
 
+#if (HCI_FLOW_SPEC_INCLUDED == TRUE)
   bta_av_update_flow_spec(p_scb);
+#endif
 
   {
     /* TODO check if other audio channel is open.
@@ -2958,7 +2962,9 @@ void bta_av_rcfg_str_ok(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     bta_av_data.reconfig = reconfig;
     (*bta_av_cb.p_cback)(BTA_AV_RECONFIG_EVT, &bta_av_data);
   }
+#if (HCI_FLOW_SPEC_INCLUDED == TRUE)
   bta_av_update_flow_spec(p_scb);
+#endif
 }
 
 /*******************************************************************************
