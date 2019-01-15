@@ -1234,7 +1234,7 @@
  *****************************************************************************/
 /* Support delay repoting in Sink role */
 #ifndef A2DP_SINK_DELAY_REPORT
-#define A2DP_SINK_DELAY_REPORT FALSE
+#define A2DP_SINK_DELAY_REPORT TRUE
 #endif
 
 
