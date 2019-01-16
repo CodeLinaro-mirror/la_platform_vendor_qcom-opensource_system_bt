@@ -56,29 +56,7 @@
 #include "osi/include/osi.h"
 #include "hardware/bt_av.h"
 
-
-// data type for the aptX-adaptive Codec Information Element */
-
-// This is due to be updated
-typedef struct {
-  uint32_t vendorId;
-  uint16_t codecId;    /* Codec ID for aptX-adaptive */
-  uint8_t sampleRate;  /* Sampling Frequency */
-  uint8_t sourceType;  /* AVRCP CUSTOM, Q2Q OR NQ2Q, RESERVED */
-  uint8_t channelMode;
-  uint8_t ttp_ll_0;
-  uint8_t ttp_ll_1;
-  uint8_t ttp_hq_0;
-  uint8_t ttp_hq_1;
-  uint8_t ttp_tws_0;
-  uint8_t ttp_tws_1;
-  uint8_t eoc0;
-  uint8_t eoc1;
-  uint8_t eoc2;
-
-  btav_a2dp_codec_bits_per_sample_t bits_per_sample;
-} tA2DP_APTX_ADAPTIVE_CIE;
-
+int a2dp_aptxad_caps_initialized = 0;
 /* aptX-adaptive Source codec capabilities */
 static const tA2DP_APTX_ADAPTIVE_CIE a2dp_aptx_adaptive_src_caps = {
     A2DP_APTX_ADAPTIVE_VENDOR_ID,          /* vendorId */
@@ -185,7 +163,7 @@ UNUSED_ATTR static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityAptxAdaptive(
 // |p_ie| is a pointer to the aptX-adaptive Codec Information Element information.
 // The result is stored in |p_result|. Returns A2DP_SUCCESS on success,
 // otherwise the corresponding A2DP error status code.
-static tA2DP_STATUS A2DP_BuildInfoAptxAdaptive(uint8_t media_type,
+tA2DP_STATUS A2DP_BuildInfoAptxAdaptive(uint8_t media_type,
                                          const tA2DP_APTX_ADAPTIVE_CIE* p_ie,
                                          uint8_t* p_result) {
   if (p_ie == NULL || p_result == NULL) {
@@ -568,11 +546,38 @@ bool A2DP_VendorInitCodecConfigAptxAdaptive(tAVDT_CFG* p_cfg) {
   return true;
 }
 
+void update_local_capability_aptxad(btav_a2dp_codec_config_t* loc_cap) {
+  // Compute the local capability
+  if (a2dp_aptx_adaptive_caps.sampleRate & A2DP_APTX_ADAPTIVE_SAMPLERATE_44100) {
+    loc_cap->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
+  }
+  if (a2dp_aptx_adaptive_caps.sampleRate & A2DP_APTX_ADAPTIVE_SAMPLERATE_48000) {
+    loc_cap->sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
+  }
+  loc_cap->bits_per_sample = a2dp_aptx_adaptive_caps.bits_per_sample;
+  if (a2dp_aptx_adaptive_caps.channelMode & A2DP_APTX_ADAPTIVE_CHANNELS_MONO) {
+    loc_cap->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
+  }
+  if (a2dp_aptx_adaptive_caps.channelMode & A2DP_APTX_ADAPTIVE_CHANNELS_TWS_MONO) {
+    loc_cap->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
+  }
+  if (a2dp_aptx_adaptive_caps.channelMode & A2DP_APTX_ADAPTIVE_CHANNELS_STEREO) {
+    loc_cap->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
+  }
+
+  if (a2dp_aptx_adaptive_caps.channelMode & A2DP_APTX_ADAPTIVE_CHANNELS_JOINT_STEREO) {
+    loc_cap->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
+  }
+  if (a2dp_aptx_adaptive_caps.channelMode & A2DP_APTX_ADAPTIVE_CHANNELS_TWS_STEREO) {
+    loc_cap->channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
+  }
+}
+
 A2dpCodecConfigAptxAdaptive::A2dpCodecConfigAptxAdaptive(
     btav_a2dp_codec_priority_t codec_priority)
     : A2dpCodecConfig(BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE, "aptX-adaptive",
                       codec_priority) {
-  // Compute the local capability
+  if(!a2dp_aptxad_caps_initialized) {
     if (A2DP_GetOffloadStatus()) {
       a2dp_aptx_adaptive_caps = a2dp_aptx_adaptive_offload_caps;
       a2dp_aptx_adaptive_default_config = a2dp_aptx_adaptive_default_offload_config;
@@ -580,30 +585,9 @@ A2dpCodecConfigAptxAdaptive::A2dpCodecConfigAptxAdaptive(
       a2dp_aptx_adaptive_caps = a2dp_aptx_adaptive_src_caps;
       a2dp_aptx_adaptive_default_config = a2dp_aptx_adaptive_default_src_config;
     }
-  if (a2dp_aptx_adaptive_caps.sampleRate & A2DP_APTX_ADAPTIVE_SAMPLERATE_44100) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
+  a2dp_aptxad_caps_initialized = 1;
   }
-  if (a2dp_aptx_adaptive_caps.sampleRate & A2DP_APTX_ADAPTIVE_SAMPLERATE_48000) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
-  }
-  codec_local_capability_.bits_per_sample = a2dp_aptx_adaptive_caps.bits_per_sample;
-  if (a2dp_aptx_adaptive_caps.channelMode & A2DP_APTX_ADAPTIVE_CHANNELS_MONO) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
-  }
-  if (a2dp_aptx_adaptive_caps.channelMode & A2DP_APTX_ADAPTIVE_CHANNELS_TWS_MONO) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
-  }
-  if (a2dp_aptx_adaptive_caps.channelMode & A2DP_APTX_ADAPTIVE_CHANNELS_STEREO) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
-  }
-
-  if (a2dp_aptx_adaptive_caps.channelMode & A2DP_APTX_ADAPTIVE_CHANNELS_JOINT_STEREO) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
-  }
-  if (a2dp_aptx_adaptive_caps.channelMode & A2DP_APTX_ADAPTIVE_CHANNELS_TWS_STEREO) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
-  }
-
+  update_local_capability_aptxad(&codec_local_capability_);
 }
 
 A2dpCodecConfigAptxAdaptive::~A2dpCodecConfigAptxAdaptive() {}
@@ -1154,4 +1138,36 @@ fail:
   memcpy(ota_codec_peer_config_, saved_ota_codec_peer_config,
          sizeof(ota_codec_peer_config_));
   return false;
+}
+
+void update_aptxad_cap(btav_a2dp_codec_config_t config){
+  switch (config.sample_rate) {
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_44100:
+      a2dp_aptx_adaptive_caps.sampleRate = a2dp_aptx_adaptive_caps.sampleRate
+					| A2DP_APTX_ADAPTIVE_SAMPLERATE_44100;
+      break;
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_48000:
+      a2dp_aptx_adaptive_caps.sampleRate = a2dp_aptx_adaptive_caps.sampleRate
+                                        | A2DP_APTX_ADAPTIVE_SAMPLERATE_48000;
+      break;
+    default:
+      break;
+  }
+  switch (config.channel_mode) {
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_MONO:
+      a2dp_aptx_adaptive_caps.channelMode = a2dp_aptx_adaptive_caps.channelMode
+                                        | A2DP_APTX_ADAPTIVE_CHANNELS_MONO;
+      break;
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO:
+      a2dp_aptx_adaptive_caps.channelMode = a2dp_aptx_adaptive_caps.channelMode
+                                        | A2DP_APTX_ADAPTIVE_CHANNELS_STEREO;
+      break;
+    default:
+      break;
+  }
+}
+
+void reset_a2dp_aptxad_caps_initialized()
+{
+  a2dp_aptxad_caps_initialized = 0;
 }

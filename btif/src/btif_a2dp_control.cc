@@ -40,6 +40,8 @@
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
 #include "uipc.h"
+#include "a2dp_vendor_aptx_adaptive_constants.h"
+#include "a2dp_vendor.h"
 
 #define A2DP_DATA_READ_POLL_MS 10
 #define A2DP_NUM_STRS 2
@@ -58,7 +60,8 @@ extern bool btif_av_is_playing_on_other_idx(int current_index);
 extern bool btif_av_is_handoff_set();
 extern int btif_max_av_clients;
 
-uint8_t codec_info[30];
+//To support aptx Adaptive
+uint8_t codec_info[MAX_CODEC_CFG_SIZE];
 
 static void btif_a2dp_data_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
 static void btif_a2dp_ctrl_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
@@ -638,6 +641,8 @@ static void btif_a2dp_recv_ctrl_data(void) {
             uint8_t codec_type;
             tA2DP_ENCODER_INIT_PEER_PARAMS peer_param;
             uint32_t bitrate = 0;
+            uint32_t bits_per_sample = 0;
+            uint16_t aptx_mode = 0;
             uint8_t len = 0;
             LOG_INFO(LOG_TAG,"A2DP_CTRL_GET_CODEC_CONFIG");
             A2dpCodecConfig *CodecConfig = bta_av_get_a2dp_current_codec();
@@ -690,11 +695,16 @@ static void btif_a2dp_recv_ctrl_data(void) {
                 bitrate = (samplerate * bits_per_sample * 2)/4;
 
               //}
+              if ((A2DP_VendorCodecGetVendorId(p_codec_info)) == A2DP_APTX_ADAPTIVE_VENDOR_ID) {
+                aptx_mode = btif_av_get_aptx_mode_info();
+              }
             }
             else if (A2DP_MEDIA_CT_AAC == codec_type)
             {
               bitrate = 0;//Bitrate is present in codec info
             }
+            bits_per_sample = CodecConfig->getAudioBitsPerSample();
+            LOG_INFO(LOG_TAG,"bitrate = %d, bits_per_sample = %d", bitrate, bits_per_sample);
             codec_info[0] = 0; //playing device handle
             len = p_codec_info[0] + 2;
             codec_info[len++] = (uint8_t)(peer_param.peer_mtu & 0x00FF);
@@ -703,6 +713,12 @@ static void btif_a2dp_recv_ctrl_data(void) {
             codec_info[len++] = (uint8_t)(((bitrate & 0xFF00) >> 8) & 0x00FF);
             codec_info[len++] = (uint8_t)(((bitrate & 0xFF0000) >> 16) & 0x00FF);
             codec_info[len++] = (uint8_t)(((bitrate & 0xFF000000) >> 24) & 0x00FF);
+            *(uint32_t *)&codec_info[len] = (uint32_t)bits_per_sample;
+            len = len+4;
+            if((A2DP_VendorCodecGetVendorId(p_codec_info)) == A2DP_APTX_ADAPTIVE_VENDOR_ID) {
+              *(uint16_t *)&codec_info[len] = (uint16_t)aptx_mode;
+              len = len+2;
+            }
             LOG_INFO(LOG_TAG,"len  = %d", len);
             UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, &len, 1);
             UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, codec_info, len);
