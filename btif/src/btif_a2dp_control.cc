@@ -661,7 +661,7 @@ static void btif_a2dp_recv_ctrl_data(void) {
                 break;
             }
             memset(p_codec_info, 0, AVDT_CODEC_SIZE);
-            memset(codec_info, 0, 30);
+            memset(codec_info, 0, MAX_CODEC_CFG_SIZE);
             if (!CodecConfig->copyOutOtaCodecConfig(p_codec_info))
             {
               LOG_INFO(LOG_TAG,"No valid codec config");

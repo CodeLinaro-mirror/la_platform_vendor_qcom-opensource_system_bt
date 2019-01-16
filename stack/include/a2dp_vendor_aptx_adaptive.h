@@ -195,6 +195,9 @@ bool A2DP_VendorInitCodecConfigAptxAdaptive(tAVDT_CFG* p_cfg);
 //Update aptx adaptive capabilities
 void update_aptxad_cap(btav_a2dp_codec_config_t config);
 
+void update_local_capability_aptxad(btav_a2dp_codec_config_t* loc_cap);
+
+
 //Reset a2dp_aptxad_caps_initialized variable
 void reset_a2dp_aptxad_caps_initialized();
 

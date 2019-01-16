@@ -612,7 +612,8 @@ bool A2dpCodecConfigAptxAdaptive::init() {
     return false;
   }
 
-  return true;
+  LOG_ERROR(LOG_TAG, "%s: aptx adaptive init failed", __func__);
+  return false;
 }
 
 bool A2dpCodecConfigAptxAdaptive::useRtpHeaderMarkerBit() const { return false; }
@@ -683,7 +684,7 @@ static bool select_audio_sample_rate(
 //
 static bool select_best_bits_per_sample(
     btav_a2dp_codec_config_t* p_codec_config) {
-  p_codec_config->bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16;
+  p_codec_config->bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24;
   return true;
 }
 
@@ -927,9 +928,9 @@ bool A2dpCodecConfigAptxAdaptive::setCodecConfig(const uint8_t* p_peer_codec_inf
       break;
 
     case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24:
-      //codec_capability_.bits_per_sample = codec_user_config_.bits_per_sample;
-      //codec_config_.bits_per_sample = codec_user_config_.bits_per_sample;
-     // break;
+      codec_capability_.bits_per_sample = codec_user_config_.bits_per_sample;
+      codec_config_.bits_per_sample = codec_user_config_.bits_per_sample;
+      break;
     case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32:
 
     case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE:
@@ -947,8 +948,8 @@ bool A2dpCodecConfigAptxAdaptive::setCodecConfig(const uint8_t* p_peer_codec_inf
       break;
 
     // Compute the common capability
-    //codec_capability_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24;
-    codec_capability_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16;
+    codec_capability_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24;
+    //codec_capability_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16;
 
     // No user preference - try the codec audio config
     if (select_audio_bits_per_sample(&codec_audio_config_, &codec_config_)) {

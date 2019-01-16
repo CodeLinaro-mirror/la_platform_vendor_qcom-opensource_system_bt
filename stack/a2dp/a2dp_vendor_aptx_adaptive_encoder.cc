@@ -86,8 +86,8 @@ bool A2DP_VendorLoadEncoderAptxAdaptive(void) {
     return true;
   }
 
-
-  return true;
+  LOG_ERROR(LOG_TAG, "%s: aptx adaptive not supported in non-split mode", __func__);
+  return false;
 }
 
 void A2DP_VendorUnloadEncoderAptxAdaptive(void) {
