@@ -93,7 +93,8 @@ android::sp<IBluetoothAudio> btAudio;
   case const:                  \
     return #const;
 
-uint8_t codec_info[30];
+// ToDo: Dynamically fetch codec info size based on active codec
+uint8_t codec_info[64];
 uint8_t len,a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
 uint8_t a2dp_cmd_queued = A2DP_CTRL_CMD_NONE;
 uint8_t a2dp_local_cmd_pending = A2DP_CTRL_CMD_NONE;
