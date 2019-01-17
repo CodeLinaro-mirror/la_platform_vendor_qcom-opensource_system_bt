@@ -685,7 +685,7 @@ void btm_sco_disc_chk_pend_for_modechange(uint16_t hci_handle) {
 
 static bool btm_is_multi_sco_supported(void) {
   char value[PROPERTY_VALUE_MAX] = {0};
-  osi_property_get("bt.hf.multi_sco", value, "true");
+  osi_property_get("vendor.bt.hf.multi_sco", value, "true");
   return strcmp(value, "true") == 0 ? true : false;
 }
 
