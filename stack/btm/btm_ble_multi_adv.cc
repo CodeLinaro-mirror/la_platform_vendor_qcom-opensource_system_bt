@@ -306,9 +306,9 @@ class BleAdvertisingManagerImpl
                RawAddress bda) {
               p_inst->own_address = bda;
 
-              alarm_set_on_mloop(p_inst->adv_raddr_timer,
-                                 BTM_BLE_PRIVATE_ADDR_INT_MS,
-                                 btm_ble_adv_raddr_timer_timeout, p_inst);
+              alarm_set(p_inst->adv_raddr_timer,
+                           BTM_BLE_PRIVATE_ADDR_INT_MS,
+                           btm_ble_adv_raddr_timer_timeout, p_inst);
               cb.Run(p_inst->inst_id, BTM_BLE_MULTI_ADV_SUCCESS);
             },
             p_inst, cb));
