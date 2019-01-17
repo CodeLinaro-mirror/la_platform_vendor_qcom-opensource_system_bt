@@ -333,18 +333,19 @@
 #define BTM_DEFAULT_DISC_INTERVAL 0x0800
 #endif
 
-/* Default class of device
-* {SERVICE_CLASS, MAJOR_CLASS, MINOR_CLASS}
+/*
+* Change CoD for Auto car-kit
 *
-* SERVICE_CLASS:0x5A (Bit17 -Networking,Bit19 - Capturing,Bit20 -Object
-* Transfer,Bit22 -Telephony)
-* MAJOR_CLASS:0x02 - PHONE
-* MINOR_CLASS:0x0C - SMART_PHONE
+* SERVICE_CLASS:0x26 (Bit17 - Networking, Bit18 - Rendering, Bit21 - Audio)
+* MAJOR_CLASS:0x04 - Audio/Video
+* MINOR_CLASS:0X08 - Hands-free Device
 *
+* Detailed information can be found in below link
+* https://www.bluetooth.com/specifications/assigned-numbers/baseband
 */
 #ifndef BTA_DM_COD
 #define BTA_DM_COD \
-  { 0x5A, 0x02, 0x0C }
+  { 0x26, 0x04, 0x08 }
 #endif
 
 /* The number of SCO links. */
@@ -1234,7 +1235,7 @@
  *****************************************************************************/
 /* Support delay repoting in Sink role */
 #ifndef A2DP_SINK_DELAY_REPORT
-#define A2DP_SINK_DELAY_REPORT FALSE
+#define A2DP_SINK_DELAY_REPORT TRUE
 #endif
 
 
