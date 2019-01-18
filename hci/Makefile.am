@@ -46,6 +46,7 @@ endif
 
 if SSR_CLEANUP_SUPPORT
 AM_CFLAGS += -DSSR_CLEANUP=TRUE
+AM_CPPFLAGS += -DSSR_CLEANUP=TRUE
 endif
 
 cpp_sources = \
