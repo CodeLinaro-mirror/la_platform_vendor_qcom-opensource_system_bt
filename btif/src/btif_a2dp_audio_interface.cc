@@ -774,6 +774,7 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         uint8_t codec_type;
         tA2DP_ENCODER_INIT_PEER_PARAMS peer_param;
         uint32_t bitrate = 0;
+        uint32_t bits_per_sample = 0;
         len = 0;
         a2dp_local_cmd_pending = cmd;
         LOG_INFO(LOG_TAG,"A2DP_CTRL_GET_CODEC_CONFIG");
@@ -835,6 +836,8 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         {
           bitrate = 0;//Bitrate is present in codec info
         }
+        bits_per_sample = CodecConfig->getAudioBitsPerSample();
+        LOG_INFO(LOG_TAG,"bitrate = %d, bits_per_sample = %d", bitrate, bits_per_sample);
         codec_info[0] = 0; //playing device handle
         len = p_codec_info[0] + 2;
         codec_info[len++] = (uint8_t)(peer_param.peer_mtu & 0x00FF);
@@ -843,6 +846,9 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         codec_info[len++] = (uint8_t)(((bitrate & 0xFF00) >> 8) & 0x00FF);
         codec_info[len++] = (uint8_t)(((bitrate & 0xFF0000) >> 16) & 0x00FF);
         codec_info[len++] = (uint8_t)(((bitrate & 0xFF000000) >> 24) & 0x00FF);
+        *(uint32_t *)&codec_info[len] = (uint32_t)bits_per_sample;
+        len = len + 4;
+        LOG_INFO(LOG_TAG,"len  = %d", len);
         status = A2DP_CTRL_ACK_SUCCESS;
         a2dp_local_cmd_pending = A2DP_CTRL_CMD_NONE;
         break;
