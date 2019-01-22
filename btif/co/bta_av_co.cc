@@ -1634,11 +1634,6 @@ bt_status_t bta_av_set_a2dp_current_codec(tBTA_AV_HNDL hndl) {
     if (!bta_av_co_set_active_peer(p_peer->addr)) {
       BTIF_TRACE_WARNING("%s: unable to set active peer",__func__);
     }
-    p_sink = bta_av_co_audio_set_codec(p_peer);
-    if (p_sink == NULL) {
-      APPL_TRACE_ERROR("%s() can not setup codec for the peer", __func__);
-      status = BT_STATUS_FAIL;
-    }
   } else {
     APPL_TRACE_ERROR("%s() peer not found", __func__);
     status = BT_STATUS_FAIL;
