@@ -80,7 +80,7 @@ static uint8_t bta_dm_authentication_complete_cback(const RawAddress& bd_addr,
                                                     DEV_CLASS dev_class,
                                                     BD_NAME bd_name,
                                                     int result);
-static void bta_dm_local_name_cback(const RawAddress& bd_addr);
+static void bta_dm_local_name_cback(void * p_name);
 static bool bta_dm_check_av(uint16_t event);
 static void bta_dm_bl_change_cback(tBTM_BL_EVENT_DATA* p_data);
 
@@ -2967,7 +2967,7 @@ static uint8_t bta_dm_sp_cback(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data) {
  * Returns          void
  *
  ******************************************************************************/
-static void bta_dm_local_name_cback(UNUSED_ATTR const RawAddress& p_name) {
+static void bta_dm_local_name_cback(UNUSED_ATTR void * p_name) {
   tBTA_DM_SEC sec_event;
 
   sec_event.enable.status = BTA_SUCCESS;
@@ -3581,11 +3581,14 @@ static void bta_dm_remove_sec_dev_entry(const RawAddress& remote_bd_addr) {
       }
     }
   } else {
-    BTM_SecDeleteDevice(remote_bd_addr);
+    // remote_bd_addr comes from security record, which is removed in
+    // BTM_SecDeleteDevice.
+    RawAddress addr_copy = remote_bd_addr;
+    BTM_SecDeleteDevice(addr_copy);
     /* need to remove all pending background connection */
-    BTA_GATTC_CancelOpen(0, remote_bd_addr, false);
+    BTA_GATTC_CancelOpen(0, addr_copy, false);
     /* remove all cached GATT information */
-    BTA_GATTC_Refresh(remote_bd_addr);
+    BTA_GATTC_Refresh(addr_copy);
   }
 }
 
@@ -4106,7 +4109,7 @@ void bta_dm_enable_test_mode(UNUSED_ATTR tBTA_DM_MSG* p_data) {
  *
  ******************************************************************************/
 void bta_dm_disable_test_mode(UNUSED_ATTR tBTA_DM_MSG* p_data) {
-  BTM_DeviceReset(NULL);
+  BTM_HCI_Reset();
 }
 
 /*******************************************************************************
