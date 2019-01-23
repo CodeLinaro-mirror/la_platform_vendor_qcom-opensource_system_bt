@@ -1170,8 +1170,9 @@
 #undef AVDT_NUM_SEPS
 #endif
 
+/* Sink Codecs 5 *2, Src Codecs 2 */
 #ifndef AVDT_NUM_SEPS
-#define AVDT_NUM_SEPS 11
+#define AVDT_NUM_SEPS 13
 #endif
 
 /* Number of transport channels setup by AVDT for all media streams */
@@ -1395,6 +1396,10 @@
 
 #ifndef APTX_CLASSIC_DECODER_INCLUDED
 #define APTX_CLASSIC_DECODER_INCLUDED        TRUE
+#endif
+
+#ifndef APTX_AD_DECODER_INCLUDED
+#define APTX_AD_DECODER_INCLUDED        TRUE
 #endif
 
 #ifndef A2D_M24_INCLUDED
