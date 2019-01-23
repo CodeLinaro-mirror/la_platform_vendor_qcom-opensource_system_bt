@@ -150,6 +150,7 @@ void uhid_set_non_blocking(int fd) {
 /*Internal function to perform UHID write and error checking*/
 static int uhid_write(int fd, const struct uhid_event* ev) {
   ssize_t ret;
+#ifdef ANDROID
   OSI_NO_INTR(ret = write(fd, ev, sizeof(*ev)));
 
   if (ret < 0) {
@@ -162,6 +163,7 @@ static int uhid_write(int fd, const struct uhid_event* ev) {
     return -EFAULT;
   }
 
+#endif
   return 0;
 }
 
