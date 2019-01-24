@@ -315,15 +315,17 @@ static tAVRC_STS avrc_pars_vendor_cmd(tAVRC_MSG_VENDOR* p_msg,
     case AVRC_PDU_REQUEST_CONTINUATION_RSP: /* 0x40 */
       if (len != 1) {
         status = AVRC_STS_INTERNAL_ERR;
+      } else {
+        BE_STREAM_TO_UINT8(p_result->continu.target_pdu, p);
       }
-      BE_STREAM_TO_UINT8(p_result->continu.target_pdu, p);
       break;
 
     case AVRC_PDU_ABORT_CONTINUATION_RSP: /* 0x41 */
       if (len != 1) {
         status = AVRC_STS_INTERNAL_ERR;
+      } else {
+        BE_STREAM_TO_UINT8(p_result->abort.target_pdu, p);
       }
-      BE_STREAM_TO_UINT8(p_result->abort.target_pdu, p);
       break;
 
     case AVRC_PDU_SET_ADDRESSED_PLAYER: /* 0x60 */
@@ -331,19 +333,24 @@ static tAVRC_STS avrc_pars_vendor_cmd(tAVRC_MSG_VENDOR* p_msg,
         AVRC_TRACE_ERROR("AVRC_PDU_SET_ADDRESSED_PLAYER length is incorrect:%d",
                          len);
         status = AVRC_STS_INTERNAL_ERR;
+      } else {
+        BE_STREAM_TO_UINT16(p_result->addr_player.player_id, p);
       }
-      BE_STREAM_TO_UINT16(p_result->addr_player.player_id, p);
       break;
 
     case AVRC_PDU_PLAY_ITEM:          /* 0x74 */
     case AVRC_PDU_ADD_TO_NOW_PLAYING: /* 0x90 */
-      if (len != (AVRC_UID_SIZE + 3)) status = AVRC_STS_INTERNAL_ERR;
-      BE_STREAM_TO_UINT8(p_result->play_item.scope, p);
-      if (p_result->play_item.scope > AVRC_SCOPE_NOW_PLAYING) {
-        status = AVRC_STS_BAD_SCOPE;
+      if (len != (AVRC_UID_SIZE + 3)) {
+        status = AVRC_STS_INTERNAL_ERR;
+      } else {
+        BE_STREAM_TO_UINT8(p_result->play_item.scope, p);
+        if (p_result->play_item.scope > AVRC_SCOPE_NOW_PLAYING) {
+          status = AVRC_STS_BAD_SCOPE;
+        } else {
+          BE_STREAM_TO_ARRAY(p, p_result->play_item.uid, AVRC_UID_SIZE);
+          BE_STREAM_TO_UINT16(p_result->play_item.uid_counter, p);
+        }
       }
-      BE_STREAM_TO_ARRAY(p, p_result->play_item.uid, AVRC_UID_SIZE);
-      BE_STREAM_TO_UINT16(p_result->play_item.uid_counter, p);
       break;
 
     default:

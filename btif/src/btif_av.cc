@@ -737,7 +737,7 @@ void BtifAvEvent::DeepCopy(uint32_t event, const void* p_data,
                            size_t data_length) {
   event_ = event;
   data_length_ = data_length;
-  if (data_length == 0) {
+  if (p_data == nullptr || data_length == 0) {
     data_ = nullptr;
   } else {
     data_ = osi_malloc(data_length_);
