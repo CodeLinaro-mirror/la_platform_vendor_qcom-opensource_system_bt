@@ -96,7 +96,7 @@ const tBTA_SERVICE_MASK bta_ag_svc_mask[BTA_AG_NUM_IDX] = {
     BTA_HSP_SERVICE_MASK, BTA_HFP_SERVICE_MASK};
 
 typedef void (*tBTA_AG_ATCMD_CBACK)(tBTA_AG_SCB* p_scb, uint16_t cmd,
-                                    uint8_t arg_type, char* p_arg,
+                                    uint8_t arg_type, char* p_arg, char* p_end,
                                     int16_t int_arg);
 
 const tBTA_AG_ATCMD_CBACK bta_ag_at_cback_tbl[BTA_AG_NUM_IDX] = {
@@ -181,12 +181,6 @@ void bta_ag_deregister(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
   /* set dealloc */
   p_scb->dealloc = true;
 
-  if (p_scb->p_disc_db) {
-    APPL_TRACE_DEBUG(" %s Cancel pending SDP ",__func__);
-    (void)SDP_CancelServiceSearch(p_scb->p_disc_db);
-    bta_ag_free_db(p_scb, NULL);
-  }
-
   /* remove sdp records */
   bta_ag_del_records(p_scb, p_data);
 
@@ -227,6 +221,8 @@ void bta_ag_start_dereg(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
  ******************************************************************************/
 void bta_ag_start_open(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
   RawAddress pending_bd_addr;
+  int rfcomm_conn_status = 0;
+  tBTA_SERVICE_MASK services;
 
   /* store parameters */
   if (p_data) {
@@ -235,8 +231,23 @@ void bta_ag_start_open(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
     p_scb->cli_sec_mask = p_data->api_open.sec_mask;
   }
 
+  services = p_scb->reg_services >> BTA_HSP_SERVICE_ID;
+  for (int i = 0; i < BTA_AG_NUM_IDX && services != 0; i++, services >>= 1) {
+    /* if service is set in mask */
+    if (services & 1) {
+      rfcomm_conn_status = PORT_GetStateBySCN(p_scb->peer_addr,
+                                           bta_ag_cb.profile[i].scn, true);
+      APPL_TRACE_WARNING("%s: rfcomm connection status %d for device %s, scn %x",
+             __func__, rfcomm_conn_status, p_scb->peer_addr.ToString().c_str(),
+             bta_ag_cb.profile[i].scn);
+
+      if (rfcomm_conn_status == PORT_STATE_OPENED)
+        break;
+    }
+  }
+
   /* Check if RFCOMM has any incoming connection to avoid collision. */
-  if (PORT_IsOpening(pending_bd_addr)) {
+  if (PORT_IsOpening(pending_bd_addr) || rfcomm_conn_status == PORT_STATE_OPENED) {
     if (bta_ag_cb.max_hf_clients > 1)
     {
       // Abort the outgoing connection if incoming connection is from the same device
@@ -471,7 +482,9 @@ void bta_ag_rfc_close(tBTA_AG_SCB* p_scb, UNUSED_ATTR tBTA_AG_DATA* p_data) {
   /* call close cback */
   (*bta_ag_cb.p_cback)(BTA_AG_CLOSE_EVT, (tBTA_AG*)&close);
 #if (TWS_AG_ENABLED == TRUE)
-  reset_twsp_device(bta_ag_scb_to_idx(p_scb)-1);
+  if (is_twsp_device(p_scb->peer_addr)) {
+      reset_twsp_device(bta_ag_scb_to_idx(p_scb)-1);
+  }
 #endif
 
   /* if not deregistering (deallocating) reopen registered servers */
@@ -566,7 +579,9 @@ void bta_ag_rfc_open(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
                         BTA_AG_SVC_TIMEOUT_EVT, bta_ag_scb_to_idx(p_scb));
 #if (TWS_AG_ENABLED == TRUE)
     //Update TWS+ data structure
-    update_twsp_device(bta_ag_scb_to_idx(p_scb)-1, p_scb);
+    if (is_twsp_device(p_scb->peer_addr)) {
+        update_twsp_device(bta_ag_scb_to_idx(p_scb)-1, p_scb);
+    }
 #endif
   } else {
     /* else service level conn is open */
@@ -587,7 +602,7 @@ void bta_ag_rfc_open(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
 void bta_ag_rfc_acp_open(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
   uint16_t lcid;
   int i;
-  tBTA_AG_SCB *ag_scb, *other_scb;
+  tBTA_AG_SCB *ag_scb;
   RawAddress dev_addr;
   int status;
 
@@ -608,39 +623,35 @@ void bta_ag_rfc_acp_open(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
   /* Collision Handling */
   for (i = 0, ag_scb = &bta_ag_cb.scb[0]; i < BTA_AG_MAX_NUM_CLIENTS;
        i++, ag_scb++) {
-    if (ag_scb->in_use && alarm_is_scheduled(ag_scb->collision_timer)) {
-      alarm_cancel(ag_scb->collision_timer);
+    if (ag_scb->in_use) {
 
       VLOG(1) << __func__ << "ag_scb addr:" << ag_scb->peer_addr;
       if (dev_addr == ag_scb->peer_addr) {
-        /* Read the property if multi hf is enabled */
-        if (bta_ag_cb.max_hf_clients > 1)
+        if (bta_ag_cb.max_hf_clients > 1 && ag_scb != p_scb)
         {
           /* If incoming and outgoing device are same, nothing more to do.*/
           /* Outgoing conn will be aborted because we have successful incoming conn.*/
-          APPL_TRACE_WARNING("%s: p_scb %x, abort outgoing conn,"\
-            "there is an incoming conn from dev %s", 
-           __func__, ag_scb, dev_addr.ToString().c_str());
-          if (ag_scb->conn_handle)
-          {
-            RFCOMM_RemoveConnection(ag_scb->conn_handle);
+          APPL_TRACE_WARNING("%s: ag_scb %x, abort outgoing conn,"\
+            "there is an incoming conn from dev %s, i %x, ag_scb->state %x",
+           __func__, ag_scb, dev_addr.ToString().c_str(), i, ag_scb->state);
+
+          // if outgoing conn is waiting for SDP or RFCOMM conn to open
+          if (ag_scb->state == BTA_AG_OPENING_ST) {
+            bta_ag_handle_collision(ag_scb, NULL);
+            ag_scb->state = BTA_AG_INIT_ST;
+            ag_scb->peer_addr = RawAddress::kEmpty;
           }
-          // send ourselves close event for clean up
-          bta_ag_cback_open(ag_scb, NULL, BTA_AG_FAIL_RFCOMM);
-        }
-      } else {
-        /* Resume outgoing connection. */
-        APPL_TRACE_DEBUG("%s: Resume Outgoing connection", __func__);
-        other_scb = bta_ag_get_other_idle_scb(p_scb);
-        if (other_scb) {
-          other_scb->peer_addr = ag_scb->peer_addr;
-          other_scb->open_services = ag_scb->open_services;
-          other_scb->cli_sec_mask = ag_scb->cli_sec_mask;
-          APPL_TRACE_DEBUG("%s: Calling Ag resume open API", __func__);
-          bta_ag_resume_open(other_scb);
+          /* Outgoing RFCOMM is just connected, SLC didn't finish.
+             If there is an incoming RFCOMM conn from the same device,
+             treat it as collision and disconnect outgoing HF connection */
+          else if(ag_scb->state == BTA_AG_OPEN_ST && !ag_scb->svc_conn) {
+            // RFCOMM closure takes care of moving BTA to INIT, btif cleanup
+            bta_ag_start_close(ag_scb, NULL);
+          }
+
+          break;
         }
       }
-      break;
     }
   }
 
@@ -901,10 +912,12 @@ void bta_ag_svc_conn_open(tBTA_AG_SCB* p_scb,
         if (other_scb != NULL) {
             tBTA_AG_SCO_CB *related_sco = NULL;
             if (other_scb == bta_ag_cb.main_sm_scb) {
-                related_sco = &(bta_ag_cb.sco);
+                if (bta_ag_cb.sco.p_curr_scb == bta_ag_cb.main_sm_scb) {
+                    related_sco = &(bta_ag_cb.sco);
+                }
             } else if(other_scb == bta_ag_cb.sec_sm_scb) {
                 APPL_TRACE_DEBUG("%s:TWS+ peer SCO is selected", __func__);
-                related_sco = &(bta_ag_cb.twsp_sco);
+                related_sco = &(bta_ag_cb.twsp_sec_sco);
             } else {
                 APPL_TRACE_ERROR("%s: Invalid SCB", __func__);
             }

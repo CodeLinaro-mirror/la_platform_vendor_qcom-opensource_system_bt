@@ -53,6 +53,7 @@
 #include "osi/include/config.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+#include <inttypes.h>
 
 using bluetooth::Uuid;
 
@@ -200,8 +201,7 @@ static bool prop_upd(const RawAddress* remote_bd_addr, bt_property_t *prop)
     case BT_PROPERTY_BDNAME:
       name_length = prop->len > BTM_MAX_LOC_BD_NAME_LEN ? BTM_MAX_LOC_BD_NAME_LEN:
           prop->len;
-      strncpy(value, (char*)prop->val, name_length);
-      value[name_length]='\0';
+      strlcpy(value, (char*)prop->val, name_length + 1);
       if (remote_bd_addr)
         btif_config_set_str(bdstr, BTIF_STORAGE_PATH_REMOTE_NAME, value);
       else {
@@ -210,8 +210,7 @@ static bool prop_upd(const RawAddress* remote_bd_addr, bt_property_t *prop)
       }
       break;
     case BT_PROPERTY_REMOTE_FRIENDLY_NAME:
-      strncpy(value, (char*)prop->val, prop->len);
-      value[prop->len] = '\0';
+      strlcpy(value, (char*)prop->val, prop->len + 1);
       btif_config_set_str(bdstr, BTIF_STORAGE_PATH_REMOTE_ALIASE, value);
       break;
     case BT_PROPERTY_ADAPTER_SCAN_MODE:
@@ -661,7 +660,7 @@ bt_status_t btif_storage_get_adapter_property(bt_property_t* property) {
     uint32_t i;
 
     tBTA_SERVICE_MASK service_mask = btif_get_enabled_services_mask();
-    LOG_INFO(LOG_TAG, "%s service_mask:0x%x", __func__, service_mask);
+    LOG_INFO(LOG_TAG, "%s service_mask:0x%" PRIx64, __func__,service_mask);
     for (i = 0; i < BTA_MAX_SERVICE_ID; i++) {
       /* This should eventually become a function when more services are enabled
        */
@@ -672,6 +671,7 @@ bt_status_t btif_storage_get_adapter_property(bt_property_t* property) {
                 Uuid::From16Bit(UUID_SERVCLASS_AG_HANDSFREE);
             num_uuids++;
           }
+          FALLTHROUGH;
           /* intentional fall through: Send both BFP & HSP UUIDs if HFP is
            * enabled */
           case BTA_HSP_SERVICE_ID: {
@@ -884,7 +884,7 @@ bt_status_t btif_storage_remove_bonded_device(
 *******************************************************************************/
 bt_status_t btif_storage_is_device_bonded(RawAddress *remote_bd_addr) {
 
-  
+
   char bdstr[18] = {'\0'};
   snprintf(bdstr, sizeof(bdstr), "%02x:%02x:%02x:%02x:%02x:%02x",
                                   remote_bd_addr->address[0],
@@ -1113,6 +1113,7 @@ bt_status_t btif_storage_get_ble_bonding_key(RawAddress* remote_bd_addr,
       break;
     case BTIF_DM_LE_KEY_LID:
       name = "LE_KEY_LID";
+      break;
     default:
       return BT_STATUS_FAIL;
   }

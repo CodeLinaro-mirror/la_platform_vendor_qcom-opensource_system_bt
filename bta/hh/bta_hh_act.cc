@@ -26,6 +26,7 @@
 
 #if (BTA_HH_INCLUDED == TRUE)
 
+#include <log/log.h>
 #include <string.h>
 
 #include "bta_hh_co.h"
@@ -641,8 +642,9 @@ void bta_hh_handsk_act(tBTA_HH_DEV_CB* p_cb, tBTA_HH_DATA* p_data) {
     /* GET_ transsaction, handshake indicate unsupported request */
     case BTA_HH_GET_PROTO_EVT:
       hs_data.rsp_data.proto_mode = BTA_HH_PROTO_UNKNOWN;
-    /* fall through */
+      FALLTHROUGH;
     case BTA_HH_GET_RPT_EVT:
+      FALLTHROUGH;
     case BTA_HH_GET_IDLE_EVT:
       hs_data.handle = p_cb->hid_handle;
       /* if handshake gives an OK code for these transaction, fill in UNSUPT */
@@ -656,7 +658,9 @@ void bta_hh_handsk_act(tBTA_HH_DEV_CB* p_cb, tBTA_HH_DATA* p_data) {
 
     /* acknoledgement from HID device for SET_ transaction */
     case BTA_HH_SET_RPT_EVT:
+      FALLTHROUGH;
     case BTA_HH_SET_PROTO_EVT:
+      FALLTHROUGH;
     case BTA_HH_SET_IDLE_EVT:
       cback_data.handle = p_cb->hid_handle;
       cback_data.status = bta_hh_get_trans_status(p_data->hid_cback.data);
@@ -707,6 +711,12 @@ void bta_hh_ctrl_dat_act(tBTA_HH_DEV_CB* p_cb, tBTA_HH_DATA* p_data) {
   APPL_TRACE_DEBUG("Ctrl DATA received w4: event[%s]",
                    bta_hh_get_w4_event(p_cb->w4_evt));
 #endif
+  if (pdata->len == 0) {
+    android_errorWriteLog(0x534e4554, "116108738");
+    p_cb->w4_evt = 0;
+    osi_free_and_reset((void**)&pdata);
+    return;
+  }
   hs_data.status = BTA_HH_OK;
   hs_data.handle = p_cb->hid_handle;
 
@@ -908,7 +918,13 @@ void bta_hh_get_dscp_act(tBTA_HH_DEV_CB* p_cb,
     bta_hh_le_get_dscp_act(p_cb);
   } else
 #endif
-    (*bta_hh_cb.p_cback)(BTA_HH_GET_DSCP_EVT, (tBTA_HH*)&p_cb->dscp_info);
+  {
+    tBTA_HH_DEV_HANDLE_DSCP_INFO handle_dscp_info;
+
+    handle_dscp_info.dscp_info = &p_cb->dscp_info;
+    handle_dscp_info.dev_handle = p_cb->hid_handle;
+    (*bta_hh_cb.p_cback)(BTA_HH_GET_DSCP_EVT, (tBTA_HH*)&handle_dscp_info);
+  }
 }
 
 /*******************************************************************************

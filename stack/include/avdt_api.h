@@ -41,7 +41,7 @@
 #define AVDT_VERSION_SYNC 0x0103
 
 /* Maximum size in bytes of the codec capabilities information element. */
-#define AVDT_CODEC_SIZE 20
+#define AVDT_CODEC_SIZE 45
 
 /* API function return value result codes. */
 #define AVDT_SUCCESS 0      /* Function successful */
@@ -981,4 +981,14 @@ extern void AVDT_UpdateLinkPktType(uint8_t hdl, uint16_t packet_type);
  *****************************************************************************/
 extern uint8_t AVDT_SetTraceLevel(uint8_t new_level);
 
+/*******************************************************************************
+ *
+ * Function         AVDT_AssociateScb
+ *
+ * Description      Associate BTA layer index with avdt sep indecies
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+extern void AVDT_AssociateScb(uint8_t handle, const RawAddress& bd_addr);
 #endif /* AVDT_API_H */

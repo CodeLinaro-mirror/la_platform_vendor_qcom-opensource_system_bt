@@ -842,6 +842,14 @@ void l2c_lcc_proc_pdu(tL2C_CCB* p_ccb, BT_HDR* p_buf) {
       return;
     }
 
+    if (sdu_length < p_buf->len) {
+      L2CAP_TRACE_ERROR("%s: Invalid sdu_length: %d", __func__, sdu_length);
+      android_errorWriteWithInfoLog(0x534e4554, "112321180", -1, NULL, 0);
+      /* Discard the buffer */
+      osi_free(p_buf);
+      return;
+    }
+
     p_data = (BT_HDR*)osi_malloc(L2CAP_MAX_BUF_SIZE);
     if (p_data == NULL) {
       osi_free(p_buf);
@@ -2197,20 +2205,22 @@ bool l2c_fcr_renegotiate_chan(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg) {
             L2CAP_TRACE_DEBUG("l2c_fcr_renegotiate_chan(Trying ERTM)");
             p_ccb->our_cfg.fcr.mode = L2CAP_FCR_ERTM_MODE;
             can_renegotiate = true;
-          } else /* Falls through */
+          }
+          FALLTHROUGH;
 
-          case L2CAP_FCR_ERTM_MODE: {
+        case L2CAP_FCR_ERTM_MODE:
+          {
             /* We can try basic for any other peer mode if we support it */
             if (p_ccb->ertm_info.allowed_modes & L2CAP_FCR_CHAN_OPT_BASIC) {
               L2CAP_TRACE_DEBUG("l2c_fcr_renegotiate_chan(Trying Basic)");
               can_renegotiate = true;
               p_ccb->our_cfg.fcr.mode = L2CAP_FCR_BASIC_MODE;
             }
-          } break;
-
-          default:
-            /* All other scenarios cannot be renegotiated */
-            break;
+          }
+          break;
+        default:
+          /* All other scenarios cannot be renegotiated */
+          break;
       }
 
       if (can_renegotiate) {
