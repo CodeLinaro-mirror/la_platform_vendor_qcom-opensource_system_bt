@@ -2159,6 +2159,16 @@ static void btm_ble_process_adv_pkt_cont(
     return;
   }
 
+  uint8_t result = btm_ble_is_discoverable(bda, adv_data);
+  if (result == 0) {
+    cache.Clear(addr_type, bda);
+    //btm_clr_inq_db(&bda);
+    LOG_WARN(LOG_TAG,
+             "%s device no longer discoverable, discarding advertising packet",
+             __func__);
+    return;
+  }
+
   tINQ_DB_ENT* p_i = btm_inq_db_find(bda);
 
   /* Check if this address has already been processed for this inquiry */
@@ -2174,16 +2184,6 @@ static void btm_ble_process_adv_pkt_cont(
       /* if yes, skip it */
       return; /* assumption: one result per event */
     }
-  }
-
-  uint8_t result = btm_ble_is_discoverable(bda, adv_data);
-  if (result == 0) {
-    cache.Clear(addr_type, bda);
-    //btm_clr_inq_db(&bda);
-    LOG_WARN(LOG_TAG,
-             "%s device no longer discoverable, discarding advertising packet",
-             __func__);
-    return;
   }
 
   /* If existing entry, use that, else get  a new one (possibly reusing the

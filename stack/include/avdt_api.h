@@ -41,7 +41,7 @@
 #define AVDT_VERSION_SYNC 0x0103
 
 /* Maximum size in bytes of the codec capabilities information element. */
-#define AVDT_CODEC_SIZE 20
+#define AVDT_CODEC_SIZE 45
 
 /* API function return value result codes. */
 #define AVDT_SUCCESS 0      /* Function successful */
@@ -1032,6 +1032,8 @@ extern void avdt_scb_update_supported_codecs(uint8_t *p_codec_type, uint8_t *p_v
  ******************************************************************************/
 extern uint16_t AVDT_SendReport(uint8_t handle, AVDT_REPORT_TYPE type,
                                 tAVDT_REPORT_DATA* p_data);
+
+extern void AVDT_UpdateLinkPktType(uint8_t hdl, uint16_t packet_type);
 
 /******************************************************************************
  *

@@ -89,6 +89,7 @@ bool ldac_offload = false;
 bool aac_encoder_available = true;
 bool aptx_encoder_available = true;
 bool aptxhd_encoder_available = true;
+bool aptxad_encoder_available = true;
 bool ldac_encoder_available = true;
 
 bool aptxtws_offload = false;
@@ -604,6 +605,7 @@ bool A2dpCodecs::init(bool isMulticastEnabled, bool isShoEnabled, std::vector<bt
   reset_a2dp_aac_caps_initialized();
   reset_a2dp_aptx_caps_initialized();
   reset_a2dp_aptxhd_caps_initialized();
+  reset_a2dp_aptxad_caps_initialized();
   reset_a2dp_ldac_caps_initialized();
   std::lock_guard<std::recursive_mutex> lock(codec_mutex_);
 
@@ -636,6 +638,9 @@ bool A2dpCodecs::init(bool isMulticastEnabled, bool isShoEnabled, std::vector<bt
       case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD:
        update_aptxhd_cap(codec_user_list[i]);
        break;
+      case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE:
+       update_aptxad_cap(codec_user_list[i]);
+       break;
       case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
        update_ldac_cap(codec_user_list[i]);
        break;
@@ -656,6 +661,9 @@ bool A2dpCodecs::init(bool isMulticastEnabled, bool isShoEnabled, std::vector<bt
        break;
       case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD:
        update_local_capability_aptxhd(&(cp->codec_local_capability_));
+       break;
+     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE:
+       update_local_capability_aptxad(&(cp->codec_local_capability_));
        break;
       case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
        update_local_capability_ldac(&(cp->codec_local_capability_));
@@ -699,6 +707,8 @@ bool A2dpCodecs::init(bool isMulticastEnabled, bool isShoEnabled, std::vector<bt
         aptxhd_encoder_available = false;
       if(codec_index == BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC)
         ldac_encoder_available = false;
+      if(codec_index == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE)
+        aptxad_encoder_available = false;
       continue;
     }
 
@@ -1567,7 +1577,7 @@ void A2DP_SetOffloadStatus(bool offload_status, char *offload_cap, bool scrambli
         LOG_INFO(LOG_TAG,"%s: APTXHD offload supported",__func__);
         aptxhd_offload = TRUE;
       } else if (strcmp(tok,"aptxadaptive") == 0) {
-        LOG_INFO(LOG_TAG,"%s: APTXHD offload supported",__func__);
+        LOG_INFO(LOG_TAG,"%s: APTXAD offload supported",__func__);
         aptx_adaptive_offload = TRUE;
       } else if (strcmp(tok,"ldac") == 0) {
         LOG_INFO(LOG_TAG,"%s: ldac offload supported",__func__);
@@ -1658,6 +1668,10 @@ bool is_aptx_encoder_available(){
 
 bool is_aptxhd_encoder_available(){
   return aptxhd_encoder_available;
+}
+
+bool is_aptxad_encoder_available(){
+  return aptxad_encoder_available;
 }
 
 bool is_ldac_encoder_available(){

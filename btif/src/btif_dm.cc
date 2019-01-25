@@ -2032,8 +2032,12 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       /* Flush storage data */
       btif_config_flush();
       usleep(100000); /* 100milliseconds */
+#if (defined(SSR_CLEANUP) && SSR_CLEANUP == TRUE)
+      HAL_CBACK(bt_vendor_callbacks, ssr_cleanup_cb);
+#else
       /* Killing the process to force a restart as part of fault tolerance */
       kill(getpid(), SIGKILL);
+#endif
       break;
 
     case BTA_DM_BLE_KEY_EVT:

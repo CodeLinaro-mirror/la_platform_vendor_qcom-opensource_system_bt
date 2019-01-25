@@ -43,6 +43,28 @@
 #include "a2dp_vendor_aptx_adaptive_constants.h"
 #include "avdt_api.h"
 
+// data type for the aptX-adaptive Codec Information Element */
+
+// This is due to be updated
+typedef struct {
+  uint32_t vendorId;
+  uint16_t codecId;    /* Codec ID for aptX-adaptive */
+  uint8_t sampleRate;  /* Sampling Frequency */
+  uint8_t sourceType;  /* AVRCP CUSTOM, Q2Q OR NQ2Q, RESERVED */
+  uint8_t channelMode;
+  uint8_t ttp_ll_0;
+  uint8_t ttp_ll_1;
+  uint8_t ttp_hq_0;
+  uint8_t ttp_hq_1;
+  uint8_t ttp_tws_0;
+  uint8_t ttp_tws_1;
+  uint8_t eoc0;
+  uint8_t eoc1;
+  uint8_t eoc2;
+  btav_a2dp_codec_bits_per_sample_t bits_per_sample;
+  uint8_t reserved_data[A2DP_APTX_ADAPTIVE_RESERVED_DATA];
+} tA2DP_APTX_ADAPTIVE_CIE;
+
 class A2dpCodecConfigAptxAdaptive: public A2dpCodecConfig {
  public:
   A2dpCodecConfigAptxAdaptive(btav_a2dp_codec_priority_t codec_priority);
@@ -169,5 +191,23 @@ const char* A2DP_VendorCodecIndexStrAptxAdaptive(void);
 // Initializes A2DP aptX-adaptive Source codec information into |tAVDT_CFG|
 // configuration entry pointed by |p_cfg|.
 bool A2DP_VendorInitCodecConfigAptxAdaptive(tAVDT_CFG* p_cfg);
+
+//Update aptx adaptive capabilities
+void update_aptxad_cap(btav_a2dp_codec_config_t config);
+
+void update_local_capability_aptxad(btav_a2dp_codec_config_t* loc_cap);
+
+
+//Reset a2dp_aptxad_caps_initialized variable
+void reset_a2dp_aptxad_caps_initialized();
+
+// Builds the aptX-adaptive Media Codec Capabilities byte sequence beginning from the
+// LOSC octet. |media_type| is the media type |AVDT_MEDIA_TYPE_*|.
+// |p_ie| is a pointer to the aptX-adaptive Codec Information Element information.
+// The result is stored in |p_result|. Returns A2DP_SUCCESS on success,
+// otherwise the corresponding A2DP error status code.
+tA2DP_STATUS A2DP_BuildInfoAptxAdaptive(uint8_t media_type,
+                                         const tA2DP_APTX_ADAPTIVE_CIE* p_ie,
+                                         uint8_t* p_result);
 
 #endif  // A2DP_VENDOR_APTX_ADAPTIVE_H

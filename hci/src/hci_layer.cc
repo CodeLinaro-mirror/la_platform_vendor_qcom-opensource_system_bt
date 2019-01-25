@@ -488,12 +488,35 @@ static void fragmenter_transmit_finished(BT_HDR* packet,
   }
 }
 
+static void send_hw_reset_evt_packet(){
+  uint8_t dev_ssr_event[3] = { 0x10, 0x01, 0x0A };
+  uint16_t data_length = sizeof(dev_ssr_event);
+  BT_HDR* packet = static_cast<BT_HDR*>(osi_malloc(data_length + sizeof(BT_HDR)));
+  if(!packet) {
+    LOG_ERROR(LOG_TAG, "%s error getting buffer for H/W event\n ", __func__);
+    kill(getpid(), SIGKILL);
+  } else {
+    LOG_ERROR(LOG_TAG, "%s sending H/w error event to stack\n ", __func__);
+    packet->len = data_length;
+    packet->offset = 0;
+    packet->event = MSG_HC_TO_STACK_HCI_EVT;
+    packet->layer_specific = 0;
+    memcpy(packet->data, dev_ssr_event, data_length);
+    CHECK(!send_data_upwards.is_null());
+    send_data_upwards.Run(FROM_HERE, packet);
+  }
+}
+
 static void hci_timeout_abort(UNUSED_ATTR void *context) {
   LOG_DEBUG(LOG_TAG,"%s", __func__);
   hci_close_firmware_log_file(hci_firmware_log_fd);
   alarm_free(hci_timeout_abort_timer);
   hci_timeout_abort_timer = NULL;
+#if (defined(SSR_CLEANUP) && SSR_CLEANUP == TRUE)
+  send_hw_reset_evt_packet();
+#else
   kill(getpid(), SIGKILL);
+#endif
 }
 
 // Print debugging information and quit. Don't dereference original_wait_entry.
@@ -562,7 +585,11 @@ static void command_timed_out(void* original_wait_entry) {
   if (!hci_timeout_abort_timer) {
     LOG_ERROR(LOG_TAG "%s unable to create hardware error timer.", __func__);
     usleep(2000000);
+#if (defined(SSR_CLEANUP) && SSR_CLEANUP == TRUE)
+    send_hw_reset_evt_packet();
+#else
     kill(getpid(), SIGKILL);
+#endif
   }
   alarm_set(hci_timeout_abort_timer, COMMAND_TIMEOUT_RESTART_MS, hci_timeout_abort, NULL);
 }

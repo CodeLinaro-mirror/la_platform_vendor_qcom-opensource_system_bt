@@ -670,6 +670,7 @@ bool is_aac_encoder_available();
 bool is_aptx_encoder_available();
 bool is_aptxhd_encoder_available();
 bool is_ldac_encoder_available();
+bool is_aptxad_encoder_available();
 
 // Decodes and displays A2DP codec info when using |LOG_DEBUG|.
 // |p_codec_info| is a pointer to the codec_info to decode and display.

@@ -91,6 +91,7 @@ static int reconfig_a2dp_param_val = 0;
 #include "a2dp_aac.h"
 #include "a2dp_vendor_aptx.h"
 #include "a2dp_vendor_aptx_hd.h"
+#include "a2dp_vendor_aptx_adaptive.h"
 #include "a2dp_vendor_ldac.h"
 
 /*****************************************************************************
@@ -174,6 +175,8 @@ typedef struct {
   bool offload_state;
 #endif
   bool avdt_sync; /* for AVDT1.3 delay reporting */
+  uint16_t codec_latency;
+  uint16_t aptx_mode;
 } btif_av_cb_t;
 
 typedef struct {
@@ -206,7 +209,7 @@ static btif_av_cb_t btif_av_cb[BTIF_AV_NUM_CB] = {
     , false, false
 #endif
     , false
-    },
+    , 0, 0x1000},
     { 0, {{0}}, false, 0, 0, 0, 0, std::vector<btav_a2dp_codec_config_t>(), false,
     false, false, BTIF_AV_STATE_IDLE, BTA_A2DP_SOURCE_SERVICE_ID,
     false, false, false, 0, false, false
@@ -214,7 +217,7 @@ static btif_av_cb_t btif_av_cb[BTIF_AV_NUM_CB] = {
     , false, false
 #endif
     , false
-    },
+    , 0, 0x1000},
 };
 
 static alarm_t* av_open_on_rc_timer = NULL;
@@ -239,6 +242,7 @@ uint8_t num_codec_configs;
 bool bt_split_a2dp_enabled = false;
 bool reconfig_a2dp = false;
 bool codec_cfg_change = false;
+bool codec_mode_change_req = false;
 bool audio_start_awaited = false;
 extern bool enc_update_in_progress;
 extern bool is_block_hal_start;
@@ -338,7 +342,9 @@ extern tA2DP_SBC_CIE a2dp_sbc_caps;
 extern tA2DP_AAC_CIE a2dp_aac_caps;
 extern tA2DP_APTX_CIE a2dp_aptx_caps;
 extern tA2DP_APTX_HD_CIE a2dp_aptx_hd_caps;
+extern tA2DP_APTX_ADAPTIVE_CIE a2dp_aptx_adaptive_caps;
 extern tA2DP_LDAC_CIE a2dp_ldac_caps;
+
 extern bool bta_avk_is_avdt_sync(uint16_t handle);
 
 /*****************************************************************************
@@ -664,12 +670,27 @@ bt_status_t check_valid_param(std::vector<btav_a2dp_codec_config_t> p_codec_list
                     case BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO:
                         break;
                     default:
-                        BTIF_TRACE_ERROR(" %s Invalid AptX channel mode = %d",
+                        BTIF_TRACE_ERROR(" %s Invalid AptX_AD channel mode = %d",
                             __func__, cp.channel_mode);
                         return BT_STATUS_PARM_INVALID;
                 }
                 break;
-                case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
+            case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE:
+                switch (cp.sample_rate) {
+                    case BTAV_A2DP_CODEC_SAMPLE_RATE_48000:
+                        break;
+                    default:
+                        BTIF_TRACE_ERROR(" %s Invalid APTX AD freq = %d",
+                            __func__, cp.sample_rate);
+                        return BT_STATUS_PARM_INVALID;
+              }
+                if (A2DP_BitsSet(cp.codec_specific_4) == A2DP_SET_ZERO_BIT) {
+                    BTIF_TRACE_ERROR(" %s Invalid APTX AD mode info = %lx",
+                        __func__, cp.codec_specific_4);
+                    return BT_STATUS_PARM_INVALID;
+                }
+        break;
+            case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
                 switch (cp.sample_rate) {
                     case BTAV_A2DP_CODEC_SAMPLE_RATE_44100:
                     case BTAV_A2DP_CODEC_SAMPLE_RATE_48000:
@@ -736,6 +757,11 @@ static void btif_update_source_codec_capability(std::vector<btav_a2dp_codec_conf
               vnd_id_list[j] = A2DP_APTX_HD_VENDOR_ID;
               codec_id_list[j] = A2DP_APTX_HD_CODEC_ID_BLUETOOTH;
               break;
+          case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE:
+              codec_type_list[j] = A2DP_MEDIA_CT_NON_A2DP;
+              vnd_id_list[j] = A2DP_APTX_ADAPTIVE_VENDOR_ID;
+              codec_id_list[j] = A2DP_APTX_ADAPTIVE_CODEC_ID_BLUETOOTH;
+              break;
           case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
               codec_type_list[j] = A2DP_MEDIA_CT_NON_A2DP;
               vnd_id_list[j] = A2DP_LDAC_VENDOR_ID;
@@ -763,6 +789,8 @@ static void btif_update_source_codec_capability(std::vector<btav_a2dp_codec_conf
     A2DP_BuildInfoAptx(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aptx_caps, codec_info[j ++]);
   if (codec_type_added[BTAV_A2DP_CODEC_INDEX_SOURCE_AAC])
     A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aac_caps, codec_info[j ++]);
+  if (codec_type_added[BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE])
+    A2DP_BuildInfoAptxAdaptive(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aptx_adaptive_caps, codec_info[j ++]);
   A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &a2dp_sbc_caps, codec_info[j ++]);
   BTIF_TRACE_DEBUG(" %s Num_codec_configs = %d", __func__, j);
   for (uint8_t i = 0; i < j; i ++) {
@@ -774,6 +802,47 @@ static void btif_update_source_codec_capability(std::vector<btav_a2dp_codec_conf
   /* Update the codec config supported paratmers so that correct response can be
    * sent for AVDTP discover and get capabilities command from remote device */
   BTA_AvUpdateCodecSupport(codec_type_list, vnd_id_list, codec_id_list, codec_info, j);
+}
+
+static void btif_update_source_codec(void* p_data) {
+  BTIF_TRACE_DEBUG("%s", __func__);
+  codec_mode_change_req = false;
+  btif_av_codec_config_req_t *req = (btif_av_codec_config_req_t *)p_data;
+  btif_a2dp_source_encoder_user_config_update_req(req->codec_config, req->bd_addr);
+  if (req->codec_config.codec_specific_4 > 0) {
+    A2dpCodecConfig* current_codec = bta_av_get_a2dp_current_codec();
+  if (current_codec != nullptr) {
+    btav_a2dp_codec_config_t codec_config;
+    codec_config = current_codec->getCodecConfig();
+    if(codec_config.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE) {
+      int index = btif_max_av_clients;
+      const uint16_t ENCODER_MODE_MASK = 0x3000;
+      const uint16_t LL_MODE_MASK = 0x2000;
+      const uint16_t HQ_MODE_MASK = 0x1000;
+      uint16_t encoder_mode = req->codec_config.codec_specific_4 & ENCODER_MODE_MASK;
+      if (btif_av_stream_started_ready())
+        index = btif_av_get_latest_playing_device_idx();
+      else
+        index = btif_av_get_latest_device_idx_to_start();
+      if(index >= btif_max_av_clients) return;
+      if(encoder_mode == HQ_MODE_MASK) {
+        btif_av_cb[index].aptx_mode = HQ_MODE_MASK;
+        btif_av_cb[index].codec_latency = APTX_HQ_LATENCY;
+#ifdef ANDROID
+        btif_a2dp_update_sink_latency_change();
+#endif
+        }
+      else if (encoder_mode == LL_MODE_MASK) {
+        btif_av_cb[index].aptx_mode = LL_MODE_MASK;
+        btif_av_cb[index].codec_latency = APTX_LL_LATENCY;
+#ifdef ANDROID
+        btif_a2dp_update_sink_latency_change();
+#endif
+        }
+      BTIF_TRACE_ERROR("%s: Aptx Adaptive codec_latency = %d", __func__, btif_av_cb[index].codec_latency);
+      }
+    }
+  }
 }
 
 static void btif_report_source_codec_state(UNUSED_ATTR void* p_data,
@@ -1043,6 +1112,10 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
       break;
 
     case BTIF_AV_SOURCE_CONFIG_REQ_EVT:
+      if (codec_mode_change_req) {
+        btif_update_source_codec(p_data);
+        break;
+      }
       static std::vector<btav_a2dp_codec_config_t> codec_user_list;
       static btav_a2dp_codec_config_t *p_bta_av_codec_pri_listt = (btav_a2dp_codec_config_t*)malloc(sizeof(btav_a2dp_codec_config_t)*num_codec_configs);
       memcpy(p_bta_av_codec_pri_listt, (btav_a2dp_codec_config_t *)p_data, num_codec_configs *sizeof(btav_a2dp_codec_config_t));
@@ -1051,12 +1124,12 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
         codec_user_list.push_back(*(p_bta_av_codec_pri_listt+i));
 
       for (auto cp : codec_user_list) {
-      BTIF_TRACE_DEBUG(
+      BTIF_TRACE_ERROR(
         "%s: codec_type=%d, codec_priority=%d "
         "sample_rate=0x%x bits_per_sample=0x%x "
         "channel_mode=0x%x codec_specific_1=0x%x "
         "codec_specific_2=0x%x codec_specific_3=0x%x "
-        "codec_specific_4=%d codec_specific_5=%d",
+        "codec_specific_4=0x%x codec_specific_5=0x%x",
         __func__, cp.codec_type, cp.codec_priority, cp.sample_rate,
         cp.bits_per_sample, cp.channel_mode, cp.codec_specific_1,
         cp.codec_specific_2, cp.codec_specific_3, cp.codec_specific_4, cp.codec_specific_5);}
@@ -1341,6 +1414,10 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
     } break;
 
     case BTIF_AV_SOURCE_CONFIG_REQ_EVT:
+      if (codec_mode_change_req) {
+        btif_update_source_codec(p_data);
+        break;
+      }
       static std::vector<btav_a2dp_codec_config_t> codec_user_list;
       static btav_a2dp_codec_config_t *p_bta_av_codec_pri_listt = (btav_a2dp_codec_config_t*)malloc(sizeof(btav_a2dp_codec_config_t)*num_codec_configs);
       memcpy(p_bta_av_codec_pri_listt, (btav_a2dp_codec_config_t *)p_data, num_codec_configs *sizeof(btav_a2dp_codec_config_t));
@@ -1354,7 +1431,7 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
         "sample_rate=0x%x bits_per_sample=0x%x "
         "channel_mode=0x%x codec_specific_1=0x%x "
         "codec_specific_2=0x%x codec_specific_3=0x%x "
-        "codec_specific_4=%d codec_specific_5=%d",
+        "codec_specific_4=0x%x codec_specific_5=0x%x",
         __func__, cp.codec_type, cp.codec_priority, cp.sample_rate,
         cp.bits_per_sample, cp.channel_mode, cp.codec_specific_1,
         cp.codec_specific_2, cp.codec_specific_3, cp.codec_specific_4, cp.codec_specific_5);}
@@ -1593,6 +1670,10 @@ static bool btif_av_state_closing_handler(btif_sm_event_t event, void* p_data, i
       break;
 
     case BTIF_AV_SOURCE_CONFIG_REQ_EVT:
+      if (codec_mode_change_req) {
+        btif_update_source_codec(p_data);
+        break;
+      }
       static std::vector<btav_a2dp_codec_config_t> codec_user_list;
       static btav_a2dp_codec_config_t *p_bta_av_codec_pri_listt = (btav_a2dp_codec_config_t*)malloc(sizeof(btav_a2dp_codec_config_t)*num_codec_configs);
       memcpy(p_bta_av_codec_pri_listt, (btav_a2dp_codec_config_t *)p_data, num_codec_configs *sizeof(btav_a2dp_codec_config_t));
@@ -1606,7 +1687,7 @@ static bool btif_av_state_closing_handler(btif_sm_event_t event, void* p_data, i
         "sample_rate=0x%x bits_per_sample=0x%x "
         "channel_mode=0x%x codec_specific_1=0x%x "
         "codec_specific_2=0x%x codec_specific_3=0x%x "
-        "codec_specific_4=%d codec_specific_5=%d",
+        "codec_specific_4=0x%x codec_specific_5=0x%x",
         __func__, cp.codec_type, cp.codec_priority, cp.sample_rate,
         cp.bits_per_sample, cp.channel_mode, cp.codec_specific_1,
         cp.codec_specific_2, cp.codec_specific_3, cp.codec_specific_4, cp.codec_specific_5);}
@@ -1885,7 +1966,11 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
       btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_STARTED);
     } break;
 
-    case BTIF_AV_SOURCE_CONFIG_REQ_EVT: {
+    case BTIF_AV_SOURCE_CONFIG_REQ_EVT: 
+      if (codec_mode_change_req) {
+        btif_update_source_codec(p_data);
+        break;
+      }
       static std::vector<btav_a2dp_codec_config_t> codec_user_list;
       static btav_a2dp_codec_config_t *p_bta_av_codec_pri_listt = (btav_a2dp_codec_config_t*)malloc(sizeof(btav_a2dp_codec_config_t)*num_codec_configs);
       memcpy(p_bta_av_codec_pri_listt, (btav_a2dp_codec_config_t *)p_data, num_codec_configs *sizeof(btav_a2dp_codec_config_t));
@@ -1899,7 +1984,7 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
         "sample_rate=0x%x bits_per_sample=0x%x "
         "channel_mode=0x%x codec_specific_1=0x%x "
         "codec_specific_2=0x%x codec_specific_3=0x%x "
-        "codec_specific_4=%d codec_specific_5=%d",
+      "codec_specific_4=0x%x codec_specific_5=0x%x",
         __func__, cp.codec_type, cp.codec_priority, cp.sample_rate,
         cp.bits_per_sample, cp.channel_mode, cp.codec_specific_1,
         cp.codec_specific_2, cp.codec_specific_3, cp.codec_specific_4, cp.codec_specific_5);}
@@ -1917,13 +2002,13 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
         break;
       }
       BTIF_TRACE_DEBUG("%s: codec_user_list cached", __func__);
-    } break;
+      break;
 
     case BTIF_AV_SOURCE_CONFIG_UPDATED_EVT: {
       if (p_data != NULL) {
           bt_addr = (RawAddress *)p_data;
       } else {
-          BTIF_TRACE_DEBUG("%s: p_data not null", __func__);
+          BTIF_TRACE_DEBUG("%s: p_data is null", __func__);
           bt_addr = &btif_av_cb[index].peer_bda;
       }
 
@@ -2216,6 +2301,10 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
       break;
 
     case BTIF_AV_SOURCE_CONFIG_REQ_EVT:
+      if (codec_mode_change_req) {
+        btif_update_source_codec(p_data);
+        break;
+      }
       btif_av_cb[index].reconfig_pending = true;
       btif_av_flow_spec_cmd(index, reconfig_a2dp_param_val);
       static std::vector<btav_a2dp_codec_config_t> codec_user_list;
@@ -2231,7 +2320,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
         "sample_rate=0x%x bits_per_sample=0x%x "
         "channel_mode=0x%x codec_specific_1=0x%x "
         "codec_specific_2=0x%x codec_specific_3=0x%x "
-        "codec_specific_4=%d codec_specific_5=%d",
+        "codec_specific_4=0x%x codec_specific_5=0x%x",
         __func__, cp.codec_type, cp.codec_priority, cp.sample_rate,
         cp.bits_per_sample, cp.channel_mode, cp.codec_specific_1,
         cp.codec_specific_2, cp.codec_specific_3, cp.codec_specific_4, cp.codec_specific_5);}
@@ -4020,7 +4109,9 @@ static bt_status_t codec_config_src(const RawAddress& bd_addr,
   CHECK_BTAV_INIT();
   num_codec_configs = codec_preferences.size();
   btav_a2dp_codec_config_t p_bta_av_codec_pri_list[num_codec_configs];
-
+  int64_t aptx_mode;
+  codec_bda = bd_addr;
+  BTIF_TRACE_ERROR("%s: bd_addr: %s", __func__, codec_bda.ToString().c_str());
   if (btif_av_is_tws_connected()) {
     BTIF_TRACE_DEBUG("%s:TWSP device connected, config change not allowed",__func__);
     return BT_STATUS_FAIL;
@@ -4030,24 +4121,23 @@ static bt_status_t codec_config_src(const RawAddress& bd_addr,
   int n_codec =0;
   for (auto cp : codec_preferences) {
         p_bta_av_codec_pri_list[n_codec]=cp;
-         BTIF_TRACE_DEBUG(
+         BTIF_TRACE_ERROR(
         "%s: codec_type=%d, codec_priority=%d "
         "sample_rate=0x%x bits_per_sample=0x%x "
         "channel_mode=0x%x codec_specific_1=0x%x "
         "codec_specific_2=0x%x codec_specific_3=0x%x "
-        "codec_specific_4=%d codec_specific_5=%d",
+        "codec_specific_4=0x%x codec_specific_5=0x%x",
         __func__, p_bta_av_codec_pri_list[n_codec].codec_type, p_bta_av_codec_pri_list[n_codec].codec_priority, p_bta_av_codec_pri_list[n_codec].sample_rate,
         p_bta_av_codec_pri_list[n_codec].bits_per_sample, p_bta_av_codec_pri_list[n_codec].channel_mode, p_bta_av_codec_pri_list[n_codec].codec_specific_1,
-        p_bta_av_codec_pri_list[n_codec].codec_specific_2, p_bta_av_codec_pri_list[n_codec].codec_specific_3, p_bta_av_codec_pri_list[n_codec].codec_specific_4, 
+        p_bta_av_codec_pri_list[n_codec].codec_specific_2, p_bta_av_codec_pri_list[n_codec].codec_specific_3, p_bta_av_codec_pri_list[n_codec].codec_specific_4,
         p_bta_av_codec_pri_list[n_codec].codec_specific_5);
         n_codec++;
 
-          A2dpCodecConfig* current_codec = bta_av_get_a2dp_current_codec();
-          if (current_codec != nullptr) {
+       /*   if (current_codec != nullptr) {
             btav_a2dp_codec_config_t codec_config;
             codec_config = current_codec->getCodecConfig();
             isBitRateChange = false;
-            /*if ((codec_config.codec_specific_1 != cp.codec_specific_1) &&
+            if ((codec_config.codec_specific_1 != cp.codec_specific_1) &&
                 (codec_config.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC)) {
               isBitRateChange = true;
               switch (cp.codec_specific_1)
@@ -4081,18 +4171,64 @@ static bt_status_t codec_config_src(const RawAddress& bd_addr,
                 reconfig_a2dp_param_id = BITRATE_PARAM_ID;
               }
             }*/
-          }
 
-    isDevUiReq = true;
-    codec_cfg_change = true;
-    
-    codec_bda = bd_addr;
-    BTIF_TRACE_DEBUG("%s: current codec_bda: %s", __func__, codec_bda.ToString().c_str());
+    if (cp.codec_specific_5 != 0 &&
+         cp.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE) {
+      codec_mode_change_req = true;
+      BTIF_TRACE_WARNING("%s: Dont set codec_cfg_change for Aptx mode change call", __func__);
+      if (cp.codec_specific_4 != 0)
+        aptx_mode = cp.codec_specific_4;
+      else if (cp.codec_specific_5 == 1)
+        aptx_mode = 0x1000;
+      else if (cp.codec_specific_5 == 2)
+        aptx_mode = 0x2000;
+      else {
+        BTIF_TRACE_ERROR("%s: Aptx mode is not set properly from UI", __func__);
+        return;
+      }
+    }
   }
 
-    btif_transfer_context(btif_av_handle_event, BTIF_AV_SOURCE_CONFIG_REQ_EVT,
-              (char*)(&p_bta_av_codec_pri_list), num_codec_configs *sizeof(btav_a2dp_codec_config_t), NULL);
-    return BT_STATUS_SUCCESS;
+  isDevUiReq = true;
+  if (codec_mode_change_req) {
+    btav_a2dp_codec_config_t codec_config;
+    std::vector<btav_a2dp_codec_config_t> codecs_local_capabilities;
+    uint16_t ENCODER_MODE_MASK = 0x3000;
+
+    A2dpCodecConfig* current_codec = bta_av_get_a2dp_current_codec();
+
+    if (!btif_av_is_split_a2dp_enabled()) {
+      BTIF_TRACE_ERROR("%s: Aptx AD curently only supported for split path", __func__);
+      return;
+    }
+    if (current_codec != nullptr) {
+      btif_av_codec_config_req_t codec_req;
+      btav_a2dp_codec_config_t codec_config;
+      codec_config = current_codec->getCodecConfig();
+      if(codec_config.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE) {
+          if (codec_config.codec_specific_4 & ENCODER_MODE_MASK == aptx_mode) {
+          codec_mode_change_req = false;
+          BTIF_TRACE_ERROR("%s: Aptx mode is same as mentioned", __func__);
+          return BT_STATUS_SUCCESS;
+        }
+        codec_config.codec_specific_4 = (codec_config.codec_specific_4 & ~ENCODER_MODE_MASK)
+                   | aptx_mode;
+        memcpy(&codec_req.bd_addr, (uint8_t *)&bd_addr, sizeof(RawAddress));
+        memcpy(&codec_req.codec_config, (char*)(&codec_config), sizeof(btav_a2dp_codec_config_t));
+        btif_transfer_context(btif_av_handle_event, BTIF_AV_SOURCE_CONFIG_REQ_EVT,
+                     (char *)&codec_req, sizeof(codec_req), NULL);
+        return BT_STATUS_SUCCESS;
+     }
+     else {
+       codec_mode_change_req = false;
+       BTIF_TRACE_ERROR("%s: Current codec is not aptx ad, can't update mode info", __func__);
+       return;
+     }
+   }
+ }
+ btif_transfer_context(btif_av_handle_event, BTIF_AV_SOURCE_CONFIG_REQ_EVT,
+   (char*)(&p_bta_av_codec_pri_list), num_codec_configs *sizeof(btav_a2dp_codec_config_t), NULL);
+ return BT_STATUS_SUCCESS;
 }
 
 
@@ -4930,7 +5066,7 @@ tBTA_AV_LATENCY btif_av_get_sink_latency() {
       sink_latency = BTIF_AV_DEFAULT_MULTICAST_SINK_LATENCY;
   }
 
-  BTIF_TRACE_DEBUG("%s, return sink latency: %d", __func__, sink_latency);
+  BTIF_TRACE_ERROR("%s, return sink latency: %d", __func__, sink_latency);
   return sink_latency;
 }
 
@@ -5545,6 +5681,15 @@ void btif_av_reset_audio_delay(tBTA_AV_HNDL hndl) {
 }
 
 uint16_t btif_av_get_audio_delay(int index) {
+  A2dpCodecConfig* current_codec = bta_av_get_a2dp_current_codec();
+  if(current_codec != nullptr) {
+    if(current_codec->codecIndex() == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE) {
+      BTIF_TRACE_WARNING("%s: Updating Aptx Adaptive specific delay: %d",
+          __func__, btif_av_cb[index].codec_latency);
+      return btif_av_cb[index].codec_latency;
+    }
+  }
+
   if (index >= 0 && index < btif_max_av_clients) {
     return btif_a2dp_control_get_audio_delay(index);
   } else {
@@ -5552,6 +5697,19 @@ uint16_t btif_av_get_audio_delay(int index) {
     return btif_a2dp_control_get_audio_delay(0);
   }
 }
+
+uint16_t btif_av_get_aptx_mode_info() {
+  int index = btif_max_av_clients;
+  if (btif_av_stream_started_ready())
+    index = btif_av_get_latest_playing_device_idx();
+  else
+    index = btif_av_get_latest_device_idx_to_start();
+
+  if(index >= btif_max_av_clients) return 0;
+
+  return btif_av_cb[index].aptx_mode;
+}
+
 
 /*******************************************************************************
 **

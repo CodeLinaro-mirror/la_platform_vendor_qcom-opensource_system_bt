@@ -39,6 +39,9 @@
 #define SOFT_HANDOFF 1
 #define RECONFIG_A2DP_PARAM 2
 
+#define APTX_HQ_LATENCY 200
+#define APTX_LL_LATENCY 70
+
 /*******************************************************************************
  *  Type definitions for callback functions
  ******************************************************************************/
@@ -451,6 +454,16 @@ void btif_av_reset_audio_delay(tBTA_AV_HNDL hndl);
  * Returns          uint16_t
  */
 uint16_t btif_av_get_audio_delay(int index);
+
+/**
+ * Function         btif_av_get_aptx_mode_info
+ *
+ * Description      Return current aptx_mode for active index.
+ *
+ * Returns          uint16_t
+ */
+
+uint16_t btif_av_get_aptx_mode_info();
 
 void initialize_audio_hidl();
 void deinit_audio_hal();

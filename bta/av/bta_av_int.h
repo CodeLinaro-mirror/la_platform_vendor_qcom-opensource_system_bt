@@ -161,17 +161,17 @@ enum {
 
 /* events that do not go through state machine */
 #define BTA_AV_FIRST_NSM_EVT BTA_AV_API_ENABLE_EVT
-#define BTA_AV_LAST_NSM_EVT BTA_AV_UPDATE_SUPP_CODECS
+#define BTA_AV_LAST_NSM_EVT BTA_AV_UPDATE_ENCODER_MODE_EVT
 
 /* API events passed to both SSMs (by bta_av_api_to_ssm) */
 #define BTA_AV_FIRST_A2S_API_EVT BTA_AV_API_START_EVT
 #define BTA_AV_FIRST_A2S_SSM_EVT BTA_AV_AP_START_EVT
 
-#define BTA_AV_LAST_EVT BTA_AV_UPDATE_SUPP_CODECS
+#define BTA_AV_LAST_EVT BTA_AV_UPDATE_ENCODER_MODE_EVT
 #if (TWS_ENABLED == TRUE)
 #define BTA_AV_LAST_EVT BTA_AV_SET_TWS_DEVICE_EVT
 #else
-#define BTA_AV_LAST_EVT BTA_AV_RC_COLLISSION_DETECTED_EVT
+#define BTA_AV_LAST_EVT BTA_AV_UPDATE_ENCODER_MODE_EVT
 #endif
 
 /* Info ID from updating aptX Adaptive Encoder mode */
@@ -730,7 +730,7 @@ typedef struct {
   uint8_t ch_mode; //None:0 Left:1 Right:2
   uint16_t ttp; //time to play
 //#endif
-  uint8_t codec_info[20];
+  uint8_t codec_info[AVDT_CODEC_SIZE];
   tBTA_AV_SCB* p_scb;
 }tBT_VENDOR_A2DP_OFFLOAD;
 
