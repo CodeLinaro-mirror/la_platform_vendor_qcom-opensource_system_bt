@@ -167,6 +167,10 @@ static BT_HDR* make_read_scrambling_supported_freqs(void) {
   return packet;
 }
 
+static BT_HDR* make_read_local_simple_pairing_options(void) {
+  return make_command_no_params(HCI_READ_LOCAL_SIMPLE_PAIRING_OPTIONS);
+}
+
 static BT_HDR *make_ble_read_offload_features_support(void) {
 return make_command_no_params(HCI_BLE_VENDOR_CAP_OCF);
 }
@@ -232,7 +236,8 @@ static const hci_packet_factory_t interface = {
     make_ble_set_event_mask,
     make_read_local_supported_codecs,
     make_ble_read_offload_features_support,
-    make_read_scrambling_supported_freqs};
+    make_read_scrambling_supported_freqs,
+    make_read_local_simple_pairing_options};
 
 const hci_packet_factory_t* hci_packet_factory_get_interface() {
   buffer_allocator = buffer_allocator_get_interface();
