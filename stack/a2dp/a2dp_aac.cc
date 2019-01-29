@@ -295,10 +295,10 @@ bool A2DP_IsPeerSourceCodecSupportedAac(const uint8_t* p_codec_info) {
                                             true) == A2DP_SUCCESS;
 }
 
-tA2DP_STATUS A2DP_BuildSrc2SinkConfigAac(UNUSED_ATTR const uint8_t* p_src_cap,
-                                         UNUSED_ATTR uint8_t* p_pref_cfg) {
+tA2DP_STATUS A2DP_BuildSrc2SinkConfigAac(const uint8_t* p_src_cap,
+                                         uint8_t* p_pref_cfg) {
   tA2DP_AAC_CIE src_cap;
-  tA2DP_AAC_CIE pref_cap;
+  tA2DP_AAC_CIE pref_cap = a2dp_aac_default_config;
 
   /* initialize it to default AAC configuration */
   A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aac_default_config,
@@ -321,6 +321,8 @@ tA2DP_STATUS A2DP_BuildSrc2SinkConfigAac(UNUSED_ATTR const uint8_t* p_src_cap,
     pref_cap.channelMode = A2DP_AAC_CHANNEL_MODE_STEREO;
   else if (src_cap.channelMode & A2DP_AAC_CHANNEL_MODE_MONO)
     pref_cap.channelMode = A2DP_AAC_CHANNEL_MODE_MONO;
+
+  pref_cap.bitRate = src_cap.bitRate;
 
   A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &pref_cap, p_pref_cfg);
 
@@ -1433,7 +1435,10 @@ fail:
 A2dpCodecConfigAacSink::A2dpCodecConfigAacSink(
     btav_a2dp_codec_priority_t codec_priority)
     : A2dpCodecConfig(BTAV_A2DP_CODEC_INDEX_SINK_AAC,
-                      A2DP_CodecIndexStrAacSink(), codec_priority) {}
+                      A2DP_CodecIndexStrAacSink(), codec_priority) {
+  a2dp_aac_caps = a2dp_aac_sink_caps;
+  a2dp_aac_default_config = a2dp_aac_sink_caps;
+}
 
 A2dpCodecConfigAacSink::~A2dpCodecConfigAacSink() {}
 
