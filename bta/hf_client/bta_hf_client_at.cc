@@ -181,7 +181,7 @@ static void bta_hf_client_send_at(tBTA_HF_CLIENT_CB* client_cb,
     client_cb->at_cb.current_cmd = cmd;
     /* Generate fake responses for these because they won't reliably work */
     if (!service_availability &&
-        (cmd == BTA_HF_CLIENT_AT_CNUM || cmd == BTA_HF_CLIENT_AT_COPS)) {
+        (cmd == BTA_HF_CLIENT_AT_COPS)) {
       APPL_TRACE_WARNING("%s: No service, skipping %d command", __func__, cmd);
       bta_hf_client_handle_ok(client_cb);
       return;
