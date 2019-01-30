@@ -18,6 +18,17 @@ AM_CPPFLAGS= \
         -I../ \
         -I$(bdroid_C_INCLUDES)
 
+if MDM_ROME
+AM_CFLAGS += -DBT_SOC_TYPE_ROME
+AM_CPPFLAGS += -DBT_SOC_TYPE_ROME
+else
+if MDM_PRONTO
+AM_CFLAGS += -DHCI_USE_MCT
+AM_CPPFLAGS += -DHCI_USE_MCT
+endif
+endif
+
+
 c_sources = \
         src/bt_utils.c
 
