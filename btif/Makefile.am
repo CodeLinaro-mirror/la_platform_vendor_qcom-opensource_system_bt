@@ -44,7 +44,9 @@ AM_CPPFLAGS = \
         -I${external_bt_path}/vhal/include \
         -I$(WORKSPACE)/frameworks/av/include \
         -I$(WORKSPACE)/system/media/audio/include \
+        -I$(WORKSPACE)/frameworks/system/media/audio/include \
         -I$(WORKSPACE)/system/media/audio_utils/include \
+        -I$(WORKSPACE)/frameworks/system/media/audio_utils/include \
         -I$(WORKSPACE)/system/core/include
 
 c_sources = \
