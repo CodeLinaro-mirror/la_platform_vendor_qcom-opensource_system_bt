@@ -43,6 +43,7 @@
 #include "osi/include/time.h"
 #include "stack_config.h"
 #include "l2c_api.h"
+#include <poll.h>
 
 // The number of of packets per btsnoop file before we rotate to the next
 // file. As of right now there are two snoop files that are rotated through.
@@ -301,6 +302,7 @@ static void btsnoop_write_packet(packet_type_t type, uint8_t* packet,
   uint32_t length_he = 0;
 
   uint32_t flags = 0;
+  int status = 0;
 
   LOG_DEBUG(LOG_TAG, "%s: -->", __func__);
 
@@ -345,9 +347,21 @@ static void btsnoop_write_packet(packet_type_t type, uint8_t* packet,
       open_next_snoop_file();
     }
 
+    struct pollfd fds;
+    fds.fd = logfile_fd;
+    fds.events = POLLOUT;
     iovec iov[] = {{&header, sizeof(btsnoop_header_t)},
                    {reinterpret_cast<void*>(packet), length_he - 1}};
-    TEMP_FAILURE_RETRY(writev(logfile_fd, iov, 2));
+
+    status = poll(&fds, 1, 0);
+    if(status > 0 && fds.revents & POLLOUT) {
+      TEMP_FAILURE_RETRY(writev(logfile_fd, iov, 2));
+    } else if (status == 0) {
+      LOG_WARN(LOG_TAG, "%s poll() timeout", __func__);
+    } else if (status == -1) {
+      LOG_ERROR(LOG_TAG, "%s poll failed errno %d (%s)",
+                    __func__, errno, strerror(errno));
+    }
   }
 
   LOG_DEBUG(LOG_TAG, "%s: <--", __func__);
