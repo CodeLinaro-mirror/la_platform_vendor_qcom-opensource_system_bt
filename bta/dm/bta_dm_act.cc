@@ -50,6 +50,7 @@
 #include "device/include/interop_config.h"
 #include "stack/sdp/sdpint.h"
 #include <inttypes.h>
+#include "device/include/device_iot_config.h"
 
 #if (GAP_INCLUDED == TRUE)
 #include "gap_api.h"
@@ -1592,6 +1593,50 @@ void bta_dm_disc_rmt_name(tBTA_DM_MSG* p_data) {
   bta_dm_discover_device(p_data->rem_name.result.disc_res.bd_addr);
 }
 
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+static void bta_dm_sdp_store_peer_profiles_version() {
+  tSDP_DISC_REC* p_rec = NULL;
+  uint16_t peer_profile_version = 0;
+  int i = 0;
+  const UINT16 servclass_uuids[] = {
+      UUID_SERVCLASS_AUDIO_SINK,
+      UUID_SERVCLASS_HF_HANDSFREE,
+      UUID_SERVCLASS_AV_REMOTE_CONTROL,
+      UUID_SERVCLASS_AV_REM_CTRL_TARGET,
+  };
+  const UINT16 btprofile_uuids[] = {
+      UUID_SERVCLASS_ADV_AUDIO_DISTRIBUTION,
+      UUID_SERVCLASS_HF_HANDSFREE,
+      UUID_SERVCLASS_AV_REMOTE_CONTROL,
+      UUID_SERVCLASS_AV_REMOTE_CONTROL,
+  };
+
+  const char* profile_keys[] = {
+      IOT_CONF_KEY_A2DP_VERSION,
+      IOT_CONF_KEY_HFP_VERSION,
+      IOT_CONF_KEY_AVRCP_CTRL_VERSION,
+      IOT_CONF_KEY_AVRCP_TG_VERSION,
+  };
+  int profile_num = sizeof(servclass_uuids)/sizeof(servclass_uuids[0]);
+
+  APPL_TRACE_DEBUG("%s", __func__);
+  for (i = 0; i < profile_num; i++) {
+    peer_profile_version = 0;
+    if ((p_rec = SDP_FindServiceInDb(bta_dm_search_cb.p_sdp_db, servclass_uuids[i], NULL)) == NULL)
+      continue;
+    if (SDP_FindAttributeInRec(p_rec, ATTR_ID_BT_PROFILE_DESC_LIST) == NULL)
+      continue;
+
+    /* get profile version (if failure, version parameter is not updated) */
+    SDP_FindProfileVersionInRec(p_rec, btprofile_uuids[i], &peer_profile_version);
+    if (peer_profile_version != 0)
+      device_iot_config_addr_set_hex(p_rec->remote_bd_addr,
+              profile_keys[i], peer_profile_version, IOT_CONF_BYTE_NUM_2);
+  }
+  device_iot_config_flush();
+}
+#endif
+
 /*******************************************************************************
  *
  * Function         bta_dm_sdp_result
@@ -1721,6 +1766,11 @@ void bta_dm_sdp_result(tBTA_DM_MSG* p_data) {
           }
         }
       } while (p_sdp_rec);
+
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+      if (bta_dm_search_cb.services_to_search == 0)
+        bta_dm_sdp_store_peer_profiles_version();
+#endif
     }
     /* if there are more services to search for */
     if (bta_dm_search_cb.services_to_search) {

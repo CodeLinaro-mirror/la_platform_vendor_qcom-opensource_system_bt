@@ -807,18 +807,26 @@ static void bta_ag_codec_negotiation_timer_cback(void* data) {
                                            &p_scb->peer_addr);
   /* Announce that codec negotiation failed. */
   bta_ag_sco_codec_nego(p_scb, false);
-
-  // add the device to blacklisting to disable codec negotiation
-  if (is_blacklisted == false) {
-     APPL_TRACE_IMP("%s: blacklisting device %s for codec negotiation",
+#if (TWS_AG_ENABLED == TRUE)
+  if (is_twsp_device(p_scb->peer_addr)) {
+     APPL_TRACE_IMP("%s: tws device %s  codec negotiation fail. skip blacklist",
                     __func__, p_scb->peer_addr.ToString().c_str());
-
-     interop_database_add(INTEROP_DISABLE_CODEC_NEGOTIATION,
-                        &p_scb->peer_addr, 3);
   } else {
-     APPL_TRACE_IMP("%s: dev %s is already blacklisted for codec negotiation",
+#endif
+  // add the device to blacklisting to disable codec negotiation
+    if (is_blacklisted == false) {
+      APPL_TRACE_IMP("%s: blacklisting device %s for codec negotiation",
                     __func__, p_scb->peer_addr.ToString().c_str());
+
+      interop_database_add(INTEROP_DISABLE_CODEC_NEGOTIATION,
+                         &p_scb->peer_addr, 3);
+    } else {
+       APPL_TRACE_IMP("%s: dev %s is already blacklisted for codec negotiation",
+                     __func__, p_scb->peer_addr.ToString().c_str());
+    }
+#if (TWS_AG_ENABLED == TRUE)
   }
+#endif
   /* call app callback */
   bta_ag_cback_sco(p_scb, BTA_AG_AUDIO_CLOSE_EVT);
 }
