@@ -2695,12 +2695,10 @@ static bt_status_t init_src(btav_callbacks_t* callbacks)
             }
         }
         pthread_mutex_unlock(&src_codec_q_lock);
-        status = btif_av_init(BTA_A2DP_SOURCE_SERVICE_ID);
     }
 
-    if (status == BT_STATUS_SUCCESS) {
-        bt_av_src_callbacks = callbacks;
-    }
+    bt_av_src_callbacks = callbacks;
+    status = BT_STATUS_SUCCESS;
 
     return status;
 }
@@ -2790,8 +2788,7 @@ static bt_status_t init_src_vendor(btav_vendor_callbacks_t* callbacks, int max_a
             is_multicast_supported = FALSE; //Disable multicast in Split A2dp mode
         }
         btif_max_av_clients = max_a2dp_connections;
-        if (bt_av_src_callbacks != NULL)
-            status = BT_STATUS_SUCCESS;
+        status = btif_av_init(BTA_A2DP_SOURCE_SERVICE_ID);
     }
 
     enable_delay_reporting = streaming_prarm & A2DP_SRC_ENABLE_DELAY_REPORTING;
@@ -3222,9 +3219,7 @@ static void is_value_to_be_updated(void *ptr1, void *ptr2)
 {
     char *p1 = (char*)ptr1;
     char *p2 = (char*)ptr2;
-    if (!(*p1 & *p2)) {
-        *p1 |= *p2;
-    }
+    *p1 = *p2;
 }
 
 /*******************************************************************************
