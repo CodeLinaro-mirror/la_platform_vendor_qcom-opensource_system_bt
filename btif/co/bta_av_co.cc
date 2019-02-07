@@ -77,11 +77,14 @@
 #include "bt_vendor_av.h"
 #include "btif/include/btif_storage.h"
 #include <hardware/bt_gatt.h>
+#include "btif/include/btif_a2dp_source.h"
+#include "device/include/device_iot_config.h"
 
 #define MAX_2MBPS_AVDTP_MTU 663
 extern const btgatt_interface_t* btif_gatt_get_interface();
 
 bool isDevUiReq = false;
+btav_a2dp_codec_config_t saved_codec_user_config;
 
 /*****************************************************************************
  **  Constants
@@ -144,6 +147,7 @@ typedef struct {
   bool rcfg_pend_getcap;                 /* if reconfig is pending for get_cap */
   bool isIncoming;                       /* to know whether it is incmoming connection */
   btav_a2dp_codec_index_t codecIndextoCompare; /* save codec index when incoming setconfig done */
+  bool getcap_pending;   /* Get_caps for all remote SEPS done or not*/
 } tBTA_AV_CO_PEER;
 
 typedef struct {
@@ -160,6 +164,7 @@ class BtaAvCoCb {
   /* Current codec configuration - access to this variable must be protected */
   uint8_t codec_config[AVDT_CODEC_SIZE];
   tBTA_AV_CO_CP cp;
+  std::vector<btav_a2dp_codec_config_t> default_codec_priorities;
 
   void reset() {
     // TODO: Ugly leftover reset from the original C code. Should go away once
@@ -167,6 +172,7 @@ class BtaAvCoCb {
     memset(peers, 0, sizeof(peers));
     memset(codec_config, 0, sizeof(codec_config));
     memset(&cp, 0, sizeof(cp));
+    default_codec_priorities.clear();
 
     // Initialize the handles
     for (size_t i = 0; i < BTA_AV_CO_NUM_ELEMENTS(peers); i++) {
@@ -386,6 +392,7 @@ void bta_av_co_audio_disc_res(tBTA_AV_HNDL hndl, uint8_t num_seps,
   p_peer->num_rx_srcs = 0;
   p_peer->num_sup_sinks = 0;
   p_peer->rcfg_pend_getcap = false;
+  p_peer->getcap_pending = false;
   if (uuid_local == UUID_SERVCLASS_AUDIO_SINK)
     p_peer->uuid_to_connect = UUID_SERVCLASS_AUDIO_SOURCE;
   else if (uuid_local == UUID_SERVCLASS_AUDIO_SOURCE)
@@ -496,6 +503,23 @@ static tA2DP_STATUS bta_av_audio_sink_getconfig(
   }
   return result;
 }
+
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+static void bta_av_co_store_peer_codectype(const tBTA_AV_CO_PEER* p_peer)
+{
+  int index, peer_codec_type = 0;
+  const tBTA_AV_CO_SINK* p_sink;
+  APPL_TRACE_DEBUG("%s", __func__);
+  for (index = 0; index < p_peer->num_sup_sinks; index++) {
+    p_sink = &p_peer->sinks[index];
+    peer_codec_type |= A2DP_IotGetPeerSinkCodecType(p_sink->codec_caps);
+  }
+
+  device_iot_config_addr_set_hex(p_peer->addr,
+          IOT_CONF_KEY_A2DP_CODECTYPE, peer_codec_type, IOT_CONF_BYTE_NUM_1);
+}
+#endif
+
 /*******************************************************************************
  **
  ** Function         bta_av_co_audio_getconfig
@@ -566,6 +590,9 @@ tA2DP_STATUS bta_av_co_audio_getconfig(tBTA_AV_HNDL hndl, uint8_t* p_codec_info,
     return A2DP_FAIL;
   }
   APPL_TRACE_DEBUG("%s: last sink reached", __func__);
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+  bta_av_co_store_peer_codectype(p_peer);
+#endif
 
   const tBTA_AV_CO_SINK* p_sink = bta_av_co_audio_set_codec(p_peer);
   if (p_sink == NULL) {
@@ -596,11 +623,19 @@ tA2DP_STATUS bta_av_co_audio_getconfig(tBTA_AV_HNDL hndl, uint8_t* p_codec_info,
                      *p_num_protect, bta_av_co_cp_scmst);
       p_peer->rcfg_done = true;
     }
+    if (p_peer->getcap_pending) {
+      APPL_TRACE_DEBUG("%s: send event BTIF_MEDIA_SOURCE_ENCODER_USER_CONFIG_UPDATE to update",
+                          __func__);
+      btif_a2dp_source_encoder_user_config_update_req(saved_codec_user_config,
+                                                           p_peer->addr.address);
+      memset(&saved_codec_user_config, 0, sizeof(btav_a2dp_codec_config_t));
+    }
   } else {
     *p_sep_info_idx = p_sink->sep_info_idx;
     memcpy(p_codec_info, p_peer->codec_config, AVDT_CODEC_SIZE);
   }
   p_peer->rcfg_pend_getcap = false;
+  p_peer->getcap_pending = false;
 
   return A2DP_SUCCESS;
 }
@@ -776,15 +811,20 @@ void bta_av_co_audio_open(tBTA_AV_HNDL hndl, uint16_t mtu) {
  ******************************************************************************/
 void bta_av_co_audio_close(tBTA_AV_HNDL hndl) {
   tBTA_AV_CO_PEER* p_peer;
+  uint8_t index;
 
-  APPL_TRACE_DEBUG("%s hndl = 0x%x", __func__, hndl);
+  index = BTA_AV_CO_AUDIO_HNDL_TO_INDX(hndl);
+
+  APPL_TRACE_DEBUG("%s hndl = 0x%x, index = %d", __func__, hndl, index);
   btif_av_reset_audio_delay(hndl);
 
   /* Retrieve the peer info */
   p_peer = bta_av_co_get_peer(hndl);
-  if (p_peer) {
+  if (p_peer && (index < BTA_AV_CO_NUM_ELEMENTS(bta_av_co_cb.peers))) {
     /* Mark the peer closed and clean the peer info */
     memset(p_peer, 0, sizeof(*p_peer));
+    APPL_TRACE_DEBUG("%s call bta_av_co_peer_init", __func__);
+    bta_av_co_peer_init(bta_av_co_cb.default_codec_priorities, index);
   } else {
     APPL_TRACE_ERROR("%s: could not find peer entry", __func__);
   }
@@ -1421,6 +1461,17 @@ bool bta_av_co_set_codec_user_config(
   if (p_sink == nullptr) {
     APPL_TRACE_ERROR("%s: cannot find peer SEP to configure for codec type %d",
                      __func__, codec_user_config.codec_type);
+    //check whether all remote supported SEPs, Get_caps done or not.
+    //So that we need to decide whether we need to trigger this set_codec_user_config
+    // path, by posting BTIF_AV_SOURCE_CONFIG_UPDATED_EVT when DUT done all remote
+    //support SEP SNK capabilities.
+    if ((p_peer->num_rx_sinks != p_peer->num_sinks) &&
+        (p_peer->num_sup_sinks != BTA_AV_CO_NUM_ELEMENTS(p_peer->sinks))) {
+      APPL_TRACE_WARNING("%s: All peer's capabilities have not been retrieved",
+                         __func__);
+      p_peer->getcap_pending = true;
+      saved_codec_user_config = codec_user_config;
+    }
     success = false;
     goto done;
   }
@@ -1782,6 +1833,7 @@ void bta_av_co_init(
     p_peer->isIncoming = false;
   }
   A2DP_InitDefaultCodec(bta_av_co_cb.codec_config);
+  bta_av_co_cb.default_codec_priorities = codec_priorities;
   mutex_global_unlock();
 
   // NOTE: Unconditionally dispatch the event to make sure a callback with
