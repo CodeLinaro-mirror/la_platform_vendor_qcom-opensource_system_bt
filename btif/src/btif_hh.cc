@@ -1710,8 +1710,6 @@ static void cleanup(void) {
   for (i = 0; i < BTIF_HH_MAX_HID; i++) {
     p_dev = &btif_hh_cb.devices[i];
     if (p_dev->dev_status != BTHH_CONN_STATE_UNKNOWN && p_dev->fd >= 0) {
-      p_dev->hh_keep_polling = 0;
-      p_dev->hh_poll_thread_id = -1;
       BTIF_TRACE_DEBUG("%s: Closing uhid fd = %d", __func__, p_dev->fd);
       if (p_dev->fd >= 0) {
         bta_hh_co_destroy(p_dev->fd);
