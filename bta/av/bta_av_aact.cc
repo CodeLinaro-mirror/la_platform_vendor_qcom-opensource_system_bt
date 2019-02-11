@@ -84,6 +84,7 @@
 #if (BTA_AR_INCLUDED == TRUE)
 #include "bta_ar_api.h"
 #endif
+#include "device/include/device_iot_config.h"
 
 /*****************************************************************************
  *  Constants
@@ -846,8 +847,13 @@ static void bta_av_a2dp_sdp_cback(bool found, tA2DP_Service* p_service) {
   } else {
     p_msg->hdr.event =
         (found) ? BTA_AV_SDP_DISC_OK_EVT : BTA_AV_SDP_DISC_FAIL_EVT;
-    if (found && (p_service != NULL))
+    if (found && (p_service != NULL)) {
       p_scb->avdt_version = p_service->avdt_version;
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+      device_iot_config_addr_set_hex_if_greater(p_scb->peer_addr,
+              IOT_CONF_KEY_A2DP_VERSION, p_scb->avdt_version, IOT_CONF_BYTE_NUM_2);
+#endif
+    }
     else
       p_scb->avdt_version = 0x00;
   }
@@ -1176,6 +1182,10 @@ void bta_av_do_disc_a2dp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
             if (!interop_match_addr_or_name(INTEROP_DISABLE_ROLE_SWITCH,
                                           &p_scbi->peer_addr)) {
               APPL_TRACE_DEBUG("%s:RS disabled, returning",__func__);
+#if (TWS_ENABLED == TRUE)
+              if (p_scbi->tws_device)
+                AVDT_UpdateServiceBusyState(false);
+#endif
               return;
             }else {
               APPL_TRACE_DEBUG("%s: Other connected remote is blacklisted for RS",__func__);
@@ -1408,10 +1418,19 @@ void bta_av_config_ind(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     p_info->seid = p_data->str_msg.msg.config_ind.int_seid;
 
     /* Sep type of Peer will be oppsite role to our local sep */
-    if (local_sep == AVDT_TSEP_SRC)
+    if (local_sep == AVDT_TSEP_SRC) {
       p_info->tsep = AVDT_TSEP_SNK;
-    else if (local_sep == AVDT_TSEP_SNK)
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+      device_iot_config_addr_set_int(p_scb->peer_addr,
+          IOT_CONF_KEY_A2DP_ROLE, IOT_CONF_VAL_A2DP_ROLE_SINK);
+#endif
+    } else if (local_sep == AVDT_TSEP_SNK) {
       p_info->tsep = AVDT_TSEP_SRC;
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+      device_iot_config_addr_set_int(p_scb->peer_addr,
+          IOT_CONF_KEY_A2DP_ROLE, IOT_CONF_VAL_A2DP_ROLE_SOURCE);
+#endif
+    }
 
     p_scb->role |= BTA_AV_ROLE_AD_ACP;
     p_scb->cur_psc_mask = p_evt_cfg->psc_mask;
