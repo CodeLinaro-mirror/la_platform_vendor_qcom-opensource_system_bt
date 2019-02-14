@@ -301,6 +301,10 @@ static future_t* start_up(void) {
         response, &number_of_local_supported_codecs, local_supported_codecs);
   }
 
+  if (!HCI_READ_ENCR_KEY_SIZE_SUPPORTED(supported_commands)) {
+    LOG(FATAL) << " Controller must support Read Encryption Key Size command";
+  }
+
   // read scrambling support from controller incase of cherokee
   if (soc_type == BT_SOC_CHEROKEE) {
     response =
