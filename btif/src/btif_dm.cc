@@ -110,7 +110,7 @@
 
 #include "stack/sdp/sdpint.h"
 #include "btif_tws_plus.h"
-
+#include "device/include/device_iot_config.h"
 
 
 using bluetooth::Uuid;
@@ -318,6 +318,10 @@ extern void btif_vendor_iot_device_broadcast_event(RawAddress* bd_addr,
                 uint16_t error, uint16_t error_info, uint32_t event_mask,
                 uint8_t power_level, int8_t rssi, uint8_t link_quality,
                 uint16_t glitch_count);
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+extern void btif_iot_update_remote_info(tBTA_DM_AUTH_CMPL* p_auth_cmpl,
+                bool is_ble, bool is_ssp);
+#endif
 /******************************************************************************
  *  Functions
  *****************************************************************************/
@@ -1270,6 +1274,10 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
 
   // Skip SDP for certain  HID Devices
   if (p_auth_cmpl->success) {
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+    //save remote info to iot conf file
+    btif_iot_update_remote_info(p_auth_cmpl, false, pairing_cb.is_ssp);
+#endif
 
     // We could have received a new link key without going through the pairing
     // flow.  If so, we don't want to perform SDP or any other operations on the
