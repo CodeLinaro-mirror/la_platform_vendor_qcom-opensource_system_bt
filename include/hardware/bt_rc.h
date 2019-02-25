@@ -174,6 +174,16 @@ typedef enum {
   BTRC_STS_ADDR_PLAY_CHGD = 0x16, /* Addressed player changed */
 } btrc_status_t;
 
+typedef enum {
+  BTRC_RSP_NOT_IMPL = 8,
+  BTRC_RSP_ACCEPT,
+  BTRC_RSP_REJ,
+  BTRC_RSP_IN_TRANS,
+  BTRC_RSP_IMPL_STBL,
+  BTRC_RSP_CHANGED,
+  BTRC_RSP_INTERIM = 15,
+} btrc_rsp_type;
+
 typedef struct {
   uint16_t player_id;
   uint16_t uid_counter;
