@@ -118,6 +118,7 @@ extern fixed_queue_t* btu_bta_alarm_queue;
 static void bta_av_browsing_channel_open_retry(uint8_t handle);
 static void bta_av_accept_signalling_timer_cback(void* data);
 static void bta_av_browsing_channel_open_timer_cback(void* data);
+static int browse_conn_retry_count = 1;
 #ifndef AVRC_MIN_META_CMD_LEN
 #define AVRC_MIN_META_CMD_LEN 20
 #endif
@@ -277,7 +278,7 @@ static void bta_av_rc_ctrl_cback(uint8_t handle, uint8_t event,
                                  const RawAddress* peer_addr) {
   uint16_t msg_event = 0;
 
-  APPL_TRACE_IMP("%s handle: %d event=0x%x", __func__, handle, event);
+  APPL_TRACE_IMP("%s handle: %d, result %d, event=0x%x", __func__, handle, result, event);
   if (event == AVRC_OPEN_IND_EVT) {
     /* save handle of opened connection
     bta_av_cb.rc_handle = handle;*/
@@ -287,7 +288,13 @@ static void bta_av_rc_ctrl_cback(uint8_t handle, uint8_t event,
     msg_event = BTA_AV_AVRC_CLOSE_EVT;
   } else if (event == AVRC_BROWSE_OPEN_IND_EVT) {
       if (result != 0) {
-        bta_av_browsing_channel_open_retry(handle);
+        if (browse_conn_retry_count <= 1) {
+          browse_conn_retry_count++;
+          bta_av_browsing_channel_open_retry(handle);
+        } else {
+          browse_conn_retry_count = 1;
+          APPL_TRACE_IMP("%s Browse Connection Retry count exceeded", __func__);
+        }
         return;
       }
       else {
@@ -384,7 +391,7 @@ uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, uint8_t role, uint8_t shdl,
   tAVRC_CONN_CB ccb;
   RawAddress bda = RawAddress::kAny;
   uint8_t status = BTA_AV_RC_ROLE_ACP;
-  tBTA_AV_SCB* p_scb;
+  tBTA_AV_SCB* p_scb = NULL;
   int i;
   uint8_t rc_handle;
   tBTA_AV_RCB* p_rcb;
@@ -415,7 +422,8 @@ uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, uint8_t role, uint8_t shdl,
 
   if (AVRC_Open(&rc_handle, &ccb, bda) != AVRC_SUCCESS) {
 #if (BT_IOT_LOGGING_ENABLED == TRUE)
-    device_iot_config_addr_int_add_one(p_scb->peer_addr, IOT_CONF_KEY_AVRCP_CONN_FAIL_COUNT);
+    if (p_scb != NULL)
+      device_iot_config_addr_int_add_one(p_scb->peer_addr, IOT_CONF_KEY_AVRCP_CONN_FAIL_COUNT);
 #endif
     return BTA_AV_RC_HANDLE_NONE;
   }
@@ -2657,5 +2665,6 @@ void bta_av_dereg_comp(tBTA_AV_DATA* p_data) {
  *
  ******************************************************************************/
 static void bta_av_browsing_channel_open_retry(uint8_t handle) {
+  APPL_TRACE_IMP("%s Retry Browse connection", __func__);
   AVRC_OpenBrowse(handle, AVCT_INT);
 }
