@@ -84,6 +84,7 @@
 #if (BTA_AR_INCLUDED == TRUE)
 #include "bta_ar_api.h"
 #endif
+#include "device/include/device_iot_config.h"
 
 /*****************************************************************************
  *  Constants
@@ -713,7 +714,7 @@ void bta_av_sink_data_cback(uint8_t handle, BT_HDR* p_pkt, uint32_t time_stamp,
   }
   p_pkt->event = BTA_AV_SINK_MEDIA_DATA_EVT;
   p_scb->seps[p_scb->sep_idx].p_app_sink_data_cback(BTA_AV_SINK_MEDIA_DATA_EVT,
-                                                    (tBTA_AV_MEDIA*)p_pkt);
+                                                    (tBTA_AV_MEDIA*)p_pkt, p_scb->peer_addr);
   /* Free the buffer: a copy of the packet has been delivered */
   osi_free(p_pkt);
 }
@@ -846,8 +847,13 @@ static void bta_av_a2dp_sdp_cback(bool found, tA2DP_Service* p_service) {
   } else {
     p_msg->hdr.event =
         (found) ? BTA_AV_SDP_DISC_OK_EVT : BTA_AV_SDP_DISC_FAIL_EVT;
-    if (found && (p_service != NULL))
+    if (found && (p_service != NULL)) {
       p_scb->avdt_version = p_service->avdt_version;
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+      device_iot_config_addr_set_hex_if_greater(p_scb->peer_addr,
+              IOT_CONF_KEY_A2DP_VERSION, p_scb->avdt_version, IOT_CONF_BYTE_NUM_2);
+#endif
+    }
     else
       p_scb->avdt_version = 0x00;
   }
@@ -1176,6 +1182,10 @@ void bta_av_do_disc_a2dp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
             if (!interop_match_addr_or_name(INTEROP_DISABLE_ROLE_SWITCH,
                                           &p_scbi->peer_addr)) {
               APPL_TRACE_DEBUG("%s:RS disabled, returning",__func__);
+#if (TWS_ENABLED == TRUE)
+              if (p_scbi->tws_device)
+                AVDT_UpdateServiceBusyState(false);
+#endif
               return;
             }else {
               APPL_TRACE_DEBUG("%s: Other connected remote is blacklisted for RS",__func__);
@@ -1408,10 +1418,19 @@ void bta_av_config_ind(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     p_info->seid = p_data->str_msg.msg.config_ind.int_seid;
 
     /* Sep type of Peer will be oppsite role to our local sep */
-    if (local_sep == AVDT_TSEP_SRC)
+    if (local_sep == AVDT_TSEP_SRC) {
       p_info->tsep = AVDT_TSEP_SNK;
-    else if (local_sep == AVDT_TSEP_SNK)
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+      device_iot_config_addr_set_int(p_scb->peer_addr,
+          IOT_CONF_KEY_A2DP_ROLE, IOT_CONF_VAL_A2DP_ROLE_SINK);
+#endif
+    } else if (local_sep == AVDT_TSEP_SNK) {
       p_info->tsep = AVDT_TSEP_SRC;
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+      device_iot_config_addr_set_int(p_scb->peer_addr,
+          IOT_CONF_KEY_A2DP_ROLE, IOT_CONF_VAL_A2DP_ROLE_SOURCE);
+#endif
+    }
 
     p_scb->role |= BTA_AV_ROLE_AD_ACP;
     p_scb->cur_psc_mask = p_evt_cfg->psc_mask;
@@ -1537,7 +1556,7 @@ void bta_av_setconfig_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     av_sink_codec_info.avk_config.bd_addr = p_scb->peer_addr;
     av_sink_codec_info.avk_config.codec_info = p_scb->cfg.codec_info;
     p_scb->seps[p_scb->sep_idx].p_app_sink_data_cback(BTA_AV_SINK_MEDIA_CFG_EVT,
-                                                      &av_sink_codec_info);
+                                                      &av_sink_codec_info, p_scb->peer_addr);
   }
 
   AVDT_ConfigRsp(p_scb->avdt_handle, p_scb->avdt_label,
@@ -2334,7 +2353,7 @@ void bta_av_getcap_results(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       av_sink_codec_info.avk_config.bd_addr = p_scb->peer_addr;
       av_sink_codec_info.avk_config.codec_info = p_scb->cfg.codec_info;
       p_scb->seps[p_scb->sep_idx].p_app_sink_data_cback(
-          BTA_AV_SINK_MEDIA_CFG_EVT, &av_sink_codec_info);
+          BTA_AV_SINK_MEDIA_CFG_EVT, &av_sink_codec_info, p_scb->peer_addr);
     }
 
     if (uuid_int == UUID_SERVCLASS_AUDIO_SOURCE) {
@@ -3811,8 +3830,21 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
             break;
           }
 #if (BTA_AV_CO_CP_SCMS_T == TRUE)
-          param[0] = VS_QHCI_A2DP_WRITE_SCMS_T_CP;
-          param[1] = offload_start.cp_flag;
+         if (offload_start.cp_active){
+           param[0] = VS_QHCI_A2DP_WRITE_SCMS_T_CP;
+           param[1] = offload_start.cp_flag;
+         }else{
+            if (last_sent_vsc_cmd == VS_QHCI_START_A2DP_MEDIA) {
+                   APPL_TRACE_DEBUG("%s: START VSC already exchanged.", __func__);
+                   status = 0;
+                   (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
+                   return;
+               }
+               last_sent_vsc_cmd = VS_QHCI_START_A2DP_MEDIA;
+               param[0] = VS_QHCI_START_A2DP_MEDIA;
+               param[1] = 0;
+             }
+
 #else
           if (last_sent_vsc_cmd == VS_QHCI_START_A2DP_MEDIA) {
             APPL_TRACE_DEBUG("%s: START VSC already exchanged.", __func__);
@@ -3833,15 +3865,6 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
           uint8_t param[2];
           APPL_TRACE_DEBUG("VS_QHCI_A2DP_WRITE_SCMS_T_CP successful");
           APPL_TRACE_DEBUG("%s: Last cached VSC command: 0x0%x", __func__, last_sent_vsc_cmd);
-          if (!btif_a2dp_src_vsc.vs_configs_exchanged &&
-              btif_a2dp_src_vsc.tx_start_initiated)
-            btif_a2dp_src_vsc.vs_configs_exchanged = TRUE;
-          else {
-            APPL_TRACE_ERROR("Dont send start, stream suspended update fail to Audio");
-            status = 1;//FAIL
-            (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
-            break;
-          }
           if (last_sent_vsc_cmd == VS_QHCI_START_A2DP_MEDIA) {
             APPL_TRACE_DEBUG("%s: START VSC already exchanged.", __func__);
             status = 0;

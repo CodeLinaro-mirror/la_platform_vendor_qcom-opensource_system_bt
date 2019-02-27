@@ -76,6 +76,7 @@
 #include <hardware/vendor.h>
 #include "device/include/interop.h"
 #include "device/include/profile_config.h"
+#include "device/include/device_iot_config.h"
 
 #if (BTA_AR_INCLUDED == TRUE)
 #include "bta_ar_api.h"
@@ -117,6 +118,7 @@ extern fixed_queue_t* btu_bta_alarm_queue;
 static void bta_av_browsing_channel_open_retry(uint8_t handle);
 static void bta_av_accept_signalling_timer_cback(void* data);
 static void bta_av_browsing_channel_open_timer_cback(void* data);
+static int browse_conn_retry_count = 1;
 #ifndef AVRC_MIN_META_CMD_LEN
 #define AVRC_MIN_META_CMD_LEN 20
 #endif
@@ -276,7 +278,7 @@ static void bta_av_rc_ctrl_cback(uint8_t handle, uint8_t event,
                                  const RawAddress* peer_addr) {
   uint16_t msg_event = 0;
 
-  APPL_TRACE_IMP("%s handle: %d event=0x%x", __func__, handle, event);
+  APPL_TRACE_IMP("%s handle: %d, result %d, event=0x%x", __func__, handle, result, event);
   if (event == AVRC_OPEN_IND_EVT) {
     /* save handle of opened connection
     bta_av_cb.rc_handle = handle;*/
@@ -286,7 +288,13 @@ static void bta_av_rc_ctrl_cback(uint8_t handle, uint8_t event,
     msg_event = BTA_AV_AVRC_CLOSE_EVT;
   } else if (event == AVRC_BROWSE_OPEN_IND_EVT) {
       if (result != 0) {
-        bta_av_browsing_channel_open_retry(handle);
+        if (browse_conn_retry_count <= 1) {
+          browse_conn_retry_count++;
+          bta_av_browsing_channel_open_retry(handle);
+        } else {
+          browse_conn_retry_count = 1;
+          APPL_TRACE_IMP("%s Browse Connection Retry count exceeded", __func__);
+        }
         return;
       }
       else {
@@ -383,7 +391,7 @@ uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, uint8_t role, uint8_t shdl,
   tAVRC_CONN_CB ccb;
   RawAddress bda = RawAddress::kAny;
   uint8_t status = BTA_AV_RC_ROLE_ACP;
-  tBTA_AV_SCB* p_scb;
+  tBTA_AV_SCB* p_scb = NULL;
   int i;
   uint8_t rc_handle;
   tBTA_AV_RCB* p_rcb;
@@ -392,6 +400,9 @@ uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, uint8_t role, uint8_t shdl,
     p_scb = p_cb->p_scb[shdl - 1];
     bda = p_scb->peer_addr;
     status = BTA_AV_RC_ROLE_INT;
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+    device_iot_config_addr_int_add_one(p_scb->peer_addr, IOT_CONF_KEY_AVRCP_CONN_COUNT);
+#endif
   } else {
     p_rcb = bta_av_get_rcb_by_shdl(shdl);
     if (p_rcb != NULL) {
@@ -409,8 +420,13 @@ uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, uint8_t role, uint8_t shdl,
   ccb.control = p_cb->features & (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_RCCT |
                                   BTA_AV_FEAT_METADATA | AVRC_CT_PASSIVE);
 
-  if (AVRC_Open(&rc_handle, &ccb, bda) != AVRC_SUCCESS)
+  if (AVRC_Open(&rc_handle, &ccb, bda) != AVRC_SUCCESS) {
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+    if (p_scb != NULL)
+      device_iot_config_addr_int_add_one(p_scb->peer_addr, IOT_CONF_KEY_AVRCP_CONN_FAIL_COUNT);
+#endif
     return BTA_AV_RC_HANDLE_NONE;
+  }
 
   i = rc_handle;
   p_rcb = &p_cb->rcb[i];
@@ -1923,6 +1939,40 @@ bool bta_av_check_store_avrc_tg_version(RawAddress addr, uint16_t ver)
         return is_file_updated;
     }
 }
+
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+static void bta_av_store_peer_rc_version() {
+  tBTA_AV_CB* p_cb = &bta_av_cb;
+  tSDP_DISC_REC* p_rec = NULL;
+  uint16_t peer_rc_version = 0; /*Assuming Default peer version as 1.3*/
+
+  if ((p_rec = SDP_FindServiceInDb(
+      p_cb->p_disc_db, UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL)) != NULL) {
+    if ((SDP_FindAttributeInRec(p_rec, ATTR_ID_BT_PROFILE_DESC_LIST)) != NULL) {
+      /* get profile version (if failure, version parameter is not updated) */
+      SDP_FindProfileVersionInRec(p_rec, UUID_SERVCLASS_AV_REMOTE_CONTROL,
+                                 &peer_rc_version);
+    }
+    if (peer_rc_version != 0)
+      device_iot_config_addr_set_hex_if_greater(p_rec->remote_bd_addr,
+              IOT_CONF_KEY_AVRCP_CTRL_VERSION, peer_rc_version, IOT_CONF_BYTE_NUM_2);
+  }
+
+  peer_rc_version = 0;
+  if ((p_rec = SDP_FindServiceInDb(
+      p_cb->p_disc_db, UUID_SERVCLASS_AV_REM_CTRL_TARGET, NULL)) != NULL) {
+    if ((SDP_FindAttributeInRec(p_rec, ATTR_ID_BT_PROFILE_DESC_LIST)) != NULL) {
+      /* get profile version (if failure, version parameter is not updated) */
+      SDP_FindProfileVersionInRec(p_rec, UUID_SERVCLASS_AV_REMOTE_CONTROL,
+                                 &peer_rc_version);
+    }
+    if (peer_rc_version != 0)
+      device_iot_config_addr_set_hex_if_greater(p_rec->remote_bd_addr,
+              IOT_CONF_KEY_AVRCP_TG_VERSION, peer_rc_version, IOT_CONF_BYTE_NUM_2);
+  }
+}
+#endif
+
 /*******************************************************************************
  *
  * Function         bta_av_check_peer_features
@@ -2203,6 +2253,10 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
     }
   }
 
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+  bta_av_store_peer_rc_version();
+#endif
+
   p_cb->disc = 0;
   osi_free_and_reset((void**)&p_cb->p_disc_db);
 
@@ -2246,6 +2300,11 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
         bta_av_data.rc_open = rc_open;
         (*p_cb->p_cback)(BTA_AV_RC_OPEN_EVT, &bta_av_data);
       }
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+      if (peer_features != 0)
+        device_iot_config_addr_set_hex(p_scb->peer_addr,
+                IOT_CONF_KEY_AVRCP_FEATURES, peer_features, IOT_CONF_BYTE_NUM_2);
+#endif
     }
   } else {
     tBTA_AV_RC_FEAT rc_feat;
@@ -2266,6 +2325,11 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
     tBTA_AV bta_av_data;
     bta_av_data.rc_feat = rc_feat;
     (*p_cb->p_cback)(BTA_AV_RC_FEAT_EVT, &bta_av_data);
+#if (BT_IOT_LOGGING_ENABLED == TRUE)
+    if (peer_features != 0)
+      device_iot_config_addr_set_hex(rc_feat.peer_addr,
+              IOT_CONF_KEY_AVRCP_FEATURES, peer_features, IOT_CONF_BYTE_NUM_2);
+#endif
   }
 }
 
@@ -2601,5 +2665,6 @@ void bta_av_dereg_comp(tBTA_AV_DATA* p_data) {
  *
  ******************************************************************************/
 static void bta_av_browsing_channel_open_retry(uint8_t handle) {
+  APPL_TRACE_IMP("%s Retry Browse connection", __func__);
   AVRC_OpenBrowse(handle, AVCT_INT);
 }
