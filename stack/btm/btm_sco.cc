@@ -729,10 +729,22 @@ void btm_sco_conn_req(const RawAddress& bda, DEV_CLASS dev_class,
      * If the sco state is in the SCO_ST_CONNECTING state, we still need
      * to return accept sco to avoid race conditon for sco creation
      */
+
+    /* By default， BTM_MAX_SCO_LINKS is defined as 3.
+     * The first three devices always occupy the SCO resource in the sco_db array,
+     * with SCO status Listening. When param bda match any device in sco_db,
+     * continue to handle SCO connection.
+     *
+     * Additional SCO go beyond BTM_MAX_SCO_LINKS won't match any device in sco_db,
+     * and lead to rejecting SCO connection, although none SCO is active in fact.
+     * Add terms 'BTM_GetNumScoLinks() < BTM_MAX_SCO_LINKS' to avoid the issue.
+     * Hence additional SCO can handle the sco_conn_req when exist available SCO resouce.
+     */
+
     bool rem_bd_matches = p->rem_bd_known && p->esco.data.bd_addr == bda;
     if (((p->state == SCO_ST_CONNECTING) && rem_bd_matches) ||
         ((p->state == SCO_ST_LISTENING) &&
-         (rem_bd_matches || !p->rem_bd_known))) {
+         (rem_bd_matches || !p->rem_bd_known || BTM_GetNumScoLinks() < BTM_MAX_SCO_LINKS))) {
       /* If this guy was a wildcard, he is not one any more */
       p->rem_bd_known = true;
       p->esco.data.link_type = link_type;
