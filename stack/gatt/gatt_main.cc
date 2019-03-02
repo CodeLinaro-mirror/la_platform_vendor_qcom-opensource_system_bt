@@ -102,7 +102,7 @@ void gatt_init(void) {
   VLOG(1) << __func__;
 
   gatt_cb = tGATT_CB();
-  gatt::connection_manager::reset(true);
+  connection_manager::reset(true);
   memset(&fixed_reg, 0, sizeof(tL2CAP_FIXED_CHNL_REG));
 
   gatt_cb.def_mtu_size = GATT_DEF_BLE_MTU_SIZE;
@@ -124,7 +124,8 @@ void gatt_init(void) {
   L2CA_RegisterFixedChannel(L2CAP_ATT_CID, &fixed_reg);
 
   /* Now, register with L2CAP for ATT PSM over BR/EDR */
-  if (!L2CA_Register(BT_PSM_ATT, (tL2CAP_APPL_INFO*)&dyn_info)) {
+  if (!L2CA_Register(BT_PSM_ATT, (tL2CAP_APPL_INFO*)&dyn_info,
+                     false /* enable_snoop */)) {
     LOG(ERROR) << "ATT Dynamic Registration failed";
   }
 
@@ -194,7 +195,8 @@ void gatt_free(void) {
  *
  ******************************************************************************/
 bool gatt_connect(const RawAddress& rem_bda, tGATT_TCB* p_tcb,
-                  tBT_TRANSPORT transport, uint8_t initiating_phys) {
+                  tBT_TRANSPORT transport, uint8_t initiating_phys,
+                  tGATT_IF gatt_if) {
   bool gatt_ret = false;
 
   if (gatt_get_ch_state(p_tcb) != GATT_CH_OPEN)
@@ -202,7 +204,8 @@ bool gatt_connect(const RawAddress& rem_bda, tGATT_TCB* p_tcb,
 
   if (transport == BT_TRANSPORT_LE) {
     p_tcb->att_lcid = L2CAP_ATT_CID;
-    gatt_ret = L2CA_ConnectFixedChnl(L2CAP_ATT_CID, rem_bda, initiating_phys);
+
+    gatt_ret = connection_manager::direct_connect_add(gatt_if, rem_bda);
   } else {
     p_tcb->att_lcid = L2CA_ConnectReq(BT_PSM_ATT, rem_bda);
     if (p_tcb->att_lcid != 0) gatt_ret = true;
@@ -343,48 +346,39 @@ void gatt_update_app_use_link_flag(tGATT_IF gatt_if, tGATT_TCB* p_tcb,
 
 /** GATT connection initiation */
 bool gatt_act_connect(tGATT_REG* p_reg, const RawAddress& bd_addr,
-                      tBT_TRANSPORT transport, bool opportunistic,
-                      int8_t initiating_phys) {
-  bool ret = false;
-
+                      tBT_TRANSPORT transport, int8_t initiating_phys) {
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, transport);
   if (p_tcb != NULL) {
-    ret = true;
-    uint8_t st = gatt_get_ch_state(p_tcb);
-
     /* before link down, another app try to open a GATT connection */
+    uint8_t st = gatt_get_ch_state(p_tcb);
     if (st == GATT_CH_OPEN && p_tcb->app_hold_link.empty() &&
         transport == BT_TRANSPORT_LE) {
-      if (!gatt_connect(bd_addr, p_tcb, transport, initiating_phys))
-        ret = false;
+      if (!gatt_connect(bd_addr, p_tcb, transport, initiating_phys,
+                        p_reg->gatt_if))
+        return false;
     } else if (st == GATT_CH_CLOSING) {
       /* need to complete the closing first */
-      ret = false;
+      return false;
     }
-  } else {
-    p_tcb = gatt_allocate_tcb_by_bdaddr(bd_addr, transport);
-    if (!p_tcb) {
-      ret = 0;
-      LOG(ERROR) << "Max TCB for gatt_if [ " << +p_reg->gatt_if << "] reached.";
-    } else {
-      if (!gatt_connect(bd_addr, p_tcb, transport, initiating_phys)) {
-        LOG(ERROR) << "gatt_connect failed";
-        fixed_queue_free(p_tcb->pending_ind_q, NULL);
-        *p_tcb = tGATT_TCB();
-      } else
-        ret = true;
-    }
+
+    return true;
   }
 
-  if (ret) {
-    if (!opportunistic)
-      gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, true, false);
-    else
-      VLOG(1) << __func__
-              << ": connection is opportunistic, not updating app usage";
+  p_tcb = gatt_allocate_tcb_by_bdaddr(bd_addr, transport);
+  if (!p_tcb) {
+    LOG(ERROR) << "Max TCB for gatt_if [ " << +p_reg->gatt_if << "] reached.";
+    return false;
   }
 
-  return ret;
+  if (!gatt_connect(bd_addr, p_tcb, transport, initiating_phys,
+                    p_reg->gatt_if)) {
+    LOG(ERROR) << "gatt_connect failed";
+    fixed_queue_free(p_tcb->pending_ind_q, NULL);
+    *p_tcb = tGATT_TCB();
+    return false;
+  }
+
+  return true;
 }
 
 /** This callback function is called by L2CAP to indicate that the ATT fixed
@@ -802,7 +796,7 @@ static void gatt_send_conn_cback(tGATT_TCB* p_tcb) {
   uint16_t conn_id;
 
   std::set<tGATT_IF> apps =
-      gatt::connection_manager::get_apps_connecting_to(p_tcb->peer_bda);
+      connection_manager::get_apps_connecting_to(p_tcb->peer_bda);
 
   /* notifying all applications for the connection up event */
   for (i = 0, p_reg = gatt_cb.cl_rcb; i < GATT_MAX_APPS; i++, p_reg++) {

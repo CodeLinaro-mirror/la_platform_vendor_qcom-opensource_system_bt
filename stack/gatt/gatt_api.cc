@@ -36,6 +36,7 @@
 
 using bluetooth::Uuid;
 
+extern bool BTM_BackgroundConnectAddressKnown(const RawAddress& address);
 /**
  * Add an service handle range to the list in decending order of the start
  * handle. Return reference to the newly added element.
@@ -381,6 +382,7 @@ void GATTS_StopService(uint16_t service_handle) {
   if (it == gatt_cb.srv_list_info->end()) {
     LOG(ERROR) << __func__ << ": service_handle=" << loghex(service_handle)
                << " is not in use";
+    return;
   }
 
   if (it->sdp_handle) {
@@ -408,7 +410,6 @@ void GATTS_StopService(uint16_t service_handle) {
  ******************************************************************************/
 tGATT_STATUS GATTS_HandleValueIndication(uint16_t conn_id, uint16_t attr_handle,
                                          uint16_t val_len, uint8_t* p_val) {
-
   tGATT_IF gatt_if = GATT_GET_GATT_IF(conn_id);
   uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
@@ -739,7 +740,7 @@ tGATT_STATUS GATTC_Read(uint16_t conn_id, tGATT_READ_TYPE type,
   }
 
   /* start security check */
-  gatt_security_check_start(p_clcb);
+  if (gatt_security_check_start(p_clcb)) p_tcb->pending_enc_clcb.push(p_clcb);
   return GATT_SUCCESS;
 }
 
@@ -793,7 +794,7 @@ tGATT_STATUS GATTC_Write(uint16_t conn_id, tGATT_WRITE_TYPE type,
     p->offset = 0;
   }
 
-  gatt_security_check_start(p_clcb);
+  if (gatt_security_check_start(p_clcb)) p_tcb->pending_enc_clcb.push(p_clcb);
   return GATT_SUCCESS;
 }
 
@@ -998,7 +999,8 @@ void GATT_Deregister(tGATT_IF gatt_if) {
     other application
     deregisteration need to bed performed in an orderly fashion
     no check for now */
-  for (auto it = gatt_cb.srv_list_info->begin(); it != gatt_cb.srv_list_info->end(); ) {
+  for (auto it = gatt_cb.srv_list_info->begin();
+       it != gatt_cb.srv_list_info->end();) {
     if (it->gatt_if == gatt_if) {
       GATTS_StopService(it++->s_hdl);
     } else {
@@ -1031,7 +1033,7 @@ void GATT_Deregister(tGATT_IF gatt_if) {
     }
   }
 
-  gatt::connection_manager::on_app_deregistered(gatt_if);
+  connection_manager::on_app_deregistered(gatt_if);
 
   memset(p_reg, 0, sizeof(tGATT_REG));
 }
@@ -1099,25 +1101,46 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, bool is_direct,
 bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, bool is_direct,
                   tBT_TRANSPORT transport, bool opportunistic,
                   uint8_t initiating_phys) {
-  LOG(INFO) << __func__ << "gatt_if=" << +gatt_if << " " << bd_addr;
+  LOG(INFO) << __func__ << "gatt_if=" << +gatt_if << ", address=" << bd_addr;
 
   /* Make sure app is registered */
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
   if (!p_reg) {
     LOG(ERROR) << "gatt_if = " << +gatt_if << " is not registered";
-    return (false);
+    return false;
   }
 
-  if (is_direct)
-    return gatt_act_connect(p_reg, bd_addr, transport, opportunistic,
-                            initiating_phys);
-
-  // is not direct
-  if (transport != BT_TRANSPORT_LE) {
+  if (!is_direct && transport != BT_TRANSPORT_LE) {
     LOG(ERROR) << "Unsupported transport for background connection";
     return false;
   }
-  return gatt_auto_connect_dev_add(gatt_if, bd_addr);
+
+  if (opportunistic) {
+    LOG(INFO) << __func__ << " opportunistic connection";
+    return true;
+  }
+
+  bool ret;
+  if (is_direct) {
+    ret = gatt_act_connect(p_reg, bd_addr, transport, initiating_phys);
+  } else {
+    if (!BTM_BackgroundConnectAddressKnown(bd_addr)) {
+      //  RPA can rotate, causing address to "expire" in the background
+      //  connection list. RPA is allowed for direct connect, as such request
+      //  times out after 30 seconds
+      LOG(INFO) << "Can't add RPA to background connection.";
+      ret = true;
+    } else {
+      ret = connection_manager::background_connect_add(gatt_if, bd_addr);
+    }
+  }
+
+  tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, transport);
+  // background connections don't necessarily create tcb
+  if (p_tcb && ret)
+    gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, true, !is_direct);
+
+  return ret;
 }
 
 /*******************************************************************************
@@ -1137,7 +1160,8 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, bool is_direct,
  ******************************************************************************/
 bool GATT_CancelConnect(tGATT_IF gatt_if, const RawAddress& bd_addr,
                         bool is_direct) {
-  LOG(INFO) << __func__ << ": gatt_if=" << +gatt_if;
+  LOG(INFO) << __func__ << ": gatt_if:" << +gatt_if << ", address: " << bd_addr
+            << ", direct:" << is_direct;
 
   tGATT_REG* p_reg;
   if (gatt_if) {
@@ -1146,38 +1170,29 @@ bool GATT_CancelConnect(tGATT_IF gatt_if, const RawAddress& bd_addr,
       LOG(ERROR) << "gatt_if=" << +gatt_if << " is not registered";
       return false;
     }
+
+    if (is_direct)
+      return gatt_cancel_open(gatt_if, bd_addr);
+    else
+      return gatt_auto_connect_dev_remove(p_reg->gatt_if, bd_addr);
   }
 
-  if (is_direct) {
-    if (gatt_if) {
-      return gatt_cancel_open(gatt_if, bd_addr);
-    }
+  VLOG(1) << " unconditional";
 
-    VLOG(1) << " unconditional";
-    /* only LE connection can be cancelled */
-    tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, BT_TRANSPORT_LE);
-    if (!p_tcb || p_tcb->app_hold_link.empty()) {
-      LOG(ERROR) << __func__ << " no app found";
-      return false;
-    }
-
+  /* only LE connection can be cancelled */
+  tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, BT_TRANSPORT_LE);
+  if (p_tcb && !p_tcb->app_hold_link.empty()) {
     for (auto it = p_tcb->app_hold_link.begin();
          it != p_tcb->app_hold_link.end();) {
       auto next = std::next(it);
       // gatt_cancel_open modifies the app_hold_link.
-      if (!gatt_cancel_open(*it, bd_addr)) return false;
+      gatt_cancel_open(*it, bd_addr);
 
       it = next;
     }
-
-    return true;
   }
-  // is not direct
 
-  if (gatt_if) return gatt_auto_connect_dev_remove(p_reg->gatt_if, bd_addr);
-
-  if (!gatt::connection_manager::background_connect_remove_unconditional(
-          bd_addr)) {
+  if (!connection_manager::remove_unconditional(bd_addr)) {
     LOG(ERROR)
         << __func__
         << ": no app associated with the bg device for unconditional removal";

@@ -48,6 +48,7 @@
 #include "osi/include/osi.h"
 #include "sdp_api.h"
 #include "stack/gatt/connection_manager.h"
+#include "stack/include/gatt_api.h"
 #include "utl.h"
 
 #if (GAP_INCLUDED == TRUE)
@@ -191,12 +192,10 @@ const uint16_t bta_service_id_to_uuid_lkup_tbl[BTA_MAX_SERVICE_ID] = {
 
 /*
  * NOTE : The number of element in bta_service_id_to_btm_srv_id_lkup_tbl should
- * be matching with
- *        the value BTA_MAX_SERVICE_ID in bta_api.h
+ * be matching with the value BTA_MAX_SERVICE_ID in bta_api.h
  *
- *        i.e., If you add new Service ID for BTA, the correct security ID of
- * the new service
- *              from Security service definitions (btm_api.h) should be added to
+ * i.e., If you add new Service ID for BTA, the correct security ID of the new
+ * service from Security service definitions (btm_api.h) should be added to
  * this lookup table.
  */
 const uint32_t bta_service_id_to_btm_srv_id_lkup_tbl[BTA_MAX_SERVICE_ID] = {
@@ -478,7 +477,7 @@ void bta_dm_disable() {
   bta_dm_disable_search_and_disc();
   bta_dm_cb.disabling = true;
 
-  gatt::connection_manager::reset(false);
+  connection_manager::reset(false);
 
   if (BTM_GetNumAclLinks() == 0) {
 #if (BTA_DISABLE_DELAY > 0)
@@ -646,6 +645,10 @@ void bta_dm_remove_device(const RawAddress& bd_addr) {
       auto& peer_device = bta_dm_cb.device_list.peer_device[i];
       if (peer_device.peer_bdaddr == bd_addr) {
         peer_device.conn_state = BTA_DM_UNPAIRING;
+
+        /* Make sure device is not in white list before we disconnect */
+        GATT_CancelConnect(0, bd_addr, false);
+
         btm_remove_acl(bd_addr, peer_device.transport);
         APPL_TRACE_DEBUG("%s: transport: %d", __func__, peer_device.transport);
 
@@ -682,6 +685,10 @@ void bta_dm_remove_device(const RawAddress& bd_addr) {
       auto& peer_device = bta_dm_cb.device_list.peer_device[i];
       if (peer_device.peer_bdaddr == other_address) {
         peer_device.conn_state = BTA_DM_UNPAIRING;
+
+        /* Make sure device is not in white list before we disconnect */
+        GATT_CancelConnect(0, bd_addr, false);
+
         btm_remove_acl(other_address, peer_device.transport);
         break;
       }
@@ -763,6 +770,10 @@ void bta_dm_close_acl(const RawAddress& bd_addr, bool remove_dev,
     } else {
       APPL_TRACE_ERROR("unknown device, remove ACL failed");
     }
+
+    /* Make sure device is not in white list before we disconnect */
+    GATT_CancelConnect(0, bd_addr, false);
+
     /* Disconnect the ACL link */
     btm_remove_acl(bd_addr, transport);
   }
@@ -1974,12 +1985,13 @@ static void bta_dm_discover_device(const RawAddress& remote_bd_addr) {
       /* check whether connection already exists to the device
          if connection exists, we don't have to wait for ACL
          link to go down to start search on next device */
-      if (BTM_IsAclConnectionUp(bta_dm_search_cb.peer_bdaddr,
-                                BT_TRANSPORT_BR_EDR))
-        bta_dm_search_cb.wait_disc = false;
-      else
-        bta_dm_search_cb.wait_disc = true;
-
+      if (transport == BT_TRANSPORT_BR_EDR) {
+        if (BTM_IsAclConnectionUp(bta_dm_search_cb.peer_bdaddr,
+                                  BT_TRANSPORT_BR_EDR))
+          bta_dm_search_cb.wait_disc = false;
+        else
+          bta_dm_search_cb.wait_disc = true;
+      }
       if (bta_dm_search_cb.p_btm_inq_info) {
         APPL_TRACE_DEBUG(
             "%s p_btm_inq_info 0x%x results.device_type 0x%x "
@@ -2782,7 +2794,9 @@ static void bta_dm_acl_change(bool is_new, const RawAddress& bd_addr,
       bta_dm_cb.device_list.le_count--;
     conn.link_down.link_type = transport;
 
-    if (bta_dm_search_cb.wait_disc && bta_dm_search_cb.peer_bdaddr == bd_addr) {
+    if ((transport == BT_TRANSPORT_BR_EDR) &&
+        (bta_dm_search_cb.wait_disc &&
+         bta_dm_search_cb.peer_bdaddr == bd_addr)) {
       bta_dm_search_cb.wait_disc = false;
 
       if (bta_dm_search_cb.sdp_results) {
@@ -3774,12 +3788,10 @@ static uint8_t bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
   memset(&sec_event, 0, sizeof(tBTA_DM_SEC));
   switch (event) {
     case BTM_LE_IO_REQ_EVT:
-      if (btm_local_io_caps != BTM_IO_CAP_NONE) {
-        bta_dm_co_ble_io_req(
-            bda, &p_data->io_req.io_cap, &p_data->io_req.oob_data,
-            &p_data->io_req.auth_req, &p_data->io_req.max_key_size,
-            &p_data->io_req.init_keys, &p_data->io_req.resp_keys);
-      }
+      bta_dm_co_ble_io_req(
+          bda, &p_data->io_req.io_cap, &p_data->io_req.oob_data,
+          &p_data->io_req.auth_req, &p_data->io_req.max_key_size,
+          &p_data->io_req.init_keys, &p_data->io_req.resp_keys);
       APPL_TRACE_EVENT("io mitm: %d oob_data:%d", p_data->io_req.auth_req,
                        p_data->io_req.oob_data);
 
@@ -4038,20 +4050,6 @@ void bta_dm_ble_observe(bool start, uint8_t duration,
       bta_dm_search_cb.p_scan_cback(BTA_DM_INQ_CMPL_EVT, &data);
     }
   }
-}
-/*******************************************************************************
- *
- * Function         bta_dm_ble_set_adv_params
- *
- * Description      This function set the adv parameters.
- *
- * Parameters:
- *
- ******************************************************************************/
-void bta_dm_ble_set_adv_params(uint16_t adv_int_min, uint16_t adv_int_max,
-                               tBLE_BD_ADDR* p_dir_bda) {
-  BTM_BleSetAdvParams(adv_int_min, adv_int_max, p_dir_bda,
-                      BTA_DM_BLE_ADV_CHNL_MAP);
 }
 
 /** This function set the maximum transmission packet size */

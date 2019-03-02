@@ -143,12 +143,7 @@ extern void btm_pm_proc_mode_change(uint8_t hci_status, uint16_t hci_handle,
 extern void btm_pm_proc_ssr_evt(uint8_t* p, uint16_t evt_len);
 extern tBTM_STATUS btm_read_power_mode_state(const RawAddress& remote_bda,
                                              tBTM_PM_STATE* pmState);
-#if (BTM_SCO_INCLUDED == TRUE)
 extern void btm_sco_chk_pend_unpark(uint8_t hci_status, uint16_t hci_handle);
-#else
-#define btm_sco_chk_pend_unpark(hci_status, hci_handle)
-#endif /* BTM_SCO_INCLUDED */
-
 extern void btm_qos_setup_timeout(void* data);
 extern void btm_qos_setup_complete(uint8_t status, uint16_t handle,
                                    FLOW_SPEC* p_flow);
@@ -197,6 +192,8 @@ extern void btm_inq_db_reset(void);
 extern void btm_vendor_specific_evt(uint8_t* p, uint8_t evt_len);
 extern void btm_delete_stored_link_key_complete(uint8_t* p);
 extern void btm_report_device_status(tBTM_DEV_STATUS status);
+extern tBTM_STATUS BTM_BT_Quality_Report_VSE_Register(
+    bool is_register, tBTM_BT_QUALITY_REPORT_RECEIVER* p_bqr_report_receiver);
 
 /* Internal functions provided by btm_dev.cc
  *********************************************

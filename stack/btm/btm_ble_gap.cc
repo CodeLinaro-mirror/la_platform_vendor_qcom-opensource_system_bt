@@ -58,7 +58,10 @@
 
 #define BTM_EXT_BLE_RMT_NAME_TIMEOUT_MS (30 * 1000)
 #define MIN_ADV_LENGTH 2
-#define BTM_VSC_CHIP_CAPABILITY_RSP_LEN_L_RELEASE 9
+#define BTM_VSC_CHIP_CAPABILITY_RSP_LEN 9
+#define BTM_VSC_CHIP_CAPABILITY_RSP_LEN_L_RELEASE \
+  BTM_VSC_CHIP_CAPABILITY_RSP_LEN
+#define BTM_VSC_CHIP_CAPABILITY_RSP_LEN_M_RELEASE 15
 
 namespace {
 
@@ -495,6 +498,7 @@ static void btm_ble_vendor_capability_vsc_cmpl_cback(
     BTM_TRACE_DEBUG("%s: Status = 0x%02x (0 is success)", __func__, status);
     return;
   }
+  CHECK(p_vcs_cplt_params->param_len > BTM_VSC_CHIP_CAPABILITY_RSP_LEN);
   STREAM_TO_UINT8(btm_cb.cmn_ble_vsc_cb.adv_inst_max, p);
   STREAM_TO_UINT8(btm_cb.cmn_ble_vsc_cb.rpa_offloading, p);
   STREAM_TO_UINT16(btm_cb.cmn_ble_vsc_cb.tot_scan_results_strg, p);
@@ -512,6 +516,7 @@ static void btm_ble_vendor_capability_vsc_cmpl_cback(
 
   if (btm_cb.cmn_ble_vsc_cb.version_supported >=
       BTM_VSC_CHIP_CAPABILITY_M_VERSION) {
+    CHECK(p_vcs_cplt_params->param_len >= BTM_VSC_CHIP_CAPABILITY_RSP_LEN_M_RELEASE);
     STREAM_TO_UINT16(btm_cb.cmn_ble_vsc_cb.total_trackable_advertisers, p);
     STREAM_TO_UINT8(btm_cb.cmn_ble_vsc_cb.extended_scan_support, p);
     STREAM_TO_UINT8(btm_cb.cmn_ble_vsc_cb.debug_logging_supported, p);
@@ -696,17 +701,6 @@ bool BTM_BleLocalPrivacyEnabled(void) {
 #endif
 }
 
-/** Set BLE connectable mode to auto connect */
-void BTM_BleStartAutoConn() {
-  BTM_TRACE_EVENT("%s", __func__);
-  if (!controller_get_interface()->supports_ble()) return;
-
-  if (btm_cb.ble_ctr_cb.bg_conn_type != BTM_BLE_CONN_AUTO) {
-    btm_ble_start_auto_conn();
-    btm_cb.ble_ctr_cb.bg_conn_type = BTM_BLE_CONN_AUTO;
-  }
-}
-
 /*******************************************************************************
  *
  * Function         BTM_BleSetConnectableMode
@@ -831,64 +825,6 @@ static uint8_t btm_set_conn_mode_adv_init_addr(
   /* if no privacy,do not set any peer address,*/
   /* local address type go by global privacy setting */
   return evt_type;
-}
-
-/*******************************************************************************
- *
- * Function         BTM_BleSetAdvParams
- *
- * Description      This function is called to set advertising parameters.
- *
- * Parameters       adv_int_min: minimum advertising interval
- *                  adv_int_max: maximum advertising interval
- *                  p_dir_bda: connectable direct initiator's LE device address
- *                  chnl_map: advertising channel map.
- *
- * Returns          void
- *
- ******************************************************************************/
-tBTM_STATUS BTM_BleSetAdvParams(uint16_t adv_int_min, uint16_t adv_int_max,
-                                const RawAddress& p_dir_bda,
-                                tBTM_BLE_ADV_CHNL_MAP chnl_map) {
-  tBTM_LE_RANDOM_CB* p_addr_cb = &btm_cb.ble_ctr_cb.addr_mgnt_cb;
-  tBTM_BLE_INQ_CB* p_cb = &btm_cb.ble_ctr_cb.inq_var;
-  tBTM_STATUS status = BTM_SUCCESS;
-  RawAddress address = RawAddress::kEmpty;
-  tBLE_ADDR_TYPE init_addr_type = BLE_ADDR_PUBLIC;
-  tBLE_ADDR_TYPE own_addr_type = p_addr_cb->own_addr_type;
-  uint8_t adv_mode = p_cb->adv_mode;
-
-  BTM_TRACE_EVENT("BTM_BleSetAdvParams");
-
-  if (!controller_get_interface()->supports_ble()) return BTM_ILLEGAL_VALUE;
-
-  if (!BTM_BLE_ISVALID_PARAM(adv_int_min, BTM_BLE_ADV_INT_MIN,
-                             BTM_BLE_ADV_INT_MAX) ||
-      !BTM_BLE_ISVALID_PARAM(adv_int_max, BTM_BLE_ADV_INT_MIN,
-                             BTM_BLE_ADV_INT_MAX)) {
-    return BTM_ILLEGAL_VALUE;
-  }
-
-  p_cb->adv_interval_min = adv_int_min;
-  p_cb->adv_interval_max = adv_int_max;
-  p_cb->adv_chnl_map = chnl_map;
-  p_cb->direct_bda.bda = p_dir_bda;
-
-  BTM_TRACE_EVENT("update params for an active adv");
-
-  btm_ble_stop_adv();
-
-  p_cb->evt_type = btm_set_conn_mode_adv_init_addr(
-      p_cb, address, &init_addr_type, &own_addr_type);
-
-  /* update adv params */
-  btsnd_hcic_ble_write_adv_params(
-      p_cb->adv_interval_min, p_cb->adv_interval_max, p_cb->evt_type,
-      own_addr_type, init_addr_type, address, p_cb->adv_chnl_map, p_cb->afp);
-
-  if (adv_mode == BTM_BLE_ADV_ENABLE) btm_ble_start_adv();
-
-  return status;
 }
 
 /**
@@ -1542,7 +1478,7 @@ uint8_t btm_ble_is_discoverable(const RawAddress& bda,
   if (!adv_data.empty()) {
     const uint8_t* p_flag = AdvertiseDataParser::GetFieldByType(
         adv_data, BTM_BLE_AD_TYPE_FLAG, &data_len);
-    if (p_flag != NULL) {
+    if (p_flag != NULL && data_len != 0) {
       flag = *p_flag;
 
       if ((btm_cb.btm_inq_vars.inq_active & BTM_BLE_GENERAL_INQUIRY) &&
@@ -1728,7 +1664,7 @@ void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
   if (!data.empty()) {
     const uint8_t* p_flag =
         AdvertiseDataParser::GetFieldByType(data, BTM_BLE_AD_TYPE_FLAG, &len);
-    if (p_flag != NULL) p_cur->flag = *p_flag;
+    if (p_flag != NULL && len != 0) p_cur->flag = *p_flag;
   }
 
   if (!data.empty()) {
@@ -2549,8 +2485,7 @@ void btm_ble_update_mode_operation(uint8_t link_role, const RawAddress* bd_addr,
      now in order */
   if (btm_ble_get_conn_st() == BLE_CONN_IDLE &&
       status != HCI_ERR_HOST_REJECT_RESOURCES &&
-      status != HCI_ERR_MAX_NUM_OF_CONNECTIONS &&
-      !btm_send_pending_direct_conn()) {
+      status != HCI_ERR_MAX_NUM_OF_CONNECTIONS) {
     btm_ble_resume_bg_conn();
   }
 }
@@ -2577,7 +2512,6 @@ void btm_ble_init(void) {
 
   p_cb->observer_timer = alarm_new("btm_ble.observer_timer");
   p_cb->cur_states = 0;
-  p_cb->conn_pending_q = fixed_queue_new(SIZE_MAX);
 
   p_cb->inq_var.adv_mode = BTM_BLE_ADV_DISABLE;
   p_cb->inq_var.scan_type = BTM_BLE_SCAN_MODE_NONE;
