@@ -57,7 +57,6 @@
  ******************************************************************************/
 
 #define LOG_TAG "bt_bta_av"
-
 #include "bt_target.h"
 
 #include <base/logging.h>
@@ -120,6 +119,7 @@ extern fixed_queue_t* btu_bta_alarm_queue;
 static void bta_av_browsing_channel_open_retry(uint8_t handle);
 static void bta_av_accept_signalling_timer_cback(void* data);
 static void bta_av_browsing_channel_open_timer_cback(void* data);
+static int browse_conn_retry_count = 1;
 #ifndef AVRC_MIN_META_CMD_LEN
 #define AVRC_MIN_META_CMD_LEN 20
 #endif
@@ -163,7 +163,7 @@ tBTA_AV_RCB* bta_av_get_rcb_by_shdl(uint8_t shdl) {
 static void bta_av_set_peer_browse_active(uint8_t rc_handle) {
   APPL_TRACE_WARNING("%s set browse active for %d and reset others", __func__, rc_handle);
   tBTA_AV_CB *p_cb = &bta_av_cb;
-  if (rc_handle == BTA_AV_RC_HANDLE_NONE) {
+  if (rc_handle < 0 || rc_handle >= BTA_AV_NUM_RCB) {
     APPL_TRACE_WARNING("%s Invalid RC handle", __func__);
     return;
   }
@@ -304,7 +304,7 @@ static void bta_av_rc_ctrl_cback(uint8_t handle, uint8_t event,
                                  const RawAddress* peer_addr) {
   uint16_t msg_event = 0;
 
-  APPL_TRACE_IMP("%s handle: %d event=0x%x", __func__, handle, event);
+  APPL_TRACE_IMP("%s handle: %d, result %d, event=0x%x", __func__, handle, result, event);
   if (event == AVRC_OPEN_IND_EVT) {
     /* save handle of opened connection
     bta_av_cb.rc_handle = handle;*/
@@ -314,7 +314,13 @@ static void bta_av_rc_ctrl_cback(uint8_t handle, uint8_t event,
     msg_event = BTA_AV_AVRC_CLOSE_EVT;
   } else if (event == AVRC_BROWSE_OPEN_IND_EVT) {
       if (result != 0) {
-        bta_av_browsing_channel_open_retry(handle);
+        if (browse_conn_retry_count <= 1) {
+          browse_conn_retry_count++;
+          bta_av_browsing_channel_open_retry(handle);
+        } else {
+          browse_conn_retry_count = 1;
+          APPL_TRACE_IMP("%s Browse Connection Retry count exceeded", __func__);
+        }
         return;
       }
       else {
@@ -1881,7 +1887,7 @@ uint16_t bta_get_dut_avrcp_version() {
     uint16_t profile_version = AVRC_REV_1_0;
     char avrcp_version[PROPERTY_VALUE_MAX] = {0};
     osi_property_get(AVRCP_VERSION_PROPERTY, avrcp_version,
-                     AVRCP_1_4_STRING);
+                     AVRCP_1_6_STRING);
 
     if (!strncmp(AVRCP_1_6_STRING, avrcp_version,
                  sizeof(AVRCP_1_6_STRING))) {
@@ -1897,69 +1903,6 @@ uint16_t bta_get_dut_avrcp_version() {
     return profile_version;
 }
 
-bool bta_av_check_store_avrc_tg_version(RawAddress addr, uint16_t ver)
-{
-    bool is_present = FALSE;
-    struct blacklist_entry data;
-    FILE *fp;
-    bool is_file_updated = FALSE;
-    bool feature = false;
-    profile_info_t profile_info = AVRCP_0103_SUPPORT;
-    const profile_t profile = AVRCP_ID;
-
-    APPL_TRACE_DEBUG("%s target BD Addr: %s", __func__,\
-                        addr.ToString().c_str());
-    fp = fopen(AVRC_PEER_VERSION_CONF_FILE, "rb");
-    if (!fp)
-    {
-      APPL_TRACE_ERROR("%s unable to open AVRC Conf file for read: error: (%s)",\
-                                                        __func__, strerror(errno));
-    }
-    else
-    {
-        while (fread(&data, sizeof(data), 1, fp) != 0)
-        {
-            APPL_TRACE_DEBUG("Entry: addr = %x:%x:%x, ver = 0x%x",\
-                    data.addr[0], data.addr[1], data.addr[2], data.ver);
-            if(!memcmp(&addr, data.addr, 3))
-            {
-                is_present = TRUE;
-                APPL_TRACE_DEBUG("Entry alreday present, bailing out");
-                break;
-            }
-        }
-        fclose(fp);
-    }
-
-    if (is_present == FALSE)
-    {
-        fp = fopen(AVRC_PEER_VERSION_CONF_FILE, "ab");
-        if (!fp)
-        {
-            APPL_TRACE_ERROR("%s unable to open AVRC Conf file for write: error: (%s)",\
-                                                              __func__, strerror(errno));
-        }
-        else
-        {
-            data.ver = ver;
-            memcpy(data.addr, &addr, 3);
-            APPL_TRACE_DEBUG("Avrcp version to store = 0x%x", ver);
-            fwrite(&data, sizeof(data), 1, fp);
-            fclose(fp);
-            is_file_updated = TRUE;
-        }
-    }
-    feature = profile_feature_fetch(profile, profile_info);
-    if (feature == true)
-    {
-        APPL_TRACE_ERROR("Force return False as AVRCP version is forced set to 1.3");
-        return false;
-    }
-    else
-    {
-        return is_file_updated;
-    }
-}
 /*******************************************************************************
  *
  * Function         bta_av_check_peer_features
@@ -2047,28 +1990,6 @@ tBTA_AV_FEAT bta_av_check_peer_features(uint16_t service_uuid) {
               APPL_TRACE_DEBUG("peer supports cover art");
           }
         }
-      }
-      if ((peer_rc_version >= AVRC_REV_1_4) &&
-              ((peer_features & BTA_AV_FEAT_BROWSE) || (peer_features & BTA_AV_FEAT_CA)))
-      {
-          bool ret = FALSE;
-          APPL_TRACE_DEBUG("peer version to update: 0x%x", peer_rc_version);
-          uint16_t dut_avrcp_version = bta_get_dut_avrcp_version();
-          uint16_t version_to_store = (dut_avrcp_version > peer_rc_version) ?
-                                             peer_rc_version : dut_avrcp_version;
-          ret = bta_av_check_store_avrc_tg_version(p_rec->remote_bd_addr, version_to_store);
-          /* update UI only in case, if we are less than 1.6 */
-          if ((ret == TRUE) && (dut_avrcp_version < AVRC_REV_1_6))
-          {
-              peer_features |= BTA_AV_FEAT_AVRC_UI_UPDATE;
-              APPL_TRACE_DEBUG("update UI on peer repair request: 0x%x",
-                              peer_features);
-          }
-      }
-      else
-      {
-          APPL_TRACE_DEBUG("No need to store peer version: 0x%x", peer_rc_version);
-          /*No need to update peer version as we send the default version as 1.3*/
       }
     }
   }
@@ -2343,7 +2264,7 @@ void bta_av_active_browse(tBTA_AV_DATA *p_data) {
   uint8_t browse_evt = p_msg->browse_device_evt;
   APPL_TRACE_WARNING("%s hdl %d, handoff %d", __func__, rc_handle, browse_evt);
   APPL_TRACE_WARNING("%s: Remote Addr: %s", __func__, bd_addr.ToString().c_str());
-  if (rc_handle != BTA_AV_RC_HANDLE_NONE) {
+  if (rc_handle >= 0 && rc_handle < BTA_AV_NUM_RCB) {
     APPL_TRACE_WARNING("%s feature %d isactive %d",__func__,
             p_cb->rcb[rc_handle].peer_features, p_cb->rcb[rc_handle].is_browse_active);
     if (p_cb->rcb[rc_handle].is_browse_active || bd_addr == RawAddress::kEmpty) {
@@ -2387,19 +2308,24 @@ void bta_av_active_browse(tBTA_AV_DATA *p_data) {
             APPL_TRACE_WARNING("%s: close for hdl %d", __func__, rc_handle);
             AVRC_CloseBrowse(rc_handle);
           } else {
+            if (rc_handle >= 0 && rc_handle < BTA_AV_NUM_RCB) {
+              is_active_set = true;
+              bta_av_set_peer_browse_active(rc_handle);
+            }
+          }
+        } else {
+          if (rc_handle >= 0 && rc_handle < BTA_AV_NUM_RCB) {
             is_active_set = true;
             bta_av_set_peer_browse_active(rc_handle);
           }
-        } else {
-          is_active_set = true;
-          bta_av_set_peer_browse_active(rc_handle);
         }
       }
       break;
 
     case BTA_AV_BROWSE_ACTIVE:
       if (device_exist) {
-        if (p_cb->rcb[rc_handle].peer_features & BTA_AV_FEAT_BROWSE) {
+        if (rc_handle >= 0 && rc_handle < BTA_AV_NUM_RCB &&
+            p_cb->rcb[rc_handle].peer_features & BTA_AV_FEAT_BROWSE) {
           int last = device_list_size - 1;
           std::swap(active_device_priority_list[found_idx], active_device_priority_list[last]);
           is_active_set = true;
@@ -2409,7 +2335,8 @@ void bta_av_active_browse(tBTA_AV_DATA *p_data) {
         }
       } else {
         if (rc_handle != BTA_AV_RC_HANDLE_NONE && device_list_size < BTA_AV_NUM_LINKS) {
-          if (p_cb->rcb[rc_handle].peer_features & BTA_AV_FEAT_BROWSE) {
+          if (rc_handle >= 0 && rc_handle < BTA_AV_NUM_RCB &&
+              p_cb->rcb[rc_handle].peer_features & BTA_AV_FEAT_BROWSE) {
             is_active_set = true;
             bta_av_set_peer_browse_active(rc_handle);
           }
@@ -2421,7 +2348,8 @@ void bta_av_active_browse(tBTA_AV_DATA *p_data) {
 
     case BTA_AV_BROWSE_HANDOFF:
       if (device_exist) {
-        if (p_cb->rcb[rc_handle].peer_features & BTA_AV_FEAT_BROWSE) {
+        if (rc_handle >= 0 && rc_handle < BTA_AV_NUM_RCB &&
+            p_cb->rcb[rc_handle].peer_features & BTA_AV_FEAT_BROWSE) {
           int last = device_list_size - 1;
           std::swap(active_device_priority_list[found_idx], active_device_priority_list[last]);
           is_active_set = true;
@@ -2431,7 +2359,8 @@ void bta_av_active_browse(tBTA_AV_DATA *p_data) {
         }
       } else {
         if (rc_handle != BTA_AV_RC_HANDLE_NONE && device_list_size < BTA_AV_NUM_LINKS) {
-          if (p_cb->rcb[rc_handle].peer_features & BTA_AV_FEAT_BROWSE) {
+          if (rc_handle >= 0 && rc_handle < BTA_AV_NUM_RCB &&
+              p_cb->rcb[rc_handle].peer_features & BTA_AV_FEAT_BROWSE) {
             bta_av_set_peer_browse_active(rc_handle);
             is_active_set = true;
           }
@@ -2480,7 +2409,8 @@ void bta_av_rc_closed(tBTA_AV_DATA* p_data) {
 
   rc_close.rc_handle = BTA_AV_RC_HANDLE_NONE;
   p_scb = NULL;
-  APPL_TRACE_DEBUG("bta_av_rc_closed rc_handle:%d", p_msg->handle);
+  APPL_TRACE_DEBUG("bta_av_rc_closed rc_handle:%d, peer_addr:%s",
+                  p_msg->handle, p_msg->peer_addr.ToString().c_str());
   for (i = 0; i < BTA_AV_NUM_RCB; i++) {
     p_rcb = &p_cb->rcb[i];
     APPL_TRACE_DEBUG("bta_av_rc_closed rcb[%d] rc_handle:%d, status=0x%x", i,
@@ -2543,6 +2473,8 @@ void bta_av_rc_closed(tBTA_AV_DATA* p_data) {
     rc_close.rc_handle = p_msg->handle;
     rc_close.peer_addr = p_msg->peer_addr;
   }
+  APPL_TRACE_DEBUG("bta_av_rc_closed rc_close handle:%d, peer_addr:%s",
+              rc_close.rc_handle, rc_close.peer_addr.ToString().c_str());
   tBTA_AV bta_av_data;
   bta_av_data.rc_close = rc_close;
   (*p_cb->p_cback)(BTA_AV_RC_CLOSE_EVT, &bta_av_data);
@@ -2776,5 +2708,6 @@ void bta_av_dereg_comp(tBTA_AV_DATA* p_data) {
  *
  ******************************************************************************/
 static void bta_av_browsing_channel_open_retry(uint8_t handle) {
+  APPL_TRACE_IMP("%s Retry Browse connection", __func__);
   AVRC_OpenBrowse(handle, AVCT_INT);
 }

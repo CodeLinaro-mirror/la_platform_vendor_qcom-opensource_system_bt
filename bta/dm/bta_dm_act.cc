@@ -46,10 +46,12 @@
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
 #include "sdp_api.h"
+#include "bta_sdp_api.h"
 #include "utl.h"
 #include "device/include/interop_config.h"
 #include "stack/sdp/sdpint.h"
 #include <inttypes.h>
+#include "btif/include/btif_config.h"
 
 #if (GAP_INCLUDED == TRUE)
 #include "gap_api.h"
@@ -608,9 +610,19 @@ static void bta_dm_disable_timer_cback(void* data) {
   bool trigger_disc = false;
   uint32_t param = PTR_TO_UINT(data);
 
-  APPL_TRACE_EVENT("%s trial %u", __func__, param);
+  APPL_TRACE_WARNING("%s trial %u", __func__, param);
 
-  if (BTM_GetNumAclLinks() && (param == 0)) {
+  if (param == 2) {
+    if (BTM_GetNumAclLinks()) {
+      for (i = 0; i < bta_dm_cb.device_list.count; i++) {
+        transport = bta_dm_cb.device_list.peer_device[i].transport;
+        if (BT_TRANSPORT_BR_EDR == transport) {
+          btm_remove_acl(bta_dm_cb.device_list.peer_device[i].peer_bdaddr,
+                  transport);
+        }
+      }
+    }
+  }else if (BTM_GetNumAclLinks() && (param == 0)) {
     for (i = 0; i < bta_dm_cb.device_list.count; i++) {
       transport = bta_dm_cb.device_list.peer_device[i].transport;
       btm_remove_acl(bta_dm_cb.device_list.peer_device[i].peer_bdaddr,
@@ -666,6 +678,48 @@ void bta_dm_set_wifi_state(tBTA_DM_MSG *p_data) {
   BTM_SetWifiState((bool)p_data->wifi_state.status);
   if (p_data->wifi_state.status == true)
     bta_dm_adjust_roles(FALSE);
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_dm_bredr_cleanup
+ *
+ * Description      do bredr cleanup
+ *
+ *
+ * Returns          void
+ *
+ *****************************************************************************/
+void bta_dm_bredr_cleanup(tBTA_DM_MSG *p_data) {
+  alarm_set_on_mloop(bta_dm_cb.disable_timer, BTA_DM_DISABLE_TIMER_MS,
+                    bta_dm_disable_timer_cback, UINT_TO_PTR(2));
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_dm_bredr_startup
+ *
+ * Description      do bredr startup
+ *
+ *
+ * Returns          void
+ *
+ *****************************************************************************/
+void bta_dm_bredr_startup(tBTA_DM_MSG *p_data) {
+  uint8_t i;
+  tBT_TRANSPORT transport = BT_TRANSPORT_BR_EDR;
+  if (alarm_is_scheduled(bta_dm_cb.disable_timer)) {
+    alarm_cancel(bta_dm_cb.disable_timer);
+    if (BTM_GetNumAclLinks()) {
+      for (i = 0; i < bta_dm_cb.device_list.count; i++) {
+        transport = bta_dm_cb.device_list.peer_device[i].transport;
+        if (BT_TRANSPORT_BR_EDR == transport) {
+          btm_remove_acl(bta_dm_cb.device_list.peer_device[i].peer_bdaddr,
+                         transport);
+        }
+      }
+    }
+  }
 }
 
 /*******************************************************************************
@@ -1592,6 +1646,106 @@ void bta_dm_disc_rmt_name(tBTA_DM_MSG* p_data) {
   bta_dm_discover_device(p_data->rem_name.result.disc_res.bd_addr);
 }
 
+static void bta_dm_store_profiles_version() {
+  tSDP_DISC_REC* sdp_rec = NULL;
+  uint16_t profile_version, avdtp_version = 0;
+  uint16_t avrcp_features = 0;
+  tSDP_DISC_ATTR* p_attr;
+  tSDP_PROTOCOL_ELEM elem;
+  int i;
+
+  const UINT16 servclass_uuids[] = {
+    UUID_SERVCLASS_AUDIO_SINK,
+    UUID_SERVCLASS_HF_HANDSFREE,
+    UUID_SERVCLASS_AV_REMOTE_CONTROL,
+    UUID_SERVCLASS_AV_REM_CTRL_TARGET,
+    UUID_SERVCLASS_MESSAGE_NOTIFICATION,
+  };
+
+  const UINT16 btprofile_uuids[] = {
+    UUID_SERVCLASS_ADV_AUDIO_DISTRIBUTION,
+    UUID_SERVCLASS_HF_HANDSFREE,
+    UUID_SERVCLASS_AV_REMOTE_CONTROL,
+    UUID_SERVCLASS_AV_REMOTE_CONTROL,
+    UUID_SERVCLASS_MAP_PROFILE,
+  };
+
+  const char* profile_keys[] = {
+    A2DP_VERSION_CONFIG_KEY,
+    HFP_VERSION_CONFIG_KEY,
+    AV_REM_CTRL_VERSION_CONFIG_KEY,
+    AV_REM_CTRL_TG_VERSION_CONFIG_KEY,
+    MAP_MCE_VERSION_CONFIG_KEY,
+  };
+
+  int profile_num = sizeof(servclass_uuids)/sizeof(servclass_uuids[0]);
+
+  APPL_TRACE_DEBUG("%s", __func__);
+
+  for (i = 0; i < profile_num; i++) {
+    profile_version = 0;
+    if ((sdp_rec =
+         SDP_FindServiceInDb(bta_dm_search_cb.p_sdp_db, servclass_uuids[i], NULL))
+         == NULL)
+      continue;
+
+    if (SDP_FindAttributeInRec(sdp_rec, ATTR_ID_BT_PROFILE_DESC_LIST) == NULL)
+      continue;
+    /* get profile version (if failure, version parameter is not updated) */
+    SDP_FindProfileVersionInRec(sdp_rec, btprofile_uuids[i], &profile_version);
+    if (profile_version != 0) {
+      if (servclass_uuids[i] == UUID_SERVCLASS_MESSAGE_NOTIFICATION) {
+        APPL_TRACE_DEBUG("%s MCE record found ", __func__);
+        check_and_store_mce_profile_version(sdp_rec);
+        continue;
+      }
+      if (btif_config_set_uint16(sdp_rec->remote_bd_addr.ToString().c_str(),
+                              profile_keys[i],
+                              profile_version)) {
+        btif_config_save();
+      } else {
+        APPL_TRACE_WARNING("%s: Failed to store peer profile version for %s",
+                           __func__, sdp_rec->remote_bd_addr.ToString().c_str());
+      }
+    }
+
+    if (servclass_uuids[i] == UUID_SERVCLASS_AUDIO_SINK) {
+      /* get peer AVDTP version */
+      if (SDP_FindProtocolListElemInRec(sdp_rec, UUID_PROTOCOL_AVDTP, &elem)) {
+        avdtp_version = elem.params[0];
+        if (avdtp_version != 0) {
+          if (btif_config_set_uint16(sdp_rec->remote_bd_addr.ToString().c_str(),
+                              AVDTP_VERSION_CONFIG_KEY,
+                              avdtp_version)) {
+            btif_config_save();
+          } else {
+            APPL_TRACE_WARNING("%s: Failed to store avdtp_version version for %s",
+                           __func__, sdp_rec->remote_bd_addr.ToString().c_str());
+          }
+        }
+      }
+    }
+    /* find peer supported features for avrcp profile*/
+    if (servclass_uuids[i] == UUID_SERVCLASS_AV_REMOTE_CONTROL) {
+      p_attr = SDP_FindAttributeInRec(sdp_rec, ATTR_ID_SUPPORTED_FEATURES);
+      if (p_attr != NULL) {
+        avrcp_features = p_attr->attr_value.v.u16;
+        if (avrcp_features != 0) {
+          APPL_TRACE_DEBUG("avrcp_features: 0x%x", avrcp_features);
+          if (btif_config_set_uint16(sdp_rec->remote_bd_addr.ToString().c_str(),
+                           AV_REM_CTRL_FEATURES_CONFIG_KEY,
+                           avrcp_features)) {
+            btif_config_save();
+          } else {
+            APPL_TRACE_WARNING("%s: Failed to store avrcp_features for %s",
+                                __func__, sdp_rec->remote_bd_addr.ToString().c_str());
+          }
+        }
+      }
+    }
+  }
+}
+
 /*******************************************************************************
  *
  * Function         bta_dm_sdp_result
@@ -1633,13 +1787,9 @@ void bta_dm_sdp_result(tBTA_DM_MSG* p_data) {
             bta_service_id_to_uuid_lkup_tbl[bta_dm_search_cb.service_index - 1];
         p_sdp_rec =
             SDP_FindServiceInDb(bta_dm_search_cb.p_sdp_db, service, p_sdp_rec);
-        // for PBAP PCE UUID, check remote PBAP PCE Profile Version
-        if (service == UUID_SERVCLASS_PBAP_PCE) {
-          APPL_TRACE_DEBUG("%s: remote PBAP PCE reord", __func__);
-          if (p_sdp_rec != NULL)
-            check_and_store_pce_profile_version(p_sdp_rec);
-        }
+
       }
+
       /* finished with BR/EDR services, now we check the result for GATT based
        * service UUID */
       if (bta_dm_search_cb.service_index == BTA_MAX_SERVICE_ID) {
@@ -1721,6 +1871,10 @@ void bta_dm_sdp_result(tBTA_DM_MSG* p_data) {
           }
         }
       } while (p_sdp_rec);
+
+      if (bta_dm_search_cb.services_to_search == 0)
+         bta_dm_store_profiles_version();
+
     }
     /* if there are more services to search for */
     if (bta_dm_search_cb.services_to_search) {
@@ -2119,6 +2273,10 @@ static void bta_dm_find_services(const RawAddress& bd_addr) {
         bta_dm_search_cb.service_index = BTA_MAX_SERVICE_ID;
 
       } else {
+        if (uuid == Uuid::From16Bit(UUID_PROTOCOL_L2CAP)) {
+          LOG_DEBUG(LOG_TAG, "%s SDP search for PBAP Client ", __func__);
+          BTA_SdpSearch(bd_addr, Uuid::From16Bit(UUID_SERVCLASS_PBAP_PCE));
+        }
         if ((bta_dm_search_cb.service_index == BTA_BLE_SERVICE_ID &&
              bta_dm_search_cb.uuid_to_search == 0) ||
             bta_dm_search_cb.service_index != BTA_BLE_SERVICE_ID)

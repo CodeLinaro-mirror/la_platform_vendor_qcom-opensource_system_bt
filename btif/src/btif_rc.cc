@@ -1482,9 +1482,11 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV* p_data) {
       }
     } break;
     case BTA_AV_RC_OPEN_EVT: {
-      int ver = AVRC_REV_INVALID;
+      uint16_t ver = AVRC_REV_INVALID;
       ver = sdp_get_stored_avrc_tg_version(p_data->rc_open.peer_addr);
-      if (ver > AVRC_REV_1_3) {
+      bool is_avrc_browsing_set = ((AVRCP_MASK_BRW_BIT & ver) == AVRCP_MASK_BRW_BIT);
+      ver = (AVRCP_VERSION_BIT_MASK & ver);
+      if (ver > AVRC_REV_1_3 && is_avrc_browsing_set) {
         BTIF_TRACE_IMP("%s: remote ver > 1.3, add BR feature bit", __func__);
         p_data->rc_open.peer_features |= BTA_AV_FEAT_BROWSE;
       }
@@ -2144,6 +2146,7 @@ static void btif_rc_upstreams_evt(uint16_t event, tAVRC_COMMAND* pavrc_cmd,
           BTRC_MAX_ELEM_ATTR_SIZE, element_attrs);
       int ver = AVRC_REV_INVALID;
       ver = sdp_get_stored_avrc_tg_version (rc_addr.address);
+      ver = (AVRCP_VERSION_BIT_MASK & ver);
       if ((!(p_dev->rc_features & BTA_AV_FEAT_CA)) ||
               (ver < AVRC_REV_1_6) || (ver == AVRC_REV_INVALID))
       {
@@ -2284,6 +2287,7 @@ static void btif_rc_upstreams_evt(uint16_t event, tAVRC_COMMAND* pavrc_cmd,
           BTRC_MAX_ELEM_ATTR_SIZE, item_attrs);
       int ver = AVRC_REV_INVALID;
       ver = sdp_get_stored_avrc_tg_version (rc_addr.address);
+      ver = (AVRCP_VERSION_BIT_MASK & ver);
       if ((!(p_dev->rc_features & BTA_AV_FEAT_CA)) ||
               (ver < AVRC_REV_1_6) || (ver == AVRC_REV_INVALID))
       {
@@ -4006,7 +4010,11 @@ static void register_volumechange(uint8_t lbl, btif_rc_device_cb_t* p_dev) {
   rc_transaction_t* p_transaction = NULL;
 
   BTIF_TRACE_DEBUG("%s: label: %d", __func__, lbl);
-  int index = btif_av_idx_by_bdaddr(&p_dev->rc_addr);
+  int index = btif_rc_get_idx_by_bda(&p_dev->rc_addr);
+  if (index == -1) {
+    BTIF_TRACE_ERROR("%s: index is invalid", __func__);
+    return;
+  }
   if (btif_rc_cb.rc_multi_cb[index].rc_connected &&
      !((btif_rc_cb.rc_multi_cb[index].rc_features & BTA_AV_FEAT_ADV_CTRL) &&
      (btif_rc_cb.rc_multi_cb[index].rc_features & BTA_AV_FEAT_RCTG)))
@@ -4023,6 +4031,7 @@ static void register_volumechange(uint8_t lbl, btif_rc_device_cb_t* p_dev) {
 
   BldResp = AVRC_BldCommand(&avrc_cmd, &p_msg);
   if (AVRC_STS_NO_ERROR == BldResp && p_msg) {
+    BTIF_TRACE_DEBUG("%s: get transaction by label: %d, index: %d", __func__, lbl, index);
     p_transaction = get_transaction_by_lbl(lbl, index);
     if (p_transaction != NULL) {
       BTA_AvMetaCmd(p_dev->rc_handle, p_transaction->lbl, AVRC_CMD_NOTIF,

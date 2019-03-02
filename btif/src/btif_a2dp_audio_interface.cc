@@ -65,6 +65,7 @@
 #include "a2dp_sbc.h"
 #include <pthread.h>
 #include "osi/include/osi.h"
+#include "osi/include/properties.h"
 #include <base/logging.h>
 #include <utils/RefBase.h>
 #include <com/qualcomm/qti/bluetooth_audio/1.0/IBluetoothAudio.h>
@@ -170,6 +171,9 @@ typedef enum {
 #define A2DP_SBC_NON_EDR_MAX_RATE 229
 #endif
 #endif
+
+#define AAC_SAMPLE_SIZE  1024
+#define AAC_LATM_HEADER  12
 
 void on_hidl_server_died();
 //using OnServerDead = std::function<void(void)>;
@@ -940,6 +944,7 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
          * while in a call, and respond with BAD_STATE.
          */
         bool reset_remote_start = false;
+        bool remote_start_flag = false;
         int remote_start_idx = btif_max_av_clients;
         int latest_playing_idx = btif_max_av_clients;
         if (!bluetooth::headset::btif_hf_is_call_vr_idle()) {
@@ -959,6 +964,7 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         }
         remote_start_idx = btif_get_is_remote_started_idx();
         latest_playing_idx = btif_av_get_latest_device_idx_to_start();
+        remote_start_flag = btif_av_is_remote_started_set(latest_playing_idx);
         if (btif_a2dp_source_is_remote_start()) {
           reset_remote_start = false;
           APPL_TRACE_DEBUG("%s: remote started idx = %d latest playing = %d",__func__,
@@ -1010,14 +1016,12 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
             break;
           } else if (btif_a2dp_src_vsc.tx_started == FALSE) {
             uint8_t hdl = 0;
-            bool remote_start_flag = false;
             APPL_TRACE_DEBUG("%s: latest playing idx = %d",__func__, latest_playing_idx);
             if (latest_playing_idx > btif_max_av_clients || latest_playing_idx < 0) {
                 APPL_TRACE_ERROR("%s: Invalid index",__func__);
                 status = -1;//Invalid status to stop start retry
                 break;
             }
-            remote_start_flag = btif_av_is_remote_started_set(latest_playing_idx);
             if (remote_start_flag) {
               hdl = btif_av_get_av_hdl_from_idx(latest_playing_idx);
               APPL_TRACE_DEBUG("%s: hdl = %d, enc_update_in_progress = %d",__func__, hdl,
@@ -1037,6 +1041,8 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
                 /*Return pending and ack when start stream cfm received from remote*/
                 status = A2DP_CTRL_ACK_PENDING;
               }
+            } else {
+              status = A2DP_CTRL_ACK_FAILURE;
             }
 #if (TWS_ENABLED == TRUE)
             if (btif_av_current_device_is_tws() &&
@@ -1055,8 +1061,8 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
             hdl = btif_av_get_av_hdl_from_idx(remote_start_idx);
             APPL_TRACE_DEBUG("Start VSC exchange for remote started index of TWS+ device");
             btif_dispatch_sm_event(BTIF_AV_OFFLOAD_START_REQ_EVT, (char *)&hdl, 1);
-#endif
             status = A2DP_CTRL_ACK_PENDING;
+#endif
             break;
           }
           btif_av_reset_reconfig_flag();
@@ -1254,20 +1260,35 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
         }
         else if (A2DP_MEDIA_CT_AAC == codec_type)
         {
-          bitrate = 0;//Bitrate is present in codec info
+          bool is_AAC_frame_ctrl_stack_enable = false;
+          char AAC_frame_ctrl_stack_val[PROPERTY_VALUE_MAX] = {'\0'};
+          osi_property_get("persist.vendor.btstack.aac_frm_ctl.enabled", AAC_frame_ctrl_stack_val, "false");
+          if (!strcmp(AAC_frame_ctrl_stack_val, "true"))
+            is_AAC_frame_ctrl_stack_enable = true;
+          LOG_INFO(LOG_TAG, "Stack AAC frame control enabled: %d", is_AAC_frame_ctrl_stack_enable);
+          if (is_AAC_frame_ctrl_stack_enable) {
+            int sample_rate = A2DP_GetTrackSampleRate(p_codec_info);
+            LOG_INFO(LOG_TAG,"sample_rate = %d", sample_rate);
+            bitrate = (peer_param.peer_mtu - AAC_LATM_HEADER) * (8 * sample_rate / AAC_SAMPLE_SIZE);
+          } else {
+            bitrate = 0;//Bitrate is present in codec info
+          }
         }
         bits_per_sample = CodecConfig->getAudioBitsPerSample();
-        LOG_INFO(LOG_TAG,"bitrate = %d, bits_per_sample = %d", bitrate, bits_per_sample);
+
+        peer_param.peer_mtu = peer_param.peer_mtu - A2DP_HEADER_SIZE;
+
+        LOG_INFO(LOG_TAG,"bitrate = %d, bits_per_sample = %d, peer_param.peer_mtu = %d",
+                          bitrate, bits_per_sample, peer_param.peer_mtu);
         codec_info[0] = 0; //playing device handle
         len = p_codec_info[0] + 2;
-        codec_info[len++] = (uint8_t)(peer_param.peer_mtu & 0x00FF);
-        codec_info[len++] = (uint8_t)(((peer_param.peer_mtu & 0xFF00) >> 8) & 0x00FF);
-        codec_info[len++] = (uint8_t)(bitrate & 0x00FF);
-        codec_info[len++] = (uint8_t)(((bitrate & 0xFF00) >> 8) & 0x00FF);
-        codec_info[len++] = (uint8_t)(((bitrate & 0xFF0000) >> 16) & 0x00FF);
-        codec_info[len++] = (uint8_t)(((bitrate & 0xFF000000) >> 24) & 0x00FF);
+        *(uint16_t *)&codec_info[len] = (uint16_t)peer_param.peer_mtu;
+        len = len + 2;
+        *(uint32_t *)&codec_info[len] = (uint32_t)bitrate;
+        len = len + 4;
         *(uint32_t *)&codec_info[len] = (uint32_t)bits_per_sample;
-        len = len+4;
+        LOG_INFO(LOG_TAG,"len  = %d", len);
+        len = len + 4;
         if (strcmp(A2DP_CodecName(p_codec_info), "aptX-TWS") == 0)
         {
            if (tws_defaultmono_supported && btif_av_is_tws_enable_monocfg()) {

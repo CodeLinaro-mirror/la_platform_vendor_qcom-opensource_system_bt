@@ -520,11 +520,13 @@ static void btif_hf_upstreams_evt(uint16_t event, char* p_param) {
     case BTA_AG_OPEN_EVT:
       BTIF_TRACE_DEBUG("%s:p_data->open.status:%d,btif_hf_cb[idx].state:%d,btif_max_hf_clients:%d",
                          __func__, p_data->open.status, btif_hf_cb[idx].state, btif_max_hf_clients);
+      BTIF_TRACE_DEBUG("%s: service_id: %d", __func__, p_data->open.service_id);
       if (p_data->open.status == BTA_AG_SUCCESS) {
         btif_hf_cb[idx].connected_bda = p_data->open.bd_addr;
         btif_hf_cb[idx].state = BTHF_CONNECTION_STATE_CONNECTED;
         btif_hf_cb[idx].peer_feat = 0;
         clear_phone_state_multihf(idx);
+        btif_hf_cb[idx].service_id = p_data->open.service_id;
       } else if (btif_hf_cb[idx].state == BTHF_CONNECTION_STATE_CONNECTING) {
         /* In Multi-hf, if outgoing RFCOMM connection fails due to collision,
          * ignore the failure if HF is already connected.
@@ -623,10 +625,16 @@ static void btif_hf_upstreams_evt(uint16_t event, char* p_param) {
       clear_phone_state_multihf(idx);
       //If the active device is disconnected, clear the active device
       if (is_active_device(bd_addr)) {
-        active_bda = RawAddress::kEmpty;
-        BTIF_TRACE_IMP("%s: Active device is disconnected, clear the active device %s",
-            __func__, active_bda.ToString().c_str());
-        BTA_AgSetActiveDevice(active_bda);
+        bool is_twsp_dev = btif_is_tws_plus_device(&bd_addr);
+        /*Clear active device only if given tws+ is active*/
+        if (!is_twsp_dev || (is_twsp_dev && active_bda == bd_addr)) {
+            active_bda = RawAddress::kEmpty;
+            BTIF_TRACE_IMP("%s: Active device is disconnected, clear the active device %s",
+                __func__, active_bda.ToString().c_str());
+            BTA_AgSetActiveDevice(active_bda);
+        } else {
+            BTIF_TRACE_IMP("%s: non-active TWS+ device disconnected");
+        }
       }
       /* If AG_OPEN was received but SLC was not setup in a specified time (10
        *seconds),
@@ -943,7 +951,9 @@ class HeadsetInterface : Interface {
   bt_status_t PhoneStateChange(int num_active, int num_held,
                                bthf_call_state_t call_setup_state,
                                const char* number,
-                               bthf_call_addrtype_t type, RawAddress* bd_addr) override;
+                               bthf_call_addrtype_t type,
+                               const char* name,
+                               RawAddress* bd_addr) override;
 
   void Cleanup() override;
   bt_status_t SetScoAllowed(bool value) override;
@@ -1589,7 +1599,8 @@ bt_status_t HeadsetInterface::ClccResponse(int index, bthf_call_direction_t dir,
 
 bt_status_t HeadsetInterface::PhoneStateChange(
     int num_active, int num_held, bthf_call_state_t call_setup_state,
-    const char* number, bthf_call_addrtype_t type, RawAddress* bd_addr) {
+    const char* number, bthf_call_addrtype_t type, const char* name,
+    RawAddress* bd_addr) {
   CHECK_BTHF_INIT();
   if (!bd_addr) {
     BTIF_TRACE_WARNING("%s: bd_addr is null", __func__);
@@ -1671,7 +1682,8 @@ bt_status_t HeadsetInterface::PhoneStateChange(
         __func__);
 
     memset(&ag_res, 0, sizeof(tBTA_AG_RES_DATA));
-    if (is_active_device(*bd_addr)) {
+    //Change the audio state during the call only for HFP device
+    if (is_active_device(*bd_addr) && btif_hf_cb[idx].service_id == BTA_HFP_SERVICE_ID) {
        // initiate SCO only if it is not connected already
        if (btif_hf_cb[idx].audio_state != BTHF_AUDIO_STATE_CONNECTED) {
            ag_res.audio_handle = control_block.handle;
@@ -1687,7 +1699,7 @@ bt_status_t HeadsetInterface::PhoneStateChange(
        }
     } else {
        ag_res.audio_handle = BTA_AG_HANDLE_SCO_NO_CHANGE;
-       BTIF_TRACE_IMP("%s: Don't create SCO since non-active device is connected",
+       BTIF_TRACE_IMP("%s: Don't create SCO since non-active device or HSP device is connected",
                             __FUNCTION__);
     }
 
@@ -1758,6 +1770,10 @@ bt_status_t HeadsetInterface::PhoneStateChange(
           res = BTA_AG_CALL_WAIT_RES;
         } else {
           res = BTA_AG_IN_CALL_RES;
+          if (is_active_device(*bd_addr) &&
+              (btif_hf_features & BTA_AG_FEAT_INBAND)) {
+            ag_res.audio_handle = control_block.handle;
+          }
         }
         if (number) {
           int xx = 0;
@@ -1979,7 +1995,7 @@ void HeadsetInterface::Cleanup(void) {
   return BT_STATUS_SUCCESS;
 } */ // commenting temp because of HAL change
 
-#ifdef BT_HF_VOIP_FEATURE //gghai
+#ifdef BT_HF_VOIP_FEATURE
 static void set_voip_network_type_wifi_hci_cmd_complete(tBTM_VSC_CMPL* p_data)
 {
     uint8_t         *stream,  status, subcmd;
