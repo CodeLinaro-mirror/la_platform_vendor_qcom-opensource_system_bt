@@ -1159,6 +1159,11 @@ void handle_rc_passthrough_rsp(tBTA_AV_REMOTE_RSP* p_remote_rsp) {
   if (bt_rc_ctrl_callbacks != NULL) {
     HAL_CBACK(bt_rc_ctrl_callbacks, passthrough_rsp_cb, &rc_addr,
               p_remote_rsp->rc_id, p_remote_rsp->key_state);
+
+    if (p_remote_rsp->rsp_code != AVRC_RSP_ACCEPT) {
+      HAL_CBACK(bt_rc_vendor_ctrl_callbacks, error_status_code_cb, &rc_addr,
+                AVRC_OP_PASS_THRU, p_remote_rsp->rc_id, p_remote_rsp->rsp_code);
+    }
   }
 }
 
@@ -4956,6 +4961,12 @@ static void handle_set_app_attr_val_response(tBTA_AV_META_MSG* pmeta_msg,
    */
   if (pmeta_msg && (pmeta_msg->code == AVRC_RSP_ACCEPT)) {
     accepted = 1;
+    if (p_rsp->status != AVRC_STS_NO_ERROR) {
+      BTIF_TRACE_ERROR("%s error in handle_set_app_attr_val_response %d", __func__,
+                       p_rsp->status);
+      HAL_CBACK(bt_rc_vendor_ctrl_callbacks, error_status_code_cb, &rc_addr,
+                p_rsp->opcode, p_rsp->pdu, p_rsp->status);
+    }
   }
   HAL_CBACK(bt_rc_ctrl_callbacks, setplayerappsetting_rsp_cb, &rc_addr,
             accepted);
@@ -5159,6 +5170,8 @@ static void handle_get_folder_items_response(tBTA_AV_META_MSG* pmeta_msg,
     BTIF_TRACE_ERROR("%s: Error %d", __func__, p_rsp->status);
     HAL_CBACK(bt_rc_ctrl_callbacks, get_folder_items_cb, &rc_addr,
               (btrc_status_t)p_rsp->status, NULL, 0);
+    HAL_CBACK(bt_rc_vendor_ctrl_callbacks, error_status_code_cb, &rc_addr,
+              p_rsp->opcode, p_rsp->pdu, (btrc_status_t)p_rsp->status);
   }
 }
 
@@ -5184,8 +5197,15 @@ static void handle_search_response(tBTA_AV_META_MSG* pmeta_msg,
 
   RawAddress rc_addr = p_dev->rc_addr;
 
-  HAL_CBACK(bt_rc_vendor_ctrl_callbacks, search_rsp_cb, &rc_addr,
-            p_rsp->status, p_rsp->uid_counter, p_rsp->num_items);
+  if (p_rsp->status == AVRC_STS_NO_ERROR) {
+    HAL_CBACK(bt_rc_vendor_ctrl_callbacks, search_rsp_cb, &rc_addr,
+              p_rsp->status, p_rsp->uid_counter, p_rsp->num_items);
+  } else {
+    BTIF_TRACE_ERROR("%s error in handle_search_response %d", __func__,
+                     p_rsp->status);
+    HAL_CBACK(bt_rc_vendor_ctrl_callbacks, error_status_code_cb, &rc_addr,
+              p_rsp->opcode, p_rsp->pdu, p_rsp->status);
+  }
 }
 
 /***************************************************************************
@@ -5293,6 +5313,35 @@ static void handle_add_to_now_playing_response(tBTA_AV_META_MSG* pmeta_msg,
   HAL_CBACK(bt_rc_vendor_ctrl_callbacks, add_to_now_playing_cb, &rc_addr,
             p_rsp->status);
 }
+
+/***************************************************************************
+ *
+ * Function         handle_play_item_response
+ *
+ * Description      handles the play item response, calls
+ *                  HAL callback
+ * Returns          None
+ *
+ **************************************************************************/
+static void handle_play_item_response(tBTA_AV_META_MSG* pmeta_msg,
+                                   tAVRC_RSP* p_rsp) {
+
+  btif_rc_device_cb_t* p_dev =
+      btif_rc_get_device_by_handle(pmeta_msg->rc_handle);
+
+  if (p_dev == NULL) {
+    BTIF_TRACE_ERROR("%s: p_dev NULL", __func__);
+    return;
+  }
+
+  RawAddress rc_addr = p_dev->rc_addr;
+
+  if (p_rsp->status != AVRC_STS_NO_ERROR) {
+    HAL_CBACK(bt_rc_vendor_ctrl_callbacks, error_status_code_cb, &rc_addr,
+              p_rsp->opcode, p_rsp->pdu, p_rsp->status);
+  }
+}
+
 
 /***************************************************************************
  *
@@ -5495,6 +5544,8 @@ static void handle_change_path_response(tBTA_AV_META_MSG* pmeta_msg,
   } else {
     BTIF_TRACE_ERROR("%s error in handle_change_path_response %d", __func__,
                      p_rsp->status);
+    HAL_CBACK(bt_rc_vendor_ctrl_callbacks, error_status_code_cb, &rc_addr,
+              p_rsp->opcode, p_rsp->pdu, p_rsp->status);
   }
 }
 
@@ -5628,6 +5679,10 @@ static void handle_avk_rc_metamsg_rsp(tBTA_AV_META_MSG* pmeta_msg) {
 
       case AVRC_PDU_ADD_TO_NOW_PLAYING:
         handle_add_to_now_playing_response(pmeta_msg, &avrc_response.add_to_play);
+        break;
+
+      case AVRC_PDU_PLAY_ITEM:
+        handle_play_item_response(pmeta_msg, &avrc_response.play_item);
         break;
 
       default:
