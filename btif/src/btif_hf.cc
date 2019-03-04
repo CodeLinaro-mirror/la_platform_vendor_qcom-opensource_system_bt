@@ -1380,7 +1380,7 @@ static bt_status_t clcc_response(int index, bthf_call_direction_t dir,
         snprintf(&ag_res.str[res_strlen], rem_bytes - 5, ",\"%s", dialnum);
         std::stringstream remaining_string;
         remaining_string << "\"," << type;
-        strncat(&ag_res.str[res_strlen], remaining_string.str().c_str(), 5);
+        strlcat(&ag_res.str[res_strlen], remaining_string.str().c_str(), rem_bytes);
       }
     }
     BTA_AgResult(btif_hf_cb[idx].handle, BTA_AG_CLCC_RES, &ag_res);
