@@ -1031,9 +1031,12 @@ static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer) {
     return NULL;
   }
   for (const auto& iter : p_peer->codecs->orderedSourceCodecs()) {
-    APPL_TRACE_DEBUG("%s: updating selectable codec %s", __func__,
-                     iter->name().c_str());
-    bta_av_co_audio_update_selectable_codec(*iter, p_peer);
+    APPL_TRACE_DEBUG("%s: updating selectable codec %d", __func__,
+                     iter->codecIndex());
+    if(bta_av_co_audio_update_selectable_codec(*iter, p_peer)) {
+     APPL_TRACE_DEBUG("%s: updated codec %d", __func__,
+                     iter->codecIndex());
+    }
   }
 
   // Select the codec
