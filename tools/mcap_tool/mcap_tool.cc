@@ -489,7 +489,8 @@ static bt_callbacks_t bt_callbacks = {
     nullptr,                    /* thread_evt_cb */
     dut_mode_recv,              /*dut_mode_recv_cb */
     nullptr,                    /* le_test_mode_cb */
-    nullptr                     /* energy_info_cb */
+    nullptr,                    /* energy_info_cb */
+    nullptr                     /* get_link_key_cb */
 };
 
 static bool set_wake_alarm(uint64_t delay_millis, bool should_wake, alarm_cb cb,

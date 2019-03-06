@@ -58,6 +58,7 @@ bt_interface_t fake_bt_iface = {
     nullptr, /* create_bond */
     nullptr, /* create_bond_out_of_band */
     nullptr, /* add_out_of_band_bond_device */
+    nullptr, /* get_link_key */
     nullptr, /* remove_bond */
     nullptr, /* cancel_bond */
     nullptr, /* get_connection_state */
@@ -74,7 +75,7 @@ bt_interface_t fake_bt_iface = {
     nullptr, /* config clear */
     nullptr, /* interop_database_clear */
     nullptr, /* interop_database_add */
-    nullptr, /* get_avrcp_service */
+    nullptr /* get_avrcp_service */
 };
 
 }  // namespace

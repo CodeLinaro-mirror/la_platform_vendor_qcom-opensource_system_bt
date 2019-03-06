@@ -436,4 +436,15 @@ bt_status_t btif_config_hci_snoop_log(uint8_t enable);
  ******************************************************************************/
 void btif_debug_bond_event_dump(int fd);
 
+/*******************************************************************************
+ *
+ * Function         btif_dm_get_link_key
+ *
+ * Description     get link key information
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btif_dm_get_link_key(const RawAddress *bd_addr);
+
 #endif /* BTIF_API_H */
