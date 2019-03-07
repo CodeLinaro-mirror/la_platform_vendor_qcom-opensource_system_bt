@@ -78,6 +78,7 @@ typedef struct
         UINT8 NumOfSubBands; /* 4 or 8 */
         UINT8 NumOfBlocks; /* 4, 8, 12 or 16*/
         UINT8 AllocationMethod; /* loudness or SNR*/
+        UINT16 NumOfChannels; /*1 or 3*/
         UINT16 MtuSize; /* peer mtu size */
         UINT8 CodecType; /* SBC or Non-A2DP */
         UINT32 BluetoothVendorID; /* Bluetooth Vendor ID */

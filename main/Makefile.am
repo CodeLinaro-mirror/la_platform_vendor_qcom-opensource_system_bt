@@ -116,8 +116,10 @@ common_LDFLAGS = -ldl -lrt -lresolv -Wl,--whole-archive,../hci/.libs/libbt-hci.a
                  -Wl,--whole-archive,../bta/.libs/libbtbta.a,--no-whole-archive -Wl,--whole-archive,../btif/.libs/libbtif.a,--no-whole-archive \
                  -Wl,--whole-archive,../stack/.libs/libbtstack.a,--no-whole-archive \
                  -Wl,--whole-archive,../utils/.libs/libbtutils.a,--no-whole-archive -Wl,--whole-archive,../btcore/.libs/libbtcore.a,--no-whole-archive \
-                 -Wl,--whole-archive,../osi/.libs/libbtosi.a,--no-whole-archive -Wl,--whole-archive,../device/.libs/libbtdevice.a,--no-whole-archive \
-				 -laudioutils
+                 -Wl,--whole-archive,../osi/.libs/libbtosi.a,--no-whole-archive -Wl,--whole-archive,../device/.libs/libbtdevice.a,--no-whole-archive
+if BT_AUDIO_HAL_INTEGRATION
+common_LDFLAGS += -laudioutils
+endif
 
 c_sources+= \
         $(external_bt_path)/system_bt_ext/btif/src/btif_avk_media_task.c \

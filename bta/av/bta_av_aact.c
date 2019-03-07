@@ -1556,7 +1556,7 @@ void bta_av_str_opened (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     p_scb->suspend_local_sent = FALSE;
 
     p_scb->stream_mtu = p_data->str_msg.msg.open_ind.peer_mtu - AVDT_MEDIA_HDR_SIZE;
-    mtu_config.mtu = p_data->str_msg.msg.open_ind.peer_mtu;
+    mtu_config.mtu = p_scb->stream_mtu - 1;//13 bytes reserved for stack headers
     mtu_config.hndl = p_scb->hndl;
     mtu = bta_av_chk_mtu(p_scb, p_scb->stream_mtu);
     APPL_TRACE_DEBUG("bta_av_str_opened l2c_cid: 0x%x stream_mtu: %d mtu: %d",
