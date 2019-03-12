@@ -1410,6 +1410,21 @@ void bta_hh_le_close(tBTA_GATTC_CLOSE* p_data) {
 
 /*******************************************************************************
  *
+ * Function         bta_hh_le_configureMTU
+ *
+ * Description      This function process the GATT client configure MTU event
+ *                  and post it as a BTA HH internal event
+ *
+ * Parameters:
+ *
+ ******************************************************************************/
+void bta_hh_le_configureMTU(const RawAddress& remote_bda, uint16_t mtu) {
+  tBTA_HH_DEV_CB* p_dev_cb = bta_hh_le_find_dev_cb_by_bda(remote_bda);
+  BTA_GATTC_ConfigureMTU(p_dev_cb->conn_id, mtu);
+}
+
+/*******************************************************************************
+ *
  * Function         bta_hh_le_gatt_disc_cmpl
  *
  * Description      Check to see if the remote device is a LE only device
@@ -1824,7 +1839,7 @@ void bta_hh_le_input_rpt_notify(tBTA_GATTC_NOTIFY* p_data) {
     return;
   }
   memset(&(raw_data->rpt_id_flag),0,sizeof(uint8_t));
-
+  raw_data->bda = p_dev_cb->addr;
   /* need to append report ID to the head of data */
   if (p_rpt->rpt_id != 0) {
     p_buf = (uint8_t*)osi_malloc(p_data->len + 1);
@@ -1848,6 +1863,67 @@ void bta_hh_le_input_rpt_notify(tBTA_GATTC_NOTIFY* p_data) {
                  p_dev_cb->dscp_info.ctry_code, p_dev_cb->addr, app_id);
 
   if (p_buf != p_data->value) osi_free(p_buf);
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_hh_le_cfg_mtu
+ *
+ * Description      process the configure mtu event.
+ *
+ * Parameters:
+ *
+ ******************************************************************************/
+void bta_hh_le_cfg_mtu(tBTA_GATTC_CFG_MTU* p_data) {
+  tBTA_HH_DEV_CB* p_dev_cb = bta_hh_le_find_dev_cb_by_conn_id(p_data->conn_id);
+  tBTA_HH_CFG_MTU mtu_data;
+
+  if (p_dev_cb == NULL) {
+    APPL_TRACE_ERROR(
+        "%s: configure mtu received from Unknown device, conn_id: 0x%04x",
+        __func__, p_data->conn_id);
+    return;
+  }
+
+  mtu_data.bda = p_dev_cb->addr;
+  mtu_data.conn_id = p_data->conn_id;
+  mtu_data.mtu = p_data->mtu;
+  if (p_data->status == BTA_GATT_OK)
+    mtu_data.status = BTA_HH_OK;
+
+  (* bta_hh_cb.p_cback)(BTA_HH_CFG_MTU_EVT, (tBTA_HH *)&mtu_data);
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_hh_le_conn_update
+ *
+ * Description      process the connection update parameters event.
+ *
+ * Parameters:
+ *
+ ******************************************************************************/
+void bta_hh_le_conn_update(tBTA_GATTC_CONN_UPDATE* p_data) {
+  tBTA_HH_DEV_CB* p_dev_cb = bta_hh_le_find_dev_cb_by_conn_id(p_data->conn_id);
+  tBTA_HH_CONN_UPDATE conn_params;
+
+  if (p_dev_cb == NULL) {
+    APPL_TRACE_ERROR(
+        "%s: configure mtu received from Unknown device, conn_id: 0x%04x",
+        __func__, p_data->conn_id);
+    return;
+  }
+
+  conn_params.bda = p_dev_cb->addr;
+  conn_params.conn_id = p_data->conn_id;
+  conn_params.interval = p_data->interval;
+  conn_params.latency = p_data->latency;
+  conn_params.timeout = p_data->timeout;
+
+  if (p_data->status == BTA_GATT_OK)
+    conn_params.status = BTA_HH_OK;
+
+  (* bta_hh_cb.p_cback)(BTA_HH_CONN_UPDATE_EVT, (tBTA_HH *)&conn_params);
 }
 
 /*******************************************************************************
@@ -2425,6 +2501,14 @@ static void bta_hh_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
         bta_hh_sm_execute(p_dev_cb, BTA_HH_GATT_ENC_CMPL_EVT,
                           (tBTA_HH_DATA*)&p_data->enc_cmpl);
       }
+      break;
+
+    case BTA_GATTC_CFG_MTU_EVT: /* 18 */
+      bta_hh_le_cfg_mtu(&p_data->cfg_mtu);
+      break;
+
+    case BTA_GATTC_CONN_UPDATE_EVT: /* 26 */
+      bta_hh_le_conn_update(&p_data->conn_update);
       break;
 
     default:
