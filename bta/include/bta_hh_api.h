@@ -71,6 +71,8 @@
 #define BTA_HH_API_ERR_EVT 16     /* API error is caught */
 #define BTA_HH_UPDATE_SCPP_EVT 17 /* update scan paramter complete */
 #define BTA_HH_SEND_RAW_DATA_EVT 18     /*send raw hid report*/
+#define BTA_HH_CFG_MTU_EVT 19   /*Configure MTU event*/
+#define BTA_HH_CONN_UPDATE_EVT 20 /*Connection update event*/
 
 typedef uint16_t tBTA_HH_EVT;
 
@@ -287,10 +289,27 @@ typedef struct {
 /* Send raw data to app*/
 typedef struct
 {
+  RawAddress bda;
   uint8_t   len;
   uint8_t   rpt_id_flag;
   uint8_t   data[];
 }tBTA_HH_RAW_DATA;
+
+typedef struct {
+  uint16_t conn_id;
+  RawAddress bda;
+  tBTA_HH_STATUS status;
+  uint16_t mtu;
+} tBTA_HH_CFG_MTU;
+
+typedef struct {
+  uint16_t conn_id;
+  RawAddress bda;
+  uint16_t interval;
+  uint16_t latency;
+  uint16_t timeout;
+  tBTA_HH_STATUS status;
+} tBTA_HH_CONN_UPDATE;
 
 /* union of data associated with HD callback */
 typedef union {
@@ -309,6 +328,8 @@ typedef union {
                                       BTA_HH_GET_PROTO_EVT
                                       BTA_HH_GET_IDLE_EVT */
   tBTA_HH_RAW_DATA        raw_data;           /*BTA_HH_SEND_RAW_DATA_EVT*/
+  tBTA_HH_CFG_MTU  mtu_config; /*BTA_HH_CFG_MTU_EVT*/
+  tBTA_HH_CONN_UPDATE  conn_params; /*BTA_HH_CONN_UPDATE_EVT*/
 } tBTA_HH;
 
 /* BTA HH callback function */
@@ -513,6 +534,18 @@ extern void BTA_HhAddDev(const RawAddress& bda, tBTA_HH_ATTR_MASK attr_mask,
  *
  ******************************************************************************/
 extern void BTA_HhRemoveDev(uint8_t dev_handle);
+
+/*******************************************************************************
+**
+** Function         BTA_HhConfigureMTU
+**
+** Description      Configure the MTU size in the GATT channel. This can be done
+**                  only once per connection.
+**
+** Returns          void
+**
+*******************************************************************************/
+extern void BTA_HhConfigureMTU(const RawAddress& remote_bda, uint16_t mtu);
 
 /*******************************************************************************
  *

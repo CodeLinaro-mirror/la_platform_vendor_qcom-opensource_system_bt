@@ -30,6 +30,9 @@
 #include "btif_hh.h"
 
 #include <base/logging.h>
+#include <base/at_exit.h>
+#include <base/bind.h>
+#include <base/threading/thread.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,6 +48,9 @@
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
 #include "hardware/bt_hh_vendor.h"
+
+using base::Bind;
+using base::Owned;
 
 #define BTIF_HH_APP_ID_MI 0x01
 #define BTIF_HH_APP_ID_KB 0x02
@@ -150,6 +156,7 @@ extern bool check_cod_hid(const RawAddress* remote_bdaddr);
 extern int scru_ascii_2_hex(char* p_ascii, int len, uint8_t* p_hex);
 extern void btif_dm_hh_open_failed(RawAddress* bdaddr);
 extern void btif_hd_service_registration();
+extern void BTA_HhConfigureMTU(const RawAddress& remote_bda, uint16_t mtu);
 
 /*****************************************************************************
  *  Local Function prototypes
@@ -1114,8 +1121,22 @@ static void btif_hh_upstreams_evt(uint16_t event, char* p_param) {
 
     case BTA_HH_SEND_RAW_DATA_EVT:
        BTIF_TRACE_DEBUG( "BTA_HH_SEND_RAW_DATA_EVT");
-       HAL_CBACK(bt_hh_vendor_callbacks, raw_hid_data_cb,p_data->raw_data.data,
-                 p_data->raw_data.len,p_data->raw_data.rpt_id_flag);
+       HAL_CBACK(bt_hh_vendor_callbacks, raw_hid_data_cb,p_data->raw_data.bda,
+                 p_data->raw_data.data,p_data->raw_data.len,
+                 p_data->raw_data.rpt_id_flag);
+       break;
+
+    case BTA_HH_CFG_MTU_EVT:
+       BTIF_TRACE_DEBUG( "BTA_HH_SEND_RAW_DATA_EVT");
+       HAL_CBACK(bt_hh_vendor_callbacks, cfg_mtu_cb,p_data->mtu_config.bda,
+                 p_data->mtu_config.status,p_data->mtu_config.mtu);
+       break;
+
+    case BTA_HH_CONN_UPDATE_EVT:
+       BTIF_TRACE_DEBUG( "BTA_HH_SEND_RAW_DATA_EVT");
+       HAL_CBACK(bt_hh_vendor_callbacks, conn_params_cb,p_data->conn_params.bda,
+                 p_data->conn_params.interval,p_data->conn_params.latency,
+                 p_data->conn_params.timeout,p_data->conn_params.status);
        break;
 
     default:
@@ -1158,6 +1179,10 @@ void bte_hh_evt(tBTA_HH_EVT event, tBTA_HH* p_data) {
     param_len = sizeof(tBTA_HH_DEV_INFO);
   else if (BTA_HH_SEND_RAW_DATA_EVT == event)
     param_len = sizeof(tBTA_HH_RAW_DATA)+(p_data->raw_data.len);
+  else if (BTA_HH_CFG_MTU_EVT == event)
+    param_len = sizeof(tBTA_HH_CFG_MTU);
+  else if (BTA_HH_CONN_UPDATE_EVT == event)
+    param_len = sizeof(tBTA_HH_CONN_UPDATE);
   else if (BTA_HH_API_ERR_EVT == event)
     param_len = 0;
   /* switch context to btif task context (copy full union size for convenience)
@@ -1301,6 +1326,51 @@ static bt_status_t connect(RawAddress* bd_addr) {
     return BT_STATUS_SUCCESS;
   } else
     return BT_STATUS_BUSY;
+}
+
+/*******************************************************************************
+ *
+ * Function        configure_mtu
+ *
+ * Description     update the MTU size for hid device
+ *
+ * Returns         bt_status_t
+ *
+ ******************************************************************************/
+static bt_status_t configure_mtu(const RawAddress& remote_bda, int mtu) {
+   return do_in_jni_thread(
+       Bind(base::IgnoreResult(&BTA_HhConfigureMTU), remote_bda, mtu));
+ }
+
+void btif_hh_conn_parameter_update_impl(RawAddress addr, int min_interval,
+                                           int max_interval, int latency,
+                                           int timeout, uint16_t min_ce_len,
+                                           uint16_t max_ce_len) {
+  if (BTA_DmGetConnectionState(addr))
+    BTA_DmBleUpdateConnectionParams(addr, min_interval, max_interval, latency,
+                                    timeout, min_ce_len, max_ce_len);
+  else
+    BTA_DmSetBlePrefConnParams(addr, min_interval, max_interval, latency,
+                               timeout);
+}
+
+/*******************************************************************************
+ *
+ * Function        conn_parameter_update
+ *
+ * Description     update the connection parameters for hid device
+ *
+ * Returns         bt_status_t
+ *
+ ******************************************************************************/
+static bt_status_t conn_parameter_update(const RawAddress& bd_addr,
+                                              int min_interval, int max_interval,
+                                              int latency, int timeout,
+                                              uint16_t min_ce_len,
+                                              uint16_t max_ce_len) {
+   return do_in_jni_thread(Bind(
+       base::IgnoreResult(&btif_hh_conn_parameter_update_impl), bd_addr,
+       min_interval, max_interval, latency, timeout, min_ce_len, max_ce_len));
 }
 
 /*******************************************************************************
@@ -1759,6 +1829,8 @@ static const bthh_interface_t bthhInterface = {
 static const bthh_vendor_interface_t bthhVendorInterface = {
     sizeof(bthh_vendor_interface_t),
     init_vendor,
+    configure_mtu,
+    conn_parameter_update,
     cleanup_vendor,
 };
 

@@ -389,6 +389,23 @@ void BTA_HhUpdateLeScanParam(uint8_t dev_handle, uint16_t scan_int, uint16_t sca
 
   bta_sys_sendmsg(p_buf);
 }
+
+/*******************************************************************************
+ *
+ * Function         BTA_HhConfigureMTU
+ *
+ * Description      Configure the MTU size in the GATT channel. This can be done
+ *                  only once per connection.
+ *
+ * Parameters       remote_bda: Remote Device Address.
+ *                  mtu: desired MTU size to use.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_HhConfigureMTU(const RawAddress& remote_bda, uint16_t mtu) {
+  bta_hh_le_configureMTU(remote_bda, mtu);
+}
 #endif
 
 /*******************************************************************************/
