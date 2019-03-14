@@ -190,6 +190,7 @@ typedef struct {
   uint64_t rc_playing_uid;
   bool rc_procedure_complete;
   bool rc_element_attr_app_req;  /* flag to track get_element_attr req */
+  uint16_t rc_addressed_player_id;
   uint16_t uid_counter;
 } btif_rc_device_cb_t;
 
@@ -3410,12 +3411,26 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
       } break;
 
       case AVRC_EVT_NOW_PLAYING_CHANGE:
+        do_in_jni_thread(
+            FROM_HERE, base::Bind(bt_rc_ctrl_callbacks->now_playing_changed_cb,
+                                  p_dev->rc_addr));
         break;
 
       case AVRC_EVT_AVAL_PLAYERS_CHANGE:
+         do_in_jni_thread(
+            FROM_HERE, base::Bind(bt_rc_ctrl_callbacks->available_player_changed_cb,
+                                  p_dev->rc_addr));
         break;
 
       case AVRC_EVT_ADDR_PLAYER_CHANGE:
+        BTIF_TRACE_DEBUG("%s: AVRC_EVT_ADDR_PLAYER_CHANGE: current id 0x%2X, new id 0x%2X",
+          __func__, p_dev->rc_addressed_player_id, p_rsp->param.addr_player.player_id);
+        p_dev->rc_addressed_player_id = p_rsp->param.addr_player.player_id;
+        p_dev->uid_counter = p_rsp->param.addr_player.uid_counter;
+         do_in_jni_thread(
+            FROM_HERE, base::Bind(bt_rc_ctrl_callbacks->addressed_player_update_cb,
+                                  p_dev->rc_addr, p_rsp->param.addr_player.player_id,
+                                  p_rsp->param.addr_player.uid_counter));
         break;
 
       case AVRC_EVT_UIDS_CHANGE:
@@ -3461,15 +3476,33 @@ static void handle_app_attr_response(tBTA_AV_META_MSG* pmeta_msg,
 
   for (xx = 0; xx < p_rsp->num_attr; xx++) {
     uint8_t st_index;
+    int i;
+    int ignore = FALSE;
 
     if (p_rsp->attrs[xx] > AVRC_PLAYER_SETTING_LOW_MENU_EXT) {
       st_index = p_dev->rc_app_settings.num_ext_attrs;
-      p_dev->rc_app_settings.ext_attrs[st_index].attr_id = p_rsp->attrs[xx];
-      p_dev->rc_app_settings.num_ext_attrs++;
+      /* If p_dev->rc_app_settings.ext_attrs already has the attribute, ignore it */
+      for (i = 0; i < st_index; i++) {
+        if (p_dev->rc_app_settings.ext_attrs[i].attr_id == p_rsp->attrs[xx]) {
+          ignore = TRUE;
+        }
+      }
+      if (!ignore) {
+        p_dev->rc_app_settings.ext_attrs[st_index].attr_id = p_rsp->attrs[xx];
+        p_dev->rc_app_settings.num_ext_attrs++;
+      }
     } else {
       st_index = p_dev->rc_app_settings.num_attrs;
-      p_dev->rc_app_settings.attrs[st_index].attr_id = p_rsp->attrs[xx];
-      p_dev->rc_app_settings.num_attrs++;
+      /* If p_dev->rc_app_settings.attrs already has the attribute, ignore it */
+      for (i = 0; i < st_index; i++) {
+        if (p_dev->rc_app_settings.attrs[i].attr_id == p_rsp->attrs[xx]) {
+          ignore = TRUE;
+        }
+      }
+      if (!ignore) {
+        p_dev->rc_app_settings.attrs[st_index].attr_id = p_rsp->attrs[xx];
+        p_dev->rc_app_settings.num_attrs++;
+      }
     }
   }
   p_dev->rc_app_settings.attr_index = 0;
@@ -4729,7 +4762,27 @@ static bt_status_t get_playback_state_cmd(const RawAddress& bd_addr) {
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
   return get_play_status_cmd(p_dev);
 }
+/***************************************************************************
+ *
+ * Function         fetch_player_app_setting_cmd
+ *
+ * Description      fetch PAS supported values and PAS current values
+ *
+ * Returns          bt_status_t
+ *
+ **************************************************************************/
+static bt_status_t fetch_player_app_setting_cmd(const RawAddress& bd_addr) {
+  BTIF_TRACE_DEBUG("%s", __func__);
 
+  btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
+
+  /*
+  * Start from list PAS attributes, then get supported values and currrent values
+  * in response handler
+  */
+  BTIF_TRACE_DEBUG("%s, list player app setting attribute", __func__);
+  return list_player_app_setting_attrib_cmd(p_dev);
+}
 /***************************************************************************
  *
  * Function         get_now_playing_list_cmd
@@ -5530,6 +5583,7 @@ static const btrc_ctrl_interface_t bt_rc_ctrl_interface = {
     search_cmd,
     get_search_list_cmd,
     get_item_attr_cmd,
+    fetch_player_app_setting_cmd,
     set_volume_rsp,
     volume_change_notification_rsp,
     cleanup_ctrl,
