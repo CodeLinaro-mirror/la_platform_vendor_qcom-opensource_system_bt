@@ -603,13 +603,14 @@ void bta_hh_co_data(uint8_t dev_handle, uint8_t* p_rpt, uint16_t len,
 
   // Wait a maximum of MAX_POLLING_ATTEMPTS x POLLING_SLEEP_DURATION in case
   // device creation is pending.
-  if (p_dev->fd >= 0) {
+  //removed polling as we are not using hid driver in LE.
+  /*if (p_dev->fd >= 0) {
     uint32_t polling_attempts = 0;
     while (!p_dev->ready_for_data &&
            polling_attempts++ < BTIF_HH_MAX_POLLING_ATTEMPTS) {
       usleep(BTIF_HH_POLLING_SLEEP_DURATION_US);
     }
-  }
+  }*/
 
   // Send the HID data to the kernel.
   if ((p_dev->fd >= 0) && p_dev->ready_for_data) {

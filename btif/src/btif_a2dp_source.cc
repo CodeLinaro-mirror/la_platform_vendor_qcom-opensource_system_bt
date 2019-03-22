@@ -1030,6 +1030,9 @@ static bool btif_a2dp_source_enqueue_callback(BT_HDR* p_buf, size_t frames_n,
              __func__,
              (uint32_t)fixed_queue_length(btif_a2dp_source_cb.tx_audio_queue),
              (uint32_t)frames_n, MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ);
+	// TODO: need to work on exact enqueue and dequeue flow issue
+	LOG_WARN(LOG_TAG, "%s: ##### Discarded frame #####", __func__);
+	return true;
     // Keep track of drop-outs
     btif_a2dp_source_cb.stats.tx_queue_dropouts++;
     btif_a2dp_source_cb.stats.tx_queue_last_dropouts_us = now_us;
