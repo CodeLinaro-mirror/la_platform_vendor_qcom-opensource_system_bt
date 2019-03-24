@@ -84,30 +84,9 @@ static int g_TaskIDs[TASK_HIGH_MAX];
 static bt_soc_type soc_type;
 static void init_soc_type();
 
-#ifndef ANDROID
-static int bt_prop_socket;      /* This end of connection*/
-#endif
 static future_t* init(void) {
   int i;
 
-#ifndef ANDROID
-  int len;    /* length of sockaddr */
-  struct sockaddr_un name;
-  if( (bt_prop_socket = socket(AF_UNIX, SOCK_STREAM, 0) ) < 0) {
-    perror("socket");
-    exit(1);
-  }
-  /*Create the address of the server.*/
-  memset(&name, 0, sizeof(struct sockaddr_un));
-  name.sun_family = AF_UNIX;
-  strlcpy(name.sun_path, SOCKETNAME, sizeof(name.sun_path));
-  len = sizeof(name.sun_family) + strlen(name.sun_path);
-  /*Connect to the server.*/
-  if (connect(bt_prop_socket, (struct sockaddr *) &name, len) < 0){
-      perror("connect");
-      exit(1);
-  }
-#endif
   for (i = 0; i < TASK_HIGH_MAX; i++) {
     g_DoSchedulingGroupOnce[i] = PTHREAD_ONCE_INIT;
     g_DoSchedulingGroup[i] = true;
@@ -119,10 +98,6 @@ static future_t* init(void) {
 }
 
 static future_t* clean_up(void) {
-#ifndef ANDROID
-  shutdown(bt_prop_socket, SHUT_RDWR);
-  close(bt_prop_socket);
-#endif
   return NULL;
 }
 
