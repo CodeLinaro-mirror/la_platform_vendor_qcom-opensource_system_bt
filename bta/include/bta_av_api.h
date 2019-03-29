@@ -279,9 +279,10 @@ typedef UINT8 tBTA_AV_ERR;
 #define BTA_AV_DELAY_REPORT_EVT     25  /* update delay report */
 #define BTA_AV_MEDIA_SRC_CFG_EVT    26 /* command to configure codec */
 #define BTA_AV_MTU_CONFIG_EVT    27     /*Update mtu value to btapp*/
+#define BTA_AV_AVDT_CAP_EVT 28          /*update the avdtp service capabilities*/
 
 /* Max BTA event */
-#define BTA_AV_MAX_EVT          28
+#define BTA_AV_MAX_EVT          29
 
 typedef UINT8 tBTA_AV_EVT;
 
@@ -490,6 +491,14 @@ typedef struct
     tBTA_AV_HNDL    hndl;    /* Handle associated with the stream. */
 } tBTA_AV_MTU_CONFIG;
 
+/* data associated with BTA_AV_AVDT_CAP_EVT */
+typedef struct
+{
+    UINT8 seid;
+    UINT16 psc_mask;
+    BD_ADDR peer_addr;
+}tBTA_AV_AVDT_CAP;
+
 /* union of data associated with AV callback */
 typedef union
 {
@@ -518,6 +527,7 @@ typedef union
     tBTA_AV_ROLE_CHANGED role_changed;
     tBTA_AV_DELAY_REPORT delay_report;
     tBTA_AV_MTU_CONFIG  mtu_config;
+    tBTA_AV_AVDT_CAP avdt_cap;
 } tBTA_AV;
 
 typedef struct
