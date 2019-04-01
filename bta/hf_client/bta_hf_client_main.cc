@@ -329,6 +329,8 @@ void bta_hf_client_resume_open(tBTA_HF_CLIENT_CB* client_cb) {
     client_cb->state = BTA_HF_CLIENT_OPENING_ST;
     tBTA_HF_CLIENT_DATA msg;
     msg.hdr.layer_specific = client_cb->handle;
+    msg.api_open.bd_addr = client_cb->peer_addr;
+    msg.api_open.sec_mask = client_cb->cli_sec_mask;
     bta_hf_client_start_open(&msg);
   }
 }
@@ -756,7 +758,9 @@ void bta_hf_client_sm_execute(uint16_t event, tBTA_HF_CLIENT_DATA* p_data) {
   }
 
   /* if the next state is INIT then release the cb for future use */
-  if (client_cb->state == BTA_HF_CLIENT_INIT_ST) {
+  /* If the collision timer is scheduled, don't release the cb */
+  if ((client_cb->state == BTA_HF_CLIENT_INIT_ST) &&
+      (!alarm_is_scheduled(client_cb->collision_timer))) {
     APPL_TRACE_DEBUG("%s: marking CB handle %d to false", __func__,
                      client_cb->handle);
     client_cb->is_allocated = false;
