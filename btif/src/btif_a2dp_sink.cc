@@ -521,9 +521,11 @@ static void btif_a2dp_sink_decoder_update_event(
     APPL_TRACE_ERROR("%s: A2dpSink: Track creation failed", __func__);
     return;
   }
+#ifdef ANDROID
   if (btif_is_sink_delay_report_supported()) {
     btif_a2dp_sink_cb.latency = BtifAvrcpAudioTrackLatency(btif_a2dp_sink_cb.audio_track);
   }
+#endif
 
   btif_a2dp_sink_cb.frames_to_process = A2DP_GetSinkFramesCountToProcess(
       BTIF_SINK_MEDIA_TIME_TICK_MS, p_buf->codec_info);
