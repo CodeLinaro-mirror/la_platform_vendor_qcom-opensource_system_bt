@@ -97,9 +97,10 @@ static const BIT_ALLOC balloc[] = {
 };
 
 PRIVATE void OI_SBC_ComputeBitAllocation(OI_CODEC_SBC_COMMON_CONTEXT* common) {
-  OI_ASSERT(common->frameInfo.bitpool <= OI_SBC_MaxBitpool(&common->frameInfo));
-  OI_ASSERT(common->frameInfo.mode < OI_ARRAYSIZE(balloc));
-
+  if (common->frameInfo.bitpool > OI_SBC_MaxBitpool(&common->frameInfo))
+    return;
+  if (common->frameInfo.mode >= OI_ARRAYSIZE(balloc))
+    return;
   /*
    * Using an array of function pointers prevents the compiler from creating a
    * suboptimal

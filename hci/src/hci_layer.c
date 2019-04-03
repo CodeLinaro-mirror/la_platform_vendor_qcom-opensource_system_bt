@@ -711,11 +711,15 @@ static void command_timed_out(UNUSED_ATTR void *context) {
 // This function is not required to read all of a packet in one go, so
 // be wary of reentry. But this function must return after finishing a packet.
 static void hal_says_data_ready(serial_data_type_t type) {
-  packet_receive_data_t *incoming = &incoming_packets[PACKET_TYPE_TO_INBOUND_INDEX(type)];
+  packet_receive_data_t *incoming = NULL;
 
   uint8_t reset;
 
   uint8_t byte;
+  if (type < DATA_TYPE_ACL)
+     return;
+  incoming = &incoming_packets[PACKET_TYPE_TO_INBOUND_INDEX(type)];
+
   while (hal->read_data(type, &byte, 1) != 0) {
     if (soc_type == BT_SOC_SMD) {
         reset = hal->dev_in_reset();

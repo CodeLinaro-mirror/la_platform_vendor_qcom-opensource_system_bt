@@ -1524,7 +1524,8 @@ UINT8 *btm_ble_build_adv_data(tBTM_BLE_AD_MASK *p_data_mask, UINT8 **p_dst,
         {
             *p++ = 3; /* length */
             *p++ = BTM_BLE_AD_TYPE_APPEARANCE;
-            UINT16_TO_STREAM(p, p_data->appearance);
+            if (p_data)
+                 UINT16_TO_STREAM(p, p_data->appearance);
             len -= 4;
 
             data_mask &= ~BTM_BLE_AD_BIT_APPEARANCE;
@@ -1567,7 +1568,7 @@ UINT8 *btm_ble_build_adv_data(tBTM_BLE_AD_MASK *p_data_mask, UINT8 **p_dst,
             data_mask &= ~BTM_BLE_AD_BIT_MANU;
         }
         /* TX power */
-        if (len > MIN_ADV_LENGTH && data_mask & BTM_BLE_AD_BIT_TX_PWR)
+        if (p_data && len > MIN_ADV_LENGTH && data_mask & BTM_BLE_AD_BIT_TX_PWR)
         {
             *p++ = MIN_ADV_LENGTH;
             *p++ = BTM_BLE_AD_TYPE_TX_PWR;
@@ -1641,7 +1642,7 @@ UINT8 *btm_ble_build_adv_data(tBTM_BLE_AD_MASK *p_data_mask, UINT8 **p_dst,
             data_mask &= ~BTM_BLE_AD_BIT_SERVICE_128;
         }
         /* 32 bits Service Solicitation UUIDs */
-        if (len > MIN_ADV_LENGTH && data_mask & BTM_BLE_AD_BIT_SERVICE_32SOL &&
+        if (p_data && len > MIN_ADV_LENGTH && data_mask & BTM_BLE_AD_BIT_SERVICE_32SOL &&
             p_data->sol_service_32b.num_service != 0)
         {
             if ((p_data->sol_service_32b.num_service * LEN_UUID_32) > (len - MIN_ADV_LENGTH))

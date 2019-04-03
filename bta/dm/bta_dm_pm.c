@@ -431,7 +431,7 @@ static void bta_dm_pm_cback(tBTA_SYS_CONN_STATUS status, UINT8 id, UINT8 app_id,
     else if(j == bta_dm_conn_srvcs.count )
     {
         /* check if we have more connected service that cbs */
-        if(bta_dm_conn_srvcs.count == BTA_DM_NUM_CONN_SRVS)
+        if(bta_dm_conn_srvcs.count >= BTA_DM_NUM_CONN_SRVS)
         {
             APPL_TRACE_WARNING("bta_dm_act no more connected service cbs");
             return;
@@ -519,8 +519,10 @@ static void bta_dm_pm_cback(tBTA_SYS_CONN_STATUS status, UINT8 id, UINT8 app_id,
     {
         /* Check if DUT is slave on SCO Link to decide if sniff needs to be disabled or not */
         UINT8 role_on_sco_link;
-        BTM_GetRole(bta_dm_conn_srvcs.conn_srvc[bta_dm_get_sco_index()].peer_bdaddr,
-                &role_on_sco_link);
+        i = bta_dm_get_sco_index();
+        if ((i >= 0) && (i < BTA_DM_NUM_CONN_SRVS))
+             BTM_GetRole(bta_dm_conn_srvcs.conn_srvc[i].peer_bdaddr,
+                     &role_on_sco_link);
         APPL_TRACE_DEBUG("%s: Role on SCO Link = %d", __func__, role_on_sco_link);
         if (role_on_sco_link == BTM_ROLE_SLAVE)
         {
@@ -1267,14 +1269,17 @@ static int bta_dm_get_sco_index()
 *******************************************************************************/
 static void bta_dm_pm_hid_check(BOOLEAN bScoActive)
 {
+    int n;
     BD_ADDR peer_bdaddr;
     UINT8 role_on_sco_link;
 
     if (bScoActive)
     {
         /* Check if DUT is slave on SCO Link */
-        BTM_GetRole(bta_dm_conn_srvcs.conn_srvc[bta_dm_get_sco_index()].peer_bdaddr,
-                &role_on_sco_link);
+        n = bta_dm_get_sco_index();
+        if ((n >= 0) && (n < BTA_DM_NUM_CONN_SRVS))
+          BTM_GetRole(bta_dm_conn_srvcs.conn_srvc[n].peer_bdaddr,
+                  &role_on_sco_link);
         APPL_TRACE_DEBUG("%s: Role on SCO Link = %d", __func__, role_on_sco_link);
     }
     for (int j = 0; j < bta_dm_conn_srvcs.count ; j ++)

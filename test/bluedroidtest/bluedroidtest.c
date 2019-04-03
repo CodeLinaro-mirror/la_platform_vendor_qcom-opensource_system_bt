@@ -716,7 +716,7 @@ void do_help(char UNUSED *p)
 
     while (console_cmd_list[i].name != NULL)
     {
-        pos = sprintf(line, "%s", (char*)console_cmd_list[i].name);
+        pos = snprintf(line, sizeof(line), "%s", (char*)console_cmd_list[i].name);
         bdt_log("%s %s\n", (char*)line, (char*)console_cmd_list[i].help);
         i++;
     }
@@ -802,7 +802,7 @@ const t_cmd console_cmd_list[] =
 
 static void process_cmd(char *p, unsigned char is_job)
 {
-    char cmd[64];
+    char cmd[160];
     int i = 0;
     char *p_saved = p;
 
@@ -857,6 +857,7 @@ int main (int UNUSED argc, char UNUSED *argv[])
     int args_processed = 0;
     int pid = -1;
     int enable_wait_count = 0;
+    unsigned tmp;
     pthread_t discoveryThread;
 #ifdef ANDROID
     config_permissions();
@@ -919,10 +920,12 @@ int main (int UNUSED argc, char UNUSED *argv[])
 
         if (line[0]!= '\0')
         {
-            /* remove linefeed */
-            line[strlen(line)-1] = 0;
-
-            process_cmd(line, 0);
+            tmp = strlen(line);
+            if (tmp > 1) {
+              /* remove linefeed */
+              line[tmp - 1] = 0;
+              process_cmd(line, 0);
+           }
             memset(line, '\0', 128);
         }
     }
