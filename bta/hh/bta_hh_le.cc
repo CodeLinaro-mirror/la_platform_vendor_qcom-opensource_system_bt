@@ -1839,7 +1839,7 @@ void bta_hh_le_input_rpt_notify(tBTA_GATTC_NOTIFY* p_data) {
     return;
   }
   memset(&(raw_data->rpt_id_flag),0,sizeof(uint8_t));
-  raw_data->bda = p_dev_cb->addr;
+  raw_data->dev_handle = p_dev_cb->hid_handle;
   /* need to append report ID to the head of data */
   if (p_rpt->rpt_id != 0) {
     p_buf = (uint8_t*)osi_malloc(p_data->len + 1);
