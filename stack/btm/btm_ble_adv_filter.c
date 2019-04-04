@@ -1339,7 +1339,10 @@ void btm_ble_adv_filter_init(void)
 void btm_ble_adv_filter_cleanup(void)
 {
     if (btm_ble_adv_filt_cb.p_addr_filter_count)
+    {
         GKI_freebuf (btm_ble_adv_filt_cb.p_addr_filter_count);
+        btm_ble_adv_filt_cb.p_addr_filter_count = NULL;
+    }
 }
 
 #endif

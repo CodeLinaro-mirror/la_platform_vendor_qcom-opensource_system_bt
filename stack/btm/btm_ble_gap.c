@@ -3450,6 +3450,19 @@ void btm_ble_init (void)
 #endif
 }
 
+void btm_ble_free(void)
+{
+    tBTM_BLE_CONN_REQ *p_req;
+    tBTM_BLE_CB *p_cb = &btm_cb.ble_ctr_cb;
+    BTM_TRACE_DEBUG("%s", __func__);
+
+    while((p_req = (tBTM_BLE_CONN_REQ*)GKI_dequeue (&p_cb->conn_pending_q)) != NULL)
+        GKI_freebuf((void *)p_req);
+#if BLE_VND_INCLUDED == FALSE
+    btm_ble_adv_filter_cleanup();
+#endif
+}
+
 /*******************************************************************************
 **
 ** Function         btm_ble_topology_check

@@ -68,3 +68,31 @@ void btm_init (void)
 }
 
 
+
+void btm_free (void)
+{
+    BT_HDR  *p_buf;
+    tBTM_INQUIRY_VAR_ST *p_inq = &btm_cb.btm_inq_vars;
+
+    while((p_buf = (BT_HDR *)GKI_dequeue (&btm_cb.page_queue)) != NULL)
+        GKI_freebuf((void *)p_buf);
+
+    while((p_buf = (BT_HDR *)GKI_dequeue (&btm_cb.sec_pending_q)) != NULL)
+        GKI_freebuf((void *)p_buf);
+
+    if (p_inq->p_bd_db)
+    {
+        GKI_freebuf(p_inq->p_bd_db);
+        p_inq->p_bd_db = NULL;
+    }
+
+#if BTM_SCO_HCI_INCLUDED == TRUE
+    {
+        int i;
+        for (i = 0; i < BTM_MAX_SCO_LINKS; i++) {
+            while((p_buf = (BT_HDR *)GKI_dequeue (&btm_cb.sco_cb.sco_db[i].xmit_data_q)) != NULL)
+                GKI_freebuf((void *)p_buf);
+        }
+    }
+#endif
+}
