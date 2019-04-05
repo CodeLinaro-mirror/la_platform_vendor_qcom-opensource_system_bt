@@ -2473,7 +2473,6 @@ static void btif_av_handle_bta_av_event(uint8_t peer_sep,
     case BTA_AV_REMOTE_RSP_EVT:
     case BTA_AV_VENDOR_CMD_EVT:
     case BTA_AV_VENDOR_RSP_EVT:
-    case BTA_AV_META_MSG_EVT:
     case BTA_AV_OFFLOAD_START_RSP_EVT: {
       // TODO: Might be wrong - this code will be removed once those
       // events are received from the AVRCP module.
@@ -2481,6 +2480,20 @@ static void btif_av_handle_bta_av_event(uint8_t peer_sep,
         peer_address = btif_av_source.ActivePeer();
       } else if (peer_sep == AVDT_TSEP_SRC) {
         peer_address = btif_av_sink.ActivePeer();
+      }
+      break;
+    }
+    case BTA_AV_META_MSG_EVT: {
+      if (peer_sep == AVDT_TSEP_SNK) {
+        peer_address = btif_av_source.ActivePeer();
+      } else if (peer_sep == AVDT_TSEP_SRC) {
+        peer_address = btif_av_sink.ActivePeer();
+        if (peer_address == RawAddress::kEmpty) {
+          const tBTA_AV_META_MSG& meta_msg = p_data->meta_msg;
+          uint8_t rc_handle = meta_msg.rc_handle;
+          peer_address = btif_rc_get_peer_addr_by_handle(rc_handle);
+          BTIF_TRACE_DEBUG("%s: found dev by handle, %s", __func__, peer_address.ToString().c_str());
+        }
       }
       break;
     }

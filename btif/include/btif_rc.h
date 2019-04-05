@@ -26,5 +26,6 @@ uint8_t btif_rc_get_connected_peer_handle(const RawAddress& peer_addr);
 void btif_rc_check_handle_pending_play(const RawAddress& peer_addr,
                                        bool bSendToApp);
 bool btif_rc_is_connected_peer(const RawAddress& peer_addr);
+RawAddress btif_rc_get_peer_addr_by_handle(uint8_t handle);
 
 #endif  // BTIF_RC_H

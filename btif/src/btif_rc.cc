@@ -440,6 +440,19 @@ btif_rc_device_cb_t* btif_rc_get_device_by_handle(uint8_t handle) {
   return NULL;
 }
 
+RawAddress btif_rc_get_peer_addr_by_handle(uint8_t handle) {
+  btif_rc_device_cb_t* dev = NULL;
+  RawAddress rc_addr = RawAddress::kEmpty;
+
+  BTIF_TRACE_DEBUG("%s: handle: 0x%x", __func__, handle);
+
+  dev = btif_rc_get_device_by_handle(handle);
+  if (NULL != dev) {
+    rc_addr = dev->rc_addr;
+  }
+  return rc_addr;
+}
+
 void fill_pdu_queue(int index, uint8_t ctype, uint8_t label, bool pending,
                     btif_rc_device_cb_t* p_dev) {
   p_dev->rc_pdu_info[index].ctype = ctype;
