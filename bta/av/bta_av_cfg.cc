@@ -228,8 +228,8 @@ const uint16_t bta_av_rc_id[] = {
     0x0070, /* PLAY | STOP | PAUSE */
 #else       /* BTA_AV_RC_PASS_RSP_CODE != BTA_AV_RSP_INTERIM */
 #if (BTA_AVRCP_FF_RW_SUPPORT == TRUE)
-    0x1b7E, /* PLAY | STOP | PAUSE | FF | RW | VOL_UP | VOL_DOWN | MUTE | FW |
-               BACK */
+    0x1b7F, /* PLAY | STOP | PAUSE | FF | RW | VOL_UP | VOL_DOWN | MUTE | FW |
+               BACK | POWER */
 #else  /* BTA_AVRCP_FF_RW_SUPPORT == FALSE */
     0x187E, /* PLAY | STOP | PAUSE | VOL_UP | VOL_DOWN | MUTE | FW | BACK */
 #endif /* BTA_AVRCP_FF_RW_SUPPORT */
