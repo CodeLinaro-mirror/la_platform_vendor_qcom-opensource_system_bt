@@ -255,7 +255,7 @@ const UINT8 avdt_msg_rej_2_evt[] = {
     AVDT_SCB_MSG_ABORT_RSP_EVT,                     /* abort */
     AVDT_SCB_MSG_SECURITY_RSP_EVT,                  /* security control */
     AVDT_CCB_MSG_GETCAP_RSP_EVT + AVDT_CCB_MKR,     /* get all capabilities */
-    0                                               /* delay report */
+    AVDT_SCB_MSG_DELAY_RPT_RSP_EVT                  /* delay report */
 };
 
 /*******************************************************************************
