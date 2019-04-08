@@ -1447,10 +1447,11 @@ void AVDT_SndPendingSigStart_Rsp(uint8_t handle, bool accepted )
         AVDT_TRACE_DEBUG("%s accepted = %d ", __func__,accepted);
         if (accepted) {
           evt.msg.hdr.err_code = AVDT_SUCCESS;
+          avdt_scb_event(p_scb, AVDT_SCB_API_PENDING_START_CNF_RSP_EVT, &evt);
         } else {
           evt.msg.hdr.err_code = AVDT_BAD_PARAMS;
+          avdt_scb_event(p_scb, AVDT_SCB_API_PENDING_START_REJ_RSP_EVT, &evt);
         }
-        avdt_scb_event(p_scb, AVDT_SCB_API_PENDING_START_RSP_EVT, &evt);
     } else {
         AVDT_TRACE_DEBUG("%s Improper SCB, can not send SIG START", __func__);
     }
@@ -1476,10 +1477,11 @@ void AVDT_SndPendingSigSuspend_Rsp(uint8_t handle, bool accepted )
         AVDT_TRACE_DEBUG("%s accepted = %d ", __func__,accepted);
         if (accepted) {
           evt.msg.hdr.err_code = AVDT_SUCCESS;
+          avdt_scb_event(p_scb, AVDT_SCB_API_PENDING_SUSPEND_CNF_RSP_EVT, &evt);
         } else {
           evt.msg.hdr.err_code = AVDT_BAD_PARAMS;
+          avdt_scb_event(p_scb, AVDT_SCB_API_PENDING_SUSPEND_REJ_RSP_EVT, &evt);
         }
-        avdt_scb_event(p_scb, AVDT_SCB_API_PENDING_SUSPEND_RSP_EVT, &evt);
     } else {
         AVDT_TRACE_DEBUG("%s Improper SCB, can not send SIG SUSPEND", __func__);
     }

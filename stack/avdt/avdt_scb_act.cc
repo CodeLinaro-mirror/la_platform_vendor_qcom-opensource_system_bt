@@ -778,11 +778,13 @@ void avdt_scb_hdl_setconfig_rsp(tAVDT_SCB* p_scb,
  ******************************************************************************/
 void avdt_scb_hdl_start_cmd(tAVDT_SCB* p_scb,
                             UNUSED_ATTR tAVDT_SCB_EVT* p_data) {
-  if(p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT) {
-    if((!alarm_is_scheduled(p_scb->delay_report_timer)) && (p_scb->cs.tsep == AVDT_TSEP_SNK)) {
-      alarm_set(p_scb->delay_report_timer, (period_ms_t)1000 ,
-                     (alarm_callback_t)avdt_delay_rpt_tmr_hdlr, (void*)p_scb);
-      AVDT_TRACE_DEBUG(" %s ~~ set delay report timer",__func__);
+  if (!p_scb->cs.is_split_enabled) {
+    if(p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT) {
+      if((!alarm_is_scheduled(p_scb->delay_report_timer)) && (p_scb->cs.tsep == AVDT_TSEP_SNK)) {
+        alarm_set(p_scb->delay_report_timer, (period_ms_t)1000 ,
+                       (alarm_callback_t)avdt_delay_rpt_tmr_hdlr, (void*)p_scb);
+        AVDT_TRACE_DEBUG(" %s ~~ set delay report timer",__func__);
+      }
     }
   }
   (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
@@ -841,10 +843,12 @@ void avdt_scb_hdl_pending_suspend_rsp(tAVDT_SCB* p_scb,
  *
  ******************************************************************************/
 void avdt_scb_hdl_start_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
-  if(p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT) {
-    if((!alarm_is_scheduled(p_scb->delay_report_timer)) && (p_scb->cs.tsep == AVDT_TSEP_SNK)) {
-      alarm_set(p_scb->delay_report_timer, (period_ms_t)1000 ,(alarm_callback_t)avdt_delay_rpt_tmr_hdlr, (void*)p_scb);
-      AVDT_TRACE_DEBUG(" %s ~~ set delay report timer",__func__);
+  if(!p_scb->cs.is_split_enabled) {
+    if(p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT) {
+      if((!alarm_is_scheduled(p_scb->delay_report_timer)) && (p_scb->cs.tsep == AVDT_TSEP_SNK)) {
+        alarm_set(p_scb->delay_report_timer, (period_ms_t)1000 ,(alarm_callback_t)avdt_delay_rpt_tmr_hdlr, (void*)p_scb);
+        AVDT_TRACE_DEBUG(" %s ~~ set delay report timer",__func__);
+      }
     }
   }
   (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
@@ -933,7 +937,8 @@ void avdt_scb_hdl_tc_close(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   osi_free_and_reset((void**)&p_scb->p_pkt);
 
   alarm_cancel(p_scb->transport_channel_timer);
-  if((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
+  if((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)
+                                                          && !p_scb->cs.is_split_enabled) {
     if (p_scb->delay_report_timer != NULL) {
       AVDT_TRACE_DEBUG(" %s ~~ freeing delay report timer",__func__);
       alarm_free(p_scb->delay_report_timer);

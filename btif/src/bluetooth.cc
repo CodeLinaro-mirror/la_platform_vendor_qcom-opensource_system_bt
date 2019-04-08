@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include <hardware/bluetooth.h>
 #include <hardware/bt_av.h>
@@ -178,6 +179,13 @@ static int init(bt_callbacks_t* callbacks) {
 #ifdef BLUEDROID_DEBUG
   allocation_tracker_init();
 #endif
+  //Cretae /data/misc/bluetooth directory
+  if (access("/data/misc/bluetooth", F_OK)) {
+    if (access("/data/misc", F_OK))
+      mkdir("/data/misc", S_IRWXU|S_IRGRP|S_IXGRP|S_IRWXO);
+    mkdir("/data/misc/bluetooth", S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
+    LOG_INFO(LOG_TAG, "%s , /data/misc/bluetooth is created\n", __func__);
+  }
 
   bt_hal_cbacks = callbacks;
   stack_manager_get_interface()->init_stack();

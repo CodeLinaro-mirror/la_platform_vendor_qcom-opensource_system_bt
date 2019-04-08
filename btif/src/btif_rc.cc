@@ -710,8 +710,7 @@ void handle_rc_features(btif_rc_device_cb_t* p_dev) {
   }
 
   BTIF_TRACE_DEBUG("%s: rc_features: 0x%x", __func__, rc_features);
-  if(rc_features)
-    HAL_CBACK(bt_rc_callbacks, remote_features_cb, &rc_addr, rc_features);
+  HAL_CBACK(bt_rc_callbacks, remote_features_cb, &rc_addr, rc_features);
 
 #if (AVRC_ADV_CTRL_INCLUDED == TRUE)
   BTIF_TRACE_DEBUG(

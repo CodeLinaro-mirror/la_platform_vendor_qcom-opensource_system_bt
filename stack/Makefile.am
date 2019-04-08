@@ -191,6 +191,7 @@ cpp_sources:= \
 cpp_sources+= \
         $(external_bt_path)/system_bt_ext/stack/a2dp/a2d_aac.cc \
         $(external_bt_path)/system_bt_ext/stack/a2dp/a2d_aptx.cc \
+        $(external_bt_path)/system_bt_ext/stack/a2dp/a2d_aptx_ad_decoder.cc \
         $(external_bt_path)/system_bt_ext/stack/a2dp/a2d_aptx_hd.cc \
         $(external_bt_path)/system_bt_ext/stack/a2dp/a2d_mp3.cc \
         $(external_bt_path)/system_bt_ext/stack/a2dp/a2d_sbc.cc \

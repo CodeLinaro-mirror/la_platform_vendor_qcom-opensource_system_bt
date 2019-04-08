@@ -60,6 +60,11 @@
 #define A2D_MEDIA_CT_M24        0x02    /* MPEG-2, 4 AAC media codec type */
 #define A2D_MEDIA_CT_ATRAC      0x04    /* ATRAC family media codec type */
 
+/* These vendor scpecific codec macros are defined only for intenal use
+ * Not defined as per spec */
+#define A2D_VENDOR_CODEC_APTX_CL 0x00
+#define A2D_VENDOR_CODEC_APTX_AD 0x01
+
 /* AV Media Types */
 #define A2D_MEDIA_TYPE_AUDIO    0x00    /* audio media type + RFA */
 #define A2D_MEDIA_TYPE_VIDEO    0x10    /* video media type + RFA */

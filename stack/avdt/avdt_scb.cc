@@ -175,9 +175,13 @@ const uint8_t avdt_scb_st_idle[][AVDT_SCB_NUM_COLS] = {
     {AVDT_SCB_SND_SETCONFIG_REJ, AVDT_SCB_IGNORE, AVDT_SCB_IDLE_ST},
     /* API_OPEN_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_IDLE_ST},
-    /* AVDT_SCB_API_PENDING_START_RSP_EVT */
+    /* AVDT_SCB_API_PENDING_START_CNF_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPEN_ST},
-    /* AVDT_SCB_API_PENDING_SUSPEND_RSP_EVT */
+    /* AVDT_SCB_API_PENDING_START_REJ_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPEN_ST},
+    /* AVDT_SCB_API_PENDING_SUSPEND_CNF_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPEN_ST},
+    /* AVDT_SCB_API_PENDING_SUSPEND_REJ_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPEN_ST},
     /* API_CLOSE_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_IDLE_ST},
@@ -280,9 +284,13 @@ const uint8_t avdt_scb_st_conf[][AVDT_SCB_NUM_COLS] = {
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CONF_ST},
     /* API_OPEN_RSP_EVT */
     {AVDT_SCB_SND_OPEN_RSP, AVDT_SCB_IGNORE, AVDT_SCB_OPENING_ST},
-    /* AVDT_SCB_API_PENDING_START_RSP_EVT */
+    /* AVDT_SCB_API_PENDING_START_CNF_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CONF_ST},
-    /* AVDT_SCB_API_PENDING_SUSPEND_RSP_EVT */
+    /* AVDT_SCB_API_PENDING_START_REJ_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CONF_ST},
+    /* AVDT_SCB_API_PENDING_SUSPEND_CNF_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CONF_ST},
+    /* AVDT_SCB_API_PENDING_SUSPEND_REJ_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CONF_ST},
     /* API_CLOSE_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CONF_ST},
@@ -385,9 +393,13 @@ const uint8_t avdt_scb_st_opening[][AVDT_SCB_NUM_COLS] = {
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPENING_ST},
     /* API_OPEN_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPENING_ST},
-    /* AVDT_SCB_API_PENDING_START_RSP_EVT */
+    /* AVDT_SCB_API_PENDING_START_CNF_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPENING_ST},
-    /* AVDT_SCB_API_PENDING_SUSPEND_RSP_EVT */
+    /* AVDT_SCB_API_PENDING_START_REJ_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPENING_ST},
+    /* AVDT_SCB_API_PENDING_SUSPEND_CNF_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPENING_ST},
+    /* AVDT_SCB_API_PENDING_SUSPEND_REJ_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPENING_ST},
     /* API_CLOSE_RSP_EVT */
     {AVDT_SCB_SND_CLOSE_RSP, AVDT_SCB_SND_TC_CLOSE, AVDT_SCB_CLOSING_ST},
@@ -490,9 +502,13 @@ const uint8_t avdt_scb_st_open[][AVDT_SCB_NUM_COLS] = {
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPEN_ST},
     /* API_OPEN_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPEN_ST},
-    /* AVDT_SCB_API_PENDING_START_RSP_EVT */
+    /* AVDT_SCB_API_PENDING_START_CNF_RSP_EVT */
     {AVDT_SCB_HDL_PENDING_START_RSP, AVDT_SCB_IGNORE, AVDT_SCB_STREAM_ST},
-    /* AVDT_SCB_API_PENDING_SUSPEND_RSP_EVT */
+    /* AVDT_SCB_API_PENDING_START_REJ_RSP_EVT */
+    {AVDT_SCB_HDL_PENDING_START_RSP, AVDT_SCB_IGNORE, AVDT_SCB_OPEN_ST},
+    /* AVDT_SCB_API_PENDING_SUSPEND_CNF_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPEN_ST},
+    /* AVDT_SCB_API_PENDING_SUSPEND_REJ_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPEN_ST},
     /* API_CLOSE_RSP_EVT */
     {AVDT_SCB_SND_CLOSE_RSP, AVDT_SCB_TC_TIMER, AVDT_SCB_CLOSING_ST},
@@ -602,10 +618,14 @@ const uint8_t avdt_scb_st_stream[][AVDT_SCB_NUM_COLS] = {
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_STREAM_ST},
     /* API_OPEN_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_STREAM_ST},
-    /* AVDT_SCB_API_PENDING_START_RSP_EVT */
-    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_STREAM_ST},
-    /* AVDT_SCB_API_PENDING_SUPSEND_RSP_EVT */
+    /* AVDT_SCB_API_PENDING_START_CNF_RSP_EVT */
+    {AVDT_SCB_HDL_PENDING_START_RSP, AVDT_SCB_IGNORE, AVDT_SCB_STREAM_ST},
+    /* AVDT_SCB_API_PENDING_START_REJ_RSP_EVT */
+    {AVDT_SCB_HDL_PENDING_START_RSP, AVDT_SCB_IGNORE, AVDT_SCB_OPEN_ST},
+    /* AVDT_SCB_API_PENDING_SUSPEND_CNF_RSP_EVT */
     {AVDT_SCB_HDL_PENDING_SUSPEND_RSP, AVDT_SCB_IGNORE, AVDT_SCB_OPEN_ST},
+    /* AVDT_SCB_API_PENDING_SUSPEND_REJ_RSP_EVT */
+    {AVDT_SCB_HDL_PENDING_SUSPEND_RSP, AVDT_SCB_IGNORE, AVDT_SCB_STREAM_ST},
     /* API_CLOSE_RSP_EVT */
     {AVDT_SCB_SND_CLOSE_RSP, AVDT_SCB_TC_TIMER, AVDT_SCB_CLOSING_ST},
     /* API_RECONFIG_RSP_EVT */
@@ -621,7 +641,7 @@ const uint8_t avdt_scb_st_stream[][AVDT_SCB_NUM_COLS] = {
     /* MSG_OPEN_CMD_EVT */
     {AVDT_SCB_REJ_STATE, AVDT_SCB_IGNORE, AVDT_SCB_STREAM_ST},
     /* MSG_START_CMD_EVT */
-    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_STREAM_ST},
+    {AVDT_SCB_HDL_START_CMD, AVDT_SCB_IGNORE, AVDT_SCB_STREAM_ST},
     /* MSG_SUSPEND_CMD_EVT */
     {AVDT_SCB_HDL_SUSPEND_CMD, AVDT_SCB_CLR_PKT, AVDT_SCB_OPEN_ST},
     /* MSG_CLOSE_CMD_EVT */
@@ -707,9 +727,13 @@ const uint8_t avdt_scb_st_closing[][AVDT_SCB_NUM_COLS] = {
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CLOSING_ST},
     /* API_OPEN_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CLOSING_ST},
-    /* AVDT_SCB_API_PENDING_START_RSP_EVT */
+    /* AVDT_SCB_API_PENDING_START_CNF_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CLOSING_ST},
-    /* AVDT_SCB_API_PENDING_SUSPEND_RSP_EVT */
+    /* AVDT_SCB_API_PENDING_START_REJ_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CLOSING_ST},
+    /* AVDT_SCB_API_PENDING_SUSPEND_CNF_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CLOSING_ST},
+    /* AVDT_SCB_API_PENDING_SUSPEND_REJ_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CLOSING_ST},
     /* API_CLOSE_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CLOSING_ST},
@@ -1082,16 +1106,24 @@ void avdt_scb_update_supported_codecs(uint8_t *p_codec_type, uint8_t *p_vnd,
     do {
         p_scb = &avdt_cb.scb[0];
         for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++) {
-            if (p_scb != NULL && (p_scb->allocated) &&
-                (p_scb->cs.tsep == tsep) &&
-                (p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] ==codec_info[j][AVDT_CODEC_TYPE_INDEX]) &&
+            if (p_scb != NULL && (p_scb->allocated) && (p_scb->cs.tsep == tsep))
+            {
+                if (((p_codec_id[j] == A2DP_MEDIA_CT_SBC)||(p_codec_id[j] == A2DP_MEDIA_CT_AAC)) &&
+                p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == p_codec_type[j]) {
+                    AVDT_TRACE_DEBUG(" Updating codec info for SCB[%d] sep_type[%d] "
+                        "codec type [%d]",i, p_scb->cs.tsep,
+                        codec_info[j][AVDT_CODEC_TYPE_INDEX]);
+                    memcpy(p_scb->cs.cfg.codec_info, codec_info[j], AVDT_CODEC_SIZE);
+                }
+                else if (p_codec_type[j] == A2DP_MEDIA_CT_NON_A2DP &&
+                (p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == p_codec_type[j]) &&
                 (p_vnd[j] == p_scb->cs.cfg.codec_info[AVDT_VENDOR_ID_TYPE_INDEX]) &&
-                (p_codec_id[j] == p_scb->cs.cfg.codec_info[AVDT_CODEC_ID_TYPE_INDEX])) {
-                AVDT_TRACE_DEBUG(" Updating codec info for SCB[%d] sep_type[%d] "
-                    "codec type [%d]",i, p_scb->cs.tsep,
-                    codec_info[j][AVDT_CODEC_TYPE_INDEX]);
-                memcpy(p_scb->cs.cfg.codec_info, codec_info[j],
-                    AVDT_CODEC_SIZE);
+                 p_codec_id[j] == p_scb->cs.cfg.codec_info[AVDT_CODEC_ID_TYPE_INDEX]) {
+                    AVDT_TRACE_DEBUG(" Updating codec info for SCB[%d] sep_type[%d] "
+                        "codec type [%d]",i, p_scb->cs.tsep,
+                        codec_info[j][AVDT_CODEC_TYPE_INDEX]);
+                    memcpy(p_scb->cs.cfg.codec_info, codec_info[j], AVDT_CODEC_SIZE);
+                }
             }
         }
         j ++;
@@ -1116,18 +1148,23 @@ void avdt_scb_update_supported_codecs(uint8_t *p_codec_type, uint8_t *p_vnd,
         /* for all allocated scbs */
         for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++)
         {
-            if (p_scb != NULL && (p_scb->allocated) && (p_scb->cs.tsep == tsep) &&
-                !p_scb->is_required && ((((p_codec_id[j] == A2DP_MEDIA_CT_SBC)||(p_codec_id[j] == A2DP_MEDIA_CT_AAC)) &&
-                p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == p_codec_type[j]) ||
-                (p_codec_type[j] == A2DP_MEDIA_CT_NON_A2DP &&
+            if (p_scb != NULL && (p_scb->allocated) && (p_scb->cs.tsep == tsep) && !p_scb->is_required) {
+                if ((((p_codec_id[j] == A2DP_MEDIA_CT_SBC)||(p_codec_id[j] == A2DP_MEDIA_CT_AAC)) &&
+                p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == p_codec_type[j])) {
+                    /* update is_required as true for SCB required by upper layers */
+                    AVDT_TRACE_DEBUG(" Setting SCB[%d] sep_type[%d] is_required as true",
+                    i, p_scb->cs.tsep);
+                    p_scb->is_required = TRUE;
+                }
+                else if (p_codec_type[j] == A2DP_MEDIA_CT_NON_A2DP &&
                 (p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == p_codec_type[j]) &&
                 (p_vnd[j] == p_scb->cs.cfg.codec_info[AVDT_VENDOR_ID_TYPE_INDEX]) &&
-                p_codec_id[j] == p_scb->cs.cfg.codec_info[AVDT_CODEC_ID_TYPE_INDEX])))
-            {
-                /* update is_required as true for SCB required by upper layers */
-                AVDT_TRACE_DEBUG(" Setting SCB[%d] sep_type[%d] is_required as true",
-                i, p_scb->cs.tsep);
-                p_scb->is_required = TRUE;
+                p_codec_id[j] == p_scb->cs.cfg.codec_info[AVDT_CODEC_ID_TYPE_INDEX]) {
+                    /* update is_required as true for SCB required by upper layers */
+                    AVDT_TRACE_DEBUG(" Setting SCB[%d] sep_type[%d] is_required as true",
+                    i, p_scb->cs.tsep);
+                    p_scb->is_required = TRUE;
+                }
             }
         }
         j ++;

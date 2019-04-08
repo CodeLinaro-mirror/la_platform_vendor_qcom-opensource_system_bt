@@ -150,6 +150,7 @@ void uhid_set_non_blocking(int fd) {
 /*Internal function to perform UHID write and error checking*/
 static int uhid_write(int fd, const struct uhid_event* ev) {
   ssize_t ret;
+#ifdef ANDROID
   OSI_NO_INTR(ret = write(fd, ev, sizeof(*ev)));
 
   if (ret < 0) {
@@ -162,6 +163,7 @@ static int uhid_write(int fd, const struct uhid_event* ev) {
     return -EFAULT;
   }
 
+#endif
   return 0;
 }
 
@@ -367,6 +369,11 @@ static void* btif_hh_poll_event_thread(void* arg) {
                        strerror(errno));
       break;
     }
+    if (p_dev->fd == -1) {
+      APPL_TRACE_ERROR("%s: fd is closed, stop the poll thread", __func__);
+      p_dev->hh_keep_polling = 0;
+      break;
+    }
     if (pfds[0].revents & POLLIN) {
       APPL_TRACE_DEBUG("%s: POLLIN", __func__);
       ret = uhid_read_event(p_dev);
@@ -375,6 +382,7 @@ static void* btif_hh_poll_event_thread(void* arg) {
   }
 
   p_dev->hh_poll_thread_id = -1;
+  APPL_TRACE_DEBUG("%s: Thread destroyed", __func__);
   return 0;
 }
 
@@ -383,7 +391,7 @@ static inline void btif_hh_close_poll_thread(btif_hh_device_t* p_dev) {
   p_dev->hh_keep_polling = 0;
   if (p_dev->hh_poll_thread_id > 0)
     pthread_join(p_dev->hh_poll_thread_id, NULL);
-
+  p_dev->hh_poll_thread_id = -1;
   return;
 }
 
@@ -458,10 +466,10 @@ void bta_hh_co_open(uint8_t dev_handle, uint8_t sub_class,
         } else
           APPL_TRACE_DEBUG("%s: uhid fd = %d", __func__, p_dev->fd);
       }
-
-      p_dev->hh_keep_polling = 1;
-      p_dev->hh_poll_thread_id =
-          create_thread(btif_hh_poll_event_thread, p_dev);
+      //removed poll thread creation as we are not using poll thread in LE
+      //p_dev->hh_keep_polling = 1;
+      //p_dev->hh_poll_thread_id =
+          //create_thread(btif_hh_poll_event_thread, p_dev);
       break;
     }
     p_dev = NULL;
@@ -487,9 +495,10 @@ void bta_hh_co_open(uint8_t dev_handle, uint8_t sub_class,
           return;
         } else {
           APPL_TRACE_DEBUG("%s: uhid fd = %d", __func__, p_dev->fd);
-          p_dev->hh_keep_polling = 1;
-          p_dev->hh_poll_thread_id =
-              create_thread(btif_hh_poll_event_thread, p_dev);
+          //removed poll thread creation as we are not using poll thread in LE
+          //p_dev->hh_keep_polling = 1;
+          //p_dev->hh_poll_thread_id =
+              //create_thread(btif_hh_poll_event_thread, p_dev);
         }
 
         break;
@@ -553,7 +562,7 @@ void bta_hh_co_close(uint8_t dev_handle, uint8_t app_id) {
           "dev_status = %d, dev_handle =%d",
           __func__, p_dev->dev_status, p_dev->dev_handle);
       memset(&p_dev->last_output_rpt_data, 0, BTIF_HH_OUTPUT_REPORT_SIZE);
-      btif_hh_close_poll_thread(p_dev);
+      //btif_hh_close_poll_thread(p_dev);
       break;
     }
   }
@@ -595,13 +604,14 @@ void bta_hh_co_data(uint8_t dev_handle, uint8_t* p_rpt, uint16_t len,
 
   // Wait a maximum of MAX_POLLING_ATTEMPTS x POLLING_SLEEP_DURATION in case
   // device creation is pending.
-  if (p_dev->fd >= 0) {
+  //removed polling as we are not using hid driver in LE.
+  /*if (p_dev->fd >= 0) {
     uint32_t polling_attempts = 0;
     while (!p_dev->ready_for_data &&
            polling_attempts++ < BTIF_HH_MAX_POLLING_ATTEMPTS) {
       usleep(BTIF_HH_POLLING_SLEEP_DURATION_US);
     }
-  }
+  }*/
 
   // Send the HID data to the kernel.
   if ((p_dev->fd >= 0) && p_dev->ready_for_data) {
@@ -623,9 +633,9 @@ void bta_hh_co_data(uint8_t dev_handle, uint8_t* p_rpt, uint16_t len,
  *                  dscp_len    - report descriptor length
  *                  *p_dscp     - report descriptor
  *
- * Returns          void
+ * Returns          0 on success else error code
  ******************************************************************************/
-void bta_hh_co_send_hid_info(btif_hh_device_t* p_dev, const char* dev_name,
+int bta_hh_co_send_hid_info(btif_hh_device_t* p_dev, const char* dev_name,
                              uint16_t vendor_id, uint16_t product_id,
                              uint16_t version, uint8_t ctry_code, int dscp_len,
                              uint8_t* p_dscp) {
@@ -635,7 +645,7 @@ void bta_hh_co_send_hid_info(btif_hh_device_t* p_dev, const char* dev_name,
   if (p_dev->fd < 0) {
     APPL_TRACE_WARNING("%s: Error: fd = %d, dscp_len = %d", __func__, p_dev->fd,
                        dscp_len);
-    return;
+    return p_dev->fd;
   }
 
   APPL_TRACE_WARNING("%s: fd = %d, name = [%s], dscp_len = %d", __func__,
@@ -675,11 +685,9 @@ void bta_hh_co_send_hid_info(btif_hh_device_t* p_dev, const char* dev_name,
   if (result) {
     APPL_TRACE_WARNING("%s: Error: failed to send DSCP, result = %d", __func__,
                        result);
-
-    /* The HID report descriptor is corrupted. Close the driver. */
-    close(p_dev->fd);
-    p_dev->fd = -1;
   }
+
+  return result;
 }
 
 /*******************************************************************************
