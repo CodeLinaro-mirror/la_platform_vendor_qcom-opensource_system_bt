@@ -401,7 +401,7 @@ void bta_hh_co_destroy(int fd) {
   ev.type = UHID_DESTROY;
   uhid_write(fd, &ev);
   APPL_TRACE_DEBUG("%s: Closing fd=%d", __func__, fd);
-  close(fd);
+  //close(fd);
 }
 
 int bta_hh_co_write(int fd, uint8_t* rpt, uint16_t len) {
@@ -457,7 +457,10 @@ void bta_hh_co_open(uint8_t dev_handle, uint8_t sub_class,
           "%s:     attr_mask = 0x%04x, sub_class = 0x%02x, app_id = %d",
           __func__, p_dev->attr_mask, p_dev->sub_class, p_dev->app_id);
 
-      if (p_dev->fd < 0) {
+      //assigning dummy value to fd for uhid dev node.
+      //as, we are not using uhid driver node in LE builds.
+      p_dev->fd = 1;
+      /*if (p_dev->fd < 0) {
         p_dev->fd = open(dev_path, O_RDWR | O_CLOEXEC);
         if (p_dev->fd < 0) {
           APPL_TRACE_ERROR("%s: Error: failed to open uhid, err:%s", __func__,
@@ -465,7 +468,7 @@ void bta_hh_co_open(uint8_t dev_handle, uint8_t sub_class,
           return;
         } else
           APPL_TRACE_DEBUG("%s: uhid fd = %d", __func__, p_dev->fd);
-      }
+      }*/
       //removed poll thread creation as we are not using poll thread in LE
       //p_dev->hh_keep_polling = 1;
       //p_dev->hh_poll_thread_id =
@@ -487,8 +490,12 @@ void bta_hh_co_open(uint8_t dev_handle, uint8_t sub_class,
         p_dev->local_vup = false;
 
         btif_hh_cb.device_num++;
+
+        //assigning dummy value to fd for uhid dev node.
+        //as, we are not using uhid driver node in LE builds.
+        p_dev->fd = 1;
         // This is a new device,open the uhid driver now.
-        p_dev->fd = open(dev_path, O_RDWR | O_CLOEXEC);
+        /*p_dev->fd = open(dev_path, O_RDWR | O_CLOEXEC);
         if (p_dev->fd < 0) {
           APPL_TRACE_ERROR("%s: Error: failed to open uhid, err:%s", __func__,
                            strerror(errno));
@@ -499,7 +506,7 @@ void bta_hh_co_open(uint8_t dev_handle, uint8_t sub_class,
           //p_dev->hh_keep_polling = 1;
           //p_dev->hh_poll_thread_id =
               //create_thread(btif_hh_poll_event_thread, p_dev);
-        }
+        }*/
 
         break;
       }
