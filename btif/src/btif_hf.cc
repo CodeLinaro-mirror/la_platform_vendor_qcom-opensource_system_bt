@@ -783,14 +783,12 @@ bt_status_t HeadsetInterface::ConnectAudio(RawAddress* bd_addr) {
     LOG(ERROR) << ": SLC not connected for " << *bd_addr;
     return BT_STATUS_NOT_READY;
   }
-  BTA_AgAudioOpen(btif_hf_cb[idx].handle);
-  // Inform the application that the audio connection has been initiated
-  // successfully
   do_in_jni_thread(base::Bind(&Callbacks::AudioStateCallback,
                               // Manual pointer management for now
                               base::Unretained(bt_hf_callbacks),
                               BTHF_AUDIO_STATE_CONNECTING,
                               &btif_hf_cb[idx].connected_bda));
+  BTA_AgAudioOpen(btif_hf_cb[idx].handle);
   return BT_STATUS_SUCCESS;
 }
 
@@ -1032,12 +1030,20 @@ bt_status_t HeadsetInterface::ClccResponse(
         dialnum[newidx++] = '+';
       }
       for (size_t i = 0; number[i] != 0; i++) {
+        if (newidx >= (sizeof(dialnum) - res_strlen - 1)) {
+          android_errorWriteLog(0x534e4554, "79266386");
+          break;
+        }
         if (utl_isdialchar(number[i])) {
           dialnum[newidx++] = number[i];
         }
       }
       dialnum[newidx] = 0;
-      snprintf(&ag_res.str[res_strlen], rem_bytes, ",\"%s\",%d", dialnum, type);
+      // Reserve 5 bytes for ["][,][3_digit_type]
+      snprintf(&ag_res.str[res_strlen], rem_bytes - 5, ",\"%s", dialnum);
+      std::stringstream remaining_string;
+      remaining_string << "\"," << type;
+      strncat(&ag_res.str[res_strlen], remaining_string.str().c_str(), 5);
     }
   }
   BTA_AgResult(btif_hf_cb[idx].handle, BTA_AG_CLCC_RES, ag_res);
@@ -1184,6 +1190,13 @@ bt_status_t HeadsetInterface::PhoneStateChange(
           else
             xx = snprintf(ag_res.str, sizeof(ag_res.str), "\"%s\"", number);
           ag_res.num = type;
+          // 5 = [,][3_digit_type][null_terminator]
+          if (xx > static_cast<int>(sizeof(ag_res.str) - 5)) {
+            android_errorWriteLog(0x534e4554, "79431031");
+            xx = sizeof(ag_res.str) - 5;
+            // Null terminating the string
+            memset(&ag_res.str[xx], 0, 5);
+          }
 
           if (res == BTA_AG_CALL_WAIT_RES)
             snprintf(&ag_res.str[xx], sizeof(ag_res.str) - xx, ",%d", type);
