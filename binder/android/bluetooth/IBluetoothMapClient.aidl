@@ -40,4 +40,5 @@ interface IBluetoothMapClient {
     boolean setMessageStatus(in BluetoothDevice device, in String handle,
         in int status);
     boolean abort(in BluetoothDevice device);
+    boolean setActiveInstance(in BluetoothDevice device, in byte instance);
 }
