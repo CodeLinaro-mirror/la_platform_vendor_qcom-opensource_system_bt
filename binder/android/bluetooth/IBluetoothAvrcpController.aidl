@@ -33,4 +33,5 @@ interface IBluetoothAvrcpController {
     BluetoothAvrcpPlayerSettings getPlayerSettings(in BluetoothDevice device);
     boolean setPlayerApplicationSetting(in BluetoothAvrcpPlayerSettings plAppSetting);
     void sendGroupNavigationCmd(in BluetoothDevice device, int keyCode, int keyState);
+    void startFetchingAlbumArt(String mimeType, int height, int width, long maxSize);
 }

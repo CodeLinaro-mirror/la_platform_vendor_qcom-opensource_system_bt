@@ -72,6 +72,7 @@ typedef uint8_t tBTA_AV_STATUS;
 #define BTA_AV_FEAT_DELAY_RPT 0x0400 /* allow delay reporting */
 #define BTA_AV_FEAT_ACP_START \
   0x0800 /* start stream when 2nd SNK was accepted   */
+#define BTA_AV_FEAT_CA          0x1000  /* use cover art */
 #define BTA_AV_FEAT_APP_SETTING 0x2000 /* Player app setting support */
 
 /* Internal features */
@@ -242,6 +243,7 @@ typedef struct {
   tBTA_AV_FEAT peer_features;
   RawAddress peer_addr;
   tBTA_AV_STATUS status;
+  uint16_t cover_art_psm;  /* l2cap psm for cover art on remote */
 } tBTA_AV_RC_OPEN;
 
 /* data associated with BTA_AV_RC_CLOSE_EVT */
@@ -268,6 +270,7 @@ typedef struct {
   uint8_t rc_handle;
   tBTA_AV_FEAT peer_features;
   RawAddress peer_addr;
+  uint16_t cover_art_psm;  /* l2cap psm for cover art on remote */
 } tBTA_AV_RC_FEAT;
 
 /* data associated with BTA_AV_REMOTE_CMD_EVT */
@@ -714,6 +717,18 @@ void BTA_AvOffloadStartRsp(tBTA_AV_HNDL hndl, tBTA_AV_STATUS status);
  */
 int BTA_AvObtainPeerChannelIndex(const RawAddress& peer_address);
 
+/*******************************************************************************
+**
+** Function         BTA_AvIsBrowsingSupported
+**
+** Description      Check to see if browsing is supported by local device.
+**                  This API does not result in any message being posted, it just
+**                  checks the local supported features for browsing support and
+**                  returns TRUE or FALSE.
+** Returns          TRUE/FALSE based on browse support in local device
+**
+*******************************************************************************/
+bool BTA_AvIsBrowsingSupported(void);
 /**
  * Dump debug-related information for the BTA AV module.
  *

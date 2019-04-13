@@ -184,9 +184,12 @@ tAVRC_STS avrc_parse_notification_rsp(uint8_t* p_stream, uint16_t len,
       break;
 
     case AVRC_EVT_ADDR_PLAYER_CHANGE:
+      BE_STREAM_TO_UINT16(p_rsp->param.addr_player.player_id, p_stream);
+      BE_STREAM_TO_UINT16(p_rsp->param.addr_player.uid_counter, p_stream);
       break;
 
     case AVRC_EVT_UIDS_CHANGE:
+      BE_STREAM_TO_UINT16(p_rsp->param.uid_counter, p_stream);
       break;
 
     case AVRC_EVT_TRACK_REACHED_END:
@@ -429,6 +432,56 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
         BE_STREAM_TO_ARRAY(p, folder_name->p_str, folder_name->str_len);
         pkt_len_read += (2 + folder_name->str_len);
       }
+      break;
+    }
+
+    case AVRC_PDU_SEARCH: {
+      tAVRC_SEARCH_RSP* search_rsp = &(p_rsp->search);
+      /* Copyback the PDU */
+      search_rsp->pdu = pdu;
+      BE_STREAM_TO_UINT8(search_rsp->status, p);
+      BE_STREAM_TO_UINT16(search_rsp->uid_counter, p);
+      BE_STREAM_TO_UINT32(search_rsp->num_items, p);
+      pkt_len_read += 7;
+      break;
+    }
+    case AVRC_PDU_GET_ITEM_ATTRIBUTES: {
+      tAVRC_GET_ATTRS_RSP* get_attrs_rsp = &(p_rsp->get_attrs);
+      /* Copyback the PDU */
+      get_attrs_rsp->pdu = pdu;
+      BE_STREAM_TO_UINT8(get_attrs_rsp->status, p);
+      BE_STREAM_TO_UINT8(get_attrs_rsp->num_attrs, p);
+      pkt_len_read += 2;
+
+      uint8_t num_attrs = get_attrs_rsp->num_attrs;
+      if (num_attrs > 0) {
+        get_attrs_rsp->p_attrs = (tAVRC_ATTR_ENTRY*)
+          osi_malloc(num_attrs * (sizeof(tAVRC_ATTR_ENTRY)));
+
+        for (uint8_t i = 0; i < num_attrs; i++) {
+          tAVRC_ATTR_ENTRY* p_attr = &get_attrs_rsp->p_attrs[i];
+          BE_STREAM_TO_UINT32(p_attr->attr_id, p);
+          BE_STREAM_TO_UINT16(p_attr->name.charset_id, p);
+          BE_STREAM_TO_UINT16(p_attr->name.str_len, p);
+
+          p_attr->name.p_str = (uint8_t*)osi_malloc(p_attr->name.str_len);
+          BE_STREAM_TO_ARRAY(p, p_attr->name.p_str, p_attr->name.str_len);
+          pkt_len_read += 8 + p_attr->name.str_len;
+        }
+      } else {
+        get_attrs_rsp->p_attrs = NULL;
+      }
+      break;
+    }
+
+    case AVRC_PDU_GET_TOTAL_NUM_OF_ITEMS: {
+      tAVRC_GET_NUM_OF_ITEMS_RSP* num_of_items_rsp = &(p_rsp->get_num_of_items);
+      /* Copyback the PDU */
+      num_of_items_rsp->pdu = pdu;
+      BE_STREAM_TO_UINT8(num_of_items_rsp->status, p);
+      BE_STREAM_TO_UINT16(num_of_items_rsp->uid_counter, p);
+      BE_STREAM_TO_UINT32(num_of_items_rsp->num_items, p);
+      pkt_len_read += 7;
       break;
     }
 
@@ -772,7 +825,15 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR* p_msg,
 
     case AVRC_PDU_SET_ADDRESSED_PLAYER:
       if (len != 1) {
-        AVRC_TRACE_ERROR("%s pdu: %d len %d", __func__, p_result->pdu, len);
+        AVRC_TRACE_ERROR("%s can't parse set addressed player resp, len %d", __func__, len);
+        return AVRC_STS_BAD_CMD;
+      }
+      BE_STREAM_TO_UINT8(p_result->rsp.status, p);
+      break;
+
+    case AVRC_PDU_ADD_TO_NOW_PLAYING:
+      if (len != 1) {
+        AVRC_TRACE_ERROR("%s can't parse add to now playing resp, len %d", __func__, len);
         return AVRC_STS_BAD_CMD;
       }
       BE_STREAM_TO_UINT8(p_result->rsp.status, p);
