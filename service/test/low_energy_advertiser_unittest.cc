@@ -57,18 +57,21 @@ class MockAdvertiserHandler : public BleAdvertiserInterface {
                void(uint8_t advertiser_id, StatusCallback cb,
                     AdvertiseParameters, std::vector<uint8_t>,
                     std::vector<uint8_t>, int, StatusCallback));
-  MOCK_METHOD9(StartAdvertisingSet,
+  MOCK_METHOD10(StartAdvertisingSet,
                void(IdTxPowerStatusCallback cb, AdvertiseParameters params,
                     std::vector<uint8_t> advertise_data,
                     std::vector<uint8_t> scan_response_data,
                     PeriodicAdvertisingParameters periodic_params,
                     std::vector<uint8_t> periodic_data, uint16_t duration,
-                    uint8_t maxExtAdvEvents, IdStatusCallback timeout_cb));
+                    uint8_t maxExtAdvEvents, std::vector<RawAddress> bd_addr_list,
+                    IdStatusCallback timeout_cb));
   MOCK_METHOD3(SetPeriodicAdvertisingParameters,
                void(int, PeriodicAdvertisingParameters, StatusCallback));
   MOCK_METHOD3(SetPeriodicAdvertisingData,
                void(int, std::vector<uint8_t>, StatusCallback));
   MOCK_METHOD3(SetPeriodicAdvertisingEnable, void(int, bool, StatusCallback));
+  MOCK_METHOD4(UpdateAdvertisingWhiteList,
+                 void(int, RawAddress, bool, StatusCallback));
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockAdvertiserHandler);
