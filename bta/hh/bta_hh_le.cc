@@ -1833,7 +1833,11 @@ void bta_hh_le_input_rpt_notify(tBTA_GATTC_NOTIFY* p_data) {
   APPL_TRACE_DEBUG("Notification received on report ID: %d", p_rpt->rpt_id);
 
   /*new callback to send raw hid report.*/
-  raw_data = (tBTA_HH_RAW_DATA *)osi_malloc(sizeof(tBTA_HH_RAW_DATA));
+  if (p_rpt->rpt_id != 0) {
+    raw_data = (tBTA_HH_RAW_DATA *)osi_malloc(sizeof(tBTA_HH_RAW_DATA) + (p_data->len + 1)*sizeof(uint8_t));
+  } else {
+    raw_data = (tBTA_HH_RAW_DATA *)osi_malloc(sizeof(tBTA_HH_RAW_DATA) + (p_data->len)*sizeof(uint8_t));
+  }
   if(raw_data ==NULL) {
     APPL_TRACE_ERROR("Could not allocate memory to tBTA_HH_RAW_DATA raw_data.");
     return;
@@ -1863,6 +1867,7 @@ void bta_hh_le_input_rpt_notify(tBTA_GATTC_NOTIFY* p_data) {
                  p_dev_cb->dscp_info.ctry_code, p_dev_cb->addr, app_id);
 
   if (p_buf != p_data->value) osi_free(p_buf);
+  osi_free(raw_data);
 }
 
 /*******************************************************************************
