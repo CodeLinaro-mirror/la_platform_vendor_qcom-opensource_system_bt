@@ -289,7 +289,7 @@ typedef struct {
 /* Send raw data to app*/
 typedef struct
 {
-  RawAddress bda;
+  uint8_t   dev_handle;
   uint8_t   len;
   uint8_t   rpt_id_flag;
   uint8_t   data[];
