@@ -479,6 +479,7 @@ void bta_ag_rfc_close(tBTA_AG_SCB* p_scb, UNUSED_ATTR tBTA_AG_DATA* p_data) {
   /* stop timers */
   alarm_cancel(p_scb->ring_timer);
   alarm_cancel(p_scb->codec_negotiation_timer);
+  alarm_cancel(p_scb->xsco_conn_collision_timer);
 
   close.hdr.handle = bta_ag_scb_to_idx(p_scb);
   close.hdr.app_id = p_scb->app_id;
@@ -1043,6 +1044,8 @@ void bta_ag_handle_collision(tBTA_AG_SCB* p_scb,
   APPL_TRACE_IMP("%s: sending RFCOMM fail event to btif for dev %s",
                   __func__, p_scb->peer_addr.ToString().c_str())
   bta_ag_cback_open(p_scb, NULL, BTA_AG_FAIL_RFCOMM);
+  APPL_TRACE_DEBUG("%s: clear peer_addr so that instance can be reused", __func__);
+  p_scb->peer_addr = RawAddress::kEmpty;
 
   /* reopen registered servers */
   /* Collision may be detected before or after we close servers. */
