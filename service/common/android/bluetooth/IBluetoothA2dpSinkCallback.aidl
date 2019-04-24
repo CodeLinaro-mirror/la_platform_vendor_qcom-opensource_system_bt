@@ -20,5 +20,5 @@ oneway interface IBluetoothA2dpSinkCallback {
     void OnRegistered(int status);
     void OnConnectionState(String device_address, int state);
     void OnAudioState(String device_address, int state);
-    void OnAudioConfig(String device_address, int sample_rate, int channel_count);
+    void OnAudioConfig(String device_address, int sample_rate, int channel_count, int codec_index);
 }

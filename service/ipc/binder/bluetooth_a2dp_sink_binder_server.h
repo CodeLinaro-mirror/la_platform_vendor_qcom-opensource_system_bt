@@ -63,7 +63,7 @@ class BluetoothA2dpSinkBinderServer
   void OnConnectionState(const std::string& device_address, int state) override;
   void OnAudioState(const std::string& device_address, int state) override;
   void OnAudioConfig(const std::string& device_address, uint32_t sample_rate,
-                     uint8_t channel_count) override;
+                     uint8_t channel_count, btav_a2dp_codec_index_t codec_index) override;
 
   bool HasInstance();
 

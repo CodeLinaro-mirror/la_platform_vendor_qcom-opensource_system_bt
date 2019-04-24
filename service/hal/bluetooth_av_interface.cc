@@ -118,12 +118,12 @@ void SinkAudioStateCallback(const RawAddress& bd_addr,
 }
 
 void SinkAudioConfigCallback(const RawAddress& bd_addr, uint32_t sample_rate,
-                             uint8_t channel_count) {
+                             uint8_t channel_count, btav_a2dp_codec_index_t codec_index) {
   std::shared_lock<shared_mutex_impl> lock(g_instance_lock);
   VERIFY_INTERFACE_OR_RETURN();
   for (auto& observer : *GetA2dpSinkObservers()) {
     observer.AudioConfigCallback(g_interface, bd_addr, sample_rate,
-                                 channel_count);
+                                 channel_count, codec_index);
   }
 }
 
@@ -329,7 +329,7 @@ void BluetoothAvInterface::A2dpSinkObserver::AudioStateCallback(
 
 void BluetoothAvInterface::A2dpSinkObserver::AudioConfigCallback(
     BluetoothAvInterface* iface, const RawAddress& bd_addr,
-    uint32_t sample_rate, uint8_t channel_count) {
+    uint32_t sample_rate, uint8_t channel_count, btav_a2dp_codec_index_t codec_index) {
   // Do nothing.
 }
 
