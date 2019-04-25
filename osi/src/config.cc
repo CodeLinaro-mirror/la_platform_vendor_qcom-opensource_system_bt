@@ -383,6 +383,7 @@ bool config_save(const config_t* config, const char* filename) {
   if (fclose(fp) == EOF) {
     LOG_ERROR(LOG_TAG, "%s unable to close file '%s': %s", __func__,
               temp_filename, strerror(errno));
+    fp = NULL;
     goto error;
   }
   fp = NULL;
