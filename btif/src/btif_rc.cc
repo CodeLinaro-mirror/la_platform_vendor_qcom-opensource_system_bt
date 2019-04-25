@@ -4175,8 +4175,7 @@ static void handle_get_item_attr_response(tBTA_AV_META_MSG* pmeta_msg,
         FROM_HERE,
         base::Bind(bt_rc_ctrl_callbacks->item_attr_rsp_cb,
                    p_dev->rc_addr, num_attrs, p_attr_val));
-
-    osi_free(p_attr_val);
+    do_in_jni_thread(FROM_HERE, base::Bind(osi_free, p_attr_val));
 
     // free item attributes
     for (index = 0; index < num_attrs; index++) {
