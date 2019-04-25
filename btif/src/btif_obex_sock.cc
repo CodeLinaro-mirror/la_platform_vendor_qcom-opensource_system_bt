@@ -106,8 +106,11 @@ static bt_status_t btsock_obex_connect(const bt_bdaddr_t_v1 *bd_addr, btsock_typ
 }
 
 bt_status_t btif_obex_sock_init(void) {
-  if ((sock_interface = btif_sock_get_interface()) == NULL)
+  if ((sock_interface = btif_sock_get_interface()) == NULL) {
      LOG_ERROR(LOG_TAG, "%s couldn't create a socket interface", __func__);
+     return BT_STATUS_FAIL;
+  }
+  return BT_STATUS_SUCCESS;
 }
 void btif_obex_sock_cleanup(void) {
   sock_interface = NULL;
