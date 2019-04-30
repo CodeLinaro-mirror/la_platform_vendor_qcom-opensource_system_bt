@@ -2175,6 +2175,15 @@ static void btif_av_handle_event(UINT16 event, char* p_param)
             memcpy(&bt_addr1, &(config_req.peer_bd), sizeof(bt_bdaddr_t));
             index = btif_av_idx_by_bdaddr(&bt_addr1.address);
             break;
+        case BTA_AV_AVDT_CAP_EVT:
+            BTIF_TRACE_EVENT("BTA_AV_AVDT_CAP_EVT");
+            tBTA_AV_AVDT_CAP avdt_cap;
+            memcpy(&avdt_cap, (tBTA_AV_AVDT_CAP*)p_param, sizeof(tBTA_AV_AVDT_CAP));
+            if(bt_av_src_callbacks)
+            {
+                HAL_CBACK(bt_av_src_callbacks, peer_avdt_cap, avdt_cap.peer_addr, avdt_cap.seid, avdt_cap.psc_mask);
+            }
+            break;
         default:
             BTIF_TRACE_ERROR("Unhandled event = %d", event);
             break;

@@ -950,7 +950,7 @@ void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
     AVDT_TRACE_WARNING("avdt_scb_hdl_setconfig_cmd: SCB in use: %d, SCB is required: %d "
         "Conn in progress: %d", p_scb->in_use, p_scb->is_required, avdt_cb.conn_in_progress);
 
-    if ((!p_scb->in_use) && (p_scb->is_required) & !(avdt_check_sep_state(p_scb))
+    if ((!p_scb->in_use) && (p_scb->is_required)
         && (!avdt_cb.conn_in_progress))
     {
         p_cfg = p_data->msg.config_cmd.p_cfg;

@@ -1918,6 +1918,12 @@ void bta_av_save_caps(tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     APPL_TRACE_DEBUG("bta_av_save_caps num_seps:%d sep_info_idx:%d wait:x%x",
         p_scb->num_seps, p_scb->sep_info_idx, p_scb->wait);
     memcpy(&cfg, p_scb->p_cap, sizeof(tAVDT_CFG));
+    APPL_TRACE_DEBUG("bta_av_save_caps p_scb->seps[p_scb->sep_info_idx].tsep:%d", p_scb->seps[p_scb->sep_info_idx].tsep);
+    tBTA_AV_AVDT_CAP avdt_cap;
+    bdcpy(avdt_cap.peer_addr, p_scb->peer_addr);
+    avdt_cap.seid = p_info->seid;
+    avdt_cap.psc_mask = cfg.psc_mask;
+    (*bta_av_cb.p_cback)(BTA_AV_AVDT_CAP_EVT, (tBTA_AV *) &avdt_cap);
     /* let application know the capability of the SNK */
     p_scb->p_cos->getcfg(p_scb->hndl, cfg.codec_info[BTA_AV_CODEC_TYPE_IDX],
         cfg.codec_info, &p_scb->sep_info_idx, p_info->seid,
@@ -2081,6 +2087,7 @@ void bta_av_getcap_results (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
 #if AVDT_MULTIPLEXING == TRUE
     APPL_TRACE_DEBUG("mux x%x, x%x", cfg.mux_mask, p_scb->p_cap->mux_mask);
 #endif
+    uuid_int = p_scb->uuid_int;
 
     /* if codec present and we get a codec configuration */
     if ((p_scb->p_cap->num_codec != 0) &&
@@ -2097,7 +2104,6 @@ void bta_av_getcap_results (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         p_scb->codec_type = cfg.codec_info[BTA_AV_CODEC_TYPE_IDX];
         memcpy(&p_scb->cfg, &cfg, sizeof(tAVDT_CFG));
 
-        uuid_int = p_scb->uuid_int;
         APPL_TRACE_DEBUG(" initiator UUID = 0x%x ", uuid_int);
         if (uuid_int == UUID_SERVCLASS_AUDIO_SOURCE)
             bta_av_adjust_seps_idx(p_scb, bta_av_get_scb_handle(p_scb, AVDT_TSEP_SRC));
@@ -2131,6 +2137,12 @@ void bta_av_getcap_results (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         /* open the stream */
         AVDT_OpenReq(p_scb->seps[p_scb->sep_idx].av_handle, p_scb->peer_addr,
                      p_scb->sep_info[p_scb->sep_info_idx].seid, &cfg);
+
+        tBTA_AV_AVDT_CAP avdt_cap;
+        bdcpy(avdt_cap.peer_addr, p_scb->peer_addr);
+        avdt_cap.seid = p_scb->sep_info[p_scb->sep_info_idx].seid;
+        avdt_cap.psc_mask = cfg.psc_mask;
+        (*bta_av_cb.p_cback)(BTA_AV_AVDT_CAP_EVT, (tBTA_AV *) &avdt_cap);
 
         if (!bta_av_is_rcfg_sst(p_scb))
         {
