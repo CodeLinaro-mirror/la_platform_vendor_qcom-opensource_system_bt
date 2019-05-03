@@ -739,65 +739,56 @@ static void btif_update_source_codec_capability(std::vector<btav_a2dp_codec_conf
   memset(codec_type_added, 0, MAX_NUM_CODEC_CONFIGS);
   uint8_t j = 0;
   for (auto cp : p_codec_config_list){
-      if (!codec_type_added[cp.codec_type]) {
-        switch(cp.codec_type){
-          case BTAV_A2DP_CODEC_INDEX_SOURCE_SBC:
-              codec_type_list[j] = A2DP_MEDIA_CT_SBC;
-              break;
-          case BTAV_A2DP_CODEC_INDEX_SOURCE_AAC:
-              codec_type_list[j] = A2DP_MEDIA_CT_AAC;
-              break;
-          case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX:
-              codec_type_list[j] = A2DP_MEDIA_CT_NON_A2DP;
-              vnd_id_list[j] = A2DP_APTX_VENDOR_ID;
-              codec_id_list[j] = A2DP_APTX_CODEC_ID_BLUETOOTH;
-              break;
-          case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD:
-              codec_type_list[j] = A2DP_MEDIA_CT_NON_A2DP;
-              vnd_id_list[j] = A2DP_APTX_HD_VENDOR_ID;
-              codec_id_list[j] = A2DP_APTX_HD_CODEC_ID_BLUETOOTH;
-              break;
-          case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE:
-              codec_type_list[j] = A2DP_MEDIA_CT_NON_A2DP;
-              vnd_id_list[j] = A2DP_APTX_ADAPTIVE_VENDOR_ID;
-              codec_id_list[j] = A2DP_APTX_ADAPTIVE_CODEC_ID_BLUETOOTH;
-              break;
-          case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
-              codec_type_list[j] = A2DP_MEDIA_CT_NON_A2DP;
-              vnd_id_list[j] = A2DP_LDAC_VENDOR_ID;
-              codec_id_list[j] = A2DP_LDAC_CODEC_ID;
-              break;
-            }
-          codec_type_added[cp.codec_type] = 1;
-          j ++;
-          if (j > BTAV_A2DP_CODEC_INDEX_SOURCE_MAX) {
-              BTIF_TRACE_ERROR(" %s num of different codecs(%d) exceeds max limit",
-                  __func__, j);
-              break;
-          }
+    if (!codec_type_added[cp.codec_type]) {
+      codec_type_added[cp.codec_type] = 1;
+      j ++;
+      if (j > BTAV_A2DP_CODEC_INDEX_SOURCE_MAX) {
+        BTIF_TRACE_ERROR(" %s num of different codecs(%d) exceeds max limit",
+                         __func__, j);
+        break;
       }
+    }
   }
   /* Create Codec Config array for supported types as per application layer, SBC is mandatory */
   uint8_t codec_info[BTAV_A2DP_CODEC_INDEX_SOURCE_MAX][AVDT_CODEC_SIZE];
   j=0;
   memset(codec_info, 0, BTAV_A2DP_CODEC_INDEX_SOURCE_MAX * AVDT_CODEC_SIZE);
-  if (codec_type_added[BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC])
+  if (codec_type_added[BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC]) {
+    codec_type_list[j] = A2DP_MEDIA_CT_NON_A2DP;
+    vnd_id_list[j] = A2DP_LDAC_VENDOR_ID;
+    codec_id_list[j] = A2DP_LDAC_CODEC_ID;
     A2DP_BuildInfoLdac(AVDT_MEDIA_TYPE_AUDIO, &a2dp_ldac_caps, codec_info[j ++]);
-  if (codec_type_added[BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD])
-    A2DP_BuildInfoAptxHd(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aptx_hd_caps, codec_info[j ++]);
-  if (codec_type_added[BTAV_A2DP_CODEC_INDEX_SOURCE_APTX])
-    A2DP_BuildInfoAptx(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aptx_caps, codec_info[j ++]);
-  if (codec_type_added[BTAV_A2DP_CODEC_INDEX_SOURCE_AAC])
-    A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aac_caps, codec_info[j ++]);
-  if (codec_type_added[BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE])
+  }
+  if (codec_type_added[BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE]) {
+    codec_type_list[j] = A2DP_MEDIA_CT_NON_A2DP;
+    vnd_id_list[j] = A2DP_APTX_ADAPTIVE_VENDOR_ID;
+    codec_id_list[j] = A2DP_APTX_ADAPTIVE_CODEC_ID_BLUETOOTH;
     A2DP_BuildInfoAptxAdaptive(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aptx_adaptive_caps, codec_info[j ++]);
+  }
+  if (codec_type_added[BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD]) {
+    codec_type_list[j] = A2DP_MEDIA_CT_NON_A2DP;
+    vnd_id_list[j] = A2DP_APTX_HD_VENDOR_ID;
+    codec_id_list[j] = A2DP_APTX_HD_CODEC_ID_BLUETOOTH;
+    A2DP_BuildInfoAptxHd(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aptx_hd_caps, codec_info[j ++]);
+  }
+  if (codec_type_added[BTAV_A2DP_CODEC_INDEX_SOURCE_APTX]) {
+    codec_type_list[j] = A2DP_MEDIA_CT_NON_A2DP;
+    vnd_id_list[j] = A2DP_APTX_VENDOR_ID;
+    codec_id_list[j] = A2DP_APTX_CODEC_ID_BLUETOOTH;
+    A2DP_BuildInfoAptx(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aptx_caps, codec_info[j ++]);
+  }
+  if (codec_type_added[BTAV_A2DP_CODEC_INDEX_SOURCE_AAC]) {
+    codec_type_list[j] = A2DP_MEDIA_CT_AAC;
+    A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aac_caps, codec_info[j ++]);
+  }
+  codec_type_list[j] = A2DP_MEDIA_CT_SBC;
   A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &a2dp_sbc_caps, codec_info[j ++]);
   BTIF_TRACE_DEBUG(" %s Num_codec_configs = %d", __func__, j);
   for (uint8_t i = 0; i < j; i ++) {
-      BTIF_TRACE_DEBUG(" %s %d %d %x %d %d %d %d %d %d", __func__,
-          codec_info[i][0], codec_info[i][1], codec_info[i][2], codec_info[i][3],
-          codec_info[i][4], codec_info[i][5], codec_info[i][6], codec_info[i][7],
-          codec_info[i][8]);
+    BTIF_TRACE_DEBUG(" %s %d %d %x %d %d %d %d %d %d", __func__,
+                     codec_info[i][0], codec_info[i][1], codec_info[i][2], codec_info[i][3],
+                     codec_info[i][4], codec_info[i][5], codec_info[i][6], codec_info[i][7],
+                     codec_info[i][8]);
   }
   /* Update the codec config supported paratmers so that correct response can be
    * sent for AVDTP discover and get capabilities command from remote device */
