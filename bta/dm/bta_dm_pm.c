@@ -518,7 +518,7 @@ static void bta_dm_pm_cback(tBTA_SYS_CONN_STATUS status, UINT8 id, UINT8 app_id,
     if ((status == BTA_SYS_CONN_OPEN) && (id == BTA_ID_HH) && bta_dm_pm_is_sco_active())
     {
         /* Check if DUT is slave on SCO Link to decide if sniff needs to be disabled or not */
-        UINT8 role_on_sco_link;
+        UINT8 role_on_sco_link = BTM_ROLE_MASTER;
         i = bta_dm_get_sco_index();
         if ((i >= 0) && (i < BTA_DM_NUM_CONN_SRVS))
              BTM_GetRole(bta_dm_conn_srvcs.conn_srvc[i].peer_bdaddr,
@@ -1271,7 +1271,7 @@ static void bta_dm_pm_hid_check(BOOLEAN bScoActive)
 {
     int n;
     BD_ADDR peer_bdaddr;
-    UINT8 role_on_sco_link;
+    UINT8 role_on_sco_link = HCI_ROLE_MASTER;
 
     if (bScoActive)
     {
