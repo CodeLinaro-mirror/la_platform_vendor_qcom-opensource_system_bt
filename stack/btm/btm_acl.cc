@@ -1677,8 +1677,6 @@ void btm_acl_role_changed(uint8_t hci_status, const RawAddress* bd_addr,
   tBTM_ROLE_SWITCH_CMPL* p_data = &btm_cb.devcb.switch_role_ref_data;
   tBTM_SEC_DEV_REC* p_dev_rec;
 
-  BTM_TRACE_WARNING ("btm_acl_role_changed: BDA: %02x-%02x-%02x-%02x-%02x-%02x",
-        p_bda[0], p_bda[1], p_bda[2], p_bda[3], p_bda[4], p_bda[5]);
   BTM_TRACE_WARNING ("btm_acl_role_changed: New role: %d", new_role);
   /* Ignore any stray events */
   if (p == NULL) {
@@ -1687,6 +1685,9 @@ void btm_acl_role_changed(uint8_t hci_status, const RawAddress* bd_addr,
       btm_acl_report_role_change(hci_status, bd_addr);
     return;
   }
+
+  BTM_TRACE_WARNING ("btm_acl_role_changed: BDA: %02x-%02x-%02x-%02x-%02x-%02x",
+        p_bda[0], p_bda[1], p_bda[2], p_bda[3], p_bda[4], p_bda[5]);
 
   p_data->hci_status = hci_status;
 
@@ -2766,13 +2767,14 @@ void btm_read_link_quality_complete(uint8_t* p) {
 static void btm_enable_link_PL10_adaptive_ctrl(uint16_t handle, bool enable) {
   uint8_t param[3] = {0};
   uint8_t *p_param = param;
-  uint8_t enable_val = enable ? 0x01 : 0;
+  uint8_t sub_opcode = enable ? HCI_VS_ENABLE_HPA_CONTROL_FOR_CONN_HANDLE :
+                                HCI_VS_DISABLE_HPA_CONTROL_FOR_CONN_HANDLE;
 
   BTM_TRACE_DEBUG("%s, handle=%d, enable=%d", __func__, handle, enable);
 
+  UINT8_TO_STREAM(p_param, sub_opcode);
   UINT16_TO_STREAM(p_param, handle);
-  UINT8_TO_STREAM(p_param, enable_val);
-  BTM_VendorSpecificCommand(HCI_VS_LINK_PL10_ADAPTIVE_CTRL_REQ_OPCODE,
+  BTM_VendorSpecificCommand(HCI_VS_LINK_POWER_CTRL_REQ_OPCODE,
       p_param - param, param, NULL);
 }
 
