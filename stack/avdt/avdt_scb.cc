@@ -1108,9 +1108,10 @@ void avdt_scb_update_supported_codecs(uint8_t *p_codec_type, uint8_t *p_vnd,
         for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++) {
             if (p_scb != NULL && (p_scb->allocated) && (p_scb->cs.tsep == tsep))
             {
-                if (((p_codec_id[j] == A2DP_MEDIA_CT_SBC)||(p_codec_id[j] == A2DP_MEDIA_CT_AAC)) &&
-                p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == p_codec_type[j]) {
-                    AVDT_TRACE_DEBUG(" Updating codec info for SCB[%d] sep_type[%d] "
+                if (((p_codec_type[j] == A2DP_MEDIA_CT_SBC) ||
+                    (p_codec_type[j] == A2DP_MEDIA_CT_AAC)) &&
+                    p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == p_codec_type[j]) {
+                     AVDT_TRACE_DEBUG(" Updating codec info for SCB[%d] sep_type[%d] "
                         "codec type [%d]",i, p_scb->cs.tsep,
                         codec_info[j][AVDT_CODEC_TYPE_INDEX]);
                     memcpy(p_scb->cs.cfg.codec_info, codec_info[j], AVDT_CODEC_SIZE);
@@ -1148,9 +1149,11 @@ void avdt_scb_update_supported_codecs(uint8_t *p_codec_type, uint8_t *p_vnd,
         /* for all allocated scbs */
         for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++)
         {
-            if (p_scb != NULL && (p_scb->allocated) && (p_scb->cs.tsep == tsep) && !p_scb->is_required) {
-                if ((((p_codec_id[j] == A2DP_MEDIA_CT_SBC)||(p_codec_id[j] == A2DP_MEDIA_CT_AAC)) &&
-                p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == p_codec_type[j])) {
+            if (p_scb != NULL && (p_scb->allocated) && (p_scb->cs.tsep == tsep) &&
+                !p_scb->is_required) {
+                if ((((p_codec_type[j] == A2DP_MEDIA_CT_SBC) ||
+                    (p_codec_type[j] == A2DP_MEDIA_CT_AAC)) &&
+                    p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == p_codec_type[j])) {
                     /* update is_required as true for SCB required by upper layers */
                     AVDT_TRACE_DEBUG(" Setting SCB[%d] sep_type[%d] is_required as true",
                     i, p_scb->cs.tsep);
