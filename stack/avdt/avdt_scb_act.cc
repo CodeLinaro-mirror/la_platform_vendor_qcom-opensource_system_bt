@@ -732,13 +732,13 @@ void avdt_scb_hdl_setconfig_rej(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
 void avdt_scb_hdl_setconfig_rsp(tAVDT_SCB* p_scb,
                                 UNUSED_ATTR tAVDT_SCB_EVT* p_data) {
   tAVDT_EVT_HDR single;
-  int rendering_delay;
+  int estimated_delay;
   if (p_scb->cs.is_split_enabled) {
-    rendering_delay = btif_avk_split_get_rendering_delay(p_scb->p_ccb->peer_addr);
-    APPL_TRACE_DEBUG(" %s split enabled, rendering delay = %d",__func__,rendering_delay);
+    estimated_delay = btif_avk_split_get_delay(p_scb->p_ccb->peer_addr);
+    APPL_TRACE_DEBUG(" %s split enabled, estimated delay = %d",__func__,estimated_delay);
   } else {
-    rendering_delay = btif_avk_get_rendering_delay(p_scb->p_ccb->peer_addr);
-    APPL_TRACE_DEBUG(" %s non-split, rendering delay = %d",__func__,rendering_delay);
+    estimated_delay = btif_avk_get_init_delay(p_scb->p_ccb->peer_addr);
+    APPL_TRACE_DEBUG(" %s non-split, estimated delay = %d",__func__,estimated_delay);
   }
 
   if (p_scb->p_ccb != NULL) {
@@ -747,7 +747,7 @@ void avdt_scb_hdl_setconfig_rsp(tAVDT_SCB* p_scb,
     p_scb->role = AVDT_CONF_INT;
 
     if ((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
-      p_scb->reported_delay = (rendering_delay + INIT_ESTMT_DELAY) * 10;
+      p_scb->reported_delay = estimated_delay * 10;
       AVDT_TRACE_DEBUG(" %s ~~ support DELAY_RPT , begin init Delay report procedure",__func__);
       AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, p_scb->reported_delay);
     }
@@ -1519,13 +1519,13 @@ void avdt_scb_snd_setconfig_req(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
  *
  ******************************************************************************/
 void avdt_scb_snd_setconfig_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
-  int rendering_delay;
+  int estimated_delay;
   if (p_scb->cs.is_split_enabled) {
-    rendering_delay = btif_avk_split_get_rendering_delay(p_scb->p_ccb->peer_addr);
-    APPL_TRACE_DEBUG(" %s split enabled, rendering delay = %d",__func__,rendering_delay);
+    estimated_delay = btif_avk_split_get_delay(p_scb->p_ccb->peer_addr);
+    APPL_TRACE_DEBUG(" %s split enabled, estimated delay = %d",__func__,estimated_delay);
   } else {
-    rendering_delay = btif_avk_get_rendering_delay(p_scb->p_ccb->peer_addr);
-    APPL_TRACE_DEBUG(" %s non-split, rendering delay = %d",__func__,rendering_delay);
+    estimated_delay = btif_avk_get_init_delay(p_scb->p_ccb->peer_addr);
+    APPL_TRACE_DEBUG(" %s non-split, estimated delay = %d",__func__,estimated_delay);
   }
   if (p_scb->p_ccb != NULL) {
     memcpy(&p_scb->curr_cfg, &p_scb->req_cfg, sizeof(tAVDT_CFG));
@@ -1533,7 +1533,7 @@ void avdt_scb_snd_setconfig_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
 
     avdt_msg_send_rsp(p_scb->p_ccb, AVDT_SIG_SETCONFIG, &p_data->msg);
     if ((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
-      p_scb->reported_delay = (rendering_delay + INIT_ESTMT_DELAY) * 10;
+      p_scb->reported_delay = estimated_delay * 10;
       AVDT_TRACE_DEBUG(" %s ~~ support DELAY_RPT , begin init Delay report procedure", __func__);
       AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, p_scb->reported_delay);
     }

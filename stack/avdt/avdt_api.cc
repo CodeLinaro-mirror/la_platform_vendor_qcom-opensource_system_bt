@@ -548,6 +548,34 @@ uint16_t AVDT_DelayReport(uint8_t handle, uint8_t seid, uint16_t delay) {
 
 /*******************************************************************************
  *
+ * Function         AVDT_UpdateDelayReport
+ *
+ * Description      This functions sends a updated Delay Report to the peer device
+ *                  that is associated with a particular SEID.
+ *                  This function is called by SNK device.
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+void AVDT_UpdateDelayReport(uint8_t handle) {
+  tAVDT_SCB* p_scb;
+  uint16_t current_delay;
+  AVDT_TRACE_DEBUG("%s: handle=%d", __func__, handle);
+
+  /* map handle to scb */
+  p_scb = avdt_scb_by_hdl(handle);
+  if (p_scb->cs.is_split_enabled && (p_scb->cs.tsep == AVDT_TSEP_SNK) &&
+      (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
+    current_delay = (uint16_t)(btif_avk_split_get_delay(p_scb->p_ccb->peer_addr) * 10);
+    if (abs(p_scb->reported_delay - current_delay) >= accure_range) {
+      p_scb->reported_delay = current_delay;
+      AVDT_TRACE_DEBUG(" %s ~~  update delay report to %d  ",__func__,current_delay);
+      AVDT_DelayReport(handle, p_scb->peer_seid, p_scb->reported_delay);
+    }
+  }
+}
+/*******************************************************************************
+ *
  * Function         AVDT_OpenReq
  *
  * Description      This function initiates a connection to the AVDTP service

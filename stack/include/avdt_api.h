@@ -665,6 +665,19 @@ extern uint16_t AVDT_DelayReport(uint8_t handle, uint8_t seid, uint16_t delay);
 
 /*******************************************************************************
  *
+ * Function         AVDT_UpdateDelayReport
+ *
+ * Description      This functions sends updated Delay Report to the peer device
+ *                  that is associated with a particular SEID.
+ *                  This function is called by SNK device.
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+extern void AVDT_UpdateDelayReport(uint8_t handle);
+
+/*******************************************************************************
+ *
  * Function         AVDT_OpenReq
  *
  * Description      This function initiates a connection to the AVDTP service
