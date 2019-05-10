@@ -712,7 +712,7 @@ bt_status_t btif_dut_mode_send(uint16_t opcode, uint8_t* buf, uint8_t len) {
  ****************************************************************************/
 
 static bt_status_t btif_in_get_adapter_properties(void) {
-  bt_property_t properties[6];
+  bt_property_t properties[7];
   uint32_t num_props = 0;
 
   RawAddress addr;
@@ -722,6 +722,7 @@ static bt_status_t btif_in_get_adapter_properties(void) {
   RawAddress bonded_devices[BTM_SEC_MAX_DEVICE_RECORDS];
   Uuid local_uuids[BT_MAX_NUM_UUIDS];
   bt_status_t status;
+  DEV_CLASS dev_class;
 
   /* RawAddress */
   BTIF_STORAGE_FILL_PROPERTY(&properties[num_props], BT_PROPERTY_BDADDR,
@@ -763,6 +764,12 @@ static bt_status_t btif_in_get_adapter_properties(void) {
   /* LOCAL UUIDs */
   BTIF_STORAGE_FILL_PROPERTY(&properties[num_props], BT_PROPERTY_UUIDS,
                              sizeof(local_uuids), local_uuids);
+  btif_storage_get_adapter_property(&properties[num_props]);
+  num_props++;
+
+  /* LOCAL DEV_CLASS */
+  BTIF_STORAGE_FILL_PROPERTY(&properties[num_props], BT_PROPERTY_CLASS_OF_DEVICE,
+                             sizeof(DEV_CLASS), dev_class);
   btif_storage_get_adapter_property(&properties[num_props]);
   num_props++;
 
