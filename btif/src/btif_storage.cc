@@ -591,7 +591,7 @@ bt_status_t btif_storage_get_adapter_property(bt_property_t* property) {
       property->len = list_length(bonded_devices) * RawAddress::kLength;
       for (list_node_t* node = list_begin(bonded_devices);
             node != list_end(bonded_devices); node = list_next(node)) {
-        memcpy(&(property->val) + len, (RawAddress *)list_node(node), RawAddress::kLength);
+        memcpy(property->val + len, (RawAddress *)list_node(node), RawAddress::kLength);
         len = len + RawAddress::kLength;
       }
     }
