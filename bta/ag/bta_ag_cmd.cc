@@ -62,6 +62,7 @@
 #include "bta_ag_int.h"
 #include "bta_api.h"
 #include "bta_sys.h"
+#include "log/log.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
 #include "port_api.h"
@@ -155,7 +156,7 @@ const tBTA_AG_AT_CMD bta_ag_hfp_cmd[] = {
     {"+BAC", BTA_AG_AT_BAC_EVT, BTA_AG_AT_SET, BTA_AG_AT_STR, 0, 0},
 #if (TWS_AG_ENABLED == TRUE)
     {"%QMQ", BTA_AG_TWSP_AT_QMQ_EVT, BTA_AG_AT_SET, BTA_AG_AT_INT, TWSPLUS_MIN_MIC_QUALITY, TWSPLUS_MAX_MIC_QUALITY},
-    {"%QES", BTA_AG_TWSP_AT_QES_EVT, BTA_AG_AT_SET, BTA_AG_AT_INT, TWSPLUS_EB_STATE_OFF, TWSPLUS_EB_STATE_INEAR},
+    {"%QES", BTA_AG_TWSP_AT_QES_EVT, BTA_AG_AT_SET, BTA_AG_AT_INT, TWSPLUS_EB_STATE_UNKNOWN, TWSPLUS_EB_STATE_INEAR},
     {"%QER", BTA_AG_TWSP_AT_QER_EVT, BTA_AG_AT_SET, BTA_AG_AT_INT, TWSPLUS_EB_ROLE_LEFT, TWSPLUS_EB_ROLE_MONO},
     {"%QBC", BTA_AG_TWSP_AT_QBC_EVT, BTA_AG_AT_SET, BTA_AG_AT_INT, TWSPLUS_MIN_BATTERY_CHARGE, TWSPLUS_MAX_BATTERY_CHARGE},
     {"%QMD", BTA_AG_TWSP_AT_QMD_EVT, BTA_AG_AT_SET, BTA_AG_AT_INT, TWSPLUS_MIN_MICPATH_DELAY, TWSPLUS_MAX_MICPATH_DELAY/2-1},
@@ -434,23 +435,23 @@ static void bta_ag_send_ind(tBTA_AG_SCB* p_scb, uint16_t id, uint16_t value,
  * Returns          true if parsed ok, false otherwise.
  *
  ******************************************************************************/
-static bool bta_ag_parse_cmer(char* p_s, bool* p_enabled) {
+static bool bta_ag_parse_cmer(char* p_s, char* p_end, bool* p_enabled) {
   int16_t n[4] = {-1, -1, -1, -1};
   int i;
   char* p;
 
-  for (i = 0; i < 4; i++) {
+  for (i = 0; i < 4; i++, p_s = p + 1) {
     /* skip to comma delimiter */
-    for (p = p_s; *p != ',' && *p != 0; p++)
+    for (p = p_s; p < p_end && *p != ',' && *p != 0; p++)
       ;
 
     /* get integer value */
+    if (p > p_end) {
+      android_errorWriteLog(0x534e4554, "112860487");
+      return false;
+    }
     *p = 0;
     n[i] = utl_str2int(p_s);
-    p_s = p + 1;
-    if (p_s == 0) {
-      break;
-    }
   }
 
   /* process values */
@@ -508,7 +509,8 @@ static uint8_t bta_ag_parse_chld(UNUSED_ATTR tBTA_AG_SCB* p_scb, char* p_s) {
  * Returns          Returns bitmap of supported codecs.
  *
  ******************************************************************************/
-static tBTA_AG_PEER_CODEC bta_ag_parse_bac(tBTA_AG_SCB* p_scb, char* p_s) {
+static tBTA_AG_PEER_CODEC bta_ag_parse_bac(tBTA_AG_SCB* p_scb, char* p_s,
+                                           char* p_end) {
   tBTA_AG_PEER_CODEC retval = BTA_AG_CODEC_NONE;
   uint16_t uuid_codec;
   bool cont = false; /* Continue processing */
@@ -516,10 +518,14 @@ static tBTA_AG_PEER_CODEC bta_ag_parse_bac(tBTA_AG_SCB* p_scb, char* p_s) {
 
   while (p_s) {
     /* skip to comma delimiter */
-    for (p = p_s; *p != ',' && *p != 0; p++)
+    for (p = p_s; p < p_end && *p != ',' && *p != 0; p++)
       ;
 
     /* get integre value */
+    if (p > p_end) {
+      android_errorWriteLog(0x534e4554, "112860487");
+      break;
+    }
     if (*p != 0) {
       *p = 0;
       cont = true;
@@ -627,6 +633,7 @@ void bta_ag_send_call_inds(tBTA_AG_SCB* p_scb, tBTA_AG_RES result) {
   /* set new call and callsetup values based on BTA_AgResult */
   size_t callsetup = bta_ag_indicator_by_result_code(result);
 
+  bool is_blacklisted = interop_match_addr(INTEROP_DISABLE_SNIFF_DURING_CALL, &p_scb->peer_addr);
   if (result == BTA_AG_END_CALL_RES) {
     call = BTA_AG_CALL_INACTIVE;
   } else if (result == BTA_AG_IN_CALL_CONN_RES ||
@@ -645,6 +652,19 @@ void bta_ag_send_call_inds(tBTA_AG_SCB* p_scb, tBTA_AG_RES result) {
     APPL_TRACE_IMP("%s: BTA_AG_OUT_CALL_CONN_RES, call %x, callsetup %x, call held %x, p_scb->callsetup_ind %x",
      __func__, call, callsetup, p_scb->callheld_ind, p_scb->callsetup_ind );
 
+  if (is_blacklisted) {
+    if (result == BTA_AG_IN_CALL_RES ||
+        result == BTA_AG_CALL_WAIT_RES ||
+        result == BTA_AG_OUT_CALL_ORIG_RES ||
+        result == BTA_AG_OUT_CALL_ALERT_RES ||
+        result == BTA_AG_OUT_CALL_CONN_RES ) {
+        APPL_TRACE_IMP("%s: exit sniff during call for the device: %s",
+                        __func__, p_scb->peer_addr.ToString().c_str());
+        bta_sys_busy(BTA_ID_AG, p_scb->app_id, p_scb->peer_addr);
+        bta_sys_clear_policy(BTA_ID_AG, HCI_ENABLE_SNIFF_MODE, p_scb->peer_addr);
+     }
+  }
+
 /* if res value equal to BTA_AG_OUT_CALL_CONN_RES when held call is there, always send indicator.
     otherwise, send indicator function tracks if the values have actually changed*/
   if ( (result == BTA_AG_IN_CALL_CONN_RES || result == BTA_AG_OUT_CALL_CONN_RES) &&
@@ -657,6 +677,19 @@ void bta_ag_send_call_inds(tBTA_AG_SCB* p_scb, tBTA_AG_RES result) {
   else
     bta_ag_send_ind(p_scb, BTA_AG_IND_CALL, call, false);
   bta_ag_send_ind(p_scb, BTA_AG_IND_CALLSETUP, callsetup, false);
+
+  if ((result == BTA_AG_END_CALL_RES || result == BTA_AG_CALL_CANCEL_RES) &&
+       p_scb) {
+    APPL_TRACE_IMP("%s: call/call setup ended, cancel xsco collision timer",
+                    __func__);
+    alarm_cancel(p_scb->xsco_conn_collision_timer);
+
+    if (is_blacklisted) {
+       APPL_TRACE_IMP("%s: Enable sniff mode for device: %s",
+                       __func__, p_scb->peer_addr.ToString().c_str());
+       bta_sys_set_policy(BTA_ID_AG, HCI_ENABLE_SNIFF_MODE, p_scb->peer_addr);
+    }
+  }
 }
 
 /*******************************************************************************
@@ -670,7 +703,8 @@ void bta_ag_send_call_inds(tBTA_AG_SCB* p_scb, tBTA_AG_RES result) {
  *
  ******************************************************************************/
 void bta_ag_at_hsp_cback(tBTA_AG_SCB* p_scb, uint16_t command_id,
-                         uint8_t arg_type, char* p_arg, int16_t int_arg) {
+                         uint8_t arg_type, char* p_arg, char* p_end,
+                         int16_t int_arg) {
   APPL_TRACE_DEBUG("AT cmd:%d arg_type:%d arg:%d arg:%s", command_id, arg_type,
                    int_arg, p_arg);
 
@@ -680,6 +714,13 @@ void bta_ag_at_hsp_cback(tBTA_AG_SCB* p_scb, uint16_t command_id,
   val.hdr.handle = bta_ag_scb_to_idx(p_scb);
   val.hdr.app_id = p_scb->app_id;
   val.num = (uint16_t)int_arg;
+
+  if ((p_end - p_arg + 1) >= (long)sizeof(val.str)) {
+    APPL_TRACE_ERROR("%s: p_arg is too long, send error and return", __func__);
+    bta_ag_send_error(p_scb, BTA_AG_ERR_TEXT_TOO_LONG);
+    android_errorWriteLog(0x534e4554, "112860487");
+    return;
+  }
   strlcpy(val.str, p_arg, sizeof(val.str));
 
   /* call callback with event */
@@ -862,6 +903,12 @@ static bool bta_ag_parse_biev_response(tBTA_AG_SCB* p_scb, tBTA_AG_VAL* val) {
   uint16_t rcv_ind_id = atoi(p_token);
 
   p_token = strtok(NULL, ",");
+  if (p_token == NULL) {
+     APPL_TRACE_DEBUG("%s received invalid string %s", __func__,
+                       val->str);
+     return false;
+  }
+
   uint16_t rcv_ind_val = atoi(p_token);
 
   APPL_TRACE_DEBUG("%s BIEV indicator id %d, value %d", __func__, rcv_ind_id,
@@ -909,7 +956,7 @@ static bool bta_ag_parse_biev_response(tBTA_AG_SCB* p_scb, tBTA_AG_VAL* val) {
  *
  ******************************************************************************/
 void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type,
-                         char* p_arg, int16_t int_arg) {
+                         char* p_arg, char* p_end, int16_t int_arg) {
   tBTA_AG_VAL val;
   tBTA_AG_SCB* ag_scb;
   uint32_t i, ind_id;
@@ -930,6 +977,13 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type,
   val.hdr.status = BTA_AG_SUCCESS;
   val.num = int_arg;
   val.bd_addr = p_scb->peer_addr;
+
+  if ((p_end - p_arg + 1) >= (long)sizeof(val.str)) {
+    APPL_TRACE_ERROR("%s: p_arg is too long, send error and return", __func__);
+    bta_ag_send_error(p_scb, BTA_AG_ERR_TEXT_TOO_LONG);
+    android_errorWriteLog(0x534e4554, "112860487");
+    return;
+  }
   strlcpy(val.str, p_arg, sizeof(val.str));
 
   /**
@@ -954,7 +1008,14 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type,
 
     case BTA_AG_AT_BLDN_EVT:
       /* Do not send OK, App will send error or OK depending on
-      ** last dial number enabled or not */
+      ** last dial number enabled or not
+      ** If SLC didn't happen yet, just send ERROR*/
+      if (!p_scb->svc_conn) {
+        event = 0;
+        APPL_TRACE_WARNING("%s: Sending ERROR from stack for BLDN received"\
+                           " before SLC", __func__);
+        bta_ag_send_error(p_scb, BTA_AG_ERR_OP_NOT_SUPPORTED);
+      }
       break;
 
     case BTA_AG_AT_D_EVT:
@@ -1117,7 +1178,7 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type,
 
     case BTA_AG_LOCAL_EVT_CMER:
       /* if parsed ok store setting, send OK */
-      if (bta_ag_parse_cmer(p_arg, &p_scb->cmer_enabled)) {
+      if (bta_ag_parse_cmer(p_arg, p_end, &p_scb->cmer_enabled)) {
         bta_ag_send_ok(p_scb);
 
         /* if service level conn. not already open and our features and
@@ -1196,7 +1257,12 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type,
       APPL_TRACE_DEBUG("%s BRSF HF: 0x%x, phone: 0x%x", __func__,
                        p_scb->peer_features, features);
 
-      if (interop_match_addr_or_name(INTEROP_DISABLE_CODEC_NEGOTIATION,
+      if (
+#if (TWS_AG_ENABLED == TRUE)
+          /* Always enable codec negotiation if it is TWS+ */
+          !is_twsp_device(p_scb->peer_addr) &&
+#endif
+      interop_match_addr_or_name(INTEROP_DISABLE_CODEC_NEGOTIATION,
           &p_scb->peer_addr))
       {
           APPL_TRACE_IMP("%s disable codec negotiation for phone, remote" \
@@ -1318,7 +1384,7 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type,
       /* store available codecs from the peer */
       if ((p_scb->peer_features & BTA_AG_PEER_FEAT_CODEC) &&
           (p_scb->features & BTA_AG_FEAT_CODEC)) {
-        p_scb->peer_codecs = bta_ag_parse_bac(p_scb, p_arg);
+        p_scb->peer_codecs = bta_ag_parse_bac(p_scb, p_arg, p_end);
         p_scb->codec_updated = true;
 
         if (p_scb->peer_codecs & BTA_AG_CODEC_MSBC) {
@@ -1974,6 +2040,9 @@ void bta_ag_send_ring(tBTA_AG_SCB* p_scb, UNUSED_ATTR tBTA_AG_DATA* p_data) {
 
   } else {
 #endif
+
+      APPL_TRACE_IMP("%s: exiting sniff for sending RING", __func__);
+      bta_sys_busy(BTA_ID_AG, p_scb->app_id, p_scb->peer_addr);
       /* send RING */
       bta_ag_send_result(p_scb, BTA_AG_LOCAL_RES_RING, NULL, 0);
 
@@ -1985,6 +2054,9 @@ void bta_ag_send_ring(tBTA_AG_SCB* p_scb, UNUSED_ATTR tBTA_AG_DATA* p_data) {
 
       bta_sys_start_timer(p_scb->ring_timer, BTA_AG_RING_TIMEOUT_MS,
                       BTA_AG_RING_TIMEOUT_EVT, bta_ag_scb_to_idx(p_scb));
+
+      APPL_TRACE_IMP("%s: resetting idle timer after sending RING", __func__);
+      bta_sys_idle(BTA_ID_AG, p_scb->app_id, p_scb->peer_addr);
 
 #if (TWS_AG_ENABLED == TRUE)
   }
