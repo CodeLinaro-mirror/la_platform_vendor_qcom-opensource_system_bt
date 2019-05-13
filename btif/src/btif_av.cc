@@ -2722,7 +2722,7 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
       return;
     case BTIF_AV_REMOTE_SUSPEND_STREAM_REQ_EVT:
       index = (int) *p_param;
-      if(index != INVALID_INDEX && index > btif_max_av_clients &&
+      if (index != INVALID_INDEX && index > btif_max_av_clients &&
         btif_av_cb[index].remote_started == false)
         index = btif_max_av_clients;
       if (index >= btif_max_av_clients) {
@@ -2741,12 +2741,15 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
       break;
     case BTIF_AV_RESET_REMOTE_STARTED_FLAG_UPDATE_AUDIO_STATE_EVT:
       index = (int) *p_param;
-      if (btif_av_cb[index].peer_sep == AVDT_TSEP_SNK)
-      {
-        BTIF_TRACE_IMP("%s: on remote start clean up update audio started state for index %d", __func__, index);
-        btif_report_audio_state(BTAV_AUDIO_STATE_STARTED, &(btif_av_cb[index].peer_bda));
+      if (index >= 0 && index < btif_max_av_clients) {
+        if (btif_av_cb[index].peer_sep == AVDT_TSEP_SNK)
+        {
+          BTIF_TRACE_IMP("%s: on remote start clean up update audio started state for index %d",
+                          __func__, index);
+          btif_report_audio_state(BTAV_AUDIO_STATE_STARTED, &(btif_av_cb[index].peer_bda));
+        }
+        btif_av_cb[index].is_device_playing = true;
       }
-      btif_av_cb[index].is_device_playing = true;
     case BTIF_AV_RESET_REMOTE_STARTED_FLAG_EVT:
       btif_av_reset_remote_started_flag();
       return;
@@ -2892,12 +2895,15 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
     case BTIF_AV_SETUP_CODEC_REQ_EVT:
       index = btif_av_get_latest_device_idx_to_start();
       break;
+    case BTA_AV_SINK_MEDIA_CFG_EVT:
+      index = btif_av_get_current_playing_dev_idx();
+      break;
   /* FALLTHROUGH */
   default:
     BTIF_TRACE_ERROR("Unhandled event = %d", event);
     break;
   }
-  BTIF_TRACE_DEBUG("Handle the AV event = %x on index = %d", event, index);
+  BTIF_TRACE_DEBUG("Handle the AV event = 0x%x on index = %d", event, index);
   if (index >= 0 && index < btif_max_av_clients)
       btif_sm_dispatch(btif_av_cb[index].sm_handle, event, (void*)p_param);
   else
