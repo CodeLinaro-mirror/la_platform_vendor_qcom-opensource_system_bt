@@ -777,6 +777,7 @@ extern void bta_av_delay_co(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_open_at_inc(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_offload_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_offload_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
+extern void bta_av_restore_data_for_sig(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_vendor_offload_stop(void);
 
 #endif /* BTA_AV_INT_H */

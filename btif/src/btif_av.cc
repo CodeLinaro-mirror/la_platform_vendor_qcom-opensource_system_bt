@@ -1858,10 +1858,8 @@ bool BtifAvStateMachine::StateOpened::ProcessEvent(uint32_t event,
         // Pending start flag will be cleared when exit current state
       }
 
-      // Inform the application that we are disconnected
-      btif_report_connection_state(peer_.PeerAddress(),
-                                   BTAV_CONNECTION_STATE_DISCONNECTED);
-      peer_.StateMachine().TransitionTo(BtifAvStateMachine::kStateIdle);
+      // Transfer to opening state
+      peer_.StateMachine().TransitionTo(BtifAvStateMachine::kStateOpening);
       break;
 
     case BTA_AV_RECONFIG_EVT:

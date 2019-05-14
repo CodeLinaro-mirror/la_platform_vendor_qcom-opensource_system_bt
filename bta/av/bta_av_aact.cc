@@ -163,6 +163,7 @@ const tBTA_AV_SACT bta_av_a2dp_action[] = {
     bta_av_open_at_inc,     /* BTA_AV_OPEN_AT_INC */
     bta_av_offload_req,     /* BTA_AV_OFFLOAD_REQ */
     bta_av_offload_rsp,     /* BTA_AV_OFFLOAD_RSP */
+    bta_av_restore_data_for_sig,/* BTA_AV_RESTORE_DATA */
     NULL};
 
 /* these tables translate AVDT events to SSM events */
@@ -3222,6 +3223,23 @@ void bta_av_offload_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   tBTA_AV bta_av_data;
   bta_av_data.status = status;
   (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, &bta_av_data);
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_av_restore_data_for_sig
+ *
+ * Description      This function is called when stream channel is closed but
+ *                  sig channel is still connected, it is used to restore some
+ *                  data like remote bd address
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void bta_av_restore_data_for_sig(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
+  APPL_TRACE_DEBUG("%s, p_data->str_msg.bd_addr %s", __func__, p_data->str_msg.bd_addr.ToString().c_str());
+  /* Called here to restore bd address which is cleared when sep closed, otherwise may fail to disconnect sig channel */
+  p_scb->OnConnected(p_data->str_msg.bd_addr);
 }
 
 static void bta_av_offload_codec_builder(tBTA_AV_SCB* p_scb,
