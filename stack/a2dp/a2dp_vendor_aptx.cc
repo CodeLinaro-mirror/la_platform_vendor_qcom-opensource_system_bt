@@ -63,7 +63,7 @@ static const tA2DP_APTX_CIE a2dp_aptx_sink_caps = {
     A2DP_APTX_VENDOR_ID,                                       /* vendorId */
     A2DP_APTX_CODEC_ID_BLUETOOTH,                              /* codecId */
     A2DP_APTX_SAMPLERATE_44100|A2DP_APTX_SAMPLERATE_48000,     /* sampleRate */
-    A2DP_APTX_CHANNELS_STEREO|A2DP_APTX_CHANNELS_STEREO,       /* channelMode */
+    A2DP_APTX_CHANNELS_STEREO,                                 /* channelMode */
     A2DP_APTX_FUTURE_1,                                        /* future1 */
     A2DP_APTX_FUTURE_2,                                        /* future2 */
     BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16                         /* bits_per_sample */
@@ -301,7 +301,7 @@ tA2DP_STATUS A2DP_BuildSrc2SinkConfigAptx(UNUSED_ATTR const uint8_t* p_src_cap,
   tA2DP_APTX_CIE pref_cap;
 
   /* initialize it to default APTX configuration */
-  A2DP_BuildInfoAptx(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aptx_default_config,
+  A2DP_BuildInfoAptx(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aptx_sink_default_config,
                     p_pref_cfg);
 
   /* now try to build a preferred one. parse configuration */
@@ -536,7 +536,7 @@ bool A2DP_VendorInitCodecConfigAptx(tAVDT_CFG* p_cfg) {
 
 bool A2DP_VendorInitCodecConfigAptxSink(tAVDT_CFG* p_cfg) {
   LOG_DEBUG(LOG_TAG, "%s:", __func__);
-  if (A2DP_BuildInfoAptx(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aptx_caps,
+  if (A2DP_BuildInfoAptx(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aptx_sink_caps,
                          p_cfg->codec_info) != A2DP_SUCCESS) {
     return false;
   }
@@ -1048,22 +1048,7 @@ A2dpCodecConfigAptxSink::A2dpCodecConfigAptxSink(
     btav_a2dp_codec_priority_t codec_priority)
     : A2dpCodecConfig(BTAV_A2DP_CODEC_INDEX_SINK_APTX, "aptX sink",
                       codec_priority) {
-  a2dp_aptx_caps = a2dp_aptx_sink_caps;
-  a2dp_aptx_default_config = a2dp_aptx_sink_default_config;
-
-  if (a2dp_aptx_caps.sampleRate & A2DP_APTX_SAMPLERATE_44100) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
-  }
-  if (a2dp_aptx_caps.sampleRate & A2DP_APTX_SAMPLERATE_48000) {
-    codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
-  }
-  codec_local_capability_.bits_per_sample = a2dp_aptx_caps.bits_per_sample;
-  if (a2dp_aptx_caps.channelMode & A2DP_APTX_CHANNELS_MONO) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_MONO;
-  }
-  if (a2dp_aptx_caps.channelMode & A2DP_APTX_CHANNELS_STEREO) {
-    codec_local_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
-  }
+// TODO: This method applies only to Source codecs
 }
 
 A2dpCodecConfigAptxSink::~A2dpCodecConfigAptxSink() {}
