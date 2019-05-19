@@ -91,7 +91,7 @@ struct alarm_t {
   // potentially long-running callback is executing. |alarm_cancel| uses this
   // mutex to provide a guarantee to its caller that the callback will not be
   // in progress when it returns.
-  std::recursive_mutex* callback_mutex;
+  std::shared_ptr<std::recursive_mutex> callback_mutex;
   uint64_t creation_time_ms;
   uint64_t period_ms;
   uint64_t deadline_ms;
@@ -113,12 +113,6 @@ struct alarm_t {
 // unit tests to run faster. It should not be modified by production code.
 int64_t TIMER_INTERVAL_FOR_WAKELOCK_IN_MS = 3000;
 static const clockid_t CLOCK_ID = CLOCK_BOOTTIME;
-
-#if (KERNEL_MISSING_CLOCK_BOOTTIME_ALARM == TRUE)
-static const clockid_t CLOCK_ID_ALARM = CLOCK_BOOTTIME;
-#else
-static const clockid_t CLOCK_ID_ALARM = CLOCK_BOOTTIME_ALARM;
-#endif
 
 // This mutex ensures that the |alarm_set|, |alarm_cancel|, and alarm callback
 // functions execute serially and not concurrently. As a result, this mutex
@@ -180,7 +174,8 @@ static alarm_t* alarm_new_internal(const char* name, bool is_periodic) {
 
   alarm_t* ret = static_cast<alarm_t*>(osi_calloc(sizeof(alarm_t)));
 
-  ret->callback_mutex = new std::recursive_mutex;
+  std::shared_ptr<std::recursive_mutex> ptr(new std::recursive_mutex());
+  ret->callback_mutex = ptr;
   ret->is_periodic = is_periodic;
   ret->stats.name = osi_strdup(name);
 
@@ -197,7 +192,7 @@ void alarm_free(alarm_t* alarm) {
   if (!alarm) return;
 
   alarm_cancel(alarm);
-  delete alarm->callback_mutex;
+
   osi_free((void*)alarm->stats.name);
   alarm->closure.~CancelableClosureInStruct();
   osi_free(alarm);
@@ -251,13 +246,15 @@ void alarm_cancel(alarm_t* alarm) {
   CHECK(alarms != NULL);
   if (!alarm) return;
 
+  std::shared_ptr<std::recursive_mutex> local_mutex_ref;
   {
     std::lock_guard<std::mutex> lock(alarms_mutex);
+    local_mutex_ref = alarm->callback_mutex;
     alarm_cancel_internal(alarm);
   }
 
   // If the callback for |alarm| is in progress, wait here until it completes.
-  std::lock_guard<std::recursive_mutex> lock(*alarm->callback_mutex);
+  std::lock_guard<std::recursive_mutex> lock(*local_mutex_ref);
 }
 
 // Internal implementation of canceling an alarm.
@@ -327,7 +324,11 @@ static bool lazy_initialize(void) {
   if (!timer_create_internal(CLOCK_ID, &timer)) goto error;
   timer_initialized = true;
 
-  if (!timer_create_internal(CLOCK_ID_ALARM, &wakeup_timer)) goto error;
+  if (!timer_create_internal(CLOCK_BOOTTIME_ALARM, &wakeup_timer)) {
+    if (!timer_create_internal(CLOCK_BOOTTIME, &wakeup_timer)) {
+      goto error;
+    }
+  }
   wakeup_timer_initialized = true;
 
   alarm_expired = semaphore_new(0);
@@ -585,7 +586,10 @@ static void alarm_ready_generic(alarm_t* alarm,
     alarm->queue = NULL;
   }
 
-  std::lock_guard<std::recursive_mutex> cb_lock(*alarm->callback_mutex);
+  // Increment the reference count of the mutex so it doesn't get freed
+  // before the callback gets finished executing.
+  std::shared_ptr<std::recursive_mutex> local_mutex_ref = alarm->callback_mutex;
+  std::lock_guard<std::recursive_mutex> cb_lock(*local_mutex_ref);
   lock.unlock();
 
   // Update the statistics

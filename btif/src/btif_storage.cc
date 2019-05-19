@@ -35,6 +35,7 @@
 #include <alloca.h>
 #include <base/logging.h>
 #include <ctype.h>
+#include <log/log.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -486,8 +487,7 @@ static bt_status_t btif_in_fetch_bonded_devices(
         bt_linkkey_file_found = false;
       }
     }
-    if (!btif_in_fetch_bonded_ble_device(name.c_str(), add, p_bonded_devices) &&
-        !bt_linkkey_file_found) {
+    if (!btif_in_fetch_bonded_ble_device(name, add, p_bonded_devices) && !bt_linkkey_file_found) {
       BTIF_TRACE_DEBUG("Remote device:%s, no link key or ble key found",
                        name.c_str());
     }
@@ -868,6 +868,43 @@ bt_status_t btif_storage_remove_bonded_device(
   return ret ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
 }
 
+/* Some devices hardcode sample LTK value from spec, instead of generating one.
+ * Treat such devices as insecure, and remove such bonds when bluetooth
+ * restarts. Removing them after disconnection is handled separately.
+ *
+ * We still allow such devices to bond in order to give the user a chance to
+ * update firmware.
+ */
+static void remove_devices_with_sample_ltk() {
+  std::vector<RawAddress> bad_ltk;
+  for (const section_t& section : btif_config_sections()) {
+    const std::string& name = section.name;
+    if (!RawAddress::IsValidAddress(name)) {
+      continue;
+    }
+
+    RawAddress bd_addr;
+    RawAddress::FromString(name, bd_addr);
+
+    tBTA_LE_KEY_VALUE key;
+    memset(&key, 0, sizeof(key));
+
+    if (btif_storage_get_ble_bonding_key(&bd_addr, BTIF_DM_LE_KEY_PENC, (uint8_t*)&key, sizeof(tBTM_LE_PENC_KEYS)) ==
+        BT_STATUS_SUCCESS) {
+      if (is_sample_ltk(key.penc_key.ltk)) {
+        bad_ltk.push_back(bd_addr);
+      }
+    }
+  }
+
+  for (RawAddress address : bad_ltk) {
+    android_errorWriteLog(0x534e4554, "128437297");
+    LOG(ERROR) << __func__ << ": removing bond to device using test TLK: " << address;
+
+    btif_storage_remove_bonded_device(&address);
+  }
+}
+
 /*******************************************************************************
  *
  * Function         btif_storage_load_bonded_devices
@@ -894,6 +931,8 @@ bt_status_t btif_storage_load_bonded_devices(void) {
   Uuid local_uuids[BT_MAX_NUM_UUIDS];
   Uuid remote_uuids[BT_MAX_NUM_UUIDS];
   bt_status_t status;
+
+  remove_devices_with_sample_ltk();
 
   btif_in_fetch_bonded_devices(&bonded_devices, 1);
 
@@ -1424,7 +1463,7 @@ bt_status_t btif_storage_remove_hid_info(RawAddress* remote_bd_addr) {
   return BT_STATUS_SUCCESS;
 }
 
-constexpr char HEARING_AID_PSM[] = "HearingAidPsm";
+constexpr char HEARING_AID_READ_PSM_HANDLE[] = "HearingAidReadPsmHandle";
 constexpr char HEARING_AID_CAPABILITIES[] = "HearingAidCapabilities";
 constexpr char HEARING_AID_CODECS[] = "HearingAidCodecs";
 constexpr char HEARING_AID_AUDIO_CONTROL_POINT[] =
@@ -1434,6 +1473,8 @@ constexpr char HEARING_AID_AUDIO_STATUS_HANDLE[] =
     "HearingAidAudioStatusHandle";
 constexpr char HEARING_AID_AUDIO_STATUS_CCC_HANDLE[] =
     "HearingAidAudioStatusCccHandle";
+constexpr char HEARING_AID_SERVICE_CHANGED_CCC_HANDLE[] =
+    "HearingAidServiceChangedCccHandle";
 constexpr char HEARING_AID_SYNC_ID[] = "HearingAidSyncId";
 constexpr char HEARING_AID_RENDER_DELAY[] = "HearingAidRenderDelay";
 constexpr char HEARING_AID_PREPARATION_DELAY[] = "HearingAidPreparationDelay";
@@ -1446,7 +1487,10 @@ void btif_storage_add_hearing_aid(const HearingDevice& dev_info) {
           [](const HearingDevice& dev_info) {
             std::string bdstr = dev_info.address.ToString();
             VLOG(2) << "saving hearing aid device: " << bdstr;
-            btif_config_set_int(bdstr, HEARING_AID_PSM, dev_info.psm);
+            btif_config_set_int(bdstr, HEARING_AID_SERVICE_CHANGED_CCC_HANDLE,
+                                dev_info.service_changed_ccc_handle);
+            btif_config_set_int(bdstr, HEARING_AID_READ_PSM_HANDLE,
+                                dev_info.read_psm_handle);
             btif_config_set_int(bdstr, HEARING_AID_CAPABILITIES,
                                 dev_info.capabilities);
             btif_config_set_int(bdstr, HEARING_AID_CODECS, dev_info.codecs);
@@ -1478,19 +1522,35 @@ void btif_storage_load_bonded_hearing_aids() {
     const std::string& name = section.name;
     if (!RawAddress::IsValidAddress(name)) continue;
 
+    int size = STORAGE_UUID_STRING_SIZE * HEARINGAID_MAX_NUM_UUIDS;
+    char uuid_str[size];
+    bool isHearingaidDevice = false;
+    if (btif_config_get_str(name, BTIF_STORAGE_PATH_REMOTE_SERVICE, uuid_str,
+                            &size)) {
+      Uuid p_uuid[HEARINGAID_MAX_NUM_UUIDS];
+      size_t num_uuids =
+          btif_split_uuids_string(uuid_str, p_uuid, HEARINGAID_MAX_NUM_UUIDS);
+      for (size_t i = 0; i < num_uuids; i++) {
+        if (p_uuid[i] == Uuid::FromString("FDF0")) {
+          isHearingaidDevice = true;
+          break;
+        }
+      }
+    }
+    if (!isHearingaidDevice) {
+      continue;
+    }
+
     BTIF_TRACE_DEBUG("Remote device:%s", name.c_str());
 
-    int value;
-    if (!btif_config_get_int(name, HEARING_AID_PSM, &value)) continue;
-    uint16_t psm = value;
-
-    if (btif_in_fetch_bonded_device(name.c_str()) != BT_STATUS_SUCCESS) {
+    if (btif_in_fetch_bonded_device(name) != BT_STATUS_SUCCESS) {
       RawAddress bd_addr;
       RawAddress::FromString(name, bd_addr);
       btif_storage_remove_hearing_aid(bd_addr);
       continue;
     }
 
+    int value;
     uint8_t capabilities = 0;
     if (btif_config_get_int(name, HEARING_AID_CAPABILITIES, &value))
       capabilities = value;
@@ -1510,9 +1570,18 @@ void btif_storage_load_bonded_hearing_aids() {
     if (btif_config_get_int(name, HEARING_AID_AUDIO_STATUS_CCC_HANDLE, &value))
       audio_status_ccc_handle = value;
 
+    uint16_t service_changed_ccc_handle = 0;
+    if (btif_config_get_int(name, HEARING_AID_SERVICE_CHANGED_CCC_HANDLE,
+                            &value))
+      service_changed_ccc_handle = value;
+
     uint16_t volume_handle = 0;
     if (btif_config_get_int(name, HEARING_AID_VOLUME_HANDLE, &value))
       volume_handle = value;
+
+    uint16_t read_psm_handle = 0;
+    if (btif_config_get_int(name, HEARING_AID_READ_PSM_HANDLE, &value))
+      read_psm_handle = value;
 
     uint64_t lvalue;
     uint64_t hi_sync_id = 0;
@@ -1538,9 +1607,10 @@ void btif_storage_load_bonded_hearing_aids() {
     do_in_main_thread(
         FROM_HERE,
         Bind(&HearingAid::AddFromStorage,
-             HearingDevice(bd_addr, psm, capabilities, codecs,
+             HearingDevice(bd_addr, capabilities, codecs,
                            audio_control_point_handle, audio_status_handle,
-                           audio_status_ccc_handle, volume_handle, hi_sync_id,
+                           audio_status_ccc_handle, service_changed_ccc_handle,
+                           volume_handle, read_psm_handle, hi_sync_id,
                            render_delay, preparation_delay),
              is_white_listed));
   }
@@ -1549,22 +1619,28 @@ void btif_storage_load_bonded_hearing_aids() {
 /** Deletes the bonded hearing aid device info from NVRAM */
 void btif_storage_remove_hearing_aid(const RawAddress& address) {
   std::string addrstr = address.ToString();
-
-  btif_config_remove(addrstr, HEARING_AID_PSM);
+  btif_config_remove(addrstr, HEARING_AID_READ_PSM_HANDLE);
   btif_config_remove(addrstr, HEARING_AID_CAPABILITIES);
   btif_config_remove(addrstr, HEARING_AID_CODECS);
   btif_config_remove(addrstr, HEARING_AID_AUDIO_CONTROL_POINT);
   btif_config_remove(addrstr, HEARING_AID_VOLUME_HANDLE);
+  btif_config_remove(addrstr, HEARING_AID_AUDIO_STATUS_HANDLE);
+  btif_config_remove(addrstr, HEARING_AID_AUDIO_STATUS_CCC_HANDLE);
+  btif_config_remove(addrstr, HEARING_AID_SERVICE_CHANGED_CCC_HANDLE);
   btif_config_remove(addrstr, HEARING_AID_SYNC_ID);
+  btif_config_remove(addrstr, HEARING_AID_RENDER_DELAY);
+  btif_config_remove(addrstr, HEARING_AID_PREPARATION_DELAY);
   btif_config_remove(addrstr, HEARING_AID_IS_WHITE_LISTED);
   btif_config_save();
 }
 
-/** Remove the hearing aid device from white list */
-void btif_storage_remove_hearing_aid_white_list(const RawAddress& address) {
+/** Set/Unset the hearing aid device HEARING_AID_IS_WHITE_LISTED flag. */
+void btif_storage_set_hearing_aid_white_list(const RawAddress& address,
+                                             bool add_to_whitelist) {
   std::string addrstr = address.ToString();
 
-  btif_config_set_int(addrstr, HEARING_AID_IS_WHITE_LISTED, false);
+  btif_config_set_int(addrstr, HEARING_AID_IS_WHITE_LISTED, add_to_whitelist);
+  btif_config_save();
 }
 
 /*******************************************************************************

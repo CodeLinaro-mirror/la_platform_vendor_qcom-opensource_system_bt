@@ -24,10 +24,14 @@
 
 #define LOG_TAG "bt_btm_sec"
 
+#include <frameworks/base/core/proto/android/bluetooth/enums.pb.h>
+#include <frameworks/base/core/proto/android/bluetooth/hci/enums.pb.h>
+#include <log/log.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
+#include "common/metrics.h"
 #include "common/time_util.h"
 #include "device/include/controller.h"
 #include "osi/include/log.h"
@@ -51,6 +55,7 @@ bool(APPL_AUTH_WRITE_EXCEPTION)(const RawAddress& bd_addr);
 
 extern void btm_ble_advertiser_notify_terminated_legacy(
     uint8_t status, uint16_t connection_handle);
+extern void bta_dm_remove_device(const RawAddress& bd_addr);
 
 /*******************************************************************************
  *             L O C A L    F U N C T I O N     P R O T O T Y P E S            *
@@ -2606,10 +2611,18 @@ static void btm_sec_bond_cancel_complete(void) {
  ******************************************************************************/
 void btm_create_conn_cancel_complete(uint8_t* p) {
   uint8_t status;
-
   STREAM_TO_UINT8(status, p);
+  RawAddress bd_addr;
+  STREAM_TO_BDADDR(bd_addr, p);
   BTM_TRACE_EVENT("btm_create_conn_cancel_complete(): in State: %s  status:%d",
                   btm_pair_state_descr(btm_cb.pairing_state), status);
+  bluetooth::common::LogLinkLayerConnectionEvent(
+      &bd_addr, bluetooth::common::kUnknownConnectionHandle,
+      android::bluetooth::DIRECTION_OUTGOING, android::bluetooth::LINK_TYPE_ACL,
+      android::bluetooth::hci::CMD_CREATE_CONNECTION_CANCEL,
+      android::bluetooth::hci::EVT_COMMAND_COMPLETE,
+      android::bluetooth::hci::BLE_EVT_UNKNOWN, status,
+      android::bluetooth::hci::STATUS_UNKNOWN);
 
   /* if the create conn cancel cmd was issued by the bond cancel,
   ** the application needs to be notified that bond cancel succeeded
@@ -4531,6 +4544,17 @@ void btm_sec_disconnected(uint16_t handle, uint8_t reason) {
     // Remove temporary key.
     if (p_dev_rec->bond_type == BOND_TYPE_TEMPORARY)
       p_dev_rec->sec_flags &= ~(BTM_SEC_LINK_KEY_KNOWN);
+  }
+
+  /* Some devices hardcode sample LTK value from spec, instead of generating
+   * one. Treat such devices as insecure, and remove such bonds on
+   * disconnection.
+   */
+  if (is_sample_ltk(p_dev_rec->ble.keys.pltk)) {
+    android_errorWriteLog(0x534e4554, "128437297");
+    LOG(INFO) << __func__ << " removing bond to device that used sample LTK: " << p_dev_rec->bd_addr;
+
+    bta_dm_remove_device(p_dev_rec->bd_addr);
   }
 
   BTM_TRACE_EVENT("%s after update sec_flags=0x%x", __func__,
