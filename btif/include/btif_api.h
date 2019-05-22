@@ -444,4 +444,14 @@ bt_status_t btif_config_hci_snoop_log(uint8_t enable);
  ******************************************************************************/
 void btif_debug_bond_event_dump(int fd);
 
+/*******************************************************************************
+ *
+ * Function         btif_read_adapter_property
+ *
+ * Description      Fetches property value from local cache
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btif_read_adapter_property(bt_property_type_t type);
 #endif /* BTIF_API_H */

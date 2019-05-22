@@ -58,7 +58,7 @@
 #include "btif_util.h"
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
-
+#include "btif_api.h"
 /*******************************************************************************
  *  Constants & Macros
  ******************************************************************************/
@@ -1048,13 +1048,13 @@ static void bta_hf_client_evt(tBTA_HF_CLIENT_EVT event,
  ******************************************************************************/
 bt_status_t btif_hf_client_execute_service(bool b_enable) {
   BTIF_TRACE_EVENT("%s: enable: %d", __func__, b_enable);
-
   if (b_enable) {
     /* Enable and register with BTA-HFClient */
     BTIF_TRACE_EVENT("%s: support codec negotiation %d ", __func__,
                      BTIF_HF_CLIENT_FEATURES);
     BTA_HfClientEnable(bta_hf_client_evt, BTIF_HF_CLIENT_SECURITY,
                        BTIF_HF_CLIENT_FEATURES, BTIF_HF_CLIENT_SERVICE_NAME);
+    btif_read_adapter_property(BT_PROPERTY_CLASS_OF_DEVICE);
   } else {
     if (bt_hf_client_callbacks)
     {

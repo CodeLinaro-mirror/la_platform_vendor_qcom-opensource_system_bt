@@ -1223,6 +1223,29 @@ bt_status_t btif_get_remote_service_record(const RawAddress& remote_addr,
 
 /*******************************************************************************
  *
+ * Function         btif_read_adapter_property
+ *
+ * Description      Fetches property value from local cache
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btif_read_adapter_property(bt_property_type_t type) {
+  BTIF_TRACE_DEBUG("%s, prop type %d",__func__, type);
+  char buf[512];
+  bt_status_t status = BT_STATUS_SUCCESS;
+  bt_property_t prop;
+  prop.type = type;
+  prop.val = (void*)buf;
+  prop.len = sizeof(buf);
+  if (prop.type != BT_PROPERTY_LOCAL_LE_FEATURES) {
+    status = btif_storage_get_adapter_property(&prop);
+    HAL_CBACK(bt_hal_cbacks, adapter_properties_cb, status, 1, &prop);
+  }
+  return;
+}
+/*******************************************************************************
+ *
  * Function         btif_get_enabled_services_mask
  *
  * Description      Fetches currently enabled services
