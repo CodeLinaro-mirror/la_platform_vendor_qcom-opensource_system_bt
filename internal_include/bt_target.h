@@ -423,14 +423,14 @@
 /* Default class of device
 * {SERVICE_CLASS, MAJOR_CLASS, MINOR_CLASS}
 *
-* SERVICE_CLASS:0x5A (Bit18 -Rendering,Bit19 - Capturing,Bit21 -Audio
+* SERVICE_CLASS:0x00
 * MAJOR_CLASS:0x02 - Audio / Video
 * MINOR_CLASS:0x0C - Loudspeaker
 *
 */
 #ifndef BTA_DM_COD
 #define BTA_DM_COD \
-  { 0x2C, 0x04, 0x14 }
+  { 0x00, 0x04, 0x14 }
 #endif
 
 /* The number of SCO links. */

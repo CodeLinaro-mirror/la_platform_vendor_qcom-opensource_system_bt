@@ -80,6 +80,7 @@
 #include "device/include/interop.h"
 #include "device/include/controller.h"
 #include "btif_hf.h"
+#include "btif_api.h"
 //#include "btif_bat.h"
 #include "bta/av/bta_av_int.h"
 
@@ -1014,8 +1015,8 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
     case BTA_AV_REGISTER_EVT:
       BTIF_TRACE_EVENT("The AV Handle:%d", ((tBTA_AV*)p_data)->registr.hndl);
       btif_av_cb[index].bta_handle = ((tBTA_AV*)p_data)->registr.hndl;
+      btif_read_adapter_property(BT_PROPERTY_CLASS_OF_DEVICE);
       break;
-
     case BTIF_AV_CONNECT_REQ_EVT: {
         btif_av_connect_req_t* connect_req_p = (btif_av_connect_req_t*)p_data;
         btif_av_cb[index].peer_bda = *connect_req_p->target_bda;

@@ -578,7 +578,8 @@ bt_status_t btif_storage_get_adapter_property(bt_property_t* property) {
     return BT_STATUS_SUCCESS;
   } else if (property->type == BT_PROPERTY_ADAPTER_BONDED_DEVICES) {
     list_t *bonded_devices = list_new(osi_free);
-    int len = 0;
+    int i = 0;
+    property->len = 0;
 
     btif_in_fetch_bonded_devices(&bonded_devices, 0);
 
@@ -589,10 +590,12 @@ bt_status_t btif_storage_get_adapter_property(bt_property_t* property) {
 
     if (list_length(bonded_devices)) {
       property->len = list_length(bonded_devices) * RawAddress::kLength;
+      RawAddress* devices_list = (RawAddress*)osi_malloc(
+        sizeof(RawAddress) * list_length(bonded_devices));
+      property->val = devices_list;
       for (list_node_t* node = list_begin(bonded_devices);
-            node != list_end(bonded_devices); node = list_next(node)) {
-        memcpy(property->val + len, (RawAddress *)list_node(node), RawAddress::kLength);
-        len = len + RawAddress::kLength;
+            node != list_end(bonded_devices); node = list_next(node), i++) {
+        memcpy(&devices_list[i],list_node(node), RawAddress::kLength);
       }
     }
 
@@ -844,7 +847,7 @@ bt_status_t btif_storage_is_device_bonded(RawAddress *remote_bd_addr) {
 bt_status_t btif_storage_load_bonded_devices(void) {
   list_t *bonded_devices = list_new(osi_free);
   uint32_t i = 0;
-  bt_property_t adapter_props[6];
+  bt_property_t adapter_props[7];
   uint32_t num_props = 0;
   bt_property_t remote_properties[8];
   RawAddress addr;
@@ -853,6 +856,7 @@ bt_status_t btif_storage_load_bonded_devices(void) {
   uint32_t disc_timeout;
   Uuid local_uuids[BT_MAX_NUM_UUIDS];
   Uuid remote_uuids[BT_MAX_NUM_UUIDS];
+  DEV_CLASS dev_class;
   bt_status_t status;
 
   btif_in_fetch_bonded_devices(&bonded_devices, 1);
@@ -908,6 +912,12 @@ bt_status_t btif_storage_load_bonded_devices(void) {
     /* LOCAL UUIDs */
     BTIF_STORAGE_GET_ADAPTER_PROP(status, BT_PROPERTY_UUIDS, local_uuids,
                                   sizeof(local_uuids),
+                                  adapter_props[num_props]);
+    num_props++;
+
+    /* LOCAL COD*/
+    BTIF_STORAGE_GET_ADAPTER_PROP(status, BT_PROPERTY_CLASS_OF_DEVICE, dev_class,
+                                  sizeof(DEV_CLASS),
                                   adapter_props[num_props]);
     num_props++;
 
