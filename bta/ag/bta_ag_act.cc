@@ -479,6 +479,7 @@ void bta_ag_rfc_close(tBTA_AG_SCB* p_scb, UNUSED_ATTR tBTA_AG_DATA* p_data) {
   /* stop timers */
   alarm_cancel(p_scb->ring_timer);
   alarm_cancel(p_scb->codec_negotiation_timer);
+  alarm_cancel(p_scb->xsco_conn_collision_timer);
 
   close.hdr.handle = bta_ag_scb_to_idx(p_scb);
   close.hdr.app_id = p_scb->app_id;
@@ -492,7 +493,9 @@ void bta_ag_rfc_close(tBTA_AG_SCB* p_scb, UNUSED_ATTR tBTA_AG_DATA* p_data) {
   /* call close cback */
   (*bta_ag_cb.p_cback)(BTA_AG_CLOSE_EVT, (tBTA_AG*)&close);
 #if (TWS_AG_ENABLED == TRUE)
-  reset_twsp_device(twsp_get_idx_by_scb(p_scb));
+  if (is_twsp_device(p_scb->peer_addr)) {
+    reset_twsp_device(twsp_get_idx_by_scb(p_scb));
+  }
 #endif
 
   /* if not deregistering (deallocating) reopen registered servers */
@@ -587,7 +590,9 @@ void bta_ag_rfc_open(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
                         BTA_AG_SVC_TIMEOUT_EVT, bta_ag_scb_to_idx(p_scb));
 #if (TWS_AG_ENABLED == TRUE)
     //Update TWS+ data structure
-    update_twsp_device(p_scb);
+    if (is_twsp_device(p_scb->peer_addr)) {
+      update_twsp_device(p_scb);
+    }
 #endif
   } else {
     /* else service level conn is open */
