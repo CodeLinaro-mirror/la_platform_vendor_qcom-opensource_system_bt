@@ -43,7 +43,6 @@ const uint32_t bta_av_meta_caps_co_ids[] = {AVRC_CO_METADATA, AVRC_CO_BROADCOM};
 /* AVRCP supported categories */
 #define BTA_AV_RC_SUPF_CT (AVRC_SUPF_CT_CAT2)
 #define BTA_AVK_RC_SUPF_CT       (AVRC_SUPF_CT_CAT1 |                       \
-                                  AVRC_SUPF_CT_BROWSE |                     \
                                   AVRC_SUPF_CT_COVER_ART_GET_IMAGE_PROP |   \
                                   AVRC_SUPF_CT_COVER_ART_GET_IMAGE |        \
                                   AVRC_SUPF_CT_COVER_ART_GET_THUMBNAIL)
@@ -81,9 +80,9 @@ const uint16_t bta_av_audio_flush_to[] = {
 #if ((AVRC_METADATA_INCLUDED == TRUE) && (defined(AVRC_QTI_V1_3_OPTIONAL_FEAT)) \
 && (AVRC_QTI_V1_3_OPTIONAL_FEAT == TRUE))
 #define BTA_AV_RC_SUPF_TG (AVRC_SUPF_TG_CAT1|AVRC_SUPF_TG_MULTI_PLAYER|         \
-AVRC_SUPF_TG_BROWSE|AVRC_SUPF_TG_APP_SETTINGS)
+AVRC_SUPF_TG_APP_SETTINGS)
 #elif (AVRC_METADATA_INCLUDED == TRUE)
-#define BTA_AV_RC_SUPF_TG (AVRC_SUPF_TG_CAT1 | AVRC_SUPF_TG_MULTI_PLAYER | AVRC_SUPF_TG_BROWSE)
+#define BTA_AV_RC_SUPF_TG (AVRC_SUPF_TG_CAT1 | AVRC_SUPF_TG_MULTI_PLAYER)
 #else
 #define BTA_AV_RC_SUPF_TG (AVRC_SUPF_TG_CAT1)
 #endif
