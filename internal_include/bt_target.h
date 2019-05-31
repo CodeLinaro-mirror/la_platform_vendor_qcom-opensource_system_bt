@@ -1171,7 +1171,7 @@
 #endif
 
 #ifndef AVDT_NUM_SEPS
-#define AVDT_NUM_SEPS 14
+#define AVDT_NUM_SEPS 20
 #endif
 
 /* Number of transport channels setup by AVDT for all media streams */
@@ -1392,7 +1392,7 @@
 
 /* Number of simultaneous AVCTP connections. */
 #ifndef AVCT_NUM_CONN
-#define AVCT_NUM_CONN 3
+#define AVCT_NUM_CONN 4
 #endif
 
 #ifndef TWS_AG_ENABLED

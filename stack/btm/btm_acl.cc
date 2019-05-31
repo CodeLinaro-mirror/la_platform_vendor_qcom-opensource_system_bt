@@ -52,6 +52,8 @@
 #include "device/include/interop_config.h"
 #include "btif_av_co.h"
 #include "btif_av.h"
+#include "btif_avk.h"
+#include "btif_avk_co.h"
 #include <hardware/bt_av.h>
 #include "device/include/device_iot_config.h"
 
@@ -583,9 +585,15 @@ tBTM_STATUS BTM_GetRole(const RawAddress& remote_bd_addr, uint8_t* p_role) {
  ******************************************************************************/
 bool IsHighQualityCodecSelected(const RawAddress& remote_bd_addr) {
   BTM_TRACE_DEBUG("%s: RemBdAddr: %s", __func__, remote_bd_addr.ToString().c_str());
+  bool av_connected = btif_av_is_device_connected(remote_bd_addr);
+  bool avk_connected = btif_avk_is_device_connected(remote_bd_addr);
 
-  if (btif_av_is_device_connected(remote_bd_addr)) {
-    A2dpCodecConfig* current_codec = bta_av_get_a2dp_current_codec();
+  if (av_connected || avk_connected) {
+    A2dpCodecConfig* current_codec;
+    if (av_connected)
+        current_codec = bta_av_get_a2dp_current_codec();
+    else
+        current_codec = bta_avk_get_a2dp_current_codec();
     if (!current_codec) return false;
     btav_a2dp_codec_config_t codec_config;
     codec_config = current_codec->getCodecConfig();

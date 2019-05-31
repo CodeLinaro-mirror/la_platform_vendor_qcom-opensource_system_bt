@@ -35,6 +35,7 @@
 #include "bt_target.h"
 #include "bt_types.h"
 #include "bt_utils.h"
+#include "a2dp_codec_api.h"
 #include "btu.h"
 #include "osi/include/osi.h"
 
@@ -832,10 +833,45 @@ void avdt_scb_init(void) {
  ******************************************************************************/
 tAVDT_SCB* avdt_scb_alloc(tAVDT_CS* p_cs) {
   tAVDT_SCB* p_scb = &avdt_cb.scb[0];
-  int i;
+  int i = 0;
+
+  uint8_t av_clients = avdt_scb_get_max_av_client();
+  uint8_t codecNum = AVDT_NUM_SEPS / av_clients;
+
+  if(av_clients > 1)
+  {
+    for (i = 0; i < av_clients; i++) {
+      p_scb = &avdt_cb.scb[i * codecNum];
+      bool valid_locate = false;
+      for (int j=0; j<codecNum; j++) {
+          /* if the cs info is found in the av client, try to find the next */
+          //APPL_TRACE_ERROR("%s_0: codec: %s %s", __func__, A2DP_CodecName(p_scb[j].cs.cfg.codec_info), A2DP_CodecName(p_cs->cfg.codec_info));
+          //APPL_TRACE_ERROR("%s_1: codec: %d %d", __func__, p_scb[j].cs.tsep, p_cs->tsep);
+          if ( !p_scb[j].allocated ) {
+              valid_locate = true;
+              break;
+          }
+          //else if ( (A2DP_GetCodecType(p_scb[j].cs.cfg.codec_info) == A2DP_GetCodecType(p_cs->cfg.codec_info)) && p_scb[j].cs.tsep == p_cs->tsep ) {
+          else if ( (A2DP_CodecTypeEquals(p_scb[j].cs.cfg.codec_info, p_cs->cfg.codec_info)) && p_scb[j].cs.tsep == p_cs->tsep ) {
+              //APPL_TRACE_ERROR("%s_2: codec: %d %d", __func__, p_scb[j].cs.tsep, p_cs->tsep);
+              break;
+          }
+      }
+      /* if the cs is not found, or empty block is found we can add this cs in this av client */
+      if (valid_locate)
+          break;
+    }
+
+
+    if (i == av_clients) {
+      /* out of ccbs */
+      AVDT_TRACE_WARNING("%s:Out of scbs", __func__);
+      return NULL;
+    }
+  }
 
   /* find available scb */
-  for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++) {
+  for (i = 0; i < codecNum; i++, p_scb++) {
     if (!p_scb->allocated) {
       memset(p_scb, 0, sizeof(tAVDT_SCB));
       p_scb->allocated = true;
@@ -852,7 +888,7 @@ tAVDT_SCB* avdt_scb_alloc(tAVDT_CS* p_cs) {
     }
   }
 
-  if (i == AVDT_NUM_SEPS) {
+  if (i == codecNum) {
     /* out of ccbs */
     p_scb = NULL;
     AVDT_TRACE_WARNING("Out of scbs");
@@ -935,7 +971,8 @@ tAVDT_SCB* avdt_scb_by_peer_addr(RawAddress& peer_addr) {
   tAVDT_SCB* p_scb = &avdt_cb.scb[0];
   AVDT_TRACE_DEBUG("%s: addr: %s",__func__, peer_addr.ToString().c_str());
   int num_conn = avdt_scb_get_max_av_client();
-  int num_codecs = (avdt_ccb_get_num_allocated_seps())/num_conn;
+  //int num_codecs = (avdt_ccb_get_num_allocated_seps())/num_conn;
+  int num_codecs = (AVDT_NUM_SEPS)/(avdt_scb_get_max_av_client());
   for (int i = 0; i < num_conn; i++, p_scb+= (num_codecs)) {
     AVDT_TRACE_DEBUG("%s: hdl = %d",__func__, avdt_scb_to_hdl(p_scb));
     if (p_scb->allocated && p_scb->peer_addr == peer_addr) {
@@ -1062,8 +1099,10 @@ uint8_t avdt_scb_get_max_av_client() {
  ******************************************************************************/
 void avdt_associate_scb(uint8_t hdl, const RawAddress& bd_addr) {
   tAVDT_SCB* p_scb;
-  int num_codecs = (avdt_ccb_get_num_allocated_seps())/(avdt_scb_get_max_av_client());
+  //int num_codecs = (avdt_ccb_get_num_allocated_seps())/num_conn;
+  int num_codecs = (AVDT_NUM_SEPS)/(avdt_scb_get_max_av_client());
   int index = ((hdl-1) % AVDT_AV_HNDL_MSK) * (num_codecs);
+  AVDT_TRACE_ERROR("%s: index: %d ", __func__, index);
   p_scb = &avdt_cb.scb[index];
   if (p_scb != NULL) {
     p_scb->peer_addr = bd_addr;

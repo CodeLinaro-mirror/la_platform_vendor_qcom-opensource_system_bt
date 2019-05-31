@@ -770,6 +770,7 @@ extern void bta_av_restore_switch(void);
 extern uint16_t bta_av_chk_mtu(tBTA_AV_SCB* p_scb, uint16_t mtu);
 extern void bta_av_conn_cback(uint8_t handle, const RawAddress* bd_addr,
                               uint8_t event, tAVDT_CTRL* p_data);
+extern bool bta_av_is_scb_available(void);
 extern uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, uint8_t role, uint8_t shdl,
                                 uint8_t lidx);
 extern void bta_av_stream_chg(tBTA_AV_SCB* p_scb, bool started);

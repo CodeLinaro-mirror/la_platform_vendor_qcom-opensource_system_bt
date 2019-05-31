@@ -303,7 +303,7 @@ static void btif_stats_add_bond_event(const RawAddress& bd_addr,
  *****************************************************************************/
 extern bt_status_t btif_hf_execute_service(bool b_enable);
 extern bt_status_t btif_av_execute_service(bool b_enable);
-extern bt_status_t btif_av_sink_execute_service(bool b_enable);
+extern bt_status_t btif_avk_sink_execute_service(bool b_enable);
 extern bt_status_t btif_hh_execute_service(bool b_enable);
 extern bt_status_t btif_hf_client_execute_service(bool b_enable);
 extern bt_status_t btif_sdp_execute_service(bool b_enable);
@@ -322,6 +322,7 @@ extern void btif_vendor_iot_device_broadcast_event(RawAddress* bd_addr,
 extern void btif_iot_update_remote_info(tBTA_DM_AUTH_CMPL* p_auth_cmpl,
                 bool is_ble, bool is_ssp);
 #endif
+extern void btif_avk_move_idle(RawAddress bd_addr);
 /******************************************************************************
  *  Functions
  *****************************************************************************/
@@ -404,7 +405,7 @@ bt_status_t btif_in_execute_service_request(tBTA_SERVICE_ID service_id,
       btif_av_execute_service(b_enable);
     } break;
     case BTA_A2DP_SINK_SERVICE_ID: {
-      btif_av_sink_execute_service(b_enable);
+      btif_avk_sink_execute_service(b_enable);
     } break;
     case BTA_HID_SERVICE_ID: {
       btif_hh_execute_service(b_enable);
@@ -2031,6 +2032,7 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
         BTIF_TRACE_DEBUG("num_active_br_edr_links is %d ",num_active_br_edr_links);
       }
       btif_av_move_idle(bd_addr);
+      btif_avk_move_idle(bd_addr);
       BTIF_TRACE_DEBUG(
           "BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
       HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,

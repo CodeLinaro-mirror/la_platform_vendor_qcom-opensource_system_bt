@@ -182,6 +182,7 @@ typedef struct {
   uint32_t company_id;            /* the company ID  */
   uint8_t conn;                   /* Connection role (Initiator/acceptor) */
   uint8_t control;                /* Control role (Control/Target) */
+  uint8_t av_sep_type;            /* Profile which created this AVRCP, 1 for src, 2 for Sink */
 } tAVRC_CONN_CB;
 
 typedef struct {

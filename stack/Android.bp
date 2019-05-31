@@ -38,10 +38,12 @@ cc_library_static {
         "vendor/qcom/opensource/commonsys/system/bt/bta/include",
         "vendor/qcom/opensource/commonsys/system/bt/bta/sys",
         "vendor/qcom/opensource/commonsys/system/bt/utils/include",
-        "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext",
+	"vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext",
+        "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/include",
         "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/stack/include",
         "vendor/qcom/opensource/commonsys/bluetooth_ext/vhal/include",
         "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/stack/btm",
+	"vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/btif/include",
         "vendor/qcom/opensource/commonsys/system/bt/include",
     ],
     srcs: [
