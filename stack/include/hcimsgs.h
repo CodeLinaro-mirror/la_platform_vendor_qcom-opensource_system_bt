@@ -225,6 +225,7 @@ extern void btsnd_hcic_rmt_ver_req(
 extern void btsnd_hcic_read_rmt_clk_offset(
     uint16_t handle); /* Remote Clock Offset */
 extern void btsnd_hcic_read_lmp_handle(uint16_t handle); /* Remote LMP Handle */
+extern void btsnd_hcic_write_voice_pathid(uint8_t pathid);
 extern void btsnd_hcic_setup_esco_conn(uint16_t handle,
                                        uint32_t transmit_bandwidth,
                                        uint32_t receive_bandwidth,

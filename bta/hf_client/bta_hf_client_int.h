@@ -255,7 +255,7 @@ extern void bta_hf_client_sco_open(tBTA_HF_CLIENT_DATA* p_data);
 extern void bta_hf_client_sco_close(tBTA_HF_CLIENT_DATA* p_data);
 extern void bta_hf_client_sco_shutdown(tBTA_HF_CLIENT_CB* client_cb);
 extern void bta_hf_client_cback_sco(tBTA_HF_CLIENT_CB* client_cb,
-                                    uint8_t event);
+                                    uint8_t event, uint16_t sco_idx);
 
 /* AT command functions */
 extern void bta_hf_client_at_parse(tBTA_HF_CLIENT_CB* client_cb, char* buf,
