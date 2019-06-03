@@ -1201,6 +1201,13 @@ static void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status,
             btm_ble_create_ll_conn_complete(status);
             break;
 
+          case HCI_BLE_UPD_LL_CONN_PARAMS:
+            if (p_cmd != NULL) {
+              p_cmd++;
+              STREAM_TO_UINT16(handle, p_cmd);
+            }
+            l2cble_process_conn_update_failed(handle, status);
+            break;
 #if (BTM_SCO_INCLUDED == TRUE)
           case HCI_SETUP_ESCO_CONNECTION:
           case HCI_ENH_SETUP_ESCO_CONNECTION:

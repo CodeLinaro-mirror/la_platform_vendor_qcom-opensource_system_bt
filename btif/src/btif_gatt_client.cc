@@ -553,9 +553,22 @@ bt_status_t btif_gattc_conn_parameter_update(const RawAddress& bd_addr,
                                              uint16_t min_ce_len,
                                              uint16_t max_ce_len) {
   CHECK_BTGATT_INIT();
-  return do_in_jni_thread(Bind(
-      base::IgnoreResult(&btif_gattc_conn_parameter_update_impl), bd_addr,
-      min_interval, max_interval, latency, timeout, min_ce_len, max_ce_len));
+  if (PARAM_INRANGE(min_interval, BTM_BLE_CONN_INT_MIN,
+                    BTM_BLE_CONN_INT_MAX) &&
+      PARAM_INRANGE(max_interval, BTM_BLE_CONN_INT_MIN,
+                    BTM_BLE_CONN_INT_MAX) &&
+      PARAM_INRANGE(timeout, BTM_BLE_CONN_SUP_TOUT_MIN,
+                    BTM_BLE_CONN_SUP_TOUT_MAX) &&
+      min_interval <= max_interval &&
+      ((timeout << 3) >= max_interval) &&
+      latency < BTM_BLE_CONN_LATENCY_MAX &&
+      ((timeout << 2 ) >= ((latency+1)*max_interval))) {
+      return do_in_jni_thread(Bind(
+        base::IgnoreResult(&btif_gattc_conn_parameter_update_impl), bd_addr,
+        min_interval, max_interval, latency, timeout, min_ce_len, max_ce_len));
+  } else {
+     return BT_STATUS_FAIL;
+  }
 }
 
 bt_status_t btif_gattc_set_preferred_phy(const RawAddress& bd_addr,
