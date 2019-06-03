@@ -845,7 +845,7 @@ extern void l2c_ble_link_adjust_allocation(void);
 extern void l2cble_process_conn_update_evt(uint16_t handle, uint8_t status,
                                            uint16_t interval, uint16_t latency,
                                            uint16_t timeout);
-
+extern void l2cble_process_conn_update_failed(uint16_t handle, uint8_t status);
 extern void l2cble_credit_based_conn_req(tL2C_CCB* p_ccb);
 extern void l2cble_credit_based_conn_res(tL2C_CCB* p_ccb, uint16_t result);
 extern void l2cble_send_peer_disc_req(tL2C_CCB* p_ccb);

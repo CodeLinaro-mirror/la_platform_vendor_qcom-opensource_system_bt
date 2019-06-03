@@ -1914,7 +1914,7 @@ void bta_hh_le_conn_update(tBTA_GATTC_CONN_UPDATE* p_data) {
 
   if (p_dev_cb == NULL) {
     APPL_TRACE_ERROR(
-        "%s: configure mtu received from Unknown device, conn_id: 0x%04x",
+        "%s: conn update received from Unknown device, conn_id: 0x%04x",
         __func__, p_data->conn_id);
     return;
   }
