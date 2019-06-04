@@ -6667,6 +6667,22 @@ static bt_status_t send_passthrough_cmd(RawAddress* bd_addr, uint8_t key_code,
  ********************************************************************/
 void get_attribute_cmd(uint8_t num_attr, uint32_t* p_attr_list,
                        btif_rc_device_cb_t* p_dev) {
+  // For IOP Issue, peer devices without CA featue
+  // will force restart BT when it received such cmd params
+  // AVRC_MAX_NUM_MEDIA_ATTR_ID = 8,
+  // attr_list added AVRC_MEDIA_ATTR_ID_COVER_ART
+  uint32_t attr_list[] = {
+      AVRC_MEDIA_ATTR_ID_TITLE,       AVRC_MEDIA_ATTR_ID_ARTIST,
+      AVRC_MEDIA_ATTR_ID_ALBUM,       AVRC_MEDIA_ATTR_ID_TRACK_NUM,
+      AVRC_MEDIA_ATTR_ID_NUM_TRACKS,  AVRC_MEDIA_ATTR_ID_GENRE,
+      AVRC_MEDIA_ATTR_ID_PLAYING_TIME};
+
+  if (!(p_dev->rc_features & BTA_AV_FEAT_CA) &&
+      num_attr == AVRC_MAX_NUM_MEDIA_ATTR_ID) {
+    p_attr_list = attr_list;
+    num_attr = sizeof(attr_list)/sizeof(attr_list[0]);
+  }
+
   if ((BTA_AvIsBrowsingSupported() == TRUE) &&
       (p_dev->rc_features & BTA_AV_FEAT_BROWSE) &&
       (p_dev->rc_playing_uid != RC_INVALID_TRACK_ID) &&
