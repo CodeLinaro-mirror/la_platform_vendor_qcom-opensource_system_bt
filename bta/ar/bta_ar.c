@@ -177,9 +177,6 @@ static void bta_ar_avdt_cback(UINT8 handle, BD_ADDR bd_addr, UINT8 event, tAVDT_
                 if (bta_ar_cb.p_av_conn_cback)
                 {
                     APPL_TRACE_DEBUG(" %s fake AV DiscConn Cback after AVK setconfig",__FUNCTION__);
-                    /* remove AV Mask */
-                    update_avdtp_connection_info(bd_addr, AVDT_AR_EXT_DISCONNECT_IND_EVT, BTA_AR_EXT_AV_MASK);
-                    (*bta_ar_cb.p_av_conn_cback)(handle, bd_addr, AVDT_DISCONNECT_IND_EVT, p_data);
                 }
             }
         }
@@ -192,9 +189,6 @@ static void bta_ar_avdt_cback(UINT8 handle, BD_ADDR bd_addr, UINT8 event, tAVDT_
                 if (bta_ar_cb.p_avk_conn_cback)
                 {
                     APPL_TRACE_DEBUG(" %s fake AVK DiscConn Cback after AV setconfig", __FUNCTION__);
-                    /* remove AVK Mask */
-                    update_avdtp_connection_info(bd_addr, AVDT_AR_EXT_DISCONNECT_IND_EVT, BTA_AR_EXT_AVK_MASK);
-                    (*bta_ar_cb.p_avk_conn_cback)(handle, bd_addr, AVDT_DISCONNECT_IND_EVT, p_data);
                 }
             }
         }

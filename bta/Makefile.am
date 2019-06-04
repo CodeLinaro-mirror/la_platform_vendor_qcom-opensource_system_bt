@@ -26,9 +26,11 @@ AM_CPPFLAGS = -Iinclude \
         -I../udrv/include \
         -I../vnd/include \
         -I../utils/include \
+        -I../bta/av \
         -I$(external_bt_path)/system_bt_ext \
         -I$(external_bt_path)/system_bt_ext/bta/include \
-        -I$(external_bt_path)/system_bt_ext/bta/ar
+        -I$(external_bt_path)/system_bt_ext/bta/ar \
+        -I$(external_bt_path)/system_bt_ext/bta/avk
 c_sources = \
         dm/bta_dm_ci.c \
         dm/bta_dm_act.c \
