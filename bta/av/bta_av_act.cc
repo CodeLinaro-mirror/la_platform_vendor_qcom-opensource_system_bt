@@ -37,6 +37,7 @@
 #include "bta_av_api.h"
 #include "bta_av_int.h"
 #include "l2c_api.h"
+#include "log/log.h"
 #include "osi/include/list.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
@@ -302,6 +303,7 @@ static void bta_av_rc_msg_cback(uint8_t handle, uint8_t label, uint8_t opcode,
     data_len = (uint16_t)p_msg->pass.pass_len;
   }
 
+  APPL_TRACE_IMP("%s data_len: %u", __func__, data_len);
   /* Create a copy of the message */
   tBTA_AV_RC_MSG* p_buf =
       (tBTA_AV_RC_MSG*)osi_malloc(sizeof(tBTA_AV_RC_MSG) + data_len);
@@ -327,6 +329,7 @@ static void bta_av_rc_msg_cback(uint8_t handle, uint8_t label, uint8_t opcode,
 
   if (opcode == AVRC_OP_BROWSE) {
     /* set p_pkt to NULL, so avrc would not free the buffer */
+    APPL_TRACE_IMP("%s browse packet length: %d", __func__, p_msg->browse.browse_len);
     p_msg->browse.p_browse_pkt = NULL;
   }
 
@@ -843,11 +846,16 @@ tBTA_AV_EVT bta_av_proc_meta_cmd(tAVRC_RESPONSE* p_rc_rsp,
       case AVRC_PDU_GET_CAPABILITIES:
         /* process GetCapabilities command without reporting the event to app */
         evt = 0;
+        if (p_vendor->vendor_len != 5) {
+          android_errorWriteLog(0x534e4554, "111893951");
+          p_rc_rsp->get_caps.status = AVRC_STS_INTERNAL_ERR;
+          break;
+        }
         u8 = *(p_vendor->p_vendor_data + 4);
         p = p_vendor->p_vendor_data + 2;
         p_rc_rsp->get_caps.capability_id = u8;
         BE_STREAM_TO_UINT16(u16, p);
-        if ((u16 != 1) || (p_vendor->vendor_len != 5)) {
+        if (u16 != 1) {
           p_rc_rsp->get_caps.status = AVRC_STS_INTERNAL_ERR;
         } else {
           p_rc_rsp->get_caps.status = AVRC_STS_NO_ERROR;
@@ -1075,6 +1083,7 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
     av.meta_msg.p_msg = &p_data->rc_msg.msg;
     av.meta_msg.p_data = p_data->rc_msg.msg.browse.p_browse_data;
     av.meta_msg.len = p_data->rc_msg.msg.browse.browse_len;
+    APPL_TRACE_DEBUG("%s: meta msg length: %d", __func__, av.meta_msg.len);
     evt = BTA_AV_META_MSG_EVT;
   }
 

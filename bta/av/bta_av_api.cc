@@ -62,6 +62,7 @@ static const tBTA_SYS_REG bta_av_reg = {bta_av_hdl_event, BTA_AvDisable};
  ******************************************************************************/
 void BTA_AvEnable(tBTA_SEC sec_mask, tBTA_AV_FEAT features,
                   tBTA_AV_CBACK* p_cback) {
+  APPL_TRACE_ERROR("%s:", __func__);
   tBTA_AV_API_ENABLE* p_buf =
       (tBTA_AV_API_ENABLE*)osi_malloc(sizeof(tBTA_AV_API_ENABLE));
 
@@ -652,4 +653,15 @@ void BTA_AvMetaCmd(uint8_t rc_handle, uint8_t label, tBTA_AV_CMD cmd_code,
   p_buf->label = label;
 
   bta_sys_sendmsg(p_buf);
+}
+
+void bta_av_sniff_enable(bool policy_enable, const RawAddress& peer_addr) {
+  APPL_TRACE_DEBUG("%s: sniff policy: %d, peer_addr: %s: ",
+                       __func__, policy_enable, peer_addr.ToString().c_str());
+  uint8_t policy = HCI_ENABLE_SNIFF_MODE;
+
+  if (policy_enable)
+    bta_sys_set_policy(BTA_ID_AV, policy, peer_addr);
+  else
+    bta_sys_clear_policy(BTA_ID_AV, policy, peer_addr);
 }

@@ -59,7 +59,7 @@ const tBTA_SERVICE_MASK bta_ag_svc_mask[BTA_AG_NUM_IDX] = {
     BTA_HSP_SERVICE_MASK, BTA_HFP_SERVICE_MASK};
 
 typedef void (*tBTA_AG_ATCMD_CBACK)(tBTA_AG_SCB* p_scb, uint16_t cmd,
-                                    uint8_t arg_type, char* p_arg,
+                                    uint8_t arg_type, char* p_arg, char* p_end,
                                     int16_t int_arg);
 
 const tBTA_AG_ATCMD_CBACK bta_ag_at_cback_tbl[BTA_AG_NUM_IDX] = {
@@ -143,12 +143,6 @@ void bta_ag_register(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
 void bta_ag_deregister(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
   /* set dealloc */
   p_scb->dealloc = true;
-
-  if (p_scb->p_disc_db) {
-    APPL_TRACE_DEBUG(" %s Cancel pending SDP ",__func__);
-    (void)SDP_CancelServiceSearch(p_scb->p_disc_db);
-    bta_ag_free_db(p_scb, NULL);
-  }
 
   /* remove sdp records */
   bta_ag_del_records(p_scb, p_data);

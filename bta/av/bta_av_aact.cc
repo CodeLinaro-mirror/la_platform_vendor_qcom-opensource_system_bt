@@ -1357,9 +1357,12 @@ void bta_av_config_ind(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 void bta_av_disconnect_req(tBTA_AV_SCB* p_scb,
                            UNUSED_ATTR tBTA_AV_DATA* p_data) {
   tBTA_AV_RCB* p_rcb;
+  uint8_t policy = HCI_ENABLE_SNIFF_MODE;
 
   APPL_TRACE_WARNING("%s: conn_lcb: 0x%x peer_addr: %s", __func__,
                      bta_av_cb.conn_lcb, p_scb->peer_addr.ToString().c_str());
+
+  bta_sys_set_policy(BTA_ID_AV, policy, p_scb->peer_addr);
 
   alarm_cancel(bta_av_cb.link_signalling_timer);
   alarm_cancel(p_scb->avrc_ct_timer);
@@ -2193,7 +2196,9 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   APPL_TRACE_DEBUG("%s: sep_idx: %d", __func__, p_scb->sep_idx);
   AVDT_ConfigRsp(p_scb->avdt_handle, p_scb->avdt_label, AVDT_ERR_UNSUP_CFG, 0);
 
-  reject.bd_addr = p_data->str_msg.bd_addr;
+  APPL_TRACE_DEBUG("%s peer_address: %s, handle: %d", __func__, p_scb->peer_addr.ToString().c_str(), p_scb->hndl);
+  //reject.bd_addr = p_data->str_msg.bd_addr;
+  reject.bd_addr = p_scb->peer_addr;
   reject.hndl = p_scb->hndl;
 
   tBTA_AV bta_av_data;
