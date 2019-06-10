@@ -290,6 +290,17 @@ uint16_t btif_dm_get_connection_state(const bt_bdaddr_t *bd_addr);
 
 /*******************************************************************************
 **
+** Function         btif_dm_get_role_req
+**
+** Description      Get role of dut with a given remote device
+**
+** Returns          void
+**
+*******************************************************************************/
+void btif_dm_get_role_req(const bt_bdaddr_t *bd_addr);
+
+/*******************************************************************************
+**
 ** Function         btif_dm_pin_reply
 **
 ** Description      BT legacy pairing - PIN code reply
