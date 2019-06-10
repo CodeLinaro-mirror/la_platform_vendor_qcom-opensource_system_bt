@@ -45,6 +45,9 @@ constexpr uint16_t CONNECTION_INTERVAL_10MS_PARAM = 0x0008;
 constexpr uint16_t CONNECTION_INTERVAL_20MS_PARAM = 0x0010;
 
 void btif_storage_add_hearing_aid(const HearingDevice& dev_info);
+bool btif_storage_get_hearing_aid_prop(
+    const RawAddress& address, uint8_t* capabilities, uint64_t* hi_sync_id,
+    uint16_t* render_delay, uint16_t* preparation_delay, uint16_t* codecs);
 
 constexpr uint8_t CODEC_G722_16KHZ = 0x01;
 constexpr uint8_t CODEC_G722_24KHZ = 0x02;
@@ -68,6 +71,13 @@ constexpr uint8_t AUDIOTYPE_UNKNOWN = 0x00;
 // Status of the other side Hearing Aids device
 constexpr uint8_t OTHER_SIDE_NOT_STREAMING = 0x00;
 constexpr uint8_t OTHER_SIDE_IS_STREAMING = 0x01;
+
+// This ADD_RENDER_DELAY_INTERVALS is the number of connection intervals when
+// the audio data packet is send by Audio Engine to when the Hearing Aids device
+// received it from the air. We assumed that there is 2 data buffer queued from
+// audio subsystem to bluetooth chip. Then the estimated OTA delay is two
+// connnection intervals.
+constexpr uint16_t ADD_RENDER_DELAY_INTERVALS = 4;
 
 namespace {
 
@@ -340,7 +350,11 @@ class HearingAidImpl : public HearingAid {
 
     HearingDevice* hearingDevice = hearingDevices.FindByAddress(address);
     if (!hearingDevice) {
-      DVLOG(2) << "Skipping unknown device, address=" << address;
+      /* When Hearing Aid is quickly disabled and enabled in settings, this case
+       * might happen */
+      LOG(WARNING) << "Closing connection to non hearing-aid device, address="
+                   << address;
+      BTA_GATTC_Close(conn_id);
       return;
     }
 
@@ -602,7 +616,7 @@ class HearingAidImpl : public HearingAid {
       return;
     }
 
-    const std::vector<gatt::Service>* services = BTA_GATTC_GetServices(conn_id);
+    const std::list<gatt::Service>* services = BTA_GATTC_GetServices(conn_id);
 
     const gatt::Service* service = nullptr;
     for (const gatt::Service& tmp : *services) {
@@ -626,11 +640,16 @@ class HearingAidImpl : public HearingAid {
 
     for (const gatt::Characteristic& charac : service->characteristics) {
       if (charac.uuid == READ_ONLY_PROPERTIES_UUID) {
-        DVLOG(2) << "Reading read only properties "
-                 << loghex(charac.value_handle);
-        BtaGattQueue::ReadCharacteristic(
-            conn_id, charac.value_handle,
-            HearingAidImpl::OnReadOnlyPropertiesReadStatic, nullptr);
+        if (!btif_storage_get_hearing_aid_prop(
+                hearingDevice->address, &hearingDevice->capabilities,
+                &hearingDevice->hi_sync_id, &hearingDevice->render_delay,
+                &hearingDevice->preparation_delay, &hearingDevice->codecs)) {
+          VLOG(2) << "Reading read only properties "
+                  << loghex(charac.value_handle);
+          BtaGattQueue::ReadCharacteristic(
+              conn_id, charac.value_handle,
+              HearingAidImpl::OnReadOnlyPropertiesReadStatic, nullptr);
+        }
       } else if (charac.uuid == AUDIO_CONTROL_POINT_UUID) {
         hearingDevice->audio_control_point_handle = charac.value_handle;
         // store audio control point!
@@ -975,7 +994,14 @@ class HearingAidImpl : public HearingAid {
       codec.bit_rate = 16;
       codec.data_interval_ms = default_data_interval_ms;
 
-      HearingAidAudioSource::Start(codec, audioReceiver);
+      uint16_t delay_report_ms = 0;
+      if (hearingDevice.render_delay != 0) {
+        delay_report_ms =
+            hearingDevice.render_delay +
+            (ADD_RENDER_DELAY_INTERVALS * default_data_interval_ms);
+      }
+
+      HearingAidAudioSource::Start(codec, audioReceiver, delay_report_ms);
     }
   }
 
@@ -1409,7 +1435,8 @@ class HearingAidImpl : public HearingAid {
     bool connected = hearingDevice->accepting_audio;
 
     LOG(INFO) << "GAP_EVT_CONN_CLOSED: " << hearingDevice->address
-              << ", playback_started=" << hearingDevice->playback_started;
+              << ", playback_started=" << hearingDevice->playback_started
+              << ", accepting_audio=" << hearingDevice->accepting_audio;
 
     if (hearingDevice->connecting_actively) {
       // cancel pending direct connect
@@ -1441,6 +1468,8 @@ class HearingAidImpl : public HearingAid {
               << loghex(conn_id);
       return;
     }
+    VLOG(2) << __func__ << ": conn_id=" << loghex(conn_id)
+            << ", reason=" << loghex(reason) << ", remote_bda=" << remote_bda;
 
     // Inform the other side (if any) of this disconnection
     std::vector<uint8_t> inform_disconn_state(
