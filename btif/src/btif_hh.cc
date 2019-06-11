@@ -1128,13 +1128,13 @@ static void btif_hh_upstreams_evt(uint16_t event, char* p_param) {
        break;
 
     case BTA_HH_CFG_MTU_EVT:
-       BTIF_TRACE_DEBUG( "BTA_HH_SEND_RAW_DATA_EVT");
+       BTIF_TRACE_DEBUG( "BTA_HH_CFG_MTU_EVT");
        HAL_CBACK(bt_hh_vendor_callbacks, cfg_mtu_cb,p_data->mtu_config.bda,
-                 p_data->mtu_config.status,p_data->mtu_config.mtu);
+                 p_data->mtu_config.mtu,p_data->mtu_config.status);
        break;
 
     case BTA_HH_CONN_UPDATE_EVT:
-       BTIF_TRACE_DEBUG( "BTA_HH_SEND_RAW_DATA_EVT");
+       BTIF_TRACE_DEBUG( "BTA_HH_CONN_UPDATE_EVT");
        HAL_CBACK(bt_hh_vendor_callbacks, conn_params_cb,p_data->conn_params.bda,
                  p_data->conn_params.interval,p_data->conn_params.latency,
                  p_data->conn_params.timeout,p_data->conn_params.status);
