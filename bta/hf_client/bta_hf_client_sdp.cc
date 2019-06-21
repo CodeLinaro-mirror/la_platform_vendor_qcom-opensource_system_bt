@@ -331,7 +331,7 @@ void bta_hf_client_do_disc(tBTA_HF_CLIENT_CB* client_cb) {
 
   if (!db_inited) {
     /*free discover db */
-    bta_hf_client_free_db(NULL);
+    osi_free_and_reset((void**)&client_cb->p_disc_db);
     /* sent failed event */
     tBTA_HF_CLIENT_DATA msg;
     msg.hdr.layer_specific = client_cb->handle;
