@@ -102,6 +102,7 @@ enum {
   BTA_HF_CLIENT_AT_CGMI,
   BTA_HF_CLIENT_AT_CGMM_QUERY,
   BTA_HF_CLIENT_AT_CGMM,
+  BTA_HF_CLIENT_AT_VENDOR_SPECIFIC,
 };
 
 /*****************************************************************************

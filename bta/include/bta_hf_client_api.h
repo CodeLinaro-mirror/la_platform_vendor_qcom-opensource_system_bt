@@ -123,6 +123,9 @@ typedef uint8_t tBTA_HF_CLIENT_AT_RESULT_TYPE;
 #define BTA_HF_CLIENT_RING_INDICATION 21 /* HF Client ring indication */
 #define BTA_HF_CLIENT_CGMI_EVT 22 /* AG manufacturer identification */
 #define BTA_HF_CLIENT_CGMM_EVT 23 /* AG manufacturer model */
+
+#define BTA_HF_CLIENT_UNKNOWN_EVT 24 /* Unknown or vendor specific Event */
+
 #define BTA_HF_CLIENT_DISABLE_EVT 30     /* HF Client disabled */
 
 typedef uint8_t tBTA_HF_CLIENT_EVT;
@@ -163,6 +166,7 @@ typedef uint8_t tBTA_HF_CLIENT_IND_TYPE;
 #define BTA_HF_CLIENT_AT_CMD_BINP 13
 #define BTA_HF_CLIENT_AT_CMD_BLDN 14
 #define BTA_HF_CLIENT_AT_CMD_NREC 15
+#define BTA_HF_CLIENT_AT_CMD_VENDOR_SPECIFIC_CMD 16
 
 typedef uint8_t tBTA_HF_CLIENT_AT_CMD_TYPE;
 
@@ -252,6 +256,12 @@ typedef struct {
   char model[BTA_HF_CLIENT_MANUFACTURER_MODEL_LEN + 1];
 } tBTA_HF_CLIENT_CGMM;
 
+/* data associated with BTA_HF_CLIENT_UNKNOWN_EVT event */
+#define BTA_HF_CLIENT_UNKOWN_EVENT_LEN 32
+typedef struct {
+  RawAddress bd_addr;
+  char event_string[BTA_HF_CLIENT_UNKOWN_EVENT_LEN + 1];
+} tBTA_HF_CLIENT_UNKNOWN;
 
 /* union of data associated with AG callback */
 typedef union {
@@ -269,6 +279,7 @@ typedef union {
   tBTA_HF_CLIENT_CNUM cnum;
   tBTA_HF_CLIENT_CGMI cgmi;
   tBTA_HF_CLIENT_CGMM cgmm;
+  tBTA_HF_CLIENT_UNKNOWN unknown;
 } tBTA_HF_CLIENT;
 
 typedef uint32_t tBTA_HF_CLIENT_FEAT;

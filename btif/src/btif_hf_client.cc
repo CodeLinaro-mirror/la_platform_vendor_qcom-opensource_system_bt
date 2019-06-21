@@ -1011,6 +1011,10 @@ static void btif_hf_client_upstreams_evt(uint16_t event, char* p_param) {
     case BTA_HF_CLIENT_CGMM_EVT:
       HAL_CBACK(bt_hf_client_callbacks, cgmm_cb, &cb->peer_bda, p_data->cgmm.model);
       break;
+    case BTA_HF_CLIENT_UNKNOWN_EVT:
+      HAL_CBACK(bt_hf_client_callbacks, unknown_event_cb, &cb->peer_bda,
+                p_data->unknown.event_string);
+      break;
     default:
       BTIF_TRACE_WARNING("%s: Unhandled event: %d", __func__, event);
       break;
