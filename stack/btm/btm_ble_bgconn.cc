@@ -409,7 +409,7 @@ bool btm_ble_start_auto_conn(bool start) {
   bool exec = true;
   uint16_t scan_int;
   uint16_t scan_win;
-  uint8_t own_addr_type = p_cb->addr_mgnt_cb.own_addr_type;
+  uint8_t own_addr_type = BLE_ADDR_PUBLIC;
   uint8_t peer_addr_type = BLE_ADDR_PUBLIC;
 
   uint8_t phy = PHY_LE_1M;
