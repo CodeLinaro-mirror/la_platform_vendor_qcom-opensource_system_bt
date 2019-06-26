@@ -86,6 +86,7 @@
 #endif
 #include "device/include/device_iot_config.h"
 #include "bta/ar/bta_ar_int_ext.h"
+#include "bta_avk_int.h"
 
 /*****************************************************************************
  *  Constants
@@ -115,6 +116,7 @@
 #define BTIF_A2DP_MAX_BITPOOL_MQ 35
 #define AVDTP_2DH3_MTU 360
 uint8_t last_sent_vsc_cmd = 0;
+extern tBTA_AVK_CB bta_avk_cb;
 extern bool enc_update_in_progress;
 extern bool tx_enc_update_initiated;
 extern tBTIF_A2DP_SOURCE_VSC btif_a2dp_src_vsc;
@@ -1364,6 +1366,7 @@ void bta_av_config_ind(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   uint8_t psc_mask = (p_evt_cfg->psc_mask | p_scb->cfg.psc_mask);
   uint8_t
       local_sep; /* sep type of local handle on which connection was received */
+  uint8_t sep_type;
   tBTA_AV_STR_MSG* p_msg = (tBTA_AV_STR_MSG*)p_data;
 
   local_sep = bta_av_get_scb_sep_type(p_scb, p_msg->handle);
@@ -1386,6 +1389,12 @@ void bta_av_config_ind(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   }
   APPL_TRACE_DEBUG(" bta_av_config_ind p_scb->hdi = %d ", p_scb->hdi);
   alarm_cancel(bta_av_cb.accept_signalling_timer[p_scb->hdi]);
+  sep_type = get_remote_sep_type(p_data->str_msg.bd_addr);
+  APPL_TRACE_DEBUG("%s sep_type: 0x%x  ", __func__, sep_type);
+  if((sep_type & BTA_AR_EXT_AV_MASK) && (sep_type & BTA_AR_EXT_AVK_MASK)) {
+      alarm_cancel(bta_avk_cb.accept_signalling_timer[0]);
+      alarm_cancel(bta_avk_cb.accept_signalling_timer[1]);
+  }
 
   /* if no codec parameters in configuration, fail */
   if ((p_evt_cfg->num_codec == 0) ||
