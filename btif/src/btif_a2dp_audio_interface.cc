@@ -1025,7 +1025,7 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
           } else if (btif_a2dp_src_vsc.tx_started == FALSE) {
             uint8_t hdl = 0;
             APPL_TRACE_DEBUG("%s: latest playing idx = %d",__func__, latest_playing_idx);
-            if (latest_playing_idx > btif_max_av_clients || latest_playing_idx < 0) {
+            if (latest_playing_idx >= btif_max_av_clients || latest_playing_idx < 0) {
                 APPL_TRACE_ERROR("%s: Invalid index",__func__);
                 status = -1;//Invalid status to stop start retry
                 break;
@@ -1246,6 +1246,7 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
 
         codec_type = A2DP_GetCodecType((const uint8_t*)p_codec_info);
         LOG_INFO(LOG_TAG,"codec_type = %x",codec_type);
+        peer_param.peer_mtu = peer_param.peer_mtu - A2DP_HEADER_SIZE;
         if (A2DP_MEDIA_CT_SBC == codec_type)
         {
           bitrate = A2DP_GetOffloadBitrateSbc(CodecConfig, peer_param.is_peer_edr);
@@ -1285,10 +1286,8 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
             bitrate = 0;//Bitrate is present in codec info
           }
         }
+
         bits_per_sample = CodecConfig->getAudioBitsPerSample();
-
-        peer_param.peer_mtu = peer_param.peer_mtu - A2DP_HEADER_SIZE;
-
         LOG_INFO(LOG_TAG,"bitrate = %d, bits_per_sample = %d, peer_param.peer_mtu = %d",
                           bitrate, bits_per_sample, peer_param.peer_mtu);
         codec_info[0] = 0; //playing device handle
@@ -1438,7 +1437,7 @@ uint8_t btif_a2dp_audio_snd_ctrl_cmd(uint8_t cmd)
           uint8_t hdl = 0;
           bool remote_start_flag = false;
           APPL_TRACE_DEBUG("%s: remote started idx = %d",__func__, latest_playing_idx);
-          if (latest_playing_idx > btif_max_av_clients || latest_playing_idx < 0) {
+          if (latest_playing_idx >= btif_max_av_clients || latest_playing_idx < 0) {
             APPL_TRACE_ERROR("%s: Invalid index",__func__);
             status = -1;//Invalid status to stop start retry
             break;
