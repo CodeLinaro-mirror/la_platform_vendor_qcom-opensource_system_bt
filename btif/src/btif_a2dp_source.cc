@@ -759,6 +759,7 @@ static void btif_a2dp_source_audio_feeding_update_event(BT_HDR* p_msg) {
 }
 
 void btif_a2dp_source_on_idle(void) {
+  APPL_TRACE_EVENT("## ON A2DP IDLE ##");
   if (btif_av_is_split_a2dp_enabled())
     btif_media_send_reset_vendor_state();
   if (btif_a2dp_source_state == BTIF_A2DP_SOURCE_STATE_OFF) return;

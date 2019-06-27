@@ -95,7 +95,7 @@ bool restricted_mode = false;
 extern bthf_client_interface_t* btif_hf_client_get_interface();
 /* advanced audio profile */
 extern btav_source_interface_t* btif_av_get_src_interface();
-extern btav_sink_interface_t* btif_av_get_sink_interface();
+extern btav_sink_interface_t* btif_avk_get_sink_interface(void);
 /*rfc l2cap*/
 extern btsock_interface_t* btif_sock_get_interface();
 /* hid host profile */
@@ -113,7 +113,7 @@ extern const btgatt_interface_t* btif_gatt_get_interface();
 /* avrc target */
 extern btrc_interface_t* btif_rc_get_interface();
 /* avrc controller */
-extern btrc_interface_t* btif_rc_ctrl_get_interface();
+extern btrc_interface_t* btif_avk_rc_ctrl_get_interface();
 /*SDP search client*/
 extern btsdp_interface_t* btif_sdp_get_interface();
 
@@ -367,7 +367,7 @@ static const void* get_profile_interface(const char* profile_id) {
     return btif_av_get_src_interface();
 
   if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_SINK_ID))
-    return btif_av_get_sink_interface();
+    return btif_avk_get_sink_interface();
 
   if (is_profile(profile_id, BT_PROFILE_HIDHOST_ID))
     return btif_hh_get_interface();
@@ -388,7 +388,7 @@ static const void* get_profile_interface(const char* profile_id) {
     return btif_rc_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_AV_RC_CTRL_ID))
-    return btif_rc_ctrl_get_interface();
+    return btif_avk_rc_ctrl_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_AV_RC_VENDOR_CTRL_ID))
     return btif_rc_vendor_ctrl_get_interface();

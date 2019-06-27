@@ -80,6 +80,7 @@
 
 #if (BTA_AR_INCLUDED == TRUE)
 #include "bta_ar_api.h"
+#include "bta/ar/bta_ar_int_ext.h"
 #endif
 
 /*****************************************************************************
@@ -420,6 +421,7 @@ uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, uint8_t role, uint8_t shdl,
   ccb.p_msg_cback = bta_av_rc_msg_cback;
   ccb.company_id = p_bta_av_cfg->company_id;
   ccb.conn = role;
+  ccb.av_sep_type = BTA_AV_RC_PROFILE_SRC;
   /* note: BTA_AV_FEAT_RCTG = AVRC_CT_TARGET, BTA_AV_FEAT_RCCT = AVRC_CT_CONTROL
    */
   ccb.control = p_cb->features & (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_RCCT |
@@ -1739,6 +1741,7 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
     APPL_TRACE_DEBUG("%s: bta_av_cb.conn_lcb is %d", __func__,
                      bta_av_cb.conn_lcb);
 
+    dealloc_ar_device_info(p_data->str_msg.bd_addr);
     p_lcb = bta_av_find_lcb(p_data->str_msg.bd_addr, BTA_AV_LCB_FREE);
     if (p_lcb && (p_lcb->conn_msk || bta_av_cb.conn_lcb)) {
       APPL_TRACE_DEBUG("conn_msk: 0x%x", p_lcb->conn_msk);

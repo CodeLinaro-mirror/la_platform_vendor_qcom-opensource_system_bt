@@ -339,14 +339,14 @@ tBTA_AV_SCB* bta_av_hndl_to_scb(uint16_t handle) {
 
 /*******************************************************************************
 **
-** Function         bta_avk_is_avdt_sync
+** Function         bta_av_is_avdt_sync
 **
 ** Description      If the current connection supports AVDT1.3
 **
 ** Returns          true for supports AVDT1.3, false for not.
 **
 *******************************************************************************/
-bool bta_avk_is_avdt_sync(uint16_t handle) {
+bool bta_av_is_avdt_sync(uint16_t handle) {
   tBTA_AV_SCB* p_scb = bta_av_hndl_to_scb(handle);
   if (p_scb && (p_scb->avdt_version >= AVDT_VERSION_SYNC))
     return true;
@@ -441,6 +441,34 @@ void bta_av_conn_cback(UNUSED_ATTR uint8_t handle, const RawAddress* bd_addr,
     bta_sys_sendmsg(p_msg);
   }
 }
+
+bool bta_av_is_scb_available(void)
+{
+  tBTA_AV_CB   *p_cb = &bta_av_cb;
+  int     xx;
+  uint8_t mask;
+  for(xx=0; xx<BTA_AV_NUM_LINKS; xx++)
+  {
+    mask = 1 << xx;
+    APPL_TRACE_DEBUG(" %s The current conn_lcb: 0x%x index = %d", __func__, p_cb->conn_lcb, xx);
+
+    /* look for a p_lcb with its p_scb registered */
+    if((!(mask & p_cb->conn_lcb)) && (p_cb->p_scb[xx] != NULL))
+    {
+      /* Check if the SCB is Free before using for
+       * ACP connection
+       */
+      if (p_cb->p_scb[xx]->state == BTA_AV_INIT_ST)
+      {
+        APPL_TRACE_DEBUG(" %s SCB is free @ %d", __func__, xx);
+        return true;
+      }
+    }
+  }
+  APPL_TRACE_DEBUG(" %s SCB is not free ", __func__);
+  return false;
+}
+
 
 #if (AVDT_REPORTING == TRUE)
 /*******************************************************************************

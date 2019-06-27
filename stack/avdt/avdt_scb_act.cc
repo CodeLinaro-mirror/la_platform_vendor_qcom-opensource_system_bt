@@ -652,7 +652,7 @@ bool avdt_check_sep_state(tAVDT_SCB *p_scb) {
       bool in_use = false;
       for (j = i;j < (i+num_codecs); j++) {
         tAVDT_SCB *temp_scb = &avdt_cb.scb[j];
-        if (temp_scb->in_use)
+        if (temp_scb->in_use && temp_scb->cs.tsep == p_scb->cs.tsep)
           in_use = true;
       }
       if (in_use && (sep_offset >= i && sep_offset < j))
@@ -676,6 +676,7 @@ bool avdt_check_sep_state(tAVDT_SCB *p_scb) {
 void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   tAVDT_CFG* p_cfg;
   tA2DP_CODEC_TYPE codec_type;
+  tAVDT_CTRL avdt_ctrl;
   AVDT_TRACE_WARNING("avdt_scb_hdl_setconfig_cmd: SCB in use: %d, Conn in progress: %d, avdt_check_sep_state: %d",
        p_scb->in_use, avdt_cb.conn_in_progress, avdt_check_sep_state(p_scb));
 
@@ -736,6 +737,10 @@ void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
                                 p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
                                 AVDT_CONFIG_IND_EVT,
                                 (tAVDT_CTRL*)&p_data->msg.config_cmd);
+      /* Once we have send SetConfig command, we should inform ar module as well */
+      avdt_ctrl.setconf_cmd_ind.sep_configured = p_scb->cs.tsep;
+      if (avdt_cb.p_conn_cback != NULL)
+          avdt_cb.p_conn_cback(0, &(p_scb->p_ccb->peer_addr), AVDT_SETCONFIG_CMD_EVT, &avdt_ctrl);
     } else {
       p_data->msg.hdr.err_code = AVDT_ERR_UNSUP_CFG;
       p_data->msg.hdr.err_param = 0;
