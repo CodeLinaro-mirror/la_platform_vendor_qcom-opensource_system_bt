@@ -1029,7 +1029,7 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
           } else if (btif_a2dp_src_vsc.tx_started == FALSE) {
             uint8_t hdl = 0;
             APPL_TRACE_DEBUG("%s: latest playing idx = %d",__func__, latest_playing_idx);
-            if (latest_playing_idx > btif_max_av_clients || latest_playing_idx < 0) {
+            if (latest_playing_idx >= btif_max_av_clients || latest_playing_idx < 0) {
                 APPL_TRACE_ERROR("%s: Invalid index",__func__);
                 status = -1;//Invalid status to stop start retry
                 break;
@@ -1443,7 +1443,7 @@ uint8_t btif_a2dp_audio_snd_ctrl_cmd(uint8_t cmd)
           uint8_t hdl = 0;
           bool remote_start_flag = false;
           APPL_TRACE_DEBUG("%s: remote started idx = %d",__func__, latest_playing_idx);
-          if (latest_playing_idx > btif_max_av_clients || latest_playing_idx < 0) {
+          if (latest_playing_idx >= btif_max_av_clients || latest_playing_idx < 0) {
             APPL_TRACE_ERROR("%s: Invalid index",__func__);
             status = -1;//Invalid status to stop start retry
             break;
