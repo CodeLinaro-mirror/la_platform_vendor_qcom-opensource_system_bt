@@ -32,4 +32,6 @@ interface IBluetoothPbapClient {
     boolean setPriority(in BluetoothDevice device, int priority);
     int getPriority(in BluetoothDevice device);
     boolean pullPhonebook(in BluetoothDevice device, String pbName, long filter, int listStartOffset, int maxListCount);
+    boolean pullVcardListing(in BluetoothDevice device, String pbName, byte order, byte searchProp, String searchValue, int maxListCount, int listStartOffset);
+    boolean setPhonebook(in BluetoothDevice device, String pbName);
 }
