@@ -129,7 +129,7 @@ extern btvendor_interface_t *btif_vendor_get_interface();
 extern btvendor_interface_t *btif_vendor_socket_get_interface();
 /* broadcast transmitter */
 extern ba_transmitter_interface_t *btif_bat_get_interface();
-extern btrc_vendor_ctrl_interface_t *btif_rc_vendor_ctrl_get_interface();
+extern btrc_vendor_ctrl_interface_t *btif_avk_rc_vendor_ctrl_get_interface();
 
 /*******************************************************************************
  *  Functions
@@ -391,7 +391,7 @@ static const void* get_profile_interface(const char* profile_id) {
     return btif_avk_rc_ctrl_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_AV_RC_VENDOR_CTRL_ID))
-    return btif_rc_vendor_ctrl_get_interface();
+    return btif_avk_rc_vendor_ctrl_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_VENDOR_ID))
     return btif_vendor_get_interface();
