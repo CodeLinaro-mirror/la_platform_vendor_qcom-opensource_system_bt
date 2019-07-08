@@ -3270,7 +3270,12 @@ static void btif_dm_ble_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
       case BTA_DM_AUTH_SMP_CONFIRM_VALUE_FAIL:
       case BTA_DM_AUTH_SMP_UNKNOWN_ERR:
       case BTA_DM_AUTH_SMP_CONN_TOUT:
-        btif_dm_remove_ble_bonding_keys();
+        if (interop_match_addr_or_name(INTEROP_PINKEY_MISSING,
+        &(p_auth_cmpl->bd_addr))) {
+          btif_storage_remove_ble_bonding_keys(&(p_auth_cmpl->bd_addr));
+        } else {
+          btif_dm_remove_ble_bonding_keys();
+        }
         status = BT_STATUS_AUTH_FAILURE;
         break;
       case BTA_DM_AUTH_SMP_PAIR_NOT_SUPPORT:

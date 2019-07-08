@@ -215,6 +215,13 @@ typedef enum {
   // To avoid degrading the user experience with those devices, those devices are not
   // added to the white list and would connect using connected directed advertisement.
   INTEROP_DISABLE_RESOLVING,
+
+  // Some HOGP devices do not change their BD ADDRESS when kept in pairing mode and gives
+  // pin-key missing error. According to spec, when pin-key missing error occurs a reconnection
+  // with encryption disabled is expected. But, some customers would expect to repair
+  // to devices and might not have interface to unpair devices and then repair. So, SMP callback
+  // with SMP confirm value error is triggered when there is a pin-key missing error.
+  INTEROP_PINKEY_MISSING,
   END_OF_INTEROP_LIST
 } interop_feature_t;
 
