@@ -430,7 +430,7 @@ void smp_send_ltk_reply(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
  * Description  process security request.
  ******************************************************************************/
 void smp_proc_sec_req(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
-  tBTM_LE_AUTH_REQ auth_req = *(tBTM_LE_AUTH_REQ*)p_data;
+  tBTM_LE_AUTH_REQ auth_req = *(tBTM_LE_AUTH_REQ*)p_data->p_data;
   tBTM_BLE_SEC_REQ_ACT sec_req_act;
 
   SMP_TRACE_DEBUG("%s: auth_req=0x%x", __func__, auth_req);
@@ -504,7 +504,7 @@ void smp_proc_pair_fail(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
                       __func__, p_cb->rcvd_cmd_len);
     p_cb->status = SMP_INVALID_PARAMETERS;
   } else {
-    p_cb->status = p_data->status;
+    p_cb->status = *(uint8_t *)p_data->p_data;
   }
 
   /* Cancel pending auth complete timer if set */
@@ -1454,7 +1454,6 @@ void smp_br_send_pair_response(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
 void smp_pairing_cmpl(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
   if (p_cb->total_tx_unacked == 0) {
     /* process the pairing complete */
-    p_cb->status = *(uint8_t*)p_data;
     smp_proc_pairing_cmpl(p_cb);
   }
 }

@@ -66,7 +66,6 @@ using ::bluetooth::audio::SampleRate;
 using ::bluetooth::audio::SessionType;
 
 std::mutex internal_mutex_;
-std::mutex ack_wait_mutex_;
 std::condition_variable ack_wait_cv;
 tA2DP_CTRL_ACK ack_status;
 BluetoothAudioCtrlAck a2dp_ack_to_bt_audio_ctrl_ack(tA2DP_CTRL_ACK ack);
@@ -132,9 +131,16 @@ class A2dpTransport : public ::bluetooth::audio::IBluetoothTransportInstance {
     return true;
   }
 
+  void UpdatePendingCmd(tA2DP_CTRL_CMD cmd) {
+    a2dp_pending_cmd_ = cmd;
+  }
+
   tA2DP_CTRL_CMD GetPendingCmd() const { return a2dp_pending_cmd_; }
 
-  void ResetPendingCmd() {  a2dp_pending_cmd_ = A2DP_CTRL_CMD_NONE; }
+  void ResetPendingCmd() {
+    LOG(WARNING) << "ResetPendingCmd  " << a2dp_pending_cmd_;
+    a2dp_pending_cmd_ = A2DP_CTRL_CMD_NONE;
+ }
 
   void ResetPresentationPosition() override {
     remote_delay_report_ = 0;
@@ -174,18 +180,9 @@ class A2dpTransport : public ::bluetooth::audio::IBluetoothTransportInstance {
 
  private:
   tA2DP_CTRL_ACK ProcessRequest(tA2DP_CTRL_CMD cmd) {
-    a2dp_pending_cmd_ = cmd;
-    std::unique_lock<std::mutex> guard(ack_wait_mutex_);
-    ack_status = A2DP_CTRL_ACK_UNKNOWN;
+    ack_status = A2DP_CTRL_ACK_PENDING;
     btif_dispatch_sm_event(BTIF_AV_PROCESS_HIDL_REQ_EVT, (char*)&cmd,
                            sizeof(cmd));
-    BTIF_TRACE_EVENT("%s: wating for HIDL ack signal",__func__);
-    ack_wait_cv.wait_for(guard, std::chrono::milliseconds(50),
-                      []{return (ack_status != A2DP_CTRL_ACK_UNKNOWN);});
-    BTIF_TRACE_EVENT("%s: done with HIDL ack signal",__func__);
-    if(ack_status == A2DP_CTRL_ACK_UNKNOWN) {
-      ack_status = A2DP_CTRL_ACK_FAILURE;
-    }
     return ack_status;
   }
   tA2DP_CTRL_CMD a2dp_pending_cmd_;
@@ -196,6 +193,7 @@ class A2dpTransport : public ::bluetooth::audio::IBluetoothTransportInstance {
 };
 
 A2dpTransport* a2dp_sink = nullptr;
+thread_t* death_handler_thread = nullptr;
 
 // Common interface to call-out into Bluetooth Audio HAL
 bluetooth::audio::BluetoothAudioClientInterface* a2dp_hal_clientif = nullptr;
@@ -830,9 +828,9 @@ bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
       aptx_adaptive_config.aptxMode = static_cast<AptxMode>
                             (btif_av_get_aptx_mode_info());
       aptx_adaptive_config.sinkBuffering = { 20, 50, 20, 50, 20, 50 };
-      aptx_adaptive_config.ttp = { adaptive_cie.ttp_ll_0, adaptive_cie.ttp_ll_1,
-                                   adaptive_cie.ttp_hq_0, adaptive_cie.ttp_hq_1,
-                                   0x00, 0x00
+      aptx_adaptive_config.ttp = { adaptive_cie.aptx_data.ttp_ll_0, adaptive_cie.aptx_data.ttp_ll_1,
+                                   adaptive_cie.aptx_data.ttp_hq_0, adaptive_cie.aptx_data.ttp_hq_1,
+                                   adaptive_cie.aptx_data.ttp_tws_0, adaptive_cie.aptx_data.ttp_tws_1
                                  };
       if (btif_av_current_device_is_tws()) {
         aptx_adaptive_config.inputMode = static_cast<InputMode>(0x01);
@@ -840,17 +838,17 @@ bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
         aptx_adaptive_config.inputMode = static_cast<InputMode>(0x00);
       }
       aptx_adaptive_config.inputFadeDuration = 0xff;
-      aptx_adaptive_config.aptxAdaptiveConfigStream[0] =  adaptive_cie.cap_ext_ver_num;
-      aptx_adaptive_config.aptxAdaptiveConfigStream[1] =  adaptive_cie.aptx_adaptive_sup_features & 0x000000FF;
-      aptx_adaptive_config.aptxAdaptiveConfigStream[2] =  ((adaptive_cie.aptx_adaptive_sup_features & 0x0000FF00) >> 8);
-      aptx_adaptive_config.aptxAdaptiveConfigStream[3] =  ((adaptive_cie.aptx_adaptive_sup_features & 0x00FF0000) >> 16);
-      aptx_adaptive_config.aptxAdaptiveConfigStream[4] =  ((adaptive_cie.aptx_adaptive_sup_features & 0xFF000000) >> 24);
-      aptx_adaptive_config.aptxAdaptiveConfigStream[5] =  adaptive_cie.first_setup_pref;
-      aptx_adaptive_config.aptxAdaptiveConfigStream[6] =  adaptive_cie.second_setup_pref;
-      aptx_adaptive_config.aptxAdaptiveConfigStream[7] =  adaptive_cie.third_setup_pref;
-      aptx_adaptive_config.aptxAdaptiveConfigStream[8] =  adaptive_cie.fourth_setup_pref;
-      aptx_adaptive_config.aptxAdaptiveConfigStream[9] =  adaptive_cie.eoc0;
-      aptx_adaptive_config.aptxAdaptiveConfigStream[10] =  adaptive_cie.eoc1;
+      aptx_adaptive_config.aptxAdaptiveConfigStream[0] =  adaptive_cie.aptx_data.cap_ext_ver_num;
+      aptx_adaptive_config.aptxAdaptiveConfigStream[1] =  adaptive_cie.aptx_data.aptx_adaptive_sup_features & 0x000000FF;
+      aptx_adaptive_config.aptxAdaptiveConfigStream[2] =  ((adaptive_cie.aptx_data.aptx_adaptive_sup_features & 0x0000FF00) >> 8);
+      aptx_adaptive_config.aptxAdaptiveConfigStream[3] =  ((adaptive_cie.aptx_data.aptx_adaptive_sup_features & 0x00FF0000) >> 16);
+      aptx_adaptive_config.aptxAdaptiveConfigStream[4] =  ((adaptive_cie.aptx_data.aptx_adaptive_sup_features & 0xFF000000) >> 24);
+      aptx_adaptive_config.aptxAdaptiveConfigStream[5] =  adaptive_cie.aptx_data.first_setup_pref;
+      aptx_adaptive_config.aptxAdaptiveConfigStream[6] =  adaptive_cie.aptx_data.second_setup_pref;
+      aptx_adaptive_config.aptxAdaptiveConfigStream[7] =  adaptive_cie.aptx_data.third_setup_pref;
+      aptx_adaptive_config.aptxAdaptiveConfigStream[8] =  adaptive_cie.aptx_data.fourth_setup_pref;
+      aptx_adaptive_config.aptxAdaptiveConfigStream[9] =  adaptive_cie.aptx_data.eoc0;
+      aptx_adaptive_config.aptxAdaptiveConfigStream[10] =  adaptive_cie.aptx_data.eoc1;
 
       codec_config->config.aptxAdaptiveConfig = aptx_adaptive_config;
       break;
@@ -1081,6 +1079,12 @@ bool init( thread_t* message_loop) {
   if(a2dp_hal_clientif == nullptr) {
     a2dp_hal_clientif = new bluetooth::audio::BluetoothAudioClientInterface(
       a2dp_sink, message_loop, &internal_mutex_);
+    death_handler_thread = message_loop;
+  } else if(death_handler_thread != message_loop) {
+    death_handler_thread = message_loop;
+    //update the client interface as well
+    LOG(WARNING) << __func__ << ": updating death handler thread";
+    a2dp_hal_clientif->UpdateDeathHandlerThread(death_handler_thread);
   }
 
   if (remote_delay != 0) {
@@ -1110,6 +1114,7 @@ void cleanup() {
   a2dp_sink->Cleanup();
   a2dp_hal_clientif->EndSession();
   session_type = SessionType::UNKNOWN;
+  death_handler_thread = nullptr;
   remote_delay = 0;
 }
 
@@ -1218,8 +1223,11 @@ void start_session() {
   if (!is_hal_2_0_enabled()) {
     LOG(ERROR) << __func__ << ": BluetoothAudio HAL is not enabled";
     return;
+  } else if(is_session_started) {
+    LOG(ERROR) << __func__ << ": BluetoothAudio HAL session is already started";
+    return;
   }
-  LOG(ERROR) << __func__;
+  LOG(WARNING) << __func__;
   is_playing = false;
   a2dp_hal_clientif->StartSession();
   is_session_started = true;
@@ -1230,18 +1238,11 @@ void end_session() {
   if (!is_hal_2_0_enabled()) {
     LOG(ERROR) << __func__ << ": BluetoothAudio HAL is not enabled";
     return;
+  } else if(!is_session_started) {
+    LOG(ERROR) << __func__ << ": BluetoothAudio HAL session is not started";
+    return;
   }
-  LOG(ERROR) << __func__;
-  a2dp_sink->Cleanup();
-  audio_start_awaited = false;
-  btif_av_reset_reconfig_flag();
-  is_playing = false;
-  a2dp_hal_clientif->EndSession();
-  sw_codec_type = BTAV_A2DP_CODEC_INDEX_SOURCE_MIN;
-  session_peer_mtu = 0;
-  session_type = SessionType::UNKNOWN;
-  is_session_started = false;
-  remote_delay = 0;
+  LOG(WARNING) << __func__;
   tA2DP_CTRL_CMD pending_cmd = A2DP_CTRL_CMD_NONE;
   pending_cmd = a2dp_sink->GetPendingCmd();
   if (pending_cmd == A2DP_CTRL_CMD_START) {
@@ -1253,6 +1254,17 @@ void end_session() {
     a2dp_hal_clientif->StreamSuspended(a2dp_ack_to_bt_audio_ctrl_ack
                     (A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS));
   }
+  a2dp_sink->Cleanup();
+  audio_start_awaited = false;
+  btif_av_reset_reconfig_flag();
+  is_playing = false;
+  a2dp_hal_clientif->EndSession();
+  sw_codec_type = BTAV_A2DP_CODEC_INDEX_SOURCE_MIN;
+  session_peer_mtu = 0;
+  session_type = SessionType::UNKNOWN;
+  is_session_started = false;
+  death_handler_thread = nullptr;
+  remote_delay = 0;
 }
 
 tA2DP_CTRL_CMD get_pending_command() {
@@ -1273,6 +1285,15 @@ void reset_pending_command() {
     return;
   }
   a2dp_sink->ResetPendingCmd();
+}
+
+void update_pending_command(tA2DP_CTRL_CMD cmd) {
+  std::unique_lock<std::mutex> guard(internal_mutex_);
+  if (!is_hal_2_0_enabled()) {
+    LOG(ERROR) << __func__ << ": BluetoothAudio HAL is not enabled";
+    return;
+  }
+  a2dp_sink->UpdatePendingCmd(cmd);
 }
 
 void ack_stream_started(const tA2DP_CTRL_ACK& ack) {
@@ -1378,12 +1399,6 @@ SessionType get_session_type() {
     return SessionType::UNKNOWN;
   }
   return session_type;
-}
-
-void ack_signal_ready(tA2DP_CTRL_ACK ack) {
-  std::unique_lock<std::mutex> guard(ack_wait_mutex_);
-  ack_status = ack;
-  ack_wait_cv.notify_all();
 }
 
 }  // namespace a2dp

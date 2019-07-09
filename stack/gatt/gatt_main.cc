@@ -978,7 +978,14 @@ void gatt_chk_srv_chg(tGATTS_SRV_CHG* p_srv_chg_clt) {
   VLOG(1) << __func__ << " srv_changed=" << +p_srv_chg_clt->srv_changed;
 
   if (p_srv_chg_clt->srv_changed) {
-    gatt_send_srv_chg_ind(p_srv_chg_clt->bda);
+    char remote_name[BTM_MAX_REM_BD_NAME_LEN] = "";
+    if (btif_storage_get_stored_remote_name(p_srv_chg_clt->bda, remote_name) &&
+      (interop_match_name(INTEROP_GATTC_NO_SERVICE_CHANGED_IND,
+      remote_name))) {
+      VLOG(1) << "discard srv chg - interop matched " << remote_name;
+    } else {
+      gatt_send_srv_chg_ind(p_srv_chg_clt->bda);
+    }
   }
 }
 
@@ -1060,7 +1067,8 @@ void gatt_proc_srv_chg(void) {
 void gatt_set_ch_state(tGATT_TCB* p_tcb, tGATT_CH_STATE ch_state) {
   if (!p_tcb) return;
 
-  VLOG(1) << __func__ << ": old=" << +p_tcb->ch_state << " new=" << +ch_state;
+  VLOG(1) << __func__ << ": old=" << +p_tcb->ch_state
+          << " new=" << loghex(ch_state);
   p_tcb->ch_state = ch_state;
 }
 
