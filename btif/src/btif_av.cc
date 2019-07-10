@@ -80,6 +80,7 @@
 #include "device/include/interop.h"
 #include "device/include/controller.h"
 #include "btif_hf.h"
+#include "btif_api.h"
 //#include "btif_bat.h"
 #include "bta/av/bta_av_int.h"
 
@@ -236,6 +237,7 @@ static bool codec_config_update_enabled = false;
 bool is_codec_config_dump = false;
 uint16_t pump_encoded_data = 0; // by default disable it
 static bool delay_report_enabled = false;  // by default disable it
+static bool avrc_browsing_enabled = false;
 uint8_t num_codec_configs;
 
 /*SPLITA2DP */
@@ -1014,8 +1016,8 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
     case BTA_AV_REGISTER_EVT:
       BTIF_TRACE_EVENT("The AV Handle:%d", ((tBTA_AV*)p_data)->registr.hndl);
       btif_av_cb[index].bta_handle = ((tBTA_AV*)p_data)->registr.hndl;
+      btif_read_adapter_property(BT_PROPERTY_CLASS_OF_DEVICE);
       break;
-
     case BTIF_AV_CONNECT_REQ_EVT: {
         btif_av_connect_req_t* connect_req_p = (btif_av_connect_req_t*)p_data;
         btif_av_cb[index].peer_bda = *connect_req_p->target_bda;
@@ -3820,8 +3822,6 @@ static bt_status_t init_src_vendor(btav_vendor_callbacks_t* callbacks, int max_a
         if (bt_av_src_callbacks != NULL)
             status = BT_STATUS_SUCCESS;
     }
-    delay_report_enabled = streaming_prarm & A2DP_SRC_ENABLE_DELAY_REPORTING;
-    BTIF_TRACE_DEBUG(" ~~ delay_report_enabled = %d", delay_report_enabled);
     pump_encoded_data = streaming_prarm & A2DP_SRC_PUMP_ENCODED_DATA;
     BTIF_TRACE_DEBUG(" ~~ pump_encoded_data = %d", pump_encoded_data);
     if (status == BT_STATUS_SUCCESS) {
@@ -4681,6 +4681,7 @@ bt_status_t btif_av_execute_service(bool b_enable) {
   char value[PROPERTY_VALUE_MAX] = {'\0'};
   tBTA_AV_FEAT feat_delay_rpt = 0;
   uint16_t feat_EncodedData = 0;
+  uint16_t feat_AvrcBrowsing = 0;
 
   char a2dp_role[255] = "false";
   osi_property_get("persist.vendor.service.bt.a2dp.sink", a2dp_role, "false");
@@ -4688,10 +4689,16 @@ bt_status_t btif_av_execute_service(bool b_enable) {
   if (b_enable) {
     property_get("persist.bluetooth.disabledelayreports", value, "false");
     delay_report_enabled = (strcmp(value, "false") == 0);
+    property_get("persist.bluetooth.disablebrowsing", value, "false");
+    avrc_browsing_enabled = (strcmp(value, "false") == 0);
     if (delay_report_enabled)
       feat_delay_rpt = BTA_AV_FEAT_DELAY_RPT;
     if (pump_encoded_data)
       feat_EncodedData = BTA_AV_FEAT_ENCODED_DATA;
+#if (AVRC_ADV_CTRL_INCLUDED == true)
+    if (avrc_browsing_enabled)
+      feat_AvrcBrowsing = BTA_AV_FEAT_BROWSE;
+#endif
 
     /* TODO: Removed BTA_SEC_AUTHORIZE since the Java/App does not
      * handle this request in order to allow incoming connections to succeed.
@@ -4704,11 +4711,10 @@ bt_status_t btif_av_execute_service(bool b_enable) {
 #if (AVRC_METADATA_INCLUDED == true)
     BTA_AvEnable(BTA_SEC_AUTHENTICATE,
       BTA_AV_FEAT_RCTG|BTA_AV_FEAT_METADATA|BTA_AV_FEAT_VENDOR|BTA_AV_FEAT_NO_SCO_SSPD
-      |BTA_AV_FEAT_ACP_START|feat_delay_rpt|feat_EncodedData
+      |BTA_AV_FEAT_ACP_START|feat_delay_rpt|feat_EncodedData|feat_AvrcBrowsing
 #if (AVRC_ADV_CTRL_INCLUDED == true)
       |BTA_AV_FEAT_RCCT
       |BTA_AV_FEAT_ADV_CTRL
-      |BTA_AV_FEAT_BROWSE
 #endif
       , bte_av_callback);
 #else

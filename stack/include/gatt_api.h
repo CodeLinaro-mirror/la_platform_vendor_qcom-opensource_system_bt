@@ -210,6 +210,8 @@ typedef uint16_t tGATT_PERM;
 #define GATT_CHAR_PROP_BIT_EXT_PROP (1 << 7)
 typedef uint8_t tGATT_CHAR_PROP;
 
+#define PARAM_INRANGE(x, min, max) ((x) >= (min) && (x) <= (max))
+
 /* Format of the value of a characteristic. enumeration type
 */
 enum {

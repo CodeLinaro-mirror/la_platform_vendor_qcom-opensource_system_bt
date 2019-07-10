@@ -82,6 +82,9 @@
  * Constants and types
  ****************************************************************************/
 
+//Num of browsing rc events supported
+#define BTA_AV_NUM_BROWSE_EVT_IDS 4
+
 #ifndef BTA_AV_RET_TOUT
 #define BTA_AV_RET_TOUT 4
 #endif
@@ -519,7 +522,16 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
   if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
     p_bta_av_cfg = (tBTA_AV_CFG*)&bta_avk_cfg;
   } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
-    p_bta_av_cfg = (tBTA_AV_CFG*)&bta_av_cfg;
+    p_bta_av_cfg = (tBTA_AV_CFG *) osi_malloc(sizeof(tBTA_AV_CFG));
+    memcpy(p_bta_av_cfg,&bta_av_cfg,sizeof(tBTA_AV_CFG));
+    if(bta_av_cb.features & BTA_AV_FEAT_BROWSE) {
+      p_bta_av_cfg->avrc_tg_cat |= AVRC_SUPF_TG_BROWSE;
+      p_bta_av_cfg->avrc_ct_cat |= AVRC_SUPF_CT_BROWSE;
+    } else {
+      /* Remove browse vents from supported events. Last 4 events in
+      p_meta_evt_ids array are browse events.*/
+      p_bta_av_cfg->num_evt_ids -= BTA_AV_NUM_BROWSE_EVT_IDS;
+    }
   }
 
   APPL_TRACE_DEBUG("%s(): profile: 0x%x, channle: 0x%x", __func__,

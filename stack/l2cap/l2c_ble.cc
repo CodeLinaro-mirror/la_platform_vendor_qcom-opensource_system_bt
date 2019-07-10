@@ -561,6 +561,35 @@ void l2cble_process_conn_update_evt(uint16_t handle, uint8_t status,
 
 /*******************************************************************************
  *
+ * Function         l2cble_process_conn_update_failed
+ *
+ * Description      This function enables the connection update request if
+ *                  connection update response is failed.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void l2cble_process_conn_update_failed(uint16_t handle, uint8_t status) {
+  L2CAP_TRACE_DEBUG("%s", __func__);
+
+  /* See if we have a link control block for the remote device */
+  tL2C_LCB* p_lcb = l2cu_find_lcb_by_handle(handle);
+  if (!p_lcb) {
+    L2CAP_TRACE_WARNING("%s: Invalid handle: %d", __func__, handle);
+    return;
+  }
+
+  p_lcb->conn_update_mask &= ~L2C_BLE_UPDATE_PENDING;
+
+  if (status != HCI_SUCCESS) {
+    L2CAP_TRACE_WARNING("%s: Error status: %d", __func__, status);
+  }
+
+  L2CAP_TRACE_DEBUG("%s: conn_update_mask=%d", __func__,
+                    p_lcb->conn_update_mask);
+}
+/*******************************************************************************
+ *
  * Function         l2cble_process_sig_cmd
  *
  * Description      This function is called when a signalling packet is received

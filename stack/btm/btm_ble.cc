@@ -36,6 +36,7 @@
 #include "btm_int.h"
 #include "btu.h"
 #include "device/include/controller.h"
+#include "device/include/interop.h"
 #include "gap_api.h"
 #include "gatt_api.h"
 #include "hcimsgs.h"
@@ -177,7 +178,8 @@ bool BTM_SecAddBleKey(const RawAddress& bd_addr, tBTM_LE_KEY_VALUE* p_le_key,
   btm_sec_save_le_key(bd_addr, key_type, p_le_key, false);
 
 #if (BLE_PRIVACY_SPT == TRUE)
-  if (key_type == BTM_LE_KEY_PID || key_type == BTM_LE_KEY_LID)
+  if ((key_type == BTM_LE_KEY_PID || key_type == BTM_LE_KEY_LID ) &&
+      !interop_match_addr_or_name(INTEROP_DISABLE_RESOLVING, &(p_dev_rec->bd_addr)))
     btm_ble_resolving_list_load_dev(p_dev_rec);
 #endif
 
@@ -2183,8 +2185,8 @@ uint8_t btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr,
           if (res == BTM_SUCCESS) {
             p_dev_rec->sec_state = BTM_SEC_STATE_IDLE;
 #if (BLE_PRIVACY_SPT == TRUE)
-            /* add all bonded device into resolving list if IRK is available*/
-            btm_ble_resolving_list_load_dev(p_dev_rec);
+          if (!interop_match_addr_or_name(INTEROP_DISABLE_RESOLVING, &(p_dev_rec->bd_addr)))
+              btm_ble_resolving_list_load_dev(p_dev_rec);
 #endif
           }
 

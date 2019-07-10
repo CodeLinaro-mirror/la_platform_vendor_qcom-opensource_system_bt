@@ -712,7 +712,7 @@ bt_status_t btif_dut_mode_send(uint16_t opcode, uint8_t* buf, uint8_t len) {
  ****************************************************************************/
 
 static bt_status_t btif_in_get_adapter_properties(void) {
-  bt_property_t properties[6];
+  bt_property_t properties[7];
   uint32_t num_props = 0;
 
   RawAddress addr;
@@ -722,6 +722,7 @@ static bt_status_t btif_in_get_adapter_properties(void) {
   RawAddress bonded_devices[BTM_SEC_MAX_DEVICE_RECORDS];
   Uuid local_uuids[BT_MAX_NUM_UUIDS];
   bt_status_t status;
+  DEV_CLASS dev_class;
 
   /* RawAddress */
   BTIF_STORAGE_FILL_PROPERTY(&properties[num_props], BT_PROPERTY_BDADDR,
@@ -763,6 +764,12 @@ static bt_status_t btif_in_get_adapter_properties(void) {
   /* LOCAL UUIDs */
   BTIF_STORAGE_FILL_PROPERTY(&properties[num_props], BT_PROPERTY_UUIDS,
                              sizeof(local_uuids), local_uuids);
+  btif_storage_get_adapter_property(&properties[num_props]);
+  num_props++;
+
+  /* LOCAL DEV_CLASS */
+  BTIF_STORAGE_FILL_PROPERTY(&properties[num_props], BT_PROPERTY_CLASS_OF_DEVICE,
+                             sizeof(DEV_CLASS), dev_class);
   btif_storage_get_adapter_property(&properties[num_props]);
   num_props++;
 
@@ -1214,6 +1221,29 @@ bt_status_t btif_get_remote_service_record(const RawAddress& remote_addr,
   return btif_dm_get_remote_service_record(remote_addr, uuid);
 }
 
+/*******************************************************************************
+ *
+ * Function         btif_read_adapter_property
+ *
+ * Description      Fetches property value from local cache
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btif_read_adapter_property(bt_property_type_t type) {
+  BTIF_TRACE_DEBUG("%s, prop type %d",__func__, type);
+  char buf[512];
+  bt_status_t status = BT_STATUS_SUCCESS;
+  bt_property_t prop;
+  prop.type = type;
+  prop.val = (void*)buf;
+  prop.len = sizeof(buf);
+  if (prop.type != BT_PROPERTY_LOCAL_LE_FEATURES) {
+    status = btif_storage_get_adapter_property(&prop);
+    HAL_CBACK(bt_hal_cbacks, adapter_properties_cb, status, 1, &prop);
+  }
+  return;
+}
 /*******************************************************************************
  *
  * Function         btif_get_enabled_services_mask
