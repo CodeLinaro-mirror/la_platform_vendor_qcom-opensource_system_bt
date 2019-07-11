@@ -39,29 +39,14 @@
 extern "C" {
 #endif
 
-#ifdef OI_DEBUG
-
-/** The macro OI_ASSERT takes a condition argument. If the asserted condition
-    does not evaluate to true, the OI_ASSERT macro calls the host-dependent
-   function,
-    OI_AssertFail(), which reports the failure and generates a runtime error.
+/**
+   Define OI_ASSERT and OI_ASSERT_FAIL as empty, since
+   OI_AssertFail isn't implemented.
 */
-void OI_AssertFail(char* file, int line, char* reason);
-
-#define OI_ASSERT(condition)                                         \
-  {                                                                  \
-    if (!(condition)) OI_AssertFail(__FILE__, __LINE__, #condition); \
-  }
-
-#define OI_ASSERT_FAIL(msg) \
-  { OI_AssertFail(__FILE__, __LINE__, msg); }
-
-#else
 
 #define OI_ASSERT(condition)
 #define OI_ASSERT_FAIL(msg)
 
-#endif
 
 /**
    C_ASSERT() can be used to perform many compile-time assertions: type sizes,
