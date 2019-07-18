@@ -88,6 +88,7 @@ static const uint32_t COMMAND_TIMEOUT_RESTART_MS = 5000;
 
 // Our interface
 static bool interface_created;
+static bool transport_initialized;
 static hci_t interface;
 
 // Modules we import and callbacks we export
@@ -249,6 +250,7 @@ static future_t* hci_module_start_up(void) {
   thread_post(thread, message_loop_run, NULL);
 
   LOG_DEBUG(LOG_TAG, "%s starting async portion", __func__);
+  transport_initialized = true;
   return local_startup_future;
 
 error:
@@ -261,7 +263,7 @@ static future_t* hci_module_shut_down() {
 
   // Close HCI to prevent callbacks.
   hci_close();
-
+  transport_initialized = false;
   // Free the timers
   {
     std::lock_guard<std::recursive_mutex> lock(commands_pending_response_mutex);
@@ -464,7 +466,8 @@ static void transmit_fragment(BT_HDR* packet, bool send_transmit_finished) {
    * process the event and frees the packet*/
   uint16_t event = packet->event & MSG_EVT_MASK;
 
-  if(!hci_transmit(packet)) {
+  /*Don't kill process if clean up in progress, timers would be automatically stopped*/
+  if(transport_initialized && !hci_transmit(packet)) {
     LOG_ERROR(LOG_TAG, "%s: unable to send packet to hci hal daemon ", __func__);
     usleep(100000);
     LOG_ERROR(LOG_TAG, "%s: Killing bluetooth process due to TX failed ", __func__);
