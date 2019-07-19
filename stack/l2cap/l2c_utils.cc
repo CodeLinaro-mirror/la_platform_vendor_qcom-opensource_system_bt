@@ -1603,9 +1603,8 @@ void l2cu_release_ccb(tL2C_CCB* p_ccb) {
   if(p_lcb)
     btm_sec_clr_temp_auth_service(p_lcb->remote_bd_addr);
 
-  /* Free the timer */
-  alarm_free(p_ccb->l2c_ccb_timer);
-  p_ccb->l2c_ccb_timer = NULL;
+  /* Cancel the timer */
+  alarm_cancel(p_ccb->l2c_ccb_timer);
 
   fixed_queue_free(p_ccb->xmit_hold_q, osi_free);
   p_ccb->xmit_hold_q = NULL;
@@ -2644,6 +2643,12 @@ void l2cu_no_dynamic_ccbs(tL2C_LCB* p_lcb) {
   for (xx = 0; xx < L2CAP_NUM_FIXED_CHNLS; xx++) {
     if ((p_lcb->p_fixed_ccbs[xx] != NULL) &&
         (p_lcb->p_fixed_ccbs[xx]->fixed_chnl_idle_tout * 1000 > timeout_ms)) {
+
+      if (p_lcb->p_fixed_ccbs[xx]->fixed_chnl_idle_tout == L2CAP_NO_IDLE_TIMEOUT) {
+         L2CAP_TRACE_DEBUG("%s NO IDLE timeout set for fixed cid 0x%04x", __func__,
+            p_lcb->p_fixed_ccbs[xx]->local_cid);
+         start_timeout = false;
+      }
       timeout_ms = p_lcb->p_fixed_ccbs[xx]->fixed_chnl_idle_tout * 1000;
     }
   }

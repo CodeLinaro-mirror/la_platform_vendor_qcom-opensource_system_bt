@@ -210,6 +210,11 @@ typedef enum {
   //is used avoid collision.
   INTEROP_AVRCP_BROWSE_OPEN_CHANNEL_COLLISION,
 
+  // Some LE devices have problem reconnecting if LE connection is initiated with
+  // own_address_type is public id, as they do not have mechanism to resolve IRK
+  // To avoid degrading the user experience with those devices, those devices are not
+  // added to the white list and would connect using connected directed advertisement.
+  INTEROP_DISABLE_RESOLVING,
   END_OF_INTEROP_LIST
 } interop_feature_t;
 
