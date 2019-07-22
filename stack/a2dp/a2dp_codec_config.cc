@@ -59,6 +59,7 @@
 #include <inttypes.h>
 #include <utils/Log.h>
 #include <string.h>
+#include <dlfcn.h>
 
 #include "a2dp_aac.h"
 #include "a2dp_sbc.h"
@@ -68,6 +69,7 @@
 #include "a2dp_vendor_aptx_adaptive.h"
 #include "a2dp_vendor_ldac.h"
 #include "osi/include/log.h"
+#include "osi/include/properties.h"
 #include "a2dp_vendor_aptx_tws.h"
 #include "bt_vendor_av.h"
 /* The Media Type offset within the codec info byte array */
@@ -91,6 +93,9 @@ bool aptx_encoder_available = true;
 bool aptxhd_encoder_available = true;
 bool aptxad_encoder_available = true;
 bool ldac_encoder_available = true;
+
+uint16_t aptx_license_id = 910;
+#define LIB_ALM "libalm.so"
 
 bool aptxtws_offload = false;
 static void init_btav_a2dp_codec_config(
@@ -1550,8 +1555,55 @@ bool A2DP_InitCodecConfig(btav_a2dp_codec_index_t codec_index,
   return false;
 }
 
+/*
+ * This api checks if Codecs are licensed or not.
+ * Returns 0 if we have license, error otherwise
+*/
+uint8_t A2DP_IsCodecLicensed (uint16_t codec_id)
+{
+
+    char value[PROPERTY_VALUE_MAX] = {'\0'};
+    property_get("persist.bt.haven_license", value, "true");
+    LOG_VERBOSE(LOG_TAG, "%s haven_licensing_property = %s",__func__,value);
+    // if propety set to false, always return success (0)
+    if(!strcmp(value, "false")) {
+        return 0;
+    }
+
+    typedef int (*alm_check_license_t)( uint32_t feature_id);
+    alm_check_license_t verify_haven_license = NULL;
+
+    void *alm_handle = dlopen(LIB_ALM, RTLD_NOW);
+
+    if (alm_handle == NULL) {
+        LOG_VERBOSE(LOG_TAG, "%s:could not find %s ", __func__, LIB_ALM);
+        return 1;
+    }
+
+    verify_haven_license = (alm_check_license_t)dlsym(alm_handle, "alm_check_license");
+    if (verify_haven_license == NULL) {
+        LOG_VERBOSE(LOG_TAG, "%s:Could not find the symbol alm_check_license from %s ",
+                                                                         __func__, LIB_ALM);
+        dlclose(alm_handle);
+        return 1;
+    }
+
+    LOG_VERBOSE(LOG_TAG, "%s:Verifying Haven Licensing ", __func__);
+    uint8_t ret = verify_haven_license(codec_id);
+    if ( ret == 2 )
+    {
+        LOG_VERBOSE(LOG_TAG, "%s:Socket Error, retrying", __func__);
+        usleep(50);
+        ret = verify_haven_license(codec_id);
+    }
+
+    dlclose(alm_handle);
+
+    LOG_VERBOSE(LOG_TAG, "%s:haven license ret %d", __func__,ret);
+    return ret;
+}
+
 void A2DP_SetOffloadStatus(bool offload_status, char *offload_cap, bool scrambling_support) {
-  //char value[PROPERTY_VALUE_MAX] = {'\0'};
   char *tok = NULL;
   char *tmp_token = NULL;
   LOG_INFO(LOG_TAG,"A2dp_SetOffloadStatus:status = %d",
@@ -1568,8 +1620,12 @@ void A2DP_SetOffloadStatus(bool offload_status, char *offload_cap, bool scrambli
         LOG_INFO(LOG_TAG,"%s: SBC offload supported",__func__);
         sbc_offload = true;
       } else if (strcmp(tok,"aptx") == 0) {
-        LOG_INFO(LOG_TAG,"%s: aptX offload supported",__func__);
-        aptx_offload = true;
+        if (!A2DP_IsCodecLicensed(aptx_license_id)) {
+          LOG_INFO(LOG_TAG,"%s: aptX offload supported",__func__);
+          aptx_offload = true;
+        } else {
+          LOG_INFO(LOG_TAG,"%s: aptX license failed",__func__);
+        }
       } else if (strcmp(tok,"aac") == 0) {
         LOG_INFO(LOG_TAG,"%s: AAC offload supported",__func__);
         aac_offload = TRUE;
@@ -1577,8 +1633,13 @@ void A2DP_SetOffloadStatus(bool offload_status, char *offload_cap, bool scrambli
         LOG_INFO(LOG_TAG,"%s: APTXHD offload supported",__func__);
         aptxhd_offload = TRUE;
       } else if (strcmp(tok,"aptxadaptive") == 0) {
-        LOG_INFO(LOG_TAG,"%s: APTXAD offload supported",__func__);
-        aptx_adaptive_offload = TRUE;
+        // check license here
+        if (!A2DP_IsCodecLicensed(aptx_license_id)) {
+          LOG_INFO(LOG_TAG,"%s: APTXAD offload supported",__func__);
+          aptx_adaptive_offload = TRUE;
+        } else {
+          LOG_INFO(LOG_TAG,"%s: aptX-ad license failed",__func__);
+        }
       } else if (strcmp(tok,"ldac") == 0) {
         LOG_INFO(LOG_TAG,"%s: ldac offload supported",__func__);
         ldac_offload = TRUE;
