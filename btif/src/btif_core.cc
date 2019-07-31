@@ -361,8 +361,8 @@ bt_status_t btif_init_bluetooth() {
   LOG_INFO(LOG_TAG, "%s entered", __func__);
 
   bte_main_boot_entry();
-
-  btif_set_local_bdaddr();
+  // No need to set local address from here. Will be taken care in hidl
+  //btif_set_local_bdaddr();
 
   bt_jni_workqueue_thread = thread_new_sized(BT_JNI_WORKQUEUE_NAME, MAX_JNI_WORKQUEUE_COUNT);
   if (bt_jni_workqueue_thread == NULL) {
@@ -413,10 +413,11 @@ static void btif_set_local_bdaddr()
   uint8_t local_addr[6];
 
   // No autogen BDA. Generate one now.
-  local_addr[0] = 0x22;
-  local_addr[1] = 0x22;
-  local_addr[2] = (uint8_t) osi_rand();
-  local_addr[3] = (uint8_t) osi_rand();
+  local_addr[0] = 0x70;
+  local_addr[1] = 0xc9;
+  local_addr[2] = 0x4e;
+  //setting range from 0x5b to 0xb7
+  local_addr[3] = (uint8_t) (osi_rand()% (0xb7 - 0x5b + 1)) + 0x5b;
   local_addr[4] = (uint8_t) osi_rand();
   local_addr[5] = (uint8_t) osi_rand();
 
