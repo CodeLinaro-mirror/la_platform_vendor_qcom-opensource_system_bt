@@ -610,8 +610,8 @@ bool bta_hf_client_allocate_handle(const RawAddress& bd_addr,
     return true;
   }
 
-  return false;
   APPL_TRACE_ERROR("%s: all control blocks in use!", __func__);
+  return false;
 }
 
 /*******************************************************************************
