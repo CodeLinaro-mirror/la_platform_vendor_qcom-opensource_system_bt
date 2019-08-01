@@ -194,6 +194,7 @@ extern tBTM_STATUS btm_ble_read_resolving_list_entry(
     tBTM_SEC_DEV_REC* p_dev_rec);
 extern bool btm_ble_resolving_list_load_dev(tBTM_SEC_DEV_REC* p_dev_rec);
 extern void btm_ble_resolving_list_remove_dev(tBTM_SEC_DEV_REC* p_dev_rec);
+extern bool btm_ble_resolving_list_load_devices_rpa_offload(void);
 
 /* Vendor Specific Command complete evt handler */
 extern void btm_vsc_complete(uint8_t* p, uint16_t cc_opcode, uint16_t evt_len,
@@ -203,6 +204,8 @@ extern void btm_vendor_specific_evt(uint8_t* p, uint8_t evt_len);
 extern void btm_delete_stored_link_key_complete(uint8_t* p);
 extern void btm_report_device_status(tBTM_DEV_STATUS status);
 extern void btm_notify_ssr_trigger(void);
+extern tBTM_STATUS BTM_BT_Quality_Report_VSE_Register(
+    bool is_register, tBTM_BT_QUALITY_REPORT_RECEIVER* p_bqr_report_receiver);
 
 /* Internal functions provided by btm_dev.cc
  *********************************************
