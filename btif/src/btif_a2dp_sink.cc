@@ -572,19 +572,19 @@ static void btif_a2dp_sink_decoder_update_event(
                    p_buf->codec_info[1], p_buf->codec_info[2],
                    p_buf->codec_info[3], p_buf->codec_info[4],
                    p_buf->codec_info[5], p_buf->codec_info[6]);
+  {
+    std::lock_guard<std::mutex> lock(btif_a2dp_sink_cb.audio_track_mutex);
+    if (btif_a2dp_sink_cb.audio_track != NULL) {
+      APPL_TRACE_EVENT("%s, btif_a2dp_sink_cb.audio_track != NULL", __func__);
+      return;
+    }
+  }
 
   // clear earlier alarm (if any) and media packet queue
   alarm_free(btif_a2dp_sink_cb.decode_alarm);
   APPL_TRACE_DEBUG("%s: clear decode alarm.", __func__);
   btif_a2dp_sink_cb.decode_alarm = NULL;
   btif_a2dp_sink_audio_rx_flush_event();
-
-  /* Free the alarm if this function is invoked as alarm callback when Codec
-   * Config is updated from remote when AV State Machine is in STARTED/OPENED State*/
-  if (config_alarm) {
-    alarm_free(config_alarm);
-    config_alarm = NULL;
-  }
 
   uint8_t codec_type = A2DP_GetCodecType(p_buf->codec_info);
   int sample_rate = A2DP_GetTrackSampleRate(p_buf->codec_info);
