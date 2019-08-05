@@ -64,6 +64,10 @@ static bt_status_t init( btvendor_callbacks_t* callbacks)
     return BT_STATUS_SUCCESS;
 }
 
+static bool vendor_interface_ready(void) {
+  return bt_vendor_callbacks != NULL;
+}
+
 static void ssrcleanup(void)
 {
     LOG_INFO(LOG_TAG,"ssrcleanup");
@@ -157,6 +161,15 @@ static void setScanMode(bt_scan_mode_t scanMode, bool ignoreLeScanModes) {
 
 }
 
+static void get_role_req(const bt_bdaddr_t *bd_addr)
+{
+    /* sanity check */
+    if (vendor_interface_ready() == FALSE)
+        return 0;
+
+    return btif_dm_get_role_req(bd_addr);
+}
+
 static const btvendor_interface_t btvendorInterface = {
     sizeof(btvendorInterface),
     init,
@@ -165,6 +178,7 @@ static const btvendor_interface_t btvendorInterface = {
     cleanup,
     setLeBtName,
     setScanMode,
+    get_role_req,
 };
 
 

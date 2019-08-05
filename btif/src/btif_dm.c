@@ -955,6 +955,34 @@ uint16_t btif_dm_get_connection_state(const bt_bdaddr_t *bd_addr)
 
 /*******************************************************************************
 **
+** Function         btif_dm_get_role_req
+**
+** Description      Get role of dut with a given remote device
+**
+** Returns          void
+**
+*******************************************************************************/
+void btif_dm_get_role_req(const bt_bdaddr_t *bd_addr)
+{
+    uint8_t *bda = (uint8_t*)bd_addr->address;
+    uint8_t cur_role = BTM_ROLE_UNDEFINED;
+    bt_dm_role_info role;
+    memset((void *)&role, 0, sizeof(bt_dm_role_info));
+
+    if (BTM_GetRole (bda, &cur_role) == BTM_SUCCESS)
+    {
+        memcpy((void *)&role.bd_addr, (void *)bd_addr, sizeof(bt_bdaddr_t));
+        role.role = cur_role;
+        role.status = BT_STATUS_SUCCESS;
+    }
+    else
+        role.status = BT_STATUS_FAIL;
+
+    HAL_CBACK(bt_vendor_callbacks, role_info_cb, role);
+}
+
+/*******************************************************************************
+**
 ** Function         search_devices_copy_cb
 **
 ** Description      Deep copy callback for search devices event
@@ -2327,11 +2355,23 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             break;
         }
 
+        case BTA_DM_ROLE_CHG_EVT:
+        {
+            bt_dm_role_info role;
+            BTIF_TRACE_DEBUG("Role Change event received!!");
+            /* call vendor callback */
+            memcpy((void *)&role.bd_addr, (void *)&p_data->role_chg.bd_addr, sizeof(bt_bdaddr_t));
+            role.role = p_data->role_chg.new_role;
+            role.status = BT_STATUS_SUCCESS;
+
+            HAL_CBACK(bt_vendor_callbacks, role_info_cb, role);
+            break;
+        }
+
         case BTA_DM_AUTHORIZE_EVT:
         case BTA_DM_SIG_STRENGTH_EVT:
         case BTA_DM_SP_RMT_OOB_EVT:
         case BTA_DM_SP_KEYPRESS_EVT:
-        case BTA_DM_ROLE_CHG_EVT:
 
         default:
             BTIF_TRACE_WARNING( "btif_dm_cback : unhandled event (%d)", event );
