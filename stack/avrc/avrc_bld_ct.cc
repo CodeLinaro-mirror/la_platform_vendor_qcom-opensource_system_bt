@@ -457,7 +457,12 @@ static tAVRC_STS avrc_bld_get_folder_items_cmd(BT_HDR* p_pkt,
    * PDU mentioned in above spec. */
   /* scope (1) + st item (4) + end item (4) + attr (1) */
   int nCount = cmd->attr_count;
-  UINT16_TO_BE_STREAM(p_data, 10);
+  if((nCount != AVRC_FOLDER_ITEM_COUNT_NONE)&&(nCount != 0x00)){
+    UINT16_TO_BE_STREAM(p_data, 10 + (sizeof(uint32_t)*nCount));
+  }
+  else {
+    UINT16_TO_BE_STREAM(p_data, 10);
+  }
   UINT8_TO_BE_STREAM(p_data, cmd->scope);       /* scope (1bytes) */
   UINT32_TO_BE_STREAM(p_data, cmd->start_item); /* start item (4bytes) */
   UINT32_TO_BE_STREAM(p_data, cmd->end_item);   /* end item (4bytes) */
