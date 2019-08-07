@@ -929,7 +929,7 @@ tBTA_AV_EVT bta_av_proc_meta_cmd(tAVRC_RESPONSE* p_rc_rsp,
             }
 
             char avrcp_version[PROPERTY_VALUE_MAX] = {0};
-            osi_property_get(AVRCP_VERSION_PROPERTY, avrcp_version, AVRCP_1_4_STRING);
+            osi_property_get(AVRCP_VERSION_PROPERTY, avrcp_version, AVRCP_1_6_STRING);
             BTIF_TRACE_DEBUG(LOG_TAG, "AVRCP version used for sdp: \"%s\"", avrcp_version);
 
             if ((!strncmp(AVRCP_1_3_STRING, avrcp_version, sizeof(AVRCP_1_3_STRING))) ||
@@ -1806,7 +1806,7 @@ uint16_t bta_get_dut_avrcp_version() {
     uint16_t profile_version = AVRC_REV_1_0;
     char avrcp_version[PROPERTY_VALUE_MAX] = {0};
     property_get(AVRCP_VERSION_PROPERTY, avrcp_version,
-                     AVRCP_1_4_STRING);
+                     AVRCP_1_6_STRING);
 
     if (!strncmp(AVRCP_1_6_STRING, avrcp_version,
                  sizeof(AVRCP_1_6_STRING))) {

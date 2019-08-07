@@ -43,6 +43,9 @@ typedef struct {
   uint32_t sdp_tg_handle;
   uint32_t sdp_ct_handle;
   uint16_t ct_categories[2];
+  uint16_t tg_categories[2];
+  bool ct_browse_supported;
+  bool tg_browse_supported;
   uint8_t tg_registered;
   tBTA_AV_HNDL hndl; /* Handle associated with the stream that rejected the
                         connection. */
