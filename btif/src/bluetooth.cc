@@ -211,7 +211,11 @@ static int disable(void) {
   return BT_STATUS_SUCCESS;
 }
 
-static void cleanup(void) { stack_manager_get_interface()->clean_up_stack(); }
+static void cleanup(void) {
+  stack_manager_get_interface()->clean_up_stack();
+  LOG_INFO(LOG_TAG, "%s free the snoop memory\n", __func__);
+  btif_debug_deinit();
+}
 
 bool is_restricted_mode() { return restricted_mode; }
 
