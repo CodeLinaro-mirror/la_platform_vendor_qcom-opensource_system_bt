@@ -177,6 +177,13 @@ void btif_debug_btsnoop_init(void) {
   btsnoop_mem_set_callback(btsnoop_cb);
 }
 
+void btif_debug_btsnoop_deinit(void) {
+  if (buffer != NULL) {
+    ringbuffer_free(buffer);
+    buffer = NULL;
+  }
+}
+
 void btif_debug_btsnoop_dump(int fd) {
   ringbuffer_t* ringbuffer = ringbuffer_init(BTSNOOP_MEM_BUFFER_SIZE);
   if (ringbuffer == NULL) {
