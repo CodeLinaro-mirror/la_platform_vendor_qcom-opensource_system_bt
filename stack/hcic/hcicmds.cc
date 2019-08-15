@@ -25,9 +25,12 @@
 
 #include "bt_common.h"
 #include "bt_target.h"
+#include "bt_utils.h"
 #include "btu.h"
 #include "hcidefs.h"
 #include "hcimsgs.h"
+
+#include "osi/include/properties.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -785,8 +788,12 @@ void btsnd_hcic_write_scan_enable(uint8_t flag) {
   UINT16_TO_STREAM(pp, HCI_WRITE_SCAN_ENABLE);
   UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_WRITE_PARAM1);
 
-  UINT8_TO_STREAM(pp, flag);
-
+  if (isClassicBtDisabled()) {
+    BTIF_TRACE_DEBUG("%s BR/EDR disabled, no scan enable", __func__);
+    UINT8_TO_STREAM(pp, HCI_NO_SCAN_ENABLED);
+  } else {
+    UINT8_TO_STREAM(pp, flag);
+  }
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 

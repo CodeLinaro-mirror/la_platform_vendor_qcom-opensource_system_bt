@@ -153,3 +153,18 @@ void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task) {
     }
   }
 }
+
+/*****************************************************************************
+ *
+ * Function        isClassicBtDisabled
+ *
+ * Description     BR/EDR is disabled when true
+ *
+ * Returns         bool
+ *
+ ******************************************************************************/
+bool isClassicBtDisabled() {
+  char value[PROPERTY_VALUE_MAX] = {0};
+  osi_property_get("persist.bt.disablebredr", value, "true");
+  return strncmp(value, "true", sizeof(value)) == 0;
+}

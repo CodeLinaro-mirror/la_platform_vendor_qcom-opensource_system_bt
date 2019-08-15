@@ -1913,6 +1913,21 @@ static void bta_dm_discover_device(const RawAddress& remote_bd_addr) {
     transport = bta_dm_search_cb.transport;
   }
 
+  if (isClassicBtDisabled() && transport != BT_TRANSPORT_LE) {
+    APPL_TRACE_DEBUG("%s BR/EDR disabled", __func__);
+    tBTA_DM_MSG* p_msg = (tBTA_DM_MSG*)osi_malloc(sizeof(tBTA_DM_MSG));
+    p_msg->hdr.event = BTA_DM_DISCOVERY_RESULT_EVT;
+    p_msg->disc_result.result.disc_res.result = BTA_FAILURE;
+    p_msg->disc_result.result.disc_res.services =
+        bta_dm_search_cb.services_found;
+    p_msg->disc_result.result.disc_res.bd_addr = bta_dm_search_cb.peer_bdaddr;
+    strlcpy((char*)p_msg->disc_result.result.disc_res.bd_name,
+            bta_dm_get_remname(), BD_NAME_LEN);
+
+    bta_sys_sendmsg(p_msg);
+    return;
+  }
+
   /* Reset transport state for next discovery */
   bta_dm_search_cb.transport = BTA_TRANSPORT_UNKNOWN;
 

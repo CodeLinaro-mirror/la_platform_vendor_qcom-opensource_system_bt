@@ -37,6 +37,7 @@
 #include "advertise_data_parser.h"
 #include "bt_common.h"
 #include "bt_types.h"
+#include "bt_utils.h"
 #include "btm_api.h"
 #include "btm_int.h"
 #include "btu.h"
@@ -50,7 +51,7 @@ using bluetooth::Uuid;
 
 /* TRUE to enable DEBUG traces for btm_inq */
 #ifndef BTM_INQ_DEBUG
-#define BTM_INQ_DEBUG FALSE
+#define BTM_INQ_DEBUG TRUE
 #endif
 
 /******************************************************************************/
@@ -800,6 +801,9 @@ tBTM_STATUS BTM_StartInquiry(tBTM_INQ_PARMS* p_inqparms,
       if (status != BTM_CMD_STARTED) {
         LOG(ERROR) << __func__ << ": Error Starting LE Inquiry";
         p_inq->inqparms.mode &= ~BTM_BLE_INQUIRY_MASK;
+      } else if ((p_inqparms->mode & BTM_BR_INQUIRY_MASK) == BTM_INQUIRY_NONE && isClassicBtDisabled()) {
+        BTM_TRACE_DEBUG("Notify app inquiry in progress");
+        btm_acl_update_busy_level(BTM_BLI_INQ_EVT);
       }
     }
     p_inqparms->mode &= ~BTM_BLE_INQUIRY_MASK;
@@ -809,6 +813,7 @@ tBTM_STATUS BTM_StartInquiry(tBTM_INQ_PARMS* p_inqparms,
 
   /* we're done with this routine if BR/EDR inquiry is not desired. */
   if ((p_inqparms->mode & BTM_BR_INQUIRY_MASK) == BTM_INQUIRY_NONE) {
+    BTM_TRACE_DEBUG("BR/EDR inquiry is not desired, return %d", status);
     return status;
   }
 

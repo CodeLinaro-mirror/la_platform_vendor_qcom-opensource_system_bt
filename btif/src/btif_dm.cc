@@ -60,6 +60,7 @@
 #include "btif_storage.h"
 #include "btif_util.h"
 #include "btu.h"
+#include "bt_utils.h"
 #include "device/include/controller.h"
 #include "device/include/interop.h"
 #include "internal_include/stack_config.h"
@@ -690,7 +691,7 @@ static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
     BTA_DmAddBleDevice(bd_addr, addr_type, device_type);
   }
 
-  if (is_hid && (device_type & BT_DEVICE_TYPE_BLE) == 0) {
+  if (is_hid && (device_type & BT_DEVICE_TYPE_BLE) == 0 && !isClassicBtDisabled()) {
     bt_status_t status;
     status = (bt_status_t)btif_hh_connect(&bd_addr);
     if (status != BT_STATUS_SUCCESS)
@@ -2210,7 +2211,13 @@ bt_status_t btif_dm_start_discovery(void) {
   /* TODO: Do we need to handle multiple inquiries at the same time? */
 
   /* Set inquiry params and call API */
-  inq_params.mode = BTA_DM_GENERAL_INQUIRY | BTA_BLE_GENERAL_INQUIRY;
+  if (isClassicBtDisabled()) {
+    /* Classic bt disabled */
+    BTIF_TRACE_DEBUG("%s class bt disabled, only BLE scan", __func__);
+    inq_params.mode = BTA_DM_INQUIRY_NONE | BTA_BLE_GENERAL_INQUIRY;
+  } else {
+    inq_params.mode = BTA_DM_GENERAL_INQUIRY | BTA_BLE_GENERAL_INQUIRY;
+  }
   inq_params.duration = BTIF_DM_DEFAULT_INQ_MAX_DURATION;
 
   inq_params.max_resps = BTIF_DM_DEFAULT_INQ_MAX_RESULTS;
@@ -2442,6 +2449,10 @@ bt_status_t btif_dm_pin_reply(const RawAddress* bd_addr, uint8_t accept,
     BTA_DmBlePasskeyReply(*bd_addr, accept, passkey);
 
   } else {
+    if (isClassicBtDisabled()) {
+      BTIF_TRACE_DEBUG("BR/EDR disabled");
+      return BT_STATUS_FAIL;
+    }
     BTA_DmPinReply(*bd_addr, accept, pin_len, pin_code->pin);
     if (accept) pairing_cb.pin_code_len = pin_len;
   }
@@ -2480,6 +2491,10 @@ bt_status_t btif_dm_ssp_reply(const RawAddress* bd_addr,
         BTA_DmBleSecurityGrant(*bd_addr, BTA_DM_SEC_PAIR_NOT_SPT);
     }
   } else {
+    if (isClassicBtDisabled()) {
+      BTIF_TRACE_DEBUG("BR/EDR disabled");
+      return BT_STATUS_FAIL;
+    }
     BTA_DmConfirm(*bd_addr, accept);
   }
   return BT_STATUS_SUCCESS;

@@ -186,6 +186,12 @@ static bt_status_t btsock_connect(const RawAddress* bd_addr, btsock_type_t type,
   *sock_fd = INVALID_FD;
   bt_status_t status = BT_STATUS_FAIL;
 
+  if (isClassicBtDisabled() && type != BTSOCK_L2CAP_LE) {
+    LOG_DEBUG(LOG_TAG, "%s: BR/EDR disabled, not support type=0x%x",
+                    __func__, type);
+    return BT_STATUS_UNSUPPORTED;
+  }
+
   switch (type) {
     case BTSOCK_RFCOMM:
       status =

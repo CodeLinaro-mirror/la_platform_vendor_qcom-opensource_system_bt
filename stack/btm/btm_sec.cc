@@ -938,6 +938,9 @@ tBTM_STATUS btm_sec_bond_by_transport(const RawAddress& bd_addr,
 
     btm_cb.pairing_flags = 0;
     return (BTM_NO_RESOURCES);
+  } else if (isClassicBtDisabled()) {
+    BTM_TRACE_DEBUG("%s, transport=0x%x, BR/EDR disabled, don't bond", __func__, transport);
+    return BTM_NO_RESOURCES;
   }
 
   p_dev_rec->sec_flags &=
