@@ -4203,6 +4203,9 @@ static void cleanup(int service_uuid) {
 
   alarm_free(av_open_on_rc_timer);
   av_open_on_rc_timer = NULL;
+
+  alarm_free(av_coll_detected_timer);
+  av_coll_detected_timer = NULL;
 }
 
 static void cleanup_src(void) {
