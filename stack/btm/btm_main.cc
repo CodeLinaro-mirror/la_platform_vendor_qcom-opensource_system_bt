@@ -127,6 +127,15 @@ void btm_free (void)
     alarm_free(btm_cb.devcb.read_rssi_timer);
     btm_cb.devcb.read_rssi_timer = NULL;
   }
+  if (btm_cb.devcb.read_failed_contact_counter_timer) {
+    alarm_free(btm_cb.devcb.read_failed_contact_counter_timer);
+    btm_cb.devcb.read_failed_contact_counter_timer = NULL;
+  }
+
+  if (btm_cb.devcb.read_automatic_flush_timeout_timer) {
+    alarm_free(btm_cb.devcb.read_automatic_flush_timeout_timer);
+    btm_cb.devcb.read_automatic_flush_timeout_timer = NULL;
+  }
   if (btm_cb.devcb.read_link_quality_timer) {
     alarm_free(btm_cb.devcb.read_link_quality_timer);
     btm_cb.devcb.read_link_quality_timer = NULL;
@@ -140,8 +149,8 @@ void btm_free (void)
     btm_cb.devcb.qos_setup_timer = NULL;
   }
   if (btm_cb.devcb.read_tx_power_timer) {
-     alarm_free(btm_cb.devcb.read_tx_power_timer);
-     btm_cb.devcb.read_tx_power_timer = NULL;
+    alarm_free(btm_cb.devcb.read_tx_power_timer);
+    btm_cb.devcb.read_tx_power_timer = NULL;
   }
 }
 
