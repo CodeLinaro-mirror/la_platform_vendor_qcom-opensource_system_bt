@@ -657,9 +657,10 @@ void bta_hf_client_api_disable() {
 
   /* reinit the control block */
   for (int i = 0; i < HF_CLIENT_MAX_DEVICES; i++) {
-    if (bta_hf_client_cb_arr.cb[i].is_allocated) {
-      bta_hf_client_cb_init(&(bta_hf_client_cb_arr.cb[i]), i);
-    }
+    //if (bta_hf_client_cb_arr.cb[i].is_allocated) {
+      //bta_hf_client_cb_init(&(bta_hf_client_cb_arr.cb[i]), i);
+    //}
+    alarm_free(bta_hf_client_cb_arr.cb[i].collision_timer);
   }
 
   /* De-register with BTA system manager */
