@@ -215,6 +215,28 @@ enum {
     (p) += 3;                                                             \
   }
 
+/* A2dp sampling frequencies */
+
+#define SAMPLING_FREQ_44100 44100
+#define SAMPLING_FREQ_48000 48000
+#define SAMPLING_FREQ_88200 88200
+#define SAMPLING_FREQ_96000 96000
+#define SAMPLING_FREQ_176400 176400
+#define SAMPLING_FREQ_192000 192000
+#define SAMPLING_FREQ_16000 16000
+#define SAMPLING_FREQ_24000 24000
+
+/*Mapping of above sampling frequencies when sending VSC*/
+
+#define A2DP_SAMPLING_FREQ_44100 0x01
+#define A2DP_SAMPLING_FREQ_48000 0x02
+#define A2DP_SAMPLING_FREQ_88200 0x04
+#define A2DP_SAMPLING_FREQ_96000 0x08
+#define A2DP_SAMPLING_FREQ_176400 0x10
+#define A2DP_SAMPLING_FREQ_192000 0x20
+#define A2DP_SAMPLING_FREQ_16000 0x40
+#define A2DP_SAMPLING_FREQ_24000 0x80
+
 /*****************************************************************************
  *  Data types
  ****************************************************************************/
@@ -669,7 +691,9 @@ struct tBTA_AV_SCB {
   uint8_t start_pending;
   bool offload_started;
 //#endif
+  bool vendor_start;
   bool rc_conn;
+  tBTA_AV_DATA *cache_setconfig;
 };
 
 #define BTA_AV_RC_ROLE_MASK 0x10
@@ -944,6 +968,7 @@ extern void bta_av_open_at_inc(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_offload_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_offload_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_vendor_offload_stop(tBTA_AV_SCB* p_scb);
+extern void bta_av_disc_fail_as_acp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 #if (TWS_ENABLED == TRUE)
 extern void bta_av_set_tws_chn_mode(tBTA_AV_SCB* p_scb, bool adjust);
 #endif
