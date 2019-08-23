@@ -128,6 +128,7 @@ static void setLeBtName(btvendor_lename_t *name)
 static void setScanMode(bt_scan_mode_t scanMode, bool ignoreLeScanModes) {
     tBTA_DM_DISC disc_mode;
     tBTA_DM_CONN conn_mode;
+    UINT8 conn_filter = BTA_DM_CONN_ALL;
 
     BTIF_TRACE_EVENT("setScanMode mode : %d ignoreLeScanModes %d", scanMode, ignoreLeScanModes);
 
@@ -140,6 +141,7 @@ static void setScanMode(bt_scan_mode_t scanMode, bool ignoreLeScanModes) {
         case BT_SCAN_MODE_CONNECTABLE:
             disc_mode = BTA_DM_NON_DISC;
             conn_mode = BTA_DM_CONN;
+            conn_filter = BTA_DM_CONN_PAIRED;
             break;
 
         case BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE:
@@ -157,7 +159,7 @@ static void setScanMode(bt_scan_mode_t scanMode, bool ignoreLeScanModes) {
         conn_mode |= BTA_DM_LE_IGNORE;
     }
 
-    BTA_DmSetVisibility(disc_mode, conn_mode, BTA_DM_IGNORE, BTA_DM_IGNORE);
+    BTA_DmSetVisibility(disc_mode, conn_mode, BTA_DM_IGNORE, conn_filter);
 
 }
 
