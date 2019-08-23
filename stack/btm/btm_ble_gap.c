@@ -1420,12 +1420,17 @@ UINT8 *BTM_CheckAdvData( UINT8 *p_adv, UINT8 type, UINT8 *p_length, UINT16 adv_d
     UINT8 *p = p_adv;
     UINT8 length;
     UINT8 adv_type;
-    BTM_TRACE_API("%s: type=0x%02x", __func__, type);
+    *p_length = 0;
+    BTM_TRACE_API("%s: type=0x%02x, p_adv:%p, len:%d", __func__, type,p_adv, adv_data_len);
 
-    STREAM_TO_UINT8(length, p);
+    if(adv_data_len == 0)
+        return NULL;
 
-    while ( length && (p - p_adv <= adv_data_len))
-    {
+    do {
+        STREAM_TO_UINT8(length, p);
+        BTM_TRACE_API("%s length:%d",__func__,length);
+        if(length == 0 )
+            break;
         STREAM_TO_UINT8(adv_type, p);
 
         if ( adv_type == type )
@@ -1435,10 +1440,8 @@ UINT8 *BTM_CheckAdvData( UINT8 *p_adv, UINT8 type, UINT8 *p_length, UINT16 adv_d
             return p;
         }
         p += length - 1; /* skip the length of data */
-        STREAM_TO_UINT8(length, p);
-    }
+    } while ( length && (p - p_adv <= adv_data_len));
 
-    *p_length = 0;
     return NULL;
 }
 

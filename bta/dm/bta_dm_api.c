@@ -622,7 +622,7 @@ tBTA_STATUS BTA_DmRemoveDevice(BD_ADDR bd_addr)
 **
 *******************************************************************************/
 extern const UINT16 bta_service_id_to_uuid_lkup_tbl [];
-void BTA_GetEirService( UINT8 *p_eir, tBTA_SERVICE_MASK *p_services )
+void BTA_GetEirService( UINT8 *p_eir, tBTA_SERVICE_MASK *p_services, UINT16 adv_data_len)
 {
     UINT8 xx, yy;
     UINT8 num_uuid, max_num_uuid = 32;
@@ -630,7 +630,7 @@ void BTA_GetEirService( UINT8 *p_eir, tBTA_SERVICE_MASK *p_services )
     UINT16 *p_uuid16 = (UINT16 *)uuid_list;
     tBTA_SERVICE_MASK mask;
 
-    BTM_GetEirUuidList( p_eir, LEN_UUID_16, &num_uuid, uuid_list, max_num_uuid);
+    BTM_GetEirUuidList( p_eir, LEN_UUID_16, &num_uuid, uuid_list, max_num_uuid, adv_data_len);
     for( xx = 0; xx < num_uuid; xx++ )
     {
         mask = 1;

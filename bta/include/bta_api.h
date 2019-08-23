@@ -1677,7 +1677,8 @@ extern tBTA_STATUS BTA_DmRemoveDevice(BD_ADDR bd_addr);
 ** Returns          None
 **
 *******************************************************************************/
-extern void BTA_GetEirService( UINT8 *p_eir, tBTA_SERVICE_MASK *p_services );
+extern void BTA_GetEirService( UINT8 *p_eir, tBTA_SERVICE_MASK *p_services,
+                               UINT16 adv_data_len);
 
 /*******************************************************************************
 **

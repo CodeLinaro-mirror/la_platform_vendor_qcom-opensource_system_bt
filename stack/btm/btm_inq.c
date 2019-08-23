@@ -138,9 +138,9 @@ static tBTM_STATUS  btm_set_inq_event_filter (UINT8 filter_cond_type, tBTM_INQ_F
 static void         btm_clr_inq_result_flt (void);
 
 static UINT8        btm_convert_uuid_to_eir_service( UINT16 uuid16 );
-static void         btm_set_eir_uuid( UINT8 *p_eir, tBTM_INQ_RESULTS *p_results );
+static void         btm_set_eir_uuid( UINT8 *p_eir, tBTM_INQ_RESULTS *p_results, UINT16 len);
 static UINT8       *btm_eir_get_uuid_list( UINT8 *p_eir, UINT8 uuid_size,
-                                           UINT8 *p_num_uuid, UINT8 *p_uuid_list_type );
+                                           UINT8 *p_num_uuid, UINT8 *p_uuid_list_type, UINT16 len);
 static UINT16       btm_convert_uuid_to_uuid16( UINT8 *p_uuid, UINT8 uuid_size );
 
 /*******************************************************************************
@@ -2056,7 +2056,7 @@ void btm_process_inq_results (UINT8 *p, UINT8 inq_res_mode)
                 memset( p_cur->eir_uuid, 0,
                         BTM_EIR_SERVICE_ARRAY_SIZE * (BTM_EIR_ARRAY_BITS/8));
                 /* set bit map of UUID list from received EIR */
-                btm_set_eir_uuid( p, p_cur );
+                btm_set_eir_uuid( p, p_cur, p_cur->adv_data_len);
                 p_eir_data = p;
             }
             else
@@ -2542,11 +2542,17 @@ UINT8 *BTM_CheckEirData( UINT8 *p_eir, UINT8 type, UINT8 *p_length, UINT16 adv_d
     UINT8 *p = p_eir;
     UINT8 length;
     UINT8 eir_type;
-    BTM_TRACE_API("BTM_CheckEirData type=0x%02X", type);
+    *p_length = 0;
+    BTM_TRACE_ERROR("BTM_CheckEirData p_eir:%p, p_length:%p, type:%d, adv_data_len:%d", p_eir, p_length, type, adv_data_len);
 
-    STREAM_TO_UINT8(length, p);
-    while( length && (p - p_eir <= adv_data_len))
-    {
+    if(adv_data_len == 0)
+        return NULL;
+
+    do {
+        STREAM_TO_UINT8(length, p);
+        BTM_TRACE_API("%s length:%d",__func__,length);
+        if(length == 0 )
+            break;
         STREAM_TO_UINT8(eir_type, p);
         if( eir_type == type )
         {
@@ -2555,10 +2561,8 @@ UINT8 *BTM_CheckEirData( UINT8 *p_eir, UINT8 type, UINT8 *p_length, UINT16 adv_d
             return p;
         }
         p += length - 1; /* skip the length of data */
-        STREAM_TO_UINT8(length, p);
-    }
+    } while( length && (p - p_eir <= adv_data_len));
 
-    *p_length = 0;
     return NULL;
 }
 
@@ -2745,7 +2749,7 @@ UINT8 BTM_GetEirSupportedServices( UINT32 *p_eir_uuid,    UINT8 **p,
 **
 *******************************************************************************/
 UINT8 BTM_GetEirUuidList( UINT8 *p_eir, UINT8 uuid_size, UINT8 *p_num_uuid,
-                            UINT8 *p_uuid_list, UINT8 max_num_uuid)
+                            UINT8 *p_uuid_list, UINT8 max_num_uuid, UINT16 len)
 {
     UINT8   *p_uuid_data;
     UINT8   type;
@@ -2754,7 +2758,7 @@ UINT8 BTM_GetEirUuidList( UINT8 *p_eir, UINT8 uuid_size, UINT8 *p_num_uuid,
     UINT32  *p_uuid32 = (UINT32 *)p_uuid_list;
     char    buff[LEN_UUID_128 * 2 + 1];
 
-    p_uuid_data = btm_eir_get_uuid_list( p_eir, uuid_size, p_num_uuid, &type );
+    p_uuid_data = btm_eir_get_uuid_list( p_eir, uuid_size, p_num_uuid, &type, len);
     if( p_uuid_data == NULL )
     {
         return 0x00;
@@ -2816,7 +2820,7 @@ UINT8 BTM_GetEirUuidList( UINT8 *p_eir, UINT8 uuid_size, UINT8 *p_num_uuid,
 **
 *******************************************************************************/
 static UINT8 *btm_eir_get_uuid_list( UINT8 *p_eir, UINT8 uuid_size,
-                                     UINT8 *p_num_uuid, UINT8 *p_uuid_list_type )
+                                     UINT8 *p_num_uuid, UINT8 *p_uuid_list_type, UINT16 len)
 {
     UINT8   *p_uuid_data;
     UINT8   complete_type, more_type;
@@ -2842,10 +2846,10 @@ static UINT8 *btm_eir_get_uuid_list( UINT8 *p_eir, UINT8 uuid_size,
         break;
     }
 
-    p_uuid_data = BTM_CheckEirData( p_eir, complete_type, &uuid_len, HCI_EXT_INQ_RESPONSE_LEN);
+    p_uuid_data = BTM_CheckEirData( p_eir, complete_type, &uuid_len, len);
     if(p_uuid_data == NULL)
     {
-        p_uuid_data = BTM_CheckEirData( p_eir, more_type, &uuid_len, HCI_EXT_INQ_RESPONSE_LEN);
+        p_uuid_data = BTM_CheckEirData( p_eir, more_type, &uuid_len, len);
         *p_uuid_list_type = more_type;
     }
     else
@@ -2929,7 +2933,7 @@ static UINT16 btm_convert_uuid_to_uuid16( UINT8 *p_uuid, UINT8 uuid_size )
 ** Returns          None
 **
 *******************************************************************************/
-void btm_set_eir_uuid( UINT8 *p_eir, tBTM_INQ_RESULTS *p_results )
+void btm_set_eir_uuid( UINT8 *p_eir, tBTM_INQ_RESULTS *p_results, UINT16 len)
 {
     UINT8   *p_uuid_data;
     UINT8   num_uuid;
@@ -2937,7 +2941,7 @@ void btm_set_eir_uuid( UINT8 *p_eir, tBTM_INQ_RESULTS *p_results )
     UINT8   yy;
     UINT8   type = BTM_EIR_MORE_16BITS_UUID_TYPE;
 
-    p_uuid_data = btm_eir_get_uuid_list( p_eir, LEN_UUID_16, &num_uuid, &type );
+    p_uuid_data = btm_eir_get_uuid_list( p_eir, LEN_UUID_16, &num_uuid, &type, len);
 
     if(type == BTM_EIR_COMPLETE_16BITS_UUID_TYPE)
     {
@@ -2959,7 +2963,7 @@ void btm_set_eir_uuid( UINT8 *p_eir, tBTM_INQ_RESULTS *p_results )
         }
     }
 
-    p_uuid_data = btm_eir_get_uuid_list( p_eir, LEN_UUID_32, &num_uuid, &type );
+    p_uuid_data = btm_eir_get_uuid_list( p_eir, LEN_UUID_32, &num_uuid, &type, len);
     if( p_uuid_data )
     {
         for( yy = 0; yy < num_uuid; yy++ )
@@ -2971,7 +2975,7 @@ void btm_set_eir_uuid( UINT8 *p_eir, tBTM_INQ_RESULTS *p_results )
         }
     }
 
-    p_uuid_data = btm_eir_get_uuid_list( p_eir, LEN_UUID_128, &num_uuid, &type );
+    p_uuid_data = btm_eir_get_uuid_list( p_eir, LEN_UUID_128, &num_uuid, &type, len);
     if( p_uuid_data )
     {
         for( yy = 0; yy < num_uuid; yy++ )

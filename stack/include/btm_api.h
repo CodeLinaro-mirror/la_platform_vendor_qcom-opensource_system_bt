@@ -3936,7 +3936,7 @@ extern UINT8 BTM_GetEirSupportedServices( UINT32 *p_eir_uuid,    UINT8 **p,
 **
 *******************************************************************************/
 extern UINT8 BTM_GetEirUuidList( UINT8 *p_eir, UINT8 uuid_size, UINT8 *p_num_uuid,
-                                 UINT8 *p_uuid_list, UINT8 max_num_uuid);
+                                 UINT8 *p_uuid_list, UINT8 max_num_uuid, UINT16 len);
 
 /*****************************************************************************
 **  SCO OVER HCI

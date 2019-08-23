@@ -1559,7 +1559,7 @@ static void btif_dm_search_devices_evt (UINT16 event, char *p_param)
             /* Check EIR for remote name and services */
             if (p_search_data->inq_res.p_eir)
             {
-                BTA_GetEirService(p_search_data->inq_res.p_eir, &services);
+                BTA_GetEirService(p_search_data->inq_res.p_eir, &services, p_search_data->inq_res.adv_data_len);
                 BTIF_TRACE_DEBUG("%s()EIR BTA services = %08X", __FUNCTION__, (UINT32)services);
                 /* TODO:  Get the service list and check to see which uuids we got and send it back to the client. */
             }
