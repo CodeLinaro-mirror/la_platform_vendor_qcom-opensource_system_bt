@@ -601,6 +601,8 @@ void add_mandatory_codec(std::vector<btav_a2dp_codec_config_t>* p_codec_config_l
         LOG_DEBUG(LOG_TAG," Added Mandatory SBC codec at index %d", ++num_codec_configs);
       }
     }
+    for(int xx=0; xx < BTAV_A2DP_CODEC_INDEX_SOURCE_MAX; xx++)
+        delete codec_config[xx];
 }
 
 

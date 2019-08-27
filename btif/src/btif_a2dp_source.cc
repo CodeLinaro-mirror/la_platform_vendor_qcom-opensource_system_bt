@@ -507,8 +507,8 @@ static void btif_a2dp_source_command_ready(fixed_queue_t* queue,
       break;
   }
 
-  osi_free(p_msg);
   LOG_VERBOSE(LOG_TAG, "%s: %s DONE", __func__, dump_media_event(p_msg->event));
+  osi_free(p_msg);
 }
 
 bt_status_t btif_a2dp_source_setup_codec(tBTA_AV_HNDL hndl) {
