@@ -70,6 +70,7 @@
 #include "btif_a2dp_control.h"
 #include "btif_a2dp_sink.h"
 #include "btif_av_co.h"
+#include "btif_av.h"
 #include "btif_profile_queue.h"
 #include "btif_util.h"
 #include "btu.h"
@@ -229,6 +230,8 @@ int btif_max_av_clients = 1;
 static bool enable_multicast = false;
 static bool is_multicast_supported = false;
 static bool multicast_disabled = false;
+static bool in_multicast_mode = true;
+static bool config_codec_in_multicast = false;
 static RawAddress retry_bda;
 static RawAddress codec_bda = {};
 static int conn_retry_count = 1;
@@ -291,7 +294,6 @@ static void btif_av_sink_media_config_delay(tBTA_AV_MEDIA *p_data);
 static bool btif_av_get_valid_idx(int idx);
 int btif_av_idx_by_bdaddr(RawAddress *bd_addr);
 static int btif_av_get_valid_idx_for_rc_events(RawAddress bd_addr, int rc_handle);
-static int btif_get_conn_state_of_device(RawAddress address);
 static bt_status_t connect_int(RawAddress *bd_addr, uint16_t uuid);
 static void btif_av_check_rc_connection_priority(void *p_data);
 static bt_status_t connect_int(RawAddress* bd_addr, uint16_t uuid);
@@ -847,6 +849,7 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
       BTA_AvUpdateTWSDevice(btif_av_cb[index].tws_device, btif_av_cb[index].bta_handle);
 #endif
       btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_OPENING);
+      btif_av_update_multicast_state(index);
       } break;
 
     case BTA_AV_PENDING_EVT:
@@ -892,6 +895,7 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
             IOT_CONF_KEY_A2DP_CONN_COUNT);
 #endif
         btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_OPENING);
+        btif_av_update_multicast_state(index);
       }
 
       if (bt_av_src_callbacks != NULL) {
@@ -2016,7 +2020,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
             if (btif_av_cb[i].current_playing) {
               is_playing = true;
               BTIF_TRACE_DEBUG("%s: current playing index: %d, is_playing: %d",
-                           __func__, btif_av_cb[i].current_playing, is_playing);
+                           __func__, i, is_playing);
               break;
             }
           }
@@ -2615,7 +2619,8 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
           config->peer_bd.ToString().c_str(), index);
       } break;
 
-    case BTIF_AV_TRIGGER_HANDOFF_REQ_EVT:
+    case BTIF_AV_TRIGGER_HANDOFF_REQ_EVT: {
+      bool trigger_handoff = false;
       bt_addr = (RawAddress *)p_param;
       BTIF_TRACE_WARNING("%s: device %s ",__func__, (*bt_addr).ToString().c_str());
       previous_active_index = btif_av_get_latest_device_idx_to_start();
@@ -2675,21 +2680,29 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
         {
           if (i == index)
             btif_av_cb[i].current_playing = TRUE;
-          else
+          else if (!btif_av_get_multicast_state())
+          {
+            trigger_handoff = true;
             btif_av_cb[i].current_playing = FALSE;
+          }
 
           BTIF_TRACE_IMP("current_playing for index %d: %d", i, btif_av_cb[i].current_playing);
         }
-        BTIF_TRACE_IMP("going to active index %d: previous active index %d", now_active_index, previous_active_index);
-        /*  RC play state is to be cleared to make sure the same when retained
-         *  does not impact UI initiated play*/
+        BTIF_TRACE_IMP("%s: trigger_handoff %d", __func__, trigger_handoff);
+        if (trigger_handoff)
+        {
+
+          BTIF_TRACE_IMP("going to active index %d: previous active index %d", now_active_index, previous_active_index);
+          /*  RC play state is to be cleared to make sure the same when retained
+           *  does not impact UI initiated play*/
           btif_av_trigger_dual_handoff(TRUE, now_active_index, previous_active_index);
+        }
       }
       else
       {
         BTIF_TRACE_WARNING("Device is no longer connected, device switch failed");
       }
-      break;
+    } break;
 
     case BTIF_AV_START_STREAM_REQ_EVT:
       /* Get the last connected device on which START can be issued
@@ -3104,7 +3117,7 @@ bool btif_av_is_playing() {
  * Returns          int
  *
  ******************************************************************************/
-static int btif_get_conn_state_of_device(RawAddress address) {
+int btif_get_conn_state_of_device(RawAddress address) {
   btif_sm_state_t state = BTIF_AV_STATE_IDLE;
   int i;
   for (i = 0; i < btif_max_av_clients; i++) {
@@ -3759,7 +3772,13 @@ static bt_status_t init_src( // gghai
     btav_source_callbacks_t* callbacks,
     int max_connected_audio_devices,
     std::vector<btav_a2dp_codec_config_t> codec_priorities) {
-  int a2dp_multicast_state = 0;
+
+  int a2dp_multicast_state = 1;
+  char value[PROPERTY_VALUE_MAX] = {0};
+  osi_property_get("persist.vendor.service.bt.a2dp_multicast_enable", value, "false");
+  if (!strcmp(value, "false")) {
+    a2dp_multicast_state = 0;
+  }
 
   if(max_connected_audio_devices > BTIF_AV_NUM_CB) {
     BTIF_TRACE_ERROR("%s: App setting maximum allowable connections(%d) to more than limit(%d)",
@@ -3921,6 +3940,32 @@ void btif_av_trigger_suspend() {
     BTIF_TRACE_ERROR("suspend on invalid index");
 }
 
+
+void btif_av_reconfig_other_stream_codec(void)
+{
+  for (int idx = 0; idx < btif_max_av_clients; idx++) {
+    if (btif_av_get_valid_idx(idx)) {
+      uint8_t* cur_codec_cfg = bta_av_co_get_peer_codec_info(btif_av_cb[idx].bta_handle);
+      BTIF_TRACE_EVENT("%s, %u current codec:%s", __func__, btif_av_cb[idx].peer_bda, A2DP_CodecName(cur_codec_cfg));
+      /* check the current codec is SBC or not */
+      if (cur_codec_cfg != NULL && A2DP_MEDIA_CT_SBC != A2DP_GetCodecType(cur_codec_cfg)) {
+          BTIF_TRACE_EVENT("%s, current codec is not SBC", __func__);
+          btav_a2dp_codec_config_t codec_config;
+          codec_config.codec_type = BTAV_A2DP_CODEC_INDEX_SOURCE_SBC;
+          codec_config.codec_priority = BTAV_A2DP_CODEC_PRIORITY_HIGHEST;
+          codec_config.codec_specific_1 = 0;
+          codec_config.codec_specific_2 = 0;
+          codec_config.codec_specific_3 = 0;
+          codec_config.codec_specific_4 = 0;
+          codec_config.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_NONE;
+          codec_config.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE;
+          codec_config.channel_mode = BTAV_A2DP_CODEC_CHANNEL_MODE_NONE;
+          btif_a2dp_source_encoder_user_config_update_req(codec_config, btif_av_cb[idx].peer_bda);
+      }
+    }
+  }
+}
+
 /*******************************************************************************
  *
  * Function         connect_int
@@ -3974,6 +4019,11 @@ static bt_status_t connect_int(RawAddress* bd_addr, uint16_t uuid) {
       BTA_AvCloseRc(rc_handle);
     btif_queue_advance_by_uuid(uuid, bd_addr);
     return BT_STATUS_FAIL;
+  }
+
+  /* if there is already has on sink device, reconfigure the codec is not SBC */
+  if ( btif_av_is_multicast_supported() ) {
+    btif_av_reconfig_other_stream_codec();
   }
 
   btif_sm_dispatch(btif_av_cb[i].sm_handle, BTIF_AV_CONNECT_REQ_EVT, (char*)&connect_req);
@@ -4044,6 +4094,11 @@ static bt_status_t codec_config_src(const RawAddress& bd_addr,
 
   if (btif_av_is_tws_connected()) {
     BTIF_TRACE_DEBUG("%s:TWSP device connected, config change not allowed",__func__);
+    return BT_STATUS_FAIL;
+  }
+
+  if (btif_av_get_num_connected_devices() > 1) {
+    BTIF_TRACE_DEBUG("%s:more than one A2DP device connected, config change not allowed",__func__);
     return BT_STATUS_FAIL;
   }
   btif_av_codec_config_req_t codec_req;
@@ -5210,6 +5265,31 @@ uint16_t btif_av_get_num_connected_devices(void) {
   return connected_devies;
 }
 
+/*******************************************************************************
+ *
+ * Function        btif_av_get_num_connect_devices
+ *
+ * Description     Return number of A2dp connected/connecting devices
+ *
+ * Returns         int
+ *****************************************************************************/
+uint16_t btif_av_get_num_connect_devices(void) {
+  uint16_t i;
+  uint16_t connected_devies = 0;
+  for (i = 0; i < btif_max_av_clients; i++)
+  {
+    btif_av_cb[i].state = btif_sm_get_state(btif_av_cb[i].sm_handle);
+    if ((btif_av_cb[i].state == BTIF_AV_STATE_OPENED) ||
+        (btif_av_cb[i].state == BTIF_AV_STATE_OPENING) ||
+        (btif_av_cb[i].state ==  BTIF_AV_STATE_STARTED))
+      connected_devies++;
+  }
+  BTIF_TRACE_DEBUG("AV Connection count: %d", connected_devies);
+
+  return connected_devies;
+}
+
+
 /******************************************************************************
 **
 ** Function         btif_av_get_av_hdl_from_idx
@@ -5255,12 +5335,20 @@ void btif_av_update_multicast_state(int index) {
 
   if (!is_multicast_supported) {
     BTIF_TRACE_DEBUG("%s() Multicast is Disabled", __func__);
+    if (in_multicast_mode) {
+        in_multicast_mode = false;
+        osi_property_set("persist.vendor.service.bt.a2dp_multicast_mode", "false");
+    }
     return;
   }
 
   if (multicast_disabled == true) {
     multicast_disabled = false;
     enable_multicast = false;
+    if (in_multicast_mode) {
+        in_multicast_mode = false;
+        osi_property_set("persist.vendor.service.bt.a2dp_multicast_mode", "false");
+    }
     BTA_AvEnableMultiCast(false, btif_av_cb[index].bta_handle);
     return;
   }
@@ -5284,9 +5372,41 @@ void btif_av_update_multicast_state(int index) {
   if ((num_av_connected <= 2) && (is_br_hs_connected != true) &&
       (is_slave == false) && ((num_connected_br_edr_devices <= 2) &&
       (num_connected_le_devices <= 1)))
+  {
     enable_multicast = true;
+    if (btif_av_get_num_connect_devices() == 2)
+    {
+        if (!in_multicast_mode)
+        {
+            BTIF_TRACE_WARNING("Set Multicast Mode");
+            in_multicast_mode = true;
+            osi_property_set("persist.vendor.service.bt.a2dp_multicast_mode", "true");
+        }
+        // if two device connected, no need to set the codec
+        config_codec_in_multicast = true;
+    }
+    else
+    {
+        if (in_multicast_mode)
+        {
+            in_multicast_mode = false;
+            BTIF_TRACE_WARNING("Clear Multicast Mode");
+            osi_property_set("persist.vendor.service.bt.a2dp_multicast_mode", "false");
+        }
+    }
+  }
   else
+  {
     enable_multicast = false;
+    if (in_multicast_mode) {
+        in_multicast_mode = false;
+        osi_property_set("persist.vendor.service.bt.a2dp_multicast_mode", "false");
+    }
+  }
+
+  if (num_av_connected == 0) {
+      config_codec_in_multicast = false;
+  }
 
   BTIF_TRACE_DEBUG("%s() Multicast current state : %s", __func__,
         enable_multicast ? "Enabled" : "Disabled" );
@@ -5296,8 +5416,14 @@ void btif_av_update_multicast_state(int index) {
 #ifdef BT_AV_SHO_FEATURE // gghai
     HAL_CBACK(bt_av_src_callbacks, multicast_state_cb, enable_multicast);
 #endif
+
+    if (enable_multicast == false && num_av_connected == 2) {
+        int preIdx = btif_av_get_other_connected_idx(index);
+        btif_av_trigger_dual_handoff(TRUE, index, preIdx);
+    }
   }
 }
+
 #if (TWS_ENABLED == TRUE)
 extern void btif_av_set_earbud_state(const RawAddress& address, uint8_t earbud_state);
 extern void btif_av_set_earbud_role(const RawAddress& address, uint8_t earbud_role);
@@ -5325,6 +5451,18 @@ void btif_av_set_earbud_role(const RawAddress& address, uint8_t earbud_role) {
 ******************************************************************************/
 bool btif_av_get_multicast_state() {
   return enable_multicast;
+}
+
+/******************************************************************************
+**
+** Function        btif_av_multicast_config_codec
+**
+** Description     Returns true if codec config in multicast else false
+**
+** Returns         bool
+******************************************************************************/
+bool btif_av_multicast_config_codec() {
+  return config_codec_in_multicast;
 }
 
 /******************************************************************************

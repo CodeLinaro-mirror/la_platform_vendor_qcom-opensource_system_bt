@@ -556,12 +556,14 @@ bool A2dpCodecs::init(bool isMulticastEnabled, bool isShoEnabled) {
     btav_a2dp_codec_index_t codec_index =
         static_cast<btav_a2dp_codec_index_t>(i);
 
+#if 0
     if ((isMulticastEnabled == true) &&
         (codec_index != BTAV_A2DP_CODEC_INDEX_SOURCE_SBC)) {
       LOG_INFO(LOG_TAG, "%s: Selecting SBC codec as multicast is enabled",
                __func__);
       continue;
     }
+#endif
 
     // Select the codec priority if explicitly configured
     btav_a2dp_codec_priority_t codec_priority =

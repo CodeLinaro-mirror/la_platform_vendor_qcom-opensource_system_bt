@@ -42,6 +42,7 @@
 #include "a2dp_constants.h"
 #include "device/include/interop.h"
 #include "btif/include/btif_storage.h"
+#include "btif/include/btif_av.h"
 
 int avdt_ccb_get_num_allocated_seps();
 /*******************************************************************************
@@ -212,7 +213,7 @@ void avdt_ccb_hdl_discover_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
   //p_scb = &avdt_cb.scb[0];
   p_scb = avdt_scb_by_peer_addr(p_ccb->peer_addr);
   if (p_scb == NULL)
-    p_scb = &avdt_cb.scb[0]; 
+    p_scb = &avdt_cb.scb[0];
   i = (avdt_scb_to_hdl(p_scb) - 1);
   /* for all allocated scbs */
   //for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++) {
@@ -223,6 +224,14 @@ void avdt_ccb_hdl_discover_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
       effective_num_seps++;
       codec_name = A2DP_CodecName(p_scb->cs.cfg.codec_info);
       APPL_TRACE_DEBUG("codec name %s", A2DP_CodecName(p_scb->cs.cfg.codec_info));
+
+      /* if the multicast is enabled and there is already a sink device connect, only response the SBC codec */
+      if (btif_av_get_multicast_state() && btif_av_get_num_connected_devices() > 0) {
+          if (strcmp(codec_name,"SBC") != 0) {
+              continue;
+          }
+      }
+
       if (strcmp(value, "cherokee") == 0 || strcmp(value, "hastings") == 0) {
         if (p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == A2DP_MEDIA_CT_AAC) {
           if (bta_av_co_audio_is_aac_wl_enabled(&p_ccb->peer_addr)) {
