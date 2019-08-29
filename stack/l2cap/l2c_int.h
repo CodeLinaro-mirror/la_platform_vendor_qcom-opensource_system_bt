@@ -532,6 +532,9 @@ typedef struct {
 #endif /* (L2CAP_HIGH_PRI_CHAN_QUOTA_IS_CONFIGURABLE == TRUE) */
 
   uint16_t dyn_psm;
+
+  uint8_t cert_failure; /*Insufficient Enc case for certification */
+
 } tL2C_CB;
 
 /* Define a structure that contains the information about a connection.
