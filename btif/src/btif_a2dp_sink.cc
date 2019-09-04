@@ -413,6 +413,7 @@ static void btif_a2dp_sink_audio_handle_start_non_sbc_decoding(void){
     /* Avoid audiotrack start multiple times */
     if ((btif_a2dp_sink_cb.audio_track_status != BTIF_AUDIO_TRACK_STATUS_STARTED) &&
         (btif_a2dp_sink_cb.audio_track)) {
+      std::lock_guard<std::mutex> lock(btif_a2dp_sink_cb.audio_track_mutex);
       BtifAvrcpAudioTrackStart(btif_a2dp_sink_cb.audio_track);
       btif_a2dp_sink_cb.audio_track_status = BTIF_AUDIO_TRACK_STATUS_STARTED;
     }
