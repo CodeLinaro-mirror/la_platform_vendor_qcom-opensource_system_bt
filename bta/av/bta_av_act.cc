@@ -228,6 +228,8 @@ static void bta_av_rc_ctrl_cback(uint8_t handle, uint8_t event,
         (tBTA_AV_RC_CONN_CHG*)osi_malloc(sizeof(tBTA_AV_RC_CONN_CHG));
     p_msg->hdr.event = msg_event;
     p_msg->handle = handle;
+    /* p_msg->peer_addr is empty by default */
+    p_msg->peer_addr = RawAddress::kEmpty;
     if (peer_addr) p_msg->peer_addr = *peer_addr;
     bta_sys_sendmsg(p_msg);
   }
@@ -1493,6 +1495,16 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
         }
       }
     }
+    if (p_lcb && !p_lcb->conn_msk) {
+      /* stream and signal are both disconnected
+       * clean clean peer_address_ for feature connection
+       */
+      xx = bta_av_find_lcb_index_by_scb_and_address(p_data->str_msg.bd_addr);
+      APPL_TRACE_WARNING("%s: clean p_scb[%d]->PeerAddress()=%s",
+                             __func__, xx,
+                             p_cb->p_scb[xx]->PeerAddress().ToString().c_str());
+      p_cb->p_scb[xx]->OnDisconnected();
+    }
   }
   APPL_TRACE_DEBUG("%s: sig_chg conn_lcb: 0x%x", __func__, p_cb->conn_lcb);
 }
@@ -1761,7 +1773,6 @@ tBTA_AV_FEAT bta_avk_check_peer_features(uint16_t service_uuid, uint16_t *p_psm)
 void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
   tBTA_AV_CB* p_cb = &bta_av_cb;
   tBTA_AV_SCB* p_scb = NULL;
-  tBTA_AV_RC_OPEN rc_open;
   tBTA_AV_LCB* p_lcb;
   uint8_t rc_handle;
   uint16_t cover_art_psm = 0;
@@ -1853,11 +1864,11 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
             p_cb->rcb[rc_handle].cover_art_psm = cover_art_psm;
           } else {
             /* cannot create valid rc_handle for current device */
-            APPL_TRACE_ERROR(" No link resources available");
+            APPL_TRACE_ERROR("%s: No link resources available", __func__);
+            tBTA_AV_RC_CLOSE rc_close;
             p_scb->use_rc = FALSE;
-            rc_open.peer_features = 0;
-            rc_open.status = BTA_AV_FAIL_RESOURCES;
-            (*p_cb->p_cback)(BTA_AV_RC_CLOSE_EVT, (tBTA_AV *) &rc_open);
+            rc_close.peer_addr = p_scb->PeerAddress();
+            (*p_cb->p_cback)(BTA_AV_RC_CLOSE_EVT, (tBTA_AV *) &rc_close);
           }
         } else {
           APPL_TRACE_ERROR("%s: can not find LCB!!", __func__);
@@ -1885,8 +1896,9 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
        * In case scb is not created by the time we are done with SDP
        * we still need to send RC feature event. So we need to get BD
        * from Message
+       * BD is stored in pcb->lcb while handling bta_av_rc_opened
        */
-      rc_feat.peer_addr = p_cb->lcb[p_cb->rcb[rc_handle].lidx].addr;
+      rc_feat.peer_addr = p_cb->lcb[p_cb->rcb[rc_handle].lidx - 1].addr;
     } else {
       rc_feat.peer_addr = p_scb->PeerAddress();
     }
