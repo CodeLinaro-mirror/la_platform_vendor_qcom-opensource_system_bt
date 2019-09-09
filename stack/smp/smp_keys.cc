@@ -34,8 +34,10 @@
 #include "btm_ble_int.h"
 #include "btm_int.h"
 #include "device/include/controller.h"
+#include "device/include/interop.h"
 #include "hcimsgs.h"
 #include "osi/include/osi.h"
+#include "osi/include/properties.h"
 #include "p_256_ecc_pp.h"
 #include "smp_int.h"
 
@@ -359,8 +361,14 @@ void smp_gen_p1_4_confirm(tSMP_CB* p_cb, tBLE_ADDR_TYPE remote_bd_addr_type,
   SMP_TRACE_DEBUG("%s", __func__);
   uint8_t* p = (uint8_t*)p1;
   if (p_cb->role == HCI_ROLE_MASTER) {
+    /* Using public address for advertisers that can't resolve random address */
+    if (interop_match_addr_or_name
+     (INTEROP_DISABLE_RESOLVING, &(p_cb->pairing_bda))) {
+      UINT8_TO_STREAM(p, BLE_ADDR_PUBLIC);
+    } else {
     /* iat': initiator's (local) address type */
-    UINT8_TO_STREAM(p, p_cb->addr_type);
+      UINT8_TO_STREAM(p, p_cb->addr_type);
+    }
     /* rat': responder's (remote) address type */
     UINT8_TO_STREAM(p, remote_bd_addr_type);
     /* preq : Pairing Request (local) command */
@@ -379,6 +387,9 @@ void smp_gen_p1_4_confirm(tSMP_CB* p_cb, tBLE_ADDR_TYPE remote_bd_addr_type,
   }
   SMP_TRACE_DEBUG("local addr type:%d", p_cb->addr_type);
   SMP_TRACE_DEBUG("peer addr type:%d", remote_bd_addr_type);
+  SMP_TRACE_DEBUG("peer ble addr:: %02x:%02x:%02x:%02x:%02x:%02x",
+      p_cb->pairing_bda.address[0], p_cb->pairing_bda.address[1], p_cb->pairing_bda.address[2],
+      p_cb->pairing_bda.address[3], p_cb->pairing_bda.address[4], p_cb->pairing_bda.address[5]);
   smp_debug_print_nbyte_little_endian((uint8_t*)p1,
                                       "p1 = iat' || rat' || preq || pres", 16);
 }
@@ -399,13 +410,23 @@ void smp_gen_p2_4_confirm(tSMP_CB* p_cb, const RawAddress& remote_bda,
                           BT_OCTET16 p2) {
   SMP_TRACE_DEBUG("%s", __func__);
   uint8_t* p = (uint8_t*)p2;
+  char persist_bdaddr[PROPERTY_VALUE_MAX] = {0};
+  RawAddress local_bdaddr;
   /* 32-bit Padding */
   memset(p, 0, sizeof(BT_OCTET16));
   if (p_cb->role == HCI_ROLE_MASTER) {
     /* ra : Responder's (remote) address */
     BDADDR_TO_STREAM(p, remote_bda);
+    /* Using public address for advertisers that can't resolve random address */
+    if (interop_match_addr_or_name
+     (INTEROP_DISABLE_RESOLVING, &(remote_bda))) {
+      osi_property_get("persist.vendor.service.bdroid.bdaddr", persist_bdaddr, NULL);
+      RawAddress::FromString(persist_bdaddr, local_bdaddr);
+      BDADDR_TO_STREAM(p, local_bdaddr);
+    } else {
     /* ia : Initiator's (local) address */
-    BDADDR_TO_STREAM(p, p_cb->local_bda);
+      BDADDR_TO_STREAM(p, p_cb->local_bda);
+    }
   } else {
     /* ra : Responder's (local) address */
     BDADDR_TO_STREAM(p, p_cb->local_bda);

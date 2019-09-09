@@ -348,19 +348,46 @@ void bta_ar_reg_avrc(uint16_t service_uuid, const char* service_name,
                      const char* provider_name, uint16_t categories,
                      tBTA_SYS_ID sys_id, bool browse_supported,
                      uint16_t profile_version) {
+  /* mask is used to identify av/avk */
   uint8_t mask = bta_ar_id(sys_id);
   uint8_t temp[8], *p;
 
   if (!mask || !categories) return;
-
   if (service_uuid == UUID_SERVCLASS_AV_REM_CTRL_TARGET) {
+    bta_ar_cb.tg_categories[mask - 1] = categories;
+    categories = bta_ar_cb.tg_categories[0] | bta_ar_cb.tg_categories[1];
     if (bta_ar_cb.sdp_tg_handle == 0) {
       bta_ar_cb.tg_registered = mask;
       bta_ar_cb.sdp_tg_handle = SDP_CreateRecord();
+      bta_ar_cb.tg_browse_supported = browse_supported;
       AVRC_AddRecord(service_uuid, service_name, provider_name, categories,
                      bta_ar_cb.sdp_tg_handle, browse_supported,
                      profile_version);
       bta_sys_add_uuid(service_uuid);
+    } else {
+      p = temp;
+      UINT16_TO_BE_STREAM(p, categories);
+      SDP_AddAttribute(bta_ar_cb.sdp_tg_handle, ATTR_ID_SUPPORTED_FEATURES,
+                       UINT_DESC_TYPE, (uint32_t)2, (uint8_t*)temp);
+      APPL_TRACE_DEBUG("%s tg_browse_support = %d, browse_support = %d",
+                       __FUNCTION__, bta_ar_cb.tg_browse_supported,browse_supported);
+      /* if browse is not already supported, current request has browse supported, add it */
+      if((!bta_ar_cb.tg_browse_supported) && browse_supported &&
+            (profile_version > AVRC_REV_1_3)) {
+        bta_ar_cb.tg_browse_supported = true;
+        tSDP_PROTO_LIST_ELEM avrc_add_proto_desc_list;
+        avrc_add_proto_desc_list.num_elems = 2;
+        avrc_add_proto_desc_list.list_elem[0].num_params = 1;
+        avrc_add_proto_desc_list.list_elem[0].protocol_uuid = UUID_PROTOCOL_L2CAP;
+        avrc_add_proto_desc_list.list_elem[0].params[0] = AVCT_BR_PSM;
+        avrc_add_proto_desc_list.list_elem[0].params[1] = 0;
+        avrc_add_proto_desc_list.list_elem[1].num_params = 1;
+        avrc_add_proto_desc_list.list_elem[1].protocol_uuid = UUID_PROTOCOL_AVCTP;
+        avrc_add_proto_desc_list.list_elem[1].params[0] = AVCT_REV_1_4;
+        avrc_add_proto_desc_list.list_elem[1].params[1] = 0;
+        SDP_AddAdditionProtoLists(bta_ar_cb.sdp_tg_handle, 1,
+                (tSDP_PROTO_LIST_ELEM*)&avrc_add_proto_desc_list);
+      }
     }
     /* only one TG is allowed (first-come, first-served).
      * If sdp_tg_handle is non-0, ignore this request */
@@ -370,6 +397,7 @@ void bta_ar_reg_avrc(uint16_t service_uuid, const char* service_name,
     categories = bta_ar_cb.ct_categories[0] | bta_ar_cb.ct_categories[1];
     if (bta_ar_cb.sdp_ct_handle == 0) {
       bta_ar_cb.sdp_ct_handle = SDP_CreateRecord();
+      bta_ar_cb.ct_browse_supported = browse_supported;
       AVRC_AddRecord(service_uuid, service_name, provider_name, categories,
                      bta_ar_cb.sdp_ct_handle, browse_supported,
                      profile_version);
@@ -381,6 +409,25 @@ void bta_ar_reg_avrc(uint16_t service_uuid, const char* service_name,
       UINT16_TO_BE_STREAM(p, categories);
       SDP_AddAttribute(bta_ar_cb.sdp_ct_handle, ATTR_ID_SUPPORTED_FEATURES,
                        UINT_DESC_TYPE, (uint32_t)2, (uint8_t*)temp);
+      APPL_TRACE_DEBUG("%s ct_browse_support = %d, browse_support = %d",
+                       __FUNCTION__, bta_ar_cb.ct_browse_supported,browse_supported);
+      /* if browse is not already supported, current request has browse supported, add it */
+      if((!bta_ar_cb.ct_browse_supported) && browse_supported &&
+            (profile_version > AVRC_REV_1_3)) {
+        bta_ar_cb.ct_browse_supported = true;
+        tSDP_PROTO_LIST_ELEM avrc_add_proto_desc_list;
+        avrc_add_proto_desc_list.num_elems = 2;
+        avrc_add_proto_desc_list.list_elem[0].num_params = 1;
+        avrc_add_proto_desc_list.list_elem[0].protocol_uuid = UUID_PROTOCOL_L2CAP;
+        avrc_add_proto_desc_list.list_elem[0].params[0] = AVCT_BR_PSM;
+        avrc_add_proto_desc_list.list_elem[0].params[1] = 0;
+        avrc_add_proto_desc_list.list_elem[1].num_params = 1;
+        avrc_add_proto_desc_list.list_elem[1].protocol_uuid = UUID_PROTOCOL_AVCTP;
+        avrc_add_proto_desc_list.list_elem[1].params[0] = AVCT_REV_1_4;
+        avrc_add_proto_desc_list.list_elem[1].params[1] = 0;
+        SDP_AddAdditionProtoLists(bta_ar_cb.sdp_ct_handle, 1,
+                (tSDP_PROTO_LIST_ELEM*)&avrc_add_proto_desc_list);
+      }
     }
   }
 }

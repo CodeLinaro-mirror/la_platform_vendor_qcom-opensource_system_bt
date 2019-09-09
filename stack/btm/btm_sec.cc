@@ -29,6 +29,7 @@
 #include <string.h>
 
 #include "device/include/controller.h"
+#include "device/include/interop.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
 #include "osi/include/time.h"
@@ -4126,6 +4127,7 @@ void btm_sec_encrypt_change(uint16_t handle, uint8_t status,
                             uint8_t encr_enable) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev_by_handle(handle);
   tACL_CONN* p_acl = NULL;
+  tBTM_LE_EVT_DATA p_data;
   uint8_t acl_idx = btm_handle_to_acl_index(handle);
   BTM_TRACE_EVENT(
       "Security Manager: encrypt_change status:%d State:%d, encr_enable = %d",
@@ -4176,6 +4178,17 @@ void btm_sec_encrypt_change(uint16_t handle, uint8_t status,
     btm_sec_check_pending_enc_req(p_dev_rec, p_acl->transport, encr_enable);
 
   if (p_acl && p_acl->transport == BT_TRANSPORT_LE) {
+    if (status == HCI_ERR_KEY_MISSING &&
+        interop_match_addr_or_name(INTEROP_PINKEY_MISSING,
+        &(p_dev_rec->bd_addr))) {
+      /* Some advertisers when kept in pairing mode respond with pin key
+      missing error and are stuck. We give an SMP confirm value error for
+      such devices so that they are unpaired from our side */
+      p_data.complt.smp_over_br = false;
+      p_data.complt.reason = SMP_CONFIRM_VALUE_ERR;
+      (*btm_cb.api.p_le_callback)(SMP_COMPLT_EVT, p_dev_rec->bd_addr, &p_data);
+      return;
+    }
     if (status == HCI_ERR_AUTH_FAILURE ||
         status == HCI_ERR_KEY_MISSING ||
         status == HCI_ERR_ENCRY_MODE_NOT_ACCEPTABLE) {
