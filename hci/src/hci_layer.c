@@ -120,7 +120,7 @@ typedef enum {
 } low_power_config_t;
 
 // Using a define here, because it can be stringified for the property lookup
-#define DEFAULT_STARTUP_TIMEOUT_MS 8000
+#define DEFAULT_STARTUP_TIMEOUT_MS 32000
 #define STRING_VALUE_OF(x) #x
 
 low_power_config_t lpm_config = LPM_CONFIG_NONE;
