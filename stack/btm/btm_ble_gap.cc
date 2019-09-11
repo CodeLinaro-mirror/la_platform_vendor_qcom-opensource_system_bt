@@ -1412,6 +1412,7 @@ void btm_send_hci_set_scan_params(uint8_t scan_phy, uint8_t scan_type,
 
     btsnd_hcic_ble_set_extended_scan_params(addr_type_own, scan_filter_policy,
                                             scan_phy, phy_cfg);
+    delete[] phy_cfg;
   } else {
     btsnd_hcic_ble_set_scan_params(scan_type, scan_int[0], scan_win[0], addr_type_own,
                                    scan_filter_policy);
