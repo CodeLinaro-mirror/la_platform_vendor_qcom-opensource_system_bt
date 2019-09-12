@@ -2561,7 +2561,7 @@ UINT8 *BTM_CheckEirData( UINT8 *p_eir, UINT8 type, UINT8 *p_length, UINT16 adv_d
             return p;
         }
         p += length - 1; /* skip the length of data */
-    } while( length && (p - p_eir <= adv_data_len));
+    } while( length && (p - p_eir < adv_data_len));
 
     return NULL;
 }

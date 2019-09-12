@@ -1440,7 +1440,7 @@ UINT8 *BTM_CheckAdvData( UINT8 *p_adv, UINT8 type, UINT8 *p_length, UINT16 adv_d
             return p;
         }
         p += length - 1; /* skip the length of data */
-    } while ( length && (p - p_adv <= adv_data_len));
+    } while ( length && (p - p_adv < adv_data_len));
 
     return NULL;
 }
