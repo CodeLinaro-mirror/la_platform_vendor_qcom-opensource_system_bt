@@ -293,7 +293,11 @@ static void bta_hf_client_handle_error(tBTA_HF_CLIENT_CB* client_cb,
       break;
     case BTA_HF_CLIENT_AT_BCC:
     case BTA_HF_CLIENT_AT_BCS:
-      bta_hf_client_cback_sco(client_cb, BTA_HF_CLIENT_AUDIO_CLOSE_EVT);
+      /*
+      * AT+BCC or AT+BCS error should not stop currrent hfp audio, so remove the callback
+      * to send BTA_HF_CLIENT_AUDIO_CLOSE_EVT
+      */
+      APPL_TRACE_ERROR("%s AT cmd %d error", __func__, client_cb->at_cb.current_cmd);
       break;
     case BTA_HF_CLIENT_AT_CLIP:  // last cmd is post slc seq
       if (!client_cb->send_at_reply) {

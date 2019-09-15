@@ -1763,8 +1763,20 @@ bool BtifAvStateMachine::StateOpened::ProcessEvent(uint32_t event,
   switch (event) {
     case BTIF_AV_STOP_STREAM_REQ_EVT:
     case BTIF_AV_SUSPEND_STREAM_REQ_EVT:
-    case BTIF_AV_ACL_DISCONNECTED:
       break;  // Ignore
+    case BTIF_AV_ACL_DISCONNECTED:
+      // ACL Disconnected needs to be handled
+      BTIF_TRACE_WARNING(
+          "%s: Peer %s : event=%s: transitioning to Idle due to ACL Disconnect",
+          __PRETTY_FUNCTION__, peer_.PeerAddress().ToString().c_str(),
+          BtifAvEvent::EventName(event).c_str());
+      btif_report_connection_state(peer_.PeerAddress(),
+                                   BTAV_CONNECTION_STATE_DISCONNECTED);
+      peer_.StateMachine().TransitionTo(BtifAvStateMachine::kStateIdle);
+      if (peer_.SelfInitiatedConnection()) {
+        btif_queue_advance();
+      }
+      break;
 
     case BTIF_AV_START_STREAM_REQ_EVT:
       LOG_INFO(LOG_TAG, "%s: Peer %s : event=%s flags=%s", __PRETTY_FUNCTION__,
@@ -1944,7 +1956,18 @@ bool BtifAvStateMachine::StateStarted::ProcessEvent(uint32_t event,
 
   switch (event) {
     case BTIF_AV_ACL_DISCONNECTED:
-      break;  // Ignore
+      // ACL Disconnected needs to be handled
+      BTIF_TRACE_WARNING(
+          "%s: Peer %s : event=%s: transitioning to Idle due to ACL Disconnect",
+          __PRETTY_FUNCTION__, peer_.PeerAddress().ToString().c_str(),
+          BtifAvEvent::EventName(event).c_str());
+      btif_report_connection_state(peer_.PeerAddress(),
+                                   BTAV_CONNECTION_STATE_DISCONNECTED);
+      peer_.StateMachine().TransitionTo(BtifAvStateMachine::kStateIdle);
+      if (peer_.SelfInitiatedConnection()) {
+        btif_queue_advance();
+      }
+      break;
 
     case BTIF_AV_START_STREAM_REQ_EVT:
       LOG_INFO(LOG_TAG, "%s: Peer %s : event=%s flags=%s", __PRETTY_FUNCTION__,
@@ -2145,8 +2168,20 @@ bool BtifAvStateMachine::StateClosing::ProcessEvent(uint32_t event,
 
   switch (event) {
     case BTIF_AV_SUSPEND_STREAM_REQ_EVT:
-    case BTIF_AV_ACL_DISCONNECTED:
       break;  // Ignore
+    case BTIF_AV_ACL_DISCONNECTED:
+      // ACL Disconnected needs to be handled
+      BTIF_TRACE_WARNING(
+          "%s: Peer %s : event=%s: transitioning to Idle due to ACL Disconnect",
+          __PRETTY_FUNCTION__, peer_.PeerAddress().ToString().c_str(),
+          BtifAvEvent::EventName(event).c_str());
+      btif_report_connection_state(peer_.PeerAddress(),
+                                   BTAV_CONNECTION_STATE_DISCONNECTED);
+      peer_.StateMachine().TransitionTo(BtifAvStateMachine::kStateIdle);
+      if (peer_.SelfInitiatedConnection()) {
+        btif_queue_advance();
+      }
+      break;
 
     case BTA_AV_STOP_EVT:
     case BTIF_AV_STOP_STREAM_REQ_EVT:
