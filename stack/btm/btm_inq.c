@@ -1601,6 +1601,11 @@ tINQ_DB_ENT *btm_inq_db_new (BD_ADDR p_bda)
 
     /* If here, no free entry found. Return the oldest. */
 
+    if(p_old->inq_info.results.inq_data.adv_data_cache)
+    {
+        BTM_TRACE_DEBUG("adv_data_cache:%d", p_old->inq_info.results.inq_data.adv_len);
+        osi_free_and_reset((void **)&(p_old->inq_info.results.inq_data.adv_data_cache)); 
+    }
     memset (p_old, 0, sizeof (tINQ_DB_ENT));
     memcpy (p_old->inq_info.results.remote_bd_addr, p_bda, BD_ADDR_LEN);
     p_old->in_use = TRUE;
