@@ -160,7 +160,7 @@ static bool is_pbap_adv_enabled();
 #define SDP_ENABLE_PTS_MAP  "vendor.bt.pts.map"
 #endif
 
-#define MAP_1_4 0x0103
+#define MAP_1_4 0x0104
 
 struct blacklist_entry
 {
@@ -212,6 +212,7 @@ int sdp_get_stored_avrc_tg_version(RawAddress addr)
     uint16_t avrcp_features = 0;
     SDP_TRACE_DEBUG("%s target BD Addr: %s",\
              __func__, addr.ToString().c_str());
+    bool feature = profile_feature_fetch(AVRCP_ID, AVRCP_COVERART_SUPPORT);
     if (btif_config_get_uint16(addr.ToString().c_str(), AV_REM_CTRL_VERSION_CONFIG_KEY,
                 (uint16_t*)&avrcp_version)) {
       SDP_TRACE_DEBUG("%s : Entry found in pairing database, remote version: 0x%x", __func__, avrcp_version);
@@ -221,7 +222,7 @@ int sdp_get_stored_avrc_tg_version(RawAddress addr)
         uint16_t dut_avrcp_version = get_dut_avrcp_version();
         uint16_t ver = (dut_avrcp_version > avrcp_version) ?
                            avrcp_version : dut_avrcp_version;
-        if (CA_AVRC_BIT)
+        if (CA_AVRC_BIT & feature)
           ver = AVRCP_MASK_CA_BIT | ver;
         if (BRW_AVRC_BIT)
           ver = AVRCP_MASK_BRW_BIT | ver;
@@ -1569,15 +1570,19 @@ void update_pce_entry_after_cancelling_bonding(RawAddress remote_addr) {
     APPL_TRACE_ERROR("%s unable to open PBAP PCE Conf file for read: error: (%s)",\
                                                       __func__, strerror(errno));
   } else {
+    int size_read = 0;
+    int entry_size = sizeof(dynamic_upgrade_entry);
     while (fread(&entry, sizeof(entry), 1, fp) != 0)
     {
+      size_read += sizeof(entry);
       APPL_TRACE_DEBUG("Entry: addr = %x:%x:%x, ver = 0x%x",\
               entry.addr[0], entry.addr[1], entry.addr[2], entry.ver);
       if(!memcmp(&remote_addr, entry.addr, 3))
       {
-        APPL_TRACE_DEBUG("remote bd address matched, rebonded = %c", entry.rebonded);
-        if (entry.rebonded == 'N') {
-            fseek(fp, -(sizeof(dynamic_upgrade_entry)), SEEK_CUR);
+        APPL_TRACE_DEBUG("remote bd address matched, rebonded = %c,"
+            " entry_size = %d, size_read = %d", entry.rebonded, entry_size, size_read);
+        if (entry.rebonded == 'N' && entry_size <= size_read) {
+            fseek(fp, -(entry_size), SEEK_CUR);
             entry.rebonded = 'Y';
             fwrite(&entry, sizeof(entry), 1, fp);
         }
@@ -1829,15 +1834,19 @@ void update_mce_entry_after_cancelling_bonding(RawAddress remote_addr) {
     APPL_TRACE_ERROR("%s unable to open MAP MCE Conf file for read: Reason: (%s)",\
                                                       __func__, strerror(errno));
   } else {
+    int size_read = 0;
+    int entry_size = sizeof(dynamic_upgrade_entry);
     while (fread(&entry, sizeof(entry), 1, fp) != 0)
     {
+      size_read += sizeof(entry);
       APPL_TRACE_DEBUG("Entry: addr = %x:%x:%x, ver = 0x%x",\
               entry.addr[0], entry.addr[1], entry.addr[2], entry.ver);
       if(!memcmp(&remote_addr, entry.addr, 3))
       {
-        APPL_TRACE_DEBUG("remote bd address matched, rebonded = %c", entry.rebonded);
-        if (entry.rebonded == 'N') {
-            fseek(fp, -(sizeof(dynamic_upgrade_entry)), SEEK_CUR);
+        APPL_TRACE_DEBUG("remote bd address matched, rebonded = %c,"
+            " entry_size = %d, size_read = %d", entry.rebonded, entry_size, size_read);
+        if (entry.rebonded == 'N' && entry_size <= size_read) {
+            fseek(fp, -(entry_size), SEEK_CUR);
             entry.rebonded = 'Y';
             fwrite(&entry, sizeof(entry), 1, fp);
         }
