@@ -803,6 +803,9 @@ void l2cu_send_peer_config_rej(tL2C_CCB* p_ccb, uint8_t* p_data,
       case L2CAP_CFG_TYPE_MTU:
       case L2CAP_CFG_TYPE_FLUSH_TOUT:
       case L2CAP_CFG_TYPE_QOS:
+      case L2CAP_CFG_TYPE_FCR:
+      case L2CAP_CFG_TYPE_FCS:
+      case L2CAP_CFG_TYPE_EXT_FLOW:
         p_data += cfg_len + L2CAP_CFG_OPTION_OVERHEAD;
         break;
 
@@ -2629,6 +2632,12 @@ void l2cu_no_dynamic_ccbs(tL2C_LCB* p_lcb) {
   for (xx = 0; xx < L2CAP_NUM_FIXED_CHNLS; xx++) {
     if ((p_lcb->p_fixed_ccbs[xx] != NULL) &&
         (p_lcb->p_fixed_ccbs[xx]->fixed_chnl_idle_tout * 1000 > timeout_ms)) {
+
+      if (p_lcb->p_fixed_ccbs[xx]->fixed_chnl_idle_tout == L2CAP_NO_IDLE_TIMEOUT) {
+         L2CAP_TRACE_DEBUG("%s NO IDLE timeout set for fixed cid 0x%04x", __func__,
+            p_lcb->p_fixed_ccbs[xx]->local_cid);
+         start_timeout = false;
+      }
       timeout_ms = p_lcb->p_fixed_ccbs[xx]->fixed_chnl_idle_tout * 1000;
     }
   }

@@ -1021,7 +1021,7 @@ static void btu_hcif_hdl_command_complete(uint16_t opcode, uint8_t* p,
 #endif
     default:
       if ((opcode & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC)
-        btm_vsc_complete(p, opcode, evt_len, (tBTM_CMPL_CB*)p_cplt_cback);
+        btm_vsc_complete(p, opcode, evt_len, (tBTM_VSC_CMPL_CB*)p_cplt_cback);
       break;
   }
 }
@@ -1194,14 +1194,14 @@ static void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status,
           default:
             if ((opcode & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC)
               btm_vsc_complete(&status, opcode, 1,
-                               (tBTM_CMPL_CB*)p_vsc_status_cback);
+                               (tBTM_VSC_CMPL_CB*)p_vsc_status_cback);
             break;
         }
 
       } else {
         if ((opcode & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC)
           btm_vsc_complete(&status, opcode, 1,
-                           (tBTM_CMPL_CB*)p_vsc_status_cback);
+                           (tBTM_VSC_CMPL_CB*)p_vsc_status_cback);
       }
   }
 }
@@ -1339,10 +1339,10 @@ static void btu_hcif_mode_change_evt(uint8_t* p) {
   STREAM_TO_UINT16(handle, p);
   STREAM_TO_UINT8(current_mode, p);
   STREAM_TO_UINT16(interval, p);
+  btm_pm_proc_mode_change(status, handle, current_mode, interval);
 #if (BTM_SCO_WAKE_PARKED_LINK == TRUE)
   btm_sco_chk_pend_unpark(status, handle);
 #endif
-  btm_pm_proc_mode_change(status, handle, current_mode, interval);
 
 #if (HID_DEV_INCLUDED == TRUE && HID_DEV_PM_INCLUDED == TRUE)
   hidd_pm_proc_mode_change(status, current_mode, interval);

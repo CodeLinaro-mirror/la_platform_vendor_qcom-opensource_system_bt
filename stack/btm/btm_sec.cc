@@ -24,6 +24,7 @@
 
 #define LOG_TAG "bt_btm_sec"
 
+#include <log/log.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -42,11 +43,15 @@
 
 #include "gatt_int.h"
 
+#include "bta/dm/bta_dm_int.h"
+
 #define BTM_SEC_MAX_COLLISION_DELAY (5000)
 
 #ifdef APPL_AUTH_WRITE_EXCEPTION
 bool(APPL_AUTH_WRITE_EXCEPTION)(const RawAddress& bd_addr);
 #endif
+
+extern void bta_dm_remove_device(const RawAddress& bd_addr);
 
 /*******************************************************************************
  *             L O C A L    F U N C T I O N     P R O T O T Y P E S            *
@@ -3163,6 +3168,9 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr,
         }
       }
       return;
+    } else if((p_bd_addr && (btm_cb.pairing_bda != *p_bd_addr)) &&
+             (p_dev_rec && (p_dev_rec->sec_state == BTM_SEC_STATE_GETTING_NAME))) {
+      BTM_TRACE_WARNING("%s: security in progress,continue next security procedure", __func__);
     } else {
       BTM_TRACE_WARNING("%s: wrong BDA, retry with pairing BDA", __func__);
       if (BTM_ReadRemoteDeviceName(btm_cb.pairing_bda, NULL,
@@ -4635,6 +4643,7 @@ void btm_sec_disconnected(uint16_t handle, uint8_t reason) {
   int result = HCI_ERR_AUTH_FAILURE;
   tBTM_SEC_CALLBACK* p_callback = NULL;
   tBT_TRANSPORT transport = BT_TRANSPORT_BR_EDR;
+  bool trigger_auth_callback = FALSE;
 
   /* If page was delayed for disc complete, can do it now */
   btm_cb.discing = false;
@@ -4682,9 +4691,7 @@ void btm_sec_disconnected(uint16_t handle, uint8_t reason) {
       } else if (old_pairing_flags & BTM_PAIR_FLAGS_WE_STARTED_DD) {
         result = HCI_ERR_HOST_REJECT_SECURITY;
       }
-      (*btm_cb.api.p_auth_complete_callback)(p_dev_rec->bd_addr,
-                                             p_dev_rec->dev_class,
-                                             p_dev_rec->sec_bd_name, result);
+      trigger_auth_callback = true;
     }
   }
 
@@ -4707,6 +4714,20 @@ void btm_sec_disconnected(uint16_t handle, uint8_t reason) {
       p_dev_rec->sec_flags &= ~(BTM_SEC_LINK_KEY_KNOWN);
   }
 
+  /* Some devices hardcode sample LTK value from spec, instead of generating
+   * one. Treat such devices as insecure, and remove such bonds on
+   * disconnection.
+   */
+  if (is_sample_ltk(p_dev_rec->ble.keys.pltk)) {
+    android_errorWriteLog(0x534e4554, "128437297");
+    LOG(INFO) << __func__ << " removing bond to device that used sample LTK: "
+              << p_dev_rec->bd_addr;
+
+    tBTA_DM_MSG p_data;
+    p_data.remove_dev.bd_addr = p_dev_rec->bd_addr;
+    bta_dm_remove_device(&p_data);
+  }
+
   BTM_TRACE_EVENT("%s after update sec_flags=0x%x", __func__,
                   p_dev_rec->sec_flags);
 
@@ -4714,19 +4735,38 @@ void btm_sec_disconnected(uint16_t handle, uint8_t reason) {
     p_dev_rec->sec_state = (transport == BT_TRANSPORT_LE)
                                ? BTM_SEC_STATE_DISCONNECTING
                                : BTM_SEC_STATE_DISCONNECTING_BLE;
+    if (btm_cb.api.p_auth_complete_callback && trigger_auth_callback) {
+      trigger_auth_callback = false;
+      (*btm_cb.api.p_auth_complete_callback)(p_dev_rec->bd_addr,
+                                               p_dev_rec->dev_class,
+                                               p_dev_rec->sec_bd_name, result);
+    }
     return;
   }
   p_dev_rec->sec_state = BTM_SEC_STATE_IDLE;
   p_dev_rec->security_required = BTM_SEC_NONE;
 
   p_callback = p_dev_rec->p_callback;
+  RawAddress addr = p_dev_rec->bd_addr;
+  void* data = p_dev_rec->p_ref_data;
+
   p_dev_rec->new_encryption_key_is_p256 = FALSE;
-  /* if security is pending, send callback to clean up the security state */
   if (p_callback) {
     p_dev_rec->p_callback =
         NULL; /* when the peer device time out the authentication before
                  we do, this call back must be reset here */
-    (*p_callback)(&p_dev_rec->bd_addr, transport, p_dev_rec->p_ref_data,
+  }
+
+  if (btm_cb.api.p_auth_complete_callback && trigger_auth_callback) {
+    trigger_auth_callback = false;
+    (*btm_cb.api.p_auth_complete_callback)(p_dev_rec->bd_addr,
+                                           p_dev_rec->dev_class,
+                                           p_dev_rec->sec_bd_name, result);
+  }
+
+  /* if security is pending, send callback to clean up the security state */
+  if (p_callback) {
+    (*p_callback)(&addr, transport, data,
                   BTM_ERR_PROCESSING);
   }
 }
