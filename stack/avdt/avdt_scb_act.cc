@@ -67,6 +67,8 @@ const uint8_t avdt_scb_cback_evt[] = {
 static alarm_t* delay_rpt_alarm = NULL;
 static uint16_t reported_delay = INIT_DELAY_RPT;
 
+// extern function to change the bta av state
+extern void bta_av_set_peer_state_to_incoming(const RawAddress& bd_addr);
 /*******************************************************************************
  *
  * Function         avdt_scb_gen_ssrc
@@ -682,8 +684,11 @@ void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   AVDT_TRACE_WARNING("avdt_scb_hdl_setconfig_cmd: SCB in use: %d, Conn in progress: %d, avdt_check_sep_state: %d",
        p_scb->in_use, avdt_cb.conn_in_progress, avdt_check_sep_state(p_scb));
 
-  if ((!p_scb->in_use) && !(avdt_check_sep_state(p_scb)) &&
-      (!avdt_cb.conn_in_progress)) {
+    if ((!p_scb->in_use) && !(avdt_check_sep_state(p_scb))) {
+      if (avdt_cb.conn_in_progress) {
+          AVDT_UpdateServiceBusyState(false);
+          bta_av_set_peer_state_to_incoming(p_scb->peer_addr);
+      }
     A2DP_DumpCodecInfo(p_scb->cs.cfg.codec_info);
     A2DP_DumpCodecInfo(p_data->msg.config_cmd.p_cfg->codec_info);
     p_cfg = p_data->msg.config_cmd.p_cfg;

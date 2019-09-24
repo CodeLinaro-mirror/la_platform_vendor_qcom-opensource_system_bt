@@ -1568,6 +1568,19 @@ bool bta_av_get_is_peer_state_incoming(const RawAddress& bd_addr) {
    return bta_av_is_scb_incoming(p_scb);
 }
 
+void bta_av_set_peer_state_to_incoming(const RawAddress& bd_addr) {
+   std::string addrstr = bd_addr.ToString();
+   const char* bd_addr_str = addrstr.c_str();
+   APPL_TRACE_DEBUG("%s: Remote Device [%s]", __func__, bd_addr_str);
+   if (bd_addr_str == NULL) {
+      APPL_TRACE_DEBUG("%s: Remote device address is null, return false", __func__);
+      return;
+   }
+   tBTA_AV_SCB* p_scb = NULL;
+   p_scb = bta_av_addr_to_scb(bd_addr);
+   bta_av_set_scb_sst_incoming(p_scb);
+}
+
 /*****************************************************************************
  *  Debug Functions
  ****************************************************************************/
