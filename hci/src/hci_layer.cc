@@ -293,6 +293,14 @@ static future_t* hci_module_shut_down() {
 
   packet_fragmenter->cleanup();
 
+  {
+    std::lock_guard<std::mutex> command_credits_lock(command_credits_mutex);
+    while (!command_queue.empty())
+    {
+      command_queue.pop();
+    }
+  }
+
   thread_free(thread);
   thread = NULL;
 
