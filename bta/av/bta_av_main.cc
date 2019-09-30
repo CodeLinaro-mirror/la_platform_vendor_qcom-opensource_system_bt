@@ -522,6 +522,11 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
   if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
     p_bta_av_cfg = (tBTA_AV_CFG*)&bta_avk_cfg;
   } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
+    //if memory is already allocated free it.
+    if(p_bta_av_cfg) {
+      osi_free(p_bta_av_cfg);
+      p_bta_av_cfg = NULL;
+    }
     p_bta_av_cfg = (tBTA_AV_CFG *) osi_malloc(sizeof(tBTA_AV_CFG));
     memcpy(p_bta_av_cfg,&bta_av_cfg,sizeof(tBTA_AV_CFG));
     if(bta_av_cb.features & BTA_AV_FEAT_BROWSE) {
