@@ -139,7 +139,7 @@
 #endif
 
 #ifndef BTA_DM_SDP_DB_SIZE
-#define BTA_DM_SDP_DB_SIZE 8000
+#define BTA_DM_SDP_DB_SIZE 20000
 #endif
 
 #ifndef HL_INCLUDED
