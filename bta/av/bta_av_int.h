@@ -624,7 +624,9 @@ typedef struct {
   bool tws_device; //true for earbud false otherwise
   uint8_t channel_mode; //L:0 R:1 S:2 M:3
   bool offload_started;
+  tBTA_AV_DATA *cache_setconfig;
 //#endif
+  bool rc_conn;
 } tBTA_AV_SCB;
 
 #define BTA_AV_RC_ROLE_MASK 0x10
@@ -879,6 +881,7 @@ extern void bta_av_open_at_inc(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_offload_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_offload_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_vendor_offload_stop(tBTA_AV_SCB* p_scb);
+extern void bta_av_disc_fail_as_acp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 #if (TWS_ENABLED == TRUE)
 extern void bta_av_set_tws_chn_mode(tBTA_AV_SCB* p_scb, bool adjust);
 #endif

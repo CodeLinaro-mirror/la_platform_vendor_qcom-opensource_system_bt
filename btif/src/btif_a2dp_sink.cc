@@ -536,13 +536,6 @@ static void btif_a2dp_sink_decoder_update_event(
   btif_a2dp_sink_cb.decode_alarm = NULL;
   btif_a2dp_sink_audio_rx_flush_event();
 
-  /* Free the alarm if this function is invoked as alarm callback when Codec
-   * Config is updated from remote when AV State Machine is in STARTED/OPENED State*/
-  if (config_alarm) {
-    alarm_free(config_alarm);
-    config_alarm = NULL;
-  }
-
   uint8_t codec_type = A2DP_GetCodecType(p_buf->codec_info);
   int sample_rate = A2DP_GetTrackSampleRate(p_buf->codec_info);
   if (sample_rate == -1) {
