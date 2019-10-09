@@ -4404,8 +4404,6 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
         break;
 
       case AVRC_EVT_UIDS_CHANGE:
-        HAL_CBACK(bt_rc_vendor_ctrl_callbacks, uids_changed_cb,
-                  &rc_addr, p_rsp->param.uid_counter);
         break;
 
       case AVRC_EVT_TRACK_REACHED_END:
