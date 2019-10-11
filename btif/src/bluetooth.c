@@ -153,6 +153,7 @@ extern btrc_vendor_interface_t *btif_rc_vendor_get_interface();
 /* vendor avrc controller */
 extern btrc_ctrl_vendor_interface_t *btif_avk_rc_ctrl_vendor_get_interface();
 extern btav_vendor_interface_t *btif_av_get_src_vendor_interface();
+extern bthh_vendor_interface_t *btif_hh_vendor_get_interface();
 
 #if TEST_APP_INTERFACE == TRUE
 extern const btl2cap_interface_t *btif_l2cap_get_interface(void);
