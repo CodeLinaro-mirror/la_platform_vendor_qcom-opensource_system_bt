@@ -644,6 +644,9 @@ void bta_hf_client_api_disable() {
     return;
   }
 
+  /* De-register with BTA system manager */
+  bta_sys_deregister(BTA_ID_HS);
+
   /* Remove the collision handler */
   bta_sys_collision_register(BTA_ID_HS, NULL);
 
@@ -661,9 +664,6 @@ void bta_hf_client_api_disable() {
       bta_hf_client_cb_init(&(bta_hf_client_cb_arr.cb[i]), i);
     }
   }
-
-  /* De-register with BTA system manager */
-  bta_sys_deregister(BTA_ID_HS);
 }
 
 /*******************************************************************************
@@ -679,7 +679,15 @@ void bta_hf_client_api_disable() {
 bool bta_hf_client_hdl_event(BT_HDR* p_msg) {
   APPL_TRACE_DEBUG("%s: %s (0x%x)", __func__,
                    bta_hf_client_evt_str(p_msg->event), p_msg->event);
-  bta_hf_client_sm_execute(p_msg->event, (tBTA_HF_CLIENT_DATA*)p_msg);
+
+  switch (p_msg->event) {
+    case BTA_HF_CLIENT_API_DISABLE_EVT:
+      bta_hf_client_api_disable();
+      break;
+    default:
+      bta_hf_client_sm_execute(p_msg->event, (tBTA_HF_CLIENT_DATA*)p_msg);
+      break;
+  }
   return true;
 }
 
