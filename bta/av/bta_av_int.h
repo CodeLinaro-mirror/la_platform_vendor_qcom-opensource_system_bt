@@ -626,8 +626,8 @@ typedef struct {
   bool offload_started;
   tBTA_AV_DATA *cache_setconfig;
 //#endif
-  bool rc_conn;
-} tBTA_AV_SCB;
+  int rc_ccb_alloc_handle;
+}tBTA_AV_SCB;
 
 #define BTA_AV_RC_ROLE_MASK 0x10
 #define BTA_AV_RC_ROLE_INT 0x00
