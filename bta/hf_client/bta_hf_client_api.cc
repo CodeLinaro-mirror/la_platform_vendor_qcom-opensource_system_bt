@@ -64,7 +64,13 @@ tBTA_STATUS BTA_HfClientEnable(tBTA_HF_CLIENT_CBACK* p_cback, tBTA_SEC sec_mask,
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HfClientDisable(void) { bta_hf_client_api_disable(); }
+void BTA_HfClientDisable(void) {
+  BT_HDR* p_buf = (BT_HDR*)osi_malloc(sizeof(BT_HDR));
+
+  p_buf->event = BTA_HF_CLIENT_API_DISABLE_EVT;
+
+  bta_sys_sendmsg(p_buf);
+}
 
 /*******************************************************************************
  *
