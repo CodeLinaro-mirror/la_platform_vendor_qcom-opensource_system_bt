@@ -52,8 +52,9 @@
 #ifdef ANDROID
 #include <audio_utils/primitives.h>
 #endif
+#ifdef AUDIO_UTILS
 #include <audio_utils/format.h>
-
+#endif
 #include <hardware/bluetooth.h>
 
 #include "osi/include/alarm.h"

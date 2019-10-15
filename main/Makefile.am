@@ -38,8 +38,6 @@ AM_CPPFLAGS= \
         -I$(external_bt_path)/system_bt_ext/bta/ar \
         -I$(external_bt_path)/system_bt_ext/btif/include \
         -I$(external_bt_path)/system_bt_ext/udrv/include \
-        -I${WORKSPACE}/external/tinyxml2 \
-        -I${WORKSPACE}/external/zlib \
         -I$(external_bt_path)/hal/include \
         -I$(external_bt_path)/vhal/include
 

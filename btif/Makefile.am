@@ -39,15 +39,11 @@ AM_CPPFLAGS = \
         -I../embdrv/sbc/decoder/include \
         -I../audio_a2dp_hw \
         -I../utils/include \
-        -I${WORKSPACE}/external/tinyxml2 \
-        -I${WORKSPACE}/external/zlib \
-        -I${external_bt_path}/vhal/include \
-        -I$(WORKSPACE)/frameworks/av/include \
-        -I$(WORKSPACE)/system/media/audio/include \
-        -I$(WORKSPACE)/frameworks/system/media/audio/include \
-        -I$(WORKSPACE)/system/media/audio_utils/include \
-        -I$(WORKSPACE)/frameworks/system/media/audio_utils/include \
-        -I$(WORKSPACE)/system/core/include
+        -I${external_bt_path}/vhal/include
+
+if BT_AUDIO_HAL_INTEGRATION
+AM_CPPFLAGS += -DAUDIO_UTILS
+endif
 
 c_sources = \
         src/bluetooth.c \
