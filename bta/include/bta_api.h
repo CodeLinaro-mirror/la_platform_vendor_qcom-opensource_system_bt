@@ -974,7 +974,7 @@ typedef uint8_t tBTA_DM_PM_ACTION;
  * must insure that order is maintained.
  */
 #ifndef BTA_DM_PM_SNIFF_MAX
-#define BTA_DM_PM_SNIFF_MAX 2048
+#define BTA_DM_PM_SNIFF_MAX 800
 #define BTA_DM_PM_SNIFF_MIN 400
 #define BTA_DM_PM_SNIFF_ATTEMPT 4
 #define BTA_DM_PM_SNIFF_TIMEOUT 1
