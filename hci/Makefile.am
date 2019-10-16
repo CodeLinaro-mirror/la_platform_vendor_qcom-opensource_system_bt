@@ -13,17 +13,17 @@ AM_CPPFLAGS = -Iinclude -I../include \
         -I../utils/include \
 		-I../bta/include
 
-if MDM_ROME
+if BT_ROME
 AM_CFLAGS += -DBT_SOC_TYPE_ROME
 AM_CPPFLAGS += -DBT_SOC_TYPE_ROME
 else
-if MDM_PRONTO
+if BT_PRONTO
 AM_CFLAGS += -DHCI_USE_MCT
 AM_CPPFLAGS += -DHCI_USE_MCT
 endif
 endif
 
-if MDM_CHEROKEE
+if BT_CHEROKEE
 AM_CFLAGS += -DBT_SOC_TYPE_CHEROKEE
 AM_CPPFLAGS += -DBT_SOC_TYPE_CHEROKEE
 endif
