@@ -1,3 +1,4 @@
+
 /******************************************************************************
  *
  *  Copyright (C) 2009-2012 Broadcom Corporation
@@ -30,6 +31,7 @@
 #include "btm_int.h"
 #include "btu.h"
 #include "device/include/controller.h"
+#include "device/include/interop.h"
 #include "hcimsgs.h"
 #include "l2c_int.h"
 #include "l2cdefs.h"
@@ -892,20 +894,26 @@ bool l2cble_init_direct_conn(tL2C_LCB* p_lcb) {
   peer_addr = p_lcb->remote_bd_addr;
 
 #if (BLE_PRIVACY_SPT == TRUE)
-  own_addr_type =
-      btm_cb.ble_ctr_cb.privacy_mode ? BLE_ADDR_RANDOM : BLE_ADDR_PUBLIC;
-  if (p_dev_rec->ble.in_controller_list & BTM_RESOLVING_LIST_BIT) {
-    if (btm_cb.ble_ctr_cb.privacy_mode >= BTM_PRIVACY_1_2)
-      own_addr_type |= BLE_ADDR_TYPE_ID_BIT;
+  /* For RCUs, we always use public address for the connection and disable
+     adding them to the resolving list, because RCUs can not resolve our
+     random address */
+  if (!interop_match_addr_or_name
+     (INTEROP_DISABLE_RESOLVING, &(p_dev_rec->bd_addr))) {
+    own_addr_type =
+        btm_cb.ble_ctr_cb.privacy_mode ? BLE_ADDR_RANDOM : BLE_ADDR_PUBLIC;
+    if (p_dev_rec->ble.in_controller_list & BTM_RESOLVING_LIST_BIT) {
+      if (btm_cb.ble_ctr_cb.privacy_mode >= BTM_PRIVACY_1_2)
+        own_addr_type |= BLE_ADDR_TYPE_ID_BIT;
 
-    btm_ble_enable_resolving_list(BTM_BLE_RL_INIT);
-    btm_random_pseudo_to_identity_addr(&peer_addr, &peer_addr_type);
-  } else {
-    btm_ble_disable_resolving_list(BTM_BLE_RL_INIT, true);
+      btm_ble_enable_resolving_list(BTM_BLE_RL_INIT);
+      btm_random_pseudo_to_identity_addr(&peer_addr, &peer_addr_type);
+    } else {
+      btm_ble_disable_resolving_list(BTM_BLE_RL_INIT, true);
 
-    // If we have a current RPA, use that instead.
-    if (!p_dev_rec->ble.cur_rand_addr.IsEmpty()) {
-      peer_addr = p_dev_rec->ble.cur_rand_addr;
+      // If we have a current RPA, use that instead.
+      if (!p_dev_rec->ble.cur_rand_addr.IsEmpty()) {
+        peer_addr = p_dev_rec->ble.cur_rand_addr;
+      }
     }
   }
 #endif

@@ -441,6 +441,23 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
       break;
     }
 
+    case AVRC_PDU_SEARCH: {
+        tAVRC_SEARCH_RSP* search_rsp = &(p_rsp->search);
+        search_rsp->pdu = pdu;
+        BE_STREAM_TO_UINT8(search_rsp->status, p);
+        if (search_rsp->status != AVRC_STS_NO_ERROR) {
+            AVRC_TRACE_ERROR("%s Stopping further parsing "
+                             "because of error status = %d",
+                             __func__, search_rsp->status);
+            return search_rsp->status;
+        }
+        BE_STREAM_TO_UINT16(search_rsp->uid_counter, p);
+        BE_STREAM_TO_UINT32(search_rsp->num_items, p);
+        AVRC_TRACE_DEBUG("%s, AVRC_PDU_SEARCH status %d items %d", __func__,
+                         search_rsp->status, search_rsp->num_items);
+        pkt_len_read += 7;
+    }
+
     default:
       AVRC_TRACE_ERROR("%s pdu %d not handled", __func__, pdu);
   }

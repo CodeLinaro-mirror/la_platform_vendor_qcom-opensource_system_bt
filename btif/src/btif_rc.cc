@@ -1179,7 +1179,7 @@ skip:
   }
 
   /* Update the device on which PLAY is issued */
-  int pressed = (p_remote_cmd->key_state == AVRC_STATE_PRESS) ? 1 : 0;
+  int pressed = p_remote_cmd->key_state;
 
   /* pass all commands up */
   BTIF_TRACE_DEBUG("%s: rc_features: %d, cmd->rc_id: %d, pressed: %d", __func__,

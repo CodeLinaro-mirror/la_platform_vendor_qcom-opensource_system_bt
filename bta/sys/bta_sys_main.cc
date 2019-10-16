@@ -531,6 +531,8 @@ void bta_sys_sendmsg(void* p_msg) {
 
   if (!bta_message_loop || !bta_message_loop->task_runner().get()) {
     APPL_TRACE_ERROR("%s: MessageLooper not initialized", __func__);
+    if(p_msg != NULL)
+      osi_free(p_msg);
     return;
   }
 

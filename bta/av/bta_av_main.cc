@@ -522,11 +522,15 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
   if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
     p_bta_av_cfg = (tBTA_AV_CFG*)&bta_avk_cfg;
   } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
+    //if memory is already allocated free it.
+    if(p_bta_av_cfg) {
+      osi_free(p_bta_av_cfg);
+      p_bta_av_cfg = NULL;
+    }
     p_bta_av_cfg = (tBTA_AV_CFG *) osi_malloc(sizeof(tBTA_AV_CFG));
     memcpy(p_bta_av_cfg,&bta_av_cfg,sizeof(tBTA_AV_CFG));
     if(bta_av_cb.features & BTA_AV_FEAT_BROWSE) {
       p_bta_av_cfg->avrc_tg_cat |= AVRC_SUPF_TG_BROWSE;
-      p_bta_av_cfg->avrc_ct_cat |= AVRC_SUPF_CT_BROWSE;
     } else {
       /* Remove browse vents from supported events. Last 4 events in
       p_meta_evt_ids array are browse events.*/
@@ -580,13 +584,11 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
                         BTA_ID_AV);
 #endif
 
-        /* For the Audio Sink role we support additional TG 1.3 to support
-         * absolute volume.
-         */
+        /* Register AVRCP Tg to 1.6 version*/
         uint16_t profile_version = AVRC_REV_1_0;
 
         if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
-          profile_version = AVRC_REV_1_5;
+          profile_version = AVRC_REV_1_6;
         }
 
         bta_ar_reg_avrc(
@@ -793,18 +795,16 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
             bta_av_rc_create(&bta_av_cb, AVCT_ACP, 0, BTA_AV_NUM_LINKS + 1);
           }
 #if (BTA_AR_INCLUDED == TRUE)
-          /* create an SDP record as AVRC CT. We create 1.3 for SOURCE
-           * because we rely on feature bits being scanned by external
-           * devices more than the profile version itself.
+          /* create an SDP record as AVRC CT. We create 1.6 for SOURCE
            *
-           * We create 1.4 for SINK since we support browsing.
+           * We create 1.6 for SINK.
            */
           if ((profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) ||
               (profile_initialized == UUID_SERVCLASS_AUDIO_SINK)) {
             bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL,
                             p_bta_av_cfg->avrc_ct_cat, BTA_ID_AV,
-                            (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
-                            AVRC_REV_1_5);
+                            false,//For CT browse support is false
+                            AVRC_REV_1_6);
           }
 #endif
         }
@@ -842,6 +842,12 @@ void bta_av_api_deregister(tBTA_AV_DATA* p_data) {
   if (p_scb) {
     p_scb->deregistring = true;
     bta_av_ssm_execute(p_scb, BTA_AV_API_CLOSE_EVT, p_data);
+    if(p_scb->avrc_ct_timer != NULL) {
+      alarm_free(p_scb->avrc_ct_timer);
+      p_scb->avrc_ct_timer = NULL;
+    }
+    if((p_scb->a2dp_list != NULL) && list_length(p_scb->a2dp_list))
+      list_free(p_scb->a2dp_list);
   } else {
     bta_av_dereg_comp(p_data);
   }

@@ -54,7 +54,7 @@
 bt_soc_type soc_type;
 
 extern void hci_initialize();
-extern bool hci_transmit(BT_HDR* packet);
+extern hci_transmit_status_t hci_transmit(BT_HDR* packet);
 extern void hci_close();
 extern int hci_open_firmware_log_file();
 extern void hci_close_firmware_log_file(int fd);
@@ -261,7 +261,6 @@ static future_t* hci_module_shut_down() {
 
   // Close HCI to prevent callbacks.
   hci_close();
-
   // Free the timers
   {
     std::lock_guard<std::recursive_mutex> lock(commands_pending_response_mutex);
@@ -290,6 +289,14 @@ static future_t* hci_module_shut_down() {
   }
 
   packet_fragmenter->cleanup();
+
+  {
+    std::lock_guard<std::mutex> command_credits_lock(command_credits_mutex);
+    while (!command_queue.empty())
+    {
+      command_queue.pop();
+    }
+  }
 
   thread_free(thread);
   thread = NULL;
@@ -464,7 +471,9 @@ static void transmit_fragment(BT_HDR* packet, bool send_transmit_finished) {
    * process the event and frees the packet*/
   uint16_t event = packet->event & MSG_EVT_MASK;
 
-  if(!hci_transmit(packet)) {
+  hci_transmit_status_t status = hci_transmit(packet);
+
+  if(status == HCI_TRANSMIT_DAEMON_DIED) {
     LOG_ERROR(LOG_TAG, "%s: unable to send packet to hci hal daemon ", __func__);
     usleep(100000);
     LOG_ERROR(LOG_TAG, "%s: Killing bluetooth process due to TX failed ", __func__);

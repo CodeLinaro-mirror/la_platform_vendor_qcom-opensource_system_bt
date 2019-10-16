@@ -635,8 +635,8 @@ void BTM_ReadDevInfo(const RawAddress& remote_bda, tBT_DEVICE_TYPE* p_dev_type,
   tBTM_INQ_INFO* p_inq_info = BTM_InqDbRead(remote_bda);
 
   *p_addr_type = BLE_ADDR_PUBLIC;
-
-  if (!p_dev_rec) {
+  /* there must be a record which was created for previous failure connection*/
+  if (!p_dev_rec || (p_dev_rec && p_dev_rec->ble.pseudo_addr.IsEmpty())) {
     *p_dev_type = BT_DEVICE_TYPE_BREDR;
     /* Check with the BT manager if details about remote device are known */
     if (p_inq_info != NULL) {

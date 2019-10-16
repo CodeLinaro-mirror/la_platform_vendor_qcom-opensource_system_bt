@@ -2002,6 +2002,11 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
 
       HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
                 &bd_addr, BT_ACL_STATE_CONNECTED);
+
+      HAL_CBACK(bt_vendor_callbacks, acl_state_changed_with_reason_cb, BT_STATUS_SUCCESS,
+                &bd_addr, BT_ACL_STATE_CONNECTED, BT_STATUS_SUCCESS,
+                p_data->link_up.link_type);
+
       break;
 
     case BTA_DM_LINK_DOWN_EVT:
@@ -2025,6 +2030,11 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
           "BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
       HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
                 &bd_addr, BT_ACL_STATE_DISCONNECTED);
+
+      HAL_CBACK(bt_vendor_callbacks, acl_state_changed_with_reason_cb, BT_STATUS_SUCCESS,
+                &bd_addr, BT_ACL_STATE_DISCONNECTED, btm_get_acl_disc_reason_code(),
+                p_data->link_down.link_type);
+
       break;
 
     case BTA_DM_HW_ERROR_EVT:
@@ -3270,7 +3280,12 @@ static void btif_dm_ble_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
       case BTA_DM_AUTH_SMP_CONFIRM_VALUE_FAIL:
       case BTA_DM_AUTH_SMP_UNKNOWN_ERR:
       case BTA_DM_AUTH_SMP_CONN_TOUT:
-        btif_dm_remove_ble_bonding_keys();
+        if (interop_match_addr_or_name(INTEROP_PINKEY_MISSING,
+        &(p_auth_cmpl->bd_addr))) {
+          btif_storage_remove_ble_bonding_keys(&(p_auth_cmpl->bd_addr));
+        } else {
+          btif_dm_remove_ble_bonding_keys();
+        }
         status = BT_STATUS_AUTH_FAILURE;
         break;
       case BTA_DM_AUTH_SMP_PAIR_NOT_SUPPORT:

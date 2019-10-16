@@ -53,7 +53,7 @@ static void event_clean_up_stack(void* context);
 static void event_signal_stack_up(void* context);
 static void event_signal_stack_down(void* context);
 
-//extern void btif_vendor_cleanup_iot_broadcast_timer(void);
+extern void btif_vendor_cleanup_iot_broadcast_timer(void);
 extern void start_bt_logger(void);
 extern void init_vnd_Logger(void);
 extern void clean_vnd_logger(void);
@@ -88,10 +88,17 @@ static void shut_down_stack_async(void) {
 static void clean_up_stack(void) {
   // This is a synchronous process. Post it to the thread though, so
   // state modification only happens there.
+  if(management_thread == NULL) {
+    LOG_INFO(LOG_TAG, "%s : stack is not at initialized", __func__);
+    return;
+  }
+
   semaphore_t* semaphore = semaphore_new(0);
   thread_post(management_thread, event_clean_up_stack, semaphore);
   semaphore_wait(semaphore);
   semaphore_free(semaphore);
+  thread_free(management_thread);
+  management_thread = NULL;
 }
 
 static bool get_stack_is_running(void) { return stack_is_running; }
@@ -217,7 +224,7 @@ static void event_clean_up_stack(void* context) {
   LOG_INFO(LOG_TAG, "%s is cleaning up the stack", __func__);
   stack_is_initialized = false;
 
-  //btif_vendor_cleanup_iot_broadcast_timer();
+  btif_vendor_cleanup_iot_broadcast_timer();
   btif_cleanup_bluetooth();
   module_clean_up(get_module(BTIF_CONFIG_MODULE));
   module_clean_up(get_module(BT_UTILS_MODULE));
