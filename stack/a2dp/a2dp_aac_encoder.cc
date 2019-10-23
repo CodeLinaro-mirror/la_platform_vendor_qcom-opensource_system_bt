@@ -43,13 +43,6 @@
  */
 #define MAX_2MBPS_AVDTP_MTU 663
 
-// offset
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-#define A2DP_AAC_OFFSET (AVDT_MEDIA_OFFSET + 1)
-#else
-#define A2DP_AAC_OFFSET AVDT_MEDIA_OFFSET
-#endif
-
 typedef struct {
   uint32_t sample_rate;
   uint8_t channel_mode;
@@ -144,10 +137,11 @@ void a2dp_aac_encoder_init(const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
   a2dp_aac_encoder_cb.peer_mtu = p_peer_params->peer_mtu;
   a2dp_aac_encoder_cb.timestamp = 0;
 
-  a2dp_aac_encoder_cb.use_SCMS_T = false;  // TODO: should be a parameter
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-  a2dp_aac_encoder_cb.use_SCMS_T = true;
-#endif
+  if (a2dp_is_cp_enable()) {
+    a2dp_aac_encoder_cb.use_SCMS_T = true;  // TODO: should be a parameter
+  } else {
+    a2dp_aac_encoder_cb.use_SCMS_T = false;
+  }
 
   // NOTE: Ignore the restart_input / restart_output flags - this initization
   // happens when the connection is (re)started.
@@ -248,16 +242,19 @@ static void a2dp_aac_encoder_update(uint16_t peer_mtu,
       peer_mtu = MAX_2MBPS_AVDTP_MTU;
     }
   }
-  uint16_t mtu_size = BT_DEFAULT_BUFFER_SIZE - A2DP_AAC_OFFSET - sizeof(BT_HDR);
+  uint16_t mtu_size = BT_DEFAULT_BUFFER_SIZE - A2DP_MEDIA_OFFSET - sizeof(BT_HDR);
+  if (a2dp_is_cp_enabled()) {
+    mtu_size--;    //1 byte for cp header
+  }
   if (mtu_size < peer_mtu) {
     a2dp_aac_encoder_cb.TxAaMtuSize = mtu_size;
   } else {
     a2dp_aac_encoder_cb.TxAaMtuSize = peer_mtu;
   }
 
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-  a2dp_aac_encoder_cb.TxAaMtuSize--;
-#endif
+ if (a2dp_is_cp_enabled()) {
+   a2dp_aac_encoder_cb.TxAaMtuSize--;
+ }
 
   LOG_DEBUG(LOG_TAG, "%s: MTU=%d, peer_mtu=%d", __func__,
             a2dp_aac_encoder_cb.TxAaMtuSize, peer_mtu);
@@ -620,7 +617,10 @@ static void a2dp_aac_encode_frames(uint8_t nb_frame) {
 
   while (nb_frame) {
     BT_HDR* p_buf = (BT_HDR*)osi_malloc(BT_DEFAULT_BUFFER_SIZE);
-    p_buf->offset = A2DP_AAC_OFFSET;
+    p_buf->offset = A2DP_MEDIA_OFFSET;
+    if (a2dp_is_cp_enabled()) {
+      p_buf->offset++; //1 byte for cp header
+    }
     p_buf->len = 0;
     p_buf->layer_specific = 0;
     a2dp_aac_encoder_cb.stats.media_read_total_expected_packets++;

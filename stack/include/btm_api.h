@@ -196,6 +196,17 @@ extern tBTM_STATUS BTM_RegisterForVSEvents(tBTM_VS_EVT_CB* p_cb,
 void btm_register_iot_info_cback (tBTM_VS_EVT_CB *p_cb);
 
 /*******************************************************************************
+**
+** Function         btm_register_cp_flag_cback
+**
+** Description      Register callback to process cp flag VS event
+**
+** Returns          void
+**
+*******************************************************************************/
+void btm_register_cp_flag_cback (tBTM_VS_EVT_CB *p_cb);
+
+/*******************************************************************************
  *
  * Function         BTM_VendorSpecificCommand
  *
@@ -1882,6 +1893,18 @@ extern tBTM_STATUS BTM_SetSsrParams(const RawAddress& remote_bda,
  ******************************************************************************/
 extern uint16_t BTM_GetHCIConnHandle(const RawAddress& remote_bda,
                                      tBT_TRANSPORT transport);
+
+/*******************************************************************************
+ *
+ * Function         BTM_Get_btaddr_from_hcihandle
+ *
+ * Description      This function is called to get the bdaddr for an ACL
+ *                  connection handle.
+ *
+ * Returns          the btaddr of remote or NULL
+ *
+ ******************************************************************************/
+extern RawAddress BTM_Get_btaddr_from_hcihandle(uint16_t hci_handle);
 
 /*******************************************************************************
  *

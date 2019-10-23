@@ -50,6 +50,8 @@
 #include "device/include/interop_config.h"
 #include "stack/sdp/sdpint.h"
 
+#include "bta_avk_int.h"
+
 #if (GAP_INCLUDED == TRUE)
 #include "gap_api.h"
 #endif
@@ -168,6 +170,7 @@ static void bta_dm_observe_cmpl_cb(void* p_result);
 static void bta_dm_delay_role_switch_cback(void* data);
 static void bta_dm_disable_timer_cback(void* data);
 static void bta_dm_vnd_info_report_cback(uint8_t evt_len, uint8_t *p_data);
+static void bta_dm_vnd_cp_flag_cback(uint8_t evt_len, uint8_t *p_data);
 
 const uint16_t bta_service_id_to_uuid_lkup_tbl[BTA_MAX_SERVICE_ID] = {
     UUID_SERVCLASS_PNP_INFORMATION,       /* Reserved */
@@ -334,6 +337,7 @@ void bta_dm_init_cb(void) {
     }
   }
   btm_register_iot_info_cback(bta_dm_vnd_info_report_cback);
+  btm_register_cp_flag_cback(bta_dm_vnd_cp_flag_cback);
 }
 
 /*******************************************************************************
@@ -3038,6 +3042,29 @@ static void bta_dm_vnd_info_report_cback (uint8_t evt_len, uint8_t *p_data) {
   if(p_msg->error_type == BT_SOC_A2DP_GLITCH)
       STREAM_TO_UINT8(p_msg->event_link_quality, p_data);
   p_msg->error_info = vnd_get_error_info(p_msg->error_type);
+
+  bta_sys_sendmsg(p_msg);
+}
+
+/*******************************************************************************
+**
+** Function         bta_dm_vnd_cp_flag_cback
+**
+** Description      Called from btm when SoC sends cp flag VSE event
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+static void bta_dm_vnd_cp_flag_cback (uint8_t evt_len, uint8_t *p_data) {
+  APPL_TRACE_DEBUG("bta_dm_vnd_cp_flag_cback");
+
+  tBTA_AVK_CP_FLAG_UPDATE *p_msg =
+      (tBTA_AVK_CP_FLAG_UPDATE *)osi_malloc(sizeof(tBTA_AVK_CP_FLAG_UPDATE));
+
+  p_msg->hdr.event = BTA_AVK_VSE_CP_FLAG_UPDATE_EVT;
+  STREAM_TO_UINT16(p_msg->hci_handle, p_data);
+  STREAM_TO_UINT8(p_msg->cp_flag, p_data);
 
   bta_sys_sendmsg(p_msg);
 }

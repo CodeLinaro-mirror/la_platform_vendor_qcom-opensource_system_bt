@@ -923,4 +923,5 @@ void BTA_AvUpdateCodecSupport(uint8_t *p_codec_type_list, uint8_t *p_vnd_list, u
 
 void BTA_AvUpdateTWSDevice(bool isTwsDevice, tBTA_AV_HNDL hndl);
 void BTA_AVSetEarbudRole(uint8_t role, tBTA_AV_HNDL hndl);
+void BTA_AvUpdateSCMSTCpFlag(uint8_t cp_flag);
 #endif /* BTA_AV_API_H */

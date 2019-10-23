@@ -759,3 +759,22 @@ void BTA_AvUpdateCodecSupport(uint8_t *p_codec_type_list, uint8_t *p_vnd_list, u
         bta_sys_sendmsg(p_buf);
     }
 }
+
+/*******************************************************************************
+**
+** Function         BTA_AvUpdateSCMSTCpFlag
+**
+** Description      Update SCMST cp flag in split mode
+**
+** Returns          void
+**
+*******************************************************************************/
+void BTA_AvUpdateSCMSTCpFlag(uint8_t cp_flag)
+{
+   tBTA_AV_SCMST_CP_FLAG *p_buf =
+         (tBTA_AV_SCMST_CP_FLAG*)osi_malloc(sizeof(tBTA_AV_SCMST_CP_FLAG));
+   p_buf->hdr.event = BTA_AV_API_UPDATE_SCMST_CP_FLAG;
+   p_buf->cp_flag = cp_flag;
+
+   bta_sys_sendmsg(p_buf);
+}

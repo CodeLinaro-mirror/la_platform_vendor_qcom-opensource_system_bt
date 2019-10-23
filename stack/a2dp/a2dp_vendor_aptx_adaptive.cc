@@ -50,6 +50,7 @@
 
 #include <base/logging.h>
 #include "a2dp_vendor.h"
+#include "a2dp_int.h"
 #include "a2dp_vendor_aptx_adaptive_encoder.h"
 #include "bt_utils.h"
 #include "osi/include/log.h"
@@ -544,13 +545,13 @@ bool A2DP_VendorInitCodecConfigAptxAdaptive(tAVDT_CFG* p_cfg) {
     return false;
   }
 
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-  /* Content protection info - support SCMS-T */
-  uint8_t* p = p_cfg->protect_info;
-  *p++ = AVDT_CP_LOSC;
-  UINT16_TO_STREAM(p, AVDT_CP_SCMS_T_ID);
-  p_cfg->num_protect = 1;
-#endif
+ if (a2dp_is_cp_enabled()) {
+   /* Content protection info - support SCMS-T */
+   uint8_t* p = p_cfg->protect_info;
+   *p++ = AVDT_CP_LOSC;
+   UINT16_TO_STREAM(p, AVDT_CP_SCMS_T_ID);
+   p_cfg->num_protect = 1;
+ }
 
   return true;
 }

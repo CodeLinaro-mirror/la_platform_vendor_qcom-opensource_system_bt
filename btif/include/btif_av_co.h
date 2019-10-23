@@ -67,6 +67,10 @@ A2dpCodecs* bta_av_get_a2dp_codecs(void);
 
 A2dpCodecs* bta_av_get_peer_a2dp_codecs(const RawAddress& bd_addr);
 
+// Returns CP status of peer.
+bool bta_av_get_peer_cp_status(const RawAddress& bd_addr);
+
+
 // Gets the current A2DP codec.
 // Returns a pointer to the current |A2dpCodec| if valid, otherwise nullptr.
 A2dpCodecConfig* bta_av_get_a2dp_current_codec(void);
