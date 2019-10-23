@@ -182,7 +182,7 @@ void avdt_ccb_hdl_discover_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
   int effective_num_seps = 0;
   char value[PROPERTY_VALUE_MAX] = {'\0'};
   const char *codec_name;
-  property_get("vendor.bluetooth.soc", value, NULL);
+  property_get("vendor.qcom.bluetooth.soc", value, NULL);
   p_data->msg.discover_rsp.p_sep_info = sep_info;
   p_data->msg.discover_rsp.num_seps = 0;
   char remote_name[BTM_MAX_REM_BD_NAME_LEN] = "";
