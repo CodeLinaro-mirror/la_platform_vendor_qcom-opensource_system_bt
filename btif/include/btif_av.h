@@ -266,6 +266,16 @@ bool btif_av_any_br_peer(void);
 *******************************************************************************/
 bool btif_av_get_multicast_state();
 
+/******************************************************************************
+**
+** Function        btif_av_multicast_config_codec
+**
+** Description     Returns true if codec config in multicast else false
+**
+** Returns         bool
+******************************************************************************/
+bool btif_av_multicast_config_codec();
+
 /*******************************************************************************
 **
 ** Function         btif_av_is_multicast_supported
@@ -286,6 +296,16 @@ bool btif_av_is_multicast_supported();
  * Returns          peer address
  *******************************************************************************/
 void btif_av_get_peer_addr(RawAddress *peer_bda);
+
+/******************************************************************************
+**
+** Function        btif_av_get_ongoing_multicast
+**
+** Description     Returns true if multicast is ongoing
+**
+** Returns         bool
+******************************************************************************/
+bool btif_av_get_ongoing_multicast();
 
 /*******************************************************************************
  *
@@ -459,6 +479,24 @@ void btif_av_peer_config_dump();
 ********************************************************************************/
 int btif_av_get_current_playing_dev_idx();
 
+/******************************************************************************
+ *
+ * Function        btif_av_update_multicast_state
+ *
+ * Description     Enable Multicast only if below conditions are satisfied
+ *                 1. Connected to only 2 EDR HS.
+ *                 2. Connected to both HS as master.
+ *                 3. Connected to 2 EDR HS and one BLE device
+ *                 Multicast will fall back to soft handsoff in below conditions
+ *                 1. Number of ACL links is more than 2,like connected to HID
+ *                    initiating connection for HS1 and HS2.
+ *                 2. Connected to BR and EDR HS.
+ *                 3. Connected to more then 1 BLE device
+ *
+ * Returns         void
+*****************************************************************************/
+void btif_av_update_multicast_state(int index);
+
 /**
  * Set the audio delay for the stream.
  *
@@ -537,4 +575,35 @@ void btif_initiate_sink_handoff(int idx, bool audio_state_changed);
 *******************************************************************************/
 int btif_get_max_allowable_sink_connections();
 
+/*******************************************************************************
+**
+** Function         btif_av_reconfig_other_stream_codec
+**
+** Description      reconfigure the codec to SBC
+**                  Currently, Default:2, Max:2
+**                  TODO: Q: Range:{1,5} Deafault:3 Max:5
+**
+** Returns          void
+*******************************************************************************/
+void btif_av_reconfig_other_stream_codec(void);
+
+/*******************************************************************************
+**
+** Function         btif_get_conn_state_of_device
+**
+** Description      Get connect state of a specific device 
+**
+** Returns          void
+*******************************************************************************/
+int btif_get_conn_state_of_device(RawAddress address);
+
+/*******************************************************************************
+**
+** Function         btif_av_get_num_connect_devices
+**
+** Description      Get the number of device in connected/connecting status
+**
+** Returns          void
+*******************************************************************************/
+uint16_t btif_av_get_num_connect_devices(void);
 #endif /* BTIF_AV_H */

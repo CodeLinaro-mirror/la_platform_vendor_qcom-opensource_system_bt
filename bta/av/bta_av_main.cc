@@ -69,6 +69,7 @@
 #include "bta_av_int.h"
 #include "btm_int.h"
 #include "btif/include/btif_av_co.h"
+#include "btif/include/btif_av.h"
 #include "l2c_api.h"
 #include "l2cdefs.h"
 #include "utl.h"
@@ -426,6 +427,9 @@ void bta_av_conn_cback(UNUSED_ATTR uint8_t handle, const RawAddress* bd_addr,
     } else if (event == AVDT_CONNECT_IND_EVT) {
       APPL_TRACE_DEBUG("%s: CONN_IND is ACP:%d", __func__,
                        p_data->hdr.err_param);
+      /* check the existing connection, if has, check the codec */
+      if ( btif_av_is_multicast_supported() )
+        btif_av_reconfig_other_stream_codec();
     }
 
     tBTA_AV_STR_MSG* p_msg =
