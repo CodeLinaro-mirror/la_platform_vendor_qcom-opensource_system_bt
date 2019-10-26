@@ -154,6 +154,10 @@ Uuid Uuid::GetRandom() {
 
 bool Uuid::IsEmpty() const { return *this == kEmpty; }
 
+void Uuid::UpdateUuid(const Uuid& uuid) {
+  memcpy(uu.data(), uuid.uu.data(), kNumBytes128);
+}
+
 bool Uuid::operator<(const Uuid& rhs) const {
   return std::lexicographical_compare(uu.begin(), uu.end(), rhs.uu.begin(),
                                       rhs.uu.end());
