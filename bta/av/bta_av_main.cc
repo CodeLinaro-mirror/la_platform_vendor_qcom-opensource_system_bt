@@ -428,7 +428,7 @@ void bta_av_conn_cback(UNUSED_ATTR uint8_t handle, const RawAddress* bd_addr,
       APPL_TRACE_DEBUG("%s: CONN_IND is ACP:%d", __func__,
                        p_data->hdr.err_param);
       /* check the existing connection, if has, check the codec */
-      if ( btif_av_is_multicast_supported() )
+      if ( btif_av_is_multicast_supported() && btif_av_get_num_connected_devices() == 2)
         btif_av_reconfig_other_stream_codec();
     }
 
