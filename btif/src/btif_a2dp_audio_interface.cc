@@ -44,6 +44,7 @@
 #include <hwbinder/ProcessState.h>
 #include <a2dp_vendor_ldac_constants.h>
 #include <a2dp_vendor.h>
+#include <bt_utils.h>
 
 using com::qualcomm::qti::bluetooth_audio::V1_0::IBluetoothAudio;
 using com::qualcomm::qti::bluetooth_audio::V1_0::IBluetoothAudioCallbacks;
@@ -442,8 +443,9 @@ void btif_a2dp_audio_on_stopped(tBTA_AV_STATUS status)
          __func__, btif_a2dp_src_vsc.tx_started, btif_a2dp_src_vsc.tx_stop_initiated);
   Lock lock(mtxBtAudio);
   if (btAudio != nullptr){
-    if (btif_a2dp_src_vsc.tx_started && !btif_a2dp_src_vsc.tx_stop_initiated) {
-      bta_av_vendor_offload_stop();
+    if(a2dp_cmd_pending == A2DP_CTRL_CMD_START){
+      LOG_INFO(LOG_TAG,"Remote disconnected when start under progress");
+      auto ret = btAudio->a2dp_on_started(mapToStatus(A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS));
     } else {
       if (property_get("persist.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
               !strcmp(a2dp_hal_imp, "true")) {
@@ -744,7 +746,16 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
 
         codec_type = A2DP_GetCodecType((const uint8_t*)p_codec_info);
         LOG_INFO(LOG_TAG,"codec_type = %x",codec_type);
-        if (A2DP_MEDIA_CT_SBC == codec_type)
+        if (get_soc_type() == BT_SOC_SMD) {
+          //For Pronto PLs Audio pumps raw PCM data for others its encoded data to SOC
+          codec_info[1] = 4; //RAW PCM
+          codec_info[2] = AVDT_MEDIA_TYPE_AUDIO;
+          codec_info[3] = A2DP_MEDIA_CT_PCM;
+          codec_info[4] = A2DP_GetTrackSampleRate(p_codec_info);
+          codec_info[5] = 2; //BTIF_A2DP_SRC_NUM_CHANNELS need to define in btif_target.h
+          p_codec_info[0] = 4; //this line is required to get length below
+        }
+        else if (A2DP_MEDIA_CT_SBC == codec_type)
         {
           bitrate = A2DP_GetOffloadBitrateSbc(CodecConfig, peer_param.is_peer_edr);
           LOG_INFO(LOG_TAG,"bitrate = %d", bitrate);

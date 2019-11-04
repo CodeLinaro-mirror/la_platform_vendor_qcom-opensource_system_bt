@@ -57,6 +57,7 @@
 #include "bta_ar_api.h"
 #endif
 
+#define A2DP_SBC_DEFAULT_BITRATE 328
 /*****************************************************************************
  *  Constants
  ****************************************************************************/
@@ -92,10 +93,6 @@ extern void btif_media_send_reset_vendor_state();
 
 static void bta_av_st_rc_timer(tBTA_AV_SCB* p_scb,
                                UNUSED_ATTR tBTA_AV_DATA* p_data);
-
-static void bta_av_vendor_offload_select_codec(tBTA_AV_SCB* p_scb);
-
-static uint8_t bta_av_vendor_offload_convert_sample_rate(uint16_t sample_rate);
 
 /* state machine states */
 enum {
@@ -3483,111 +3480,13 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
     sub_opcode =  param->p_param_buf[1];
     switch(sub_opcode)
     {
-      case VS_QHCI_SCRAMBLE_A2DP_MEDIA:
-        {
-          bta_av_vendor_offload_select_codec(offload_start.p_scb);
-          break;
-        }
-      case VS_QHCI_A2DP_SELECTED_CODEC:
-        {
-          uint8_t param[10],index=0;
-          APPL_TRACE_DEBUG("VS_QHCI_A2DP_SELECTED_CODEC successful");
-          param[index++] = VS_QHCI_A2DP_TRANSPORT_CONFIGURATION;
-          param[index++] = 0;//slimbus
-          param[index++] = offload_start.codec_type;//Define offload struct and copy reusable parameters
-          BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE,index,
-                                     param, offload_vendor_callback);
-          break;
-        }
-      case VS_QHCI_A2DP_TRANSPORT_CONFIGURATION:
-        {
-          uint8_t param[20],index = 0;
-          uint16_t streaming_hdl = offload_start.l2c_rcid;
-          uint16_t hci_hdl = offload_start.acl_hdl;
-          APPL_TRACE_DEBUG("VS_QHCI_A2DP_TRANSPORT_CONFIGURATION successful");
-
-          param[index++] = VS_QHCI_WRITE_A2DP_MEDIA_CHANNEL_CFG;
-          param[index++] = 0;
-          param[index++] = (uint8_t)(hci_hdl & 0x00FF);
-          param[index++] = (uint8_t)(((hci_hdl & 0xFF00) >> 8) & 0x00FF);
-          param[index++] = (uint8_t)(streaming_hdl & 0x00FF);
-          param[index++] = (uint8_t)(((streaming_hdl & 0xFF00) >> 8) & 0x00FF);
-          param[index++] = (uint8_t)(offload_start.mtu & 0x00FF);
-          param[index++] = (uint8_t)(((offload_start.mtu & 0xFF00) >> 8) & 0x00FF);
-          BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE,index,
-                                    param, offload_vendor_callback);
-          break;
-        }
-      case VS_QHCI_WRITE_A2DP_MEDIA_CHANNEL_CFG:
-        {
-          uint8_t param[2];
-          APPL_TRACE_DEBUG("VS_QHCI_WRITE_A2DP_MEDIA_CHANNEL_CFG successful");
-          APPL_TRACE_DEBUG("%s: Last cached VSC command: 0x0%x", __func__, last_sent_vsc_cmd);
-          if (!btif_a2dp_src_vsc.vs_configs_exchanged &&
-              btif_a2dp_src_vsc.tx_start_initiated)
-            btif_a2dp_src_vsc.vs_configs_exchanged = TRUE;
-          else {
-            APPL_TRACE_ERROR("Dont send start, stream suspended update fail to Audio");
-            status = 1;//FAIL
-            (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
-            break;
-          }
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-          param[0] = VS_QHCI_A2DP_WRITE_SCMS_T_CP;
-          param[1] = offload_start.cp_flag;
-#else
-          if (last_sent_vsc_cmd == VS_QHCI_START_A2DP_MEDIA) {
-            APPL_TRACE_DEBUG("%s: START VSC already exchanged.", __func__);
-            status = 0;
-            (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
-            return;
-          }
-          last_sent_vsc_cmd = VS_QHCI_START_A2DP_MEDIA;
-          param[0] = VS_QHCI_START_A2DP_MEDIA;
-          param[1] = 0;
-#endif
-          BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE,2,
-                                    param, offload_vendor_callback);
-          break;
-        }
-      case VS_QHCI_A2DP_WRITE_SCMS_T_CP:
-        {
-          uint8_t param[2];
-          APPL_TRACE_DEBUG("VS_QHCI_A2DP_WRITE_SCMS_T_CP successful");
-          APPL_TRACE_DEBUG("%s: Last cached VSC command: 0x0%x", __func__, last_sent_vsc_cmd);
-          if (!btif_a2dp_src_vsc.vs_configs_exchanged &&
-              btif_a2dp_src_vsc.tx_start_initiated)
-            btif_a2dp_src_vsc.vs_configs_exchanged = TRUE;
-          else {
-            APPL_TRACE_ERROR("Dont send start, stream suspended update fail to Audio");
-            status = 1;//FAIL
-            (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
-            break;
-          }
-          if (last_sent_vsc_cmd == VS_QHCI_START_A2DP_MEDIA) {
-            APPL_TRACE_DEBUG("%s: START VSC already exchanged.", __func__);
-            status = 0;
-            (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
-            return;
-          }
-          last_sent_vsc_cmd = VS_QHCI_START_A2DP_MEDIA;
-          param[0] = VS_QHCI_START_A2DP_MEDIA;
-          param[1] = 0;
-          BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE,2,
-                                    param, offload_vendor_callback);
-          break;
-        }
-      case VS_QHCI_START_A2DP_MEDIA:
-          APPL_TRACE_DEBUG("VS_QHCI_START_A2DP_MEDIA successful");
+      case VS_HCI_A2DP_OFFLOAD_START :
+           APPL_TRACE_DEBUG("%s: VS_HCI_A2DP_OFFLOAD_START successful",__func__);
           (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
           break;
-      case VS_QHCI_STOP_A2DP_MEDIA:
-          APPL_TRACE_DEBUG("VS_QHCI_STOP_A2DP_MEDIA successful");
-          (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_STOP_RSP_EVT, (tBTA_AV*)&status);
-          break;
-      case VS_QHCI_A2DP_OFFLOAD_START:
-          (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
-          break;
+      case VS_HCI_A2DP_OFFLOAD_STOP :
+           APPL_TRACE_DEBUG("%s: VS_HCI_A2DP_OFFLOAD_STOP successful", __func__);
+           break;
       default:
       break;
     }
@@ -3595,175 +3494,44 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
   else
   {
     APPL_TRACE_DEBUG("Offload failed for subopcode= %d",param->p_param_buf[1]);
-    if (param->opcode != VS_QHCI_STOP_A2DP_MEDIA)
+    if (param->opcode != VS_HCI_A2DP_OFFLOAD_STOP)
       (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
   }
 }
 
-static uint8_t bta_av_vendor_offload_convert_sample_rate(uint16_t sample_rate) {
-  uint8_t rate;
-  switch (sample_rate) {
-    case 44100:
-      rate = 0x1 << 0;
-      break;
-    case 48000:
-      rate = 0x1 << 1;
-      break;
-    default:
-      APPL_TRACE_ERROR("Invalid sample rate, going with default 44.1");
-      rate = 0x1 << 0;
-      break;
-  }
-  return rate;
-}
 
-static void bta_av_vendor_offload_select_codec(tBTA_AV_SCB* p_scb)
+void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb,tBT_VENDOR_A2DP_OFFLOAD_SPLIT* offload)
 {
-  const char *codec_name = A2DP_CodecName(p_scb->cfg.codec_info);
-  uint8_t codec_type = 0, index = 0;
-  uint8_t param[40];
-  uint16_t sample_rate = 0;
-  if (strcmp(codec_name,"SBC") == 0) codec_type = 0;
-  else if (strcmp(codec_name,"AAC") == 0) codec_type = 2;
-  else if (strcmp(codec_name,"aptX") == 0) codec_type = 8;
-  else if (strcmp(codec_name,"aptX-HD") == 0) codec_type = 9;
-  else if ((strcmp(codec_name,"LDAC")) == 0) codec_type = 4;
-  param[index++] = VS_QHCI_A2DP_SELECTED_CODEC;
-  param[index++] = codec_type;
-  param[index++] = 0;//max latency
-  param[index++] = 0;//delay reporting
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-  param[index++] = offload_start.cp_active;
-#else
-  param[index++] = 0;
-#endif
-  param[index++] = offload_start.cp_flag;
-  sample_rate  = A2DP_GetTrackSampleRate(p_scb->cfg.codec_info);
-  param[index++] = (uint8_t)(sample_rate & 0x00FF);
-  param[index++] = (uint8_t)(((sample_rate & 0xFF00) >> 8) & 0x00FF);
-  if (codec_type == A2DP_MEDIA_CT_SBC)
-  {
-    param[index++] = A2DP_GetNumberOfSubbandsSbc(p_scb->cfg.codec_info);
-    param[index++] = A2DP_GetNumberOfBlocksSbc(p_scb->cfg.codec_info);
-  }
-  APPL_TRACE_DEBUG("bta_av_vendor_offload_start: VS_QHCI_A2DP_SELECTED_CODEC");
-  BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE,index,
-                               param, offload_vendor_callback);
-}
+  uint8_t param[sizeof(tBT_VENDOR_A2DP_OFFLOAD_SPLIT)];
+  APPL_TRACE_DEBUG("%s", __func__);
 
-void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb)
-{
-  uint8_t param[40];// codec_type;//index = 0;
-  unsigned char status = 0;
-  //uint16_t sample_rate;
-  APPL_TRACE_DEBUG("%s: enc_update_in_progress = %d", __func__, enc_update_in_progress);
-  APPL_TRACE_DEBUG("%s: Last cached VSC command: 0x0%x", __func__, last_sent_vsc_cmd);
-  APPL_TRACE_IMP("bta_av_vendor_offload_start: vsc flags:-"
-    "vs_configs_exchanged:%u tx_started:%u tx_start_initiated:%u"
-    "tx_enc_update_initiated:%u tx_stop_initiated: %u", btif_a2dp_src_vsc.vs_configs_exchanged,
-    btif_a2dp_src_vsc.tx_started, btif_a2dp_src_vsc.tx_start_initiated, tx_enc_update_initiated,
-    btif_a2dp_src_vsc.tx_stop_initiated);
-  enc_update_in_progress = FALSE;
-  if (!btif_hf_is_call_vr_idle()) {
-    APPL_TRACE_IMP("ignore VS start request as Call is not idle");
-    status = 2;//INCALL FAILURE
-    (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
-    return;
-  } else if (!btif_a2dp_src_vsc.tx_started
-      && (!btif_a2dp_src_vsc.tx_start_initiated || tx_enc_update_initiated)) {
-    btif_a2dp_src_vsc.tx_start_initiated = TRUE;
-    tx_enc_update_initiated = FALSE;
-    if (last_sent_vsc_cmd == VS_QHCI_START_A2DP_MEDIA) {
-      APPL_TRACE_DEBUG("%s: START VSC already exchanged.", __func__);
-      status = 0;
-      (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
-      return;
-    }
-    if(btif_a2dp_src_vsc.vs_configs_exchanged) {
-      param[0] = VS_QHCI_START_A2DP_MEDIA;
-      param[1] = 0;
-      last_sent_vsc_cmd = VS_QHCI_START_A2DP_MEDIA;
-      BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE,2, param,
-          offload_vendor_callback);
-      return;
-    }
-  } else {
-    APPL_TRACE_IMP("ignore VS start request");
-    status = 0;//SUCCESS
-    (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
-    return;
-  }
-
-  if(p_scb->do_scrambling) {
-    uint8_t *p_param = param;
-    *p_param++ = VS_QHCI_SCRAMBLE_A2DP_MEDIA;
-    UINT8_TO_STREAM(p_param,
-        bta_av_vendor_offload_convert_sample_rate(offload_start.sample_rate));
-
-    UINT16_TO_STREAM(p_param,offload_start.acl_hdl);
-
-    BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE,4, param,
-        offload_vendor_callback);
-    offload_start.p_scb = p_scb;
-    return;
-  } else {
-    bta_av_vendor_offload_select_codec(p_scb);
-  }
-
-#if 0 // Use only 1 VSC, TODO:Enable based on FW version
   uint8_t *p_param = param;
-  *p_param++ = VS_QHCI_A2DP_OFFLOAD_START;
-  UINT8_TO_STREAM(p_param,offload_start.codec_type);
-  UINT8_TO_STREAM(p_param,offload_start.transport_type);
-  UINT8_TO_STREAM(p_param,offload_start.stream_type);
-  UINT8_TO_STREAM(p_param,offload_start.dev_index);
-  UINT8_TO_STREAM(p_param,offload_start.max_latency);
-  UINT8_TO_STREAM(p_param,offload_start.delay_reporting);
-  UINT8_TO_STREAM(p_param,offload_start.cp_active);
-  UINT8_TO_STREAM(p_param,offload_start.cp_flag);
-  UINT16_TO_STREAM(p_param,offload_start.sample_rate);
-  UINT16_TO_STREAM(p_param,offload_start.acl_hdl);
-  UINT16_TO_STREAM(p_param,offload_start.l2c_rcid);
-  UINT16_TO_STREAM(p_param,offload_start.mtu);
-  ARRAY_TO_STREAM(p_param,offload_start.codec_info,
-                                  AVDT_CODEC_SIZE);
-  BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE,sizeof(offload_start),
+  *p_param++ = VS_HCI_A2DP_OFFLOAD_START;
+
+  UINT32_TO_STREAM(p_param,offload->codec_type);
+  UINT16_TO_STREAM(p_param,offload->max_latency);
+  UINT16_TO_STREAM(p_param,offload->scms_t_enable);
+  UINT32_TO_STREAM(p_param,offload->sample_rate);
+  UINT8_TO_STREAM(p_param,offload->bits_per_sample);
+  UINT8_TO_STREAM(p_param,offload->ch_mode);
+  UINT32_TO_STREAM(p_param,offload->encoded_audio_bitrate);
+  UINT16_TO_STREAM(p_param,offload->acl_hdl);
+  UINT16_TO_STREAM(p_param,offload->l2c_rcid);
+  UINT16_TO_STREAM(p_param,offload->mtu);
+  ARRAY_TO_STREAM(p_param,offload->codec_info,
+                                  (int8_t)sizeof(offload->codec_info));
+  BTM_VendorSpecificCommand(HCI_CONTROLLER_A2DP_OPCODE_OCF,p_param - param,
                                param, offload_vendor_callback);
-#endif
-  //offload_start.p_scb = p_scb;
-  APPL_TRACE_DEBUG("%s: done, enc_update_in_progress = %d", __func__, enc_update_in_progress);
 }
+
 void bta_av_vendor_offload_stop()
 {
-  uint8_t param[2];
-  unsigned char status = 0;
-  APPL_TRACE_DEBUG("bta_av_vendor_offload_stop, btif_a2dp_src_vsc.tx_started: %u,"
-      "btif_a2dp_src_vsc.tx_stop_initiated: %u"
-      "vs_configs_exchanged:%u tx_enc_update_initiated:%u tx_start_initiated:%u",
-      btif_a2dp_src_vsc.tx_started, btif_a2dp_src_vsc.tx_stop_initiated,
-      btif_a2dp_src_vsc.vs_configs_exchanged, tx_enc_update_initiated,
-      btif_a2dp_src_vsc.tx_start_initiated);
-  APPL_TRACE_DEBUG("%s: Last cached VSC command: 0x0%x", __func__, last_sent_vsc_cmd);
-  if (btif_a2dp_src_vsc.tx_started && !btif_a2dp_src_vsc.tx_stop_initiated) {
-    btif_a2dp_src_vsc.tx_stop_initiated = TRUE;
-    param[0] = VS_QHCI_STOP_A2DP_MEDIA;
-    param[1] = 0;
-    if (last_sent_vsc_cmd == VS_QHCI_STOP_A2DP_MEDIA) {
-      APPL_TRACE_DEBUG("%s: STOP VSC already exchanged.", __func__);
-      status = 0;
-      (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_STOP_RSP_EVT, (tBTA_AV*)&status);
-      return;
-    }
-    last_sent_vsc_cmd = VS_QHCI_STOP_A2DP_MEDIA;
-    BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE, 2, param,
-        offload_vendor_callback);
-  } else if((btif_a2dp_src_vsc.tx_start_initiated || tx_enc_update_initiated)
-      && !btif_a2dp_src_vsc.tx_started) {
-    APPL_TRACE_IMP("Suspend Req when VSC exchange in progress,reset VSC");
-    btif_media_send_reset_vendor_state();
-  } else
-    APPL_TRACE_IMP("ignore VS stop request");
+  uint8_t param[sizeof(tBT_VENDOR_A2DP_OFFLOAD_SPLIT)];
+  APPL_TRACE_DEBUG("%s", __func__);
+  param[0] = VS_HCI_A2DP_OFFLOAD_STOP;
+  BTM_VendorSpecificCommand(HCI_CONTROLLER_A2DP_OPCODE_OCF, 1, param,offload_vendor_callback);
 }
+
 /*******************************************************************************
  *
  * Function         bta_av_offload_req
@@ -3790,13 +3558,30 @@ void bta_av_offload_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 /* QC Implementation */
   if (BTM_IS_QTI_CONTROLLER())
   {
+    APPL_TRACE_DEBUG("%s BTM_IS_QTI_CONTROLLER",__func__);
     char *codec_name = (char *)A2DP_CodecName(p_scb->cfg.codec_info);
-    uint8_t codec_type = 0;
+    uint32_t codec_type = 0;
+
+    if ((strcmp(codec_name,"SBC")) == 0) codec_type = 1;
+    else if ((strcmp(codec_name,"AAC")) == 0) codec_type = 2;
+    else if ((strcmp(codec_name,"aptX")) == 0) codec_type = 4;
+    else if ((strcmp(codec_name,"aptX-HD")) == 0) codec_type = 8;
+    else if ((strcmp(codec_name,"LDAC")) == 0) codec_type = 16;
+
+    APPL_TRACE_DEBUG("%s codec_name: %s codec_type: %d",__func__,codec_name,codec_type);
     uint16_t mtu = bta_av_chk_mtu(p_scb,p_scb->stream_mtu);
+
+    if ((codec_type == 1) &&
+        (A2DP_GetMaxBitpoolSbc(p_scb->cfg.codec_info) <= BTIF_A2DP_MAX_BITPOOL_MQ)) {
+        APPL_TRACE_IMP("Restricting streaming MTU size for MQ Bitpool");
+        mtu = MAX_2MBPS_AVDTP_MTU;
+    }
+
     p_scb->offload_supported = true;
     p_scb->do_scrambling = do_scrambling;
 
     if (mtu == 0 || mtu > p_scb->stream_mtu) mtu = p_scb->stream_mtu;
+    APPL_TRACE_DEBUG("%s mtu: %d,p_scb->stream_mtu = %d ",__func__,mtu,p_scb->stream_mtu);
 
     if (btif_av_is_peer_edr() && (btif_av_peer_supports_3mbps() == FALSE)) {
       // This condition would be satisfied only if the remote device is
@@ -3808,58 +3593,96 @@ void bta_av_offload_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
         mtu = MAX_2MBPS_AVDTP_MTU;
       }
     }
-
-    if ((strcmp(codec_name,"SBC")) == 0) codec_type = 0;
-    else if ((strcmp(codec_name,"AAC")) == 0) codec_type = 2;
-    else if ((strcmp(codec_name,"aptX")) == 0) codec_type = 8;
-    else if ((strcmp(codec_name,"aptX-HD")) == 0) codec_type = 9;
-    else if ((strcmp(codec_name,"LDAC")) == 0) codec_type = 4;
-
     if ((codec_type == 8) || (codec_type == 9) || (codec_type == 4)) {
       if (mtu > MAX_2MBPS_AVDTP_MTU) {
         APPL_TRACE_IMP("Restricting AVDTP MTU size to 663 for APTx codecs");
         mtu = MAX_2MBPS_AVDTP_MTU;
       }
     }
-
-    if ((codec_type == 0) &&
-        (A2DP_GetMaxBitpoolSbc(p_scb->cfg.codec_info) <= BTIF_A2DP_MAX_BITPOOL_MQ)) {
-      APPL_TRACE_IMP("Restricting streaming MTU size for MQ Bitpool");
-      mtu = MAX_2MBPS_AVDTP_MTU;
-    }
-
-    mtu = mtu + AVDT_MEDIA_HDR_SIZE;
-    APPL_TRACE_DEBUG("%s Adding AVDTP media Header in stream_mtu : %d", __func__, mtu);
-
     if (mtu > BTA_AV_MAX_A2DP_MTU)
         mtu = BTA_AV_MAX_A2DP_MTU;
 
-    offload_start.codec_type = codec_type;
-    offload_start.transport_type = A2DP_TRANSPORT_TYPE_SLIMBUS;
-    offload_start.stream_type = codec_type;
-    offload_start.dev_index = 0;//for multicast use p_scb->hndl;
-    offload_start.delay_reporting = 0;
-    offload_start.max_latency = 0;
-    offload_start.mtu = mtu;
-    offload_start.acl_hdl = BTM_GetHCIConnHandle(p_scb->peer_addr,BT_TRANSPORT_BR_EDR);
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-    offload_start.cp_active = p_scb->p_cos->cp_is_active();
-#else
-    offload_start.cp_active = 0;
-#endif
-    offload_start.cp_flag = p_scb->p_cos->cp_flag();
+    switch (A2DP_GetTrackSampleRate(p_scb->cfg.codec_info)) {
+      case 44100:
+        offload_split.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
+        break;
+      case 48000:
+        offload_split.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
+        break;
+      case 88200:
+        offload_split.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_88200;
+        break;
+      case 96000:
+        offload_split.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_96000;
+        break;
+     }
+    APPL_TRACE_IMP("%s sample_rate: %d",__func__,offload_split.sample_rate);
 
-    offload_start.sample_rate = A2DP_GetTrackSampleRate(p_scb->cfg.codec_info);
-    if (L2CA_GetIdentifiers(p_scb->l2c_cid,&offload_start.l2c_rcid,NULL) == false)
+    offload_split.codec_type = codec_type;
+    offload_split.max_latency = 0;
+    offload_split.mtu = mtu;
+    offload_split.acl_hdl  = BTM_GetHCIConnHandle(p_scb->peer_addr,BT_TRANSPORT_BR_EDR);
+
+
+#if (BTA_AV_CO_CP_SCMS_T == TRUE)
+    offload_split.scms_t_enable = p_scb->p_cos->cp_is_active();
+#else
+    offload_split.scms_t_enable = 0;
+#endif
+
+    int codec_bps  = A2DP_GetTrackBitsPerSample(p_scb->cfg.codec_info);
+
+    switch (codec_bps) {
+      case 16:
+        offload_split.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16;
+        break;
+      case 24:
+        offload_split.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24;
+        break;
+      case 32:
+        offload_split.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32;
+        break;
+    }
+    APPL_TRACE_IMP("%s bits_per_sample %d",__func__,offload_split.bits_per_sample);
+
+    offload_split.ch_mode = A2DP_GetTrackChannelCount(p_scb->cfg.codec_info);
+    APPL_TRACE_IMP("%s channel_mode: %d",__func__,offload_split.ch_mode);
+
+
+    if (L2CA_GetIdentifiers(p_scb->l2c_cid,&offload_split.l2c_rcid,NULL) == false)
     {
       APPL_TRACE_DEBUG("Failed to fetch l2c rcid");
-      offload_start.l2c_rcid = 0;
+      offload_split.l2c_rcid = 0;
     }
-    memset(offload_start.codec_info, 0 , AVDT_CODEC_SIZE);
-    memcpy(offload_start.codec_info, p_scb->cfg.codec_info,
-              AVDT_CODEC_SIZE);
-    bta_av_vendor_offload_start(p_scb);
+
+
+    memset(offload_split.codec_info, 0 , sizeof(offload_split.codec_info));
+    tA2DP_CODEC_TYPE codec_media_type = A2DP_GetCodecType(p_scb->cfg.codec_info);
+    APPL_TRACE_IMP("%s codec_media_type: %d",__func__,codec_media_type);
+    switch (codec_media_type) {
+      case A2DP_MEDIA_CT_SBC:
+        offload_split.codec_info[0] =
+        p_scb->cfg.codec_info[4];  // blk_len | subbands | Alloc Method
+        offload_split.codec_info[1] = p_scb->cfg.codec_info[5];  // Min bit pool
+        offload_split.codec_info[2] = p_scb->cfg.codec_info[6];  // Max bit pool
+	break;
+      default:
+	break;
+    }
+
+    if(codec_media_type == A2DP_MEDIA_CT_SBC){
+       offload_split.encoded_audio_bitrate = A2DP_SBC_DEFAULT_BITRATE *1000;
+    }
+
+    bta_av_vendor_offload_start(p_scb,&offload_split);
     return;
+  }
+
+  APPL_TRACE_IMP("%s status: %d",__func__,status);
+  if (status != BTA_AV_SUCCESS) {
+    tBTA_AV bta_av_data;
+    bta_av_data.status = status;
+    (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, &bta_av_data);
   }
   /* TODO(eisenbach): RE-IMPLEMENT USING VSC OR HAL EXTENSION
    uint16_t mtu = bta_av_chk_mtu(p_scb, p_scb->stream_mtu);
@@ -3898,11 +3721,6 @@ void bta_av_offload_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
      }
    }
    */
-  if (status != BTA_AV_SUCCESS) {
-    tBTA_AV bta_av_data;
-    bta_av_data.status = status;
-    (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, &bta_av_data);
-  }
 }
 
 /*******************************************************************************

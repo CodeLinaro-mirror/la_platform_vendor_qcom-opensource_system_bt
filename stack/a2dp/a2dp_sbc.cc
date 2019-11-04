@@ -518,7 +518,6 @@ bool A2DP_CodecEqualsSbc(const uint8_t* p_codec_info_a,
 
 int A2DP_GetTrackSampleRateSbc(const uint8_t* p_codec_info) {
   tA2DP_SBC_CIE sbc_cie;
-
   tA2DP_STATUS a2dp_status = A2DP_ParseInfoSbc(&sbc_cie, p_codec_info, false);
   if (a2dp_status != A2DP_SUCCESS) {
     LOG_ERROR(LOG_TAG, "%s: cannot decode codec information: %d", __func__,
@@ -555,10 +554,12 @@ int A2DP_GetTrackChannelCountSbc(const uint8_t* p_codec_info) {
   switch (sbc_cie.ch_mode) {
     case A2DP_SBC_IE_CH_MD_MONO:
       return 1;
-    case A2DP_SBC_IE_CH_MD_DUAL:
     case A2DP_SBC_IE_CH_MD_STEREO:
-    case A2DP_SBC_IE_CH_MD_JOINT:
       return 2;
+    case A2DP_SBC_IE_CH_MD_JOINT:
+      return 3;
+    case A2DP_SBC_IE_CH_MD_DUAL:
+      return 4;
     default:
       break;
   }
