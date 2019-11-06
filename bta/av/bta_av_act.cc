@@ -1503,15 +1503,9 @@ void bta_av_conn_chg(tBTA_AV_DATA* p_data) {
       }
     }
 
-    if (p_cb->conn_audio == 0 && p_cb->conn_video == 0) {
-      APPL_TRACE_DEBUG("bta_av_conn_chg: signalling timer on index %d is %d",
-              BTA_AV_NUM_STRS-index-1,
-              alarm_is_scheduled(bta_av_cb.accept_signalling_timer[BTA_AV_NUM_STRS-index-1]));
-      if (!alarm_is_scheduled(bta_av_cb.accept_signalling_timer[BTA_AV_NUM_STRS-index-1])) {
-        /* if both channels are not connected, and signalling timer not running
-         * on other index, close all RC channels */
-        bta_av_close_all_rc(p_cb);
-      }
+    if (p_cb->conn_audio == 0 && p_cb->conn_video == 0 && (p_cb->conn_lcb & ~mask) == 0) {
+      APPL_TRACE_WARNING("No other AV connection up, close all RC");
+      bta_av_close_all_rc(p_cb);
     }
 
     /* if the AVRCP is no longer listening, create the listening channel */
@@ -1522,9 +1516,9 @@ void bta_av_conn_chg(tBTA_AV_DATA* p_data) {
 
   APPL_TRACE_DEBUG(
       "bta_av_conn_chg audio:%x video:%x up:%d conn_msk:0x%x chk_restore:%d "
-      "audio_open_cnt:%d",
+      "audio_open_cnt:%d p_cb->conn_lcb:0x%x mask:0x%x",
       p_cb->conn_audio, p_cb->conn_video, p_data->conn_chg.is_up, conn_msk,
-      chk_restore, p_cb->audio_open_cnt);
+      chk_restore, p_cb->audio_open_cnt, p_cb->conn_lcb, mask);
 
   if (chk_restore) {
     if (p_cb->audio_open_cnt == 1) {
@@ -2259,7 +2253,7 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
 
   if (rc_handle == BTA_AV_RC_HANDLE_NONE)
   {
-      if (AVRC_CheckIncomingConn(p_scb->peer_addr) == TRUE)
+      if (p_scb != NULL && AVRC_CheckIncomingConn(p_scb->peer_addr) == TRUE)
       {
           bta_sys_start_timer(p_scb->avrc_ct_timer, AVRC_CONNECT_RETRY_DELAY_MS,
                                  BTA_AV_SDP_AVRC_DISC_EVT,p_scb->hndl);
@@ -2356,7 +2350,8 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
     rc_feat.peer_features = peer_features;
     /*Assuming here incoming RC is connected before timer expired
       so previous allocated ccb is used*/
-    if (p_scb->rc_ccb_alloc_handle != BTA_AV_RC_HANDLE_NONE) {
+    if (p_scb != NULL &&
+      p_scb->rc_ccb_alloc_handle != BTA_AV_RC_HANDLE_NONE) {
       p_scb->rc_ccb_alloc_handle = BTA_AV_RC_HANDLE_NONE;
     }
     if (p_scb == NULL) {
