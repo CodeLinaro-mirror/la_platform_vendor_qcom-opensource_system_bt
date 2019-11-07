@@ -431,6 +431,21 @@ void btsnd_hcic_read_lmp_handle(uint16_t handle) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
+void btsnd_hcic_write_voice_pathid(uint8_t pathid) {
+  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
+  uint8_t* pp = (uint8_t*)(p + 1);
+
+  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_CMD_HANDLE;
+  p->offset = 0;
+
+  UINT16_TO_STREAM(pp, HCI_READ_LMP_HANDLE);
+  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_CMD_HANDLE);
+
+  UINT8_TO_STREAM(pp, pathid);
+
+  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
+}
+
 void btsnd_hcic_setup_esco_conn(uint16_t handle, uint32_t transmit_bandwidth,
                                 uint32_t receive_bandwidth,
                                 uint16_t max_latency, uint16_t voice,

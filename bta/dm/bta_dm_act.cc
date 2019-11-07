@@ -3570,6 +3570,65 @@ static void bta_dm_eir_search_services(tBTM_INQ_RESULTS* p_result,
 #if (BTA_EIR_CANNED_UUID_LIST != TRUE)
 /*******************************************************************************
  *
+ * Function         bta_dm_remove_cust_uuid
+ *
+ * Description      remove the uuid from custom uuid list
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+static void bta_dm_remove_cust_uuid(const Uuid& uuid) {
+  APPL_TRACE_DEBUG("%s", __func__);
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_dm_add_cust_uuid
+ *
+ * Description      add an available uuid into custom uuid list
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+static void bta_dm_add_cust_uuid(const Uuid& uuid) {
+  APPL_TRACE_DEBUG("%s, support %d cust uuids", __func__, BTA_EIR_SERVER_NUM_CUSTOM_UUID);
+
+  for (uint8_t c_uu_idx = 0; c_uu_idx < BTA_EIR_SERVER_NUM_CUSTOM_UUID; c_uu_idx++) {
+    Uuid& curr = bta_dm_cb.custom_uuid[c_uu_idx];
+    APPL_TRACE_VERBOSE("[%d]:%s", c_uu_idx, curr.ToString().c_str());
+
+    if (curr.IsEmpty()) {
+      curr.UpdateUuid(uuid);
+      break;
+    }
+
+    if (c_uu_idx == BTA_EIR_SERVER_NUM_CUSTOM_UUID -1) {
+      APPL_TRACE_WARNING("cust uuid is full");
+    }
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_dm_eir_update_cust_uuid
+ *
+ * Description      This function adds or removes custom service UUID in EIR database.
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+void bta_dm_eir_update_cust_uuid(const Uuid& uuid, bool adding)
+{
+  if (adding) {
+    bta_dm_add_cust_uuid(uuid);
+    bta_dm_set_eir(NULL);
+  } else {
+    bta_dm_remove_cust_uuid(uuid);
+  }
+}
+
+/*******************************************************************************
+ *
  * Function         bta_dm_eir_update_uuid
  *
  * Description      This function adds or removes service UUID in EIR database.

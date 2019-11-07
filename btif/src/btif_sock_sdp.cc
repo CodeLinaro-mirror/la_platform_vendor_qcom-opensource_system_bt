@@ -197,6 +197,10 @@ static int add_sdp_by_uuid(const char* name, const Uuid& uuid,
   APPL_TRACE_DEBUG(
       "%s: service registered successfully, service_name: %s, handle: 0x%08x",
       __func__, name, handle);
+
+  // Write the custom 128-bit UUID to EIR
+  bta_sys_add_cust_uuid(uuid);
+
   return handle;
 
 error:

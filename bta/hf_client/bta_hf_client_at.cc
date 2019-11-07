@@ -293,7 +293,7 @@ static void bta_hf_client_handle_error(tBTA_HF_CLIENT_CB* client_cb,
       break;
     case BTA_HF_CLIENT_AT_BCC:
     case BTA_HF_CLIENT_AT_BCS:
-      bta_hf_client_cback_sco(client_cb, BTA_HF_CLIENT_AUDIO_CLOSE_EVT);
+      bta_hf_client_cback_sco(client_cb, BTA_HF_CLIENT_AUDIO_CLOSE_EVT, client_cb->sco_idx);
       break;
     case BTA_HF_CLIENT_AT_CLIP:  // last cmd is post slc seq
       if (!client_cb->send_at_reply) {

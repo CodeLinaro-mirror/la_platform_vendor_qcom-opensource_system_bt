@@ -184,7 +184,8 @@ typedef void (*bthf_client_connection_state_callback)(
  *  state will have one of the values from BtHfAudioState
  */
 typedef void (*bthf_client_audio_state_callback)(
-    const RawAddress* bd_addr, bthf_client_audio_state_t state);
+    const RawAddress* bd_addr, unsigned int sco_idx,
+    bthf_client_audio_state_t state);
 
 /** Callback for VR connection state change.
  *  state will have one of the values from BtHfVRState

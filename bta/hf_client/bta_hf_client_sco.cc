@@ -80,11 +80,13 @@ static bool bta_hf_client_sco_remove(tBTA_HF_CLIENT_CB* client_cb) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_hf_client_cback_sco(tBTA_HF_CLIENT_CB* client_cb, uint8_t event) {
+void bta_hf_client_cback_sco(tBTA_HF_CLIENT_CB* client_cb, uint8_t event,
+                                       uint16_t sco_idx) {
   tBTA_HF_CLIENT evt;
 
   memset(&evt, 0, sizeof(evt));
-  evt.bd_addr = client_cb->peer_addr;
+  evt.val.bd_addr = client_cb->peer_addr;
+  evt.val.value = sco_idx;
 
   /* call app cback */
   bta_hf_client_app_callback(event, &evt);
@@ -563,9 +565,9 @@ void bta_hf_client_sco_conn_open(tBTA_HF_CLIENT_DATA* p_data) {
   bta_sys_sco_open(BTA_ID_HS, 1, client_cb->peer_addr);
 
   if (client_cb->negotiated_codec == BTM_SCO_CODEC_MSBC) {
-    bta_hf_client_cback_sco(client_cb, BTA_HF_CLIENT_AUDIO_MSBC_OPEN_EVT);
+    bta_hf_client_cback_sco(client_cb, BTA_HF_CLIENT_AUDIO_MSBC_OPEN_EVT, client_cb->sco_idx);
   } else {
-    bta_hf_client_cback_sco(client_cb, BTA_HF_CLIENT_AUDIO_OPEN_EVT);
+    bta_hf_client_cback_sco(client_cb, BTA_HF_CLIENT_AUDIO_OPEN_EVT, client_cb->sco_idx);
   }
 }
 
@@ -590,6 +592,8 @@ void bta_hf_client_sco_conn_close(tBTA_HF_CLIENT_DATA* p_data) {
     return;
   }
 
+  int sco_idx = client_cb->sco_idx;
+
   /* clear current scb */
   client_cb->sco_idx = BTM_INVALID_SCO_INDEX;
 
@@ -600,7 +604,7 @@ void bta_hf_client_sco_conn_close(tBTA_HF_CLIENT_DATA* p_data) {
   bta_sys_sco_unuse(BTA_ID_HS, 1, client_cb->peer_addr);
 
   /* call app callback */
-  bta_hf_client_cback_sco(client_cb, BTA_HF_CLIENT_AUDIO_CLOSE_EVT);
+  bta_hf_client_cback_sco(client_cb, BTA_HF_CLIENT_AUDIO_CLOSE_EVT, sco_idx);
 
   if (client_cb->sco_close_rfc) {
     client_cb->sco_close_rfc = false;
