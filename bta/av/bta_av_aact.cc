@@ -1051,8 +1051,14 @@ void bta_av_role_res(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_av_delay_rpt(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
+  tBTA_AV bta_av_data;
+  bta_av_data.delay_rpt.bd_addr = p_scb->peer_addr;
+  bta_av_data.delay_rpt.hndl = p_scb->hndl;
+  //copy delay report value (in ms)
+  bta_av_data.delay_rpt.sink_delay = ((p_data->str_msg.msg.delay_rpt_cmd.delay) / 10);
   APPL_TRACE_DEBUG("%s: delay report value: %d", __func__, p_data->str_msg.msg.delay_rpt_cmd.delay);
   p_scb->p_cos->delay(p_scb->hndl, p_data->str_msg.msg.delay_rpt_cmd.delay);
+  (*bta_av_cb.p_cback)(BTA_AV_DELAY_REPORT_EVT, &bta_av_data);
 }
 
 /*******************************************************************************
