@@ -245,6 +245,17 @@ bt_status_t btif_dm_create_bond(const bt_bdaddr_t *bd_addr, int transport);
 
 /*******************************************************************************
 **
+** Function         btif_dm_read_clock
+**
+** Description      Initiate read clock
+**
+** Returns          bt_status_t
+**
+*******************************************************************************/
+bt_status_t btif_dm_read_clock(const bt_bdaddr_t *bd_addr, int which_clock);
+
+/*******************************************************************************
+**
 ** Function         btif_dm_create_bond_out_of_band
 **
 ** Description      Initiate bonding with the specified device using OOB data.
