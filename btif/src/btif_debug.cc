@@ -28,3 +28,10 @@ void btif_debug_init(void) {
   btif_debug_btsnoop_init();
 #endif
 }
+
+void btif_debug_deinit(void) {
+#if (BTSNOOP_MEM == TRUE)
+  btif_debug_btsnoop_deinit();
+#endif
+}
+
