@@ -37,8 +37,16 @@
 #include "osi/include/log.h"
 #include "btif_a2dp_audio_interface.h"
 #include "btif_hf.h"
+
+#if (OFF_TARGET_TEST_ENABLED == FALSE)
 #include "audio_hal_interface/a2dp_encoding.h"
+#endif
 #include "btif_bat.h"
+
+#if (OFF_TARGET_TEST_ENABLED == TRUE)
+#include "service/a2dp_hal_sim/audio_a2dp_hal_stub.h"
+using ::bluetooth::audio::a2dp::SessionType;
+#endif
 
 #define BTIF_A2DP_START_BLOCK_SCO_CONNECTED 0x0D
 
@@ -393,7 +401,7 @@ void btif_a2dp_on_offload_started(tBTA_AV_STATUS status) {
   }
 }
 
-void btif_a2dp_honor_remote_start(struct alarm_t *remote_start_alarm, int index) {
+void btif_a2dp_honor_remote_start(struct alarm_t **remote_start_alarm, int index) {
   APPL_TRACE_WARNING("%s",__func__);
   btif_a2dp_source_on_remote_start(remote_start_alarm, index);
 }
