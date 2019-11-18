@@ -39,6 +39,7 @@
 #include "hcidefs.h"
 #include "hcimsgs.h"
 #include "osi/include/osi.h"
+#include "osi/include/properties.h"
 
 /******************************************************************************/
 /*               L O C A L    D A T A    D E F I N I T I O N S                */
@@ -54,11 +55,16 @@
 #define SCO_ST_PEND_ROLECHANGE 7
 #define SCO_ST_PEND_MODECHANGE 8
 
+#define HCI_CONTROLLER_VOICE_PATH_ID_LEN 2
+
 /******************************************************************************/
 /*            L O C A L    F U N C T I O N     P R O T O T Y P E S            */
 /******************************************************************************/
 
 static uint16_t btm_sco_voice_settings_to_legacy(enh_esco_params_t* p_parms);
+static bool btm_is_multi_sco_supported(void);
+static void btm_write_voice_path(uint8_t data_path);
+static esco_data_path_t btm_get_data_path(uint16_t sco_inx);
 
 /*******************************************************************************
  *
@@ -164,9 +170,9 @@ static void btm_esco_conn_rsp(uint16_t sco_inx, uint8_t hci_status,
     /* Use Enhanced Synchronous commands if supported */
     if (controller_get_interface()
             ->supports_enhanced_setup_synchronous_connection()) {
-      /* Use the saved SCO routing */
+
       p_setup->input_data_path = p_setup->output_data_path =
-          btm_cb.sco_cb.sco_route;
+          btm_get_data_path(sco_inx);
 
       BTM_TRACE_DEBUG(
           "%s: txbw 0x%x, rxbw 0x%x, lat 0x%x, retrans 0x%02x, "
@@ -178,8 +184,15 @@ static void btm_esco_conn_rsp(uint16_t sco_inx, uint8_t hci_status,
       btsnd_hcic_enhanced_accept_synchronous_connection(bda, p_setup);
 
     } else {
+      if (btm_is_multi_sco_supported()) {
+        p_setup->input_data_path = p_setup->output_data_path =
+            btm_get_data_path(sco_inx);
+        btm_write_voice_path(p_setup->output_data_path);
+      }
+
       /* Use legacy command if enhanced SCO setup is not supported */
       uint16_t voice_content_format = btm_sco_voice_settings_to_legacy(p_setup);
+
       btsnd_hcic_accept_esco_conn(
           bda, p_setup->transmit_bandwidth, p_setup->receive_bandwidth,
           p_setup->max_latency_ms, voice_content_format,
@@ -310,9 +323,10 @@ static tBTM_STATUS btm_send_connect_request(uint16_t acl_handle,
     /* Use Enhanced Synchronous commands if supported */
     if (controller_get_interface()
             ->supports_enhanced_setup_synchronous_connection()) {
-      /* Use the saved SCO routing */
+
       p_setup->input_data_path = p_setup->output_data_path =
-          btm_cb.sco_cb.sco_route;
+          btm_get_data_path(p_setup->input_data_path);
+
       LOG(INFO) << __func__ << std::hex << ": enhanced parameter list"
                 << " txbw=0x" << unsigned(p_setup->transmit_bandwidth)
                 << ", rxbw=0x" << unsigned(p_setup->receive_bandwidth)
@@ -324,6 +338,10 @@ static tBTM_STATUS btm_send_connect_request(uint16_t acl_handle,
       btsnd_hcic_enhanced_set_up_synchronous_connection(acl_handle, p_setup);
       p_setup->packet_types = saved_packet_types;
     } else { /* Use older command */
+      if (btm_is_multi_sco_supported()) {
+        btm_write_voice_path(p_setup->output_data_path);
+      }
+
       uint16_t voice_content_format = btm_sco_voice_settings_to_legacy(p_setup);
       LOG(INFO) << __func__ << std::hex << ": legacy parameter list"
                 << " txbw=0x" << unsigned(p_setup->transmit_bandwidth)
@@ -333,6 +351,7 @@ static tBTM_STATUS btm_send_connect_request(uint16_t acl_handle,
                 << unsigned(p_setup->retransmission_effort)
                 << ", voice_content_format=0x" << unsigned(voice_content_format)
                 << ", pkt_type=0x" << unsigned(p_setup->packet_types);
+
       btsnd_hcic_setup_esco_conn(
           acl_handle, p_setup->transmit_bandwidth, p_setup->receive_bandwidth,
           p_setup->max_latency_ms, voice_content_format,
@@ -544,6 +563,8 @@ tBTM_STATUS BTM_CreateSco(const RawAddress* remote_bda, bool is_orig,
           BTM_TRACE_API("%s:(e)SCO Link for ACL handle 0x%04x", __func__,
                         acl_handle);
 
+          p_setup->input_data_path = p_setup->output_data_path =
+              btm_get_data_path(xx);
           if ((btm_send_connect_request(acl_handle, p_setup)) !=
               BTM_CMD_STARTED) {
             LOG(ERROR) << __func__ << ": failed to send connect request for "
@@ -593,6 +614,9 @@ void btm_sco_chk_pend_unpark(uint8_t hci_status, uint16_t hci_handle) {
                 << " unparked, sending connection request, acl_handle="
                 << unsigned(acl_handle)
                 << ", hci_status=" << unsigned(hci_status);
+
+      p->esco.setup.input_data_path = p->esco.setup.output_data_path =
+          btm_get_data_path(xx);
       if (btm_send_connect_request(acl_handle, &p->esco.setup) ==
           BTM_CMD_STARTED) {
         p->state = SCO_ST_CONNECTING;
@@ -632,6 +656,8 @@ void btm_sco_chk_pend_rolechange(uint16_t hci_handle) {
           "btm_sco_chk_pend_rolechange -> (e)SCO Link for ACL handle 0x%04x",
           acl_handle);
 
+      p->esco.setup.input_data_path = p->esco.setup.output_data_path =
+          btm_get_data_path(xx);
       if ((btm_send_connect_request(acl_handle, &p->esco.setup)) ==
           BTM_CMD_STARTED)
         p->state = SCO_ST_CONNECTING;
@@ -669,6 +695,86 @@ void btm_sco_disc_chk_pend_for_modechange(uint16_t hci_handle) {
     }
   }
 #endif
+}
+
+static bool btm_is_multi_sco_supported(void) {
+  char value[PROPERTY_VALUE_MAX] = {0};
+  osi_property_get("vendor.bt.hf.multi_sco", value, "true");
+  return strcmp(value, "true") == 0 ? true : false;
+}
+
+static bool btm_exist_active_sco(void) {
+#if (BTM_MAX_SCO_LINKS > 0)
+  uint16_t xx;
+  tSCO_CONN* p = &btm_cb.sco_cb.sco_db[0];
+
+  for (xx = 0; xx < BTM_MAX_SCO_LINKS; xx++, p++) {
+    if ((p->state == SCO_ST_CONNECTED) || (p->state == SCO_ST_CONNECTING) ||
+        (p->state == SCO_ST_PEND_UNPARK)) {
+      return true;
+    }
+  }
+
+#endif
+  return false;
+}
+
+/*******************************************************************************
+ *
+ * Function         btm_ble_write_voice_path_cmpl_cback
+ *
+ * Description      HCI_CONTROLLER_WRITE_VOICE_PATH VSC complete handler
+ *
+ * Returns          void
+ *
+******************************************************************************/
+void btm_ble_write_voice_path_cmpl_cback(tBTM_VSC_CMPL* p_params) {
+  uint8_t* p = p_params->p_param_buf;
+  uint16_t len = p_params->param_len;
+
+  BTM_TRACE_DEBUG("%s: write voice path status %d, len %d", __func__, *p, len);
+}
+
+/*******************************************************************************
+ *
+ * Function         btm_write_voice_path
+ *
+ * Description      This function writes SCO path ID into Bluetooth chip
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+static void btm_write_voice_path(uint8_t data_path) {
+  uint8_t param[HCI_CONTROLLER_VOICE_PATH_ID_LEN];
+  uint8_t* p_param = param;
+
+  BTM_TRACE_DEBUG("%s: data_path %d", __func__, data_path);
+
+
+  UINT8_TO_STREAM(p_param, data_path);
+  UINT8_TO_STREAM(p_param, data_path);
+
+  BTM_VendorSpecificCommand(HCI_CONTROLLER_WRITE_VOICE_PATH,
+                            HCI_CONTROLLER_VOICE_PATH_ID_LEN, param,
+                            btm_ble_write_voice_path_cmpl_cback);
+
+}
+
+/*******************************************************************************
+ *
+ * Function         btm_get_data_path
+ *
+ * Description      This function is called to get SCO data path
+ *
+ * Returns          SCO data path
+ *
+******************************************************************************/
+esco_data_path_t btm_get_data_path(uint16_t sco_inx) {
+  if (btm_is_multi_sco_supported()) {
+    return static_cast<esco_data_path_t>(sco_inx + 1);
+  } else {
+    return btm_cb.sco_cb.sco_route;
+  }
 }
 
 /*******************************************************************************
@@ -715,13 +821,16 @@ void btm_sco_conn_req(const RawAddress& bda, DEV_CLASS dev_class,
             /* Reject request if SCO is desired but no SCO packets delected */
             ||
             (link_type == BTM_LINK_TYPE_SCO &&
-             !(p_sco->def_esco_parms.packet_types & BTM_SCO_LINK_ONLY_MASK))) {
+             !(p_sco->def_esco_parms.packet_types & BTM_SCO_LINK_ONLY_MASK))
+            || (!btm_is_multi_sco_supported() && btm_exist_active_sco())) {
           btm_esco_conn_rsp(sco_index, HCI_ERR_HOST_REJECT_RESOURCES, bda,
                             nullptr);
         } else {
           /* Accept the request */
           btm_esco_conn_rsp(sco_index, HCI_SUCCESS, bda, nullptr);
         }
+      } else if (!btm_is_multi_sco_supported() && btm_exist_active_sco()) {
+        btm_esco_conn_rsp(sco_index, HCI_ERR_HOST_REJECT_RESOURCES, bda, nullptr);
       } else {
         /* Notify upper layer of connect indication */
         evt_data.bd_addr = bda;
@@ -1377,9 +1486,9 @@ tBTM_STATUS BTM_ChangeEScoLinkParms(uint16_t sco_inx,
     /* Use Enhanced Synchronous commands if supported */
     if (controller_get_interface()
             ->supports_enhanced_setup_synchronous_connection()) {
-      /* Use the saved SCO routing */
+
       p_setup->input_data_path = p_setup->output_data_path =
-          btm_cb.sco_cb.sco_route;
+          btm_get_data_path(p_setup->input_data_path);
 
       btsnd_hcic_enhanced_set_up_synchronous_connection(p_sco->hci_handle,
                                                         p_setup);

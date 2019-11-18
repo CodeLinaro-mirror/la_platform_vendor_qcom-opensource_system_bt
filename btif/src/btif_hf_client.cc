@@ -74,7 +74,8 @@
 #define BTIF_HF_CLIENT_FEATURES                                                \
   (BTA_HF_CLIENT_FEAT_ECNR | BTA_HF_CLIENT_FEAT_3WAY |                         \
    BTA_HF_CLIENT_FEAT_CLI | BTA_HF_CLIENT_FEAT_VREC | BTA_HF_CLIENT_FEAT_VOL | \
-   BTA_HF_CLIENT_FEAT_ECS | BTA_HF_CLIENT_FEAT_ECC | BTA_HF_CLIENT_FEAT_CODEC)
+   BTA_HF_CLIENT_FEAT_ECS | BTA_HF_CLIENT_FEAT_ECC | BTA_HF_CLIENT_FEAT_CODEC | \
+   BTA_HF_CLIENT_FEAT_S4)
 #endif
 
 /*******************************************************************************
@@ -90,7 +91,7 @@ typedef struct {
 } btif_hf_client_cb_t;
 
 /* Max devices supported by BTIF (useful to match the value in BTA) */
-#define HF_CLIENT_MAX_DEVICES 10
+#define HF_CLIENT_MAX_DEVICES 2
 typedef struct {
   btif_hf_client_cb_t cb[HF_CLIENT_MAX_DEVICES];
 } btif_hf_client_cb_arr_t;
@@ -174,6 +175,7 @@ static void btif_in_hf_client_generic_evt(uint16_t event, char* p_param) {
   switch (event) {
     case BTIF_HF_CLIENT_CB_AUDIO_CONNECTING: {
       HAL_CBACK(bt_hf_client_callbacks, audio_state_cb, &cb->peer_bda,
+                BTM_INVALID_SCO_INDEX,
                 (bthf_client_audio_state_t)BTHF_CLIENT_AUDIO_STATE_CONNECTING);
     } break;
     default: {
@@ -984,17 +986,17 @@ static void btif_hf_client_upstreams_evt(uint16_t event, char* p_param) {
 
     case BTA_HF_CLIENT_AUDIO_OPEN_EVT:
       HAL_CBACK(bt_hf_client_callbacks, audio_state_cb, &cb->peer_bda,
-                BTHF_CLIENT_AUDIO_STATE_CONNECTED);
+                p_data->val.value, BTHF_CLIENT_AUDIO_STATE_CONNECTED);
       break;
 
     case BTA_HF_CLIENT_AUDIO_MSBC_OPEN_EVT:
       HAL_CBACK(bt_hf_client_callbacks, audio_state_cb, &cb->peer_bda,
-                BTHF_CLIENT_AUDIO_STATE_CONNECTED_MSBC);
+                p_data->val.value, BTHF_CLIENT_AUDIO_STATE_CONNECTED_MSBC);
       break;
 
     case BTA_HF_CLIENT_AUDIO_CLOSE_EVT:
       HAL_CBACK(bt_hf_client_callbacks, audio_state_cb, &cb->peer_bda,
-                BTHF_CLIENT_AUDIO_STATE_DISCONNECTED);
+                p_data->val.value, BTHF_CLIENT_AUDIO_STATE_DISCONNECTED);
       break;
     case BTA_HF_CLIENT_RING_INDICATION:
       HAL_CBACK(bt_hf_client_callbacks, ring_indication_cb, &cb->peer_bda);

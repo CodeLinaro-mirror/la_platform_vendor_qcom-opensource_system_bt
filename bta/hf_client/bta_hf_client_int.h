@@ -28,6 +28,7 @@
 #define HFP_VERSION_1_1 0x0101
 #define HFP_VERSION_1_5 0x0105
 #define HFP_VERSION_1_6 0x0106
+#define HFP_VERSION_1_7 0x0107
 
 /* RFCOMM MTU SIZE */
 #define BTA_HF_CLIENT_MTU 256
@@ -42,7 +43,7 @@
 #endif
 
 /* Maximum number of HF devices supported simultaneously */
-#define HF_CLIENT_MAX_DEVICES 10
+#define HF_CLIENT_MAX_DEVICES 2
 
 enum {
   /* these events are handled by the state machine */
@@ -255,7 +256,7 @@ extern void bta_hf_client_sco_open(tBTA_HF_CLIENT_DATA* p_data);
 extern void bta_hf_client_sco_close(tBTA_HF_CLIENT_DATA* p_data);
 extern void bta_hf_client_sco_shutdown(tBTA_HF_CLIENT_CB* client_cb);
 extern void bta_hf_client_cback_sco(tBTA_HF_CLIENT_CB* client_cb,
-                                    uint8_t event);
+                                    uint8_t event, uint16_t sco_idx);
 
 /* AT command functions */
 extern void bta_hf_client_at_parse(tBTA_HF_CLIENT_CB* client_cb, char* buf,
