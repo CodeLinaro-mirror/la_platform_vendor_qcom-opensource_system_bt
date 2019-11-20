@@ -96,7 +96,8 @@ static void bta_ar_avdt_cback(uint8_t handle, const RawAddress* bd_addr, uint8_t
     BTM_COD_SERVICE_CLASS(service_class, device_class);
     sink_only_device = (service_class & BTM_COD_SERVICE_RENDERING) && !(service_class & BTM_COD_SERVICE_CAPTURING);
     src_only_device = (service_class & BTM_COD_SERVICE_CAPTURING) && !(service_class & BTM_COD_SERVICE_RENDERING);
-    APPL_TRACE_DEBUG(" %s Major_Class [%x], Minor Class [%x], Service_Class [%x], src_only %d, sink_only %d",__FUNCTION__,
+    src_only_device = src_only_device | ((service_class & BTM_COD_SERVICE_AUDIO) && (major_class & BTM_COD_MAJOR_PHONE));
+    APPL_TRACE_DEBUG("%s  Major_Class [%x], Minor Class [%x], Service_Class [%x], src_only %d, sink_only %d",__FUNCTION__,
          major_class, minor_class, service_class, src_only_device, sink_only_device);
 
     switch(event)
