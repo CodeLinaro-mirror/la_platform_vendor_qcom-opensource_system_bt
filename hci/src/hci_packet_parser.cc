@@ -221,6 +221,8 @@ static void parse_ble_read_suggested_default_data_length_response(
       response, HCI_BLE_READ_DEFAULT_DATA_LENGTH, 2 /* bytes after */);
   assert(stream != NULL);
   STREAM_TO_UINT8(*ble_default_packet_length_ptr, stream);
+
+  buffer_allocator->free(response);
 }
 
 static void parse_ble_read_maximum_advertising_data_length(
