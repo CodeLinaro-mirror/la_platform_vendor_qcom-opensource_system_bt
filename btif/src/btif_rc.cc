@@ -4521,6 +4521,21 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
     BTIF_TRACE_DEBUG("%s: Notification completed: 0x%2X ", __func__,
                      p_rsp->event_id);
 
+    /* IOP issue:
+     * Some phone may send event notification to CT before the event is registered
+     * When CT receives the notification before receiving getCapabilities response
+     * for supported events, p_dev->rc_supported_event_list still is null and null
+     * pointer check assert is triggered.
+     *
+     * Fix:
+     * This notification can be ignored in such scenario and the status can be retrieved
+     * after register notification later.
+     */
+    if (p_dev->rc_supported_event_list == NULL) {
+      BTIF_TRACE_ERROR("%s: Notification is received before receive supported events response", __func__);
+      return;
+    }
+
     node = list_begin(p_dev->rc_supported_event_list);
 
     while (node != NULL) {
