@@ -1273,7 +1273,8 @@ void bta_av_cleanup(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
   tBTA_AV_CONN_CHG msg;
   uint8_t role = BTA_AV_ROLE_AD_INT;
 
-  APPL_TRACE_DEBUG("%s", __func__);
+  APPL_TRACE_DEBUG("%s: for handle: 0x%x, peer_add: %s",
+           __func__, p_scb->hndl, p_scb->peer_addr.ToString().c_str());
   last_sent_vsc_cmd = 0;
 
   /* free any buffers */
@@ -1543,7 +1544,8 @@ void bta_av_setconfig_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   uint8_t local_sep;
   uint8_t* p_seid = p_data->ci_setconfig.p_seid;
   int i;
-  const char* bdstr = p_scb->peer_addr.ToString().c_str();
+  std::string bd_addr_str = p_scb->peer_addr.ToString();
+  const char* bdstr  = bd_addr_str.c_str();
   char value[PROPERTY_VALUE_MAX];
   int size = sizeof(value);
   int codec_count = 0;
@@ -1564,9 +1566,9 @@ void bta_av_setconfig_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
                                                       &av_sink_codec_info, p_scb->peer_addr);
   }
 
-  p_scb->cache_setconfig = (tBTA_AV_DATA *)osi_malloc(sizeof(tBTA_AV_DATA));
-  memset(p_scb->cache_setconfig, 0, sizeof(tBTA_AV_DATA));
-  memcpy(p_scb->cache_setconfig, p_data, sizeof(tBTA_AV_DATA));
+  p_scb->cache_setconfig = (tBTA_AV_CI_SETCONFIG *)osi_malloc(sizeof(tBTA_AV_CI_SETCONFIG));
+  memset(p_scb->cache_setconfig, 0, sizeof(tBTA_AV_CI_SETCONFIG));
+  memcpy(p_scb->cache_setconfig, p_data, sizeof(tBTA_AV_CI_SETCONFIG));
 
   AVDT_ConfigRsp(p_scb->avdt_handle, p_scb->avdt_label,
                  p_data->ci_setconfig.err_code, p_data->ci_setconfig.category);
@@ -1590,11 +1592,12 @@ void bta_av_setconfig_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 
     if (btif_config_get_str(bdstr, BTIF_STORAGE_KEY_FOR_SUPPORTED_CODECS, value, &size)) {
       APPL_TRACE_DEBUG("%s: cached remote supported codec -> %s", __func__, value);
-      char *tok = NULL;
-      tok = strtok(value, ",");
-      while (tok != NULL)
+      char *token = NULL;
+      char *tmp_token = NULL;
+      token = strtok_r((char*)value, ",", &tmp_token);
+      while (token != NULL)
       {
-        tok = strtok(NULL, ",");
+        token = strtok_r(NULL, ",", &tmp_token);
         codec_count++;
       }
     } else {
@@ -1627,11 +1630,12 @@ void bta_av_setconfig_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
             bta_av_next_getcap(p_scb, p_data);
         }
     } else {
-        if (local_sep == AVDT_TSEP_SRC)
+        if (local_sep == AVDT_TSEP_SRC) {
           if (p_scb->uuid_int == 0) p_scb->uuid_int = UUID_SERVCLASS_AUDIO_SOURCE/*p_scb->open_api.uuid*/;
             /* we do not know the peer device and it is using non-SBC codec
              * we need to know all the SEPs on SNK */
           bta_av_discover_req(p_scb, NULL);
+        }
     }
   }
 }
@@ -2080,7 +2084,7 @@ void bta_av_disc_res_as_acp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   if (p_scb->num_seps > 0) {
     if (p_scb->cache_setconfig) {
       APPL_TRACE_DEBUG("%s: Got discover_res as ok from remote.", __func__);
-      memset(p_scb->cache_setconfig, 0, sizeof(tBTA_AV_DATA));
+      memset(p_scb->cache_setconfig, 0, sizeof(tBTA_AV_CI_SETCONFIG));
       osi_free(p_scb->cache_setconfig);
       p_scb->cache_setconfig = NULL;
     }
@@ -3871,8 +3875,11 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
 {
   unsigned char status = 0;
   unsigned char sub_opcode = 0;
-  APPL_TRACE_DEBUG("offload_vendor_callback: param_len = %d subopcode = %d status = %d",
+  APPL_TRACE_DEBUG("%s: param_len = %d subopcode = %d status = %d", __func__,
                      param->param_len, param->p_param_buf[1], param->p_param_buf[0]);
+  APPL_TRACE_DEBUG("%s: handle: 0x%x, peer_add: %s, vendor_start: %d",
+            __func__, offload_start.p_scb->hndl, offload_start.p_scb->peer_addr.ToString().c_str(),
+            offload_start.p_scb->vendor_start);
   if (param->param_len)
   {
     status = param->p_param_buf[0];
@@ -3995,7 +4002,6 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
           break;
       case VS_QHCI_A2DP_OFFLOAD_START:
           APPL_TRACE_DEBUG("%s: single VSC success: %d",__func__, param->p_param_buf[1]);
-          offload_start.p_scb->vendor_start = true;
           (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
           break;
       default:
@@ -4072,7 +4078,9 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb)
   uint8_t param[len];// codec_type;//index = 0;
   const char *codec_name;
   codec_name = A2DP_CodecName(p_scb->cfg.codec_info);
-  APPL_TRACE_DEBUG("bta_av_vendor_offload_start param size %ld", sizeof(param));
+  APPL_TRACE_DEBUG("%s: handle: 0x%x, peer_add: %s, vendor_start: %d",
+            __func__, p_scb->hndl, p_scb->peer_addr.ToString().c_str(), p_scb->vendor_start);
+  APPL_TRACE_DEBUG("%s: param size %ld", __func__, sizeof(param));
   APPL_TRACE_DEBUG("%s: enc_update_in_progress = %d", __func__, enc_update_in_progress);
   APPL_TRACE_DEBUG("%s: Last cached VSC command: 0x0%x", __func__, last_sent_vsc_cmd);
   APPL_TRACE_IMP("bta_av_vendor_offload_start: vsc flags:-"
@@ -4140,7 +4148,7 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb)
       (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
       return;
     }
-
+    p_scb->vendor_start = true;
     uint8_t *p_param = param;
     int param_len = 0;
     *p_param++ = VS_QHCI_A2DP_OFFLOAD_START;
@@ -4209,8 +4217,10 @@ void bta_av_vendor_offload_stop(tBTA_AV_SCB* p_scb)
 {
   uint8_t param[2];
   unsigned char status = 0;
-  APPL_TRACE_DEBUG("bta_av_vendor_offload_stop");
-
+  if (p_scb != NULL) {
+    APPL_TRACE_DEBUG("%s: handle: 0x%x, peer_add: %s, vendor_start: %d",
+              __func__, p_scb->hndl, p_scb->peer_addr.ToString().c_str(), p_scb->vendor_start);
+  }
   if (p_scb == NULL) {
     APPL_TRACE_DEBUG("stop called from upper layer");
   }else if (p_scb->tws_device) {
@@ -4224,9 +4234,9 @@ void bta_av_vendor_offload_stop(tBTA_AV_SCB* p_scb)
   }
 
   if (!btif_a2dp_src_vsc.multi_vsc_support) {
-    APPL_TRACE_DEBUG("bta_av_vendor_offload_stop: sending STOP");
+    APPL_TRACE_DEBUG("%s: sending STOP", __func__);
     if (p_scb != NULL && !p_scb->vendor_start) {
-      APPL_TRACE_WARNING("VSC Start is not sent for this device");
+      APPL_TRACE_WARNING("%s: VSC Start is not sent for this device", __func__);
       return;
     }
     goto stop;
@@ -4267,6 +4277,8 @@ stop:
   BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE, 2, param,
       offload_vendor_callback);
   if (p_scb != NULL) {
+    APPL_TRACE_DEBUG("%s: making vendor_start flag to false for handle: 0x%x, peer_add: %s",
+           __func__, p_scb->hndl, p_scb->peer_addr.ToString().c_str());
     p_scb->offload_supported = false;
     p_scb->vendor_start = false;
   }
@@ -4626,8 +4638,8 @@ void bta_av_disc_fail_as_acp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   if (p_scb->cache_setconfig) {
     APPL_TRACE_DEBUG("%s: Need to reuse the cached set_config, to do get_caps"
                       " for the same SEP", __func__);
-    memcpy(p_data, p_scb->cache_setconfig, sizeof(tBTA_AV_DATA));
-    memset(p_scb->cache_setconfig, 0, sizeof(tBTA_AV_DATA));
+    memcpy(p_data, p_scb->cache_setconfig, sizeof(tBTA_AV_CI_SETCONFIG));
+    memset(p_scb->cache_setconfig, 0, sizeof(tBTA_AV_CI_SETCONFIG));
     osi_free(p_scb->cache_setconfig);
     p_scb->cache_setconfig = NULL;
   }
