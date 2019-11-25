@@ -102,7 +102,7 @@ AC_ARG_ENABLE([cherokee],
 
 AM_CONDITIONAL([BT_ROME], [test "x$rome" = "xtrue" -o "x$som" = "xtrue"])
 AM_CONDITIONAL([BT_PRONTO], [test "x$pronto" = "xtrue"])
-AM_CONDITIONAL([BT_CHEROKEE], [test "x$cherokee" = "x$true"])
+AM_CONDITIONAL([BT_CHEROKEE], [test "x$cherokee" = "xtrue"])
 
 AC_ARG_ENABLE([audiohal],
         [  --enable-audiohal Enable audio-hal],
@@ -111,7 +111,7 @@ AC_ARG_ENABLE([audiohal],
             no)  audiohal=false ;;
             *) AC_MSG_ERROR([bad value ${enableval} for --enable-audiohal]) ;;
         esac],[audiohal=false])
-AM_CONDITIONAL([BT_AUDIO_HAL_INTEGRATION], [test "x$audiohal" = "x$true"])
+AM_CONDITIONAL([BT_AUDIO_HAL_INTEGRATION], [test "x$audiohal" = "xtrue"])
 
 # BTC support
 # make below flag to true to enable the BTC
