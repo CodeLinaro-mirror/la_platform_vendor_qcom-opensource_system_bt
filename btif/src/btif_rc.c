@@ -1183,7 +1183,7 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
             * The fix is to generate a release right after the press and drown the 'actual'
             * release.
             */
-            if ((key_map[i].release_quirk == 1) && (pressed == 0))
+            if ((key_map[i].release_quirk == 1) && (pressed == 1))
             {
                 BTIF_TRACE_DEBUG("%s: AVRC %s Release Faked earlier, drowned now",
                                   __FUNCTION__, key_map[i].name);
@@ -1208,7 +1208,7 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
             }
 
 #endif
-            if ((key_map[i].release_quirk == 1) && (pressed == 1))
+            if ((key_map[i].release_quirk == 1) && (pressed == 0))
             {
                 sleep_ms(30);
                 BTIF_TRACE_DEBUG("%s: AVRC %s Release quirk enabled, send release now",
