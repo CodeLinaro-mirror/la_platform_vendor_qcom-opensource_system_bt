@@ -137,6 +137,8 @@ typedef struct
     alarm_t             *read_local_name_timer; /* Read local name timer */
     tBTM_CMPL_CB        *p_rln_cmpl_cb;     /* Callback function to be called when  */
                                             /* read local name function complete    */
+    tBTM_CMPL_CB        *p_rc_cmpl_cb;      /* Callback function to be called when */
+                                            /* read clock function complete */
     alarm_t             *read_rssi_timer;   /* Read RSSI timer */
     tBTM_CMPL_CB        *p_rssi_cmpl_cb;    /* Callback function to be called when  */
                                             /* read RSSI function completes */
@@ -979,6 +981,7 @@ extern void         btm_read_link_policy_complete (UINT8 *p);
 
 extern void         btm_read_rssi_timeout(void *data);
 extern void         btm_read_rssi_complete(UINT8 *p);
+extern void         btm_read_read_clock (UINT8 *p);
 
 extern void         btm_read_tx_power_timeout(void *data);
 extern void         btm_read_tx_power_complete(UINT8 *p, BOOLEAN is_ble);

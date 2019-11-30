@@ -776,6 +776,14 @@ typedef struct
     BD_ADDR     rem_bda;
 } tBTM_RSSI_RESULTS;
 
+typedef struct
+{
+    UINT8  hci_status;
+    UINT16  handle;
+    UINT32  clock;
+    UINT16  accuracy;
+} tBTM_CLOCK_RESULTS;
+
 /* Structure returned with read current TX power event (in tBTM_CMPL_CB callback function)
 ** in response to BTM_ReadTxPower call.
 */
@@ -2023,6 +2031,17 @@ extern tBTM_STATUS BTM_ReadLocalDeviceName (char **p_name);
 **
 *******************************************************************************/
 extern tBTM_STATUS BTM_ReadLocalDeviceNameFromController (tBTM_CMPL_CB *p_rln_cmpl_cback);
+
+/*******************************************************************************
+**
+** Function         BTM_ReadClock
+**
+** Description      Read Clock
+**
+** Returns          BTM_CMD_STARTED if successful, otherwise an error
+**
+*******************************************************************************/
+extern tBTM_STATUS BTM_ReadClock(UINT16 handle, int which_clock, tBTM_CMPL_CB *p_rc_cmpl_cback);
 
 /*******************************************************************************
 **
@@ -3936,7 +3955,7 @@ extern UINT8 BTM_GetEirSupportedServices( UINT32 *p_eir_uuid,    UINT8 **p,
 **
 *******************************************************************************/
 extern UINT8 BTM_GetEirUuidList( UINT8 *p_eir, UINT8 uuid_size, UINT8 *p_num_uuid,
-                                 UINT8 *p_uuid_list, UINT8 max_num_uuid);
+                                 UINT8 *p_uuid_list, UINT8 max_num_uuid, UINT16 len);
 
 /*****************************************************************************
 **  SCO OVER HCI

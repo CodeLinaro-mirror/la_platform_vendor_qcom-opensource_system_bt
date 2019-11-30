@@ -1132,12 +1132,20 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
 
     if (p_remote_cmd->key_state == AVRC_STATE_RELEASE) {
         status = "released";
+#ifdef ANDROID
         pressed = 0;
+#else
+        pressed = 1;
+#endif
     }
     else
     {
         status = "pressed";
+#ifdef ANDROID
         pressed = 1;
+#else
+        pressed = 0;
+#endif
     }
 
     if (p_remote_cmd->rc_id == BTA_AV_RC_FAST_FOR || p_remote_cmd->rc_id == BTA_AV_RC_REWIND) {
@@ -1211,14 +1219,14 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
                 if (bt_rc_vendor_callbacks != NULL)
                 {
                     HAL_CBACK(bt_rc_vendor_callbacks, passthrough_cmd_vendor_cb,
-                        p_remote_cmd->rc_id, 0, &remote_address);
+                        p_remote_cmd->rc_id, 1, &remote_address);
                 }
                 else if (bt_rc_callbacks != NULL)
                 {
 #if (defined(USE_LIBHW_AOSP))
-                    HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, 0);
+                    HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, 1);
 #else
-                    HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, 0, &remote_address);
+                    HAL_CBACK(bt_rc_callbacks, passthrough_cmd_cb, p_remote_cmd->rc_id, 1, &remote_address);
 #endif
                 }
 

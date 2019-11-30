@@ -1420,12 +1420,17 @@ UINT8 *BTM_CheckAdvData( UINT8 *p_adv, UINT8 type, UINT8 *p_length, UINT16 adv_d
     UINT8 *p = p_adv;
     UINT8 length;
     UINT8 adv_type;
-    BTM_TRACE_API("%s: type=0x%02x", __func__, type);
+    *p_length = 0;
+    BTM_TRACE_API("%s: type=0x%02x, p_adv:%p, len:%d", __func__, type,p_adv, adv_data_len);
 
-    STREAM_TO_UINT8(length, p);
+    if(adv_data_len == 0)
+        return NULL;
 
-    while ( length && (p - p_adv <= adv_data_len))
-    {
+    do {
+        STREAM_TO_UINT8(length, p);
+        BTM_TRACE_API("%s length:%d",__func__,length);
+        if(length == 0 )
+            break;
         STREAM_TO_UINT8(adv_type, p);
 
         if ( adv_type == type )
@@ -1435,10 +1440,8 @@ UINT8 *BTM_CheckAdvData( UINT8 *p_adv, UINT8 type, UINT8 *p_length, UINT16 adv_d
             return p;
         }
         p += length - 1; /* skip the length of data */
-        STREAM_TO_UINT8(length, p);
-    }
+    } while ( length && (p - p_adv < adv_data_len));
 
-    *p_length = 0;
     return NULL;
 }
 
@@ -3288,6 +3291,28 @@ void btm_ble_stop_scan(void)
 
     btm_cb.ble_ctr_cb.wl_state &= ~BTM_BLE_WL_SCAN;
 }
+
+void btm_ble_clr_adv_cache(void)
+{
+    tBTM_INQUIRY_VAR_ST     *p_inq = &btm_cb.btm_inq_vars;
+    tINQ_DB_ENT             *p_ent = p_inq->inq_db;
+    UINT16                   xx;
+
+    for(xx=0;xx<BTM_INQ_DB_SIZE; xx++, p_ent++)
+    {
+        if (p_ent->in_use)
+        {
+            if(p_ent->inq_info.results.inq_data.adv_data_cache)
+            {
+                BTM_TRACE_DEBUG ("%s free adv_data_cache:%d",__func__,xx);
+                osi_free(p_ent->inq_info.results.inq_data.adv_data_cache);
+                p_ent->inq_info.results.inq_data.adv_data_cache = NULL;
+                p_ent->in_use = FALSE;
+            }
+        }
+    }
+
+}
 /*******************************************************************************
 **
 ** Function         btm_ble_stop_inquiry
@@ -3323,6 +3348,7 @@ void btm_ble_stop_inquiry(void)
     BTM_TRACE_DEBUG ("BTM Inq Compl Callback: status 0x%02x, num results %d",
                       p_inq->inq_cmpl_info.status, p_inq->inq_cmpl_info.num_resp);
 
+    btm_ble_clr_adv_cache();
     btm_process_inq_complete(HCI_SUCCESS, (UINT8)(p_inq->inqparms.mode & BTM_BLE_INQUIRY_MASK));
 }
 

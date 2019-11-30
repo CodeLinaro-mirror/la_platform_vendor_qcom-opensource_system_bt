@@ -76,6 +76,7 @@
 #include "l2cdefs.h"
 #include "l2c_api.h"
 #include "stack_config.h"
+#include "btm_int.h"
 
 #if (defined TEST_APP_INTERFACE && TEST_APP_INTERFACE == TRUE)
 #include <bt_testapp.h>
@@ -663,6 +664,9 @@ static int config_clear(void) {
     LOG_INFO(LOG_TAG, "%s", __func__);
     return btif_config_clear() ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
 }
+static int read_clock(const bt_bdaddr_t *bd_addr, int which_clock) {
+    return btif_dm_read_clock(bd_addr, which_clock);
+}
 
 static const bt_interface_t bluetoothInterface = {
     sizeof(bluetoothInterface),
@@ -712,6 +716,7 @@ static const bt_interface_t bluetoothInterface = {
 #else
     NULL,
 #endif
+    read_clock,
 };
 
 const bt_interface_t* bluetooth__get_bluetooth_interface ()
