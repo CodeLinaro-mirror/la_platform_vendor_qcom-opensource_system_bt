@@ -264,7 +264,8 @@ static void bta_ag_sco_disc_cback(uint16_t sco_idx) {
     /*No codec fallback for TWS+ device*/
     if (is_twsp_device(curr_scb->peer_addr) != true) {
 #endif
-    if (bta_ag_cb.sco.p_curr_scb->inuse_codec == BTA_AG_CODEC_MSBC) {
+    if (bta_ag_cb.sco.p_curr_scb != NULL && bta_ag_cb.sco.p_curr_scb->inuse_codec ==
+        BTA_AG_CODEC_MSBC) {
       /* Bypass vendor specific and voice settings if enhanced eSCO supported */
       if (!(controller_get_interface()
                 ->supports_enhanced_setup_synchronous_connection() &&
@@ -277,7 +278,8 @@ static void bta_ag_sco_disc_cback(uint16_t sco_idx) {
 
       /* If SCO open was initiated by AG and failed for mSBC T2, try mSBC T1
        * 'Safe setting' first. If T1 also fails, try CVSD */
-      if (bta_ag_sco_is_opening(bta_ag_cb.sco.p_curr_scb)) {
+      if (bta_ag_cb.sco.p_curr_scb != NULL &&
+          bta_ag_sco_is_opening(bta_ag_cb.sco.p_curr_scb)) {
         bta_ag_cb.sco.p_curr_scb->state = BTA_AG_SCO_CODEC_ST;
 #if (BLUETOOTH_QTI_SW == FALSE) /* This change is not needed.*/
         if (bta_ag_cb.sco.p_curr_scb->codec_msbc_settings ==
@@ -317,6 +319,7 @@ static void bta_ag_sco_disc_cback(uint16_t sco_idx) {
     bta_sys_sendmsg(p_buf);
 
     if ( status == HCI_ERR_DIFF_TRANSACTION_COLLISION &&
+         bta_ag_cb.sco.p_curr_scb != NULL &&
          bta_ag_cb.sco.p_curr_scb->no_of_xsco_trials == 0 ) {
 
       APPL_TRACE_IMP("%s: xSCO disc status is %x, retry xSCO after %x secs",
