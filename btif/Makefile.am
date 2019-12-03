@@ -8,7 +8,7 @@ AM_CFLAGS = -Wall \
         -Wno-trigraphs \
         -std=c99 \
         -DHAS_NO_BDROID_BUILDCFG
-if MDM_CHEROKEE
+if BT_CHEROKEE
 AM_CFLAGS += -DBTA_AV_SPLIT_A2DP_ENABLED
 AM_CFLAGS += -DBTA_AV_SPLIT_A2DP_DEF_FREQ_48KHZ
 AM_CFLAGS += -DAPTX_48000
@@ -39,15 +39,11 @@ AM_CPPFLAGS = \
         -I../embdrv/sbc/decoder/include \
         -I../audio_a2dp_hw \
         -I../utils/include \
-        -I${WORKSPACE}/external/tinyxml2 \
-        -I${WORKSPACE}/external/zlib \
-        -I${external_bt_path}/vhal/include \
-        -I$(WORKSPACE)/frameworks/av/include \
-        -I$(WORKSPACE)/system/media/audio/include \
-        -I$(WORKSPACE)/frameworks/system/media/audio/include \
-        -I$(WORKSPACE)/system/media/audio_utils/include \
-        -I$(WORKSPACE)/frameworks/system/media/audio_utils/include \
-        -I$(WORKSPACE)/system/core/include
+        -I${external_bt_path}/vhal/include
+
+if BT_AUDIO_HAL_INTEGRATION
+AM_CPPFLAGS += -DAUDIO_UTILS
+endif
 
 c_sources = \
         src/bluetooth.c \

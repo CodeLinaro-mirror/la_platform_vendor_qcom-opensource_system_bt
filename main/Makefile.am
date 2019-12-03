@@ -38,22 +38,20 @@ AM_CPPFLAGS= \
         -I$(external_bt_path)/system_bt_ext/bta/ar \
         -I$(external_bt_path)/system_bt_ext/btif/include \
         -I$(external_bt_path)/system_bt_ext/udrv/include \
-        -I${WORKSPACE}/external/tinyxml2 \
-        -I${WORKSPACE}/external/zlib \
         -I$(external_bt_path)/hal/include \
         -I$(external_bt_path)/vhal/include
 
-if MDM_ROME
+if BT_ROME
 AM_CFLAGS += -DBT_SOC_TYPE_ROME
 AM_CPPFLAGS += -DBT_SOC_TYPE_ROME
 else
-if MDM_PRONTO
+if BT_PRONTO
 AM_CFLAGS += -DHCI_USE_MCT
 AM_CPPFLAGS += -DHCI_USE_MCT
 endif
 endif
 
-if MDM_CHEROKEE
+if BT_CHEROKEE
 AM_CFLAGS += -DBT_SOC_TYPE_CHEROKEE
 AM_CPPFLAGS += -DBT_SOC_TYPE_CHEROKEE
 endif

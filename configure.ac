@@ -68,17 +68,13 @@ AC_CHECK_HEADERS([fcntl.h stdlib.h string.h sys/socket.h sys/time.h termios.h un
 #
 # To add new components: add AC_ARG_ENABLE, AM_CONDITIONAL and update AC_OUTPUT
 #
-AC_ARG_ENABLE(target,
-  [AS_HELP_STRING([--enable-target=TARGET], [Specify the target product to build])],
-  [TARGET=$enableval],
-  [TARGET=none]
-)
-
-AC_ARG_ENABLE(rome,
-  [AS_HELP_STRING([--enable-rome=ROME], [Specify the rome product to build])],
-  [ROME=$enableval],
-  [ROME=none]
-)
+AC_ARG_ENABLE([rome],
+        [  --enable-rome Enable Rome],
+        [case "${enableval}" in
+            yes) rome=true ;;
+            no)  rome=false ;;
+            *) AC_MSG_ERROR([bad value ${enableval} for --enable-rome]) ;;
+        esac],[rome=false])
 
 AC_ARG_ENABLE([pronto],
         [  --enable-pronto Enable Pronto],
@@ -89,17 +85,34 @@ AC_ARG_ENABLE([pronto],
         esac],[pronto=false])
 
 AC_ARG_ENABLE([som],
-        [  --enable-som Enable Rome or Naples],
+        [  --enable-som Enable Naples],
         [case "${enableval}" in
             yes) som=true ;;
             no)  som=false ;;
             *) AC_MSG_ERROR([bad value ${enableval} for --enable-som]) ;;
         esac],[som=false])
 
-AM_CONDITIONAL([MDM_ROME], [test "x$TARGET" = "xmdm9607" -o "x$TARGET" = "xmdm9635" -o "x$TARGET" = "xmdm9640" -o "x$TARGET" = "xmdm9650" -o "x$TARGET" = "xapq8096" -o "x$TARGET" = "xsdx20" -o "x$ROME" = "xqsap" -o "x$ROME" = "xrobot-rome" -o "x$TARGET" = "xsdxpoorwills" -o "x$TARGET" = "xsdxprairie" -o "x$som" = "xtrue"])
-AM_CONDITIONAL([MDM_PRONTO], [test "x$TARGET" = "xapq8017" -o "x$TARGET" = "xapq8053" -o "x$TARGET" = "xapq8016" -o "x$pronto" = "xtrue"])
-AM_CONDITIONAL([MDM_CHEROKEE], [test "x$TARGET" = "xapq8098" -o "x$TARGET" = "xqcs605" -o "x$TARGET" = "xsdm845"])
-AM_CONDITIONAL([BT_AUDIO_HAL_INTEGRATION], [test "x$TARGET" = "xapq8009" -o "x$TARGET" = "xapq8017" -o "x$TARGET" = "xapq8053" -o "x$TARGET" = "xapq8098" -o "x$TARGET" = "xqcs605"])
+AC_ARG_ENABLE([cherokee],
+        [  --enable-cherokee Enable Cherokee],
+        [case "${enableval}" in
+            yes) cherokee=true ;;
+            no)  cherokee=false ;;
+            *) AC_MSG_ERROR([bad value ${enableval} for --enable-cherokee]) ;;
+        esac],[cherokee=false])
+
+AM_CONDITIONAL([BT_ROME], [test "x$rome" = "xtrue" -o "x$som" = "xtrue"])
+AM_CONDITIONAL([BT_PRONTO], [test "x$pronto" = "xtrue"])
+AM_CONDITIONAL([BT_CHEROKEE], [test "x$cherokee" = "x$true"])
+
+AC_ARG_ENABLE([audiohal],
+        [  --enable-audiohal Enable audio-hal],
+        [case "${enableval}" in
+            yes) audiohal=true ;;
+            no)  audiohal=false ;;
+            *) AC_MSG_ERROR([bad value ${enableval} for --enable-audiohal]) ;;
+        esac],[audiohal=false])
+AM_CONDITIONAL([BT_AUDIO_HAL_INTEGRATION], [test "x$audiohal" = "x$true"])
+
 # BTC support
 # make below flag to true to enable the BTC
 AM_CONDITIONAL([BTC_SUPPORT], false)
@@ -108,7 +121,6 @@ AM_CONDITIONAL([BTC_SUPPORT], false)
 # make below flag to true to cleanup audio related things from BT app
 # on detection of SSR/command timeout/Hw eror event
 AM_CONDITIONAL([SSR_CLEANUP_SUPPORT], true)
-
 
 AC_MSG_CHECKING(for zlib support)
 AC_ARG_WITH(zlib, AC_HELP_STRING([--with-zlib],[Enable zlib support for mod_compress]),

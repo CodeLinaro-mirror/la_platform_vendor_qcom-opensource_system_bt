@@ -11,9 +11,6 @@ AM_CPPFLAGS= \
         -I. \
         -I../ \
         -I../utils/include \
-        -I${WORKSPACE}/system/media/audio/include \
-        -I${WORKSPACE}/frameworks/system/media/audio/include \
-        -I${WORKSPACE}/hardware/libhardware/include \
         -I$(bdroid_C_INCLUDES)
 
 c_sources = \
