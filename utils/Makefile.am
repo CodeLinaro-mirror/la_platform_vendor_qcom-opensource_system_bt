@@ -1,5 +1,5 @@
 # sources and intermediate files are separated
-
+external_bt_path := $(top_srcdir)/../../vendor/qcom/opensource/bluetooth
 AM_CFLAGS = -Wall \
         -Wundef \
         -Wstrict-prototypes \
@@ -12,6 +12,8 @@ AM_CPPFLAGS= \
         -I../btcore/include \
         -I../stack/include \
         -I../utils/include \
+        -I../bta/include \
+        -I $(external_bt_path)/vhal/include \
         -I../include \
         -I../ \
         -I$(bdroid_C_INCLUDES)
@@ -31,8 +33,19 @@ AM_CFLAGS += -DBT_SOC_TYPE_CHEROKEE
 AM_CPPFLAGS += -DBT_SOC_TYPE_CHEROKEE
 endif
 
+if ACL_TIMING_CALC_SUPPORT
+AM_CFLAGS += -DBT_ACL_TIMIMG_ENABLED=TRUE
+AM_CPPFLAGS += -DBT_ACL_TIMIMG_ENABLED=TRUE
+endif
+
+if ACL_TIMING_CALC_SUPPORT
+c_sources = \
+        src/bt_utils.c \
+        src/bt_acl_timestamps.c
+else
 c_sources = \
         src/bt_utils.c
+endif
 
 common_LDFLAGS = -lpthread ../osi/libbtosi.la
 common_CFLAGS =  $(AM_CFLAGS) -fPIC

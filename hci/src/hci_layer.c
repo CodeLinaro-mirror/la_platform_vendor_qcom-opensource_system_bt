@@ -43,6 +43,9 @@
 #include "osi/include/reactor.h"
 #include "packet_fragmenter.h"
 #include "vendor.h"
+#if (BT_ACL_TIMIMG_ENABLED == TRUE)
+#include "bt_acl_timestamps.h"
+#endif
 
 // TODO(zachoverflow): remove this hack extern
 #include <hardware/bluetooth.h>
@@ -615,6 +618,14 @@ static void transmit_fragment(BT_HDR *packet, bool send_transmit_finished) {
   serial_data_type_t type = event_to_data_type(event);
 
   btsnoop->capture(packet, false);
+
+#if (BT_ACL_TIMIMG_ENABLED == TRUE)
+  // save the timestamps for the acl data
+  if (type == DATA_TYPE_ACL) {
+      bt_acl_save_acl_timestamps(packet);
+  }
+#endif
+
   hal->transmit_data(type, packet->data + packet->offset, packet->len);
 
   if (event != MSG_STACK_TO_HC_HCI_CMD && send_transmit_finished)
@@ -704,6 +715,31 @@ static void command_timed_out(UNUSED_ATTR void *context) {
 }
 
 // Event/packet receiving functions
+//
+#if (BT_ACL_TIMIMG_ENABLED == TRUE)
+void hci_calc_acl_timestamps(BT_HDR *buffer)
+{
+    const uint8_t *p = buffer->data + buffer->offset;
+    int idx = 0;
+    if (MSG_HC_TO_STACK_HCI_EVT == (buffer->event & MSG_EVT_MASK)) {
+        UINT8   hci_evt_code;
+        STREAM_TO_UINT8  (hci_evt_code, p);
+        p++; // skip the length
+        if (hci_evt_code == HCI_NUM_COMPL_DATA_PKTS_EVT) {
+            UINT8       num_handles, xx;
+            UINT16      handle, num_sent;
+            STREAM_TO_UINT8 (num_handles, p);
+
+            for (xx = 0; xx < num_handles; xx++)
+            {
+                STREAM_TO_UINT16 (handle, p);
+                STREAM_TO_UINT16 (num_sent, p);
+                bt_acl_calc_timestamps_by_handle(handle, num_sent);
+            }
+        }
+    }
+}
+#endif
 
 // This function is not required to read all of a packet in one go, so
 // be wary of reentry. But this function must return after finishing a packet.
@@ -812,6 +848,9 @@ static void hal_says_data_ready(serial_data_type_t type) {
 
     if (incoming->state == FINISHED) {
       incoming->buffer->len = incoming->index;
+#if (BT_ACL_TIMIMG_ENABLED == TRUE)
+      hci_calc_acl_timestamps(incoming->buffer);
+#endif
       btsnoop->capture(incoming->buffer, true);
 
       if (type != DATA_TYPE_EVENT) {
