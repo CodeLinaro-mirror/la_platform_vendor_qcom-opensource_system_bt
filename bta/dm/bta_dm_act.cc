@@ -3380,7 +3380,7 @@ static void bta_dm_set_eir(char* local_name) {
       for (custom_uuid_idx = 0;
            custom_uuid_idx < BTA_EIR_SERVER_NUM_CUSTOM_UUID;
            custom_uuid_idx++) {
-        const Uuid& curr = bta_dm_cb.custom_uuid[custom_uuid_idx];
+        const Uuid& curr = bta_dm_cb.bta_dm_custom_uuid[custom_uuid_idx].custom_uuid;
         if (curr.GetShortestRepresentationSize() == Uuid::kNumBytes16) {
           if (num_uuid < max_num_uuid) {
             UINT16_TO_STREAM(p, curr.As16Bit());
@@ -3413,7 +3413,7 @@ static void bta_dm_set_eir(char* local_name) {
 
     for (custom_uuid_idx = 0; custom_uuid_idx < BTA_EIR_SERVER_NUM_CUSTOM_UUID;
          custom_uuid_idx++) {
-      const Uuid& curr = bta_dm_cb.custom_uuid[custom_uuid_idx];
+      const Uuid& curr = bta_dm_cb.bta_dm_custom_uuid[custom_uuid_idx].custom_uuid;
       if (curr.GetShortestRepresentationSize() == Uuid::kNumBytes32) {
         if (num_uuid < max_num_uuid) {
           UINT32_TO_STREAM(p, curr.As32Bit());
@@ -3442,7 +3442,7 @@ static void bta_dm_set_eir(char* local_name) {
 
     for (custom_uuid_idx = 0; custom_uuid_idx < BTA_EIR_SERVER_NUM_CUSTOM_UUID;
          custom_uuid_idx++) {
-      const Uuid& curr = bta_dm_cb.custom_uuid[custom_uuid_idx];
+      const Uuid& curr = bta_dm_cb.bta_dm_custom_uuid[custom_uuid_idx].custom_uuid;
       if (curr.GetShortestRepresentationSize() == Uuid::kNumBytes128) {
         if (num_uuid < max_num_uuid) {
           ARRAY16_TO_STREAM(p, curr.To128BitBE().data());
@@ -3570,42 +3570,47 @@ static void bta_dm_eir_search_services(tBTM_INQ_RESULTS* p_result,
 #if (BTA_EIR_CANNED_UUID_LIST != TRUE)
 /*******************************************************************************
  *
- * Function         bta_dm_remove_cust_uuid
+ * Function         bta_dm_get_cust_uuid_index
  *
- * Description      remove the uuid from custom uuid list
+ * Description      Get index of custom uuid from list
+ *                  Note, handle equals to 0 means to find a vacant
+ *                  from list.
  *
- * Returns          None
+ * Returns          Index of array
+ *                  bta_dm_cb.bta_dm_custom_uuid[BTA_EIR_SERVER_NUM_CUSTOM_UUID]
  *
  ******************************************************************************/
-static void bta_dm_remove_cust_uuid(const Uuid& uuid) {
-  APPL_TRACE_DEBUG("%s", __func__);
+static uint8_t bta_dm_get_cust_uuid_index(uint32_t handle) {
+#if (BTA_EIR_SERVER_NUM_CUSTOM_UUID > 0)
+  uint8_t c_uu_idx = 0;
+  for (; c_uu_idx < BTA_EIR_SERVER_NUM_CUSTOM_UUID; c_uu_idx++) {
+    uint32_t curr_handle = bta_dm_cb.bta_dm_custom_uuid[c_uu_idx].handle;
+    if (curr_handle == handle) break;
+  }
+
+  return c_uu_idx;
+#endif
 }
 
 /*******************************************************************************
  *
- * Function         bta_dm_add_cust_uuid
+ * Function         bta_dm_update_cust_uuid
  *
- * Description      add an available uuid into custom uuid list
+ * Description      Update custom uuid with given value
  *
  * Returns          None
  *
  ******************************************************************************/
-static void bta_dm_add_cust_uuid(const Uuid& uuid) {
-  APPL_TRACE_DEBUG("%s, support %d cust uuids", __func__, BTA_EIR_SERVER_NUM_CUSTOM_UUID);
-
-  for (uint8_t c_uu_idx = 0; c_uu_idx < BTA_EIR_SERVER_NUM_CUSTOM_UUID; c_uu_idx++) {
-    Uuid& curr = bta_dm_cb.custom_uuid[c_uu_idx];
-    APPL_TRACE_VERBOSE("[%d]:%s", c_uu_idx, curr.ToString().c_str());
-
-    if (curr.IsEmpty()) {
-      curr.UpdateUuid(uuid);
-      break;
-    }
-
-    if (c_uu_idx == BTA_EIR_SERVER_NUM_CUSTOM_UUID -1) {
-      APPL_TRACE_WARNING("cust uuid is full");
-    }
+static void bta_dm_update_cust_uuid(uint8_t c_uu_idx, const Uuid& uuid, uint32_t handle) {
+#if (BTA_EIR_SERVER_NUM_CUSTOM_UUID > 0)
+  if (c_uu_idx < BTA_EIR_SERVER_NUM_CUSTOM_UUID) {
+    tBTA_DM_CUSTOM_UUID& curr = bta_dm_cb.bta_dm_custom_uuid[c_uu_idx];
+    curr.custom_uuid.UpdateUuid(uuid);
+    curr.handle = handle;
+  } else {
+    APPL_TRACE_ERROR("%s invalid uuid index %d", __func__, c_uu_idx);
   }
+#endif
 }
 
 /*******************************************************************************
@@ -3617,14 +3622,22 @@ static void bta_dm_add_cust_uuid(const Uuid& uuid) {
  * Returns          None
  *
  ******************************************************************************/
-void bta_dm_eir_update_cust_uuid(const Uuid& uuid, bool adding)
-{
+void bta_dm_eir_update_cust_uuid(const Uuid& uuid, uint32_t handle, bool adding) {
+  APPL_TRACE_DEBUG("%s", __func__);
+#if (BTA_EIR_SERVER_NUM_CUSTOM_UUID > 0)
+  uint8_t c_uu_idx = 0;
   if (adding) {
-    bta_dm_add_cust_uuid(uuid);
-    bta_dm_set_eir(NULL);
+    c_uu_idx = bta_dm_get_cust_uuid_index(0); /* find a vacant from uuid list */
+    bta_dm_update_cust_uuid(c_uu_idx, uuid, handle);
   } else {
-    bta_dm_remove_cust_uuid(uuid);
+    c_uu_idx = bta_dm_get_cust_uuid_index(handle); /* find the uuid from uuid list */
+    bta_dm_update_cust_uuid(c_uu_idx, uuid, 0);
   }
+
+  if (c_uu_idx <= BTA_EIR_SERVER_NUM_CUSTOM_UUID) {
+    bta_dm_set_eir(NULL);
+  }
+#endif
 }
 
 /*******************************************************************************
