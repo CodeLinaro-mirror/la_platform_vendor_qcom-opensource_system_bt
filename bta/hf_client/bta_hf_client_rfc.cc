@@ -124,6 +124,8 @@ static void bta_hf_client_mgmt_cback(uint32_t code, uint16_t port_handle) {
     } else {
       APPL_TRACE_ERROR("%s: PORT_SUCCESS, ignoring handle = %d", __func__,
                        port_handle);
+      if (p_buf)
+        osi_free(p_buf);
       return;
     }
   } else if (client_cb != NULL &&
