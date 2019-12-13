@@ -459,16 +459,6 @@ static void get_link_key(const RawAddress *bd_addr){
   btif_dm_get_link_key(bd_addr);
 }
 
-#if (defined LPM_SLEEP_WAKEUP && LPM_SLEEP_WAKEUP == TRUE)
-static int lpm_sleep_ind(uint8_t isSleep) {
-  LOG_INFO(LOG_TAG, "lpm_sleep_ind");
-  /* sanity check */
-  if (!interface_ready()) return BT_STATUS_NOT_READY;
-
-  return btif_dm_lpm_sleep_ind(isSleep);
-}
-#endif
-
 EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     sizeof(bluetoothInterface),
     init,
@@ -507,7 +497,4 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     interop_database_add,
     get_avrcp_service,
     obfuscate_address,
-#if (defined LPM_SLEEP_WAKEUP && LPM_SLEEP_WAKEUP == TRUE)
-    lpm_sleep_ind,
-#endif
 };

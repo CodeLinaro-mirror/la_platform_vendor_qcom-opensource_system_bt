@@ -35,9 +35,26 @@
     (p_prop)->val = (p_v);                            \
   } while (0)
 
+typedef struct {
+  uint32_t num_devices;
+  RawAddress devices[BTM_SEC_MAX_DEVICE_RECORDS];
+} btif_bonded_devices_t;
+
 /*******************************************************************************
  *  Functions
  ******************************************************************************/
+
+/*******************************************************************************
+ *
+ * Function         btif_storage_fetch_bonded_devices
+ *
+ * Description      BTIF storage API - Fetches the paired devices.
+ *
+ * Returns          BT_STATUS_SUCCESS if the fetch was successful,
+ *                  BT_STATUS_FAIL otherwise
+ *
+ ******************************************************************************/
+btif_bonded_devices_t* btif_storage_fetch_bonded_devices(void);
 
 /*******************************************************************************
  *
@@ -320,16 +337,5 @@ bool btif_storage_get_stored_remote_name(const RawAddress& bd_addr, char* name);
  *****************************************************************************/
 size_t btif_split_uuids_string(const char* str, bluetooth::Uuid* p_uuid,
                                size_t max_uuids);
-
-#if (defined LPM_SLEEP_WAKEUP && LPM_SLEEP_WAKEUP == TRUE)
-bt_status_t btif_in_fetch_bredr_linkkey(const RawAddress& remote_bd_addr, LinkKey link_key);
-bt_status_t btif_in_fetch_ble_peer_addr_type(const RawAddress& remote_bd_addr, uint8_t& addr_type);
-bt_status_t btif_in_fetch_ble_peer_id_addr(const RawAddress& remote_bd_addr, RawAddress& remote_id_addr);
-bt_status_t btif_in_fetch_ble_ltk(const RawAddress& remote_bd_addr, Octet16 ltk);
-bt_status_t btif_in_fetch_ble_peer_irk(const RawAddress& remote_bd_addr, Octet16 irk);
-bt_status_t btif_in_fetch_ble_local_irk(Octet16 irk);
-bt_status_t btif_in_fetch_ble_rand(const RawAddress& remote_bd_addr, BT_OCTET8 rand);
-bt_status_t btif_in_fetch_ble_ediv(const RawAddress& remote_bd_addr, uint16_t& ediv);
-#endif
 
 #endif /* BTIF_STORAGE_H */
