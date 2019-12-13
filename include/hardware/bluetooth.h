@@ -645,12 +645,6 @@ typedef struct {
    * @return a string of uint8_t that is unique to this MAC address
    */
   std::string (*obfuscate_address)(const RawAddress& address);
-  /**
-   *  HOST SLEEP indication to controller
-   */
-#if (defined LPM_SLEEP_WAKEUP && LPM_SLEEP_WAKEUP == TRUE)
-  int (*lpm_sleep_ind)(uint8_t isSleep);
-#endif
 } bt_interface_t;
 
 #define BLUETOOTH_INTERFACE_STRING "bluetoothInterface"

@@ -148,7 +148,8 @@ extern bool check_cod_hid(const RawAddress* remote_bdaddr);
 extern int scru_ascii_2_hex(char* p_ascii, int len, uint8_t* p_hex);
 extern void btif_dm_hh_open_failed(RawAddress* bdaddr);
 extern void btif_hd_service_registration();
-#if (defined LPM_SLEEP_WAKEUP && LPM_SLEEP_WAKEUP == TRUE)
+#if (LPM_SLEEP_WAKEUP == TRUE)
+extern bool is_ble_offload_enabled();
 extern void btif_dm_add_device_whitelist(const RawAddress& bdaddr);
 #endif
 
@@ -803,8 +804,9 @@ static void btif_hh_upstreams_evt(uint16_t event, char* p_param) {
           btif_hh_cb.status = (BTIF_HH_STATUS)BTIF_HH_DEV_DISCONNECTED;
           BTA_HhClose(p_data->conn.handle);
         } else {
-#if (defined LPM_SLEEP_WAKEUP && LPM_SLEEP_WAKEUP == TRUE)
-          btif_dm_add_device_whitelist(p_data->conn.bda);
+#if (LPM_SLEEP_WAKEUP == TRUE)
+          if (is_ble_offload_enabled())
+            btif_dm_add_device_whitelist(p_data->conn.bda);
 #endif
           BTIF_TRACE_WARNING(
               "BTA_HH_OPEN_EVT: Found device...Getting dscp info for handle "
