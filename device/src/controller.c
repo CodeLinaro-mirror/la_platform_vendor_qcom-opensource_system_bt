@@ -456,8 +456,6 @@ static uint8_t get_ble_resolving_list_max_size(void) {
 }
 
 static void set_ble_resolving_list_max_size(int resolving_list_max_size) {
-  assert(readable);
-  assert(ble_supported);
   ble_resolving_list_max_size = resolving_list_max_size;
 }
 

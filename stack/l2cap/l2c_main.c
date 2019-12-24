@@ -946,6 +946,7 @@ void l2c_init (void)
 
 void l2c_free(void) {
     list_free(l2cb.rcv_pending_q);
+    l2cb.rcv_pending_q = NULL;
 }
 
 #if (defined(LE_L2CAP_CFC_INCLUDED) && (LE_L2CAP_CFC_INCLUDED == TRUE))
