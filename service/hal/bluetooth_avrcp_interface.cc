@@ -303,12 +303,13 @@ void ConnectionStateCallback(bool rc_connect, bool bt_connect,
   }
 }
 
-void CtrlGetrcfeaturesCallback(const RawAddress& bd_addr, int features) {
+void CtrlGetrcfeaturesCallback(const RawAddress& bd_addr, int features,
+                               uint16_t cover_art_psm) {
   shared_lock<shared_mutex_impl> lock(g_instance_lock);
   VLOG(2) << __func__;
   VERIFY_INTERFACE_OR_RETURN();
   for (auto& observer : *GetControlObservers()) {
-    observer.CtrlGetrcfeaturesCallback(bd_addr, features);
+    observer.CtrlGetrcfeaturesCallback(bd_addr, features, cover_art_psm);
   }
 }
 
@@ -761,7 +762,7 @@ void BluetoothAvrcpInterface::ControlObserver::ConnectionStateCallback(
 }
 
 void BluetoothAvrcpInterface::ControlObserver::CtrlGetrcfeaturesCallback(
-    const RawAddress& /* bd_addr */, int /* features */) {
+    const RawAddress& /* bd_addr */, int /* features */, uint16_t /* cover_art_psm */) {
   // Do nothing.
 }
 
