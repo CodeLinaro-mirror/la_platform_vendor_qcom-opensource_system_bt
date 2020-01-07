@@ -37,6 +37,12 @@ if SSR_CLEANUP_SUPPORT
 AM_CFLAGS += -DSSR_CLEANUP=TRUE
 endif
 
+
+if ACL_TIMING_CALC_SUPPORT
+AM_CFLAGS += -DBT_ACL_TIMIMG_ENABLED=TRUE
+AM_CPPFLAGS += -DBT_ACL_TIMIMG_ENABLED=TRUE
+endif
+
 c_sources = \
         src/btsnoop.c \
         src/btsnoop_mem.c \
