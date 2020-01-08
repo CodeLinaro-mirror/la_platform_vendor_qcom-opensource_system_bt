@@ -377,6 +377,7 @@ void btu_hcif_process_event(UNUSED_ATTR uint8_t controller_id, BT_HDR* p_msg) {
 
   }
 #if HCI_RAW_CMD_INCLUDED == TRUE
+  if (hci_evt_code == HCI_BLE_EVENT) p -= 1;
   btm_hci_event (p, hci_evt_code , hci_evt_len);
 #endif
 }
