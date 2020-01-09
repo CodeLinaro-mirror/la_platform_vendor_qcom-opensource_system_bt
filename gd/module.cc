@@ -21,15 +21,21 @@ using ::bluetooth::os::Thread;
 
 namespace bluetooth {
 
+constexpr std::chrono::milliseconds kModuleStopTimeout = std::chrono::milliseconds(20);
+
 ModuleFactory::ModuleFactory(std::function<Module*()> ctor) : ctor_(ctor) {
 }
 
-Handler* Module::GetHandler() {
+std::string Module::ToString() const {
+  return "Module";
+}
+
+Handler* Module::GetHandler() const {
   ASSERT_LOG(handler_ != nullptr, "Can't get handler when it's not started");
   return handler_;
 }
 
-const ModuleRegistry* Module::GetModuleRegistry() {
+const ModuleRegistry* Module::GetModuleRegistry() const {
   return registry_;
 }
 

@@ -103,4 +103,35 @@ inline std::string UnderscoreToCamelCase(std::string value) {
   return camel_case.str();
 }
 
+inline bool IsEnumCase(std::string value) {
+  if (value[0] < 'A' || value[0] > 'Z') {
+    return false;
+  }
+
+  // Use static to avoid compiling the regex more than once.
+  static const std::regex enum_regex("[A-Z][A-Z0-9_]*");
+
+  return std::regex_match(value, enum_regex);
+}
+
+inline std::string StringJoin(const std::string& delimiter, const std::vector<std::string>& vec) {
+  std::stringstream ss;
+  for (size_t i = 0; i < vec.size(); i++) {
+    ss << vec[i];
+    if (i != (vec.size() - 1)) {
+      ss << delimiter;
+    }
+  }
+  return ss.str();
+}
+
+inline std::string StringFindAndReplaceAll(std::string text, const std::string& old, const std::string& replacement) {
+  auto pos = text.find(old);
+  while (pos != std::string::npos) {
+    text.replace(pos, old.size(), replacement);
+    pos = text.find(old, pos + replacement.size());
+  }
+  return text;
+}
+
 }  // namespace util

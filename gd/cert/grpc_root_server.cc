@@ -21,9 +21,8 @@
 #include "cert/read_only_property_server.h"
 #include "cert/rootservice.grpc.pb.h"
 #include "grpc/grpc_module.h"
-#include "hal/cert/cert.h"
 #include "hci/cert/cert.h"
-#include "l2cap/cert/cert.h"
+#include "l2cap/classic/cert/cert.h"
 #include "os/log.h"
 #include "os/thread.h"
 #include "stack_manager.h"
@@ -50,16 +49,13 @@ class RootCertService : public ::bluetooth::cert::RootCert::Service {
 
     BluetoothModule module_to_test = request->module_to_test();
     switch (module_to_test) {
-      case BluetoothModule::HAL:
-        modules.add<::bluetooth::hal::cert::HalCertModule>();
-        break;
       case BluetoothModule::HCI:
         modules.add<::bluetooth::cert::ReadOnlyPropertyServerModule>();
         modules.add<::bluetooth::hci::cert::AclManagerCertModule>();
         break;
       case BluetoothModule::L2CAP:
         modules.add<::bluetooth::cert::ReadOnlyPropertyServerModule>();
-        modules.add<::bluetooth::l2cap::cert::L2capModuleCertModule>();
+        modules.add<::bluetooth::l2cap::classic::cert::L2capClassicModuleCertModule>();
         break;
       default:
         return ::grpc::Status(::grpc::StatusCode::INVALID_ARGUMENT, "invalid module under test");
@@ -85,6 +81,7 @@ class RootCertService : public ::bluetooth::cert::RootCert::Service {
 
     stack_manager_.GetInstance<GrpcModule>()->StopServer();
     grpc_loop_thread_->join();
+    delete grpc_loop_thread_;
 
     stack_manager_.ShutDown();
     delete stack_thread_;

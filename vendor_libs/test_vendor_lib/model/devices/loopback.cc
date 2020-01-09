@@ -14,19 +14,17 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "loopback"
-
 #include "loopback.h"
 
 #include "le_advertisement.h"
 #include "model/setup/device_boutique.h"
-#include "osi/include/log.h"
+#include "os/log.h"
 
 using std::vector;
 
 namespace test_vendor_lib {
 
-bool Loopback::registered_ = DeviceBoutique::Register(LOG_TAG, &Loopback::Create);
+bool Loopback::registered_ = DeviceBoutique::Register("loopback", &Loopback::Create);
 
 Loopback::Loopback() {
   advertising_interval_ms_ = std::chrono::milliseconds(1280);
@@ -68,18 +66,22 @@ void Loopback::Initialize(const vector<std::string>& args) {
 
 void Loopback::TimerTick() {}
 
-void Loopback::IncomingPacket(packets::LinkLayerPacketView packet) {
-  LOG_INFO(LOG_TAG, "Got a packet of type %d", static_cast<int>(packet.GetType()));
-  if (packet.GetDestinationAddress() == properties_.GetLeAddress() && packet.GetType() == Link::PacketType::LE_SCAN) {
-    LOG_INFO(LOG_TAG, "Got a scan");
-    std::unique_ptr<packets::LeAdvertisementBuilder> scan_response = packets::LeAdvertisementBuilder::Create(
-        LeAdvertisement::AddressType::PUBLIC, LeAdvertisement::AdvertisementType::SCAN_RESPONSE,
+void Loopback::IncomingPacket(model::packets::LinkLayerPacketView packet) {
+  LOG_INFO("Got a packet of type %d", static_cast<int>(packet.GetType()));
+  if (packet.GetDestinationAddress() == properties_.GetLeAddress() &&
+      packet.GetType() == model::packets::PacketType::LE_SCAN) {
+    LOG_INFO("Got a scan");
+
+    auto scan_response = model::packets::LeScanResponseBuilder::Create(
+        properties_.GetLeAddress(), packet.GetSourceAddress(),
+        model::packets::AddressType::PUBLIC,
+        model::packets::AdvertisementType::SCAN_RESPONSE,
         properties_.GetLeScanResponse());
-    std::shared_ptr<packets::LinkLayerPacketBuilder> to_send = packets::LinkLayerPacketBuilder::WrapLeScanResponse(
-        std::move(scan_response), properties_.GetLeAddress(), packet.GetSourceAddress());
-    std::vector<std::shared_ptr<PhyLayer>> le_phys = phy_layers_[Phy::Type::LOW_ENERGY];
-    for (auto phy : le_phys) {
-      LOG_INFO(LOG_TAG, "Sending a Scan Response on a Phy");
+    std::shared_ptr<model::packets::LinkLayerPacketBuilder> to_send =
+        std::move(scan_response);
+
+    for (auto phy : phy_layers_[Phy::Type::LOW_ENERGY]) {
+      LOG_INFO("Sending a Scan Response on a Phy");
       phy->Send(to_send);
     }
   }
