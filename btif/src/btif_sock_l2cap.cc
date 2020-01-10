@@ -595,7 +595,7 @@ static void on_l2cap_close(tBTA_JV_L2CAP_CLOSE* p_close, uint32_t id) {
 
   std::unique_lock<std::mutex> lock(state_lock);
   sock = btsock_l2cap_find_by_id_l(id);
-  if (!sock) return;
+  if (!sock || (sock && (sock->handle != (int)p_close->handle))) return;
 
   APPL_TRACE_DEBUG("on_l2cap_close, slot id:%d, fd:%d, %s:%d, server:%d",
                    sock->id, sock->our_fd,
