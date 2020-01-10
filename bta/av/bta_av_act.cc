@@ -1497,13 +1497,15 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
     }
     if (p_lcb && !p_lcb->conn_msk) {
       /* stream and signal are both disconnected
-       * clean clean peer_address_ for feature connection
+       * clean peer_address_ for future connection
        */
       xx = bta_av_find_lcb_index_by_scb_and_address(p_data->str_msg.bd_addr);
-      APPL_TRACE_WARNING("%s: clean p_scb[%d]->PeerAddress()=%s",
-                             __func__, xx,
-                             p_cb->p_scb[xx]->PeerAddress().ToString().c_str());
-      p_cb->p_scb[xx]->OnDisconnected();
+      if (p_cb->p_scb[xx] != nullptr) {
+        APPL_TRACE_WARNING("%s: clean p_scb[%d]->PeerAddress()=%s",
+                           __func__, xx,
+                           p_cb->p_scb[xx]->PeerAddress().ToString().c_str());
+        p_cb->p_scb[xx]->OnDisconnected();
+      }
     }
   }
   APPL_TRACE_DEBUG("%s: sig_chg conn_lcb: 0x%x", __func__, p_cb->conn_lcb);
