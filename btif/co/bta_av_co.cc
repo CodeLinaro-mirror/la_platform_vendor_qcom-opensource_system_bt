@@ -121,7 +121,6 @@ class BtaAvCoCb {
     memset(peers, 0, sizeof(peers));
     memset(codec_config, 0, sizeof(codec_config));
     memset(&cp, 0, sizeof(cp));
-    default_codec_priorities.clear();
 
     // Initialize the handles
     for (size_t i = 0; i < BTA_AV_CO_NUM_ELEMENTS(peers); i++) {
@@ -1259,7 +1258,7 @@ static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer) {
         APPL_TRACE_DEBUG("%s: AAC codec is added in sink capability", __func__);
         p_sink = bta_av_co_audio_codec_selected(*iter, p_peer);
       } else {
-        APPL_TRACE_DEBUG("%s: Do not add ACC codec in sink capability", __func__);
+        APPL_TRACE_DEBUG("%s: Do not add AAC codec in sink capability", __func__);
       }
     } else {
       APPL_TRACE_DEBUG("%s: non-AAC codec has been selected.", __func__);
