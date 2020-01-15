@@ -2661,7 +2661,7 @@ static void btif_dm_lpm_set_ble_scan_params(void) {
   BTIF_TRACE_EVENT ("%s ble_scan_type:0x%02x", __func__, ble_scan_type);
 
   ble_own_addr_type = controller_get_interface()->supports_ble_privacy() ?
-                      BLE_ADDR_RANDOM : BLE_ADDR_PUBLIC;
+                      BLE_ADDR_PUBLIC_ID : BLE_ADDR_PUBLIC;
 
   if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
     ble_scan_filter_policy = (uint8_t) strtoul(pch, &endptr, 16);
@@ -2927,7 +2927,7 @@ void btif_dm_lpm_le_adv_params(const RawAddress& bdaddr) {
   }
 
   own_addr_type = controller_get_interface()->supports_ble_privacy() ?
-                  BLE_ADDR_RANDOM : BLE_ADDR_PUBLIC;
+                  BLE_ADDR_PUBLIC_ID : BLE_ADDR_PUBLIC;
 
   // get peer address
   if (btif_storage_get_ble_bonding_key(
@@ -2958,7 +2958,10 @@ void btif_dm_lpm_le_adv_params(const RawAddress& bdaddr) {
   for (int i = 0; i < adv_data_len; i++)
     UINT8_TO_STREAM(pp, adv_data[i]);
 
-  // TO-DO: Send HCI_VS_LPM_OPCODE
+  BTM_VendorSpecificCommand(HCI_VS_LPM_OPCODE,
+                            (LPM_SET_ADV_PARAMS_LENGTH + adv_data_len),
+                            param,
+                            btif_dm_lpm_set_le_adv_params_vsc_cback);
 }
 
 /*******************************************************************************
