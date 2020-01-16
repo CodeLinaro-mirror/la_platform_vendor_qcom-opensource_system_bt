@@ -176,6 +176,7 @@ static void bta_ar_avdt_cback(uint8_t handle, const RawAddress* bd_addr, uint8_t
                     APPL_TRACE_DEBUG(" %s fake AV DiscConn Cback after AVK setconfig",__FUNCTION__);
                     /* remove AV Mask */
                     update_avdtp_connection_info(*bd_addr, AVDT_AR_EXT_DISCONNECT_IND_EVT, BTA_AR_EXT_AV_MASK);
+                    (*bta_ar_cb.p_av_conn_cback)(handle, bd_addr, AVDT_CLOSE_IND_EVT, p_data);
                     (*bta_ar_cb.p_av_conn_cback)(handle, bd_addr, AVDT_DISCONNECT_IND_EVT, p_data);
                 }
             }
