@@ -440,6 +440,10 @@ void bta_av_conn_cback(UNUSED_ATTR uint8_t handle, const RawAddress* bd_addr,
                        p_data->hdr.err_param);
     }
 
+    if ((p_scb == NULL) && (event == AVDT_CLOSE_IND_EVT)) {
+      return;
+    }
+
     tBTA_AV_STR_MSG* p_msg =
         (tBTA_AV_STR_MSG*)osi_malloc(sizeof(tBTA_AV_STR_MSG));
 
