@@ -66,6 +66,7 @@ typedef enum {
   BTIF_AV_SETUP_CODEC_REQ_EVT,
   BTIF_AV_TRIGGER_HANDOFF_REQ_EVT,
   BTIF_AV_ENCODER_MODE_CHANGED_EVT,
+  BTIF_AV_SCMST_CP_FLAG_UPDATE,
 } btif_av_sm_event_t;
 
 /*******************************************************************************
@@ -479,5 +480,8 @@ RawAddress btif_av_get_addr_by_index(int idx);
 ** Returns          int64_t
 *******************************************************************************/
 int64_t btif_get_average_delay();
+
+
+bool btif_av_is_cp_enabled();
 
 #endif /* BTIF_AV_H */

@@ -145,6 +145,7 @@ enum {
   BTA_AV_ENABLE_MULTICAST_EVT, /* Event for enable and disable multicast */
   BTA_AV_RC_COLLISSION_DETECTED_EVT,
   BTA_AV_UPDATE_SUPP_CODECS,
+  BTA_AV_API_UPDATE_SCMST_CP_FLAG, /* Update SCMST Cp flag */
   BTA_AV_UPDATE_ENCODER_MODE_EVT,
 #if (TWS_ENABLED == TRUE)
   BTA_AV_SET_EARBUD_ROLE_EVT, /* Set TWS earbud role */
@@ -492,6 +493,11 @@ typedef struct {
       p_app_sink_data_cback; /* Sink application callback for media packets */
 } tBTA_AV_SEP;
 
+typedef struct {
+  BT_HDR hdr;
+  uint8_t cp_flag;
+}tBTA_AV_SCMST_CP_FLAG;
+
 /* initiator/acceptor role for adaption */
 #define BTA_AV_ROLE_AD_INT 0x00 /* initiator */
 #define BTA_AV_ROLE_AD_ACP 0x01 /* acceptor */
@@ -534,6 +540,7 @@ typedef union {
   tBTA_AV_TWS_SET_EARBUD_ROLE tws_set_earbud_role;
   tBTA_AV_SET_TWS_DEVICE tws_set_device;
 #endif
+  tBTA_AV_SCMST_CP_FLAG scmst_cp_flag;
 } tBTA_AV_DATA;
 
 typedef union {
@@ -826,6 +833,10 @@ extern void bta_av_conn_chg(tBTA_AV_DATA* p_data);
 extern void bta_av_dereg_comp(tBTA_AV_DATA* p_data);
 extern void bta_av_rc_collission_detected(tBTA_AV_DATA *p_data);
 extern void bta_av_update_enc_mode(tBTA_AV_DATA* p_data);
+
+/*Function to send VSC for updating SCMS-T Cp flag*/
+extern void bta_av_vendor_update_SCMST_Cp(uint8_t cp_flag);
+extern void bta_av_vendor_update_SCMST_Cp_callback(tBTM_VSC_CMPL *param);
 
 /* sm action functions */
 extern void bta_av_disable(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data);

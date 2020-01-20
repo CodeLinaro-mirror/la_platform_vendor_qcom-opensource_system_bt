@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "a2dp_int.h"
 #include "a2dp_vendor.h"
 #include "a2dp_vendor_aptx.h"
 #include "bt_common.h"
@@ -53,12 +54,8 @@ static tAPTX_ENCODER_INIT aptx_encoder_init_func;
 static tAPTX_ENCODER_ENCODE_STEREO aptx_encoder_encode_stereo_func;
 static tAPTX_ENCODER_SIZEOF_PARAMS aptx_encoder_sizeof_params_func;
 // offset
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-#define A2DP_APTX_OFFSET (AVDT_MEDIA_OFFSET + 1)
-#else
 // no RTP header for aptX classic
 #define A2DP_APTX_OFFSET (AVDT_MEDIA_OFFSET - AVDT_MEDIA_HDR_SIZE)
-#endif
 
 #define A2DP_APTX_MAX_PCM_BYTES_PER_READ 1024
 
@@ -187,10 +184,11 @@ void a2dp_vendor_aptx_encoder_init(
   a2dp_aptx_encoder_cb.timestamp = 0;
 
   /* aptX encoder config */
-  a2dp_aptx_encoder_cb.use_SCMS_T = false;  // TODO: should be a parameter
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-  a2dp_aptx_encoder_cb.use_SCMS_T = true;
-#endif
+  if (a2dp_is_cp_enabled()) {
+    a2dp_aptx_encoder_cb.use_SCMS_T = true;  // TODO: should be a parameter
+  } else {
+    a2dp_aptx_encoder_cb.use_SCMS_T = false;
+  }
 
   a2dp_aptx_encoder_cb.aptx_encoder_state =
       osi_malloc(aptx_encoder_sizeof_params_func());
@@ -403,6 +401,9 @@ void a2dp_vendor_aptx_send_frames(uint64_t timestamp_us) {
   // Prepare the packet to send
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(BT_DEFAULT_BUFFER_SIZE);
   p_buf->offset = A2DP_APTX_OFFSET;
+  if (a2dp_is_cp_enabled()) {
+    p_buf->offset++; //1 byte for cp header
+  }
   p_buf->len = 0;
   p_buf->layer_specific = 0;
 

@@ -1486,6 +1486,31 @@ uint16_t BTM_GetHCIConnHandle(const RawAddress& remote_bda,
 
 /*******************************************************************************
  *
+ * Function         BTM_Get_btaddr_from_hcihandle
+ *
+ * Description      This function is called to get the bdaddr for an ACL
+ *                  connection handle.
+ *
+ * Returns          the btaddr of remote or NULL
+ *
+ ******************************************************************************/
+RawAddress BTM_Get_btaddr_from_hcihandle(uint16_t hci_handle) {
+  BTM_TRACE_DEBUG("%s, hci_handle = %d",__func__,hci_handle);
+  tACL_CONN* p = &btm_cb.acl_db[0];
+  uint16_t xx;
+  for (xx = 0; xx < MAX_L2CAP_LINKS; xx++, p++) {
+    if ((p->in_use) && p->hci_handle == hci_handle) {
+      BTM_TRACE_DEBUG("btaddr found");
+      return p->remote_addr;
+    }
+  }
+
+  /* If here, no BD Addr found */
+  return RawAddress::kEmpty;
+}
+
+/*******************************************************************************
+ *
  * Function         btm_process_clk_off_comp_evt
  *
  * Description      This function is called when clock offset command completes.

@@ -72,4 +72,7 @@ extern uint16_t a2dp_get_avdt_sdp_ver();
 /* Used for change version of a2dp */
 extern void a2dp_set_a2dp_sdp_ver(uint16_t a2dp_sdp_ver);
 
+extern bool a2dp_is_cp_enabled();
+
+
 #endif /* A2DP_INT_H */

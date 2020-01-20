@@ -107,11 +107,7 @@ static tLDAC_GET_ERROR_CODE ldac_get_error_code_func;
 #define A2DP_LDAC_MEDIA_BYTES_PER_FRAME 128
 
 // offset
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-#define A2DP_LDAC_OFFSET (AVDT_MEDIA_OFFSET + A2DP_LDAC_MPL_HDR_LEN + 1)
-#else
 #define A2DP_LDAC_OFFSET (AVDT_MEDIA_OFFSET + A2DP_LDAC_MPL_HDR_LEN)
-#endif
 
 typedef struct {
   uint32_t sample_rate;
@@ -298,10 +294,11 @@ void a2dp_vendor_ldac_encoder_init(
   a2dp_ldac_encoder_cb.last_ldac_abr_eqmid = -1;
   a2dp_ldac_encoder_cb.ldac_abr_adjustments = 0;
 
-  a2dp_ldac_encoder_cb.use_SCMS_T = false;  // TODO: should be a parameter
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-  a2dp_ldac_encoder_cb.use_SCMS_T = true;
-#endif
+  if (a2dp_is_cp_enabled()) {
+    a2dp_ldac_encoder_cb.use_SCMS_T = true;  // TODO: should be a parameter
+  } else {
+    a2dp_ldac_encoder_cb.use_SCMS_T = false;
+  }
 
   // NOTE: Ignore the restart_input / restart_output flags - this initization
   // happens when the connection is (re)started.
@@ -395,15 +392,18 @@ static void a2dp_vendor_ldac_encoder_update(uint16_t peer_mtu,
 
   uint16_t mtu_size =
       BT_DEFAULT_BUFFER_SIZE - A2DP_LDAC_OFFSET - sizeof(BT_HDR);
+  if (a2dp_is_cp_enabled()) {
+    mtu_size--;  //1 byte for cp header
+  }
   if (mtu_size < peer_mtu) {
     a2dp_ldac_encoder_cb.TxAaMtuSize = mtu_size;
   } else {
     a2dp_ldac_encoder_cb.TxAaMtuSize = peer_mtu;
   }
 
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-  a2dp_ldac_encoder_cb.TxAaMtuSize--;
-#endif
+  if (a2dp_is_cp_enabled()) {
+    a2dp_ldac_encoder_cb.TxAaMtuSize--;
+  }
 
   // Set the quality mode index
   int old_quality_mode_index = p_encoder_params->quality_mode_index;
@@ -649,6 +649,9 @@ static void a2dp_ldac_encode_frames(uint8_t nb_frame) {
   while (nb_frame) {
     BT_HDR* p_buf = (BT_HDR*)osi_malloc(BT_DEFAULT_BUFFER_SIZE);
     p_buf->offset = A2DP_LDAC_OFFSET;
+    if (a2dp_is_cp_enabled()) {
+      p_buf->offset++;  // 1 byte is for cp header
+    }
     p_buf->len = 0;
     p_buf->layer_specific = 0;
     a2dp_ldac_encoder_cb.stats.media_read_total_expected_packets++;

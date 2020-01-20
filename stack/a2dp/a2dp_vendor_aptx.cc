@@ -35,6 +35,7 @@
 #include "bt_utils.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+#include "a2dp_int.h"
 
 /* aptX Source codec capabilities */
 static const tA2DP_APTX_CIE a2dp_aptx_src_caps = {
@@ -230,12 +231,12 @@ static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityAptx(
 
 bool A2DP_VendorUsesRtpHeaderAptx(UNUSED_ATTR bool content_protection_enabled,
                                   UNUSED_ATTR const uint8_t* p_codec_info) {
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-  return true;
-#else
-  // no RTP header for aptX classic and no Copy Protection byte
-  return false;
-#endif
+ if (a2dp_is_cp_enabled()) {
+   return true;
+ } else {
+   // no RTP header for aptX classic and no Copy Protection byte
+   return false;
+ }
 }
 
 const char* A2DP_VendorCodecNameAptx(UNUSED_ATTR const uint8_t* p_codec_info) {
@@ -409,13 +410,13 @@ bool A2DP_VendorInitCodecConfigAptx(tAVDT_CFG* p_cfg) {
     return false;
   }
 
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-  /* Content protection info - support SCMS-T */
-  uint8_t* p = p_cfg->protect_info;
-  *p++ = AVDT_CP_LOSC;
-  UINT16_TO_STREAM(p, AVDT_CP_SCMS_T_ID);
-  p_cfg->num_protect = 1;
-#endif
+ if (a2dp_is_cp_enabled()) {
+   /* Content protection info - support SCMS-T */
+   uint8_t* p = p_cfg->protect_info;
+   *p++ = AVDT_CP_LOSC;
+   UINT16_TO_STREAM(p, AVDT_CP_SCMS_T_ID);
+   p_cfg->num_protect = 1;
+ }
 
   return true;
 }

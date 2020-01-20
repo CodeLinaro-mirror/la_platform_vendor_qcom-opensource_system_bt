@@ -50,6 +50,8 @@
 #include "device/include/interop_config.h"
 #include "stack/sdp/sdpint.h"
 
+#include "bta_avk_int.h"
+
 #if (GAP_INCLUDED == TRUE)
 #include "gap_api.h"
 #endif
@@ -168,6 +170,7 @@ static void bta_dm_observe_cmpl_cb(void* p_result);
 static void bta_dm_delay_role_switch_cback(void* data);
 static void bta_dm_disable_timer_cback(void* data);
 static void bta_dm_vnd_info_report_cback(uint8_t evt_len, uint8_t *p_data);
+static void bta_dm_vnd_cp_flag_cback(uint8_t evt_len, uint8_t *p_data);
 
 const uint16_t bta_service_id_to_uuid_lkup_tbl[BTA_MAX_SERVICE_ID] = {
     UUID_SERVCLASS_PNP_INFORMATION,       /* Reserved */
@@ -334,6 +337,7 @@ void bta_dm_init_cb(void) {
     }
   }
   btm_register_iot_info_cback(bta_dm_vnd_info_report_cback);
+  btm_register_cp_flag_cback(bta_dm_vnd_cp_flag_cback);
 }
 
 /*******************************************************************************
@@ -3043,6 +3047,29 @@ static void bta_dm_vnd_info_report_cback (uint8_t evt_len, uint8_t *p_data) {
 }
 
 /*******************************************************************************
+**
+** Function         bta_dm_vnd_cp_flag_cback
+**
+** Description      Called from btm when SoC sends cp flag VSE event
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+static void bta_dm_vnd_cp_flag_cback (uint8_t evt_len, uint8_t *p_data) {
+  APPL_TRACE_DEBUG("bta_dm_vnd_cp_flag_cback");
+
+  tBTA_AVK_CP_FLAG_UPDATE *p_msg =
+      (tBTA_AVK_CP_FLAG_UPDATE *)osi_malloc(sizeof(tBTA_AVK_CP_FLAG_UPDATE));
+
+  p_msg->hdr.event = BTA_AVK_VSE_CP_FLAG_UPDATE_EVT;
+  STREAM_TO_UINT16(p_msg->hci_handle, p_data);
+  STREAM_TO_UINT8(p_msg->cp_flag, p_data);
+
+  bta_sys_sendmsg(p_msg);
+}
+
+/*******************************************************************************
  *
  * Function         bta_dm_rs_cback
  *
@@ -4334,8 +4361,11 @@ static uint8_t bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
 
     case BTM_LE_NC_REQ_EVT:
       sec_event.key_notif.bd_addr = bda;
-      strlcpy((char*)sec_event.key_notif.bd_name, bta_dm_get_remname(),
-              (BD_NAME_LEN + 1));
+      p_name = BTM_SecReadDevName(bda);
+      if (p_name != NULL)
+        strlcpy((char*)sec_event.ble_req.bd_name, p_name, BD_NAME_LEN + 1);
+      else
+        sec_event.ble_req.bd_name[0] = 0;
       sec_event.key_notif.passkey = p_data->key_notif;
       bta_dm_cb.p_sec_cback(BTA_DM_BLE_NC_REQ_EVT, &sec_event);
       break;

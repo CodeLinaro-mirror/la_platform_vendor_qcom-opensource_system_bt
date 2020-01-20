@@ -205,6 +205,10 @@ extern int btif_max_av_clients;
 static void bta_av_api_set_tws_earbud_role(tBTA_AV_DATA * p_data);
 static void bta_av_api_set_is_tws_device(tBTA_AV_DATA * p_data);
 #endif
+static void bta_av_api_update_SCMST_Cp(tBTA_AV_DATA * p_data);
+void bta_av_api_update_SCMST_Cp_callback(tBTM_VSC_CMPL * param);
+
+
 
 /* action functions */
 const tBTA_AV_NSM_ACT bta_av_nsm_act[] = {
@@ -230,6 +234,7 @@ const tBTA_AV_NSM_ACT bta_av_nsm_act[] = {
     bta_av_api_enable_multicast,    /* BTA_AV_ENABLE_MULTICAST_EVT */
     bta_av_rc_collission_detected, /* BTA_AV_RC_COLLISSION_DETECTED_EVT */
     bta_av_api_update_supp_codecs, /* BTA_AV_UPDATE_SUPP_CODECS */
+    bta_av_api_update_SCMST_Cp, /* BTA_AV_API_UPDATE_SCMST_CP_FLAG */
     bta_av_update_enc_mode, /* BTA_AV_UPDATE_ENCODER_MODE_EVT */
 #if (TWS_ENABLED == TRUE)
     bta_av_api_set_tws_earbud_role, /* BTA_AV_SET_EARBUD_ROLE_EVT */
@@ -1585,6 +1590,56 @@ void bta_av_sm_execute(tBTA_AV_CB* p_cb, uint16_t event, tBTA_AV_DATA* p_data) {
 
 /*******************************************************************************
  *
+ * Function         bta_av_api_update_SCMST_Cp
+ *
+ * Description      Send VSC command to update SCMST Cp flag
+ *
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+
+static void bta_av_api_update_SCMST_Cp(tBTA_AV_DATA * p_data) {
+
+  uint8_t param[2];
+  offload_start.cp_flag = p_data->scmst_cp_flag.cp_flag;
+  APPL_TRACE_ERROR("%s: SCMST Cp_flag : %x", __func__, offload_start.cp_flag)
+
+  param[0] = VS_QHCI_A2DP_WRITE_SCMS_T_CP;
+  param[1] = offload_start.cp_flag;
+  BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE,2,
+                            param, bta_av_api_update_SCMST_Cp_callback);
+  return;
+
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_av_api_update_SCMST_Cp_callback
+ *
+ * Description      This callback is called after sending VSC command for
+ *                  updating SCMST cp flag
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+
+void bta_av_api_update_SCMST_Cp_callback(tBTM_VSC_CMPL *param) {
+
+  unsigned char status;
+  status = param->p_param_buf[0];
+  if(!status) {
+    APPL_TRACE_DEBUG("%s: VSC set SCMST Cp_flag successful : %x", __func__,
+                  offload_start.cp_flag);
+  } else {
+    APPL_TRACE_DEBUG("%s: VSC VS_QHCI_A2DP_WRITE_SCMS_T_CP failed ", __func__);
+  }
+
+  return;
+}
+
+/*******************************************************************************
+ *
  * Function         bta_av_hdl_event
  *
  * Description      Advanced audio/video main event handling function.
@@ -1780,6 +1835,8 @@ const char* bta_av_evt_code(uint16_t evt_code) {
       return "UPDATE_SUPPORTED_CODECS";
     case BTA_AV_UPDATE_ENCODER_MODE_EVT:
       return "UPDATE_ENCODER_MODE";
+    case BTA_AV_API_UPDATE_SCMST_CP_FLAG:
+      return "BTA_AV_API_UPDATE_SCMST_CP_FLAG";
     default:
       return "unknown";
   }
