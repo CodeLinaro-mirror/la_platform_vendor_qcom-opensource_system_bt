@@ -4730,6 +4730,7 @@ void btm_sec_disconnected(uint16_t handle, uint8_t reason) {
     tBTA_DM_MSG p_data;
     p_data.remove_dev.bd_addr = p_dev_rec->bd_addr;
     bta_dm_remove_device(&p_data);
+    return;
   }
 
   BTM_TRACE_EVENT("%s after update sec_flags=0x%x", __func__,
