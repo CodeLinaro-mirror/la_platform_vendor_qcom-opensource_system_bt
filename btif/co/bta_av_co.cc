@@ -247,8 +247,7 @@ bool bta_av_co_cp_set_flag(uint8_t cp_flag) {
     return false;
   }
   //Check if cp_flag value changed
-  if (bta_av_co_cb.cp.flag != cp_flag &&
-      cp_flag < AVDT_CP_SCMS_COPY_MASK) {
+  if (bta_av_co_cb.cp.flag != cp_flag) {
     bta_av_co_cb.cp.flag = cp_flag;
     return true;
   }

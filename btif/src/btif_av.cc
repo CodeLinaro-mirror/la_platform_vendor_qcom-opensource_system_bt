@@ -94,6 +94,7 @@ static int reconfig_a2dp_param_val = 0;
 #include "a2dp_vendor_aptx_hd.h"
 #include "a2dp_vendor_aptx_adaptive.h"
 #include "a2dp_vendor_ldac.h"
+#include "avdt_api.h"
 
 /*****************************************************************************
  *  Constants & Macros
@@ -4455,16 +4456,7 @@ ssize_t send_encoded_data_vendor( bt_bdaddr_t *bd_addr, const void* buffer, size
     return length;
 }
 
-/*******************************************************************************
-**
-** Function        update_cp_vendor
-**
-** Description     Update SCMS-T Content protection flag
-**
-** Returns
-**
-*******************************************************************************/
-void update_cp_vendor(bt_bdaddr_t *bd_addr, uint8_t cp_flag) {
+void update_cp(bt_bdaddr_t *bd_addr, uint8_t cp_flag) {
     BTIF_TRACE_ERROR("%s : Cp_flag : %x", __func__, cp_flag);
     int index = 0;
     btif_sm_state_t state;
@@ -4483,9 +4475,45 @@ void update_cp_vendor(bt_bdaddr_t *bd_addr, uint8_t cp_flag) {
       update_cp_flag_req.cp_flag = cp_flag;
       btif_dispatch_sm_event(BTIF_AV_SCMST_CP_FLAG_UPDATE, &update_cp_flag_req,
                              sizeof(btif_av_cp_flag_update_req_t));
-      return;
     }
+}
 
+/*******************************************************************************
+**
+** Function        update_cp_vendor
+**
+** Description     Update SCMS-T Content protection flag
+**
+** Returns
+**
+*******************************************************************************/
+bt_status_t update_cp_vendor(bt_bdaddr_t *bd_addr, uint8_t cp_flag) {
+    BTIF_TRACE_ERROR("%s : Cp_flag : %x", __func__, cp_flag);
+    int index = 0;
+    btif_sm_state_t state;
+    btif_av_cp_flag_update_req_t update_cp_flag_req;
+    if((cp_flag != AVDT_CP_SCMS_COPY_NEVER) &&
+       (cp_flag != AVDT_CP_SCMS_COPY_ONCE) &&
+       (cp_flag != AVDT_CP_SCMS_COPY_FREE)) {
+      BTIF_TRACE_ERROR("%s, Invalid cp flag",__func__);
+      return BT_STATUS_FAIL;
+    }
+    memset(&update_cp_flag_req,0, sizeof(btif_av_cp_flag_update_req_t));
+    if(bd_addr == NULL) {
+      BTIF_TRACE_ERROR("bd_address cannot be NULL");
+      return BT_STATUS_FAIL;
+    }
+    index = btif_av_idx_by_bdaddr(bd_addr);
+    if (index >= 0 && index < btif_max_av_clients) {
+      BTIF_TRACE_DEBUG("AV %s BTIF_AV_SCMST_CP_FLAG_UPDATE index:%d",
+                       __func__, index);
+      update_cp_flag_req.index = index;
+      update_cp_flag_req.cp_flag = cp_flag;
+      btif_dispatch_sm_event(BTIF_AV_SCMST_CP_FLAG_UPDATE, &update_cp_flag_req,
+                             sizeof(btif_av_cp_flag_update_req_t));
+      return BT_STATUS_SUCCESS;
+    }
+    return BT_STATUS_FAIL;
 }
 
 
@@ -4515,6 +4543,7 @@ static const btav_vendor_interface_t bt_av_src_vendor_interface = {
     start_streaming_vendor,
     send_encoded_data_vendor,
     suspend_streaming_vendor,
+    update_cp,
     update_cp_vendor,
 };
 
