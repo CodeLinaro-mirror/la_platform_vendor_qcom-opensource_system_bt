@@ -55,7 +55,7 @@ class FakeBluetoothAvInterface : public BluetoothAvInterface {
                              btav_connection_state_t state);
   void NotifyAudioState(const RawAddress& bda, btav_audio_state_t state);
   void NotifyAudioConfig(const RawAddress& bda, uint32_t sample_rate,
-                         uint8_t channel_count);
+                         uint8_t channel_count, btav_a2dp_codec_index_t codec_index);
 
   // BluetoothAvInterface overrides:
   bool A2dpSourceEnable(
