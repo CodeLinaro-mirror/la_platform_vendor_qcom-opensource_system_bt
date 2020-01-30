@@ -5026,7 +5026,7 @@ static void btm_sec_pairing_timeout(UNUSED_ATTR void* data) {
   tBTM_AUTH_REQ auth_req = (btm_cb.devcb.loc_io_caps == BTM_IO_CAP_NONE)
                                ? BTM_AUTH_AP_NO
                                : BTM_AUTH_AP_YES;
-  uint8_t name[2];
+  BD_NAME name;
 
   p_dev_rec = btm_find_dev(p_cb->pairing_bda);
   tL2C_LCB *p_lcb = l2cu_find_lcb_by_bd_addr (p_cb->pairing_bda, BT_TRANSPORT_BR_EDR);
@@ -5460,7 +5460,7 @@ extern tBTM_STATUS btm_sec_execute_procedure(tBTM_SEC_DEV_REC* p_dev_rec) {
        !((p_dev_rec->dev_class[1] & BTM_COD_MAJOR_CLASS_MASK) ==
          BTM_COD_MAJOR_PERIPHERAL)) {
 
-     BTM_TRACE_DEBUG("%s: Pairing SDP in progress, __func__");
+     BTM_TRACE_DEBUG("%s: Pairing SDP in progress", __func__);
      if ((!p_dev_rec->is_originator &&
           (p_dev_rec->security_required & BTM_SEC_IN_ENCRYPT)) ||
          (!p_dev_rec->is_originator &&
