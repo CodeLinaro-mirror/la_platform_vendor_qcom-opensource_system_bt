@@ -1777,6 +1777,13 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     APPL_TRACE_ERROR("%s: Calling AVDT_AbortReq", __func__);
     AVDT_AbortReq(p_scb->avdt_handle);
   }
+
+  //To pass SNK AVDTP PTS, AVDTP/SNK/INT/SIG/SMG/BV-19-C
+  if ((osi_property_get("bluetooth.pts.force_a2dp_start", value, "false")) &&
+      (!strcmp(value, "true"))) {
+    APPL_TRACE_ERROR("%s: Calling AVDT_StartReq", __func__);
+    AVDT_StartReq(&p_scb->avdt_handle, 1);
+  }
 }
 
 /*******************************************************************************
@@ -3232,9 +3239,11 @@ void bta_av_suspend_cfm(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   }
 
   suspend_rsp.status = BTA_AV_SUCCESS;
-  if (err_code && (err_code != AVDT_ERR_BAD_STATE)) {
-    /* Disable suspend feature only with explicit rejection(not with timeout & connect error) */
-    if ((err_code != AVDT_ERR_TIMEOUT) && (err_code != AVDT_ERR_CONNECT)) {
+  if (err_code) {
+    /* Disable suspend feature only with explicit rejection
+     * (not with timeout, badstate & connect error) */
+    if ((err_code != AVDT_ERR_TIMEOUT) && (err_code != AVDT_ERR_CONNECT) &&
+        (err_code != AVDT_ERR_BAD_STATE)) {
       p_scb->suspend_sup = false;
     }
     suspend_rsp.status = BTA_AV_FAIL;
