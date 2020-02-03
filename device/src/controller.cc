@@ -43,7 +43,7 @@
 #define BTSNOOP_SOCLOG_PROPERTY "persist.vendor.service.bdroid.soclog"
 
 const bt_event_mask_t BLE_EVENT_MASK = {
-    {0x00, 0x00, 0x00, 0x02, 0xC3, 0x0B, 0xFE, 0x7f}};
+    {0x00, 0x00, 0x00, 0x02, 0xCF, 0x0B, 0xFE, 0x7f}};
 
 const bt_event_mask_t CLASSIC_EVENT_MASK = {HCI_DUMO_EVENT_MASK_EXT};
 
@@ -854,12 +854,18 @@ static bool supports_ble_periodic_advertising(void) {
   return HCI_LE_PERIODIC_ADVERTISING_SUPPORTED(features_ble.as_array);
 }
 
-
 static bool supports_ble_periodic_sync_transfer(void) {
   CHECK(readable);
   CHECK(ble_supported);
   return HCI_LE_PERIODIC_SYNC_TRANSFER_SEND_SUPPORTED(features_ble.as_array);
 }
+
+static bool supports_ble_iso_broadcaster(void) {
+  CHECK(readable);
+  CHECK(ble_supported);
+  return HCI_LE_ISO_BROADCASTER_SUPPORTED(features_ble.as_array);
+}
+
 static uint16_t get_acl_data_size_classic(void) {
   CHECK(readable);
   return acl_data_size_classic;
@@ -1102,6 +1108,7 @@ static const controller_t interface = {
     supports_ble_extended_advertising,
     supports_ble_periodic_advertising,
     supports_ble_periodic_sync_transfer,
+    supports_ble_iso_broadcaster,
 
     get_acl_data_size_classic,
     get_acl_data_size_ble,

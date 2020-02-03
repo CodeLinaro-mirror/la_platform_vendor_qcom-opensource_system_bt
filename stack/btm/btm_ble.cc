@@ -3347,7 +3347,8 @@ uint8_t BTM_BleRemoveCig(uint8_t cig_id, tBTM_BLE_REMOVE_CIG_CMPL_CB *p_cb) {
 uint8_t BTM_BleSetIsoDataPath(tBTM_BLE_SET_ISO_DATA_PATH_PARAM* p_data) {
   BTM_TRACE_API("%s", __func__);
 
-  if (!controller_get_interface()->is_host_iso_channel_supported()) {
+  if (!controller_get_interface()->is_cis_master_role_supported() &&
+      !controller_get_interface()->supports_ble_iso_broadcaster()) {
     BTM_TRACE_ERROR("%s: Unsupported feature. Return.", __func__);
     return HCI_ERR_UNSUPPORTED_VALUE;
   }
@@ -3368,7 +3369,8 @@ uint8_t BTM_BleRemoveIsoDataPath(uint16_t conn_handle, uint8_t direction,
                                  tBTM_BLE_REMOVE_ISO_DATA_PATH_CMPL_CB* p_cb) {
   BTM_TRACE_API("%s", __func__);
 
-  if (!controller_get_interface()->is_host_iso_channel_supported()) {
+  if (!controller_get_interface()->is_cis_master_role_supported() &&
+      !controller_get_interface()->supports_ble_iso_broadcaster()) {
     BTM_TRACE_ERROR("%s: Unsupported feature. Return.", __func__);
     return HCI_ERR_UNSUPPORTED_VALUE;
   }

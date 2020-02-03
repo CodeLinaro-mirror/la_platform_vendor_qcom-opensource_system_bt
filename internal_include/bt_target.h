@@ -1508,6 +1508,11 @@ incoming connection
 #define OFF_TARGET_TEST_ENABLED FALSE
 #endif
 
+/* BLE ISO IF support */
+#ifndef BLE_ISO_IF_SUPPORTED
+#define BLE_ISO_IF_SUPPORTED FALSE
+#endif
+
 /******************************************************************************
  *
  * EATT IF support

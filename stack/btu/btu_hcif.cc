@@ -417,6 +417,22 @@ void btu_hcif_process_event(UNUSED_ATTR uint8_t controller_id, BT_HDR* p_msg) {
         case HCI_LE_BIGINFO_ADVERTISING_REPORT_EVT:
           btm_ble_biginfo_adv_report_rcvd(p, hci_evt_len);
           break;
+
+        case HCI_LE_CREATE_BIG_COMPLETE_EVT:
+          if(!controller_get_interface()->supports_ble_iso_broadcaster()) {
+            LOG_ERROR(LOG_TAG, "%s request not supported.", __func__);
+            return;
+          }
+          btm_le_create_big_complete(p, hci_evt_len);
+          break;
+
+        case HCI_LE_TERMINATE_BIG_COMPLETE_EVT:
+          if(!controller_get_interface()->supports_ble_iso_broadcaster()) {
+            LOG_ERROR(LOG_TAG, "%s request not supported.", __func__);
+            return;
+          }
+          btm_le_terminate_big_complete(p, hci_evt_len);
+          break;
       }
       break;
     }

@@ -47,6 +47,15 @@ using RegisterCb =
     base::Callback<void(uint8_t /* inst_id */, uint8_t /* status */)>;
 using IdTxPowerStatusCb = base::Callback<void(
     uint8_t /* inst_id */, int8_t /* tx_power */, uint8_t /* status */)>;
+using CreateBIGCb = base::Callback<void(uint8_t /*adv_inst_id*/, uint8_t /*status*/,
+      uint8_t /*big_handle*/, uint32_t /*big_sync_delay*/,
+      uint32_t /*transport_latency_big*/, uint8_t /*phy*/, uint8_t /*nse*/,
+      uint8_t /*bn*/, uint8_t /*pto*/, uint8_t /*irc*/, uint16_t /*max_pdu*/,
+      uint16_t /*iso_int*/, uint8_t /*num_bis*/,
+      std::vector<uint16_t> /*conn_handle_list*/)>;
+using TerminateBIGCb =
+    base::Callback<void(uint8_t /* status */, uint8_t /* adv_inst_id */,
+                        uint8_t /* big_handle */, uint8_t /* status */)>;
 using SetEnableData = BleAdvertiserHciInterface::SetEnableData;
 extern void btm_gen_resolvable_private_addr(
     base::Callback<void(const RawAddress& rpa)> cb);
@@ -60,6 +69,27 @@ namespace {
 bool is_connectable(uint16_t advertising_event_properties) {
   return advertising_event_properties & 0x01;
 }
+
+struct IsoBIGInstance {
+  uint8_t big_handle;
+  bool in_use;
+  std::vector<uint16_t> bis_handles;
+  uint8_t adv_inst_id;
+  bool created_status;
+  CreateBIGCb create_big_cb;
+  TerminateBIGCb terminate_big_cb;
+
+  bool IsCreated() { return created_status; }
+
+  IsoBIGInstance(int big_handle)
+      : big_handle(big_handle),
+        in_use(false),
+        created_status(false) {
+  }
+
+  ~IsoBIGInstance() {
+  }
+};
 
 struct AdvertisingInstance {
   uint8_t inst_id;
@@ -89,6 +119,8 @@ struct AdvertisingInstance {
   bool enable_status;
   TimeTicks enable_time;
 
+  uint8_t big_handle;
+
   bool IsEnabled() { return enable_status; }
 
   bool IsConnectable() { return is_connectable(advertising_event_properties); }
@@ -104,7 +136,8 @@ struct AdvertisingInstance {
         own_address(RawAddress::kEmpty),
         address_update_required(false),
         periodic_enabled(false),
-        enable_status(false) {
+        enable_status(false),
+        big_handle(INVALID_BIG_HANDLE) {
     adv_raddr_timer = alarm_new_periodic("btm_ble.adv_raddr_timer");
   }
 
@@ -156,6 +189,7 @@ struct CreatorParams {
   std::vector<uint8_t> periodic_data;
   uint16_t duration;
   uint8_t maxExtAdvEvents;
+  tBLE_CREATE_BIG_PARAMS create_big_params;
   RegisterCb timeout_cb;
 };
 
@@ -187,6 +221,13 @@ class BleAdvertisingManagerImpl
     /* Initialize adv instance indices and IDs. */
     for (uint8_t i = 0; i < inst_count; i++) {
       adv_inst.emplace_back(i);
+    }
+
+    //ISO BIG
+    iso_big_inst.reserve(inst_count);
+    /* Initialize big instance indices and IDs. */
+    for (uint8_t i = 0; i < inst_count; i++) {
+      iso_big_inst.emplace_back(i);
     }
   }
 
@@ -898,6 +939,91 @@ class BleAdvertisingManagerImpl
                                                     std::move(enable_cb));
   }
 
+  void CreateBIG(uint8_t inst_id, tBLE_CREATE_BIG_PARAMS* params,
+                 CreateBIGCb cb) override {
+    VLOG(1) << __func__ << " inst_id: " << +inst_id;
+
+    if (!controller_get_interface()->supports_ble_iso_broadcaster()) {
+      VLOG(1) << __func__ << " Iso Broadcaster not supported in controller:";
+      if (cb) {
+        std::vector<uint16_t> conn_hdl_list;
+        cb.Run(inst_id, HCI_ERR_ILLEGAL_COMMAND, INVALID_BIG_HANDLE, 0,
+               0, 0, 0, 0, 0, 0, 0, 0, 0, conn_hdl_list);
+      }
+      return;
+    }
+
+    uint8_t i=0;
+    AdvertisingInstance* p_inst = &adv_inst[inst_id];
+    IsoBIGInstance* p_big_inst = &iso_big_inst[0];
+
+    for (i = 0; i < inst_count; i++, p_big_inst++) {
+      if (p_big_inst->in_use) continue;
+
+      p_big_inst->in_use = true;
+      p_big_inst->big_handle = i;
+      p_big_inst->adv_inst_id = inst_id;
+      p_big_inst->create_big_cb = cb;
+      VLOG(1) << __func__ << "BIG handle allocated:" << +i;
+      break;
+    }
+    if (i == inst_count) {
+      VLOG(1) << __func__ << "Cant Create BIG, Max BIG Handle limit reached:"
+              << +inst_count;
+      if (cb) {
+        std::vector<uint16_t> conn_hdl_list;
+        cb.Run(inst_id, HCI_ERR_ILLEGAL_COMMAND, INVALID_BIG_HANDLE, 0,
+               0, 0, 0, 0, 0, 0, 0, 0, 0, conn_hdl_list);
+      }
+      return;
+    }
+
+    p_inst->big_handle = p_big_inst->big_handle;
+
+    GetHciInterface()->CreateBIG(p_inst->big_handle,
+          inst_id, params->num_bis, params->sdu_int, params->max_sdu,
+          params->max_transport_latency, params->rtn, params->phy,
+          params->packing, params->framing, params->encryption,
+          params->broadcast_code);
+  }
+
+  void TerminateBIG(uint8_t inst_id, uint8_t big_handle,
+                    uint8_t reason, TerminateBIGCb cb) override {
+    VLOG(1) << __func__ << " big_handle: " << +big_handle;
+
+    if (!controller_get_interface()->supports_ble_iso_broadcaster()) {
+      VLOG(1) << __func__ << " Iso Broadcaster not supported in controller:";
+      if (cb) {
+        cb.Run(HCI_ERR_ILLEGAL_COMMAND, inst_id, big_handle, reason);
+      }
+      return;
+    }
+
+    IsoBIGInstance* p_big_inst = &iso_big_inst[big_handle];
+
+    std::lock_guard<std::mutex> lock(lock_);
+    if (!BleAdvertisingManager::IsInitialized()) {
+      LOG(ERROR) << "Stack already shutdown";
+      if (cb) {
+        cb.Run(HCI_ERR_ILLEGAL_COMMAND, inst_id, big_handle, reason);
+      }
+      return;
+    }
+
+    p_big_inst->terminate_big_cb = cb;
+    p_big_inst->adv_inst_id = inst_id;
+
+    if (p_big_inst->IsCreated()) {
+      GetHciInterface()->TerminateBIG(big_handle, reason);
+    }
+    else {
+      LOG(ERROR) << "Terminating BIG which is not created";
+      if (cb) {
+        cb.Run(HCI_ERR_ILLEGAL_COMMAND, inst_id, big_handle, reason);
+      }
+    }
+  }
+
   void Unregister(uint8_t inst_id) override {
     AdvertisingInstance* p_inst = &adv_inst[inst_id];
 
@@ -912,6 +1038,21 @@ class BleAdvertisingManagerImpl
     if (inst_id >= inst_count) {
       LOG(ERROR) << "bad instance id " << +inst_id;
       return;
+    }
+
+    if (controller_get_interface()->supports_ble_iso_broadcaster()) {
+      //Terminate BIG
+      if (p_inst->big_handle != INVALID_BIG_HANDLE) {
+        IsoBIGInstance* p_big_inst = &iso_big_inst[p_inst->big_handle];
+        GetHciInterface()->TerminateBIG(p_inst->big_handle,
+                                        HCI_ERR_CONN_CAUSE_LOCAL_HOST);
+
+        p_big_inst->in_use = false;
+        p_big_inst->bis_handles.clear();
+        p_big_inst->created_status = false;
+        p_big_inst->big_handle = INVALID_BIG_HANDLE;
+        p_inst->big_handle = INVALID_BIG_HANDLE;
+      }
     }
 
     if (adv_inst[inst_id].IsEnabled()) {
@@ -1038,6 +1179,57 @@ class BleAdvertisingManagerImpl
     }
   }
 
+  void CreateBIGComplete(
+      uint8_t status, uint8_t big_handle, uint32_t big_sync_delay,
+      uint32_t transport_latency_big, uint8_t phy, uint8_t nse,
+      uint8_t bn, uint8_t pto, uint8_t irc, uint16_t max_pdu,
+      uint16_t iso_int, uint8_t num_bis,
+      std::vector<uint16_t> conn_handle_list) override {
+    VLOG(1) << __func__ << " big_handle: " << +big_handle << "status:" << +status;
+
+    IsoBIGInstance* p_big_inst = &iso_big_inst[big_handle];
+
+    if (status == HCI_SUCCESS) {
+      p_big_inst->bis_handles = conn_handle_list;
+      p_big_inst->created_status = true;
+    }
+    else {
+      p_big_inst->in_use = false;
+      p_big_inst->big_handle = INVALID_BIG_HANDLE;
+
+      AdvertisingInstance* p_inst = &adv_inst[p_big_inst->adv_inst_id];
+      p_inst->big_handle = INVALID_BIG_HANDLE;
+    }
+
+    if (p_big_inst->create_big_cb) {
+      p_big_inst->create_big_cb.Run(p_big_inst->adv_inst_id, status, big_handle,
+                                    big_sync_delay, transport_latency_big, phy,
+                                    nse, bn, pto, irc, max_pdu, iso_int, num_bis,
+                                    conn_handle_list);
+    }
+  }
+
+  void TerminateBIGComplete(uint8_t status, uint8_t big_handle,
+                            bool cmd_status, uint8_t reason) override {
+    IsoBIGInstance* p_big_inst = &iso_big_inst[big_handle];
+
+    VLOG(1) << __func__ << " big_handle: " << +big_handle;
+
+    if (!cmd_status) {
+      p_big_inst->in_use = false;
+      p_big_inst->bis_handles.clear();
+      p_big_inst->created_status = false;
+      p_big_inst->big_handle = INVALID_BIG_HANDLE;
+
+      AdvertisingInstance* p_inst = &adv_inst[p_big_inst->adv_inst_id];
+      p_inst->big_handle = INVALID_BIG_HANDLE;
+    }
+
+    if (p_big_inst->terminate_big_cb) {
+      p_big_inst->terminate_big_cb.Run(status, p_big_inst->adv_inst_id, big_handle, reason);
+    }
+  }
+
   base::WeakPtr<BleAdvertisingManagerImpl> GetWeakPtr() {
     return weak_factory_.GetWeakPtr();
   }
@@ -1061,6 +1253,7 @@ class BleAdvertisingManagerImpl
   std::vector<AdvertisingInstance> adv_inst;
   uint8_t inst_count;
   bool rpa_gen_offload_enabled;
+  std::vector<IsoBIGInstance> iso_big_inst;
 
   // Member variables should appear before the WeakPtrFactory, to ensure
   // that any WeakPtrs are invalidated before its members
