@@ -201,6 +201,7 @@ void alarm_free(alarm_t* alarm) {
 
   alarm_cancel(alarm);
   osi_free((void*)alarm->stats.name);
+  alarm->closure.i.Cancel();
   alarm->closure.~CancelableClosureInStruct();
   osi_free(alarm);
 }
