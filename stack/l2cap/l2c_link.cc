@@ -42,6 +42,7 @@
 #include "l2c_int.h"
 #include "l2cdefs.h"
 #include "osi/include/osi.h"
+#include "osi/include/properties.h"
 #include "device/include/device_iot_config.h"
 
 static bool l2c_link_send_to_lower(tL2C_LCB* p_lcb, BT_HDR* p_buf,
@@ -63,6 +64,8 @@ bool l2c_link_hci_conn_req(const RawAddress& bd_addr) {
   tL2C_LCB* p_lcb_cur;
   int xx;
   bool no_links;
+  char value[PROPERTY_VALUE_MAX] = {'\0'};
+  bool isA2dpConcurrency = false;
 
   /* See if we have a link control block for the remote device */
   p_lcb = l2cu_find_lcb_by_bd_addr(bd_addr, BT_TRANSPORT_BR_EDR);
@@ -94,6 +97,12 @@ bool l2c_link_hci_conn_req(const RawAddress& bd_addr) {
 
     if (no_links)
       p_lcb->link_role = L2CAP_DESIRED_LINK_ROLE;
+
+    osi_property_get("persist.vendor.service.bt.a2dp_concurrency", value, "false");
+    isA2dpConcurrency = (strcmp(value, "true") == 0);
+    if(isA2dpConcurrency) {
+      p_lcb->link_role = BTM_ROLE_MASTER;
+    }
 
     if ((p_lcb->link_role == BTM_ROLE_MASTER)&&(interop_match_addr_or_name(INTEROP_DISABLE_ROLE_SWITCH, &bd_addr))) {
       p_lcb->link_role = BTM_ROLE_SLAVE;

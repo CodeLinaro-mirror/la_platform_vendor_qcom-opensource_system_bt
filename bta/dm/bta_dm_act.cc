@@ -46,6 +46,7 @@
 #include "l2c_api.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+#include "osi/include/properties.h"
 #include "sdp_api.h"
 #include "bta_sdp_api.h"
 #include "stack/gatt/connection_manager.h"
@@ -390,6 +391,8 @@ static void bta_dm_sys_hw_cback(tBTA_SYS_HW_EVT status) {
   uint8_t key_mask = 0;
   tBTA_BLE_LOCAL_ID_KEYS id_key;
   tBTA_DM_MSG* p_data;
+  char value[PROPERTY_VALUE_MAX] = {'\0'};
+  bool isA2dpConcurrency = false;
 
   APPL_TRACE_DEBUG("%s with event: %i", __func__, status);
 
@@ -494,7 +497,16 @@ static void bta_dm_sys_hw_cback(tBTA_SYS_HW_EVT status) {
     BTM_SecRegister((tBTM_APPL_INFO*)&bta_security);
     BTM_SetDefaultLinkSuperTout(p_bta_dm_cfg->link_timeout);
     BTM_WritePageTimeout(p_bta_dm_cfg->page_timeout);
+    osi_property_get("persist.vendor.service.bt.a2dp_concurrency", value, "false");
+    isA2dpConcurrency = (strcmp(value, "true") == 0);
     bta_dm_cb.cur_policy = p_bta_dm_cfg->policy_settings;
+    if(isA2dpConcurrency)
+    {
+      APPL_TRACE_DEBUG("%s A2dp Concurrency, not allowed role switch",__func__);
+      bta_dm_cb.cur_policy &= (~HCI_ENABLE_MASTER_SLAVE_SWITCH);
+    } else {
+      APPL_TRACE_DEBUG("%s not A2dp Concurrency, allowed role switch",__func__);
+    }
     BTM_SetDefaultLinkPolicy(bta_dm_cb.cur_policy);
     BTM_RegBusyLevelNotif(bta_dm_bl_change_cback, NULL,
                           BTM_BL_UPDATE_MASK | BTM_BL_ROLE_CHG_MASK);
