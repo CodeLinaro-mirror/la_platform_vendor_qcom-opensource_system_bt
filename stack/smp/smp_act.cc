@@ -1398,20 +1398,6 @@ void smp_idle_terminate(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
 }
 
 /*******************************************************************************
- * Function     smp_fast_conn_param
- * Description  apply default connection parameter for pairing process
- ******************************************************************************/
-void smp_fast_conn_param(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
-  if (!interop_match_addr_or_name(INTEROP_DISABLE_LE_CONN_UPDATES, &p_cb->pairing_bda)) {
-    /* Disable L2CAP connection parameter updates while bonding since
-    some peripherals are not able to revert to fast connection parameters
-    during the start of service discovery. Connection paramter updates
-    get enabled again once service discovery completes. */
-    L2CA_EnableUpdateBleConnParams(p_cb->pairing_bda, false);
-  }
-}
-
-/*******************************************************************************
  * Function     smp_both_have_public_keys
  * Description  The function is called when both local and peer public keys are
  *              saved.
