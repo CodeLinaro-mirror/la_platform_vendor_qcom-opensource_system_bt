@@ -1003,6 +1003,11 @@ btav_a2dp_codec_index_t A2DP_SourceCodecIndexSbc(
   return BTAV_A2DP_CODEC_INDEX_SOURCE_SBC;
 }
 
+btav_a2dp_codec_index_t A2DP_SinkCodecIndexSbc(
+    UNUSED_ATTR const uint8_t* p_codec_info) {
+  return BTAV_A2DP_CODEC_INDEX_SINK_SBC;
+}
+
 const char* A2DP_CodecIndexStrSbc(void) { return "SBC"; }
 
 const char* A2DP_CodecIndexStrSbcSink(void) { return "SBC SINK"; }
@@ -1674,7 +1679,13 @@ A2dpCodecConfigSbcSink::~A2dpCodecConfigSbcSink() {}
 bool A2dpCodecConfigSbcSink::init() {
   if (!isValid()) return false;
 
-  return true;
+  if (A2DP_IsCodecEnabledInSink(BTAV_A2DP_CODEC_INDEX_SINK_SBC)){
+    LOG_DEBUG(LOG_TAG, "%s: SBC is enabled in Sink", __func__);
+    return true;
+  } else {
+    LOG_DEBUG(LOG_TAG, "%s: SBC is disabled in Sink", __func__);
+    return false;
+  }
 }
 
 bool A2dpCodecConfigSbcSink::useRtpHeaderMarkerBit() const {

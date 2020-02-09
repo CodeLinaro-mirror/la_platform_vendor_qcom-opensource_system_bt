@@ -73,6 +73,7 @@
 #include "btif_av_co.h"
 #include "device/include/device_iot_config.h"
 #include "bta/av/bta_av_int.h"
+#include <hardware/bt_av.h>
 
 /* The Media Type offset within the codec info byte array */
 #define A2DP_MEDIA_TYPE_OFFSET 1
@@ -100,6 +101,10 @@ bool aptx_adaptive_sw = false;
 bool ldac_sw = false;
 bool aptxtws_sw = false;
 std::string offload_caps = "";
+bool sbc_sw_sink = false;
+bool aac_sw_sink = false;
+bool aptx_sw_sink = false;
+
 static void init_btav_a2dp_codec_config(
     btav_a2dp_codec_config_t* codec_config, btav_a2dp_codec_index_t codec_index,
     btav_a2dp_codec_priority_t codec_priority) {
@@ -161,7 +166,7 @@ A2dpCodecConfig* A2dpCodecConfig::createCodec(
   LOG_DEBUG(LOG_TAG, "%s: codec %s", __func__, A2DP_CodecIndexStr(codec_index));
 
   A2dpCodecConfig* codec_config = nullptr;
-  switch (codec_index) {
+  switch ((int)codec_index) {
     case BTAV_A2DP_CODEC_INDEX_SOURCE_SBC:
       codec_config = new A2dpCodecConfigSbc(codec_priority);
       break;
@@ -186,6 +191,13 @@ A2dpCodecConfig* A2dpCodecConfig::createCodec(
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_TWS:
       codec_config = new A2dpCodecConfigAptxTWS(codec_priority);
       break;
+    case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
+      codec_config = new A2dpCodecConfigAacSink(codec_priority);
+      break;
+    case BTAV_A2DP_CODEC_INDEX_SINK_APTX:
+      codec_config = new A2dpCodecConfigAptxSink(codec_priority);
+      break;
+
     // Add a switch statement for each vendor-specific codec
     case BTAV_A2DP_CODEC_INDEX_MAX:
       break;
@@ -1504,10 +1516,31 @@ btav_a2dp_codec_index_t A2DP_SourceCodecIndex(const uint8_t* p_codec_info) {
   return BTAV_A2DP_CODEC_INDEX_MAX;
 }
 
+btav_a2dp_codec_index_t A2DP_SinkCodecIndex(const uint8_t* p_codec_info) {
+  tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
+
+  LOG_VERBOSE(LOG_TAG, "%s: codec_type = 0x%x", __func__, codec_type);
+
+  switch (codec_type) {
+    case A2DP_MEDIA_CT_SBC:
+      return A2DP_SinkCodecIndexSbc(p_codec_info);
+    case A2DP_MEDIA_CT_AAC:
+      return A2DP_SinkCodecIndexAac(p_codec_info);
+    case A2DP_MEDIA_CT_NON_A2DP:
+      return A2DP_VendorSinkCodecIndexAptx(p_codec_info);
+    default:
+      break;
+  }
+   LOG_ERROR(LOG_TAG, "%s: unsupported codec type 0x%x", __func__, codec_type);
+  return BTAV_A2DP_CODEC_INDEX_MAX;
+}
+
 const char* A2DP_CodecIndexStr(btav_a2dp_codec_index_t codec_index) {
-  switch (codec_index) {
+  switch ((int)codec_index) {
     case BTAV_A2DP_CODEC_INDEX_SOURCE_SBC:
       return A2DP_CodecIndexStrSbc();
+    case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
+      return A2DP_CodecIndexStrAacSink();
     case BTAV_A2DP_CODEC_INDEX_SINK_SBC:
       return A2DP_CodecIndexStrSbcSink();
     case BTAV_A2DP_CODEC_INDEX_SOURCE_AAC:
@@ -1531,9 +1564,11 @@ bool A2DP_InitCodecConfig(btav_a2dp_codec_index_t codec_index,
   p_cfg->num_protect = 0;
   p_cfg->protect_info[0] = 0;
 
-  switch (codec_index) {
+  switch ((int)codec_index) {
     case BTAV_A2DP_CODEC_INDEX_SOURCE_SBC:
       return A2DP_InitCodecConfigSbc(p_cfg);
+    case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
+      return A2DP_InitCodecConfigAacSink(p_cfg);
     case BTAV_A2DP_CODEC_INDEX_SINK_SBC:
       return A2DP_InitCodecConfigSbcSink(p_cfg);
     case BTAV_A2DP_CODEC_INDEX_SOURCE_AAC:
@@ -1738,6 +1773,47 @@ void A2DP_SetOffloadStatus(bool offload_status, const char *offload_cap,
   offload_caps = controller_get_interface()->get_a2dp_offload_cap();
 }
 
+void A2DP_SetSinkCodec(const char *sink_cap){
+  char *tok = NULL;
+  char *tmp_token = NULL;
+
+  tok = strtok_r((char*)sink_cap, "-", &tmp_token);
+  while (tok != NULL)
+  {
+    if (strcmp(tok,"sbc") == 0){
+      LOG_INFO(LOG_TAG,"%s: SBC for Sink is supported",__func__);
+      sbc_sw_sink = true;
+    }else if (strcmp(tok,"aptx") == 0) {
+      LOG_INFO(LOG_TAG,"%s: APTX for Sink is supported",__func__);
+      aptx_sw_sink = true;
+    } else if (strcmp(tok,"aac") == 0) {
+      LOG_INFO(LOG_TAG,"%s: AAC for Sink is supported",__func__);
+      aac_sw_sink = true;
+    }
+    tok = strtok_r(NULL, "-", &tmp_token);
+  }
+
+}
+
+bool A2DP_IsCodecEnabledInSink(btav_a2dp_codec_index_t codec_index) {
+  bool codec_status = false;
+  switch ((int)codec_index) {
+  case BTAV_A2DP_CODEC_INDEX_SINK_SBC:
+    codec_status = sbc_sw_sink;
+    break;
+  case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
+    codec_status = aac_sw_sink;
+    break;
+  case BTAV_A2DP_CODEC_INDEX_SINK_APTX:
+    codec_status = aptx_sw_sink;
+    break;
+  case BTAV_A2DP_CODEC_INDEX_SINK_MAX:
+  default:
+    break;
+  }
+  return codec_status;
+}
+
 bool A2DP_GetOffloadStatus() {
   return mA2dp_offload_status;
 }
@@ -1790,7 +1866,7 @@ bool A2DP_IsCodecEnabledInSoftware(btav_a2dp_codec_index_t codec_index) {
 bool A2DP_IsCodecEnabledInOffload(btav_a2dp_codec_index_t codec_index) {
   bool codec_status = false;
   if (offload_capability) {
-    switch (codec_index) {
+    switch ((int)codec_index) {
     case BTAV_A2DP_CODEC_INDEX_SOURCE_SBC:
       codec_status = sbc_offload;
       break;
@@ -1814,6 +1890,8 @@ bool A2DP_IsCodecEnabledInOffload(btav_a2dp_codec_index_t codec_index) {
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_TWS:
       codec_status = aptxtws_offload;
       break;
+    case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
+    case BTAV_A2DP_CODEC_INDEX_SINK_APTX:
     case BTAV_A2DP_CODEC_INDEX_SOURCE_MAX:
     case BTAV_A2DP_CODEC_INDEX_SINK_MAX:
     default:
