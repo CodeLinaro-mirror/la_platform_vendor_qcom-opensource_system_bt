@@ -155,7 +155,7 @@ Uuid Uuid::GetRandom() {
 bool Uuid::IsEmpty() const { return *this == kEmpty; }
 
 void Uuid::UpdateUuid(const Uuid& uuid) {
-  memcpy(uu.data(), uuid.uu.data(), kNumBytes128);
+  uu = uuid.uu;
 }
 
 bool Uuid::operator<(const Uuid& rhs) const {

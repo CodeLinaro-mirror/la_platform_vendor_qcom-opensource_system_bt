@@ -130,11 +130,12 @@ void A2dpSink::AudioStateCallback(BluetoothAvInterface* iface,
 void A2dpSink::AudioConfigCallback(BluetoothAvInterface* iface,
                                    const RawAddress& bd_addr,
                                    uint32_t sample_rate,
-                                   uint8_t channel_count) {
+                                   uint8_t channel_count,
+                                   btav_a2dp_codec_index_t codec_index) {
   std::string device_address = BtAddrString(&bd_addr);
   std::lock_guard<std::mutex> lock(delegate_mutex_);
   if (delegate_)
-    delegate_->OnAudioConfig(device_address, sample_rate, channel_count);
+    delegate_->OnAudioConfig(device_address, sample_rate, channel_count, codec_index);
 }
 
 // A2dpSinkFactory implementation

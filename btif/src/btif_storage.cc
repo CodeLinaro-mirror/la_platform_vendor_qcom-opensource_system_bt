@@ -158,10 +158,9 @@ using bluetooth::Uuid;
 /*******************************************************************************
  *  Local type definitions
  ******************************************************************************/
-typedef struct {
-  uint32_t num_devices;
-  RawAddress devices[BTM_SEC_MAX_DEVICE_RECORDS];
-} btif_bonded_devices_t;
+#if (LPM_SLEEP_WAKEUP == TRUE)
+static btif_bonded_devices_t btif_bonded_devices;
+#endif
 
 /*******************************************************************************
  *  External functions
@@ -494,6 +493,12 @@ static bt_status_t btif_in_fetch_bonded_devices(
   }
   return BT_STATUS_SUCCESS;
 }
+
+#if (LPM_SLEEP_WAKEUP == TRUE)
+btif_bonded_devices_t* btif_storage_fetch_bonded_devices(void) {
+  return &btif_bonded_devices;
+}
+#endif
 
 static void btif_read_le_key(const uint8_t key_type, const size_t key_len,
                              RawAddress bd_addr, const uint8_t addr_type,
@@ -906,7 +911,6 @@ static void remove_devices_with_sample_ltk() {
 }
 
 /*******************************************************************************
- *
  * Function         btif_storage_load_bonded_devices
  *
  * Description      BTIF storage API - Loads all the bonded devices from NVRAM
@@ -935,6 +939,10 @@ bt_status_t btif_storage_load_bonded_devices(void) {
   remove_devices_with_sample_ltk();
 
   btif_in_fetch_bonded_devices(&bonded_devices, 1);
+
+#if (LPM_SLEEP_WAKEUP == TRUE)
+   memcpy(&btif_bonded_devices, &bonded_devices, sizeof(btif_bonded_devices));
+#endif
 
   /* Now send the adapter_properties_cb with all adapter_properties */
   {

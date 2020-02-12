@@ -198,6 +198,46 @@ typedef struct {
 
 static skip_sdp_entry_t sdp_blacklist[] = {{76}};  // Apple Mouse and Keyboard
 
+#if (LPM_SLEEP_WAKEUP == TRUE)
+#define LPM_ENABLE_OPCODE               0x01
+#define LPM_SET_LOCAL_CONFIG_OPCODE     0x02
+#define LPM_HOST_STATE_IND_OPCODE       0x03
+#define LPM_ADD_DEV_INFO_OPCODE         0x04
+#define LPM_DEL_DEV_INFO_OPCODE         0x05
+#define LPM_PAGE_SCAN_PARAMS_OPCODE     0x06
+#define LPM_ENABLE_MULTI_ADV_OPCODE     0x07
+#define LPM_SET_ADV_PARAMS_OPCODE       0x08
+#define LPM_SET_SCAN_PARAMS_OPCODE      0x09
+#define LPM_SET_CONN_PARAMS_OPCODE      0x0A
+#define LPM_SET_MULTI_ADV_PARAMS_OPCODE 0x0B
+#define LPM_GET_CONN_INFO_OPCODE        0x0C
+
+#define LPM_ENABLE_LENGTH               0x02
+#define LPM_SET_LOCAL_CONFIG_LENGTH     0x10
+#define LPM_HOST_STATE_IND_LENGTH       0x02
+#define LPM_ADD_DEV_INFO_LENGTH         0x53
+#define LPM_DEL_DEV_INFO_LENGTH         0x08
+#define LPM_PAGE_SCAN_PARAMS_LENGTH     0x05
+#define LPM_ENABLE_MULTI_ADV_LENGTH     0x02
+#define LPM_SET_ADV_PARAMS_LENGTH       0x11
+#define LPM_SET_SCAN_PARAMS_LENGTH      0x08
+#define LPM_SET_CONN_PARAMS_LENGTH      0x0B
+#define LPM_SET_MULTI_ADV_PARAMS_LENGTH 0x12
+#define LPM_GET_CONN_INFO_LENGTH        0x02
+
+#define LPM_CONFIG_LENGHT               0x40
+
+#define LPM_CONFIG_WAKE_SOURCE_BLE_SCAN       0x01
+#define LPM_CONFIG_WAKE_SOURCE_BLE_ADVERT     0x02
+#define LPM_CONFIG_WAKE_SOURCE_PAGE_SCAN      0x04
+#define LPM_CONFIG_WAKE_SOURCE_HID_HOST       0x08
+#define LPM_CONFIG_WAKE_SOURCE_HOGP_HOST      0x10
+#define LPM_CONFIG_WAKE_SOURCE_FMP_TARGET     0x20
+#define LPM_CONFIG_WAKE_SOURCE_PXP_REPORTER   0x40
+
+btif_bonded_devices_t* lpm_bonded_devices;
+uint32_t lpm_add_index = 0;
+#endif
 /* This flag will be true if HCI_Inquiry is in progress */
 static bool btif_dm_inquiry_in_progress = false;
 
@@ -246,6 +286,21 @@ static char* btif_get_default_local_name();
 static void btif_stats_add_bond_event(const RawAddress& bd_addr,
                                       bt_bond_function_t function,
                                       bt_bond_state_t state);
+
+#if (LPM_SLEEP_WAKEUP == TRUE)
+static void btif_enable_lpm_wakeup(bool enable);
+static void btif_config_lpm(void);
+static void btif_dm_lpm_set_page_scan_params(void);
+static void btif_dm_remove_device_whitelist(const RawAddress& bdaddr);
+static void btif_dm_lpm_set_ble_scan_params(void);
+static void btif_dm_lpm_set_ble_conn_params(void);
+static void btif_dm_lpm_le_adv_params(const RawAddress& bdaddr);
+static void btif_lpm_config_params(uint8_t* wake_mode, uint8_t* wakeupFilteringFlags, uint8_t* wakeSources, uint16_t* delay_to_sleep,
+                                  RawAddress& random_address, uint16_t* RPATime_out, uint8_t* GapCharactersticCAR, uint8_t*RPAOnly);
+bool is_ble_offload_enabled();
+void btif_dm_add_device_whitelist(const RawAddress& bdaddr);
+static void btif_dm_lpm_add_paired_devices_to_whitelist(void);
+#endif
 
 /******************************************************************************
  *  Externs
@@ -894,7 +949,7 @@ static void btif_dm_pin_req_evt(tBTA_DM_PIN_REQ* p_pin_req) {
   if (pairing_cb.state == BT_BOND_STATE_BONDING &&
       bd_addr != pairing_cb.bd_addr) {
     BTIF_TRACE_WARNING("%s(): already in bonding state, reject request",
-                       __FUNCTION__);
+                       __func__);
     btif_dm_pin_reply(&bd_addr, 0, 0, NULL);
     return;
   }
@@ -985,7 +1040,7 @@ static void btif_dm_ssp_cfm_req_evt(tBTA_DM_SP_CFM_REQ* p_ssp_cfm_req) {
   if (pairing_cb.state == BT_BOND_STATE_BONDING &&
       bd_addr != pairing_cb.bd_addr) {
     BTIF_TRACE_WARNING("%s(): already in bonding state, reject request",
-                       __FUNCTION__);
+                       __func__);
     btif_dm_ssp_reply(&bd_addr, BT_SSP_VARIANT_PASSKEY_CONFIRMATION, 0, 0);
     return;
   }
@@ -1013,21 +1068,12 @@ static void btif_dm_ssp_cfm_req_evt(tBTA_DM_SP_CFM_REQ* p_ssp_cfm_req) {
 
   /* If JustWorks auto-accept */
   if (p_ssp_cfm_req->just_works) {
-    /* Pairing consent for JustWorks needed if:
-     * 1. Incoming (non-temporary) pairing is detected AND
-     * 2. local IO capabilities are DisplayYesNo AND
-     * 3. remote IO capabiltiies are DisplayOnly or NoInputNoOutput;
+    /* Pairing consent for JustWorks NOT needed if:
+     * 1. Incoming temporary pairing is detected
      */
-    if (is_incoming && pairing_cb.bond_type != BOND_TYPE_TEMPORARY &&
-        ((p_ssp_cfm_req->loc_io_caps == HCI_IO_CAP_DISPLAY_YESNO) &&
-         (p_ssp_cfm_req->rmt_io_caps == HCI_IO_CAP_DISPLAY_ONLY ||
-          p_ssp_cfm_req->rmt_io_caps == HCI_IO_CAP_NO_IO))) {
+    if (is_incoming && pairing_cb.bond_type == BOND_TYPE_TEMPORARY) {
       BTIF_TRACE_EVENT(
-          "%s: User consent needed for incoming pairing request. loc_io_caps: "
-          "%d, rmt_io_caps: %d",
-          __func__, p_ssp_cfm_req->loc_io_caps, p_ssp_cfm_req->rmt_io_caps);
-    } else {
-      BTIF_TRACE_EVENT("%s: Auto-accept JustWorks pairing", __func__);
+          "%s: Auto-accept JustWorks pairing for temporary incoming", __func__);
       btif_dm_ssp_reply(&bd_addr, BT_SSP_VARIANT_CONSENT, true, 0);
       return;
     }
@@ -1649,6 +1695,16 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       prop.len = BD_NAME_LEN;
       prop.val = (void*)bdname;
 
+#if (LPM_SLEEP_WAKEUP == TRUE)
+      if(p_data->enable.status == BT_STATUS_SUCCESS){
+        BTIF_TRACE_EVENT("Bluetooth Enable Success!!");
+        if (is_ble_offload_enabled())
+          btif_enable_lpm_wakeup(TRUE);
+      } else {
+        BTIF_TRACE_ERROR("Bluetooth Enable Failed!!");
+      }
+#endif
+
       status = btif_storage_get_adapter_property(&prop);
       if (status == BT_STATUS_SUCCESS) {
         /* A name exists in the storage. Make this the device name */
@@ -1733,6 +1789,9 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
 #if (defined(BTA_HD_INCLUDED) && (BTA_HD_INCLUDED == TRUE))
       btif_hd_remove_device(bd_addr);
 #endif
+#if (LPM_SLEEP_WAKEUP == TRUE)
+      btif_dm_remove_device_whitelist(bd_addr);
+#endif
       btif_hearing_aid_get_interface()->RemoveDevice(bd_addr);
       btif_storage_remove_bonded_device(&bd_addr);
       bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_NONE);
@@ -1784,7 +1843,7 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       break;
 
     case BTA_DM_BLE_KEY_EVT:
-      BTIF_TRACE_DEBUG("BTA_DM_BLE_KEY_EVT key_type=0x%02x ",
+      BTIF_TRACE_DEBUG("BTA_DM_BLE_KEY_EVT key_type=0x%02x",
                        p_data->ble_key.key_type);
 
       /* If this pairing is by-product of local initiated GATT client Read or
@@ -2198,7 +2257,912 @@ static void bte_scan_filt_param_cfg_evt(uint8_t ref_value, uint8_t avbl_space,
     BTIF_TRACE_DEBUG("%s", __func__);
   }
 }
+#if (LPM_SLEEP_WAKEUP == TRUE)
+/*******************************************************************************
+**
+** Function         is_ble_offload_enabled
+**
+** Description      Check ble_offload is enabled or not
+**
+** Parameters:      void
+**
+** Returns          bool
+**
+*******************************************************************************/
+bool is_ble_offload_enabled() {
+  int ret = 0;
+  char value[PROPERTY_VALUE_MAX] = { '\0' };
 
+  ret = osi_property_get("persist.vendor.bluetooth.ble_offload", value, "false");
+
+  if (!strcmp(value, "true")) {
+    BTIF_TRACE_DEBUG("%s: ble_offload is enabled", __func__);
+    return true;
+  }
+  return false;
+}
+
+/*******************************************************************************
+**
+** Function         btif_enable_lpm_vsc_cback
+**
+** Description     Enable LPM Wake up feature VSC Cback
+**
+** Returns          void
+**
+*******************************************************************************/
+void btif_enable_lpm_vsc_cback(tBTM_VSC_CMPL* p_params) {
+  uint8_t status = 0xFF;
+  uint8_t* p;
+
+  BTIF_TRACE_DEBUG("%s", __func__);
+
+  /* Check status of command complete event */
+  if ((p_params->opcode == HCI_VS_LPM_OPCODE) &&
+      (p_params->param_len > 0)) {
+    p = p_params->p_param_buf;
+    STREAM_TO_UINT8(status, p);
+  }
+
+  if (status == HCI_SUCCESS) {
+    BTIF_TRACE_DEBUG("LPM Enable Success");
+    btif_config_lpm();
+  } else {
+    BTIF_TRACE_ERROR("LPM Enable Failed");
+  }
+}
+
+/*******************************************************************************
+**
+** Function         btif_enable_lpm_wakeup
+**
+** Description      Enable/Disable LPM feature on the host and controller
+**
+** Parameters:      Boolean value.
+**
+** Returns          void
+**
+*******************************************************************************/
+static void btif_enable_lpm_wakeup(bool enable) {
+  uint8_t           param[LPM_ENABLE_LENGTH], *pp;
+  uint8_t           sub_op_code = LPM_ENABLE_OPCODE;
+  uint8_t           isLPMEnabled = enable ? 1 : 0;
+
+  pp = param;
+  memset(param, 0, sizeof(param));
+
+  UINT8_TO_STREAM (pp, sub_op_code);
+  UINT8_TO_STREAM (pp, isLPMEnabled);
+
+  BTIF_TRACE_EVENT (" %s: sub_code %d, enb %d", __func__, sub_op_code, isLPMEnabled);
+
+  BTM_VendorSpecificCommand(HCI_VS_LPM_OPCODE,
+                            LPM_ENABLE_LENGTH, param, btif_enable_lpm_vsc_cback);
+}
+
+/*******************************************************************************
+**
+** Function         btif_config_lpm_vsc_cback
+**
+** Description     Configure LPM feature VSC Cback
+**
+** Returns          void
+**
+*******************************************************************************/
+void btif_config_lpm_vsc_cback(tBTM_VSC_CMPL* p_params) {
+  uint8_t status = 0xFF;
+  uint8_t* p;
+
+  BTIF_TRACE_DEBUG("%s", __func__);
+
+  /* Check status of command complete event */
+  if ((p_params->opcode == HCI_VS_LPM_OPCODE) &&
+      (p_params->param_len > 0)) {
+    p = p_params->p_param_buf;
+    STREAM_TO_UINT8(status, p);
+  }
+
+  if (status == HCI_SUCCESS) {
+    BTIF_TRACE_DEBUG("LPM Configuration Success");
+    btif_dm_lpm_set_page_scan_params();
+  } else {
+    BTIF_TRACE_ERROR("LPM Configuration Failed");
+  }
+}
+
+/*******************************************************************************
+**
+** Function         btif_lpm_config_params
+**
+** Description      Get lpm configure from bt_stack.conf
+**
+** Returns          void
+**
+*******************************************************************************/
+static void btif_lpm_config_params(uint8_t* wake_mode, uint8_t* wakeupFilteringFlags, uint8_t* wakeSources, uint16_t* delay_to_sleep,
+                                   RawAddress& random_address, uint16_t* RPATime_out, uint8_t* GapCharactersticCAR, uint8_t* RPAOnly) {
+  const std::string* recv = stack_config_get_interface()->get_lpm_sleep_wake_configuration();
+  if (!recv) {
+    BTIF_TRACE_ERROR("%s: LPM options not found in configuration", __func__);
+    return;
+  }
+  char conf[LPM_CONFIG_LENGHT];
+  char* pch;
+  char* ptr;
+  char* endptr;
+
+  *wake_mode = 0xff;
+  *wakeupFilteringFlags = 0x00;
+  *wakeSources = 0x00;
+  *delay_to_sleep = 0xffff;
+  random_address = RawAddress::kEmpty;
+
+  strlcpy(conf, recv->c_str(), LPM_CONFIG_LENGHT);
+
+  if ((pch = strtok_r(conf, ",", &ptr)) != NULL)
+    * wake_mode = (uint8_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s wake_mode:0x%02x", __func__, *wake_mode);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    * wakeupFilteringFlags =  (uint8_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s wakeupFilteringFlags:0x%02x", __func__, *wakeupFilteringFlags);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    * wakeSources =  (uint8_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s wakeSources:0x%02x", __func__, *wakeSources);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    * delay_to_sleep =  (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    RawAddress::FromString(pch, random_address);
+  else
+    return;
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    * RPATime_out =  (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    * GapCharactersticCAR =  (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    * RPAOnly =  (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+}
+
+
+/*******************************************************************************
+**
+** Function         btif_config_lpm
+**
+** Description      Configure LPM feature
+**
+** Parameters:      void.
+**
+** Returns          void
+**
+*******************************************************************************/
+static void btif_config_lpm(void) {
+  uint8_t           param[LPM_SET_LOCAL_CONFIG_LENGTH], *pp;
+  uint8_t           sub_code = LPM_SET_LOCAL_CONFIG_OPCODE;
+  uint8_t           wake_mode; //0 - Transport sleep, 1 - OOB wake
+
+  //BIT(0) - Whitelist, BIT(1) - ADV Data Pattern, BIT(2) - Accept connection from Directed advertising
+  //BIT(3) - undirected advertising
+  uint8_t           wakeupFilteringFlags;
+
+  //BIT(0) - BLE Scan, BIT(1) - BLE Advertise, BIT(2) - Page Scan, BIT(3) - HID
+  //BIT(4) - HOGP, BIT(5) - FMP, BIT(6) - PXP
+  uint8_t           wakeSources;
+
+  // =0x0800;//800x0.625ms=> 500ms
+  uint16_t         delay_to_sleep;
+
+  RawAddress random_address = RawAddress::kEmpty;
+  uint16_t RPATimeout = 0x0;
+  uint8_t  GapCharactersticCAR = 0x00;
+  uint8_t  RPAOnly = 0xFF;
+
+  pp = param;
+  memset(param, 0, sizeof(param));
+  btif_lpm_config_params(&wake_mode, &wakeupFilteringFlags, &wakeSources, &delay_to_sleep,
+                         random_address, &RPATimeout, &GapCharactersticCAR, &RPAOnly);
+
+  UINT8_TO_STREAM(pp, sub_code);
+  UINT8_TO_STREAM(pp, wake_mode);
+  UINT8_TO_STREAM(pp, wakeupFilteringFlags);
+  UINT8_TO_STREAM(pp, wakeSources);
+  UINT16_TO_STREAM(pp, delay_to_sleep);
+  BDADDR_TO_STREAM(pp, random_address);
+  UINT16_TO_STREAM(pp, RPATimeout);
+  UINT8_TO_STREAM(pp, GapCharactersticCAR);
+  UINT8_TO_STREAM(pp, RPAOnly);
+
+  // Not required to add Random address since we always support either
+  // Public or RPA in which case Random address field will be zero.
+
+  BTIF_TRACE_EVENT (" %s:Sending LPM Config down to controller", __func__);
+  BTM_VendorSpecificCommand(HCI_VS_LPM_OPCODE,
+                            LPM_SET_LOCAL_CONFIG_LENGTH, param, btif_config_lpm_vsc_cback);
+}
+
+/*******************************************************************************
+**
+** Function         btif_dm_lpm_set_page_scan_vsc_cback
+**
+** Description     set the page scan params to be used in LPM VSC Cback
+**
+** Returns          void
+**
+*******************************************************************************/
+void btif_dm_lpm_set_page_scan_vsc_cback(tBTM_VSC_CMPL* p_params) {
+  uint8_t status = 0xFF;
+  uint8_t* p;
+
+  BTIF_TRACE_DEBUG("%s", __func__);
+
+  /* Check status of command complete event */
+  if ((p_params->opcode == HCI_VS_LPM_OPCODE) &&
+      (p_params->param_len > 0)) {
+    p = p_params->p_param_buf;
+    STREAM_TO_UINT8(status, p);
+  }
+
+  if (status == HCI_SUCCESS) {
+    BTIF_TRACE_DEBUG("LPM set page Scan Success");
+    btif_dm_lpm_set_ble_scan_params();
+  } else
+    BTIF_TRACE_ERROR("LPM set page Scan Failed");
+}
+
+/*******************************************************************************
+**
+** Function         btif_dm_lpm_set_page_scan_params
+**
+** Description      set the page scan params to be used in LPM
+**
+** Parameters:      None
+**
+** Returns          void
+**
+*******************************************************************************/
+static void btif_dm_lpm_set_page_scan_params(void) {
+  uint8_t           param[LPM_PAGE_SCAN_PARAMS_LENGTH], *pp;
+  uint8_t           sub_op_code = LPM_PAGE_SCAN_PARAMS_OPCODE;
+  uint16_t          scan_interval;
+  uint16_t          scan_window;
+
+  char conf[LPM_CONFIG_LENGHT];
+  const std::string* recv = stack_config_get_interface()->get_lpm_page_scan_configuration();
+  char* pch;
+  char* ptr;
+  char* endptr;
+
+  pp = param;
+  memset(param, 0, sizeof(param));
+
+  if (!recv) {
+    BTIF_TRACE_ERROR("%s: Page Scan Configuration is not defined", __func__);
+    return;
+  }
+
+  strlcpy(conf, recv->c_str(), LPM_CONFIG_LENGHT);
+
+  if ((pch = strtok_r(conf, ",", &ptr)) != NULL)
+    scan_interval = (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s scan_interval:0x%04x", __func__, scan_interval);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    scan_window =  (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s scan_window:0x%04x", __func__, scan_window);
+
+  UINT8_TO_STREAM (pp, sub_op_code);
+  UINT16_TO_STREAM (pp, scan_interval);
+  UINT16_TO_STREAM (pp, scan_window);
+
+  BTM_VendorSpecificCommand(HCI_VS_LPM_OPCODE,
+                            LPM_PAGE_SCAN_PARAMS_LENGTH, param, btif_dm_lpm_set_page_scan_vsc_cback);
+}
+
+/*******************************************************************************
+**
+** Function         btif_dm_lpm_set_ble_scan_vsc_cback
+**
+** Description     set the BLE scan params to be used in LPM VSC Cback
+**
+** Returns          void
+**
+*******************************************************************************/
+void btif_dm_lpm_set_ble_scan_vsc_cback(tBTM_VSC_CMPL* p_params) {
+  uint8_t status = 0xFF;
+  uint8_t* p;
+
+  BTIF_TRACE_DEBUG("%s", __func__);
+
+  /* Check status of command complete event */
+  if ((p_params->opcode == HCI_VS_LPM_OPCODE) &&
+      (p_params->param_len > 0)) {
+    p = p_params->p_param_buf;
+    STREAM_TO_UINT8(status, p);
+  }
+
+  if (status == HCI_SUCCESS) {
+    BTIF_TRACE_DEBUG("LPM SET BLE Scan param Success");
+    btif_dm_lpm_set_ble_conn_params();
+  } else
+    BTIF_TRACE_ERROR("LPM SET BLE Scan param Failed");
+}
+
+/*******************************************************************************
+**
+** Function         btif_dm_lpm_set_ble_scan_params
+**
+** Description      set the BLE scan params to be used in LPM
+**
+** Parameters:      None
+**
+** Returns          void
+**
+*******************************************************************************/
+static void btif_dm_lpm_set_ble_scan_params(void) {
+  uint8_t           param[LPM_SET_SCAN_PARAMS_LENGTH], *pp;
+  uint8_t           sub_op_code = LPM_SET_SCAN_PARAMS_OPCODE;
+  uint16_t          ble_scan_interval;
+  uint16_t          ble_scan_window;
+  uint8_t           ble_scan_type;
+  uint8_t           ble_own_addr_type;
+  uint8_t           ble_scan_filter_policy;
+
+  char conf[LPM_CONFIG_LENGHT];
+  const std::string* recv = stack_config_get_interface()->get_lpm_ble_scan_configuration();
+  char* pch;
+  char* ptr;
+  char* endptr;
+
+  pp = param;
+  memset(param, 0, sizeof(param));
+
+  if (!recv) {
+    BTIF_TRACE_ERROR("%s: BLE Scan Configuration is not defined", __func__);
+    return;
+  }
+
+  strlcpy(conf, recv->c_str(), LPM_CONFIG_LENGHT);
+
+  if ((pch = strtok_r(conf, ",", &ptr)) != NULL)
+    ble_scan_interval = (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s ble_scan_interval:0x%04x", __func__, ble_scan_interval);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    ble_scan_window =  (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s ble_scan_window:0x%04x", __func__, ble_scan_window);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    ble_scan_type = (uint8_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s ble_scan_type:0x%02x", __func__, ble_scan_type);
+
+  ble_own_addr_type = controller_get_interface()->supports_ble_privacy() ?
+                      BLE_ADDR_PUBLIC_ID : BLE_ADDR_PUBLIC;
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    ble_scan_filter_policy = (uint8_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s ble_scan_filter_policy:0x%02x", __func__, ble_scan_filter_policy);
+
+  UINT8_TO_STREAM (pp, sub_op_code);
+  UINT16_TO_STREAM (pp, ble_scan_interval);
+  UINT16_TO_STREAM (pp, ble_scan_window);
+  UINT8_TO_STREAM (pp, ble_scan_type);
+  UINT8_TO_STREAM (pp, ble_own_addr_type);
+  UINT8_TO_STREAM (pp, ble_scan_filter_policy);
+
+  BTM_VendorSpecificCommand(HCI_VS_LPM_OPCODE,
+                            LPM_SET_SCAN_PARAMS_LENGTH, param, btif_dm_lpm_set_ble_scan_vsc_cback);
+}
+
+/*******************************************************************************
+**
+** Function         btif_dm_lpm_add_paired_devices_to_whitelist
+**
+** Description      Add paired devices to whitelist
+**
+** Parameters:      None
+**
+** Returns          void
+**
+*******************************************************************************/
+static void btif_dm_lpm_add_paired_devices_to_whitelist(void) {
+  if (lpm_bonded_devices && lpm_add_index < lpm_bonded_devices->num_devices) {
+    BTIF_TRACE_DEBUG("%s: lpm_add_index %d: invoking lpm add whitelist", __func__, lpm_add_index);
+    btif_dm_add_device_whitelist(lpm_bonded_devices->devices[lpm_add_index]);
+    lpm_add_index++;
+  } else {
+    BTIF_TRACE_ERROR("%s:all lpm devices added", __func__);
+    // Nothing to be done.
+  }
+}
+
+/*******************************************************************************
+**
+** Function         btif_dm_lpm_set_ble_conn_params_vsc_cback
+**
+** Description      call back function for response to set ble conn params.
+**
+** Returns          void
+**
+*******************************************************************************/
+void btif_dm_lpm_set_ble_conn_params_vsc_cback(tBTM_VSC_CMPL* p_params) {
+  uint8_t status = 0xFF;
+  uint8_t* p;
+
+  BTIF_TRACE_DEBUG("%s", __func__);
+
+  /* Check status of command complete event */
+  if ((p_params->opcode == HCI_VS_LPM_OPCODE) &&
+      (p_params->param_len > 0)) {
+    p = p_params->p_param_buf;
+    STREAM_TO_UINT8(status, p);
+  }
+
+  if (status == HCI_SUCCESS) {
+    BTIF_TRACE_DEBUG("%s:LPM SET BLE Conn params Success", __func__);
+    // add bonded devices to whitelist when BT ON
+    lpm_add_index = 0;
+    lpm_bonded_devices = btif_storage_fetch_bonded_devices();
+    if (!lpm_bonded_devices)
+      return;
+    BTIF_TRACE_EVENT("%s: %d bonded devices found", __func__,
+                     lpm_bonded_devices->num_devices);
+    if (lpm_bonded_devices->num_devices)
+      btif_dm_lpm_add_paired_devices_to_whitelist();
+  } else {
+    BTIF_TRACE_ERROR("%s: LPM SET BLE Conn params Failed", __func__);
+  }
+}
+/*******************************************************************************
+**
+** Function         btif_dm_lpm_set_conn_params
+**
+** Description      set the BLE connection parameters.
+**
+** Parameters:      None
+**
+** Returns          void
+**
+*******************************************************************************/
+static void btif_dm_lpm_set_ble_conn_params(void) {
+  uint8_t           param[LPM_SET_CONN_PARAMS_LENGTH], *pp;
+  uint8_t           sub_op_code = LPM_SET_CONN_PARAMS_OPCODE;
+  uint16_t          interval_min;
+  uint16_t          interval_max;
+  uint16_t          latency;
+  uint16_t          supervision_to;
+  uint16_t          idle_to;
+
+  char conf[LPM_CONFIG_LENGHT];
+  const std::string* recv = stack_config_get_interface()->get_lpm_ble_conn_params_configuration();
+  char* pch;
+  char* ptr;
+  char* endptr;
+
+  pp = param;
+  memset(param, 0, sizeof(param));
+
+  if (!recv) {
+    BTIF_TRACE_ERROR("%s: BLE Conn parameters is not defined", __func__);
+    return;
+  }
+
+  strlcpy(conf, recv->c_str(), LPM_CONFIG_LENGHT);
+
+  if ((pch = strtok_r(conf, ",", &ptr)) != NULL)
+    interval_min = (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s interval_min:0x%04x", __func__, interval_min);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    interval_max =  (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s interval_max:0x%04x", __func__, interval_max);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    latency = (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s latency:0x%04x", __func__, latency);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    supervision_to =  (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s supervision_to:0x%04x", __func__, supervision_to);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    idle_to =  (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT ("%s idle_to:0x%04x", __func__, idle_to);
+
+  UINT8_TO_STREAM (pp, sub_op_code);
+  UINT16_TO_STREAM (pp, interval_min);
+  UINT16_TO_STREAM (pp, interval_max);
+  UINT16_TO_STREAM (pp, latency);
+  UINT16_TO_STREAM (pp, supervision_to);
+  UINT16_TO_STREAM (pp, idle_to);
+
+  BTM_VendorSpecificCommand(HCI_VS_LPM_OPCODE,
+                            LPM_SET_CONN_PARAMS_LENGTH, param, btif_dm_lpm_set_ble_conn_params_vsc_cback);
+}
+
+/*******************************************************************************
+**
+** Function         btif_dm_lpm_set_le_adv_params_vsc_cback
+**
+** Description     Set LE advertisement params VSC Cback
+**
+** Returns          void
+**
+*******************************************************************************/
+void btif_dm_lpm_set_le_adv_params_vsc_cback(tBTM_VSC_CMPL* p_params) {
+  uint8_t status = 0xFF;
+  uint8_t* p;
+
+  BTIF_TRACE_DEBUG("%s", __func__);
+
+  /* Check status of command complete event */
+  if ((p_params->opcode == HCI_VS_LPM_OPCODE) &&
+      (p_params->param_len > 0)) {
+    p = p_params->p_param_buf;
+    STREAM_TO_UINT8(status, p);
+  }
+
+  if (status == HCI_SUCCESS) {
+    BTIF_TRACE_DEBUG("LPM set LE adv params Success");
+  } else {
+    BTIF_TRACE_ERROR("LPM set LE adv params Failed");
+  }
+}
+
+
+/*******************************************************************************
+**
+** Function         btif_dm_lpm_le_adv_params
+**
+** Description      set the LE advertisement params to be used in LPM
+**
+** Parameters:      None
+**
+** Returns          void
+**
+*******************************************************************************/
+void btif_dm_lpm_le_adv_params(const RawAddress& bdaddr) {
+  uint8_t           sub_op_code = LPM_SET_ADV_PARAMS_OPCODE, *pp;
+  uint16_t          adv_int_min = 0;
+  uint16_t          adv_int_max = 0;
+  uint8_t           adv_type = 0;
+  uint8_t           adv_filter_policy = 0;
+  uint8_t           own_addr_type = 0;
+  uint8_t           peer_addr_type = 0;
+  uint8_t           adv_chnl_map = 0x07;
+  uint8_t           adv_data_len = 0;
+  RawAddress        peer_addr;
+  tBTM_LE_PID_KEYS  pid_key;
+
+  memset(&pid_key, 0, sizeof(tBTM_LE_PID_KEYS));
+  char conf[LPM_CONFIG_LENGHT];
+  const std::string* recv = stack_config_get_interface()->get_lpm_ble_adv_params_configuration();
+  char* pch;
+  char* ptr;
+  char* endptr;
+
+  if (!recv) {
+    BTIF_TRACE_ERROR("%s: LPM ble adv params is not defined", __func__);
+    return;
+  }
+
+  strlcpy(conf, recv->c_str(), LPM_CONFIG_LENGHT);
+
+  if ((pch = strtok_r(conf, ",", &ptr)) != NULL)
+    adv_int_min = (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT("%s adv_int_min:0x%04x", __func__, adv_int_min);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    adv_int_max =  (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT("%s adv_int_max:0x%04x", __func__, adv_int_max);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    adv_type =  (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT("%s adv_type:0x%04x", __func__, adv_type);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL)
+    adv_filter_policy =  (uint16_t) strtoul(pch, &endptr, 16);
+  else
+    return;
+  BTIF_TRACE_EVENT("%s adv_filter_policy:0x%04x", __func__, adv_filter_policy);
+
+  if ((pch = strtok_r(NULL, ",", &ptr)) != NULL) {
+    adv_data_len = (strlen(pch) - 2) / 2;
+    if (adv_data_len > 32) {
+      BTIF_TRACE_DEBUG("%s: adv_data length is more than 32", __func__);
+      return;
+    }
+  } else {
+    return;
+  }
+  std::string hexStr(pch);
+  uint8_t adv_data[adv_data_len];
+  int j = 0;
+  for (int i = 2; i < ((adv_data_len + 1) * 2); i += 2) {
+    std::string byte = hexStr.substr(i, 2);
+    adv_data[j++] = (uint8_t)strtol(byte.c_str(), nullptr, 16);
+    BTIF_TRACE_DEBUG("0x%02x", adv_data[j - 1]);
+  }
+
+  own_addr_type = controller_get_interface()->supports_ble_privacy() ?
+                  BLE_ADDR_PUBLIC_ID : BLE_ADDR_PUBLIC;
+
+  // get peer address
+  if (btif_storage_get_ble_bonding_key(
+        (RawAddress*)&bdaddr, BTIF_DM_LE_KEY_PID, (uint8_t*)&pid_key,
+        sizeof(tBTM_LE_PID_KEYS)) != BT_STATUS_SUCCESS) {
+    BTIF_TRACE_ERROR("%s Get LE_PID_KEYS fail", __func__);
+    peer_addr = bdaddr;
+    btif_storage_get_remote_addr_type(&bdaddr, (int*)&peer_addr_type);
+  } else {
+    peer_addr = pid_key.identity_addr;
+    peer_addr_type = pid_key.identity_addr_type;
+  }
+
+  uint8_t param[LPM_SET_ADV_PARAMS_LENGTH + adv_data_len];
+  pp = param;
+  memset(param, 0, sizeof(param));
+
+  UINT8_TO_STREAM(pp, sub_op_code);
+  UINT16_TO_STREAM(pp, adv_int_min);
+  UINT16_TO_STREAM(pp, adv_int_max);
+  UINT8_TO_STREAM(pp, adv_type);
+  UINT8_TO_STREAM(pp, own_addr_type);
+  UINT8_TO_STREAM(pp, peer_addr_type);
+  BDADDR_TO_STREAM(pp, peer_addr);
+  UINT8_TO_STREAM(pp, adv_chnl_map);
+  UINT8_TO_STREAM(pp, adv_filter_policy);
+  UINT8_TO_STREAM(pp, adv_data_len);
+  for (int i = 0; i < adv_data_len; i++)
+    UINT8_TO_STREAM(pp, adv_data[i]);
+
+  BTM_VendorSpecificCommand(HCI_VS_LPM_OPCODE,
+                            (LPM_SET_ADV_PARAMS_LENGTH + adv_data_len),
+                            param,
+                            btif_dm_lpm_set_le_adv_params_vsc_cback);
+}
+
+/*******************************************************************************
+**
+** Function         btif_dm_add_device_whitelist_vsc_cback
+**
+** Description      Add device to whitelist VSC callback
+**
+** Returns          void
+**
+*******************************************************************************/
+void btif_dm_add_device_whitelist_vsc_cback(tBTM_VSC_CMPL* pCmplEvt) {
+  uint8_t status = 0xFF;
+  uint8_t* p;
+
+  BTIF_TRACE_DEBUG("%s", __func__);
+
+  /* Check status of command complete event */
+  if ((pCmplEvt->opcode == HCI_VS_LPM_OPCODE) &&
+      (pCmplEvt->param_len > 0)) {
+    p = pCmplEvt->p_param_buf;
+    STREAM_TO_UINT8(status, p);
+  }
+
+  if (status == HCI_SUCCESS) {
+    BTIF_TRACE_DEBUG("Adding device to whitelist is successful");
+    btif_dm_lpm_add_paired_devices_to_whitelist();
+    btif_dm_lpm_le_adv_params(pairing_cb.bd_addr);
+  } else
+    BTIF_TRACE_ERROR("Adding device to whitelist Failed");
+}
+
+/*******************************************************************************
+**
+** Function         btif_dm_add_device_whitelist
+**
+** Description      Add device to LPM whitelist
+**
+** Returns          void
+**
+*******************************************************************************/
+void btif_dm_add_device_whitelist(const RawAddress& bdaddr) {
+  uint8_t param[LPM_ADD_DEV_INFO_LENGTH], *pp;
+  uint8_t sub_code = LPM_ADD_DEV_INFO_OPCODE;
+  tBTM_LE_PENC_KEYS penc_key;
+  tBTM_LE_PID_KEYS pid_key;
+
+  BTIF_TRACE_EVENT("%s Add Device %s to Whitelist",
+                   __func__, bdaddr.ToString().c_str());
+
+  uint8_t privacy_mode = 1; //0:NETWORK_PRIVACY,1:DEVICE_PRIVACY
+  Octet16 peer_irk, local_irk, ltk, link_key = {0};
+  RawAddress peer_addr = RawAddress::kEmpty;
+  int peer_addr_type = 0; // 0:BLE_ADDR_PUBLIC,1:BLE_ADDR_RANDOM
+  BT_OCTET8 rand = {0};
+  uint16_t ediv = 0xff;
+  pp = param;
+  memset(param, 0, sizeof(param));
+  memset(&penc_key, 0, sizeof(tBTM_LE_PENC_KEYS));
+  memset(&pid_key, 0, sizeof(tBTM_LE_PID_KEYS));
+
+
+  if (!btm_sec_is_a_bonded_dev(bdaddr)) {
+    BTIF_TRACE_ERROR("%s Device %s is not bonded",
+                     __func__, bdaddr.ToString().c_str());
+    return;
+  }
+
+  // Get LE_PENC_KEYS
+  // 1. ltk: penc_key.ltk
+  // 2. rand: penc_key.rand
+  // 3. ediv: penc_key.ediv
+  if (btif_storage_get_ble_bonding_key(
+        (RawAddress*)&bdaddr, BTIF_DM_LE_KEY_PENC, (uint8_t*)&penc_key,
+        sizeof(tBTM_LE_PENC_KEYS)) != BT_STATUS_SUCCESS) {
+    BTIF_TRACE_ERROR("%s Get LE_PENC_KEYS fail", __func__);
+    return;
+  } else {
+    ltk = penc_key.ltk;
+    ediv = penc_key.ediv;
+    memcpy(rand, penc_key.rand, BT_OCTET8_LEN);
+  }
+
+  // Get LE_PID_KEYS
+  // 1. irk: pid_key.irk
+  // 2. id_addr: pid_key.identity_addr
+  // 3. addr_type: pid_key.identity_addr_type;
+  if (btif_storage_get_ble_bonding_key(
+        (RawAddress*)&bdaddr, BTIF_DM_LE_KEY_PID, (uint8_t*)&pid_key,
+        sizeof(tBTM_LE_PID_KEYS)) != BT_STATUS_SUCCESS) {
+    BTIF_TRACE_ERROR("%s Get LE_PID_KEYS fail", __func__);
+  }
+
+  if (pid_key.identity_addr.IsEmpty()) {
+    peer_addr = bdaddr;
+    btif_storage_get_remote_addr_type(&bdaddr, &peer_addr_type);
+  } else {
+    peer_addr = pid_key.identity_addr;
+    peer_addr_type = pid_key.identity_addr_type;
+  }
+
+  if (controller_get_interface()->supports_ble_privacy()) {
+     peer_irk  = pid_key.irk;
+     local_irk = ble_local_key_cb.id_keys.irk;
+   }
+
+  // Get Linkkey
+  size_t size = sizeof(link_key);
+  btif_config_get_bin(bdaddr.ToString().c_str(),
+                        "LinkKey", link_key.data(), &size);
+
+  // Copy device info to pp
+  UINT8_TO_STREAM(pp, sub_code);
+  BDADDR_TO_STREAM(pp, peer_addr);
+  UINT8_TO_STREAM(pp, peer_addr_type);
+  ARRAY_TO_STREAM(pp, link_key, OCTET16_LEN);
+  ARRAY_TO_STREAM(pp, ltk, OCTET16_LEN);
+  ARRAY_TO_STREAM(pp, peer_irk, OCTET16_LEN);
+  ARRAY_TO_STREAM(pp, local_irk, OCTET16_LEN);
+  ARRAY_TO_STREAM(pp, rand, BT_OCTET8_LEN);
+  UINT16_TO_STREAM(pp, ediv);
+  UINT8_TO_STREAM(pp, privacy_mode);
+
+  BTM_VendorSpecificCommand(HCI_VS_LPM_OPCODE,
+                            LPM_ADD_DEV_INFO_LENGTH, param, btif_dm_add_device_whitelist_vsc_cback);
+
+}
+
+/*******************************************************************************
+**
+** Function         btif_dm_remove_device_whitelist_vsc_cback
+**
+** Description      remove device to whitelist VSC callback
+**
+** Returns          void
+**
+*******************************************************************************/
+static void btif_dm_remove_device_whitelist_vsc_cback(tBTM_VSC_CMPL* pCmplEvt) {
+  uint8_t status = 0xFF;
+  uint8_t* p;
+
+  BTIF_TRACE_DEBUG("%s", __func__);
+
+  /* Check status of command complete event */
+  if ((pCmplEvt->opcode == HCI_VS_LPM_OPCODE) &&
+      (pCmplEvt->param_len > 0)) {
+    p = pCmplEvt->p_param_buf;
+    STREAM_TO_UINT8(status, p);
+  }
+
+  if (status == HCI_SUCCESS) {
+    BTIF_TRACE_DEBUG("Removing device from whitelist is successful");
+  } else {
+    BTIF_TRACE_ERROR("Removing device from whitelist Failed");
+  }
+}
+
+/*******************************************************************************
+**
+** Function         btif_dm_remove_device_whitelist
+**
+** Description      Remove device from LPM whitelist
+**
+** Returns          void
+**
+*******************************************************************************/
+void btif_dm_remove_device_whitelist(const RawAddress& bdaddr) {
+  uint8_t           param[LPM_DEL_DEV_INFO_LENGTH], *pp;
+  uint8_t           sub_code = LPM_DEL_DEV_INFO_OPCODE;
+
+  RawAddress bd_addr = RawAddress::kEmpty;
+  int ble_addr_type  = 0; // 0:BLE_ADDR_PUBLIC,1:BLE_ADDR_RANDOM
+  pp = param;
+  memset(param, 0, sizeof(param));
+
+  BTIF_TRACE_EVENT("%s RM Dev :%s from whitelist", __func__, bdaddr.ToString().c_str());
+
+
+  if (!btm_sec_is_a_bonded_dev(bdaddr) ||
+      !pairing_cb.ble.is_penc_key_rcvd) {
+    BTIF_TRACE_ERROR("%s Device %s is not bonded",
+                     __func__, bdaddr.ToString().c_str());
+    return;
+  }
+
+  if (pairing_cb.ble.pid_key.identity_addr.IsEmpty()) {
+    bd_addr = bdaddr;
+    btif_storage_get_remote_addr_type(&bdaddr, &ble_addr_type);
+  } else {
+    bd_addr = pairing_cb.ble.pid_key.identity_addr;
+    ble_addr_type = pairing_cb.ble.pid_key.identity_addr_type;
+  }
+
+  UINT8_TO_STREAM (pp, sub_code);
+  BDADDR_TO_STREAM(pp, bd_addr);
+  UINT8_TO_STREAM (pp, ble_addr_type);
+
+  BTM_VendorSpecificCommand (HCI_VS_LPM_OPCODE,
+                             LPM_DEL_DEV_INFO_LENGTH, param, btif_dm_remove_device_whitelist_vsc_cback);
+}
+#endif
 /*****************************************************************************
  *
  *   btif api functions (no context switch)
@@ -2963,8 +3927,17 @@ static void btif_dm_ble_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
       btif_storage_remove_bonded_device(&bdaddr);
       state = BT_BOND_STATE_NONE;
     } else {
-      btif_dm_save_ble_bonding_keys();
+      btif_dm_save_ble_bonding_keys(bdaddr);
       btif_dm_get_remote_services_by_transport(&bd_addr, GATT_TRANSPORT_LE);
+
+#if (LPM_SLEEP_WAKEUP == TRUE)
+      if (is_ble_offload_enabled()) {
+        // add device to whitelist in lpm
+        BTIF_TRACE_DEBUG("%s: add device to controller while pairing in lpm",
+                         __func__);
+        btif_dm_add_device_whitelist(pairing_cb.bd_addr);
+      }
+#endif
     }
   } else {
     /*Map the HCI fail reason  to  bt status  */
@@ -3044,10 +4017,8 @@ void btif_dm_get_ble_local_keys(tBTA_DM_BLE_LOCAL_KEY_MASK* p_key_mask,
   BTIF_TRACE_DEBUG("%s  *p_key_mask=0x%02x", __func__, *p_key_mask);
 }
 
-void btif_dm_save_ble_bonding_keys(void) {
+void btif_dm_save_ble_bonding_keys(RawAddress& bd_addr) {
   BTIF_TRACE_DEBUG("%s", __func__);
-
-  RawAddress bd_addr = pairing_cb.bd_addr;
 
   if (pairing_cb.ble.is_penc_key_rcvd) {
     btif_storage_add_ble_bonding_key(

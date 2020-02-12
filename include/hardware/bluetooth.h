@@ -53,6 +53,11 @@
 //typedef uint8_t Link_Key[KEY_LEN]; /* Link Key */
 typedef std::array<uint8_t, KEY_LEN> Link_Key;
 
+/* Enable/Disable LPM SLEEP WAKEUP Feature*/
+#ifndef LPM_SLEEP_WAKEUP
+#define LPM_SLEEP_WAKEUP TRUE
+#endif
+
 /** Bluetooth Device Name */
 typedef struct { uint8_t name[249]; } __attribute__((packed)) bt_bdname_t;
 

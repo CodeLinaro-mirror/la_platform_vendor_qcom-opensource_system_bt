@@ -35,9 +35,26 @@
     (p_prop)->val = (p_v);                            \
   } while (0)
 
+typedef struct {
+  uint32_t num_devices;
+  RawAddress devices[BTM_SEC_MAX_DEVICE_RECORDS];
+} btif_bonded_devices_t;
+
 /*******************************************************************************
  *  Functions
  ******************************************************************************/
+
+/*******************************************************************************
+ *
+ * Function         btif_storage_fetch_bonded_devices
+ *
+ * Description      BTIF storage API - Fetches the paired devices.
+ *
+ * Returns          BT_STATUS_SUCCESS if the fetch was successful,
+ *                  BT_STATUS_FAIL otherwise
+ *
+ ******************************************************************************/
+btif_bonded_devices_t* btif_storage_fetch_bonded_devices(void);
 
 /*******************************************************************************
  *

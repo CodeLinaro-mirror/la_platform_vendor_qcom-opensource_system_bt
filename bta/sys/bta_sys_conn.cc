@@ -543,9 +543,9 @@ void bta_sys_remove_uuid(uint16_t uuid16) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_sys_add_cust_uuid(const Uuid& uuid) {
+void bta_sys_add_cust_uuid(const bluetooth::Uuid& uuid, uint32_t handle) {
   if (bta_sys_cb.cust_eir_cb) {
-    bta_sys_cb.cust_eir_cb(uuid, true);
+    bta_sys_cb.cust_eir_cb(uuid, handle, true);
   }
 }
 
@@ -559,9 +559,9 @@ void bta_sys_add_cust_uuid(const Uuid& uuid) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_sys_remove_cust_uuid(const Uuid& uuid) {
+void bta_sys_remove_cust_uuid(const bluetooth::Uuid& uuid, uint32_t handle) {
   if (bta_sys_cb.cust_eir_cb) {
-    bta_sys_cb.cust_eir_cb(uuid, false);
+    bta_sys_cb.cust_eir_cb(uuid, handle, false);
   }
 }
 #endif

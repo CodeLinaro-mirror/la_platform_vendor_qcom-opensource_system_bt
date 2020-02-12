@@ -428,6 +428,28 @@
 
 /* Bluetooth Quality Report OCF */
 #define HCI_CONTROLLER_BQR_OPCODE_OCF (0x015E | HCI_GRP_VENDOR_SPECIFIC)
+/* VOIP Network Wifi OCF */
+
+#if (LPM_SLEEP_WAKEUP == TRUE)
+#define HCI_VSC_VOIP_NETWORK_WIFI_OCF   (0x001C | HCI_GRP_VENDOR_SPECIFIC)
+
+#define HCI_VSC_SPLIT_A2DP_OPCODE  (0x000A | HCI_GRP_VENDOR_SPECIFIC)
+
+#if (LPM_SLEEP_WAKEUP == TRUE)
+#define HCI_VS_LPM_OPCODE    (0x0038| HCI_GRP_VENDOR_SPECIFIC)
+#endif
+
+#define VS_QHCI_GET_SCRAMBLING_FREQS          0x11
+#define VS_QHCI_SCRAMBLE_A2DP_MEDIA           0x12
+
+/* Added as part of workaround from stack side for handling no opcode
+   command complete events for RX_BURST commands. This needs to be
+   removed once SoC fixes it */
+#define VS_RX_BURST_COMMANDS (0x0004 | HCI_GRP_VENDOR_SPECIFIC)
+
+/* subcode for VOIP Network Wifi */
+#define HCI_VSC_SUBCODE_VOIP_NETWORK_WIFI               0x01
+#endif
 
 /* subcode for multi adv feature */
 #define BTM_BLE_MULTI_ADV_SET_PARAM 0x01

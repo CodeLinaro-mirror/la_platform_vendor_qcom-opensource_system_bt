@@ -34,6 +34,11 @@ typedef struct {
   const std::string* (*get_pts_smp_options)(void);
   int (*get_pts_smp_failure_case)(void);
   config_t* (*get_all)(void);
+  const std::string* (*get_lpm_sleep_wake_configuration)(void);
+  const std::string* (*get_lpm_page_scan_configuration)(void);
+  const std::string* (*get_lpm_ble_scan_configuration)(void);
+  const std::string* (*get_lpm_ble_adv_params_configuration)(void);
+  const std::string* (*get_lpm_ble_conn_params_configuration)(void);
 } stack_config_t;
 
 const stack_config_t* stack_config_get_interface(void);

@@ -147,7 +147,7 @@ typedef void(tBTA_SYS_SSR_CFG_CBACK)(uint8_t id, uint8_t app_id,
 #if (BTA_EIR_CANNED_UUID_LIST != TRUE)
 /* eir callback for adding/removeing UUID */
 typedef void(tBTA_SYS_EIR_CBACK)(uint16_t uuid16, bool adding);
-typedef void(tBTA_SYS_CUST_EIR_CBACK)(const bluetooth::Uuid& uu, bool adding);
+typedef void(tBTA_SYS_CUST_EIR_CBACK)(const bluetooth::Uuid& uu, uint32_t handle, bool adding);
 #endif
 
 /* registration structure */
@@ -276,8 +276,8 @@ extern void bta_sys_eir_register(tBTA_SYS_EIR_CBACK* p_cback);
 extern void bta_sys_add_uuid(uint16_t uuid16);
 extern void bta_sys_remove_uuid(uint16_t uuid16);
 extern void bta_sys_cust_eir_register(tBTA_SYS_CUST_EIR_CBACK* p_cback);
-extern void bta_sys_add_cust_uuid(const bluetooth::Uuid& uuid);
-extern void bta_sys_remove_cust_uuid(const bluetooth::Uuid& uuid);
+extern void bta_sys_add_cust_uuid(const bluetooth::Uuid& uuid, uint32_t handle);
+extern void bta_sys_remove_cust_uuid(const bluetooth::Uuid& uuid, uint32_t handle);
 #else
 #define bta_sys_eir_register(ut)
 #define bta_sys_add_uuid(ut)

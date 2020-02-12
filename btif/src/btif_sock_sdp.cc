@@ -199,7 +199,7 @@ static int add_sdp_by_uuid(const char* name, const Uuid& uuid,
       __func__, name, handle);
 
   // Write the custom 128-bit UUID to EIR
-  bta_sys_add_cust_uuid(uuid);
+  bta_sys_add_cust_uuid(uuid, handle);
 
   return handle;
 
@@ -476,5 +476,10 @@ int add_rfc_sdp_rec(const char* name, Uuid uuid, const int channel) {
 void del_rfc_sdp_rec(int handle) {
   APPL_TRACE_DEBUG("del_rfc_sdp_rec: handle:0x%x", handle);
 
-  if ((handle != -1) && (handle != 0)) BTA_JvDeleteRecord(handle);
+  if ((handle != -1) && (handle != 0)) {
+    // Remove the custom 128-bit UUID from EIR
+    bta_sys_remove_cust_uuid(Uuid::kEmpty, (uint32_t)handle);
+
+    BTA_JvDeleteRecord(handle);
+  }
 }

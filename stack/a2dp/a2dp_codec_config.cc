@@ -1011,6 +1011,21 @@ tA2DP_CODEC_TYPE A2DP_GetCodecType(const uint8_t* p_codec_info) {
   return (tA2DP_CODEC_TYPE)(p_codec_info[AVDT_CODEC_TYPE_INDEX]);
 }
 
+btav_a2dp_codec_index_t A2DP_GetSourceCodecIndex(const uint8_t* p_codec_info) {
+  tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
+
+  switch (codec_type) {
+    case A2DP_MEDIA_CT_SBC:
+      return BTAV_A2DP_CODEC_INDEX_SOURCE_SBC;
+    case A2DP_MEDIA_CT_AAC:
+      return BTAV_A2DP_CODEC_INDEX_SOURCE_AAC;
+    case A2DP_MEDIA_CT_NON_A2DP:
+      return A2DP_GetVendorSourceCodecIndex(p_codec_info);
+    default:
+      return BTAV_A2DP_CODEC_INDEX_SOURCE_MAX;
+  }
+}
+
 bool A2DP_IsSourceCodecValid(const uint8_t* p_codec_info) {
   tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
 
