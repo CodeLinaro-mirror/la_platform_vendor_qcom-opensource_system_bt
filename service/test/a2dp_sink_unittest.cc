@@ -51,7 +51,7 @@ class TestDelegate : public A2dpSink::Delegate {
     int state = -1;
     uint32_t sample_rate = 0;
     uint8_t channel_count = 0;
-    btav_a2dp_codec_index_t codec_index = 0;
+    btav_a2dp_codec_index_t codec_index = BTAV_A2DP_CODEC_INDEX_SOURCE_SBC;
     int count = 0;
   };
 
@@ -259,7 +259,7 @@ TEST_F(A2dpSinkPostRegisterTest, CallbackTest) {
   // OnAudioConfig
   const uint32_t kSampleRate = 44100;
   const uint32_t kChannelCount = 2;
-  const btav_a2dp_codec_index_t kCodecIndex = 0;
+  const btav_a2dp_codec_index_t kCodecIndex = BTAV_A2DP_CODEC_INDEX_SOURCE_SBC;
   EXPECT_EQ(0, delegate.audio_config().count);
   fake_hal_av_iface_->NotifyAudioConfig(hal_addr, kSampleRate, kChannelCount, kCodecIndex);
   EXPECT_EQ(1, delegate.audio_config().count);
