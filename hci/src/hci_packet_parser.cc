@@ -106,6 +106,19 @@ static void parse_read_scrambling_supported_freqs_response(
   buffer_allocator->free(response);
 }
 
+static void parse_read_local_simple_paring_options_response(
+    BT_HDR* response, uint8_t* simple_pairing_options,
+    uint8_t* maximum_encryption_key_size) {
+  uint8_t* stream = read_command_complete_header(
+      response, HCI_READ_LOCAL_SIMPLE_PAIRING_OPTIONS, 2 /* bytes after */);
+
+  CHECK(stream != NULL);
+  STREAM_TO_UINT8(*simple_pairing_options, stream);
+  STREAM_TO_UINT8(*maximum_encryption_key_size, stream);
+
+  buffer_allocator->free(response);
+}
+
 static void parse_ble_read_offload_features_response(
     BT_HDR *response,
     bool *ble_offload_features_supported) {
@@ -221,6 +234,8 @@ static void parse_ble_read_suggested_default_data_length_response(
       response, HCI_BLE_READ_DEFAULT_DATA_LENGTH, 2 /* bytes after */);
   assert(stream != NULL);
   STREAM_TO_UINT8(*ble_default_packet_length_ptr, stream);
+
+  buffer_allocator->free(response);
 }
 
 static void parse_ble_read_maximum_advertising_data_length(
@@ -302,7 +317,9 @@ static const hci_packet_parser_t interface = {
     parse_ble_read_number_of_supported_advertising_sets,
     parse_read_local_supported_codecs_response,
     parse_ble_read_offload_features_response,
-    parse_read_scrambling_supported_freqs_response};
+    parse_read_scrambling_supported_freqs_response,
+    parse_read_local_simple_paring_options_response,
+};
 
 const hci_packet_parser_t* hci_packet_parser_get_interface() {
   buffer_allocator = buffer_allocator_get_interface();

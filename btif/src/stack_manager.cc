@@ -88,6 +88,11 @@ static void shut_down_stack_async(void) {
 static void clean_up_stack(void) {
   // This is a synchronous process. Post it to the thread though, so
   // state modification only happens there.
+  if(management_thread == NULL) {
+    LOG_INFO(LOG_TAG, "%s : stack is not at initialized", __func__);
+    return;
+  }
+
   semaphore_t* semaphore = semaphore_new(0);
   thread_post(management_thread, event_clean_up_stack, semaphore);
   semaphore_wait(semaphore);

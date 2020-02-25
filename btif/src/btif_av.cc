@@ -1104,17 +1104,18 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
       btif_rc_handler(event, (tBTA_AV*)p_data);
       break;
 
-    case BTIF_AV_SOURCE_CONFIG_REQ_EVT:
+    case BTIF_AV_SOURCE_CONFIG_REQ_EVT: {
       if (codec_mode_change_req) {
         btif_update_source_codec(p_data);
         break;
       }
       static std::vector<btav_a2dp_codec_config_t> codec_user_list;
-      static btav_a2dp_codec_config_t *p_bta_av_codec_pri_listt = (btav_a2dp_codec_config_t*)malloc(sizeof(btav_a2dp_codec_config_t)*num_codec_configs);
-      memcpy(p_bta_av_codec_pri_listt, (btav_a2dp_codec_config_t *)p_data, num_codec_configs *sizeof(btav_a2dp_codec_config_t));
+      btav_a2dp_codec_config_t p_bta_av_codec_pri_list[num_codec_configs];
+      memcpy(p_bta_av_codec_pri_list, (btav_a2dp_codec_config_t*)p_data,
+             num_codec_configs * sizeof(btav_a2dp_codec_config_t));
       codec_user_list.clear();
       for (int i=0;i<num_codec_configs;i++)
-        codec_user_list.push_back(*(p_bta_av_codec_pri_listt+i));
+        codec_user_list.push_back(p_bta_av_codec_pri_list[i]);
 
       for (auto cp : codec_user_list) {
       BTIF_TRACE_ERROR(
@@ -1141,7 +1142,7 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
       }
       bta_av_co_init(codec_user_list);                 //updating for bta_av_co_cb.codecs
       btif_update_source_codec_capability(codec_user_list);  //updating for AVDT Discover
-      break;
+      } break;
 
     case BTIF_AV_SOURCE_CONFIG_UPDATED_EVT:
       {
@@ -1406,17 +1407,18 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
         btif_queue_advance_by_uuid(connect_req_t->uuid, &(btif_av_cb[index].peer_bda));
     } break;
 
-    case BTIF_AV_SOURCE_CONFIG_REQ_EVT:
+    case BTIF_AV_SOURCE_CONFIG_REQ_EVT: {
       if (codec_mode_change_req) {
         btif_update_source_codec(p_data);
         break;
       }
       static std::vector<btav_a2dp_codec_config_t> codec_user_list;
-      static btav_a2dp_codec_config_t *p_bta_av_codec_pri_listt = (btav_a2dp_codec_config_t*)malloc(sizeof(btav_a2dp_codec_config_t)*num_codec_configs);
-      memcpy(p_bta_av_codec_pri_listt, (btav_a2dp_codec_config_t *)p_data, num_codec_configs *sizeof(btav_a2dp_codec_config_t));
+      btav_a2dp_codec_config_t p_bta_av_codec_pri_list[num_codec_configs];
+      memcpy(p_bta_av_codec_pri_list, (btav_a2dp_codec_config_t*)p_data,
+             num_codec_configs * sizeof(btav_a2dp_codec_config_t));
       codec_user_list.clear();
       for (int i=0;i<num_codec_configs;i++)
-        codec_user_list.push_back(*(p_bta_av_codec_pri_listt+i));
+        codec_user_list.push_back(p_bta_av_codec_pri_list[i]);
 
       for (auto cp : codec_user_list) {
       BTIF_TRACE_DEBUG(
@@ -1442,7 +1444,7 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
         break;
       }
       BTIF_TRACE_DEBUG("%s: codec_user_list cached", __func__);
-      break;
+      } break;
 
     case BTIF_AV_SOURCE_CONFIG_UPDATED_EVT:
       if (p_data != NULL) {
@@ -1538,7 +1540,7 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
       else if (bt_av_src_callbacks != NULL)
           connect_req_t->uuid = UUID_SERVCLASS_AUDIO_SOURCE;
       btif_queue_advance_by_uuid(connect_req_t->uuid, &(btif_av_cb[index].peer_bda));
-      btif_av_check_and_start_collission_timer(index);
+      //btif_av_check_and_start_collission_timer(index);
       btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_IDLE);
       btif_report_connection_state_to_ba(BTAV_CONNECTION_STATE_DISCONNECTED);
       } break;
@@ -1662,17 +1664,18 @@ static bool btif_av_state_closing_handler(btif_sm_event_t event, void* p_data, i
     case BTIF_SM_EXIT_EVT:
       break;
 
-    case BTIF_AV_SOURCE_CONFIG_REQ_EVT:
+    case BTIF_AV_SOURCE_CONFIG_REQ_EVT: {
       if (codec_mode_change_req) {
         btif_update_source_codec(p_data);
         break;
       }
       static std::vector<btav_a2dp_codec_config_t> codec_user_list;
-      static btav_a2dp_codec_config_t *p_bta_av_codec_pri_listt = (btav_a2dp_codec_config_t*)malloc(sizeof(btav_a2dp_codec_config_t)*num_codec_configs);
-      memcpy(p_bta_av_codec_pri_listt, (btav_a2dp_codec_config_t *)p_data, num_codec_configs *sizeof(btav_a2dp_codec_config_t));
+      btav_a2dp_codec_config_t p_bta_av_codec_pri_list[num_codec_configs];
+      memcpy(p_bta_av_codec_pri_list, (btav_a2dp_codec_config_t*)p_data,
+             num_codec_configs * sizeof(btav_a2dp_codec_config_t));
       codec_user_list.clear();
       for (int i=0;i<num_codec_configs;i++)
-        codec_user_list.push_back(*(p_bta_av_codec_pri_listt+i));
+        codec_user_list.push_back(p_bta_av_codec_pri_list[i]);
 
       for (auto cp : codec_user_list) {
       BTIF_TRACE_DEBUG(
@@ -1698,7 +1701,7 @@ static bool btif_av_state_closing_handler(btif_sm_event_t event, void* p_data, i
         break;
       }
       BTIF_TRACE_DEBUG("%s: codec_user_list cached", __func__);
-      break;
+      } break;
 
     case BTIF_AV_SOURCE_CONFIG_UPDATED_EVT:
       if (p_data != NULL) {
@@ -1959,17 +1962,18 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
       btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_STARTED);
     } break;
 
-    case BTIF_AV_SOURCE_CONFIG_REQ_EVT: 
+    case BTIF_AV_SOURCE_CONFIG_REQ_EVT: {
       if (codec_mode_change_req) {
         btif_update_source_codec(p_data);
         break;
       }
       static std::vector<btav_a2dp_codec_config_t> codec_user_list;
-      static btav_a2dp_codec_config_t *p_bta_av_codec_pri_listt = (btav_a2dp_codec_config_t*)malloc(sizeof(btav_a2dp_codec_config_t)*num_codec_configs);
-      memcpy(p_bta_av_codec_pri_listt, (btav_a2dp_codec_config_t *)p_data, num_codec_configs *sizeof(btav_a2dp_codec_config_t));
+      btav_a2dp_codec_config_t p_bta_av_codec_pri_list[num_codec_configs];
+      memcpy(p_bta_av_codec_pri_list, (btav_a2dp_codec_config_t*)p_data,
+             num_codec_configs * sizeof(btav_a2dp_codec_config_t));
       codec_user_list.clear();
       for (int i=0;i<num_codec_configs;i++)
-        codec_user_list.push_back(*(p_bta_av_codec_pri_listt+i));
+        codec_user_list.push_back(p_bta_av_codec_pri_list[i]);
 
       for (auto cp : codec_user_list) {
       BTIF_TRACE_DEBUG(
@@ -1977,7 +1981,7 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
         "sample_rate=0x%x bits_per_sample=0x%x "
         "channel_mode=0x%x codec_specific_1=0x%x "
         "codec_specific_2=0x%x codec_specific_3=0x%x "
-      "codec_specific_4=0x%x codec_specific_5=0x%x",
+        "codec_specific_4=0x%x codec_specific_5=0x%x",
         __func__, cp.codec_type, cp.codec_priority, cp.sample_rate,
         cp.bits_per_sample, cp.channel_mode, cp.codec_specific_1,
         cp.codec_specific_2, cp.codec_specific_3, cp.codec_specific_4, cp.codec_specific_5);}
@@ -1995,7 +1999,7 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
         break;
       }
       BTIF_TRACE_DEBUG("%s: codec_user_list cached", __func__);
-      break;
+      } break;
 
     case BTIF_AV_SOURCE_CONFIG_UPDATED_EVT: {
       if (p_data != NULL) {
@@ -2293,7 +2297,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
       }
       break;
 
-    case BTIF_AV_SOURCE_CONFIG_REQ_EVT:
+    case BTIF_AV_SOURCE_CONFIG_REQ_EVT: {
       if (codec_mode_change_req) {
         btif_update_source_codec(p_data);
         break;
@@ -2301,11 +2305,12 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
       btif_av_cb[index].reconfig_pending = true;
       btif_av_flow_spec_cmd(index, reconfig_a2dp_param_val);
       static std::vector<btav_a2dp_codec_config_t> codec_user_list;
-      static btav_a2dp_codec_config_t *p_bta_av_codec_pri_listt = (btav_a2dp_codec_config_t*)malloc(sizeof(btav_a2dp_codec_config_t)*num_codec_configs);
-      memcpy(p_bta_av_codec_pri_listt, (btav_a2dp_codec_config_t *)p_data, num_codec_configs *sizeof(btav_a2dp_codec_config_t));
+      btav_a2dp_codec_config_t p_bta_av_codec_pri_list[num_codec_configs];
+      memcpy(p_bta_av_codec_pri_list, (btav_a2dp_codec_config_t*)p_data,
+             num_codec_configs * sizeof(btav_a2dp_codec_config_t));
       codec_user_list.clear();
       for (int i=0;i<num_codec_configs;i++)
-        codec_user_list.push_back(*(p_bta_av_codec_pri_listt+i));
+        codec_user_list.push_back(p_bta_av_codec_pri_list[i]);
 
       for (auto cp : codec_user_list) {
       BTIF_TRACE_DEBUG(
@@ -2331,7 +2336,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
         break;
       }
       BTIF_TRACE_DEBUG("%s: codec_user_list cached", __func__);
-      break;
+      } break;
 
     case BTIF_AV_SOURCE_CONFIG_UPDATED_EVT:
       if (p_data != NULL) {
@@ -4099,7 +4104,6 @@ static bt_status_t codec_config_src(const RawAddress& bd_addr,
   BTIF_TRACE_EVENT("%s", __func__);
   CHECK_BTAV_INIT();
   num_codec_configs = codec_preferences.size();
-  btav_a2dp_codec_config_t p_bta_av_codec_pri_list[num_codec_configs];
   int64_t aptx_mode;
   codec_bda = bd_addr;
   BTIF_TRACE_ERROR("%s: bd_addr: %s", __func__, codec_bda.ToString().c_str());
@@ -4109,59 +4113,17 @@ static bt_status_t codec_config_src(const RawAddress& bd_addr,
   }
   btif_av_codec_config_req_t codec_req;
   isDevUiReq = false;
-  int n_codec =0;
   for (auto cp : codec_preferences) {
-        p_bta_av_codec_pri_list[n_codec]=cp;
          BTIF_TRACE_ERROR(
         "%s: codec_type=%d, codec_priority=%d "
         "sample_rate=0x%x bits_per_sample=0x%x "
         "channel_mode=0x%x codec_specific_1=0x%x "
         "codec_specific_2=0x%x codec_specific_3=0x%x "
         "codec_specific_4=0x%x codec_specific_5=0x%x",
-        __func__, p_bta_av_codec_pri_list[n_codec].codec_type, p_bta_av_codec_pri_list[n_codec].codec_priority, p_bta_av_codec_pri_list[n_codec].sample_rate,
-        p_bta_av_codec_pri_list[n_codec].bits_per_sample, p_bta_av_codec_pri_list[n_codec].channel_mode, p_bta_av_codec_pri_list[n_codec].codec_specific_1,
-        p_bta_av_codec_pri_list[n_codec].codec_specific_2, p_bta_av_codec_pri_list[n_codec].codec_specific_3, p_bta_av_codec_pri_list[n_codec].codec_specific_4,
-        p_bta_av_codec_pri_list[n_codec].codec_specific_5);
-        n_codec++;
-
-       /*   if (current_codec != nullptr) {
-            btav_a2dp_codec_config_t codec_config;
-            codec_config = current_codec->getCodecConfig();
-            isBitRateChange = false;
-            if ((codec_config.codec_specific_1 != cp.codec_specific_1) &&
-                (codec_config.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC)) {
-              isBitRateChange = true;
-              switch (cp.codec_specific_1)
-              {
-              case 1000:
-                if ((codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_44100) ||
-                  (codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_88200))
-                  reconfig_a2dp_param_val = 909000;
-                else
-                  reconfig_a2dp_param_val = 990000;
-                break;
-              case 1001:
-                if ((codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_44100) ||
-                  (codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_88200))
-                  reconfig_a2dp_param_val = 606000;
-                else
-                  reconfig_a2dp_param_val = 660000;
-                break;
-              case 1002:
-                if ((codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_44100) ||
-                  (codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_88200))
-                  reconfig_a2dp_param_val = 303000;
-                else
-                  reconfig_a2dp_param_val = 330000;
-                break;
-              case 1003:
-                reconfig_a2dp_param_val = 0;
-                break;
-              }
-              if (cp.codec_specific_1 != 0) {
-                reconfig_a2dp_param_id = BITRATE_PARAM_ID;
-              }
-            }*/
+        __func__, cp.codec_type, cp.codec_priority, cp.sample_rate,
+        cp.bits_per_sample, cp.channel_mode, cp.codec_specific_1,
+        cp.codec_specific_2, cp.codec_specific_3, cp.codec_specific_4,
+        cp.codec_specific_5);
 
     if (cp.codec_specific_5 != 0 &&
          cp.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE) {
@@ -4183,7 +4145,6 @@ static bt_status_t codec_config_src(const RawAddress& bd_addr,
   isDevUiReq = true;
   if (codec_mode_change_req) {
     btav_a2dp_codec_config_t codec_config;
-    std::vector<btav_a2dp_codec_config_t> codecs_local_capabilities;
     uint16_t ENCODER_MODE_MASK = 0x3000;
 
     A2dpCodecConfig* current_codec = bta_av_get_a2dp_current_codec();
@@ -4218,7 +4179,7 @@ static bt_status_t codec_config_src(const RawAddress& bd_addr,
    }
  }
  btif_transfer_context(btif_av_handle_event, BTIF_AV_SOURCE_CONFIG_REQ_EVT,
-   (char*)(&p_bta_av_codec_pri_list), num_codec_configs *sizeof(btav_a2dp_codec_config_t), NULL);
+   (char*)codec_preferences.data(), num_codec_configs*sizeof(btav_a2dp_codec_config_t), NULL);
  return BT_STATUS_SUCCESS;
 }
 

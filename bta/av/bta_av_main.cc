@@ -421,24 +421,41 @@ void bta_av_conn_cback(UNUSED_ATTR uint8_t handle, const RawAddress* bd_addr,
 
 #if (BTA_AR_INCLUDED == TRUE)
   if (event == BTA_AR_AVDT_CONN_EVT || event == AVDT_CONNECT_IND_EVT ||
-      event == AVDT_DISCONNECT_IND_EVT)
+      event == AVDT_DISCONNECT_IND_EVT || event == AVDT_CLOSE_IND_EVT)
 #else
-  if (event == AVDT_CONNECT_IND_EVT || event == AVDT_DISCONNECT_IND_EVT)
+  if (event == AVDT_CONNECT_IND_EVT || event == AVDT_DISCONNECT_IND_EVT ||
+      event == AVDT_CLOSE_IND_EVT )
 #endif
   {
     evt = BTA_AV_SIG_CHG_EVT;
-    if (event == AVDT_DISCONNECT_IND_EVT) {
+    if (event == AVDT_DISCONNECT_IND_EVT || event == AVDT_CLOSE_IND_EVT) {
       p_scb = bta_av_addr_to_scb(*bd_addr);
     } else if (event == AVDT_CONNECT_IND_EVT) {
       APPL_TRACE_DEBUG("%s: CONN_IND is ACP:%d", __func__,
                        p_data->hdr.err_param);
     }
 
+    if ((p_scb == NULL) && (event == AVDT_CLOSE_IND_EVT)) {
+      return;
+    }
+
     tBTA_AV_STR_MSG* p_msg =
         (tBTA_AV_STR_MSG*)osi_malloc(sizeof(tBTA_AV_STR_MSG));
-    p_msg->hdr.event = evt;
-    p_msg->hdr.layer_specific = event;
-    p_msg->hdr.offset = p_data->hdr.err_param;
+
+    if(event == AVDT_CLOSE_IND_EVT) {
+       p_msg->hdr.event= BTA_AV_STR_CLOSE_EVT;
+       p_msg->hdr.layer_specific = p_scb->hndl;
+       p_msg->msg.hdr.err_code = 0;
+       p_msg->hdr.offset = 0;
+       p_msg->handle = handle;
+       p_msg->avdt_event = event;
+       p_msg->initiator = false;
+    }
+    else {
+       p_msg->hdr.event = evt;
+       p_msg->hdr.layer_specific = event;
+       p_msg->hdr.offset = p_data->hdr.err_param;
+    }
     p_msg->bd_addr = *bd_addr;
     if (p_scb) {
       APPL_TRACE_DEBUG("scb hndl x%x, role x%x", p_scb->hndl, p_scb->role);
@@ -522,6 +539,11 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
   if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
     p_bta_av_cfg = (tBTA_AV_CFG*)&bta_avk_cfg;
   } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
+    //if memory is already allocated free it.
+    if(p_bta_av_cfg) {
+      osi_free(p_bta_av_cfg);
+      p_bta_av_cfg = NULL;
+    }
     p_bta_av_cfg = (tBTA_AV_CFG *) osi_malloc(sizeof(tBTA_AV_CFG));
     memcpy(p_bta_av_cfg,&bta_av_cfg,sizeof(tBTA_AV_CFG));
     if(bta_av_cb.features & BTA_AV_FEAT_BROWSE) {
@@ -836,18 +858,15 @@ void bta_av_api_deregister(tBTA_AV_DATA* p_data) {
 
   if (p_scb) {
     p_scb->deregistring = true;
+    bta_av_ssm_execute(p_scb, BTA_AV_API_CLOSE_EVT, p_data);
     if(p_scb->avrc_ct_timer != NULL) {
       alarm_free(p_scb->avrc_ct_timer);
       p_scb->avrc_ct_timer = NULL;
     }
-    list_free(p_scb->a2dp_list);
-    bta_av_ssm_execute(p_scb, BTA_AV_API_CLOSE_EVT, p_data);
+    if((p_scb->a2dp_list != NULL) && list_length(p_scb->a2dp_list))
+      list_free(p_scb->a2dp_list);
   } else {
     bta_av_dereg_comp(p_data);
-  }
-  if (p_bta_av_cfg) {
-    osi_free(p_bta_av_cfg);
-    p_bta_av_cfg = NULL;
   }
 }
 
