@@ -2051,6 +2051,13 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
         btif_av_trigger_suspend();
       }
 #endif
+      if (btif_av_is_multicast_supported()) {
+        /* update the multicast state when new device connected */
+        int index = btif_av_get_current_playing_dev_idx();
+        BTIF_TRACE_DEBUG("Call btif_av_update_multicast_state in %s", __func__);
+        btif_av_update_multicast_state(index);
+      }
+
       btif_update_remote_version_property(&bd_addr);
 
       HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
@@ -2075,6 +2082,15 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       }
       btif_av_move_idle(bd_addr);
       btif_avk_move_idle(bd_addr);
+
+      if (btif_av_is_multicast_supported()) {
+        /* update the multicast state when device disconnected */
+        int index = btif_av_get_current_playing_dev_idx();
+        BTIF_TRACE_DEBUG("Call btif_av_update_multicast_state in %s", __func__);
+        btif_av_update_multicast_state(index);
+      }
+
+
       BTIF_TRACE_DEBUG(
           "BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
       HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,

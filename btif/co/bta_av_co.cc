@@ -65,6 +65,7 @@
 #include "bta_av_api.h"
 #include "bta_av_ci.h"
 #include "bta_sys.h"
+#include "bta/av/bta_av_int.h"
 
 #include "btif_av.h"
 #include "btif_av_co.h"
@@ -139,7 +140,7 @@ static bool bta_av_co_audio_protect_has_scmst(uint8_t num_protect,
                                               const uint8_t* p_protect_info);
 static const tBTA_AV_CO_SINK* bta_av_co_find_peer_src_supports_codec(
     const tBTA_AV_CO_PEER* p_peer);
-static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer);
+static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer, char *codecName);
 static tBTA_AV_CO_SINK* bta_av_co_audio_codec_selected(
     A2dpCodecConfig& codec_config, tBTA_AV_CO_PEER* p_peer);
 static void bta_av_co_save_new_codec_config(tBTA_AV_CO_PEER* p_peer,
@@ -548,7 +549,13 @@ tA2DP_STATUS bta_av_co_audio_getconfig(tBTA_AV_HNDL hndl, uint8_t* p_codec_info,
   bta_av_co_store_peer_codectype(p_peer);
 #endif
 
-  const tBTA_AV_CO_SINK* p_sink = bta_av_co_audio_set_codec(p_peer);
+  tBTA_AV_CO_SINK* p_sink = NULL;
+  char codecName[] = "SBC";
+  if (btif_av_is_multicast_supported() && btif_av_get_num_connected_devices() > 0)
+      p_sink = bta_av_co_audio_set_codec(p_peer, codecName);
+  else
+      p_sink = bta_av_co_audio_set_codec(p_peer, NULL);
+
   if (p_sink == NULL) {
     APPL_TRACE_ERROR("%s: cannot set up codec for the peer SINK", __func__);
     return A2DP_FAIL;
@@ -1139,7 +1146,7 @@ static bool bta_av_co_check_peer_eligible_for_aac_codec(
 // Return a pointer to the corresponding |tBTA_AV_CO_SINK| sink entry
 // on success, otherwise NULL.
 //
-static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer) {
+static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer, char *codecName) {
   tBTA_AV_CO_SINK* p_sink = NULL;
   // Update all selectable codecs.
   // This is needed to update the selectable parameters for each codec.
@@ -1178,6 +1185,9 @@ static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer) {
       continue;
     }
 #endif
+    if ( (codecName != NULL) && (0 != strcmp(iter->name().c_str(), codecName)) )
+        continue;
+
     if (!strcmp(iter->name().c_str(),"AAC")) {
       if (bta_av_co_check_peer_eligible_for_aac_codec(p_peer)) {
         APPL_TRACE_DEBUG("%s: AAC codec is added in sink capability", __func__);
@@ -1550,7 +1560,7 @@ bool bta_av_co_set_codec_user_config(
     if (p_peer->cp_active) num_protect = AVDT_CP_INFO_LEN;
 #endif
 
-    p_sink = bta_av_co_audio_set_codec(p_peer);
+    p_sink = bta_av_co_audio_set_codec(p_peer, NULL);
     if (p_sink == NULL) {
       APPL_TRACE_ERROR("%s: cannot set up codec for the peer SINK", __func__);
       success = false;
@@ -1805,7 +1815,16 @@ bt_status_t bta_av_set_a2dp_current_codec(tBTA_AV_HNDL hndl) {
     if (!bta_av_co_set_active_peer(p_peer->addr)) {
       BTIF_TRACE_WARNING("%s: unable to set active peer",__func__);
     }
-    p_sink = bta_av_co_audio_set_codec(p_peer);
+
+    if (btif_av_multicast_config_codec()) {
+        BTIF_TRACE_WARNING("%s: choose sbc ",__func__);
+        char codecName[] = "SBC";
+        p_sink = bta_av_co_audio_set_codec(p_peer, codecName);
+    }
+    else {
+        BTIF_TRACE_WARNING("%s: choose others",__func__);
+        p_sink = bta_av_co_audio_set_codec(p_peer, NULL);
+    }
     if (p_sink == NULL) {
       APPL_TRACE_ERROR("%s() can not setup codec for the peer", __func__);
       status = BT_STATUS_FAIL;

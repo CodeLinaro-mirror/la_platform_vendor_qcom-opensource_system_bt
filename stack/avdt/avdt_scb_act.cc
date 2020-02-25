@@ -444,7 +444,8 @@ void avdt_scb_drop_pkt(UNUSED_ATTR tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
  ******************************************************************************/
 void avdt_scb_hdl_reconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   /* if command not supported */
-  if (p_scb->cs.nsc_mask & AVDT_NSC_RECONFIG) {
+  if ( (p_scb->cs.nsc_mask & AVDT_NSC_RECONFIG) ||
+      (btif_av_get_multicast_state() && btif_av_get_num_connected_devices()==2) ) {
     /* send reject */
     p_data->msg.hdr.err_code = AVDT_ERR_NSC;
     p_data->msg.hdr.err_param = 0;
@@ -603,6 +604,7 @@ void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   tAVDT_CFG* p_cfg;
   tA2DP_CODEC_TYPE codec_type;
   tAVDT_CTRL avdt_ctrl;
+  bool valid_codec = true;
   AVDT_TRACE_WARNING("avdt_scb_hdl_setconfig_cmd: SCB in use: %d, Conn in progress: %d, avdt_check_sep_state: %d",
        p_scb->in_use, avdt_cb.conn_in_progress, avdt_check_sep_state(p_scb));
 
@@ -612,10 +614,15 @@ void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
     A2DP_DumpCodecInfo(p_data->msg.config_cmd.p_cfg->codec_info);
     p_cfg = p_data->msg.config_cmd.p_cfg;
     codec_type = A2DP_GetCodecType(p_cfg->codec_info);
+    /* if the multicast is enabled and there are already a sink device connected, only accept the SBC codec */
+    if (btif_av_is_multicast_supported() && btif_av_get_num_connected_devices() > 0) {
+      if (codec_type != A2DP_MEDIA_CT_SBC)
+        valid_codec = false;
+    }
     AVDT_TRACE_DEBUG("%s: Incoming codec_type: %x, min/max bitpool: %x/%x", __func__, codec_type,
                        p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET],
                        p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET]);
-    if (A2DP_GetCodecType(p_scb->cs.cfg.codec_info) == codec_type) {
+    if (A2DP_GetCodecType(p_scb->cs.cfg.codec_info) == codec_type && valid_codec) {
       /* set sep as in use */
       p_scb->in_use = true;
 
@@ -911,6 +918,16 @@ void avdt_scb_snd_delay_rpt_req(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
 void avdt_scb_hdl_delay_rpt_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   tAVDT_EVT_HDR single;
   alarm_cancel(p_scb->delay_report_timer);
+  /* if in multicast mode, reject the delay report */
+  if (btif_av_get_ongoing_multicast()) {
+      p_data->msg.hdr.err_code = AVDT_ERR_UNSUP_CFG;
+      if (p_scb->p_ccb)
+        avdt_msg_send_rej(p_scb->p_ccb, AVDT_SIG_DELAY_RPT, &p_data->msg);
+      else
+        avdt_msg_send_rej(avdt_ccb_by_idx(p_data->msg.hdr.ccb_idx), AVDT_SIG_DELAY_RPT, &p_data->msg);
+      return;
+  }
+
   (*p_scb->cs.p_ctrl_cback)(
       avdt_scb_to_hdl(p_scb), p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
       AVDT_DELAY_REPORT_EVT, (tAVDT_CTRL*)&p_data->msg.hdr);

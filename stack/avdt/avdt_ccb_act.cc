@@ -46,6 +46,7 @@
 #include <btcommon_interface_defs.h>
 #include "bta/include/bta_av_api.h"
 #include "btif/include/btif_config.h"
+#include "btif/include/btif_av.h"
 
 int avdt_ccb_get_num_allocated_seps();
 /*******************************************************************************
@@ -232,6 +233,14 @@ void avdt_ccb_hdl_discover_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
       effective_num_seps++;
       codec_name = A2DP_CodecName(p_scb->cs.cfg.codec_info);
       AVDT_TRACE_DEBUG("codec name %s", A2DP_CodecName(p_scb->cs.cfg.codec_info));
+
+      /* if the multicast is enabled and there is already a sink device connect, only response the SBC codec */
+      if (btif_av_get_multicast_state() && btif_av_get_num_connected_devices() > 0) {
+          if (strcmp(codec_name,"SBC") != 0) {
+              continue;
+          }
+      }
+
       if ((soc_type == BT_SOC_TYPE_CHEROKEE || soc_type == BT_SOC_TYPE_HASTINGS)) {
         if (p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == A2DP_MEDIA_CT_AAC) {
           if (btif_config_get_uint16(p_ccb->peer_addr.ToString().c_str(), PNP_VENDOR_ID_CONFIG_KEY,

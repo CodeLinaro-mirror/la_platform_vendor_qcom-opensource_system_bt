@@ -4036,6 +4036,11 @@ static void register_volumechange(uint8_t lbl, btif_rc_device_cb_t* p_dev) {
         return;
   }
 
+  if (btif_av_get_multicast_state() && btif_av_get_num_connected_devices() > 1) {
+        BTIF_TRACE_DEBUG("in AV multicast mode, volume is not supported");
+        return;
+  }
+
   avrc_cmd.cmd.opcode = 0x00;
   avrc_cmd.pdu = AVRC_PDU_REGISTER_NOTIFICATION;
   avrc_cmd.reg_notif.event_id = AVRC_EVT_VOLUME_CHANGE;
@@ -6762,6 +6767,12 @@ static bt_status_t is_device_active_in_handoff(RawAddress *bd_addr) {
   if (p_dev == NULL) {
     BTIF_TRACE_ERROR("%s: p_dev NULL", __func__);
     return BT_STATUS_FAIL;
+  }
+
+
+  if (btif_av_get_multicast_state() && 1 == btif_get_conn_state_of_device(*bd_addr)) {
+      BTIF_TRACE_ERROR("%s:for incoming connection device in multicast mode",__func__);
+      return BT_STATUS_SUCCESS;
   }
 
   connected_devices = btif_av_get_num_connected_devices();
