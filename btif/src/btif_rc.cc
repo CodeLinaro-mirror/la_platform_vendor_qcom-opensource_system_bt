@@ -5000,6 +5000,22 @@ static bt_status_t get_element_attribute_cmd(uint8_t num_attribute,
                    num_attribute);
   CHECK_RC_CONNECTED(p_dev);
 
+  // For IOP Issue
+  // Few peer devices without CA featue will forcibly restart BT
+  // when it receives request to retrieve value of attribute
+  // AVRC_MEDIA_ATTR_ID_COVER_ART.
+  uint32_t attr_list[] = {
+    AVRC_MEDIA_ATTR_ID_TITLE,       AVRC_MEDIA_ATTR_ID_ARTIST,
+    AVRC_MEDIA_ATTR_ID_ALBUM,       AVRC_MEDIA_ATTR_ID_TRACK_NUM,
+    AVRC_MEDIA_ATTR_ID_NUM_TRACKS,  AVRC_MEDIA_ATTR_ID_GENRE,
+    AVRC_MEDIA_ATTR_ID_PLAYING_TIME};
+
+  if (!(p_dev->rc_features & BTA_AV_FEAT_CA) &&
+        num_attribute == AVRC_MAX_NUM_MEDIA_ATTR_ID) {
+    p_attr_ids = attr_list;
+    num_attribute = sizeof(attr_list)/sizeof(attr_list[0]);
+  }
+
   tAVRC_COMMAND avrc_cmd = {0};
   avrc_cmd.get_elem_attrs.opcode = AVRC_OP_VENDOR;
   avrc_cmd.get_elem_attrs.status = AVRC_STS_NO_ERROR;
