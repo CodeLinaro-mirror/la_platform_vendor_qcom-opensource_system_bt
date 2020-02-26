@@ -1001,7 +1001,10 @@ void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, tL2C_CCB* p_ccb, BT_HDR* p_buf) {
       p_buf->event = 0;
 
     p_buf->layer_specific = 0;
-    list_append(p_lcb->link_xmit_data_q, p_buf);
+    {
+      std::lock_guard<std::mutex> lock(*p_lcb->link_xmit_data_mutex);
+      list_append(p_lcb->link_xmit_data_q, p_buf);
+    }
 
     if (p_lcb->link_xmit_quota == 0) {
       if (p_lcb->transport == BT_TRANSPORT_LE)
@@ -1045,21 +1048,24 @@ void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, tL2C_CCB* p_ccb, BT_HDR* p_buf) {
           (p_lcb->link_xmit_quota != 0) || (L2C_LINK_CHECK_POWER_MODE(p_lcb)))
         continue;
 
-      /* See if we can send anything from the Link Queue */
-      if (!list_is_empty(p_lcb->link_xmit_data_q)) {
-        p_buf = (BT_HDR*)list_front(p_lcb->link_xmit_data_q);
-        list_remove(p_lcb->link_xmit_data_q, p_buf);
-        l2c_link_send_to_lower(p_lcb, p_buf, NULL);
-      } else if (single_write) {
-        /* If only doing one write, break out */
-        break;
-      }
-      /* If nothing on the link queue, check the channel queue */
-      else {
-        tL2C_TX_COMPLETE_CB_INFO cbi;
-        p_buf = l2cu_get_next_buffer_to_send(p_lcb, &cbi);
-        if (p_buf != NULL) {
-          l2c_link_send_to_lower(p_lcb, p_buf, &cbi);
+      {
+        std::lock_guard<std::mutex> lock(*p_lcb->link_xmit_data_mutex);
+        /* See if we can send anything from the Link Queue */
+        if (!list_is_empty(p_lcb->link_xmit_data_q)) {
+          p_buf = (BT_HDR*)list_front(p_lcb->link_xmit_data_q);
+          list_remove(p_lcb->link_xmit_data_q, p_buf);
+          l2c_link_send_to_lower(p_lcb, p_buf, NULL);
+        } else if (single_write) {
+          /* If only doing one write, break out */
+          break;
+        }
+        /* If nothing on the link queue, check the channel queue */
+        else {
+          tL2C_TX_COMPLETE_CB_INFO cbi;
+          p_buf = l2cu_get_next_buffer_to_send(p_lcb, &cbi);
+          if (p_buf != NULL) {
+            l2c_link_send_to_lower(p_lcb, p_buf, &cbi);
+          }
         }
       }
     }
@@ -1088,10 +1094,12 @@ void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, tL2C_CCB* p_ccb, BT_HDR* p_buf) {
             (l2cb.controller_le_xmit_window != 0 &&
              (p_lcb->transport == BT_TRANSPORT_LE))) &&
            (p_lcb->sent_not_acked < p_lcb->link_xmit_quota)) {
-      if (list_is_empty(p_lcb->link_xmit_data_q)) break;
-
-      p_buf = (BT_HDR*)list_front(p_lcb->link_xmit_data_q);
-      list_remove(p_lcb->link_xmit_data_q, p_buf);
+      {
+        std::lock_guard<std::mutex> lock(*p_lcb->link_xmit_data_mutex);
+        if (list_is_empty(p_lcb->link_xmit_data_q)) break;
+        p_buf = (BT_HDR*)list_front(p_lcb->link_xmit_data_q);
+        list_remove(p_lcb->link_xmit_data_q, p_buf);
+      }
       if (!l2c_link_send_to_lower(p_lcb, p_buf, NULL)) break;
     }
 
