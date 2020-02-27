@@ -447,4 +447,14 @@ void btif_debug_bond_event_dump(int fd);
  ******************************************************************************/
 void btif_dm_get_link_key(const RawAddress *bd_addr);
 
+/*******************************************************************************
+ *
+ * Function         btif_dm_remove_acl
+ *
+ * Description      remove acl with the specified device
+ *
+ * Returns          bt_status_t
+ *
+ ******************************************************************************/
+bt_status_t btif_dm_remove_acl(const RawAddress* bd_addr, bool remove_device, int transport);
 #endif /* BTIF_API_H */

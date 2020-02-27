@@ -464,6 +464,13 @@ static void get_link_key(const RawAddress *bd_addr){
   btif_dm_get_link_key(bd_addr);
 }
 
+static int remove_acl(const RawAddress* bd_addr, bool remove_device, int transport) {
+  /* sanity check */
+  if (!interface_ready()) return BT_STATUS_NOT_READY;
+
+  return btif_dm_remove_acl(bd_addr, remove_device, transport);
+}
+
 EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     sizeof(bluetoothInterface),
     init,
@@ -501,4 +508,5 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     interop_database_clear,
     interop_database_add,
     get_avrcp_service,
+    remove_acl,
 };

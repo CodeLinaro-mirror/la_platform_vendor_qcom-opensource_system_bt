@@ -3408,3 +3408,26 @@ void btif_dm_get_link_key(const RawAddress *bd_addr){
   btif_transfer_context(btif_vendor_get_link_key_event, BTIF_VENDOR_GET_LINK_KEY,
                        (char *)bd_addr, sizeof(RawAddress), NULL);
 }
+
+/*******************************************************************************
+ *
+ * Function         btif_dm_remove_acl
+ *
+ * Description      remove ACL connection with the specified device
+ *
+ * Returns          bt_status_t
+ *
+ ******************************************************************************/
+bt_status_t btif_dm_remove_acl(const RawAddress* bd_addr, bool remove_device, int transport) {
+  BTIF_TRACE_EVENT("%s: remove_device=%d transport=%d, remote_addr=%s", __func__,
+                   remove_device, transport, bd_addr->ToString().c_str());
+
+  bool is_bd_addr_connected =
+      BTM_IsAclConnectionUp(*bd_addr, BT_TRANSPORT_LE) ||
+      BTM_IsAclConnectionUp(*bd_addr, BT_TRANSPORT_BR_EDR);
+
+  if (is_bd_addr_connected) {
+    BTA_DmCloseACL(*bd_addr, remove_device, transport);
+  }
+  return BT_STATUS_SUCCESS;
+}

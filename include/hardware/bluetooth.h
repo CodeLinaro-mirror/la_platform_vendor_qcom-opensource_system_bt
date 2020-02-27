@@ -604,6 +604,9 @@ typedef struct {
    * Get the AvrcpTarget Service interface to interact with the Avrcp Service
    */
   bluetooth::avrcp::ServiceInterface* (*get_avrcp_service)(void);
+
+  /** remove ACL connection */
+  int (*remove_acl)(const RawAddress* bd_addr, bool remove_device, int transport);
 } bt_interface_t;
 
 #define BLUETOOTH_INTERFACE_STRING "bluetoothInterface"

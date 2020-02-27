@@ -97,6 +97,7 @@ interface IBluetooth
     boolean setSimAccessPermission(in BluetoothDevice device, int value);
 
     void sendConnectionStateChange(in BluetoothDevice device, int profile, int state, int prevState);
+    boolean removeAcl(in BluetoothDevice device, in boolean removeDevice, int transport);
 
     void registerCallback(in IBluetoothCallback callback);
     void unregisterCallback(in IBluetoothCallback callback);
