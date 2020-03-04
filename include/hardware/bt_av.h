@@ -264,7 +264,8 @@ typedef void (*btav_audio_source_config_callback)(
  */
 typedef void (*btav_audio_sink_config_callback)(const RawAddress& bd_addr,
                                                 uint32_t sample_rate,
-                                                uint8_t channel_count);
+                                                uint8_t channel_count,
+                                                btav_a2dp_codec_index_t codec_index);
 
 /** BT-AV A2DP Source callback structure. */
 typedef struct {

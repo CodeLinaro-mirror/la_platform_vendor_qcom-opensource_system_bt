@@ -97,9 +97,10 @@ void FakeBluetoothAvInterface::NotifyAudioState(const RawAddress& bda,
 }
 void FakeBluetoothAvInterface::NotifyAudioConfig(const RawAddress& bda,
                                                  uint32_t sample_rate,
-                                                 uint8_t channel_count) {
+                                                 uint8_t channel_count,
+                                                 btav_a2dp_codec_index_t codec_index) {
   for (auto& observer : a2dp_sink_observers_) {
-    observer.AudioConfigCallback(this, bda, sample_rate, channel_count);
+    observer.AudioConfigCallback(this, bda, sample_rate, channel_count, codec_index);
   }
 }
 

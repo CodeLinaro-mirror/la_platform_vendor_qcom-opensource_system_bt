@@ -140,6 +140,31 @@ bool A2DP_IsVendorPeerSourceCodecSupported(const uint8_t* p_codec_info) {
   return false;
 }
 
+btav_a2dp_codec_index_t A2DP_GetVendorSourceCodecIndex(
+                               const uint8_t* p_codec_info) {
+  uint32_t vendor_id = A2DP_VendorCodecGetVendorId(p_codec_info);
+  uint16_t codec_id = A2DP_VendorCodecGetCodecId(p_codec_info);
+
+  // Check for aptX
+  if (vendor_id == A2DP_APTX_VENDOR_ID &&
+    codec_id == A2DP_APTX_CODEC_ID_BLUETOOTH) {
+    return BTAV_A2DP_CODEC_INDEX_SOURCE_APTX;
+  }
+
+  // Check for aptX-HD
+  if (vendor_id == A2DP_APTX_HD_VENDOR_ID &&
+    codec_id == A2DP_APTX_HD_CODEC_ID_BLUETOOTH) {
+    return BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD;
+  }
+
+  // Check for LDAC
+  if (vendor_id == A2DP_LDAC_VENDOR_ID && codec_id == A2DP_LDAC_CODEC_ID) {
+    return BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC;
+  }
+
+  return BTAV_A2DP_CODEC_INDEX_SOURCE_MAX;
+}
+
 uint32_t A2DP_VendorCodecGetVendorId(const uint8_t* p_codec_info) {
   const uint8_t* p = &p_codec_info[A2DP_VENDOR_CODEC_VENDOR_ID_START_IDX];
 

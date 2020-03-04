@@ -96,7 +96,8 @@ class BluetoothAvrcpInterface {
     virtual void ConnectionStateCallback(bool rc_connect, bool bt_connect,
                                          const RawAddress& bd_addr);
     virtual void CtrlGetrcfeaturesCallback(const RawAddress& bd_addr,
-                                           int features);
+                                           int features,
+                                           uint16_t cover_art_psm);
     virtual void CtrlSetplayerapplicationsettingRspCallback(
         const RawAddress& bd_addr, uint8_t accepted);
     virtual void CtrlPlayerapplicationsettingCallback(
