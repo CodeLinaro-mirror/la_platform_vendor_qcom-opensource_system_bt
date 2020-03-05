@@ -5380,6 +5380,9 @@ static void btm_sec_collision_timeout(UNUSED_ATTR void* data) {
      * waiting layer */
     btm_sec_dev_rec_cback_event(btm_cb.p_collided_dev_rec, status, false);
   }
+
+  /* Set the pairing state to IDLE after Authentication started */
+  btm_sec_change_pairing_state(BTM_PAIR_STATE_IDLE);
 }
 
 /*******************************************************************************
