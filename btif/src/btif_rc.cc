@@ -2980,16 +2980,17 @@ static bt_status_t get_folder_items_list_rsp(RawAddress* bd_addr,
   BT_HDR* p_msg = NULL;
   int item_cnt;
   tAVRC_STS status = AVRC_STS_NO_ERROR;
-  btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
   btrc_folder_items_t* cur_item = NULL;
   int rsp_index = IDX_GET_FOLDER_ITEMS_RSP;
-  int front_index = p_dev->rc_pdu_info[rsp_index].front;
+  int front_index;
+  btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
 
   if (p_dev == NULL) {
     BTIF_TRACE_ERROR("%s: p_dev is NULL", __func__);
     return BT_STATUS_FAIL;
   }
 
+  front_index = p_dev->rc_pdu_info[rsp_index].front;
   BTIF_TRACE_DEBUG("%s: uid_counter %d num_items %d", __func__, uid_counter,
                    num_items);
   CHECK_RC_CONNECTED(p_dev);
@@ -3194,14 +3195,16 @@ static bt_status_t set_browsed_player_rsp(RawAddress* bd_addr,
   tBTA_AV_CODE ctype = 0;
   unsigned int item_cnt;
   tAVRC_STS status = AVRC_STS_NO_ERROR;
-  btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
   int rsp_index = IDX_SET_BROWSED_PLAYER_RSP;
-  int front_index = p_dev->rc_pdu_info[rsp_index].front;
+  int front_index;
+  btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
+
   if (p_dev == NULL) {
     BTIF_TRACE_ERROR("%s: p_dev is NULL", __func__);
     return BT_STATUS_FAIL;
   }
 
+  front_index = p_dev->rc_pdu_info[rsp_index].front;
   CHECK_RC_CONNECTED(p_dev);
 
   memset(&avrc_rsp, 0, sizeof(tAVRC_RESPONSE));

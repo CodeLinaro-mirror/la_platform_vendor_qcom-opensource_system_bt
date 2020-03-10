@@ -1274,7 +1274,7 @@ static bt_status_t formatted_at_response(const char* rsp, RawAddress* bd_addr) {
   if (idx != BTIF_HF_INVALID_IDX) {
     /* Format the response and send */
     memset(&ag_res, 0, sizeof(ag_res));
-    strncpy(ag_res.str, rsp, BTA_AG_AT_MAX_LEN);
+    strlcpy(ag_res.str, rsp, sizeof(ag_res.str));
     BTA_AgResult(btif_hf_cb[idx].handle, BTA_AG_UNAT_RES, &ag_res);
 
     return BT_STATUS_SUCCESS;
