@@ -415,6 +415,7 @@ typedef struct t_l2c_linkcb {
   uint8_t info_rx_bits;            /* set 1 if received info type */
   uint32_t peer_ext_fea;           /* Peer's extended features mask */
   list_t* link_xmit_data_q;        /* Link transmit data buffer queue */
+  std::mutex* link_xmit_data_mutex;
 
   uint8_t peer_chnl_mask[L2CAP_FIXED_CHNL_ARRAY_SIZE];
 #if (L2CAP_UCD_INCLUDED == TRUE)
