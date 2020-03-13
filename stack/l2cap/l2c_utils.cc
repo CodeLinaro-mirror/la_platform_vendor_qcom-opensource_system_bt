@@ -104,6 +104,7 @@ tL2C_LCB* l2cu_allocate_lcb(const RawAddress& p_bd_addr, bool is_bonding,
       p_lcb->ucd_in_sec_pending_q = fixed_queue_new(SIZE_MAX);
 #endif
       p_lcb->link_xmit_data_q = list_new(NULL);
+      p_lcb->link_xmit_data_mutex = new std::mutex;
       return (p_lcb);
     }
   }
@@ -205,6 +206,7 @@ void l2cu_release_lcb(tL2C_LCB* p_lcb) {
     list_free(p_lcb->link_xmit_data_q);
     p_lcb->link_xmit_data_q = NULL;
   }
+  delete p_lcb->link_xmit_data_mutex;
 
 #if (L2CAP_UCD_INCLUDED == TRUE)
   /* clean up any security pending UCD */
