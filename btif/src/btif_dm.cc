@@ -2697,8 +2697,8 @@ static void btif_dm_lpm_add_paired_devices_to_whitelist(void) {
     btif_dm_add_device_whitelist(lpm_bonded_devices->devices[lpm_add_index]);
     lpm_add_index++;
   } else {
-    BTIF_TRACE_ERROR("%s:all lpm devices added", __func__);
-    // Nothing to be done.
+    BTIF_TRACE_DEBUG("%s:all lpm devices added", __func__);
+    btif_dm_lpm_le_adv_params(pairing_cb.bd_addr);
   }
 }
 
@@ -2989,7 +2989,6 @@ void btif_dm_add_device_whitelist_vsc_cback(tBTM_VSC_CMPL* pCmplEvt) {
   if (status == HCI_SUCCESS) {
     BTIF_TRACE_DEBUG("Adding device to whitelist is successful");
     btif_dm_lpm_add_paired_devices_to_whitelist();
-    btif_dm_lpm_le_adv_params(pairing_cb.bd_addr);
   } else
     BTIF_TRACE_ERROR("Adding device to whitelist Failed");
 }
