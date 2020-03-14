@@ -40,15 +40,22 @@ class PacketField : public Loggable {
   // For most field types, this will be the same as GetSize();
   virtual Size GetBuilderSize() const;
 
+  // Returns the size of the field in bits given the information in the parsed struct.
+  // For most field types, this will be the same as GetSize();
+  virtual Size GetStructSize() const;
+
   // Get the type of the field to be used in the builders constructor and
   // variables.
   virtual std::string GetDataType() const = 0;
 
-  // Given an iterator it, extract the type.
-  virtual void GenExtractor(std::ostream& s, Size start_offset, Size end_offset) const = 0;
+  // Given an iterator {name}_it, extract the type.
+  virtual void GenExtractor(std::ostream& s, int num_leading_bits, bool for_struct) const = 0;
 
-  // Calculate field_begin and field_end using the given offsets and size.
-  virtual void GenBounds(std::ostream& s, Size start_offset, Size end_offset, Size field_size) const;
+  // Calculate field_begin and field_end using the given offsets and size, return the number of leading bits
+  virtual int GenBounds(std::ostream& s, Size start_offset, Size end_offset, Size size) const;
+
+  // Get the name of the getter function, return empty string if there is a getter function
+  virtual std::string GetGetterFunctionName() const = 0;
 
   // Get parser getter definition. Start_offset points to the first bit of the
   // field. end_offset is the first bit after the field. If an offset is empty
@@ -56,8 +63,14 @@ class PacketField : public Loggable {
   // calculate the offset.
   virtual void GenGetter(std::ostream& s, Size start_offset, Size end_offset) const = 0;
 
+  // Get the type of parameter used in Create(), return empty string if a parameter type was NOT generated
+  virtual std::string GetBuilderParameterType() const = 0;
+
   // Generate the parameter for Create(), return true if a parameter was added.
-  virtual bool GenBuilderParameter(std::ostream& s) const = 0;
+  virtual bool GenBuilderParameter(std::ostream& s) const;
+
+  // Return true if the Builder parameter has to be moved.
+  virtual bool BuilderParameterMustBeMoved() const;
 
   // Generate the actual storage for the parameter, return true if it was added.
   virtual bool GenBuilderMember(std::ostream& s) const;
@@ -86,6 +99,13 @@ class PacketField : public Loggable {
   // enums where instead of checking if they can be read, they are checked to
   // see if they contain the correct value.
   virtual void GenValidator(std::ostream& s) const = 0;
+
+  // Some fields are containers of other fields, e.g. array, vector, etc.
+  // Assume STL containers that support swap()
+  virtual bool IsContainerField() const;
+
+  // Get field of nested elements if this is a container field, nullptr if none
+  virtual const PacketField* GetElementField() const;
 
   std::string GetDebugName() const override;
 

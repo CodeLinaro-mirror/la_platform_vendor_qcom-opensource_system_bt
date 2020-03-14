@@ -14,22 +14,53 @@
  * limitations under the License.
  */
 
-#include "main/shim/shim.h"
-#include "main/shim/entry.h"
+#include <cstdint>
 
-// TODO(cmanton) Connect this flag to an external input
-#if 1
+#define LOG_TAG "bt_shim"
+
+#include "common/message_loop_thread.h"
+#include "main/shim/entry.h"
+#include "main/shim/shim.h"
+#include "osi/include/log.h"
+#include "osi/include/properties.h"
+
+static const char* kPropertyKey = "bluetooth.gd.enabled";
+
+static bluetooth::common::MessageLoopThread bt_shim_thread("bt_shim_thread");
+
 static bool gd_shim_enabled_ = false;
-#else
-static bool gd_shim_enabled_ = true;
-#endif
+static bool gd_shim_property_checked_ = false;
+
+future_t* ShimModuleStartUp() {
+  bt_shim_thread.StartUp();
+  CHECK(bt_shim_thread.IsRunning())
+      << "Unable to start bt shim message loop thread.";
+  bluetooth::shim::StartGabeldorscheStack();
+  return nullptr;
+}
+
+future_t* ShimModuleShutDown() {
+  bluetooth::shim::StopGabeldorscheStack();
+  bt_shim_thread.ShutDown();
+  return nullptr;
+}
 
 EXPORT_SYMBOL extern const module_t gd_shim_module = {
     .name = GD_SHIM_MODULE,
-    .init = NULL,
-    .start_up = bluetooth::shim::StartGabeldorscheStack,
-    .shut_down = bluetooth::shim::StopGabeldorscheStack,
+    .init = nullptr,
+    .start_up = ShimModuleStartUp,
+    .shut_down = ShimModuleShutDown,
     .clean_up = NULL,
     .dependencies = {NULL}};
 
-bool bluetooth::shim::is_gd_shim_enabled() { return gd_shim_enabled_; }
+void bluetooth::shim::Post(base::OnceClosure task) {
+  bt_shim_thread.DoInThread(FROM_HERE, std::move(task));
+}
+
+bool bluetooth::shim::is_gd_shim_enabled() {
+  if (!gd_shim_property_checked_) {
+    gd_shim_property_checked_ = true;
+    gd_shim_enabled_ = (osi_property_get_int32(kPropertyKey, 0) == 1);
+  }
+  return gd_shim_enabled_;
+}

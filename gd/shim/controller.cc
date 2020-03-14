@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#define LOG_TAG "gd_shim"
+#define LOG_TAG "bt_gd_shim"
 
 #include <memory>
 
@@ -83,6 +83,10 @@ std::string Controller::GetControllerMacAddress() const {
 
 uint64_t Controller::GetControllerLeSupportedStates() const {
   return pimpl_->hci_controller_->GetControllerLeSupportedStates();
+}
+
+uint8_t Controller::GetControllerLeNumberOfSupportedAdverisingSets() const {
+  return pimpl_->hci_controller_->GetControllerLeNumberOfSupportedAdverisingSets();
 }
 
 uint8_t Controller::GetControllerLocalExtendedFeaturesMaxPageNumber() const {

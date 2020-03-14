@@ -9,13 +9,15 @@ service AclManagerFacade {
   rpc SetPageScanMode(PageScanMode) returns (google.protobuf.Empty) {}
   rpc Connect(facade.BluetoothAddress) returns (google.protobuf.Empty) {}
   rpc Disconnect(facade.BluetoothAddress) returns (google.protobuf.Empty) {}
-  rpc FetchConnectionComplete(facade.EventStreamRequest) returns (stream ConnectionEvent) {}
-  rpc FetchDisconnection(facade.EventStreamRequest) returns (stream DisconnectionEvent) {}
-  rpc FetchConnectionFailed(facade.EventStreamRequest) returns (stream ConnectionFailedEvent) {}
+  rpc AuthenticationRequested(facade.BluetoothAddress) returns (google.protobuf.Empty) {}
+  rpc FetchConnectionComplete(google.protobuf.Empty) returns (stream ConnectionEvent) {}
+  rpc FetchDisconnection(google.protobuf.Empty) returns (stream DisconnectionEvent) {}
+  rpc FetchConnectionFailed(google.protobuf.Empty) returns (stream ConnectionFailedEvent) {}
   rpc SendAclData(AclData) returns (google.protobuf.Empty) {}
-  rpc FetchAclData(facade.EventStreamRequest) returns (stream AclData) {}
+  rpc FetchAclData(google.protobuf.Empty) returns (stream AclData) {}
   rpc TestInternalHciCommands(google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc TestInternalHciLeCommands(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc TestClassicConnectionManagementCommands(facade.BluetoothAddress) returns (google.protobuf.Empty) {}
 }
 
 message PageScanMode {
@@ -80,9 +82,7 @@ service ClassicSecurityManagerFacade {
   rpc ReadLocalOobExtendedData(google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc ReadEncryptionKeySize(ReadEncryptionKeySizeMessage) returns (google.protobuf.Empty) {}
 
-  rpc FetchCommandCompleteEvent(facade.EventStreamRequest) returns (stream CommandCompleteEvent) {}
-
-  rpc AuthenticationRequested(AuthenticationRequestedMessage) returns (google.protobuf.Empty) {}
+  rpc FetchCommandCompleteEvent(google.protobuf.Empty) returns (stream CommandCompleteEvent) {}
 }
 
 
@@ -154,9 +154,5 @@ message SendKeypressNotificationMessage {
 }
 
 message ReadEncryptionKeySizeMessage {
-  uint32 connection_handle = 1;
-}
-
-message AuthenticationRequestedMessage {
   uint32 connection_handle = 1;
 }

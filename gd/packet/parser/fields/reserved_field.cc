@@ -36,15 +36,19 @@ std::string ReservedField::GetDataType() const {
   return util::GetTypeForSize(size_);
 }
 
-void ReservedField::GenExtractor(std::ostream&, Size, Size) const {}
+void ReservedField::GenExtractor(std::ostream&, int, bool) const {}
+
+std::string ReservedField::GetGetterFunctionName() const {
+  return "";
+}
 
 void ReservedField::GenGetter(std::ostream&, Size, Size) const {
   // There is no Getter for a reserved field
 }
 
-bool ReservedField::GenBuilderParameter(std::ostream&) const {
+std::string ReservedField::GetBuilderParameterType() const {
   // There is no builder parameter for a reserved field
-  return false;
+  return "";
 }
 
 bool ReservedField::HasParameterValidator() const {

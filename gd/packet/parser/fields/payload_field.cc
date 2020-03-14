@@ -54,28 +54,37 @@ std::string PayloadField::GetDataType() const {
   return "PacketView";
 }
 
-void PayloadField::GenExtractor(std::ostream&, Size, Size) const {
+void PayloadField::GenExtractor(std::ostream&, int, bool) const {
   ERROR(this) << __func__ << " should never be called. ";
 }
 
+std::string PayloadField::GetGetterFunctionName() const {
+  return "GetPayload";
+}
+
 void PayloadField::GenGetter(std::ostream& s, Size start_offset, Size end_offset) const {
-  s << "PacketView<kLittleEndian> GetPayload() const {";
+  s << "PacketView<kLittleEndian> " << GetGetterFunctionName() << "() const {";
   s << "ASSERT(was_validated_);";
   s << "size_t end_index = size();";
+  s << "auto to_bound = begin();";
   GenBounds(s, start_offset, end_offset, GetSize());
   s << "return GetLittleEndianSubview(field_begin, field_end);";
   s << "}\n\n";
 
-  s << "PacketView<!kLittleEndian> GetPayloadBigEndian() const {";
+  s << "PacketView<!kLittleEndian> " << GetGetterFunctionName() << "BigEndian() const {";
   s << "ASSERT(was_validated_);";
   s << "size_t end_index = size();";
+  s << "auto to_bound = begin();";
   GenBounds(s, start_offset, end_offset, GetSize());
   s << "return GetBigEndianSubview(field_begin, field_end);";
   s << "}\n";
 }
 
-bool PayloadField::GenBuilderParameter(std::ostream& s) const {
-  s << "std::unique_ptr<BasePacketBuilder> payload";
+std::string PayloadField::GetBuilderParameterType() const {
+  return "std::unique_ptr<BasePacketBuilder>";
+}
+
+bool PayloadField::BuilderParameterMustBeMoved() const {
   return true;
 }
 

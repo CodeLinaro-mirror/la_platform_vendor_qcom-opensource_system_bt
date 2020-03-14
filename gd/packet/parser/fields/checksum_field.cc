@@ -30,7 +30,11 @@ std::string ChecksumField::GetDataType() const {
   return type_name_;
 }
 
-void ChecksumField::GenExtractor(std::ostream&, Size, Size) const {}
+void ChecksumField::GenExtractor(std::ostream&, int, bool) const {}
+
+std::string ChecksumField::GetGetterFunctionName() const {
+  return "";
+}
 
 void ChecksumField::GenGetter(std::ostream&, Size, Size) const {}
 

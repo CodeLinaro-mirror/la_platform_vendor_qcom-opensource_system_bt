@@ -14,17 +14,14 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "classic"
-
 #include "classic.h"
 #include "model/setup/device_boutique.h"
-#include "osi/include/log.h"
 
 using std::vector;
 
 namespace test_vendor_lib {
 
-bool Classic::registered_ = DeviceBoutique::Register(LOG_TAG, &Classic::Create);
+bool Classic::registered_ = DeviceBoutique::Register("classic", &Classic::Create);
 
 Classic::Classic() {
   advertising_interval_ms_ = std::chrono::milliseconds(0);
@@ -35,7 +32,7 @@ Classic::Classic() {
                                       'g', 'D', 'e', 'v', 'i', 'c', 'e', '-', 'c', 'l', 'a', 's', 's', 'i', 'c',
                                       '\0'});  // End of data
   properties_.SetPageScanRepetitionMode(0);
-  properties_.SetSupportedFeatures(0x87593F9bFE8FFEFF);
+  properties_.SetExtendedFeatures(0x87593F9bFE8FFEFF, 0);
 
   page_scan_delay_ms_ = std::chrono::milliseconds(600);
 }
