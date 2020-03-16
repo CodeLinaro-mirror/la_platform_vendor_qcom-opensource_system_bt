@@ -1677,11 +1677,27 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
 #endif
   else {
     /* disconnected. */
+    int is_lcb_used = bta_av_cb.conn_lcb;
     APPL_TRACE_DEBUG("%s: bta_av_cb.conn_lcb is %d", __func__,
                      bta_av_cb.conn_lcb);
-    dealloc_ar_device_info(p_data->str_msg.bd_addr);
+    dealloc_ar_device_info(p_data->str_msg.bd_addr, BTA_AR_EXT_AV_MASK);
     p_lcb = bta_av_find_lcb(p_data->str_msg.bd_addr, BTA_AV_LCB_FREE);
-    if (p_lcb && (p_lcb->conn_msk || bta_av_cb.conn_lcb)) {
+
+    /* Need to check if lcb is valid here or not.
+     * If its valid, then we have to cancel 2 timers created above
+     */
+    APPL_TRACE_DEBUG("%s: p_lcb %x", __func__, p_lcb);
+    if(p_lcb != NULL) {
+      APPL_TRACE_DEBUG("%s lidx", __func__,p_lcb->lidx);
+      APPL_TRACE_DEBUG(" %s signalling timer %d ", __func__, alarm_is_scheduled(p_cb->accept_signalling_timer[p_lcb->lidx - 1]));
+      APPL_TRACE_DEBUG("%s link signaling timer %d",__func__,alarm_is_scheduled(p_cb->link_signalling_timer));
+      if (alarm_is_scheduled(p_cb->accept_signalling_timer[p_lcb->lidx - 1]))
+         alarm_cancel(p_cb->accept_signalling_timer[p_lcb->lidx - 1]);
+      if (alarm_is_scheduled(p_cb->link_signalling_timer))
+         alarm_cancel(p_cb->link_signalling_timer);
+    }
+
+    if (p_lcb && (p_lcb->conn_msk || is_lcb_used)) {
       APPL_TRACE_DEBUG("conn_msk: 0x%x", p_lcb->conn_msk);
       /* clean up ssm  */
       for (xx = 0; xx < BTA_AV_NUM_STRS; xx++) {
@@ -1692,7 +1708,7 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
                              p_cb->p_scb[xx]->peer_addr);
         }
         mask = 1 << (xx + 1);
-        if (((mask & p_lcb->conn_msk) || bta_av_cb.conn_lcb) &&
+        if (((mask & p_lcb->conn_msk) || is_lcb_used) &&
             p_cb->p_scb[xx] &&
             p_cb->p_scb[xx]->peer_addr == p_data->str_msg.bd_addr) {
           APPL_TRACE_WARNING("%s: Sending AVDT_DISCONNECT_EVT peer_addr=%s",

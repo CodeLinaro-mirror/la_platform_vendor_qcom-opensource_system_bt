@@ -863,16 +863,15 @@ static void btif_report_source_codec_state(UNUSED_ATTR void* p_data,
     return;
   }
 
-  if ((bt_av_src_callbacks != NULL) &&
-      (bt_av_src_vendor_callbacks != NULL)) {
+  if (bt_av_src_callbacks != NULL) {
     BTIF_TRACE_DEBUG("%s codec config changed BDA:%s", __func__,
                      bd_addr->ToString().c_str());
     HAL_CBACK(bt_av_src_callbacks, audio_config_cb, *bd_addr, codec_config,
               codecs_local_capabilities);
-    if(enable_scmst) {
-      HAL_CBACK(bt_av_src_vendor_callbacks, scmst_capabilities_cb, bd_addr,
-                bta_av_get_peer_cp_status(*bd_addr));
-    }
+  }
+  if((bt_av_src_vendor_callbacks != NULL) && enable_scmst) {
+    HAL_CBACK(bt_av_src_vendor_callbacks, scmst_capabilities_cb, bd_addr,
+              bta_av_get_peer_cp_status(*bd_addr));
   }
 }
 
@@ -1554,7 +1553,7 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
       else if (bt_av_src_callbacks != NULL)
           connect_req_t->uuid = UUID_SERVCLASS_AUDIO_SOURCE;
       btif_queue_advance_by_uuid(connect_req_t->uuid, &(btif_av_cb[index].peer_bda));
-      btif_av_check_and_start_collission_timer(index);
+      //btif_av_check_and_start_collission_timer(index);
       btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_IDLE);
       btif_report_connection_state_to_ba(BTAV_CONNECTION_STATE_DISCONNECTED);
       } break;
@@ -2034,16 +2033,14 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
           std::vector<btav_a2dp_codec_config_t> codecs_local_capabilities;
           std::vector<btav_a2dp_codec_config_t> codecs_selectable_capabilities;
           codec_config.codec_type = BTAV_A2DP_CODEC_INDEX_SOURCE_MAX;
-          if ((bt_av_src_callbacks != NULL) &&
-              (bt_av_src_vendor_callbacks != NULL)) {
+          if (bt_av_src_callbacks != NULL) {
             HAL_CBACK(bt_av_src_callbacks, audio_config_cb,
                       btif_av_cb[index].peer_bda, codec_config,
                       codecs_local_capabilities);
-            if(enable_scmst) {
-              HAL_CBACK(bt_av_src_vendor_callbacks, scmst_capabilities_cb, &(btif_av_cb[index].peer_bda),
-                        bta_av_get_peer_cp_status(btif_av_cb[index].peer_bda));
-            }
-
+          }
+          if((bt_av_src_vendor_callbacks != NULL) && enable_scmst) {
+            HAL_CBACK(bt_av_src_vendor_callbacks, scmst_capabilities_cb, &(btif_av_cb[index].peer_bda),
+                      bta_av_get_peer_cp_status(btif_av_cb[index].peer_bda));
           }
         }
       }
@@ -2391,14 +2388,13 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
         std::vector<btav_a2dp_codec_config_t> codecs_local_capabilities;
         std::vector<btav_a2dp_codec_config_t> codecs_selectable_capabilities;
         codec_config.codec_type = BTAV_A2DP_CODEC_INDEX_SOURCE_MAX;
-        if ((bt_av_src_callbacks != NULL) &&
-            (bt_av_src_vendor_callbacks != NULL)) {
+        if (bt_av_src_callbacks != NULL) {
           HAL_CBACK(bt_av_src_callbacks, audio_config_cb, (btif_av_cb[index].peer_bda),
                   codec_config, codecs_local_capabilities);
-          if(enable_scmst) {
-            HAL_CBACK(bt_av_src_vendor_callbacks, scmst_capabilities_cb, &(btif_av_cb[index].peer_bda),
-                      bta_av_get_peer_cp_status(btif_av_cb[index].peer_bda));
-          }
+        }
+        if((bt_av_src_vendor_callbacks != NULL) && enable_scmst) {
+          HAL_CBACK(bt_av_src_vendor_callbacks, scmst_capabilities_cb, &(btif_av_cb[index].peer_bda),
+                    bta_av_get_peer_cp_status(btif_av_cb[index].peer_bda));
         }
       }
       break;
