@@ -460,13 +460,13 @@ static void l2c_csm_term_w4_sec_comp(tL2C_CCB* p_ccb, uint16_t event,
 
     case L2CEVT_SEC_COMP:
       p_ccb->chnl_state = CST_W4_L2CA_CONNECT_RSP;
+      alarm_set_on_mloop(p_ccb->l2c_ccb_timer, L2CAP_CHNL_CONNECT_TIMEOUT_MS,
+                           l2c_ccb_timer_timeout, p_ccb);
 
       /* Wait for the info resp in next state before sending connect ind (if
        * needed) */
       if ((!p_ccb->p_lcb->w4_info_rsp)||(BT_PSM_SDP == p_ccb->p_rcb->psm)) {
         /* Don't need to get info from peer or already retrieved so continue */
-        alarm_set_on_mloop(p_ccb->l2c_ccb_timer, L2CAP_CHNL_CONNECT_TIMEOUT_MS,
-                           l2c_ccb_timer_timeout, p_ccb);
         L2CAP_TRACE_API("L2CAP - Calling Connect_Ind_Cb(), CID: 0x%04x",
                         p_ccb->local_cid);
 

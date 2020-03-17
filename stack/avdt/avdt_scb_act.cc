@@ -67,6 +67,7 @@ const uint8_t avdt_scb_cback_evt[] = {
                                     /* Delay value given is 1/10 millisecond */
 static alarm_t* delay_rpt_alarm = NULL;
 static uint16_t reported_delay = INIT_DELAY_RPT;
+static void avdt_delay_rpt_tmr_hdlr(void* data);
 
 /*******************************************************************************
  *
@@ -778,6 +779,9 @@ void avdt_scb_hdl_setconfig_rsp(tAVDT_SCB* p_scb,
  ******************************************************************************/
 void avdt_scb_hdl_start_cmd(tAVDT_SCB* p_scb,
                             UNUSED_ATTR tAVDT_SCB_EVT* p_data) {
+  if ((delay_rpt_alarm != NULL) && (p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT))
+    alarm_set_on_mloop(delay_rpt_alarm, 1000, avdt_delay_rpt_tmr_hdlr, p_scb);
+
   (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
                             p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
                             AVDT_START_IND_EVT, NULL);
@@ -811,6 +815,9 @@ void avdt_scb_hdl_start_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
  ******************************************************************************/
 void avdt_scb_hdl_suspend_cmd(tAVDT_SCB* p_scb,
                               UNUSED_ATTR tAVDT_SCB_EVT* p_data) {
+  if ((delay_rpt_alarm != NULL) && (p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT))
+    alarm_cancel(delay_rpt_alarm);
+
   (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
                             p_scb->p_ccb ? &p_scb->p_ccb->peer_addr : NULL,
                             AVDT_SUSPEND_IND_EVT, NULL);
@@ -1059,11 +1066,8 @@ void avdt_scb_hdl_tc_open(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
 
   alarm_cancel(p_scb->transport_channel_timer);
 
-  if ((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
+  if ((delay_rpt_alarm == NULL) && (p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
     delay_rpt_alarm = alarm_new_periodic("avdt.delayreport");
-    alarm_set(delay_rpt_alarm, (period_ms_t)1000 ,(alarm_callback_t)avdt_delay_rpt_tmr_hdlr,
-              (void*)p_scb);
-    AVDT_TRACE_DEBUG(" %s ~~ start update delay report timer",__func__);
   }
 
   event =

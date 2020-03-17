@@ -458,7 +458,7 @@ static void btif_a2dp_sink_audio_handle_start_non_sbc_decoding(void){
     LOG_ERROR(LOG_TAG, "%s: unable to allocate non_sbc_decode_alarm", __func__);
     return;
   }
-  alarm_set_on_mloop(btif_a2dp_sink_cb.decode_alarm, BTIF_SINK_MEDIA_TIME_NON_SBC_TICK_MS,
+  alarm_set(btif_a2dp_sink_cb.decode_alarm, BTIF_SINK_MEDIA_TIME_NON_SBC_TICK_MS,
             btif_non_sbc_decode_alarm_cb, NULL);
   APPL_TRACE_DEBUG("Track Started and non_sbc_decode_alarm is set");
  }

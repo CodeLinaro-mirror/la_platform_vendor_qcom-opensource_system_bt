@@ -7145,6 +7145,7 @@ static const btrc_vendor_ctrl_interface_t btAvrcpCtrlVendorInterface = {
   sizeof(btrc_vendor_ctrl_interface_t),
   init_vendor,
   get_media_element_attributes_vendor,
+  NULL,
   cleanup_vendor,
 };
 

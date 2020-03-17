@@ -194,6 +194,9 @@ tAVRC_STS avrc_parse_notification_rsp(uint8_t* p_stream, uint16_t len,
       break;
 
     case AVRC_EVT_UIDS_CHANGE:
+      min_len += 2;
+      if (len < min_len) goto length_error;
+      BE_STREAM_TO_UINT16(p_rsp->param.uid_counter, p_stream);
       break;
 
     case AVRC_EVT_TRACK_REACHED_END:
