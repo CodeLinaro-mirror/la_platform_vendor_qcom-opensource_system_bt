@@ -3679,19 +3679,18 @@ void btm_read_local_oob_complete(uint8_t* p) {
  ******************************************************************************/
 static void btm_sec_auth_collision(uint16_t handle) {
   tBTM_SEC_DEV_REC* p_dev_rec;
+  if (handle == BTM_SEC_INVALID_HANDLE) {
+    p_dev_rec = btm_sec_find_dev_by_sec_state(BTM_SEC_STATE_AUTHENTICATING);
+    if (p_dev_rec == NULL)
+      p_dev_rec = btm_sec_find_dev_by_sec_state(BTM_SEC_STATE_ENCRYPTING);
+  } else
+      p_dev_rec = btm_find_dev_by_handle(handle);
 
   if (!btm_cb.collision_start_time)
     btm_cb.collision_start_time = time_get_os_boottime_ms();
 
   if ((time_get_os_boottime_ms() - btm_cb.collision_start_time) <
       btm_cb.max_collision_delay) {
-    if (handle == BTM_SEC_INVALID_HANDLE) {
-      p_dev_rec = btm_sec_find_dev_by_sec_state(BTM_SEC_STATE_AUTHENTICATING);
-      if (p_dev_rec == NULL)
-        p_dev_rec = btm_sec_find_dev_by_sec_state(BTM_SEC_STATE_ENCRYPTING);
-    } else
-      p_dev_rec = btm_find_dev_by_handle(handle);
-
     if (p_dev_rec != NULL) {
       BTM_TRACE_DEBUG(
           "btm_sec_auth_collision: state %d (retrying in a moment...)",
@@ -3704,6 +3703,20 @@ static void btm_sec_auth_collision(uint16_t handle) {
       btm_cb.p_collided_dev_rec = p_dev_rec;
       alarm_set_on_mloop(btm_cb.sec_collision_timer, BT_1SEC_TIMEOUT_MS,
                          btm_sec_collision_timeout, NULL);
+    }
+  } else {
+    /* report auth error and remove acl */
+    if (p_dev_rec) {
+      BTM_TRACE_DEBUG("%s: auth fail timeout", __func__);
+      if (btm_cb.api.p_auth_complete_callback)
+        (*btm_cb.api.p_auth_complete_callback)(
+            p_dev_rec->bd_addr, p_dev_rec->dev_class,
+            p_dev_rec->sec_bd_name, HCI_ERR_AUTH_FAILURE);
+
+      if (BTM_IsAclConnectionUp(p_dev_rec->bd_addr, BT_TRANSPORT_LE) ||
+          BTM_IsAclConnectionUp(p_dev_rec->bd_addr, BT_TRANSPORT_BR_EDR))
+        btm_sec_send_hci_disconnect(p_dev_rec, HCI_ERR_AUTH_FAILURE,
+                                    p_dev_rec->hci_handle);
     }
   }
 }
