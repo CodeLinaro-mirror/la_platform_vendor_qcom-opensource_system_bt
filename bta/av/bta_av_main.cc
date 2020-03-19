@@ -858,11 +858,6 @@ void bta_av_api_deregister(tBTA_AV_DATA* p_data) {
 
   if (p_scb) {
     p_scb->deregistring = true;
-    if(p_scb->avrc_ct_timer != NULL) {
-      alarm_free(p_scb->avrc_ct_timer);
-      p_scb->avrc_ct_timer = NULL;
-    }
-    list_free(p_scb->a2dp_list);
     bta_av_ssm_execute(p_scb, BTA_AV_API_CLOSE_EVT, p_data);
     if(p_scb->avrc_ct_timer != NULL) {
       alarm_free(p_scb->avrc_ct_timer);
@@ -872,10 +867,6 @@ void bta_av_api_deregister(tBTA_AV_DATA* p_data) {
       list_free(p_scb->a2dp_list);
   } else {
     bta_av_dereg_comp(p_data);
-  }
-  if (p_bta_av_cfg) {
-    osi_free(p_bta_av_cfg);
-    p_bta_av_cfg = NULL;
   }
 }
 

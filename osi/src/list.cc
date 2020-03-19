@@ -69,14 +69,20 @@ void* list_front(const list_t* list) {
   CHECK(list != NULL);
   CHECK(!list_is_empty(list));
 
-  return list->head->data;
+  if (list->head)
+    return list->head->data;
+
+  return NULL;
 }
 
 void* list_back(const list_t* list) {
   CHECK(list != NULL);
   CHECK(!list_is_empty(list));
 
-  return list->tail->data;
+  if (list->tail)
+     return list->tail->data;
+
+  return NULL;
 }
 
 list_node_t* list_back_node(const list_t* list) {
