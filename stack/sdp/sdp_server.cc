@@ -637,6 +637,7 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   uint16_t max_list_len, len_to_send, cont_offset;
   int16_t rem_len;
   char a2dp_role[PROPERTY_VALUE_MAX] = "false";
+  char value[PROPERTY_VALUE_MAX] = "false";
   tSDP_ATTR_SEQ attr_seq, attr_seq_sav;
   uint8_t *p_rsp, *p_rsp_start, *p_rsp_param_len;
   uint16_t rsp_param_len, xx;
@@ -765,7 +766,8 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
         if (((p_attr->value_ptr[3] << 8) | (p_attr->value_ptr[4])) ==
                 UUID_SERVCLASS_AV_REMOTE_CONTROL) {
           property_get("persist.vendor.service.bt.a2dp.sink", a2dp_role, "false");
-          if (!strncmp("false", a2dp_role, 5)) {
+          property_get("persist.vendor.service.bt.a2dp_concurrency", value, "false");
+          if (!strncmp("false", a2dp_role, 5) && !strncmp("false", value, 5)) {
             profile_version = sdp_get_stored_avrc_tg_version(p_ccb->device_address);
             uint16_t ver = (AVRCP_VERSION_BIT_MASK & profile_version);
             is_avrcp_browse_bit_set = ((AVRCP_MASK_BRW_BIT & profile_version) == AVRCP_MASK_BRW_BIT);
@@ -944,6 +946,7 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   uint16_t max_list_len;
   int16_t rem_len;
   char a2dp_role[PROPERTY_VALUE_MAX] = "false";
+  char value[PROPERTY_VALUE_MAX] = "false";
   uint16_t len_to_send, cont_offset;
   tSDP_UUID_SEQ uid_seq;
   uint8_t *p_rsp, *p_rsp_start, *p_rsp_param_len;
@@ -1089,7 +1092,8 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
           if (((p_attr->value_ptr[3] << 8) | (p_attr->value_ptr[4])) ==
                   UUID_SERVCLASS_AV_REMOTE_CONTROL) {
             property_get("persist.vendor.service.bt.a2dp.sink", a2dp_role, "false");
-            if (!strncmp("false", a2dp_role, 5)) {
+            property_get("persist.vendor.service.bt.a2dp_concurrency", value, "false");
+            if (!strncmp("false", a2dp_role, 5) && !strncmp("false", value, 5)) {
               profile_version = sdp_get_stored_avrc_tg_version(p_ccb->device_address);
               uint16_t ver = (AVRCP_VERSION_BIT_MASK & profile_version);
               is_avrcp_browse_bit_set = ((AVRCP_MASK_BRW_BIT & profile_version) == AVRCP_MASK_BRW_BIT);
