@@ -50,7 +50,7 @@
 #define BTIF_SINK_MEDIA_TIME_TICK_MS 20
 
 /* define APTX/AAC incoming data time interval */
-#define BTIF_SINK_MEDIA_TIME_NON_SBC_TICK_MS 10
+#define BTIF_SINK_MEDIA_TIME_NON_SBC_TICK_MS 20
 
 /* In case of A2DP Sink, we will delay start by 5 AVDTP Packets */
 #define MAX_A2DP_DELAYED_START_FRAME_COUNT 5
@@ -714,17 +714,22 @@ static void btif_handle_incoming_encoded_data(UNUSED_ATTR void* context) {
     BTIF_TRACE_DEBUG("%s", __func__);
     uint8_t *start_frame_addr;
     tBT_SINK_HDR* p_msg = NULL;
+    int frame_num = (int)fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue);
 
-    p_msg = (tBT_SINK_HDR *)fixed_queue_try_dequeue(btif_a2dp_sink_cb.rx_audio_queue);
-    // Write encoded media packet to AudioTrack
-    if (p_msg != NULL) {
-        if (btif_a2dp_sink_cb.audio_track != NULL) {
-            start_frame_addr = ((uint8_t*)(p_msg + 1) + p_msg->offset);
-            std::lock_guard<std::mutex> lock(btif_a2dp_sink_cb.audio_track_mutex);
-            BtifAvrcpAudioTrackWriteData(
-                    btif_a2dp_sink_cb.audio_track, (void*)start_frame_addr, p_msg->len);
+    for(int i = 0; i <= frame_num ; i++ ) {
+        p_msg = (tBT_SINK_HDR *)fixed_queue_try_dequeue(btif_a2dp_sink_cb.rx_audio_queue);
+        // Write encoded media packet to AudioTrack
+        if (p_msg != NULL) {
+            if (btif_a2dp_sink_cb.audio_track != NULL) {
+                start_frame_addr = ((uint8_t*)(p_msg + 1) + p_msg->offset);
+                std::lock_guard<std::mutex> lock(btif_a2dp_sink_cb.audio_track_mutex);
+                BtifAvrcpAudioTrackWriteData(
+                        btif_a2dp_sink_cb.audio_track, (void*)start_frame_addr, p_msg->len);
+            }
+            osi_free(p_msg);
+        } else {
+            break;
         }
-        osi_free(p_msg);
     }
 }
 
