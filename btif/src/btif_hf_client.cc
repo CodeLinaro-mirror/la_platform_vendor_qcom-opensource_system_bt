@@ -106,10 +106,6 @@ typedef struct {
   btif_hf_client_cb_t cb[HF_CLIENT_MAX_DEVICES];
 } btif_hf_client_cb_arr_t;
 
-extern bool btif_av_is_playing();
-extern bool btif_av_is_current_device(RawAddress address);
-extern void btif_av_trigger_suspend();
-
 /******************************************************************************
  * Local function declarations
  ******************************************************************************/
@@ -782,11 +778,6 @@ static void process_ind_evt(tBTA_HF_CLIENT_IND* ind) {
       break;
 
     case BTA_HF_CLIENT_IND_CALLSETUP:
-      if (((bthf_client_callsetup_t)ind->value != BTHF_CLIENT_CALLSETUP_NONE) &&
-          btif_av_is_playing() &&
-          !btif_av_is_current_device(cb->peer_bda)) {
-        btif_av_trigger_suspend();
-      }
       HAL_CBACK(bt_hf_client_callbacks, callsetup_cb, &cb->peer_bda,
                 (bthf_client_callsetup_t)ind->value);
       break;

@@ -2008,8 +2008,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
         }
         else
         {
-          /* Send LOCAL_SUSPEND instead of STOPPED */
-          btif_report_audio_state(BTAV_AUDIO_STATE_LOCAL_SUSPEND, &(btif_av_cb[index].peer_bda));
+          btif_report_audio_state(BTAV_AUDIO_STATE_STOPPED, &(btif_av_cb[index].peer_bda));
         }
       }
 
@@ -3144,31 +3143,6 @@ void btif_av_trigger_suspend() {
     btif_sm_dispatch(btif_av_cb[index].sm_handle, BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL);
   } else
     BTIF_TRACE_ERROR("suspend on invalid index");
-}
-
-/*******************************************************************************
- *
- * Function         btif_av_trigger_resume
- *
- * Description      Trigger resume when hfp call is hung up with another device and
- *                  av stream is previously suspended locally.
- *
- * Returns          void
- *
- ******************************************************************************/
-void btif_av_trigger_resume(RawAddress address) {
-  int index;
-  /*Get the current playing device*/
-  BTIF_TRACE_DEBUG("%s()", __func__);
-  index = btif_av_idx_by_bdaddr(&address);
-  if (index <= btif_max_av_clients &&
-      btif_sm_get_state(btif_av_cb[index].sm_handle) != BTIF_AV_STATE_STARTED) {
-    /* Initiate RESUME for this device */
-    BTIF_TRACE_DEBUG("%s(): Initiate RESUME for this device on index = %d", __func__, index);
-    btif_sm_dispatch(btif_av_cb[index].sm_handle, BTIF_AV_START_STREAM_REQ_EVT, NULL);
-  } else {
-    BTIF_TRACE_ERROR("%s(): RESUME on invalid index", __func__);
-  }
 }
 
 /*******************************************************************************

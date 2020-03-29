@@ -176,7 +176,6 @@ typedef struct {
 #define BTIF_TIMEOUT_RC_INTERIM_RSP_MS (2 * 1000)
 #define BTIF_TIMEOUT_RC_STATUS_CMD_MS (2 * 1000)
 #define BTIF_TIMEOUT_RC_CONTROL_CMD_MS (2 * 1000)
-#define BTIF_TIMEOUT_RC_CHECK_STATUS_MS (1 * 1000)
 
 typedef enum {
   eNOT_REGISTERED,
@@ -239,7 +238,6 @@ typedef struct {
   list_t* rc_supported_event_list;
   btif_rc_player_app_settings_t rc_app_settings;
   alarm_t* rc_play_status_timer;
-  alarm_t* rc_check_status_timer;
   bool rc_features_processed;
   uint64_t rc_playing_uid;
   bool rc_procedure_complete;
@@ -280,7 +278,6 @@ static bool isShoMcastEnabled = false;
 static void sleep_ms(period_ms_t timeout_ms);
 static bt_status_t set_addressed_player_rsp(RawAddress* bd_addr,
                                             btrc_status_t rsp_status);
-extern void btif_av_trigger_resume(RawAddress address);
 
 /* Response status code - Unknown Error - this is changed to "reserved" */
 #define BTIF_STS_GEN_ERROR 0x06
@@ -4086,26 +4083,6 @@ static void btif_rc_play_status_timeout_handler(UNUSED_ATTR uint16_t event,
 
 /***************************************************************************
  *
- * Function         btif_rc_check_status_timeout_handler
- *
- * Description      RC check status timeout handler (Runs in BTIF context).
- * Returns          None
- *
- **************************************************************************/
-static void btif_rc_check_status_timeout_handler(UNUSED_ATTR uint16_t event,
-                                                char* p_data) {
-  btif_rc_handle_t* rc_handle = (btif_rc_handle_t*)p_data;
-  btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_handle(rc_handle->handle);
-  if (p_dev == NULL) {
-    BTIF_TRACE_ERROR("%s timeout handler but no device found for handle %d",
-                     __func__, rc_handle->handle);
-    return;
-  }
-  btif_av_trigger_resume(p_dev->rc_addr);
-}
-
-/***************************************************************************
- *
  * Function         btif_rc_play_status_timer_timeout
  *
  * Description      RC play status timeout callback.
@@ -4119,24 +4096,6 @@ static void btif_rc_play_status_timer_timeout(void* data) {
   rc_handle.handle = PTR_TO_UINT(data);
   BTIF_TRACE_DEBUG("%s called with handle: %d", __func__, rc_handle);
   btif_transfer_context(btif_rc_play_status_timeout_handler, 0,
-                        (char*)(&rc_handle), sizeof(btif_rc_handle_t), NULL);
-}
-
-/***************************************************************************
- *
- * Function         btif_rc_check_status_timer_timeout
- *
- * Description      RC check status timeout callback.
- *                  This is called from BTU context and switches to BTIF
- *                  context to handle the timeout events
- * Returns          None
- *
- **************************************************************************/
-static void btif_rc_check_status_timer_timeout(void* data) {
-  btif_rc_handle_t rc_handle;
-  rc_handle.handle = PTR_TO_UINT(data);
-  BTIF_TRACE_DEBUG("%s called with handle: %d", __func__, rc_handle);
-  btif_transfer_context(btif_rc_check_status_timeout_handler, 0,
                         (char*)(&rc_handle), sizeof(btif_rc_handle_t), NULL);
 }
 
@@ -4157,25 +4116,6 @@ static void rc_start_play_status_timer(btif_rc_device_cb_t* p_dev) {
     alarm_set_on_mloop(
         p_dev->rc_play_status_timer, BTIF_TIMEOUT_RC_INTERIM_RSP_MS,
         btif_rc_play_status_timer_timeout, UINT_TO_PTR(p_dev->rc_handle));
-  }
-}
-
-/***************************************************************************
- *
- * Function         rc_start_check_status_timer
- *
- * Description      Helper function to start the timer to check av status.
- * Returns          None
- *
- **************************************************************************/
-static void rc_start_check_status_timer(btif_rc_device_cb_t* p_dev) {
-  if (!alarm_is_scheduled(p_dev->rc_check_status_timer)) {
-    if (p_dev->rc_check_status_timer == NULL) {
-      p_dev->rc_check_status_timer = alarm_new("p_dev->rc_check_status_timer");
-    }
-    alarm_set_on_mloop(
-        p_dev->rc_check_status_timer, BTIF_TIMEOUT_RC_CHECK_STATUS_MS,
-        btif_rc_check_status_timer_timeout, UINT_TO_PTR(p_dev->rc_handle));
   }
 }
 
@@ -4435,7 +4375,6 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
          */
         if (p_rsp->param.play_status == AVRC_PLAYSTATE_PLAYING) {
           rc_start_play_status_timer(p_dev);
-          rc_start_check_status_timer(p_dev);
         }
         HAL_CBACK(bt_rc_ctrl_callbacks, play_status_changed_cb, &rc_addr,
                   (btrc_play_status_t)p_rsp->param.play_status);
@@ -5896,7 +5835,6 @@ static void cleanup_ctrl() {
   if (btif_rc_cb.rc_multi_cb != NULL) {
     for (int idx = 0; idx < btif_max_rc_clients; idx++) {
       alarm_free(btif_rc_cb.rc_multi_cb[idx].rc_play_status_timer);
-      alarm_free(btif_rc_cb.rc_multi_cb[idx].rc_check_status_timer);
     }
     osi_free(btif_rc_cb.rc_multi_cb);
     btif_rc_cb.rc_multi_cb = NULL;
