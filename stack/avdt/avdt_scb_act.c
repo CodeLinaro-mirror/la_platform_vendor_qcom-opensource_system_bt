@@ -1163,7 +1163,7 @@ void avdt_scb_hdl_tc_close(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
     alarm_cancel(p_scb->transport_channel_timer);
 
     /* ~~ stop delay report timer */
-    if(delay_rpt_alarm != NULL)
+    if((p_scb->cs.tsep == AVDT_TSEP_SNK) && (delay_rpt_alarm != NULL))
     {
         alarm_free(delay_rpt_alarm);
         delay_rpt_alarm = NULL;
