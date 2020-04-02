@@ -3552,6 +3552,20 @@ void btif_av_event_deep_copy(uint16_t event, char* p_dest, char* p_src) {
          break;
       }
 
+      case BTA_AV_RC_COLL_DETECTED_EVT: //26
+      {
+         tBTA_AV_RC_COLL_DETECTED* av_src_av_rc_collision_detect =
+                                                 (tBTA_AV_RC_COLL_DETECTED*)p_src;
+         tBTA_AV_RC_COLL_DETECTED* av_dest_av_rc_collision_detect =
+                                                 (tBTA_AV_RC_COLL_DETECTED*)p_dest;
+         BTIF_TRACE_DEBUG("%s: event: %d, size: %d", __func__, event,
+                                      sizeof(*av_src_av_rc_collision_detect));
+         maybe_non_aligned_memcpy(av_dest_av_rc_collision_detect,
+                                  av_src_av_rc_collision_detect,
+                                  sizeof(*av_src_av_rc_collision_detect));
+         break;
+      }
+
     default:
       {
         tBTA_AV* av_src_default = (tBTA_AV*)p_src;
@@ -5787,11 +5801,17 @@ bool btif_av_is_state_opened(int i) {
 
 void btif_av_set_audio_delay(uint16_t delay, tBTA_AV_HNDL hndl) {
   int index = HANDLE_TO_INDEX(hndl);
+  bool isActive = (index == btif_av_get_current_playing_dev_idx());
   if (index >= 0 && index < btif_max_av_clients) {
     btif_a2dp_control_set_audio_delay(delay, index);
   } else {
     BTIF_TRACE_ERROR("%s: Invalid index for connection", __func__);
     btif_a2dp_control_set_audio_delay(delay, 0);
+  }
+
+  if (isActive) {
+    BTIF_TRACE_DEBUG("%s set delay/latency",__func__);
+    btif_a2dp_update_sink_latency_change();
   }
 }
 
