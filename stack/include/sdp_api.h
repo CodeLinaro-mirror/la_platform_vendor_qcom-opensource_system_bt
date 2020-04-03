@@ -589,4 +589,16 @@ uint8_t SDP_SetTraceLevel(uint8_t new_level);
  ******************************************************************************/
 bool SDP_FindServiceUUIDInRec(tSDP_DISC_REC* p_rec, bluetooth::Uuid* p_uuid);
 
+/*******************************************************************************
+ *
+ * Function         SDP_AttrStringCopy
+ *
+ * Description      This function copy given attribute to specified buffer as a
+ *                  string
+ *
+ * Returns          none
+ *
+ ******************************************************************************/
+void SDP_AttrStringCopy(char* dst, tSDP_DISC_ATTR* p_attr, uint16_t dst_size);
+
 #endif /* SDP_API_H */
