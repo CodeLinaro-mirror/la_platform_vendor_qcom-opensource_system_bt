@@ -64,6 +64,7 @@
  * Not defined as per spec */
 #define A2D_VENDOR_CODEC_APTX_CL 0x00
 #define A2D_VENDOR_CODEC_APTX_AD 0x01
+#define A2D_VENDOR_CODEC_APTX_HD 0x02
 
 /* AV Media Types */
 #define A2D_MEDIA_TYPE_AUDIO    0x00    /* audio media type + RFA */

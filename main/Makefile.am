@@ -114,6 +114,7 @@ cpp_sources += \
     $(external_bt_path)/system_bt_ext/btif/src/btif_avk_media_mp3.cc \
     $(external_bt_path)/system_bt_ext/btif/src/btif_avk_media_aptx.cc \
     $(external_bt_path)/system_bt_ext/btif/src/btif_avk_media_aptx_ad.cc \
+    $(external_bt_path)/system_bt_ext/btif/src/btif_avk_media_aptx_hd.cc \
     $(external_bt_path)/system_bt_ext/btif/co/bta_avk_co.cc \
     $(external_bt_path)/system_bt_ext/udrv/ulinux/uipc_avk.cc \
     $(external_bt_path)/system_bt_ext/btif/src/btif_gap.cc \
