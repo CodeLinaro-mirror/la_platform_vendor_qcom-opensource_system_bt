@@ -1351,7 +1351,8 @@ tBTM_STATUS BTM_SetEncryption(const RawAddress& bd_addr,
   }
 
   /* enqueue security request if security is active */
-  if (p_dev_rec->p_callback || (p_dev_rec->sec_state != BTM_SEC_STATE_IDLE)) {
+  if (p_dev_rec->p_callback || p_dev_rec->p_ble_callback ||
+    (p_dev_rec->sec_state != BTM_SEC_STATE_IDLE)) {
     BTM_TRACE_WARNING(
         "Security Manager: BTM_SetEncryption busy, enqueue request");
 
@@ -1364,8 +1365,11 @@ tBTM_STATUS BTM_SetEncryption(const RawAddress& bd_addr,
       return BTM_NO_RESOURCES;
     }
   }
-
-  p_dev_rec->p_callback = p_callback;
+  if (transport == BT_TRANSPORT_BR_EDR) {
+    p_dev_rec->p_callback = p_callback;
+  } else {
+    p_dev_rec->p_ble_callback = p_callback;
+  }
   p_dev_rec->p_ref_data = p_ref_data;
   p_dev_rec->security_required |=
       (BTM_SEC_IN_AUTHENTICATE | BTM_SEC_IN_ENCRYPT);
@@ -1392,7 +1396,11 @@ tBTM_STATUS BTM_SetEncryption(const RawAddress& bd_addr,
 
   if (rc != BTM_CMD_STARTED && rc != BTM_BUSY) {
     if (p_callback) {
-      p_dev_rec->p_callback = NULL;
+      if (transport == BT_TRANSPORT_BR_EDR) {
+        p_dev_rec->p_callback = NULL;
+      } else {
+        p_dev_rec->p_ble_callback = NULL;
+      }
       (*p_callback)(&bd_addr, transport, p_dev_rec->p_ref_data, rc);
     }
   }
@@ -2911,6 +2919,7 @@ void btm_sec_abort_access_req(const RawAddress& bd_addr) {
 
   p_dev_rec->sec_state = BTM_SEC_STATE_IDLE;
   p_dev_rec->p_callback = NULL;
+  p_dev_rec->p_ble_callback = NULL;
 }
 
 /*******************************************************************************
@@ -4257,6 +4266,7 @@ void btm_sec_encrypt_change(uint16_t handle, uint8_t status,
     if (BTM_SEC_STATE_DELAY_FOR_ENC == p_dev_rec->sec_state) {
       p_dev_rec->sec_state = BTM_SEC_STATE_IDLE;
       p_dev_rec->p_callback = NULL;
+      p_dev_rec->p_ble_callback = NULL;
       l2cu_resubmit_pending_sec_req(&p_dev_rec->bd_addr);
     }
     return;
@@ -4736,16 +4746,8 @@ void btm_sec_disconnected(uint16_t handle, uint8_t reason) {
   p_dev_rec->sec_state = BTM_SEC_STATE_IDLE;
   p_dev_rec->security_required = BTM_SEC_NONE;
 
-  p_callback = p_dev_rec->p_callback;
-  RawAddress addr = p_dev_rec->bd_addr;
   void* data = p_dev_rec->p_ref_data;
-
   p_dev_rec->new_encryption_key_is_p256 = FALSE;
-  if (p_callback) {
-    p_dev_rec->p_callback =
-        NULL; /* when the peer device time out the authentication before
-                 we do, this call back must be reset here */
-  }
 
   if (btm_cb.api.p_auth_complete_callback && trigger_auth_callback) {
     trigger_auth_callback = false;
@@ -4755,9 +4757,22 @@ void btm_sec_disconnected(uint16_t handle, uint8_t reason) {
   }
 
   /* if security is pending, send callback to clean up the security state */
-  if (p_callback) {
-    (*p_callback)(&addr, transport, data,
+  if (transport == BT_TRANSPORT_BR_EDR ) {
+    if (p_dev_rec->p_callback) {
+      p_callback = p_dev_rec->p_callback;
+      RawAddress addr = p_dev_rec->bd_addr;
+      p_dev_rec->p_callback = NULL;
+      (*p_callback)(&addr, transport, data,
                   BTM_ERR_PROCESSING);
+    }
+  } else {
+    if (p_dev_rec->p_ble_callback) {
+      p_callback = p_dev_rec->p_ble_callback;
+      RawAddress addr = p_dev_rec->ble.pseudo_addr;
+      p_dev_rec->p_ble_callback = NULL;
+      (*p_callback)(&addr, transport, data,
+                  BTM_ERR_PROCESSING);
+    }
   }
 }
 
@@ -5821,17 +5836,20 @@ static const char* btm_pair_state_descr(tBTM_PAIRING_STATE state) {
  ******************************************************************************/
 void btm_sec_dev_rec_cback_event(tBTM_SEC_DEV_REC* p_dev_rec, uint8_t res,
                                  bool is_le_transport) {
-  tBTM_SEC_CALLBACK* p_callback = p_dev_rec->p_callback;
+  BTM_TRACE_EVENT("%s() is_le_transport: %d", __func__, is_le_transport);
+  if (p_dev_rec->p_callback || p_dev_rec->p_ble_callback) {
 
-  if (p_dev_rec->p_callback) {
-    p_dev_rec->p_callback = NULL;
-
-    if (is_le_transport)
+    if (is_le_transport) {
+      tBTM_SEC_CALLBACK* p_callback = p_dev_rec->p_ble_callback;
+      p_dev_rec->p_ble_callback = NULL;
       (*p_callback)(&p_dev_rec->ble.pseudo_addr, BT_TRANSPORT_LE,
                     p_dev_rec->p_ref_data, res);
-    else
+    } else {
+      tBTM_SEC_CALLBACK* p_callback = p_dev_rec->p_callback;
+      p_dev_rec->p_callback = NULL;
       (*p_callback)(&p_dev_rec->bd_addr, BT_TRANSPORT_BR_EDR,
                     p_dev_rec->p_ref_data, res);
+    }
   }
 
   btm_sec_check_pending_reqs();
