@@ -138,7 +138,10 @@ A2dpCodecConfig* A2dpCodecConfig::createCodec(
       codec_config = new A2dpCodecConfigAptxSink(codec_priority);
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD:
-      codec_config = new A2dpCodecConfigAptxHd(codec_priority);
+      codec_config = new A2dpCodecConfigAptxHdSource(codec_priority);
+      break;
+    case BTAV_A2DP_CODEC_INDEX_SINK_APTX_HD:
+      codec_config = new A2dpCodecConfigAptxHdSink(codec_priority);
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
       codec_config = new A2dpCodecConfigLdacSource(codec_priority);
@@ -1508,7 +1511,8 @@ bool A2DP_GetCodecSupported(btav_a2dp_codec_index_t codec_index) {
   int32_t base = 1;
   int32_t default_codec_supported = base << BTAV_A2DP_CODEC_INDEX_SINK_SBC |
                                     base << BTAV_A2DP_CODEC_INDEX_SINK_AAC |
-                                    base << BTAV_A2DP_CODEC_INDEX_SINK_APTX;
+                                    base << BTAV_A2DP_CODEC_INDEX_SINK_APTX |
+                                    base << BTAV_A2DP_CODEC_INDEX_SINK_APTX_HD;
   int32_t codec_supported = 0;
   int32_t codec_flag = base << codec_index;
 
@@ -1566,7 +1570,8 @@ static bool A2DP_IsSoftwareCodec(btav_a2dp_codec_index_t codec_index) {
   int32_t base       = 1;
   int32_t default_software_codecs = base << BTAV_A2DP_CODEC_INDEX_SINK_SBC |
                                     base << BTAV_A2DP_CODEC_INDEX_SINK_AAC |
-                                    base << BTAV_A2DP_CODEC_INDEX_SINK_APTX;
+                                    base << BTAV_A2DP_CODEC_INDEX_SINK_APTX |
+                                    base << BTAV_A2DP_CODEC_INDEX_SINK_APTX_HD;
   char value[PROPERTY_CODEC_LOCATION_LEN]   = "persist.bt.a2dp.codec.location.software";
 
   LOG_DEBUG(LOG_TAG, "%s: default_software_codecs %d", __func__, default_software_codecs);

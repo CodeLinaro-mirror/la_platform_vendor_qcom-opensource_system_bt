@@ -747,7 +747,7 @@ bool A2dpCodecConfigAptxBase::setCodecConfig(const uint8_t* p_peer_codec_info,
       (is_source_) ? &a2dp_aptx_source_default_config : &a2dp_aptx_sink_default_config;
 
   const tA2DP_APTX_CIE* p_a2dp_aptx_cap =
-      (is_source_) ? &a2dp_aptx_source_caps : &a2dp_aptx_sink_default_config;
+      (is_source_) ? &a2dp_aptx_source_caps : &a2dp_aptx_sink_caps;
 
   // Save the internal state
   btav_a2dp_codec_config_t saved_codec_config = codec_config_;
