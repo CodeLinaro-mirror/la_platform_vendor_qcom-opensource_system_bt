@@ -211,7 +211,7 @@ void a2dp_vendor_aptx_hd_encoder_init(
                                      &restart_output, &config_updated);
 }
 
-bool A2dpCodecConfigAptxHd::updateEncoderUserConfig(
+bool A2dpCodecConfigAptxHdSource::updateEncoderUserConfig(
     const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params, bool* p_restart_input,
     bool* p_restart_output, bool* p_config_updated) {
   a2dp_aptx_hd_encoder_cb.is_peer_edr = p_peer_params->is_peer_edr;
@@ -479,15 +479,15 @@ static size_t aptx_hd_encode_24bit(tAPTX_HD_FRAMING_PARAMS* framing_params,
   return pcm_bytes_encoded;
 }
 
-uint64_t A2dpCodecConfigAptxHd::encoderIntervalMs() const {
+uint64_t A2dpCodecConfigAptxHdSource::encoderIntervalMs() const {
   return a2dp_vendor_aptx_hd_get_encoder_interval_ms();
 }
 
-int A2dpCodecConfigAptxHd::getEffectiveMtu() const {
+int A2dpCodecConfigAptxHdSource::getEffectiveMtu() const {
   return a2dp_aptx_hd_encoder_cb.peer_mtu;
 }
 
-void A2dpCodecConfigAptxHd::debug_codec_dump(int fd) {
+void A2dpCodecConfigAptxHdSource::debug_codec_dump(int fd) {
   a2dp_aptx_hd_encoder_stats_t* stats = &a2dp_aptx_hd_encoder_cb.stats;
 
   A2dpCodecConfig::debug_codec_dump(fd);

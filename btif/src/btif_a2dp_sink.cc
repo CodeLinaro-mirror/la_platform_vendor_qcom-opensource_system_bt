@@ -29,6 +29,7 @@
 
 #include "a2dp_vendor.h"
 #include "a2dp_vendor_aptx.h"
+#include "a2dp_vendor_aptx_hd.h"
 #include "bt_common.h"
 #include "btif_a2dp.h"
 #include "btif_a2dp_sink.h"

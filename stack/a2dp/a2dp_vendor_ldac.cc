@@ -1421,7 +1421,8 @@ A2dpCodecConfigLdacSink::A2dpCodecConfigLdacSink(
 A2dpCodecConfigLdacSink::~A2dpCodecConfigLdacSink() {}
 
 bool A2dpCodecConfigLdacSink::init() {
-  if (!isValid()) return false;
+  if (!(isValid() && A2DP_GetCodecSupported(BTAV_A2DP_CODEC_INDEX_SINK_LDAC)))
+    return false;
 
   // Load the decoder
   if (!A2DP_VendorLoadDecoderLdac()) {
