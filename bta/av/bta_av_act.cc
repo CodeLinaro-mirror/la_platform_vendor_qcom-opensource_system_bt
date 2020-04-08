@@ -1680,7 +1680,7 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
     int is_lcb_used = bta_av_cb.conn_lcb;
     APPL_TRACE_DEBUG("%s: bta_av_cb.conn_lcb is %d", __func__,
                      bta_av_cb.conn_lcb);
-    dealloc_ar_device_info(p_data->str_msg.bd_addr);
+    dealloc_ar_device_info(p_data->str_msg.bd_addr, BTA_AR_EXT_AV_MASK);
     p_lcb = bta_av_find_lcb(p_data->str_msg.bd_addr, BTA_AV_LCB_FREE);
 
     /* Need to check if lcb is valid here or not.
