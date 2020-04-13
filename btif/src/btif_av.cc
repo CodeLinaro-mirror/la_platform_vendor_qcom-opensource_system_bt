@@ -5801,11 +5801,17 @@ bool btif_av_is_state_opened(int i) {
 
 void btif_av_set_audio_delay(uint16_t delay, tBTA_AV_HNDL hndl) {
   int index = HANDLE_TO_INDEX(hndl);
+  bool isActive = (index == btif_av_get_current_playing_dev_idx());
   if (index >= 0 && index < btif_max_av_clients) {
     btif_a2dp_control_set_audio_delay(delay, index);
   } else {
     BTIF_TRACE_ERROR("%s: Invalid index for connection", __func__);
     btif_a2dp_control_set_audio_delay(delay, 0);
+  }
+
+  if (isActive) {
+    BTIF_TRACE_DEBUG("%s set delay/latency",__func__);
+    btif_a2dp_update_sink_latency_change();
   }
 }
 
