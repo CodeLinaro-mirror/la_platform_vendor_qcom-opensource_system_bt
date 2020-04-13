@@ -73,7 +73,7 @@ UINT8 avdt_ad_type_to_tcid(UINT8 type, tAVDT_SCB *p_scb)
 ** Returns          Channel type value.
 **
 *******************************************************************************/
-static UINT8 avdt_ad_tcid_to_type(UINT8 tcid)
+UINT8 avdt_ad_tcid_to_type(UINT8 tcid)
 {
     UINT8 type;
 
