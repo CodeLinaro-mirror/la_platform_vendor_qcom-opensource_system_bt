@@ -91,7 +91,7 @@ static packet_time_info_t packet_time_info[MAX_CONNECTIONS];
 /*****************************************************************************
 **  Externs
 ******************************************************************************/
-
+extern UINT8 avdt_ad_tcid_to_type(UINT8 tcid);
 /*****************************************************************************
 **  Functions
 ******************************************************************************/
@@ -199,8 +199,12 @@ void bt_acl_update_lcid(UINT16 handle, UINT16 local_cid, UINT16 remote_cid)
     LOG_VERBOSE("%s add local_cid %d remote_cid %d for handle %d.", __func__, local_cid, remote_cid, handle);
     /* look up info for this channel */
     tAVDT_TC_TBL *p_tbl = avdt_ad_tc_tbl_by_lcid(local_cid);
-    if (p_tbl == NULL || p_tbl->tcid != AVDT_CHAN_MEDIA) {
-        LOG_WARN("%s :local_cid :%x and remote_cid %x is not for A2DP Meida", __func__, local_cid, remote_cid);
+    if (p_tbl == NULL || avdt_ad_tcid_to_type(p_tbl->tcid) != AVDT_CHAN_MEDIA) {
+        UINT8 tcid = 0;
+        if (p_tbl != NULL) {
+            tcid = p_tbl->tcid;
+        }
+        LOG_WARN("%s :local_cid :%x and remote_cid %x is not for A2DP Meida, tcid: %d", __func__, local_cid, remote_cid, tcid);
         return;
     }
 
