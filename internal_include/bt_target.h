@@ -808,6 +808,10 @@
 #define GATT_MAX_APPS 32 /* note: 2 apps used internally GATT and GAP */
 #endif
 
+#ifndef GATT_MAX_EATT_CHANNELS
+#define GATT_MAX_EATT_CHANNELS 64
+#endif
+
 /* connection manager doesn't generate it's own IDs. Instead, all GATT clients
  * use their gatt_if to identify against conection manager. When stack tries to
  * create l2cap connection, it will use this fixed ID. */
@@ -1502,6 +1506,16 @@ incoming connection
 /* Enable off target test */
 #ifndef OFF_TARGET_TEST_ENABLED
 #define OFF_TARGET_TEST_ENABLED FALSE
+#endif
+
+/******************************************************************************
+ *
+ * EATT IF support
+ *
+ *****************************************************************************/
+/* EATT IF support */
+#ifndef EATT_IF_SUPPORTED
+#define EATT_IF_SUPPORTED FALSE
 #endif
 
 #endif /* BT_TARGET_H */

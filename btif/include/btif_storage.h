@@ -336,6 +336,56 @@ bt_status_t btif_storage_remove_hidd(RawAddress* remote_bd_addr);
 // |BTM_MAX_REM_BD_NAME_LEN|.
 bool btif_storage_get_stored_remote_name(const RawAddress& bd_addr, char* name);
 
+/*******************************************************************************
+ *
+ * Function         btif_storage_add_eatt_support
+ *
+ * Description      BTIF storage API - Adds an EATT supported device to
+ *                  track.
+ *
+ * Returns          void
+ *
+ *
+ ******************************************************************************/
+void btif_storage_add_eatt_support(const RawAddress& bd_addr);
+
+/*******************************************************************************
+ *
+ * Function         btif_storage_load_bonded_eatt_devices
+ *
+ * Description       BTIF storage API - Loads EATT supported devices
+ *                  from NVRAM.
+ *
+ * Returns          void
+ *
+ *
+ ******************************************************************************/
+void btif_storage_load_bonded_eatt_devices();
+
+/*******************************************************************************
+ *
+ * Function         btif_storage_get_cl_supp_feat
+ *
+ * Description      BTIF storage API - Fetches the GATT client supported features
+ *                  characteristic value from NVRAM.
+  *
+ * Returns          client supported features char value
+ *
+ ******************************************************************************/
+uint8_t btif_storage_get_cl_supp_feat(const RawAddress& bda);
+
+/*******************************************************************************
+ *
+ * Function         btif_storage_set_cl_supp_feat
+ *
+ * Description      BTIF storage API - Stores the GATT client supported features
+ *                  characteristic value in NVRAM.
+  *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btif_storage_set_cl_supp_feat(const RawAddress& bda, uint8_t value);
+
 /******************************************************************************
  * Exported for unit tests
  *****************************************************************************/

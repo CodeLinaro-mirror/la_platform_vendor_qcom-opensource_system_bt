@@ -57,6 +57,8 @@
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
 #include <inttypes.h>
+#include "stack/gatt/gatt_int.h"
+#include "stack/gatt/eatt_int.h"
 
 using base::Bind;
 using bluetooth::Uuid;
@@ -87,6 +89,8 @@ using bluetooth::Uuid;
 #define BTIF_STORAGE_KEY_LOCAL_IO_CAPS "LocalIOCaps"
 #define BTIF_STORAGE_KEY_LOCAL_IO_CAPS_BLE "LocalIOCapsBLE"
 #define BTIF_STORAGE_KEY_ADAPTER_DISC_TIMEOUT "DiscoveryTimeout"
+#define BTIF_STORAGE_KEY_EATT_SUPPORT "EattSupport"
+#define BTIF_STORAGE_KEY_CLIENT_SUPP_FEAT "ClientSupportedFeaturesChar"
 
 /* This is a local property to add a device found */
 #define BT_PROPERTY_REMOTE_DEVICE_TIMESTAMP 0xFF
@@ -983,6 +987,10 @@ bt_status_t btif_storage_remove_bonded_device(
     ret &= btif_config_remove(bdstr, "ProductVersion");
   if (btif_config_exist(bdstr, MAP_MCE_VERSION_CONFIG_KEY))
     ret &= btif_config_remove(bdstr, MAP_MCE_VERSION_CONFIG_KEY);
+  if (btif_config_exist(bdstr, BTIF_STORAGE_KEY_EATT_SUPPORT))
+    ret &= btif_config_remove(bdstr, BTIF_STORAGE_KEY_EATT_SUPPORT);
+  if (btif_config_exist(bdstr, BTIF_STORAGE_KEY_CLIENT_SUPP_FEAT))
+    ret &= btif_config_remove(bdstr, BTIF_STORAGE_KEY_CLIENT_SUPP_FEAT);
   /* Retaining TwsPlusPeerAddr , AvrcpCtVersion and AvrcpFeatures
      as these are needed even after unpair */
   /* write bonded info immediately */
@@ -1947,4 +1955,88 @@ bool btif_storage_get_stored_remote_name(const RawAddress& bd_addr,
 
   return (btif_storage_get_remote_device_property(&bd_addr, &property) ==
           BT_STATUS_SUCCESS);
+}
+
+/*******************************************************************************
+ *
+ * Function         btif_storage_load_bonded_eatt_devices
+ *
+ * Description      BTIF storage API - Loads all the bonded devices from NVRAM
+ *                  with EATT support.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btif_storage_load_bonded_eatt_devices() {
+  RawAddress bd_addr;
+  int is_eatt_supported = 0;
+
+  for (const btif_config_section_iter_t* iter = btif_config_section_begin();
+       iter != btif_config_section_end(); iter = btif_config_section_next(iter)) {
+    const char* name = btif_config_section_name(iter);
+    if (!RawAddress::IsValidAddress(name)) continue;
+
+    btif_config_get_int(name, BTIF_STORAGE_KEY_EATT_SUPPORT,
+                        &is_eatt_supported);
+    if (!is_eatt_supported) {
+      continue;
+    }
+
+    RawAddress::FromString(name, bd_addr);
+    BTIF_TRACE_DEBUG("BD addr :%s", bd_addr.ToString().c_str());
+    gatt_add_eatt_device(bd_addr);
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         btif_storage_add_eatt_support
+ *
+ * Description      BTIF storage API - Add EATT support for bd_addr
+ *                  in btif storage.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btif_storage_add_eatt_support(const RawAddress& bd_addr) {
+  do_in_jni_thread(FROM_HERE,
+                   Bind(
+                       [](const RawAddress& bd_addr) {
+                         std::string bda_str = bd_addr.ToString();
+                         btif_config_set_int(
+                             bda_str.c_str(), BTIF_STORAGE_KEY_EATT_SUPPORT, true);
+                         btif_config_save();
+                       },
+                       bd_addr));
+}
+
+/*******************************************************************************
+ *
+ * Function         btif_storage_get_cl_supp_feat
+ *
+ * Description      BTIF storage API - Get client supported features characteristic
+ *                  value for a remote bda from btif storage.
+ *
+ *
+ * Returns          value of the characteristic
+ *
+ ******************************************************************************/
+uint8_t btif_storage_get_cl_supp_feat(const RawAddress& bda) {
+  std::string bda_str = bda.ToString();
+  int value = 0;
+
+  btif_config_get_int(bda_str.c_str(), BTIF_STORAGE_KEY_CLIENT_SUPP_FEAT, &value);
+  return value;
+}
+
+void btif_storage_set_cl_supp_feat(const RawAddress& bda, uint8_t value) {
+  do_in_jni_thread(
+      FROM_HERE, Bind(
+                     [](const RawAddress& bda, uint8_t value) {
+                       std::string bda_str = bda.ToString();
+                       btif_config_set_int(
+                           bda_str.c_str(), BTIF_STORAGE_KEY_CLIENT_SUPP_FEAT, value);
+                       btif_config_save();
+                     },
+                     bda, value));
 }
