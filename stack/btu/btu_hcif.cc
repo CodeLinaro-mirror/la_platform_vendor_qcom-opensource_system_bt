@@ -58,6 +58,8 @@ extern void bte_main_disable(void);
 extern void btm_process_cancel_complete(uint8_t status, uint8_t mode);
 extern void btm_ble_test_command_complete(uint8_t* p);
 extern void smp_cancel_start_encryption_attempt();
+extern bool btif_av_is_multicast_supported();
+extern uint16_t btif_av_get_num_connect_devices(void);
 
 /******************************************************************************/
 /*            L O C A L    F U N C T I O N     P R O T O T Y P E S            */
@@ -644,6 +646,9 @@ static void btu_hcif_connection_request_evt(uint8_t* p) {
   RawAddress bda;
   DEV_CLASS dc;
   uint8_t link_type;
+  uint16_t service_class;
+  bool sink_only_device = false;
+  int num_av_connect = 0;
 
   STREAM_TO_BDADDR(bda, p);
   STREAM_TO_DEVCLASS(dc, p);
@@ -652,6 +657,17 @@ static void btu_hcif_connection_request_evt(uint8_t* p) {
   /* Pass request to security manager to check connect filters before */
   /* passing request to l2cap */
   if (link_type == HCI_LINK_TYPE_ACL) {
+    if (btif_av_is_multicast_supported()) {
+      BTM_COD_SERVICE_CLASS(service_class, dc);
+      sink_only_device = (service_class & BTM_COD_SERVICE_RENDERING) && !(service_class & BTM_COD_SERVICE_CAPTURING);
+      num_av_connect= btif_av_get_num_connect_devices();
+      if (sink_only_device && (num_av_connect == 2)){
+        HCI_TRACE_DEBUG("%s Third sink device is connected when mcast is supported, reject the connection", __func__);
+        btsnd_hcic_reject_conn(bda, HCI_ERR_HOST_REJECT_RESOURCES);
+        return;
+      }
+    }
+
     btm_sec_conn_req(bda, dc);
 #if (BT_IOT_LOGGING_ENABLED == TRUE)
     device_iot_config_addr_int_add_one(bda, IOT_CONF_KEY_GAP_CONN_COUNT);

@@ -5890,6 +5890,10 @@ void btif_av_update_multicast_state(int index) {
         int preIdx = btif_av_get_other_connected_idx(index);
         btif_av_trigger_dual_handoff(TRUE, index, preIdx);
     }
+    if (enable_multicast && num_av_connected == 2 && btif_av_get_num_playing_devices()==1 ) {
+      int preIdx = btif_av_get_other_connected_idx(index);
+      btif_sm_dispatch(btif_av_cb[preIdx].sm_handle, BTIF_AV_START_STREAM_REQ_EVT, NULL);
+    }
   }
 }
 #if (TWS_ENABLED == TRUE)

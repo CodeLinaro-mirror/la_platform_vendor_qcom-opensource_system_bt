@@ -309,12 +309,16 @@ tBTM_SEC_DEV_REC* btm_sec_alloc_dev(const RawAddress& bd_addr) {
   /* outgoing connection */
   p_inq_info = BTM_InqDbRead(bd_addr);
   if (p_inq_info != NULL) {
-    memcpy(p_dev_rec->dev_class, p_inq_info->results.dev_class, DEV_CLASS_LEN);
+    for (int i =0; i<DEV_CLASS_LEN; i++) {
+      p_dev_rec->dev_class[i] = p_inq_info->results.dev_class[i];
+    }
 
     p_dev_rec->device_type = p_inq_info->results.device_type;
     p_dev_rec->ble.ble_addr_type = p_inq_info->results.ble_addr_type;
-  } else if (bd_addr == btm_cb.connecting_bda)
+  } else if (bd_addr == btm_cb.connecting_bda){
     memcpy(p_dev_rec->dev_class, btm_cb.connecting_dc, DEV_CLASS_LEN);
+    BTM_TRACE_DEBUG("%s use btm_cb.connecting_dc", __func__);
+  }
 
   /* update conn params, use default value for background connection params */
   memset(&p_dev_rec->conn_params, 0xff, sizeof(tBTM_LE_CONN_PRAMS));

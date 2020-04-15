@@ -822,6 +822,10 @@ static void btif_dm_cb_hid_remote_name(tBTM_REMOTE_DEV_NAME* p_remote_name) {
 static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
                                    tBTA_TRANSPORT transport) {
   bool is_hid = check_cod(&bd_addr, COD_HID_POINTING);
+  DEV_CLASS device_class;
+  uint16_t service_class;
+  bool sink_only_device = false;
+  tBTM_SEC_DEV_REC* pDev = NULL;
 
   if (btm_cb.pairing_state != BTM_PAIR_STATE_IDLE ) {
     BTIF_TRACE_DEBUG("%s: btm_cb.pairing_state = %d, one pairing in progress ",
@@ -859,11 +863,29 @@ static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
     BTA_DmAddBleDevice(bd_addr, addr_type, device_type);
   }
 
+    if (btif_av_get_multicast_state() && btif_av_get_num_connected_devices()==2) {
+      pDev = btm_find_or_alloc_dev(bd_addr);
+      if (pDev)
+      {
+        device_class[0] = pDev->dev_class[0];
+        device_class[1] = pDev->dev_class[1];
+        device_class[2] = pDev->dev_class[2];
+        BTIF_TRACE_DEBUG("%s COD = [%x][%x][%x]", __FUNCTION__, device_class[2],device_class[1],device_class[0]);
+        BTM_COD_SERVICE_CLASS(service_class, device_class);
+        sink_only_device = (service_class & BTM_COD_SERVICE_RENDERING) && !(service_class & BTM_COD_SERVICE_CAPTURING);
+        BTIF_TRACE_DEBUG("sink_only_device: %d in %s", sink_only_device, __func__);
+      }
+  }
+
   if (is_hid && (device_type & BT_DEVICE_TYPE_BLE) == 0) {
     bt_status_t status;
     status = (bt_status_t)btif_hh_connect(&bd_addr);
     if (status != BT_STATUS_SUCCESS)
       bond_state_changed(status, bd_addr, BT_BOND_STATE_NONE);
+  } else if (sink_only_device && btif_av_get_multicast_state() && btif_av_get_num_connected_devices()==2) {
+    BTIF_TRACE_ERROR("%s: don't pair third AV device", __func__);
+    bond_state_changed(BT_STATUS_FAIL, bd_addr, BT_BOND_STATE_NONE);
+    return;
   } else {
     BTA_DmBondByTransport(bd_addr, transport);
   }

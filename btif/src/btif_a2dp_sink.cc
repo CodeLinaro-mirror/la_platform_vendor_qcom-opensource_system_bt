@@ -47,10 +47,10 @@
  */
 #define MAX_INPUT_A2DP_FRAME_QUEUE_SZ (MAX_PCM_FRAME_NUM_PER_TICK * 4)
 
-#define BTIF_SINK_MEDIA_TIME_TICK_MS 20
+#define BTIF_SINK_MEDIA_TIME_TICK_MS 40
 
 /* define APTX/AAC incoming data time interval */
-#define BTIF_SINK_MEDIA_TIME_NON_SBC_TICK_MS 20
+#define BTIF_SINK_MEDIA_TIME_NON_SBC_TICK_MS 40
 
 /* In case of A2DP Sink, we will delay start by 5 AVDTP Packets */
 #define MAX_A2DP_DELAYED_START_FRAME_COUNT 5
@@ -73,14 +73,6 @@ enum {
   BTIF_MEDIA_SINK_CLEAR_TRACK,
   BTIF_MEDIA_SINK_SET_FOCUS_STATE,
   BTIF_MEDIA_SINK_AUDIO_RX_FLUSH
-};
-
-/* BTIF Audio Track status definition */
-enum {
-  BTIF_AUDIO_TRACK_STATUS_IDLE,
-  BTIF_AUDIO_TRACK_STATUS_STARTED,
-  BTIF_AUDIO_TRACK_STATUS_UPDATEING,
-  BTIF_AUDIO_TRACK_STATUS_UPDATED
 };
 
 typedef struct {
@@ -119,7 +111,6 @@ typedef struct {
   btif_a2dp_sink_focus_state_t rx_focus_state; /* audio focus state */
   void* audio_track;
   int index;
-  uint8_t audio_track_status;
   std::mutex audio_track_mutex;
   alarm_t* audio_track_alarm;
   uint8_t track_create_retry_cnt;
@@ -194,7 +185,6 @@ bool btif_a2dp_sink_startup(void) {
   btif_a2dp_sink_cb.audio_track = NULL;
   btif_a2dp_sink_cb.index = btif_max_avk_clients;
   btif_a2dp_sink_cb.track_create_retry_cnt = 0;
-  btif_a2dp_sink_cb.audio_track_status = BTIF_AUDIO_TRACK_STATUS_IDLE;
   btif_a2dp_sink_cb.audio_track_alarm = alarm_new("btif.a2dp_sink_create_audiotrack");
 
 
@@ -310,7 +300,6 @@ void btif_a2dp_sink_update_decoder(const uint8_t* p_codec_info, int index) {
                      p_codec_info[1], p_codec_info[2], p_codec_info[3],
                      p_codec_info[4], p_codec_info[5], p_codec_info[6],
                      index);
-    btif_a2dp_sink_cb.audio_track_status = BTIF_AUDIO_TRACK_STATUS_UPDATEING;
     memcpy(p_buf->codec_info, p_codec_info, AVDT_CODEC_SIZE);
     p_buf->hdr.event = BTIF_MEDIA_SINK_DECODER_UPDATE;
     p_buf->index = index;
@@ -381,8 +370,8 @@ void btif_a2dp_sink_audio_handle_stop_decoding(void) {
 #ifndef OS_GENERIC
   {
     std::lock_guard<std::mutex> lock(btif_a2dp_sink_cb.audio_track_mutex);
-    BtifAvrcpAudioTrackPause(btif_a2dp_sink_cb.audio_track);
-    btif_a2dp_sink_cb.audio_track_status = BTIF_AUDIO_TRACK_STATUS_IDLE;
+    if (btif_a2dp_sink_cb.audio_track)
+      BtifAvrcpAudioTrackPause(btif_a2dp_sink_cb.audio_track);
   }
 #endif
 }
@@ -408,10 +397,12 @@ void btif_a2dp_sink_clear_track_event(void) {
 
 #ifndef OS_GENERIC
   std::lock_guard<std::mutex> lock(btif_a2dp_sink_cb.audio_track_mutex);
-  BtifAvrcpAudioTrackStop(btif_a2dp_sink_cb.audio_track);
-  BtifAvrcpAudioTrackDelete(btif_a2dp_sink_cb.audio_track);
+  if (btif_a2dp_sink_cb.audio_track) {
+    BtifAvrcpAudioTrackStop(btif_a2dp_sink_cb.audio_track);
+    BtifAvrcpAudioTrackDelete(btif_a2dp_sink_cb.audio_track);
+    btif_a2dp_sink_cb.audio_track = NULL;
+  }
 #endif
-  btif_a2dp_sink_cb.audio_track = NULL;
   btif_a2dp_sink_cb.index = btif_max_avk_clients;
   btif_a2dp_sink_cb.latency = 0;
 }
@@ -423,7 +414,12 @@ static void btif_a2dp_sink_audio_handle_start_decoding(void) {
 #ifndef OS_GENERIC
   {
     std::lock_guard<std::mutex> lock(btif_a2dp_sink_cb.audio_track_mutex);
-    BtifAvrcpAudioTrackStart(btif_a2dp_sink_cb.audio_track);
+    if (btif_a2dp_sink_cb.audio_track) {
+      BtifAvrcpAudioTrackStart(btif_a2dp_sink_cb.audio_track);
+    } else {
+      BTIF_TRACE_ERROR("%s audio_track is NULL", __func__);
+      return;
+    }
   }
 #endif
 
@@ -439,18 +435,20 @@ static void btif_a2dp_sink_audio_handle_start_decoding(void) {
 
 static void btif_a2dp_sink_audio_handle_start_non_sbc_decoding(void){
   if (btif_a2dp_sink_cb.decode_alarm != NULL){
-    APPL_TRACE_DEBUG("%s: Already started Incoming",__func__);
     return;  // Already started non_sbc_decoding
   }
 
 #ifndef OS_GENERIC
-    /* Avoid audiotrack start multiple times */
-    if ((btif_a2dp_sink_cb.audio_track_status != BTIF_AUDIO_TRACK_STATUS_STARTED) &&
-        (btif_a2dp_sink_cb.audio_track)) {
-      std::lock_guard<std::mutex> lock(btif_a2dp_sink_cb.audio_track_mutex);
+  /* Avoid audiotrack start multiple times */
+  {
+    std::lock_guard<std::mutex> lock(btif_a2dp_sink_cb.audio_track_mutex);
+    if (btif_a2dp_sink_cb.audio_track) {
       BtifAvrcpAudioTrackStart(btif_a2dp_sink_cb.audio_track);
-      btif_a2dp_sink_cb.audio_track_status = BTIF_AUDIO_TRACK_STATUS_STARTED;
+    } else {
+      BTIF_TRACE_ERROR("%s audio_track is NULL", __func__);
+      return;
     }
+  }
 #endif
 
   btif_a2dp_sink_cb.decode_alarm = alarm_new_periodic("btif.a2dp_sink_non_sbc_decode");
@@ -460,7 +458,7 @@ static void btif_a2dp_sink_audio_handle_start_non_sbc_decoding(void){
   }
   alarm_set(btif_a2dp_sink_cb.decode_alarm, BTIF_SINK_MEDIA_TIME_NON_SBC_TICK_MS,
             btif_non_sbc_decode_alarm_cb, NULL);
-  APPL_TRACE_DEBUG("Track Started and non_sbc_decode_alarm is set");
+  BTIF_TRACE_DEBUG("Track Started and non_sbc_decode_alarm is set");
  }
 
 static void btif_a2dp_sink_handle_inc_media(tBT_SINK_HDR* p_msg) {
@@ -502,9 +500,10 @@ static void btif_a2dp_sink_handle_inc_media(tBT_SINK_HDR* p_msg) {
 #ifndef OS_GENERIC
   {
     std::lock_guard<std::mutex> lock(btif_a2dp_sink_cb.audio_track_mutex);
-    BtifAvrcpAudioTrackWriteData(
-      btif_a2dp_sink_cb.audio_track, (void*)btif_a2dp_sink_pcm_data,
-      (sizeof(btif_a2dp_sink_pcm_data) - availPcmBytes));
+    if (btif_a2dp_sink_cb.audio_track)
+      BtifAvrcpAudioTrackWriteData(
+        btif_a2dp_sink_cb.audio_track, (void*)btif_a2dp_sink_pcm_data,
+        (sizeof(btif_a2dp_sink_pcm_data) - availPcmBytes));
   }
 #endif
 }
@@ -665,30 +664,29 @@ static void btif_a2dp_sink_decoder_update_event(
 #else
       NULL;
 #endif
-  }
-  if (btif_a2dp_sink_cb.audio_track == NULL) {
-    BTIF_TRACE_ERROR("%s: A2dpSink: Track creation failed at time %d", __func__, btif_a2dp_sink_cb.track_create_retry_cnt);
-    if (btif_a2dp_sink_cb.track_create_retry_cnt < TRACK_CREATE_MAX_RETRY_ATTEMPTS) {
-      if (btif_a2dp_sink_cb.audio_track_alarm != NULL) {
-        /* cancel it first then set the audio track create alarm */
-        if (alarm_is_scheduled(btif_a2dp_sink_cb.audio_track_alarm)) {
-          alarm_cancel(btif_a2dp_sink_cb.audio_track_alarm);
-          BTIF_TRACE_DEBUG("%s: Deleting previously queued timer if any.", __func__);
+    if (btif_a2dp_sink_cb.audio_track == NULL) {
+      BTIF_TRACE_ERROR("%s: A2dpSink: Track creation failed at time %d", __func__, btif_a2dp_sink_cb.track_create_retry_cnt);
+      if (btif_a2dp_sink_cb.track_create_retry_cnt < TRACK_CREATE_MAX_RETRY_ATTEMPTS) {
+        if (btif_a2dp_sink_cb.audio_track_alarm != NULL) {
+          /* cancel it first then set the audio track create alarm */
+          if (alarm_is_scheduled(btif_a2dp_sink_cb.audio_track_alarm)) {
+            alarm_cancel(btif_a2dp_sink_cb.audio_track_alarm);
+            BTIF_TRACE_DEBUG("%s: Deleting previously queued timer if any.", __func__);
+          }
+          alarm_set_on_mloop(btif_a2dp_sink_cb.audio_track_alarm, BTIF_DELAYED_CREATE_AUDIO_TRACK_MS,
+               (alarm_callback_t)btif_a2dp_sink_update_decoder,
+               (uint8_t*)(p_buf->codec_info));
         }
-        alarm_set_on_mloop(btif_a2dp_sink_cb.audio_track_alarm, BTIF_DELAYED_CREATE_AUDIO_TRACK_MS,
-             (alarm_callback_t)btif_a2dp_sink_update_decoder,
-             (uint8_t*)(p_buf->codec_info));
+        btif_a2dp_sink_cb.track_create_retry_cnt++;
       }
-      btif_a2dp_sink_cb.track_create_retry_cnt++;
+      else
+        btif_a2dp_sink_cb.track_create_retry_cnt = 0;
+      return;
     }
-    else
-      btif_a2dp_sink_cb.track_create_retry_cnt = 0;
-    return;
   }
   btif_a2dp_sink_cb.track_create_retry_cnt = 0;
 
-  btif_a2dp_sink_cb.audio_track_status = BTIF_AUDIO_TRACK_STATUS_UPDATED;
-  BTIF_TRACE_DEBUG("%s: btif_a2dp_sink_cb.audio_track_status BTIF_AUDIO_TRACK_STATUS_UPDATED.", __func__);
+  BTIF_TRACE_DEBUG("%s: btif_a2dp_sink_cb.audio_track created", __func__);
   if (btif_avk_is_sink_delay_report_supported()) {
     std::lock_guard<std::mutex> lock(btif_a2dp_sink_cb.audio_track_mutex);
     btif_a2dp_sink_cb.latency = BtifAvrcpAudioTrackLatency(btif_a2dp_sink_cb.audio_track);
@@ -714,38 +712,30 @@ static void btif_handle_incoming_encoded_data(UNUSED_ATTR void* context) {
     BTIF_TRACE_DEBUG("%s", __func__);
     uint8_t *start_frame_addr;
     tBT_SINK_HDR* p_msg = NULL;
-    int frame_num = (int)fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue);
 
-    for(int i = 0; i <= frame_num ; i++ ) {
-        p_msg = (tBT_SINK_HDR *)fixed_queue_try_dequeue(btif_a2dp_sink_cb.rx_audio_queue);
-        // Write encoded media packet to AudioTrack
-        if (p_msg != NULL) {
-            if (btif_a2dp_sink_cb.audio_track != NULL) {
-                start_frame_addr = ((uint8_t*)(p_msg + 1) + p_msg->offset);
-                std::lock_guard<std::mutex> lock(btif_a2dp_sink_cb.audio_track_mutex);
-                BtifAvrcpAudioTrackWriteData(
-                        btif_a2dp_sink_cb.audio_track, (void*)start_frame_addr, p_msg->len);
-            }
-            osi_free(p_msg);
+    while ((p_msg = (tBT_SINK_HDR *)fixed_queue_try_dequeue(btif_a2dp_sink_cb.rx_audio_queue)) != NULL) {
+      start_frame_addr = ((uint8_t*)(p_msg + 1) + p_msg->offset);
+      {
+        std::lock_guard<std::mutex> lock(btif_a2dp_sink_cb.audio_track_mutex);
+        if (btif_a2dp_sink_cb.audio_track) {
+          BtifAvrcpAudioTrackWriteData(btif_a2dp_sink_cb.audio_track,
+                  (void*)start_frame_addr, p_msg->len);
         } else {
-            break;
+          BTIF_TRACE_DEBUG("%s audio_track is NULL", __func__);
         }
+      }
+      osi_free(p_msg);
     }
 }
 
 uint8_t btif_a2dp_sink_enqueue_buf(BT_HDR* p_pkt) {
-  BTIF_TRACE_VERBOSE("%s: rx_flush: %d audio_track_status:%d, codec_type:0x%x", __func__,
+  BTIF_TRACE_VERBOSE("%s: rx_flush: %d, codec_type:0x%x", __func__,
                      btif_a2dp_sink_cb.rx_flush,
-                     btif_a2dp_sink_cb.audio_track_status,
                      btif_a2dp_sink_cb.codec_type);
   if (btif_a2dp_sink_cb.rx_flush) /* Flush enabled, do not enqueue */
     return fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue);
 
   /* Do not enqueue during updating codec */
-  if (btif_a2dp_sink_cb.audio_track_status == BTIF_AUDIO_TRACK_STATUS_UPDATEING) {
-    BTIF_TRACE_VERBOSE("%s btif_a2dp_sink_cb.audio_track_status == BTIF_AUDIO_TRACK_STATUS_UPDATEING", __func__);
-    return fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue);
-  }
 
   if (fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue) ==
       MAX_INPUT_A2DP_FRAME_QUEUE_SZ) {
@@ -775,21 +765,16 @@ uint8_t btif_a2dp_sink_enqueue_buf(BT_HDR* p_pkt) {
   BTIF_TRACE_VERBOSE("%s: frames to process %d, len %d", __func__,
                      p_msg->num_frames_to_be_processed, p_msg->len);
   fixed_queue_enqueue(btif_a2dp_sink_cb.rx_audio_queue, p_msg);
-  if (btif_a2dp_sink_cb.audio_track != NULL &&
-      btif_a2dp_sink_cb.codec_type == A2DP_MEDIA_CT_SBC &&
-      fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue) ==
-          MAX_A2DP_DELAYED_START_FRAME_COUNT) {
-    btif_a2dp_sink_audio_handle_start_decoding();
-  } else if (btif_a2dp_sink_cb.audio_track != NULL &&
-    (btif_a2dp_sink_cb.codec_type == A2DP_MEDIA_CT_AAC ||
-    btif_a2dp_sink_cb.codec_type == A2DP_MEDIA_CT_NON_A2DP)) {
-    if (fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue) != 0) {
-         btif_a2dp_sink_audio_handle_start_non_sbc_decoding();
+  if (btif_a2dp_sink_cb.decode_alarm == NULL) {
+    if (btif_a2dp_sink_cb.codec_type == A2DP_MEDIA_CT_SBC &&
+         (fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue) ==
+         MAX_A2DP_DELAYED_START_FRAME_COUNT)) {
+      btif_a2dp_sink_audio_handle_start_decoding();
+    } else if ( btif_a2dp_sink_cb.codec_type != A2DP_MEDIA_CT_SBC &&
+                (fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue) != 0)) {
+      btif_a2dp_sink_audio_handle_start_non_sbc_decoding();
     }
-  }else {
-    BTIF_TRACE_ERROR("%s audio_track is NULL!",__func__);
   }
-
   return fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue);
 }
 
@@ -865,7 +850,6 @@ void btif_a2dp_sink_on_init(void) {
   btif_a2dp_sink_cb.rx_focus_state = BTIF_A2DP_SINK_FOCUS_GRANTED;
   btif_a2dp_sink_cb.audio_track = NULL;
   btif_a2dp_sink_cb.index = btif_max_avk_clients;
-  btif_a2dp_sink_cb.audio_track_status = BTIF_AUDIO_TRACK_STATUS_IDLE;
 }
 
 void btif_avk_a2dp_on_suspended(tBTA_AVK_SUSPEND* p_av_suspend) {
