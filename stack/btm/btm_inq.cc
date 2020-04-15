@@ -121,7 +121,7 @@ static tBTM_STATUS btm_set_inq_event_filter(uint8_t filter_cond_type,
 void btm_clr_inq_result_flt(void);
 
 static uint8_t btm_convert_uuid_to_eir_service(uint16_t uuid16);
-static void btm_set_eir_uuid(uint8_t* p_eir, tBTM_INQ_RESULTS* p_results);
+void btm_set_eir_uuid(uint8_t* p_eir, tBTM_INQ_RESULTS* p_results);
 static const uint8_t* btm_eir_get_uuid_list(uint8_t* p_eir, size_t eir_len,
                                             uint8_t uuid_size,
                                             uint8_t* p_num_uuid,
@@ -385,126 +385,6 @@ uint16_t BTM_ReadDiscoverability(uint16_t* p_window, uint16_t* p_interval) {
   if (p_interval) *p_interval = btm_cb.btm_inq_vars.inq_scan_period;
 
   return (btm_cb.btm_inq_vars.discoverable_mode);
-}
-
-/*******************************************************************************
- *
- * Function         BTM_SetPeriodicInquiryMode
- *
- * Description      This function is called to set the device periodic inquiry
- *                  mode. If the duration is zero, the periodic inquiry mode is
- *                  cancelled.
- *
- *                  Note: We currently do not allow concurrent inquiry and
- *                  periodic inquiry.
- *
- * Parameters:      p_inqparms - pointer to the inquiry information
- *                      mode - GENERAL or LIMITED inquiry
- *                      duration - length in 1.28 sec intervals (If '0', the
- *                                 inquiry is CANCELLED)
- *                      max_resps - maximum amount of devices to search for
- *                                  before ending the inquiry
- *                      filter_cond_type - BTM_CLR_INQUIRY_FILTER,
- *                                         BTM_FILTER_COND_DEVICE_CLASS, or
- *                                         BTM_FILTER_COND_BD_ADDR
- *                      filter_cond - value for the filter (based on
- *                                                          filter_cond_type)
- *
- *                  max_delay - maximum amount of time between successive
- *                              inquiries
- *                  min_delay - minimum amount of time between successive
- *                              inquiries
- *                  p_results_cb - callback returning pointer to results
- *                              (tBTM_INQ_RESULTS)
- *
- * Returns          BTM_CMD_STARTED if successfully started
- *                  BTM_ILLEGAL_VALUE if a bad parameter is detected
- *                  BTM_NO_RESOURCES if could not allocate a message buffer
- *                  BTM_SUCCESS - if cancelling the periodic inquiry
- *                  BTM_BUSY - if an inquiry is already active
- *                  BTM_WRONG_MODE if the device is not up.
- *
- ******************************************************************************/
-tBTM_STATUS BTM_SetPeriodicInquiryMode(tBTM_INQ_PARMS* p_inqparms,
-                                       uint16_t max_delay, uint16_t min_delay,
-                                       tBTM_INQ_RESULTS_CB* p_results_cb) {
-  if (bluetooth::shim::is_gd_shim_enabled()) {
-    return bluetooth::shim::BTM_SetPeriodicInquiryMode(p_inqparms, max_delay,
-                                                       min_delay, p_results_cb);
-  }
-
-  tBTM_STATUS status;
-  tBTM_INQUIRY_VAR_ST* p_inq = &btm_cb.btm_inq_vars;
-
-  BTM_TRACE_API(
-      "BTM_SetPeriodicInquiryMode: mode: %d, dur: %d, rsps: %d, flt: %d, min: "
-      "%d, max: %d",
-      p_inqparms->mode, p_inqparms->duration, p_inqparms->max_resps,
-      p_inqparms->filter_cond_type, min_delay, max_delay);
-
-  /*** Make sure the device is ready ***/
-  if (!BTM_IsDeviceUp()) return (BTM_WRONG_MODE);
-
-  /* Only one active inquiry is allowed in this implementation.
-     Also do not allow an inquiry if the inquiry filter is being updated */
-  if (p_inq->inq_active || p_inq->inqfilt_active) return (BTM_BUSY);
-
-  /* If illegal parameters return false */
-  if (p_inqparms->mode != BTM_GENERAL_INQUIRY &&
-      p_inqparms->mode != BTM_LIMITED_INQUIRY)
-    return (BTM_ILLEGAL_VALUE);
-
-  /* Verify the parameters for this command */
-  if (p_inqparms->duration < BTM_MIN_INQUIRY_LEN ||
-      p_inqparms->duration > BTM_MAX_INQUIRY_LENGTH ||
-      min_delay <= p_inqparms->duration ||
-      min_delay < BTM_PER_INQ_MIN_MIN_PERIOD ||
-      min_delay > BTM_PER_INQ_MAX_MIN_PERIOD || max_delay <= min_delay ||
-      max_delay < BTM_PER_INQ_MIN_MAX_PERIOD)
-  /*       max_delay > BTM_PER_INQ_MAX_MAX_PERIOD)*/
-  /*  BTM_PER_INQ_MAX_MAX_PERIOD set to 1's in all bits. Condition resulting in
-     false always*/
-  {
-    return (BTM_ILLEGAL_VALUE);
-  }
-
-  /* Save the inquiry parameters to be used upon the completion of
-   * setting/clearing the inquiry filter */
-  p_inq->inqparms = *p_inqparms;
-  p_inq->per_min_delay = min_delay;
-  p_inq->per_max_delay = max_delay;
-  p_inq->inq_cmpl_info.num_resp = 0; /* Clear the results counter */
-  p_inq->p_inq_results_cb = p_results_cb;
-
-  p_inq->inq_active = (uint8_t)(
-      (p_inqparms->mode == BTM_LIMITED_INQUIRY)
-          ? (BTM_LIMITED_INQUIRY_ACTIVE | BTM_PERIODIC_INQUIRY_ACTIVE)
-          : (BTM_GENERAL_INQUIRY_ACTIVE | BTM_PERIODIC_INQUIRY_ACTIVE));
-
-  /* If a filter is specified, then save it for later and clear the current
-     filter.
-     The setting of the filter is done upon completion of clearing of the
-     previous
-     filter.
-  */
-  if (p_inqparms->filter_cond_type != BTM_CLR_INQUIRY_FILTER) {
-    p_inq->state = BTM_INQ_CLR_FILT_STATE;
-    p_inqparms->filter_cond_type = BTM_CLR_INQUIRY_FILTER;
-  } else /* The filter is not being used so simply clear it; the inquiry can
-            start after this operation */
-    p_inq->state = BTM_INQ_SET_FILT_STATE;
-
-  /* Before beginning the inquiry the current filter must be cleared, so
-   * initiate the command */
-  status = btm_set_inq_event_filter(p_inqparms->filter_cond_type,
-                                    &p_inqparms->filter_cond);
-  if (status != BTM_CMD_STARTED) {
-    /* If set filter command is not succesful reset the state */
-    p_inq->p_inq_results_cb = NULL;
-    p_inq->state = BTM_INQ_INACTIVE_STATE;
-  }
-
-  return (status);
 }
 
 /*******************************************************************************
@@ -793,18 +673,8 @@ tBTM_STATUS BTM_StartInquiry(tBTM_INQ_PARMS* p_inqparms,
   /* Only one active inquiry is allowed in this implementation.
      Also do not allow an inquiry if the inquiry filter is being updated */
   if (p_inq->inq_active || p_inq->inqfilt_active) {
-    /*check if LE observe is already running*/
-    if (p_inq->scan_type == INQ_LE_OBSERVE &&
-        p_inq->p_inq_ble_results_cb != nullptr) {
-      BTM_TRACE_API("BTM_StartInquiry: LE observe in progress");
-      p_inq->scan_type = INQ_GENERAL;
-      p_inq->inq_active = BTM_INQUIRY_INACTIVE;
-      btm_cb.ble_ctr_cb.inq_var.scan_type = BTM_BLE_SCAN_MODE_NONE;
-      btm_send_hci_scan_enable(BTM_BLE_SCAN_DISABLE, BTM_BLE_DUPLICATE_ENABLE);
-    } else {
-      LOG(ERROR) << __func__ << ": BTM_BUSY";
-      return (BTM_BUSY);
-    }
+    LOG(ERROR) << __func__ << ": BTM_BUSY";
+    return (BTM_BUSY);
   } else {
     p_inq->scan_type = INQ_GENERAL;
   }
@@ -972,10 +842,9 @@ tBTM_STATUS BTM_CancelRemoteDeviceName(void) {
   /* Make sure there is not already one in progress */
   if (p_inq->remname_active) {
     if (BTM_UseLeLink(p_inq->remname_bda)) {
-      if (btm_ble_cancel_remote_name(p_inq->remname_bda))
-        return (BTM_CMD_STARTED);
-      else
-        return (BTM_UNKNOWN_ADDR);
+      /* Cancel remote name request for LE device, and process remote name
+       * callback. */
+      btm_inq_rmt_name_failed_cancelled();
     } else
       btsnd_hcic_rmt_name_req_cancel(p_inq->remname_bda);
     return (BTM_CMD_STARTED);
@@ -1083,33 +952,6 @@ tBTM_STATUS BTM_ClearInqDb(const RawAddress* p_bda) {
   btm_clr_inq_db(p_bda);
 
   return (BTM_SUCCESS);
-}
-
-/*******************************************************************************
- *
- * Function         BTM_ReadInquiryRspTxPower
- *
- * Description      This command will read the inquiry Transmit Power level used
- *                  to transmit the FHS and EIR data packets. This can be used
- *                  directly in the Tx Power Level EIR data type.
- *
- * Returns          BTM_SUCCESS if successful
- *
- ******************************************************************************/
-tBTM_STATUS BTM_ReadInquiryRspTxPower(tBTM_CMPL_CB* p_cb) {
-  if (bluetooth::shim::is_gd_shim_enabled()) {
-    return bluetooth::shim::BTM_ReadInquiryRspTxPower(p_cb);
-  }
-
-  if (btm_cb.devcb.p_inq_tx_power_cmpl_cb) return (BTM_BUSY);
-
-  btm_cb.devcb.p_inq_tx_power_cmpl_cb = p_cb;
-  alarm_set_on_mloop(btm_cb.devcb.read_inq_tx_power_timer,
-                     BTM_INQ_REPLY_TIMEOUT_MS, btm_read_inq_tx_power_timeout,
-                     NULL);
-
-  btsnd_hcic_read_inq_tx_power();
-  return (BTM_CMD_STARTED);
 }
 
 /*******************************************************************************
@@ -1930,13 +1772,6 @@ void btm_process_inq_complete(uint8_t status, uint8_t mode) {
 
   p_inq->inqparms.mode &= ~(mode);
 
-  if (p_inq->scan_type == INQ_LE_OBSERVE && !p_inq->inq_active) {
-    /*end of LE observe*/
-    p_inq->p_inq_ble_results_cb = NULL;
-    p_inq->p_inq_ble_cmpl_cb = NULL;
-    p_inq->scan_type = INQ_NONE;
-  }
-
 #if (BTM_INQ_DEBUG == TRUE)
   BTM_TRACE_DEBUG(
       "btm_process_inq_complete inq_active:0x%x state:%d inqfilt_active:%d",
@@ -1983,12 +1818,6 @@ void btm_process_inq_complete(uint8_t status, uint8_t mode) {
       p_inq->scan_type == INQ_GENERAL)  // this inquiry is complete
   {
     p_inq->scan_type = INQ_NONE;
-    /* check if the LE observe is pending */
-    if (p_inq->p_inq_ble_results_cb != NULL) {
-      BTM_TRACE_DEBUG("BTM Inq Compl: resuming a pending LE scan");
-      BTM_BleObserve(1, 0, p_inq->p_inq_ble_results_cb,
-                     p_inq->p_inq_ble_cmpl_cb);
-    }
   }
 #if (BTM_INQ_DEBUG == TRUE)
   BTM_TRACE_DEBUG("inq_active:0x%x state:%d inqfilt_active:%d",
@@ -2154,22 +1983,22 @@ void btm_process_remote_name(const RawAddress* bda, BD_NAME bdn,
 }
 
 void btm_inq_remote_name_timer_timeout(UNUSED_ATTR void* data) {
-  btm_inq_rmt_name_failed();
+  btm_inq_rmt_name_failed_cancelled();
 }
 
 /*******************************************************************************
  *
- * Function         btm_inq_rmt_name_failed
+ * Function         btm_inq_rmt_name_failed_cancelled
  *
- * Description      This function is if timeout expires while getting remote
- *                  name.  This is done for devices that incorrectly do not
- *                  report operation failure
+ * Description      This function is if timeout expires or request is cancelled
+ *                  while getting remote name.  This is done for devices that
+ *                  incorrectly do not report operation failure
  *
  * Returns          void
  *
  ******************************************************************************/
-void btm_inq_rmt_name_failed(void) {
-  BTM_TRACE_ERROR("btm_inq_rmt_name_failed()  remname_active=%d",
+void btm_inq_rmt_name_failed_cancelled(void) {
+  BTM_TRACE_ERROR("btm_inq_rmt_name_failed_cancelled()  remname_active=%d",
                   btm_cb.btm_inq_vars.remname_active);
 
   if (btm_cb.btm_inq_vars.remname_active)

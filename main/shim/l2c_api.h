@@ -40,7 +40,7 @@ namespace shim {
  *
  ******************************************************************************/
 uint16_t L2CA_Register(uint16_t psm, tL2CAP_APPL_INFO* p_cb_info,
-                       bool enable_snoop);
+                       bool enable_snoop, tL2CAP_ERTM_INFO* p_ertm_info);
 
 /*******************************************************************************
  *
@@ -363,18 +363,6 @@ uint8_t L2CA_SetTraceLevel(uint8_t trace_level);
  *
  ******************************************************************************/
 uint8_t L2CA_SetDesireRole(uint8_t new_role);
-
-/*******************************************************************************
- *
- * Function     L2CA_LocalLoopbackReq
- *
- * Description  This function sets up a CID for local loopback
- *
- * Returns      CID of 0 if none.
- *
- ******************************************************************************/
-uint16_t L2CA_LocalLoopbackReq(uint16_t psm, uint16_t handle,
-                               const RawAddress& p_bd_addr);
 
 /*******************************************************************************
  *

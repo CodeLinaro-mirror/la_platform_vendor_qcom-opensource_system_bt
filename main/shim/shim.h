@@ -22,8 +22,14 @@
 #include "base/bind.h"
 #include "btcore/include/module.h"
 #include "main/shim/entry.h"
+#include "osi/include/future.h"
 
 static const char GD_SHIM_MODULE[] = "gd_shim_module";
+static const char GD_SHIM_BTM_MODULE[] = "gd_shim_btm_module";
+
+constexpr future_t* kReturnImmediate = nullptr;
+constexpr module_lifecycle_fn kUnusedModuleApi = nullptr;
+constexpr char* kUnusedModuleDependencies = nullptr;
 
 namespace bluetooth {
 namespace shim {
@@ -41,6 +47,13 @@ namespace shim {
  * @return true if using gd shim core, false if using legacy.
  */
 bool is_gd_shim_enabled();
+
+/**
+ * Checks if the bluetooth gd stack has been started up.
+ *
+ * @return true if bluetooth gd stack is started, false otherwise.
+ */
+bool is_gd_stack_started_up();
 
 /**
  * Posts a task on the shim message queue.

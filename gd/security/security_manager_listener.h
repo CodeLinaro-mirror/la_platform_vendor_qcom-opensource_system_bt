@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include "common/callback.h"
+
 namespace bluetooth {
 namespace security {
 
@@ -27,38 +29,6 @@ namespace security {
 class ISecurityManagerListener {
  public:
   virtual ~ISecurityManagerListener() = 0;
-
-  /**
-   * Display Yes/No dialog with numeric value
-   *
-   * @param address pairing device
-   * @param numeric_value numeric comparison value to verify
-   */
-  virtual void OnDisplayYesNoDialogWithValue(const bluetooth::hci::AddressWithType& address,
-                                             uint32_t numeric_value) = 0;
-
-  /**
-   * Display Yes/No dialog with numeric value
-   *
-   * @param address pairing device
-   */
-  virtual void OnDisplayYesNoDialog(const bluetooth::hci::AddressWithType& address) = 0;
-
-  /**
-   * Present the passkey value to the user
-   */
-  virtual void OnDisplayPasskeyDialog(const bluetooth::hci::AddressWithType& address, uint32_t passkey) = 0;
-
-  /**
-   * Display a dialog box that will let user enter the Passkey
-   */
-  virtual void OnDisplayPasskeyInputDialog(const bluetooth::hci::AddressWithType& address) = 0;
-
-  /**
-   * Remove the pairing prompt from DisplayPairingPrompt, i.e. remote device
-   * disconnected, or some application requested bond with this device
-   */
-  virtual void OnDisplayCancelDialog(const bluetooth::hci::AddressWithType& address) = 0;
 
   /**
    * Called when a device is successfully bonded.

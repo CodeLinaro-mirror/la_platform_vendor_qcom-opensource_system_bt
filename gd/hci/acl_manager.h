@@ -111,6 +111,7 @@ class AclConnection {
   using QueueDownEnd = common::BidiQueueEnd<PacketView<kLittleEndian>, BasePacketBuilder>;
   virtual QueueUpEnd* GetAclQueueEnd() const;
   virtual void RegisterCallbacks(ConnectionManagementCallbacks* callbacks, os::Handler* handler);
+  virtual void UnregisterCallbacks(ConnectionManagementCallbacks* callbacks);
   virtual void RegisterDisconnectCallback(common::OnceCallback<void(ErrorCode)> on_disconnect, os::Handler* handler);
   virtual bool Disconnect(DisconnectReason reason);
   virtual bool ChangeConnectionPacketType(uint16_t packet_type);
@@ -142,6 +143,9 @@ class AclConnection {
   virtual bool ReadAfhChannelMap();
   virtual bool ReadRssi();
   virtual bool ReadClock(WhichClock which_clock);
+  virtual bool ReadRemoteVersionInformation();
+  virtual bool ReadRemoteSupportedFeatures();
+  virtual bool ReadRemoteExtendedFeatures();
 
   // LE ACL Method
   virtual bool LeConnectionUpdate(uint16_t conn_interval_min, uint16_t conn_interval_max, uint16_t conn_latency,
@@ -216,6 +220,9 @@ class AclManager : public Module {
 
   // Should register only once when user module starts.
   virtual void RegisterAclManagerCallbacks(AclManagerCallbacks* callbacks, os::Handler* handler);
+
+  // Should register only once when user module starts.
+  virtual void RegisterLeAclManagerCallbacks(AclManagerCallbacks* callbacks, os::Handler* handler);
 
   // Generates OnConnectSuccess if connected, or OnConnectFail otherwise
   virtual void CreateConnection(Address address);

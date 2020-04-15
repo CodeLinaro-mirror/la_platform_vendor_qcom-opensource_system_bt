@@ -15,31 +15,22 @@
 #   limitations under the License.
 
 from acts.base_test import BaseTestClass
+from acts import context
 
 import importlib
 import logging
 import os
 import signal
-import sys
 import subprocess
 
 ANDROID_BUILD_TOP = os.environ.get('ANDROID_BUILD_TOP')
 
-sys.path.append(
-    ANDROID_BUILD_TOP +
-    '/out/soong/.intermediates/system/bt/gd/BluetoothFacadeAndCertGeneratedStub_py/gen'
-)
-
-ANDROID_HOST_OUT = os.environ.get('ANDROID_HOST_OUT')
-ROOTCANAL = ANDROID_HOST_OUT + "/nativetest64/root-canal/root-canal"
-
 
 class GdFacadeOnlyBaseTestClass(BaseTestClass):
 
-    def __init__(self, configs):
-        BaseTestClass.__init__(self, configs)
+    def setup_class(self):
 
-        log_path_base = configs.log_path
+        log_path_base = context.get_current_context().get_full_output_path()
         gd_devices = self.controller_configs.get("GdDevice")
 
         self.rootcanal_running = False
@@ -50,9 +41,11 @@ class GdFacadeOnlyBaseTestClass(BaseTestClass):
             self.rootcanal_logs = open(rootcanal_logpath, 'w')
             rootcanal_config = self.controller_configs['rootcanal']
             rootcanal_hci_port = str(rootcanal_config.get("hci_port", "6402"))
+            android_host_out = os.environ.get('ANDROID_HOST_OUT')
+            rootcanal = android_host_out + "/nativetest64/root-canal/root-canal"
             self.rootcanal_process = subprocess.Popen(
                 [
-                    ROOTCANAL,
+                    rootcanal,
                     str(rootcanal_config.get("test_port", "6401")),
                     rootcanal_hci_port,
                     str(rootcanal_config.get("link_layer_port", "6403"))
@@ -66,6 +59,9 @@ class GdFacadeOnlyBaseTestClass(BaseTestClass):
 
         self.register_controller(
             importlib.import_module('cert.gd_device'), builtin=True)
+
+        self.device_under_test = self.gd_devices[1]
+        self.cert_device = self.gd_devices[0]
 
     def teardown_class(self):
         if self.rootcanal_running:

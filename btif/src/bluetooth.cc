@@ -63,8 +63,10 @@
 #include "btsnoop.h"
 #include "btsnoop_mem.h"
 #include "common/address_obfuscator.h"
+#include "common/metric_id_allocator.h"
 #include "common/metrics.h"
 #include "device/include/interop.h"
+#include "main/shim/dumpsys.h"
 #include "main/shim/shim.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocation_tracker.h"
@@ -328,9 +330,13 @@ static void dump(int fd, const char** arguments) {
   HearingAid::DebugDump(fd);
   connection_manager::dump(fd);
   bluetooth::bqr::DebugDump(fd);
+  if (bluetooth::shim::is_gd_shim_enabled()) {
+    bluetooth::shim::Dump(fd);
+  } else {
 #if (BTSNOOP_MEM == TRUE)
-  btif_debug_btsnoop_dump(fd);
+    btif_debug_btsnoop_dump(fd);
 #endif
+  }
 }
 
 static void dumpMetrics(std::string* output) {
@@ -455,6 +461,11 @@ static std::string obfuscate_address(const RawAddress& address) {
       address);
 }
 
+static int get_metric_id(const RawAddress& address) {
+  return bluetooth::common::MetricIdAllocator::GetInstance().AllocateId(
+      address);
+}
+
 EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     sizeof(bluetoothInterface),
     init,
@@ -491,4 +502,5 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     interop_database_add,
     get_avrcp_service,
     obfuscate_address,
+    get_metric_id,
 };

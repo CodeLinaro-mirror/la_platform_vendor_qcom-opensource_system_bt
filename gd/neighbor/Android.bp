@@ -5,6 +5,7 @@ filegroup {
             "discoverability.cc",
             "inquiry.cc",
             "name.cc",
+            "name_db.cc",
             "page.cc",
             "scan.cc",
     ],
@@ -17,3 +18,9 @@ filegroup {
     ],
 }
 
+filegroup {
+    name: "BluetoothFacade_neighbor",
+    srcs: [
+        "facade/facade.cc",
+    ],
+}

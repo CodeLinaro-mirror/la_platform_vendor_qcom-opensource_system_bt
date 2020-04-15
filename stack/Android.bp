@@ -138,7 +138,6 @@ cc_library_static {
         "l2cap/l2c_link.cc",
         "l2cap/l2c_main.cc",
         "l2cap/l2c_utils.cc",
-        "l2cap/l2cap_client.cc",
         "pan/pan_api.cc",
         "pan/pan_main.cc",
         "pan/pan_utils.cc",
@@ -199,6 +198,7 @@ cc_test {
     ],
     srcs: [
         "test/stack_a2dp_test.cc",
+        "test/stack_avrcp_test.cc",
     ],
     shared_libs: [
         "android.hardware.bluetooth@1.0",
@@ -235,9 +235,9 @@ cc_test {
         "libbt-utils",
         "libbtif",
         "libFraunhoferAAC",
-        "libg722codec",
-        "libbtdevice",
         "libbt-hci",
+        "libbtdevice",
+        "libg722codec",
         "libosi",
         "libudrv-uipc",
         "libbt-protos-lite",
@@ -465,5 +465,40 @@ cc_test {
     ],
     sanitize: {
         cfi: false,
+    },
+}
+
+cc_test {
+    name: "net_test_stack_gatt_native",
+    defaults: ["fluoride_defaults"],
+    test_suites: ["device-tests"],
+    host_supported: true,
+    include_dirs: [
+        "system/bt",
+        "system/bt/stack/include",
+        "system/bt/stack/l2cap",
+        "system/bt/stack/btm",
+        "system/bt/utils/include",
+    ],
+    srcs: [
+        "test/gatt/gatt_sr_test.cc",
+        "gatt/gatt_utils.cc",
+    ],
+    shared_libs: [
+        "libcutils",
+        "libprotobuf-cpp-lite",
+        "libcrypto",
+    ],
+    static_libs: [
+        "liblog",
+        "libosi",
+        "libbt-common",
+        "libbt-protos-lite",
+        "libosi-AllocationTestHarness",
+    ],
+    sanitize: {
+        address: true,
+        cfi: true,
+        misc_undefined: ["bounds"],
     },
 }

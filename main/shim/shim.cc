@@ -30,28 +30,33 @@ static bluetooth::common::MessageLoopThread bt_shim_thread("bt_shim_thread");
 
 static bool gd_shim_enabled_ = false;
 static bool gd_shim_property_checked_ = false;
+static bool gd_stack_started_up_ = false;
 
 future_t* ShimModuleStartUp() {
   bt_shim_thread.StartUp();
   CHECK(bt_shim_thread.IsRunning())
       << "Unable to start bt shim message loop thread.";
+  module_start_up(get_module(GD_SHIM_BTM_MODULE));
   bluetooth::shim::StartGabeldorscheStack();
-  return nullptr;
+  gd_stack_started_up_ = true;
+  return kReturnImmediate;
 }
 
 future_t* ShimModuleShutDown() {
+  gd_stack_started_up_ = false;
   bluetooth::shim::StopGabeldorscheStack();
+  module_shut_down(get_module(GD_SHIM_BTM_MODULE));
   bt_shim_thread.ShutDown();
-  return nullptr;
+  return kReturnImmediate;
 }
 
 EXPORT_SYMBOL extern const module_t gd_shim_module = {
     .name = GD_SHIM_MODULE,
-    .init = nullptr,
+    .init = kUnusedModuleApi,
     .start_up = ShimModuleStartUp,
     .shut_down = ShimModuleShutDown,
-    .clean_up = NULL,
-    .dependencies = {NULL}};
+    .clean_up = kUnusedModuleApi,
+    .dependencies = {kUnusedModuleDependencies}};
 
 void bluetooth::shim::Post(base::OnceClosure task) {
   bt_shim_thread.DoInThread(FROM_HERE, std::move(task));
@@ -60,7 +65,9 @@ void bluetooth::shim::Post(base::OnceClosure task) {
 bool bluetooth::shim::is_gd_shim_enabled() {
   if (!gd_shim_property_checked_) {
     gd_shim_property_checked_ = true;
-    gd_shim_enabled_ = (osi_property_get_int32(kPropertyKey, 0) == 1);
+    gd_shim_enabled_ = osi_property_get_bool(kPropertyKey, false);
   }
   return gd_shim_enabled_;
 }
+
+bool bluetooth::shim::is_gd_stack_started_up() { return gd_stack_started_up_; }

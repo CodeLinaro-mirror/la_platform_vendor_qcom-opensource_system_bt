@@ -4,7 +4,6 @@ filegroup {
         "acl_manager.cc",
         "acl_fragmenter.cc",
         "address.cc",
-        "classic_security_manager.cc",
         "class_of_device.cc",
         "controller.cc",
         "device.cc",
@@ -23,7 +22,6 @@ filegroup {
         "address_unittest.cc",
         "address_with_type_test.cc",
         "class_of_device_unittest.cc",
-        "classic_security_manager_test.cc",
         "controller_test.cc",
         "device_test.cc",
         "device_database_test.cc",
@@ -38,15 +36,12 @@ filegroup {
 filegroup {
     name: "BluetoothFacade_hci_layer",
     srcs: [
-        "facade.cc",
-        "facade/le_advertising_manager_facade.cc"
-    ],
-}
-
-filegroup {
-    name: "BluetoothCertSource_hci_layer",
-    srcs: [
-        "cert/cert.cc",
+        "facade/facade.cc",
+        "facade/acl_manager_facade.cc",
+        "facade/controller_facade.cc",
+        "facade/le_acl_manager_facade.cc",
+        "facade/le_advertising_manager_facade.cc",
+        "facade/le_scanning_manager_facade.cc",
     ],
 }
 

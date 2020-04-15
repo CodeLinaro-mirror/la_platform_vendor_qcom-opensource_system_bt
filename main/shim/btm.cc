@@ -17,20 +17,32 @@
 #define LOG_TAG "bt_shim_btm"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
-
-#include "stack/btm/btm_int_types.h"
+#include <mutex>
 
 #include "main/shim/btm.h"
 #include "main/shim/controller.h"
 #include "main/shim/entry.h"
 #include "main/shim/shim.h"
 #include "osi/include/log.h"
+#include "stack/btm/btm_int_types.h"
+#include "types/class_of_device.h"
+#include "types/raw_address.h"
+
+#include "hci/le_advertising_manager.h"
+#include "hci/le_scanning_manager.h"
+#include "main/shim/helpers.h"
+#include "neighbor/connectability.h"
+#include "neighbor/discoverability.h"
+#include "neighbor/inquiry.h"
+#include "neighbor/name.h"
+#include "neighbor/page.h"
+#include "security/security_module.h"
+#include "shim/controller.h"
 
 extern tBTM_CB btm_cb;
-
-static constexpr size_t kMaxInquiryResultSize = 4096;
-static uint8_t inquiry_result_buf[kMaxInquiryResultSize];
 
 static constexpr size_t kRemoteDeviceNameLength = 248;
 
@@ -40,6 +52,8 @@ static constexpr uint8_t kNotPeriodicAdvertisement = 0x00;
 
 static constexpr bool kActiveScanning = true;
 static constexpr bool kPassiveScanning = false;
+
+using BtmRemoteDeviceName = tBTM_REMOTE_DEV_NAME;
 
 extern void btm_process_cancel_complete(uint8_t status, uint8_t mode);
 extern void btm_process_inq_complete(uint8_t status, uint8_t result_type);
@@ -51,40 +65,104 @@ extern void btm_ble_process_adv_pkt_cont(
     int8_t tx_power, int8_t rssi, uint16_t periodic_adv_int, uint8_t data_len,
     uint8_t* data);
 
-using BtmRemoteDeviceName = tBTM_REMOTE_DEV_NAME;
+extern void btm_api_process_inquiry_result(const RawAddress& raw_address,
+                                           uint8_t page_scan_rep_mode,
+                                           DEV_CLASS device_class,
+                                           uint16_t clock_offset);
 
-/**
- *
- */
-void bluetooth::shim::Btm::OnInquiryResult(std::vector<const uint8_t> result) {
-  CHECK(result.size() < kMaxInquiryResultSize);
+extern void btm_api_process_inquiry_result_with_rssi(RawAddress raw_address,
+                                                     uint8_t page_scan_rep_mode,
+                                                     DEV_CLASS device_class,
+                                                     uint16_t clock_offset,
+                                                     int8_t rssi);
 
-  std::copy(result.begin(), result.end(), inquiry_result_buf);
+extern void btm_api_process_extended_inquiry_result(
+    RawAddress raw_address, uint8_t page_scan_rep_mode, DEV_CLASS device_class,
+    uint16_t clock_offset, int8_t rssi, const uint8_t* eir_data,
+    size_t eir_len);
+
+void bluetooth::shim::Btm::StartUp(bluetooth::shim::Btm* btm) {
+  CHECK(btm != nullptr);
+  std::unique_lock<std::mutex> lock(btm->sync_mutex_);
+  CHECK(btm->observing_timer_ == nullptr);
+  CHECK(btm->scanning_timer_ == nullptr);
+  btm->observing_timer_ = new bluetooth::shim::Timer("observing_timer");
+  btm->scanning_timer_ = new bluetooth::shim::Timer("scanning_timer");
+
+}
+
+void bluetooth::shim::Btm::ShutDown(bluetooth::shim::Btm* btm) {
+  CHECK(btm != nullptr);
+  std::unique_lock<std::mutex> lock(btm->sync_mutex_);
+  CHECK(btm->observing_timer_ != nullptr);
+  CHECK(btm->scanning_timer_ != nullptr);
+  delete btm->scanning_timer_;
+  delete btm->observing_timer_;
+  btm->scanning_timer_ = nullptr;
+  btm->observing_timer_ = nullptr;
+}
+
+void bluetooth::shim::Btm::OnInquiryResult(
+    bluetooth::hci::InquiryResultView view) {
+  for (auto& response : view.GetInquiryResults()) {
+    btm_api_process_inquiry_result(
+        RawAddress(response.bd_addr_.address),
+        static_cast<uint8_t>(response.page_scan_repetition_mode_),
+        response.class_of_device_.cod, response.clock_offset_);
+  }
 }
 
 void bluetooth::shim::Btm::OnInquiryResultWithRssi(
-    std::vector<const uint8_t> result) {
-  CHECK(result.size() < kMaxInquiryResultSize);
-
-  std::copy(result.begin(), result.end(), inquiry_result_buf);
+    bluetooth::hci::InquiryResultWithRssiView view) {
+  for (auto& response : view.GetInquiryResults()) {
+    btm_api_process_inquiry_result_with_rssi(
+        RawAddress(response.address_.address),
+        static_cast<uint8_t>(response.page_scan_repetition_mode_),
+        response.class_of_device_.cod, response.clock_offset_, response.rssi_);
+  }
 }
 
 void bluetooth::shim::Btm::OnExtendedInquiryResult(
-    std::vector<const uint8_t> result) {
-  CHECK(result.size() < kMaxInquiryResultSize);
+    bluetooth::hci::ExtendedInquiryResultView view) {
+  constexpr size_t kMaxExtendedInquiryResponse = 240;
+  uint8_t gap_data_buffer[kMaxExtendedInquiryResponse];
+  uint8_t* data = nullptr;
+  size_t data_len = 0;
 
-  std::copy(result.begin(), result.end(), inquiry_result_buf);
+  if (!view.GetExtendedInquiryResponse().empty()) {
+    bzero(gap_data_buffer, sizeof(gap_data_buffer));
+    uint8_t* p = gap_data_buffer;
+    for (auto gap_data : view.GetExtendedInquiryResponse()) {
+      *p++ = gap_data.data_.size() + sizeof(gap_data.data_type_);
+      *p++ = static_cast<uint8_t>(gap_data.data_type_);
+      p = (uint8_t*)memcpy(p, &gap_data.data_[0], gap_data.data_.size()) +
+          gap_data.data_.size();
+    }
+    data = gap_data_buffer;
+    data_len = p - data;
+  }
+
+  btm_api_process_extended_inquiry_result(
+      RawAddress(view.GetAddress().address),
+      static_cast<uint8_t>(view.GetPageScanRepetitionMode()),
+      view.GetClassOfDevice().cod, view.GetClockOffset(), view.GetRssi(), data,
+      data_len);
 }
 
-void bluetooth::shim::Btm::OnInquiryComplete(uint16_t status) {
-  LOG_DEBUG(LOG_TAG, "%s status:%hu mode:%d", __func__, status, inquiry_mode_);
-  btm_process_inq_complete((status == 0) ? (BTM_SUCCESS) : (BTM_ERR_PROCESSING),
-                           static_cast<uint8_t>(inquiry_mode_));
+void bluetooth::shim::Btm::OnInquiryComplete(bluetooth::hci::ErrorCode status) {
+  limited_inquiry_active_ = false;
+  general_inquiry_active_ = false;
+  legacy_inquiry_complete_callback_((static_cast<uint16_t>(status) == 0)
+                                        ? (BTM_SUCCESS)
+                                        : (BTM_ERR_PROCESSING),
+                                    active_inquiry_mode_);
+
+  active_inquiry_mode_ = kInquiryModeOff;
 }
 
 bool bluetooth::shim::Btm::SetInquiryFilter(uint8_t mode, uint8_t type,
                                             tBTM_INQ_FILT_COND data) {
-  switch (static_cast<int>(mode)) {
+  switch (mode) {
     case kInquiryModeOff:
       break;
     case kLimitedInquiryMode:
@@ -139,41 +217,40 @@ bool bluetooth::shim::Btm::IsInterlacedScanSupported() const {
 /**
  * One shot inquiry
  */
-bool bluetooth::shim::Btm::StartInquiry(uint8_t mode, uint8_t duration,
-                                        uint8_t max_responses) {
-  switch (static_cast<int>(mode)) {
+bool bluetooth::shim::Btm::StartInquiry(
+    uint8_t mode, uint8_t duration, uint8_t max_responses,
+    LegacyInquiryCompleteCallback legacy_inquiry_complete_callback) {
+  switch (mode) {
     case kInquiryModeOff:
       LOG_DEBUG(LOG_TAG, "%s Stopping inquiry mode", __func__);
-      bluetooth::shim::GetInquiry()->StopInquiry();
+      if (limited_inquiry_active_ || general_inquiry_active_) {
+        bluetooth::shim::GetInquiry()->StopInquiry();
+        limited_inquiry_active_ = false;
+        general_inquiry_active_ = false;
+      }
+      active_inquiry_mode_ = kInquiryModeOff;
       break;
 
     case kLimitedInquiryMode:
     case kGeneralInquiryMode: {
-      LegacyInquiryCallbacks legacy_inquiry_callbacks{
-          .result_callback =
-              std::bind(&Btm::OnInquiryResult, this, std::placeholders::_1),
-          .result_with_rssi_callback = std::bind(&Btm::OnInquiryResultWithRssi,
-                                                 this, std::placeholders::_1),
-          .extended_result_callback = std::bind(&Btm::OnExtendedInquiryResult,
-                                                this, std::placeholders::_1),
-          .complete_callback =
-              std::bind(&Btm::OnInquiryComplete, this, std::placeholders::_1),
-      };
-
       if (mode == kLimitedInquiryMode) {
         LOG_DEBUG(
             LOG_TAG,
             "%s Starting limited inquiry mode duration:%hhd max responses:%hhd",
             __func__, duration, max_responses);
-        bluetooth::shim::GetInquiry()->StartLimitedInquiry(
-            duration, max_responses, legacy_inquiry_callbacks);
+        limited_inquiry_active_ = true;
+        bluetooth::shim::GetInquiry()->StartLimitedInquiry(duration,
+                                                           max_responses);
+        active_inquiry_mode_ = kLimitedInquiryMode;
       } else {
         LOG_DEBUG(
             LOG_TAG,
             "%s Starting general inquiry mode duration:%hhd max responses:%hhd",
             __func__, duration, max_responses);
-        bluetooth::shim::GetInquiry()->StartGeneralInquiry(
-            duration, max_responses, legacy_inquiry_callbacks);
+        general_inquiry_active_ = true;
+        bluetooth::shim::GetInquiry()->StartGeneralInquiry(duration,
+                                                           max_responses);
+        legacy_inquiry_complete_callback_ = legacy_inquiry_complete_callback;
       }
     } break;
 
@@ -181,12 +258,16 @@ bool bluetooth::shim::Btm::StartInquiry(uint8_t mode, uint8_t duration,
       LOG_WARN(LOG_TAG, "%s Unknown inquiry mode:%d", __func__, mode);
       return false;
   }
-  inquiry_mode_ = static_cast<int>(mode);
   return true;
 }
 
 void bluetooth::shim::Btm::CancelInquiry() {
-  bluetooth::shim::GetInquiry()->StopInquiry();
+  LOG_DEBUG(LOG_TAG, "%s", __func__);
+  if (limited_inquiry_active_ || general_inquiry_active_) {
+    bluetooth::shim::GetInquiry()->StopInquiry();
+    limited_inquiry_active_ = false;
+    general_inquiry_active_ = false;
+  }
 }
 
 bool bluetooth::shim::Btm::IsInquiryActive() const {
@@ -194,11 +275,11 @@ bool bluetooth::shim::Btm::IsInquiryActive() const {
 }
 
 bool bluetooth::shim::Btm::IsGeneralInquiryActive() const {
-  return bluetooth::shim::GetInquiry()->IsGeneralInquiryActive();
+  return general_inquiry_active_;
 }
 
 bool bluetooth::shim::Btm::IsLimitedInquiryActive() const {
-  return bluetooth::shim::GetInquiry()->IsLimitedInquiryActive();
+  return limited_inquiry_active_;
 }
 
 /**
@@ -209,33 +290,25 @@ bool bluetooth::shim::Btm::StartPeriodicInquiry(
     uint16_t min_delay, tBTM_INQ_RESULTS_CB* p_results_cb) {
   switch (mode) {
     case kInquiryModeOff:
+      limited_periodic_inquiry_active_ = false;
+      general_periodic_inquiry_active_ = false;
       bluetooth::shim::GetInquiry()->StopPeriodicInquiry();
       break;
 
     case kLimitedInquiryMode:
     case kGeneralInquiryMode: {
-      LegacyInquiryCallbacks legacy_inquiry_callbacks{
-          .result_callback =
-              std::bind(&Btm::OnInquiryResult, this, std::placeholders::_1),
-          .result_with_rssi_callback = std::bind(&Btm::OnInquiryResultWithRssi,
-                                                 this, std::placeholders::_1),
-          .extended_result_callback = std::bind(&Btm::OnExtendedInquiryResult,
-                                                this, std::placeholders::_1),
-          .complete_callback =
-              std::bind(&Btm::OnInquiryComplete, this, std::placeholders::_1),
-      };
       if (mode == kLimitedInquiryMode) {
         LOG_DEBUG(LOG_TAG, "%s Starting limited periodic inquiry mode",
                   __func__);
+        limited_periodic_inquiry_active_ = true;
         bluetooth::shim::GetInquiry()->StartLimitedPeriodicInquiry(
-            duration, max_responses, max_delay, min_delay,
-            legacy_inquiry_callbacks);
+            duration, max_responses, max_delay, min_delay);
       } else {
         LOG_DEBUG(LOG_TAG, "%s Starting general periodic inquiry mode",
                   __func__);
+        general_periodic_inquiry_active_ = true;
         bluetooth::shim::GetInquiry()->StartGeneralPeriodicInquiry(
-            duration, max_responses, max_delay, min_delay,
-            legacy_inquiry_callbacks);
+            duration, max_responses, max_delay, min_delay);
       }
     } break;
 
@@ -247,29 +320,55 @@ bool bluetooth::shim::Btm::StartPeriodicInquiry(
 }
 
 void bluetooth::shim::Btm::CancelPeriodicInquiry() {
+  limited_periodic_inquiry_active_ = false;
+  general_periodic_inquiry_active_ = false;
   bluetooth::shim::GetInquiry()->StopPeriodicInquiry();
 }
 
 bool bluetooth::shim::Btm::IsGeneralPeriodicInquiryActive() const {
-  return bluetooth::shim::GetInquiry()->IsGeneralPeriodicInquiryActive();
+  return general_periodic_inquiry_active_;
 }
 
 bool bluetooth::shim::Btm::IsLimitedPeriodicInquiryActive() const {
-  return bluetooth::shim::GetInquiry()->IsLimitedPeriodicInquiryActive();
+  return limited_periodic_inquiry_active_;
 }
 
 /**
  * Discoverability
  */
+
+void bluetooth::shim::Btm::RegisterInquiryCallbacks() {
+  bluetooth::neighbor::InquiryCallbacks inquiry_callbacks;
+  inquiry_callbacks.result =
+      std::bind(&Btm::OnInquiryResult, this, std::placeholders::_1);
+  inquiry_callbacks.result_with_rssi =
+      std::bind(&Btm::OnInquiryResultWithRssi, this, std::placeholders::_1);
+  inquiry_callbacks.extended_result =
+      std::bind(&Btm::OnExtendedInquiryResult, this, std::placeholders::_1);
+  inquiry_callbacks.complete =
+      std::bind(&Btm::OnInquiryComplete, this, std::placeholders::_1);
+  bluetooth::shim::GetInquiry()->RegisterCallbacks(inquiry_callbacks);
+}
+
+bluetooth::neighbor::ScanParameters params_{
+    .interval = 0,
+    .window = 0,
+};
+
 void bluetooth::shim::Btm::SetClassicGeneralDiscoverability(uint16_t window,
                                                             uint16_t interval) {
-  bluetooth::shim::GetInquiry()->SetScanActivity(interval, window);
+  params_.window = window;
+  params_.interval = interval;
+
+  bluetooth::shim::GetInquiry()->SetScanActivity(params_);
   bluetooth::shim::GetDiscoverability()->StartGeneralDiscoverability();
 }
 
 void bluetooth::shim::Btm::SetClassicLimitedDiscoverability(uint16_t window,
                                                             uint16_t interval) {
-  bluetooth::shim::GetInquiry()->SetScanActivity(interval, window);
+  params_.window = window;
+  params_.interval = interval;
+  bluetooth::shim::GetInquiry()->SetScanActivity(params_);
   bluetooth::shim::GetDiscoverability()->StartLimitedDiscoverability();
 }
 
@@ -279,8 +378,9 @@ void bluetooth::shim::Btm::SetClassicDiscoverabilityOff() {
 
 DiscoverabilityState bluetooth::shim::Btm::GetClassicDiscoverabilityState()
     const {
-  DiscoverabilityState state{.mode = BTM_NON_DISCOVERABLE};
-  bluetooth::shim::GetInquiry()->GetScanActivity(state.interval, state.window);
+  DiscoverabilityState state{.mode = BTM_NON_DISCOVERABLE,
+                             .interval = params_.interval,
+                             .window = params_.window};
 
   if (bluetooth::shim::GetDiscoverability()
           ->IsGeneralDiscoverabilityEnabled()) {
@@ -327,8 +427,8 @@ void bluetooth::shim::Btm::SetClassicConnectibleOff() {
 
 ConnectabilityState bluetooth::shim::Btm::GetClassicConnectabilityState()
     const {
-  ConnectabilityState state;
-  bluetooth::shim::GetPage()->GetScanActivity(state.interval, state.window);
+  ConnectabilityState state{.interval = params_.interval,
+                            .window = params_.window};
 
   if (bluetooth::shim::GetConnectability()->IsConnectable()) {
     state.mode = BTM_CONNECTABLE;
@@ -388,24 +488,32 @@ bluetooth::shim::BtmStatus bluetooth::shim::Btm::ReadClassicRemoteDeviceName(
   LOG_DEBUG(LOG_TAG, "%s Start read name from address:%s", __func__,
             raw_address.ToString().c_str());
   bluetooth::shim::GetName()->ReadRemoteNameRequest(
-      classic_read_remote_name_.AddressString(),
-      [this, callback](
-          std::string address_string, uint8_t hci_status,
-          std::array<uint8_t, kRemoteDeviceNameLength> remote_name) {
-        RawAddress raw_address;
-        RawAddress::FromString(address_string, raw_address);
+      hci::Address(raw_address.address), hci::PageScanRepetitionMode::R1,
+      0 /* clock_offset */, hci::ClockOffsetValid::INVALID,
 
-        BtmRemoteDeviceName name{
-            .status = (hci_status == 0) ? (BTM_SUCCESS) : (BTM_BAD_VALUE_RET),
-            .bd_addr = raw_address,
-            .length = kRemoteDeviceNameLength,
-        };
-        std::copy(remote_name.begin(), remote_name.end(), name.remote_bd_name);
-        LOG_DEBUG(LOG_TAG, "%s Finish read name from address:%s name:%s",
-                  __func__, address_string.c_str(), name.remote_bd_name);
-        callback(&name);
-        classic_read_remote_name_.Stop();
-      });
+      base::Bind(
+          [](tBTM_CMPL_CB* callback, ReadRemoteName* classic_read_remote_name_,
+             hci::ErrorCode status, hci::Address address,
+             std::array<uint8_t, kRemoteDeviceNameLength> remote_name) {
+            RawAddress raw_address(address.address);
+
+            BtmRemoteDeviceName name{
+                .status = (static_cast<uint8_t>(status) == 0)
+                              ? (BTM_SUCCESS)
+                              : (BTM_BAD_VALUE_RET),
+                .bd_addr = raw_address,
+                .length = kRemoteDeviceNameLength,
+            };
+            std::copy(remote_name.begin(), remote_name.end(),
+                      name.remote_bd_name);
+            LOG_DEBUG(LOG_TAG, "%s Finish read name from address:%s name:%s",
+                      __func__, address.ToString().c_str(),
+                      name.remote_bd_name);
+            callback(&name);
+            classic_read_remote_name_->Stop();
+          },
+          callback, &classic_read_remote_name_),
+      bluetooth::shim::GetGdShimHandler());
   return bluetooth::shim::BTM_CMD_STARTED;
 }
 
@@ -428,11 +536,18 @@ bluetooth::shim::Btm::CancelAllReadRemoteDeviceName() {
   if (classic_read_remote_name_.IsInProgress() ||
       le_read_remote_name_.IsInProgress()) {
     if (classic_read_remote_name_.IsInProgress()) {
+      hci::Address address;
+      hci::Address::FromString(classic_read_remote_name_.AddressString(),
+                               address);
+
       bluetooth::shim::GetName()->CancelRemoteNameRequest(
-          classic_read_remote_name_.AddressString(),
-          [this](std::string address_string, uint8_t status) {
-            classic_read_remote_name_.Stop();
-          });
+          address,
+          common::BindOnce(
+              [](ReadRemoteName* classic_read_remote_name_,
+                 hci::ErrorCode status,
+                 hci::Address address) { classic_read_remote_name_->Stop(); },
+              &classic_read_remote_name_),
+          bluetooth::shim::GetGdShimHandler());
     }
     if (le_read_remote_name_.IsInProgress()) {
       LOG_INFO(LOG_TAG, "UNIMPLEMENTED %s need access to GATT module",
@@ -440,81 +555,276 @@ bluetooth::shim::Btm::CancelAllReadRemoteDeviceName() {
     }
     return bluetooth::shim::BTM_UNKNOWN_ADDR;
   }
-  LOG_INFO(LOG_TAG,
+  LOG_WARN(LOG_TAG,
            "%s Cancelling classic remote device name without one in progress",
            __func__);
   return bluetooth::shim::BTM_WRONG_MODE;
 }
 
 void bluetooth::shim::Btm::StartAdvertising() {
-  bluetooth::shim::GetAdvertising()->StartAdvertising();
+  if (advertiser_id_ == hci::LeAdvertisingManager::kInvalidId) {
+    LOG_WARN(LOG_TAG,
+             "%s Already advertising; please stop prior to starting again",
+             __func__);
+    return;
+  }
+
+  hci::AdvertisingConfig config;
+  advertiser_id_ = bluetooth::shim::GetAdvertising()->CreateAdvertiser(
+      config, common::Bind([](hci::Address, hci::AddressType) { /*OnScan*/ }),
+      common::Bind([](hci::ErrorCode, uint8_t, uint8_t) { /*OnTerminated*/ }),
+      bluetooth::shim::GetGdShimHandler());
+  if (advertiser_id_ == hci::LeAdvertisingManager::kInvalidId) {
+    LOG_WARN(LOG_TAG, "%s Unable to start advertising", __func__);
+    return;
+  }
+  LOG_DEBUG(LOG_TAG, "%s Started advertising", __func__);
 }
 
 void bluetooth::shim::Btm::StopAdvertising() {
-  bluetooth::shim::GetAdvertising()->StopAdvertising();
+  if (advertiser_id_ == hci::LeAdvertisingManager::kInvalidId) {
+    LOG_WARN(LOG_TAG, "%s No active advertising", __func__);
+    return;
+  }
+  bluetooth::shim::GetAdvertising()->RemoveAdvertiser(advertiser_id_);
+  advertiser_id_ = hci::LeAdvertisingManager::kInvalidId;
+  LOG_DEBUG(LOG_TAG, "%s Stopped advertising", __func__);
 }
 
-void bluetooth::shim::Btm::StartConnectability() {
-  bluetooth::shim::GetAdvertising()->StartAdvertising();
-}
+void bluetooth::shim::Btm::StartConnectability() { StartAdvertising(); }
 
-void bluetooth::shim::Btm::StopConnectability() {
-  bluetooth::shim::GetAdvertising()->StopAdvertising();
-}
+void bluetooth::shim::Btm::StopConnectability() { StopAdvertising(); }
 
 void bluetooth::shim::Btm::StartActiveScanning() {
   StartScanning(kActiveScanning);
 }
 
 void bluetooth::shim::Btm::StopActiveScanning() {
-  bluetooth::shim::GetScanning()->StopScanning();
+  bluetooth::shim::GetScanning()->StopScan(base::Bind([]() {}));
 }
+
+void bluetooth::shim::Btm::SetScanningTimer(uint64_t duration_ms,
+                                            std::function<void()> func) {
+  scanning_timer_->Set(duration_ms, func);
+}
+
+void bluetooth::shim::Btm::CancelScanningTimer() { scanning_timer_->Cancel(); }
 
 void bluetooth::shim::Btm::StartObserving() { StartScanning(kPassiveScanning); }
 
-void bluetooth::shim::Btm::StopObserving() {
-  bluetooth::shim::GetScanning()->StopScanning();
+void bluetooth::shim::Btm::StopObserving() { StopActiveScanning(); }
+
+void bluetooth::shim::Btm::SetObservingTimer(uint64_t duration_ms,
+                                             std::function<void()> func) {
+  observing_timer_->Set(duration_ms, func);
 }
 
-void bluetooth::shim::Btm::StartScanning(bool use_active_scanning) {
-  bluetooth::shim::GetScanning()->StartScanning(
-      use_active_scanning,
-      [](AdvertisingReport report) {
-        LOG_INFO(LOG_TAG, "%s Received advertising report from device:%s",
-                 __func__, report.string_address.c_str());
-        RawAddress raw_address;
-        RawAddress::FromString(report.string_address, raw_address);
+void bluetooth::shim::Btm::CancelObservingTimer() {
+  observing_timer_->Cancel();
+}
 
-        btm_ble_process_adv_addr(raw_address, &report.address_type);
-        btm_ble_process_adv_pkt_cont(
-            report.extended_event_type, report.address_type, raw_address,
-            kPhyConnectionLe1M, kPhyConnectionNone, kAdvDataInfoNotPresent,
-            kTxPowerInformationNotPresent, report.rssi,
-            kNotPeriodicAdvertisement, report.len, report.data);
-      },
-      [](DirectedAdvertisingReport report) {
-        LOG_WARN(LOG_TAG,
-                 "%s Directed advertising is unsupported from device:%s",
-                 __func__, report.string_address.c_str());
-      },
-      [](ExtendedAdvertisingReport report) {
-        LOG_INFO(LOG_TAG,
-                 "%s Received extended advertising report from device:%s",
-                 __func__, report.string_address.c_str());
-        RawAddress raw_address;
-        RawAddress::FromString(report.string_address, raw_address);
-        if (report.address_type != BLE_ADDR_ANONYMOUS) {
-          btm_ble_process_adv_addr(raw_address, &report.address_type);
+namespace bluetooth {
+namespace hci {
+
+constexpr int kAdvertisingReportBufferSize = 1024;
+
+struct ExtendedEventTypeOptions {
+  bool connectable{false};
+  bool scannable{false};
+  bool directed{false};
+  bool scan_response{false};
+  bool legacy{false};
+  bool continuing{false};
+  bool truncated{false};
+};
+
+constexpr uint16_t kBleEventConnectableBit =
+    (0x0001 << 0);  // BLE_EVT_CONNECTABLE_BIT
+constexpr uint16_t kBleEventScannableBit =
+    (0x0001 << 1);  // BLE_EVT_SCANNABLE_BIT
+constexpr uint16_t kBleEventDirectedBit =
+    (0x0001 << 2);  // BLE_EVT_DIRECTED_BIT
+constexpr uint16_t kBleEventScanResponseBit =
+    (0x0001 << 3);  // BLE_EVT_SCAN_RESPONSE_BIT
+constexpr uint16_t kBleEventLegacyBit = (0x0001 << 4);  // BLE_EVT_LEGACY_BIT
+constexpr uint16_t kBleEventIncompleteContinuing = (0x0001 << 5);
+constexpr uint16_t kBleEventIncompleteTruncated = (0x0001 << 6);
+
+static void TransformToExtendedEventType(uint16_t* extended_event_type,
+                                         ExtendedEventTypeOptions o) {
+  ASSERT(extended_event_type != nullptr);
+  *extended_event_type = (o.connectable ? kBleEventConnectableBit : 0) |
+                         (o.scannable ? kBleEventScannableBit : 0) |
+                         (o.directed ? kBleEventDirectedBit : 0) |
+                         (o.scan_response ? kBleEventScanResponseBit : 0) |
+                         (o.legacy ? kBleEventLegacyBit : 0) |
+                         (o.continuing ? kBleEventIncompleteContinuing : 0) |
+                         (o.truncated ? kBleEventIncompleteTruncated : 0);
+}
+
+class BtmScanningCallbacks : public bluetooth::hci::LeScanningManagerCallbacks {
+ public:
+  virtual void on_advertisements(
+      std::vector<std::shared_ptr<LeReport>> reports) {
+    for (auto le_report : reports) {
+      uint8_t address_type = static_cast<uint8_t>(le_report->address_type_);
+      uint16_t extended_event_type = 0;
+      uint8_t* report_data = nullptr;
+      size_t report_len = 0;
+
+      uint8_t advertising_data_buffer[kAdvertisingReportBufferSize];
+      // Copy gap data, if any, into temporary buffer as payload for legacy
+      // stack.
+      if (!le_report->gap_data_.empty()) {
+        bzero(advertising_data_buffer, kAdvertisingReportBufferSize);
+        uint8_t* p = advertising_data_buffer;
+        for (auto gap_data : le_report->gap_data_) {
+          *p++ = gap_data.data_.size() + sizeof(gap_data.data_type_);
+          *p++ = static_cast<uint8_t>(gap_data.data_type_);
+          p = (uint8_t*)memcpy(p, &gap_data.data_[0], gap_data.data_.size()) +
+              gap_data.data_.size();
         }
-        btm_ble_process_adv_pkt_cont(
-            report.extended_event_type, report.address_type, raw_address,
-            kPhyConnectionLe1M, kPhyConnectionNone, kAdvDataInfoNotPresent,
-            kTxPowerInformationNotPresent, report.rssi,
-            kNotPeriodicAdvertisement, report.len, report.data);
-      },
-      []() { LOG_INFO(LOG_TAG, "%s Scanning timeout", __func__); });
+        report_data = advertising_data_buffer;
+        report_len = p - report_data;
+      }
+
+      switch (le_report->GetReportType()) {
+        case hci::LeReport::ReportType::ADVERTISING_EVENT: {
+          switch (le_report->advertising_event_type_) {
+            case hci::AdvertisingEventType::ADV_IND:
+              TransformToExtendedEventType(
+                  &extended_event_type,
+                  {.connectable = true, .scannable = true, .legacy = true});
+              break;
+            case hci::AdvertisingEventType::ADV_DIRECT_IND:
+              TransformToExtendedEventType(
+                  &extended_event_type,
+                  {.connectable = true, .directed = true, .legacy = true});
+              break;
+            case hci::AdvertisingEventType::ADV_SCAN_IND:
+              TransformToExtendedEventType(&extended_event_type,
+                                           {.scannable = true, .legacy = true});
+              break;
+            case hci::AdvertisingEventType::ADV_NONCONN_IND:
+              TransformToExtendedEventType(&extended_event_type,
+                                           {.legacy = true});
+              break;
+            case hci::AdvertisingEventType::
+                ADV_DIRECT_IND_LOW:  // SCAN_RESPONSE
+              TransformToExtendedEventType(&extended_event_type,
+                                           {.connectable = true,
+                                            .scannable = true,
+                                            .scan_response = true,
+                                            .legacy = true});
+              break;
+            default:
+              LOG_WARN(
+                  LOG_TAG, "%s Unsupported event type:%s", __func__,
+                  AdvertisingEventTypeText(le_report->advertising_event_type_)
+                      .c_str());
+              return;
+          }
+
+          RawAddress raw_address(le_report->address_.address);
+
+          btm_ble_process_adv_addr(raw_address, &address_type);
+          btm_ble_process_adv_pkt_cont(
+              extended_event_type, address_type, raw_address,
+              kPhyConnectionLe1M, kPhyConnectionNone, kAdvDataInfoNotPresent,
+              kTxPowerInformationNotPresent, le_report->rssi_,
+              kNotPeriodicAdvertisement, report_len, report_data);
+        } break;
+
+        case hci::LeReport::ReportType::DIRECTED_ADVERTISING_EVENT:
+          LOG_WARN(LOG_TAG,
+                   "%s Directed advertising is unsupported from device:%s",
+                   __func__, le_report->address_.ToString().c_str());
+          break;
+
+        case hci::LeReport::ReportType::EXTENDED_ADVERTISING_EVENT: {
+          std::shared_ptr<hci::ExtendedLeReport> extended_le_report =
+              std::static_pointer_cast<hci::ExtendedLeReport>(le_report);
+          TransformToExtendedEventType(
+              &extended_event_type,
+              {.connectable = extended_le_report->connectable_,
+               .scannable = extended_le_report->scannable_,
+               .directed = extended_le_report->directed_,
+               .scan_response = extended_le_report->scan_response_,
+               .legacy = false,
+               .continuing = !extended_le_report->complete_,
+               .truncated = extended_le_report->truncated_});
+          RawAddress raw_address(le_report->address_.address);
+          if (address_type != BLE_ADDR_ANONYMOUS) {
+            btm_ble_process_adv_addr(raw_address, &address_type);
+          }
+          btm_ble_process_adv_pkt_cont(
+              extended_event_type, address_type, raw_address,
+              kPhyConnectionLe1M, kPhyConnectionNone, kAdvDataInfoNotPresent,
+              kTxPowerInformationNotPresent, le_report->rssi_,
+              kNotPeriodicAdvertisement, report_len, report_data);
+
+        } break;
+      }
+    }
+  }
+
+  virtual void on_timeout() {
+    LOG_WARN(LOG_TAG, "%s Scanning timeout", __func__);
+  }
+  os::Handler* Handler() { return bluetooth::shim::GetGdShimHandler(); }
+};
+}  // namespace hci
+}  // namespace bluetooth
+
+bluetooth::hci::BtmScanningCallbacks btm_scanning_callbacks;
+
+void bluetooth::shim::Btm::StartScanning(bool use_active_scanning) {
+  bluetooth::shim::GetScanning()->StartScan(&btm_scanning_callbacks);
 }
 
 size_t bluetooth::shim::Btm::GetNumberOfAdvertisingInstances() const {
   return bluetooth::shim::GetAdvertising()->GetNumberOfAdvertisingInstances();
+}
+
+tBTM_STATUS bluetooth::shim::Btm::CreateBond(const RawAddress& bd_addr,
+                                             tBLE_ADDR_TYPE addr_type,
+                                             tBT_TRANSPORT transport,
+                                             uint8_t pin_len, uint8_t* p_pin,
+                                             uint32_t trusted_mask[]) {
+  auto security_manager =
+      bluetooth::shim::GetSecurityModule()->GetSecurityManager();
+  switch (transport) {
+    case BT_TRANSPORT_BR_EDR:
+      security_manager->CreateBond(
+          ToAddressWithType(bd_addr.address, BLE_ADDR_PUBLIC));
+      break;
+    case BT_TRANSPORT_LE:
+      security_manager->CreateBondLe(ToAddressWithType(bd_addr, addr_type));
+      break;
+    default:
+      return bluetooth::shim::BTM_ILLEGAL_VALUE;
+  }
+  return bluetooth::shim::BTM_SUCCESS;
+}
+
+bool bluetooth::shim::Btm::CancelBond(const RawAddress& bd_addr) {
+  auto security_manager =
+      bluetooth::shim::GetSecurityModule()->GetSecurityManager();
+  security_manager->CancelBond(ToAddressWithType(bd_addr, BLE_ADDR_PUBLIC));
+  return true;
+}
+
+bool bluetooth::shim::Btm::RemoveBond(const RawAddress& bd_addr) {
+  // TODO(cmanton) Check if acl is connected
+  auto security_manager =
+      bluetooth::shim::GetSecurityModule()->GetSecurityManager();
+  security_manager->RemoveBond(ToAddressWithType(bd_addr, BLE_ADDR_PUBLIC));
+  return true;
+}
+
+void bluetooth::shim::Btm::SetSimplePairingCallback(
+    tBTM_SP_CALLBACK* callback) {
+  auto security_manager =
+      bluetooth::shim::GetSecurityModule()->GetSecurityManager();
+  simple_pairing_callback_ = callback;
 }

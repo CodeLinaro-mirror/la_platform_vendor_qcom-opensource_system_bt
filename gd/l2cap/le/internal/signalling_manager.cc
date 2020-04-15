@@ -42,7 +42,7 @@ LeSignallingManager::LeSignallingManager(os::Handler* handler, Link* link,
       dynamic_service_manager_(dynamic_service_manager), channel_allocator_(channel_allocator), alarm_(handler) {
   ASSERT(handler_ != nullptr);
   ASSERT(link_ != nullptr);
-  signalling_channel_ = link_->AllocateFixedChannel(kClassicSignallingCid, {});
+  signalling_channel_ = link_->AllocateFixedChannel(kLeSignallingCid, {});
   signalling_channel_->GetQueueUpEnd()->RegisterDequeue(
       handler_, common::Bind(&LeSignallingManager::on_incoming_packet, common::Unretained(this)));
   enqueue_buffer_ =
@@ -91,6 +91,10 @@ void LeSignallingManager::SendCredit(Cid local_cid, uint16_t credits) {
   auto builder = LeFlowControlCreditBuilder::Create(next_signal_id_.Value(), local_cid, credits);
   next_signal_id_++;
   enqueue_buffer_->Enqueue(std::move(builder), handler_);
+}
+
+void LeSignallingManager::CancelAlarm() {
+  alarm_.Cancel();
 }
 
 void LeSignallingManager::OnCommandReject(LeCommandRejectView command_reject_view) {

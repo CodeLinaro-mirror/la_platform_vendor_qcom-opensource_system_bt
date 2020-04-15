@@ -22,28 +22,35 @@
 #include <string>
 
 #include "module.h"
-#include "shim/il2cap.h"
 
 namespace bluetooth {
 namespace shim {
 
-class L2cap : public bluetooth::Module, public bluetooth::shim::IL2cap {
+using ConnectionClosedCallback = std::function<void(uint16_t cid, int error_code)>;
+using ConnectionCompleteCallback =
+    std::function<void(std::string string_address, uint16_t psm, uint16_t cid, bool is_connected)>;
+using ReadDataReadyCallback = std::function<void(uint16_t cid, std::vector<const uint8_t> data)>;
+
+using RegisterServicePromise = std::promise<uint16_t>;
+using UnregisterServicePromise = std::promise<void>;
+using CreateConnectionPromise = std::promise<uint16_t>;
+
+class L2cap : public bluetooth::Module {
  public:
-  void RegisterService(uint16_t psm, ConnectionOpenCallback on_open, std::promise<void> completed) override;
-  void UnregisterService(uint16_t psm) override;
+  void RegisterService(uint16_t psm, bool use_ertm, uint16_t mtu, ConnectionCompleteCallback on_complete,
+                       RegisterServicePromise register_promise);
+  void UnregisterService(uint16_t psm, UnregisterServicePromise unregister_promise);
 
-  void CreateConnection(uint16_t psm, const std::string address_string, ConnectionOpenCallback on_open,
-                        std::promise<uint16_t> completed) override;
-  void CloseConnection(uint16_t cid) override;
+  void CreateConnection(uint16_t psm, const std::string address_string, ConnectionCompleteCallback on_complete,
+                        CreateConnectionPromise create_promise);
+  void CloseConnection(uint16_t cid);
 
-  void SetReadDataReadyCallback(uint16_t cid, ReadDataReadyCallback on_data_ready) override;
-  void SetConnectionClosedCallback(uint16_t cid, ConnectionClosedCallback on_closed) override;
+  void SetReadDataReadyCallback(uint16_t cid, ReadDataReadyCallback on_data_ready);
+  void SetConnectionClosedCallback(uint16_t cid, ConnectionClosedCallback on_closed);
 
-  void Write(uint16_t cid, const uint8_t* data, size_t len) override;
-  void WriteFlushable(uint16_t cid, const uint8_t* data, size_t len) override;
-  void WriteNonFlushable(uint16_t cid, const uint8_t* data, size_t len) override;
+  void Write(uint16_t cid, const uint8_t* data, size_t len);
 
-  void SendLoopbackResponse(std::function<void()>) override;
+  void SendLoopbackResponse(std::function<void()>);
 
   L2cap() = default;
   ~L2cap() = default;
@@ -54,6 +61,7 @@ class L2cap : public bluetooth::Module, public bluetooth::shim::IL2cap {
   void ListDependencies(ModuleList* list) override;  // Module
   void Start() override;                             // Module
   void Stop() override;                              // Module
+  std::string ToString() const override;             // Module
 
  private:
   struct impl;

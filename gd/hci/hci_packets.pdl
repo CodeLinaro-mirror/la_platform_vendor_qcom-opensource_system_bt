@@ -699,6 +699,7 @@ enum ErrorCode: 8 {
   UNSPECIFIED_ERROR = 0x1F,
   UNSUPPORTED_LMP_OR_LL_PARAMETER = 0x20,
   ROLE_CHANGE_NOT_ALLOWED = 0x21,
+  LINK_LAYER_COLLISION = 0x23,
   ENCRYPTION_MODE_NOT_ACCEPTABLE = 0x25,
   CONTROLLER_BUSY = 0x3A,
 }
@@ -2206,7 +2207,7 @@ packet EnableDeviceUnderTestModeComplete : CommandComplete (command_op_code = EN
   status : ErrorCode,
 }
 
-packet WriteSimplePairingDebugMode : CommandPacket (op_code = WRITE_SIMPLE_PAIRING_DEBUG_MODE) {
+packet WriteSimplePairingDebugMode : SecurityCommand (op_code = WRITE_SIMPLE_PAIRING_DEBUG_MODE) {
   simple_pairing_debug_mode : Enable,
 }
 
@@ -2781,9 +2782,9 @@ packet LeSetExtendedAdvertisingLegacyParameters : LeAdvertisingCommand (op_code 
   advertising_filter_policy : AdvertisingFilterPolicy,
   _reserved_ : 6,
   advertising_tx_power : 8, // -127 to +20, 0x7F - no preference
-  primary_advertising_phy : PrimaryPhyType,
+  _fixed_ = 0x1 : 8, // PrimaryPhyType LE_1M
   _reserved_ : 8, // secondary_advertising_max_skip
-  _reserved_ : 8, // secondary_advertising_phy
+  _fixed_ = 0x1 : 8, // secondary_advertising_phy LE_1M
   advertising_sid : 8, // SID subfield from the ADI field of the PDU
   scan_request_notification_enable : Enable,
 }
@@ -2820,7 +2821,7 @@ enum Operation : 3 {
   INTERMEDIATE_FRAGMENT = 0,
   FIRST_FRAGMENT = 1,
   LAST_FRAGMENT = 2,
-  COMPLETE_ADVERTISMENT = 3,
+  COMPLETE_ADVERTISEMENT = 3,
   UNCHANGED_DATA = 4,
 }
 
@@ -3009,8 +3010,27 @@ packet LeSetExtendedScanEnableComplete : CommandComplete (command_op_code = LE_S
   status : ErrorCode,
 }
 
+struct LeCreateConnPhyScanParameters {
+  scan_interval : 16, // 0x0004-0xFFFF
+  scan_window : 16, // < = LeScanInterval
+  conn_interval_min : 16, // 0x0006-0x0C80 (7.5ms to 4s)
+  conn_interval_max : 16, // 0x0006-0x0C80 (7.5ms to 4s)
+  conn_latency : 16, // 0x0006-0x01F3
+  supervision_timeout : 16, // 0x00A to 0x0C80 (100ms to 32s)
+  min_ce_length : 16, // 0.625ms
+  max_ce_length : 16, // 0.625ms
+}
+
 packet LeExtendedCreateConnection : LeConnectionManagementCommand (op_code = LE_EXTENDED_CREATE_CONNECTION) {
-  _payload_,  // placeholder (unimplemented)
+  initiator_filter_policy : InitiatorFilterPolicy,
+  own_address_type : OwnAddressType,
+  peer_address_type : AddressType,
+  peer_address : Address,
+  initiating_phys : 8,
+  phy_scan_parameters : LeCreateConnPhyScanParameters[],
+}
+
+packet LeExtendedCreateConnectionStatus : CommandStatus (command_op_code = LE_EXTENDED_CREATE_CONNECTION) {
 }
 
 packet LePeriodicAdvertisingCreateSync : LeAdvertisingCommand (op_code = LE_PERIODIC_ADVERTISING_CREATE_SYNC) {

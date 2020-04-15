@@ -177,7 +177,7 @@ void smp_generate_stk(tSMP_CB* p_cb, UNUSED_ATTR tSMP_INT_DATA* p_data) {
   SMP_TRACE_DEBUG("%s", __func__);
 
   if (p_cb->le_secure_connections_mode_is_used) {
-    SMP_TRACE_WARNING("FOR LE SC LTK IS USED INSTEAD OF STK");
+    SMP_TRACE_DEBUG("FOR LE SC LTK IS USED INSTEAD OF STK");
     output = p_cb->ltk;
   } else {
     output = smp_calculate_legacy_short_term_key(p_cb);
@@ -987,7 +987,8 @@ bool smp_calculate_link_key_from_long_term_key(tSMP_CB* p_cb) {
 
   link_key_type += BTM_LTK_DERIVED_LKEY_OFFSET;
 
-  Octet16 notif_link_key = link_key;
+  Octet16 notif_link_key;
+  std::reverse_copy(link_key.begin(), link_key.end(), notif_link_key.begin());
   btm_sec_link_key_notification(bda_for_lk, notif_link_key, link_key_type);
 
   SMP_TRACE_EVENT("%s is completed", __func__);

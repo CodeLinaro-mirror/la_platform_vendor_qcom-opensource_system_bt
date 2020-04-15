@@ -28,11 +28,18 @@
 #include "security/ecc/p_256_ecc_pp.h"
 
 namespace {
+
+static bool srand_initiated = false;
+
 template <size_t SIZE>
 static std::array<uint8_t, SIZE> GenerateRandom() {
-  // TODO:  We need a proper  random number generator here.
-  // use current time as seed for random generator
-  std::srand(std::time(nullptr));
+  if (!srand_initiated) {
+    srand_initiated = true;
+    // TODO:  We need a proper  random number generator here.
+    // use current time as seed for random generator
+    std::srand(std::time(nullptr));
+  }
+
   std::array<uint8_t, SIZE> r;
   for (size_t i = 0; i < SIZE; i++) r[i] = std::rand();
   return r;
@@ -45,9 +52,10 @@ namespace security {
 
 std::pair<std::array<uint8_t, 32>, EcdhPublicKey> GenerateECDHKeyPair() {
   std::array<uint8_t, 32> private_key = GenerateRandom<32>();
+  std::array<uint8_t, 32> private_key_copy = private_key;
   ecc::Point public_key;
 
-  ECC_PointMult(&public_key, &(ecc::curve_p256.G), (uint32_t*)private_key.data());
+  ECC_PointMult(&public_key, &(ecc::curve_p256.G), (uint32_t*)private_key_copy.data());
 
   EcdhPublicKey pk;
   memcpy(pk.x.data(), public_key.x, 32);
@@ -71,6 +79,9 @@ std::array<uint8_t, 32> ComputeDHKey(std::array<uint8_t, 32> my_private_key, Ecd
   memcpy(private_key, my_private_key.data(), 32);
   memcpy(peer_publ_key.x, remote_public_key.x.data(), 32);
   memcpy(peer_publ_key.y, remote_public_key.y.data(), 32);
+  memset(peer_publ_key.z, 0, 32);
+  peer_publ_key.z[0] = 1;
+
   ECC_PointMult(&new_publ_key, &peer_publ_key, (uint32_t*)private_key);
 
   std::array<uint8_t, 32> dhkey;
