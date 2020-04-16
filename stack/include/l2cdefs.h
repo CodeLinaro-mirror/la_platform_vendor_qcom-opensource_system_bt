@@ -103,6 +103,10 @@
 #define L2CAP_CMD_BLE_FLOW_CTRL_CREDIT_LEN 4
 /* ECFC_PSM, MTU, MPS, Init Credit */
 #define L2CAP_CMD_CREDIT_BASED_CONN_LEN 8
+/* MTU , MPS */
+#define L2CAP_CMD_MTU_MPS_OVERHEAD 4
+/* Channel ID (CID) */
+#define L2CAP_CMD_CID_LEN 2
 
 /* Define the packet boundary flags
 */
@@ -223,6 +227,13 @@ typedef uint8_t tL2CAP_LE_RESULT_CODE;
 #define L2CAP_CFG_UNKNOWN_OPTIONS 3
 #define L2CAP_CFG_PENDING 4
 #define L2CAP_CFG_FLOW_SPEC_REJECTED 5
+
+/* Results codes for reconfiguration in Enhanced Credit Based Flow Control Mode */
+#define L2CAP_RCFG_OK 0
+#define L2CAP_RCFG_MTU_REDUCTION_NOT_ALLOWED 1
+#define L2CAP_RCFG_MPS_REDUCTION_NOT_ALLOWED 2
+#define L2CAP_RCFG_INVALID_DCID 3
+#define L2CAP_RCFG_UNACCEPTABLE_PARAMS 4
 
 /* Define the L2CAP configuration option types
 */

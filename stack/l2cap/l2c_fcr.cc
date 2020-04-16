@@ -2534,3 +2534,97 @@ static void l2c_fcr_collect_ack_delay(tL2C_CCB* p_ccb, uint8_t num_bufs_acked) {
   }
 }
 #endif
+
+/*******************************************************************************
+ *
+ * Function         l2c_fcr_buffer_l2cap_coc_pdu
+ *
+ * Description      Store the l2cap pdu data in rx_queue buffer of the channel
+ *                  so that upper layer can dequeue it once it gets the context.
+ *
+ * Parameters       p_ccb - channel control block of the l2cap channel
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void l2c_fcr_buffer_l2cap_coc_pdu(tL2C_CCB* p_ccb, BT_HDR* p_buf) {
+
+  if (!p_ccb) {
+    L2CAP_TRACE_WARNING("%s: Channel ccb is cleared. return", __func__);
+    return;
+  }
+
+  if (fixed_queue_length(p_ccb->rx_buf.rcv_data_q) == p_ccb->rx_buf.rx_data_q_size) {
+    L2CAP_TRACE_WARNING("%s: Credit already exhausted. Number of credits left = %d"
+        " Disconnect l2cap channel.", __func__, p_ccb->remote_credit_count);
+    l2cu_disconnect_chnl(p_ccb);
+    return;
+  }
+
+  fixed_queue_enqueue(p_ccb->rx_buf.rcv_data_q, p_buf);
+}
+
+/*******************************************************************************
+ *
+ * Function         l2c_fcr_start_rx_buffer_mon_timer
+ *
+ * Description      Once threshold limit is reached for credits of local l2cap
+ *                  channel, p_ccb->rx_buf.rcv_data_q is monitored to check if
+ *                  upper layer is active and fetching data. This helps to take
+ *                  decision wether to send credit indication to remote device.
+ *
+ * Parameters       p_ccb - channel control block of the l2cap channel
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void l2c_fcr_start_rx_buffer_mon_timer(tL2C_CCB* p_ccb) {
+  L2CAP_TRACE_API("%s", __func__);
+
+  if (!p_ccb) {
+    L2CAP_TRACE_WARNING("%s: Channel ccb is cleared. return", __func__);
+    return;
+  }
+
+  p_ccb->rx_buf.l2c_coc_credit_mon_timer = alarm_new_periodic("l2c_coc_credit_mon_timer");
+  alarm_set_on_mloop(p_ccb->rx_buf.l2c_coc_credit_mon_timer,
+                     L2CAP_FCR_RX_BUF_MONITORING_TIMEOUT_MS,
+                     l2c_fcr_monitor_rx_buffer,
+                     p_ccb);
+}
+
+/*******************************************************************************
+ *
+ * Function         l2c_fcr_start_rx_buffer_mon_timer
+ *
+ * Description      Once threshold limit is reached for credits of local l2cap
+ *                  channel, p_ccb->rx_buf.rcv_data_q is monitored to check if
+ *                  upper layer is active and fetching data. This helps to take
+ *                  decision whether to send credit indication to remote device.
+ *
+ * Parameters       p_ccb - channel control block of the l2cap channel
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void l2c_fcr_monitor_rx_buffer(void* p_data) {
+  tL2C_CCB* p_ccb = (tL2C_CCB *)p_data;
+  uint16_t credits;
+  uint16_t credits_per_mtu = (uint16_t)ceil(p_ccb->peer_conn_cfg.mtu/p_ccb->peer_conn_cfg.mps);
+  L2CAP_TRACE_API("%s", __func__);
+
+  if (!p_ccb) {
+    L2CAP_TRACE_WARNING("%s: Channel ccb is cleared. return", __func__);
+    return;
+  }
+
+  if (p_ccb->rx_buf.is_dequeued) {
+    credits = L2CAP_COC_CREDIT_DEFAULT - p_ccb->remote_credit_count
+              - (uint16_t)(fixed_queue_length(p_ccb->rx_buf.rcv_data_q) * credits_per_mtu);
+    p_ccb->remote_credit_count += credits;
+    //stop monitoring rcv_data_q as upper layer has fetched data
+    p_ccb->rx_buf.is_dequeued = false;  // reset rcv_data_q monitoring flag
+    alarm_cancel(p_ccb->rx_buf.l2c_coc_credit_mon_timer);
+    l2c_csm_execute(p_ccb, L2CEVT_L2CA_SEND_FLOW_CONTROL_CREDIT, &credits);
+  }
+}

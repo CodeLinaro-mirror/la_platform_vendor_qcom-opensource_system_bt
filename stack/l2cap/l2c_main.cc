@@ -227,7 +227,15 @@ void l2c_rcv_acl_data(BT_HDR* p_msg) {
     if (p_ccb == NULL)
       osi_free(p_msg);
     else {
-      if (p_lcb->transport == BT_TRANSPORT_LE) {
+      if (p_ccb->peer_cfg.fcr.mode == L2CAP_FCR_ECFC_MODE
+          || p_ccb->peer_cfg.fcr.mode == L2CAP_FCR_LE_COC_MODE) {
+        /* if credits are exhausted, discard and free pdu memory before
+           sending l2cap disconnect */
+        if (p_ccb->remote_credit_count == 0) {
+          osi_free(p_msg);
+          l2cu_disconnect_chnl(p_ccb);
+          return;
+        }
         l2c_lcc_proc_pdu(p_ccb, p_msg);
 
         /* The remote device has one less credit left */
@@ -236,11 +244,17 @@ void l2c_rcv_acl_data(BT_HDR* p_msg) {
 
         /* If the credits left on the remote device are getting low, send some */
         if (p_ccb->remote_credit_count <= L2CAP_LE_CREDIT_THRESHOLD) {
-          uint16_t credits = L2CAP_LE_CREDIT_DEFAULT - p_ccb->remote_credit_count;
-          p_ccb->remote_credit_count = L2CAP_LE_CREDIT_DEFAULT;
+          if (p_ccb->peer_cfg.fcr.mode == L2CAP_FCR_ECFC_MODE) {
+            if (!alarm_is_scheduled(p_ccb->rx_buf.l2c_coc_credit_mon_timer)) {
+              l2c_fcr_start_rx_buffer_mon_timer(p_ccb);
+            }
+          } else {
+            uint16_t credits = L2CAP_LE_CREDIT_DEFAULT - p_ccb->remote_credit_count;
+            p_ccb->remote_credit_count = L2CAP_LE_CREDIT_DEFAULT;
 
-          /* Return back credits */
-          l2c_csm_execute(p_ccb, L2CEVT_L2CA_SEND_FLOW_CONTROL_CREDIT, &credits);
+            /* Return back credits */
+            l2c_csm_execute(p_ccb, L2CEVT_L2CA_SEND_FLOW_CONTROL_CREDIT, &credits);
+          }
         }
       } else {
         /* Basic mode packets go straight to the state machine */
@@ -274,13 +288,14 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
   uint8_t cmd_code, cfg_code, cfg_len, id;
   tL2C_CONN_INFO con_info;
   tL2CAP_CFG_INFO cfg_info;
-  uint16_t rej_reason, rej_mtu, lcid, rcid, info_type;
-  tL2C_CCB* p_ccb;
+  uint16_t rej_reason, rej_mtu, lcid, rcid, info_type, dcid = 0, credit = 0;
+  tL2C_CCB* p_ccb = NULL;
   tL2C_RCB* p_rcb;
   bool cfg_rej, pkt_size_rej = false;
   uint16_t cfg_rej_len, cmd_len;
   uint16_t result;
   tL2C_CONN_INFO ci;
+  tL2C_CFG_REQ_PARAM *req_param;
 
   /* if l2cap command received in CID 1 on top of an LE link, ignore this
    * command */
@@ -951,7 +966,68 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
           l2c_csm_execute(p_ccb, L2CEVT_L2CAP_COC_CONNECT_NEG_RSP, &con_info);
         }
       }
+      break;
+
+      case L2CAP_CMD_CREDIT_BASED_RECONFIGURE_REQ:
+        if (p + 4 > p_next_cmd) {
+          android_errorWriteLog(0x534e4554, "74202041");
+          return;
+        }
+
+        req_param = (tL2C_CFG_REQ_PARAM *)osi_malloc(sizeof(tL2C_CFG_REQ_PARAM));
+        req_param->trans_id = id;
+        STREAM_TO_UINT16(req_param->cfg_params.mtu, p);
+        STREAM_TO_UINT16(req_param->cfg_params.mps, p);
+
+        // num of channels = remaining length of pdu / size of CID;
+        req_param->chnl_info.num_chnls =
+            (cmd_len - L2CAP_CMD_MTU_MPS_OVERHEAD)/ L2CAP_CMD_CID_LEN;
+
+        for (int i = 0; i < req_param->chnl_info.num_chnls; i++) {
+          STREAM_TO_UINT16(dcid, p);
+          p_ccb = l2cu_find_ccb_by_remote_cid(p_lcb, dcid);
+          if (!p_ccb) {
+            req_param->result = L2CAP_RCFG_INVALID_DCID;
+            L2CAP_TRACE_WARNING("L2CAP - reconfig req error (%s). dcid: %x",
+                l2cu_get_reconfig_result(req_param->result), dcid);
+            l2cu_send_peer_rcfg_rsp(p_lcb, NULL, req_param);
+            break;
+          }
+          req_param->chnl_info.sr_cids[i] = p_ccb->local_cid;
+        }
+        l2c_csm_execute(p_ccb, L2CEVT_L2CAP_COC_RECONFIG_REQ, req_param);
         break;
+
+      case L2CAP_CMD_CREDIT_BASED_RECONFIGURE_RSP:
+        if (p + 2 > p_next_cmd) {
+          android_errorWriteLog(0x534e4554, "74202041");
+          return;
+        }
+        STREAM_TO_UINT16(result, p);
+
+        l2cu_find_req_params_for_peer_rcfg_rsp(p_lcb, result, id);
+        break;
+
+      case L2CAP_FLOW_CONTROL_CREDIT_IND:
+        if (p + 4 > p_pkt_end) {
+          android_errorWriteLog(0x534e4554, "80261585");
+          LOG(ERROR) << "invalid read";
+          return;
+        }
+
+        STREAM_TO_UINT16(lcid, p);
+        p_ccb = l2cu_find_ccb_by_remote_cid(p_lcb, lcid);
+        if (p_ccb == NULL) {
+          L2CAP_TRACE_DEBUG("%s Credit received for unknown channel id %d",
+                            __func__, lcid);
+          break;
+        }
+
+        STREAM_TO_UINT16(credit, p);
+        l2c_csm_execute(p_ccb, L2CEVT_L2CAP_RECV_FLOW_CONTROL_CREDIT, &credit);
+        L2CAP_TRACE_DEBUG("%s Credits received = %d", __func__, credit);
+        break;
+
       default:
         L2CAP_TRACE_WARNING("L2CAP - bad cmd code: %d", cmd_code);
         l2cu_send_peer_cmd_reject(p_lcb, L2CAP_CMD_REJ_NOT_UNDERSTOOD, id, 0,
@@ -1116,6 +1192,21 @@ void l2c_ccb_timer_timeout(void* data) {
   l2c_csm_execute(p_ccb, L2CEVT_TIMEOUT, NULL);
 }
 
+void l2c_rcfg_timer_timeout(void* p_data) {
+  tL2C_CFG_REQ_PARAM *rcfg = (tL2C_CFG_REQ_PARAM *)p_data;
+
+  if (rcfg) {
+    uint8_t num_cids = rcfg->chnl_info.num_chnls;
+    for (int i = 0; i < num_cids; i++) {
+      tL2C_CCB *p_ccb = l2cu_find_ccb_by_cid(NULL, rcfg->chnl_info.sr_cids[i]);
+      if (p_ccb) {
+        l2c_csm_execute(p_ccb, L2CEVT_TIMEOUT, NULL);
+      }
+    }
+  }
+  osi_free(rcfg);
+}
+
 void l2c_fcrb_ack_timer_timeout(void* data) {
   tL2C_CCB* p_ccb = (tL2C_CCB*)data;
 
@@ -1156,7 +1247,8 @@ uint8_t l2c_data_write(uint16_t cid, BT_HDR* p_data, uint16_t flags) {
                   bigger than mtu size of peer is a violation of protocol */
   uint16_t mtu;
 
-  if (p_ccb->p_lcb->transport == BT_TRANSPORT_LE)
+  if (p_ccb->p_lcb->transport == BT_TRANSPORT_LE ||
+      p_ccb->peer_cfg.fcr.mode == L2CAP_FCR_ECFC_MODE)
     mtu = p_ccb->peer_conn_cfg.mtu;
   else
     mtu = p_ccb->peer_cfg.mtu;
@@ -1186,6 +1278,20 @@ uint8_t l2c_data_write(uint16_t cid, BT_HDR* p_data, uint16_t flags) {
     return (L2CAP_DW_FAILED);
   }
 
+  if (p_ccb->peer_cfg.fcr.mode == L2CAP_FCR_ECFC_MODE) {
+    uint16_t credits_required =
+        (uint16_t)ceil((double)p_data->len / (double)p_ccb->peer_conn_cfg.mps);
+    if (credits_required <= p_ccb->peer_conn_cfg.credits) {
+      p_ccb->peer_conn_cfg.credits -= credits_required;
+    } else {
+      /* send congested error code to upper layer. Upper layer shall not send data untill
+         credit indication callback is sent to upper layer */
+      L2CAP_TRACE_ERROR("%s Insufficient credits available. Credits required:%d."
+          " Credits available: %d", __func__, credits_required, p_ccb->peer_conn_cfg.credits);
+      osi_free(p_data);
+      return (L2CAP_DW_CONGESTED);
+    }
+  }
   l2c_csm_execute(p_ccb, L2CEVT_L2CA_DATA_WRITE, p_data);
 
   if (p_ccb->cong_sent) return (L2CAP_DW_CONGESTED);

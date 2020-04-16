@@ -1772,6 +1772,10 @@ void l2cu_release_ccb(tL2C_CCB* p_ccb) {
   p_ccb->coc_cmd_info.requested_ecfc_chnls = 0;
   p_ccb->remote_cid = 0;
 
+  // reset ECFC reconfig params reference in ccb
+  p_ccb->pending_inc_cfg = NULL;
+  p_ccb->pending_out_cfg = NULL;
+
   /* If no channels on the connection, start idle timeout */
   if ((p_lcb) && p_lcb->in_use) {
     if (p_lcb->link_state == LST_CONNECTED) {
@@ -3605,7 +3609,13 @@ BT_HDR* l2cu_get_next_buffer_to_send(tL2C_LCB* p_lcb,
   /* Return if no buffer */
   if (p_ccb == NULL) return (NULL);
 
-  if (p_ccb->p_lcb->transport == BT_TRANSPORT_LE) {
+  if (p_ccb->peer_cfg.fcr.mode == L2CAP_FCR_ECFC_MODE) {
+    p_buf = l2c_lcc_get_next_xmit_sdu_seg(p_ccb, 0);
+    if (p_buf == NULL ||
+        (p_ccb->chnl_state == CST_CONFIG && !(p_ccb->config_done & IB_CFG_DONE))) {
+      return (NULL);
+    }
+  } else if (p_ccb->p_lcb->transport == BT_TRANSPORT_LE) {
     /* Check credits */
     if (p_ccb->peer_conn_cfg.credits == 0) {
       L2CAP_TRACE_DEBUG("%s No credits to send packets", __func__);
@@ -4732,3 +4742,578 @@ const char* l2cu_get_connection_result(uint16_t result) {
       return ("Unknown result code");
   }
 }
+
+/*******************************************************************************
+ *
+ * Function         l2cu_is_active_ccb_connected
+ *
+ * Description      Gives data indication callback to upper layer as a new task
+ *                  on BTU thread. Upper layer on receiving this indication shall
+ *                  invoke api L2CA_ReadData() to read data from rcv_data_q.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void l2cu_post_data_ind_cb_to_btu(tL2C_CCB* p_ccb) {
+  base::MessageLoop* btu_message_loop = get_message_loop();
+
+  if (!btu_message_loop || !btu_message_loop->task_runner().get()) {
+    L2CAP_TRACE_WARNING("%s: BTU message loop is not running", __func__);
+    return;
+  }
+
+  if ((p_ccb->p_rcb) && (p_ccb->p_rcb->coc_api.pL2CA_CocDataInd_Cb)) {
+    btu_message_loop->task_runner()->PostTask(FROM_HERE,
+        base::Bind(*p_ccb->p_rcb->coc_api.pL2CA_CocDataInd_Cb, p_ccb->local_cid));
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         l2cu_reconfig_coc_req
+ *
+ * Description      This API sends credit based reconfiguration request.
+ *
+ * Parameters       chmap_info: info about channels to be configured
+ *                  mtu: MTU to be updated.
+ *                  mps: MPS to be updated.
+ *
+ * Returns          return true if sent successfully otherwise false.
+ *
+ ******************************************************************************/
+bool l2cu_reconfig_coc_req(tL2CAP_COC_CHMAP_INFO* chmap_info,
+                           uint16_t mtu, uint16_t mps) {
+  tL2C_CCB *p_ccb = NULL;
+  uint16_t result = l2cu_validate_cids_in_use_status(chmap_info, &p_ccb);
+
+  if (!result || p_ccb == NULL) {
+    L2CAP_TRACE_WARNING("%s: all/some l2cap channels already closed , reject request"
+                            ,__func__);
+    return (false);
+  }
+
+  if (p_ccb->our_cfg.fcr.mode != L2CAP_FCR_ECFC_MODE) {
+    L2CAP_TRACE_WARNING("%s: these l2cap channel's doesnt support ECFC mode ", __func__);
+    return (false);
+  }
+
+  if (p_ccb->p_lcb->transport == BT_TRANSPORT_BR_EDR) {
+    if (!mps) mps = controller_get_interface()->get_acl_data_size_classic();
+  } else if (!mps){
+    mps = controller_get_interface()->get_acl_data_size_ble();
+  }
+
+  if (l2cu_validate_mps_for_chnls(mps, chmap_info->sr_cids, chmap_info->num_chnls, true)) {
+    return false;
+  }
+
+  // form reconfig request params
+  tL2C_CFG_REQ_PARAM *req_param =
+      (tL2C_CFG_REQ_PARAM *)osi_malloc(sizeof(tL2C_CFG_REQ_PARAM));
+  memcpy(&req_param->chnl_info, chmap_info, sizeof(tL2CAP_COC_CHMAP_INFO));
+  req_param->cfg_params.mtu = mtu;
+  req_param->cfg_params.mps = mps;
+
+  l2c_csm_execute(p_ccb, L2CEVT_L2CA_COC_RECONFIG_REQ, req_param);
+  return (true);
+}
+
+/**************************************************************************************
+ *
+ * Function         l2cu_send_peer_reconfig_req
+ *
+ * Description      This API creates reconfiguration request PDU.
+ *
+ * Parameters       p_ccb: CCB pointer of the l2cap channel
+ *                  cfg: reconfiguration request related params.
+ *
+ * Returns          void
+ *
+ **************************************************************************************/
+void l2cu_send_peer_reconfig_req(tL2C_CCB* p_ccb, tL2C_CFG_REQ_PARAM *cfg) {
+  BT_HDR* p_buf;
+  uint8_t* p;
+  uint8_t num_cids = cfg->chnl_info.num_chnls;
+  tL2C_LCB* p_lcb = NULL;
+
+  if (!p_ccb) return;
+  p_lcb = p_ccb->p_lcb;
+
+  // length of reconfig request (MTU + MPS + length of cid[] )
+  uint16_t reconfig_req_cmd_len = L2CAP_CMD_MTU_MPS_OVERHEAD
+                                  + (num_cids * L2CAP_CMD_CID_LEN);
+
+  /* Create an L2CAP identifier for this signalling pdu */
+  p_lcb->id++;
+  l2cu_adj_id(p_lcb, L2CAP_ADJ_ID);
+
+  // update identifier in all CCB's
+  for (int i = 0; i < num_cids; i++) {
+    tL2C_CCB *cur_ccb = l2cu_find_ccb_by_cid(NULL, cfg->chnl_info.sr_cids[i]);
+    cur_ccb->local_id = p_lcb->id;
+  }
+
+  p_buf = l2cu_build_header(p_lcb, reconfig_req_cmd_len,
+                            L2CAP_CMD_CREDIT_BASED_RECONFIGURE_REQ, p_lcb->id);
+  if (p_buf == NULL) {
+    L2CAP_TRACE_WARNING("l2cu_send_peer_reconfig_req - no buffer allocated");
+    return;
+  }
+
+  p = (uint8_t*)(p_buf + 1) + L2CAP_SEND_CMD_OFFSET + HCI_DATA_PREAMBLE_SIZE +
+          L2CAP_PKT_OVERHEAD + L2CAP_CMD_OVERHEAD;
+
+  UINT16_TO_STREAM(p, cfg->cfg_params.mtu);
+  UINT16_TO_STREAM(p, cfg->cfg_params.mps);
+  for (int i = 0; i < num_cids; i++) {
+    UINT16_TO_STREAM(p, cfg->chnl_info.sr_cids[i]);
+  }
+
+  l2c_link_check_send_pkts(p_lcb, NULL, p_buf);
+}
+
+/************************************************************************************
+ *
+ * Function         l2cu_send_peer_rcfg_rsp
+ *
+ * Description      This API is used to compose reconfiguration respose pdu
+ *
+ * Parameters       p_ccb: CCB pointer of the l2cap channel.
+ *                  cfg: reconfiguration request related params.
+ *
+ * Returns          void
+ *
+ ***********************************************************************************/
+void l2cu_send_peer_rcfg_rsp(tL2C_LCB* p_lcb, tL2C_CCB* p_ccb, tL2C_CFG_REQ_PARAM *cfg) {
+  BT_HDR* p_buf;
+  uint8_t* p;
+  if (!p_lcb) p_lcb = (p_ccb ? p_ccb->p_lcb : NULL);
+
+  if (!p_lcb) {
+    L2CAP_TRACE_WARNING("l2cu_send_peer_rcfg_rsp - link is not present");
+    return;
+  }
+
+  // length of reconfig response (result length)
+  uint16_t reconfig_req_cmd_len = 2;
+
+  /* Create l2cap response header*/
+  p_buf = l2cu_build_header(p_lcb, reconfig_req_cmd_len,
+                            L2CAP_CMD_CREDIT_BASED_RECONFIGURE_RSP, cfg->trans_id);
+  if (p_buf == NULL) {
+    L2CAP_TRACE_WARNING("l2cu_send_peer_rcfg_rsp - no buffer allocated");
+    return;
+  }
+
+  p = (uint8_t*)(p_buf + 1) + L2CAP_SEND_CMD_OFFSET + HCI_DATA_PREAMBLE_SIZE +
+          L2CAP_PKT_OVERHEAD + L2CAP_CMD_OVERHEAD;
+
+  UINT16_TO_STREAM(p, cfg->result);
+  l2c_link_check_send_pkts(p_lcb, NULL, p_buf);
+
+  // free tL2C_CFG_REQ_PARAM
+  osi_free(cfg);
+}
+
+/************************************************************************************
+ *
+ * Function         l2cu_set_multi_coc_chnl_cfg
+ *
+ * Description      This API is used to update ccb parameters after reconfig req/res
+ *
+ * Parameters       p_lcb: LCB pointer of the link.
+ *                  cfg: reconfiguration request related params.
+ *                  state: state to be updated in CCB for L2CAP channel.
+ *                  cfg_state: configuration state (Inbound or Outbound)
+ *
+ * Returns          void
+ *
+ ***********************************************************************************/
+void l2cu_set_multi_coc_chnl_cfg(tL2C_LCB* p_lcb, tL2C_CFG_REQ_PARAM* cfg,
+                                 tL2C_CHNL_STATE state, uint8_t cfg_state) {
+  for (int i = 0; i < cfg->chnl_info.num_chnls; i++) {
+    tL2C_CCB *p_ccb = l2cu_find_ccb_by_cid(p_lcb, cfg->chnl_info.sr_cids[i]);
+    if (p_ccb) {
+      p_ccb->chnl_state = state;
+      p_ccb->config_done &= cfg_state;
+      if (!(cfg_state & OB_CFG_DONE)) {
+        p_ccb->pending_out_cfg = cfg;
+      } else if (!(cfg_state & IB_CFG_DONE)) {
+        p_ccb->pending_inc_cfg = cfg;
+      }
+    }
+  }
+}
+
+/************************************************************************************
+ *
+ * Function         l2cu_validate_mps_for_chnls
+ *
+ * Description      This function checks if updated MPS value is valid or not.
+ *
+ * Parameters       mps: updated MPS value
+ *                  cid: pointer to array of CID's for which MPS update is required
+ *                  num_chnls: number of channels for which MPS update is required.
+ *
+ * Returns          result code based on MPS validity.
+ *
+ ***********************************************************************************/
+uint16_t l2cu_validate_mps_for_chnls(uint16_t mps, uint16_t *cid,
+                                     uint8_t num_chnls, bool isOutgoing) {
+  if (mps < L2CAP_COC_MIN_MPS || mps > L2CAP_COC_MAX_MPS) {
+    L2CAP_TRACE_WARNING("%s: Unacceptable MPS(%d) value, reject reconfig request"
+        , __func__, mps);
+    return L2CAP_RCFG_UNACCEPTABLE_PARAMS;
+  }
+
+  if (num_chnls > 1) {
+    for (int i = 0; i < num_chnls; i++) {
+      tL2C_CCB *p_ccb = l2cu_find_ccb_by_cid(NULL, cid[i]);
+      if (isOutgoing && p_ccb && p_ccb->local_conn_cfg.mps > mps) {
+        L2CAP_TRACE_WARNING("%s: Unacceptable MPS(%d) value, lesser than cid(%x)'s mps(%d)"
+            , __func__, mps, cid[i], p_ccb->local_conn_cfg.mps);
+        return L2CAP_RCFG_MPS_REDUCTION_NOT_ALLOWED;
+      } else if (!isOutgoing && p_ccb && p_ccb->peer_conn_cfg.mps > mps) {
+        L2CAP_TRACE_WARNING("%s: Unacceptable MPS(%d) value, lesser than remote cid(%x)'s"
+            " mps(%d)", __func__, mps, p_ccb->remote_cid, p_ccb->peer_conn_cfg.mps);
+        return L2CAP_RCFG_MPS_REDUCTION_NOT_ALLOWED;
+      }
+    }
+  }
+  return L2CAP_RCFG_OK;
+}
+
+/************************************************************************************
+ *
+ * Function         l2cu_validate_mtu_for_chnls
+ *
+ * Description      This function checks if updated MPS value is valid or not.
+ *
+ * Parameters       mtu: updated MTU value
+ *                  cid: pointer to array of CID's for which MTU update is required
+ *                  num_chnls: number of channels for which MTU update is required.
+ *
+ * Returns          result code based on MTU validity.
+ *
+ ***********************************************************************************/
+uint16_t l2cu_validate_mtu_for_chnls(uint16_t mtu,
+                                     uint16_t *cid, uint8_t num_chnls, bool isOutgoing) {
+  if (mtu < L2CAP_COC_MIN_MTU) {
+    L2CAP_TRACE_WARNING("%s: Unacceptable MTU(%d) value, reject reconfig request"
+        , __func__, mtu);
+    return L2CAP_RCFG_UNACCEPTABLE_PARAMS;
+  }
+
+  for (int i = 0; i < num_chnls; i++) {
+    tL2C_CCB *p_ccb = l2cu_find_ccb_by_cid(NULL, cid[i]);
+
+    if (isOutgoing && p_ccb && p_ccb->local_conn_cfg.mtu > mtu) {
+      L2CAP_TRACE_WARNING("%s: Unacceptable update in mtu(%d), lesser than cid(%x)'s mtu(%d)"
+          , __func__, mtu, cid[i], p_ccb->local_conn_cfg.mtu);
+      return L2CAP_RCFG_MTU_REDUCTION_NOT_ALLOWED;
+    } else if (!isOutgoing && p_ccb && p_ccb->peer_conn_cfg.mtu > mtu) {
+      L2CAP_TRACE_WARNING("%s: Unacceptable update in mtu(%d), lesser than remote cid(%x)'s"
+          " mtu(%d)", __func__, mtu, p_ccb->remote_cid, p_ccb->peer_conn_cfg.mtu);
+      return L2CAP_RCFG_MTU_REDUCTION_NOT_ALLOWED;
+    }
+  }
+
+  return L2CAP_RCFG_OK;
+}
+
+/************************************************************************************
+ *
+ * Function         l2cu_find_params_for_peer_rcfg_rsp
+ *
+ * Description      this function extracts reconfig request params from l2cap id
+ *                  and send reconfig rsp event to state machine based.
+ *
+ * Parameters       p_lcb: LCB pointer of the link on which response has come.
+ *                  result: result code in reconfig response from peer.
+ *                  id: Identifier in l2cap signalling command.
+ *
+ * Returns          void
+ *
+ ***********************************************************************************/
+void l2cu_find_req_params_for_peer_rcfg_rsp(tL2C_LCB* p_lcb,
+                                            uint16_t result, uint8_t id) {
+  tL2C_CCB* p_ccb;
+
+  for (p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb; p_ccb = p_ccb->p_next_ccb) {
+    if ((p_ccb->in_use) && (p_ccb->local_id == id)) {
+      if (p_ccb->pending_out_cfg) {
+        p_ccb->pending_out_cfg->result = result;
+        L2CAP_TRACE_WARNING("%s: response received for sent reconfig request(id: %d),"
+            "result = %d MTU = %d, MPS = %d", __func__, id, result,
+            p_ccb->pending_out_cfg->cfg_params.mtu, p_ccb->pending_out_cfg->cfg_params.mps);
+        l2c_csm_execute(p_ccb, L2CEVT_L2CAP_COC_RECONFIG_RSP, p_ccb->pending_out_cfg);
+        break;
+      } else {
+        L2CAP_TRACE_WARNING("%s: transaction with id(%x) has timed out", __func__, id);
+        return;
+      }
+    }
+  }
+}
+
+/************************************************************************************
+ *
+ * Function         l2cu_process_peer_coc_rcfg_rsp
+ *
+ * Description      This function processes reconfig reponse from peer and updates
+ *                  local configuration parameters.
+ *
+ * Parameters       cfg: reconfig params sent by local device in reconfig request.
+ *
+ * Returns          void
+ *
+ ***********************************************************************************/
+void l2cu_process_peer_rcfg_rsp(tL2C_CFG_REQ_PARAM *cfg) {
+  uint8_t num_cids = cfg->chnl_info.num_chnls;
+
+  for (int i = 0; i < num_cids; i++) {
+    tL2C_CCB *p_ccb = l2cu_find_ccb_by_cid(NULL, cfg->chnl_info.sr_cids[i]);
+    if (p_ccb) {
+      // reset config_done to OB_CFG_DONE and change state if reconfig is completed
+      p_ccb->config_done |= OB_CFG_DONE;
+      if (p_ccb->config_done & IB_CFG_DONE) {
+        p_ccb->chnl_state = CST_OPEN;       // move to CST_OPEN State
+      }
+      // update MTU and MPS values to new values
+      if (cfg->result == L2CAP_RCFG_OK) {
+        p_ccb->local_conn_cfg.mtu = p_ccb->pending_out_cfg->cfg_params.mtu;
+        p_ccb->local_conn_cfg.mps = p_ccb->pending_out_cfg->cfg_params.mps;
+      }
+      p_ccb->pending_out_cfg = NULL;
+    }
+  }
+
+  // cancel alarm for outgoing reconfiguration
+  if (alarm_is_scheduled(cfg->l2c_cfg_timer)) {
+    alarm_free(cfg->l2c_cfg_timer);
+  }
+}
+
+/************************************************************************************
+ *
+ * Function         l2cu_process_peer_rcfg_req
+ *
+ * Description      This function processes reconfig request sent by peer device.
+ *
+ * Parameters       cfg: reconfig params sent by peer device in reconfig request.
+ *
+ * Returns          void
+ *
+ ***********************************************************************************/
+bool l2cu_process_peer_rcfg_req(tL2C_CFG_REQ_PARAM *cfg) {
+  uint16_t result = 0;
+  tL2C_CCB* p_ccb = NULL;
+
+  result = l2cu_validate_mtu_for_chnls(cfg->cfg_params.mtu,
+              cfg->chnl_info.sr_cids, cfg->chnl_info.num_chnls, false);
+  if (result) {
+    //0x0001 Reconfiguration failed - reduction in size of MTU not allowed
+    //0x0004 Reconfiguration failed - other unacceptable parameters
+    cfg->result = result;
+    l2cu_validate_cids_in_use_status(&cfg->chnl_info, &p_ccb);
+    L2CAP_TRACE_WARNING("%s: Result = %x (%s)", __func__, result,
+                       l2cu_get_reconfig_result(result));
+    l2cu_send_peer_rcfg_rsp(p_ccb->p_lcb, p_ccb, cfg);
+    return false;
+  }
+
+  result = l2cu_validate_mps_for_chnls(cfg->cfg_params.mps,
+              cfg->chnl_info.sr_cids, cfg->chnl_info.num_chnls, false);
+  if (result) {
+    //0x0002 Reconfiguration failed - reduction in size of MPS not allowed for
+    //0x0004 Reconfiguration failed - other unacceptable parameters
+    cfg->result = result;
+    l2cu_validate_cids_in_use_status(&cfg->chnl_info, &p_ccb);
+    L2CAP_TRACE_WARNING("%s: Result = %x (%s)", __func__, result,
+                       l2cu_get_reconfig_result(result));
+    l2cu_send_peer_rcfg_rsp(p_ccb->p_lcb, p_ccb, cfg);
+    return false;
+  }
+
+  l2cu_set_multi_coc_chnl_cfg(NULL, cfg, CST_CONFIG, ~IB_CFG_DONE);
+  return true;
+}
+
+/************************************************************************************
+ *
+ * Function         l2cu_process_local_rcfg_rsp
+ *
+ * Description      This function processes reconfig response from upper layer or
+ *                  set internally by l2cap.
+ *
+ * Parameters       cfg: reconfig params sent by peer device in reconfig request.
+ *
+ * Returns          void
+ *
+ ***********************************************************************************/
+void l2cu_process_local_rcfg_rsp(tL2C_CFG_REQ_PARAM *rcfg) {
+  uint8_t num_cids = rcfg->chnl_info.num_chnls;
+
+  for (int i = 0; i < num_cids; i++) {
+    tL2C_CCB *p_ccb = l2cu_find_ccb_by_cid(NULL, rcfg->chnl_info.sr_cids[i]);
+    if (p_ccb) {
+      // reset config_done to OB_CFG_DONE and change state if reconfig is completed
+      p_ccb->config_done |= IB_CFG_DONE;
+      if (p_ccb->config_done & OB_CFG_DONE) {
+        p_ccb->chnl_state = CST_OPEN;        // move to CST_OPEN State
+      }
+      // update MTU and MPS values to new values
+      if (rcfg->result == L2CAP_RCFG_OK) {
+        p_ccb->peer_conn_cfg.mtu = p_ccb->pending_inc_cfg->cfg_params.mtu;
+        p_ccb->peer_conn_cfg.mps = p_ccb->pending_inc_cfg->cfg_params.mps;
+      }
+      p_ccb->pending_inc_cfg = NULL;
+    }
+  }
+
+  // cancel incoming reconfig alarm
+  if (alarm_is_scheduled(rcfg->l2c_cfg_timer)) {
+    alarm_free(rcfg->l2c_cfg_timer);
+  }
+}
+
+/************************************************************************************
+ *
+ * Function         l2cu_validate_cids_in_use_status
+ *
+ * Description      This function validates if all channels corresponding to CID's in
+ *                  chnl_inf are connected or not. Also, sends the active CCB among
+ *                  the set of channels.
+ *
+ * Parameters       chnl_inf: info l2cap channels used.
+ *                  p_active_ccb: one of the active CCB will be updated in this pointer.
+ *
+ * Returns          true, if all channels are in use. Otherwise, false.
+ *
+ ***********************************************************************************/
+bool l2cu_validate_cids_in_use_status(tL2CAP_COC_CHMAP_INFO *chnl_inf,
+                                      tL2C_CCB **p_active_ccb) {
+  uint8_t num_cids = chnl_inf->num_chnls;
+  bool all_active = true;
+
+  for (int i = 0; i < num_cids; i++) {
+    tL2C_CCB *cur_ccb = l2cu_find_ccb_by_cid(NULL, chnl_inf->sr_cids[i]);
+    if (!cur_ccb) all_active = false;
+    if (!(*p_active_ccb) && cur_ccb) *p_active_ccb = cur_ccb;
+    if (*p_active_ccb && !all_active) return all_active;
+  }
+  return all_active;
+}
+
+/*******************************************************************************
+ *
+ * Function         l2cu_send_flow_control_credit
+ *
+ * Description      This function sends flow control credits for
+ *                  LE connection oriented channels.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void l2cu_send_flow_control_credit(tL2C_CCB* p_ccb, uint16_t credit_value) {
+  if (!p_ccb) return;
+  L2CAP_TRACE_WARNING("%s: sending %d credits to channel %x", __func__,
+      credit_value, p_ccb->local_cid);
+
+  if (p_ccb->peer_cfg.fcr.mode != L2CAP_FCR_ECFC_MODE
+      && p_ccb->peer_cfg.fcr.mode != L2CAP_FCR_LE_COC_MODE) {
+    L2CAP_TRACE_WARNING("%s: Can not send credit indication in this mode: %d", __func__,
+                        p_ccb->peer_cfg.fcr.mode);
+    return;
+  }
+
+  l2cu_send_peer_ble_flow_control_credit(p_ccb, credit_value);
+  return;
+}
+
+/*******************************************************************************
+ *
+ * Function         l2cu_send_peer_coc_disc_req
+ *
+ * Description      This function sends disconnect request
+ *                  to the peer LE device
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void l2cu_send_peer_coc_disc_req(tL2C_CCB* p_ccb) {
+  L2CAP_TRACE_DEBUG("%s", __func__);
+
+  if (!p_ccb) return;
+
+  if (p_ccb->peer_cfg.fcr.mode != L2CAP_FCR_ECFC_MODE
+          && p_ccb->peer_cfg.fcr.mode != L2CAP_FCR_LE_COC_MODE) {
+    L2CAP_TRACE_WARNING("Disconnection trigered for incorrect mode: %d",
+        p_ccb->peer_cfg.fcr.mode);
+    return;
+  }
+
+  l2cu_send_peer_ble_credit_based_disconn_req(p_ccb);
+  return;
+}
+
+/************************************************************************************
+ *
+ * Function         l2cu_clear_reconfig_params
+ *
+ * Description      Clear pending reconfiguration parameters on link disconnection.
+ *
+ * Parameters       void
+ *
+ ***********************************************************************************/
+void l2cu_clear_reconfig_params(tL2C_CCB* p_ccb) {
+  L2CAP_TRACE_DEBUG("%s", __func__);
+
+  if (p_ccb && p_ccb->peer_cfg.fcr.mode == L2CAP_FCR_ECFC_MODE) {
+    // clear and deallocate incoming reconfig params in ccb
+    if (p_ccb->pending_inc_cfg &&
+        alarm_is_scheduled(p_ccb->pending_inc_cfg->l2c_cfg_timer)) {
+      alarm_free(p_ccb->pending_inc_cfg->l2c_cfg_timer);
+    }
+    osi_free(p_ccb->pending_inc_cfg);
+    p_ccb->pending_inc_cfg = NULL;
+
+    // clear and deallocate outgoing reconfig params in ccb
+    if (p_ccb->pending_out_cfg &&
+        alarm_is_scheduled(p_ccb->pending_out_cfg->l2c_cfg_timer)) {
+      alarm_free(p_ccb->pending_out_cfg->l2c_cfg_timer);
+    }
+    osi_free(p_ccb->pending_out_cfg);
+    p_ccb->pending_out_cfg = NULL;
+  }
+}
+
+/************************************************************************************
+ *
+ * Function         l2cu_get_reconfig_result
+ *
+ * Description      Sends the result description as in reconfig respose in spec.
+ *
+ * Parameters       result : result code
+ *
+ * Returns          result text.
+ *
+ ***********************************************************************************/
+const char* l2cu_get_reconfig_result(uint16_t result) {
+  switch(result) {
+    case L2CAP_RCFG_OK:
+      return ("Reconfiguration successful");
+    case L2CAP_RCFG_MTU_REDUCTION_NOT_ALLOWED:
+      return ("Reconfiguration failed - reduction in size of MTU not allowed");
+    case L2CAP_RCFG_MPS_REDUCTION_NOT_ALLOWED:
+      return ("Reconfiguration failed - reduction in size of MPS not allowed for"
+                  " more than one channel at a time");
+    case L2CAP_RCFG_INVALID_DCID:
+      return ("Reconfiguration failed - one or more Destination CIDs invalid");
+    case L2CAP_RCFG_UNACCEPTABLE_PARAMS:
+      return ("Reconfiguration failed - other unacceptable parameters");
+    default:
+      return ("Unknown result code");
+  }
+}
+

@@ -84,6 +84,7 @@ static_assert(L2CAP_LE_CREDIT_THRESHOLD < L2CAP_LE_CREDIT_DEFAULT,
 #define L2CAP_WAIT_INFO_RSP_TIMEOUT_MS (3 * 1000)      /* 3 seconds */
 #define L2CAP_BLE_LINK_CONNECT_TIMEOUT_MS (30 * 1000)  /* 30 seconds */
 #define L2CAP_FCR_ACK_TIMEOUT_MS 200                   /* 200 milliseconds */
+#define L2CAP_FCR_RX_BUF_MONITORING_TIMEOUT_MS 500     /* 500 milliseconds */
 
 /* Define the possible L2CAP channel states. The names of
  * the states may seem a bit strange, but they are taken from
@@ -174,8 +175,9 @@ typedef enum {
 #define L2CEVT_L2CA_COC_CONNECT_NEG_RSP 39
 #define L2CEVT_L2CA_COC_RECONFIG_REQ 40
 #define L2CEVT_L2CA_COC_RECONFIG_RSP 41
-#define L2CEVT_L2CA_SEND_FLOW_CONTROL_CREDIT 42
 
+/* Upper Layer Credit indication event in ECFC Mode */
+#define L2CEVT_L2CA_SEND_FLOW_CONTROL_CREDIT 42
 
 /* Peer Connection Events in ECFC Mode */
 #define L2CEVT_L2CAP_COC_CONNECT_REQ 43
@@ -186,7 +188,7 @@ typedef enum {
 #define L2CEVT_L2CAP_COC_RECONFIG_REQ 46
 #define L2CEVT_L2CAP_COC_RECONFIG_RSP 47
 
-/* Peer Credit Packet in ECFC Mode */
+/* Peer Credit indication event in ECFC Mode */
 #define L2CEVT_L2CAP_RECV_FLOW_CONTROL_CREDIT 48
 
 /* Constants for LE Dynamic PSM values */
@@ -318,6 +320,7 @@ typedef struct {
   void* p_ref_data;
 } tL2CAP_SEC_DATA;
 
+
 typedef struct {
   uint8_t num_coc_chnls;
   uint8_t ecfc_conn_result;
@@ -334,6 +337,25 @@ typedef struct {
   uint64_t disc_pending;
   alarm_t* ecfc_conn_alarm;
 } tL2C_coc_cmd_info;
+
+/* This structure contains information needed to handle ECFC reconfig Request */
+typedef struct {
+  tL2CAP_COC_CFG_INFO cfg_params;
+  uint16_t result;
+  alarm_t* l2c_cfg_timer = NULL;
+  tL2CAP_COC_CHMAP_INFO chnl_info;
+  uint8_t trans_id;
+} tL2C_CFG_REQ_PARAM;
+
+/* Structure used to maintain incoming l2cap packets in Enhanced credit
+   based flow control mode */
+typedef struct {
+  bool is_dequeued = FALSE; /* flag to check if upper layer is dequeing data
+                               or not after threshold credit limit is reached.*/
+  uint16_t rx_data_q_size;            /* size of rcv_data_q */
+  fixed_queue_t* rcv_data_q;          /* l2cap incoming data queue */
+  alarm_t* l2c_coc_credit_mon_timer;  /* CCB Timer Entry */
+} tL2CAP_COC_RX_BUF;
 
 /* Define a channel control block (CCB). There may be many channel control
  * blocks between the same two Bluetooth devices (i.e. on the same link).
@@ -418,6 +440,14 @@ typedef struct t_l2c_ccb {
 
 // Below variable are used in ECFC mode only.
   tL2C_coc_cmd_info coc_cmd_info;
+  tL2C_CFG_REQ_PARAM*
+      pending_out_cfg;      /* pending outgoing config params be applied after
+                                  getting reconfig response from peer device*/
+  tL2C_CFG_REQ_PARAM*
+      pending_inc_cfg;      /* pending incoming config params be applied after
+                                  getting reconfig response from upper layer*/
+  tL2CAP_COC_RX_BUF rx_buf; /* buffer to store incoming l2cap packets in ECFC mode*/
+
 } tL2C_CCB;
 
 /***********************************************************************
@@ -669,6 +699,7 @@ extern void l2c_fcrb_ack_timer_timeout(void* data);
 extern uint8_t l2c_data_write(uint16_t cid, BT_HDR* p_data, uint16_t flag);
 extern void l2c_rcv_acl_data(BT_HDR* p_msg);
 extern void l2c_process_held_packets(bool timed_out);
+extern void l2c_rcfg_timer_timeout(void* data);
 
 /* Functions provided by l2c_utils.cc
  ***********************************
@@ -745,6 +776,9 @@ extern void l2cu_send_peer_ble_credit_based_conn_req(tL2C_CCB* p_ccb);
 extern void l2cu_send_peer_ble_flow_control_credit(tL2C_CCB* p_ccb,
                                                    uint16_t credit_value);
 extern void l2cu_send_peer_ble_credit_based_disconn_req(tL2C_CCB* p_ccb);
+extern void l2cu_send_peer_reconfig_req(tL2C_CCB* p_ccb, tL2CAP_COC_CFG_INFO* p_data);
+extern bool l2cu_reconfig_coc_req(tL2CAP_COC_CHMAP_INFO* chmap_info,
+                                  uint16_t mtu, uint16_t mps);
 
 extern bool l2cu_initialize_fixed_ccb(tL2C_LCB* p_lcb, uint16_t fixed_cid,
                                       tL2CAP_FCR_OPTS* p_fcr);
@@ -926,6 +960,9 @@ extern uint8_t l2c_fcr_process_peer_cfg_req(tL2C_CCB* p_ccb,
                                             tL2CAP_CFG_INFO* p_cfg);
 extern void l2c_fcr_adj_monitor_retran_timeout(tL2C_CCB* p_ccb);
 extern void l2c_fcr_stop_timer(tL2C_CCB* p_ccb);
+extern void l2c_fcr_buffer_l2cap_coc_pdu(tL2C_CCB* p_ccb, BT_HDR* p_buf);
+extern void l2c_fcr_monitor_rx_buffer(void* p_ccb);
+extern void l2c_fcr_start_rx_buffer_mon_timer(tL2C_CCB* p_ccb);
 
 /* Functions provided by l2c_ble.cc
  ***********************************
@@ -945,9 +982,6 @@ extern void l2cble_process_conn_update_evt(uint16_t handle, uint8_t status,
 
 extern void l2cble_credit_based_conn_req(tL2C_CCB* p_ccb);
 extern void l2cble_credit_based_conn_res(tL2C_CCB* p_ccb, uint16_t result);
-extern void l2cble_send_peer_disc_req(tL2C_CCB* p_ccb);
-extern void l2cble_send_flow_control_credit(tL2C_CCB* p_ccb,
-                                            uint16_t credit_value);
 extern tL2CAP_LE_RESULT_CODE l2ble_sec_access_req(const RawAddress& bd_addr,
                                                   uint16_t psm,
                                                   bool is_originator,
@@ -970,5 +1004,27 @@ extern void l2cble_process_data_length_change_event(uint16_t handle,
                                                     uint16_t rx_data_len);
 
 extern void l2cu_process_fixed_disc_cback(tL2C_LCB* p_lcb);
+extern void l2cble_validate_mps_for_ecfc_group(tL2C_LCB* p_lcb, uint16_t tx_data_len);
+extern void l2cu_send_flow_control_credit(tL2C_CCB* p_ccb,
+                                          uint16_t credit_value);
+extern void l2cu_post_data_ind_cb_to_btu(tL2C_CCB* p_ccb);
+extern uint16_t l2cu_validate_mps_for_chnls(uint16_t mps, uint16_t *cid,
+                                            uint8_t num_chnls, bool isOutgoing);
+extern uint16_t l2cu_validate_mtu_for_chnls(uint16_t mtu, uint16_t *cid,
+                                            uint8_t num_chnls, bool isOutgoing);
+extern void l2cu_send_peer_reconfig_req(tL2C_CCB* p_ccb, tL2C_CFG_REQ_PARAM *cfg);
+extern void l2cu_send_peer_rcfg_rsp(tL2C_LCB* , tL2C_CCB* , tL2C_CFG_REQ_PARAM *);
+extern void l2cu_set_multi_coc_chnl_cfg(tL2C_LCB* p_lcb, tL2C_CFG_REQ_PARAM* cfg,
+                                        tL2C_CHNL_STATE state, uint8_t cfg_state);
+extern void l2cu_find_req_params_for_peer_rcfg_rsp(tL2C_LCB* p_lcb,
+                                                   uint16_t result, uint8_t id);
+extern void l2cu_process_peer_rcfg_rsp(tL2C_CFG_REQ_PARAM *cfg);
+extern bool l2cu_process_peer_rcfg_req(tL2C_CFG_REQ_PARAM *cfg);
+extern void l2cu_process_local_rcfg_rsp(tL2C_CFG_REQ_PARAM *rcfg);
+extern bool l2cu_validate_cids_in_use_status(tL2CAP_COC_CHMAP_INFO *chnl_inf,
+                                             tL2C_CCB **p_active_ccb);
+extern const char* l2cu_get_reconfig_result(uint16_t result);
+extern void l2cu_send_peer_coc_disc_req(tL2C_CCB* p_ccb);
+extern void l2cu_clear_reconfig_params(tL2C_CCB* p_ccb);
 
 #endif

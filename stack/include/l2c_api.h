@@ -376,6 +376,11 @@ typedef void (tL2CA_COC_RECONFIG_CFM_CB) (tL2CAP_COC_CHMAP_INFO* chmap_info,
 typedef void (tL2CA_COC_RECONFIG_IND_CB) (tL2CAP_COC_CHMAP_INFO* chmap_info,
                                           uint16_t p_mtu);
 
+/* Data received indication callback in enhanced credit based flow control mode
+ *              Local CID
+ */
+typedef void(tL2CA_COC_DATA_IND_CB)(uint16_t );
+
 /* Define the structure that applications use to register with
  * L2CAP. This structure includes callback functions. All functions
  * MUST be provided, with the exception of the "connect pending"
@@ -404,11 +409,11 @@ typedef struct {
 typedef struct {
   tL2CA_COC_CONNECT_IND_CB* pL2CA_CocConnectInd_Cb;
   tL2CA_COC_CONNECT_CFM_CB* pL2CA_CocConnectCfm_Cb;
-  tL2CA_COC_RECONFIG_IND_CB* pL2CA_ReConfigInd_Cb;
-  tL2CA_COC_RECONFIG_CFM_CB* pL2CA_ReConfigCfm_Cb;
+  tL2CA_COC_RECONFIG_IND_CB* pL2CA_CocReconfigInd_Cb;
+  tL2CA_COC_RECONFIG_CFM_CB* pL2CA_CocReconfigCfm_Cb;
   tL2CA_DISCONNECT_IND_CB* pL2CA_DisconnectInd_Cb;
   tL2CA_DISCONNECT_CFM_CB* pL2CA_DisconnectCfm_Cb;
-  tL2CA_DATA_IND_CB* pL2CA_DataInd_Cb;
+  tL2CA_COC_DATA_IND_CB* pL2CA_CocDataInd_Cb;
   tL2CA_CONGESTION_STATUS_CB* pL2CA_CongestionStatus_Cb;
   tL2CA_TX_COMPLETE_CB* pL2CA_TxComplete_Cb;
   tL2CA_CREDITS_RECEIVED_CB* pL2CA_CocCreditsReceived_Cb;
@@ -733,15 +738,19 @@ extern bool L2CA_ConfigReq(uint16_t cid, tL2CAP_CFG_INFO* p_cfg);
 
 /*******************************************************************************
  *
- * Function         L2CA_CocConfigReq
+ * Function         L2CA_ReconfigCocReq
  *
- * Description      Higher layers call this function to send ReConfiguration.
+ * Description      Upper layer calls this function to send Reconfiguration
+ *                  request in Enhanced credit based flow control mode.
  *
- * Returns          true if ReConfiguration sent, else false
+ * Parameters       chmap_info : information about l2cap channels in request
+ *                  mtu : Mamimum transmission Unit set by upper layer.
+ *
+ * Returns          true if Reconfiguration is sent, else false
  *
  ******************************************************************************/
-extern bool L2CA_CocReConfigReq(tL2CAP_COC_CHMAP_INFO* chmap_info,
-                         uint16_t mtu);
+extern bool L2CA_ReconfigCocReq(tL2CAP_COC_CHMAP_INFO* chmap_info,
+                                     uint16_t mtu);
 
 /*******************************************************************************
  *
@@ -757,16 +766,20 @@ extern bool L2CA_ConfigRsp(uint16_t cid, tL2CAP_CFG_INFO* p_cfg);
 
 /*******************************************************************************
  *
- * Function         L2CA_ConfigRsp
+ * Function         L2CA_ReconfigCocRsp
  *
- * Description      Higher layers call this function to send a ReConfiguration
- *                  response.
+ * Description      Upper layer calls this function to send a Reconfiguration
+ *                  response in Enhanced Credit based flow control mode.
  *
- * Returns          true if ReConfiguration response sent, else false
+ * Parameters       chmap_info : information about l2cap channels in response
+ *                  result : Result code for the response.
+ *
+ * Returns          true if Reconfiguration response is sent, else false
  *
  ******************************************************************************/
-bool L2CA_CocReConfigRsp (tL2CAP_COC_CHMAP_INFO* chmap_info,
-                          uint16_t result);
+
+extern bool L2CA_ReconfigCocRsp(tL2CAP_COC_CHMAP_INFO* chmap_info,
+                                     uint16_t result);
 
 /*******************************************************************************
  *
@@ -1132,15 +1145,12 @@ extern bool L2CA_LE_SetFlowControlCredits (uint16_t cid, uint16_t credits);
 **  Description      Upper layers Read the Data from the RX Queue.
 **
 **  Parameters:      Local CID, p_data
-**                   p_data - Pointer will assign to the p_data from
-**                            RX_Queue.
 **
-**  Return value:    TRUE if Data is present in the queue.
-**                   FALSE if RX queue is empty
+**  Return value:    pointer to data in RX Queue.
 **
 *******************************************************************************/
 
-extern bool L2CA_ReadData (uint16_t cid, BT_HDR* p_data);
+extern BT_HDR* L2CA_ReadData (uint16_t cid);
 
 
 /*******************************************************************************

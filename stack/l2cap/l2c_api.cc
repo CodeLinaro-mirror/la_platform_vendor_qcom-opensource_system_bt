@@ -486,11 +486,13 @@ uint16_t L2CA_RegisterCoc(uint16_t psm, tL2CAP_COC_APPL_INFO *p_coc_cb_info,
   **             for here because it is possible to be only a client
   **             or only a server.
   */
+
   if (!p_coc_cb_info) {
     L2CAP_TRACE_ERROR("%s Invalid CB for registering COC PSM: 0x%04x",
                       __func__, psm);
     return 0;
   }
+
   if ((!p_coc_cb_info->pL2CA_CocDataInd_Cb) ||
       (!p_coc_cb_info->pL2CA_DisconnectInd_Cb)) {
     L2CAP_TRACE_ERROR("%s No cb registering COC PSM: 0x%04x", __func__, psm);
@@ -1146,6 +1148,37 @@ bool L2CA_ConfigReq(uint16_t cid, tL2CAP_CFG_INFO* p_cfg) {
   return (true);
 }
 
+/*********************************************************************************
+ *
+ * Function         L2CA_ReconfigCocReq
+ *
+ * Description      Upper layer call this function to reconfigure l2cap channel
+ *                  in Enhanced Credit Based Flow Control mode. Upper layer
+ *                  can only update MTU value. L2CAP layer assigns MPS.
+ *
+ * Parameters       chmap_info: info of the channels to be reconfigured.
+ *                  mtu: Maximum transmission unit as required by upper layer.
+ *
+ * Returns          true if reconfiguration request sent, otherwise false
+ *
+ ******************************************************************************/
+bool L2CA_ReconfigCocReq(tL2CAP_COC_CHMAP_INFO* chmap_info, uint16_t mtu) {
+  L2CAP_TRACE_API("%s, mtu = %d", __func__, mtu);
+
+  if (!chmap_info || !chmap_info->num_chnls) {
+    L2CAP_TRACE_WARNING("%s: Incomplete channel information", __func__);
+    return (false);
+  }
+
+  //check if MTU value is acceptable
+  if (l2cu_validate_mtu_for_chnls(mtu, chmap_info->sr_cids, chmap_info->num_chnls, true)) {
+    return (false);
+  }
+
+  // upper layer has no control over mps.
+  return l2cu_reconfig_coc_req(chmap_info, mtu, 0);
+}
+
 /*******************************************************************************
  *
  * Function         L2CA_ConfigRsp
@@ -1187,6 +1220,43 @@ bool L2CA_ConfigRsp(uint16_t cid, tL2CAP_CFG_INFO* p_cfg) {
     l2c_csm_execute(p_ccb, L2CEVT_L2CA_CONFIG_RSP_NEG, p_cfg);
   }
 
+  return (true);
+}
+
+/*******************************************************************************
+ *
+ * Function         L2CA_ReconfigCocRsp
+ *
+ * Description      Upper layer calls this function to send reconfiguration
+ *                  response in Enhanced Credit based flow control mode.
+ *
+ * Parameters       chmap_info : information about l2cap channels in response
+ *                  result : Result code for the response.
+ *
+ * Returns          true if Reconfiguration response is sent, else false
+ *
+ ******************************************************************************/
+bool L2CA_ReconfigCocRsp(tL2CAP_COC_CHMAP_INFO* chmap_info, uint16_t result) {
+  tL2C_CCB* p_ccb = NULL;
+
+  if (!chmap_info || !chmap_info->num_chnls) {
+    L2CAP_TRACE_WARNING("%s: Incomplete channel information.", __func__);
+    return (false);
+  }
+
+  if (!l2cu_validate_cids_in_use_status(chmap_info, &p_ccb)) {
+    if (p_ccb) {
+      L2CAP_TRACE_WARNING("L2CAP - some of ccb's are not active");
+      p_ccb->pending_inc_cfg->result = L2CAP_RCFG_INVALID_DCID;
+    } else {
+      L2CAP_TRACE_WARNING("L2CAP - all channels are closed, ignore response");
+      return (false);
+    }
+  } else {
+    p_ccb->pending_inc_cfg->result = result;
+  }
+
+  l2c_csm_execute(p_ccb, L2CEVT_L2CA_COC_RECONFIG_RSP, p_ccb->pending_inc_cfg);
   return (true);
 }
 
@@ -2647,4 +2717,43 @@ bool L2CA_isMediaChannel(uint16_t handle, uint16_t channel_id, bool is_local_cid
     }
 
     return ret;
+}
+
+/*******************************************************************************
+**
+** Function         L2CA_ReadData
+**
+** Description      Upper layer should call this api to read data from L2CAP which
+**                  remote has sent. This API should be called on receiving
+**                  pL2CA_DataInd_Cb callback in Enhanced Credit Based Flow Control
+**                  mode.
+**
+** Parameters:      cid: channel id of the local l2cap channel
+**
+** Returns          pointer to SDU data to be given to upper layer.
+**
+*******************************************************************************/
+BT_HDR* L2CA_ReadData (uint16_t cid) {
+  BT_HDR* p_data = NULL;
+  tL2C_CCB* p_ccb = l2cu_find_ccb_by_cid(NULL, cid);
+
+  if (p_ccb == NULL) {
+    L2CAP_TRACE_WARNING("L2CAP - CCB not present, CID: %x", cid);
+    return (NULL);
+  }
+
+  if (fixed_queue_is_empty(p_ccb->rx_buf.rcv_data_q)) {
+    L2CAP_TRACE_WARNING("L2CAP - No data to fetch from CID: %x Rx queue", cid);
+    return (NULL);
+  }
+
+  /* mark that upper layer is fetching data properly (is_dequeued flag is set)
+     if data is fetched after reaching threshold limit. after next timeout,
+     this flag is checked and credit indication is sent to remote by l2cap */
+  if (p_ccb->remote_credit_count <= L2CAP_LE_CREDIT_THRESHOLD) {
+    p_ccb->rx_buf.is_dequeued = true;
+  }
+
+  p_data = (BT_HDR *)fixed_queue_dequeue(p_ccb->rx_buf.rcv_data_q);
+  return (p_data);
 }
