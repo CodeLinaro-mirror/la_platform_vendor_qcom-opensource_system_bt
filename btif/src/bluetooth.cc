@@ -472,6 +472,11 @@ static int get_metric_id(const RawAddress& address) {
       address);
 }
 
+static void get_link_key(const RawAddress *bd_addr){
+  LOG_INFO(LOG_TAG, "get_link_key");
+  btif_dm_get_link_key(bd_addr);
+}
+
 EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     sizeof(bluetoothInterface),
     init,
@@ -491,6 +496,7 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     create_bond,
     create_bond_out_of_band,
     add_out_of_band_bond_device,
+    get_link_key,
     remove_bond,
     cancel_bond,
     get_connection_state,

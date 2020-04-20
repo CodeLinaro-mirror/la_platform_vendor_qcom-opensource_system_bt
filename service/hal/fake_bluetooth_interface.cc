@@ -58,6 +58,7 @@ bt_interface_t fake_bt_iface = {
     nullptr, /* create_bond */
     nullptr, /* create_bond_out_of_band */
     nullptr, /* add_out_of_band_bond_device */
+    nullptr, /* get_link_key */
     nullptr, /* remove_bond */
     nullptr, /* cancel_bond */
     nullptr, /* get_connection_state */
