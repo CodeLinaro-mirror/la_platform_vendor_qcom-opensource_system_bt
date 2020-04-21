@@ -3056,7 +3056,7 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
                     btif_a2dp_source_restart_session failed");
           }
         }
-        if (is_multicast_supported && btif_av_is_playing_on_other_idx(index)) {
+        if (enable_multicast == true) {
           BTIF_TRACE_WARNING("Multicast streaming, do not trigger handoff");
         } else {
           btif_av_trigger_dual_handoff(TRUE, now_active_index,
