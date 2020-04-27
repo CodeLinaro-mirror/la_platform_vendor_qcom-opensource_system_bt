@@ -410,8 +410,6 @@ void smp_gen_p2_4_confirm(tSMP_CB* p_cb, const RawAddress& remote_bda,
                           BT_OCTET16 p2) {
   SMP_TRACE_DEBUG("%s", __func__);
   uint8_t* p = (uint8_t*)p2;
-  char persist_bdaddr[PROPERTY_VALUE_MAX] = {0};
-  RawAddress local_bdaddr;
   /* 32-bit Padding */
   memset(p, 0, sizeof(BT_OCTET16));
   if (p_cb->role == HCI_ROLE_MASTER) {
@@ -420,9 +418,7 @@ void smp_gen_p2_4_confirm(tSMP_CB* p_cb, const RawAddress& remote_bda,
     /* Using public address for advertisers that can't resolve random address */
     if (interop_match_addr_or_name
      (INTEROP_DISABLE_RESOLVING, &(remote_bda))) {
-      osi_property_get("persist.vendor.service.bdroid.bdaddr", persist_bdaddr, NULL);
-      RawAddress::FromString(persist_bdaddr, local_bdaddr);
-      BDADDR_TO_STREAM(p, local_bdaddr);
+      BDADDR_TO_STREAM(p, *controller_get_interface()->get_address());
     } else {
     /* ia : Initiator's (local) address */
       BDADDR_TO_STREAM(p, p_cb->local_bda);
