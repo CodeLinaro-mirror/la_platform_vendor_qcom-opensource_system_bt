@@ -2710,6 +2710,7 @@ void btm_sec_conn_req(const RawAddress& bda, uint8_t* dc) {
   /* pass request to L2CAP */
   btm_cb.connecting_bda = bda;
   memcpy(btm_cb.connecting_dc, dc, DEV_CLASS_LEN);
+  BTM_TRACE_EVENT("%s  dev_class=%x %x %x",__func__,btm_cb.connecting_dc[0],btm_cb.connecting_dc[1],btm_cb.connecting_dc[2]);
 
   if (l2c_link_hci_conn_req(bda)) {
     if (!p_dev_rec) {
@@ -2718,6 +2719,8 @@ void btm_sec_conn_req(const RawAddress& bda, uint8_t* dc) {
     }
     if (p_dev_rec) {
       p_dev_rec->sm4 |= BTM_SM4_CONN_PEND;
+      /* Update COD values */
+      memcpy(p_dev_rec->dev_class, btm_cb.connecting_dc, DEV_CLASS_LEN);
     }
   }
 }
