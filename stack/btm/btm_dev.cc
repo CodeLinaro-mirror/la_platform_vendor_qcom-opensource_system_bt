@@ -322,14 +322,14 @@ tBTM_SEC_DEV_REC* btm_sec_alloc_dev(const RawAddress& bd_addr) {
   /* outgoing connection */
   p_inq_info = BTM_InqDbRead(bd_addr);
   if (p_inq_info != NULL) {
-   BTM_TRACE_API("%s p_dev_rec->dev_class=%x %x %x  dev_class=%x %x %x", __FUNCTION__, p_dev_rec->dev_class[0],p_dev_rec->dev_class[1],p_dev_rec->dev_class[2], p_inq_info->results.dev_class[0],p_inq_info->results.dev_class[1],p_inq_info->results.dev_class[2]);
+    BTM_TRACE_API("%s %d p_dev_rec->dev_class=%x %x %x  dev_class=%x %x %x", __FUNCTION__, __LINE__, p_dev_rec->dev_class[0],p_dev_rec->dev_class[1],p_dev_rec->dev_class[2], p_inq_info->results.dev_class[0],p_inq_info->results.dev_class[1],p_inq_info->results.dev_class[2]);
     memcpy(p_dev_rec->dev_class, p_inq_info->results.dev_class, DEV_CLASS_LEN);
 
     p_dev_rec->device_type = p_inq_info->results.device_type;
     p_dev_rec->ble.ble_addr_type = p_inq_info->results.ble_addr_type;
   } else if (bd_addr == btm_cb.connecting_bda)
   {
-    BTM_TRACE_API("%s p_dev_rec->dev_class=%x %x %x  dev_class=%x %x %x", __FUNCTION__, p_dev_rec->dev_class[0],p_dev_rec->dev_class[1],p_dev_rec->dev_class[2], btm_cb.connecting_dc[0],btm_cb.connecting_dc[1],btm_cb.connecting_dc[2]);
+    BTM_TRACE_API("%s %d p_dev_rec->dev_class=%x %x %x  dev_class=%x %x %x", __FUNCTION__, __LINE__, p_dev_rec->dev_class[0],p_dev_rec->dev_class[1],p_dev_rec->dev_class[2], btm_cb.connecting_dc[0],btm_cb.connecting_dc[1],btm_cb.connecting_dc[2]);
     memcpy(p_dev_rec->dev_class, btm_cb.connecting_dc, DEV_CLASS_LEN);
   }
 

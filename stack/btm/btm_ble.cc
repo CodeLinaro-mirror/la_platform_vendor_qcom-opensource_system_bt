@@ -1748,7 +1748,7 @@ void btm_ble_link_encrypted(const RawAddress& bd_addr, uint8_t encr_enable) {
     p_dev_rec->enc_key_size = p_dev_rec->ble.keys.key_size;
 
   p_dev_rec->sec_state = BTM_SEC_STATE_IDLE;
-  if (p_dev_rec->p_callback && enc_cback) {
+  if (p_dev_rec->p_ble_callback && enc_cback) {
     if (encr_enable)
       btm_sec_dev_rec_cback_event(p_dev_rec, BTM_SUCCESS, true);
     else if (p_dev_rec->role_master)
