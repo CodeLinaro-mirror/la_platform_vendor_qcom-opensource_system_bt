@@ -863,7 +863,7 @@ void bta_av_api_deregister(tBTA_AV_DATA* p_data) {
       alarm_free(p_scb->avrc_ct_timer);
       p_scb->avrc_ct_timer = NULL;
     }
-    if((p_scb->a2dp_list != NULL) && list_length(p_scb->a2dp_list))
+    if(p_scb->a2dp_list != NULL)
       list_free(p_scb->a2dp_list);
   } else {
     bta_av_dereg_comp(p_data);
