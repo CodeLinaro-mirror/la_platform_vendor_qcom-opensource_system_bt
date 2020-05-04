@@ -1059,11 +1059,16 @@ uint16_t AVRC_Open(uint8_t* p_handle, tAVRC_CONN_CB* p_ccb,
 uint16_t AVRC_Close(uint8_t handle) {
   BTIF_TRACE_IMP("%s handle:%d, clean up all system resources", __func__, handle);
   avrc_cb.ccb_int[handle].flags &= ~AVRC_CB_FLAGS_RSP_PENDING;
-  alarm_cancel(avrc_cb.ccb_int[handle].tle);
-  fixed_queue_free(avrc_cb.ccb_int[handle].cmd_q, osi_free);
-  avrc_cb.ccb_int[handle].cmd_q = NULL;
-  alarm_free(avrc_cb.ccb_int[handle].tle);
-  avrc_cb.ccb_int[handle].tle = NULL;
+  if (avrc_cb.ccb_int[handle].tle != NULL)
+    alarm_cancel(avrc_cb.ccb_int[handle].tle);
+  if(avrc_cb.ccb_int[handle].cmd_q != NULL) {
+    fixed_queue_free(avrc_cb.ccb_int[handle].cmd_q, osi_free);
+    avrc_cb.ccb_int[handle].cmd_q = NULL;
+  }
+  if (avrc_cb.ccb_int[handle].tle != NULL) {
+    alarm_free(avrc_cb.ccb_int[handle].tle);
+    avrc_cb.ccb_int[handle].tle = NULL;
+  }
   return AVCT_RemoveConn(handle);
 }
 
