@@ -269,6 +269,7 @@ extern void bta_sys_chg_ssr_config(uint8_t id, uint8_t app_id,
 #endif
 
 extern void bta_sys_role_chg_register(tBTA_SYS_CONN_CBACK* p_cback);
+extern void bta_sys_avk_role_chg_register(tBTA_SYS_CONN_CBACK* p_cback);
 extern void bta_sys_notify_role_chg(const RawAddress& p_bda, uint8_t new_role,
                                     uint8_t hci_status);
 extern void bta_sys_collision_register(uint8_t bta_id,

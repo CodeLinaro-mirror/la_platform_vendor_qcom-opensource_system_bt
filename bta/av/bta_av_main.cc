@@ -559,7 +559,7 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
 #if (BTA_AR_INCLUDED == TRUE)
       bta_ar_reg_avdt(&reg, bta_av_conn_cback, BTA_ID_AV);
 #endif
-      bta_sys_role_chg_register(&bta_av_sys_rs_cback);
+      bta_sys_role_chg_register(bta_av_sys_rs_cback);
 
       /* create remote control TG service if required */
       if (bta_av_cb.features & (BTA_AV_FEAT_RCTG)) {

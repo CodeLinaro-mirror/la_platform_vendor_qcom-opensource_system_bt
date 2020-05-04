@@ -1862,6 +1862,7 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
 
       if ((!btif_av_cb[index].current_playing) &&
           (btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START)) {
+            BTIF_TRACE_EVENT("%s: Start event BTIF_AV_FLAG_PENDING_START", __func__);
 #if (TWS_ENABLED == TRUE)
         bool active_tws = false;
         if(btif_av_cb[index].tws_device) {
@@ -1883,6 +1884,15 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
           BTA_AvStop(true, btif_av_cb[index].bta_handle);
           break;
         }
+      }
+
+      if ((!btif_av_cb[index].current_playing) && is_multicast_supported && !enable_multicast )
+      {
+        BTIF_TRACE_EVENT("%s: Start event received for in-active device", __func__);
+        btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
+        btif_av_cb[index].flags |= BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING;
+        BTA_AvStop(true, btif_av_cb[index].bta_handle);
+        break;
       }
 
       /* if remote tries to start a2dp when DUT is a2dp source
@@ -2839,6 +2849,7 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
   int previous_active_index = INVALID_INDEX;
   int now_active_index = INVALID_INDEX;
 
+  BTIF_TRACE_ERROR("%s event: %d", __func__, event);
   switch (event) {
     case BTIF_AV_INIT_REQ_EVT:
       BTIF_TRACE_DEBUG("%s: BTIF_AV_INIT_REQ_EVT", __func__);
@@ -5886,12 +5897,16 @@ void btif_av_update_multicast_state(int index) {
     HAL_CBACK(bt_av_src_callbacks, multicast_state_cb, enable_multicast);
 #endif
 
-    if (enable_multicast == false && num_av_connected == 2) {
-        int preIdx = btif_av_get_other_connected_idx(index);
-        btif_av_trigger_dual_handoff(TRUE, index, preIdx);
+    if (enable_multicast == false && btif_av_get_num_playing_devices()==2) {
+        int nowIdx = btif_av_get_current_playing_dev_idx();
+        int preIdx = btif_av_get_other_connected_idx(nowIdx);
+        BTIF_TRACE_DEBUG("%s() btif_av_trigger_dual_handoff to index:%d pre-index:%d", __func__, nowIdx, preIdx);
+        btif_av_trigger_dual_handoff(TRUE, nowIdx, preIdx);
     }
     if (enable_multicast && num_av_connected == 2 && btif_av_get_num_playing_devices()==1 ) {
-      int preIdx = btif_av_get_other_connected_idx(index);
+      int nowIdx = btif_av_get_current_playing_dev_idx();
+      int preIdx = btif_av_get_other_connected_idx(nowIdx);
+      BTIF_TRACE_DEBUG("%s() BTIF_AV_START_STREAM_REQ_EVT to index:%d", __func__, preIdx);
       btif_sm_dispatch(btif_av_cb[preIdx].sm_handle, BTIF_AV_START_STREAM_REQ_EVT, NULL);
     }
   }

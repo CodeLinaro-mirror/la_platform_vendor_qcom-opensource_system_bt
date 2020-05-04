@@ -1015,6 +1015,11 @@ void bta_av_role_res(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 
     if (BTM_GetRole (p_scb->peer_addr, &cur_role) == BTM_SUCCESS)
       role_changed.new_role = cur_role;
+      if (btif_av_is_multicast_supported()) {
+        APPL_TRACE_DEBUG("%s: sleeping 20 msec before report role change event", __func__);
+        usleep(20*1000);
+      }
+
     (*bta_av_cb.p_cback)(BTA_AV_ROLE_CHANGED_EVT, (tBTA_AV *)&role_changed);
   }
 

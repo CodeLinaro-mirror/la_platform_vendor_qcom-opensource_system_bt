@@ -72,6 +72,21 @@ void bta_sys_policy_register(tBTA_SYS_CONN_CBACK* p_cback) {
 void bta_sys_role_chg_register(tBTA_SYS_CONN_CBACK* p_cback) {
   bta_sys_cb.p_role_cb = p_cback;
 }
+
+/*******************************************************************************
+ *
+ * Function         bta_sys_avk_role_chg_register
+ *
+ * Description      Called by BTA AVK to register role change callbacks
+ *
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void bta_sys_avk_role_chg_register(tBTA_SYS_CONN_CBACK* p_cback) {
+  bta_sys_cb.p_avk_role_cb = p_cback;
+}
+
 /*******************************************************************************
  *
  * Function         bta_sys_ssr_cfg_register
@@ -100,7 +115,12 @@ void bta_sys_ssr_cfg_register(tBTA_SYS_SSR_CFG_CBACK* p_cback) {
 void bta_sys_notify_role_chg(const RawAddress& p_bda, uint8_t new_role,
                              uint8_t hci_status) {
   if (bta_sys_cb.p_role_cb) {
+    APPL_TRACE_DEBUG("%s() call bta_sys_cb.p_role_cb bta_av_sys_rs_cback", __func__);
     bta_sys_cb.p_role_cb(BTA_SYS_ROLE_CHANGE, new_role, hci_status, p_bda);
+  }
+  if (bta_sys_cb.p_avk_role_cb) {
+    APPL_TRACE_DEBUG("%s() call bta_sys_cb.p_avk_role_cb bta_avk_sys_rs_cback", __func__);
+    bta_sys_cb.p_avk_role_cb(BTA_SYS_ROLE_CHANGE, new_role, hci_status, p_bda);
   }
 }
 

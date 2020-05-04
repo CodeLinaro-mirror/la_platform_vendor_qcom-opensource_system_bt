@@ -68,6 +68,7 @@ typedef struct {
   tBTA_SYS_CONN_CBACK*
       p_sco_cb; /* SCO connection change callback registered by AV */
   tBTA_SYS_CONN_CBACK* p_role_cb; /* role change callback registered by AV */
+  tBTA_SYS_CONN_CBACK* p_avk_role_cb; /* role change callback registered by AVK */
   tBTA_SYS_COLLISION colli_reg;   /* collision handling module */
 #if (BTA_EIR_CANNED_UUID_LIST != TRUE)
   tBTA_SYS_EIR_CBACK* eir_cb; /* add/remove UUID into EIR */
