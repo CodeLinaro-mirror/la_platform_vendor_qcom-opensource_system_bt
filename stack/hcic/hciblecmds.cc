@@ -1223,3 +1223,102 @@ void btsnd_hcic_ble_transmitter_test_v4(uint8_t tx_channel,
   btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_BLE_TRANSMITTER_TEST_V4, param,
                             param_len, std::move(cb));
 }
+void btsnd_hcic_ble_create_periodic_sync(uint8_t options, uint8_t adv_sid,
+                                         uint8_t address_type,
+                                         const RawAddress& bda_peer,
+                                         uint16_t skip, uint16_t sync_tout,
+                                         uint8_t sync_cte_type) {
+  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
+  uint8_t* pp = (uint8_t*)(p + 1);
+  const uint16_t param_len = 14;
+  p->len = HCIC_PREAMBLE_SIZE + param_len;
+  p->offset = 0;
+
+  UINT16_TO_STREAM(pp, HCI_LE_PERIODIC_ADVERTISING_CREATE_SYNC);
+  UINT8_TO_STREAM(pp, param_len);
+  UINT8_TO_STREAM(pp, options);
+  UINT8_TO_STREAM(pp, adv_sid);
+  UINT8_TO_STREAM(pp, address_type);
+  BDADDR_TO_STREAM(pp, bda_peer);
+  UINT16_TO_STREAM(pp, skip);
+  UINT16_TO_STREAM(pp, sync_tout);
+  UINT8_TO_STREAM(pp, sync_cte_type);
+  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
+}
+
+void btsnd_hcic_ble_terminate_periodic_sync(uint16_t sync_handle) {
+  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
+  uint8_t* pp = (uint8_t*)(p + 1);
+  const uint16_t param_len = 2;
+  p->len = HCIC_PREAMBLE_SIZE + param_len;
+  p->offset = 0;
+
+  UINT16_TO_STREAM(pp, HCI_LE_PERIODIC_ADVERTISING_TERMINATE_SYNC);
+  UINT8_TO_STREAM(pp, param_len);
+  UINT16_TO_STREAM(pp, sync_handle);
+  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
+}
+
+void btsnd_hci_ble_cancel_period_sync() {
+  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
+  uint8_t* pp = (uint8_t*)(p + 1);
+  const uint16_t param_len = 0;
+  p->len = HCIC_PREAMBLE_SIZE + param_len;
+  p->offset = 0;
+
+  UINT16_TO_STREAM(pp, HCI_LE_PERIODIC_ADVERTISING_CREATE_SYNC_CANCEL);
+  UINT8_TO_STREAM(pp, param_len);
+  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
+}
+
+void btsnd_hcic_ble_pa_sync_tx(uint16_t conn_handle,
+                               uint16_t service_data,
+                               uint16_t sync_handle,
+                               base::Callback<void(uint8_t*, uint16_t)> cb) {
+  const uint16_t param_len = 6;
+  uint8_t *param = (uint8_t *)osi_malloc(param_len);
+  uint8_t *p = param;
+  UINT16_TO_STREAM(p, conn_handle);
+  UINT16_TO_STREAM(p, service_data);
+  UINT16_TO_STREAM(p, sync_handle);
+
+  btu_hcif_send_cmd_with_cb(FROM_HERE,
+                            HCI_LE_SET_PERIODIC_ADVERTISING_SYNC_TRANSFER, param,
+                            param_len, std::move(cb));
+}
+
+void btsnd_hcic_ble_pa_set_info_tx(uint16_t conn_handle,
+                                   uint16_t service_data,
+                                   uint8_t adv_handle,
+                                   base::Callback<void(uint8_t*, uint16_t)> cb) {
+  const uint16_t param_len = 5;
+  uint8_t *param = (uint8_t *)osi_malloc(param_len);
+  uint8_t *p = param;
+  UINT16_TO_STREAM(p, conn_handle);
+  UINT16_TO_STREAM(p, service_data);
+  UINT16_TO_STREAM(p, adv_handle);
+
+  btu_hcif_send_cmd_with_cb(FROM_HERE,
+                            HCI_LE_SET_PERIODIC_ADVERTISING_SET_INFO_TRANSFER,
+                            param, param_len, std::move(cb));
+}
+
+void btsnd_hcic_ble_pa_sync_tx_parameters(uint16_t conn_handle,
+                                          uint8_t mode, uint16_t skip,
+                                          uint16_t timeout, uint8_t cte_type) {
+  const uint16_t param_len = 8;
+  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
+  uint8_t* pp = (uint8_t*)(p + 1);
+  p->len = HCIC_PREAMBLE_SIZE + param_len;
+  p->offset = 0;
+
+  UINT16_TO_STREAM(pp, HCI_LE_SET_PERIODIC_ADVERTISING_SYNC_TRANSFER_PARAMETERS);
+  UINT8_TO_STREAM(pp, param_len);
+  UINT16_TO_STREAM(pp, conn_handle);
+  UINT8_TO_STREAM(pp, mode);
+  UINT16_TO_STREAM(pp, skip);
+  UINT16_TO_STREAM(pp, timeout);
+  UINT16_TO_STREAM(pp, cte_type);
+
+  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
+}
