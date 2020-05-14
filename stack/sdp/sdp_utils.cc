@@ -692,7 +692,8 @@ bool sdpu_compare_uuid_with_attr(const Uuid& uuid, tSDP_DISC_ATTR* p_attr) {
   if (len == 2) return uuid.As16Bit() == p_attr->attr_value.v.u16;
   if (len == 4) return uuid.As32Bit() == p_attr->attr_value.v.u32;
   if (memcmp(uuid.To128BitBE().data(), (void*)p_attr->attr_value.v.array,
-             Uuid::kNumBytes128) == 0)
+             (Uuid::kNumBytes128 <= sizeof(p_attr->attr_value.v.array)) ?
+             Uuid::kNumBytes128 : sizeof(p_attr->attr_value.v.array)) == 0)
     return (true);
 
   return (false);

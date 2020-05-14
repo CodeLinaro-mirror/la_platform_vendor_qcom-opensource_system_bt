@@ -1458,7 +1458,9 @@ static void bta_hl_sdp_cback(uint8_t sdp_oper, uint8_t app_idx, uint8_t mcl_idx,
           name_len = (uint16_t)SDP_DISC_ATTR_LEN(p_attr->attr_len_type);
         else
           name_len = BT_MAX_SERVICE_NAME_LEN;
-        memcpy(p_hdp_rec->srv_name, p_attr->attr_value.v.array, name_len);
+        memcpy(p_hdp_rec->srv_name, p_attr->attr_value.v.array,
+               (name_len <= sizeof(p_attr->attr_value.v.array) ?
+                name_len : sizeof(p_attr->attr_value.v.array)));
       }
 
       p_hdp_rec->srv_desp[0] = '\0';
@@ -1468,7 +1470,9 @@ static void bta_hl_sdp_cback(uint8_t sdp_oper, uint8_t app_idx, uint8_t mcl_idx,
           name_len = (uint16_t)SDP_DISC_ATTR_LEN(p_attr->attr_len_type);
         else
           name_len = BT_MAX_SERVICE_NAME_LEN;
-        memcpy(p_hdp_rec->srv_desp, p_attr->attr_value.v.array, name_len);
+        memcpy(p_hdp_rec->srv_desp, p_attr->attr_value.v.array,
+               (name_len <= sizeof(p_attr->attr_value.v.array) ?
+                name_len : sizeof(p_attr->attr_value.v.array)));
       }
 
       p_hdp_rec->provider_name[0] = '\0';
@@ -1478,7 +1482,9 @@ static void bta_hl_sdp_cback(uint8_t sdp_oper, uint8_t app_idx, uint8_t mcl_idx,
           name_len = (uint16_t)SDP_DISC_ATTR_LEN(p_attr->attr_len_type);
         else
           name_len = BT_MAX_SERVICE_NAME_LEN;
-        memcpy(p_hdp_rec->provider_name, p_attr->attr_value.v.array, name_len);
+        memcpy(p_hdp_rec->provider_name, p_attr->attr_value.v.array,
+               (name_len <= sizeof(p_attr->attr_value.v.array) ?
+                name_len : sizeof(p_attr->attr_value.v.array)));
       }
 
       p_attr = SDP_FindAttributeInRec(p_rec, ATTR_ID_HDP_MCAP_SUP_PROC);
