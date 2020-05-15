@@ -59,27 +59,54 @@ using LockGuard = std::lock_guard<std::mutex>;
 static std::mutex g_load_aptx_hd_mutex;
 static std::mutex g_auth_aptx_hd_mutex;
 
+// Prepare for aptX HD decoding.
+// |state| is a pointer to the memory to save decoded data.
+// The memory for |state| shall be allocated at first.
+// |endian| indicates endianness of received aptX HD
+// encoded data(Big endian/Little endian).
+// Return zero on success, otherwise failure.
+// This function does not allocate new memory.
 static const char* APTX_HD_DECODER_INIT_NAME = "aptxhddec_init";
 typedef int32_t (*tAPTX_HD_DECODER_INIT)(void* state, int16_t endian);
 
+// Decode aptX HD encoded data.
+// |buffer| is a pointer to aptX HD encoded data.
+// |state| is a pointer to save the decoded data.
+// It ouputs all zero to |state| if aptX HD decoder is not enabled properly.
+// This function does not allocate new memory.
 static const char* APTX_HD_DECODER_STEREO_DECODE_NAME = "aptxhddecStereoDecode";
 typedef void (*tAPTX_HD_DECODER_STEREO_DECODE)(int32_t* buffer, void* state);
 
+// Get left channel of PCM data from decoded data |state|.
+// Return a pointer to the left channel of PCM data stored in |state|.
+// This function does not allocate new memory.
 static const char* APTX_HD_DECODER_GET_DEC_PCML_NAME = "gethdDecPcmL";
 typedef int32_t* (*tAPTX_HD_DECODER_GET_DEC_PCML)(void* _state);
 
+// Get right channel of PCM data from decoded data |state|.
+// Return a pointer to the right channel of PCM data stored in |state|.
+// This function does not allocate new memory.
 static const char* APTX_HD_DECODER_GET_DEC_PCMR_NAME = "gethdDecPcmR";
 typedef int32_t* (*tAPTX_HD_DECODER_GET_DEC_PCMR)(void* _state);
 
+// Return the memory size of structure for storing decoded data.
+// This function does not allocate new memory.
 static const char* APTX_HD_DECODER_SIZEOF_PARAMS_NAME = "sizeofAptxhddec";
 typedef int32_t (*tAPTX_HD_DECODER_SIZEOF_PARAMS)(void);
 
+// Return the version of aptX HD software decoder.
+// This function does not allocate new memory.
 static const char* APTX_HD_DECODER_VERSION_NAME = "aptxhddec_version";
 typedef char* (*tAPTX_HD_DECODER_VERSION)();
 
+// Return the build of aptX HD software decoder.
+// This function does not allocate new memory.
 static const char* APTX_HD_DECODER_BUILD_NAME = "aptxhddec_build";
 typedef char* (*tAPTX_HD_DECODER_BUILD)();
 
+// Do the aptX software HD decoder authentication.
+// aptX software decoder outputs all zero if authentication fails.
+// This function does not allocate new memory.
 static const char* APTX_HD_DECODER_AUTHENTICATE_NAME = "aptxhddec_authenticate";
 typedef void (*tAPTX_HD_DECODER_AUTHENTICATE)(const char* platformName, uint32_t token);
 
@@ -95,11 +122,10 @@ tAPTX_HD_DECODER_AUTHENTICATE aptx_hd_decoder_authenticate_func;
 
 typedef struct {
   void* aptx_hd_xc;
-  int32_t* pcm_lc;
-  int32_t* pcm_rc;
   int32_t* encoded_buffer;
   uint8_t* decode_buf;
   decoded_data_callback_t decode_callback;
+  bool initialized;
 } tA2DP_APTX_HD_DECODER_CB;
 
 static tA2DP_APTX_HD_DECODER_CB a2dp_aptx_hd_decoder_cb;
@@ -244,7 +270,9 @@ void A2DP_VendorUnloadDecoderAptxHd(void) {
 }
 
 bool a2dp_vendor_aptx_hd_decoder_init(decoded_data_callback_t decode_callback) {
-  a2dp_vendor_aptx_hd_decoder_cleanup();
+  if (a2dp_aptx_hd_decoder_cb.initialized) {
+    a2dp_vendor_aptx_hd_decoder_cleanup();
+  }
 
   a2dp_aptx_hd_decoder_cb.aptx_hd_xc = osi_malloc((size_t) aptx_hd_decoder_sizeof_params_func());
   // initialize the decoder structures for big endian operation
@@ -252,30 +280,29 @@ bool a2dp_vendor_aptx_hd_decoder_init(decoded_data_callback_t decode_callback) {
 
   if(result != 0) {
     LOG_ERROR(LOG_TAG, "%s: Fail to to initialize aptX HD decoder!", __func__);
+    osi_free(a2dp_aptx_hd_decoder_cb.aptx_hd_xc);
     return result;
   }
-
-  a2dp_aptx_hd_decoder_cb.pcm_lc = reinterpret_cast<int32_t*>(osi_malloc(sizeof(int32_t) * APTX_COMPRSN_RATIO));
-  a2dp_aptx_hd_decoder_cb.pcm_rc = reinterpret_cast<int32_t*>(osi_malloc(sizeof(int32_t) * APTX_COMPRSN_RATIO));
 
   a2dp_aptx_hd_decoder_cb.encoded_buffer = reinterpret_cast<int32_t*>(osi_malloc(sizeof(int32_t) * 2));
   a2dp_aptx_hd_decoder_cb.decode_buf = reinterpret_cast<uint8_t*>(osi_malloc(BT_DEFAULT_BUFFER_SIZE));
 
   a2dp_aptx_hd_decoder_cb.decode_callback = decode_callback;
 
+  a2dp_aptx_hd_decoder_cb.initialized = true;
+
   return true;
 }
 
 void a2dp_vendor_aptx_hd_decoder_cleanup(void) {
-  free(a2dp_aptx_hd_decoder_cb.aptx_hd_xc);
+  osi_free(a2dp_aptx_hd_decoder_cb.aptx_hd_xc);
 
-  free(a2dp_aptx_hd_decoder_cb.pcm_lc);
-  free(a2dp_aptx_hd_decoder_cb.pcm_rc);
-
-  free(a2dp_aptx_hd_decoder_cb.encoded_buffer);
-  free(a2dp_aptx_hd_decoder_cb.decode_buf);
+  osi_free(a2dp_aptx_hd_decoder_cb.encoded_buffer);
+  osi_free(a2dp_aptx_hd_decoder_cb.decode_buf);
 
   memset(&a2dp_aptx_hd_decoder_cb, 0, sizeof(a2dp_aptx_hd_decoder_cb));
+
+  a2dp_aptx_hd_decoder_cb.initialized = false;
 }
 
 bool a2dp_vendor_aptx_hd_decoder_decode_packet(BT_HDR* p_buf) {
@@ -301,18 +328,18 @@ bool a2dp_vendor_aptx_hd_decoder_decode_packet(BT_HDR* p_buf) {
 
     aptx_hd_decoder_decode_stereo_func(a2dp_aptx_hd_decoder_cb.encoded_buffer, a2dp_aptx_hd_decoder_cb.aptx_hd_xc);
 
-    a2dp_aptx_hd_decoder_cb.pcm_lc = aptx_hd_decoder_get_pcml_func(a2dp_aptx_hd_decoder_cb.aptx_hd_xc);
-    a2dp_aptx_hd_decoder_cb.pcm_rc = aptx_hd_decoder_get_pcmr_func(a2dp_aptx_hd_decoder_cb.aptx_hd_xc);
+    int32_t *pcm_lc = aptx_hd_decoder_get_pcml_func(a2dp_aptx_hd_decoder_cb.aptx_hd_xc);
+    int32_t *pcm_rc = aptx_hd_decoder_get_pcmr_func(a2dp_aptx_hd_decoder_cb.aptx_hd_xc);
 
     for (pcm_idx = 0; pcm_idx < 4; pcm_idx++, buf_idx += 6) {
-      int32_t pcm_lc = a2dp_aptx_hd_decoder_cb.pcm_lc[pcm_idx];
-      int32_t pcm_rc = a2dp_aptx_hd_decoder_cb.pcm_rc[pcm_idx];
-      a2dp_aptx_hd_decoder_cb.decode_buf[buf_idx]     = static_cast<uint8_t>((pcm_lc >> 8) & 0xFF);
-      a2dp_aptx_hd_decoder_cb.decode_buf[buf_idx + 1] = static_cast<uint8_t>((pcm_lc >> 16) & 0xFF);
-      a2dp_aptx_hd_decoder_cb.decode_buf[buf_idx + 2] = static_cast<uint8_t>((pcm_lc >> 24) & 0xFF);
-      a2dp_aptx_hd_decoder_cb.decode_buf[buf_idx + 3] = static_cast<uint8_t>((pcm_rc >> 8) & 0xFF);
-      a2dp_aptx_hd_decoder_cb.decode_buf[buf_idx + 4] = static_cast<uint8_t>((pcm_rc >> 16) & 0xFF);
-      a2dp_aptx_hd_decoder_cb.decode_buf[buf_idx + 5] = static_cast<uint8_t>((pcm_rc >> 24) & 0xFF);
+      int32_t lc = pcm_lc[pcm_idx];
+      int32_t rc = pcm_rc[pcm_idx];
+      a2dp_aptx_hd_decoder_cb.decode_buf[buf_idx]     = static_cast<uint8_t>((lc >> 8) & 0xFF);
+      a2dp_aptx_hd_decoder_cb.decode_buf[buf_idx + 1] = static_cast<uint8_t>((lc >> 16) & 0xFF);
+      a2dp_aptx_hd_decoder_cb.decode_buf[buf_idx + 2] = static_cast<uint8_t>((lc >> 24) & 0xFF);
+      a2dp_aptx_hd_decoder_cb.decode_buf[buf_idx + 3] = static_cast<uint8_t>((rc >> 8) & 0xFF);
+      a2dp_aptx_hd_decoder_cb.decode_buf[buf_idx + 4] = static_cast<uint8_t>((rc >> 16) & 0xFF);
+      a2dp_aptx_hd_decoder_cb.decode_buf[buf_idx + 5] = static_cast<uint8_t>((rc >> 24) & 0xFF);
     }
 
     frame_len += 24 * sizeof(int8_t);
