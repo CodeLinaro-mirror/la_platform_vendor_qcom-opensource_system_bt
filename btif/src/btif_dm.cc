@@ -424,6 +424,19 @@ static uint32_t get_cod(const RawAddress* remote_bdaddr) {
   return 0;
 }
 
+static bt_status_t get_disc_reason(uint8_t status) {
+  bt_status_t reason =  BT_STATUS_SUCCESS;
+  switch (status) {
+    case HCI_ERR_CONNECTION_TOUT: {
+      BTIF_TRACE_DEBUG("ACL disconnected due to link loss");
+      reason = BT_STATUS_RMT_DEV_DOWN;
+    } break;
+    default:
+      break;
+  }
+  return reason;
+}
+
 bool check_cod(const RawAddress* remote_bdaddr, uint32_t cod) {
   return get_cod(remote_bdaddr) == cod;
 }
@@ -1735,7 +1748,8 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       btif_av_acl_disconnected(bd_addr);
       BTIF_TRACE_DEBUG(
           "BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
-      HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
+      HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb,
+                get_disc_reason(p_data->link_down.status),
                 &bd_addr, BT_ACL_STATE_DISCONNECTED);
       break;
 
