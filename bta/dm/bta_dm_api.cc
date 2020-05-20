@@ -1266,3 +1266,38 @@ void BTA_VendorCleanup(void) {
 
   if (cmn_ble_vsc_cb.adv_inst_max > 0) btm_ble_multi_adv_cleanup();
 }
+
+/*******************************************************************************
+ *
+ * Function         BTA_DmProcessQueuedServiceDiscovery
+ *
+ * Description      This function processes queued service discovery
+ *
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_DmProcessQueuedServiceDiscovery(void) {
+  uint8_t transport = BT_DEVICE_TYPE_BREDR;
+
+  APPL_TRACE_API("BTA_DmProcessQueuedServiceDiscovery");
+
+  while (!bta_dm_search_cb.p_disc_queue.empty()) {
+    APPL_TRACE_API("Processing queued service discovery");
+
+    tBTA_DM_MSG* p_data =(tBTA_DM_MSG*) bta_dm_search_cb.p_disc_queue.front();
+    bta_dm_search_cb.p_disc_queue.pop();
+    RawAddress bda = p_data->discover.bd_addr;
+
+    if (p_data->discover.transport != BT_TRANSPORT_INVALID) {
+      transport = p_data->discover.transport;
+    }
+    if (BTM_IsAclConnectionUp(bda, transport)) {
+      bta_sys_sendmsg(p_data);
+      break;
+    }
+    else if (p_data) {
+      osi_free(p_data);
+    }
+  }
+}

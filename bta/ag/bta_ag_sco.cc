@@ -714,7 +714,7 @@ static void bta_ag_create_pending_sco(tBTA_AG_SCB* p_scb, bool is_local) {
     /* Bypass voice settings if enhanced SCO setup command is supported */
     if (!(controller_get_interface()
               ->supports_enhanced_setup_synchronous_connection() &&
-          (osi_property_get("vendor.bluetooth.soc", value, "qcombtsoc") &&
+          (osi_property_get("vendor.qcom.bluetooth.soc", value, "qcombtsoc") &&
            (strcmp(value, "cherokee") == 0  || strcmp(value, "hastings") == 0)))) {
 #if (BLUETOOTH_QTI_SW == FALSE) /* These changes are not needed*/
       if (esco_codec == BTA_AG_CODEC_MSBC)

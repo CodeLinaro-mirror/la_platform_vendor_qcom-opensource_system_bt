@@ -204,6 +204,7 @@ AC_CONFIG_FILES([ \
          embdrv/sbc/decoder/Makefile \
          btif/Makefile
          audio_a2dp_hw/Makefile \
+         include/Makefile \
          ])
 
 AC_OUTPUT

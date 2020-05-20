@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "a2dp_int.h"
 #include "a2dp_sbc.h"
 #include "a2dp_sbc_up_sample.h"
 #include "bt_common.h"
@@ -65,14 +66,8 @@
 #define A2DP_SBC_SCALE_FACTOR_BITS 4        // A2DP Spec v1.3, 12.4, Table 12.13
 
 /* offset */
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-/* A2DP header will contain a CP header of size 1 */
-#define A2DP_HDR_SIZE 2
-#define A2DP_SBC_OFFSET (AVDT_MEDIA_OFFSET + A2DP_SBC_MPL_HDR_LEN + 1)
-#else
 #define A2DP_HDR_SIZE 1
 #define A2DP_SBC_OFFSET (AVDT_MEDIA_OFFSET + A2DP_SBC_MPL_HDR_LEN)
-#endif
 
 typedef struct {
   uint32_t aa_frame_counter;
@@ -266,6 +261,9 @@ static void a2dp_sbc_encoder_update(uint16_t peer_mtu,
   }
 
   uint16_t mtu_size = A2DP_SBC_BUFFER_SIZE - A2DP_SBC_OFFSET - sizeof(BT_HDR);
+  if (a2dp_is_cp_enabled()) {
+    mtu_size--;  //1 byte for cp header
+  }
   if (mtu_size < peer_mtu) {
     a2dp_sbc_encoder_cb.TxAaMtuSize = mtu_size;
   } else {
@@ -569,6 +567,9 @@ static void a2dp_sbc_encode_frames(uint8_t nb_frame) {
     BT_HDR* p_buf = (BT_HDR*)osi_malloc(A2DP_SBC_BUFFER_SIZE);
     uint32_t bytes_read = 0;
     p_buf->offset = A2DP_SBC_OFFSET;
+    if (a2dp_is_cp_enabled()) {
+      p_buf->offset++;   //1 byte for cp header
+    }
     p_buf->len = 0;
     p_buf->layer_specific = 0;
     a2dp_sbc_encoder_cb.stats.media_read_total_expected_packets++;
@@ -841,7 +842,12 @@ static uint8_t calculate_max_frames_per_packet(void) {
                   __func__, A2DP_SBC_MAX_HQ_FRAME_SIZE_44_1);
         frame_len = A2DP_SBC_MAX_HQ_FRAME_SIZE_44_1;
       }
-      result = (effective_mtu_size - A2DP_HDR_SIZE) / frame_len;
+      if (a2dp_is_cp_enabled()) {
+        //A2DP header also contains CP header
+        result = (effective_mtu_size - A2DP_HDR_SIZE -1) /frame_len;
+      } else {
+        result = (effective_mtu_size - A2DP_HDR_SIZE) /frame_len;
+      }
       LOG_VERBOSE(LOG_TAG, "%s: Max number of SBC frames: %d", __func__,
                   result);
       break;
@@ -853,7 +859,11 @@ static uint8_t calculate_max_frames_per_packet(void) {
                   __func__, A2DP_SBC_MAX_HQ_FRAME_SIZE_48);
         frame_len = A2DP_SBC_MAX_HQ_FRAME_SIZE_48;
       }
-      result = (effective_mtu_size - A2DP_HDR_SIZE) / frame_len;
+      if (a2dp_is_cp_enabled()) {
+        result = (effective_mtu_size - A2DP_HDR_SIZE - 1) / frame_len;
+      } else {
+        result = (effective_mtu_size - A2DP_HDR_SIZE) / frame_len;
+      }
       LOG_VERBOSE(LOG_TAG, "%s: Max number of SBC frames: %d", __func__,
                   result);
       break;

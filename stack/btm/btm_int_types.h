@@ -195,6 +195,7 @@ typedef struct {
                                 /* itself or peer device doesn't support */
                                 /* secure connections */
   tBTM_VS_EVT_CB *p_vnd_iot_info_cb;
+  tBTM_VS_EVT_CB *p_vnd_cp_flag_cb; //cb for SCMST CP flag/header
 } tBTM_DEVCB;
 
 /* Define the structures and constants used for inquiry
@@ -495,6 +496,7 @@ typedef uint8_t tBTM_BOND_TYPE;
 typedef struct {
   tBTM_SEC_SERV_REC* p_cur_service;
   tBTM_SEC_CALLBACK* p_callback;
+  tBTM_SEC_CALLBACK* p_ble_callback;
   void* p_ref_data;
   uint32_t timestamp; /* Timestamp of the last connection   */
   uint32_t trusted_mask[BTM_SEC_SERVICE_ARRAY_SIZE]; /* Bitwise OR of trusted

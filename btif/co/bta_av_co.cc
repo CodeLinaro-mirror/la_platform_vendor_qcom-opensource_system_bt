@@ -240,17 +240,18 @@ bool bta_av_co_cp_is_active(void) { return bta_av_co_cb.cp.active; }
  ** Returns          true if setting the SCMS flag is supported else false
  **
  ******************************************************************************/
-static bool bta_av_co_cp_set_flag(uint8_t cp_flag) {
-  APPL_TRACE_DEBUG("%s: cp_flag = %d", __func__, cp_flag);
+bool bta_av_co_cp_set_flag(uint8_t cp_flag) {
+  APPL_TRACE_ERROR("%s: cp_flag = %d", __func__, cp_flag);
 
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-#else
-  if (cp_flag != AVDT_CP_SCMS_COPY_FREE) {
+  if ((!btif_av_is_cp_enabled()) && (cp_flag != AVDT_CP_SCMS_COPY_FREE)) {
     return false;
   }
-#endif
-  bta_av_co_cb.cp.flag = cp_flag;
-  return true;
+  //Check if cp_flag value changed
+  if (bta_av_co_cb.cp.flag != cp_flag) {
+    bta_av_co_cb.cp.flag = cp_flag;
+    return true;
+  }
+  return false;
 }
 
 /*******************************************************************************
@@ -483,10 +484,10 @@ static tA2DP_STATUS bta_av_audio_sink_getconfig(
       /* By default, no content protection */
       *p_num_protect = 0;
 
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-      p_peer->cp_active = false;
-      bta_av_co_cb.cp.active = false;
-#endif
+      if (btif_av_is_cp_enabled()) {
+        p_peer->cp_active = false;
+        bta_av_co_cb.cp.active = false;
+      }
 
       *p_sep_info_idx = p_src->sep_info_idx;
       memcpy(p_codec_info, p_peer->codec_config, AVDT_CODEC_SIZE);
@@ -576,12 +577,11 @@ tA2DP_STATUS bta_av_co_audio_getconfig(tBTA_AV_HNDL hndl, uint8_t* p_codec_info,
 
   // By default, no content protection
   *p_num_protect = 0;
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-  if (p_peer->cp_active) {
+  if (btif_av_is_cp_enabled() && p_peer->cp_active) {
     *p_num_protect = AVDT_CP_INFO_LEN;
     memcpy(p_protect_info, bta_av_co_cp_scmst, AVDT_CP_INFO_LEN);
   }
-#endif
+
 
   // If acceptor -> reconfig otherwise reply for configuration.
   if (p_peer->acp) {
@@ -658,21 +658,26 @@ void bta_av_co_audio_setconfig(tBTA_AV_HNDL hndl, const uint8_t* p_codec_info,
   }
 
   if (num_protect != 0) {
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
     /* If CP is supported */
-    if ((num_protect != 1) ||
-        (bta_av_co_cp_is_scmst(p_protect_info) == false)) {
+    if (btif_av_is_cp_enabled()) {
+      if((num_protect == 1) &&
+           (bta_av_co_cp_is_scmst(p_protect_info) == true)) {
+        APPL_TRACE_ERROR("%s: SCMST CP configured", __func__);
+        bta_av_co_cb.cp.active = true;
+        p_peer->cp_active = true;
+      } else {
+        APPL_TRACE_ERROR("%s: wrong CP configuration", __func__);
+        status = A2DP_BAD_CP_TYPE;
+        category = AVDT_ASC_PROTECT;
+      }
+    } else {
+      /* CP is not enabled, reject connection. */
       APPL_TRACE_ERROR("%s: wrong CP configuration", __func__);
       status = A2DP_BAD_CP_TYPE;
       category = AVDT_ASC_PROTECT;
     }
-#else
-    /* Do not support content protection for the time being */
-    APPL_TRACE_ERROR("%s: wrong CP configuration", __func__);
-    status = A2DP_BAD_CP_TYPE;
-    category = AVDT_ASC_PROTECT;
-#endif
   }
+
 
   if (status == A2DP_SUCCESS) {
     bool codec_config_supported = false;
@@ -849,14 +854,12 @@ void* bta_av_co_audio_src_data_path(const uint8_t* p_codec_info,
             p_timestamp) || !A2DP_BuildCodecHeader(p_codec_info, p_buf, p_buf->layer_specific)) {
       APPL_TRACE_ERROR("%s: unsupported codec type (%d)", __func__, A2DP_GetCodecType(p_codec_info));
     }
-    #if (BTA_AV_CO_CP_SCMS_T == TRUE)
-    if (bta_av_co_cb.cp.active) {
+    if (btif_av_is_cp_enabled() && bta_av_co_cb.cp.active) {
       p_buf->len++;
       p_buf->offset--;
       uint8_t* p = (uint8_t*)(p_buf + 1) + p_buf->offset;
       *p = bta_av_co_cp_get_flag();
     }
-    #endif
  }
   return p_buf;
 }
@@ -1119,7 +1122,8 @@ static tBTA_AV_CO_SINK* bta_av_co_audio_codec_selected(
           "%s: peer sink for codec %s does not support "
           "Copy Protection",
           __func__, codec_config.name().c_str());
-      continue;
+      //continue;
+      //Allow connection, even if remote doesn't support SCMST
     }
     p_sink = &p_peer->sinks[index];
     break;
@@ -1181,7 +1185,8 @@ static bool bta_av_co_audio_update_selectable_codec(
           "%s: peer sink for codec %s does not support "
           "Copy Protection",
           __func__, codec_config.name().c_str());
-      continue;
+      //continue;
+      //Allow connection. even if remote doesn't support SCMST
     }
     p_sink = &p_peer->sinks[index];
     break;
@@ -1214,13 +1219,13 @@ static void bta_av_co_save_new_codec_config(tBTA_AV_CO_PEER* p_peer,
          sizeof(bta_av_co_cb.codec_config));
   memcpy(p_peer->codec_config, new_codec_config, AVDT_CODEC_SIZE);
 
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-  /* Check if this sink supports SCMS */
-  bool cp_active =
+  if (btif_av_is_cp_enabled()) {
+    /* Check if this sink supports SCMS */
+    bool cp_active =
       bta_av_co_audio_protect_has_scmst(num_protect, p_protect_info);
-  bta_av_co_cb.cp.active = cp_active;
-  p_peer->cp_active = cp_active;
-#endif
+    bta_av_co_cb.cp.active = cp_active;
+    p_peer->cp_active = cp_active;
+  }
 
   // Protect access to bta_av_co_cb.codec_config
   mutex_global_unlock();
@@ -1372,9 +1377,9 @@ bool bta_av_co_set_codec_user_config(
 
   if (restart_output) {
     uint8_t num_protect = 0;
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-    if (p_peer->cp_active) num_protect = AVDT_CP_INFO_LEN;
-#endif
+  if (btif_av_is_cp_enabled() && p_peer->cp_active) {
+    num_protect = AVDT_CP_INFO_LEN;
+  }
 
     p_sink = bta_av_co_audio_set_codec(p_peer);
     if (p_sink == NULL) {
@@ -1550,9 +1555,9 @@ bool bta_av_co_set_codec_audio_config(
 
   if (restart_output) {
     uint8_t num_protect = 0;
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-    if (p_peer->cp_active) num_protect = AVDT_CP_INFO_LEN;
-#endif
+    if (btif_av_is_cp_enabled() && p_peer->cp_active) {
+      num_protect = AVDT_CP_INFO_LEN;
+    }
 
     bta_av_co_save_new_codec_config(p_peer, result_codec_config,
                                     p_sink->num_protect, p_sink->protect_info);
@@ -1603,6 +1608,21 @@ A2dpCodecs* bta_av_get_peer_a2dp_codecs(const RawAddress& bd_addr) {
     return p_peer->codecs;
   }
   return nullptr;
+}
+
+
+bool bta_av_get_peer_cp_status(const RawAddress& bd_addr) {
+  tBTA_AV_CO_PEER* p_peer;
+  size_t i;
+  for (i = 0; i < BTA_AV_CO_NUM_ELEMENTS(bta_av_co_cb.peers); i++) {
+    p_peer = &bta_av_co_cb.peers[i];
+    if (p_peer->addr == bd_addr) break;
+  }
+  if(p_peer != NULL ) {
+    //cp_active is true if peer sink supports SCMST CP
+    return p_peer->cp_active;
+  }
+  return false;
 }
 
 A2dpCodecConfig* bta_av_get_a2dp_current_codec(void) {
@@ -1684,11 +1704,11 @@ void bta_av_co_init(std::vector<btav_a2dp_codec_config_t>& codec_user_list) {
   /* Reset the control block */
   bta_av_co_cb.reset();
 
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-  bta_av_co_cp_set_flag(AVDT_CP_SCMS_COPY_NEVER);
-#else
-  bta_av_co_cp_set_flag(AVDT_CP_SCMS_COPY_FREE);
-#endif
+  if (btif_av_is_cp_enabled()) {
+    bta_av_co_cp_set_flag(AVDT_CP_SCMS_COPY_NEVER);
+  } else {
+    bta_av_co_cp_set_flag(AVDT_CP_SCMS_COPY_FREE);
+  }
 
   std::vector<btav_a2dp_codec_config_t> codec_user_list_without_duplicate = remove_codec_duplicate(codec_user_list);
   APPL_TRACE_DEBUG("codec_user_list_without_duplicate (for incoming connection)");

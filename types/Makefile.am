@@ -28,3 +28,9 @@ libbttypes_la_CPPFLAGS = $(AM_CPPFLAGS) -std=c++11 -Wall -fPIC
 libbttypes_la_CPPFLAGS += $(AM_CFLAGS)
 libbttypes_la_CFLAGS = $(common_CFLAGS)
 libbttypes_la_LDFLAGS = $(common_LDFLAGS) -static
+
+fluoridetypesincludesdir = $(includedir)/fluoride/types
+fluoridetypesbluetoothincludesdir = $(includedir)/fluoride/bluetooth
+
+fluoridetypesincludes_HEADERS = $(wildcard *.h)
+fluoridetypesbluetoothincludes_HEADERS = $(wildcard bluetooth/*.h)

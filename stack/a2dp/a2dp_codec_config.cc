@@ -603,10 +603,12 @@ void add_mandatory_codec(std::vector<btav_a2dp_codec_config_t>* p_codec_config_l
         LOG_DEBUG(LOG_TAG," Added Mandatory SBC codec at index %d", ++num_codec_configs);
       }
     }
-    for(int xx=0; xx < BTAV_A2DP_CODEC_INDEX_SOURCE_MAX; xx++)
+    for(int xx=0; xx < BTAV_A2DP_CODEC_INDEX_SOURCE_MAX; xx++) {
+      LOG_DEBUG(LOG_TAG," removing codec at index %d\n", xx);
+      if (codec_config[xx] != nullptr)
         delete codec_config[xx];
+    }
 }
-
 
 bool A2dpCodecs::init(bool isMulticastEnabled, bool isShoEnabled, std::vector<btav_a2dp_codec_config_t> codec_user_list) {
   LOG_DEBUG(LOG_TAG, "%s", __func__);
