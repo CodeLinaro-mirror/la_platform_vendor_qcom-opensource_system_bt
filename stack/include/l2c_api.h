@@ -127,7 +127,17 @@ typedef uint8_t tL2CAP_CHNL_DATA_RATE;
  */
 #define L2C_INVALID_PSM(psm) (((psm)&0x0101) != 0x0001)
 #define L2C_IS_VALID_PSM(psm) (((psm)&0x0101) == 0x0001)
-#define L2C_IS_VALID_LE_PSM(psm) (((psm) > 0x0000) && ((psm) < 0x0100))
+#define L2C_IS_VALID_COC_PSM(psm) (((psm) > 0x0000) && ((psm) < 0x0100))
+
+#define L2C_MAX_ECFC_CHNLS_PER_CONN 5
+
+#define L2C_COC_CONNECT_REQ_SUCCESS 0
+#define L2C_PSM_NOT_REGISTERED 1
+#define L2C_LCB_NOT_ALLOCATED 2
+#define L2C_CONTROLLER_NOT_READY 3
+#define L2C_SOME_CONNS_ACCEPTED 4
+#define L2C_NO_RESOURCE_AVALIABLE 5
+#define L2C_INVALID_CONNECTION_PARAMS 6
 
 /*****************************************************************************
  *  Type Definitions
@@ -138,6 +148,7 @@ typedef struct {
 #define L2CAP_FCR_ERTM_MODE 0x03
 #define L2CAP_FCR_STREAM_MODE 0x04
 #define L2CAP_FCR_LE_COC_MODE 0x05
+#define L2CAP_FCR_ECFC_MODE 0x06
 
   uint8_t mode;
 
@@ -169,6 +180,35 @@ typedef struct {
   uint16_t flags; /* bit 0: 0-no continuation, 1-continuation */
 } tL2CAP_CFG_INFO;
 
+/* Define a structure to hold the Connection request parameters for L2CAP
+ * connection oriented channels.
+ */
+typedef struct t_l2cap_coc_conn_req{
+  uint16_t psm;
+  uint16_t mtu;
+  uint16_t sr_cids[L2C_MAX_ECFC_CHNLS_PER_CONN];
+  RawAddress p_bd_addr;
+  uint8_t num_chnls;
+  uint8_t transport;
+} tL2CAP_COC_CONN_REQ;
+
+/* Define a structure to hold the Channel map information for L2CAP
+ * connection oriented channels.
+ */
+typedef struct t_l2cap_coc_chmap_info{
+  uint16_t sr_cids[L2C_MAX_ECFC_CHNLS_PER_CONN];
+  uint8_t num_chnls;
+} tL2CAP_COC_CHMAP_INFO;
+
+/* Define a structure to hold the Connection response parameters for L2CAP
+ * connection oriented channels.
+ */
+typedef struct t_l2cap_coc_conn_rsp{
+  uint16_t l2cap_id;
+  uint16_t result;
+  uint16_t status;
+} tL2CAP_COC_CONN_RSP;
+
 /* Define a structure to hold the configuration parameter for LE L2CAP
  * connection oriented channels.
  */
@@ -176,7 +216,7 @@ typedef struct {
   uint16_t mtu;
   uint16_t mps;
   uint16_t credits;
-} tL2CAP_LE_CFG_INFO;
+} tL2CAP_COC_CFG_INFO;
 
 /* L2CAP channel configured field bitmap */
 #define L2CAP_CH_CFG_MASK_MTU 0x0001
@@ -289,9 +329,52 @@ typedef void(tL2CA_TX_COMPLETE_CB)(uint16_t, uint16_t);
  * Control Credit" packet from the remote. |credit_count| parameter represents
  * the total available credits, including |credit_received|.
  */
-typedef void(tL2CA_CREDITS_RECEIVED_CB)(uint16_t local_cid,
+typedef void(tL2CA_CREDITS_RECEIVED_CB) (uint16_t local_cid,
                                         uint16_t credits_received,
                                         uint16_t credit_count);
+
+/* Callback prototype CoC Connection confirmation. Parameters are
+ *              chmap_info - This parameter contains structure
+ *                           tL2CAP_COC_CHMAP_INFO having allocated sr_cids
+ *                           and num of channels.
+ *              p_mtu        - This parameter informs peer mtu value
+ *              result     - This parameter contains whether the Enhanced
+ *                           credit based flow control mode connection is
+ *                           successful or failed?
+ */
+typedef void(tL2CA_COC_CONNECT_CFM_CB) (tL2CAP_COC_CHMAP_INFO  *chmap_info,
+                                        uint16_t p_mtu,
+                                        uint16_t result,
+                                        uint16_t status);
+
+/* Callback prototype CoC Connection Indication. Parameters are
+ *              p_conn_rsp - This parameter contains structure
+ *                           tL2CAP_COC_CONN_RSP.
+ */
+typedef void (tL2CA_COC_CONNECT_IND_CB) (tL2CAP_COC_CONN_REQ *p_conn_req,
+                                         uint16_t l2cap_id,
+                                         uint16_t result,
+                                         uint16_t status);
+
+/* Callback prototype CoC reconfiguration confirmation. Parameters are
+ *              chmap_info - This parameter contains structure
+ *                           tL2CAP_COC_CHMAP_INFO having allocated sr_cids
+ *                           and num of channels.
+ *              result     - This parameter contains whether the Enhanced
+ *                           credit based flow control mode reconfiguration is
+ *                           successful or failed?
+ */
+typedef void (tL2CA_COC_RECONFIG_CFM_CB) (tL2CAP_COC_CHMAP_INFO* chmap_info,
+                                          uint16_t result);
+
+/* Callback prototype CoC reconfiguration confirmation. Parameters are
+ *              chmap_info - This parameter contains structure
+ *                           tL2CAP_COC_CHMAP_INFO having allocated sr_cids
+ *                           and num of channels.
+ *              p_mtu        This parameter informs peer mtu value
+ */
+typedef void (tL2CA_COC_RECONFIG_IND_CB) (tL2CAP_COC_CHMAP_INFO* chmap_info,
+                                          uint16_t p_mtu);
 
 /* Define the structure that applications use to register with
  * L2CAP. This structure includes callback functions. All functions
@@ -312,6 +395,24 @@ typedef struct {
   tL2CA_TX_COMPLETE_CB* pL2CA_TxComplete_Cb;
   tL2CA_CREDITS_RECEIVED_CB* pL2CA_CreditsReceived_Cb;
 } tL2CAP_APPL_INFO;
+
+/* Define the structure that applications use to register with
+ * L2CAP ECFC mode. This structure includes callback functions. All functions
+ * MUST be provided, with the exception of the "connect pending"
+ * callback and "congestion status" callback.
+ */
+typedef struct {
+  tL2CA_COC_CONNECT_IND_CB* pL2CA_CocConnectInd_Cb;
+  tL2CA_COC_CONNECT_CFM_CB* pL2CA_CocConnectCfm_Cb;
+  tL2CA_COC_RECONFIG_IND_CB* pL2CA_ReConfigInd_Cb;
+  tL2CA_COC_RECONFIG_CFM_CB* pL2CA_ReConfigCfm_Cb;
+  tL2CA_DISCONNECT_IND_CB* pL2CA_DisconnectInd_Cb;
+  tL2CA_DISCONNECT_CFM_CB* pL2CA_DisconnectCfm_Cb;
+  tL2CA_DATA_IND_CB* pL2CA_DataInd_Cb;
+  tL2CA_CONGESTION_STATUS_CB* pL2CA_CongestionStatus_Cb;
+  tL2CA_TX_COMPLETE_CB* pL2CA_TxComplete_Cb;
+  tL2CA_CREDITS_RECEIVED_CB* pL2CA_CocCreditsReceived_Cb;
+} tL2CAP_COC_APPL_INFO;
 
 /* Define the structure that applications use to create or accept
  * connections with enhanced retransmission mode.
@@ -336,7 +437,7 @@ typedef struct {
 #define L2CA_DISCONNECT_RSP(a) L2CA_DisconnectRsp(a)
 #define L2CA_DATA_WRITE(a, b) L2CA_DataWrite(a, b)
 #define L2CA_REGISTER_COC(a, b, c) L2CA_RegisterLECoc(a, (tL2CAP_APPL_INFO*)(b))
-#define L2CA_DEREGISTER_COC(a) L2CA_DeregisterLECoc(a)
+#define L2CA_DEREGISTER_COC(a) L2CA_DeregisterCoc(a)
 #define L2CA_CONNECT_COC_REQ(a, b, c) L2CA_ConnectLECocReq(a, b, c)
 #define L2CA_CONNECT_COC_RSP(a, b, c, d, e, f) \
   L2CA_ConnectLECocRsp(a, b, c, d, e, f)
@@ -365,6 +466,23 @@ extern uint16_t L2CA_Register(uint16_t psm, tL2CAP_APPL_INFO* p_cb_info,
 
 /*******************************************************************************
  *
+ * Function         L2CA_RegisterCoc
+ *
+ * Description      Other layers call this function to register for L2CAP
+ *                  services.
+ *
+ * Returns          PSM to use or zero if error. Typically, the PSM returned
+ *                  is the same as was passed in, but for an outgoing-only
+ *                  connection to a dynamic PSM, a "virtual" PSM is returned
+ *                  and should be used in the calls to L2CA_CocConnectReq() and
+ *                  BTM_SetSecurityLevel().
+ *
+ ******************************************************************************/
+extern uint16_t L2CA_RegisterCoc(uint16_t psm, tL2CAP_COC_APPL_INFO* p_coc_cb_info,
+                              bool enable_snoop);
+
+/*******************************************************************************
+ *
  * Function         L2CA_Deregister
  *
  * Description      Other layers call this function to deregister for L2CAP
@@ -374,6 +492,19 @@ extern uint16_t L2CA_Register(uint16_t psm, tL2CAP_APPL_INFO* p_cb_info,
  *
  ******************************************************************************/
 extern void L2CA_Deregister(uint16_t psm);
+
+/*******************************************************************************
+ *
+ * Function         L2CA_DeregisterCoc
+ *
+ * Description      Other layers call this function to deregister for L2CAP
+ *                  services.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+extern void L2CA_DeregisterCoc(uint16_t psm);
+
 
 /*******************************************************************************
  *
@@ -389,7 +520,7 @@ extern uint16_t L2CA_AllocatePSM(void);
 
 /*******************************************************************************
  *
- * Function         L2CA_AllocateLePSM
+ * Function         L2CA_AllocateCocPSM
  *
  * Description      Other layers call this function to find an unused LE PSM for
  *                  L2CAP services.
@@ -397,18 +528,18 @@ extern uint16_t L2CA_AllocatePSM(void);
  * Returns          LE_PSM to use if success. Otherwise returns 0.
  *
  ******************************************************************************/
-extern uint16_t L2CA_AllocateLePSM(void);
+extern uint16_t L2CA_AllocateCocPSM(void);
 
 /*******************************************************************************
  *
- * Function         L2CA_FreeLePSM
+ * Function         L2CA_FreeCocPSM
  *
  * Description      Free an assigned LE PSM.
  *
  * Returns          void
  *
  ******************************************************************************/
-extern void L2CA_FreeLePSM(uint16_t psm);
+extern void L2CA_FreeCocPSM(uint16_t psm);
 
 /*******************************************************************************
  *
@@ -427,6 +558,30 @@ extern uint16_t L2CA_ConnectReq(uint16_t psm, const RawAddress& p_bd_addr);
 
 /*******************************************************************************
  *
+ * Function         L2CA_ConnectCocReq
+ *
+ * Description      Higher layers call this function to create an L2CAP
+ *                  connection.
+ *                  Note that the connection is not established at this time,
+ *                  but connection establishment gets started. The callback
+ *                  will be invoked when connection establishes or fails.
+ *
+ * Returns         It gives whether the connection request is successful or not.
+ *                 If it fails, below are the errors code which upper layer needs
+ *                 to handle it.
+ *                 0 – Success
+ *                 1 – psm not registered thus no CCB is allocated.
+ *                 2 – LCB cannot be allocated thus no CCB allocated
+ *                 3 – Controller is not Ready. thus no CCB allocated
+ *                 4 – No Resource available for CCB
+ *                 5 – Some CCB’s are allocated.
+ *                 Upper layer should check sr_cids[] from p_chmap_info for valid cids.
+ *
+ ******************************************************************************/
+extern int8_t L2CA_ConnectCocReq (tL2CAP_COC_CONN_REQ *conn_req);
+
+/*******************************************************************************
+ *
  * Function         L2CA_ConnectRsp
  *
  * Description      Higher layers call this function to accept an incoming
@@ -438,6 +593,22 @@ extern uint16_t L2CA_ConnectReq(uint16_t psm, const RawAddress& p_bd_addr);
  ******************************************************************************/
 extern bool L2CA_ConnectRsp(const RawAddress& p_bd_addr, uint8_t id,
                             uint16_t lcid, uint16_t result, uint16_t status);
+
+/*******************************************************************************
+ *
+ * Function         L2CA_ConnectCocRsp
+ *
+ * Description      Higher layers call this function to accept an incoming
+ *                  L2CAP ECFC mode connection, for which they had gotten an
+ *                  CocConnect indication callback.
+ *
+ * Returns          true for success, false for failure
+ *
+ ******************************************************************************/
+extern bool L2CA_ConnectCocRsp(tL2CAP_COC_CONN_REQ *p_conn_req,
+                                uint16_t l2cap_id,
+                                uint16_t result,
+                                uint16_t status);
 
 /*******************************************************************************
  *
@@ -473,7 +644,7 @@ extern uint16_t L2CA_RegisterLECoc(uint16_t psm, tL2CAP_APPL_INFO* p_cb_info);
 
 /*******************************************************************************
  *
- * Function         L2CA_DeregisterLECoc
+ * Function         L2CA_DeregisterCoc
  *
  * Description      Other layers call this function to deregister for L2CAP
  *                  Connection Oriented Channel.
@@ -481,7 +652,7 @@ extern uint16_t L2CA_RegisterLECoc(uint16_t psm, tL2CAP_APPL_INFO* p_cb_info);
  * Returns          void
  *
  ******************************************************************************/
-extern void L2CA_DeregisterLECoc(uint16_t psm);
+extern void L2CA_DeregisterCoc(uint16_t psm);
 
 /*******************************************************************************
  *
@@ -496,7 +667,7 @@ extern void L2CA_DeregisterLECoc(uint16_t psm);
  *
  ******************************************************************************/
 extern uint16_t L2CA_ConnectLECocReq(uint16_t psm, const RawAddress& p_bd_addr,
-                                     tL2CAP_LE_CFG_INFO* p_cfg);
+                                     tL2CAP_COC_CFG_INFO* p_cfg);
 
 /*******************************************************************************
  *
@@ -511,7 +682,7 @@ extern uint16_t L2CA_ConnectLECocReq(uint16_t psm, const RawAddress& p_bd_addr,
  ******************************************************************************/
 extern bool L2CA_ConnectLECocRsp(const RawAddress& p_bd_addr, uint8_t id,
                                  uint16_t lcid, uint16_t result,
-                                 uint16_t status, tL2CAP_LE_CFG_INFO* p_cfg);
+                                 uint16_t status, tL2CAP_COC_CFG_INFO* p_cfg);
 
 /*******************************************************************************
  *
@@ -523,7 +694,7 @@ extern bool L2CA_ConnectLECocRsp(const RawAddress& p_bd_addr, uint8_t id,
  *
  ******************************************************************************/
 extern bool L2CA_GetPeerLECocConfig(uint16_t lcid,
-                                    tL2CAP_LE_CFG_INFO* peer_cfg);
+                                    tL2CAP_COC_CFG_INFO* peer_cfg);
 
 // This function sets the callback routines for the L2CAP connection referred to
 // by |local_cid|. The callback routines can only be modified for outgoing
@@ -562,6 +733,18 @@ extern bool L2CA_ConfigReq(uint16_t cid, tL2CAP_CFG_INFO* p_cfg);
 
 /*******************************************************************************
  *
+ * Function         L2CA_CocConfigReq
+ *
+ * Description      Higher layers call this function to send ReConfiguration.
+ *
+ * Returns          true if ReConfiguration sent, else false
+ *
+ ******************************************************************************/
+extern bool L2CA_CocReConfigReq(tL2CAP_COC_CHMAP_INFO* chmap_info,
+                         uint16_t mtu);
+
+/*******************************************************************************
+ *
  * Function         L2CA_ConfigRsp
  *
  * Description      Higher layers call this function to send a configuration
@@ -571,6 +754,19 @@ extern bool L2CA_ConfigReq(uint16_t cid, tL2CAP_CFG_INFO* p_cfg);
  *
  ******************************************************************************/
 extern bool L2CA_ConfigRsp(uint16_t cid, tL2CAP_CFG_INFO* p_cfg);
+
+/*******************************************************************************
+ *
+ * Function         L2CA_ConfigRsp
+ *
+ * Description      Higher layers call this function to send a ReConfiguration
+ *                  response.
+ *
+ * Returns          true if ReConfiguration response sent, else false
+ *
+ ******************************************************************************/
+bool L2CA_CocReConfigRsp (tL2CAP_COC_CHMAP_INFO* chmap_info,
+                          uint16_t result);
 
 /*******************************************************************************
  *
@@ -928,6 +1124,24 @@ extern uint8_t L2CA_GetChnlFcrMode(uint16_t lcid);
 *******************************************************************************/
 
 extern bool L2CA_LE_SetFlowControlCredits (uint16_t cid, uint16_t credits);
+
+/*******************************************************************************
+**
+**  Function         L2CA_ReadData
+**
+**  Description      Upper layers Read the Data from the RX Queue.
+**
+**  Parameters:      Local CID, p_data
+**                   p_data - Pointer will assign to the p_data from
+**                            RX_Queue.
+**
+**  Return value:    TRUE if Data is present in the queue.
+**                   FALSE if RX queue is empty
+**
+*******************************************************************************/
+
+extern bool L2CA_ReadData (uint16_t cid, BT_HDR* p_data);
+
 
 /*******************************************************************************
  *

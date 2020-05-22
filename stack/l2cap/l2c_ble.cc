@@ -503,6 +503,9 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
     return;
   }
 
+  L2CAP_TRACE_WARNING(
+        "L2CAP - LE - Signalling packet, pkt_len: %d  cmd_len: %d  code: %d",
+        pkt_len, cmd_len, cmd_code);
   switch (cmd_code) {
     case L2CAP_CMD_REJECT:
       p += 2;
@@ -591,7 +594,7 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         break;
       }
 
-      p_rcb = l2cu_find_ble_rcb_by_psm(con_info.psm);
+      p_rcb = l2cu_find_coc_rcb_by_psm(con_info.psm);
       if (p_rcb == NULL) {
         L2CAP_TRACE_WARNING("L2CAP - rcvd conn req for unknown PSM: 0x%04x",
                             con_info.psm);
@@ -702,7 +705,7 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       }
       break;
 
-    case L2CAP_CMD_BLE_FLOW_CTRL_CREDIT:
+    case L2CAP_FLOW_CONTROL_CREDIT_IND:
       if (p + 4 > p_pkt_end) {
         android_errorWriteLog(0x534e4554, "80261585");
         LOG(ERROR) << "invalid read";
@@ -755,6 +758,68 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         if ((p_ccb->remote_cid == rcid) && (p_ccb->local_id == id))
           l2c_csm_execute(p_ccb, L2CEVT_L2CAP_DISCONNECT_RSP, NULL);
       }
+      break;
+
+    case L2CAP_CMD_CREDIT_BASED_CONNECTION_REQ:
+    {
+      if (p + cmd_len > p_pkt_end) {
+        android_errorWriteLog(0x534e4554, "80261585");
+        LOG(ERROR) << "invalid read";
+        return;
+      }
+      uint8_t num_chnls = (cmd_len - L2CAP_CMD_CREDIT_BASED_CONN_LEN)/2;
+      uint16_t dest_cid[5] = {0};
+      tL2CAP_COC_CFG_INFO p_conf_info;
+
+      STREAM_TO_UINT16(con_info.psm, p);
+      STREAM_TO_UINT16(p_conf_info.mtu, p);
+      STREAM_TO_UINT16(p_conf_info.mps, p);
+      STREAM_TO_UINT16(p_conf_info.credits, p);
+      for (int i = 0; i < num_chnls; i++) {
+        STREAM_TO_UINT16(dest_cid[i], p);
+      }
+      l2cu_process_peer_conn_request(p_lcb, &p_conf_info, &con_info, dest_cid,
+                                    num_chnls, id);
+    }
+      break;
+
+    case L2CAP_CMD_CREDIT_BASED_CONNECTION_RSP:
+    {
+      //TODO change to logic like l2cap config request
+      L2CAP_TRACE_DEBUG("Recv L2CAP_CMD_CREDIT_BASED_CONNECTION_RSP");
+      /* For all channels, see whose identifier matches this id */
+      for (temp_p_ccb = p_lcb->ccb_queue.p_first_ccb; temp_p_ccb;
+           temp_p_ccb = temp_p_ccb->p_next_ccb) {
+        if (temp_p_ccb->local_id == id) {
+          p_ccb = temp_p_ccb;
+          break;
+        }
+      }
+      if (p_ccb) {
+        L2CAP_TRACE_DEBUG("I remember the connection req");
+        uint16_t p_ecfc_pkt_len = L2CAP_CMD_CREDIT_BASED_CONN_LEN +
+                                (2 * p_ccb->coc_cmd_info.num_coc_chnls);
+        if (p + p_ecfc_pkt_len > p_pkt_end) {
+          android_errorWriteLog(0x534e4554, "80261585");
+          LOG(ERROR) << "invalid read";
+          return;
+        }
+        uint16_t dest_cid[5] = {0};
+
+        STREAM_TO_UINT16(p_ccb->peer_conn_cfg.mtu, p);
+        STREAM_TO_UINT16(p_ccb->peer_conn_cfg.mps, p);
+        STREAM_TO_UINT16(p_ccb->peer_conn_cfg.credits, p);
+        STREAM_TO_UINT16(con_info.l2cap_result, p);
+        for (int i = 0; i < p_ccb->coc_cmd_info.num_coc_chnls; i++) {
+          STREAM_TO_UINT16(dest_cid[i], p);
+        }
+        l2cu_process_peer_ecfc_conn_res(p_ccb, dest_cid, &con_info);
+      } else {
+        L2CAP_TRACE_DEBUG("I DO NOT remember the connection req");
+        con_info.l2cap_result = L2CAP_ECFC_SOME_CONNS_REFUSED_INVALID_SOURCE_CID;
+        l2c_csm_execute(p_ccb, L2CEVT_L2CAP_COC_CONNECT_NEG_RSP, &con_info);
+      }
+    }
       break;
 
     default:
@@ -987,7 +1052,7 @@ void l2cble_update_data_length(tL2C_LCB* p_lcb) {
   if (tx_mtu > BTM_BLE_DATA_SIZE_MAX) tx_mtu = BTM_BLE_DATA_SIZE_MAX;
 
   /* update TX data length if changed */
-  if (p_lcb->tx_data_len != tx_mtu)
+  if (p_lcb->tx_data_len < tx_mtu)
     BTM_SetBleDataLength(p_lcb->remote_bd_addr, tx_mtu);
 }
 

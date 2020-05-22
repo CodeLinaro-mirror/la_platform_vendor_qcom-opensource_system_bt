@@ -834,6 +834,9 @@ void l2c_lcc_proc_pdu(tL2C_CCB* p_ccb, BT_HDR* p_buf) {
   }
 
   if (p_ccb->is_first_seg) {
+    //TODO remove this log after testing
+    L2CAP_TRACE_WARNING("%s: buffer length=%d ",
+                        __func__, p_buf->len);
     if (p_buf->len < sizeof(sdu_length)) {
       L2CAP_TRACE_ERROR("%s: buffer length=%d too small. Need at least 2.",
                         __func__, p_buf->len);
@@ -876,6 +879,10 @@ void l2c_lcc_proc_pdu(tL2C_CCB* p_ccb, BT_HDR* p_buf) {
 
   } else {
     p_data = p_ccb->ble_sdu;
+	//TODO remove this log after testing
+    L2CAP_TRACE_WARNING("%s: buffer length=%d max=%d ",
+                        __func__, p_data->len,
+                        (p_ccb->ble_sdu_length - p_data->len));
     if (p_buf->len > (p_ccb->ble_sdu_length - p_data->len)) {
       L2CAP_TRACE_ERROR("%s: buffer length=%d too big. max=%d. Dropped",
                         __func__, p_data->len,
@@ -1970,6 +1977,28 @@ uint8_t l2c_fcr_chk_chan_modes(tL2C_CCB* p_ccb) {
   }
 
   return (p_ccb->ertm_info.allowed_modes);
+}
+
+/*******************************************************************************
+ *
+ * Function         l2c_fcr_chk_remote_ecfc_support
+ *
+ * Description      Validate remote supports ECFC mode or not
+ *
+ * Returns          bool - true if its supports, 'false ' if no compatible
+ *
+ ******************************************************************************/
+bool l2c_fcr_chk_remote_ecfc_support(tL2C_CCB* p_ccb) {
+  CHECK(p_ccb != NULL);
+
+  /* Remove nonbasic options that the peer does not support */
+  if (!(p_ccb->p_lcb->peer_ext_fea & L2CAP_EXTFEA_ECFC_MODE)) {
+    L2CAP_TRACE_WARNING(
+        "L2CAP - Peer does not support ECFC MODE");
+    return false;
+  }
+
+  return true;
 }
 
 /*******************************************************************************

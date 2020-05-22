@@ -73,7 +73,7 @@
 #ifndef L2CAP_EXTFEA_SUPPORTED_MASK
 #define L2CAP_EXTFEA_SUPPORTED_MASK                                            \
   (L2CAP_EXTFEA_ENH_RETRANS | L2CAP_EXTFEA_STREAM_MODE | L2CAP_EXTFEA_NO_CRC | \
-   L2CAP_EXTFEA_FIXED_CHNLS)
+   L2CAP_EXTFEA_FIXED_CHNLS | L2CAP_EXTFEA_ECFC_MODE)
 #endif
 
 /* This feature is used to update any QCOM related changes in the stack*/
@@ -760,8 +760,8 @@
 
 /* The maximum number of simultaneous applications that can register with LE
  * L2CAP. */
-#ifndef BLE_MAX_L2CAP_CLIENTS
-#define BLE_MAX_L2CAP_CLIENTS 15
+#ifndef L2CAP_COC_MAX_CLIENTS
+#define L2CAP_COC_MAX_CLIENTS 15
 #endif
 
 #ifndef BLE_HH_QUALIFICATION_ENABLED

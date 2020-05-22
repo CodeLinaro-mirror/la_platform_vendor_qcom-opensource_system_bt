@@ -1255,6 +1255,7 @@ typedef uint8_t tBTM_LINK_KEY_TYPE;
 #define BTM_SEC_SERVICE_HIDD_INTR 53
 #define BTM_SEC_SERVICE_HEARING_AID_LEFT 54
 #define BTM_SEC_SERVICE_HEARING_AID_RIGHT 55
+#define BTM_SEC_SERVICE_EATT 57
 
 /* Update these as services are added */
 #define BTM_SEC_SERVICE_FIRST_EMPTY 56

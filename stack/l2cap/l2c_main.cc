@@ -193,6 +193,8 @@ void l2c_rcv_acl_data(BT_HDR* p_msg) {
 #endif
       osi_free(p_msg);
   } else if (rcv_cid == L2CAP_BLE_SIGNALLING_CID) {
+    L2CAP_TRACE_WARNING("L2CAP - RcvD BLE SIGNALLING COMMAND CID: 0x%04x",
+      rcv_cid);
     l2cble_process_sig_cmd(p_lcb, p, l2cap_len);
     osi_free(p_msg);
   }
@@ -888,6 +890,68 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         }
         break;
 
+      case L2CAP_CMD_CREDIT_BASED_CONNECTION_REQ:
+      {
+        if (p + cmd_len > p_pkt_end) {
+          android_errorWriteLog(0x534e4554, "80261585");
+          LOG(ERROR) << "invalid read";
+          return;
+        }
+        uint8_t num_chnls = (cmd_len - L2CAP_CMD_CREDIT_BASED_CONN_LEN)/2;
+        uint16_t dest_cid[5] = {0};
+        tL2CAP_COC_CFG_INFO p_conf_info;
+
+        STREAM_TO_UINT16(con_info.psm, p);
+        STREAM_TO_UINT16(p_conf_info.mtu, p);
+        STREAM_TO_UINT16(p_conf_info.mps, p);
+        STREAM_TO_UINT16(p_conf_info.credits, p);
+        for (int i = 0; i < num_chnls; i++) {
+          STREAM_TO_UINT16(dest_cid[i], p);
+        }
+        l2cu_process_peer_conn_request(p_lcb, &p_conf_info, &con_info, dest_cid,
+                                    num_chnls, id);
+      }
+      break;
+
+      case L2CAP_CMD_CREDIT_BASED_CONNECTION_RSP:
+      {
+        //TODO check to use similar to BREDR CONFIG RSP
+        L2CAP_TRACE_DEBUG("Recv L2CAP_CMD_CREDIT_BASED_CONNECTION_RSP");
+        /* For all channels, see whose identifier matches this id */
+        tL2C_CCB *temp_p_ccb = NULL;
+        for (temp_p_ccb = p_lcb->ccb_queue.p_first_ccb; temp_p_ccb;
+             temp_p_ccb = temp_p_ccb->p_next_ccb) {
+          if (temp_p_ccb->local_id == id) {
+            p_ccb = temp_p_ccb;
+            break;
+          }
+        }
+        if (p_ccb) {
+          L2CAP_TRACE_DEBUG("I remember the connection req");
+          uint16_t p_ecfc_pkt_len = L2CAP_CMD_CREDIT_BASED_CONN_LEN +
+                                    (2 * p_ccb->coc_cmd_info.num_coc_chnls);
+          if (p + p_ecfc_pkt_len > p_pkt_end) {
+            android_errorWriteLog(0x534e4554, "80261585");
+            LOG(ERROR) << "invalid read";
+            return;
+          }
+          uint16_t dest_cid[5] = {0};
+
+          STREAM_TO_UINT16(p_ccb->peer_conn_cfg.mtu, p);
+          STREAM_TO_UINT16(p_ccb->peer_conn_cfg.mps, p);
+          STREAM_TO_UINT16(p_ccb->peer_conn_cfg.credits, p);
+          STREAM_TO_UINT16(con_info.l2cap_result, p);
+          for (int i = 0; i < p_ccb->coc_cmd_info.num_coc_chnls; i++) {
+            STREAM_TO_UINT16(dest_cid[i], p);
+          }
+          l2cu_process_peer_ecfc_conn_res(p_ccb, dest_cid, &con_info);
+        } else {
+          L2CAP_TRACE_DEBUG("I DO NOT remember the connection req");
+          con_info.l2cap_result = L2CAP_ECFC_SOME_CONNS_REFUSED_INVALID_SOURCE_CID;
+          l2c_csm_execute(p_ccb, L2CEVT_L2CAP_COC_CONNECT_NEG_RSP, &con_info);
+        }
+      }
+        break;
       default:
         L2CAP_TRACE_WARNING("L2CAP - bad cmd code: %d", cmd_code);
         l2cu_send_peer_cmd_reject(p_lcb, L2CAP_CMD_REJ_NOT_UNDERSTOOD, id, 0,
@@ -955,7 +1019,7 @@ void l2c_init(void) {
   l2cb.dyn_psm = 0xFFF;
 
   /* the LE PSM is increased by 1 before being used */
-  l2cb.le_dyn_psm = LE_DYNAMIC_PSM_START - 1;
+  l2cb.coc_dyn_psm = L2CAP_COC_DYNAMIC_PSM_START - 1;
 
   /* start new timers for all lcbs */
   tL2C_LCB* p_lcb = &l2cb.lcb_pool[0];
