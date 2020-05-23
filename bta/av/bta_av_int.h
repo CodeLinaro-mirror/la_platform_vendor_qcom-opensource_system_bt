@@ -624,7 +624,7 @@ typedef struct {
   bool tws_device; //true for earbud false otherwise
   uint8_t channel_mode; //L:0 R:1 S:2 M:3
   bool offload_started;
-  tBTA_AV_DATA *cache_setconfig;
+  tBTA_AV_CI_SETCONFIG *cache_setconfig;
 //#endif
   int rc_ccb_alloc_handle;
 }tBTA_AV_SCB;
