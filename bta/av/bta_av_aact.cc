@@ -2488,7 +2488,7 @@ void bta_av_str_stopped(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   }
 
   /* if q_info.a2dp_list is not empty, drop it now */
-  if (BTA_AV_CHNL_AUDIO == p_scb->chnl) {
+  if ((BTA_AV_CHNL_AUDIO == p_scb->chnl) && (p_scb->a2dp_list != NULL)) {
     while (!list_is_empty(p_scb->a2dp_list)) {
       p_buf = (BT_HDR*)list_front(p_scb->a2dp_list);
       list_remove(p_scb->a2dp_list, p_buf);
@@ -2737,7 +2737,7 @@ void bta_av_data_path(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
   p_scb->l2c_bufs =
       (uint8_t)L2CA_FlushChannel(p_scb->l2c_cid, L2CAP_FLUSH_CHANS_GET);
 
-  if (!list_is_empty(p_scb->a2dp_list)) {
+  if ((p_scb->a2dp_list != NULL) && (!list_is_empty(p_scb->a2dp_list))) {
     p_buf = (BT_HDR*)list_front(p_scb->a2dp_list);
     list_remove(p_scb->a2dp_list, p_buf);
     /* use q_info.a2dp data, read the timestamp */

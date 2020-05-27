@@ -60,7 +60,7 @@ class A2dpCodecConfig {
       btav_a2dp_codec_priority_t codec_priority =
           BTAV_A2DP_CODEC_PRIORITY_DEFAULT);
 
-  virtual ~A2dpCodecConfig() = 0;
+  ~A2dpCodecConfig() { };
 
   // Gets the pre-defined codec index.
   btav_a2dp_codec_index_t codecIndex() const { return codec_index_; }
