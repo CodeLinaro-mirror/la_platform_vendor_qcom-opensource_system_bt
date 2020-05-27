@@ -54,6 +54,8 @@ bool bta_av_co_set_codec_user_config(
 bool bta_av_co_set_codec_audio_config(
     const btav_a2dp_codec_config_t& codec_audio_config);
 
+void bta_av_co_cleanup();
+
 // Initializes the control block.
 // |codec_priorities| contains the A2DP Source codec priorities to use.
 void bta_av_co_init(std::vector<btav_a2dp_codec_config_t>& codec_priorities);
