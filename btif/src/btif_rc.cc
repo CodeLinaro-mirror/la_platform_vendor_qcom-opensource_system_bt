@@ -3435,6 +3435,8 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
         } else {
           uint8_t* p_data = p_rsp->param.track;
           BE_STREAM_TO_UINT64(p_dev->rc_playing_uid, p_data);
+          /* try to update play position once track changed */
+          get_play_status_cmd(p_dev);
         }
         break;
       case AVRC_EVT_APP_SETTING_CHANGE: {
