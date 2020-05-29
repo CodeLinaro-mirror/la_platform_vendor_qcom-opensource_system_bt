@@ -50,11 +50,11 @@
 #define PARAMETER_LENGTH_LENGTH       (1)
 #define INPUT_STRING_LENGTH           (PLATFORM_STATE_STRING_LENGHT + SUB_OPCODE_LENGTH + PARAMETER_LENGTH_LENGTH)
 
-#define PLATFORM_ID_8155P_ORIGN        ("msmnile_au")
+#define PLATFORM_ID_8155P_ORIGN        ("msmnile")
 #define PLATFORM_ID_8155P_TRASFORMED   ("SA8155P")
-#define PLATFORM_ID_6155P_ORIGN        ("sm6150_au")
+#define PLATFORM_ID_6155P_ORIGN        ("sm6150")
 #define PLATFORM_ID_6155P_TRASFORMED   ("SA6155P")
-#define PLATFORM_ID_8195P_ORIGN        ("sdmshrike_au")
+#define PLATFORM_ID_8195P_ORIGN        ("sdmshrike")
 #define PLATFORM_ID_8195P_TRASFORMED   ("SA8195P")
 
 #define INVALID_TOKEN_KEY  (0)
@@ -177,22 +177,32 @@ static bool is_token_key_supported(void) {
   return strcmp(value, "true") == 0 ? true : false;
 }
 
+
+// Retrieve platform name through the property
+// "ro.product.device". E.g.
+// (1) msmnile_au
+// Target platform is SA8155P
+// (2) msmnile_gvmq
+// Target platform is SA8155P running in Hypervisor
 static bool get_platform_id() {
   bool status = false;
 
-  osi_property_get("ro.product.vendor.name", a2dp_token_key_cb.platform_id, "null");
+  osi_property_get("ro.product.device", a2dp_token_key_cb.platform_id, "null");
 
-  if(strcmp(a2dp_token_key_cb.platform_id, PLATFORM_ID_8155P_ORIGN) == 0) {
+  if (strncasecmp(a2dp_token_key_cb.platform_id, PLATFORM_ID_8155P_ORIGN,
+      strlen(PLATFORM_ID_8155P_ORIGN)) == 0) {
     memset(a2dp_token_key_cb.platform_id, 0, PLATFORM_ID_LENGTH);
     strlcpy(a2dp_token_key_cb.platform_id, PLATFORM_ID_8155P_TRASFORMED,
             strlen(PLATFORM_ID_8155P_TRASFORMED) + 1);
     status = true;
-  } else if(strcmp(a2dp_token_key_cb.platform_id, PLATFORM_ID_6155P_ORIGN) == 0) {
+  } else if (strncasecmp(a2dp_token_key_cb.platform_id, PLATFORM_ID_6155P_ORIGN,
+      strlen(PLATFORM_ID_6155P_ORIGN)) == 0) {
     memset(a2dp_token_key_cb.platform_id, 0, PLATFORM_ID_LENGTH);
     strlcpy(a2dp_token_key_cb.platform_id, PLATFORM_ID_6155P_TRASFORMED,
             strlen(PLATFORM_ID_6155P_TRASFORMED) + 1);
     status = true;
-  } else if(strcmp(a2dp_token_key_cb.platform_id, PLATFORM_ID_8195P_ORIGN) == 0) {
+  } else if (strncasecmp(a2dp_token_key_cb.platform_id, PLATFORM_ID_8195P_ORIGN,
+      strlen(PLATFORM_ID_8195P_ORIGN)) == 0) {
     memset(a2dp_token_key_cb.platform_id, 0, PLATFORM_ID_LENGTH);
     strlcpy(a2dp_token_key_cb.platform_id, PLATFORM_ID_8195P_TRASFORMED,
             strlen(PLATFORM_ID_8195P_TRASFORMED) + 1);
