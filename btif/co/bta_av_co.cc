@@ -616,7 +616,10 @@ tA2DP_STATUS bta_av_co_audio_getconfig(tBTA_AV_HNDL hndl, uint8_t* p_codec_info,
       APPL_TRACE_DEBUG("%s: call BTA_AvReconfig(x%x)", __func__, hndl);
       btif_av_set_reconfig_flag(hndl);
       uint8_t index = BTA_AV_CO_AUDIO_HNDL_TO_INDX(hndl);
-      btif_av_clear_remote_start_timer(index);
+      if (index == btif_a2dp_source_last_remote_start_index()) {
+        APPL_TRACE_EVENT("%s: clear remote start idx: %d as part of Reconfig", __func__, index);
+        btif_a2dp_source_cancel_remote_start();
+      }
       BTA_AvReconfig(hndl, true, p_sink->sep_info_idx, p_peer->codec_config,
                      *p_num_protect, bta_av_co_cp_scmst);
       p_peer->rcfg_done = true;
@@ -1665,14 +1668,22 @@ bool bta_av_co_set_codec_user_config(
       p_peer->acp = false;
       isDevUiReq = false;
     }
-    btif_av_set_reconfig_flag(hndl);
-    uint8_t index = BTA_AV_CO_AUDIO_HNDL_TO_INDX(hndl);
-    btif_av_clear_remote_start_timer(index);
-    APPL_TRACE_DEBUG("%s: call BTA_AvReconfig(x%x)", __func__, p_peer->handle);
-    BTA_AvReconfig(p_peer->handle, true, p_sink->sep_info_idx,
-                   p_peer->codec_config, num_protect, bta_av_co_cp_scmst);
-    p_peer->rcfg_done = true;
-    p_peer->reconfig_needed = false;
+
+
+    APPL_TRACE_DEBUG("%s: rcfg_pend_active: %d", __func__, p_peer->rcfg_pend_active);
+    if (!p_peer->rcfg_pend_active) {
+      btif_av_set_reconfig_flag(hndl);
+      uint8_t index = BTA_AV_CO_AUDIO_HNDL_TO_INDX(hndl);
+      if (index == btif_a2dp_source_last_remote_start_index()) {
+        APPL_TRACE_EVENT("%s: clear remote start idx: %d as part of Reconfig", __func__, index);
+        btif_a2dp_source_cancel_remote_start();
+      }
+      APPL_TRACE_DEBUG("%s: call BTA_AvReconfig(x%x)", __func__, p_peer->handle);
+      BTA_AvReconfig(p_peer->handle, true, p_sink->sep_info_idx,
+                     p_peer->codec_config, num_protect, bta_av_co_cp_scmst);
+      p_peer->rcfg_done = true;
+      p_peer->reconfig_needed = false;
+    }
   }
 
 done:
