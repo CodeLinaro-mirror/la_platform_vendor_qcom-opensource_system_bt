@@ -625,6 +625,9 @@ typedef void (*btrc_ctrl_available_player_changed_callback)(
 
 typedef void (* btrc_ctrl_uids_changed_callback)(const RawAddress& bd_addr,
                                                  uint16_t uid_counter);
+typedef void (*btrc_ctrl_set_active_device_callback)(
+    const RawAddress& bd_addr, bool result);
+
 /** BT-RC Controller callback structure. */
 typedef struct {
   /** set to sizeof(BtRcCallbacks) */
@@ -652,6 +655,7 @@ typedef struct {
       now_playing_contents_changed_cb;
   btrc_ctrl_uids_changed_callback uids_changed_cb;
   btrc_ctrl_available_player_changed_callback available_player_changed_cb;
+  btrc_ctrl_set_active_device_callback set_active_device_cb;
 } btrc_ctrl_callbacks_t;
 
 /** Represents the standard BT-RC AVRCP Controller interface. */
@@ -716,6 +720,9 @@ typedef struct {
   bt_status_t (*register_abs_vol_rsp)(const RawAddress& bd_addr,
                                       btrc_notification_type_t rsp_type,
                                       uint8_t abs_vol, uint8_t label);
+
+  /** set active device */
+  bt_status_t (*set_active_device)(const RawAddress& bd_addr);
 
   /** Closes the interface. */
   void (*cleanup)(void);

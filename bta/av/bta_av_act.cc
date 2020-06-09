@@ -1941,7 +1941,10 @@ void bta_av_rc_closed(tBTA_AV_DATA* p_data) {
           p_scb = bta_av_cb.p_scb[p_rcb->shdl - 1];
         }
         if (p_scb) {
-          rc_close.peer_addr = p_scb->PeerAddress();
+          LOG_INFO(LOG_TAG, "%s: p_scb->PeerAddress() %s, p_msg->peer_addr:%s", __func__,
+                   p_scb->PeerAddress().ToString().c_str(),
+                   p_msg->peer_addr.ToString().c_str());
+          rc_close.peer_addr = p_msg->peer_addr;
           if (p_scb->rc_handle == p_rcb->handle)
             p_scb->rc_handle = BTA_AV_RC_HANDLE_NONE;
           APPL_TRACE_DEBUG("%s: shdl:%d, srch:%d", __func__, p_rcb->shdl,
@@ -1985,6 +1988,8 @@ void bta_av_rc_closed(tBTA_AV_DATA* p_data) {
   }
   tBTA_AV bta_av_data;
   bta_av_data.rc_close = rc_close;
+  LOG_INFO(LOG_TAG, "%s: rc_close.peer_addr %s", __func__,
+           rc_close.peer_addr.ToString().c_str());
   (*p_cb->p_cback)(BTA_AV_RC_CLOSE_EVT, &bta_av_data);
   if (bta_av_cb.rc_acp_handle == BTA_AV_RC_HANDLE_NONE
                   && bta_av_cb.features & BTA_AV_FEAT_RCTG)
