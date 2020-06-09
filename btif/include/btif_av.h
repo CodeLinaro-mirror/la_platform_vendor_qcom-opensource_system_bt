@@ -195,4 +195,11 @@ bool btif_av_is_a2dp_offload_enabled(void);
  */
 bool btif_av_is_peer_silenced(const RawAddress& peer_address);
 
+/**
+ * Set the specified device to be active
+ *
+ * @param peer_address the peer address to be active
+ */
+bool btif_av_sink_set_active_device(const RawAddress& peer_address);
+
 #endif /* BTIF_AV_H */

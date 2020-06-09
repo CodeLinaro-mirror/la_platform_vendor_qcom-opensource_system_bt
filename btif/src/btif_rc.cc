@@ -428,6 +428,17 @@ btif_rc_device_cb_t* btif_rc_get_device_by_handle(uint8_t handle) {
   return NULL;
 }
 
+const RawAddress& btif_rc_get_address_by_handle(uint8_t handle) {
+  BTIF_TRACE_DEBUG("%s: handle: 0x%x", __func__, handle);
+  btif_rc_device_cb_t* p_dev =
+      btif_rc_get_device_by_handle(handle);
+  if (p_dev == NULL) {
+    BTIF_TRACE_ERROR("%s: Got event from invalid rc handle", __func__);
+    return RawAddress::kEmpty;
+  }
+  return p_dev->rc_addr;
+}
+
 void fill_pdu_queue(int index, uint8_t ctype, uint8_t label, bool pending,
                     btif_rc_device_cb_t* p_dev) {
   p_dev->rc_pdu_info[index].ctype = ctype;
@@ -2756,9 +2767,13 @@ bool iterate_supported_event_list_for_timeout(void* data, void* cb_data) {
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(cntxt->rc_addr);
   btif_rc_supported_event_t* p_event = (btif_rc_supported_event_t*)data;
 
-  if (p_event->label == label) {
-    list_remove(p_dev->rc_supported_event_list, p_event);
-    return false;
+  // Register again
+  if (p_event != NULL && p_event->label == label) {
+    BTIF_TRACE_DEBUG("%s register event id %d from %s again", __func__,
+                     p_event->event_id, p_dev->rc_addr.ToString().c_str());
+    p_event->status = eNOT_REGISTERED;
+    BTIF_TRACE_DEBUG("%s: register notification", __func__);
+    register_for_event_notification(p_event, p_dev);
   }
   return true;
 }
@@ -3852,8 +3867,12 @@ static void handle_get_playstatus_response(tBTA_AV_META_MSG* pmeta_msg,
     return;
   }
 
-
   if (p_rsp->status == AVRC_STS_NO_ERROR) {
+    do_in_jni_thread(
+        FROM_HERE,
+        base::Bind(bt_rc_ctrl_callbacks->play_status_changed_cb,
+                   p_dev->rc_addr, (btrc_play_status_t)p_rsp->play_status));
+
     do_in_jni_thread(
         FROM_HERE,
         base::Bind(bt_rc_ctrl_callbacks->play_status_changed_cb, p_dev->rc_addr,
@@ -5066,6 +5085,30 @@ static bt_status_t get_play_status_cmd(btif_rc_device_cb_t* p_dev) {
   return build_and_send_vendor_cmd(&avrc_cmd, AVRC_CMD_STATUS, p_dev);
 }
 
+void btif_rc_notify_active_device_changed(const RawAddress& peer_addr, bool result) {
+  BTIF_TRACE_DEBUG("%s: %s", __func__, peer_addr.ToString().c_str());
+  if (bt_rc_ctrl_callbacks != nullptr) {
+    do_in_jni_thread(FROM_HERE,
+                     base::Bind(bt_rc_ctrl_callbacks->set_active_device_cb,
+                                peer_addr, result));
+  }
+}
+
+/***************************************************************************
+ *
+ * Function         set_active_device
+ *
+ * Description      set the specified device to be active
+ *
+ * Returns          bt_status_t
+ *
+ **************************************************************************/
+static bt_status_t set_active_device(const RawAddress& peer_addr) {
+  BTIF_TRACE_DEBUG("%s: %s", __func__, peer_addr.ToString().c_str());
+
+  return btif_av_sink_set_active_device(peer_addr) ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
+}
+
 /***************************************************************************
  *
  * Function         set_volume_rsp
@@ -5281,6 +5324,7 @@ static const btrc_ctrl_interface_t bt_rc_ctrl_interface = {
     set_addressed_player_cmd,
     set_volume_rsp,
     volume_change_notification_rsp,
+    set_active_device,
     cleanup_ctrl,
 };
 

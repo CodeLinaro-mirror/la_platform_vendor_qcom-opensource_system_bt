@@ -689,6 +689,13 @@ static void btif_a2dp_sink_decoder_update_event(
       return;
     }
   }
+
+  if (btif_a2dp_sink_cb.audio_track != nullptr) {
+    APPL_TRACE_DEBUG("%s: there is a existing audio track, stop and delete it", __func__);
+    BtifAvrcpAudioTrackStop(btif_a2dp_sink_cb.audio_track);
+    BtifAvrcpAudioTrackDelete(btif_a2dp_sink_cb.audio_track);
+  }
+
   APPL_TRACE_DEBUG("%s: create audio track", __func__);
 
   audio_format_t media_format = A2DP_VendorGetCodecFormat(p_buf->codec_info);
@@ -751,7 +758,6 @@ uint8_t btif_a2dp_sink_enqueue_buf(BT_HDR* p_pkt) {
       btif_handle_incoming_encoded_data();
     }
   }
-
   return fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue);
 }
 

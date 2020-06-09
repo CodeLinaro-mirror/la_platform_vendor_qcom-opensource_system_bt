@@ -34,4 +34,6 @@ interface IBluetoothAvrcpController {
     boolean setPlayerApplicationSetting(in BluetoothAvrcpPlayerSettings plAppSetting);
     void sendGroupNavigationCmd(in BluetoothDevice device, int keyCode, int keyState);
     int getSupportedFeatures(in BluetoothDevice device);
+    boolean setActiveDevice(in BluetoothDevice device);
+    BluetoothDevice getActiveDevice();
 }

@@ -522,6 +522,9 @@ void bta_av_sink_data_cback(uint8_t handle, BT_HDR* p_pkt, uint32_t time_stamp,
     osi_free(p_pkt);
     return;
   }
+  /* Set address into packet header, then in media data handler may filter out
+   * the media data of inactive device */
+  ((tBTA_AV_MEDIA*)p_pkt)->avk_config.bd_addr = p_scb->PeerAddress();
   p_pkt->event = BTA_AV_SINK_MEDIA_DATA_EVT;
   p_scb->seps[p_scb->sep_idx].p_app_sink_data_cback(BTA_AV_SINK_MEDIA_DATA_EVT,
                                                     (tBTA_AV_MEDIA*)p_pkt);
