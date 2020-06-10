@@ -1603,11 +1603,15 @@ void l2cu_release_ccb(tL2C_CCB* p_ccb) {
   if(p_lcb)
     btm_sec_clr_temp_auth_service(p_lcb->remote_bd_addr);
 
-  /* Cancel the timer */
-  alarm_cancel(p_ccb->l2c_ccb_timer);
+  if (p_ccb->l2c_ccb_timer) {
+    /* Cancel the timer */
+    alarm_cancel(p_ccb->l2c_ccb_timer);
+  }
 
-  fixed_queue_free(p_ccb->xmit_hold_q, osi_free);
-  p_ccb->xmit_hold_q = NULL;
+  if (p_ccb->xmit_hold_q != NULL) {
+    fixed_queue_free(p_ccb->xmit_hold_q, osi_free);
+    p_ccb->xmit_hold_q = NULL;
+  }
 
   l2c_fcr_cleanup(p_ccb);
 
@@ -1623,6 +1627,9 @@ void l2cu_release_ccb(tL2C_CCB* p_ccb) {
     p_ccb->p_lcb = NULL;
   }
 
+  /* Flag as not in use */
+  p_ccb->in_use = false;
+
   /* Put the CCB back on the free pool */
   if (!l2cb.p_free_ccb_first) {
     l2cb.p_free_ccb_first = p_ccb;
@@ -1635,9 +1642,6 @@ void l2cu_release_ccb(tL2C_CCB* p_ccb) {
     l2cb.p_free_ccb_last->p_next_ccb = p_ccb;
     l2cb.p_free_ccb_last = p_ccb;
   }
-
-  /* Flag as not in use */
-  p_ccb->in_use = false;
 
   /* If no channels on the connection, start idle timeout */
   if ((p_lcb) && p_lcb->in_use && (p_lcb->link_state == LST_CONNECTED)) {
@@ -2682,13 +2686,14 @@ void l2cu_no_dynamic_ccbs(tL2C_LCB* p_lcb) {
       timeout_ms = BT_1SEC_TIMEOUT_MS;
     }
   }
-
-  if (start_timeout) {
-    L2CAP_TRACE_DEBUG("%s starting IDLE timeout: %d ms", __func__, timeout_ms);
-    alarm_set_on_mloop(p_lcb->l2c_lcb_timer, timeout_ms, l2c_lcb_timer_timeout,
-                       p_lcb);
-  } else {
-    alarm_cancel(p_lcb->l2c_lcb_timer);
+  if (p_lcb->l2c_lcb_timer != NULL) {
+    if (start_timeout) {
+      L2CAP_TRACE_DEBUG("%s starting IDLE timeout: %d ms", __func__, timeout_ms);
+      alarm_set_on_mloop(p_lcb->l2c_lcb_timer, timeout_ms, l2c_lcb_timer_timeout,
+                         p_lcb);
+    } else {
+      alarm_cancel(p_lcb->l2c_lcb_timer);
+    }
   }
 }
 
