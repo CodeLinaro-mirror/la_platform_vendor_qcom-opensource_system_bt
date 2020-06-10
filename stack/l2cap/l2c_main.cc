@@ -945,14 +945,47 @@ void l2c_init(void) {
 }
 
 void l2c_free(void) {
-
+  tL2C_CCB* p_ccb;
   int xx;
   tL2C_LCB* p_lcb = &l2cb.lcb_pool[0];
-  for (xx = 0; xx < MAX_L2CAP_LINKS; xx++, p_lcb++) {
-    alarm_free(p_lcb->l2c_lcb_timer);
-    p_lcb->l2c_lcb_timer = NULL;
-    alarm_free(p_lcb->info_resp_timer);
-    p_lcb->info_resp_timer = NULL;
+  if (p_lcb != NULL) {
+    for (xx = 0; xx < MAX_L2CAP_LINKS; xx++, p_lcb++) {
+      if (p_lcb->l2c_lcb_timer != NULL) {
+        alarm_free(p_lcb->l2c_lcb_timer);
+        p_lcb->l2c_lcb_timer = NULL;
+      }
+      if (p_lcb->info_resp_timer != NULL) {
+        alarm_free(p_lcb->info_resp_timer);
+        p_lcb->info_resp_timer = NULL;
+      }
+      /* Check and release all the LE COC connections waiting for security */
+      if (p_lcb->le_sec_pending_q) {
+        while (!fixed_queue_is_empty(p_lcb->le_sec_pending_q)) {
+          tL2CAP_SEC_DATA* p_buf =
+            (tL2CAP_SEC_DATA*)fixed_queue_try_dequeue(p_lcb->le_sec_pending_q);
+          if (p_buf->p_callback)
+            p_buf->p_callback(p_lcb->remote_bd_addr, p_lcb->transport,
+              p_buf->p_ref_data, BTM_DEV_RESET);
+          osi_free(p_buf);
+        }
+        fixed_queue_free(p_lcb->le_sec_pending_q, NULL);
+        p_lcb->le_sec_pending_q = NULL;
+      }
+      /* Release any held buffers */
+      if (p_lcb->link_xmit_data_q) {
+        while (!list_is_empty(p_lcb->link_xmit_data_q)) {
+          BT_HDR* p_buf = static_cast<BT_HDR*>(list_front(p_lcb->link_xmit_data_q));
+          list_remove(p_lcb->link_xmit_data_q, p_buf);
+          osi_free(p_buf);
+        }
+        list_free(p_lcb->link_xmit_data_q);
+        p_lcb->link_xmit_data_q = NULL;
+      }
+#if (L2CAP_UCD_INCLUDED == TRUE)
+      /* clean up any security pending UCD */
+      l2c_ucd_delete_sec_pending_q(p_lcb);
+#endif
+    }
   }
   /* Free all ccb timers */
   for (xx = 0; xx < MAX_L2CAP_CHANNELS - 1; xx++) {
@@ -965,6 +998,17 @@ void l2c_free(void) {
 
   alarm_free(l2cb.receive_hold_timer);
   l2cb.receive_hold_timer = NULL;
+
+  /* delete CCB if any not freed*/
+  for (xx = 0; xx < MAX_L2CAP_CHANNELS; xx++) {
+    p_ccb = &l2cb.ccb_pool[xx];
+    if ((p_ccb != NULL) && (p_ccb->in_use)) {
+      L2CAP_TRACE_DEBUG("l2c_free: cid 0x%04x - in_use: %u",
+                         p_ccb->local_cid, p_ccb->in_use);
+      l2cu_release_ccb(p_ccb);
+      p_ccb = NULL;
+    }
+  }
 }
 
 void l2c_receive_hold_timer_timeout(UNUSED_ATTR void* data) {
