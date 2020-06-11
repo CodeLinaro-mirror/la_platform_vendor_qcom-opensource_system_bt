@@ -60,7 +60,7 @@ class A2dpCodecConfig {
       btav_a2dp_codec_priority_t codec_priority =
           BTAV_A2DP_CODEC_PRIORITY_DEFAULT);
 
-  ~A2dpCodecConfig() { };
+  virtual ~A2dpCodecConfig() = 0;
 
   // Gets the pre-defined codec index.
   btav_a2dp_codec_index_t codecIndex() const { return codec_index_; }
@@ -269,6 +269,8 @@ class A2dpCodecs {
   // |codec_priorities| contains the codec priorities to use.
   A2dpCodecs(const std::vector<btav_a2dp_codec_config_t>& codec_priorities);
   ~A2dpCodecs();
+
+  void cleanup();
 
   // Initializes all supported codecs.
   // Returns true if at least one Source codec and one Sink codec were
