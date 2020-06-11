@@ -2793,6 +2793,7 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
         }
       }
       btif_a2dp_src_vsc.multi_vsc_support = false;//reset multi vsc support flag
+      bta_av_co_cleanup();
       btif_a2dp_source_shutdown();
       btif_a2dp_sink_shutdown();
       return;

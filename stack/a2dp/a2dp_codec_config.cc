@@ -131,7 +131,6 @@ A2dpCodecConfig::A2dpCodecConfig(btav_a2dp_codec_index_t codec_index,
   memset(ota_codec_peer_config_, 0, sizeof(ota_codec_peer_config_));
 }
 
-A2dpCodecConfig::~A2dpCodecConfig() {}
 
 void A2dpCodecConfig::setCodecPriority(
     btav_a2dp_codec_priority_t codec_priority) {
@@ -557,6 +556,19 @@ A2dpCodecs::~A2dpCodecs() {
   for (const auto& iter : disabled_codecs_) {
     delete iter.second;
   }
+  std::list<A2dpCodecConfig*>::iterator it;
+  for (it=ordered_source_codecs_.begin(); it!=ordered_source_codecs_.end(); ++it){
+    A2dpCodecConfig* codec_config = (*it);
+    delete codec_config;
+    codec_config = nullptr;
+  }
+  ordered_source_codecs_.clear();
+  for (it=ordered_sink_codecs_.begin(); it!=ordered_sink_codecs_.end(); ++it){
+    A2dpCodecConfig* codec_config = (*it);
+    delete codec_config;
+    codec_config = nullptr;
+  }
+  ordered_sink_codecs_.clear();
   lock.unlock();
 }
 

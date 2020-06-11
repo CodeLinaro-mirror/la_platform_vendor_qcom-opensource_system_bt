@@ -1694,6 +1694,16 @@ std::vector<btav_a2dp_codec_config_t> remove_codec_duplicate(const std::vector<b
     return p_codec_config_list_without_duplicate;
 }
 
+void bta_av_co_cleanup() {
+  tBTA_AV_CO_PEER* p_peer;
+
+  APPL_TRACE_DEBUG("%s", __func__);
+  for (size_t i = 0; i < BTA_AV_CO_NUM_ELEMENTS(bta_av_co_cb.peers); i++) {
+    p_peer = &bta_av_co_cb.peers[i];
+    if (p_peer != NULL)
+      delete p_peer->codecs;
+  }
+}
 
 void bta_av_co_init(std::vector<btav_a2dp_codec_config_t>& codec_user_list) {
   APPL_TRACE_DEBUG("%s", __func__);

@@ -868,8 +868,17 @@ void bta_av_api_deregister(tBTA_AV_DATA* p_data) {
       alarm_free(p_scb->avrc_ct_timer);
       p_scb->avrc_ct_timer = NULL;
     }
-    if(p_scb->a2dp_list != NULL)
+    if(p_scb->a2dp_list != NULL) {
+      BT_HDR  *p_buf;
+      /* make sure no buffers are in a2dp_list */
+      while (!list_is_empty(p_scb->a2dp_list)) {
+        p_buf = (BT_HDR*)list_front(p_scb->a2dp_list);
+        list_remove(p_scb->a2dp_list, p_buf);
+        osi_free(p_buf);
+      }
       list_free(p_scb->a2dp_list);
+      p_scb->a2dp_list = NULL;
+    }
   } else {
     bta_av_dereg_comp(p_data);
   }
