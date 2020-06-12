@@ -509,6 +509,7 @@ bool btm_ble_start_auto_conn() {
 
   if (p_cb->conn_state == BLE_CONN_IDLE && background_connections_pending(BLE_BG_INITIATOR)
       && l2cu_can_allocate_lcb()) {
+      p_cb->wl_state |= BTM_BLE_WL_INIT;
       btm_execute_wl_dev_operation(BLE_BG_INITIATOR);
       is_background_initiator = true;
   }
@@ -518,8 +519,6 @@ bool btm_ble_start_auto_conn() {
   } else {
     exec = false;
   }
-
-  p_cb->wl_state |= BTM_BLE_WL_INIT;
 
 #if (BLE_PRIVACY_SPT == TRUE)
   btm_ble_enable_resolving_list_for_platform(BTM_BLE_RL_INIT);
