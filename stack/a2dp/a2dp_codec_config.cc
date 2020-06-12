@@ -554,6 +554,7 @@ A2dpCodecs::~A2dpCodecs() {
 }
 
 void A2dpCodecs::cleanup() {
+  std::unique_lock<std::recursive_mutex> lock(codec_mutex_);
   LOG_DEBUG(LOG_TAG,"cleanup of a2dp codecs");
 
   std::list<A2dpCodecConfig*>::iterator it;
@@ -561,10 +562,12 @@ void A2dpCodecs::cleanup() {
     A2dpCodecConfig* codec_config = (*it);
     delete codec_config;
   }
+  ordered_source_codecs_.clear();
   for (it=ordered_sink_codecs_.begin(); it!=ordered_sink_codecs_.end(); ++it){
     A2dpCodecConfig* codec_config = (*it);
     delete codec_config;
   }
+  ordered_sink_codecs_.clear();
 }
 
 /* Add mandatory codec for all supported codec in the end of priority list to handle
