@@ -2837,6 +2837,7 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
       // Bd address passed should help us in getting the handle
       bt_addr = (RawAddress *)p_param;
       index = btif_av_idx_by_bdaddr(bt_addr);
+      bta_av_co_cleanup();
       break;
 
     case BTIF_AV_TRIGGER_HANDOFF_REQ_EVT:
@@ -4857,6 +4858,7 @@ bt_status_t btif_av_execute_service(bool b_enable) {
     for (i = 0; i < btif_max_av_clients; i++)
       BTA_AvDeregister(btif_av_cb[i].bta_handle);
     BTA_AvDisable();
+    bta_av_co_cleanup();
   }
   BTIF_TRACE_DEBUG("%s: enable: %d completed", __func__, b_enable);
   return BT_STATUS_SUCCESS;
