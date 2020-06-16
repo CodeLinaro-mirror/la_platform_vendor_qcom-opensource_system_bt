@@ -299,7 +299,6 @@ static void process_service_search_rsp (tCONN_CB *p_ccb, UINT8 *p_reply,
     UINT8       cont_len;
 
     if (p_reply + 8 > p_reply_end) {
-        android_errorWriteLog(0x534e4554, "74249842");
         sdp_disconnect(p_ccb, SDP_GENERIC_ERROR);
         return;
     }
@@ -325,7 +324,6 @@ static void process_service_search_rsp (tCONN_CB *p_ccb, UINT8 *p_reply,
         p_ccb->num_handles = sdp_cb.max_recs_per_search;
 
     if (p_reply + ((p_ccb->num_handles - orig) * 4) + 1 > p_reply_end) {
-        android_errorWriteLog(0x534e4554, "74249842");
         sdp_disconnect(p_ccb, SDP_GENERIC_ERROR);
         return;
     }

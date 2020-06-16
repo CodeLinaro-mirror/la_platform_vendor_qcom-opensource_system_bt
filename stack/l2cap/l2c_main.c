@@ -137,7 +137,6 @@ void l2c_rcv_acl_data (BT_HDR *p_msg)
     if (hci_len < L2CAP_PKT_OVERHEAD) {
         /* Must receive at least the L2CAP length and CID */
         L2CAP_TRACE_WARNING ("L2CAP - got incorrect hci header");
-        android_errorWriteLog(0x534e4554, "34946955");
         osi_free(p_msg);
         return;
     }
