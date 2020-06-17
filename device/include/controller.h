@@ -104,6 +104,16 @@ typedef struct controller_t {
   bool (*supports_wipower)();
   bool (*is_multicast_enabled)();
   bool (*supports_twsp_remote_state)();
+  uint32_t* (*get_vs_supported_codecs)(uint8_t* number_of_codecs);
+  uint16_t (*get_ble_iso_data_packet_len)(void);
+  uint8_t (*get_ble_iso_num_data_packets)(void);
+  uint8_t (*get_std_supported_codec_transport)(uint8_t std_codec_id);
+  uint8_t (*get_vs_supported_codec_transport)(uint32_t vs_codec_id);
+  bool (*is_host_iso_channel_supported)(void);
+  bool (*is_cis_master_role_supported)(void);
+  bool (*is_cis_slave_role_supported)(void);
+  bool (*is_pow_ctr_req_supported)(void);
+  bool (*is_pathloss_monitoring_supported)(void);
 } controller_t;
 
 const controller_t* controller_get_interface();

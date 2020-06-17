@@ -1947,3 +1947,57 @@ extern tBTM_STATUS BTM_Hci_Raw_Command(uint16_t opcode,
                                                          uint8_t  param_len,
                                                          uint8_t *p_param_buf,
                                                          tBTM_RAW_CMPL_CB *p_cb);
+
+// Bluetooth Spec 5.2 HCI commands declarations
+#ifndef BT_HCI_5_2
+#define BT_HCI_5_2
+
+/* HCI_Read_Local_Supported_Codec_Capabilities command complete return params */
+typedef struct {
+  uint8_t status;
+  uint8_t num_codec_capabilities;
+  uint8_t* codec_capability_length;
+  uint8_t** codec_capability;
+} tBTM_LOCAL_CAP_RET_PARAM;
+
+/* Command complete callback for HCI_Configure_Data_Path*/
+typedef void (tBTM_CONFIGURE_DATA_PATH_CB) (uint8_t status);
+
+/* Command complete callback for HCI_Set_Ecosystem_Base_Interval*/
+typedef void (tBTM_SET_ECOSYSTEM_BASE_INTERVAL_CB) (uint8_t status);
+
+/* Command complete callback for HCI_Read_Local_Supported_Codec_Capabilities*/
+typedef void (tBTM_READ_LOCAL_SUP_CODEC_CAP_CB) (tBTM_LOCAL_CAP_RET_PARAM *ret_param);
+
+/* Command complete callback for HCI_Read_Local_Supported_Controller_Delay*/
+typedef void (tBTM_READ_LOCAL_SUP_CONTROLLER_DELAY_CB)(uint8_t status,
+                                                       CONTROLLER_DELAY min_cont_delay,
+                                                       CONTROLLER_DELAY max_cont_delay);
+
+/* HCI_Configure_Data_Path command parameters */
+typedef struct {
+  uint8_t data_path_dir;
+  uint8_t data_path_id;
+  uint8_t vs_config_len;
+  uint8_t* vs_config;
+  tBTM_CONFIGURE_DATA_PATH_CB* p_cb;
+} tBTM_CFG_DATA_PATH_PARAM;
+
+/* HCI_Read_Local_Supported_Controller_Delay command parameters */
+typedef struct {
+  CODEC_ID codec_id;
+  uint8_t logical_transport_type;
+  uint8_t direction;
+  uint8_t codec_conf_length;
+  uint8_t* codec_conf;
+  tBTM_READ_LOCAL_SUP_CONTROLLER_DELAY_CB* p_cb;
+} tBTM_LOCAL_SUP_CONTROLLER_DELAY_PARAM;
+
+/* HCI_Read_Local_Supported_Codec_Capabilities command parameters */
+typedef struct {
+  CODEC_ID codec_id;
+  uint8_t logical_transport_type;
+  uint8_t direction;
+  tBTM_READ_LOCAL_SUP_CODEC_CAP_CB* p_cb;
+} tBTM_LOCAL_CODEC_CAP_PARAM;
+#endif

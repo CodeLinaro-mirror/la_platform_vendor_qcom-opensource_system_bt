@@ -991,3 +991,34 @@ typedef uint16_t tBT_ERROR_INFO;
 #define SCO_GLITCH_THRESHOLD 3
 
 #endif
+
+#ifndef LE_ISO_PARAMETERS
+#define LE_ISO_PARAMETERS
+
+/* LE Audio - Isochronous channels defs */
+#define SDU_INTERVAL_LEN 3
+#define SYNC_DELAY_LEN 3
+#define TRANSPORT_LATENCY_LEN 3
+#define CONTROLLER_DELAY_LEN 3
+#define TIME_OFFSET_LEN 3
+#define CODEC_ID_LEN 5
+#define INVALID_TRANSPORT 0xFF
+
+/* 3 byte SDU Interval (microseconds)*/
+typedef uint8_t SDU_INTERVAL[SDU_INTERVAL_LEN];
+
+/* 3 byte SYNC_DELAY  (microsecond) */
+typedef uint8_t SYNC_DELAY[SYNC_DELAY_LEN];
+
+/* 3 byte TRANSPORT_LATENCY (microsecond) */
+typedef uint8_t TRANSPORT_LATENCY[TRANSPORT_LATENCY_LEN];
+
+/* 5 byte CODEC ID */
+typedef uint8_t CODEC_ID[CODEC_ID_LEN];
+
+/*3 byte CONTROLLER DELAY (microsecond)*/
+typedef uint8_t CONTROLLER_DELAY[CONTROLLER_DELAY_LEN];
+
+/*3 byte TIME_OFFSET*/
+typedef uint8_t TIME_OFFSET[TIME_OFFSET_LEN];
+#endif
