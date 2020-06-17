@@ -12,10 +12,6 @@ if MDM_CHEROKEE
 AM_CFLAGS += -DBTA_AV_SPLIT_A2DP_ENABLED
 endif
 
-if MDM_HASTINGS
-AM_CFLAGS += -DBTA_AV_SPLIT_A2DP_ENABLED
-endif
-
 AM_CPPFLAGS = \
         -I.. \
         -I../include \
@@ -59,10 +55,6 @@ AM_CPPFLAGS = \
         -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/include
 
 if MDM_CHEROKEE
-AM_CPPFLAGS += -DBTA_AV_SPLIT_A2DP_ENABLED
-endif
-
-if MDM_HASTINGS
 AM_CPPFLAGS += -DBTA_AV_SPLIT_A2DP_ENABLED
 endif
 
