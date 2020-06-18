@@ -1562,6 +1562,9 @@ static void btif_dm_search_devices_evt(uint16_t event, char* p_param) {
           FROM_HERE,
           base::Bind(&BTM_BleAdvFilterParamSetup, BTM_BLE_SCAN_COND_DELETE, 0,
                      nullptr, base::Bind(&bte_scan_filt_param_cfg_evt, 0)));
+      BTIF_TRACE_DEBUG("%s() Sending : BTA_DM_INQ_CMPL_EVT  \n", __func__);
+      HAL_CBACK(bt_hal_cbacks, discovery_state_changed_cb,
+                BT_DISCOVERY_INQ_COMPLETE);
     } break;
     case BTA_DM_DISC_CMPL_EVT: {
       HAL_CBACK(bt_hal_cbacks, discovery_state_changed_cb,
