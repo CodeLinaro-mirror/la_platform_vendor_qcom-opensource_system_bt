@@ -550,16 +550,22 @@ A2dpCodecs::A2dpCodecs(
 }
 
 A2dpCodecs::~A2dpCodecs() {
-  std::unique_lock<std::recursive_mutex> lock(codec_mutex_);
-  for (const auto& iter : indexed_codecs_) {
-    delete iter.second;
-  }
-  for (const auto& iter : disabled_codecs_) {
-    delete iter.second;
-  }
-  lock.unlock();
+  LOG_DEBUG(LOG_TAG,"Destructor of ~A2dpCodecs");
 }
 
+void A2dpCodecs::cleanup() {
+  LOG_DEBUG(LOG_TAG,"cleanup of a2dp codecs");
+
+  std::list<A2dpCodecConfig*>::iterator it;
+  for (it=ordered_source_codecs_.begin(); it!=ordered_source_codecs_.end(); ++it){
+    A2dpCodecConfig* codec_config = (*it);
+    delete codec_config;
+  }
+  for (it=ordered_sink_codecs_.begin(); it!=ordered_sink_codecs_.end(); ++it){
+    A2dpCodecConfig* codec_config = (*it);
+    delete codec_config;
+  }
+}
 
 /* Add mandatory codec for all supported codec in the end of priority list to handle
  * case if the codec parameters sent by upper layers are not capable of creating connection.
