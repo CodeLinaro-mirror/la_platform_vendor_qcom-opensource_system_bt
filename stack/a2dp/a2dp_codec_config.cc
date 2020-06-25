@@ -583,6 +583,8 @@ void add_mandatory_codec(std::vector<btav_a2dp_codec_config_t>* p_codec_config_l
     }
     it--;
     A2dpCodecConfig* codec_config[BTAV_A2DP_CODEC_INDEX_SOURCE_MAX];
+    for(int xx=0; xx < BTAV_A2DP_CODEC_INDEX_SOURCE_MAX; xx++)
+        codec_config[xx] = nullptr;
     for(int codec_index = BTAV_A2DP_CODEC_INDEX_SOURCE_MAX-1; codec_index >= BTAV_A2DP_CODEC_INDEX_SOURCE_MIN; codec_index--){
       if ((codec_type_added[codec_index]) && (codec_index != BTAV_A2DP_CODEC_INDEX_SOURCE_SBC)) {
       /* Copy Mandatory codec parameters if particular codec is added by user */
