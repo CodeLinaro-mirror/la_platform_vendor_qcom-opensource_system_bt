@@ -94,6 +94,8 @@ cc_library_shared {
         "bt_stack.conf",
         "libldacBT_enc",
         "libldacBT_abr",
+        "libaptX_decoder",
+        "libaptX_HD_decoder",
     ],
     cflags: [
         "-DBUILDCFG",

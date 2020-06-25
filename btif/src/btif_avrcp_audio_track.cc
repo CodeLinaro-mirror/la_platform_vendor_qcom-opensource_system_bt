@@ -20,11 +20,12 @@
 #include "btif_avrcp_audio_track.h"
 
 #include <base/logging.h>
-#include <media/AudioTrack.h>
+#include <media/AudioSystem.h>
 #include <utils/StrongPointer.h>
 
 #include "bt_target.h"
 #include "osi/include/log.h"
+#include "stack/include/a2dp_constants.h"
 
 using namespace android;
 
@@ -35,8 +36,12 @@ FILE* outputPcmSampleFile;
 char outputFilename[50] = "/data/misc/bluedroid/output_sample.pcm";
 #endif
 
+#define COMPRESSED_AUDIO_BUFFER_SIZE 2048
+
 void* BtifAvrcpAudioTrackCreate(int trackFreq, int bits_per_sample,
-                                int channelType) {
+                                int channelType,
+                                btav_a2dp_codec_location_t codec_location,
+                                audio_format_t media_format) {
   audio_format_t format;
   switch (bits_per_sample) {
     default:
@@ -53,11 +58,41 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int bits_per_sample,
   LOG_VERBOSE(LOG_TAG,
               "%s Track.cpp: btCreateTrack freq %d format 0x%x channel %d ",
               __func__, trackFreq, format, channelType);
-  sp<android::AudioTrack> track = new android::AudioTrack(
+  sp<android::AudioTrack> track = nullptr;
+  if (codec_location == BTAV_A2DP_CODEC_LOCATION_SOFTWARE) {
+    /* [A2DP SINK] Change audiotrack flags from "AUDIO_OUTPUT_FLAG_FAST" to
+     * "AUDIO_OUTPUT_FLAG_DEEP_BUFFER" for the reason that quality of A2DP streaming
+     * might be easily influenced by other android servies, i.e. p2p scanning.
+     */
+    track= new android::AudioTrack(
       AUDIO_STREAM_MUSIC, trackFreq, format, channelType,
-      (size_t)0 /*frameCount*/, (audio_output_flags_t)AUDIO_OUTPUT_FLAG_FAST,
+      (size_t)0 /*frameCount*/, (audio_output_flags_t)AUDIO_OUTPUT_FLAG_DEEP_BUFFER,
       NULL /*callback_t*/, NULL /*void* user*/, 0 /*notificationFrames*/,
       AUDIO_SESSION_ALLOCATE, android::AudioTrack::TRANSFER_SYNC);
+  } else if (codec_location == BTAV_A2DP_CODEC_LOCATION_ADSP) {
+    audio_format_t media_format = (audio_format_t)AUDIO_FORMAT_APTX;
+    audio_attributes_t mAttributes = AudioSystem::streamTypeToAttributes(AUDIO_STREAM_MUSIC);
+
+    // code to intialize offload info
+    audio_offload_info_t offload_info;
+    memset(&offload_info, 0, sizeof(audio_offload_info_t));
+    offload_info.size = sizeof(audio_offload_info_t);
+    offload_info.sample_rate = trackFreq;
+    offload_info.channel_mask = channelType;
+    offload_info.format = media_format;
+    offload_info.stream_type = AUDIO_STREAM_MUSIC;
+    offload_info.has_video = FALSE;
+    offload_info.is_streaming = FALSE;
+    offload_info.offload_buffer_size = COMPRESSED_AUDIO_BUFFER_SIZE;
+
+    track = new android::AudioTrack(
+      AUDIO_STREAM_MUSIC, trackFreq, media_format, channelType,
+      (size_t)0 /*frameCount*/, (audio_output_flags_t)AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD,
+      NULL /*callback_t*/, NULL /*void* user*/, 0 /*notificationFrames*/,
+      AUDIO_SESSION_ALLOCATE, android::AudioTrack::TRANSFER_SYNC, &offload_info,
+      -1, -1, &mAttributes);
+  }
+
   CHECK(track != NULL);
 
   BtifAvrcpAudioTrack* trackHolder = new BtifAvrcpAudioTrack;
@@ -65,11 +100,15 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int bits_per_sample,
   trackHolder->track = track;
 
   if (trackHolder->track->initCheck() != 0) {
+    LOG_ERROR(LOG_TAG, "%s: AudioTrack initCheck fail", __func__);
     return nullptr;
   }
 
 #if (DUMP_PCM_DATA == TRUE)
   outputPcmSampleFile = fopen(outputFilename, "ab");
+  if (!outputPcmSampleFile) {
+    LOG_ERROR(LOG_TAG, "%s: Create file %s failed:%s", __func__, outputFilename, strerror(errno));
+  }
 #endif
   trackHolder->track->setVolume(1, 1);
   return (void*)trackHolder;
@@ -145,6 +184,10 @@ void BtifAvrcpSetAudioTrackGain(void* handle, float gain) {
 
 int BtifAvrcpAudioTrackWriteData(void* handle, void* audioBuffer,
                                  int bufferlen) {
+  if (handle == NULL) {
+    LOG_ERROR(LOG_TAG, "%s handle is null.", __func__);
+    return 0;
+  }
   BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(handle);
   CHECK(trackHolder != NULL);
   CHECK(trackHolder->track != NULL);

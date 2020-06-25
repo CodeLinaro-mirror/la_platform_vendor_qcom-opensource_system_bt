@@ -35,8 +35,14 @@
  * should eventually be
  * deleted using BtifAvrcpAudioTrackDelete (see below).
  */
+
+#include <media/AudioTrack.h>
+#include "btif_av.h"
+
 void* BtifAvrcpAudioTrackCreate(int trackFreq, int bits_per_sample,
-                                int channelType);
+                                int channelType,
+                                btav_a2dp_codec_location_t codec_location,
+                                audio_format_t media_format);
 
 /**
  * Starts the audio track.
