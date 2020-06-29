@@ -109,7 +109,8 @@ typedef struct {
 /** Bluetooth Adapter Discovery state */
 typedef enum {
   BT_DISCOVERY_STOPPED,
-  BT_DISCOVERY_STARTED
+  BT_DISCOVERY_STARTED,
+  BT_DISCOVERY_INQ_COMPLETE
 } bt_discovery_state_t;
 
 /** Bluetooth ACL connection state */
