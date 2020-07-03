@@ -1166,6 +1166,8 @@ A2dpCodecConfigAptxHdSink::~A2dpCodecConfigAptxHdSink() {}
 bool A2dpCodecConfigAptxHdSink::init() {
   if (!isValid()) return false;
 
+  if (!A2DP_IsVendorCodecAptxHdEnabled()) return false;
+
   if (A2DP_GetCodecLocation(BTAV_A2DP_CODEC_INDEX_SINK_APTX_HD) !=
       BTAV_A2DP_CODEC_LOCATION_SOFTWARE) {
     LOG_INFO(LOG_TAG, "%s: non software decoder", __func__);
