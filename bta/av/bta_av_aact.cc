@@ -2721,6 +2721,8 @@ void bta_av_data_path(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
 
   if (p_scb->cong) return;
 
+  if (p_scb->started == false) return;
+
   // Always get the current number of bufs que'd up
   p_scb->l2c_bufs =
       (uint8_t)L2CA_FlushChannel(p_scb->l2c_cid, L2CAP_FLUSH_CHANS_GET);
@@ -2791,7 +2793,7 @@ void bta_av_data_path(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
         p_buf->len -= fragment_len;
       }
 
-      if (p_scb->current_codec->useRtpHeaderMarkerBit()) {
+      if ((p_scb->current_codec != nullptr) && p_scb->current_codec->useRtpHeaderMarkerBit()) {
         m_pt |= AVDT_MARKER_SET;
       }
       if (!extra_fragments.empty()) {
