@@ -1618,6 +1618,8 @@ UINT8 *btm_ble_build_adv_data(tBTM_BLE_AD_MASK *p_data_mask, UINT8 **p_dst,
 *******************************************************************************/
 void btm_ble_select_adv_interval(tBTM_BLE_INQ_CB *p_cb, UINT8 evt_type, UINT16 *p_adv_int_min, UINT16 *p_adv_int_max)
 {
+    BTM_TRACE_EVENT("%s: min adv interval: %d max adv interval: %d event:%d",
+                     __func__, p_cb->adv_interval_min, p_cb->adv_interval_max, evt_type);
     if (p_cb->adv_interval_min && p_cb->adv_interval_max)
     {
         *p_adv_int_min = p_cb->adv_interval_min;
