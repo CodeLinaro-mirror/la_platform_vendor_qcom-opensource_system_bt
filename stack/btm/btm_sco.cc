@@ -324,8 +324,10 @@ static tBTM_STATUS btm_send_connect_request(uint16_t acl_handle,
     if (controller_get_interface()
             ->supports_enhanced_setup_synchronous_connection()) {
 
-      p_setup->input_data_path = p_setup->output_data_path =
-          btm_get_data_path(p_setup->input_data_path);
+      /* SCO audio path is calculated always before calling
+       * btm_send_connect_request. So there is no need to
+       * calculate SCO audio again in btm_send_connect_request.
+       */
 
       LOG(INFO) << __func__ << std::hex << ": enhanced parameter list"
                 << " txbw=0x" << unsigned(p_setup->transmit_bandwidth)
