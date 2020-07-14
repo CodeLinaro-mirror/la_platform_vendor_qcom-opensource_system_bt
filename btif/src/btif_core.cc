@@ -918,9 +918,9 @@ bt_status_t btif_get_adapter_property(bt_property_type_t type) {
 
   BTIF_TRACE_EVENT("%s %d", __func__, type);
 
-  /* Allow get_adapter_property only for BDADDR and BDNAME if BT is disabled */
-  if (!btif_is_enabled() && (type != BT_PROPERTY_BDADDR) &&
-      (type != BT_PROPERTY_BDNAME) && (type != BT_PROPERTY_CLASS_OF_DEVICE))
+  /* Allow get_adapter_property only for COD and BDNAME if BT is disabled */
+  if (!btif_is_enabled() && (type != BT_PROPERTY_BDNAME) &&
+      (type != BT_PROPERTY_CLASS_OF_DEVICE))
     return BT_STATUS_NOT_READY;
 
   req.read_req.bd_addr = RawAddress::kEmpty;
