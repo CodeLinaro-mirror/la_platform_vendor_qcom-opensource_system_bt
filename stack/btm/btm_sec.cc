@@ -4818,10 +4818,11 @@ static void btm_sec_pairing_timeout(UNUSED_ATTR void* data) {
         LOG(ERROR) << __func__
                    << " BTM_PAIR_STATE_WAIT_DISCONNECT unknown BDA: "
                    << p_cb->pairing_bda;
-        break;
+      } else {
+        btm_sec_send_hci_disconnect(p_dev_rec, HCI_ERR_AUTH_FAILURE,
+                                    p_dev_rec->hci_handle);
       }
-      btm_sec_send_hci_disconnect(p_dev_rec, HCI_ERR_AUTH_FAILURE,
-                                  p_dev_rec->hci_handle);
+      /* change pairing state to IDLE */
       btm_sec_change_pairing_state(BTM_PAIR_STATE_IDLE);
       break;
 
