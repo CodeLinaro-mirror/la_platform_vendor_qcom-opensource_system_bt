@@ -2293,9 +2293,7 @@ bool BtifAvStateMachine::StateStarted::ProcessEvent(uint32_t event,
       peer_.SetFlags(BtifAvPeer::kFlagPendingStop);
 
       // AVDTP link is closed
-      if (peer_.IsActivePeer()) {
-        btif_a2dp_on_stopped(peer_.PeerAddress(), nullptr);
-      }
+      btif_a2dp_on_stopped(peer_.PeerAddress(), nullptr);
 
       // Inform the application that we are disconnected
       btif_report_connection_state(peer_.PeerAddress(),
@@ -2360,9 +2358,7 @@ bool BtifAvStateMachine::StateClosing::ProcessEvent(uint32_t event,
 
     case BTA_AV_STOP_EVT:
     case BTIF_AV_STOP_STREAM_REQ_EVT:
-      if (peer_.IsActivePeer()) {
-        btif_a2dp_on_stopped(peer_.PeerAddress(), nullptr);
-      }
+      btif_a2dp_on_stopped(peer_.PeerAddress(), nullptr);
       break;
 
     case BTA_AV_CLOSE_EVT:
