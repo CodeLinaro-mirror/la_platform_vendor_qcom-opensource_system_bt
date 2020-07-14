@@ -36,13 +36,16 @@
 #include "btif_util.h"
 #include "osi/include/log.h"
 
-void btif_a2dp_on_idle(void) {
-  LOG_INFO(LOG_TAG, "%s: ## ON A2DP IDLE ## peer_sep = %d", __func__,
-           btif_av_get_peer_sep());
-  if (btif_av_get_peer_sep() == AVDT_TSEP_SNK) {
-    btif_a2dp_source_on_idle();
-  } else if (btif_av_get_peer_sep() == AVDT_TSEP_SRC) {
-    btif_a2dp_sink_on_idle();
+void btif_a2dp_on_idle(const RawAddress& peer_addr) {
+  LOG_INFO(LOG_TAG, "%s: ## ON A2DP IDLE ## peer_addr %s, active addr %s, peer_sep = %d", __func__,
+           peer_addr.ToString().c_str(), btif_av_sink_active_peer().ToString().c_str(), btif_av_get_peer_sep());
+  // Don't stop decoder when it is not the active peer
+  if (btif_av_sink_active_peer() == peer_addr || btif_av_sink_active_peer().IsEmpty()) {
+    if (btif_av_get_peer_sep() == AVDT_TSEP_SNK) {
+      btif_a2dp_source_on_idle();
+    } else if (btif_av_get_peer_sep() == AVDT_TSEP_SRC) {
+      btif_a2dp_sink_on_idle();
+    }
   }
 }
 
@@ -107,11 +110,11 @@ bool btif_a2dp_on_started(const RawAddress& peer_addr, tBTA_AV_START* p_av_start
   return false;
 }
 
-void btif_a2dp_on_stopped(tBTA_AV_SUSPEND* p_av_suspend) {
+void btif_a2dp_on_stopped(const RawAddress& peer_addr, tBTA_AV_SUSPEND* p_av_suspend) {
   LOG_INFO(LOG_TAG, "%s: ## ON A2DP STOPPED ## p_av_suspend=%p", __func__,
            p_av_suspend);
-
-  if (btif_av_get_peer_sep() == AVDT_TSEP_SRC) {
+  // Don't stop decoder when it is not the active peer
+  if (btif_av_get_peer_sep() == AVDT_TSEP_SRC && btif_av_sink_active_peer() == peer_addr) {
     btif_a2dp_sink_on_stopped(p_av_suspend);
     return;
   }
@@ -123,10 +126,11 @@ void btif_a2dp_on_stopped(tBTA_AV_SUSPEND* p_av_suspend) {
   }
 }
 
-void btif_a2dp_on_suspended(tBTA_AV_SUSPEND* p_av_suspend) {
+void btif_a2dp_on_suspended(const RawAddress& peer_addr, tBTA_AV_SUSPEND* p_av_suspend) {
   LOG_INFO(LOG_TAG, "%s: ## ON A2DP SUSPENDED ## p_av_suspend=%p", __func__,
            p_av_suspend);
-  if (btif_av_get_peer_sep() == AVDT_TSEP_SRC) {
+  // Don't stop decoder when it is not the active peer
+  if (btif_av_get_peer_sep() == AVDT_TSEP_SRC && btif_av_sink_active_peer() == peer_addr) {
     btif_a2dp_sink_on_suspended(p_av_suspend);
     return;
   }
