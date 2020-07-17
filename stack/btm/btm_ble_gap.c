@@ -398,7 +398,7 @@ tBTM_STATUS BTM_BleObserve(BOOLEAN start, UINT8 duration,
                                                   BTM_BLE_DEFAULT_SFP);
             }
 
-            p_inq->scan_duplicate_filter = BTM_BLE_DUPLICATE_ENABLE;
+            p_inq->scan_duplicate_filter = BTM_BLE_DUPLICATE_DISABLE;
             status = btm_ble_start_scan();
         }
 
