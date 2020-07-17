@@ -415,6 +415,7 @@
 
 #define HCI_VSC_SPLIT_A2DP_OPCODE  (0x000A | HCI_GRP_VENDOR_SPECIFIC)
 
+#define HCI_CONTROLLER_A2DP_OPCODE_OCF (0x015D | HCI_GRP_VENDOR_SPECIFIC)
 /* Link Power Ctrl OCF  */
 #define HCI_VS_LINK_POWER_CTRL_REQ_OPCODE (0x00DA | HCI_GRP_VENDOR_SPECIFIC)
 /* subopcode for enable/disable PL10 adaptive control */

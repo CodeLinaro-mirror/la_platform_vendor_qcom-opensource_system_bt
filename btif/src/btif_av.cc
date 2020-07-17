@@ -1978,7 +1978,7 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
       if (btif_av_cb[index].flags & BTIF_AV_FLAG_REMOTE_SUSPEND) {
         if (p_av->status == BTA_AV_SUCCESS) {
           btif_a2dp_src_vsc.tx_started = TRUE;
-          bta_av_vendor_offload_stop(NULL);
+          bta_av_vendor_offload_stop();
         }
         APPL_TRACE_WARNING("%s: Ack success to MM although VSCs of STRAT Failed: %d",
                                __func__, btif_av_cb[index].flags);
@@ -2850,7 +2850,7 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
 #ifdef BTA_AV_SPLIT_A2DP_ENABLED
       if ((bt_split_a2dp_enabled) && (!btif_av_is_playing_on_other_idx(index))) {
         BTIF_TRACE_IMP("%s: Other index is not playing", __func__);
-        bta_av_vendor_offload_stop(NULL);
+        bta_av_vendor_offload_stop();
       }
 #endif
       event = BTIF_AV_SUSPEND_STREAM_REQ_EVT;

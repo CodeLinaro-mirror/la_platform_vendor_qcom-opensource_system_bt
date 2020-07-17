@@ -554,10 +554,12 @@ int A2DP_GetTrackChannelCountSbc(const uint8_t* p_codec_info) {
   switch (sbc_cie.ch_mode) {
     case A2DP_SBC_IE_CH_MD_MONO:
       return 1;
-    case A2DP_SBC_IE_CH_MD_DUAL:
     case A2DP_SBC_IE_CH_MD_STEREO:
-    case A2DP_SBC_IE_CH_MD_JOINT:
       return 2;
+    case A2DP_SBC_IE_CH_MD_JOINT:
+      return 3;
+    case A2DP_SBC_IE_CH_MD_DUAL:
+      return 4;
     default:
       break;
   }

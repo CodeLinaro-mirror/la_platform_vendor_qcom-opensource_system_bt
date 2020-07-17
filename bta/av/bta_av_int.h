@@ -699,49 +699,29 @@ typedef struct {
 } tBTA_AV_CB;
 
 /* SPLITA2DP */
-typedef struct {
-  uint8_t codec_type;
-  uint8_t transport_type;
-  uint8_t stream_type;
-  uint8_t dev_index;
-  uint8_t max_latency;
-  uint8_t delay_reporting;
-  uint8_t cp_active;
-  uint8_t cp_flag;
-  uint16_t sample_rate;
-  uint16_t acl_hdl;
-  uint16_t l2c_rcid;
-  uint16_t mtu;
-//#ifdef TWS_ENABLED
-  uint8_t stream_start;// Start Stream:1
-  uint8_t split_acl; // BR-EDR Device:0 TWS Device:1
-  uint8_t ch_mode; //None:0 Left:1 Right:2
-  uint16_t ttp; //time to play
-//#endif
-  uint8_t codec_info[AVDT_CODEC_SIZE];
-  tBTA_AV_SCB* p_scb;
-}tBT_VENDOR_A2DP_OFFLOAD;
+typedef struct{
+   uint32_t codec_type;            /* codec types ex: SBC/AAC/LDAC/APTx */
+   uint16_t max_latency;           /* maximum latency */
+   uint16_t scms_t_enable;         /* content protection enable */
+   uint32_t sample_rate;           /* Sample rates ex: 44.1/48/88.2/96 Khz */
+   uint8_t bits_per_sample;        /* bits per sample ex: 16/24/32 */
+   uint8_t ch_mode;                /* None:0 Left:1 Right:2 */
+   uint32_t encoded_audio_bitrate; /* encoder audio bitrates */
+   uint16_t acl_hdl;               /* connection handle */
+   uint16_t l2c_rcid;              /* l2cap channel id */
+   uint16_t mtu;                   /* MTU size */
+   uint8_t codec_info[32];         /* Codec specific information */
+}tBT_VENDOR_A2DP_OFFLOAD_SPLIT;
 
-extern tBT_VENDOR_A2DP_OFFLOAD offload_start;
+extern tBT_VENDOR_A2DP_OFFLOAD_SPLIT offload_split;
 
 /* Vendor OFFLOAD VSC */
 #define HCI_VSQC_CONTROLLER_A2DP_OPCODE 0x000A
 
-#define VS_QHCI_READ_A2DP_CFG                 0x01
-#define VS_QHCI_WRITE_SBC_CFG                 0x02
-#define VS_QHCI_WRITE_A2DP_MEDIA_CHANNEL_CFG  0x03
-#define VS_QHCI_START_A2DP_MEDIA              0x04
-#define VS_QHCI_STOP_A2DP_MEDIA               0x05
-#define VS_QHCI_A2DP_WRITE_SUGGESTED_BITRATE  0x06
-#define VS_QHCI_A2DP_TRANSPORT_CONFIGURATION  0x07
-#define VS_QHCI_A2DP_WRITE_SCMS_T_CP          0x08
-#define VS_QHCI_A2DP_SELECTED_CODEC           0x09
-#define VS_QHCI_A2DP_OFFLOAD_START            0x0A
-#define VS_QHCI_GET_SCRAMBLING_FREQS          0x11
-#define VS_QHCI_SCRAMBLE_A2DP_MEDIA           0x12
+#define VS_HCI_A2DP_OFFLOAD_START 0x01
+#define VS_HCI_A2DP_OFFLOAD_STOP 0x02
 #define VS_QHCI_ENCODER_MODE_CHANGE           0X13
-#define A2DP_TRANSPORT_TYPE_SLIMBUS     0
-#define QHCI_INVALID_VSC 0x01
+
 /* SPLITA2DP */
 /*****************************************************************************
  *  Global data
@@ -882,7 +862,7 @@ extern void bta_av_delay_rpt(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_open_at_inc(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_offload_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 extern void bta_av_offload_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
-extern void bta_av_vendor_offload_stop(tBTA_AV_SCB* p_scb);
+extern void bta_av_vendor_offload_stop();
 extern void bta_av_disc_fail_as_acp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 #if (TWS_ENABLED == TRUE)
 extern void bta_av_set_tws_chn_mode(tBTA_AV_SCB* p_scb, bool adjust);

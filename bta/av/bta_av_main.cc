@@ -238,7 +238,8 @@ const tBTA_AV_NSM_ACT bta_av_nsm_act[] = {
 
 /* AV control block */
 tBTA_AV_CB bta_av_cb;
-tBT_VENDOR_A2DP_OFFLOAD offload_start;
+tBT_VENDOR_A2DP_OFFLOAD_SPLIT offload_split;
+
 static const char* bta_av_st_code(uint8_t state);
 
 static bool is_multicast_enabled = false;
