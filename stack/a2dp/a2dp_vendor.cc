@@ -172,7 +172,7 @@ bool A2DP_IsVendorPeerSourceCodecSupported(const uint8_t* p_codec_info) {
   // Check for aptX-HD
   if (vendor_id == A2DP_APTX_HD_VENDOR_ID &&
       codec_id == A2DP_APTX_HD_CODEC_ID_BLUETOOTH) {
-    return A2DP_IsSinkCodecSupportedAptxHd(p_codec_info);
+    return A2DP_IsPeerSourceCodecSupportedAptxHd(p_codec_info);
   }
 
   return false;
