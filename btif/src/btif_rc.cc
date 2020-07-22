@@ -85,7 +85,7 @@
 
 #define MAX_VOLUME 128
 #define MAX_LABEL 16
-#define MAX_TRANSACTIONS_PER_SESSION 16
+#define MAX_TRANSACTIONS_PER_SESSION 32
 #define PLAY_STATUS_PLAYING 1
 #define BTIF_RC_NUM_CONN BT_RC_NUM_APP
 #define BTIF_RC_HANDLE_NONE 0xFF
@@ -2847,6 +2847,7 @@ static void btif_rc_status_cmd_timeout_handler(UNUSED_ATTR uint16_t event,
   }
   meta_msg.rc_handle = p_dev->rc_handle;
 
+  BTIF_TRACE_WARNING("%s: pdu_id 0x%x", __func__, p_context->rc_status_cmd.pdu_id);
   switch (p_context->rc_status_cmd.pdu_id) {
     case AVRC_PDU_REGISTER_NOTIFICATION:
       rc_notification_interim_timout(p_context->rc_status_cmd.label, p_dev);
@@ -4379,6 +4380,7 @@ static void handle_avk_rc_metamsg_rsp(tBTA_AV_META_MSG* pmeta_msg) {
   uint8_t scratch_buf[512] = {0};  // this variable is unused
   uint16_t buf_len;
   tAVRC_STS status;
+  bool release = true;
 
   BTIF_TRACE_DEBUG("%s: opcode: %d rsp_code: %d  ", __func__,
                    pmeta_msg->p_msg->hdr.opcode, pmeta_msg->code);
@@ -4395,10 +4397,9 @@ static void handle_avk_rc_metamsg_rsp(tBTA_AV_META_MSG* pmeta_msg) {
     switch (avrc_response.pdu) {
       case AVRC_PDU_REGISTER_NOTIFICATION:
         handle_notification_response(pmeta_msg, &avrc_response.reg_notif);
-        if (pmeta_msg->code == AVRC_RSP_INTERIM) {
-          /* Don't free the transaction Id */
-          clear_cmd_timeout(pmeta_msg->label);
-          return;
+        if (pmeta_msg->code == AVRC_RSP_CHANGED) {
+          // Don't release transaction when it is not a command response
+          release = false;
         }
         break;
 
@@ -4468,8 +4469,10 @@ static void handle_avk_rc_metamsg_rsp(tBTA_AV_META_MSG* pmeta_msg) {
         __func__, pmeta_msg->code, pmeta_msg->len);
     return;
   }
-  BTIF_TRACE_DEBUG("XX __func__ release transaction %d", pmeta_msg->label);
-  release_transaction(pmeta_msg->label);
+  if (release) {
+    BTIF_TRACE_DEBUG("XX __func__ release transaction %d", pmeta_msg->label);
+    release_transaction(pmeta_msg->label);
+  }
 }
 
 /***************************************************************************
@@ -5545,13 +5548,14 @@ static bt_status_t get_transaction(rc_transaction_t** ptransaction) {
   // Check for unused transactions
   for (uint8_t i = 0; i < MAX_TRANSACTIONS_PER_SESSION; i++) {
     if (!device.transaction[i].in_use) {
-      BTIF_TRACE_DEBUG("%s: Got transaction.label: %d", __func__,
-                       device.transaction[i].lbl);
+      BTIF_TRACE_DEBUG("%s: Got transaction[%d].label: %d", __func__,
+                       i, device.transaction[i].lbl);
       device.transaction[i].in_use = true;
       *ptransaction = &(device.transaction[i]);
       return BT_STATUS_SUCCESS;
     }
   }
+  BTIF_TRACE_ERROR("%s: failed", __func__);
   return BT_STATUS_NOMEM;
 }
 
