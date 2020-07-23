@@ -407,6 +407,12 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
           /* For all channels, send the event through their FSMs */
           for (p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb;
                p_ccb = p_ccb->p_next_ccb) {
+            if ((p_ccb->our_cfg.fcr.mode == L2CAP_FCR_ECFC_MODE)
+                && (p_ccb->coc_cmd_info.ecfc_grp_status &
+                L2CAP_ECFC_INFO_RSP_EVT)) {
+              L2CAP_TRACE_WARNING("L2CAP_ECFC_INFO_RSP_EVT for cid %d", p_ccb->local_cid);
+              continue;
+            }
             l2c_csm_execute(p_ccb, L2CEVT_L2CAP_INFO_RSP, &ci);
           }
         }
@@ -900,6 +906,12 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
           ci.bd_addr = p_lcb->remote_bd_addr;
           for (p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb;
                p_ccb = p_ccb->p_next_ccb) {
+            if ((p_ccb->our_cfg.fcr.mode == L2CAP_FCR_ECFC_MODE)
+                && (p_ccb->coc_cmd_info.ecfc_grp_status &
+                L2CAP_ECFC_INFO_RSP_EVT)) {
+              L2CAP_TRACE_WARNING("L2CAP_ECFC_INFO_RSP_EVT for cid %d", p_ccb->local_cid);
+              continue;
+            }
             l2c_csm_execute(p_ccb, L2CEVT_L2CAP_INFO_RSP, &ci);
           }
         }
@@ -1008,7 +1020,7 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         l2cu_find_req_params_for_peer_rcfg_rsp(p_lcb, result, id);
         break;
 
-      case L2CAP_FLOW_CONTROL_CREDIT_IND:
+      case L2CAP_CMD_FLOW_CONTROL_CREDIT_IND:
         if (p + 4 > p_pkt_end) {
           android_errorWriteLog(0x534e4554, "80261585");
           LOG(ERROR) << "invalid read";
@@ -1280,7 +1292,9 @@ uint8_t l2c_data_write(uint16_t cid, BT_HDR* p_data, uint16_t flags) {
 
   if (p_ccb->peer_cfg.fcr.mode == L2CAP_FCR_ECFC_MODE) {
     uint16_t credits_required =
-        (uint16_t)ceil((double)p_data->len / (double)p_ccb->peer_conn_cfg.mps);
+        (uint16_t)ceil((double)(p_data->len + 2) / (double)p_ccb->peer_conn_cfg.mps);
+      L2CAP_TRACE_ERROR("%s Credits required:%d ; "
+          " Credits available: %d", __func__, credits_required, p_ccb->peer_conn_cfg.credits);
     if (credits_required <= p_ccb->peer_conn_cfg.credits) {
       p_ccb->peer_conn_cfg.credits -= credits_required;
     } else {
@@ -1289,7 +1303,7 @@ uint8_t l2c_data_write(uint16_t cid, BT_HDR* p_data, uint16_t flags) {
       L2CAP_TRACE_ERROR("%s Insufficient credits available. Credits required:%d."
           " Credits available: %d", __func__, credits_required, p_ccb->peer_conn_cfg.credits);
       osi_free(p_data);
-      return (L2CAP_DW_CONGESTED);
+      return (L2CAP_DW_NO_CREDITS);
     }
   }
   l2c_csm_execute(p_ccb, L2CEVT_L2CA_DATA_WRITE, p_data);

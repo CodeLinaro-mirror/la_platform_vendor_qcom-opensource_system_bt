@@ -874,6 +874,7 @@ bool L2CA_ConnectCocRsp(tL2CAP_COC_CONN_REQ *p_conn_req,
 
   /* Now, find the channel control block */
   tL2C_CCB* p_ccb[L2C_MAX_ECFC_CHNLS_PER_CONN];
+  tL2C_CCB* p_actual_ccb[L2C_MAX_ECFC_CHNLS_PER_CONN];
   uint16_t valid_chnls = 0;
   for (int i = 0; i < p_conn_req->num_chnls; i++) {
     p_ccb[i] = l2cu_find_ccb_by_cid(p_lcb, p_conn_req->sr_cids[i]);
@@ -882,6 +883,9 @@ bool L2CA_ConnectCocRsp(tL2CAP_COC_CONN_REQ *p_conn_req,
                           p_conn_req->sr_cids[i]);
       ecfc_conn_result = L2CAP_ECFC_SOME_CONNS_REFUSED_INSUFF_RESOURCES;
     } else {
+      p_actual_ccb[valid_chnls]  = p_ccb[i];
+      L2CAP_TRACE_WARNING("%s chnl_index channel CID %d %d", __func__, valid_chnls,
+                      p_conn_req->sr_cids[i], p_actual_ccb[valid_chnls]->local_cid);
       valid_chnls++;
     }
   }
@@ -891,15 +895,44 @@ bool L2CA_ConnectCocRsp(tL2CAP_COC_CONN_REQ *p_conn_req,
                         __func__);
     return false;
   }
-  p_conn_req->num_chnls = valid_chnls;
+  if (valid_chnls < p_conn_req->num_chnls) {
+    p_conn_req->num_chnls = valid_chnls;
+  } else {
+    if (result == L2CAP_ECFC_SOME_CONNS_REFUSED_INSUFF_RESOURCES) {
+      L2CAP_TRACE_WARNING("%s upper layer rejected the some channels ",
+                        __func__);
+      uint16_t sr_cids[L2C_MAX_ECFC_CHNLS_PER_CONN] = {0};
+      for (int i = 0; i < p_conn_req->num_chnls; i++) {
+        sr_cids[i] = p_actual_ccb[i]->local_cid;
+        p_ccb[i] = p_actual_ccb[i];
+      }
+      for (int i = p_conn_req->num_chnls; i < p_actual_ccb[0]->coc_cmd_info.requested_ecfc_chnls;
+            i++) {
+        sr_cids[i] = 0;
+        if (p_actual_ccb[i] != NULL) {
+          l2cu_release_ccb(p_actual_ccb[i]);
+        }
+        p_ccb[i] = NULL;
+      }
+      l2cu_set_coc_conn_rsp_cids(sr_cids, p_ccb[0], p_conn_req->num_chnls);
+      for (int i = 0; i < p_actual_ccb[0]->coc_cmd_info.requested_ecfc_chnls; i++) {
+        L2CAP_TRACE_WARNING("%s peer_rsp_cid %d", __func__, p_ccb[0]->coc_cmd_info.peer_rsp_cids[i]);
+      }
+    } else {
+      p_conn_req->num_chnls = valid_chnls;
+    }
+  }
+
   //TODO move below to separate API
   for (int i = 0; i < p_conn_req->num_chnls; i++) {
     /* The IDs must match */
-    if (p_ccb[i]->remote_id != l2cap_id) {
-      L2CAP_TRACE_WARNING("%s bad id. Expected: %d  Got: %d", __func__,
-                        p_ccb[i]->remote_id, l2cap_id);
-      ecfc_conn_result = L2CAP_ECFC_SOME_CONNS_REFUSED_INSUFF_RESOURCES;
-      valid_chnls--;
+    if (p_ccb[i]!= NULL) {
+      if (p_ccb[i]->remote_id != l2cap_id) {
+        L2CAP_TRACE_WARNING("%s bad id. Expected: %d  Got: %d", __func__,
+                          p_ccb[i]->remote_id, l2cap_id);
+        ecfc_conn_result = L2CAP_ECFC_SOME_CONNS_REFUSED_INSUFF_RESOURCES;
+        valid_chnls--;
+      }
     }
   }
   if (valid_chnls == 0) {
@@ -912,14 +945,16 @@ bool L2CA_ConnectCocRsp(tL2CAP_COC_CONN_REQ *p_conn_req,
   } else {
     mps = controller_get_interface()->get_acl_data_size_classic();
   }
-  if (ecfc_conn_result)
+  if (ecfc_conn_result && (result != L2CAP_ECFC_SOME_CONNS_REFUSED_INSUFF_RESOURCES))
     result = ecfc_conn_result;
 
   for (int i = 0; i < valid_chnls; i++) {
-    p_ccb[i]->local_conn_cfg.mtu = p_conn_req->mtu;
-    p_ccb[i]->local_conn_cfg.mps = mps;
-    p_ccb[i]->local_conn_cfg.credits = L2CAP_COC_CREDIT_DEFAULT;
-    p_ccb[i]->coc_cmd_info.ecfc_conn_result = result;
+    if (p_ccb[i] != NULL) {
+      p_ccb[i]->local_conn_cfg.mtu = p_conn_req->mtu;
+      p_ccb[i]->local_conn_cfg.mps = mps;
+      p_ccb[i]->local_conn_cfg.credits = L2CAP_COC_CREDIT_DEFAULT;
+      p_ccb[i]->coc_cmd_info.ecfc_conn_result = result;
+    }
   }
 
   switch(result) {
@@ -1177,6 +1212,36 @@ bool L2CA_ReconfigCocReq(tL2CAP_COC_CHMAP_INFO* chmap_info, uint16_t mtu) {
 
   // upper layer has no control over mps.
   return l2cu_reconfig_coc_req(chmap_info, mtu, 0);
+}
+
+/*********************************************************************************
+ *
+ * Function         L2CA_ReconfigCocReq
+ *
+ * Description      Upper layer call this function to reconfigure l2cap channel
+ *                  in Enhanced Credit Based Floe Control mode. Upper layer
+ *                  can only update mtu value. L2CAP layer assigns for mps.
+ *
+ * Parameters       chmap_info: info of the channels to be reconfigured.
+ *                  mtu: Maximum transmission unit as required by upper layer.
+ *
+ * Returns          true if reconfiguration request sent, otherwise false
+ *
+ ******************************************************************************/
+bool L2CA_ReconfigCocReqMps(tL2CAP_COC_CHMAP_INFO* chmap_info, uint16_t mps) {
+  L2CAP_TRACE_API("%s, mps = %d", __func__, mps);
+
+  if (!chmap_info || !chmap_info->num_chnls) {
+    L2CAP_TRACE_WARNING("%s: Incomplete channel information", __func__);
+    return (false);
+  }
+
+  //check if MTU value is acceptable
+  if (l2cu_validate_mps_for_chnls(mps, chmap_info->sr_cids, chmap_info->num_chnls, true)) {
+    return (false);
+  }
+
+  return l2cu_reconfig_coc_req(chmap_info, 0, mps); // upper layer has no control over mps
 }
 
 /*******************************************************************************

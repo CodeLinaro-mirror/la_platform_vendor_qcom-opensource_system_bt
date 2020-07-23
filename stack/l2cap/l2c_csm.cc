@@ -218,9 +218,10 @@ static void l2c_csm_closed(tL2C_CCB* p_ccb, uint16_t event, void* p_data) {
         } else {
           tL2CA_COC_CONNECT_CFM_CB *coc_connect_cfm
             = p_ccb->p_rcb->coc_api.pL2CA_CocConnectCfm_Cb;
+          RawAddress p_bd_addr = p_ccb->p_lcb->remote_bd_addr;
           tL2CAP_COC_CHMAP_INFO chmap_info = {};
           l2cu_release_coc_ccbs(p_ccb);
-          (*coc_connect_cfm)(&chmap_info, 0, p_ci->l2cap_result,
+          (*coc_connect_cfm)(p_bd_addr, &chmap_info, 0, p_ci->l2cap_result,
               p_ci->status);
         }
       }
@@ -280,9 +281,10 @@ static void l2c_csm_closed(tL2C_CCB* p_ccb, uint16_t event, void* p_data) {
           if (!l2c_fcr_chk_remote_ecfc_support(p_ccb)) {
             tL2CA_COC_CONNECT_CFM_CB *coc_connect_cfm
               = p_ccb->p_rcb->coc_api.pL2CA_CocConnectCfm_Cb;
+            RawAddress p_bd_addr = p_ccb->p_lcb->remote_bd_addr;
             tL2CAP_COC_CHMAP_INFO chmap_info = {};
             l2cu_release_coc_ccbs(p_ccb);
-            (*coc_connect_cfm)(&chmap_info, 0, L2CAP_CONN_NO_LINK,
+            (*coc_connect_cfm)(p_bd_addr, &chmap_info, 0, L2CAP_CONN_NO_LINK,
               L2CAP_CONN_NO_LINK);
           } else {
             alarm_t* ecfc_conn_alarm = alarm_new("ecfc_conn_alarm");
@@ -297,9 +299,10 @@ static void l2c_csm_closed(tL2C_CCB* p_ccb, uint16_t event, void* p_data) {
               alarm_free(ecfc_conn_alarm);
               tL2CA_COC_CONNECT_CFM_CB *coc_connect_cfm
               = p_ccb->p_rcb->coc_api.pL2CA_CocConnectCfm_Cb;
+              RawAddress p_bd_addr = p_ccb->p_lcb->remote_bd_addr;
               tL2CAP_COC_CHMAP_INFO chmap_info = {};
               l2cu_release_coc_ccbs(p_ccb);
-              (*coc_connect_cfm)(&chmap_info, 0, L2CAP_CONN_NO_PSM,
+              (*coc_connect_cfm)(p_bd_addr, &chmap_info, 0, L2CAP_CONN_NO_PSM,
                 L2CAP_CONN_NO_PSM);
             }
           }
@@ -317,9 +320,10 @@ static void l2c_csm_closed(tL2C_CCB* p_ccb, uint16_t event, void* p_data) {
     } else {
       tL2CA_COC_CONNECT_CFM_CB *coc_connect_cfm
              = p_ccb->p_rcb->coc_api.pL2CA_CocConnectCfm_Cb;
+      RawAddress p_bd_addr = p_ccb->p_lcb->remote_bd_addr;
       tL2CAP_COC_CHMAP_INFO chmap_info = {};
       l2cu_release_coc_ccbs(p_ccb);
-      (*coc_connect_cfm)(&chmap_info, 0, p_ci->l2cap_result,
+      (*coc_connect_cfm)(p_bd_addr, &chmap_info, 0, p_ci->l2cap_result,
                     L2CAP_CONN_SECURITY_BLOCK);
     }
     break;
@@ -385,8 +389,9 @@ static void l2c_csm_closed(tL2C_CCB* p_ccb, uint16_t event, void* p_data) {
         tL2CAP_COC_CHMAP_INFO chmap_info = {};
         tL2CA_COC_CONNECT_CFM_CB *coc_connect_cfm
             = p_ccb->p_rcb->coc_api.pL2CA_CocConnectCfm_Cb;
+        RawAddress p_bd_addr = p_ccb->p_lcb->remote_bd_addr;
         l2cu_release_coc_ccbs(p_ccb);
-        (*coc_connect_cfm)(&chmap_info, 0, p_ci->l2cap_result,
+        (*coc_connect_cfm)(p_bd_addr, &chmap_info, 0, p_ci->l2cap_result,
                     L2CAP_CONN_TIMEOUT);
       }
       break;
@@ -615,10 +620,11 @@ static void l2c_csm_orig_w4_sec_comp(tL2C_CCB* p_ccb, uint16_t event,
             alarm_free(ecfc_conn_alarm);
             tL2CA_COC_CONNECT_CFM_CB *coc_connect_cfm
               = p_ccb->p_rcb->coc_api.pL2CA_CocConnectCfm_Cb;
+            RawAddress p_bd_addr = p_ccb->p_lcb->remote_bd_addr;
             tL2CAP_COC_CHMAP_INFO chmap_info = {};
             l2cu_release_coc_ccbs(p_ccb);
             if (coc_connect_cfm) {
-              (*coc_connect_cfm)(&chmap_info, 0, L2CAP_CONN_NO_PSM,
+              (*coc_connect_cfm)(p_bd_addr, &chmap_info, 0, L2CAP_CONN_NO_PSM,
                 L2CAP_CONN_NO_PSM);
             }
           }
@@ -628,10 +634,11 @@ static void l2c_csm_orig_w4_sec_comp(tL2C_CCB* p_ccb, uint16_t event,
             if (!l2c_fcr_chk_remote_ecfc_support(p_ccb)) {
               tL2CA_COC_CONNECT_CFM_CB *coc_connect_cfm
                 = p_ccb->p_rcb->coc_api.pL2CA_CocConnectCfm_Cb;
+              RawAddress p_bd_addr = p_ccb->p_lcb->remote_bd_addr;
               tL2CAP_COC_CHMAP_INFO chmap_info = {};
               l2cu_release_coc_ccbs(p_ccb);
               if (coc_connect_cfm) {
-                (*coc_connect_cfm)(&chmap_info, 0,
+                (*coc_connect_cfm)(p_bd_addr, &chmap_info, 0,
                                  L2CAP_ECFC_ALL_CONNS_REFUSED_SPSM_NOT_SUPPORTED,
                                  L2CAP_CONN_NO_LINK);
               }
@@ -648,11 +655,13 @@ static void l2c_csm_orig_w4_sec_comp(tL2C_CCB* p_ccb, uint16_t event,
                 alarm_free(ecfc_conn_alarm);
                 tL2CA_COC_CONNECT_CFM_CB *coc_connect_cfm
                   = p_ccb->p_rcb->coc_api.pL2CA_CocConnectCfm_Cb;
+                RawAddress p_bd_addr = p_ccb->p_lcb->remote_bd_addr;
                 tL2CAP_COC_CHMAP_INFO chmap_info = {};
                 l2cu_release_coc_ccbs(p_ccb);
                 if (coc_connect_cfm) {
-                  (*coc_connect_cfm)(&chmap_info, 0, L2CAP_CONN_NO_PSM,
-                  L2CAP_CONN_NO_PSM);
+                  (*coc_connect_cfm)(p_bd_addr, &chmap_info, 0,
+                                    L2CAP_CONN_NO_PSM,
+                                    L2CAP_CONN_NO_PSM);
                 }
               }
             }
@@ -681,10 +690,11 @@ static void l2c_csm_orig_w4_sec_comp(tL2C_CCB* p_ccb, uint16_t event,
         //TODO Move these common code into Separate API
         tL2CA_COC_CONNECT_CFM_CB *coc_connect_cfm
                 = p_ccb->p_rcb->coc_api.pL2CA_CocConnectCfm_Cb;
+        RawAddress p_bd_addr = p_ccb->p_lcb->remote_bd_addr;
         tL2CAP_COC_CHMAP_INFO chmap_info = {};
         l2cu_release_coc_ccbs(p_ccb);
         if (coc_connect_cfm) {
-          (*coc_connect_cfm)(&chmap_info, 0,
+          (*coc_connect_cfm)(p_bd_addr, &chmap_info, 0,
                             L2CAP_ECFC_ALL_CONNS_REFUSED_INSUFF_AUTHENTICATION,
                             HCI_ERR_AUTH_FAILURE);
         }
@@ -993,11 +1003,12 @@ static void l2c_csm_w4_l2cap_connect_rsp(tL2C_CCB* p_ccb, uint16_t event,
       } else {
         tL2CA_COC_CONNECT_CFM_CB *coc_connect_cfm
           = p_ccb->p_rcb->coc_api.pL2CA_CocConnectCfm_Cb;
+        RawAddress p_bd_addr = p_ccb->p_lcb->remote_bd_addr;
         tL2CAP_COC_CHMAP_INFO chmap_info;
         chmap_info.num_chnls = 0;
         alarm_free(p_ccb->coc_cmd_info.ecfc_conn_alarm);
         l2cu_release_coc_ccbs(p_ccb);
-        (*coc_connect_cfm)(&chmap_info, 0, L2CAP_CONN_TIMEOUT,
+        (*coc_connect_cfm)(p_bd_addr, &chmap_info, 0, L2CAP_CONN_TIMEOUT,
                     L2CAP_CONN_TIMEOUT);
       }
       break;
@@ -1076,13 +1087,15 @@ static void l2c_csm_w4_l2cap_connect_rsp(tL2C_CCB* p_ccb, uint16_t event,
         }
       } else {
         /* Need to have ECFC mode channel to continue */
+        l2cu_set_ecfc_grp_status(p_ccb, L2CAP_ECFC_INFO_RSP_EVT);
         if (!l2c_fcr_chk_remote_ecfc_support(p_ccb)) {
           tL2CA_COC_CONNECT_CFM_CB *coc_connect_cfm
             = p_ccb->p_rcb->coc_api.pL2CA_CocConnectCfm_Cb;
+          RawAddress p_bd_addr = p_ccb->p_lcb->remote_bd_addr;
           tL2CAP_COC_CHMAP_INFO chmap_info;
           chmap_info.num_chnls = 0;
           l2cu_release_coc_ccbs(p_ccb);
-          (*coc_connect_cfm)(&chmap_info, 0,
+          (*coc_connect_cfm)(p_bd_addr, &chmap_info, 0,
                             L2CAP_ECFC_ALL_CONNS_REFUSED_SPSM_NOT_SUPPORTED,
                             L2CAP_CONN_NO_LINK);
         } else {
@@ -1098,9 +1111,10 @@ static void l2c_csm_w4_l2cap_connect_rsp(tL2C_CCB* p_ccb, uint16_t event,
             alarm_free(ecfc_conn_alarm);
             tL2CA_COC_CONNECT_CFM_CB *coc_connect_cfm
               = p_ccb->p_rcb->coc_api.pL2CA_CocConnectCfm_Cb;
+            RawAddress p_bd_addr = p_ccb->p_lcb->remote_bd_addr;
             tL2CAP_COC_CHMAP_INFO chmap_info = {};
             l2cu_release_coc_ccbs(p_ccb);
-            (*coc_connect_cfm)(&chmap_info, 0, L2CAP_CONN_NO_PSM,
+            (*coc_connect_cfm)(p_bd_addr, &chmap_info, 0, L2CAP_CONN_NO_PSM,
                 L2CAP_CONN_NO_PSM);
           }
         }
@@ -1111,6 +1125,7 @@ static void l2c_csm_w4_l2cap_connect_rsp(tL2C_CCB* p_ccb, uint16_t event,
     {
       tL2CA_COC_CONNECT_CFM_CB *coc_connect_cfm
        = p_ccb->p_rcb->coc_api.pL2CA_CocConnectCfm_Cb;
+      RawAddress p_bd_addr = p_ccb->p_lcb->remote_bd_addr;
       tL2CAP_COC_CHMAP_INFO chmap_info;
       /* Connection is completed */
       alarm_cancel(p_ccb->coc_cmd_info.ecfc_conn_alarm);
@@ -1120,7 +1135,7 @@ static void l2c_csm_w4_l2cap_connect_rsp(tL2C_CCB* p_ccb, uint16_t event,
                       p_ccb->local_cid, p_ccb->peer_conn_cfg.mtu); //TODO print all IDS and Chnl num's
       chmap_info.num_chnls = p_ccb->coc_cmd_info.num_coc_chnls;
       l2cu_get_coc_local_cids(&chmap_info.sr_cids[0], p_ccb);
-      (*coc_connect_cfm) (&chmap_info, p_ccb->peer_conn_cfg.mtu,
+      (*coc_connect_cfm) (p_bd_addr, &chmap_info, p_ccb->peer_conn_cfg.mtu,
                           p_ci->l2cap_result, L2CAP_CONN_OK);
     }
       break;
@@ -1128,11 +1143,12 @@ static void l2c_csm_w4_l2cap_connect_rsp(tL2C_CCB* p_ccb, uint16_t event,
     {
       tL2CA_COC_CONNECT_CFM_CB *coc_connect_cfm
        = p_ccb->p_rcb->coc_api.pL2CA_CocConnectCfm_Cb;
+      RawAddress p_bd_addr = p_ccb->p_lcb->remote_bd_addr;
       alarm_cancel(p_ccb->coc_cmd_info.ecfc_conn_alarm);
       alarm_free(p_ccb->coc_cmd_info.ecfc_conn_alarm);
       tL2CAP_COC_CHMAP_INFO chmap_info = {};
       l2cu_release_coc_ccbs(p_ccb);
-      (*coc_connect_cfm) (&chmap_info, 0,
+      (*coc_connect_cfm) (p_bd_addr, &chmap_info, 0,
         p_ci->l2cap_result, p_ci->l2cap_result);
     }
     break;
@@ -1670,6 +1686,10 @@ static void l2c_csm_config(tL2C_CCB* p_ccb, uint16_t event, void* p_data) {
          */
         L2CAP_TRACE_ERROR("%s total credits %d are more than max value", __func__, total_credits);
         l2cu_send_peer_coc_disc_req(p_ccb);
+
+        p_ccb->chnl_state = CST_W4_L2CAP_DISCONNECT_RSP;
+        alarm_set_on_mloop(p_ccb->l2c_ccb_timer, L2CAP_CHNL_DISCONNECT_TIMEOUT_MS,
+                               l2c_ccb_timer_timeout, p_ccb);
       } else {
         p_ccb->peer_conn_cfg.credits += *credit;
 
@@ -1922,6 +1942,10 @@ static void l2c_csm_open(tL2C_CCB* p_ccb, uint16_t event, void* p_data) {
          */
         L2CAP_TRACE_ERROR("%s total credits %d are more than max value", __func__, total_credits);
         l2cu_send_peer_coc_disc_req(p_ccb);
+
+        p_ccb->chnl_state = CST_W4_L2CAP_DISCONNECT_RSP;
+        alarm_set_on_mloop(p_ccb->l2c_ccb_timer, L2CAP_CHNL_DISCONNECT_TIMEOUT_MS,
+                               l2c_ccb_timer_timeout, p_ccb);
       } else {
         p_ccb->peer_conn_cfg.credits += *credit;
 
@@ -2053,7 +2077,7 @@ static void l2c_csm_w4_l2cap_disconnect_rsp(tL2C_CCB* p_ccb, uint16_t event,
         l2cu_release_ccb(p_ccb);
         //Its in Connection state, so no need to update in cid group array.
         if (disconnect_coc_cfm) {
-          (*disconnect_coc_cfm)(local_cid, L2CAP_DISC_OK);
+          (*disconnect_coc_cfm)(local_cid, L2CAP_DISC_TIMEOUT); //please change it
         }
       }
       break;

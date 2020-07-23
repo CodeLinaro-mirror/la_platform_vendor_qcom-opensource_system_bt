@@ -2610,7 +2610,8 @@ void l2c_fcr_start_rx_buffer_mon_timer(tL2C_CCB* p_ccb) {
 void l2c_fcr_monitor_rx_buffer(void* p_data) {
   tL2C_CCB* p_ccb = (tL2C_CCB *)p_data;
   uint16_t credits;
-  uint16_t credits_per_mtu = (uint16_t)ceil(p_ccb->peer_conn_cfg.mtu/p_ccb->peer_conn_cfg.mps);
+  uint16_t credits_per_mtu =
+    (uint16_t)ceil((double)(p_ccb->peer_conn_cfg.mtu)/(double)p_ccb->peer_conn_cfg.mps);
   L2CAP_TRACE_API("%s", __func__);
 
   if (!p_ccb) {

@@ -52,6 +52,7 @@
 #define L2CAP_DW_FAILED false
 #define L2CAP_DW_SUCCESS true
 #define L2CAP_DW_CONGESTED 2
+#define L2CAP_DW_NO_CREDITS 3
 
 /* Values for priority parameter to L2CA_SetAclPriority */
 #define L2CAP_PRIORITY_NORMAL 0
@@ -183,7 +184,7 @@ typedef struct {
 /* Define a structure to hold the Connection request parameters for L2CAP
  * connection oriented channels.
  */
-typedef struct t_l2cap_coc_conn_req{
+typedef struct {
   uint16_t psm;
   uint16_t mtu;
   uint16_t sr_cids[L2C_MAX_ECFC_CHNLS_PER_CONN];
@@ -195,7 +196,7 @@ typedef struct t_l2cap_coc_conn_req{
 /* Define a structure to hold the Channel map information for L2CAP
  * connection oriented channels.
  */
-typedef struct t_l2cap_coc_chmap_info{
+typedef struct {
   uint16_t sr_cids[L2C_MAX_ECFC_CHNLS_PER_CONN];
   uint8_t num_chnls;
 } tL2CAP_COC_CHMAP_INFO;
@@ -203,7 +204,7 @@ typedef struct t_l2cap_coc_chmap_info{
 /* Define a structure to hold the Connection response parameters for L2CAP
  * connection oriented channels.
  */
-typedef struct t_l2cap_coc_conn_rsp{
+typedef struct {
   uint16_t l2cap_id;
   uint16_t result;
   uint16_t status;
@@ -329,7 +330,7 @@ typedef void(tL2CA_TX_COMPLETE_CB)(uint16_t, uint16_t);
  * Control Credit" packet from the remote. |credit_count| parameter represents
  * the total available credits, including |credit_received|.
  */
-typedef void(tL2CA_CREDITS_RECEIVED_CB) (uint16_t local_cid,
+typedef void(tL2CA_CREDITS_RECEIVED_CB)(uint16_t local_cid,
                                         uint16_t credits_received,
                                         uint16_t credit_count);
 
@@ -341,8 +342,10 @@ typedef void(tL2CA_CREDITS_RECEIVED_CB) (uint16_t local_cid,
  *              result     - This parameter contains whether the Enhanced
  *                           credit based flow control mode connection is
  *                           successful or failed?
+ *              status     - status of the l2cap connection
  */
-typedef void(tL2CA_COC_CONNECT_CFM_CB) (tL2CAP_COC_CHMAP_INFO  *chmap_info,
+typedef void(tL2CA_COC_CONNECT_CFM_CB) (RawAddress &p_bd_addr,
+                                        tL2CAP_COC_CHMAP_INFO  *chmap_info,
                                         uint16_t p_mtu,
                                         uint16_t result,
                                         uint16_t status);
@@ -350,6 +353,11 @@ typedef void(tL2CA_COC_CONNECT_CFM_CB) (tL2CAP_COC_CHMAP_INFO  *chmap_info,
 /* Callback prototype CoC Connection Indication. Parameters are
  *              p_conn_rsp - This parameter contains structure
  *                           tL2CAP_COC_CONN_RSP.
+ *              l2cap_id  - l2cap identifier
+ *              result     - This parameter contains whether the Enhanced
+ *                           credit based flow control mode connection is
+ *                           successful or failed?
+ *              status     - status of the l2cap connection
  */
 typedef void (tL2CA_COC_CONNECT_IND_CB) (tL2CAP_COC_CONN_REQ *p_conn_req,
                                          uint16_t l2cap_id,
@@ -403,8 +411,7 @@ typedef struct {
 
 /* Define the structure that applications use to register with
  * L2CAP ECFC mode. This structure includes callback functions. All functions
- * MUST be provided, with the exception of the "connect pending"
- * callback and "congestion status" callback.
+ * mUST be provided.
  */
 typedef struct {
   tL2CA_COC_CONNECT_IND_CB* pL2CA_CocConnectInd_Cb;
@@ -456,7 +463,7 @@ typedef struct {
  *
  * Function         L2CA_Register
  *
- * Description      Other layers call this function to register for L2CAP
+ * Description      Other layers call this function to register for L2CAP CoC
  *                  services.
  *
  * Returns          PSM to use or zero if error. Typically, the PSM returned
@@ -473,7 +480,7 @@ extern uint16_t L2CA_Register(uint16_t psm, tL2CAP_APPL_INFO* p_cb_info,
  *
  * Function         L2CA_RegisterCoc
  *
- * Description      Other layers call this function to register for L2CAP
+ * Description      Other layers call this function to register for L2CAP CoC
  *                  services.
  *
  * Returns          PSM to use or zero if error. Typically, the PSM returned
@@ -752,6 +759,8 @@ extern bool L2CA_ConfigReq(uint16_t cid, tL2CAP_CFG_INFO* p_cfg);
 extern bool L2CA_ReconfigCocReq(tL2CAP_COC_CHMAP_INFO* chmap_info,
                                      uint16_t mtu);
 
+extern bool L2CA_ReconfigCocReqMps(tL2CAP_COC_CHMAP_INFO* chmap_info,
+                                     uint16_t mps);
 /*******************************************************************************
  *
  * Function         L2CA_ConfigRsp

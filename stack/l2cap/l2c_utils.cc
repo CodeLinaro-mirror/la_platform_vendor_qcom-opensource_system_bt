@@ -926,7 +926,7 @@ void l2cu_send_peer_disc_req(tL2C_CCB* p_ccb) {
   BT_HDR *p_buf, *p_buf2;
   uint8_t* p;
 
-  L2CAP_TRACE_ERROR("%s L2CAP - Local CID %d ", __func__, p_ccb->local_cid);
+  L2CAP_TRACE_DEBUG("%s L2CAP - Local CID %d ", __func__, p_ccb->local_cid);
 
   if ((!p_ccb) || (p_ccb->p_lcb == NULL)) {
     L2CAP_TRACE_ERROR("%s L2CAP - ccb or lcb invalid", __func__);
@@ -3255,7 +3255,7 @@ void l2cu_send_peer_ble_flow_control_credit(tL2C_CCB* p_ccb,
   p_ccb->local_id = p_ccb->p_lcb->id;
 
   p_buf = l2cu_build_header(p_lcb, L2CAP_CMD_BLE_FLOW_CTRL_CREDIT_LEN,
-                            L2CAP_FLOW_CONTROL_CREDIT_IND, p_lcb->id);
+                            L2CAP_CMD_FLOW_CONTROL_CREDIT_IND, p_lcb->id);
   if (p_buf == NULL) {
     L2CAP_TRACE_WARNING("l2cu_send_peer_ble_credit_based_conn_req - no buffer");
     return;
@@ -3880,7 +3880,7 @@ void l2cu_set_coc_chnl_state(tL2C_CCB* p_ccb, tL2C_CHNL_STATE chnl_state) {
  *
  * Function         l2cu_set_ecfc_grp_status
  *
- * Description
+ * Description      Setting status to all the ecfc channels
  *
  * Returns          None
  *
@@ -4074,9 +4074,6 @@ void l2cu_update_ccb_peer_params(tL2C_CCB* p_ccb) {
       tmp_ccb->peer_conn_cfg.mtu = p_ccb->peer_conn_cfg.mtu;
       tmp_ccb->peer_conn_cfg.credits = p_ccb->peer_conn_cfg.credits;
       tmp_ccb->peer_conn_cfg.mps = p_ccb->peer_conn_cfg.mps;
-      L2CAP_TRACE_ERROR("%s local_cid %d  MTU %d  Credits %d ", __func__,
-      tmp_ccb->local_cid, tmp_ccb->peer_conn_cfg.mtu,
-      tmp_ccb->peer_conn_cfg.credits);
 
       tmp_ccb->peer_cfg.fcr.mode = L2CAP_FCR_ECFC_MODE;
     } else {
@@ -4224,7 +4221,7 @@ void l2cu_process_ecfc_pending_disconnect(tL2C_CCB** p_ccb,
                                           uint16_t* dest_cids) {
   uint8_t num_chnls = (*p_ccb)->coc_cmd_info.num_coc_chnls;
   L2CAP_TRACE_WARNING("%s disc_pending %d", __func__,
-		      (*p_ccb)->coc_cmd_info.disc_pending);
+                      (*p_ccb)->coc_cmd_info.disc_pending);
 
   uint16_t disc_pend_cnt = 0;
   uint16_t disc_pending_cid[L2C_MAX_ECFC_CHNLS_PER_CONN] = {0};
@@ -4285,7 +4282,7 @@ void l2cu_process_ecfc_pending_disconnect(tL2C_CCB** p_ccb,
   }
   if (((*p_ccb)->coc_cmd_info.num_coc_chnls == 0) &&
       ((*p_ccb)->in_use)) {
-    L2CAP_TRACE_WARNING("%s Clearing CCB %d Since num chnls 0  ", 
+    L2CAP_TRACE_WARNING("%s Clearing CCB %d Since num chnls 0  ",
                         __func__, (*p_ccb)->local_cid);
     l2cu_release_ccb(*p_ccb);
   }
@@ -4347,12 +4344,12 @@ bool l2cu_check_for_valid_sr_cids(tL2C_CCB** p_ccb, uint16_t* dest_cids,
       //So we will update with next CCB in the link.
       if (((*p_ccb)->in_use == false) && (valid_chnls > 0)) {
         L2CAP_TRACE_WARNING("%s First CCB is invalid. Checking for valid ",
-		                     __func__);
+                            __func__);
         for (int i = 0; i < num_chnls; i++) {
           *p_ccb = l2cu_find_ccb_by_cid(p_lcb, actual_sr_cids[i]);
           if (*p_ccb) {
             L2CAP_TRACE_WARNING(" %s Changed CID %d", __func__,
-		                         (*p_ccb)->local_cid);
+                                (*p_ccb)->local_cid);
             (*p_ccb)->coc_cmd_info.num_coc_chnls = valid_chnls;
             break;
           } else {
@@ -4397,7 +4394,7 @@ bool l2cu_check_for_valid_sr_cids(tL2C_CCB** p_ccb, uint16_t* dest_cids,
  *
  * Function         l2cu_set_data_length_ext
  *
- * Description
+ * Description      Setting the DLE in LE Transport
  *
  * Returns          bool
  *
@@ -4556,6 +4553,24 @@ void l2cu_process_peer_conn_request(tL2C_LCB* p_lcb,
     p_conf_info->mtu, p_conf_info->mps, p_conf_info->credits,
     num_chnls);
 
+  p_rcb = l2cu_find_coc_rcb_by_psm(con_info->psm);
+  if (p_rcb == NULL) {
+    L2CAP_TRACE_WARNING("L2CAP - rcvd conn req for unknown PSM: 0x%04x",
+                        con_info->psm);
+    l2cu_reject_coc_connection(p_lcb, id,
+      L2CAP_ECFC_ALL_CONNS_REFUSED_SPSM_NOT_SUPPORTED, num_chnls);
+      return;
+  } else {
+    if (!p_rcb->coc_api.pL2CA_CocConnectInd_Cb) {
+      L2CAP_TRACE_WARNING(
+         "L2CAP - rcvd conn req for outgoing-only connection PSM: %d",
+          con_info->psm);
+      l2cu_reject_coc_connection(p_lcb, id,
+        L2CAP_ECFC_ALL_CONNS_REFUSED_SPSM_NOT_SUPPORTED, num_chnls);
+      return;
+    }
+  }
+
   for (int i = 0; i < num_chnls; i++) {
     p_ccb = l2cu_find_ccb_by_remote_cid(p_lcb, dest_cid[i]);
     if (p_ccb) {
@@ -4581,23 +4596,6 @@ void l2cu_process_peer_conn_request(tL2C_LCB* p_lcb,
 
     l2cu_reject_coc_connection(p_lcb, id, ecfc_conn_req_result, num_chnls);
     return;
-  }
-  p_rcb = l2cu_find_coc_rcb_by_psm(con_info->psm);
-  if (p_rcb == NULL) {
-    L2CAP_TRACE_WARNING("L2CAP - rcvd conn req for unknown PSM: 0x%04x",
-                        con_info->psm);
-    l2cu_reject_coc_connection(p_lcb, id,
-      L2CAP_ECFC_ALL_CONNS_REFUSED_SPSM_NOT_SUPPORTED, num_chnls);
-      return;
-  } else {
-    if (!p_rcb->coc_api.pL2CA_CocConnectInd_Cb) {
-      L2CAP_TRACE_WARNING(
-         "L2CAP - rcvd conn req for outgoing-only connection PSM: %d",
-          con_info->psm);
-      l2cu_reject_coc_connection(p_lcb, id,
-        L2CAP_ECFC_ALL_CONNS_REFUSED_SPSM_NOT_SUPPORTED, num_chnls);
-      return;
-    }
   }
   /* Allocate a channel control block */
   tL2C_CCB* p_coc_ccb[5];

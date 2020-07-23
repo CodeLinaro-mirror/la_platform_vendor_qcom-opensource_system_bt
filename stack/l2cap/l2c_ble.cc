@@ -504,9 +504,6 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
     return;
   }
 
-  L2CAP_TRACE_WARNING(
-        "L2CAP - LE - Signalling packet, pkt_len: %d  cmd_len: %d  code: %d",
-        pkt_len, cmd_len, cmd_code);
   switch (cmd_code) {
     case L2CAP_CMD_REJECT:
       p += 2;
@@ -705,7 +702,7 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       }
       break;
 
-    case L2CAP_FLOW_CONTROL_CREDIT_IND:
+    case L2CAP_CMD_FLOW_CONTROL_CREDIT_IND:
       if (p + 4 > p_pkt_end) {
         android_errorWriteLog(0x534e4554, "80261585");
         LOG(ERROR) << "invalid read";
@@ -763,10 +760,12 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
     case L2CAP_CMD_CREDIT_BASED_CONNECTION_REQ:
     {
       if (p + cmd_len > p_pkt_end) {
-        android_errorWriteLog(0x534e4554, "80261585");
-        LOG(ERROR) << "invalid read";
+        LOG(ERROR) << "invalid CMD LEN L2CAP_CMD_CREDIT_BASED_CONNECTION_REQ";
         return;
       }
+      /* ECFC contains max 5 channels and each channels will be 2 bytes. Hence
+       * Divided by 2 will get number of channels
+       */
       uint8_t num_chnls = (cmd_len - L2CAP_CMD_CREDIT_BASED_CONN_LEN)/2;
       uint16_t dest_cid[5] = {0};
       tL2CAP_COC_CFG_INFO p_conf_info;
@@ -800,8 +799,7 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         uint16_t p_ecfc_pkt_len = L2CAP_CMD_CREDIT_BASED_CONN_LEN +
                                 (2 * p_ccb->coc_cmd_info.num_coc_chnls);
         if (p + p_ecfc_pkt_len > p_pkt_end) {
-          android_errorWriteLog(0x534e4554, "80261585");
-          LOG(ERROR) << "invalid read";
+          LOG(ERROR) << "Invalid CMD length of CoC Connection RSP";
           return;
         }
         uint16_t dest_cid[5] = {0};
