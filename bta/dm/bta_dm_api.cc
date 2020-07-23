@@ -651,6 +651,12 @@ void BTA_GetEirService(uint8_t* p_eir, size_t eir_len,
 
     if (*(p_uuid16 + xx) == UUID_SERVCLASS_HDP_SINK)
       *p_services |= BTA_HL_SERVICE_MASK;
+
+    if (*(p_uuid16 + xx) == UUID_SERVCLASS_ASCS)
+      *p_services |= BTA_LEA_ASCS_SERVICE_MASK;
+
+    if (*(p_uuid16 + xx) == UUID_SERVCLASS_BASS)
+      *p_services |= BTA_LEA_BASS_SERVICE_MASK;
   }
 }
 

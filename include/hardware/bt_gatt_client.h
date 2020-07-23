@@ -300,6 +300,8 @@ typedef struct {
   /** Get gatt db content */
   bt_status_t (*get_gatt_db)(int conn_id);
 
+  void (*register_uuid_srvc_disc)(bluetooth::Uuid);
+
 } btgatt_client_interface_t;
 
 __END_DECLS

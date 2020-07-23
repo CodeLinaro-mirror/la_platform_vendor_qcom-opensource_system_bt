@@ -25,6 +25,7 @@
 #define BTA_DM_INT_H
 
 #include <memory>
+#include <map>
 #include "bt_target.h"
 #include "bta_sys.h"
 
@@ -43,7 +44,10 @@
 
 #define BTA_DM_MSG_LEN 50
 
-#define BTA_SERVICE_ID_TO_SERVICE_MASK(id) (1 << (id))
+#define BTA_SERVICE_ID_TO_SERVICE_MASK(id) ((tBTA_SERVICE_MASK)1 << (id))
+
+#define MAJOR_LE_AUDIO_VENDOR_COD 0x4000
+
 
 /* DM events */
 enum {
@@ -551,6 +555,8 @@ typedef union {
 
   tBTA_DM_API_DI_DISC di_disc;
 
+  tBTA_DM_LEA_DISC_CMPL lea_disc_cmpl;
+
   tBTA_DM_API_EXECUTE_CBACK exec_cback;
 
   tBTA_DM_API_SET_ENCRYPTION set_encryption;
@@ -851,6 +857,55 @@ typedef struct {
   uint8_t lmp_version;
 } tBTA_DM_LMP_VER_INFO;
 
+typedef struct {
+  RawAddress peer_address;
+  bool in_use =false;
+  bool is_tmas_found = false;
+  bool is_has_found = false;
+  std::vector<bluetooth::Uuid> uuids;
+  int tranport; //BTM_UseLeLink(remote_bda);
+  int conn_id = 0;
+  int8_t disc_progress = 0;
+  uint8_t gatt_if;
+  bool using_bredr_bonding = false;
+  uint16_t tmas_role_handle = 0;
+  uint16_t pacs_char_handle = 0;
+  bool csip_disc_progress = true;
+} tBTA_LE_AUDIO_DEV_INFO;
+
+typedef struct {
+  RawAddress p_addr;
+  RawAddress p_id_addr;
+  bool is_le_pairing = false;
+  bool in_use = false;
+  bool is_dumo_device = false;
+  uint8_t dev_type;
+  uint8_t transport;
+  bool sdp_disc_status = true;
+} tBTA_DEV_PAIRING_CB;
+
+#define MAX_LEA_DEVICES 3
+typedef struct {
+  tBTA_DEV_PAIRING_CB bta_dev_pair_db[MAX_LEA_DEVICES];
+  uint8_t num_devices;
+  bool is_pairing_progress = false;
+  std::map <RawAddress, RawAddress> dev_addr_map;
+  std::map <RawAddress, RawAddress> dev_rand_addr_map;
+  RawAddress pending_address;
+  bool is_sdp_discover = true;
+} tBTA_LEA_PAIRING_DB;
+
+
+typedef struct {
+  tBTA_LE_AUDIO_DEV_INFO bta_lea_dev_info[MAX_LEA_DEVICES];
+  RawAddress pending_peer_addr;
+  RawAddress gatt_op_addr = RawAddress::kEmpty;
+  int num_lea_devices  = 0;
+  bool bond_progress = false;
+} tBTA_LE_AUDIO_DEV_CB;
+
+extern tBTA_LE_AUDIO_DEV_CB bta_le_audio_dev_cb;
+
 extern const uint16_t bta_service_id_to_uuid_lkup_tbl[];
 
 extern tBTA_DM_PM_CFG* p_bta_dm_pm_cfg;
@@ -967,4 +1022,6 @@ extern void bta_dm_remove_all_acl(tBTA_DM_MSG* p_data);
 extern void bta_dm_hci_raw_command(tBTA_DM_MSG *p_data);
 
 extern void bta_dm_queue_service_disc(tBTA_DM_MSG* p_data);
+
+
 #endif /* BTA_DM_INT_H */
