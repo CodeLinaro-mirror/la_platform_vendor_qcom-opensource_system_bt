@@ -714,6 +714,7 @@ void handle_rc_disconnect(tBTA_AV_RC_CLOSE* p_rc_close) {
   if (p_dev->rc_supported_event_list != NULL) {
     list_clear(p_dev->rc_supported_event_list);
     p_dev->rc_supported_event_list = NULL;
+    p_dev->rc_supported_play_pos_changed = false;
   }
 
   /* check if there is another device connected */
