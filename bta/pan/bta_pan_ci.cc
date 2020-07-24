@@ -187,6 +187,8 @@ BT_HDR* bta_pan_ci_readbuf(uint16_t handle, RawAddress& src, RawAddress& dst,
   BT_HDR* p_buf;
 
   p_scb = bta_pan_scb_by_handle(handle);
+  if(!p_scb)
+    return NULL;
 
   p_buf = (BT_HDR*)fixed_queue_try_dequeue(p_scb->data_queue);
   if (p_buf != NULL) {
