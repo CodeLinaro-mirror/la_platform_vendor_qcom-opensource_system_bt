@@ -251,6 +251,10 @@ void bta_gattc_deregister(tBTA_GATTC_RCB* p_clreg) {
       bta_gattc_deregister_cmpl(p_clreg);
   } else {
     APPL_TRACE_ERROR("%s: Deregister Failed unknown client cif", __func__);
+    if (bta_gattc_num_reg_app() == 0 && bta_gattc_cb.state == BTA_GATTC_STATE_DISABLING) {
+      APPL_TRACE_ERROR("%s: bta_gattc_cb.state = %d",__func__,bta_gattc_cb.state);
+      bta_gattc_cb.state = BTA_GATTC_STATE_DISABLED;
+    }
   }
 }
 /*******************************************************************************
