@@ -49,6 +49,7 @@
 #include "l2c_int.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+#include "stack_config.h"
 
 using tracked_objects::Location;
 
@@ -731,6 +732,14 @@ static void read_encryption_key_size_complete_after_encryption_change(
     HCI_TRACE_WARNING("%s: disconnecting, status: 0x%02x", __func__, status);
     btsnd_hcic_disconnect(handle, HCI_ERR_PEER_USER);
     return;
+  }
+
+  if (stack_config_get_interface()->get_pts_bredr_invalid_encryption_keysize() > 0) {
+    key_size = stack_config_get_interface()->get_pts_bredr_invalid_encryption_keysize();
+    HCI_TRACE_ERROR(
+        "%s key_size set for pts test, handle: 0x%02x, key_size: "
+        "%d",
+        __func__, handle, key_size);
   }
 
   if (key_size < MIN_KEY_SIZE) {
@@ -1745,6 +1754,14 @@ static void read_encryption_key_size_complete_after_key_refresh(
     HCI_TRACE_WARNING("%s: disconnecting, status: 0x%02x", __func__, status);
     btsnd_hcic_disconnect(handle, HCI_ERR_PEER_USER);
     return;
+  }
+
+  if (stack_config_get_interface()->get_pts_bredr_invalid_encryption_keysize() > 0) {
+    key_size = stack_config_get_interface()->get_pts_bredr_invalid_encryption_keysize();
+    HCI_TRACE_ERROR(
+        "%s key_size set for pts test, handle: 0x%02x, key_size: "
+        "%d",
+        __func__, handle, key_size);
   }
 
   if (key_size < MIN_KEY_SIZE) {
