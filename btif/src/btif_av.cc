@@ -1362,9 +1362,7 @@ void BtifAvStateMachine::StateIdle::OnEnter() {
                    btif_av_sink.ActivePeer().ToString().c_str());
 
   // Stop A2DP if this is the active peer
-  if (peer_.IsActivePeer() || peer_.ActivePeerAddress().IsEmpty()) {
-    btif_a2dp_on_idle();
-  }
+  btif_a2dp_on_idle(peer_.PeerAddress());
 
   // Reset the active peer if this was the active peer and
   // the Idle state was reentered
@@ -1757,7 +1755,7 @@ bool BtifAvStateMachine::StateOpening::ProcessEvent(uint32_t event,
       break;
 
     case BTA_AV_CLOSE_EVT:
-      btif_a2dp_on_stopped(nullptr);
+      btif_a2dp_on_stopped(peer_.PeerAddress(), nullptr);
       btif_report_connection_state(peer_.PeerAddress(),
                                    BTAV_CONNECTION_STATE_DISCONNECTED);
       peer_.StateMachine().TransitionTo(BtifAvStateMachine::kStateIdle);
@@ -1901,9 +1899,7 @@ bool BtifAvStateMachine::StateOpened::ProcessEvent(uint32_t event,
 
     case BTA_AV_CLOSE_EVT:
       // AVDTP link is closed
-      if (peer_.IsActivePeer()) {
-        btif_a2dp_on_stopped(nullptr);
-      }
+       btif_a2dp_on_stopped(peer_.PeerAddress(), nullptr);
 
       // Change state to Idle, send acknowledgement if start is pending
       if (peer_.CheckFlags(BtifAvPeer::kFlagPendingStart)) {
@@ -2031,7 +2027,7 @@ bool BtifAvStateMachine::StateStarted::ProcessEvent(uint32_t event,
         // Immediately stop transmission of frames while suspend is pending
         if (peer_.IsActivePeer()) {
           if (event == BTIF_AV_STOP_STREAM_REQ_EVT) {
-            btif_a2dp_on_stopped(nullptr);
+            btif_a2dp_on_stopped(peer_.PeerAddress(), nullptr);
           } else {
             // (event == BTIF_AV_SUSPEND_STREAM_REQ_EVT)
             btif_a2dp_source_set_tx_flush(true);
@@ -2039,9 +2035,7 @@ bool BtifAvStateMachine::StateStarted::ProcessEvent(uint32_t event,
         }
       } else if (peer_.IsSource()) {
         // Don't stop decoder when it is not the active peer
-        if (peer_.IsActivePeer()) {
-          btif_a2dp_on_stopped(nullptr);
-        }
+        btif_a2dp_on_stopped(peer_.PeerAddress(), nullptr);
       }
       BTA_AvStop(peer_.BtaHandle(), true);
       break;
@@ -2072,11 +2066,9 @@ bool BtifAvStateMachine::StateStarted::ProcessEvent(uint32_t event,
                __PRETTY_FUNCTION__, peer_.PeerAddress().ToString().c_str(),
                BtifAvEvent::EventName(event).c_str(), p_av->suspend.status,
                p_av->suspend.initiator, peer_.FlagsToString().c_str());
-
-      // Don't stop decoder when it is not the active peer
-      if (peer_.IsSource() && peer_.IsActivePeer()) {
+      if (peer_.IsSource()) {
         // A2DP suspended, stop A2DP encoder/decoder until resumed
-        btif_a2dp_on_suspended(&p_av->suspend);
+        btif_a2dp_on_suspended(peer_.PeerAddress(), &p_av->suspend);
       }
       // If not successful, remain in current state
       if (p_av->suspend.status != BTA_AV_SUCCESS) {
@@ -2117,9 +2109,7 @@ bool BtifAvStateMachine::StateStarted::ProcessEvent(uint32_t event,
 
       peer_.SetFlags(BtifAvPeer::kFlagPendingStop);
       peer_.ClearFlags(BtifAvPeer::kFlagLocalSuspendPending);
-
-      btif_a2dp_on_stopped(&p_av->suspend);
-
+      btif_a2dp_on_stopped(peer_.PeerAddress(), &p_av->suspend);
       btif_report_audio_state(peer_.PeerAddress(), BTAV_AUDIO_STATE_STOPPED);
 
       // If stop was successful, change state to Open
@@ -2137,9 +2127,7 @@ bool BtifAvStateMachine::StateStarted::ProcessEvent(uint32_t event,
       peer_.SetFlags(BtifAvPeer::kFlagPendingStop);
 
       // AVDTP link is closed
-      if (peer_.IsActivePeer()) {
-        btif_a2dp_on_stopped(nullptr);
-      }
+      btif_a2dp_on_stopped(peer_.PeerAddress(), nullptr);
 
       // Inform the application that we are disconnected
       btif_report_connection_state(peer_.PeerAddress(),
@@ -2204,9 +2192,7 @@ bool BtifAvStateMachine::StateClosing::ProcessEvent(uint32_t event,
 
     case BTA_AV_STOP_EVT:
     case BTIF_AV_STOP_STREAM_REQ_EVT:
-      if (peer_.IsActivePeer()) {
-        btif_a2dp_on_stopped(nullptr);
-      }
+      btif_a2dp_on_stopped(peer_.PeerAddress(), nullptr);
       break;
 
     case BTA_AV_CLOSE_EVT:
