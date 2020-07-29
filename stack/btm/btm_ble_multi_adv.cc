@@ -106,7 +106,8 @@ struct AdvertisingInstance {
   bool address_update_required;
   bool periodic_enabled;
   uint32_t advertising_interval;  // 1 unit is 0.625 ms
-
+  uint8_t skip_rpa_count;
+  bool skip_rpa;
   /* When true, advertising set is enabled, or last scheduled call to "LE Set
    * Extended Advertising Set Enable" is to enable this advertising set. Any
    * command scheduled when in this state will execute when the set is enabled,
@@ -136,6 +137,8 @@ struct AdvertisingInstance {
         own_address(RawAddress::kEmpty),
         address_update_required(false),
         periodic_enabled(false),
+        skip_rpa_count(0),
+        skip_rpa(false),
         enable_status(false),
         big_handle(INVALID_BIG_HANDLE) {
     adv_raddr_timer = alarm_new_periodic("btm_ble.adv_raddr_timer");
@@ -239,6 +242,15 @@ class BleAdvertisingManagerImpl
     /* Connectable advertising set must be disabled when updating RPA */
     bool restart = p_inst->IsEnabled() && p_inst->IsConnectable();
 
+    if (p_inst->skip_rpa) {
+      if (p_inst->skip_rpa_count > 0) {
+        p_inst->skip_rpa_count--;
+        return;
+      } else {
+        VLOG(1) << __func__ << ": Set skip_rpa_count for broadcast";
+        p_inst->skip_rpa_count = 15;
+      }
+    }
     // If there is any form of timeout on the set, schedule address update when
     // the set stops, because there is no good way to compute new timeout value.
     // Maximum duration value is around 10 minutes, so this is safe.
@@ -905,7 +917,13 @@ class BleAdvertisingManagerImpl
     VLOG(1) << __func__ << " inst_id: " << +inst_id;
 
     VLOG(1) << "data is: " << base::HexEncode(data.data(), data.size());
-
+    uint8_t adv_data[data.size()];
+    memcpy(&adv_data[0], data.data(), data.size());
+    if (adv_data[0] == 3 && adv_data[1] == 0x16 && adv_data[2] == 0xdc && adv_data[3] == 0x8f) {
+      VLOG(1) << __func__ << "Broadcast UUID";
+      adv_inst[inst_id].skip_rpa_count = 15;
+      adv_inst[inst_id].skip_rpa = true;
+    }
     DivideAndSendData(
         inst_id, data, true, cb,
         base::Bind(&BleAdvertiserHciInterface::SetPeriodicAdvertisingData,
@@ -1068,6 +1086,8 @@ class BleAdvertisingManagerImpl
 
     alarm_cancel(p_inst->adv_raddr_timer);
     p_inst->in_use = false;
+    p_inst->skip_rpa_count = 0;
+    p_inst->skip_rpa = false;
     GetHciInterface()->RemoveAdvertisingSet(inst_id, base::DoNothing());
     p_inst->address_update_required = false;
   }
