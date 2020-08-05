@@ -4752,12 +4752,6 @@ void btm_sec_disconnected(uint16_t handle, uint8_t reason) {
   void* data = p_dev_rec->p_ref_data;
   p_dev_rec->new_encryption_key_is_p256 = FALSE;
 
-  if (btm_cb.api.p_auth_complete_callback && trigger_auth_callback) {
-    trigger_auth_callback = false;
-    (*btm_cb.api.p_auth_complete_callback)(p_dev_rec->bd_addr,
-                                           p_dev_rec->dev_class,
-                                           p_dev_rec->sec_bd_name, result);
-  }
 
   /* if security is pending, send callback to clean up the security state */
   if (transport == BT_TRANSPORT_BR_EDR ) {
@@ -4777,6 +4771,13 @@ void btm_sec_disconnected(uint16_t handle, uint8_t reason) {
                   BTM_ERR_PROCESSING);
     }
   }
+
+    if (btm_cb.api.p_auth_complete_callback && trigger_auth_callback) {
+      trigger_auth_callback = false;
+      (*btm_cb.api.p_auth_complete_callback)(p_dev_rec->bd_addr,
+                                             p_dev_rec->dev_class,
+                                             p_dev_rec->sec_bd_name, result);
+    }
 }
 
 /*******************************************************************************
