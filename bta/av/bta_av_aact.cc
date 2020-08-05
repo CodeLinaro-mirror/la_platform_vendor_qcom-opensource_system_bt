@@ -1051,8 +1051,14 @@ void bta_av_role_res(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_av_delay_rpt(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
+  tBTA_AV bta_av_data;
+  bta_av_data.delay_rpt.bd_addr = p_scb->peer_addr;
+  bta_av_data.delay_rpt.hndl = p_scb->hndl;
+  //copy delay report value (in ms)
+  bta_av_data.delay_rpt.sink_delay = ((p_data->str_msg.msg.delay_rpt_cmd.delay) / 10);
   APPL_TRACE_DEBUG("%s: delay report value: %d", __func__, p_data->str_msg.msg.delay_rpt_cmd.delay);
   p_scb->p_cos->delay(p_scb->hndl, p_data->str_msg.msg.delay_rpt_cmd.delay);
+  (*bta_av_cb.p_cback)(BTA_AV_DELAY_REPORT_EVT, &bta_av_data);
 }
 
 /*******************************************************************************
@@ -1615,7 +1621,13 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 
   p_scb->stream_mtu =
       p_data->str_msg.msg.open_ind.peer_mtu - AVDT_MEDIA_HDR_SIZE;
-  mtu_config.mtu = p_scb->stream_mtu - 1;
+  if(p_scb->p_cos->cp_is_active()){
+    //peermtu - 14( 13 bytesfor stack headers - 1 byte for cp)
+    mtu_config.mtu = p_scb->stream_mtu - 2;
+  } else {
+    //peermtu - 13 bytes (for stack headers)
+    mtu_config.mtu = p_scb->stream_mtu - 1;
+  }
   mtu_config.hndl = p_scb->hndl;
   mtu = bta_av_chk_mtu(p_scb, p_scb->stream_mtu);
   APPL_TRACE_DEBUG("%s: l2c_cid: 0x%x stream_mtu: %d mtu: %d", __func__,
@@ -3760,20 +3772,20 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
             (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
             break;
           }
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-          param[0] = VS_QHCI_A2DP_WRITE_SCMS_T_CP;
-          param[1] = offload_start.cp_flag;
-#else
-          if (last_sent_vsc_cmd == VS_QHCI_START_A2DP_MEDIA) {
-            APPL_TRACE_DEBUG("%s: START VSC already exchanged.", __func__);
-            status = 0;
-            (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
-            return;
+          if (btif_av_is_cp_enabled()) {
+            param[0] = VS_QHCI_A2DP_WRITE_SCMS_T_CP;
+            param[1] = offload_start.cp_flag;
+          } else {
+            if (last_sent_vsc_cmd == VS_QHCI_START_A2DP_MEDIA) {
+               APPL_TRACE_DEBUG("%s: START VSC already exchanged.", __func__);
+               status = 0;
+               (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, (tBTA_AV*)&status);
+               return;
+            }
+            last_sent_vsc_cmd = VS_QHCI_START_A2DP_MEDIA;
+            param[0] = VS_QHCI_START_A2DP_MEDIA;
+            param[1] = 0;
           }
-          last_sent_vsc_cmd = VS_QHCI_START_A2DP_MEDIA;
-          param[0] = VS_QHCI_START_A2DP_MEDIA;
-          param[1] = 0;
-#endif
           BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE,2,
                                     param, offload_vendor_callback);
           break;
@@ -3867,11 +3879,11 @@ static void bta_av_vendor_offload_select_codec(tBTA_AV_SCB* p_scb)
   param[index++] = codec_type;
   param[index++] = 0;//max latency
   param[index++] = 0;//delay reporting
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-  param[index++] = offload_start.cp_active;
-#else
-  param[index++] = 0;
-#endif
+  if (btif_av_is_cp_enabled()) {
+    param[index++] = offload_start.cp_active;
+  } else {
+    param[index++] = 0;
+  }
   param[index++] = offload_start.cp_flag;
   sample_rate  = A2DP_GetTrackSampleRate(p_scb->cfg.codec_info);
   param[index++] = (uint8_t)(sample_rate & 0x00FF);
@@ -4186,11 +4198,11 @@ void bta_av_offload_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     offload_start.max_latency = 0;
     offload_start.mtu = mtu;
     offload_start.acl_hdl = BTM_GetHCIConnHandle(p_scb->peer_addr,BT_TRANSPORT_BR_EDR);
-#if (BTA_AV_CO_CP_SCMS_T == TRUE)
-    offload_start.cp_active = p_scb->p_cos->cp_is_active();
-#else
-    offload_start.cp_active = 0;
-#endif
+    if (btif_av_is_cp_enabled()) {
+      offload_start.cp_active = p_scb->p_cos->cp_is_active();
+    } else {
+      offload_start.cp_active = 0;
+    }
     offload_start.cp_flag = p_scb->p_cos->cp_flag();
 
     offload_start.sample_rate = A2DP_GetTrackSampleRate(p_scb->cfg.codec_info);

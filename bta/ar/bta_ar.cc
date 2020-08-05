@@ -103,6 +103,26 @@ static void bta_ar_avdt_cback(uint8_t handle, const RawAddress* bd_addr, uint8_t
     switch(event)
     {
     case AVDT_CONNECT_IND_EVT:
+        // first check if only 1 profile is registered
+        if (!(bta_ar_cb.p_avk_conn_cback &&  bta_ar_cb.p_av_conn_cback))
+        {
+          // send conneciton indication and update sep type based on the callback enabled
+           if (bta_ar_cb.p_avk_conn_cback)
+           {
+               APPL_TRACE_DEBUG(" %s only AVK registered ", __FUNCTION__);
+               update_avdtp_connection_info(*bd_addr, AVDT_AR_EXT_CONNECT_IND_EVT, BTA_AR_EXT_AVK_MASK);
+               APPL_TRACE_DEBUG(" %s Calling AVK Conn Cback ", __FUNCTION__);
+               (*bta_ar_cb.p_avk_conn_cback)(handle, bd_addr, event, p_data);
+           }
+           if (bta_ar_cb.p_av_conn_cback)
+           {
+                APPL_TRACE_DEBUG(" %s only AV registered ", __FUNCTION__);
+                update_avdtp_connection_info(*bd_addr, AVDT_AR_EXT_CONNECT_IND_EVT, BTA_AR_EXT_AV_MASK);
+                APPL_TRACE_DEBUG(" %s Calling AV Conn Cback ", __FUNCTION__);
+                (*bta_ar_cb.p_av_conn_cback)(handle, bd_addr, event, p_data);
+           }
+           break;
+        }
         if(src_only_device)
         {
             /* Remote is a src only device, send indication only to avk */
@@ -176,6 +196,7 @@ static void bta_ar_avdt_cback(uint8_t handle, const RawAddress* bd_addr, uint8_t
                     APPL_TRACE_DEBUG(" %s fake AV DiscConn Cback after AVK setconfig",__FUNCTION__);
                     /* remove AV Mask */
                     update_avdtp_connection_info(*bd_addr, AVDT_AR_EXT_DISCONNECT_IND_EVT, BTA_AR_EXT_AV_MASK);
+                    (*bta_ar_cb.p_av_conn_cback)(handle, bd_addr, AVDT_CLOSE_IND_EVT, p_data);
                     (*bta_ar_cb.p_av_conn_cback)(handle, bd_addr, AVDT_DISCONNECT_IND_EVT, p_data);
                 }
             }

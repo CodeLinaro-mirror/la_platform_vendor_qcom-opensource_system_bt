@@ -69,6 +69,8 @@ static soc_type_node soc_type_entries[] = {
                            { BT_SOC_AR3K , (char *)"ath3k" },
                            { BT_SOC_ROME , (char *)"rome" },
                            { BT_SOC_CHEROKEE , (char *)"cherokee" },
+                           { BT_SOC_NAPIER , (char *) "napier" },
+                           { BT_SOC_HASTINGS , (char *)"hastings" },
                            { BT_SOC_RESERVED , (char *)"" }
                                        };
 
@@ -158,7 +160,7 @@ static intmax_t property_get_bt_imax(const char *key, intmax_t lower_bound,
             ALOGE("%s(%s,%" PRIdMAX ") - overflow", __FUNCTION__, key,
                 default_value);
         } else if (result < lower_bound || result > upper_bound) {
-            // Out of range of requested bounds 
+            // Out of range of requested bounds
             result = default_value;
             ALOGE("%s(%s,%" PRIdMAX ") - out of range", __FUNCTION__, key,
                 default_value);
@@ -278,6 +280,8 @@ static void init_soc_type() {
     soc_type = BT_SOC_ROME;
 #elif defined(BT_SOC_TYPE_CHEROKEE)
     soc_type = BT_SOC_CHEROKEE;
+#elif defined(BT_SOC_TYPE_HASTINGS)
+    soc_type = BT_SOC_HASTINGS;
 #endif
 }
 

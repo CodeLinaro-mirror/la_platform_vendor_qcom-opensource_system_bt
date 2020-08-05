@@ -94,6 +94,7 @@ static int reconfig_a2dp_param_val = 0;
 #include "a2dp_vendor_aptx_hd.h"
 #include "a2dp_vendor_aptx_adaptive.h"
 #include "a2dp_vendor_ldac.h"
+#include "avdt_api.h"
 
 /*****************************************************************************
  *  Constants & Macros
@@ -196,6 +197,11 @@ typedef struct {
   btav_a2dp_codec_config_t codec_config;
 } btif_av_codec_config_req_t;
 
+typedef struct {
+  int index;
+  uint8_t cp_flag;
+} btif_av_cp_flag_update_req_t;
+
 /*****************************************************************************
  *  Static variables
  *****************************************************************************/
@@ -238,6 +244,7 @@ bool is_codec_config_dump = false;
 uint16_t pump_encoded_data = 0; // by default disable it
 static bool delay_report_enabled = false;  // by default disable it
 static bool avrc_browsing_enabled = false;
+static bool enable_scmst = false;
 uint8_t num_codec_configs;
 
 /*SPLITA2DP */
@@ -349,6 +356,7 @@ extern tA2DP_LDAC_CIE a2dp_ldac_caps;
 
 extern bool bta_avk_is_avdt_sync(uint16_t handle);
 
+extern bool bta_av_co_cp_set_flag(uint8_t cp_flag);
 /*****************************************************************************
  * Local helper functions
  *****************************************************************************/
@@ -418,6 +426,7 @@ const char* dump_av_sm_event_name(btif_av_sm_event_t event) {
     CASE_RETURN_STR(BTIF_AV_OFFLOAD_START_REQ_EVT)
     CASE_RETURN_STR(BTA_AV_OFFLOAD_STOP_RSP_EVT)
     CASE_RETURN_STR(BTIF_AV_SETUP_CODEC_REQ_EVT)
+    CASE_RETURN_STR(BTIF_AV_SCMST_CP_FLAG_UPDATE)
     default:
       return "UNKNOWN_EVENT";
   }
@@ -853,12 +862,16 @@ static void btif_report_source_codec_state(UNUSED_ATTR void* p_data,
         __func__);
     return;
   }
+
   if (bt_av_src_callbacks != NULL) {
-    BTIF_TRACE_DEBUG("%s codec config changed BDA:0x%02X%02X%02X%02X%02X%02X", __func__,
-                   bd_addr->address[0], bd_addr->address[1], bd_addr->address[2],
-                   bd_addr->address[3], bd_addr->address[4], bd_addr->address[5]);
+    BTIF_TRACE_DEBUG("%s codec config changed BDA:%s", __func__,
+                     bd_addr->ToString().c_str());
     HAL_CBACK(bt_av_src_callbacks, audio_config_cb, *bd_addr, codec_config,
               codecs_local_capabilities);
+  }
+  if((bt_av_src_vendor_callbacks != NULL) && enable_scmst) {
+    HAL_CBACK(bt_av_src_vendor_callbacks, scmst_capabilities_cb, bd_addr,
+              bta_av_get_peer_cp_status(*bd_addr));
   }
 }
 
@@ -1540,7 +1553,7 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
       else if (bt_av_src_callbacks != NULL)
           connect_req_t->uuid = UUID_SERVCLASS_AUDIO_SOURCE;
       btif_queue_advance_by_uuid(connect_req_t->uuid, &(btif_av_cb[index].peer_bda));
-      btif_av_check_and_start_collission_timer(index);
+      //btif_av_check_and_start_collission_timer(index);
       btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_IDLE);
       btif_report_connection_state_to_ba(BTAV_CONNECTION_STATE_DISCONNECTED);
       } break;
@@ -1909,9 +1922,9 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
                 __func__);
                 btif_av_cb[index].flags &= ~BTIF_AV_FLAG_REMOTE_SUSPEND;
             } else {
-              BTIF_TRACE_DEBUG("%s: honor remote start",__func__);
-              btif_av_cb[index].remote_started = true;
-              btif_a2dp_honor_remote_start();
+              BTIF_TRACE_DEBUG("%s: Not starting suspend timer",__func__);
+              //btif_av_cb[index].remote_started = true;
+              //btif_a2dp_honor_remote_start();
             }
           }
         }
@@ -2020,9 +2033,15 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
           std::vector<btav_a2dp_codec_config_t> codecs_local_capabilities;
           std::vector<btav_a2dp_codec_config_t> codecs_selectable_capabilities;
           codec_config.codec_type = BTAV_A2DP_CODEC_INDEX_SOURCE_MAX;
-          HAL_CBACK(bt_av_src_callbacks, audio_config_cb,
-                  (btif_av_cb[index].peer_bda), codec_config,
-                  codecs_local_capabilities);
+          if (bt_av_src_callbacks != NULL) {
+            HAL_CBACK(bt_av_src_callbacks, audio_config_cb,
+                      btif_av_cb[index].peer_bda, codec_config,
+                      codecs_local_capabilities);
+          }
+          if((bt_av_src_vendor_callbacks != NULL) && enable_scmst) {
+            HAL_CBACK(bt_av_src_vendor_callbacks, scmst_capabilities_cb, &(btif_av_cb[index].peer_bda),
+                      bta_av_get_peer_cp_status(btif_av_cb[index].peer_bda));
+          }
         }
       }
     } break;
@@ -2163,6 +2182,18 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
     }break;
 
       CHECK_RC_EVENT(event, (tBTA_AV*)p_data);
+
+    case BTIF_AV_SCMST_CP_FLAG_UPDATE:{
+      btif_av_cp_flag_update_req_t* update_cp_flag_req =
+                                      (btif_av_cp_flag_update_req_t*)p_data;
+      BTIF_TRACE_DEBUG("event: BTIF_AV_SCMST_CP_FLAG_UPDATE cp_flag: 0x%x ",
+                        update_cp_flag_req->cp_flag);
+      if(bta_av_co_cp_set_flag(update_cp_flag_req->cp_flag)){
+        BTIF_TRACE_ERROR("CP flag set");
+      } else {
+        BTIF_TRACE_ERROR("SCMST not active");
+      }
+    }break;
 
     default: {
       BTIF_TRACE_WARNING("%s : unhandled event:%s", __func__,
@@ -2357,8 +2388,14 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
         std::vector<btav_a2dp_codec_config_t> codecs_local_capabilities;
         std::vector<btav_a2dp_codec_config_t> codecs_selectable_capabilities;
         codec_config.codec_type = BTAV_A2DP_CODEC_INDEX_SOURCE_MAX;
-        HAL_CBACK(bt_av_src_callbacks, audio_config_cb, (btif_av_cb[index].peer_bda),
-                codec_config, codecs_local_capabilities);
+        if (bt_av_src_callbacks != NULL) {
+          HAL_CBACK(bt_av_src_callbacks, audio_config_cb, (btif_av_cb[index].peer_bda),
+                  codec_config, codecs_local_capabilities);
+        }
+        if((bt_av_src_vendor_callbacks != NULL) && enable_scmst) {
+          HAL_CBACK(bt_av_src_vendor_callbacks, scmst_capabilities_cb, &(btif_av_cb[index].peer_bda),
+                    bta_av_get_peer_cp_status(btif_av_cb[index].peer_bda));
+        }
       }
       break;
 
@@ -2694,6 +2731,22 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
       break;
 
       CHECK_RC_EVENT(event, (tBTA_AV*)p_data);
+
+    case BTIF_AV_SCMST_CP_FLAG_UPDATE:{
+      btif_av_cp_flag_update_req_t* update_cp_flag_req =
+                                      (btif_av_cp_flag_update_req_t*)p_data;
+      BTIF_TRACE_DEBUG("event: BTIF_AV_SCMST_CP_FLAG_UPDATE cp_flag: 0x%x ",
+                         update_cp_flag_req->cp_flag);
+      if(bta_av_co_cp_set_flag(update_cp_flag_req->cp_flag)){
+        BTIF_TRACE_ERROR("CP flag set");
+        if(btif_av_is_split_a2dp_enabled()) {
+          BTA_AvUpdateSCMSTCpFlag(update_cp_flag_req->cp_flag);
+        }
+      } else {
+        BTIF_TRACE_ERROR("SCMST not active");
+      }
+    }
+    break;
 
     default:
       BTIF_TRACE_WARNING("%s: unhandled event=%s", __func__,
@@ -3070,6 +3123,11 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
       BTIF_TRACE_IMP("%s: BTA_AV_MTU_CONFIG_EVT", __FUNCTION__);
       index = HANDLE_TO_INDEX(p_bta_data->mtu_config.hndl);
       break;
+    case BTIF_AV_SCMST_CP_FLAG_UPDATE:{
+      btif_av_cp_flag_update_req_t* update_cp_flag_req =
+                                      (btif_av_cp_flag_update_req_t*)p_param;
+      index = update_cp_flag_req->index;
+    }break;
   /* FALLTHROUGH */
   default:
     BTIF_TRACE_ERROR("Unhandled event = %d", event);
@@ -3736,6 +3794,10 @@ static bt_status_t init_src(
   bt_split_a2dp_enabled = (strcmp(value, "false") != 0);
   BTIF_TRACE_ERROR("split_a2dp_status = %d",bt_split_a2dp_enabled);
 
+  property_get("persist.bluetooth.enable_scmst", value, "false");
+  BTIF_TRACE_ERROR("%s : Content Propection Enabled : %s",__func__, value);
+  enable_scmst = (strcmp(value, "true") == 0);
+
   if (bt_av_sink_callbacks != NULL)
         // already did btif_av_init()
         status = BT_STATUS_SUCCESS;
@@ -4390,6 +4452,67 @@ ssize_t send_encoded_data_vendor( bt_bdaddr_t *bd_addr, const void* buffer, size
     return length;
 }
 
+void update_cp(bt_bdaddr_t *bd_addr, uint8_t cp_flag) {
+    BTIF_TRACE_ERROR("%s : Cp_flag : %x", __func__, cp_flag);
+    int index = 0;
+    btif_sm_state_t state;
+    btif_av_cp_flag_update_req_t update_cp_flag_req;
+    memset(&update_cp_flag_req,0, sizeof(btif_av_cp_flag_update_req_t));
+    BTIF_TRACE_DEBUG("AV %s ", __FUNCTION__);
+    if(bd_addr == NULL) {
+      BTIF_TRACE_ERROR("bd_address cannot be NULL");
+      return;
+    }
+    index = btif_av_idx_by_bdaddr(bd_addr);
+    if (index >= 0 && index < btif_max_av_clients) {
+      BTIF_TRACE_DEBUG("AV %s BTIF_AV_SCMST_CP_FLAG_UPDATE index:%d",
+                       __func__, index);
+      update_cp_flag_req.index = index;
+      update_cp_flag_req.cp_flag = cp_flag;
+      btif_dispatch_sm_event(BTIF_AV_SCMST_CP_FLAG_UPDATE, &update_cp_flag_req,
+                             sizeof(btif_av_cp_flag_update_req_t));
+    }
+}
+
+/*******************************************************************************
+**
+** Function        update_cp_vendor
+**
+** Description     Update SCMS-T Content protection flag
+**
+** Returns
+**
+*******************************************************************************/
+bt_status_t update_cp_vendor(bt_bdaddr_t *bd_addr, uint8_t cp_flag) {
+    BTIF_TRACE_ERROR("%s : Cp_flag : %x", __func__, cp_flag);
+    int index = 0;
+    btif_sm_state_t state;
+    btif_av_cp_flag_update_req_t update_cp_flag_req;
+    if((cp_flag != AVDT_CP_SCMS_COPY_NEVER) &&
+       (cp_flag != AVDT_CP_SCMS_COPY_ONCE) &&
+       (cp_flag != AVDT_CP_SCMS_COPY_FREE)) {
+      BTIF_TRACE_ERROR("%s, Invalid cp flag",__func__);
+      return BT_STATUS_FAIL;
+    }
+    memset(&update_cp_flag_req,0, sizeof(btif_av_cp_flag_update_req_t));
+    if(bd_addr == NULL) {
+      BTIF_TRACE_ERROR("bd_address cannot be NULL");
+      return BT_STATUS_FAIL;
+    }
+    index = btif_av_idx_by_bdaddr(bd_addr);
+    if (index >= 0 && index < btif_max_av_clients) {
+      BTIF_TRACE_DEBUG("AV %s BTIF_AV_SCMST_CP_FLAG_UPDATE index:%d",
+                       __func__, index);
+      update_cp_flag_req.index = index;
+      update_cp_flag_req.cp_flag = cp_flag;
+      btif_dispatch_sm_event(BTIF_AV_SCMST_CP_FLAG_UPDATE, &update_cp_flag_req,
+                             sizeof(btif_av_cp_flag_update_req_t));
+      return BT_STATUS_SUCCESS;
+    }
+    return BT_STATUS_FAIL;
+}
+
+
 static const btav_source_interface_t bt_av_src_interface = {
     sizeof(btav_source_interface_t),
     init_src,
@@ -4416,6 +4539,8 @@ static const btav_vendor_interface_t bt_av_src_vendor_interface = {
     start_streaming_vendor,
     send_encoded_data_vendor,
     suspend_streaming_vendor,
+    update_cp,
+    update_cp_vendor,
 };
 
 RawAddress btif_av_get_addr_by_index(int idx) {
@@ -5749,4 +5874,19 @@ bool btif_device_in_sink_role() {
         return true;
     return false;
 }
+
+
+
+/*******************************************************************************
+**
+** Function         btif_av_is_cp_enabled
+**
+** Description      To check if Content protection is enabled or not
+**
+** Returns          bool
+*******************************************************************************/
+bool btif_av_is_cp_enabled() {
+  return enable_scmst;
+}
+
 

@@ -130,7 +130,7 @@ typedef uint8_t tBTA_AV_HNDL;
 
 /* maximum number of streams created: 1 for audio, 1 for video */
 #ifndef BTA_AV_NUM_STRS
-#define BTA_AV_NUM_STRS 1
+#define BTA_AV_NUM_STRS 2
 #endif
 
 #ifndef BTA_AV_MAX_A2DP_MTU
@@ -923,4 +923,5 @@ void BTA_AvUpdateCodecSupport(uint8_t *p_codec_type_list, uint8_t *p_vnd_list, u
 
 void BTA_AvUpdateTWSDevice(bool isTwsDevice, tBTA_AV_HNDL hndl);
 void BTA_AVSetEarbudRole(uint8_t role, tBTA_AV_HNDL hndl);
+void BTA_AvUpdateSCMSTCpFlag(uint8_t cp_flag);
 #endif /* BTA_AV_API_H */

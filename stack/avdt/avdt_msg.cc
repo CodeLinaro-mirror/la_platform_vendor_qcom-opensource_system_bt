@@ -1133,7 +1133,14 @@ bool avdt_msg_send(tAVDT_CCB* p_ccb, BT_HDR* p_msg) {
         } else if (sig != AVDT_SIG_DELAY_RPT) {
           alarm_cancel(p_ccb->idle_ccb_timer);
           alarm_cancel(p_ccb->rsp_ccb_timer);
-          period_ms_t interval_ms = avdt_cb.rcb.ret_tout * 1000;
+          period_ms_t interval_ms = 0;
+          if (sig == AVDT_SIG_START) {
+          /*To handle start, setting timeout value 10 sec */
+             interval_ms = 10 * 1000;
+          }
+          else
+             interval_ms = avdt_cb.rcb.ret_tout * 1000;
+
           alarm_set_on_mloop(p_ccb->ret_ccb_timer, interval_ms,
                              avdt_ccb_ret_ccb_timer_timeout, p_ccb);
         }

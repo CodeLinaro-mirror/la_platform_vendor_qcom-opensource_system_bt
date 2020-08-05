@@ -77,6 +77,11 @@ tPORT* port_allocate_port(uint8_t dlci, const RawAddress& bd_addr) {
       /* During the open set default state for the port connection */
       port_set_defaults(p_port);
 
+      if (p_port->rfc.port_timer != NULL) {
+        alarm_free(p_port->rfc.port_timer);
+        p_port->rfc.port_timer = NULL;
+      }
+
       p_port->rfc.port_timer = alarm_new("rfcomm_port.port_timer");
       rfc_cb.rfc.last_port = yy;
 
@@ -261,7 +266,10 @@ void port_release_port(tPORT* p_port) {
       p_port->bd_addr = RawAddress::kAny;
     } else {
       RFCOMM_TRACE_DEBUG("%s Clean-up handle: %d", __func__, p_port->inx);
-      alarm_free(p_port->rfc.port_timer);
+      if (p_port->rfc.port_timer != NULL) {
+        alarm_free(p_port->rfc.port_timer);
+        p_port->rfc.port_timer = NULL;
+      }
       memset(p_port, 0, sizeof(tPORT));
     }
   }

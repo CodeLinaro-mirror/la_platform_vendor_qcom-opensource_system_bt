@@ -37,6 +37,7 @@
 #include "bt_common.h"
 #include "bt_target.h"
 #include "osi/include/log.h"
+#include "osi/include/properties.h"
 #include "sdpdefs.h"
 
 using bluetooth::Uuid;
@@ -45,6 +46,7 @@ using bluetooth::Uuid;
  *  Global data
  ****************************************************************************/
 tA2DP_CB a2dp_cb;
+static bool enable_cp;
 static uint16_t a2dp_attr_list[] = {
     ATTR_ID_SERVICE_CLASS_ID_LIST, /* update A2DP_NUM_ATTR, if changed */
     ATTR_ID_BT_PROFILE_DESC_LIST,  ATTR_ID_SUPPORTED_FEATURES,
@@ -398,6 +400,10 @@ uint8_t A2DP_BitsSet(uint64_t num) {
 void A2DP_Init(void) {
   memset(&a2dp_cb, 0, sizeof(tA2DP_CB));
 
+  char value[PROPERTY_VALUE_MAX] = {'\0'};
+  property_get("persist.bluetooth.enable_scmst", value, "false");
+  enable_cp = (strcmp(value, "true") == 0);
+
   a2dp_cb.avdt_sdp_ver = AVDT_VERSION;
   a2dp_cb.a2dp_sdp_ver = A2DP_VERSION;
 
@@ -407,5 +413,7 @@ void A2DP_Init(void) {
   a2dp_cb.trace_level = BT_TRACE_LEVEL_NONE;
 #endif
 }
+
+bool a2dp_is_cp_enabled() { return enable_cp; }
 
 uint16_t A2DP_GetAvdtpVersion() { return a2dp_cb.avdt_sdp_ver; }

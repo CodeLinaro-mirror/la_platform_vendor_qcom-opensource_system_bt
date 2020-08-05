@@ -798,6 +798,20 @@ void btm_register_iot_info_cback (tBTM_VS_EVT_CB *p_cb) {
 }
 
 /*******************************************************************************
+**
+** Function         btm_register_cp_flag_cback
+**
+** Description      Register callback to process cp flag/header info
+**                  in a2dp media packets(split)
+**
+** Returns          void
+**
+*******************************************************************************/
+void btm_register_cp_flag_cback (tBTM_VS_EVT_CB *p_cb) {
+    btm_cb.devcb.p_vnd_cp_flag_cb = p_cb;
+}
+
+/*******************************************************************************
  *
  * Function         btm_vendor_specific_evt
  *
@@ -821,6 +835,13 @@ void btm_vendor_specific_evt(uint8_t* p, uint8_t evt_len) {
     if (btm_cb.devcb.p_vnd_iot_info_cb) {
       BTM_TRACE_DEBUG ("Calling bta_dm_vnd_info_report_cback");
       (*btm_cb.devcb.p_vnd_iot_info_cb)(evt_len, pp);
+      return;
+    }
+  } else if(HCI_VSE_CP_FLAG == vse_subcode) {
+    BTM_TRACE_DEBUG ("BTM Event: Vendor Specific cp flag event");
+    if (btm_cb.devcb.p_vnd_cp_flag_cb) {
+      BTM_TRACE_DEBUG ("Calling bta_dm_vnd_cp_flag_cback");
+      (*btm_cb.devcb.p_vnd_cp_flag_cb)(evt_len, pp);
       return;
     }
   }

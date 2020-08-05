@@ -160,6 +160,8 @@ typedef struct {
       case BTAV_A2DP_CODEC_INDEX_MAX:
         codec_name_str = "Unknown(CODEC_INDEX_MAX)";
         break;
+      default:
+        break;
     }
 
     std::string sample_rate_str;

@@ -227,6 +227,9 @@ void avct_lcb_open_ind(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
     {
         /* In this case, index was not found, Check COD once */
         BTM_GetCOD(&(p_lcb->peer_addr), device_class);
+        BTM_COD_MINOR_CLASS(minor_class, device_class);
+        BTM_COD_MAJOR_CLASS(major_class, device_class);
+        BTM_COD_SERVICE_CLASS(service_class, device_class);
         sink_only_cod = (service_class & BTM_COD_SERVICE_RENDERING) && !(service_class & BTM_COD_SERVICE_CAPTURING);
         src_only_cod = (service_class & BTM_COD_SERVICE_CAPTURING) && !(service_class & BTM_COD_SERVICE_RENDERING);
         APPL_TRACE_DEBUG(" %s Major_Class [%x], Minor Class [%x], Service_Class [%x], src_only %d, sink_only %d",__FUNCTION__,
@@ -285,6 +288,7 @@ void avct_lcb_open_ind(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
                 L2CA_SetTxPriority(p_lcb->ch_lcid, L2CAP_CHNL_PRIORITY_HIGH);
                 p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_CONNECT_IND_EVT,
                                     0, &(p_lcb->peer_addr));
+                break;
             }
         }
     }

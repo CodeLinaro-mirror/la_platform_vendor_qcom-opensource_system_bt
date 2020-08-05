@@ -42,6 +42,7 @@
 #include "btif_a2dp_source.h"
 #include "btif_av.h"
 #include "btif_av_co.h"
+#include "bta_av_co.h"
 #include "btif_util.h"
 #include "osi/include/fixed_queue.h"
 #include "osi/include/log.h"
@@ -188,6 +189,7 @@ extern bool enc_update_in_progress;
 extern bool reconfig_a2dp;
 extern bool tx_enc_update_initiated;
 extern bool is_block_hal_start;
+extern uint8_t get_rtp_offset(uint8_t* p_start, uint16_t codec_type);
 static void btif_a2dp_source_command_ready(fixed_queue_t* queue, void* context);
 static void btif_a2dp_source_startup_delayed(void* context);
 static void btif_a2dp_source_shutdown_delayed(void* context);
@@ -838,6 +840,9 @@ void btif_a2dp_source_set_tx_flush(bool enable) {
 }
 
 size_t btif_media_writebuf_vendor(bt_bdaddr_t *bd_addr, const void* buffer, size_t length, uint8_t codectype){
+    BT_HDR *p_buf;
+    uint8_t* data_ptr;
+    uint8_t rtp_offset = 0;
     if(buffer == NULL)
         return 0;
     BTIF_TRACE_IMP("AV %s , data size = %d", __FUNCTION__,length);
@@ -845,12 +850,28 @@ size_t btif_media_writebuf_vendor(bt_bdaddr_t *bd_addr, const void* buffer, size
     if(length > 0 && btif_a2dp_source_cb.tx_audio_queue != NULL) {
 
         if (fixed_queue_length(btif_a2dp_source_cb.tx_audio_queue) < MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ){
-            BT_HDR *p_buf = (BT_HDR *)osi_malloc(length + sizeof(BT_HDR)+STACK_OVERHEAD);// 13 is overhead for stack headers
-            p_buf->len = length;
-            p_buf->offset = STACK_OVERHEAD;// overhead for stack headers
-            uint8_t* data_ptr;
-            data_ptr = (uint8_t*)(p_buf + 1)+p_buf->offset;
-            memcpy(data_ptr, buffer ,length);
+            //TODO: How to handle cp header for aptx codec
+            if(bta_av_co_cp_is_active()) {
+                // 13 is overhead for stack headers and 1 byte for cp header
+                p_buf = (BT_HDR *)osi_malloc(length + sizeof(BT_HDR)+STACK_OVERHEAD + 1);
+                p_buf->len = length + 1;
+                p_buf->offset = STACK_OVERHEAD;
+                data_ptr = (uint8_t*)(p_buf + 1)+p_buf->offset;
+                rtp_offset = get_rtp_offset(buffer, codectype);
+                //copy rtp header
+                memcpy(data_ptr, buffer ,rtp_offset);
+                //copy cp header
+                *(data_ptr + rtp_offset) = bta_av_co_cp_get_flag();
+                //remaining packet
+                memcpy((data_ptr+rtp_offset+1), (buffer+rtp_offset),
+                       (length - rtp_offset));
+            } else {
+                p_buf = (BT_HDR *)osi_malloc(length + sizeof(BT_HDR)+STACK_OVERHEAD);// 13 is overhead for stack headers
+                p_buf->len = length;
+                p_buf->offset = STACK_OVERHEAD;// overhead for stack headers
+                data_ptr = (uint8_t*)(p_buf + 1)+p_buf->offset;
+                memcpy(data_ptr, buffer ,length);
+            }
             fixed_queue_enqueue(btif_a2dp_source_cb.tx_audio_queue, p_buf);
         }
         else{
