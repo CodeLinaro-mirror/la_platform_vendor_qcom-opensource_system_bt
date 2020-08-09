@@ -196,7 +196,8 @@ static int prop2cfg(const RawAddress* remote_bd_addr, bt_property_t* prop) {
       break;
     case BT_PROPERTY_BDNAME:
       name_length = prop->len > BTM_MAX_LOC_BD_NAME_LEN ? BTM_MAX_LOC_BD_NAME_LEN:
-      strlcpy(value, (char*)prop->val, name_length);
+                                                          prop->len;
+      strlcpy(value, (char*)prop->val, name_length + 1);
       if (remote_bd_addr)
         btif_config_set_str(bdstr, BTIF_STORAGE_PATH_REMOTE_NAME, value);
       else {
