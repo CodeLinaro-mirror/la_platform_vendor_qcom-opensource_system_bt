@@ -391,9 +391,16 @@ void bta_hh_le_enable(void) {
                           } else
                             bta_hh_cb.gatt_if = BTA_GATTS_INVALID_IF;
 
+                           APPL_TRACE_ERROR("bta_hh_le_enable() bta_hh_cb.gatt_if: %d",bta_hh_cb.gatt_if);
                           /* signal BTA call back event */
-                          (*bta_hh_cb.p_cback)(BTA_HH_ENABLE_EVT,
-                                               (tBTA_HH*)&status);
+                          if(bta_hh_cb.p_cback){
+                            (*bta_hh_cb.p_cback)(BTA_HH_ENABLE_EVT,(tBTA_HH*)&status);
+                          } else {
+                              APPL_TRACE_ERROR("BTA_GATTC_AppDeregister() is called to update \
+                                              state as BTA_GATTC_STATE_DISABLED as BT \
+                                              disable is in progress");
+                             BTA_GATTC_AppDeregister(bta_hh_cb.gatt_if);
+                          }
                         }));
 }
 
