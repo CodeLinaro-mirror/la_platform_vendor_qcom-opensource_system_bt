@@ -5155,6 +5155,7 @@ static void handle_get_elem_attr_response(tBTA_AV_META_MSG* pmeta_msg,
                 p_rsp->num_attrs, p_attr);
     }
     osi_free(p_attr);
+    osi_free(p_rsp->p_attrs);
   } else if (p_rsp->status == BTIF_RC_STS_TIMEOUT) {
     /* Retry for timeout case, this covers error handling
      * for continuation failure also.
