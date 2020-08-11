@@ -1259,6 +1259,7 @@ void bta_av_cleanup(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
   p_scb->num_disc_snks = 0;
   p_scb->offload_supported = false;
   p_scb->offload_started = false;
+  alarm_data_free(p_scb->avrc_ct_timer);
   alarm_cancel(p_scb->avrc_ct_timer);
 
   /* TODO(eisenbach): RE-IMPLEMENT USING VSC OR HAL EXTENSION
@@ -1416,8 +1417,9 @@ void bta_av_disconnect_req(tBTA_AV_SCB* p_scb,
 
   APPL_TRACE_WARNING("%s: conn_lcb: 0x%x peer_addr: %s", __func__,
                      bta_av_cb.conn_lcb, p_scb->peer_addr.ToString().c_str());
-
+  alarm_data_free(bta_av_cb.link_signalling_timer);
   alarm_cancel(bta_av_cb.link_signalling_timer);
+  alarm_data_free(p_scb->avrc_ct_timer);
   alarm_cancel(p_scb->avrc_ct_timer);
 
   if (bta_av_cb.conn_lcb) {
@@ -1501,6 +1503,7 @@ void bta_av_setconfig_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   AVDT_ConfigRsp(p_scb->avdt_handle, p_scb->avdt_label,
                  p_data->ci_setconfig.err_code, p_data->ci_setconfig.category);
 
+  alarm_data_free(bta_av_cb.link_signalling_timer);
   alarm_cancel(bta_av_cb.link_signalling_timer);
 
   if (p_data->ci_setconfig.err_code == AVDT_SUCCESS) {
@@ -1798,6 +1801,7 @@ void bta_av_do_close(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
   if (p_scb->co_started) {
     bta_av_str_stopped(p_scb, NULL);
   }
+  alarm_data_free(bta_av_cb.link_signalling_timer);
   alarm_cancel(bta_av_cb.link_signalling_timer);
 
   /* close stream */
@@ -3620,6 +3624,7 @@ void bta_av_open_rc(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       APPL_TRACE_ERROR(
           "%s: failed to start streaming for role management reasons!!",
           __func__);
+      alarm_data_free(p_scb->avrc_ct_timer);
       alarm_cancel(p_scb->avrc_ct_timer);
 
       tBTA_AV_START start;
