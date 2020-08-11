@@ -859,6 +859,7 @@ void bta_av_api_deregister(tBTA_AV_DATA* p_data) {
     p_scb->deregistring = true;
     bta_av_ssm_execute(p_scb, BTA_AV_API_CLOSE_EVT, p_data);
     if(p_scb->avrc_ct_timer != NULL) {
+      alarm_data_free(p_scb->avrc_ct_timer);
       alarm_free(p_scb->avrc_ct_timer);
       p_scb->avrc_ct_timer = NULL;
     }

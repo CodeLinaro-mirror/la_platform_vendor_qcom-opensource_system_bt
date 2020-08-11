@@ -674,6 +674,7 @@ static void avrc_msg_cback(uint8_t handle, uint8_t label, uint8_t cr,
   } else if (cr == AVCT_RSP) {
     /* Received response. Stop command timeout timer */
     AVRC_TRACE_DEBUG("AVRC: stopping timer (handle=0x%02x)", handle);
+    alarm_data_free(avrc_cb.ccb_int[handle].tle);
     alarm_cancel(avrc_cb.ccb_int[handle].tle);
   }
 
