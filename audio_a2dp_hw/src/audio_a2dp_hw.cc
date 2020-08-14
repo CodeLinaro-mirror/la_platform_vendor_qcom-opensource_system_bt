@@ -601,7 +601,7 @@ static int a2dp_read_output_audio_config(
   switch (codec_config->channel_mode) {
     case BTAV_A2DP_CODEC_CHANNEL_MODE_MONO:
       stream_config.channel_mask = AUDIO_CHANNEL_OUT_MONO;
-      stream_config.is_stereo_to_mono = true;
+      stream_config.is_stereo_to_mono = false;
       break;
     case BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO:
       stream_config.channel_mask = AUDIO_CHANNEL_OUT_STEREO;
