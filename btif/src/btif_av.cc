@@ -95,8 +95,6 @@
 extern bool isDevUiReq;
 bool isBitRateChange = false;
 bool isBitsPerSampleChange = false;
-static int reconfig_a2dp_param_id = 0;
-static int reconfig_a2dp_param_val = 0;
 std::mutex session_wait_mutex_;
 std::condition_variable session_wait_cv;
 bool session_wait;
@@ -158,10 +156,6 @@ typedef enum {
                                           within 3 sec*/
 #define MAX_ALLOWED_SINK_CONNECTIONS 2 /* Max Sink connections are restricted to 2 */
 
-/* Param id for bitrate and bits per sample */
-#define BITRATE_PARAM_ID 1
-#define BITSPERSAMPLE_PARAM_ID 2
-
 /*****************************************************************************
  *  Local type definitions
  *****************************************************************************/
@@ -188,6 +182,7 @@ typedef struct {
   bool remote_started;
   bool is_suspend_for_remote_start;
   bool retry_rc_connect;
+  bool mandatory_codec_preferred;
 #if (TWS_ENABLED == TRUE)
   bool tws_device;
   bool offload_state;
@@ -276,7 +271,7 @@ bool tws_state_supported = false;
 #define CHECK_BTAV_INIT()                                                    \
   do {                                                                       \
     if (((bt_av_src_callbacks == NULL) && (bt_av_sink_callbacks == NULL)) || \
-        (btif_av_cb[0].sm_handle == NULL)) {                                    \
+        (btif_av_cb[0].sm_handle == NULL)) {                                 \
       BTIF_TRACE_WARNING("%s: BTAV not initialized", __func__);              \
       return BT_STATUS_NOT_READY;                                            \
     }                                                                        \
@@ -313,6 +308,8 @@ static void btif_av_set_browse_active(RawAddress peer_addr, uint8_t device_switc
 static bt_status_t connect_int(RawAddress *bd_addr, uint16_t uuid);
 static void btif_av_check_rc_connection_priority(void *p_data);
 static bt_status_t connect_int(RawAddress* bd_addr, uint16_t uuid);
+static void btif_av_query_mandatory_codec_priority(
+    const RawAddress& peer_address);
 int btif_get_is_remote_started_idx();
 bool btif_av_is_state_opened(int i);
 static void btif_av_reset_remote_started_flag();
@@ -736,6 +733,30 @@ static void btif_report_source_codec_state(UNUSED_ATTR void* p_data,
   }
 }
 
+/**
+ * Call out to JNI / JAVA layers to retrieve whether the mandatory codec is more
+ * preferred than others.
+ *
+ * @param peer_address the peer address
+ */
+static void btif_av_query_mandatory_codec_priority(
+    const RawAddress& peer_address) {
+
+  int index = btif_av_idx_by_bdaddr(&(RawAddress&)peer_address);
+  BTIF_TRACE_DEBUG("%s index %d", __func__, index);
+
+  if (index < 0 || index >= btif_max_av_clients)
+    return;
+
+  bool is_mandatory_codec_preferred = (bt_av_src_callbacks == NULL) ? false :
+      (bt_av_src_callbacks)->mandatory_codec_preferred_cb(peer_address);
+  btif_av_cb[index].mandatory_codec_preferred = is_mandatory_codec_preferred;
+
+  BTIF_TRACE_DEBUG("%s mandatory_codec_preferred %d for index %d",
+      __func__, btif_av_cb[index].mandatory_codec_preferred,  index);
+  return;
+}
+
 
 static void btif_av_collission_timer_timeout(void *data) {
   int *arg = (int *)data;
@@ -913,7 +934,7 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
     case BTIF_SM_ENTER_EVT:
       /* clear the peer_bda */
       BTIF_TRACE_EVENT("%s: IDLE state for index: %d", __func__, index);
-      memset(&btif_av_cb[index].peer_bda, 0, sizeof(RawAddress)); //TODO
+      memset(&btif_av_cb[index].peer_bda, 0, sizeof(RawAddress));
       btif_av_cb[index].flags = 0;
       btif_av_cb[index].edr_3mbps = false;
       btif_av_cb[index].edr = 0;
@@ -926,6 +947,7 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
       btif_av_cb[index].remote_start_alarm = NULL;
       btif_av_cb[index].is_suspend_for_remote_start = false;
       btif_av_cb[index].retry_rc_connect = false;
+      btif_av_cb[index].mandatory_codec_preferred = false;
 #if (TWS_ENABLED == TRUE)
       BTIF_TRACE_EVENT("%s: reset tws_device flag in IDLE state", __func__);
       btif_av_cb[index].tws_device = false;
@@ -1006,6 +1028,7 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
     case BTIF_AV_CONNECT_REQ_EVT: {
         btif_av_connect_req_t* connect_req_p = (btif_av_connect_req_t*)p_data;
         btif_av_cb[index].peer_bda = *connect_req_p->target_bda;
+        btif_av_query_mandatory_codec_priority(btif_av_cb[index].peer_bda);
         BTA_AvOpen(btif_av_cb[index].peer_bda, btif_av_cb[index].bta_handle, true,
                    BTA_SEC_AUTHENTICATE, connect_req_p->uuid);
 #if (BT_IOT_LOGGING_ENABLED == TRUE)
@@ -1065,6 +1088,7 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
         device_iot_config_addr_int_add_one(btif_av_cb[index].peer_bda,
             IOT_CONF_KEY_A2DP_CONN_COUNT);
 #endif
+        btif_av_query_mandatory_codec_priority(btif_av_cb[index].peer_bda);
         btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_OPENING);
       }
 
@@ -2018,6 +2042,7 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
     } break;
 
     case BTIF_AV_SOURCE_CONFIG_REQ_EVT: {
+      btif_av_query_mandatory_codec_priority(btif_av_cb[index].peer_bda);
       if ((btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START) && codec_cfg_change) {
         btif_av_cache_src_codec_config(BTIF_AV_SOURCE_CONFIG_REQ_EVT, p_data, index);
       } else {
@@ -2403,7 +2428,15 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
 
     case BTIF_AV_START_STREAM_REQ_EVT:
       /* we were remotely started, just ack back the local request */
-      if (btif_av_cb[index].remote_started) btif_av_cb[index].remote_started = false;
+      if (btif_av_cb[index].remote_started) {
+        if (btif_a2dp_source_is_remote_start()) {
+          BTIF_TRACE_DEBUG("%s:cancel remote start timer",__func__);
+          if (btif_a2dp_source_last_remote_start_index() == index)
+            btif_a2dp_source_cancel_remote_start();
+        }
+        btif_av_cb[index].remote_started = false;
+      }
+
       if (btif_av_cb[index].peer_sep == AVDT_TSEP_SNK) {
         uint8_t hdl = btif_av_get_av_hdl_from_idx(index);
         if (hdl >= 0) {
@@ -2431,6 +2464,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
       break;
 
     case BTIF_AV_SOURCE_CONFIG_REQ_EVT:
+      btif_av_query_mandatory_codec_priority(btif_av_cb[index].peer_bda);
       if(codec_cfg_change) {
         btif_av_cb[index].reconfig_pending = true;
       }
@@ -4627,17 +4661,7 @@ static bt_status_t codec_config_src(const RawAddress& bd_addr,
     std::vector<btav_a2dp_codec_config_t> codec_preferences) {
   BTIF_TRACE_EVENT("%s", __func__);
   CHECK_BTAV_INIT();
-  //RawAddress *bda = &bda;
   int index = btif_av_idx_by_bdaddr(const_cast<RawAddress*>(&bd_addr));
-#if (TWS_ENABLED == TRUE)
-  //check if current device is TWS and then return failure with SHO support
-  /*if (index < btif_max_av_clients && btif_av_cb[index].tws_device) {
-  //if (btif_av_is_tws_connected()) {
-    BTIF_TRACE_DEBUG("%s:TWSP device connected, config change not allowed",__func__);
-    return BT_STATUS_FAIL;
-  //}
-  } */
-#endif
   btif_av_codec_config_req_t codec_req;
   isDevUiReq = false;
   codec_cfg_change = false;
@@ -4661,55 +4685,9 @@ static bt_status_t codec_config_src(const RawAddress& bd_addr,
       if ((codec_config.codec_specific_1 != cp.codec_specific_1) &&
             (codec_config.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC)) {
         isBitRateChange = true;
-        switch (cp.codec_specific_1)
-        {
-          case 1000:
-            if ((codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_44100) ||
-                (codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_88200))
-              reconfig_a2dp_param_val = 909000;
-            else
-              reconfig_a2dp_param_val = 990000;
-            break;
-          case 1001:
-            if ((codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_44100) ||
-                  (codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_88200))
-              reconfig_a2dp_param_val = 606000;
-            else
-              reconfig_a2dp_param_val = 660000;
-            break;
-          case 1002:
-            if ((codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_44100) ||
-                (codec_config.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_88200))
-              reconfig_a2dp_param_val = 303000;
-            else
-              reconfig_a2dp_param_val = 330000;
-            break;
-          case 1003:
-            reconfig_a2dp_param_val = 0;
-            break;
-        }
-        if (cp.codec_specific_1 != 0) {
-          reconfig_a2dp_param_id = BITRATE_PARAM_ID;
-        }
       } else if ((codec_config.bits_per_sample != cp.bits_per_sample) &&
                (codec_config.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC)) {
-          switch (cp.bits_per_sample)
-          {
-            case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16:
-              reconfig_a2dp_param_val = 16;
-              break;
-            case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24:
-              reconfig_a2dp_param_val = 24;
-              break;
-            case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32:
-              reconfig_a2dp_param_val = 32;
-              break;
-            case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE:
-              break;
-
-          }
           if ((cp.bits_per_sample != 0) && (codec_config.bits_per_sample != 0)) {
-            reconfig_a2dp_param_id = BITSPERSAMPLE_PARAM_ID;
             isBitsPerSampleChange = true;
           } else {
             codec_cfg_change = true;
@@ -5646,9 +5624,9 @@ bool btif_av_is_scrambling_enabled() {
 ********************************************************************************/
 bool btif_av_is_44p1kFreq_supported() {
   uint8_t add_on_features_size = 0;
-  const bt_device_features_t * add_on_features_list = NULL;
+  const bt_device_soc_add_on_features_t * add_on_features_list = NULL;
 
-  add_on_features_list = controller_get_interface()->get_add_on_features(&add_on_features_size);
+  add_on_features_list = controller_get_interface()->get_soc_add_on_features(&add_on_features_size);
   if (add_on_features_size == 0) {
     BTIF_TRACE_WARNING(
         "BT controller doesn't add on features");
@@ -5754,6 +5732,14 @@ bool btif_av_peer_supports_3mbps(void) {
         return true;
   }
   return false;
+}
+
+bool btif_av_peer_prefers_mandatory_codec(const RawAddress& peer_address) {
+  int index = btif_av_idx_by_bdaddr(&(RawAddress&)peer_address);
+  BTIF_TRACE_DEBUG("%s index %d", __func__, index);
+
+  return (index >= 0 && index < btif_max_av_clients) ?
+      btif_av_cb[index].mandatory_codec_preferred : false;
 }
 
 /******************************************************************************

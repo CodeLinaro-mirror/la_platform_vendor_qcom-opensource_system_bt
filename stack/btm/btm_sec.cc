@@ -46,6 +46,7 @@
 #include "device/include/device_iot_config.h"
 
 #include "bta/dm/bta_dm_int.h"
+#include "stack_config.h"
 
 #define BTM_SEC_MAX_COLLISION_DELAY (5000)
 
@@ -3509,6 +3510,13 @@ void btm_io_capabilities_req(const RawAddress& p) {
           evt_data.auth_req);
     }
 
+    if (stack_config_get_interface()->get_pts_bredr_auth_req() >= 0) {
+      evt_data.auth_req = stack_config_get_interface()->get_pts_bredr_auth_req();
+      BTM_TRACE_WARNING(
+          "%s: set auth_req to 0x%02x for pts test ", __func__,
+          evt_data.auth_req);
+    }
+
     /* if the user does not indicate "reply later" by setting the oob_data to
      * unknown */
     /* send the response right now. Save the current IO capability in the
@@ -4655,8 +4663,10 @@ void btm_sec_connected(const RawAddress& bda, uint16_t handle, uint8_t status,
     /* Set the packet types to the default allowed by the device */
     btm_set_packet_types(p_acl_cb, btm_cb.btm_acl_pkt_types_supported);
 
-    if (btm_cb.btm_def_link_policy)
-      BTM_SetLinkPolicy(p_acl_cb->remote_addr, &btm_cb.btm_def_link_policy);
+    if (btm_cb.btm_def_link_policy) {
+      uint16_t btm_def_link_policy_local = btm_cb.btm_def_link_policy;
+      BTM_SetLinkPolicy(p_acl_cb->remote_addr, &btm_def_link_policy_local);
+    }
 #endif
   }
   btm_acl_created(bda, p_dev_rec->dev_class, p_dev_rec->sec_bd_name, handle,

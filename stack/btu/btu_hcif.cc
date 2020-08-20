@@ -44,6 +44,7 @@
 #include "btm_int.h"
 #include "btu.h"
 #include "device/include/controller.h"
+#include "hci_evt_length.h"
 #include "hci_layer.h"
 #include "hcimsgs.h"
 #include "btm_csb.h"
@@ -51,6 +52,7 @@
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
 #include "device/include/device_iot_config.h"
+#include "stack_config.h"
 
 using base::Location;
 
@@ -165,6 +167,13 @@ void btu_hcif_process_event(UNUSED_ATTR uint8_t controller_id, BT_HDR* p_msg) {
   uint8_t ble_sub_code;
   STREAM_TO_UINT8(hci_evt_code, p);
   STREAM_TO_UINT8(hci_evt_len, p);
+
+  // validate event size
+  if (hci_evt_len < hci_event_parameters_minimum_length[hci_evt_code]) {
+    HCI_TRACE_WARNING("%s: evt:0x%2X, malformed event of size %hhd", __func__,
+                      hci_evt_code, hci_evt_len);
+    return;
+  }
 
   switch (hci_evt_code) {
     case HCI_INQUIRY_COMP_EVT:
@@ -765,6 +774,14 @@ static void read_encryption_key_size_complete_after_encryption_change(
     HCI_TRACE_WARNING("%s: disconnecting, status: 0x%02x", __func__, status);
     btsnd_hcic_disconnect(handle, HCI_ERR_PEER_USER);
     return;
+  }
+
+  if (stack_config_get_interface()->get_pts_bredr_invalid_encryption_keysize() > 0) {
+    key_size = stack_config_get_interface()->get_pts_bredr_invalid_encryption_keysize();
+    HCI_TRACE_ERROR(
+        "%s key_size set for pts test, handle: 0x%02x, key_size: "
+        "%d",
+        __func__, handle, key_size);
   }
 
   if (key_size < MIN_KEY_SIZE) {
@@ -1820,6 +1837,14 @@ static void read_encryption_key_size_complete_after_key_refresh(
     HCI_TRACE_WARNING("%s: disconnecting, status: 0x%02x", __func__, status);
     btsnd_hcic_disconnect(handle, HCI_ERR_PEER_USER);
     return;
+  }
+
+  if (stack_config_get_interface()->get_pts_bredr_invalid_encryption_keysize() > 0) {
+    key_size = stack_config_get_interface()->get_pts_bredr_invalid_encryption_keysize();
+    HCI_TRACE_ERROR(
+        "%s key_size set for pts test, handle: 0x%02x, key_size: "
+        "%d",
+        __func__, handle, key_size);
   }
 
   if (key_size < MIN_KEY_SIZE) {

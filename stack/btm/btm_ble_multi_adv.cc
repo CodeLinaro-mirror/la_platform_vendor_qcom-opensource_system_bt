@@ -51,7 +51,9 @@ using SetEnableData = BleAdvertiserHciInterface::SetEnableData;
 extern void btm_gen_resolvable_private_addr(
     base::Callback<void(const RawAddress& rpa)> cb);
 std::mutex lock_;
-constexpr int ADV_DATA_LEN_MAX = 251;
+constexpr int EXT_ADV_DATA_LEN_MAX = 251;
+constexpr int PERIODIC_ADV_DATA_LEN_MAX = 252;
+
 
 namespace {
 
@@ -725,13 +727,17 @@ class BleAdvertisingManagerImpl
       p_inst->own_address_type = BLE_ADDR_RANDOM_ID;
     }
 
+    // sid must be in range 0x00 to 0x0F. Since no controller supports more than
+    // 16 advertisers, it's safe to make sid equal to inst_id.
+    uint8_t sid = p_inst->inst_id % 0x0F;
+
     GetHciInterface()->SetParameters(
         p_inst->inst_id, p_params->advertising_event_properties,
         p_params->adv_int_min, p_params->adv_int_max, p_params->channel_map,
         p_inst->own_address_type, p_inst->own_address, 0x00, peer_address,
         p_params->adv_filter_policy, p_inst->tx_power,
         p_params->primary_advertising_phy, 0x00,
-        p_params->secondary_advertising_phy, 0x01 /* TODO: proper SID */,
+        p_params->secondary_advertising_phy, sid,
         p_params->scan_request_notification_enable, cb);
 
     // TODO: re-enable only if it was enabled, properly call
@@ -773,21 +779,18 @@ class BleAdvertisingManagerImpl
       data.insert(data.begin(), flags.begin(), flags.end());
     }
 
-    // Find and fill TX Power with the correct value
-    if (data.size()) {
-      size_t i = 0;
-      while (i < data.size()) {
-        uint8_t type = data[i + 1];
-        if (type == HCI_EIR_TX_POWER_LEVEL_TYPE) {
-          data[i + 2] = adv_inst[inst_id].tx_power;
-        }
-        i += data[i] + 1;
+    // Find and fill TX Power with the correct value.
+    // The TX Power section is a 3 byte section.
+    for (size_t i = 0; (i + 2) < data.size();) {
+      if (data[i + 1] == HCI_EIR_TX_POWER_LEVEL_TYPE) {
+        data[i + 2] = adv_inst[inst_id].tx_power;
       }
+      i += data[i] + 1;
     }
 
     VLOG(1) << "data is: " << base::HexEncode(data.data(), data.size());
     DivideAndSendData(
-        inst_id, data, cb,
+        inst_id, data, false, cb,
         base::Bind(&BleAdvertisingManagerImpl::SetDataAdvDataSender,
                    weak_factory_.GetWeakPtr(), is_scan_rsp));
   }
@@ -807,13 +810,13 @@ class BleAdvertisingManagerImpl
       uint8_t /*inst_id*/, uint8_t /* operation */, uint8_t /* length */,
       uint8_t* /* data */, MultiAdvCb /* done */)>;
 
-  void DivideAndSendData(int inst_id, std::vector<uint8_t> data,
+  void DivideAndSendData(int inst_id, std::vector<uint8_t> data, bool is_periodic_adv_data,
                          MultiAdvCb done_cb, DataSender sender) {
-    DivideAndSendDataRecursively(true, inst_id, std::move(data), 0,
+    DivideAndSendDataRecursively(true, inst_id, is_periodic_adv_data, std::move(data), 0,
                                  std::move(done_cb), std::move(sender), 0);
   }
 
-  static void DivideAndSendDataRecursively(bool isFirst, int inst_id,
+  static void DivideAndSendDataRecursively(bool isFirst, int inst_id, bool is_periodic_adv_data,
                                            std::vector<uint8_t> data,
                                            int offset, MultiAdvCb done_cb,
                                            DataSender sender, uint8_t status) {
@@ -830,16 +833,20 @@ class BleAdvertisingManagerImpl
       return;
     }
 
-    bool moreThanOnePacket = dataSize - offset > ADV_DATA_LEN_MAX;
+    uint8_t adv_data_length_max =
+        is_periodic_adv_data ? PERIODIC_ADV_DATA_LEN_MAX : EXT_ADV_DATA_LEN_MAX;
+
+    bool moreThanOnePacket = dataSize - offset > adv_data_length_max;
     uint8_t operation = isFirst ? moreThanOnePacket ? FIRST : COMPLETE
                                 : moreThanOnePacket ? INTERMEDIATE : LAST;
-    int length = moreThanOnePacket ? ADV_DATA_LEN_MAX : dataSize - offset;
+    int length = moreThanOnePacket ? adv_data_length_max : dataSize - offset;
     int newOffset = offset + length;
 
     sender.Run(
         inst_id, operation, length, data.data() + offset,
         Bind(&BleAdvertisingManagerImpl::DivideAndSendDataRecursively, false,
-             inst_id, std::move(data), newOffset, std::move(done_cb), sender));
+             inst_id, is_periodic_adv_data, std::move(data), newOffset, std::move(done_cb),
+             sender));
   }
 
   void SetPeriodicAdvertisingParameters(uint8_t inst_id,
@@ -859,7 +866,7 @@ class BleAdvertisingManagerImpl
     VLOG(1) << "data is: " << base::HexEncode(data.data(), data.size());
 
     DivideAndSendData(
-        inst_id, data, cb,
+        inst_id, data, true, cb,
         base::Bind(&BleAdvertiserHciInterface::SetPeriodicAdvertisingData,
                    base::Unretained(GetHciInterface())));
   }

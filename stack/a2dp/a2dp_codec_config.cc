@@ -99,6 +99,7 @@ bool aptxhd_sw = false;
 bool aptx_adaptive_sw = false;
 bool ldac_sw = false;
 bool aptxtws_sw = false;
+bool vbr_supported = false;
 std::string offload_caps = "";
 static void init_btav_a2dp_codec_config(
     btav_a2dp_codec_config_t* codec_config, btav_a2dp_codec_index_t codec_index,
@@ -116,6 +117,7 @@ A2dpCodecConfig::A2dpCodecConfig(btav_a2dp_codec_index_t codec_index,
       default_codec_priority_(codec_priority) {
   setCodecPriority(codec_priority);
 
+  LOG_DEBUG(LOG_TAG, "%s: init all codec caps info", __func__);
   init_btav_a2dp_codec_config(&codec_config_, codec_index_, codecPriority());
   init_btav_a2dp_codec_config(&codec_capability_, codec_index_,
                               codecPriority());
@@ -143,6 +145,7 @@ void A2dpCodecConfig::setCodecPriority(
   } else {
     codec_priority_ = codec_priority;
   }
+  codec_config_.codec_priority = codec_priority_;
 }
 
 void A2dpCodecConfig::setDefaultCodecPriority() {
@@ -153,6 +156,7 @@ void A2dpCodecConfig::setDefaultCodecPriority() {
     uint32_t priority = 1000 * (codec_index_ + 1) + 1;
     codec_priority_ = static_cast<btav_a2dp_codec_priority_t>(priority);
   }
+  codec_config_.codec_priority = codec_priority_;
 }
 
 A2dpCodecConfig* A2dpCodecConfig::createCodec(
@@ -1176,7 +1180,7 @@ tA2DP_STATUS A2DP_BuildSrc2SinkConfig(const uint8_t* p_src_cap,
                                       uint8_t* p_pref_cfg) {
   tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_src_cap);
 
-  LOG_VERBOSE(LOG_TAG, "%s: codec_type = 0x%x", __func__, codec_type);
+  LOG_DEBUG(LOG_TAG, "%s: codec_type = 0x%x", __func__, codec_type);
 
   switch (codec_type) {
     case A2DP_MEDIA_CT_SBC:
@@ -1528,7 +1532,7 @@ const char* A2DP_CodecIndexStr(btav_a2dp_codec_index_t codec_index) {
 
 bool A2DP_InitCodecConfig(btav_a2dp_codec_index_t codec_index,
                           tAVDT_CFG* p_cfg) {
-  LOG_VERBOSE(LOG_TAG, "%s: codec %s", __func__,
+  LOG_DEBUG(LOG_TAG, "%s: codec %s", __func__,
               A2DP_CodecIndexStr(codec_index));
 
   /* Default: no content protection info */
@@ -1575,15 +1579,20 @@ void A2DP_SetOffloadStatus(bool offload_status, const char *offload_cap,
   char *tok = NULL;
   char *tmp_token = NULL;
   uint8_t add_on_features_size = 0;
-  bt_device_features_t * add_on_features_list = NULL;
+  const bt_device_soc_add_on_features_t *add_on_features_list =
+      controller_get_interface()->get_soc_add_on_features(&add_on_features_size);
+  char vbr_value[PROPERTY_VALUE_MAX] = {'\0'};
+  property_get("persist.vendor.qcom.bluetooth.aac_vbr_ctl.enabled", vbr_value, "false");
+  if (!(strcmp(vbr_value,"true"))) {
+    BTIF_TRACE_DEBUG("%s: AAC VBR is enabled", __func__);
+    vbr_supported = true;
+  }
   LOG_INFO(LOG_TAG,"A2dp_SetOffloadStatus:status = %d",
                      offload_status);
   mA2dp_offload_status = offload_status;
   offload_capability = true;
   if (strcmp(offload_cap,"null") == 0) offload_capability = false;
 
-  add_on_features_list = (bt_device_features_t *)
-      controller_get_interface()->get_add_on_features(&add_on_features_size);
   if(add_on_features_size == 0) {
     BTIF_TRACE_WARNING(
         "BT controller doesn't have add on features");
@@ -1746,6 +1755,10 @@ void A2DP_SetOffloadStatus(bool offload_status, const char *offload_cap,
 #if (OFF_TARGET_TEST_ENABLED == FALSE)
   offload_caps = controller_get_interface()->get_a2dp_offload_cap();
 #endif
+}
+
+bool A2DP_Get_AAC_VBR_Status() {
+    return vbr_supported;
 }
 
 bool A2DP_GetOffloadStatus() {
