@@ -112,8 +112,11 @@ static void bta_hf_client_mgmt_cback(uint32_t code, uint16_t port_handle) {
 
       // If allocation fails then we abort.
       if (client_cb == NULL) {
-        APPL_TRACE_ERROR("%s: error allocating a new handle", __func__);
+        APPL_TRACE_ERROR("%s: error allocating a new handle %d", __func__, tmp_handle);
         p_buf->hdr.event = BTA_HF_CLIENT_RFC_CLOSE_EVT;
+        // peer_addr device has an allocated client_cb, out connection is ongoing
+        // Remove server port to avoid to create rfcomm connection in 2 channel
+        RFCOMM_RemoveServer(port_handle);
       } else {
         // Set the connection fields for this new CB
         client_cb->conn_handle = port_handle;
