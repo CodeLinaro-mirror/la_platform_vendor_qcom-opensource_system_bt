@@ -33,6 +33,7 @@
 #include "btif_av.h"
 #include "btif_av_co.h"
 #include "btif_hf.h"
+#include "btif_hf_client.h"
 #include "a2dp_sbc.h"
 #include <pthread.h>
 #include "osi/include/osi.h"
@@ -665,6 +666,8 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
           status = A2DP_CTRL_ACK_FAILURE;
         } else if (!btif_hf_is_call_vr_idle()) {
           status  = A2DP_CTRL_ACK_INCALL_FAILURE;
+        } else if (!btif_hf_client_is_call_idle()) {
+          status = A2DP_CTRL_ACK_INCALL_FAILURE;
         } else if (deinit_pending) {
           APPL_TRACE_WARNING("%s:deinit pending return disconnected",__func__);
           status = A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS;
@@ -848,6 +851,10 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
           status  = A2DP_CTRL_ACK_INCALL_FAILURE;
           break;
         }
+        if (!btif_hf_client_is_call_idle()) {
+          status  = A2DP_CTRL_ACK_INCALL_FAILURE;
+          break;
+        }
         if (deinit_pending) {
           APPL_TRACE_WARNING("%s:deinit pending return disconnected",__func__);
           status = A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS;
@@ -880,6 +887,10 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd)
          * while in a call, and respond with BAD_STATE.
          */
         if (!btif_hf_is_call_vr_idle()) {
+          status = A2DP_CTRL_ACK_INCALL_FAILURE;
+          break;
+        }
+        if (!btif_hf_client_is_call_idle()) {
           status = A2DP_CTRL_ACK_INCALL_FAILURE;
           break;
         }
@@ -1177,6 +1188,10 @@ uint8_t btif_a2dp_audio_snd_ctrl_cmd(uint8_t cmd)
        * while in a call, and respond with BAD_STATE.
        */
       if (!btif_hf_is_call_vr_idle()) {
+        status = A2DP_CTRL_ACK_INCALL_FAILURE;
+        break;
+      }
+      if (!btif_hf_client_is_call_idle()) {
         status = A2DP_CTRL_ACK_INCALL_FAILURE;
         break;
       }

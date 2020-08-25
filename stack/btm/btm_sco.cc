@@ -850,10 +850,8 @@ void btm_sco_conn_req(const RawAddress& bda, DEV_CLASS dev_class,
      */
     int rem_bd_matches = p->rem_bd_known && p->esco.data.bd_addr == bda;
 
-
-  /* log it as WARNING so that it gets printed always*/
     BTM_TRACE_WARNING("%s: xx %x, p->rem_bd_known %x, rem_bd_matches %x, "\
-                    "p->esco.data.bd_addr %s, bda %s, p->state %x", __func__,
+                      "p->esco.data.bd_addr %s, bda %s, p->state %x", __func__,
            xx, p->rem_bd_known, rem_bd_matches, p->esco.data.bd_addr.ToString().c_str(),
            bda.ToString().c_str(), p->state);
 

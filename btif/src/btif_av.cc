@@ -248,6 +248,7 @@ extern void btif_rc_send_pause_command(RawAddress bda);
 extern uint16_t btif_dm_get_br_edr_links();
 extern uint16_t btif_dm_get_le_links();
 extern uint16_t btif_hf_is_call_vr_idle();
+extern uint16_t btif_hf_client_is_call_idle();
 extern void btif_a2dp_on_idle(int index);
 extern fixed_queue_t* btu_general_alarm_queue;
 extern void btif_media_send_reset_vendor_state();
@@ -1281,7 +1282,7 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
     if (btif_av_check_flag_remote_suspend(index)) {
       BTIF_TRACE_EVENT("%s: Resetting remote suspend flag on RC PLAY", __func__);
       btif_av_clear_remote_suspend_flag();
-      if(btif_hf_is_call_vr_idle())
+      if(btif_hf_is_call_vr_idle() && btif_hf_client_is_call_idle())
       {
         BTIF_TRACE_EVENT("%s: No active call, start stream", __func__);
         btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
@@ -1349,7 +1350,7 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
 
       /* if remote tries to start a2dp when call is in progress, suspend it right away */
       if ((!(btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START)) &&
-            (!btif_hf_is_call_vr_idle())) {
+            ((!btif_hf_is_call_vr_idle()) || (!btif_hf_client_is_call_idle()))) {
         BTIF_TRACE_EVENT("%s: trigger suspend as call is in progress!!", __func__);
         btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
         btif_av_cb[index].remote_started = true;

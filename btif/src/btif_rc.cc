@@ -413,6 +413,7 @@ static int btif_max_rc_clients = 1;
  *****************************************************************************/
 extern bool btif_hf_call_terminated_recently();
 extern bool btif_hf_is_call_vr_idle();
+extern bool btif_hf_client_is_call_idle();
 extern bool check_cod(const RawAddress* remote_bdaddr, uint32_t cod);
 extern bool btif_av_is_split_a2dp_enabled();
 extern int btif_av_idx_by_bdaddr(RawAddress *bd_addr);
@@ -930,7 +931,8 @@ void handle_rc_passthrough_cmd(tBTA_AV_REMOTE_CMD* p_remote_cmd) {
     return;
   }
 
-  if ((!btif_hf_is_call_vr_idle()) && (p_remote_cmd->rc_id == BTA_AV_RC_PLAY)) {
+  if ((!btif_hf_is_call_vr_idle()) && (!btif_hf_client_is_call_idle()) &&
+       (p_remote_cmd->rc_id == BTA_AV_RC_PLAY)) {
     BTIF_TRACE_ERROR("Ignore passthrough commands as call is present.");
     return;
   }
@@ -2016,7 +2018,7 @@ static void btif_rc_upstreams_evt(uint16_t event, tAVRC_COMMAND* pavrc_cmd,
 
     case AVRC_PDU_SET_ADDRESSED_PLAYER: {
       fill_pdu_queue(IDX_SET_ADDR_PLAYER_RSP, ctype, label, true, p_dev, pavrc_cmd->pdu);
-      if (!btif_hf_is_call_vr_idle()) {
+      if (!btif_hf_is_call_vr_idle() && !btif_hf_client_is_call_idle()) {
           BTIF_TRACE_EVENT(" %s() call active and setbrowsed player called, reject ", __func__);
           set_addressed_player_rsp(&rc_addr, (btrc_status_t)ERR_PLAYER_NOT_ADDRESED);
           return;

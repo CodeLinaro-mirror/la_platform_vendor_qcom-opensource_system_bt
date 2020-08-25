@@ -36,6 +36,7 @@
 #include "btif_av.h"
 #include "btif_av_co.h"
 #include "btif_hf.h"
+#include "btif_hf_client.h"
 #include "osi/include/osi.h"
 #include "uipc.h"
 #include "btif_a2dp_audio_interface.h"
@@ -309,6 +310,10 @@ static void btif_a2dp_recv_ctrl_data(void) {
          * while in a call, and respond with BAD_STATE.
          */
         if (!btif_hf_is_call_vr_idle()) {
+          btif_a2dp_command_ack(A2DP_CTRL_ACK_INCALL_FAILURE);
+          break;
+        }
+        if (!btif_hf_client_is_call_idle()) {
           btif_a2dp_command_ack(A2DP_CTRL_ACK_INCALL_FAILURE);
           break;
         }
@@ -589,6 +594,10 @@ void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd) {
        * while in a call, and respond with BAD_STATE.
        */
       if (!btif_hf_is_call_vr_idle()) {
+        btif_a2dp_command_ack(A2DP_CTRL_ACK_INCALL_FAILURE);
+        break;
+      }
+      if (!btif_hf_client_is_call_idle()) {
         btif_a2dp_command_ack(A2DP_CTRL_ACK_INCALL_FAILURE);
         break;
       }
