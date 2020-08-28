@@ -39,6 +39,7 @@
 #include "osi/include/osi.h"
 #include "stack/l2cap/l2c_int.h"
 #include "utl.h"
+#include "osi/include/properties.h"
 #include "device/include/interop.h"
 
 #if (BTA_HH_LE_INCLUDED == TRUE)
@@ -80,6 +81,7 @@ static tGATT_CBACK bta_gattc_cl_cback = {bta_gattc_conn_cback,
                                          bta_gattc_phy_update_cback,
                                          bta_gattc_conn_update_cback};
 
+static void bta_gattc_pump_tx_data(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data);
 /* opcode(tGATTC_OPTYPE) order has to be comply with internal event order */
 static uint16_t bta_gattc_opcode_to_int_evt[] = {
     BTA_GATTC_API_READ_EVT, BTA_GATTC_API_WRITE_EVT, BTA_GATTC_API_EXEC_EVT,
@@ -88,6 +90,10 @@ static uint16_t bta_gattc_opcode_to_int_evt[] = {
 static const char* bta_gattc_op_code_name[] = {
     "Unknown", "Discovery", "Read",         "Write",
     "Exec",    "Config",    "Notification", "Indication"};
+/* Global variables for Data Tx */
+static uint16_t tx_num_packets = 0;
+static uint16_t  no_of_packets = 0;
+static bool tx_throughput_cal = false;
 /*****************************************************************************
  *  Action Functions
  ****************************************************************************/
@@ -978,10 +984,47 @@ void bta_gattc_read_multi(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
       /* Dequeue the data, if it was enqueued */
       if (p_clcb->p_q_cmd == p_data) p_clcb->p_q_cmd = NULL;
 
-      bta_gattc_cmpl_sendmsg(p_clcb->bta_conn_id, GATTC_OPTYPE_READ, status,
-                             NULL);
+       bta_gattc_cmpl_sendmsg(p_clcb->bta_conn_id, GATTC_OPTYPE_READ, status, NULL);
     }
   }
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_gattc_pump_tx_data
+ *
+ * Description      Pump Tx Data to stack
+ *
+ * Returns          None.
+ *
+ ******************************************************************************/
+void bta_gattc_pump_tx_data(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
+    uint8_t status = GATT_SUCCESS;
+    tGATT_VALUE attr;
+
+    int32_t num = 0;
+    VLOG(1) << __func__;
+    /* Get number of packets to pump from system property */
+    num = osi_property_get_int32("persist.bluetooth..tx_test.num_packets", 0);
+    VLOG(1) << "num_tx_packets" << +num;
+
+    attr.conn_id = p_clcb->bta_conn_id;
+    attr.handle = p_data->api_write.handle;
+    attr.offset = p_data->api_write.offset;
+    attr.len = p_data->api_write.len;
+    attr.auth_req = p_data->api_write.auth_req;
+
+    no_of_packets = num;
+
+    if (p_data->api_write.p_value)
+      memcpy(attr.value, p_data->api_write.p_value, p_data->api_write.len);
+
+    /* Write data to stack continuously */
+    for(int i = 0; i < no_of_packets;i++){
+        status =
+           GATTC_Write(p_clcb->bta_conn_id, p_data->api_write.write_type, &attr);
+        VLOG(1) << "status of GATTC_Write" << unsigned(status);
+    }
 }
 /*******************************************************************************
  *
@@ -993,32 +1036,46 @@ void bta_gattc_read_multi(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_gattc_write(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
-  if (!bta_gattc_enqueue(p_clcb, p_data)) return;
+    if (!bta_gattc_enqueue(p_clcb, p_data)) return;
+    VLOG(1) << __func__;
 
-  tBTA_GATT_STATUS status = BTA_GATT_OK;
-  tGATT_VALUE attr;
+    char value[10] = {'\0'};
+    if(p_data->api_write.write_type == GATT_WRITE_NO_RSP) {
+        osi_property_get("persist.bluetooth..tx_test.enable", value, "false");
+        VLOG(1) << "enable_txthroughput" << value;
+        /* If the property is set to true, pump data to stack back to back */
+        if (strcmp(value, "true") == 0) {
+            tx_throughput_cal = true;
+            bta_gattc_pump_tx_data(p_clcb, p_data);
+            return;
+        }
+    }
 
-  attr.conn_id = p_clcb->bta_conn_id;
-  attr.handle = p_data->api_write.handle;
-  attr.offset = p_data->api_write.offset;
-  attr.len = p_data->api_write.len;
-  attr.auth_req = p_data->api_write.auth_req;
+    tBTA_GATT_STATUS status = BTA_GATT_OK;
+    tGATT_VALUE attr;
 
-  if (p_data->api_write.p_value)
-    memcpy(attr.value, p_data->api_write.p_value, p_data->api_write.len);
+    attr.conn_id = p_clcb->bta_conn_id;
+    attr.handle = p_data->api_write.handle;
+    attr.offset = p_data->api_write.offset;
+    attr.len = p_data->api_write.len;
+    attr.auth_req = p_data->api_write.auth_req;
 
-  status =
-      GATTC_Write(p_clcb->bta_conn_id, p_data->api_write.write_type, &attr);
+    if (p_data->api_write.p_value)
+        memcpy(attr.value, p_data->api_write.p_value, p_data->api_write.len);
 
-  /* write fail */
-  if (status != BTA_GATT_OK) {
-    /* Dequeue the data, if it was enqueued */
-    if (p_clcb->p_q_cmd == p_data) p_clcb->p_q_cmd = NULL;
+    status =
+        GATTC_Write(p_clcb->bta_conn_id, p_data->api_write.write_type, &attr);
 
-    bta_gattc_cmpl_sendmsg(p_clcb->bta_conn_id, GATTC_OPTYPE_WRITE, status,
-                           NULL);
-  }
+    /* write fail */
+    if (status != BTA_GATT_OK) {
+        /* Dequeue the data, if it was enqueued */
+        if (p_clcb->p_q_cmd == p_data) p_clcb->p_q_cmd = NULL;
+
+        bta_gattc_cmpl_sendmsg(p_clcb->bta_conn_id, GATTC_OPTYPE_WRITE, status,
+                             NULL);
+    }
 }
+
 /*******************************************************************************
  *
  * Function         bta_gattc_execute
@@ -1106,13 +1163,26 @@ void bta_gattc_write_cmpl(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_OP_CMPL* p_data) {
   GATT_WRITE_OP_CB cb = p_clcb->p_q_cmd->api_write.write_cb;
   void* my_cb_data = p_clcb->p_q_cmd->api_write.write_cb_data;
 
+  VLOG(1) << __func__ ;
   osi_free_and_reset((void**)&p_clcb->p_q_cmd);
 
-  if (cb) {
-    cb(p_clcb->bta_conn_id, p_data->status, p_data->p_cmpl->att_value.handle,
-       my_cb_data);
+  if (tx_throughput_cal == false) {
+     if (cb) {
+       cb(p_clcb->bta_conn_id, p_data->status, p_data->p_cmpl->att_value.handle,
+         my_cb_data);
+     }
+  }
+  /* Send a callback only when sending the number of packets required is completed  */
+  else if((tx_num_packets == no_of_packets) && (tx_throughput_cal == true)){
+     if (cb) {
+       cb(p_clcb->bta_conn_id, p_data->status, p_data->p_cmpl->att_value.handle,
+         my_cb_data);
+       tx_throughput_cal = false;
+       tx_num_packets = 0;
+     }
   }
 }
+
 /*******************************************************************************
  *
  * Function         bta_gattc_exec_cmpl
@@ -1650,6 +1720,11 @@ static void bta_gattc_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op,
                        conn_id);
       return;
     }
+  }
+
+  if(op == GATTC_OPTYPE_WRITE && tx_throughput_cal == true) {
+      tx_num_packets++;
+      VLOG(1) << __func__ << "tx_num_packets:" << tx_num_packets;
   }
 
   /* if over BR_EDR, inform PM for mode change */
