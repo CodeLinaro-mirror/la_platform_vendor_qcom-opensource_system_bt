@@ -47,6 +47,9 @@ AM_CPPFLAGS = \
         -I$(WORKSPACE)/frameworks/system/media/audio/include \
         -I$(WORKSPACE)/system/media/audio_utils/include \
         -I$(WORKSPACE)/frameworks/system/media/audio_utils/include \
+	-I$(WORKSPACE)/frameworks/system/media/audio_utils/include/audio_utils \
+	-I$(WORKSPACE)/frameworks/audio_utils/include \
+	-I$(WORKSPACE)/frameworks/include/media \
         -I$(WORKSPACE)/system/core/include
 
 c_sources = \
