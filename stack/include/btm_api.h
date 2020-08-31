@@ -1666,6 +1666,25 @@ extern void BTM_RemoteOobDataReply(tBTM_STATUS res, const RawAddress& bd_addr,
 
 /*******************************************************************************
  *
+ * Function         BTM_RemoteOobExtendedDataReply
+ *
+ * Description      This function is called to provide the remote OOB data for
+ *                  Simple Pairing in response to BTM_SP_RMT_OOB_EVT
+ *
+ * Parameters:      bd_addr     - Address of the peer device
+ *                  c192           - simple pairing Hash C192
+ *                  r192           - simple pairing Randomizer R192
+ *                  c256           - simple pairing Hash C256
+ *                  r256           - simple pairing Randomizer R256
+ *
+ ******************************************************************************/
+extern void BTM_RemoteOobExtendedDataReply(tBTM_STATUS res, const RawAddress& bd_addr,
+                                           const Octet16& c192, const Octet16& r192,
+                                           const Octet16& c256, const Octet16& r256);
+
+
+/*******************************************************************************
+ *
  * Function         BTM_BuildOobData
  *
  * Description      This function is called to build the OOB data payload to

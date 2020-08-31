@@ -965,6 +965,12 @@ void bta_dm_ci_rmt_oob_act(std::unique_ptr<tBTA_DM_CI_RMT_OOB> msg) {
                          msg->bd_addr, msg->c, msg->r);
 }
 
+/** respond to the OOB extended data request for the remote device from BTM */
+void bta_dm_ci_rmt_oob_extended_act(std::unique_ptr<tBTA_DM_CI_RMT_OOB_EXTENDED> msg) {
+  BTM_RemoteOobExtendedDataReply(msg->accept ? BTM_SUCCESS : BTM_NOT_AUTHORIZED,
+                                 msg->bd_addr, msg->c192, msg->r192, msg->c256, msg->r256);
+}
+
 /*******************************************************************************
  *
  * Function         bta_dm_search_start
@@ -2613,7 +2619,13 @@ static uint8_t bta_dm_sp_cback(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data) {
 
     case BTM_SP_LOC_OOB_EVT:
       bta_dm_co_loc_oob((bool)(p_data->loc_oob.status == BTM_SUCCESS),
-                        p_data->loc_oob.c, p_data->loc_oob.r);
+                        p_data->loc_oob.c, p_data->loc_oob.r, {0}, {0});
+      break;
+
+    case BTM_SP_LOC_OOB_EXT_EVT:
+      bta_dm_co_loc_oob((bool)(p_data->loc_oob.status == BTM_SUCCESS),
+                        p_data->loc_oob_ext.c192, p_data->loc_oob_ext.r192,
+                        p_data->loc_oob_ext.c256, p_data->loc_oob_ext.r256);
       break;
 
     case BTM_SP_RMT_OOB_EVT:

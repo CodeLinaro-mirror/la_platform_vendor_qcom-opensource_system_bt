@@ -125,6 +125,17 @@ typedef struct {
 
 /* data type for BTA_DM_REMT_NAME_EVT */
 typedef struct {
+  RawAddress bd_addr;
+  Octet16 c192;
+  Octet16 r192;
+  Octet16 c256;
+  Octet16 r256;
+  bool accept;
+} tBTA_DM_CI_RMT_OOB_EXTENDED;
+
+
+/* data type for BTA_DM_REMT_NAME_EVT */
+typedef struct {
   BT_HDR hdr;
   tBTA_DM_SEARCH result;
 } tBTA_DM_REM_NAME;
@@ -527,6 +538,8 @@ extern void bta_dm_ci_io_req_act(const RawAddress& bd_addr, tBTA_IO_CAP io_cap,
                                  tBTA_OOB_DATA oob_data,
                                  tBTA_AUTH_REQ auth_req);
 extern void bta_dm_ci_rmt_oob_act(std::unique_ptr<tBTA_DM_CI_RMT_OOB> msg);
+extern void bta_dm_ci_rmt_oob_extended_act(std::unique_ptr<tBTA_DM_CI_RMT_OOB_EXTENDED> msg);
+
 
 extern void bta_dm_init_pm(void);
 extern void bta_dm_disable_pm(void);
