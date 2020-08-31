@@ -75,7 +75,8 @@ bt_interface_t fake_bt_iface = {
     nullptr, /* config clear */
     nullptr, /* interop_database_clear */
     nullptr, /* interop_database_add */
-    nullptr /* get_avrcp_service */
+    nullptr, /* get_avrcp_service */
+    nullptr /* get local oob data */
 };
 
 }  // namespace

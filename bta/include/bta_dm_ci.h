@@ -58,6 +58,21 @@ extern void bta_dm_ci_rmt_oob(bool accept, const RawAddress& bd_addr,
                               BT_OCTET16 c, BT_OCTET16 r);
 /*******************************************************************************
  *
+ * Function         bta_dm_ci_rmt_oob_extended
+ *
+ * Description      This function must be called in response to function
+ *                  bta_dm_co_rmt_oob() to provide the OOB data associated
+ *                  with the remote device.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+extern void bta_dm_ci_rmt_oob_extended(bool accept, const RawAddress& bd_addr,
+                                       BT_OCTET16 c192, BT_OCTET16 r192,
+                                       BT_OCTET16 c256, BT_OCTET16 r256);
+
+/*******************************************************************************
+ *
  * Function         bta_dm_sco_ci_data_ready
  *
  * Description      This function sends an event to indicating that the phone

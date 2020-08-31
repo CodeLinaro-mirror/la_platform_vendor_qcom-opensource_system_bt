@@ -1143,6 +1143,19 @@ void btsnd_hcic_read_local_oob_data(void) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
+void btsnd_hcic_read_local_oob_extended_data(void) {
+  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
+  uint8_t* pp = (uint8_t*)(p + 1);
+
+  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_R_LOCAL_OOB;
+  p->offset = 0;
+
+  UINT16_TO_STREAM(pp, HCI_READ_LOCAL_OOB_EXTENDED_DATA);
+  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_R_LOCAL_OOB);
+
+  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
+}
+
 void btsnd_hcic_user_conf_reply(const RawAddress& bd_addr, bool is_yes) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
@@ -1210,6 +1223,29 @@ void btsnd_hcic_rem_oob_reply(const RawAddress& bd_addr, uint8_t* p_c,
   BDADDR_TO_STREAM(pp, bd_addr);
   ARRAY16_TO_STREAM(pp, p_c);
   ARRAY16_TO_STREAM(pp, p_r);
+
+  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
+}
+
+void btsnd_hcic_rem_oob_extended_reply(const RawAddress& bd_addr,
+                                       BT_OCTET16 c192,
+                                       BT_OCTET16 r192,
+                                       BT_OCTET16 c256,
+                                       BT_OCTET16 r256) {
+  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
+  uint8_t* pp = (uint8_t*)(p + 1);
+
+  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_REM_OOB_EXTENDED_REPLY;
+  p->offset = 0;
+
+  UINT16_TO_STREAM(pp, HCI_REM_OOB_EXTENDED_DATA_REQ_REPLY);
+  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_REM_OOB_EXTENDED_REPLY);
+
+  BDADDR_TO_STREAM(pp, bd_addr);
+  ARRAY16_TO_STREAM(pp, c192);
+  ARRAY16_TO_STREAM(pp, r192);
+  ARRAY16_TO_STREAM(pp, c256);
+  ARRAY16_TO_STREAM(pp, r256);
 
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }

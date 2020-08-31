@@ -937,6 +937,10 @@ static void btu_hcif_hdl_command_complete(uint16_t opcode, uint8_t* p,
       btm_read_local_oob_complete(p);
       break;
 
+    case HCI_READ_LOCAL_OOB_EXTENDED_DATA:
+      btm_read_local_oob_ext_complete(p);
+      break;
+
     case HCI_READ_INQ_TX_POWER_LEVEL:
       btm_read_inq_tx_power_complete(p);
       break;

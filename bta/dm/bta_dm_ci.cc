@@ -74,3 +74,29 @@ void bta_dm_ci_rmt_oob(bool accept, const RawAddress& bd_addr, BT_OCTET16 c,
                    base::Bind(bta_dm_ci_rmt_oob_act, base::Passed(&msg)));
 }
 
+/*******************************************************************************
+ *
+ * Function         bta_dm_ci_rmt_oob_extended
+ *
+ * Description      This function must be called in response to function
+ *                  bta_dm_co_rmt_oob() to provide the OOB data associated
+ *                  with the remote device.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void bta_dm_ci_rmt_oob_extended(bool accept, const RawAddress& bd_addr, BT_OCTET16 c192,
+                       BT_OCTET16 r192, BT_OCTET16 c256, BT_OCTET16 r256) {
+  std::unique_ptr<tBTA_DM_CI_RMT_OOB_EXTENDED> msg =
+      std::make_unique<tBTA_DM_CI_RMT_OOB_EXTENDED>();
+
+  msg->bd_addr = bd_addr;
+  msg->accept = accept;
+  memcpy(msg->c192, c192, BT_OCTET16_LEN);
+  memcpy(msg->r192, r192, BT_OCTET16_LEN);
+  memcpy(msg->c256, c256, BT_OCTET16_LEN);
+  memcpy(msg->r256, r256, BT_OCTET16_LEN);
+
+  do_in_bta_thread(FROM_HERE,
+                    base::Bind(bta_dm_ci_rmt_oob_extended_act, base::Passed(&msg)));
+}

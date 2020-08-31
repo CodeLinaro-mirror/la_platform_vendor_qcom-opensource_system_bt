@@ -383,6 +383,10 @@ typedef void (*energy_info_callback)(bt_activity_energy_info* energy_info,
 typedef void (*get_link_key_callback)(RawAddress* remote_bd_addr,
                                        bool key_found, LINK_KEY link_key, int key_type);
 
+typedef void (*read_local_oob_data_callback)(bt_status_t status,
+                                             bt_out_of_band_data_t* oob_data);
+
+
 /** TODO: Add callbacks for Link Up/Down and other generic
  *  notifications/callbacks */
 
@@ -404,6 +408,7 @@ typedef struct {
   le_test_mode_callback le_test_mode_cb;
   energy_info_callback energy_info_cb;
   get_link_key_callback get_link_key_cb;
+  read_local_oob_data_callback read_local_oob_data_cb;
 } bt_callbacks_t;
 
 typedef void (*alarm_cb)(void* data);
@@ -604,6 +609,9 @@ typedef struct {
    * Get the AvrcpTarget Service interface to interact with the Avrcp Service
    */
   bluetooth::avrcp::ServiceInterface* (*get_avrcp_service)(void);
+
+  /** read local out of band data */
+  int (*read_local_oob_data)(void);
 } bt_interface_t;
 
 #define BLUETOOTH_INTERFACE_STRING "bluetoothInterface"

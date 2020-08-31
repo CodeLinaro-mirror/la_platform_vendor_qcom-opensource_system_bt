@@ -126,16 +126,20 @@ void bta_dm_co_lk_upgrade(UNUSED_ATTR const RawAddress& bd_addr,
  *                  data of the local device for the Simple Pairing process
  *
  * Parameters       valid - true, if the local OOB data is retrieved from LM
- *                  c     - Simple Pairing Hash C
- *                  r     - Simple Pairing Randomnizer R
+ *                  c192     - Simple Pairing Hash C192
+ *                  r192     - Simple Pairing Randomnizer R192
+ *                  c256     - Simple Pairing Hash C256
+ *                  r256     - Simple Pairing Randomnizer R256
  *
  * Returns          void.
  *
  ******************************************************************************/
-void bta_dm_co_loc_oob(bool valid, BT_OCTET16 c, BT_OCTET16 r) {
+void bta_dm_co_loc_oob(bool valid, BT_OCTET16 c192, BT_OCTET16 r192,
+                       BT_OCTET16 c256, BT_OCTET16 r256) {
   BTIF_TRACE_DEBUG("bta_dm_co_loc_oob, valid = %d", valid);
+
 #ifdef BTIF_DM_OOB_TEST
-  btif_dm_proc_loc_oob(valid, c, r);
+  btif_dm_proc_loc_oob(valid, c192, r192, c256, r256);
 #endif
 }
 
@@ -153,16 +157,24 @@ void bta_dm_co_loc_oob(bool valid, BT_OCTET16 c, BT_OCTET16 r) {
  *
  ******************************************************************************/
 void bta_dm_co_rmt_oob(const RawAddress& bd_addr) {
-  BT_OCTET16 p_c;
-  BT_OCTET16 p_r;
+  BT_OCTET16 c192 = {0};
+  BT_OCTET16 r192 = {0};
+  BT_OCTET16 c256 = {0};
+  BT_OCTET16 r256 = {0};
+  BT_OCTET16 zero = {0};
   bool result = false;
 
 #ifdef BTIF_DM_OOB_TEST
-  result = btif_dm_proc_rmt_oob(bd_addr, p_c, p_r);
+  result = btif_dm_proc_rmt_oob(bd_addr, c192, r192, c256, r256);
 #endif
 
   BTIF_TRACE_DEBUG("bta_dm_co_rmt_oob: result=%d", result);
-  bta_dm_ci_rmt_oob(result, bd_addr, p_c, p_r);
+  if (memcmp(zero, c192, BT_OCTET16_LEN) &&
+      memcmp(zero, r256, BT_OCTET16_LEN)) {
+    bta_dm_ci_rmt_oob_extended(result, bd_addr, c192, r192, c256, r256);
+  } else {
+    bta_dm_ci_rmt_oob(result, bd_addr, c192, r192);
+  }
 }
 
 /*******************************************************************************

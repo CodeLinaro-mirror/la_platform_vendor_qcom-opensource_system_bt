@@ -46,6 +46,7 @@ interface IBluetooth
     String getName();
     BluetoothClass getBluetoothClass();
     boolean setBluetoothClass(in BluetoothClass bluetoothClass);
+    boolean readLocalOobData();
 
     int getScanMode();
     boolean setScanMode(int mode, int duration);
