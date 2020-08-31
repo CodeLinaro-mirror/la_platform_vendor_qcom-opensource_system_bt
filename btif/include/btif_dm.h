@@ -61,9 +61,10 @@ void btif_dm_set_oob_for_le_io_req(const RawAddress& bd_addr,
                                    tBTA_LE_AUTH_REQ* p_auth_req);
 #ifdef BTIF_DM_OOB_TEST
 void btif_dm_load_local_oob(void);
-void btif_dm_proc_loc_oob(bool valid, const Octet16& c, const Octet16& r);
-bool btif_dm_proc_rmt_oob(const RawAddress& bd_addr, Octet16* p_c,
-                          Octet16* p_r);
+void btif_dm_proc_loc_oob(bool valid, const Octet16& c192, const Octet16& r192,
+                          const Octet16& c256, const Octet16& r256);
+bool btif_dm_proc_rmt_oob(const RawAddress& bd_addr, Octet16* p_c192,
+                          Octet16* p_r192, Octet16* p_c256, Octet16* p_r256);
 #endif /* BTIF_DM_OOB_TEST */
 
 /*callout for reading SMP properties from Text file*/

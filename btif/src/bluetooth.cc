@@ -459,6 +459,15 @@ static void get_link_key(const RawAddress *bd_addr){
   btif_dm_get_link_key(bd_addr);
 }
 
+static int read_local_oob_data() {
+  LOG_INFO(LOG_TAG, "%s", __func__);
+
+  /* sanity check */
+  if (!interface_ready()) return BT_STATUS_NOT_READY;
+
+  return btif_dm_read_local_oob_data();
+}
+
 EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     sizeof(bluetoothInterface),
     init,
@@ -497,4 +506,5 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     interop_database_add,
     get_avrcp_service,
     obfuscate_address,
+    read_local_oob_data,
 };

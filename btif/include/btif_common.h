@@ -133,6 +133,7 @@ enum {
   BTIF_DM_CB_REMOVE_BOND,       /*Remove bond */
   BTIF_DM_CB_HID_REMOTE_NAME,   /* Remote name callback for HID device */
   BTIF_DM_CB_BOND_STATE_BONDING,
+  BTIF_DM_CB_READ_LOC_OOB, /* Read local oob callback*/
   BTIF_DM_CB_LE_TX_TEST,  /* BLE Tx Test command complete callback */
   BTIF_DM_CB_LE_RX_TEST,  /* BLE Rx Test command complete callback */
   BTIF_DM_CB_LE_TEST_END, /* BLE Test mode end callback */

@@ -1551,7 +1551,12 @@ void BTM_IoCapRsp(const RawAddress& bd_addr, tBTM_IO_CAP io_cap,
  *                  LM
  *
  ******************************************************************************/
-void BTM_ReadLocalOobData(void) { btsnd_hcic_read_local_oob_data(); }
+void BTM_ReadLocalOobData(void) {
+  if (controller_get_interface()->supports_secure_connections())
+    btsnd_hcic_read_local_oob_extended_data();
+  else
+    btsnd_hcic_read_local_oob_data();
+}
 
 /*******************************************************************************
  *
@@ -1583,6 +1588,42 @@ void BTM_RemoteOobDataReply(tBTM_STATUS res, const RawAddress& bd_addr,
   } else {
     btm_cb.acl_disc_reason = HCI_SUCCESS;
     btsnd_hcic_rem_oob_reply(bd_addr, c, r);
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         BTM_RemoteOobExtendedDataReply
+ *
+ * Description      This function is called to provide the remote OOB data for
+ *                  Simple Pairing in response to BTM_SP_RMT_OOB_EVT
+ *
+ * Parameters:      bd_addr     - Address of the peer device
+ *                  c192           - simple pairing Hash C192
+ *                  r192           - simple pairing Randomizer R192
+ *                  c256           - simple pairing Hash C256
+ *                  r256           - simple pairing Randomizer R256
+ *
+ ******************************************************************************/
+void BTM_RemoteOobExtendedDataReply(tBTM_STATUS res, const RawAddress& bd_addr,
+                                    const Octet16& c192, const Octet16& r192,
+                                    const Octet16& c256, const Octet16& r256) {
+  BTM_TRACE_EVENT("%s() - State: %s res: %d", __func__,
+                  btm_pair_state_descr(btm_cb.pairing_state), res);
+
+  /* If timeout already expired or has been canceled, ignore the reply */
+  if (btm_cb.pairing_state != BTM_PAIR_STATE_WAIT_LOCAL_OOB_RSP) return;
+
+  btm_sec_change_pairing_state(BTM_PAIR_STATE_WAIT_AUTH_COMPLETE);
+
+  if (res != BTM_SUCCESS) {
+    /* use BTM_PAIR_STATE_WAIT_AUTH_COMPLETE to report authentication failed
+     * event */
+    btm_cb.acl_disc_reason = HCI_ERR_HOST_REJECT_SECURITY;
+    btsnd_hcic_rem_oob_neg_reply(bd_addr);
+  } else {
+    btm_cb.acl_disc_reason = HCI_SUCCESS;
+    btsnd_hcic_rem_oob_extended_reply(bd_addr, c192, r192, c256, r256);
   }
 }
 
@@ -3659,12 +3700,14 @@ void btm_rem_oob_req(uint8_t* p) {
 void btm_read_local_oob_complete(uint8_t* p) {
   tBTM_SP_LOC_OOB evt_data;
   uint8_t status = *p++;
+  memset(&evt_data, 0, sizeof(tBTM_SP_LOC_OOB));
 
   BTM_TRACE_EVENT("btm_read_local_oob_complete:%d", status);
   if (status == HCI_SUCCESS) {
     evt_data.status = BTM_SUCCESS;
     STREAM_TO_ARRAY16(evt_data.c.data(), p);
     STREAM_TO_ARRAY16(evt_data.r.data(), p);
+
   } else
     evt_data.status = BTM_ERR_PROCESSING;
 
@@ -3672,6 +3715,38 @@ void btm_read_local_oob_complete(uint8_t* p) {
     tBTM_SP_EVT_DATA btm_sp_evt_data;
     btm_sp_evt_data.loc_oob = evt_data;
     (*btm_cb.api.p_sp_callback)(BTM_SP_LOC_OOB_EVT, &btm_sp_evt_data);
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         btm_read_local_oob_ext_complete
+ *
+ * Description      This function is called when read local oob extended data is
+ *                  completed by the LM
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btm_read_local_oob_ext_complete(uint8_t* p) {
+  tBTM_SP_LOC_OOB_EXT evt_data;
+  uint8_t status = *p++;
+  memset(&evt_data, 0, sizeof(tBTM_SP_LOC_OOB));
+
+  BTM_TRACE_EVENT("btm_read_local_oob_ext_complete:%d", status);
+  if (status == HCI_SUCCESS) {
+    evt_data.status = BTM_SUCCESS;
+    STREAM_TO_ARRAY16(evt_data.c192.data(), p);
+    STREAM_TO_ARRAY16(evt_data.r192.data(), p);
+    STREAM_TO_ARRAY16(evt_data.c256.data(), p);
+    STREAM_TO_ARRAY16(evt_data.r256.data(), p);
+  } else
+    evt_data.status = BTM_ERR_PROCESSING;
+
+  if (btm_cb.api.p_sp_callback) {
+    tBTM_SP_EVT_DATA btm_sp_evt_data;
+    btm_sp_evt_data.loc_oob_ext = evt_data;
+    (*btm_cb.api.p_sp_callback)(BTM_SP_LOC_OOB_EXT_EVT, &btm_sp_evt_data);
   }
 }
 

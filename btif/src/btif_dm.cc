@@ -155,6 +155,12 @@ typedef struct {
   bt_out_of_band_data_t oob_data;
 } btif_dm_oob_cb_t;
 
+/* this structure holds local optional OOB data */
+typedef struct {
+  uint8_t status; /* get local oob data result */
+  bt_out_of_band_data_t oob_data;
+} btif_dm_loc_oob_cb_t;
+
 typedef struct {
   RawAddress bdaddr;
   uint8_t transport; /* 0=Unknown, 1=BR/EDR, 2=LE */
@@ -263,6 +269,7 @@ static size_t btif_events_end_index = 0;
  *****************************************************************************/
 static btif_dm_pairing_cb_t pairing_cb;
 static btif_dm_oob_cb_t oob_cb;
+static btif_dm_loc_oob_cb_t loc_oob_cb;
 static void btif_dm_generic_evt(uint16_t event, char* p_param);
 static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
                                    tBTA_TRANSPORT transport);
@@ -327,6 +334,67 @@ static bool is_empty_128bit(uint8_t* data) {
 static bool is_bonding_or_sdp() {
   return pairing_cb.state == BT_BOND_STATE_BONDING ||
          (pairing_cb.state == BT_BOND_STATE_BONDED && pairing_cb.sdp_attempts);
+}
+
+static bool is_oob_enabled() {
+  char prop_oob[PROPERTY_VALUE_MAX];
+  osi_property_get("vendor.bluetooth.oob", prop_oob, "false");
+  BTIF_TRACE_DEBUG("%s: prop_oob = %s", __func__, prop_oob);
+  return strcmp(prop_oob, "true") == 0 ? true : false;
+}
+
+static bool save_loc_oob_data_2_file(btif_dm_loc_oob_cb_t* oobData) {
+  const char* path = "/data/misc/bluedroid/local.key";
+
+  FILE* fp;
+  fp = fopen(path, "wb+");
+  if (fp == NULL) {
+    BTIF_TRACE_ERROR("%s: failed to save local OOB data to %s", __func__, path);
+    return false;
+  }
+
+  BTIF_TRACE_DEBUG("%s: save local OOB data into file %s", __func__, path);
+  fwrite(oobData->oob_data.c192, 1, OCTET16_LEN, fp);
+  fwrite(oobData->oob_data.r192, 1, OCTET16_LEN, fp);
+  if (!is_empty_128bit(oobData->oob_data.c256) &&
+      !is_empty_128bit(oobData->oob_data.r256)) {
+      /* c256 and r256 exist, save in file*/
+      fwrite(oobData->oob_data.c256, 1, OCTET16_LEN, fp);
+      fwrite(oobData->oob_data.r256, 1, OCTET16_LEN, fp);
+  }
+  fclose(fp);
+  return true;
+}
+
+static bool get_rem_oob_data_from_file(btif_dm_oob_cb_t* oobData) {
+  const char* path = "/data/misc/bluedroid/remote.key";
+
+  if (!is_oob_enabled()) {
+    BTIF_TRACE_ERROR("%s: OOB bonding is not enabled", __func__);
+    memset(&oob_cb, 0, sizeof(oob_cb));
+    return false;
+  }
+
+  FILE* fp = fopen(path, "rb");
+  if (fp == NULL) {
+    BTIF_TRACE_ERROR("%s: failed to read OOB keys from %s", __func__, path);
+
+    /* Clear OOB data */
+    memset(&oob_cb, 0, sizeof(oob_cb));
+    return false;
+  }
+
+  BTIF_TRACE_DEBUG("%s: get remote OOB data from file %s", __func__, path);
+
+  fread(oobData->oob_data.c192, 1, OCTET16_LEN, fp);
+  fread(oobData->oob_data.r192, 1, OCTET16_LEN, fp);
+  if (fread(oobData->oob_data.c256, 1, OCTET16_LEN, fp) != OCTET16_LEN)
+    memset(oobData->oob_data.c256, 0, OCTET16_LEN);
+  if (fread(oobData->oob_data.r256, 1, OCTET16_LEN, fp) != OCTET16_LEN)
+    memset(oobData->oob_data.r256, 0, OCTET16_LEN);
+
+  fclose(fp);
+  return true;
 }
 
 static void btif_dm_data_copy(uint16_t event, char* dst, char* src) {
@@ -2098,6 +2166,11 @@ static void btif_dm_generic_evt(uint16_t event, char* p_param) {
       HAL_CBACK(bt_hal_cbacks, le_test_mode_cb,
                 (status == 0) ? BT_STATUS_SUCCESS : BT_STATUS_FAIL, count);
     } break;
+    case BTIF_DM_CB_READ_LOC_OOB: {
+      HAL_CBACK(bt_hal_cbacks, read_local_oob_data_cb,
+                (loc_oob_cb.status == 1) ? BT_STATUS_SUCCESS : BT_STATUS_FAIL,
+                &loc_oob_cb.oob_data);
+    }
     default: {
       BTIF_TRACE_WARNING("%s : Unknown event 0x%x", __func__, event);
     } break;
@@ -3279,7 +3352,12 @@ bt_status_t btif_dm_create_bond_out_of_band(
     const RawAddress* bd_addr, int transport,
     const bt_out_of_band_data_t* oob_data) {
   oob_cb.bdaddr = *bd_addr;
-  memcpy(&oob_cb.oob_data, oob_data, sizeof(bt_out_of_band_data_t));
+
+  if (!memcmp(&oob_cb.oob_data, oob_data, sizeof(bt_out_of_band_data_t)))
+    BTIF_TRACE_EVENT("%s: need check oob data between App and file", __func__);
+
+  if (is_empty_128bit(oob_cb.oob_data.c192))
+    memcpy(&oob_cb.oob_data, oob_data, sizeof(bt_out_of_band_data_t));
 
   uint8_t empty[] = {0, 0, 0, 0, 0, 0, 0};
   // If LE Bluetooth Device Address is provided, use provided address type
@@ -3673,10 +3751,28 @@ void btif_dm_proc_io_rsp(UNUSED_ATTR const RawAddress& bd_addr,
 }
 
 void btif_dm_set_oob_for_io_req(tBTA_OOB_DATA* p_has_oob_data) {
+  /*
+  ** 0x00 OOB authentication data not present
+  ** 0x01 P-192 OOB authentication data from remote device present
+  ** 0x02 P-256 OOB authentication data from remote device present
+  ** 0x03 P-192 and P-256 OOB authentication data from remote device present
+  */
+
+  get_rem_oob_data_from_file(&oob_cb);
+
   if (is_empty_128bit(oob_cb.oob_data.c192)) {
-    *p_has_oob_data = false;
+    *p_has_oob_data = BTM_OOB_NONE;
+  } else if (!(is_empty_128bit(oob_cb.oob_data.c192)) &&
+             (is_empty_128bit(oob_cb.oob_data.c256))){
+    *p_has_oob_data = BTM_P192_OOB_PRESENT;
+  } else if ((is_empty_128bit(oob_cb.oob_data.c192)) &&
+             !(is_empty_128bit(oob_cb.oob_data.c256))){
+    *p_has_oob_data = BTM_P256_OOB_PRESENT;
+  } else if (!(is_empty_128bit(oob_cb.oob_data.c192)) &&
+             ! (is_empty_128bit(oob_cb.oob_data.c256))){
+    *p_has_oob_data = BTM_P192_P256_OOB_PRESENT;
   } else {
-    *p_has_oob_data = true;
+    *p_has_oob_data = BTM_OOB_UNKNOWN;
   }
   BTIF_TRACE_DEBUG("%s: *p_has_oob_data=%d", __func__, *p_has_oob_data);
 }
@@ -3720,48 +3816,35 @@ void btif_dm_set_oob_for_le_io_req(const RawAddress& bd_addr,
 
 #ifdef BTIF_DM_OOB_TEST
 void btif_dm_load_local_oob(void) {
-  char prop_oob[PROPERTY_VALUE_MAX];
-  osi_property_get("service.brcm.bt.oob", prop_oob, "3");
-  BTIF_TRACE_DEBUG("%s: prop_oob = %s", __func__, prop_oob);
-  if (prop_oob[0] != '3') {
-    if (is_empty_128bit(oob_cb.oob_data.c192)) {
-      BTIF_TRACE_DEBUG("%s: read OOB, call BTA_DmLocalOob()", __func__);
-      BTA_DmLocalOob();
-    }
-  }
+  if (is_oob_enabled())
+    BTA_DmLocalOob();
 }
 
-void btif_dm_proc_loc_oob(bool valid, const Octet16& c, const Octet16& r) {
-  FILE* fp;
-  const char* path_a = "/data/misc/bluedroid/LOCAL/a.key";
-  const char* path_b = "/data/misc/bluedroid/LOCAL/b.key";
-  const char* path = NULL;
-  char prop_oob[PROPERTY_VALUE_MAX];
-  BTIF_TRACE_DEBUG("%s: valid=%d", __func__, valid);
-  if (is_empty_128bit(oob_cb.oob_data.c192) && valid) {
-    BTIF_TRACE_DEBUG("save local OOB data in memory");
-    memcpy(oob_cb.oob_data.c192, c.data(), OCTET16_LEN);
-    memcpy(oob_cb.oob_data.r192, r.data(), OCTET16_LEN);
-    osi_property_get("service.brcm.bt.oob", prop_oob, "3");
-    BTIF_TRACE_DEBUG("%s: prop_oob = %s", __func__, prop_oob);
-    if (prop_oob[0] == '1')
-      path = path_a;
-    else if (prop_oob[0] == '2')
-      path = path_b;
-    if (path) {
-      fp = fopen(path, "wb+");
-      if (fp == NULL) {
-        BTIF_TRACE_DEBUG("%s: failed to save local OOB data to %s", __func__,
-                         path);
-      } else {
-        BTIF_TRACE_DEBUG("%s: save local OOB data into file %s", __func__,
-                         path);
-        fwrite(c.data(), 1, OCTET16_LEN, fp);
-        fwrite(r.data(), 1, OCTET16_LEN, fp);
-        fclose(fp);
-      }
-    }
+void btif_dm_proc_loc_oob(bool valid, const Octet16& c192, const Octet16& r192,
+                          const Octet16& c256, const Octet16& r256) {
+
+  if (!valid) {
+    BTIF_TRACE_ERROR("%s: read local oob data valid=%d", __func__, valid);
+    return;
   }
+
+  BTIF_TRACE_DEBUG("save local OOB data in memory");
+  loc_oob_cb.status = (uint8_t)valid;
+  memcpy(loc_oob_cb.oob_data.c192, c192.data(), OCTET16_LEN);
+  memcpy(loc_oob_cb.oob_data.r192, r192.data(), OCTET16_LEN);
+  memcpy(loc_oob_cb.oob_data.c256, c256.data(), OCTET16_LEN);
+  memcpy(loc_oob_cb.oob_data.r256, r256.data(), OCTET16_LEN);
+
+  /* Switches context BTIF */
+  btif_transfer_context(btif_dm_generic_evt, BTIF_DM_CB_READ_LOC_OOB,
+                        (char*)&loc_oob_cb, sizeof(btif_dm_loc_oob_cb_t),
+                        NULL);
+
+  /* save local oob data to file */
+  save_loc_oob_data_2_file(&loc_oob_cb);
+
+  /* get remote oob data before pairing started */
+  get_rem_oob_data_from_file(&oob_cb);
 }
 
 /*******************************************************************************
@@ -3827,33 +3910,14 @@ bool btif_dm_get_smp_config(tBTE_APPL_CFG* p_cfg) {
   return true;
 }
 
-bool btif_dm_proc_rmt_oob(const RawAddress& bd_addr, Octet16* p_c,
-                          Octet16* p_r) {
-  const char* path_a = "/data/misc/bluedroid/LOCAL/a.key";
-  const char* path_b = "/data/misc/bluedroid/LOCAL/b.key";
-  const char* path = NULL;
-  char prop_oob[PROPERTY_VALUE_MAX];
-  osi_property_get("service.brcm.bt.oob", prop_oob, "3");
-  BTIF_TRACE_DEBUG("%s: prop_oob = %s", __func__, prop_oob);
-  if (prop_oob[0] == '1')
-    path = path_b;
-  else if (prop_oob[0] == '2')
-    path = path_a;
-  if (!path) {
-    BTIF_TRACE_DEBUG("%s: can't open path!", __func__);
-    return false;
-  }
+bool btif_dm_proc_rmt_oob(const RawAddress& bd_addr, Octet16* p_c192,
+                          Octet16* p_r192, Octet16* p_c256, Octet16* p_r256) {
+  get_rem_oob_data_from_file(&oob_cb);
 
-  FILE* fp = fopen(path, "rb");
-  if (fp == NULL) {
-    BTIF_TRACE_DEBUG("%s: failed to read OOB keys from %s", __func__, path);
-    return false;
-  }
-
-  BTIF_TRACE_DEBUG("%s: read OOB data from %s", __func__, path);
-  fread(p_c->data(), 1, OCTET16_LEN, fp);
-  fread(p_r->data(), 1, OCTET16_LEN, fp);
-  fclose(fp);
+  memcpy(p_c192->data(), oob_cb.oob_data.c192, OCTET16_LEN);
+  memcpy(p_r192->data(), oob_cb.oob_data.r192, OCTET16_LEN);
+  memcpy(p_c256->data(), oob_cb.oob_data.c256, OCTET16_LEN);
+  memcpy(p_r256->data(), oob_cb.oob_data.r256, OCTET16_LEN);
 
   RawAddress bt_bd_addr = bd_addr;
   btif_transfer_context(btif_dm_generic_evt, BTIF_DM_CB_BOND_STATE_BONDING,
@@ -4435,4 +4499,15 @@ void btif_dm_get_link_key(const RawAddress *bd_addr){
   BTIF_TRACE_DEBUG("%s", __func__);
   btif_transfer_context(btif_vendor_get_link_key_event, BTIF_VENDOR_GET_LINK_KEY,
                        (char *)bd_addr, sizeof(RawAddress), NULL);
+}
+
+bt_status_t btif_dm_read_local_oob_data(){
+  BTIF_TRACE_DEBUG("%s", __func__);
+#ifdef BTIF_DM_OOB_TEST
+  btif_dm_load_local_oob();
+  return BT_STATUS_SUCCESS;
+#else
+  BTIF_TRACE_ERROR("%s, oob pairing not support", __func__);
+  return BT_STATUS_FAIL;
+#endif
 }

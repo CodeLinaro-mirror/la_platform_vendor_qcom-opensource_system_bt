@@ -105,7 +105,8 @@ extern void bta_dm_co_lk_upgrade(const RawAddress& bd_addr, bool* p_upgrade);
  * Returns          void.
  *
  ******************************************************************************/
-extern void bta_dm_co_loc_oob(bool valid, const Octet16& c, const Octet16& r);
+extern void bta_dm_co_loc_oob(bool valid, const Octet16& c192, const Octet16& r192,
+                              const Octet16& c256, const Octet16& r256);
 
 /*******************************************************************************
  *

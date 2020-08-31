@@ -53,6 +53,8 @@ interface IBluetooth
     int getLeIoCapability();
     boolean setLeIoCapability(int capability);
 
+    boolean readLocalOobData();
+
     int getScanMode();
     boolean setScanMode(int mode, int duration);
 
