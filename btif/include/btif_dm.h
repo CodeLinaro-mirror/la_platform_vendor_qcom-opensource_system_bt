@@ -61,9 +61,10 @@ void btif_dm_set_oob_for_le_io_req(const RawAddress& bd_addr,
                                    tBTA_LE_AUTH_REQ* p_auth_req);
 #ifdef BTIF_DM_OOB_TEST
 void btif_dm_load_local_oob(void);
-void btif_dm_proc_loc_oob(bool valid, const Octet16& c, const Octet16& r);
-bool btif_dm_proc_rmt_oob(const RawAddress& bd_addr, Octet16* p_c,
-                          Octet16* p_r);
+void btif_dm_proc_loc_oob(bool valid, const Octet16& c192, const Octet16& r192,
+                          const Octet16& c256, const Octet16& r256);
+bool btif_dm_proc_rmt_oob(const RawAddress& bd_addr, Octet16* p_c192,
+                          Octet16* p_r192, Octet16* p_c256, Octet16* p_r256);
 #endif /* BTIF_DM_OOB_TEST */
 
 /*callout for reading SMP properties from Text file*/
@@ -95,6 +96,9 @@ typedef struct {
 #define BTIF_DM_LE_LOCAL_KEY_IRK (1 << 1)
 #define BTIF_DM_LE_LOCAL_KEY_DHK (1 << 2)
 #define BTIF_DM_LE_LOCAL_KEY_ER (1 << 3)
+
+#define BTIF_DM_LOCAL_KEY_PATH "/data/misc/bluedroid/local.key"
+#define BTIF_DM_REMOTE_KEY_PATH "/data/misc/bluedroid/remote.key"
 
 void btif_dm_load_ble_local_keys(void);
 void btif_dm_get_ble_local_keys(tBTA_DM_BLE_LOCAL_KEY_MASK* p_key_mask,
