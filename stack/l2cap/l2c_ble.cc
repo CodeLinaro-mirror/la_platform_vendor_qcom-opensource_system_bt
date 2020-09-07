@@ -36,6 +36,7 @@
 #include "log/log.h"
 #include "osi/include/osi.h"
 #include "stack_config.h"
+#include "osi/include/properties.h"
 
 using base::StringPrintf;
 
@@ -455,6 +456,7 @@ void l2cble_conn_comp(uint16_t handle, uint8_t role, const RawAddress& bda,
  ******************************************************************************/
 static void l2cble_start_conn_update(tL2C_LCB* p_lcb) {
   uint16_t min_conn_int, max_conn_int, slave_latency, supervision_tout;
+  char value[6];
   tACL_CONN* p_acl_cb = btm_bda_to_acl(p_lcb->remote_bd_addr, BT_TRANSPORT_LE);
   if (!p_acl_cb) {
     LOG(ERROR) << "No known connection ACL for " << p_lcb->remote_bd_addr;
@@ -510,10 +512,22 @@ static void l2cble_start_conn_update(tL2C_LCB* p_lcb) {
               HCI_LE_CONN_PARAM_REQ_SUPPORTED(p_acl_cb->peer_le_features))
 #endif
               ) {
-        btsnd_hcic_ble_upd_ll_conn_params(p_lcb->handle, p_lcb->min_interval,
-                                          p_lcb->max_interval, p_lcb->latency,
-                                          p_lcb->timeout, 0, 0);
-        p_lcb->conn_update_mask |= L2C_BLE_UPDATE_PENDING;
+            osi_property_get("persist.bluetooth.connupdate", value, "false");
+            L2CAP_TRACE_DEBUG("%s:Persist.bluetooth.connupdate:%s", __func__, value);
+            if(!strcmp(value, "true")) {
+                uint16_t interval = osi_property_get_int32(
+                                "persist.bluetooth.connupdate_conninterval", p_lcb->max_interval);
+                L2CAP_TRACE_DEBUG("%s:Persist.bluetooth.connupdate_conninterval:%d", __func__, interval);
+                btsnd_hcic_ble_upd_ll_conn_params(p_lcb->handle, interval,
+                                        interval, p_lcb->latency,
+                                        p_lcb->timeout, 0, 0);
+            }
+            else {
+                btsnd_hcic_ble_upd_ll_conn_params(p_lcb->handle, p_lcb->min_interval,
+                                    p_lcb->max_interval, p_lcb->latency,
+                                    p_lcb->timeout, 0, 0);
+           }
+           p_lcb->conn_update_mask |= L2C_BLE_UPDATE_PENDING;
       } else {
         l2cu_send_peer_ble_par_req(p_lcb, p_lcb->min_interval,
                                    p_lcb->max_interval, p_lcb->latency,
