@@ -649,7 +649,8 @@ static void btif_a2dp_sink_decoder_update_event(
 
 uint8_t btif_a2dp_sink_enqueue_buf(BT_HDR* p_pkt) {
   LockGuard lock(g_mutex);
-  if (btif_a2dp_sink_cb.rx_flush) /* Flush enabled, do not enqueue */
+  /* Flush enabled or audio track is nullptr, do not enqueue */
+  if (btif_a2dp_sink_cb.rx_flush || btif_a2dp_sink_cb.audio_track == nullptr)
     return fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue);
 
   if (fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue) ==
