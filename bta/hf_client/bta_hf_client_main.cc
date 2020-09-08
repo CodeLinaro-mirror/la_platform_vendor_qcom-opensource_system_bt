@@ -661,6 +661,10 @@ void bta_hf_client_api_disable() {
   /* reinit the control block */
   for (int i = 0; i < HF_CLIENT_MAX_DEVICES; i++) {
     if (bta_hf_client_cb_arr.cb[i].is_allocated) {
+      if((bta_hf_client_cb_arr.cb[i]).at_cb.resp_timer!= NULL)
+         alarm_free((bta_hf_client_cb_arr.cb[i]).at_cb.resp_timer);
+      if((bta_hf_client_cb_arr.cb[i]).at_cb.hold_timer!= NULL)
+         alarm_free((bta_hf_client_cb_arr.cb[i]).at_cb.hold_timer);
       bta_hf_client_cb_init(&(bta_hf_client_cb_arr.cb[i]), i);
     }
   }
