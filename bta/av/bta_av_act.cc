@@ -986,6 +986,12 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
   tBTA_AV_EVT evt = 0;
   tBTA_AV av;
   BT_HDR* p_pkt = NULL;
+
+  if (NULL == p_data) {
+    APPL_TRACE_ERROR("Message from peer with no data in %s", __func__);
+    return;
+  }
+
   tAVRC_MSG_VENDOR* p_vendor = &p_data->rc_msg.msg.vendor;
   bool is_inquiry = ((p_data->rc_msg.msg.hdr.ctype == AVRC_CMD_SPEC_INQ) ||
                      p_data->rc_msg.msg.hdr.ctype == AVRC_CMD_GEN_INQ);
@@ -995,11 +1001,6 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
 
   rc_rsp.rsp.status = BTA_AV_STS_NO_RSP;
 #endif
-
-  if (NULL == p_data) {
-    APPL_TRACE_ERROR("Message from peer with no data in %s", __func__);
-    return;
-  }
 
   APPL_TRACE_DEBUG("%s: opcode=%x, ctype=%x", __func__, p_data->rc_msg.opcode,
                    p_data->rc_msg.msg.hdr.ctype);

@@ -957,11 +957,15 @@ static void bta_jv_l2cap_client_cback(uint16_t gap_handle, uint16_t event,
   evt_data.l2c_open.handle = gap_handle;
 
   switch (event) {
-    case GAP_EVT_CONN_OPENED:
-      evt_data.l2c_open.rem_bda = *GAP_ConnGetRemoteAddr(gap_handle);
+    case GAP_EVT_CONN_OPENED: {
+      const RawAddress* raw_address= GAP_ConnGetRemoteAddr(gap_handle);
+      if(nullptr == raw_address)
+        return;
+      evt_data.l2c_open.rem_bda = *raw_address;
       evt_data.l2c_open.tx_mtu = GAP_ConnGetRemMtuSize(gap_handle);
       p_cb->state = BTA_JV_ST_CL_OPEN;
       p_cb->p_cback(BTA_JV_L2CAP_OPEN_EVT, &evt_data, p_cb->l2cap_socket_id);
+      }
       break;
 
     case GAP_EVT_CONN_CLOSED:
@@ -2466,6 +2470,9 @@ static void fcchan_data_cbk(uint16_t chan, const RawAddress& bd_addr,
   uint32_t sock_id;
 
   tc = fcchan_get(chan, false);
+  if (!tc) {
+    return;
+  }
   if (tc) {
     // try to find an open socked for that addr and channel
     t = fcclient_find_by_addr(tc->clients, &bd_addr);
@@ -2529,7 +2536,9 @@ void bta_jv_l2cap_connect_le(tBTA_JV_MSG* p_data) {
   }
   if (call_init_f)
     cc->p_cback(BTA_JV_L2CAP_CL_INIT_EVT, &evt, cc->l2cap_socket_id);
-  t->init_called = true;
+  if (t) {
+    t->init_called = true;
+  }
 }
 
 /*******************************************************************************
