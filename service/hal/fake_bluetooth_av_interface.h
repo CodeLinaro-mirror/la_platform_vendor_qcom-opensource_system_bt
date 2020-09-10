@@ -72,7 +72,7 @@ class FakeBluetoothAvInterface : public BluetoothAvInterface {
   bool QueryMandatoryCodecPreferred(const RawAddress& bda);
   // A2DP sink callbacks
   void NotifyAudioConfig(const RawAddress& bda, uint32_t sample_rate,
-                         uint8_t channel_count);
+                         uint8_t channel_count, btav_a2dp_codec_index_t codec_index);
 
   // BluetoothAvInterface overrides:
   bool A2dpSourceEnable(
