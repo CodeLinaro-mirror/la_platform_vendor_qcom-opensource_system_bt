@@ -418,7 +418,10 @@ static void bta_dm_sys_hw_cback(tBTA_SYS_HW_EVT status) {
       bta_dm_search_cb.p_disc_queue.pop();
     }
 
-    memset(&bta_dm_search_cb, 0, sizeof(bta_dm_search_cb));
+    memset(&bta_dm_search_cb, 0, sizeof(bta_dm_search_cb)
+                               - sizeof(bta_dm_search_cb.p_disc_queue));
+    std::queue<tBTA_DM_MSG *> empty;
+    std::swap(bta_dm_search_cb.p_disc_queue, empty);
     bta_dm_search_cb.p_disc_queue = std::queue<tBTA_DM_MSG *>();
 
     /* unregister from SYS */
@@ -456,7 +459,10 @@ static void bta_dm_sys_hw_cback(tBTA_SYS_HW_EVT status) {
         osi_free_and_reset((void**)&p_data);
       bta_dm_search_cb.p_disc_queue.pop();
     }
-    memset(&bta_dm_search_cb, 0, sizeof(bta_dm_search_cb));
+    memset(&bta_dm_search_cb, 0, sizeof(bta_dm_search_cb)
+                               - sizeof(bta_dm_search_cb.p_disc_queue));
+    std::queue<tBTA_DM_MSG *> empty;
+    std::swap(bta_dm_search_cb.p_disc_queue, empty);
     bta_dm_search_cb.p_disc_queue = std::queue<tBTA_DM_MSG *>();
     /*
      * TODO: Should alarm_free() the bta_dm_search_cb timers during
