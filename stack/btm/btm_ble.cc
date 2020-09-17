@@ -1229,6 +1229,7 @@ tL2CAP_LE_RESULT_CODE btm_ble_start_sec_check(const RawAddress& bd_addr,
 
     case BTM_SEC_ENC_PENDING:
       BTM_TRACE_DEBUG("%s Ecryption pending", __func__);
+      ble_sec_act = BTM_BLE_SEC_ENCRYPT;
       break;
   }
 
