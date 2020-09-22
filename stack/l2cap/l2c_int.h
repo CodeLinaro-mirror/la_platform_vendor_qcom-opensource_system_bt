@@ -1026,5 +1026,7 @@ extern bool l2cu_validate_cids_in_use_status(tL2CAP_COC_CHMAP_INFO *chnl_inf,
 extern const char* l2cu_get_reconfig_result(uint16_t result);
 extern void l2cu_send_peer_coc_disc_req(tL2C_CCB* p_ccb);
 extern void l2cu_clear_reconfig_params(tL2C_CCB* p_ccb);
+extern tL2C_CCB* l2cu_find_ccb_by_l2cap_id(tL2C_LCB* p_lcb, uint16_t l2cap_id);
+bool l2cu_is_unaccepted_coc_result_code(uint16_t result);
 
 #endif

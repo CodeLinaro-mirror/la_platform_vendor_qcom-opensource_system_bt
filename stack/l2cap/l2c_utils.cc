@@ -5319,3 +5319,56 @@ const char* l2cu_get_reconfig_result(uint16_t result) {
   }
 }
 
+/*******************************************************************************
+ *
+ * Function         l2cu_find_ccb_by_l2cap_id
+ *
+ * Description      Look through all active CCB on a link for a match based
+ *                  on the l2cap_id. If passed the link pointer is NULL, all
+ *                  active ccbs are searched.
+ *
+ * Returns          pointer to matched CCB, or NULL if no match
+ *
+ ******************************************************************************/
+tL2C_CCB* l2cu_find_ccb_by_l2cap_id(tL2C_LCB* p_lcb, uint16_t l2cap_id) {
+  tL2C_CCB* p_ccb = NULL;
+  uint8_t xx;
+
+    /* searching fixed channel */
+    p_ccb = l2cb.ccb_pool;
+    for (xx = 0; xx < MAX_L2CAP_CHANNELS; xx++) {
+      if ((p_ccb->remote_id == l2cap_id) && (p_ccb->in_use) &&
+          (p_lcb == p_ccb->p_lcb))
+        break;
+      else
+        p_ccb++;
+    }
+    if (xx >= MAX_L2CAP_CHANNELS) return NULL;
+
+  return (p_ccb);
+}
+
+
+/*******************************************************************************
+ *
+ * Function         l2cu_is_unaccepted_coc_result_code
+ *
+ * Description      Check for unacceptable/invalid/insufficient result code
+ *
+ * Returns          true , if it matches any of the above one
+                    false default
+ *
+ ******************************************************************************/
+bool l2cu_is_unaccepted_coc_result_code(uint16_t result) {
+  switch (result) {
+    case L2CAP_ECFC_ALL_CONNS_REFUSED_UNACCEPTABLE_PARAMS:
+      FALLTHROUGH_INTENDED; /* FALLTHROUGH */
+    case L2CAP_ECFC_ALL_CONNS_REFUSED_INSUFF_AUTHERIZATION:
+      FALLTHROUGH_INTENDED; /* FALLTHROUGH */
+    case L2CAP_ECFC_ALL_CONNS_REFUSED_INVALID_PARAMS:
+      return true;
+    default:
+      return false;
+  }
+}
+

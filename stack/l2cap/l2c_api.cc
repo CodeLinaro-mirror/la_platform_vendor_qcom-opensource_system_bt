@@ -877,100 +877,118 @@ bool L2CA_ConnectCocRsp(tL2CAP_COC_CONN_REQ *p_conn_req,
     return false;
   }
 
-  /* Now, find the channel control block */
-  tL2C_CCB* p_ccb[L2C_MAX_ECFC_CHNLS_PER_CONN];
-  tL2C_CCB* p_actual_ccb[L2C_MAX_ECFC_CHNLS_PER_CONN];
-  uint16_t valid_chnls = 0;
-  for (int i = 0; i < p_conn_req->num_chnls; i++) {
-    p_ccb[i] = l2cu_find_ccb_by_cid(p_lcb, p_conn_req->sr_cids[i]);
-    if (p_ccb[i] == NULL) {
-      L2CAP_TRACE_WARNING("%s channel closed for CID %d ", __func__,
-                          p_conn_req->sr_cids[i]);
-      ecfc_conn_result = L2CAP_ECFC_SOME_CONNS_REFUSED_INSUFF_RESOURCES;
-    } else {
-      p_actual_ccb[valid_chnls]  = p_ccb[i];
-      L2CAP_TRACE_WARNING("%s chnl_index channel CID %d %d", __func__, valid_chnls,
-                      p_conn_req->sr_cids[i], p_actual_ccb[valid_chnls]->local_cid);
-      valid_chnls++;
-    }
-  }
+  if (!l2cu_is_unaccepted_coc_result_code(result)) {
 
-  if (valid_chnls == 0) {
-    L2CAP_TRACE_WARNING("%s All channels in the ECFC Connect request are closed ",
-                        __func__);
-    return false;
-  }
-  if (valid_chnls < p_conn_req->num_chnls) {
-    p_conn_req->num_chnls = valid_chnls;
-  } else {
-    if (result == L2CAP_ECFC_SOME_CONNS_REFUSED_INSUFF_RESOURCES) {
-      L2CAP_TRACE_WARNING("%s upper layer rejected the some channels ",
-                        __func__);
-      uint16_t sr_cids[L2C_MAX_ECFC_CHNLS_PER_CONN] = {0};
-      for (int i = 0; i < p_conn_req->num_chnls; i++) {
-        sr_cids[i] = p_actual_ccb[i]->local_cid;
-        p_ccb[i] = p_actual_ccb[i];
-      }
-      for (int i = p_conn_req->num_chnls; i < p_actual_ccb[0]->coc_cmd_info.requested_ecfc_chnls;
-            i++) {
-        sr_cids[i] = 0;
-        if (p_actual_ccb[i] != NULL) {
-          l2cu_release_ccb(p_actual_ccb[i]);
-        }
-        p_ccb[i] = NULL;
-      }
-      l2cu_set_coc_conn_rsp_cids(sr_cids, p_ccb[0], p_conn_req->num_chnls);
-      for (int i = 0; i < p_actual_ccb[0]->coc_cmd_info.requested_ecfc_chnls; i++) {
-        L2CAP_TRACE_WARNING("%s peer_rsp_cid %d", __func__, p_ccb[0]->coc_cmd_info.peer_rsp_cids[i]);
-      }
-    } else {
-      p_conn_req->num_chnls = valid_chnls;
-    }
-  }
-
-  //TODO move below to separate API
-  for (int i = 0; i < p_conn_req->num_chnls; i++) {
-    /* The IDs must match */
-    if (p_ccb[i]!= NULL) {
-      if (p_ccb[i]->remote_id != l2cap_id) {
-        L2CAP_TRACE_WARNING("%s bad id. Expected: %d  Got: %d", __func__,
-                          p_ccb[i]->remote_id, l2cap_id);
+    /* Now, find the channel control block */
+    tL2C_CCB* p_ccb[L2C_MAX_ECFC_CHNLS_PER_CONN];
+    tL2C_CCB* p_actual_ccb[L2C_MAX_ECFC_CHNLS_PER_CONN];
+    uint16_t valid_chnls = 0;
+    for (int i = 0; i < p_conn_req->num_chnls; i++) {
+      p_ccb[i] = l2cu_find_ccb_by_cid(p_lcb, p_conn_req->sr_cids[i]);
+      if (p_ccb[i] == NULL) {
+        L2CAP_TRACE_WARNING("%s channel closed for CID %d ", __func__,
+                            p_conn_req->sr_cids[i]);
         ecfc_conn_result = L2CAP_ECFC_SOME_CONNS_REFUSED_INSUFF_RESOURCES;
-        valid_chnls--;
+      } else {
+        p_actual_ccb[valid_chnls]  = p_ccb[i];
+        L2CAP_TRACE_WARNING("%s chnl_index channel CID %d %d", __func__, valid_chnls,
+                        p_conn_req->sr_cids[i], p_actual_ccb[valid_chnls]->local_cid);
+        valid_chnls++;
       }
     }
-  }
-  if (valid_chnls == 0) {
-    return false;
-  }
 
-  uint16_t mps;
-  if (p_conn_req->transport == BT_TRANSPORT_LE) {
-    mps = controller_get_interface()->get_acl_data_size_ble();
-  } else {
-    mps = controller_get_interface()->get_acl_data_size_classic();
-  }
-  if (ecfc_conn_result && (result != L2CAP_ECFC_SOME_CONNS_REFUSED_INSUFF_RESOURCES))
-    result = ecfc_conn_result;
-
-  for (int i = 0; i < valid_chnls; i++) {
-    if (p_ccb[i] != NULL) {
-      p_ccb[i]->local_conn_cfg.mtu = p_conn_req->mtu;
-      p_ccb[i]->local_conn_cfg.mps = mps;
-      p_ccb[i]->local_conn_cfg.credits = L2CAP_COC_CREDIT_DEFAULT;
-      p_ccb[i]->coc_cmd_info.ecfc_conn_result = result;
+    if (valid_chnls == 0) {
+      L2CAP_TRACE_WARNING("%s All channels in the ECFC Connect request are closed ",
+                          __func__);
+      return false;
     }
-  }
+    if (valid_chnls < p_conn_req->num_chnls) {
+      p_conn_req->num_chnls = valid_chnls;
+    } else {
+      if (result == L2CAP_ECFC_SOME_CONNS_REFUSED_INSUFF_RESOURCES) {
+        L2CAP_TRACE_WARNING("%s upper layer rejected the some channels ",
+                          __func__);
+        uint16_t sr_cids[L2C_MAX_ECFC_CHNLS_PER_CONN] = {0};
+        for (int i = 0; i < p_conn_req->num_chnls; i++) {
+          sr_cids[i] = p_actual_ccb[i]->local_cid;
+          p_ccb[i] = p_actual_ccb[i];
+        }
+        for (int i = p_conn_req->num_chnls;
+          i < p_actual_ccb[0]->coc_cmd_info.requested_ecfc_chnls; i++) {
+          sr_cids[i] = 0;
+          if (p_actual_ccb[i] != NULL) {
+            l2cu_release_ccb(p_actual_ccb[i]);
+          }
+          p_ccb[i] = NULL;
+        }
+        l2cu_set_coc_conn_rsp_cids(sr_cids, p_ccb[0], p_conn_req->num_chnls);
+        for (int i = 0; i < p_actual_ccb[0]->coc_cmd_info.requested_ecfc_chnls;
+          i++) {
+          L2CAP_TRACE_WARNING("%s peer_rsp_cid %d", __func__,
+            p_ccb[0]->coc_cmd_info.peer_rsp_cids[i]);
+        }
+      } else {
+        p_conn_req->num_chnls = valid_chnls;
+      }
+    }
 
-  switch(result) {
-    case L2CAP_ECFC_ALL_CONNS_SUCCESSFUL:
-    case L2CAP_ECFC_SOME_CONNS_REFUSED_INSUFF_RESOURCES:
-    case L2CAP_ECFC_SOME_CONNS_REFUSED_INVALID_SOURCE_CID:
-    case L2CAP_ECFC_SOME_CONNS_REFUSED_SOURCE_CID_ALREADY_ALLOCATED:
-      l2c_csm_execute(p_ccb[0], L2CEVT_L2CA_COC_CONNECT_RSP, NULL);
-      break;
-    default:
-      l2c_csm_execute(p_ccb[0], L2CEVT_L2CA_COC_CONNECT_NEG_RSP, NULL);
+    //TODO move below to separate API
+    for (int i = 0; i < p_conn_req->num_chnls; i++) {
+      /* The IDs must match */
+      if (p_ccb[i]!= NULL) {
+        if (p_ccb[i]->remote_id != l2cap_id) {
+          L2CAP_TRACE_WARNING("%s bad id. Expected: %d  Got: %d", __func__,
+                            p_ccb[i]->remote_id, l2cap_id);
+          ecfc_conn_result = L2CAP_ECFC_SOME_CONNS_REFUSED_INSUFF_RESOURCES;
+          valid_chnls--;
+        }
+      }
+    }
+    if (valid_chnls == 0) {
+      return false;
+    }
+
+    uint16_t mps;
+    if (p_conn_req->transport == BT_TRANSPORT_LE) {
+      mps = controller_get_interface()->get_acl_data_size_ble();
+    } else {
+      mps = controller_get_interface()->get_acl_data_size_classic();
+    }
+    if (ecfc_conn_result && (result != L2CAP_ECFC_SOME_CONNS_REFUSED_INSUFF_RESOURCES))
+      result = ecfc_conn_result;
+
+    for (int i = 0; i < valid_chnls; i++) {
+      if (p_ccb[i] != NULL) {
+        p_ccb[i]->local_conn_cfg.mtu = p_conn_req->mtu;
+        p_ccb[i]->local_conn_cfg.mps = mps;
+        p_ccb[i]->local_conn_cfg.credits = L2CAP_COC_CREDIT_DEFAULT;
+        p_ccb[i]->coc_cmd_info.ecfc_conn_result = result;
+      }
+    }
+
+    switch(result) {
+      case L2CAP_ECFC_ALL_CONNS_SUCCESSFUL:
+      case L2CAP_ECFC_SOME_CONNS_REFUSED_INSUFF_RESOURCES:
+      case L2CAP_ECFC_SOME_CONNS_REFUSED_INVALID_SOURCE_CID:
+      case L2CAP_ECFC_SOME_CONNS_REFUSED_SOURCE_CID_ALREADY_ALLOCATED:
+        l2c_csm_execute(p_ccb[0], L2CEVT_L2CA_COC_CONNECT_RSP, NULL);
+        break;
+      default:
+        l2c_csm_execute(p_ccb[0], L2CEVT_L2CA_COC_CONNECT_NEG_RSP, NULL);
+    }
+  } else {
+    tL2C_CCB* tmp_ccb = l2cu_find_ccb_by_l2cap_id(p_lcb, l2cap_id);
+    if (tmp_ccb != NULL) {
+      L2CAP_TRACE_API("%s CID: 0x%04x Result %d", __func__,
+        tmp_ccb->local_cid, result);
+      tmp_ccb->coc_cmd_info.ecfc_conn_result = result;
+      tmp_ccb->coc_cmd_info.num_coc_chnls =
+        tmp_ccb->coc_cmd_info.requested_ecfc_chnls;
+      l2c_csm_execute(tmp_ccb, L2CEVT_L2CA_COC_CONNECT_NEG_RSP, NULL);
+    } else {
+      L2CAP_TRACE_API("%s Invalid Channel and result %d", __func__, result);
+      return false;
+    }
   }
   return true;
 }
