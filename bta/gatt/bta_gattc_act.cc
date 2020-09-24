@@ -1319,6 +1319,7 @@ bool bta_gattc_write_to_socket(tGATT_CL_COMPLETE* p_data, Uuid char_uuid) {
         bta_gattc_cb.is_gatt_skt_connected = false;
         close(bta_gattc_cb.gatt_skt_fd);
         bta_gattc_cb.gatt_skt_fd = -1;
+        delete[] p_skt_data;
         return false;
       }
     }
@@ -1326,6 +1327,7 @@ bool bta_gattc_write_to_socket(tGATT_CL_COMPLETE* p_data, Uuid char_uuid) {
     p_skt_data = (uint8_t*)p_skt_data + sent;
   }
 
+  delete[] p_skt_data;
   return true;
 }
 
