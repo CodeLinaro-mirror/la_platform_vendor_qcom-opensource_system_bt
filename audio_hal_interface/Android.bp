@@ -15,7 +15,11 @@ cc_library_static {
         "vendor/qcom/opensource/commonsys/system/bt/btcore/include",
         "vendor/qcom/opensource/commonsys/system/bt/hci/include",
         "vendor/qcom/opensource/commonsys-intf/bluetooth/include",
-        "vendor/qcom/opensource/commonsys/system/bt/device/include"
+        "vendor/qcom/opensource/commonsys/system/bt/device/include",
+        "vendor/qcom/opensource/commonsys/bluetooth_lea/system/bt",
+        "vendor/qcom/opensource/commonsys/bluetooth_lea/system/bt/bta/include",
+        "vendor/qcom/opensource/commonsys/bluetooth_lea/system/bt/btif/include",
+        "vendor/qcom/opensource/commonsys/bluetooth_lea/vhal/include",
     ],
     srcs: [
         "a2dp_encoding.cc",
@@ -23,6 +27,7 @@ cc_library_static {
         "hearing_aid_software_encoding.cc",
     ],
     shared_libs: [
+        "vendor.qti.hardware.bluetooth_audio@2.1",
         "vendor.qti.hardware.bluetooth_audio@2.0",
         "libfmq",
         "libhidlbase",

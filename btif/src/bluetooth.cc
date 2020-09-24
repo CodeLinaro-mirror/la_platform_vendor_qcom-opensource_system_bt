@@ -57,6 +57,7 @@
 #include <hardware/vendor_socket.h>
 #include <hardware/bt_ba.h>
 #include <hardware/bt_vendor_rc.h>
+#include <hardware/bt_bap_ba.h>
 #include "bt_utils.h"
 #include "bta/include/bta_hearing_aid_api.h"
 #include "bta/include/bta_hf_client_api.h"
@@ -140,6 +141,7 @@ extern btvendor_interface_t *btif_vendor_socket_get_interface();
 #if (SWB_ENABLED == TRUE)
 extern btvendor_interface_t *btif_vendor_hf_get_interface();
 #endif
+extern btbap_broadcast_interface_t * btif_bap_broadcast_get_interface();
 /* broadcast transmitter */
 extern ba_transmitter_interface_t *btif_bat_get_interface();
 extern btrc_vendor_ctrl_interface_t *btif_rc_vendor_ctrl_get_interface();
@@ -428,6 +430,9 @@ static const void* get_profile_interface(const char* profile_id) {
 
   if (is_profile(profile_id, BT_PROFILE_HEARING_AID_ID))
     return btif_hearing_aid_get_interface();
+
+  if (is_profile(profile_id, BT_PROFILE_BAP_BROADCAST_ID))
+    return btif_bap_broadcast_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_CSIP_CLIENT_ID)) {
     return btif_csip_get_interface();
