@@ -1056,4 +1056,25 @@ extern void btsnd_hcic_ble_transmitter_test_v4(uint8_t tx_channel,
                                                uint8_t *antenna_ids,
                                                uint8_t transmit_power_level,
                                                base::Callback<void(uint8_t*, uint16_t)> cb);
+/*******PAST & PS **********************************/
+extern void btsnd_hcic_ble_create_periodic_sync(uint8_t options, uint8_t adv_sid,
+                                                uint8_t address_type, const RawAddress& bda_peer,
+                                                uint16_t skip, uint16_t sync_timeout,
+                                                uint8_t sync_cte_type);
+extern void btsnd_hcic_ble_terminate_periodic_sync(uint16_t sync_handle);
+extern void btsnd_hci_ble_cancel_period_sync();
+extern void btsnd_hcic_ble_pa_sync_tx(uint16_t conn_handle,
+                                      uint16_t service_data,
+                                      uint16_t sync_handle,
+                                      base::Callback<void(uint8_t*, uint16_t)> cb);
+extern void btsnd_hcic_ble_pa_set_info_tx(uint16_t conn_handle,
+                                          uint16_t service_data,
+                                          uint8_t adv_handle,
+                                          base::Callback<void(uint8_t*, uint16_t)> cb);
+extern void btsnd_hcic_ble_pa_sync_tx_parameters(uint16_t conn_handle,
+                                                 uint8_t mode,
+                                                 uint16_t skip,
+                                                 uint16_t timeout,
+                                                 uint8_t cte_type);
+
 #endif

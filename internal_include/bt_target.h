@@ -1433,7 +1433,14 @@ incoming connection
 #ifndef DUMP_PCM_DATA
 #define DUMP_PCM_DATA FALSE
 #endif
-
+/****************************
+ *
+ * BLE PAST
+ *
+ **************************/
+#ifndef BLE_PS_PAST_IF_SUPPORTED
+#define BLE_PS_PAST_IF_SUPPORTED FALSE
+#endif
 /******************************************************************************
  *
  * BTA
