@@ -196,6 +196,11 @@ bool is_soc_lpa_enh_pwr_enabled() {
 
 static future_t* start_up(void) {
   BT_HDR* response;
+  uint8_t adv_audio_support_mask = 0;
+  char adv_audio_property[2] = {};
+
+  osi_property_get("persist.vendor.service.bt.adv_audio_mask", adv_audio_property, "0");
+  adv_audio_support_mask = (uint8_t)atoi(adv_audio_property);
 
   //initialize number_of_scrambling_supported_freqs to 0 during start_up
   number_of_scrambling_supported_freqs = 0;
@@ -456,8 +461,8 @@ static future_t* start_up(void) {
         response, &features_ble);
 
     // Set Host support for Isochrnous channel management
-    if (HCI_LE_CIS_MASTER_SUPPORT(features_ble.as_array)
-          || HCI_LE_CIS_SLAVE_SUPPORT(features_ble.as_array)) {
+    if (adv_audio_support_mask > 0 && (HCI_LE_CIS_MASTER_SUPPORT(features_ble.as_array)
+          || HCI_LE_CIS_SLAVE_SUPPORT(features_ble.as_array))) { //TODO: Add BIS Support check
       response = AWAIT_COMMAND(
           packet_factory->make_ble_set_host_feature_cmd(ISO_CHANNEL_HOST_SUPPORT_BIT, 1));
       packet_parser->parse_ble_set_host_feature_cmd(response);
@@ -613,6 +618,14 @@ static future_t* start_up(void) {
     }
   }
 
+  if (!HCI_LE_CIS_MASTER_SUPPORT(features_ble.as_array)) {
+    adv_audio_support_mask &= ~ADV_AUDIO_UNICAST_FEAT_MASK;
+  }
+  if (!HCI_LE_PERIODIC_SYNC_TRANSFER_SEND_SUPPORTED(features_ble.as_array)) {
+    adv_audio_support_mask &= ~ADV_AUDIO_BROADCAST_FEAT_MASK;
+  }
+  snprintf(adv_audio_property, 2, "%d", adv_audio_support_mask);
+  osi_property_set("persist.vendor.service.bt.adv_audio_mask", adv_audio_property);
 
   if (!HCI_READ_ENCR_KEY_SIZE_SUPPORTED(supported_commands)) {
     LOG(FATAL) << " Controller must support Read Encryption Key Size command";
