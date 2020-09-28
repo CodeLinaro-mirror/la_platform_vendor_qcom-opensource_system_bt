@@ -549,6 +549,53 @@ void BTA_DmAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class,
 
 /*******************************************************************************
  *
+ * Function         BTA_DmAddDevice
+ *
+ * Description      This function adds a legacy peer device to the security
+ *                  database list of peer device
+ *
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_DmAddDevice(const RawAddress& bd_addr,BD_NAME bd_name_read,
+                     DEV_CLASS dev_class,
+                     LINK_KEY link_key, tBTA_SERVICE_MASK trusted_mask,
+                     bool is_trusted, uint8_t key_type, tBTA_IO_CAP io_cap,
+                     uint8_t pin_length) {
+  tBTA_DM_API_ADD_DEVICE* p_msg =
+      (tBTA_DM_API_ADD_DEVICE*)osi_calloc(sizeof(tBTA_DM_API_ADD_DEVICE));
+
+  p_msg->hdr.event = BTA_DM_API_ADD_DEVICE_EVT;
+  p_msg->bd_addr = bd_addr;
+  p_msg->tm = trusted_mask;
+  p_msg->is_trusted = is_trusted;
+  p_msg->io_cap = io_cap;
+
+  if (link_key) {
+    p_msg->link_key_known = true;
+    p_msg->key_type = key_type;
+    memcpy(p_msg->link_key, link_key, LINK_KEY_LEN);
+  }
+
+  /* Load device class if specified */
+  if (dev_class) {
+    p_msg->dc_known = true;
+    memcpy(p_msg->dc, dev_class, DEV_CLASS_LEN);
+  }
+
+  if (strlen((char*)bd_name_read) > 0)
+    strlcpy((char*)p_msg->bd_name, (char*)bd_name_read, BD_NAME_LEN + 1);
+  else
+    memset(p_msg->bd_name, 0, BD_NAME_LEN + 1);
+  memset(p_msg->features, 0, sizeof(p_msg->features));
+  p_msg->pin_length = pin_length;
+
+  bta_sys_sendmsg(p_msg);
+}
+
+/*******************************************************************************
+ *
  * Function         BTA_DmRemoveDevice
  *
  * Description      This function removes a device fromthe security database

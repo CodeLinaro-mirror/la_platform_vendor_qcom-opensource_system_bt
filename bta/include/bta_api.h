@@ -1391,6 +1391,13 @@ extern void BTA_DmAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class,
                             bool is_trusted, uint8_t key_type,
                             tBTA_IO_CAP io_cap, uint8_t pin_length);
 
+
+extern void BTA_DmAddDevice(const RawAddress& bd_addr, BD_NAME bd_name_read,
+                            DEV_CLASS dev_class,
+                            LINK_KEY link_key, tBTA_SERVICE_MASK trusted_mask,
+                            bool is_trusted, uint8_t key_type,
+                            tBTA_IO_CAP io_cap, uint8_t pin_length);
+
 /*******************************************************************************
  *
  * Function         BTA_DmRemoveDevice

@@ -459,9 +459,21 @@ static bt_status_t btif_in_fetch_bonded_devices(
           if (btif_config_get_int(name, "DevClass", &cod))
             uint2devclass((uint32_t)cod, dev_class);
           btif_config_get_int(name, "PinLength", &pin_length);
-          BTA_DmAddDevice(bd_addr, dev_class, link_key, 0, 0,
+          BD_NAME bd_name_read;
+          memset(bd_name_read, '\0', BD_NAME_LEN + 1);
+          int bd_name_len = BD_NAME_LEN;
+          int lmp_ver;
+          if((btif_config_get_int(name, "LmpVer", &lmp_ver)) &&
+             (lmp_ver <= 4) &&
+             (btif_config_get_str(name, "Name",
+                                  (char*)bd_name_read, &bd_name_len))) {
+            BTIF_TRACE_DEBUG("Remote device NAME : %s ", bd_name_read);
+            BTA_DmAddDevice(bd_addr, bd_name_read, dev_class, link_key, 0, 0,
                           (uint8_t)linkkey_type, 0, pin_length);
-
+          }
+          else
+            BTA_DmAddDevice(bd_addr, dev_class, link_key, 0, 0,
+                          (uint8_t)linkkey_type, 0, pin_length);
           if (btif_config_get_int(name, "DevType", &device_type) &&
               (device_type == BT_DEVICE_TYPE_DUMO)) {
             btif_gatts_add_bonded_dev_from_nv(bd_addr);
