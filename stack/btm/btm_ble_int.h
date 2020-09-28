@@ -58,8 +58,8 @@
 #define BTM_BLE_DUPLICATE_ENABLE        1
 #define BTM_BLE_DUPLICATE_DISABLE       0
 
-#define BTM_BLE_GAP_DISC_SCAN_INT      160        /* Interval(scan_int) = 100 ms= 160 * 0.625 ms */
-#define BTM_BLE_GAP_DISC_SCAN_WIN      1600       /* scan_window = 1000 ms= 1600 * 0.625 ms */
+#define BTM_BLE_GAP_DISC_SCAN_INT      1600        /* Interval(scan_int) = 1000 ms= 1600 * 0.625 ms */
+#define BTM_BLE_GAP_DISC_SCAN_WIN      160        /* scan_window = 100 ms= 160 * 0.625 ms */
 #define BTM_BLE_GAP_ADV_INT            512        /* Tgap(gen_disc) = 1.28 s= 512 * 0.625 ms */
 #define BTM_BLE_GAP_LIM_TOUT           180        /* Tgap(lim_timeout) = 180s max */
 #define BTM_BLE_LOW_LATENCY_SCAN_INT   8000       /* Interval(scan_int) = 5s= 8000 * 0.625 ms */
