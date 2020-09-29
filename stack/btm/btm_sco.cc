@@ -369,6 +369,26 @@ static tBTM_STATUS btm_send_connect_request(uint16_t acl_handle,
                                             enh_esco_params_t* p_setup) {
   tACL_CONN* p_acl;
 
+#if (BTM_MAX_SCO_LINKS > 0)
+  tSCO_CONN* p = &btm_cb.sco_cb.sco_db[0];
+
+  for(uint16_t sco_index = 0; sco_index < BTM_MAX_SCO_LINKS;
+        sco_index++,p++) {
+
+      /* If any sco link is in busy(CONNECTING/CONNECTED) state from
+       * BTM_MAX_SCO_LINKS, return as BTM_BUSY.
+       */
+      if((p->state == SCO_ST_CONNECTING) || (p->state == SCO_ST_CONNECTED)) {
+
+          BTM_TRACE_DEBUG("%s:sco_index %d bda %s  state %d ", __func__, sco_index,
+                          p->esco.data.bd_addr.ToString().c_str(), p->state);
+
+          return BTM_BUSY;
+      }
+  }
+
+#endif
+
   /* Send connect request depending on version of spec */
   if (!btm_cb.sco_cb.esco_supported) {
     btsnd_hcic_add_SCO_conn(acl_handle, BTM_ESCO_2_SCO(p_setup->packet_types));
@@ -807,6 +827,21 @@ void btm_sco_conn_req(const RawAddress& bda, DEV_CLASS dev_class,
   tSCO_CONN* p = &p_sco->sco_db[0];
   uint16_t xx;
   tBTM_ESCO_CONN_REQ_EVT_DATA evt_data;
+  tSCO_CONN* conn = &btm_cb.sco_cb.sco_db[0];
+  bool sco_busy = false;
+
+  for(uint16_t sco_index = 0; sco_index < BTM_MAX_SCO_LINKS;
+       sco_index++,conn++) {
+
+      if((conn->state == SCO_ST_CONNECTING) || (conn->state == SCO_ST_CONNECTED)) {
+
+            BTM_TRACE_DEBUG("%s:sco_index %d bda %s  state %d ", __func__, sco_index,
+                           conn->esco.data.bd_addr.ToString().c_str(), conn->state);
+            sco_busy = true;
+
+            break;
+      }
+  }
 
   for (xx = 0; xx < BTM_MAX_SCO_LINKS; xx++, p++) {
     /*
@@ -814,6 +849,14 @@ void btm_sco_conn_req(const RawAddress& bda, DEV_CLASS dev_class,
      * to return accept sco to avoid race conditon for sco creation
      */
     int rem_bd_matches = p->rem_bd_known && p->esco.data.bd_addr == bda;
+
+
+  /* log it as WARNING so that it gets printed always*/
+    BTM_TRACE_WARNING("%s: xx %x, p->rem_bd_known %x, rem_bd_matches %x, "\
+                    "p->esco.data.bd_addr %s, bda %s, p->state %x", __func__,
+           xx, p->rem_bd_known, rem_bd_matches, p->esco.data.bd_addr.ToString().c_str(),
+           bda.ToString().c_str(), p->state);
+
     if (((p->state == SCO_ST_CONNECTING) && rem_bd_matches) ||
         ((p->state == SCO_ST_LISTENING) &&
          (rem_bd_matches || !p->rem_bd_known))) {
@@ -822,6 +865,16 @@ void btm_sco_conn_req(const RawAddress& bda, DEV_CLASS dev_class,
       p->esco.data.link_type = link_type;
       p->state = SCO_ST_W4_CONN_RSP;
       p->esco.data.bd_addr = bda;
+
+      /* If any sco link is in busy(CONNECTING/CONNECTED) state from
+       * BTM_MAX_SCO_LINKS, reject new incoming connection.
+       */
+      if ( sco_busy && rem_bd_matches ) {
+          BTM_TRACE_DEBUG("%s: reject sco connection for bda %s", __func__,
+                           bda.ToString().c_str());
+          btm_esco_conn_rsp(xx, HCI_ERR_HOST_REJECT_RESOURCES, bda, NULL);
+          return;
+      }
 
       /* If no callback, auto-accept the connection if packet types match */
       if (!p->esco.p_esco_cback) {
