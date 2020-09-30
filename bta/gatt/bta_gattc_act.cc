@@ -39,6 +39,7 @@
 #include "osi/include/osi.h"
 #include "stack/l2cap/l2c_int.h"
 #include "utl.h"
+#include "osi/include/properties.h"
 #include "device/include/interop.h"
 
 #if (BTA_HH_LE_INCLUDED == TRUE)
@@ -91,6 +92,7 @@ static tGATT_CBACK bta_gattc_cl_cback = {bta_gattc_conn_cback,
                                          bta_gattc_phy_update_cback,
                                          bta_gattc_conn_update_cback};
 
+static void bta_gattc_pump_tx_data(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data);
 /* opcode(tGATTC_OPTYPE) order has to be comply with internal event order */
 static uint16_t bta_gattc_opcode_to_int_evt[] = {
     /* Skip: GATTC_OPTYPE_NONE */
@@ -111,6 +113,14 @@ static const char* bta_gattc_op_code_name[] = {
     "Notification", /* GATTC_OPTYPE_NOTIFICATION */
     "Indication"    /* GATTC_OPTYPE_INDICATION */
 };
+
+/* Global variables for Data Tx */
+static uint16_t tx_num_packets = 0;
+static uint16_t  no_of_packets = 0;
+static bool tx_throughput_cal = false;
+static bool l2c_congested = false;
+static tGATT_VALUE tx_throughput_attr;
+static tBTA_GATTC_DATA tx_throughput_data;
 
 /*****************************************************************************
  *  Action Functions
@@ -828,9 +838,111 @@ void bta_gattc_read_multi(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
   }
 }
 
+/*******************************************************************************
+ *
+ * Function         bta_gattc_pump_tx_data
+ *
+ * Description      Pump Tx Data to stack
+ *
+ * Returns          None.
+ *
+ ******************************************************************************/
+void bta_gattc_pump_tx_data(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
+  uint8_t status = GATT_SUCCESS;
+  tGATT_VALUE attr;
+
+  int32_t num = 0;
+
+  /* Get number of packets to pump from system property */
+  num = osi_property_get_int32("tx_test.num_packets", 0);
+  VLOG(1) << __func__ << "num_tx_packets" << +num;
+  no_of_packets = num;
+
+  if (p_data == NULL) {
+    attr.conn_id = tx_throughput_attr.conn_id;
+    attr.handle = tx_throughput_attr.handle;
+    attr.offset = tx_throughput_attr.offset;
+    attr.len = tx_throughput_attr.len;
+    attr.auth_req = tx_throughput_attr.auth_req;
+
+    memcpy(attr.value, tx_throughput_attr.value, tx_throughput_attr.len);
+
+    tBTA_GATTC_DATA* p_data = (tBTA_GATTC_DATA*)osi_calloc(
+     sizeof(tBTA_GATTC_API_WRITE) + tx_throughput_data.api_write.len);
+
+    tx_throughput_data.api_write.hdr.event = BTA_GATTC_API_WRITE_EVT;
+    p_data->api_write.hdr.layer_specific = tx_throughput_data.api_write.hdr.layer_specific;
+    p_data->api_write.auth_req = tx_throughput_data.api_write.auth_req;
+    p_data->api_write.handle = tx_throughput_data.api_write.handle;
+    p_data->api_write.write_type = tx_throughput_data.api_write.write_type;
+    p_data->api_write.offset = tx_throughput_data.api_write.offset;
+    p_data->api_write.len = tx_throughput_data.api_write.len;
+    p_data->api_write.write_cb = tx_throughput_data.api_write.write_cb;
+    p_data->api_write.write_cb_data = tx_throughput_data.api_write.write_cb_data;
+
+    //memcpy(p_data->api_write.p_value,tx_throughput_attr.value, p_data->api_write.len);
+
+    if (!bta_gattc_enqueue(p_clcb, p_data)) {osi_free(p_data); return;}
+
+  } else {
+    attr.conn_id = p_clcb->bta_conn_id;
+    attr.handle = p_data->api_write.handle;
+    attr.offset = p_data->api_write.offset;
+    attr.len = p_data->api_write.len;
+    attr.auth_req = p_data->api_write.auth_req;
+
+    if (p_data->api_write.p_value)
+      memcpy(attr.value, p_data->api_write.p_value, p_data->api_write.len);
+
+    tx_throughput_attr.conn_id = p_clcb->bta_conn_id;
+    tx_throughput_attr.handle = p_data->api_write.handle;
+    tx_throughput_attr.offset = p_data->api_write.offset;
+    tx_throughput_attr.len = p_data->api_write.len;
+    tx_throughput_attr.auth_req = p_data->api_write.auth_req;
+
+    tx_throughput_data.api_write.hdr.event = BTA_GATTC_API_WRITE_EVT;
+    tx_throughput_data.api_write.hdr.layer_specific = p_data->api_write.hdr.layer_specific;
+    tx_throughput_data.api_write.auth_req = p_data->api_write.auth_req;
+    tx_throughput_data.api_write.handle = p_data->api_write.handle;
+    tx_throughput_data.api_write.write_type = p_data->api_write.write_type;
+    tx_throughput_data.api_write.offset = p_data->api_write.offset;
+    tx_throughput_data.api_write.len = p_data->api_write.len;
+    tx_throughput_data.api_write.write_cb = p_data->api_write.write_cb;
+    tx_throughput_data.api_write.write_cb_data = p_data->api_write.write_cb_data;
+
+    if (p_data->api_write.p_value) {
+      memcpy(tx_throughput_attr.value, p_data->api_write.p_value, p_data->api_write.len);
+    }
+  }
+  /* Write data to stack continuously */
+  for(int i = tx_num_packets; i < no_of_packets;i++){
+    if (!l2c_congested) {
+      status =
+         GATTC_Write(p_clcb->bta_conn_id, GATT_WRITE_NO_RSP, &attr);
+      VLOG(1) << "status of GATTC_Write" << unsigned(status);
+    } else {
+      p_clcb->p_q_cmd = NULL;
+      break;
+    }
+  }
+}
+
 /** Write an attribute */
 void bta_gattc_write(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
   if (!bta_gattc_enqueue(p_clcb, p_data)) return;
+  VLOG(1) << __func__;
+
+  char value[10] = {'\0'};
+  if(p_data->api_write.write_type == GATT_WRITE_NO_RSP) {
+    osi_property_get("tx_test.enable", value, "false");
+    VLOG(1) << "enable_txthroughput" << value;
+    /* If the property is set to true, pump data to stack back to back */
+    if (strcmp(value, "true") == 0) {
+      tx_throughput_cal = true;
+      bta_gattc_pump_tx_data(p_clcb, p_data);
+      return;
+    }
+  }
 
   tGATT_STATUS status = GATT_SUCCESS;
   tGATT_VALUE attr;
@@ -853,7 +965,7 @@ void bta_gattc_write(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
     if (p_clcb->p_q_cmd == p_data) p_clcb->p_q_cmd = NULL;
 
     bta_gattc_cmpl_sendmsg(p_clcb->bta_conn_id, GATTC_OPTYPE_WRITE, status,
-                           NULL);
+                         NULL);
   }
 }
 
@@ -913,11 +1025,24 @@ void bta_gattc_write_cmpl(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_OP_CMPL* p_data) {
   GATT_WRITE_OP_CB cb = p_clcb->p_q_cmd->api_write.write_cb;
   void* my_cb_data = p_clcb->p_q_cmd->api_write.write_cb_data;
 
-  osi_free_and_reset((void**)&p_clcb->p_q_cmd);
-
-  if (cb) {
-    cb(p_clcb->bta_conn_id, p_data->status, p_data->p_cmpl->att_value.handle,
-       my_cb_data);
+  if (tx_throughput_cal == false) {
+    osi_free_and_reset((void**)&p_clcb->p_q_cmd);
+     if (cb) {
+       cb(p_clcb->bta_conn_id, p_data->status, p_data->p_cmpl->att_value.handle,
+         my_cb_data);
+     }
+  }
+  /* Send a callback only when sending the number of packets required is completed  */
+  else if((tx_num_packets == no_of_packets) && (tx_throughput_cal == true)){
+    VLOG(1) << __func__ << "Tx Done";
+    osi_free_and_reset((void**)&p_clcb->p_q_cmd);
+     if (cb) {
+       VLOG(1) << __func__ << "Tx Done, calling back";
+       cb(p_clcb->bta_conn_id, p_data->status, p_data->p_cmpl->att_value.handle,
+         my_cb_data);
+       tx_throughput_cal = false;
+       tx_num_packets = 0;
+     }
   }
 }
 
@@ -973,45 +1098,53 @@ void bta_gattc_op_cmpl(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
     return;
   }
 
-  if (p_clcb->p_q_cmd->hdr.event !=
-      bta_gattc_opcode_to_int_evt[op - GATTC_OPTYPE_READ]) {
-    mapped_op =
-        p_clcb->p_q_cmd->hdr.event - BTA_GATTC_API_READ_EVT + GATTC_OPTYPE_READ;
-    if (mapped_op > GATTC_OPTYPE_INDICATION) mapped_op = 0;
-
-    LOG(ERROR) << StringPrintf(
-        "expect op:(%s :0x%04x), receive unexpected operation (%s).",
-        bta_gattc_op_code_name[mapped_op], p_clcb->p_q_cmd->hdr.event,
-        bta_gattc_op_code_name[op]);
-    return;
+  if (tx_throughput_cal && p_clcb->bta_conn_id == tx_throughput_attr.conn_id) {
+    if (op == GATTC_OPTYPE_WRITE)
+      bta_gattc_write_cmpl(p_clcb, &p_data->op_cmpl);
   }
 
-  /* Except for MTU configuration, discard responses if service change
-   * indication is received before operation completed
-   */
-  if (p_clcb->auto_update == BTA_GATTC_DISC_WAITING &&
-      p_clcb->p_srcb->srvc_hdl_chg && op != GATTC_OPTYPE_CONFIG) {
-    VLOG(1) << "Discard all responses when service change indication is "
-               "received.";
-    p_data->op_cmpl.status = GATT_ERROR;
-  }
+  else {
 
-  /* service handle change void the response, discard it */
-  if (op == GATTC_OPTYPE_READ)
-    bta_gattc_read_cmpl(p_clcb, &p_data->op_cmpl);
+    if (p_clcb->p_q_cmd->hdr.event !=
+        bta_gattc_opcode_to_int_evt[op - GATTC_OPTYPE_READ]) {
+      mapped_op =
+          p_clcb->p_q_cmd->hdr.event - BTA_GATTC_API_READ_EVT + GATTC_OPTYPE_READ;
+      if (mapped_op > GATTC_OPTYPE_INDICATION) mapped_op = 0;
 
-  else if (op == GATTC_OPTYPE_WRITE)
-    bta_gattc_write_cmpl(p_clcb, &p_data->op_cmpl);
+      LOG(ERROR) << StringPrintf(
+          "expect op:(%s :0x%04x), receive unexpected operation (%s).",
+          bta_gattc_op_code_name[mapped_op], p_clcb->p_q_cmd->hdr.event,
+          bta_gattc_op_code_name[op]);
+      return;
+    }
 
-  else if (op == GATTC_OPTYPE_EXE_WRITE)
-    bta_gattc_exec_cmpl(p_clcb, &p_data->op_cmpl);
+    /* Except for MTU configuration, discard responses if service change
+     * indication is received before operation completed
+     */
+    if (p_clcb->auto_update == BTA_GATTC_DISC_WAITING &&
+        p_clcb->p_srcb->srvc_hdl_chg && op != GATTC_OPTYPE_CONFIG) {
+      VLOG(1) << "Discard all responses when service change indication is "
+                 "received.";
+      p_data->op_cmpl.status = GATT_ERROR;
+    }
 
-  else if (op == GATTC_OPTYPE_CONFIG)
-    bta_gattc_cfg_mtu_cmpl(p_clcb, &p_data->op_cmpl);
+    /* service handle change void the response, discard it */
+    if (op == GATTC_OPTYPE_READ)
+      bta_gattc_read_cmpl(p_clcb, &p_data->op_cmpl);
 
-  if (p_clcb->auto_update == BTA_GATTC_DISC_WAITING) {
-    p_clcb->auto_update = BTA_GATTC_REQ_WAITING;
-    bta_gattc_sm_execute(p_clcb, BTA_GATTC_INT_DISCOVER_EVT, NULL);
+    else if (op == GATTC_OPTYPE_WRITE)
+      bta_gattc_write_cmpl(p_clcb, &p_data->op_cmpl);
+
+    else if (op == GATTC_OPTYPE_EXE_WRITE)
+      bta_gattc_exec_cmpl(p_clcb, &p_data->op_cmpl);
+
+    else if (op == GATTC_OPTYPE_CONFIG)
+      bta_gattc_cfg_mtu_cmpl(p_clcb, &p_data->op_cmpl);
+
+    if (p_clcb->auto_update == BTA_GATTC_DISC_WAITING) {
+      p_clcb->auto_update = BTA_GATTC_REQ_WAITING;
+      bta_gattc_sm_execute(p_clcb, BTA_GATTC_INT_DISCOVER_EVT, NULL);
+    }
   }
 }
 
@@ -1496,6 +1629,11 @@ static void bta_gattc_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op,
     return;
   }
 
+  if(op == GATTC_OPTYPE_WRITE && tx_throughput_cal == true) {
+    tx_num_packets++;
+    VLOG(1) << __func__ << "tx_num_packets:" << tx_num_packets;
+  }
+
   /* if over BR_EDR, inform PM for mode change */
   if (p_clcb->transport == BTA_TRANSPORT_BR_EDR) {
     bta_sys_busy(BTA_ID_GATTC, BTA_ALL_APP_ID, p_clcb->bda);
@@ -1528,13 +1666,29 @@ static void bta_gattc_cmpl_sendmsg(uint16_t conn_id, tGATTC_OPTYPE op,
 /** congestion callback for BTA GATT client */
 static void bta_gattc_cong_cback(uint16_t conn_id, bool congested) {
   tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
+
   if (!p_clcb || !p_clcb->p_rcb->p_cback) return;
 
-  tBTA_GATTC cb_data;
-  cb_data.congest.conn_id = conn_id;
-  cb_data.congest.congested = congested;
+  if (tx_throughput_cal) {
+    l2c_congested = congested;
+    VLOG(1) << __func__ << "congested " << congested;
+    if (tx_num_packets == no_of_packets) {
+      tBTA_GATTC cb_data;
+      cb_data.congest.conn_id = conn_id;
+      cb_data.congest.congested = congested;
 
-  (*p_clcb->p_rcb->p_cback)(BTA_GATTC_CONGEST_EVT, &cb_data);
+      (*p_clcb->p_rcb->p_cback)(BTA_GATTC_CONGEST_EVT, &cb_data);
+    }
+    if (!congested) {
+      bta_gattc_pump_tx_data(p_clcb, NULL);
+    }
+  } else {
+    tBTA_GATTC cb_data;
+    cb_data.congest.conn_id = conn_id;
+    cb_data.congest.congested = congested;
+
+    (*p_clcb->p_rcb->p_cback)(BTA_GATTC_CONGEST_EVT, &cb_data);
+  }
 }
 
 static void bta_gattc_phy_update_cback(tGATT_IF gatt_if, uint16_t conn_id,
