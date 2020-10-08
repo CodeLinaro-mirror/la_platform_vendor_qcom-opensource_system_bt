@@ -219,6 +219,11 @@ uint16_t L2CA_AllocateCocPSM(void) {
       return 0;
     }
 
+    if (psm < L2CAP_COC_DYNAMIC_PSM_START) {
+      L2CAP_TRACE_ERROR("%s: Invalid BLE PSM", __func__);
+      return 0;
+    }
+
     psm++;
     if (psm > L2CAP_COC_DYNAMIC_PSM_END) {
       psm = L2CAP_COC_DYNAMIC_PSM_START;
