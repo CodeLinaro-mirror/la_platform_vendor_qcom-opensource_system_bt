@@ -2269,5 +2269,6 @@ extern void BTM_ReadLocalSupportedControllerDelay(
  ******************************************************************************/
 extern void BTM_ConfigureDataPath(tBTM_CFG_DATA_PATH_PARAM* param);
 
+extern uint16_t BTM_GetNumSlaveAclLinks(void);
 
 #endif /* BTM_API_H */
