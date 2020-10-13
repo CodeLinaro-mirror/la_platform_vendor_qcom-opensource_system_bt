@@ -34,6 +34,7 @@
 #include "l2c_api.h"
 #include "stack/gatt/connection_manager.h"
 #include "stack/gatt/eatt_int.h"
+#include "btif_storage.h"
 
 #define SYSTEM_APP_GATT_IF 3
 
@@ -578,12 +579,19 @@ tGATT_STATUS GATTS_MultiHandleValueNotifications(uint16_t conn_id,
   tGATT_EBCB* p_eatt_bcb;
   tGATT_MULTI_NOTIF multi_ntf;
   uint16_t payload_size = 0;
+  uint8_t cl_supp_feat = 0;
 
   VLOG(1) << __func__ << " gatt_if:" << +gatt_if;
 
   if ((p_reg == NULL) || (p_tcb == NULL)) {
     LOG(ERROR) << __func__ << "Unknown  conn_id: " << conn_id;
     return (tGATT_STATUS)GATT_INVALID_CONN_ID;
+  }
+
+  cl_supp_feat = btif_storage_get_cl_supp_feat(p_tcb->peer_bda);
+  if ((cl_supp_feat & CL_MULTI_NOTIF_SUPPORTED) != CL_MULTI_NOTIF_SUPPORTED) {
+    LOG(ERROR) << __func__ << " Unsupported by remote client";
+    return GATT_REQ_NOT_SUPPORTED;
   }
 
   multi_ntf.auth_req = GATT_AUTH_REQ_NONE;

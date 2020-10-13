@@ -224,6 +224,9 @@ static bool process_read_multi_rsp(tGATT_SR_CMD* p_cmd, tGATT_STATUS status,
 
         if (p_rsp != NULL) {
           total_len = (p_buf->len + p_rsp->attr_value.len);
+          if (p_cmd->multi_req.is_variable_len) {
+            total_len += 2;
+          }
 
           if (total_len > mtu) {
             /* just send the partial response for the overflow case */
@@ -238,7 +241,7 @@ static bool process_read_multi_rsp(tGATT_SR_CMD* p_cmd, tGATT_STATUS status,
 
           VLOG(1) << __func__ << " multi_req.is_variable_len: " << +p_cmd->multi_req.is_variable_len;
           if (p_cmd->multi_req.is_variable_len) {
-            UINT16_TO_STREAM(p, len);
+            UINT16_TO_STREAM(p, p_rsp->attr_value.len);
             p_buf->len += 2;
           }
 
@@ -867,7 +870,7 @@ static void gatts_process_mtu_req(tGATT_TCB& tcb, uint16_t lcid, uint16_t len,
   tGATT_EBCB* p_eatt_bcb = NULL;
 
   /* BR/EDR conenction, send error response */
-  if (tcb.att_lcid != L2CAP_ATT_CID) {
+  if (lcid != L2CAP_ATT_CID) {
     gatt_send_error_rsp(tcb, lcid, GATT_REQ_NOT_SUPPORTED, GATT_REQ_MTU, 0, false);
     return;
   }

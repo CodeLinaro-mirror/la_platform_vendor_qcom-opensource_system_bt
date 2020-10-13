@@ -113,6 +113,8 @@ tGATT_EBCB* gatt_eatt_bcb_alloc(tGATT_TCB* p_tcb, uint16_t lcid, bool create_in_
         p_eatt_bcb->cl_cmd_q = p_tcb->cl_cmd_q;
         p_eatt_bcb->pending_ind_q = p_tcb->pending_ind_q;
         p_eatt_bcb->indicate_handle = p_tcb->indicate_handle;
+        p_eatt_bcb->sr_cmd = p_tcb->sr_cmd;
+        p_eatt_bcb->sr_cmd.multi_rsp_q = p_tcb->sr_cmd.multi_rsp_q;
       }
       break;
     }

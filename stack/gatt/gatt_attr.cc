@@ -341,6 +341,7 @@ tGATT_STATUS proc_read(uint16_t conn_id, tGATT_READ_REQ* p_data,
 tGATT_STATUS proc_write_req(uint16_t conn_id, tGATT_WRITE_REQ* p_data) {
   tGATT_PROFILE_CLCB* p_clcb = NULL;
   uint8_t cl_supp_feat;
+  tGATT_TCB* p_tcb = NULL;
   VLOG(1) << __func__ << " conn_id:" << +conn_id;
 
   for (tGATT_ATTR_INFO& db_attr : gatt_attr_db) {
@@ -356,6 +357,19 @@ tGATT_STATUS proc_write_req(uint16_t conn_id, tGATT_WRITE_REQ* p_data) {
         STREAM_TO_UINT8(cl_supp_feat, p);
 
         btif_storage_set_cl_supp_feat(p_clcb->bda, cl_supp_feat);
+
+        if ((gatt_attr_db[0].value[0] == SR_EATT_SUPPORTED) &&
+           ((cl_supp_feat & CL_EATT_SUPPORTED) == CL_EATT_SUPPORTED)) {
+           p_tcb = gatt_find_tcb_by_addr(p_clcb->bda, BT_TRANSPORT_LE);
+           if (p_tcb) {
+             VLOG(1) << __func__ << " Set EATT Support";
+             p_tcb->is_eatt_supported = true;
+             gatt_eatt_bcb_alloc(p_tcb, L2CAP_ATT_CID, false, false);
+             //Add bda to EATT devices storage
+             btif_storage_add_eatt_support(p_clcb->bda);
+             gatt_add_eatt_device(p_clcb->bda);
+           }
+        }
         return GATT_SUCCESS;
       }
     }
