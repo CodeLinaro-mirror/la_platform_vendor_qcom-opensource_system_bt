@@ -40,7 +40,7 @@ const char* PTS_SMP_GENERATE_INVALID_PUBLIC_KEY = "PTS_GenerateInvalidPublicKey"
 const char* PTS_BREDR_AUTH_REQ = "PTS_BredrAuthReq";
 const char* PTS_BREDR_SECURECONNECTION_HOSTSUPPORT_DISABLE = "PTS_BredrSecConnHostSupportDisable";
 const char* PTS_BREDR_INVALID_ENCRYPTION_KEYSIZE = "PTS_BredrInvalidEncryKeysize";
-
+const char* PTS_AVCTP_FRA_RSP_MSG_ENABLED = "PTS_AVCTPFragmentRspMsgEnable";
 static config_t* config;
 
 // Module lifecycle functions
@@ -154,6 +154,11 @@ static int get_pts_bredr_invalid_encryption_keysize(void) {
                         PTS_BREDR_INVALID_ENCRYPTION_KEYSIZE, 0);
 }
 
+static bool get_pts_avctp_fragment_rsp_msg_enabled(void) {
+  return config_get_bool(config, CONFIG_DEFAULT_SECTION,
+                         PTS_AVCTP_FRA_RSP_MSG_ENABLED, false);
+}
+
 static config_t* get_all(void) { return config; }
 
 const stack_config_t interface = {get_trace_config_enabled,
@@ -171,6 +176,7 @@ const stack_config_t interface = {get_trace_config_enabled,
                                   get_pts_bredr_auth_req,
                                   get_pts_bredr_secureconnection_host_support_disabled,
                                   get_pts_bredr_invalid_encryption_keysize,
+                                  get_pts_avctp_fragment_rsp_msg_enabled,
                                   get_all};
 
 const stack_config_t* stack_config_get_interface(void) { return &interface; }
