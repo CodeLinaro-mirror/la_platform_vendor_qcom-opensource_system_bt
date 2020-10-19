@@ -466,8 +466,12 @@ void btm_consolidate_dev(tBTM_SEC_DEV_REC *p_target_rec)
     BTM_TRACE_DEBUG("%s", __func__);
 
     list_node_t *end = list_end(btm_cb.sec_dev_rec);
-    for (list_node_t *node = list_begin(btm_cb.sec_dev_rec); node != end; node = list_next(node)) {
+    list_node_t* node = list_begin(btm_cb.sec_dev_rec);
+    while (node != end) {
         tBTM_SEC_DEV_REC *p_dev_rec = list_node(node);
+
+        // we do list_remove in some cases, must grab next before removing
+        node = list_next(node);
 
         if (p_target_rec == p_dev_rec)
             continue;
@@ -488,8 +492,8 @@ void btm_consolidate_dev(tBTM_SEC_DEV_REC *p_target_rec)
 
             /* remove the combined record */
             list_remove(btm_cb.sec_dev_rec, p_dev_rec);
-
-            p_dev_rec->bond_type = BOND_TYPE_UNKNOWN;
+            //p_dev_rec gets freed in list_remove, we should not  access it further
+            continue;
         }
 
         /* an RPA device entry is a duplicate of the target record */
