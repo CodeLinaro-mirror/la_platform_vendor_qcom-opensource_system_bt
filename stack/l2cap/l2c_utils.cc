@@ -3609,11 +3609,16 @@ BT_HDR* l2cu_get_next_buffer_to_send(tL2C_LCB* p_lcb,
   if (p_ccb == NULL) return (NULL);
 
   if (p_ccb->peer_cfg.fcr.mode == L2CAP_FCR_ECFC_MODE) {
+    if (p_ccb->peer_conn_cfg.credits == 0) {
+      L2CAP_TRACE_DEBUG("%s No credits to send packets", __func__);
+      return NULL;
+    }
     p_buf = l2c_lcc_get_next_xmit_sdu_seg(p_ccb, 0);
     if (p_buf == NULL ||
         (p_ccb->chnl_state == CST_CONFIG && !(p_ccb->config_done & IB_CFG_DONE))) {
       return (NULL);
     }
+    p_ccb->peer_conn_cfg.credits--;
   } else if (p_ccb->p_lcb->transport == BT_TRANSPORT_LE) {
     /* Check credits */
     if (p_ccb->peer_conn_cfg.credits == 0) {
