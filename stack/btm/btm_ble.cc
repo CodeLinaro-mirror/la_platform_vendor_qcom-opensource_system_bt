@@ -2650,8 +2650,6 @@ void btm_ble_setup_iso_datapath_cmd_cmpl(uint8_t *param, uint16_t param_len) {
     (*hci_cmd_cmpl.setup_iso_datapath) (status, conn_handle);
   }
 
-  //clear callback
-  hci_cmd_cmpl.setup_iso_datapath = NULL;
 }
 
 void btm_ble_remove_iso_datapath_cmd_cmpl(uint8_t *param, uint16_t param_len) {
@@ -2671,8 +2669,6 @@ void btm_ble_remove_iso_datapath_cmd_cmpl(uint8_t *param, uint16_t param_len) {
     (*hci_cmd_cmpl.remove_iso_datapath) (status, conn_handle);
   }
 
-  //clear callback
-  hci_cmd_cmpl.remove_iso_datapath = NULL;
 }
 
 void btm_ble_create_cis_status_cb (uint8_t* status, uint16_t len) {

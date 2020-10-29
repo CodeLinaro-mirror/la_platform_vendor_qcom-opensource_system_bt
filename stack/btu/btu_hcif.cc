@@ -529,12 +529,6 @@ static void btu_hcif_command_status_evt_with_cb_on_task(uint8_t status,
 
 static void btu_hcif_command_status_evt_with_cb(uint8_t status, BT_HDR* command,
                                                 void* context) {
-  // Command is pending, we  report only error.
-  if (!status) {
-    osi_free(command);
-    return;
-  }
-
   do_in_hci_thread(
       FROM_HERE, base::Bind(btu_hcif_command_status_evt_with_cb_on_task, status,
                             command, context));
