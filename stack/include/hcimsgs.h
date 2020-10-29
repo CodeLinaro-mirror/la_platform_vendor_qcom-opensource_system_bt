@@ -403,6 +403,7 @@ extern void btsnd_hcic_io_cap_req_neg_reply(const RawAddress& bd_addr,
 
 /* Read Local OOB Data */
 extern void btsnd_hcic_read_local_oob_data(void);
+extern void btsnd_hcic_read_local_oob_extended_data(void);
 
 #define HCIC_PARAM_SIZE_R_LOCAL_OOB 0
 
@@ -430,7 +431,15 @@ extern void btsnd_hcic_user_passkey_neg_reply(const RawAddress& bd_addr);
 extern void btsnd_hcic_rem_oob_reply(const RawAddress& bd_addr,
                                      const Octet16& c, const Octet16& r);
 
+/* Remote OOB extended Data Request Reply */
+extern void btsnd_hcic_rem_oob_extended_reply(const RawAddress & bd_addr,
+                                              const Octet16& c192,const Octet16& r192,
+                                              const Octet16& c256,const Octet16& r256);
+
+
 #define HCIC_PARAM_SIZE_REM_OOB_REPLY 38
+#define HCIC_PARAM_SIZE_REM_OOB_EXTENDED_REPLY 70
+
 
 #define HCI_REM_OOB_DATA_BD_ADDR_OFF 0
 #define HCI_REM_OOB_DATA_C_OFF 6

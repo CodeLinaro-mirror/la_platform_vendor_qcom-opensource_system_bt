@@ -460,4 +460,16 @@ void btif_debug_bond_event_dump(int fd);
  ******************************************************************************/
 void btif_dm_get_link_key(const RawAddress *bd_addr);
 
+/*******************************************************************************
+ *
+ * Function         btif_dm_read_local_oob_data
+ *
+ * Description     read local oob data
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+bt_status_t btif_dm_read_local_oob_data();
+
+
 #endif /* BTIF_API_H */

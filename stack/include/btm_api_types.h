@@ -1360,6 +1360,7 @@ enum {
   BTM_SP_KEY_REQ_EVT,   /* received USER_PASSKEY_REQUEST event */
   BTM_SP_KEYPRESS_EVT,  /* received KEYPRESS_NOTIFY event */
   BTM_SP_LOC_OOB_EVT,   /* received result for READ_LOCAL_OOB_DATA command */
+  BTM_SP_LOC_OOB_EXT_EVT,/* received result for READ_LOCAL_OOB_EXTENDED_DATA command */
   BTM_SP_RMT_OOB_EVT,   /* received REMOTE_OOB_DATA_REQUEST event */
   BTM_SP_COMPLT_EVT,    /* received SIMPLE_PAIRING_COMPLETE event */
   BTM_SP_UPGRADE_EVT /* check if the application wants to upgrade the link key
@@ -1411,7 +1412,12 @@ typedef uint8_t tBTM_IO_CAP;
 
 typedef uint8_t tBTM_AUTH_REQ;
 
-enum { BTM_OOB_NONE, BTM_OOB_PRESENT, BTM_OOB_UNKNOWN };
+enum {
+  BTM_OOB_NONE,
+  BTM_P192_OOB_PRESENT,
+  BTM_P256_OOB_PRESENT,
+  BTM_P192_P256_OOB_PRESENT,
+  BTM_OOB_UNKNOWN };
 typedef uint8_t tBTM_OOB_DATA;
 
 /* data type for BTM_SP_IO_REQ_EVT */
@@ -1480,9 +1486,19 @@ typedef struct {
 /* data type for BTM_SP_LOC_OOB_EVT */
 typedef struct {
   tBTM_STATUS status; /* */
-  Octet16 c;          /* Simple Pairing Hash C */
-  Octet16 r;          /* Simple Pairing Randomnizer R */
+  Octet16 c;          /* Simple Pairing Hash C192 */
+  Octet16 r;          /* Simple Pairing Randomnizer R192 */
 } tBTM_SP_LOC_OOB;
+
+
+/* data type for BTM_SP_LOC_OOB_EXT_EVT */
+typedef struct {
+  tBTM_STATUS status; /* */
+  Octet16 c192;          /* Simple Pairing Hash C192 */
+  Octet16 r192;          /* Simple Pairing Randomnizer R192 */
+  Octet16 c256;          /* Simple Pairing Hash C256 */
+  Octet16 r256;          /* Simple Pairing Randomnizer R256 */
+} tBTM_SP_LOC_OOB_EXT;
 
 /* data type for BTM_SP_RMT_OOB_EVT */
 typedef struct {
@@ -1513,9 +1529,10 @@ typedef union {
   tBTM_SP_KEY_REQ key_req;     /* BTM_SP_KEY_REQ_EVT     */
   tBTM_SP_KEYPRESS key_press;  /* BTM_SP_KEYPRESS_EVT    */
   tBTM_SP_LOC_OOB loc_oob;     /* BTM_SP_LOC_OOB_EVT     */
+  tBTM_SP_LOC_OOB_EXT loc_oob_ext; /* BTM_SP_LOC_OOB_EXT_EVT */
   tBTM_SP_RMT_OOB rmt_oob;     /* BTM_SP_RMT_OOB_EVT     */
   tBTM_SP_COMPLT complt;       /* BTM_SP_COMPLT_EVT      */
-  tBTM_SP_UPGRADE upgrade;     /* BTM_SP_UPGRADE_EVT      */
+  tBTM_SP_UPGRADE upgrade;     /* BTM_SP_UPGRADE_EVT     */
 } tBTM_SP_EVT_DATA;
 
 /* Simple Pairing Events.  Called by the stack when Simple Pairing related

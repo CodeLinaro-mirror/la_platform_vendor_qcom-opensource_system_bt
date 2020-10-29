@@ -607,7 +607,6 @@ typedef tBTM_LE_AUTH_REQ
     tBTA_LE_AUTH_REQ; /* combination of the above bit pattern */
 
 #define BTA_OOB_NONE BTM_OOB_NONE
-#define BTA_OOB_PRESENT BTM_OOB_PRESENT
 #define BTA_OOB_UNKNOWN BTM_OOB_UNKNOWN
 
 typedef tBTM_OOB_DATA tBTA_OOB_DATA;
