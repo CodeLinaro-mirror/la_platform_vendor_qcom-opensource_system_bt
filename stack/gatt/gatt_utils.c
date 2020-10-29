@@ -1285,8 +1285,8 @@ void gatt_rsp_timeout(void *data)
         }
     }
 
-    GATT_TRACE_WARNING("%s disconnecting...", __func__);
-    gatt_disconnect (p_clcb->p_tcb);
+    //GATT_TRACE_WARNING("%s disconnecting...", __func__);
+    //gatt_disconnect (p_clcb->p_tcb);
 }
 
 /*******************************************************************************
