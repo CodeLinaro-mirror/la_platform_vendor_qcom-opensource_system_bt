@@ -278,6 +278,7 @@
 #define UUID_SERVCLASS_GLUCOSE 0x1808    /* Glucose Meter Service */
 #define UUID_SERVCLASS_RSC 0x1814 /* RUNNERS SPEED AND CADENCE SERVICE      */
 #define UUID_SERVCLASS_CSC 0x1816 /* Cycling SPEED AND CADENCE SERVICE      */
+#define UUID_SERVCLASS_CSIS 0x1846 /* Coordinated Set Identification Service */
 
 #define UUID_SERVCLASS_TEST_SERVER 0x9000 /* Test Group UUID */
 

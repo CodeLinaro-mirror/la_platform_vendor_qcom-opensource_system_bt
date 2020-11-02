@@ -82,6 +82,7 @@ using bluetooth::Uuid;
 
 //#define BTIF_STORAGE_PATH_REMOTE_LINKKEYS "remote_linkkeys"
 #define BTIF_STORAGE_PATH_REMOTE_ALIASE "Aliase"
+#define BTIF_STORAGE_PATH_REMOTE_CSET "Cset"
 #define BTIF_STORAGE_PATH_REMOTE_SERVICE "Service"
 #define BTIF_STORAGE_PATH_REMOTE_HIDINFO "HidInfo"
 #define BTIF_STORAGE_KEY_ADAPTER_NAME "Name"
@@ -354,7 +355,7 @@ static int cfg2prop(const RawAddress* remote_bd_addr, bt_property_t* prop) {
     return false;
   }
   int ret = false;
-  switch (prop->type) {
+  switch ((uint8_t)prop->type) {
     case BT_PROPERTY_REMOTE_DEVICE_TIMESTAMP:
       if (prop->len >= (int)sizeof(int))
         ret = btif_config_get_int(bdstr, BTIF_STORAGE_PATH_REMOTE_DEVTIME,
@@ -388,6 +389,22 @@ static int cfg2prop(const RawAddress* remote_bd_addr, bt_property_t* prop) {
       }
       break;
     }
+
+    case BT_PROPERTY_CSET_DETAILS: {
+      BTIF_TRACE_DEBUG("loading cset details: %s", BTIF_STORAGE_PATH_REMOTE_CSET);//debug
+      int len = prop->len;
+      ret = btif_config_get_str(bdstr, BTIF_STORAGE_PATH_REMOTE_CSET,
+                                (char*)prop->val, &len);
+      BTIF_TRACE_DEBUG("loading cset details val: %s ret = %d", prop->val, ret);//debug
+      if (ret && len && len <= prop->len)
+        prop->len = len - 1;
+      else {
+        prop->len = 0;
+        ret = false;
+      }
+      break;
+    }
+
     case BT_PROPERTY_ADAPTER_SCAN_MODE:
       if (prop->len >= (int)sizeof(int))
         ret = btif_config_get_int("Adapter", BTIF_STORAGE_KEY_ADAPTER_SCANMODE,
@@ -1085,7 +1102,7 @@ bt_status_t btif_storage_load_bonded_devices(void) {
   uint32_t i = 0;
   bt_property_t adapter_props[6];
   uint32_t num_props = 0;
-  bt_property_t remote_properties[8];
+  bt_property_t remote_properties[8]; // is 8 sufficient ?
   RawAddress addr;
   bt_bdname_t name, alias;
   bt_scan_mode_t mode;
@@ -1170,6 +1187,7 @@ bt_status_t btif_storage_load_bonded_devices(void) {
        */
       uint32_t cod = 0;
       uint32_t devtype = 0;
+      char cset_details[256] = {0}; // shall it be increased ?
 
       num_props = 0;
       p_remote_addr = (RawAddress *)list_node(node);
@@ -1198,6 +1216,13 @@ bt_status_t btif_storage_load_bonded_devices(void) {
                                    remote_properties[num_props]);
       num_props++;
 
+      BTIF_STORAGE_GET_REMOTE_PROP(p_remote_addr, (bt_property_type_t)BT_PROPERTY_CSET_DETAILS,
+                                   cset_details, sizeof(cset_details),
+                                   remote_properties[num_props]);
+
+      BTIF_TRACE_EVENT("%s: num_props = %d cset_details = %s",__func__ ,
+                          num_props, cset_details); //debug
+      num_props++;
       btif_remote_properties_evt(BT_STATUS_SUCCESS, p_remote_addr, num_props,
                                  remote_properties);
     }

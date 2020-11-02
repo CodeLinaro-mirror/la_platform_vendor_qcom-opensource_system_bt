@@ -28,7 +28,8 @@ btifCommonIncludes = [
     "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/bta/include",
     "vendor/qcom/opensource/commonsys/bluetooth_ext/vhal/include",
     "vendor/qcom/opensource/commonsys-intf/bluetooth/include",
-
+    "vendor/qcom/opensource/commonsys/bluetooth_lea/system/bt/bta/include",
+    "vendor/qcom/opensource/commonsys/bluetooth_lea/vhal/include",
     "system/bt/include",
 ]
 

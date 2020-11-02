@@ -35,6 +35,7 @@
 #include <hardware/avrcp/avrcp.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_av.h>
+#include <hardware/bt_csip.h>
 #include <hardware/bt_gatt.h>
 #include <hardware/bt_hd.h>
 #include <hardware/bt_hf.h>
@@ -123,6 +124,9 @@ extern btsdp_interface_t* btif_sdp_get_interface();
 
 /*Hearing Aid client*/
 extern HearingAidInterface* btif_hearing_aid_get_interface();
+
+/* Coordinated set identification profile - client */
+extern btcsip_interface_t* btif_csip_get_interface();
 
 /* List all test interface here */
 /* vendor  */
@@ -417,6 +421,10 @@ static const void* get_profile_interface(const char* profile_id) {
 
   if (is_profile(profile_id, BT_PROFILE_HEARING_AID_ID))
     return btif_hearing_aid_get_interface();
+
+  if (is_profile(profile_id, BT_PROFILE_CSIP_CLIENT_ID)) {
+    return btif_csip_get_interface();
+  }
 
   return NULL;
 }
