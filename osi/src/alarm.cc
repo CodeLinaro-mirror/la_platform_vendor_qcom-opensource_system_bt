@@ -564,7 +564,7 @@ static void alarm_register_processing_queue(fixed_queue_t* queue,
 
 static void alarm_ready_generic(alarm_t* alarm,
                                 std::unique_lock<std::mutex>& lock) {
-  if (alarm == NULL) {
+  if ((alarm == NULL) || (alarm->callback == NULL)) {
     return;  // The alarm was probably canceled
   }
   //
