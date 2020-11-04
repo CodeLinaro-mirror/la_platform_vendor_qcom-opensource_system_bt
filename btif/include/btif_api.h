@@ -468,4 +468,15 @@ bt_status_t btif_config_hci_snoop_log(uint8_t enable);
  ******************************************************************************/
 void btif_debug_bond_event_dump(int fd);
 
+/*******************************************************************************
+ *
+ * Function         btif_register_uuid_srvc_disc
+ *
+ * Description
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btif_register_uuid_srvc_disc(bluetooth::Uuid uuid);
+
 #endif /* BTIF_API_H */

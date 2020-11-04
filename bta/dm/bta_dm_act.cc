@@ -61,6 +61,8 @@
 #include "device/include/device_iot_config.h"
 #include <btcommon_interface_defs.h>
 #include <controller.h>
+#include "bta_gatt_queue.h"
+
 
 #if (GAP_INCLUDED == TRUE)
 #include "gap_api.h"
@@ -137,6 +139,8 @@ static void bta_dm_gattc_register(void);
 static void btm_dm_start_gatt_discovery(const RawAddress& bd_addr);
 static void bta_dm_cancel_gatt_discovery(const RawAddress& bd_addr);
 static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data);
+
+static void bta_dm_ble_lea_idaddr_map(RawAddress p_bd_addr, RawAddress p_id_addr);
 extern tBTA_DM_CONTRL_STATE bta_dm_pm_obtain_controller_state(void);
 
 #if (BLE_VND_INCLUDED == TRUE)
@@ -180,6 +184,13 @@ static void bta_dm_ctrl_features_rd_cmpl_cback(tBTM_STATUS result);
 #endif
 
 #define BT_DEFAULT_POWER (0x80)
+#define CT_ROLE_BIT_SUPPORT 2
+#define UMR_ROLE_BIT_SUPPORT 8
+#define BMR_ROLE_BIT_SUPPORT 32
+#define BSA_ROLE_BIT_SUPPORT 64
+#define BSD_ROLE_BIT_SUPPORT 128
+#define PACS_CT_SUPPORT_VALUE 2
+#define PACS_UMR_SUPPORT_VALUE 4
 
 static void bta_dm_reset_sec_dev_pending(const RawAddress& remote_bd_addr);
 static void bta_dm_remove_sec_dev_entry(const RawAddress& remote_bd_addr);
@@ -264,6 +275,10 @@ const uint32_t bta_service_id_to_btm_srv_id_lkup_tbl[BTA_MAX_SERVICE_ID] = {
     BTM_SEC_SERVICE_ATT            /* BTA_GATT_SERVICE_ID */
 };
 
+std::vector<bluetooth::Uuid> uuid_srv_disc_search;
+tBTA_LE_AUDIO_DEV_CB bta_le_audio_dev_cb;
+tBTA_LEA_PAIRING_DB bta_lea_pairing_cb;
+
 /* bta security callback */
 const tBTM_APPL_INFO bta_security = {&bta_dm_authorize_cback,
                                      &bta_dm_pin_cback,
@@ -276,6 +291,7 @@ const tBTM_APPL_INFO bta_security = {&bta_dm_authorize_cback,
                                      NULL,
 #endif
                                      &bta_dm_ble_smp_cback,
+                                     &bta_dm_ble_lea_idaddr_map,
                                      &bta_dm_ble_id_key_cback};
 
 #define MAX_DISC_RAW_DATA_BUF (4096)
@@ -5397,11 +5413,19 @@ static void bta_dm_gatt_disc_complete(uint16_t conn_id, tGATT_STATUS status) {
 
     bta_sys_sendmsg(p_msg);
 
-    if (conn_id != GATT_INVALID_CONN_ID) {
-      /* start a GATT channel close delay timer */
-      bta_sys_start_timer(bta_dm_search_cb.gatt_close_timer,
-                          BTA_DM_GATT_CLOSE_DELAY_TOUT,
-                          BTA_DM_DISC_CLOSE_TOUT_EVT, 0);
+    if (!(is_remote_dev_le_support(bta_dm_search_cb.peer_bdaddr) &&
+         (status == GATT_SUCCESS))) {
+
+      if (conn_id != GATT_INVALID_CONN_ID) {
+        /* start a GATT channel close delay timer */
+        bta_sys_start_timer(bta_dm_search_cb.gatt_close_timer,
+                            BTA_DM_GATT_CLOSE_DELAY_TOUT,
+                            BTA_DM_DISC_CLOSE_TOUT_EVT, 0);
+        bta_dm_search_cb.pending_close_bda = bta_dm_search_cb.peer_bdaddr;
+      }
+    } else {
+      APPL_TRACE_DEBUG("%s Addr %s", __func__,
+        bta_dm_search_cb.pending_close_bda.ToString().c_str());
       bta_dm_search_cb.pending_close_bda = bta_dm_search_cb.peer_bdaddr;
     }
     bta_dm_search_cb.gatt_disc_active = false;
@@ -5419,8 +5443,11 @@ static void bta_dm_gatt_disc_complete(uint16_t conn_id, tGATT_STATUS status) {
  *
  ******************************************************************************/
 void bta_dm_close_gatt_conn(UNUSED_ATTR tBTA_DM_MSG* p_data) {
-  if (bta_dm_search_cb.conn_id != GATT_INVALID_CONN_ID)
+  APPL_TRACE_DEBUG("bta_dm_close_gatt_conn conn id %d ",
+    bta_dm_search_cb.conn_id);
+  if (bta_dm_search_cb.conn_id != GATT_INVALID_CONN_ID) {
     BTA_GATTC_Close(bta_dm_search_cb.conn_id);
+  }
 
   bta_dm_search_cb.pending_close_bda = RawAddress::kEmpty;
   bta_dm_search_cb.conn_id = GATT_INVALID_CONN_ID;
@@ -5525,6 +5552,423 @@ void bta_dm_proc_open_evt(tBTA_GATTC_OPEN* p_data) {
   }
 }
 
+/***************************************************************************
+ *
+ * Function         bta_get_lea_ctrl_cb
+ *
+ * Description      Gets the control block of LE audio device
+ *
+ * Parameters:      tBTA_LE_AUDIO_DEV_INFO*
+ *
+ ****************************************************************************/
+
+static tBTA_LE_AUDIO_DEV_INFO* bta_get_lea_ctrl_cb(RawAddress peer_addr) {
+  tBTA_LE_AUDIO_DEV_INFO *p_lea_cb = NULL;
+  p_lea_cb = &bta_le_audio_dev_cb.bta_lea_dev_info[0];
+
+  for (int i = 0; i < MAX_LEA_DEVICES ; i++) {
+      if (p_lea_cb[i].in_use &&
+        (p_lea_cb[i].peer_address == peer_addr)) {
+        APPL_TRACE_DEBUG(" %s Control block Found for addr %s",
+          __func__, peer_addr.ToString().c_str());
+        return &p_lea_cb[i];
+      }
+  }
+  APPL_TRACE_DEBUG(" %s Control block Not Found for addr %s",
+          __func__, peer_addr.ToString().c_str());
+  return NULL;
+}
+
+/* Callback received when remote device Coordinated Sets SIRK is read */
+void bta_gap_gatt_read_cb(uint16_t conn_id, tGATT_STATUS status,
+                  uint16_t handle, uint16_t len,
+                  uint8_t* value, void* data) {
+
+  tBTA_LE_AUDIO_DEV_INFO *p_lea_cb =
+    bta_get_lea_ctrl_cb(bta_le_audio_dev_cb.gatt_op_addr);
+  uint32_t role;
+  uint8_t *p_val = value;
+
+  STREAM_TO_ARRAY(&role, p_val, len);
+
+  if (p_lea_cb) {
+    APPL_TRACE_DEBUG("%s Addr %s ", __func__,
+      p_lea_cb->peer_address.ToString().c_str());
+    if (status == GATT_SUCCESS) {
+      if (p_lea_cb->tmas_role_handle == handle) {
+        LOG(INFO) << __func__ << " Role derived by TMAS "
+          << +role;
+        if (role != 0)  {
+          if (role & CT_ROLE_BIT_SUPPORT)
+            p_lea_cb->uuids.push_back(Uuid::From16Bit(UUID_SERVCLASS_TMAS_CT));
+          if (role & UMR_ROLE_BIT_SUPPORT)
+            p_lea_cb->uuids.push_back(Uuid::From16Bit(UUID_SERVCLASS_TMAS_UMR));
+          if (role & BMR_ROLE_BIT_SUPPORT)
+            p_lea_cb->uuids.push_back(Uuid::From16Bit(UUID_SERVCLASS_TMAS_BMR));
+          if (role & BSA_ROLE_BIT_SUPPORT)
+            p_lea_cb->uuids.push_back(Uuid::From16Bit(UUID_SERVCLASS_TMAS_BSA));
+          if (role & BSA_ROLE_BIT_SUPPORT)
+            p_lea_cb->uuids.push_back(Uuid::From16Bit(UUID_SERVCLASS_TMAS_BSD));
+        }
+        p_lea_cb->disc_progress--;
+      } else if(handle == p_lea_cb->pacs_char_handle) {
+        LOG(INFO) << __func__ << " derived by PACS " << +role;
+        if (role == 0) {
+          LOG(INFO) << __func__ << " Invalid Information ";
+        } else {
+          if ((role & 2) == PACS_CT_SUPPORT_VALUE)
+            p_lea_cb->uuids.push_back(Uuid::From16Bit(UUID_SERVCLASS_PACS_CT_SUPPORT));
+          if ((role & 4)== PACS_UMR_SUPPORT_VALUE)
+            p_lea_cb->uuids.push_back(Uuid::From16Bit(UUID_SERVCLASS_PACS_UMR_SUPPORT));
+
+          //TODO LEA_DBG Call API which will be provided by BAP
+        }
+        p_lea_cb->disc_progress--;
+      } else {
+        LOG(INFO) << __func__ << " Invalid Handle for LE AUDIO";
+      }
+    } else {
+      p_lea_cb->disc_progress--;
+      LOG(INFO) << __func__ << " GATT READ FAILED" ;
+    }
+
+    if (p_lea_cb->disc_progress <= 0) {
+      bta_dm_lea_disc_complete(p_lea_cb->peer_address);
+    }
+  } else {
+    LOG(INFO) << __func__ << " INVALID CONTROL BLOCK" ;
+  }
+
+}
+
+
+/*******************************************************************************
+ *
+ * Function         bta_lea_get_role_info
+ *
+ * Description      This API gets role for LE Audio Device after all services
+ *                  discovered
+ *
+ * Parameters:      none
+ *
+ ******************************************************************************/
+static void bta_lea_get_role_info(RawAddress peer_address, uint16_t conn_id,
+                                  tGATT_STATUS status) {
+  tBTA_LE_AUDIO_DEV_INFO *p_lea_cb = bta_get_lea_ctrl_cb(peer_address);
+
+  bta_le_audio_dev_cb.gatt_op_addr = peer_address;
+
+
+  // Fetch remote device gatt services from database
+  const std::vector<gatt::Service>* services = BTA_GATTC_GetServices(conn_id);
+
+  APPL_TRACE_DEBUG(" bta_lea_get_role_info SIZE %d addr %s conn_id %d",
+    (*services).size(),bta_le_audio_dev_cb.gatt_op_addr.ToString().c_str(),
+    conn_id);
+
+  // Search for CSIS service in the database
+  for (const gatt::Service& service : *services) {
+    uint16_t uuid_val = service.uuid.As16Bit();
+    APPL_TRACE_DEBUG("%s: SERVICES IN REMOTE DEVICE %s ", __func__,
+            service.uuid.ToString().c_str())
+    if (is_le_audio_service(service.uuid)) {
+      switch (uuid_val) {
+        case UUID_SERVCLASS_CSIS:
+        {
+          APPL_TRACE_DEBUG("%s:CSIS service found Uuid: %s ", __func__,
+                            service.uuid.ToString().c_str());
+
+          // Get Characteristic and CCCD handle
+          for (const gatt::Characteristic& charac : service.characteristics) {
+            Uuid lock_uuid = charac.uuid;
+            if (lock_uuid.As16Bit() == UUID_SERVCLASS_CSIS_LOCK) {
+              APPL_TRACE_DEBUG("%s: CSIS rank found Uuid: %s ", __func__,
+                  lock_uuid.ToString().c_str());
+              if (p_lea_cb != NULL) {
+                std::vector<bluetooth::Uuid>::iterator itr;
+                itr = std::find(p_lea_cb->uuids.begin(), p_lea_cb->uuids.end(),
+                  lock_uuid);
+                if (itr == p_lea_cb->uuids.end()) {
+                  p_lea_cb->uuids.push_back(lock_uuid);
+                }
+              } else {
+                APPL_TRACE_DEBUG(" %s No Control Block", __func__);
+              }
+            }
+          }
+        }
+        break;
+        case UUID_SERVCLASS_TMAS:
+        {
+          if (!p_lea_cb->is_has_found) {
+            APPL_TRACE_DEBUG("%s: TMAS service found Uuid: %s ", __func__,
+              service.uuid.ToString().c_str());
+            std::vector<bluetooth::Uuid>::iterator itr;
+            itr = std::find(p_lea_cb->uuids.begin(), p_lea_cb->uuids.end(),
+              service.uuid);
+            if (itr == p_lea_cb->uuids.end()) {
+              p_lea_cb->uuids.push_back(service.uuid);
+            }
+            // Get Characteristic and CCCD handle
+            for (const gatt::Characteristic& charac : service.characteristics) {
+              Uuid role_uuid = charac.uuid;
+              if (role_uuid.As16Bit() == UUID_SERVCLASS_TMAS_ROLE_CHAR) {
+                APPL_TRACE_DEBUG("%s:TMAS ROLE CHAR found Uuid: %s ", __func__,
+                    role_uuid.ToString().c_str());
+                if (p_lea_cb != NULL) {
+                  p_lea_cb->is_tmas_found = true;
+                  p_lea_cb->disc_progress++;
+                  p_lea_cb->tmas_role_handle = charac.value_handle;
+                } else {
+                  APPL_TRACE_DEBUG(" %s No Control Block", __func__);
+                }
+              }
+            }
+            if (p_lea_cb->tmas_role_handle) {
+              APPL_TRACE_DEBUG("%s TMAS_ROLE_HANDLE %d", __func__,
+                p_lea_cb->tmas_role_handle);
+              BtaGattQueue::ReadCharacteristic(conn_id, p_lea_cb->tmas_role_handle,
+                bta_gap_gatt_read_cb, NULL);
+            }
+          }
+        }
+        break;
+        case UUID_SERVCLASS_HAS:
+          if (!p_lea_cb->is_tmas_found) {
+            p_lea_cb->is_has_found = true;
+            APPL_TRACE_DEBUG("%s: HAS service found Uuid: %s ", __func__,
+              service.uuid.ToString().c_str());
+            std::vector<bluetooth::Uuid>::iterator itr;
+            itr = std::find(p_lea_cb->uuids.begin(), p_lea_cb->uuids.end(),
+              service.uuid);
+            if (itr == p_lea_cb->uuids.end()) {
+              p_lea_cb->uuids.push_back(service.uuid);
+            }
+          }
+          FALLTHROUGH_INTENDED; /* FALLTHROUGH */
+        case UUID_SERVCLASS_PACS:
+        {
+          if ((!p_lea_cb->pacs_char_handle) &&
+            ((!p_lea_cb->is_tmas_found))) {
+            APPL_TRACE_DEBUG("%s:PACS service found Uuid: %s ", __func__,
+              service.uuid.ToString().c_str());
+
+            std::vector<bluetooth::Uuid>::iterator itr;
+            itr = std::find(p_lea_cb->uuids.begin(), p_lea_cb->uuids.end(),
+              service.uuid);
+            if (itr == p_lea_cb->uuids.end()) {
+              p_lea_cb->uuids.push_back(service.uuid);
+            }
+            // Get Characteristic and CCCD handle
+            for (const gatt::Characteristic& charac : service.characteristics) {
+              Uuid role_uuid = charac.uuid;
+              if (role_uuid.As16Bit() == UUID_SERVCLASS_SOURCE_CONTEXT) {
+                APPL_TRACE_DEBUG("%s: PACS Source context CHAR found Uuid: %s ",
+                  __func__, role_uuid.ToString().c_str());
+                if (p_lea_cb != NULL) {
+                  p_lea_cb->disc_progress++;
+                  p_lea_cb->pacs_char_handle = charac.value_handle;
+                } else {
+                  APPL_TRACE_DEBUG(" %s No Control Block", __func__);
+                }
+              }
+            }
+            if (p_lea_cb->pacs_char_handle) {
+              BtaGattQueue::ReadCharacteristic(conn_id, p_lea_cb->pacs_char_handle,
+                bta_gap_gatt_read_cb, NULL);
+            }
+          }
+        }
+        break;
+        default:
+          APPL_TRACE_DEBUG(" Not a LE AUDIO SERVICE-- IGNORE %s ",
+            service.uuid.ToString().c_str());
+      }
+    }
+  }
+
+  if (p_lea_cb->disc_progress == 0) {
+    bta_dm_lea_disc_complete(peer_address);
+  }
+}
+
+/*****************************************************************************
+ *
+ * Function         bta_dm_csis_disc_complete
+ *
+ * Description      This API updates csis discovery complete status
+ *
+ * Parameters:      none
+ *****************************************************************************/
+void bta_dm_csis_disc_complete(RawAddress p_bd_addr, bool status) {
+  tBTA_LE_AUDIO_DEV_INFO *p_lea_cb = bta_get_lea_ctrl_cb(p_bd_addr);
+  APPL_TRACE_DEBUG("%s %s %d", __func__, p_bd_addr.ToString().c_str(),
+      status);
+
+  if (p_lea_cb) {
+    p_lea_cb->csip_disc_progress = status;
+  } else {
+    APPL_TRACE_DEBUG(" %s No Control Block", __func__);
+  }
+}
+
+/*****************************************************************************
+ *
+ * Function         bta_dm_lea_disc_complete
+ *
+ * Description      This API sends the event to upper layer that LE audio
+ *                  gatt operations are complete.
+ *
+ * Parameters:      none
+ *
+ ****************************************************************************/
+void bta_dm_lea_disc_complete(RawAddress p_bd_addr) {
+  tBTA_DM_SEARCH result;
+  tBTA_LE_AUDIO_DEV_INFO *p_lea_cb = bta_get_lea_ctrl_cb(p_bd_addr);
+  APPL_TRACE_DEBUG("%s %s", __func__, p_bd_addr.ToString().c_str());
+
+  if (p_lea_cb) {
+    if ((p_lea_cb->disc_progress == 0) &&
+        (p_lea_cb->csip_disc_progress)) { //Add CSIS check also
+      result.lea_disc_cmpl.num_uuids = 0;
+      for (uint16_t i = 0; i < p_lea_cb->uuids.size(); i++) {
+        result.lea_disc_cmpl.lea_uuids[i] = p_lea_cb->uuids[i];
+        result.lea_disc_cmpl.num_uuids++;
+      }
+
+      result.lea_disc_cmpl.bd_addr = p_bd_addr;
+      APPL_TRACE_DEBUG("Sending Call back with  no of uuids's"
+        "p_lea_cb->uuids.size() %d", p_lea_cb->uuids.size());
+      bta_dm_search_cb.p_search_cback(BTA_DM_LE_AUDIO_SEARCH_CMPL_EVT, &result);
+    } else {
+      APPL_TRACE_DEBUG("%s Discovery in progress", __func__);
+    }
+  } else {
+    APPL_TRACE_DEBUG(" %s No Control Block", __func__);
+  }
+}
+
+
+/*****************************************************************************
+ *
+ * Function         bta_check_lea_uuid
+ *
+ * Description      This is GATT client callback function used in DM.
+ *
+ * Parameters:
+ *
+ ******************************************************************************/
+static void bta_check_lea_uuid(RawAddress peer_address,
+                               tBTA_GATT_ID srvc_uuid) {
+  auto itr = find(uuid_srv_disc_search.begin(),
+                  uuid_srv_disc_search.end(), srvc_uuid.uuid);
+
+  if(itr != uuid_srv_disc_search.end()) {
+    tBTA_LE_AUDIO_DEV_INFO *p_lea_cb = bta_get_lea_ctrl_cb(peer_address);
+    if (p_lea_cb != NULL) {
+      APPL_TRACE_DEBUG(" %s Control Block Found", __func__);
+
+      std::vector<bluetooth::Uuid>::iterator itr;
+      itr = std::find(p_lea_cb->uuids.begin(), p_lea_cb->uuids.end(), srvc_uuid.uuid);
+      if (itr == p_lea_cb->uuids.end()) {
+        p_lea_cb->uuids.push_back(srvc_uuid.uuid);
+      }
+    } else {
+      APPL_TRACE_DEBUG(" %s No Control Block", __func__);
+    }
+  }
+}
+
+
+
+
+/*******************************************************************************
+ *
+ * Function         bta_set_lea_ctrl_cb
+ *
+ * Description      This is GATT client callback function used in DM.
+ *
+ * Parameters:
+ *
+ ******************************************************************************/
+
+static tBTA_LE_AUDIO_DEV_INFO* bta_set_lea_ctrl_cb(RawAddress peer_addr) {
+  tBTA_LE_AUDIO_DEV_INFO *p_lea_cb = NULL;
+
+  p_lea_cb = bta_get_lea_ctrl_cb(peer_addr);
+
+  if (p_lea_cb == NULL) {
+    APPL_TRACE_DEBUG("%s Control block create ", __func__);
+
+    for (int i = 0; i < MAX_LEA_DEVICES ; i++) {
+      if (!bta_le_audio_dev_cb.bta_lea_dev_info[i].in_use) {
+        bta_le_audio_dev_cb.bta_lea_dev_info[i].peer_address = peer_addr;
+        bta_le_audio_dev_cb.bta_lea_dev_info[i].in_use = true;
+        bta_le_audio_dev_cb.num_lea_devices++;
+        return (&(bta_le_audio_dev_cb.bta_lea_dev_info[i]));
+      }
+    }
+  } else {
+    return p_lea_cb;
+  }
+  return NULL;
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_dm_reset_lea_dev_info
+ *
+ * Description      This is GATT client callback function used in DM.
+ *
+ * Parameters:
+ *
+ ******************************************************************************/
+static void bta_dm_reset_lea_dev_info(RawAddress p_addr) {
+  tBTA_LE_AUDIO_DEV_INFO *p_lea_cb = bta_get_lea_ctrl_cb(p_addr);
+
+  if (p_lea_cb != NULL) {
+    p_lea_cb->peer_address = RawAddress::kEmpty;
+    p_lea_cb->disc_progress = 0;
+    p_lea_cb->conn_id = 0;
+    p_lea_cb->tranport = 0;
+    p_lea_cb->in_use = false;
+    p_lea_cb->tmas_role_handle = 0;
+    p_lea_cb->is_has_found = false;
+    p_lea_cb->is_tmas_found = false;
+    p_lea_cb->pacs_char_handle = 0;
+    p_lea_cb->using_bredr_bonding = 0;
+    p_lea_cb->uuids.clear();
+    bta_le_audio_dev_cb.gatt_op_addr = RawAddress::kEmpty;
+    bta_le_audio_dev_cb.pending_peer_addr = RawAddress::kEmpty;
+    bta_le_audio_dev_cb.num_lea_devices--;
+    bta_le_audio_dev_cb.bond_progress = false;
+    APPL_TRACE_DEBUG("bta_dm_reset_lea_dev_info %s  transport %d ",
+      p_lea_cb->peer_address.ToString().c_str(), p_lea_cb->tranport);
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_dm_set_lea_dev_info
+ *
+ * Description      This is GATT client callback function used in DM.
+ *
+ * Parameters:
+ *
+ ******************************************************************************/
+static void bta_dm_set_lea_dev_info(tBTA_GATTC_OPEN* p_data) {
+  tBTA_LE_AUDIO_DEV_INFO *p_lea_cb = bta_set_lea_ctrl_cb(p_data->remote_bda);
+
+  if (p_lea_cb != NULL) {
+    p_lea_cb->peer_address = p_data->remote_bda;
+    p_lea_cb->disc_progress = 0;
+    p_lea_cb->conn_id = p_data->conn_id;
+    p_lea_cb->tranport = p_data->transport;//BTM_UseLeLink(p_data->remote_bda);
+    APPL_TRACE_DEBUG("bta_dm_set_lea_dev_info %s  transport %d ",
+      p_lea_cb->peer_address.ToString().c_str(), p_lea_cb->tranport);
+  }
+}
+
 /*******************************************************************************
  *
  * Function         bta_dm_gattc_callback
@@ -5539,10 +5983,19 @@ static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
 
   switch (event) {
     case BTA_GATTC_OPEN_EVT:
+      if (is_remote_dev_le_support(bta_dm_search_cb.peer_bdaddr)) {
+        bta_dm_set_lea_dev_info(&p_data->open);
+      }
+
+      //TODO reset the discovery parameters before triggering it open evt
       bta_dm_proc_open_evt(&p_data->open);
       break;
 
     case BTA_GATTC_SEARCH_RES_EVT:
+      if (is_remote_dev_le_support(bta_dm_search_cb.peer_bdaddr)) {
+        bta_check_lea_uuid(bta_dm_search_cb.peer_bdaddr,
+                           p_data->srvc_res.service_uuid);
+      }
       bta_dm_gatt_disc_result(p_data->srvc_res.service_uuid);
       break;
 
@@ -5550,17 +6003,41 @@ static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
       if (bta_dm_search_cb.state != BTA_DM_SEARCH_IDLE) {
         bta_dm_gatt_disc_complete(p_data->search_cmpl.conn_id,
                                   p_data->search_cmpl.status);
-        BTA_CsipFindCsisInstance(p_data->search_cmpl.conn_id,
-                                p_data->search_cmpl.status,
-                                bta_dm_search_cb.peer_bdaddr);
+        if (is_remote_dev_le_support(bta_dm_search_cb.peer_bdaddr)) {
+          if (p_data->search_cmpl.status == 0) {
+            RawAddress p_id_addr =
+              bta_lea_get_id_addr(bta_dm_search_cb.peer_bdaddr);
+            bta_dm_csis_disc_complete(bta_dm_search_cb.peer_bdaddr, false);
+            if (p_id_addr != RawAddress::kEmpty) {
+              BTA_CsipFindCsisInstance(p_data->search_cmpl.conn_id,
+                  p_data->search_cmpl.status,
+                  p_id_addr);
+            } else {
+              BTA_CsipFindCsisInstance(p_data->search_cmpl.conn_id,
+                  p_data->search_cmpl.status,
+                  bta_dm_search_cb.peer_bdaddr);
+            }
+
+            bta_lea_get_role_info(bta_dm_search_cb.peer_bdaddr,
+            p_data->search_cmpl.conn_id,
+            p_data->search_cmpl.status);
+          } else {
+            APPL_TRACE_DEBUG("%s Discovery Failure ", __func__);
+          }
+        }
       }
       break;
 
     case BTA_GATTC_CLOSE_EVT:
-      APPL_TRACE_DEBUG("BTA_GATTC_CLOSE_EVT reason = %d, data conn_id %d, search conn_id %d",
-                       p_data->close.reason,p_data->close.conn_id,bta_dm_search_cb.conn_id);
-       if(p_data->close.conn_id == bta_dm_search_cb.conn_id)
+      APPL_TRACE_DEBUG("BTA_GATTC_CLOSE_EVT reason = %d,"
+        "p_data conn_id %d, search conn_id %d", p_data->close.reason,
+        p_data->close.conn_id,bta_dm_search_cb.conn_id);
+
+      if(p_data->close.conn_id == bta_dm_search_cb.conn_id)
           bta_dm_search_cb.conn_id = GATT_INVALID_CONN_ID;
+      if (is_remote_dev_le_support(bta_dm_search_cb.peer_bdaddr)) {
+        bta_dm_reset_lea_dev_info(bta_dm_search_cb.peer_bdaddr);
+      }
       /* in case of disconnect before search is completed */
       if ((bta_dm_search_cb.state != BTA_DM_SEARCH_IDLE) &&
           (bta_dm_search_cb.state != BTA_DM_SEARCH_ACTIVE) &&
@@ -5631,4 +6108,538 @@ static void bta_dm_bond_retrail_cback(void* data) {
     bta_dm_cb.p_sec_cback(BTA_DM_AUTH_CMPL_EVT, &sec_event);
   }
   osi_free(data);
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_dm_gattc_callback
+ *
+ * Description      This is GATT client callback function used in DM.
+ *
+ * Parameters:
+ *
+ ******************************************************************************/
+
+static void bta_dm_lea_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
+  APPL_TRACE_DEBUG("bta_dm_lea_gattc_callback event = %d", event);
+
+  switch (event) {
+    case BTA_GATTC_OPEN_EVT:
+      APPL_TRACE_DEBUG("LEA_DBGa bta_dm_lea_gattc_callback OPEN EVENT ");
+      if (is_remote_dev_le_support(bta_le_audio_dev_cb.pending_peer_addr)) {
+        bta_dm_set_lea_dev_info(&p_data->open);
+      }
+
+      //TODO reset the discovery parameters before triggering it open evt
+      bta_dm_proc_open_evt(&p_data->open);
+      break;
+
+    case BTA_GATTC_SEARCH_RES_EVT:
+      APPL_TRACE_DEBUG("LEA_DBGa bta_dm_lea_gattc_callback BTA_GATTC_SEARCH_RES_EVT");
+      if (is_remote_dev_le_support(bta_le_audio_dev_cb.pending_peer_addr)) {
+        bta_check_lea_uuid(bta_le_audio_dev_cb.pending_peer_addr,
+                           p_data->srvc_res.service_uuid);
+      }
+      break;
+
+    case BTA_GATTC_SEARCH_CMPL_EVT:
+      if (is_remote_dev_le_support(bta_le_audio_dev_cb.pending_peer_addr)) {
+          RawAddress p_id_addr =
+            bta_lea_get_id_addr(bta_le_audio_dev_cb.pending_peer_addr);
+          bta_dm_csis_disc_complete(bta_le_audio_dev_cb.pending_peer_addr, false);
+          if (p_id_addr != RawAddress::kEmpty) {
+            BTA_CsipFindCsisInstance(p_data->search_cmpl.conn_id,
+                p_data->search_cmpl.status,
+                p_id_addr);
+          } else {
+            BTA_CsipFindCsisInstance(p_data->search_cmpl.conn_id,
+                p_data->search_cmpl.status,
+                bta_le_audio_dev_cb.pending_peer_addr);
+          }
+        bta_lea_get_role_info(bta_le_audio_dev_cb.pending_peer_addr,
+        p_data->search_cmpl.conn_id,
+        p_data->search_cmpl.status);
+      }
+      break;
+
+    case BTA_GATTC_CLOSE_EVT:
+      APPL_TRACE_DEBUG("BTA_GATTC_CLOSE_EVT reason = %d, data conn_id %d, search conn_id %d",
+                       p_data->close.reason,p_data->close.conn_id,bta_dm_search_cb.conn_id);
+
+      //TODO Send Action UUID even for timeout case in BREDR pairing scenario based of Reason
+      if (is_remote_dev_le_support(bta_le_audio_dev_cb.pending_peer_addr)) {
+        bta_dm_reset_lea_dev_info(bta_le_audio_dev_cb.pending_peer_addr);
+      }
+      break;
+
+    default:
+      break;
+  }
+}
+
+/******************************************************************************
+ *
+ * Function         bta_dm_lea_gatt_conn
+ *
+ * Description      This API opens the gatt conn after finding sdp record
+ *                  during BREDR Discovery
+ *
+ * Parameters:      none
+ *
+ ******************************************************************************/
+void bta_dm_lea_gatt_conn(RawAddress p_bd_addr) {
+  APPL_TRACE_DEBUG("bta_dm_lea_gatt_conn ");
+
+  bta_le_audio_dev_cb.pending_peer_addr = p_bd_addr;
+
+  tBTA_LE_AUDIO_DEV_INFO *tmp_lea_cb = bta_get_lea_ctrl_cb(p_bd_addr);
+  if (tmp_lea_cb && tmp_lea_cb->in_use) {
+    APPL_TRACE_DEBUG("bta_dm_lea_gatt_conn Already exists %d",
+      tmp_lea_cb->conn_id);
+    return;
+  }
+
+  BTA_GATTC_AppRegister(bta_dm_lea_gattc_callback,
+      base::Bind([](uint8_t client_id, uint8_t status) {
+        if (status == GATT_SUCCESS) {
+          tBTA_LE_AUDIO_DEV_INFO *p_lea_cb =
+            bta_set_lea_ctrl_cb(bta_le_audio_dev_cb.pending_peer_addr);
+            if (p_lea_cb) {
+              APPL_TRACE_DEBUG("bta_dm_lea_gatt_conn Client Id: %d",
+                  client_id);
+              p_lea_cb->gatt_if = client_id;
+              p_lea_cb->using_bredr_bonding = true;
+              BTA_GATTC_Open(client_id, bta_le_audio_dev_cb.pending_peer_addr,
+                  true, GATT_TRANSPORT_LE, false);
+            }
+        }
+        }), false);
+
+}
+
+/******************************************************************************
+ *
+ * Function         bta_dm_lea_gatt_close
+ *
+ * Description      This API closes the gatt conn with was opened by dm layer
+ *                  for service discovery (or) opened after finding sdp record
+ *                  during BREDR Discovery
+ *
+ * Parameters:      none
+ *
+ ******************************************************************************/
+void bta_dm_lea_gatt_close(RawAddress p_bd_addr) {
+  tBTA_LE_AUDIO_DEV_INFO *p_lea_cb = bta_get_lea_ctrl_cb(p_bd_addr);
+  APPL_TRACE_DEBUG("%s", __func__);
+
+  if (p_lea_cb) {
+    APPL_TRACE_DEBUG("%s %d", __func__, p_lea_cb->gatt_if);
+    if (p_lea_cb->using_bredr_bonding) {
+      APPL_TRACE_DEBUG("%s closing LE conn est due to bredr bonding  %d", __func__,
+          p_lea_cb->gatt_if);
+      BTA_GATTC_AppDeregister(p_lea_cb->gatt_if);
+    } else {
+      bta_sys_start_timer(bta_dm_search_cb.gatt_close_timer,
+          BTA_DM_GATT_CLOSE_DELAY_TOUT,
+          BTA_DM_DISC_CLOSE_TOUT_EVT, 0);
+    }
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_get_lea_ctrl_cb
+ *
+ * Description      This API returns pairing control block of LE AUDIO DEVICE
+ *
+ * Parameters:      tBTA_DEV_PAIRING_CB
+ *
+ ******************************************************************************/
+
+tBTA_DEV_PAIRING_CB* bta_get_lea_pair_cb(RawAddress peer_addr) {
+  tBTA_DEV_PAIRING_CB *p_lea_pair_cb = NULL;
+  p_lea_pair_cb = &bta_lea_pairing_cb.bta_dev_pair_db[0];
+  APPL_TRACE_DEBUG("%s %s ", __func__, peer_addr.ToString().c_str());
+
+  for (int i = 0; i < MAX_LEA_DEVICES; i++) {
+      if ((p_lea_pair_cb[i].in_use) &&
+        (p_lea_pair_cb[i].p_addr == peer_addr)) {
+        APPL_TRACE_DEBUG("%s Found %s index i %d ", __func__,
+          p_lea_pair_cb[i].p_addr.ToString().c_str(), i);
+        return &p_lea_pair_cb[i];
+      }
+    }
+  return NULL;
+}
+
+
+
+/*******************************************************************************
+ *
+ * Function         bta_set_lea_ctrl_cb
+ *
+ * Description      This is GATT client callback function used in DM.
+ *
+ * Parameters:
+ *
+ ******************************************************************************/
+
+static tBTA_DEV_PAIRING_CB* bta_set_lea_pair_cb(RawAddress peer_addr) {
+  tBTA_DEV_PAIRING_CB *p_lea_pair_cb = NULL;
+  APPL_TRACE_DEBUG("bta_set_lea_ctrl_cb %s", peer_addr.ToString().c_str());
+
+  p_lea_pair_cb = bta_get_lea_pair_cb(peer_addr);
+
+  if (p_lea_pair_cb == NULL) {
+    APPL_TRACE_DEBUG("bta_set_lea_ctrl_cb Control block create ");
+
+    for (int i = 0; i < 10 ; i++) {
+      if (!bta_lea_pairing_cb.bta_dev_pair_db[i].in_use) {
+        bta_lea_pairing_cb.bta_dev_pair_db[i].p_addr = peer_addr;
+        bta_lea_pairing_cb.bta_dev_pair_db[i].in_use = true;
+        bta_lea_pairing_cb.is_pairing_progress = true;
+        bta_lea_pairing_cb.num_devices++;
+        return (&(bta_lea_pairing_cb.bta_dev_pair_db[i]));
+      }
+    }
+  } else {
+    return p_lea_pair_cb;
+  }
+  return NULL;
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_dm_reset_lea_dev_info
+ *
+ * Description      This API resets all the pairing information related to le
+ *                  audio remote device.
+ * Parameters:      none
+ *
+ ******************************************************************************/
+void bta_dm_reset_lea_pairing_info(RawAddress p_addr) {
+
+  APPL_TRACE_DEBUG("%s Addr %s", __func__, p_addr.ToString().c_str());
+
+  auto itr = bta_lea_pairing_cb.dev_addr_map.find(p_addr);
+  if (itr != bta_lea_pairing_cb.dev_addr_map.end()) {
+    bta_lea_pairing_cb.dev_addr_map.erase(p_addr);
+  } else {
+    auto itr2 = bta_lea_pairing_cb.dev_rand_addr_map.find(p_addr);
+    if (itr2 != bta_lea_pairing_cb.dev_rand_addr_map.end()) {
+      bta_lea_pairing_cb.dev_rand_addr_map.erase(p_addr);
+    }
+  }
+
+  tBTA_DEV_PAIRING_CB *p_lea_pair_cb = NULL;
+  p_lea_pair_cb = bta_get_lea_pair_cb(p_addr);
+  if (p_lea_pair_cb) {
+    APPL_TRACE_DEBUG("%s RESETTING VALUES", __func__);
+    p_lea_pair_cb->in_use = false;
+    p_lea_pair_cb->is_dumo_device = false;
+    p_lea_pair_cb->is_le_pairing = false;
+    p_lea_pair_cb->dev_type = 0;
+    if (p_lea_pair_cb->p_id_addr != RawAddress::kEmpty) {
+      itr = bta_lea_pairing_cb.dev_addr_map.find(p_lea_pair_cb->p_id_addr);
+      //TODO remove the log after stablising the code
+      APPL_TRACE_DEBUG("%s RESETTING Addr %s", __func__,
+        p_lea_pair_cb->p_id_addr.ToString().c_str());
+      if (itr != bta_lea_pairing_cb.dev_addr_map.end()) {
+        //TODO remove the log after stablising the code
+        APPL_TRACE_DEBUG("%s Clearing INSIDE LEA ADDR DB MAP",
+          __func__);
+        bta_lea_pairing_cb.dev_addr_map.erase(p_lea_pair_cb->p_id_addr);
+      }
+      p_lea_pair_cb->p_id_addr = RawAddress::kEmpty;
+      p_lea_pair_cb->transport = 0;
+      p_lea_pair_cb->p_addr = RawAddress::kEmpty;
+    }
+    bta_lea_pairing_cb.is_pairing_progress = false;
+    bta_lea_pairing_cb.num_devices--;
+    bta_lea_pairing_cb.is_sdp_discover = true;
+  } else {
+    APPL_TRACE_DEBUG("%s INVALID CONTROL BLOCK", __func__);
+  }
+}
+
+/*****************************************************************************
+ *
+ * Function        bta_dm_ble_lea_idaddr_map
+ *
+ * Description     storing the identity address information in the device
+ *                 control block. It will used for DUMO devices
+ *
+ * Returns         none
+ *
+ *****************************************************************************/
+static void bta_dm_ble_lea_idaddr_map(RawAddress p_bd_addr,
+  RawAddress p_id_addr) {
+  APPL_TRACE_DEBUG("%s p_bd_addr %s id_addr %s ", __func__,
+    p_bd_addr.ToString().c_str(), p_id_addr.ToString().c_str());
+  if (is_remote_dev_le_support(p_bd_addr)) {
+    bta_lea_pairing_cb.dev_addr_map[p_id_addr] = p_bd_addr;
+    bta_lea_pairing_cb.dev_rand_addr_map[p_bd_addr] = p_id_addr;
+
+    tBTA_DEV_PAIRING_CB *p_lea_pair_cb = NULL;
+    p_lea_pair_cb = bta_get_lea_pair_cb(p_bd_addr);
+    if (p_lea_pair_cb) {
+      if (p_id_addr != p_bd_addr) {
+        APPL_TRACE_DEBUG("%s is_dumo_device %s", __func__,
+          p_id_addr.ToString().c_str());
+        p_lea_pair_cb->p_id_addr = p_id_addr;
+        p_lea_pair_cb->is_dumo_device = true;
+      }
+    }
+  }
+}
+
+bool bta_lea_is_identity_addr_match(RawAddress p_addr) {
+  APPL_TRACE_DEBUG("%s ", __func__);
+
+  auto itr = bta_lea_pairing_cb.dev_addr_map.find(p_addr);
+
+  if (itr != bta_lea_pairing_cb.dev_addr_map.end()) {
+    APPL_TRACE_DEBUG("%s Identity BD_ADDR %s", __func__,
+      p_addr.ToString().c_str());
+      return true;
+  }
+  return false;
+}
+
+//Return True if pairing initiated throught LE Transport
+
+bool bta_lea_is_le_pairing(RawAddress p_bd_addr) {
+
+  tBTA_DEV_PAIRING_CB *p_lea_pair_cb = NULL;
+
+  auto itr = bta_lea_pairing_cb.dev_addr_map.find(p_bd_addr);
+  p_lea_pair_cb = bta_get_lea_pair_cb(p_bd_addr);
+  APPL_TRACE_DEBUG("%s ", __func__);
+
+  if (itr != bta_lea_pairing_cb.dev_addr_map.end()) {
+    APPL_TRACE_DEBUG("%s DUMO DEVICE Identity BD_ADDR %s", __func__,
+      p_bd_addr.ToString().c_str());
+
+    if ((itr->first == itr->second) && p_lea_pair_cb) {
+      APPL_TRACE_DEBUG("%s DUMO DEVICE Identity CTRL BLK %s", __func__,
+        p_bd_addr.ToString().c_str());
+      if (p_lea_pair_cb->is_le_pairing && p_lea_pair_cb->is_dumo_device) {
+        return true;
+      } else
+        return false;
+    } else {
+      p_lea_pair_cb = bta_get_lea_pair_cb(itr->second);
+      if (p_lea_pair_cb) {
+        if (p_lea_pair_cb->is_le_pairing && p_lea_pair_cb->is_dumo_device) {
+          return true;
+        }
+      }
+    }
+  } else {
+    APPL_TRACE_DEBUG("%s Random addr ", __func__);
+    if (p_lea_pair_cb) {
+      if (p_lea_pair_cb->is_le_pairing && p_lea_pair_cb->is_dumo_device) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+bool bta_lea_is_dumo_device(RawAddress p_bd_addr) {
+
+  auto itr = bta_lea_pairing_cb.dev_addr_map.find(p_bd_addr);
+  APPL_TRACE_DEBUG("%s Addr %s", __func__, p_bd_addr.ToString().c_str());
+
+  if (itr != bta_lea_pairing_cb.dev_addr_map.end()) {
+    APPL_TRACE_DEBUG("%s DUMO DEVICE Identity BD_ADDR %s", __func__,
+      p_bd_addr.ToString().c_str());
+      return true;
+  }
+
+  auto itr2 = bta_lea_pairing_cb.dev_rand_addr_map.find(p_bd_addr);
+  if (itr2 != bta_lea_pairing_cb.dev_rand_addr_map.end()) {
+    APPL_TRACE_DEBUG("%s Dumo addressed %s %s ", __func__,
+      itr2->first.ToString().c_str(), itr2->second.ToString().c_str());
+    return true;
+  }
+  return false;
+}
+
+RawAddress bta_lea_get_id_addr(RawAddress p_bd_addr) {
+  tBTA_DEV_PAIRING_CB *p_lea_pair_cb = NULL;
+  APPL_TRACE_DEBUG("%s ", __func__);
+
+  p_lea_pair_cb = bta_get_lea_pair_cb(p_bd_addr);
+  if (p_lea_pair_cb) {
+    APPL_TRACE_DEBUG("%s %s", __func__,
+      p_lea_pair_cb->p_id_addr.ToString().c_str());
+    return p_lea_pair_cb->p_id_addr;
+  }
+  return RawAddress::kEmpty;
+}
+
+/*****************************************************************************
+ *
+ * Function        bta_lea_update_bond_db
+ *
+ * Description     Updates pairing control block of the device and the bonding
+ *                 is initiated using LE transport or not.
+ *
+ * Returns         void
+ *
+ *****************************************************************************/
+void bta_lea_update_bond_db(RawAddress p_bd_addr, uint8_t transport) {
+  tBTA_DEV_PAIRING_CB *p_dev_pair_cb = bta_set_lea_pair_cb(p_bd_addr);
+
+  APPL_TRACE_DEBUG("%s", __func__);
+  if (p_dev_pair_cb) {
+    APPL_TRACE_DEBUG("%s Addr %s Transport %d", __func__,
+      p_bd_addr.ToString().c_str(),  transport);
+    p_dev_pair_cb->p_addr = p_bd_addr;
+    p_dev_pair_cb->transport = transport;
+    if (transport == BT_TRANSPORT_LE) {
+      if (is_remote_dev_le_support(p_dev_pair_cb->p_addr))
+        p_dev_pair_cb->is_le_pairing = true;
+      else
+        p_dev_pair_cb->is_le_pairing = false;
+    } else
+      p_dev_pair_cb->is_le_pairing = false;
+  }
+}
+
+/*****************************************************************************
+ *
+ * Function        is_le_audio_service
+ *
+ * Description     It checks whether the given service is related to the LE
+ *                 Audio service or not.
+ *
+ * Returns         true for LE Audio service which are registered.
+                   false by default
+ *
+ *****************************************************************************/
+bool is_le_audio_service(Uuid uuid) {
+
+  uint16_t uuid_val = uuid.As16Bit();
+  bool status = false;
+
+  APPL_TRACE_DEBUG("is_le_audio_service : 0x%X  0x%X ", uuid.As16Bit(), uuid_val);
+  //TODO check the service contains any LE AUDIO service or not
+   switch (uuid_val) {
+    case UUID_SERVCLASS_SDP_LEA:
+      status = true;
+      break;
+    case UUID_SERVCLASS_CSIS:
+      FALLTHROUGH_INTENDED; /* FALLTHROUGH */
+    case UUID_SERVCLASS_BASS:
+      FALLTHROUGH_INTENDED; /* FALLTHROUGH */
+    case UUID_SERVCLASS_TMAS:
+      FALLTHROUGH_INTENDED; /* FALLTHROUGH */
+    case UUID_SERVCLASS_ASCS:
+      FALLTHROUGH_INTENDED; /* FALLTHROUGH */
+    case UUID_SERVCLASS_BAAS:
+      FALLTHROUGH_INTENDED; /* FALLTHROUGH */
+    case UUID_SERVCLASS_PACS:
+    {
+      auto itr = find(uuid_srv_disc_search.begin(),
+                      uuid_srv_disc_search.end(), uuid);
+      if (itr != uuid_srv_disc_search.end())
+        status = true;
+    }
+      break;
+    default:
+      APPL_TRACE_DEBUG("%s : %d ", __func__, status);
+  }
+
+  return status;
+}
+
+/*****************************************************************************
+ *
+ * Function        bta_is_lea_valid_bdaddr
+ *
+ * Description     This API is used for DUMO device. If the device contains
+ *                 two address (random and public), it checks for valid
+ *                 address.
+ *
+ * Returns         0 - for random address in dumo device
+ *                 1 - for public address in dumo device
+ *
+ ****************************************************************************/
+int bta_is_lea_valid_bdaddr(RawAddress p_bd_addr) {
+  tBTA_DEV_PAIRING_CB *p_lea_pair_cb = NULL;
+  p_lea_pair_cb = bta_get_lea_pair_cb(p_bd_addr);
+
+  if (p_lea_pair_cb) {
+    APPL_TRACE_DEBUG("%s p_lea_pair_cb %s", __func__,
+      p_lea_pair_cb->p_addr.ToString().c_str());
+    auto itr = bta_lea_pairing_cb.dev_addr_map.find(p_bd_addr);
+    if (itr == bta_lea_pairing_cb.dev_addr_map.end() &&
+        (p_lea_pair_cb->is_dumo_device)) {
+      APPL_TRACE_DEBUG("%s Ignore BD_ADDR because of ID %s", __func__,
+        p_lea_pair_cb->p_id_addr.ToString().c_str());
+        return 0;
+    }
+  }
+  return 1;
+}
+
+/*****************************************************************************
+ *
+ * Function        devclass2uint
+ *
+ * Description     This API is to derive the class of device based of dev_class
+ *
+ * Returns         uint32_t - class of device
+ *
+ ****************************************************************************/
+static uint32_t devclass2uint(DEV_CLASS dev_class) {
+  uint32_t cod = 0;
+
+  if (dev_class != NULL) {
+    /* if COD is 0, irrespective of the device type set it to Unclassified
+     * device */
+    cod = (dev_class[2]) | (dev_class[1] << 8) | (dev_class[0] << 16);
+  }
+  return cod;
+}
+
+/*****************************************************************************
+ *
+ * Function        bta_is_remote_support_lea
+ *
+ * Description     This API is to check the remote device contains LEA service
+ *                 or not. It checks in Inquiry database initially.
+ *                 If the address is Public identity address then it will
+ *                 check in the pairing database of that remote device.
+ *
+ * Returns         true - if remote device inquiry db contains LEA service
+ *
+ ****************************************************************************/
+bool bta_is_remote_support_lea(RawAddress p_addr) {
+  tBTM_INQ_INFO* p_inq_info;
+
+  p_inq_info = BTM_InqDbRead(p_addr);
+  if (p_inq_info != NULL) {
+    uint32_t cod = devclass2uint(p_inq_info->results.dev_class);
+    BTIF_TRACE_DEBUG("%s cod is 0x%06x", __func__, cod);
+    if ((cod & MAJOR_LE_AUDIO_VENDOR_COD)
+          == MAJOR_LE_AUDIO_VENDOR_COD) {
+      return true;
+    }
+  }
+
+  /* check the address is public identity address and its related to random
+   * address which supports to LEA then that Public ID address should return
+   * true.
+   */
+  auto itr = bta_lea_pairing_cb.dev_addr_map.find(p_addr);
+  if (itr != bta_lea_pairing_cb.dev_addr_map.end()) {
+    BTIF_TRACE_DEBUG("%s Idenity address mapping", __func__);
+    return true;
+  }
+
+  return false;
 }

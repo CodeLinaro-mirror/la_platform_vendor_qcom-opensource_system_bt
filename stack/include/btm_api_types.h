@@ -390,6 +390,7 @@ typedef uint8_t(tBTM_FILTER_CB)(const RawAddress& bd_addr, DEV_CLASS dc);
 #define BTM_COD_MAJOR_TOY 0x08
 #define BTM_COD_MAJOR_HEALTH 0x09
 #define BTM_COD_MAJOR_UNCLASSIFIED 0x1F
+#define BTM_COD_MAJOR_LE_AUDIO 0x40
 
 /***************************
  * service class fields
@@ -1782,6 +1783,10 @@ typedef union {
 typedef void(tBTM_LE_KEY_CALLBACK)(uint8_t key_type,
                                    tBTM_BLE_LOCAL_KEYS* p_key);
 
+typedef void(tBTM_LE_ID_ADDR_CALLBACK)(RawAddress bd_addr,
+                                   RawAddress peer_id_addr);
+
+
 /***************************
  *  Security Manager Types
  ***************************/
@@ -1794,6 +1799,7 @@ typedef struct {
   tBTM_BOND_CANCEL_CMPL_CALLBACK* p_bond_cancel_cmpl_callback;
   tBTM_SP_CALLBACK* p_sp_callback;
   tBTM_LE_CALLBACK* p_le_callback;
+  tBTM_LE_ID_ADDR_CALLBACK* p_le_id_addr_callback;
   tBTM_LE_KEY_CALLBACK* p_le_key_callback;
 } tBTM_APPL_INFO;
 

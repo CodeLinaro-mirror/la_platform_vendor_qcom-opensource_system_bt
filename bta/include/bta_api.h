@@ -31,6 +31,7 @@
 #include "bt_types.h"
 #include "btm_api.h"
 #include "btm_ble_api.h"
+#include <map>
 
 /*****************************************************************************
  *  Constants and data types
@@ -136,6 +137,10 @@ typedef uint8_t tBTA_SERVICE_ID;
 #define BTA_BLE_SERVICE_MASK 0x40000000  /* GATT based service */
 #define BTA_ALL_SERVICE_MASK 0x7FFFFFFF  /* All services supported by BTA. */
 #define BTA_USER_SERVICE_MASK 0x80000000 /* Message Notification Profile */
+
+#define BTA_LEA_BASS_SERVICE_MASK 0x100000000
+#define BTA_LEA_ASCS_SERVICE_MASK 0x200000000
+#define BTA_LEA_TMAS_SERVICE_MASK 0x400000000
 
 typedef uint64_t tBTA_SERVICE_MASK;
 
@@ -757,6 +762,7 @@ typedef tBTM_RAW_CMPL_CB tBTA_RAW_CMPL_CBACK;
 #define BTA_DM_DISC_CMPL_EVT 4          /* Discovery complete. */
 #define BTA_DM_DI_DISC_CMPL_EVT 5       /* Discovery complete. */
 #define BTA_DM_SEARCH_CANCEL_CMPL_EVT 6 /* Search cancelled */
+#define BTA_DM_LE_AUDIO_SEARCH_CMPL_EVT 7 /* LE Audio Discovery */
 
 typedef uint8_t tBTA_DM_SEARCH_EVT;
 
@@ -819,6 +825,15 @@ typedef struct {
   bluetooth::Uuid service; /* GATT based Services UUID found on peer device. */
 } tBTA_DM_DISC_BLE_RES;
 
+/* Structure associated with tBTA_DM_LEA_DISC_CMPL */
+typedef struct {
+  RawAddress bd_addr; /* BD address peer device. */
+  bluetooth::Uuid lea_uuids[BT_MAX_NUM_UUIDS];
+  BD_NAME bd_name;  /* Name of peer device. */
+  uint16_t num_uuids;
+  uint8_t transport;
+} tBTA_DM_LEA_DISC_CMPL;
+
 /* Union of all search callback structures */
 typedef union {
   tBTA_DM_INQ_RES inq_res;   /* Inquiry result for a peer device. */
@@ -827,7 +842,7 @@ typedef union {
   tBTA_DM_DISC_BLE_RES
       disc_ble_res;             /* discovery result for GATT based service */
   tBTA_DM_DI_DISC_CMPL di_disc; /* DI discovery result for a peer device */
-
+  tBTA_DM_LEA_DISC_CMPL lea_disc_cmpl; /* LE AUDIO DISCOVERY COMPLETE */
 } tBTA_DM_SEARCH;
 
 /* Search callback */
