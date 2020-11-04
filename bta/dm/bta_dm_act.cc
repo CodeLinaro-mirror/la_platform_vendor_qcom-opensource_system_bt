@@ -37,6 +37,7 @@
 #include "bta_dm_api.h"
 #include "bta_dm_co.h"
 #include "bta_dm_int.h"
+#include "bta_csip_api.h"
 #include "bta_sys.h"
 #include "btif/include/btif_storage.h"
 #include "btm_api.h"
@@ -5546,9 +5547,13 @@ static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
       break;
 
     case BTA_GATTC_SEARCH_CMPL_EVT:
-      if (bta_dm_search_cb.state != BTA_DM_SEARCH_IDLE)
+      if (bta_dm_search_cb.state != BTA_DM_SEARCH_IDLE) {
         bta_dm_gatt_disc_complete(p_data->search_cmpl.conn_id,
                                   p_data->search_cmpl.status);
+        BTA_CsipFindCsisInstance(p_data->search_cmpl.conn_id,
+                                p_data->search_cmpl.status,
+                                bta_dm_search_cb.peer_bdaddr);
+      }
       break;
 
     case BTA_GATTC_CLOSE_EVT:

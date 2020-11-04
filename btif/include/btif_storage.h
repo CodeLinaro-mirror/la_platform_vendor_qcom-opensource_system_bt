@@ -28,6 +28,8 @@
 /*******************************************************************************
  *  Constants & Macros
  ******************************************************************************/
+#define BT_PROPERTY_CSET_DETAILS 0x10
+
 #define BTIF_STORAGE_FILL_PROPERTY(p_prop, t, l, p_v) \
   do {                                                \
     (p_prop)->type = (t);                             \

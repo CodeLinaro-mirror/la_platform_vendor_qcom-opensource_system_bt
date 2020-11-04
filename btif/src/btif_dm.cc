@@ -84,6 +84,7 @@
 #include "advertise_data_parser.h"
 #include "bt_common.h"
 #include "bta_closure_api.h"
+#include "bta_csip_api.h"
 #include "bta_gatt_api.h"
 #include "btif_api.h"
 #include "btif_bqr.h"
@@ -2059,6 +2060,7 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
 #endif
       btif_hearing_aid_get_interface()->RemoveDevice(bd_addr);
       btif_storage_remove_bonded_device(&bd_addr);
+      BTA_CsipRemoveUnpairedSetMember(bd_addr);
       BTA_DmResetPairingflag(bd_addr);
       bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_NONE);
       break;
