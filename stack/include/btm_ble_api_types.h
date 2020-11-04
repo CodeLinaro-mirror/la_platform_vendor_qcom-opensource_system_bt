@@ -421,11 +421,12 @@ typedef struct {
 #define BTM_BLE_PF_MANU_DATA 5
 #define BTM_BLE_PF_SRVC_DATA_PATTERN 6
 #define BTM_BLE_PF_TDS_DATA 7
+#define BTM_BLE_PF_PSRI_FILTER 8
 /* when passed in payload filter type all, only clear action is applicable */
-#define BTM_BLE_PF_TYPE_ALL 8
-#define BTM_BLE_PF_TYPE_MAX 9
+#define BTM_BLE_PF_TYPE_ALL 9
+#define BTM_BLE_PF_TYPE_MAX 10
 
-/* max number of filter spot for different filter type */
+/* max number of filter spot fors different filter type */
 #ifndef BTM_BLE_MAX_UUID_FILTER
 #define BTM_BLE_MAX_UUID_FILTER 8
 #endif
@@ -437,6 +438,9 @@ typedef struct {
 #endif
 #ifndef BTM_BLE_PF_STR_LEN_MAX
 #define BTM_BLE_PF_STR_LEN_MAX 29 /* match for first 29 bytes */
+#endif
+#ifndef BTM_BLE_PF_PSRI_DATA_LEN
+#define BTM_BLE_PF_PSRI_DATA_LEN 6 /* length of PSRI data */
 #endif
 
 typedef uint8_t tBTM_BLE_PF_COND_TYPE;
@@ -503,7 +507,8 @@ typedef struct {
 #define BTM_BLE_META_PF_MANU_DATA 0x06
 #define BTM_BLE_META_PF_SRVC_DATA 0x07
 #define BTM_BLE_META_PF_TDS_DATA 0x08
-#define BTM_BLE_META_PF_ALL 0x09
+#define BTM_BLE_META_PF_PSRI 0x09
+#define BTM_BLE_META_PF_ALL 0x0A
 
 typedef uint8_t BTM_BLE_ADV_STATE;
 typedef uint8_t BTM_BLE_ADV_INFO_PRESENT;
