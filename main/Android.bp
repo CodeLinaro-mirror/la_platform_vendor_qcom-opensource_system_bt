@@ -59,6 +59,7 @@ cc_library_shared {
         "libz",
         "libcrypto",
         "libbtconfigstore",
+        "libxml2",
     ],
     static_libs: [
         "libbt-sbc-decoder",
