@@ -5586,7 +5586,7 @@ void bta_gap_gatt_read_cb(uint16_t conn_id, tGATT_STATUS status,
 
   tBTA_LE_AUDIO_DEV_INFO *p_lea_cb =
     bta_get_lea_ctrl_cb(bta_le_audio_dev_cb.gatt_op_addr);
-  uint32_t role;
+  uint32_t role = 0;
   uint8_t *p_val = value;
 
   STREAM_TO_ARRAY(&role, p_val, len);
@@ -5665,6 +5665,12 @@ static void bta_lea_get_role_info(RawAddress peer_address, uint16_t conn_id,
   APPL_TRACE_DEBUG(" bta_lea_get_role_info SIZE %d addr %s conn_id %d",
     (*services).size(),bta_le_audio_dev_cb.gatt_op_addr.ToString().c_str(),
     conn_id);
+
+  if(p_lea_cb == NULL) {
+    APPL_TRACE_ERROR(" %s Control block didnt find for peer address %s", __func__,
+        peer_address.ToString().c_str());
+    return;
+  }
 
   // Search for CSIS service in the database
   for (const gatt::Service& service : *services) {
@@ -6293,7 +6299,7 @@ static tBTA_DEV_PAIRING_CB* bta_set_lea_pair_cb(RawAddress peer_addr) {
   if (p_lea_pair_cb == NULL) {
     APPL_TRACE_DEBUG("bta_set_lea_ctrl_cb Control block create ");
 
-    for (int i = 0; i < 10 ; i++) {
+    for (int i = 0; i < MAX_LEA_DEVICES ; i++) {
       if (!bta_lea_pairing_cb.bta_dev_pair_db[i].in_use) {
         bta_lea_pairing_cb.bta_dev_pair_db[i].p_addr = peer_addr;
         bta_lea_pairing_cb.bta_dev_pair_db[i].in_use = true;
