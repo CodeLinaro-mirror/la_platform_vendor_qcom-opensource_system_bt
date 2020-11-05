@@ -625,6 +625,9 @@ typedef void (*btrc_ctrl_available_player_changed_callback)(
 typedef void (*btrc_ctrl_get_cover_art_psm_callback)(const RawAddress& bd_addr,
     const uint16_t psm);
 
+typedef void (*btrc_ctrl_search_rsp_callback)(const RawAddress& bd_addr, uint8_t status,
+                                              uint16_t uid_counter, uint32_t num_items);
+
 /** BT-RC Controller callback structure. */
 typedef struct {
   /** set to sizeof(BtRcCallbacks) */
@@ -652,6 +655,7 @@ typedef struct {
       now_playing_contents_changed_cb;
   btrc_ctrl_available_player_changed_callback available_player_changed_cb;
   btrc_ctrl_get_cover_art_psm_callback get_cover_art_psm_cb;
+  btrc_ctrl_search_rsp_callback search_rsp_cb;
 } btrc_ctrl_callbacks_t;
 
 /** Represents the standard BT-RC AVRCP Controller interface. */
@@ -710,6 +714,14 @@ typedef struct {
   /** set addressed player */
   bt_status_t (*set_addressed_player_cmd)(const RawAddress& bd_addr,
                                           uint16_t player_id);
+
+  /** Search */
+  bt_status_t (*search_cmd)(const RawAddress& bd_addr, uint16_t charset_id,
+                            uint16_t length, uint8_t *str);
+
+  /** Get the search list */
+  bt_status_t (*get_search_list_cmd)(const RawAddress& bd_addr, uint32_t start,
+                                     uint32_t items);
 
   /** send rsp to set_abs_vol received from target */
   bt_status_t (*set_volume_rsp)(const RawAddress& bd_addr, uint8_t abs_vol,

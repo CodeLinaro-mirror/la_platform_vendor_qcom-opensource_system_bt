@@ -110,6 +110,8 @@ const Uuid UUID_HEARING_AID = Uuid::FromString("FDF0");
 #define ENCRYPTED_BREDR 2
 #define ENCRYPTED_LE 4
 
+#define BTIF_VENDOR_GET_LINK_KEY  1
+
 typedef struct {
   bt_bond_state_t state;
   RawAddress static_bdaddr;
@@ -159,6 +161,13 @@ typedef struct {
   RawAddress bdaddr;
   uint8_t transport; /* 0=Unknown, 1=BR/EDR, 2=LE */
 } btif_dm_create_bond_cb_t;
+
+typedef struct {
+  RawAddress bdaddr;
+  LinkKey link_key;
+  uint8_t key_type;
+  uint8_t pin_len;
+} btif_dm_add_oob_bond_device_cb_t;
 
 typedef struct {
   uint8_t status;
@@ -1955,6 +1964,36 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
 
 /*******************************************************************************
  *
+ * Function         btif_dm_cb_add_oob_bond_device
+ *
+ * Description      Add OOB bond device initiated from the BTIF thread context
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+static void btif_dm_cb_add_oob_bond_device(const RawAddress& bd_addr, LinkKey link_key,
+                                           uint8_t key_type, uint8_t pin_len) {
+  DEV_CLASS dev_class = {0};
+  tBTA_SERVICE_MASK trusted_mask = 0;
+
+  /* Add device to security database list */
+  BTA_DmAddDevice(bd_addr, dev_class, link_key, trusted_mask, true,
+    key_type, BTM_IO_CAP_NONE, pin_len);
+
+  bt_status_t ret =  BT_STATUS_FAIL;
+
+  /* Add device to config file  */
+  ret = btif_storage_add_bonded_device((RawAddress*)&bd_addr, link_key, key_type, pin_len);
+
+  if (ret == BT_STATUS_SUCCESS) {
+    bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDED);
+  } else {
+    bond_state_changed(BT_STATUS_FAIL, bd_addr, BT_BOND_STATE_NONE);
+  }
+}
+
+/*******************************************************************************
+ *
  * Function         btif_dm_generic_evt
  *
  * Description      Executes non-BTA upstream events in BTIF context
@@ -1973,8 +2012,18 @@ static void btif_dm_generic_evt(uint16_t event, char* p_param) {
     case BTIF_DM_CB_CREATE_BOND: {
       pairing_cb.timeout_retries = NUM_TIMEOUT_RETRIES;
       btif_dm_create_bond_cb_t* create_bond_cb =
-          (btif_dm_create_bond_cb_t*)p_param;
+        (btif_dm_create_bond_cb_t*)p_param;
       btif_dm_cb_create_bond(create_bond_cb->bdaddr, create_bond_cb->transport);
+    } break;
+
+    case BTIF_DM_CB_ADD_OOB_BOND_DEVICE: {
+      pairing_cb.timeout_retries = NUM_TIMEOUT_RETRIES;
+      btif_dm_add_oob_bond_device_cb_t* add_oob_bond_device_cb =
+        (btif_dm_add_oob_bond_device_cb_t*)p_param;
+      btif_dm_cb_add_oob_bond_device(add_oob_bond_device_cb->bdaddr,
+                                     add_oob_bond_device_cb->link_key,
+                                     add_oob_bond_device_cb->key_type,
+                                     add_oob_bond_device_cb->pin_len);
     } break;
 
     case BTIF_DM_CB_REMOVE_BOND: {
@@ -2299,6 +2348,35 @@ bt_status_t btif_dm_create_bond_out_of_band(
   BTIF_TRACE_EVENT("%s: bd_addr=%s, transport=%d", __func__,
                    bd_addr->ToString().c_str(), transport);
   return btif_dm_create_bond(bd_addr, transport);
+}
+
+/*******************************************************************************
+ *
+ * Function         btif_dm_add_oob_bond_device
+ *
+ * Description      add a bond device
+ *
+ * Returns          bt_status_t
+ *
+ ******************************************************************************/
+bt_status_t btif_dm_add_oob_bond_device(const RawAddress *bd_addr, LinkKey link_key,
+                                        uint8_t key_type, uint8_t pin_len) {
+  btif_dm_add_oob_bond_device_cb_t add_oob_bond_device_cb;
+
+  std::copy(link_key.begin(), link_key.end(),
+            add_oob_bond_device_cb.link_key.begin());
+  add_oob_bond_device_cb.key_type= key_type;
+  add_oob_bond_device_cb.pin_len= pin_len;
+  add_oob_bond_device_cb.bdaddr = *bd_addr;
+
+  if (pairing_cb.state != BT_BOND_STATE_NONE) return BT_STATUS_BUSY;
+  btif_stats_add_bond_event(*bd_addr, BTIF_DM_FUNC_CREATE_BOND,
+                            pairing_cb.state);
+
+  btif_transfer_context(btif_dm_generic_evt, BTIF_DM_CB_ADD_OOB_BOND_DEVICE,
+                        (char*)&add_oob_bond_device_cb,
+                        sizeof(btif_dm_add_oob_bond_device_cb_t), NULL);
+  return BT_STATUS_SUCCESS;
 }
 
 /*******************************************************************************
@@ -3372,3 +3450,30 @@ void btif_debug_bond_event_dump(int fd) {
             event->bd_addr.ToString().c_str(), func_name, bond_state);
   }
 }
+
+static void btif_vendor_get_link_key_event(uint16_t event, char *p_param){
+  bool bt_linkkey_file_found = false;
+  RawAddress *bd_addr = (RawAddress *)p_param;
+  LinkKey link_key;
+  int linkkey_type = 0;
+  size_t size = sizeof(link_key);
+
+  BTIF_TRACE_DEBUG("%s", __func__);
+
+  /* Get linkkey from config file */
+  if (btif_config_get_bin(bd_addr->ToString().c_str(), "LinkKey",  link_key.data(), &size)) {
+    if (btif_config_get_int(bd_addr->ToString().c_str(), "LinkKeyType", &linkkey_type)) {
+      bt_linkkey_file_found = true;
+    } else {
+      bt_linkkey_file_found = false;
+    }
+  }
+  HAL_CBACK(bt_hal_cbacks, get_link_key_cb, bd_addr, bt_linkkey_file_found, link_key, linkkey_type);
+}
+
+void btif_dm_get_link_key(const RawAddress *bd_addr){
+  BTIF_TRACE_DEBUG("%s", __func__);
+  btif_transfer_context(btif_vendor_get_link_key_event, BTIF_VENDOR_GET_LINK_KEY,
+                        (char *)bd_addr, sizeof(RawAddress), NULL);
+}
+

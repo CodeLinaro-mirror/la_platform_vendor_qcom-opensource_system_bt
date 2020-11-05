@@ -19,6 +19,10 @@
 #include "bluetooth.h"
 
 #define SDP_OPP_SUPPORTED_FORMATS_MAX_LENGTH 15
+/* The maximum length, in bytes, of an attribute. */
+#ifndef SDP_MAX_ATTR_LEN
+#define SDP_MAX_ATTR_LEN 400
+#endif
 
 __BEGIN_DECLS
 
@@ -32,7 +36,8 @@ typedef enum {
   SDP_TYPE_PBAP_PSE,    // Phone Book Profile - Server
   SDP_TYPE_PBAP_PCE,    // Phone Book Profile - Client
   SDP_TYPE_OPP_SERVER,  // Object Push Profile
-  SDP_TYPE_SAP_SERVER   // SIM Access Profile
+  SDP_TYPE_SAP_SERVER,  // SIM Access Profile
+  SDP_TYPE_DIP          // Device Identification Profile
 } bluetooth_sdp_types;
 
 typedef struct _bluetooth_sdp_hdr {
@@ -97,6 +102,19 @@ typedef struct _bluetooth_sdp_sap_record {
   bluetooth_sdp_hdr_overlay hdr;
 } bluetooth_sdp_sap_record;
 
+typedef struct _bluetooth_sdp_dip_record {
+  bluetooth_sdp_hdr_overlay hdr;
+  uint16_t spec_id;
+  uint16_t vendor;
+  uint16_t vendor_id_source;
+  uint16_t product;
+  uint16_t version;
+  bool primary_record;
+  char client_executable_url[SDP_MAX_ATTR_LEN]; /* optional */
+  char service_description[SDP_MAX_ATTR_LEN];   /* optional */
+  char documentation_url[SDP_MAX_ATTR_LEN];     /* optional */
+} bluetooth_sdp_dip_record;
+
 typedef union {
   bluetooth_sdp_hdr_overlay hdr;
   bluetooth_sdp_mas_record mas;
@@ -105,6 +123,7 @@ typedef union {
   bluetooth_sdp_pce_record pce;
   bluetooth_sdp_ops_record ops;
   bluetooth_sdp_sap_record sap;
+  bluetooth_sdp_dip_record dip;
 } bluetooth_sdp_record;
 
 /** Callback for SDP search */

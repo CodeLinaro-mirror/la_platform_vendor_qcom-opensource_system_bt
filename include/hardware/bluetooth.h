@@ -50,6 +50,10 @@
 #define BT_PROFILE_HEARING_AID_ID "hearing_aid"
 #define BT_KEYSTORE_ID "bluetooth_keystore"
 
+#define KEY_LEN 16
+//typedef uint8_t Link_Key[KEY_LEN]; /* Link Key */
+typedef std::array<uint8_t, KEY_LEN> Link_Key;
+
 /** Bluetooth Device Name */
 typedef struct { uint8_t name[249]; } __attribute__((packed)) bt_bdname_t;
 
@@ -400,6 +404,9 @@ typedef void (*le_test_mode_callback)(bt_status_t status, uint16_t num_packets);
 typedef void (*energy_info_callback)(bt_activity_energy_info* energy_info,
                                      bt_uid_traffic_t* uid_data);
 
+typedef void (*get_link_key_callback)(RawAddress* remote_bd_addr,
+                                      bool key_found, Link_Key link_key, int key_type);
+
 /** TODO: Add callbacks for Link Up/Down and other generic
  *  notifications/callbacks */
 
@@ -420,6 +427,7 @@ typedef struct {
   dut_mode_recv_callback dut_mode_recv_cb;
   le_test_mode_callback le_test_mode_cb;
   energy_info_callback energy_info_cb;
+  get_link_key_callback get_link_key_cb;
 } bt_callbacks_t;
 
 typedef void (*alarm_cb)(void* data);
@@ -529,6 +537,12 @@ typedef struct {
   /** Create Bluetooth Bond using out of band data */
   int (*create_bond_out_of_band)(const RawAddress* bd_addr, int transport,
                                  const bt_out_of_band_data_t* oob_data);
+
+  /** Add out of band bond device */
+  int (*add_out_of_band_bond_device)(const RawAddress *bd_addr, Link_Key link_key,
+                                     uint8_t key_type, uint8_t pin_len);
+  /** Get link key message */
+  void (*get_link_key)(const RawAddress* bd_addr);
 
   /** Remove Bond */
   int (*remove_bond)(const RawAddress* bd_addr);

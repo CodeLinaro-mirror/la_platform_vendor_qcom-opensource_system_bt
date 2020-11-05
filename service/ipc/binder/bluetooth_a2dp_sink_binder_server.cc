@@ -176,7 +176,7 @@ void BluetoothA2dpSinkBinderServer::OnAudioState(
 
 void BluetoothA2dpSinkBinderServer::OnAudioConfig(
     const std::string& device_address, uint32_t sample_rate,
-    uint8_t channel_count) {
+    uint8_t channel_count, btav_a2dp_codec_index_t codec_index) {
   std::lock_guard<std::mutex> lock(*maps_lock());
   auto cb = GetA2dpSinkCallback();
   if (!cb.get()) {
@@ -185,7 +185,7 @@ void BluetoothA2dpSinkBinderServer::OnAudioConfig(
   }
 
   cb->OnAudioConfig(String16(device_address.c_str()), sample_rate,
-                    channel_count);
+                    channel_count, codec_index);
 }
 
 bool BluetoothA2dpSinkBinderServer::HasInstance() {

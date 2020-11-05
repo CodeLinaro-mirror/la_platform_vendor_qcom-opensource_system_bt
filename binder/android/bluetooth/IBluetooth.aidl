@@ -68,6 +68,8 @@ interface IBluetooth
 
     BluetoothDevice[] getBondedDevices();
     boolean createBond(in BluetoothDevice device, in int transport, in OobData oobData);
+    boolean addOutOfBandBondDevice(in BluetoothDevice device, in String linkKey, in int linkKeyType, in int pinLen);
+    void getLinkKey(in BluetoothDevice device);
     boolean cancelBondProcess(in BluetoothDevice device);
     boolean removeBond(in BluetoothDevice device);
     int getBondState(in BluetoothDevice device);

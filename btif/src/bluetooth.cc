@@ -283,6 +283,12 @@ static int create_bond_out_of_band(const RawAddress* bd_addr, int transport,
   return btif_dm_create_bond_out_of_band(bd_addr, transport, oob_data);
 }
 
+static int add_out_of_band_bond_device(const RawAddress *bd_addr, Link_Key link_key,
+                                       uint8_t key_type, uint8_t pin_len) {
+  LOG_INFO(LOG_TAG, "add_out_of_band_bond_device");
+  return btif_dm_add_oob_bond_device(bd_addr, link_key, key_type, pin_len);
+}
+
 static int cancel_bond(const RawAddress* bd_addr) {
   /* sanity check */
   if (!interface_ready()) return BT_STATUS_NOT_READY;
@@ -484,6 +490,11 @@ static int get_metric_id(const RawAddress& address) {
       address);
 }
 
+static void get_link_key(const RawAddress *bd_addr){
+  LOG_INFO(LOG_TAG, "get_link_key");
+  btif_dm_get_link_key(bd_addr);
+}
+
 EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     sizeof(bluetoothInterface),
     init,
@@ -502,6 +513,8 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     cancel_discovery,
     create_bond,
     create_bond_out_of_band,
+    add_out_of_band_bond_device,
+    get_link_key,
     remove_bond,
     cancel_bond,
     get_connection_state,

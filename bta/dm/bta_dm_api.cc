@@ -63,6 +63,7 @@ tBTA_STATUS BTA_EnableBluetooth(tBTA_DM_SEC_CBACK* p_cback) {
 
   /* if UUID list is not provided as static data */
   bta_sys_eir_register(bta_dm_eir_update_uuid);
+  bta_sys_cust_eir_register(bta_dm_eir_update_cust_uuid);
 
   do_in_main_thread(FROM_HERE, base::Bind(bta_dm_enable, p_cback));
   return BTA_SUCCESS;

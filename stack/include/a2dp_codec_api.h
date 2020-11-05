@@ -574,6 +574,10 @@ typedef struct {
 // |p_codec_info| contains information about the codec capabilities.
 tA2DP_CODEC_TYPE A2DP_GetCodecType(const uint8_t* p_codec_info);
 
+// Gets index of A2DP Source codec.
+// |p_codec_info| contains information about the codec capabilities.
+btav_a2dp_codec_index_t A2DP_GetSourceCodecIndex(const uint8_t* p_codec_info);
+
 // Checks whether the codec capabilities contain a valid A2DP Source codec.
 // NOTE: only codecs that are implemented are considered valid.
 // Returns true if |p_codec_info| contains information about a valid codec,

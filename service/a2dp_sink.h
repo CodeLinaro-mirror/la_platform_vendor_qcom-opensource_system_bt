@@ -40,7 +40,9 @@ class A2dpSink : public BluetoothInstance,
                                    int state) = 0;
     virtual void OnAudioState(const std::string& device_address, int state) = 0;
     virtual void OnAudioConfig(const std::string& device_address,
-                               uint32_t sample_rate, uint8_t channel_count) = 0;
+                               uint32_t sample_rate,
+                               uint8_t channel_count,
+                               btav_a2dp_codec_index_t codec_index) = 0;
 
    protected:
     virtual ~Delegate() = default;
@@ -74,8 +76,10 @@ class A2dpSink : public BluetoothInstance,
                           const RawAddress& bd_addr,
                           btav_audio_state_t state) override;
   void AudioConfigCallback(bluetooth::hal::BluetoothAvInterface* iface,
-                           const RawAddress& bd_addr, uint32_t sample_rate,
-                           uint8_t channel_count) override;
+                           const RawAddress& bd_addr,
+                           uint32_t sample_rate,
+                           uint8_t channel_count,
+                           btav_a2dp_codec_index_t codec_index) override;
 
   // See getters above for documentation.
   const Uuid app_identifier_;

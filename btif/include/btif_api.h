@@ -280,6 +280,18 @@ bt_status_t btif_dm_create_bond_out_of_band(
     const bt_out_of_band_data_t* oob_data);
 
 /*******************************************************************************
+*
+* Function         btif_dm_add_oob_bond_device
+*
+* Description      add a bond out of band device.
+*
+* Returns          bt_status_t
+*
+*******************************************************************************/
+bt_status_t btif_dm_add_oob_bond_device(const RawAddress *bd_addr, LinkKey link_key,
+    uint8_t key_type, uint8_t pin_len);
+
+/*******************************************************************************
  *
  * Function         btif_dm_cancel_bond
  *
@@ -462,5 +474,16 @@ bt_status_t btif_config_hci_snoop_log(uint8_t enable);
  *
  ******************************************************************************/
 void btif_debug_bond_event_dump(int fd);
+
+/*******************************************************************************
+ *
+ * Function         btif_dm_get_link_key
+ *
+ * Description     get link key information
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btif_dm_get_link_key(const RawAddress *bd_addr);
 
 #endif /* BTIF_API_H */

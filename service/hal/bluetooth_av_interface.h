@@ -59,7 +59,8 @@ class BluetoothAvInterface {
     virtual void AudioConfigCallback(BluetoothAvInterface* iface,
                                      const RawAddress& bd_addr,
                                      uint32_t sample_rate,
-                                     uint8_t channel_count);
+                                     uint8_t channel_count,
+                                     btav_a2dp_codec_index_t codec_index);
 
    protected:
     virtual ~A2dpSinkObserver() = default;

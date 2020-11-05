@@ -51,6 +51,7 @@ class TestDelegate : public A2dpSink::Delegate {
     int state = -1;
     uint32_t sample_rate = 0;
     uint8_t channel_count = 0;
+    btav_a2dp_codec_index_t codec_index = BTAV_A2DP_CODEC_INDEX_SINK_MIN;
     int count = 0;
   };
 
@@ -67,11 +68,12 @@ class TestDelegate : public A2dpSink::Delegate {
     audio_state_.state = state;
   }
   void OnAudioConfig(const std::string& device_address, uint32_t sample_rate,
-                     uint8_t channel_count) override {
+                     uint8_t channel_count, btav_a2dp_codec_index_t codec_index) override {
     ++audio_config_.count;
     audio_config_.device_address = device_address;
     audio_config_.sample_rate = sample_rate;
     audio_config_.channel_count = channel_count;
+    audio_config_.codec_index = codec_index;
   }
 
   const RequestData& connection_state() const { return connection_state_; }
@@ -257,12 +259,14 @@ TEST_F(A2dpSinkPostRegisterTest, CallbackTest) {
   // OnAudioConfig
   const uint32_t kSampleRate = 44100;
   const uint32_t kChannelCount = 2;
+  const btav_a2dp_codec_index_t kCodecIndex = BTAV_A2DP_CODEC_INDEX_SINK_MIN;
   EXPECT_EQ(0, delegate.audio_config().count);
-  fake_hal_av_iface_->NotifyAudioConfig(hal_addr, kSampleRate, kChannelCount);
+  fake_hal_av_iface_->NotifyAudioConfig(hal_addr, kSampleRate, kChannelCount, kCodecIndex);
   EXPECT_EQ(1, delegate.audio_config().count);
   EXPECT_EQ(kTestAddr, delegate.audio_config().device_address);
   EXPECT_EQ(kSampleRate, delegate.audio_config().sample_rate);
   EXPECT_EQ(kChannelCount, delegate.audio_config().channel_count);
+  EXPECT_EQ(kCodecIndex, delegate.audio_config().codec_index);
 
   Disconnect(kTestAddr);
 }

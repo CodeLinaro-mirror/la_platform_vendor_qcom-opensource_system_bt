@@ -65,6 +65,7 @@ static constexpr tBTA_AV_HNDL kBtaHandleUnknown = 0;
 typedef struct {
   int sample_rate;
   int channel_count;
+  btav_a2dp_codec_index_t codec_index;
   RawAddress peer_address;
 } btif_av_sink_config_req_t;
 
@@ -686,8 +687,10 @@ static void btif_report_connection_state(const RawAddress& peer_address,
                                          btav_connection_state_t state);
 static void btif_report_audio_state(const RawAddress& peer_address,
                                     btav_audio_state_t state);
-static void btif_av_report_sink_audio_config_state(
-    const RawAddress& peer_address, int sample_rate, int channel_count);
+static void btif_av_report_sink_audio_config_state(const RawAddress& peer_address,
+                                                   int sample_rate,
+                                                   int channel_count,
+                                                   btav_a2dp_codec_index_t codec_index);
 static void btif_av_query_mandatory_codec_priority(
     const RawAddress& peer_address);
 static void btif_av_source_initiate_av_open_timer_timeout(void* data);
@@ -1530,7 +1533,8 @@ bool BtifAvStateMachine::StateIdle::ProcessEvent(uint32_t event, void* p_data) {
           static_cast<const btif_av_sink_config_req_t*>(p_data);
       btif_av_report_sink_audio_config_state(p_config_req->peer_address,
                                              p_config_req->sample_rate,
-                                             p_config_req->channel_count);
+                                             p_config_req->channel_count,
+                                             p_config_req->codec_index);
     } break;
 
     case BTA_AV_OPEN_EVT: {
@@ -1745,7 +1749,8 @@ bool BtifAvStateMachine::StateOpening::ProcessEvent(uint32_t event,
       if (peer_.IsSource()) {
         btif_av_report_sink_audio_config_state(p_config_req->peer_address,
                                                p_config_req->sample_rate,
-                                               p_config_req->channel_count);
+                                               p_config_req->channel_count,
+                                               p_config_req->codec_index);
       }
     } break;
 
@@ -2437,13 +2442,16 @@ void btif_av_report_source_codec_state(
  * @param channel_count the channel count (1 for Mono, 2 for Stereo)
  */
 static void btif_av_report_sink_audio_config_state(
-    const RawAddress& peer_address, int sample_rate, int channel_count) {
-  LOG_INFO(LOG_TAG, "%s: Peer %s : sample_rate=%d channel_count=%d", __func__,
-           peer_address.ToString().c_str(), sample_rate, channel_count);
+                                          const RawAddress& peer_address,
+                                          int sample_rate,
+                                          int channel_count,
+                                          btav_a2dp_codec_index_t codec_index) {
+  LOG_INFO(LOG_TAG, "%s: Peer %s : sample_rate=%d channel_count=%d codec_index=%d", __func__,
+           peer_address.ToString().c_str(), sample_rate, channel_count, codec_index);
   if (btif_av_sink.Enabled()) {
     do_in_jni_thread(FROM_HERE,
                      base::Bind(btif_av_sink.Callbacks()->audio_config_cb,
-                                peer_address, sample_rate, channel_count));
+                                peer_address, sample_rate, channel_count, codec_index));
   }
 }
 
@@ -2721,6 +2729,8 @@ static void bta_av_sink_media_callback(const RawAddress& peer_address,
         break;
       }
       config_req.peer_address = p_data->avk_config.bd_addr;
+      config_req.codec_index = A2DP_GetSourceCodecIndex(p_data->avk_config.codec_info);
+
       BtifAvEvent btif_av_event(BTIF_AV_SINK_CONFIG_REQ_EVT, &config_req,
                                 sizeof(config_req));
       do_in_main_thread(FROM_HERE,
