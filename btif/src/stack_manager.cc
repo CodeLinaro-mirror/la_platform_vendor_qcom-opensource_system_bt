@@ -37,6 +37,7 @@
 #include "btif_config.h"
 #include "device/include/device_iot_config.h"
 #include "btif_profile_queue.h"
+#include "btif_bap_config.h"
 
 static thread_t* management_thread;
 
@@ -119,6 +120,8 @@ static void event_init_stack(void* context) {
 #endif
     module_init(get_module(BTIF_CONFIG_MODULE));
 
+    module_init(get_module(BTIF_BAP_CONFIG_MODULE));
+
     future_t* local_hack_future = future_new();
     hack_future = local_hack_future;
     btif_init_bluetooth();
@@ -158,6 +161,8 @@ static void event_start_up_stack(UNUSED_ATTR void* context) {
 
   // Include this for now to put btif config into a shutdown-able state
   module_start_up(get_module(BTIF_CONFIG_MODULE));
+
+  module_start_up(get_module(BTIF_BAP_CONFIG_MODULE));
 #if (BT_IOT_LOGGING_ENABLED == TRUE)
   module_start_up(get_module(DEVICE_IOT_CONFIG_MODULE));
 #endif
@@ -189,6 +194,8 @@ static void event_shut_down_stack(UNUSED_ATTR void* context) {
 
   btif_disable_bluetooth();
   module_shut_down(get_module(BTIF_CONFIG_MODULE));
+
+  module_shut_down(get_module(BTIF_BAP_CONFIG_MODULE));
 #if (BT_IOT_LOGGING_ENABLED == TRUE)
   module_shut_down(get_module(DEVICE_IOT_CONFIG_MODULE));
 #endif
@@ -229,6 +236,8 @@ static void event_clean_up_stack(void* context) {
   btif_vendor_cleanup_iot_broadcast_timer();
   btif_cleanup_bluetooth();
   module_clean_up(get_module(BTIF_CONFIG_MODULE));
+
+  module_clean_up(get_module(BTIF_BAP_CONFIG_MODULE));
 #if (BT_IOT_LOGGING_ENABLED == TRUE)
   module_clean_up(get_module(DEVICE_IOT_CONFIG_MODULE));
 #endif

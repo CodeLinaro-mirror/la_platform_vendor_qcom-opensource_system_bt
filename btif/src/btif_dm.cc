@@ -117,7 +117,7 @@
 #include "stack/sdp/sdpint.h"
 #include "btif_tws_plus.h"
 #include "device/include/device_iot_config.h"
-
+#include "btif_bap_config.h"
 
 using bluetooth::Uuid;
 /******************************************************************************
@@ -2752,6 +2752,7 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       btif_hearing_aid_get_interface()->RemoveDevice(bd_addr);
       btif_storage_remove_bonded_device(&bd_addr);
       BTA_CsipRemoveUnpairedSetMember(bd_addr);
+      btif_bap_remove_all_records(bd_addr);
       BTA_DmResetPairingflag(bd_addr);
       bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_NONE);
       break;

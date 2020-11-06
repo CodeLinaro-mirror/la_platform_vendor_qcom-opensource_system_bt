@@ -36,6 +36,9 @@
 #include <hardware/bluetooth.h>
 #include <hardware/bt_av.h>
 #include <hardware/bt_csip.h>
+#include <hardware/bt_apm.h>
+#include <hardware/bt_cap.h>
+#include <hardware/bt_pacs_client.h>
 #include <hardware/bt_gatt.h>
 #include <hardware/bt_hd.h>
 #include <hardware/bt_hf.h>
@@ -80,9 +83,10 @@
 #include "osi/include/wakelock.h"
 #include "stack/gatt/connection_manager.h"
 #include "stack_manager.h"
-
+#include "btif_bap_config.h"
 
 using bluetooth::hearing_aid::HearingAidInterface;
+using bluetooth::bap::pacs::PacsClientInterface;
 
 /*******************************************************************************
  *  Static variables
@@ -139,6 +143,9 @@ extern btvendor_interface_t *btif_vendor_hf_get_interface();
 /* broadcast transmitter */
 extern ba_transmitter_interface_t *btif_bat_get_interface();
 extern btrc_vendor_ctrl_interface_t *btif_rc_vendor_ctrl_get_interface();
+extern bt_apm_interface_t *btif_apm_get_interface();
+extern btcap_initiator_interface_t* btif_cap_initiator_get_interface();
+extern PacsClientInterface *btif_pacs_client_get_interface();
 
 /*******************************************************************************
  *  Functions
@@ -426,6 +433,18 @@ static const void* get_profile_interface(const char* profile_id) {
     return btif_csip_get_interface();
   }
 
+  if (is_profile(profile_id, BT_APM_MODULE_ID)) {
+    return btif_apm_get_interface();
+  }
+
+  if (is_profile(profile_id, BT_PROFILE_CAP_ID)) {
+    return btif_cap_initiator_get_interface();
+  }
+
+  if (is_profile(profile_id, BT_PROFILE_PACS_CLIENT_ID)) {
+    return btif_pacs_client_get_interface();
+  }
+
   return NULL;
 }
 
@@ -467,6 +486,7 @@ static void dumpMetrics(std::string* output) {
 
 static int config_clear(void) {
   LOG_INFO(LOG_TAG, "%s", __func__);
+  btif_bap_config_clear();
   return btif_config_clear() ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
 }
 
