@@ -164,6 +164,8 @@ extern bool bt_split_a2dp_enabled;
 extern void btif_av_set_reconfig_flag(tBTA_AV_HNDL bta_handle);
 extern bool btif_av_check_is_reconfig_pending_flag_set(RawAddress address);
 extern bool btif_av_check_is_cached_reconfig_event_exist(RawAddress address);
+extern bool btif_av_check_is_retry_reconfig_set(RawAddress address);
+extern void btif_av_clear_is_retry_reconfig_flag(RawAddress address);
 
 /*******************************************************************************
  **
@@ -1637,7 +1639,8 @@ bool bta_av_co_set_codec_user_config(
     goto done;
   }
 
-  if (restart_output || hndl > 0) {
+  if (restart_output ||
+      ((hndl > 0) && btif_av_check_is_retry_reconfig_set(bt_addr))) {
     uint8_t num_protect = 0;
 #if (BTA_AV_CO_CP_SCMS_T == TRUE)
     if (p_peer->cp_active) num_protect = AVDT_CP_INFO_LEN;
@@ -1663,17 +1666,25 @@ bool bta_av_co_set_codec_user_config(
       p_peer->acp = false;
       isDevUiReq = false;
     }
-    btif_av_set_reconfig_flag(hndl);
-    uint8_t index = BTA_AV_CO_AUDIO_HNDL_TO_INDX(hndl);
-    if (index == btif_a2dp_source_last_remote_start_index()) {
-      APPL_TRACE_EVENT("%s: clear remote start idx: %d as part of Reconfig", __func__, index);
-      btif_a2dp_source_cancel_remote_start();
+
+
+    APPL_TRACE_DEBUG("%s: rcfg_pend_active: %d", __func__, p_peer->rcfg_pend_active);
+    if (!p_peer->rcfg_pend_active) {
+      btif_av_set_reconfig_flag(hndl);
+      uint8_t index = BTA_AV_CO_AUDIO_HNDL_TO_INDX(hndl);
+      if (index == btif_a2dp_source_last_remote_start_index()) {
+        APPL_TRACE_EVENT("%s: clear remote start idx: %d as part of Reconfig", __func__, index);
+        btif_a2dp_source_cancel_remote_start();
+      }
+      APPL_TRACE_DEBUG("%s: call BTA_AvReconfig(x%x)", __func__, p_peer->handle);
+      BTA_AvReconfig(p_peer->handle, true, p_sink->sep_info_idx,
+                     p_peer->codec_config, num_protect, bta_av_co_cp_scmst);
+      p_peer->rcfg_done = true;
+      p_peer->reconfig_needed = false;
+      if (btif_av_check_is_retry_reconfig_set(bt_addr)) {
+        btif_av_clear_is_retry_reconfig_flag(bt_addr);
+      }
     }
-    APPL_TRACE_DEBUG("%s: call BTA_AvReconfig(x%x)", __func__, p_peer->handle);
-    BTA_AvReconfig(p_peer->handle, true, p_sink->sep_info_idx,
-                   p_peer->codec_config, num_protect, bta_av_co_cp_scmst);
-    p_peer->rcfg_done = true;
-    p_peer->reconfig_needed = false;
   }
 
 done:
@@ -2056,7 +2067,7 @@ void bta_av_co_init(
     if (p_peer != NULL && p_peer->codecs == NULL)
       p_peer->codecs = new A2dpCodecs(codec_priorities);
 
-    if (p_peer->codecs != nullptr)
+    if (p_peer && p_peer->codecs != nullptr)
       p_peer->codecs->init(isMcastSupported);
 
     p_peer->isIncoming = false;
@@ -2076,18 +2087,17 @@ void bta_av_co_peer_init(
     const std::vector<btav_a2dp_codec_config_t>& codec_priorities, int index) {
   APPL_TRACE_DEBUG("%s", __func__);
 
-  tBTA_AV_CO_PEER* p_peer;
   bool a2dp_offload = btif_av_is_split_a2dp_enabled();
   bool isMcastSupported = btif_av_is_multicast_supported();
+  tBTA_AV_CO_PEER* p_peer = &bta_av_co_cb.peers[index];
   if (a2dp_offload) {
     isMcastSupported = false;
   }
 
-  p_peer = &bta_av_co_cb.peers[index];
   if (p_peer != NULL &&  p_peer->codecs == NULL)
     p_peer->codecs = new A2dpCodecs(codec_priorities);
 
-  if (p_peer->codecs != nullptr)
+  if (p_peer && p_peer->codecs != nullptr)
     p_peer->codecs->init(isMcastSupported);
 
   p_peer->isIncoming = false;
