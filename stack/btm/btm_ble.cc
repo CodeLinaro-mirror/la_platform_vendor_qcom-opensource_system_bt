@@ -3280,7 +3280,8 @@ uint8_t BTM_BleSetCigParam(tBTM_BLE_ISO_SET_CIG_CMD_PARAM* p_data) {
   return HCI_SUCCESS;
 }
 
-uint8_t BTM_BleCreateCis(tBTM_BLE_ISO_CREATE_CIS_CMD_PARAM* p_data) {
+uint8_t BTM_BleCreateCis(tBTM_BLE_ISO_CREATE_CIS_CMD_PARAM* p_data,
+                         tBTM_BLE_CIS_DISCONNECTED_CB* p_cb) {
   BTM_TRACE_API("%s", __func__);
 
   if (!controller_get_interface()->is_host_iso_channel_supported()
@@ -3288,6 +3289,8 @@ uint8_t BTM_BleCreateCis(tBTM_BLE_ISO_CREATE_CIS_CMD_PARAM* p_data) {
     BTM_TRACE_ERROR("%s: Unsupported feature. Return.", __func__);
     return HCI_ERR_UNSUPPORTED_VALUE;
   }
+
+  hci_cmd_cmpl.cis_disconnected_cb = p_cb;
 
   /* New Logic to start alarm and preserve handles */
   tBTM_BLE_PENDING_CIS_CONN pending_conn;

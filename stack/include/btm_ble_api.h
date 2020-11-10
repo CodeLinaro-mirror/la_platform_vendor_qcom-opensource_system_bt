@@ -858,7 +858,8 @@ extern uint8_t BTM_BleSetCigParam(tBTM_BLE_ISO_SET_CIG_CMD_PARAM* p_data);
  *                  0x11 : Unsupported Feature (HCI Error)
  *
  ******************************************************************************/
-extern uint8_t BTM_BleCreateCis(tBTM_BLE_ISO_CREATE_CIS_CMD_PARAM* p_data);
+extern uint8_t BTM_BleCreateCis(tBTM_BLE_ISO_CREATE_CIS_CMD_PARAM* p_data,
+                                tBTM_BLE_CIS_DISCONNECTED_CB* p_cb);
 
 /*******************************************************************************
  *
