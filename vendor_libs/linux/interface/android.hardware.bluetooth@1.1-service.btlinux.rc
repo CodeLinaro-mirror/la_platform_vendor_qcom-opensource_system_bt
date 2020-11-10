@@ -3,3 +3,8 @@ service btlinux-1.1 /vendor/bin/hw/android.hardware.bluetooth@1.1-service.btlinu
     user bluetooth
     group bluetooth net_admin net_bt_admin
     capabilities NET_ADMIN
+    disabled
+
+on property:preferred.bt.service=passthrough
+    stop vendor.bluetooth-1-1
+    start btlinux-1.1
