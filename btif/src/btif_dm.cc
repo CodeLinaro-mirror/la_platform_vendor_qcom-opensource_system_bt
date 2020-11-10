@@ -1748,7 +1748,12 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       }
 
       /* Enable local privacy */
-      BTA_DmBleConfigLocalPrivacy(BLE_LOCAL_PRIVACY_ENABLED);
+      if (!stack_config_get_interface()->get_pts_local_privacy_disable()) {
+         BTA_DmBleConfigLocalPrivacy(BLE_LOCAL_PRIVACY_ENABLED);
+      } else {
+         BTIF_TRACE_DEBUG("%s: Local Privacy disabled from conf", __func__);
+         BTA_DmBleConfigLocalPrivacy(false);
+      }
 
       /* for each of the enabled services in the mask, trigger the profile
        * enable */

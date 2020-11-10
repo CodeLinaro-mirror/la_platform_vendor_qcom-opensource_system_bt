@@ -29,6 +29,7 @@ const char* TRACE_CONFIG_ENABLED_KEY = "TraceConf";
 const char* PTS_SECURE_ONLY_MODE = "PTS_SecurePairOnly";
 const char* PTS_LE_CONN_UPDATED_DISABLED = "PTS_DisableConnUpdates";
 const char* PTS_DISABLE_SDP_LE_PAIR = "PTS_DisableSDPOnLEPair";
+const char* PTS_DISABLE_LOCAL_PRIVACY = "PTS_DisableLocalPrivacy";
 const char* PTS_SMP_PAIRING_OPTIONS_KEY = "PTS_SmpOptions";
 const char* PTS_SMP_FAILURE_CASE_KEY = "PTS_SmpFailureCase";
 const char *PTS_LE_NONCONN_ADV_MODE = "PTS_EnableNonConnAdvMode";
@@ -100,6 +101,11 @@ static bool get_pts_crosskey_sdp_disable(void) {
                          PTS_DISABLE_SDP_LE_PAIR, false);
 }
 
+static bool get_pts_local_privacy_disable(void) {
+  return config_get_bool(config, CONFIG_DEFAULT_SECTION,
+                         PTS_DISABLE_LOCAL_PRIVACY, false);
+}
+
 static const char* get_pts_smp_options(void) {
   return config_get_string(config, CONFIG_DEFAULT_SECTION,
                            PTS_SMP_PAIRING_OPTIONS_KEY, NULL);
@@ -165,6 +171,7 @@ const stack_config_t interface = {get_trace_config_enabled,
                                   get_pts_secure_only_mode,
                                   get_pts_conn_updates_disabled,
                                   get_pts_crosskey_sdp_disable,
+                                  get_pts_local_privacy_disable,
                                   get_pts_smp_options,
                                   get_pts_smp_failure_case,
                                   get_pts_le_nonconn_adv_enabled,
