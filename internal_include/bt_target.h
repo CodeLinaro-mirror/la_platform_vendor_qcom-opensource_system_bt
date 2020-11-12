@@ -452,6 +452,11 @@
 #define BTM_SSR_INCLUDED TRUE
 #endif
 
+/* TRUE to support set link supervision timeout*/
+#ifndef BTM_SET_LINK_SUPER_TOUT
+#define BTM_SET_LINK_SUPER_TOUT TRUE
+#endif
+
 /*************************
  * End of Lisbon Features
  *************************/

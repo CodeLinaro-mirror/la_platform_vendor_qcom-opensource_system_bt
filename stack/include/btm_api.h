@@ -743,6 +743,7 @@ extern void BTM_SetDefaultLinkPolicy(uint16_t settings);
  ******************************************************************************/
 extern void BTM_SetDefaultLinkSuperTout(uint16_t timeout);
 
+#if (BTM_SET_LINK_SUPER_TOUT == TRUE)
 /*******************************************************************************
  *
  * Function         BTM_SetLinkSuperTout
@@ -754,6 +755,7 @@ extern void BTM_SetDefaultLinkSuperTout(uint16_t timeout);
  ******************************************************************************/
 extern tBTM_STATUS BTM_SetLinkSuperTout(const RawAddress& remote_bda,
                                         uint16_t timeout);
+#endif
 /*******************************************************************************
  *
  * Function         BTM_GetLinkSuperTout
