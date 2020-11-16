@@ -1909,6 +1909,8 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
                 __func__);
                 btif_av_cb[index].flags &= ~BTIF_AV_FLAG_REMOTE_SUSPEND;
             } else {
+              //Setup codec during remote start
+              btif_a2dp_source_setup_codec(btif_av_cb[index].bta_handle);
               BTIF_TRACE_DEBUG("%s: Not starting suspend timer",__func__);
               //btif_av_cb[index].remote_started = true;
               //btif_a2dp_honor_remote_start();
@@ -4732,6 +4734,7 @@ bt_status_t btif_av_execute_service(bool b_enable) {
     for (i = 0; i < btif_max_av_clients; i++)
       BTA_AvDeregister(btif_av_cb[i].bta_handle);
     BTA_AvDisable();
+    bta_av_co_cleanup();
   }
   BTIF_TRACE_DEBUG("%s: enable: %d completed", __func__, b_enable);
   return BT_STATUS_SUCCESS;
