@@ -79,6 +79,7 @@ bool btif_av_is_connected(void) { return false; }
 bool btif_av_is_sink_enabled(void) { return false; }
 RawAddress btif_av_sink_active_peer(void) { return RawAddress(); }
 RawAddress btif_av_source_active_peer(void) { return RawAddress(); }
+bool btif_av_sink_set_active_device(const RawAddress& peer_address) { return true; }
 bool btif_av_stream_started_ready(void) { return false; }
 bt_status_t btif_transfer_context(tBTIF_CBACK* p_cback, uint16_t event,
                                   char* p_params, int param_len,
