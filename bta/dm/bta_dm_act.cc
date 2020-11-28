@@ -5684,6 +5684,8 @@ static void bta_lea_get_role_info(RawAddress peer_address, uint16_t conn_id,
           APPL_TRACE_DEBUG("%s:CSIS service found Uuid: %s ", __func__,
                             service.uuid.ToString().c_str());
 
+          p_lea_cb->is_csip_support = true;
+          bta_dm_csis_disc_complete(bta_dm_search_cb.peer_bdaddr, false);
           // Get Characteristic and CCCD handle
           for (const gatt::Characteristic& charac : service.characteristics) {
             Uuid lock_uuid = charac.uuid;
@@ -5834,6 +5836,7 @@ void bta_dm_lea_disc_complete(RawAddress p_bd_addr) {
   APPL_TRACE_DEBUG("%s %s", __func__, p_bd_addr.ToString().c_str());
 
   if (p_lea_cb) {
+  APPL_TRACE_DEBUG("csip_disc_progress %d", p_lea_cb->csip_disc_progress);
     if ((p_lea_cb->disc_progress == 0) &&
         (p_lea_cb->csip_disc_progress)) { //Add CSIS check also
       result.lea_disc_cmpl.num_uuids = 0;
@@ -5910,6 +5913,8 @@ static tBTA_LE_AUDIO_DEV_INFO* bta_set_lea_ctrl_cb(RawAddress peer_addr) {
       if (!bta_le_audio_dev_cb.bta_lea_dev_info[i].in_use) {
         bta_le_audio_dev_cb.bta_lea_dev_info[i].peer_address = peer_addr;
         bta_le_audio_dev_cb.bta_lea_dev_info[i].in_use = true;
+        bta_le_audio_dev_cb.bta_lea_dev_info[i].csip_disc_progress = true;
+        bta_le_audio_dev_cb.bta_lea_dev_info[i].is_csip_support = false;
         bta_le_audio_dev_cb.num_lea_devices++;
         return (&(bta_le_audio_dev_cb.bta_lea_dev_info[i]));
       }
@@ -5977,6 +5982,26 @@ static void bta_dm_set_lea_dev_info(tBTA_GATTC_OPEN* p_data) {
 
 /*******************************************************************************
  *
+ * Function         is_csip_supported
+ *
+ * Description      This function checks whether csip support is there or not on
+ *                  remote side
+ *
+ * Parameters:
+ *
+ ******************************************************************************/
+
+bool is_csip_supported(RawAddress rem_bda) {
+  tBTA_LE_AUDIO_DEV_INFO *p_lea_cb = bta_get_lea_ctrl_cb(rem_bda);
+  if (p_lea_cb == NULL) {
+    return false;
+  } else {
+    return p_lea_cb->is_csip_support;
+  }
+}
+
+/*******************************************************************************
+ *
  * Function         bta_dm_gattc_callback
  *
  * Description      This is GATT client callback function used in DM.
@@ -6011,22 +6036,22 @@ static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
                                   p_data->search_cmpl.status);
         if (is_remote_dev_le_support(bta_dm_search_cb.peer_bdaddr)) {
           if (p_data->search_cmpl.status == 0) {
-            RawAddress p_id_addr =
-              bta_lea_get_id_addr(bta_dm_search_cb.peer_bdaddr);
-            bta_dm_csis_disc_complete(bta_dm_search_cb.peer_bdaddr, false);
-            if (p_id_addr != RawAddress::kEmpty) {
-              BTA_CsipFindCsisInstance(p_data->search_cmpl.conn_id,
-                  p_data->search_cmpl.status,
-                  p_id_addr);
-            } else {
-              BTA_CsipFindCsisInstance(p_data->search_cmpl.conn_id,
-                  p_data->search_cmpl.status,
-                  bta_dm_search_cb.peer_bdaddr);
-            }
-
             bta_lea_get_role_info(bta_dm_search_cb.peer_bdaddr,
-            p_data->search_cmpl.conn_id,
-            p_data->search_cmpl.status);
+              p_data->search_cmpl.conn_id,
+              p_data->search_cmpl.status);
+            if (is_csip_supported(bta_dm_search_cb.peer_bdaddr)) {
+              RawAddress p_id_addr =
+                bta_lea_get_id_addr(bta_dm_search_cb.peer_bdaddr);
+              if (p_id_addr != RawAddress::kEmpty) {
+                BTA_CsipFindCsisInstance(p_data->search_cmpl.conn_id,
+                    p_data->search_cmpl.status,
+                    p_id_addr);
+              } else {
+                BTA_CsipFindCsisInstance(p_data->search_cmpl.conn_id,
+                    p_data->search_cmpl.status,
+                    bta_dm_search_cb.peer_bdaddr);
+              }
+            }
           } else {
             APPL_TRACE_DEBUG("%s Discovery Failure ", __func__);
           }
@@ -6150,9 +6175,12 @@ static void bta_dm_lea_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) 
 
     case BTA_GATTC_SEARCH_CMPL_EVT:
       if (is_remote_dev_le_support(bta_le_audio_dev_cb.pending_peer_addr)) {
+        bta_lea_get_role_info(bta_le_audio_dev_cb.pending_peer_addr,
+            p_data->search_cmpl.conn_id,
+            p_data->search_cmpl.status);
+        if (is_csip_supported(bta_le_audio_dev_cb.pending_peer_addr)) {
           RawAddress p_id_addr =
             bta_lea_get_id_addr(bta_le_audio_dev_cb.pending_peer_addr);
-          bta_dm_csis_disc_complete(bta_le_audio_dev_cb.pending_peer_addr, false);
           if (p_id_addr != RawAddress::kEmpty) {
             BTA_CsipFindCsisInstance(p_data->search_cmpl.conn_id,
                 p_data->search_cmpl.status,
@@ -6162,9 +6190,7 @@ static void bta_dm_lea_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) 
                 p_data->search_cmpl.status,
                 bta_le_audio_dev_cb.pending_peer_addr);
           }
-        bta_lea_get_role_info(bta_le_audio_dev_cb.pending_peer_addr,
-        p_data->search_cmpl.conn_id,
-        p_data->search_cmpl.status);
+        }
       }
       break;
 

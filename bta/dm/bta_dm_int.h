@@ -871,6 +871,7 @@ typedef struct {
   uint16_t tmas_role_handle = 0;
   uint16_t pacs_char_handle = 0;
   bool csip_disc_progress = true;
+  bool is_csip_support = false;
 } tBTA_LE_AUDIO_DEV_INFO;
 
 typedef struct {
