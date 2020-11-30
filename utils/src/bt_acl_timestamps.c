@@ -259,6 +259,14 @@ void bt_acl_init_timestamps_by_handle(UINT16 handle)
 void bt_acl_remove_timestamps_by_handle(UINT16 handle)
 {
     for (int i = 0; i < MAX_CONNECTIONS; i++) {
+        if (cid_info[i].handle == handle) {
+            cid_info[i].handle = HCI_INVALID_HANDLE;
+            LOG_VERBOSE("%s free lcid_info, handle %d", __func__, handle);
+            break;
+        }
+    }
+
+    for (int i = 0; i < MAX_CONNECTIONS; i++) {
         if (packet_time_info[i].handle == handle) {
             packet_time_info[i].handle = HCI_INVALID_HANDLE;
             LOG_VERBOSE("%s handle %d. queue size: %d", __func__, handle, fixed_queue_length(packet_time_info[i].pktQ));

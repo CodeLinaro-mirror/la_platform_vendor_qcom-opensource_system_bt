@@ -215,7 +215,7 @@ typedef UINT8 (tBTM_FILTER_CB) (BD_ADDR bd_addr, DEV_CLASS dc);
 
 /* high byte of inquiry mode for BLE inquiry mode */
 #define BTM_BLE_INQUIRY_NONE         0x00
-#define BTM_BLE_GENERAL_INQUIRY      0x10
+#define BTM_BLE_GENERAL_INQUIRY      0x00
 #define BTM_BLE_LIMITED_INQUIRY      0x20
 #define BTM_BLE_INQUIRY_MASK         (BTM_BLE_GENERAL_INQUIRY|BTM_BLE_LIMITED_INQUIRY)
 
