@@ -1031,6 +1031,16 @@ extern void AVDT_SndPendingSigSuspend_Rsp(uint8_t handle, bool accepted);
 *******************************************************************************/
 extern void avdt_scb_update_supported_codecs(uint8_t *p_codec_type, uint8_t *p_vnd, uint8_t *p_codec_id, uint8_t num_codec_cfg, uint8_t codec_info[][AVDT_CODEC_SIZE], uint8_t tsep);
 
+/*******************************************************************************
+**
+** Function         update_aptx_ad_ttp_range_to_caps
+**
+** Description      Update aptx-ad TTP values to capabilities
+**
+** Returns          void.
+**
+*******************************************************************************/
+extern void update_aptx_ad_ttp_range_to_caps(uint8_t min, uint8_t max);
 
 /*******************************************************************************
  *
