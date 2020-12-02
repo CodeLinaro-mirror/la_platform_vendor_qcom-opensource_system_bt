@@ -2412,6 +2412,8 @@ void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
   uint8_t len;
   tBTM_INQUIRY_VAR_ST* p_inq = &btm_cb.btm_inq_vars;
 
+  VLOG(2)<< __func__ << "Event type " << evt_type << " BDA " << bda;
+
   /* Save the info */
   p_cur->inq_result_type |= BTM_INQ_RESULT_BLE;
   p_cur->ble_addr_type = addr_type;
@@ -2445,6 +2447,8 @@ void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
   }
 
   if (!data.empty()) {
+
+    VLOG(2) << __func__ << " parsing ADV data ";
     /* Check to see the BLE device has the Appearance UUID in the advertising
      * data.  If it does
      * then try to convert the appearance value to a class of device value
@@ -2473,7 +2477,7 @@ void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
           }
           if (((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_ASCS)
             || ((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_BASS)) {
-            VLOG(1)<< __func__ << " LEA_DBG ";
+            VLOG(1) << __func__ << " updated to LE VENDOR COD ";
             p_cur->dev_class[0] = 0;
             p_cur->dev_class[1] = BTM_COD_MAJOR_LE_AUDIO;
             p_cur->dev_class[2] = 0;
@@ -2493,7 +2497,7 @@ void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
          * in class of device */
         if (((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_ASCS)
           || ((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_BASS)) {
-          VLOG(1)<< __func__ << " LEA_DBG 1 ";
+          VLOG(1) << __func__ << " updated to LE VENDOR COD ";
           p_cur->dev_class[0] = 0;
           p_cur->dev_class[1] = BTM_COD_MAJOR_LE_AUDIO;
           p_cur->dev_class[2] = 0;
@@ -2770,9 +2774,19 @@ static void btm_ble_process_adv_pkt_cont(
                 /* scan repsonse to be updated */
                 (!p_i->scan_rsp))) {
       update = true;
+    } else if (p_i && ((!ble_evt_type_is_legacy(evt_type) &&
+          ble_evt_type_is_legacy(p_i->inq_info.results.ble_evt_type))
+      || (ble_evt_type_is_legacy(evt_type) &&
+        !ble_evt_type_is_legacy(p_i->inq_info.results.ble_evt_type)))) {
+      /*
+       * Setting update to true if the previous adv event type is legacy
+       * and current adv event is extended adv, viceversa
+       */
+      update = true;
     } else if (BTM_BLE_IS_OBS_ACTIVE(btm_cb.ble_ctr_cb.scan_activity)) {
       update = false;
     } else {
+      VLOG(1)<< __func__ << " skipped BDA " << bda;
       /* if yes, skip it */
       return; /* assumption: one result per event */
     }
