@@ -860,8 +860,8 @@ class BleAdvertiserHciExtendedImpl : public BleAdvertiserHciInterface {
     std::vector<uint16_t> conn_handle_list;
 
     STREAM_TO_UINT8(status, p);
+    STREAM_TO_UINT8(big_handle, p);
     if (status == HCI_SUCCESS) {
-      STREAM_TO_UINT8(big_handle, p);
       STREAM_TO_UINT24(big_sync_delay, p);
       STREAM_TO_UINT24(transport_latency_big, p);
       STREAM_TO_UINT8(phy, p);
