@@ -33,6 +33,9 @@
 #include "btif_cap_source.h"
 #include "btif_ahim.h"
 #include "btif_cap.h"
+#include "osi/include/thread.h"
+
+extern thread_t* get_worker_thread();
 
 #if AHIM_ENABLED
 
@@ -119,8 +122,8 @@ bool btif_cap_source_start_session(const RawAddress& peer_address) {
   APPL_TRACE_DEBUG("%s: starting session for BD addr %s",__func__,
         peer_address.ToString().c_str());
 
-  // initialize hal.  TODO: check if NULL is handled or thread needs to be created
-  btif_ahim_init_hal(nullptr, CAP);
+  // initialize hal.
+  btif_ahim_init_hal(get_worker_thread(), CAP);
 
   status = btif_cap_source_setup_codec();
 
