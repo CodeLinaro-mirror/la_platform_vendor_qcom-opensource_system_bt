@@ -53,6 +53,10 @@ alarm_t* alarm_new_periodic(const char* name);
 // |alarm_free| from inside the callback of |alarm|.
 void alarm_free(alarm_t* alarm);
 
+// Frees an |alarm| data created by |alarm_new| or
+// |alarm_new_periodic|. |alarm| may be NULL.
+void alarm_data_free(alarm_t* alarm);
+
 // Sets an |alarm| to execute a callback in the future. The |cb|
 // callback is called after the given |interval_ms|, where
 // |interval_ms| is the number of milliseconds relative to the
