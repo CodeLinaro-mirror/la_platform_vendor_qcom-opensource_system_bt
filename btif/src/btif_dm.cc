@@ -877,7 +877,6 @@ static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
   int addr_type;
   std::string addrstr = bd_addr.ToString();
   const char* bdstr = addrstr.c_str();
-  bool is_le_transport = false;
   if (transport == BT_TRANSPORT_LE) {
     if (!btif_config_get_int(bdstr, "DevType", &device_type)) {
       btif_config_set_int(bdstr, "DevType", BT_DEVICE_TYPE_BLE);
@@ -899,10 +898,6 @@ static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
         BT_STATUS_SUCCESS) &&
        (device_type & BT_DEVICE_TYPE_BLE) == BT_DEVICE_TYPE_BLE) ||
       (transport == BT_TRANSPORT_LE)) {
-    //TODO lea
-    if (is_remote_dev_le_support(bd_addr)) {
-      is_le_transport = true;
-    }
     BTA_DmAddBleDevice(bd_addr, addr_type, device_type);
   }
 
@@ -912,13 +907,11 @@ static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
     if (status != BT_STATUS_SUCCESS)
       bond_state_changed(status, bd_addr, BT_BOND_STATE_NONE);
   } else {
-    if (is_le_transport || is_remote_dev_le_support(bd_addr)) {
-      bta_lea_update_bond_db(bd_addr, BT_TRANSPORT_LE);
-    } else {
-      bta_lea_update_bond_db(bd_addr, BT_TRANSPORT_BR_EDR);
+    if (is_remote_dev_le_support(bd_addr)) {
+      bta_lea_update_bond_db(bd_addr, transport);
     }
     //TODO Verify it shouldnt impact the legacy
-    if (is_le_transport || is_remote_dev_le_support(bd_addr)) {
+    if (is_remote_dev_le_support(bd_addr)) {
       BTIF_TRACE_DEBUG("%s bonding through LE_TRANSPORT ", __func__);
       BTA_DmBondByTransport(bd_addr, BT_TRANSPORT_LE);
     } else {
