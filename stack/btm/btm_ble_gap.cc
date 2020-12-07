@@ -2475,13 +2475,15 @@ void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
             p_cur->dev_class[2] = 0;
             break;
           }
-          if (((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_ASCS)
-            || ((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_BASS)) {
-            VLOG(1) << __func__ << " updated to LE VENDOR COD ";
-            p_cur->dev_class[0] = 0;
-            p_cur->dev_class[1] = BTM_COD_MAJOR_LE_AUDIO;
-            p_cur->dev_class[2] = 0;
-            break;
+          if (controller_get_interface()->is_adv_audio_supported()) {
+            if (((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_ASCS)
+                || ((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_BASS)) {
+              VLOG(1) << __func__ << " updated to LE VENDOR COD ";
+              p_cur->dev_class[0] = 0;
+              p_cur->dev_class[1] = BTM_COD_MAJOR_LE_AUDIO;
+              p_cur->dev_class[2] = 0;
+              break;
+            }
           }
         }
       }
@@ -2493,15 +2495,17 @@ void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
     if (p_uuid16 != NULL) {
       uint8_t i;
       for (i = 0; i + 2 <= len; i = i + 2) {
-        /* if this BLE device support LE AUDIO over LE, set LE AUDIO Major 
-         * in class of device */
-        if (((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_ASCS)
-          || ((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_BASS)) {
-          VLOG(1) << __func__ << " updated to LE VENDOR COD ";
-          p_cur->dev_class[0] = 0;
-          p_cur->dev_class[1] = BTM_COD_MAJOR_LE_AUDIO;
-          p_cur->dev_class[2] = 0;
-          break;
+        if (controller_get_interface()->is_adv_audio_supported()) {
+          /* if this BLE device support LE AUDIO over LE, set LE AUDIO Major
+           * in class of device */
+          if (((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_ASCS)
+              || ((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_BASS)) {
+            VLOG(1) << __func__ << " updated to LE VENDOR COD ";
+            p_cur->dev_class[0] = 0;
+            p_cur->dev_class[1] = BTM_COD_MAJOR_LE_AUDIO;
+            p_cur->dev_class[2] = 0;
+            break;
+          }
         }
       }
     }

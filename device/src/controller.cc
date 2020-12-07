@@ -129,7 +129,8 @@ bool decode_max_power_values(char *);
 std::map<uint8_t, uint8_t> std_codec_transport;
 std::map<uint32_t, uint8_t> vs_codec_transport;
 
-// update codec and its corresponding transport
+uint8_t g_adv_audio_prop = 0;
+
 void update_soc_codec_transport();
 
 #define AWAIT_COMMAND(command) \
@@ -631,6 +632,7 @@ static future_t* start_up(void) {
     LOG(FATAL) << " Controller must support Read Encryption Key Size command";
   }
 
+  g_adv_audio_prop = adv_audio_support_mask;
   readable = true;
   return future_new_immediate(FUTURE_SUCCESS);
 }
@@ -1075,6 +1077,14 @@ static bool get_max_power_values(uint8_t *power_val) {
   return max_power_prop_enabled;
 }
 
+static bool is_adv_audio_supported(void) {
+    if ((g_adv_audio_prop & ADV_AUDIO_UNICAST_FEAT_MASK) ||
+              (g_adv_audio_prop & ADV_AUDIO_BROADCAST_FEAT_MASK))
+          return true;
+
+      return false;
+}
+
 static const controller_t interface = {
     get_is_ready,
 
@@ -1154,6 +1164,7 @@ static const controller_t interface = {
     is_pow_ctr_req_supported,
     is_pathloss_monitoring_supported,
     get_max_power_values,
+    is_adv_audio_supported,
 };
 
 const controller_t* controller_get_interface() {

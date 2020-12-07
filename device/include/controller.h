@@ -117,6 +117,7 @@ typedef struct controller_t {
   bool (*is_pow_ctr_req_supported)(void);
   bool (*is_pathloss_monitoring_supported)(void);
   bool (*get_max_power_values)(uint8_t *);
+  bool (*is_adv_audio_supported)(void);
 } controller_t;
 
 const controller_t* controller_get_interface();
