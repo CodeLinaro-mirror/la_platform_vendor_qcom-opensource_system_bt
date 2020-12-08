@@ -60,7 +60,7 @@
 int a2dp_aptxad_caps_initialized = 0;
 
 /* aptX-adaptive Source codec capabilities */
-static const tA2DP_APTX_ADAPTIVE_CIE a2dp_aptx_adaptive_src_caps = {
+static tA2DP_APTX_ADAPTIVE_CIE a2dp_aptx_adaptive_src_caps = {
     A2DP_APTX_ADAPTIVE_VENDOR_ID,          /* vendorId */
     A2DP_APTX_ADAPTIVE_CODEC_ID_BLUETOOTH, /* codecId */
     //A2DP_APTX_ADAPTIVE_SAMPLERATE_48000,   /* sampleRate */
@@ -82,7 +82,7 @@ static const tA2DP_APTX_ADAPTIVE_CIE a2dp_aptx_adaptive_src_caps = {
 };
 
 /* Default aptX-adaptive codec configuration */
-static const tA2DP_APTX_ADAPTIVE_CIE a2dp_aptx_adaptive_offload_caps = {
+static tA2DP_APTX_ADAPTIVE_CIE a2dp_aptx_adaptive_offload_caps = {
     A2DP_APTX_ADAPTIVE_VENDOR_ID,          /* vendorId */
     A2DP_APTX_ADAPTIVE_CODEC_ID_BLUETOOTH, /* codecId */
     A2DP_APTX_ADAPTIVE_SAMPLERATE_48000,   /* sampleRate */
@@ -1094,10 +1094,17 @@ bool A2dpCodecConfigAptxAdaptive::setCodecConfig(const uint8_t* p_peer_codec_inf
   }
 
   result_config_cie.sourceType = a2dp_aptx_adaptive_caps.sourceType;
-  result_config_cie.ttp_ll_0 = a2dp_aptx_adaptive_caps.ttp_ll_0;
-  result_config_cie.ttp_ll_1 = a2dp_aptx_adaptive_caps.ttp_ll_1;
-  result_config_cie.ttp_hq_0 = a2dp_aptx_adaptive_caps.ttp_hq_0;
-  result_config_cie.ttp_hq_1 = a2dp_aptx_adaptive_caps.ttp_hq_1;
+  result_config_cie.ttp_ll_0 = sink_info_cie.ttp_ll_0;
+  result_config_cie.ttp_ll_1 = sink_info_cie.ttp_ll_1;
+  result_config_cie.ttp_hq_0 = sink_info_cie.ttp_hq_0;
+  result_config_cie.ttp_hq_1 = sink_info_cie.ttp_hq_1;
+
+  //Update in a2dp_aptx_adaptive_caps for future use
+  a2dp_aptx_adaptive_caps.ttp_ll_0 = sink_info_cie.ttp_ll_0;
+  a2dp_aptx_adaptive_caps.ttp_ll_1 = sink_info_cie.ttp_ll_1;
+  a2dp_aptx_adaptive_caps.ttp_hq_0 = sink_info_cie.ttp_hq_0;
+  a2dp_aptx_adaptive_caps.ttp_hq_1 = sink_info_cie.ttp_hq_1;
+
   result_config_cie.ttp_tws_0 = a2dp_aptx_adaptive_caps.ttp_tws_0;
   result_config_cie.ttp_tws_1 = a2dp_aptx_adaptive_caps.ttp_tws_1;
   result_config_cie.eoc0 = a2dp_aptx_adaptive_caps.eoc0;
@@ -1115,6 +1122,12 @@ bool A2dpCodecConfigAptxAdaptive::setCodecConfig(const uint8_t* p_peer_codec_inf
   if (codec_user_config_.codec_specific_3 != codec_config_.codec_specific_3 ) {
     codec_user_config_.codec_specific_3 = codec_config_.codec_specific_3;
   }
+
+  //set TTP min and max values
+  codec_config_.ttp_ll_min = result_config_cie.ttp_ll_0;
+  codec_config_.ttp_ll_max = result_config_cie.ttp_ll_1;
+  codec_config_.ttp_hq_min = result_config_cie.ttp_hq_0;
+  codec_config_.ttp_hq_max = result_config_cie.ttp_hq_1;
 
   LOG_ERROR(LOG_TAG, "setting codec_config_.codec_specific_4 to channelMode: %d", channelMode);
   // Store the channel mode in spare field
