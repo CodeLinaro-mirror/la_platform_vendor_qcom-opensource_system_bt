@@ -692,16 +692,33 @@ static uint8_t avdt_msg_prs_none(UNUSED_ATTR tAVDT_MSG* p_msg,
  ******************************************************************************/
 static uint8_t avdt_msg_prs_single(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len) {
   uint8_t err = 0;
+  uint8_t sep = 0;
+
+  /* get connected channel control Block p_ccb and
+   * associated allocated p_scb */
+  AvdtpCcb* p_ccb = avdt_ccb_by_idx(p_msg->hdr.ccb_idx);
+  AvdtpScb* p_scb = &(p_ccb->scb[0]);
 
   /* verify len */
   if (len != AVDT_LEN_SINGLE) {
     err = AVDT_ERR_LENGTH;
   } else {
     AVDT_MSG_PRS_SEID(p, p_msg->single.seid);
-
-    if (avdt_scb_by_hdl(p_msg->single.seid) == NULL) {
-      err = AVDT_ERR_SEID;
+    /* PTS: AVDTP/SNK/ACP/SIG/SMG/BI-11-C
+     * PTS send get configure cmd with seid = 62,
+     * which is point at an allocated p_scb. */
+    for (sep = 0; sep < AVDT_NUM_SEPS; sep++, p_scb++) {
+      /* If get p_scb by SEID value and
+       * the p_scb is one of p_ccb associated p_scb,
+       * The SEID is valid in current connected audio chanel */
+      if (p_scb == avdt_scb_by_hdl(p_msg->single.seid)) {
+        return err;
+      }
     }
+
+    /* The p_scb is NOT associated with current p_ccb.
+     * judged to error SEID */
+    err = AVDT_ERR_SEID;
   }
   return err;
 }
