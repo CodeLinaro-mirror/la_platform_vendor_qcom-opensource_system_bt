@@ -3663,6 +3663,4 @@ void btm_ble_cis_disconnected(uint8_t status, uint16_t cis_handle, uint8_t reaso
   if (hci_cmd_cmpl.cis_disconnected_cb) {
     (*hci_cmd_cmpl.cis_disconnected_cb)(status, cis_handle, reason);
   }
-  // remove from cis_map map
-  btm_ble_remove_cis_handle(cis_handle);
 }
