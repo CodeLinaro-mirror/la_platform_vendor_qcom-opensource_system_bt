@@ -1443,7 +1443,7 @@ incoming connection
  *
  **************************/
 #ifndef BLE_PS_PAST_IF_SUPPORTED
-#define BLE_PS_PAST_IF_SUPPORTED FALSE
+#define BLE_PS_PAST_IF_SUPPORTED TRUE
 #endif
 /******************************************************************************
  *
@@ -1498,6 +1498,13 @@ incoming connection
 
 #include "bt_trace.h"
 
+/* Enable AHIM for LE Audio */
+/*
+#ifndef AHIM_ENABLED
+#define AHIM_ENABLED TRUE
+#endif
+*/
+
 /******************************************************************************
  *
  * Off target test
@@ -1510,7 +1517,7 @@ incoming connection
 
 /* BLE ISO IF support */
 #ifndef BLE_ISO_IF_SUPPORTED
-#define BLE_ISO_IF_SUPPORTED FALSE
+#define BLE_ISO_IF_SUPPORTED TRUE
 #endif
 
 /******************************************************************************
@@ -1520,7 +1527,7 @@ incoming connection
  *****************************************************************************/
 /* EATT IF support */
 #ifndef EATT_IF_SUPPORTED
-#define EATT_IF_SUPPORTED FALSE
+#define EATT_IF_SUPPORTED TRUE
 #endif
 
 #endif /* BT_TARGET_H */
