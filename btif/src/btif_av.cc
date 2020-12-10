@@ -2066,10 +2066,8 @@ bool BtifAvStateMachine::StateStarted::ProcessEvent(uint32_t event,
                __PRETTY_FUNCTION__, peer_.PeerAddress().ToString().c_str(),
                BtifAvEvent::EventName(event).c_str(), p_av->suspend.status,
                p_av->suspend.initiator, peer_.FlagsToString().c_str());
-      if (peer_.IsSource()) {
-        // A2DP suspended, stop A2DP encoder/decoder until resumed
-        btif_a2dp_on_suspended(peer_.PeerAddress(), &p_av->suspend);
-      }
+      // A2DP suspended, stop A2DP encoder/decoder until resumed
+      btif_a2dp_on_suspended(peer_.PeerAddress(), &p_av->suspend);
       // If not successful, remain in current state
       if (p_av->suspend.status != BTA_AV_SUCCESS) {
         peer_.ClearFlags(BtifAvPeer::kFlagLocalSuspendPending);
