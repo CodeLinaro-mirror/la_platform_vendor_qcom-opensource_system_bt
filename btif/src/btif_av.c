@@ -3256,6 +3256,7 @@ static bt_status_t update_supported_codecs_param_vendor(btav_codec_configuration
         return BT_STATUS_PARM_INVALID;
     }
 
+#if 0
     // Check if the codec params sent by upper layers are valid or not.
     for (i = 0; i < num_codec_configs; i ++) {
         switch (p_codec_config_list[i].codec_type) {
@@ -3357,6 +3358,7 @@ static bt_status_t update_supported_codecs_param_vendor(btav_codec_configuration
                 return BT_STATUS_PARM_INVALID;
         }
     }
+#endif
 
     pthread_mutex_lock(&src_codec_q_lock);
     if (p_bta_av_codec_pri_list == NULL) {
