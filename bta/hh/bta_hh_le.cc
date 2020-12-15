@@ -888,6 +888,10 @@ static void write_rpt_ctl_cfg_cb(uint16_t conn_id, tGATT_STATUS status,
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   const tBTA_GATTC_DESCRIPTOR* p_desc =
       BTA_GATTC_GetDescriptor(conn_id, handle);
+  if (!p_desc) {
+     APPL_TRACE_ERROR("%s: error: descriptor is null!", __func__);
+     return;
+  }
 
   uint16_t char_uuid = p_desc->characteristic->uuid.As16Bit();
 
@@ -1420,7 +1424,8 @@ void bta_hh_le_close(tBTA_GATTC_CLOSE* p_data) {
  ******************************************************************************/
 void bta_hh_le_configureMTU(const RawAddress& remote_bda, uint16_t mtu) {
   tBTA_HH_DEV_CB* p_dev_cb = bta_hh_le_find_dev_cb_by_bda(remote_bda);
-  BTA_GATTC_ConfigureMTU(p_dev_cb->conn_id, mtu);
+  if(NULL != p_dev_cb)
+     BTA_GATTC_ConfigureMTU(p_dev_cb->conn_id, mtu);
 }
 
 /*******************************************************************************
