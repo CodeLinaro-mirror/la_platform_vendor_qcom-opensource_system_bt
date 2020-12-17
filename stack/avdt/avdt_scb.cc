@@ -38,6 +38,8 @@
 #include "btu.h"
 #include "osi/include/osi.h"
 #include "a2dp_constants.h"
+#include "a2dp_vendor.h"
+#include "a2dp_vendor_aptx_adaptive_constants.h"
 
 /*****************************************************************************
  * state machine constants and types
@@ -142,6 +144,12 @@ const tAVDT_SCB_ACTION avdt_scb_action[] = {avdt_scb_hdl_abort_cmd,
 #define AVDT_SCB_ACTIONS 2    /* number of actions */
 #define AVDT_SCB_NEXT_STATE 2 /* position of next state */
 #define AVDT_SCB_NUM_COLS 3   /* number of columns in state tables */
+
+/* ll and hq range in codec information*/
+#define LL_MIN 11
+#define LL_MAX 12
+#define HQ_MIN 13
+#define HQ_MAX 14
 
 /* state table for idle state */
 const uint8_t avdt_scb_st_idle[][AVDT_SCB_NUM_COLS] = {
@@ -1079,6 +1087,50 @@ void avdt_scb_set_max_av_client(uint8_t max_clients) {
  ******************************************************************************/
 uint8_t avdt_scb_get_max_av_client() {
     return max_av_clients;
+}
+
+/*******************************************************************************
+ *
+ * Function         update_aptx_ad_ttp_range_to_caps
+ *
+ * Description      update TTP range to capabilities
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+void update_aptx_ad_ttp_range_to_caps(uint8_t min, uint8_t max)
+{
+  int i=0;
+  tAVDT_SCB *p_scb;
+
+   p_scb = &avdt_cb.scb[0];
+
+   AVDT_TRACE_WARNING("%s", __func__);
+
+   for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++)
+   {
+       if (p_scb != NULL)
+       {
+         AVDT_TRACE_WARNING("%s, p_scb valid ",__func__);
+         uint8_t *p_codec_info = p_scb->cs.cfg.codec_info;
+         uint32_t vendor_id = A2DP_VendorCodecGetVendorId(p_codec_info);
+         uint16_t codec_id = A2DP_VendorCodecGetCodecId(p_codec_info);
+
+         // Check for aptX-Adaptive
+        if (vendor_id == A2DP_APTX_ADAPTIVE_VENDOR_ID &&
+            codec_id == A2DP_APTX_ADAPTIVE_CODEC_ID_BLUETOOTH) {
+            // update TTP range
+            AVDT_TRACE_WARNING("%s , updating TTP range with min %d max %d",
+                                    __func__, min, max);
+            p_scb->cs.cfg.codec_info[LL_MIN] = min;
+            p_scb->cs.cfg.codec_info[LL_MAX] = max;
+            p_scb->cs.cfg.codec_info[HQ_MIN] = min;
+            p_scb->cs.cfg.codec_info[HQ_MAX] = max;
+            break;
+       }
+     }
+   }
+   AVDT_TRACE_WARNING("%s exiting",__func__);
 }
 
 

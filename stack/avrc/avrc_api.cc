@@ -207,6 +207,8 @@ void avrc_start_cmd_timer(uint8_t handle, uint8_t label, uint8_t msg_mask) {
   AVRC_TRACE_DEBUG("AVRC: starting timer (handle=0x%02x, label=0x%02x)", handle,
                    label);
 
+  //Incase of overwriting the alarm , free the alarm data before overwriting
+  alarm_data_free(avrc_cb.ccb_int[handle].tle);
   alarm_set_on_mloop(avrc_cb.ccb_int[handle].tle, AVRC_CMD_TOUT_MS,
                      avrc_process_timeout, param);
 }
@@ -674,6 +676,7 @@ static void avrc_msg_cback(uint8_t handle, uint8_t label, uint8_t cr,
   } else if (cr == AVCT_RSP) {
     /* Received response. Stop command timeout timer */
     AVRC_TRACE_DEBUG("AVRC: stopping timer (handle=0x%02x)", handle);
+    alarm_data_free(avrc_cb.ccb_int[handle].tle);
     alarm_cancel(avrc_cb.ccb_int[handle].tle);
   }
 

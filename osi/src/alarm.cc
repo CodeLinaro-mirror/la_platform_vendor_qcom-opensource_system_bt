@@ -209,6 +209,14 @@ void alarm_free(alarm_t* alarm) {
   osi_free(alarm);
 }
 
+void alarm_data_free(alarm_t* alarm) {
+  if (alarm == NULL) return;
+
+  if(alarm->data != NULL){
+    osi_free(alarm->data);
+  }
+}
+
 period_ms_t alarm_get_remaining_ms(const alarm_t* alarm) {
   CHECK(alarm != NULL);
   period_ms_t remaining_ms = 0;

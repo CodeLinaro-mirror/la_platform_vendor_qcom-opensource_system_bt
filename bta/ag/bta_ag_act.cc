@@ -869,6 +869,7 @@ void bta_ag_svc_conn_open(tBTA_AG_SCB* p_scb,
     /* Clear AT+BIA mask from previous SLC if any. */
     p_scb->bia_masked_out = 0;
 
+    alarm_data_free(p_scb->ring_timer);
     alarm_cancel(p_scb->ring_timer);
 
     /* call callback */

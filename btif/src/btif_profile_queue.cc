@@ -288,6 +288,7 @@ void btif_queue_advance_by_uuid(uint16_t uuid, const RawAddress* bda) {
 
    btif_transfer_context(queue_int_handle_evt, BTIF_QUEUE_ADVANCE_BY_UUID_EVT,
                                (char*)node, sizeof(connect_node_t), NULL);
+   osi_free(node);
 }
 
 // This function dispatches the next pending connect request. It is called from

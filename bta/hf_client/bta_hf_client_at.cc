@@ -1997,8 +1997,12 @@ void bta_hf_client_send_at_bia(tBTA_HF_CLIENT_CB* client_cb) {
 }
 
 void bta_hf_client_at_init(tBTA_HF_CLIENT_CB* client_cb) {
-  alarm_free(client_cb->at_cb.resp_timer);
-  alarm_free(client_cb->at_cb.hold_timer);
+  if(client_cb->at_cb.resp_timer!= NULL)
+     alarm_free(client_cb->at_cb.resp_timer);
+  if(client_cb->at_cb.hold_timer!= NULL)
+     alarm_free(client_cb->at_cb.hold_timer);
+  client_cb->at_cb.resp_timer = NULL;
+  client_cb->at_cb.hold_timer = NULL;
   memset(&(client_cb->at_cb), 0, sizeof(tBTA_HF_CLIENT_AT_CB));
   client_cb->at_cb.resp_timer = alarm_new("bta_hf_client.scb_at_resp_timer");
   client_cb->at_cb.hold_timer = alarm_new("bta_hf_client.scb_at_hold_timer");
