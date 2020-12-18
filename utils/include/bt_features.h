@@ -31,5 +31,6 @@
 #define ANDROID_INCLUDE_ADV_AUD_H
 
 /* Feature Support */
+#define ADV_AUDIO_FEATURE 1
 
 #endif
