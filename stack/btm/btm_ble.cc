@@ -2629,8 +2629,6 @@ void btm_ble_set_cig_param_cmd_cmpl(uint8_t *param, uint16_t param_len) {
     }
   }
 
-  //clear callback
-  hci_cmd_cmpl.set_cig_param = NULL;
   // deallocate dynamic memory for connection handles
   osi_free(ret_param.conn_handle);
 }
@@ -2856,8 +2854,6 @@ void btm_ble_remove_cig_cmd_cmpl(uint8_t *param, uint16_t param_len) {
     (*hci_cmd_cmpl.remove_cig) (status, cig_id);
   }
 
-  //clear callback
-  hci_cmd_cmpl.remove_cig = NULL;
   // clear all cis handles corresponding to cig_id
   if (status == HCI_SUCCESS) {
     btm_ble_remove_cis_handles_for_cig(cig_id);
@@ -2881,8 +2877,6 @@ void btm_ble_reject_cis_req_cmd_cmpl(uint8_t *param, uint16_t param_len) {
     (*hci_cmd_cmpl.reject_cis_cb) (status, conn_handle);
   }
 
-  //clear callback
-  hci_cmd_cmpl.reject_cis_cb = NULL;
 }
 
 void btm_ble_peer_sca_cmpl_evt(uint8_t *param, uint16_t param_len) {
@@ -2929,8 +2923,6 @@ void btm_ble_read_iso_link_qlt_cmd_cmpl(uint8_t *param, uint16_t param_len) {
     (*hci_cmd_cmpl.iso_link_qly_cb) (&ret_param);
   }
 
-  //clear callback
-  hci_cmd_cmpl.iso_link_qly_cb = NULL;
 }
 
 void btm_ble_enh_read_tx_pow_level_cmd_cmpl(uint8_t *param, uint16_t param_len) {
@@ -2954,8 +2946,6 @@ void btm_ble_enh_read_tx_pow_level_cmd_cmpl(uint8_t *param, uint16_t param_len) 
     (*hci_cmd_cmpl.tx_pow_level_cb) (&ret_param);
   }
 
-  //clear callback
-  hci_cmd_cmpl.tx_pow_level_cb = NULL;
 }
 
 void btm_ble_read_iso_tx_sync_cmd_cmpl(uint8_t *param, uint16_t param_len) {
@@ -2979,8 +2969,6 @@ void btm_ble_read_iso_tx_sync_cmd_cmpl(uint8_t *param, uint16_t param_len) {
     (*hci_cmd_cmpl.iso_tx_sync_cb) (&ret_param);
   }
 
-  //clear callback
-  hci_cmd_cmpl.iso_tx_sync_cb = NULL;
 }
 
 void btm_ble_read_remote_tx_pow_level_cmd_cmpl(uint8_t *param, uint16_t param_len) {
@@ -3005,8 +2993,6 @@ void btm_ble_read_remote_tx_pow_level_cmd_cmpl(uint8_t *param, uint16_t param_le
     (*hci_cmd_cmpl.remote_tx_pow_cb) (&ret_param);
   }
 
-  //clear callback
-  hci_cmd_cmpl.remote_tx_pow_cb = NULL;
 }
 
 void btm_ble_set_pathloss_param_cmd_cmpl(uint8_t *param, uint16_t param_len) {
@@ -3026,8 +3012,6 @@ void btm_ble_set_pathloss_param_cmd_cmpl(uint8_t *param, uint16_t param_len) {
     (*hci_cmd_cmpl.pathloss_rpt_cb) (status, conn_handle);
   }
 
-  //clear callback
-  hci_cmd_cmpl.pathloss_rpt_cb = NULL;
 }
 
 void btm_ble_set_pathloss_rpt_enable_cmd_cmpl(uint8_t *param, uint16_t param_len) {
@@ -3047,8 +3031,6 @@ void btm_ble_set_pathloss_rpt_enable_cmd_cmpl(uint8_t *param, uint16_t param_len
     (*hci_cmd_cmpl.pathloss_rpt_enable_cb) (status, conn_handle);
   }
 
-  //clear callback
-  hci_cmd_cmpl.pathloss_rpt_enable_cb = NULL;
 }
 
 void btm_ble_path_loss_threshold_evt(uint8_t *param, uint16_t param_len) {
@@ -3086,8 +3068,6 @@ void btm_ble_set_tx_pow_rpt_enable_cmd_cmpl(uint8_t *param, uint16_t param_len) 
     (*hci_cmd_cmpl.tx_pow_rpt_enable_cb) (status, conn_handle);
   }
 
-  //clear callback
-  hci_cmd_cmpl.tx_pow_rpt_enable_cb = NULL;
 }
 
 void btm_ble_transmit_power_reporting_event(uint8_t *param, uint16_t param_len) {
@@ -3134,8 +3114,6 @@ void btm_ble_set_cig_param_test_cmd_cmpl(uint8_t *param, uint16_t param_len) {
     (*hci_cmd_cmpl.cig_param_test_cmpl) (&ret_param);
   }
 
-  //clear callback
-  hci_cmd_cmpl.cig_param_test_cmpl = NULL;
   // free memory conn_handle memory
   osi_free(ret_param.conn_handle);
 }
@@ -3161,8 +3139,6 @@ void btm_ble_iso_test_end_cmd_cmpl(uint8_t *param, uint16_t param_len) {
     (*hci_cmd_cmpl.iso_test_end_cmpl) (&ret_param);
   }
 
-  //clear callback
-  hci_cmd_cmpl.iso_test_end_cmpl = NULL;
 }
 
 void btm_ble_iso_read_test_cnt_cmd_cmpl(uint8_t *param, uint16_t param_len) {
@@ -3186,8 +3162,6 @@ void btm_ble_iso_read_test_cnt_cmd_cmpl(uint8_t *param, uint16_t param_len) {
     (*hci_cmd_cmpl.read_test_cnt_cmpl) (&ret_param);
   }
 
-  //clear callback
-  hci_cmd_cmpl.read_test_cnt_cmpl = NULL;
 }
 
 void btm_ble_iso_receive_test_cmd_cmpl(uint8_t *param, uint16_t param_len) {
@@ -3208,8 +3182,6 @@ void btm_ble_iso_receive_test_cmd_cmpl(uint8_t *param, uint16_t param_len) {
     (*hci_cmd_cmpl.iso_rcv_test_cmpl) (status, conn_handle);
   }
 
-  //clear callback
-  hci_cmd_cmpl.iso_rcv_test_cmpl = NULL;
 }
 
 void btm_ble_iso_transmit_test_cmd_cmpl(uint8_t *param, uint16_t param_len) {
@@ -3230,8 +3202,6 @@ void btm_ble_iso_transmit_test_cmd_cmpl(uint8_t *param, uint16_t param_len) {
     (*hci_cmd_cmpl.iso_tx_test_cmpl) (status, conn_handle);
   }
 
-  //clear callback
-  hci_cmd_cmpl.iso_tx_test_cmpl = NULL;
 }
 
 void btm_ble_transmitter_testv4_cmd_cmpl(uint8_t *param, uint16_t param_len) {
@@ -3249,8 +3219,6 @@ void btm_ble_transmitter_testv4_cmd_cmpl(uint8_t *param, uint16_t param_len) {
     (*hci_cmd_cmpl.tx_test_v4_cmpl) (status);
   }
 
-  //clear callback
-  hci_cmd_cmpl.tx_test_v4_cmpl = NULL;
 }
 
 /* ------------------------------------------------------------------------------
