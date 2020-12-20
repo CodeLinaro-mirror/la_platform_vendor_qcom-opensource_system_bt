@@ -34,7 +34,7 @@
 
 #if AHIM_ENABLED
 
-uint8_t cur_active_profile = CAP;
+uint8_t cur_active_profile = A2DP;
 
 void btif_ahim_update_current_profile(uint8_t profile)
 {
