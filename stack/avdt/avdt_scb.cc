@@ -797,6 +797,9 @@ void avdt_scb_event(tAVDT_SCB* p_scb, uint8_t event, tAVDT_SCB_EVT* p_data) {
   /* execute action functions */
   for (i = 0; i < AVDT_SCB_ACTIONS; i++) {
     action = state_table[event][i];
+    AVDT_TRACE_DEBUG("%s: event=%d=%s state=%s action=%d", __func__, event,
+                     avdt_scb_evt_str[event], avdt_scb_st_str[p_scb->state],
+                     action);
     if (action != AVDT_SCB_IGNORE) {
       (*avdt_cb.p_scb_act[action])(p_scb, p_data);
     } else {
@@ -982,14 +985,24 @@ uint8_t avdt_scb_verify(tAVDT_CCB* p_ccb, uint8_t state, uint8_t* p_seid,
     switch (state) {
       case AVDT_VERIFY_OPEN:
       case AVDT_VERIFY_START:
-        if (p_scb->state != AVDT_SCB_OPEN_ST &&
+        /* Fix for below KW issue
+         * Pointer 'p_scb' returned from call to function 'avdt_scb_by_hdl' at line 977
+         * may be NULL and may be dereferenced at line 993
+         */
+        if (p_scb != NULL &&
+            p_scb->state != AVDT_SCB_OPEN_ST &&
             p_scb->state != AVDT_SCB_STREAM_ST)
           *p_err_code = AVDT_ERR_BAD_STATE;
         break;
 
       case AVDT_VERIFY_SUSPEND:
       case AVDT_VERIFY_STREAMING:
-        if (p_scb->state != AVDT_SCB_STREAM_ST)
+        /* Fix for below KW issue
+         * Pointer 'p_scb' returned from call to function 'avdt_scb_by_hdl' at line 977
+         * may be NULL and may be dereferenced at line 1005
+         */
+        if (p_scb != NULL &&
+            p_scb->state != AVDT_SCB_STREAM_ST)
           *p_err_code = AVDT_ERR_BAD_STATE;
         break;
     }

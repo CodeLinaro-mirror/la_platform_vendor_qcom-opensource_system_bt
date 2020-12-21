@@ -92,6 +92,7 @@ uint32_t avdt_scb_gen_ssrc(tAVDT_SCB* p_scb) {
  *
  ******************************************************************************/
 void avdt_scb_hdl_abort_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
+  AVDT_TRACE_DEBUG("%s:", __func__);
   p_scb->role = AVDT_CLOSE_ACP;
   avdt_scb_event(p_scb, AVDT_SCB_API_ABORT_RSP_EVT, p_data);
 }
@@ -108,6 +109,7 @@ void avdt_scb_hdl_abort_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
  ******************************************************************************/
 void avdt_scb_hdl_abort_rsp(UNUSED_ATTR tAVDT_SCB* p_scb,
                             UNUSED_ATTR tAVDT_SCB_EVT* p_data) {
+  AVDT_TRACE_DEBUG("%s:", __func__);
   return;
 }
 
@@ -574,7 +576,10 @@ bool avdt_check_sep_state(tAVDT_SCB *p_scb) {
     int num_codecs = num_sep/num_stream;
     for (i = 0; i < num_sep;i += num_codecs) {
       bool in_use = false;
-      for (j = i;j < (i+num_codecs); j++) {
+      /* Fix for below KW issue
+       * Array 'scb' of size 35 may use index value(s) 35..51
+       */
+      for (j = i; j < (i+num_codecs) && j < AVDT_NUM_SEPS; j++) {
         tAVDT_SCB *temp_scb = &avdt_cb.scb[j];
         if (temp_scb->in_use)
           in_use = true;
@@ -1040,6 +1045,10 @@ void avdt_scb_hdl_tc_open(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
 
   if ((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
     delay_rpt_alarm = alarm_new_periodic("avdt.delayreport");
+    if (delay_rpt_alarm == NULL) {
+      AVDT_TRACE_ERROR("%s: unable to allocate delay report alarm", __func__);
+      return;
+    }
     alarm_set(delay_rpt_alarm, (period_ms_t)1000 ,(alarm_callback_t)avdt_delay_rpt_tmr_hdlr,
               (void*)p_scb);
     AVDT_TRACE_DEBUG(" %s ~~ start update delay report timer",__func__);
@@ -1186,6 +1195,7 @@ void avdt_scb_snd_abort_req(tAVDT_SCB* p_scb,
  ******************************************************************************/
 void avdt_scb_snd_abort_rsp(UNUSED_ATTR tAVDT_SCB* p_scb,
                             tAVDT_SCB_EVT* p_data) {
+  AVDT_TRACE_DEBUG("%s:", __func__);
   avdt_msg_send_rsp(avdt_ccb_by_idx(p_data->msg.hdr.ccb_idx), AVDT_SIG_ABORT,
                     &p_data->msg);
 }
