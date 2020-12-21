@@ -210,7 +210,7 @@ void a2dp_vendor_aptx_encoder_init(
                                   &restart_output, &config_updated);
 }
 
-bool A2dpCodecConfigAptx::updateEncoderUserConfig(
+bool A2dpCodecConfigAptxSource::updateEncoderUserConfig(
     const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params, bool* p_restart_input,
     bool* p_restart_output, bool* p_config_updated) {
   a2dp_aptx_encoder_cb.is_peer_edr = p_peer_params->is_peer_edr;
@@ -482,15 +482,15 @@ static size_t aptx_encode_16bit(tAPTX_FRAMING_PARAMS* framing_params,
   return pcm_bytes_encoded;
 }
 
-uint64_t A2dpCodecConfigAptx::encoderIntervalMs() const {
+uint64_t A2dpCodecConfigAptxSource::encoderIntervalMs() const {
   return a2dp_vendor_aptx_get_encoder_interval_ms();
 }
 
-int A2dpCodecConfigAptx::getEffectiveMtu() const {
+int A2dpCodecConfigAptxSource::getEffectiveMtu() const {
   return a2dp_aptx_encoder_cb.peer_mtu;
 }
 
-void A2dpCodecConfigAptx::debug_codec_dump(int fd) {
+void A2dpCodecConfigAptxSource::debug_codec_dump(int fd) {
   a2dp_aptx_encoder_stats_t* stats = &a2dp_aptx_encoder_cb.stats;
 
   A2dpCodecConfig::debug_codec_dump(fd);

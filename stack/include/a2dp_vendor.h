@@ -80,7 +80,7 @@ bool A2DP_IsVendorPeerSourceCodecSupported(const uint8_t* p_codec_info);
 // |p_codec_info| contains information about the codec capabilities of the
 // peer device.
 // Returns index of vendor-specific A2DP Source codec for a peer Source device
-btav_a2dp_codec_index_t A2DP_GetVendorSourceCodecIndex(const uint8_t* p_codec_info);
+btav_a2dp_codec_index_t A2DP_VendorGetSourceCodecIndex(const uint8_t* p_codec_info);
 
 // Gets the Vendor ID for the vendor-specific A2DP codec.
 // |p_codec_info| contains information about the codec capabilities.

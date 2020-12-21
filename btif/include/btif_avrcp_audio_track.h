@@ -26,10 +26,11 @@
  * volume control we should deprecate this file.
  */
 
+#include "btif_av.h"
+
 /**
  * Creates an audio track object and returns a void handle. Use this handle to
- * the
- * following functions.
+ * the following functions.
  *
  * The ownership of the handle is maintained by the caller of this API and it
  * should eventually be
