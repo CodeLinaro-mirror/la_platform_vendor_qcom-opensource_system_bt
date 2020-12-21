@@ -25,6 +25,7 @@
 
 #include "bt_target.h"
 #include "osi/include/log.h"
+#include "stack/include/a2dp_constants.h"
 
 using namespace android;
 
@@ -45,7 +46,6 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
                                 int channelCount) {
   LOG_VERBOSE(LOG_TAG, "%s Track.cpp: btCreateTrack freq %d bps %d channel %d ",
               __func__, trackFreq, bitsPerSample, channelCount);
-
   AAudioStreamBuilder* builder;
   AAudioStream* stream;
   aaudio_result_t result = AAudio_createStreamBuilder(&builder);
@@ -74,6 +74,9 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
 
 #if (DUMP_PCM_DATA == TRUE)
   outputPcmSampleFile = fopen(outputFilename, "ab");
+  if (!outputPcmSampleFile) {
+    LOG_ERROR(LOG_TAG, "%s: Create file %s failed:%s", __func__, outputFilename, strerror(errno));
+  }
 #endif
   return (void*)trackHolder;
 }
@@ -201,6 +204,10 @@ constexpr int64_t kTimeoutNanos = 100 * 1000 * 1000;  // 100 ms
 
 int BtifAvrcpAudioTrackWriteData(void* handle, void* audioBuffer,
                                  int bufferLength) {
+  if (handle == NULL) {
+    LOG_ERROR(LOG_TAG, "%s handle is null.", __func__);
+    return 0;
+  }
   BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(handle);
   CHECK(trackHolder != NULL);
   CHECK(trackHolder->stream != NULL);
