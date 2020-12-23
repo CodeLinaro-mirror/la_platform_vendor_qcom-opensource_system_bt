@@ -56,7 +56,6 @@ cc_library_static {
         "src/btif_ble_advertiser.cc",
         "src/btif_ble_scanner.cc",
         "src/btif_bqr.cc",
-        "src/btif_cap_source.cc",
         "src/btif_config.cc",
         "src/btif_config_transcode.cc",
         "src/btif_core.cc",
