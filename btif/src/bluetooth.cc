@@ -35,10 +35,6 @@
 #include <hardware/avrcp/avrcp.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_av.h>
-#include <hardware/bt_csip.h>
-#include <hardware/bt_apm.h>
-#include <hardware/bt_cap.h>
-#include <hardware/bt_pacs_client.h>
 #include <hardware/bt_gatt.h>
 #include <hardware/bt_hd.h>
 #include <hardware/bt_hf.h>
@@ -57,7 +53,6 @@
 #include <hardware/vendor_socket.h>
 #include <hardware/bt_ba.h>
 #include <hardware/bt_vendor_rc.h>
-#include <hardware/bt_bap_ba.h>
 #include "bt_utils.h"
 #include "bta/include/bta_hearing_aid_api.h"
 #include "bta/include/bta_hf_client_api.h"
@@ -84,10 +79,9 @@
 #include "osi/include/wakelock.h"
 #include "stack/gatt/connection_manager.h"
 #include "stack_manager.h"
-#include "btif_bap_config.h"
+#include "stack_interface.h"
 
 using bluetooth::hearing_aid::HearingAidInterface;
-using bluetooth::bap::pacs::PacsClientInterface;
 
 /*******************************************************************************
  *  Static variables
@@ -130,9 +124,6 @@ extern btsdp_interface_t* btif_sdp_get_interface();
 /*Hearing Aid client*/
 extern HearingAidInterface* btif_hearing_aid_get_interface();
 
-/* Coordinated set identification profile - client */
-extern btcsip_interface_t* btif_csip_get_interface();
-
 /* List all test interface here */
 /* vendor  */
 extern btvendor_interface_t *btif_vendor_get_interface();
@@ -141,13 +132,9 @@ extern btvendor_interface_t *btif_vendor_socket_get_interface();
 #if (SWB_ENABLED == TRUE)
 extern btvendor_interface_t *btif_vendor_hf_get_interface();
 #endif
-extern btbap_broadcast_interface_t * btif_bap_broadcast_get_interface();
 /* broadcast transmitter */
 extern ba_transmitter_interface_t *btif_bat_get_interface();
 extern btrc_vendor_ctrl_interface_t *btif_rc_vendor_ctrl_get_interface();
-extern bt_apm_interface_t *btif_apm_get_interface();
-extern btcap_initiator_interface_t* btif_cap_initiator_get_interface();
-extern PacsClientInterface *btif_pacs_client_get_interface();
 
 /*******************************************************************************
  *  Functions
@@ -181,6 +168,7 @@ static int init(bt_callbacks_t* callbacks, bool start_restricted,
   bt_hal_cbacks = callbacks;
   restricted_mode = start_restricted;
   single_user_mode = is_niap_mode;
+  init_external_interfaces();
   stack_manager_get_interface()->init_stack();
   btif_debug_init();
   return BT_STATUS_SUCCESS;
@@ -431,26 +419,7 @@ static const void* get_profile_interface(const char* profile_id) {
   if (is_profile(profile_id, BT_PROFILE_HEARING_AID_ID))
     return btif_hearing_aid_get_interface();
 
-  if (is_profile(profile_id, BT_PROFILE_BAP_BROADCAST_ID))
-    return btif_bap_broadcast_get_interface();
-
-  if (is_profile(profile_id, BT_PROFILE_CSIP_CLIENT_ID)) {
-    return btif_csip_get_interface();
-  }
-
-  if (is_profile(profile_id, BT_APM_MODULE_ID)) {
-    return btif_apm_get_interface();
-  }
-
-  if (is_profile(profile_id, BT_PROFILE_CAP_ID)) {
-    return btif_cap_initiator_get_interface();
-  }
-
-  if (is_profile(profile_id, BT_PROFILE_PACS_CLIENT_ID)) {
-    return btif_pacs_client_get_interface();
-  }
-
-  return NULL;
+  return get_external_profile_interface(profile_id);
 }
 
 int dut_mode_configure(uint8_t enable) {
@@ -491,7 +460,7 @@ static void dumpMetrics(std::string* output) {
 
 static int config_clear(void) {
   LOG_INFO(LOG_TAG, "%s", __func__);
-  btif_bap_config_clear();
+  btif_stack_config_cleared();
   return btif_config_clear() ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
 }
 
