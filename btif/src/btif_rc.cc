@@ -5394,6 +5394,60 @@ static bt_status_t set_active_device(const RawAddress& peer_addr) {
 
 /***************************************************************************
  *
+ * Function         request_continuing_response_cmd
+ *
+ * Description      Request for continuing response
+ *
+ * Returns          void
+ *
+ **************************************************************************/
+static bt_status_t request_continuing_response_cmd(const RawAddress& bd_addr, uint8_t pdu_id) {
+  BTIF_TRACE_DEBUG("%s: pdu_id 0x%02x", __func__, pdu_id);
+  btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
+  if (p_dev == NULL) {
+    BTIF_TRACE_ERROR("%s: p_dev NULL", __func__);
+    return BT_STATUS_FAIL;
+  }
+  CHECK_RC_CONNECTED(p_dev);
+
+  tAVRC_COMMAND avrc_cmd = {0};
+  avrc_cmd.pdu = AVRC_PDU_REQUEST_CONTINUATION_RSP;
+  avrc_cmd.continu.opcode = AVRC_OP_VENDOR;
+  avrc_cmd.continu.status = AVRC_STS_NO_ERROR;
+  avrc_cmd.continu.target_pdu = pdu_id;
+
+  return build_and_send_vendor_cmd(&avrc_cmd, AVRC_CMD_CTRL, p_dev);
+}
+
+/***************************************************************************
+ *
+ * Function         abort_continuing_response_cmd
+ *
+ * Description      Abort continuing response
+ *
+ * Returns          void
+ *
+ **************************************************************************/
+static bt_status_t abort_continuing_response_cmd(const RawAddress& bd_addr, uint8_t pdu_id) {
+  BTIF_TRACE_DEBUG("%s: pdu_id 0x%02x", __func__, pdu_id);
+  btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
+  if (p_dev == NULL) {
+    BTIF_TRACE_ERROR("%s: p_dev NULL", __func__);
+    return BT_STATUS_FAIL;
+  }
+  CHECK_RC_CONNECTED(p_dev);
+
+  tAVRC_COMMAND avrc_cmd = {0};
+  avrc_cmd.pdu = AVRC_PDU_ABORT_CONTINUATION_RSP;
+  avrc_cmd.continu.opcode = AVRC_OP_VENDOR;
+  avrc_cmd.continu.status = AVRC_STS_NO_ERROR;
+  avrc_cmd.continu.target_pdu = pdu_id;
+
+  return build_and_send_vendor_cmd(&avrc_cmd, AVRC_CMD_CTRL, p_dev);
+}
+
+/***************************************************************************
+ *
  * Function         set_volume_rsp
  *
  * Description      Rsp for SetAbsoluteVolume Command
@@ -5638,6 +5692,8 @@ static const btrc_ctrl_interface_t bt_rc_ctrl_interface = {
     get_item_attr_cmd,
     get_element_attribute_cmd,
     get_folder_items_vendor_cmd,
+    request_continuing_response_cmd,
+    abort_continuing_response_cmd,
     cleanup_ctrl,
 };
 
