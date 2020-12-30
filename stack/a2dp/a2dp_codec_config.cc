@@ -73,6 +73,7 @@
 #include "btif_av_co.h"
 #include "device/include/device_iot_config.h"
 #include "bta/av/bta_av_int.h"
+#include "btif_av.h"
 
 /* The Media Type offset within the codec info byte array */
 #define A2DP_MEDIA_TYPE_OFFSET 1
@@ -1571,19 +1572,21 @@ void A2DP_SetOffloadStatus(bool offload_status, const char *offload_cap,
   char *tok = NULL;
   char *tmp_token = NULL;
   uint8_t add_on_features_size = 0;
-  bt_device_features_t * add_on_features_list = NULL;
-  LOG_INFO(LOG_TAG,"A2dp_SetOffloadStatus:status = %d",
-                     offload_status);
-  mA2dp_offload_status = offload_status;
-  offload_capability = true;
-  if (strcmp(offload_cap,"null") == 0) offload_capability = false;
 
-  add_on_features_list = (bt_device_features_t *)
-      controller_get_interface()->get_add_on_features(&add_on_features_size);
+  const bt_device_features_t *add_on_features_list =
+                           btif_av_get_add_on_features(&add_on_features_size);
+  BTIF_TRACE_DEBUG("%s: add_on_features_size: %d", __func__, add_on_features_size);
+
   if(add_on_features_size == 0) {
     BTIF_TRACE_WARNING(
         "BT controller doesn't have add on features");
   }
+  LOG_INFO(LOG_TAG,"A2dp_SetOffloadStatus:status = %d",
+                     offload_status);
+
+  mA2dp_offload_status = offload_status;
+  offload_capability = true;
+  if (strcmp(offload_cap,"null") == 0) offload_capability = false;
 
   if (A2DP_IsHAL2Supported()) {// 2.0 hybrid
     offload_capability = offload_status;
@@ -1739,7 +1742,6 @@ void A2DP_SetOffloadStatus(bool offload_status, const char *offload_cap,
   }
   mA2dp_offload_scrambling_support = scrambling_support;
   mA2dp_offload_44p1kFreq_support = is44p1kFreq_support;
-  offload_caps = controller_get_interface()->get_a2dp_offload_cap();
 }
 
 bool A2DP_GetOffloadStatus() {

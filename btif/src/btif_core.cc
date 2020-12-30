@@ -460,6 +460,8 @@ void btif_enable_bluetooth_evt(tBTA_STATUS status) {
 #endif
 
     future_ready(stack_manager_get_hack_future(), FUTURE_SUCCESS);
+
+    btif_av_get_a2dp_init_properties();
   } else {
     /* cleanup rfcomm & l2cap api */
     btif_sock_cleanup();

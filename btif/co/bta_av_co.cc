@@ -158,12 +158,17 @@ static bool bta_av_co_audio_update_selectable_codec(
 
 /* externs */
 extern int btif_max_av_clients;
-extern tBTA_AV_HNDL btif_av_get_reconfig_dev_hndl();
-extern void btif_av_reset_codec_reconfig_flag(RawAddress address);
 extern bool bt_split_a2dp_enabled;
+extern const char *a2dp_offload_cap;
+extern uint8_t add_on_features_size;
+extern bool isScramblingSupported;
+extern bool is44p1kFreqSupported;
+
 extern void btif_av_set_reconfig_flag(tBTA_AV_HNDL bta_handle);
 extern bool btif_av_check_is_reconfig_pending_flag_set(RawAddress address);
 extern bool btif_av_check_is_cached_reconfig_event_exist(RawAddress address);
+extern tBTA_AV_HNDL btif_av_get_reconfig_dev_hndl();
+extern void btif_av_reset_codec_reconfig_flag(RawAddress address);
 
 /*******************************************************************************
  **
@@ -1960,9 +1965,10 @@ bool bta_av_co_is_44p1kFreq_enabled() {
 void bta_av_co_init(
     const std::vector<btav_a2dp_codec_config_t>& codec_priorities,
     std::vector<btav_a2dp_codec_config_t>& offload_enabled_codecs_config) {
+
   APPL_TRACE_DEBUG("%s", __func__);
   RawAddress bt_addr;
-  const char *a2dp_ofload_cap = controller_get_interface()->get_a2dp_offload_cap();
+
   tBTA_AV_CO_PEER* p_peer;
   /* Protect access to bta_av_co_cb.codec_config */
   mutex_global_lock();
@@ -1977,10 +1983,7 @@ void bta_av_co_init(
 
 /* SPLITA2DP */
   bool a2dp_offload = btif_av_is_split_a2dp_enabled();
-  bool isScramblingSupported = bta_av_co_is_scrambling_enabled();
-  bool is44p1kFreqSupported = bta_av_co_is_44p1kFreq_enabled();
-
-  A2DP_SetOffloadStatus(a2dp_offload, a2dp_ofload_cap, isScramblingSupported,
+  A2DP_SetOffloadStatus(a2dp_offload, a2dp_offload_cap, isScramblingSupported,
                        is44p1kFreqSupported, offload_enabled_codecs_config);
 
 /* SPLITA2DP */
@@ -2002,7 +2005,8 @@ void bta_av_co_init(
   // NOTE: Unconditionally dispatch the event to make sure a callback with
   // the most recent codec info is generated.
   bt_addr = RawAddress::kAny;
-  btif_dispatch_sm_event(BTIF_AV_SOURCE_CONFIG_UPDATED_EVT, (void *)bt_addr.address, sizeof(RawAddress));
+  btif_dispatch_sm_event(BTIF_AV_SOURCE_CONFIG_UPDATED_EVT,
+                            (void *)bt_addr.address, sizeof(RawAddress));
 }
 
 

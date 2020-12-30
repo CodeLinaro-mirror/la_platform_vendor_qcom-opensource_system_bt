@@ -35,6 +35,7 @@
 #include "bta_av_api.h"
 #include "btif_common.h"
 #include "btif_sm.h"
+#include "device/include/controller.h"
 
 #define SOFT_HANDOFF 1
 #define RECONFIG_A2DP_PARAM 2
@@ -569,4 +570,8 @@ void btif_av_tws_offload_started_sync_timer_tout(void* data);
 void btif_av_clear_tws_offload_started_sync_timer(int index);
 #endif
 void btif_av_clear_suspend_rsp_track_timer(int index);
+void btif_av_get_a2dp_init_properties();
+const bt_device_features_t* btif_av_get_add_on_features(
+                     uint8_t *btif_av_add_on_features_len);
+
 #endif /* BTIF_AV_H */

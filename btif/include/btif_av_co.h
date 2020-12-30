@@ -89,6 +89,10 @@ bool bta_av_co_set_active_peer(const RawAddress& peer_address);
 
 bool bta_av_co_is_active_peer (void);
 
+bool bta_av_co_is_scrambling_enabled();
+
+bool bta_av_co_is_44p1kFreq_enabled();
+
 #ifdef __cplusplus
 }
 #endif

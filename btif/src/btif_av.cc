@@ -92,6 +92,7 @@
 #endif
 
 extern bool isDevUiReq;
+extern std::string offload_caps;
 bool isBitRateChange = false;
 bool isBitsPerSampleChange = false;
 static int reconfig_a2dp_param_id = 0;
@@ -271,6 +272,13 @@ bool tws_defaultmono_supported = false;
 #if (TWS_STATE_ENABLED == TRUE)
 bool tws_state_supported = false;
 #endif
+
+const bt_device_features_t *add_on_features_list = NULL;
+const char *a2dp_offload_cap = NULL;
+uint8_t add_on_features_size = 0;
+bool isScramblingSupported = false;
+bool is44p1kFreqSupported = false;
+
 /*SPLITA2DP */
 /* both interface and media task needs to be ready to alloc incoming request */
 #define CHECK_BTAV_INIT()                                                    \
@@ -4133,6 +4141,7 @@ bt_status_t btif_av_init(int service_id) {
     }
 
     bta_av_co_init(codec_priorities_, offload_enabled_codecs_config_);
+
     /* Also initialize the AV state machine */
     for (int i = 0; i < btif_max_av_clients; i++) {
       btif_av_cb[i].sm_handle = btif_sm_init(
@@ -4166,6 +4175,57 @@ bt_status_t btif_av_init(int service_id) {
 
 /*******************************************************************************
  *
+ * Function         init_av_src
+ *
+ * Description      Initializes the AV interface for source mode
+ *
+ * Returns          bt_status_t
+ *
+ ******************************************************************************/
+static bt_status_t init_av_src(
+    btav_source_callbacks_t* callbacks,
+    std::vector<btav_a2dp_codec_config_t> codec_priorities,
+    std::vector<btav_a2dp_codec_config_t> offload_enabled_codecs,
+    int max_a2dp_connections) {
+
+  bt_status_t status = BT_STATUS_FAIL;
+  BTIF_TRACE_EVENT("%s() with max conn = %d", __func__, max_a2dp_connections);
+  char value[PROPERTY_VALUE_MAX] = {'\0'};
+
+  osi_property_get("persist.vendor.btstack.twsplus.defaultchannelmode",
+                                    value, "mono");
+  BTIF_TRACE_DEBUG("tws default channel mode = %s",value);
+  tws_defaultmono_supported = (strcmp(value, "mono") == 0);
+  BTIF_TRACE_DEBUG("default mono channel mode = %d",tws_defaultmono_supported);
+
+  offload_enabled_codecs_config_ = offload_enabled_codecs;
+  codec_priorities_ = codec_priorities;
+
+  if (bt_av_sink_callbacks != NULL) {
+    // already did btif_av_init()
+    status = BT_STATUS_SUCCESS;
+  } else {
+    btif_max_av_clients = max_a2dp_connections;
+    BTIF_TRACE_EVENT("%s() with max conn changed to = %d", __func__,
+                                btif_max_av_clients);
+
+    for (int i = 0; i < btif_max_av_clients; i++) {
+      btif_av_cb[i].codec_priorities = codec_priorities;
+    }
+
+    if (codec_config_update_enabled != false) {
+      BTIF_TRACE_IMP("%s: Codec cfg update enabled changed to false", __func__);
+      codec_config_update_enabled = false;
+    }
+
+    status = btif_av_init(BTA_A2DP_SOURCE_SERVICE_ID);
+    if (status == BT_STATUS_SUCCESS) bt_av_src_callbacks = callbacks;
+  }
+  return status;
+}
+
+/*******************************************************************************
+ *
  * Function         init_src
  *
  * Description      Initializes the AV interface for source mode
@@ -4175,64 +4235,20 @@ bt_status_t btif_av_init(int service_id) {
  ******************************************************************************/
 static bt_status_t init_src(
     btav_source_callbacks_t* callbacks,
-    std::vector<btav_a2dp_codec_config_t> codec_priorities,
-    std::vector<btav_a2dp_codec_config_t> offload_enabled_codecs,
-    int max_a2dp_connections, int a2dp_multicast_state) {
-  bt_status_t status = BT_STATUS_FAIL;
-  BTIF_TRACE_EVENT("%s() with max conn = %d", __func__, max_a2dp_connections);
-  char value[PROPERTY_VALUE_MAX] = {'\0'};
-
-  bt_split_a2dp_enabled = controller_get_interface()->supports_spilt_a2dp();
-  BTIF_TRACE_DEBUG("split_a2dp_status = %d",bt_split_a2dp_enabled);
-  osi_property_get("persist.vendor.btstack.twsplus.defaultchannelmode",
-                                    value, "mono");
-  BTIF_TRACE_DEBUG("tws default channel mode = %s",value);
-  tws_defaultmono_supported = (strcmp(value, "mono") == 0);
-  BTIF_TRACE_DEBUG("default mono channel mode = %d",tws_defaultmono_supported);
-  offload_enabled_codecs_config_ = offload_enabled_codecs;
-  codec_priorities_ = codec_priorities;
-#if (TWS_STATE_ENABLED == TRUE)
-  //osi_property_get("persist.vendor.btstack.twsplus.state", value, "false");
-  tws_state_supported =
-       controller_get_interface()->supports_twsp_remote_state();
-#endif
-  if (bt_av_sink_callbacks != NULL)
-        // already did btif_av_init()
-        status = BT_STATUS_SUCCESS;
-  else {
-    if (a2dp_multicast_state)
-      is_multicast_supported = true;
-    btif_max_av_clients = max_a2dp_connections;
-    BTIF_TRACE_EVENT("%s() with max conn changed to = %d", __func__,
-                                btif_max_av_clients);
-    if (btif_av_is_split_a2dp_enabled()) {
-      btif_a2dp_src_vsc.multi_vsc_support = false;
-    }
-
-    for (int i = 0; i < btif_max_av_clients; i++)
-      btif_av_cb[i].codec_priorities = codec_priorities;
-    if (codec_config_update_enabled != false) {
-        BTIF_TRACE_IMP("%s: Codec cfg update enabled changed to false", __func__);
-        codec_config_update_enabled = false;
-    }
-    status = btif_av_init(BTA_A2DP_SOURCE_SERVICE_ID);
-    if (status == BT_STATUS_SUCCESS) bt_av_src_callbacks = callbacks;
-  }
-  return status;
-}
-
-static bt_status_t init_src(
-    btav_source_callbacks_t* callbacks,
     int max_connected_audio_devices,
     std::vector<btav_a2dp_codec_config_t> codec_priorities,
     std::vector<btav_a2dp_codec_config_t> offload_enabled_codecs) {
-  int a2dp_multicast_state = controller_get_interface()->is_multicast_enabled();
+
+  BTIF_TRACE_IMP("%s: max_connected_audio_devices: %d",
+                                   __func__, max_connected_audio_devices);
+
   if(max_connected_audio_devices > BTIF_AV_NUM_CB) {
     BTIF_TRACE_ERROR("%s: App setting maximum allowable connections(%d) \
               to more than limit(%d)",
             __func__, max_connected_audio_devices, BTIF_AV_NUM_CB);
     max_connected_audio_devices = BTIF_AV_NUM_CB;
   }
+
   for (int i = 0; i < max_connected_audio_devices; i++) {
     memset(&btif_av_cb[i], 0, sizeof(btif_av_cb[i]));
     btif_av_cb[i].codec_priorities = codec_priorities;
@@ -4249,10 +4265,57 @@ static bt_status_t init_src(
     collision_detect[i].conn_retry_count = 1;
     collision_detect[i].av_coll_detected_timer = NULL;
   }
-  return init_src(callbacks, codec_priorities, offload_enabled_codecs,
-                max_connected_audio_devices, a2dp_multicast_state);
+
+  return init_av_src(callbacks, codec_priorities, offload_enabled_codecs,
+                                         max_connected_audio_devices);
 }
 
+void btif_av_get_a2dp_init_properties() {
+  BTIF_TRACE_EVENT("%s: Enter", __func__);
+
+  bt_split_a2dp_enabled = controller_get_interface()->supports_spilt_a2dp();
+  BTIF_TRACE_DEBUG("%s: split_a2dp_status = %d",__func__, bt_split_a2dp_enabled);
+
+#if (TWS_STATE_ENABLED == TRUE)
+    tws_state_supported =
+         controller_get_interface()->supports_twsp_remote_state();
+#endif
+  BTIF_TRACE_DEBUG("%s: tws_state_supported = %d",__func__, tws_state_supported);
+
+  if (bt_av_sink_callbacks != NULL) {
+    BTIF_TRACE_EVENT("%s: bt_av_sink_callbacks not null", __func__);
+  } else {
+    int a2dp_multicast_state = controller_get_interface()->is_multicast_enabled();
+    if (a2dp_multicast_state) {
+          is_multicast_supported = true;
+    }
+
+    if (btif_av_is_split_a2dp_enabled()) {
+          btif_a2dp_src_vsc.multi_vsc_support = false;
+    }
+
+    a2dp_offload_cap = controller_get_interface()->get_a2dp_offload_cap();
+
+    add_on_features_list =
+             controller_get_interface()->get_add_on_features(&add_on_features_size);
+
+    /* SPLITA2DP */
+    isScramblingSupported = bta_av_co_is_scrambling_enabled();
+    is44p1kFreqSupported = bta_av_co_is_44p1kFreq_enabled();
+
+    offload_caps = a2dp_offload_cap;
+  }
+  BTIF_TRACE_EVENT("%s: Exit", __func__);
+}
+
+const bt_device_features_t* btif_av_get_add_on_features(
+                                     uint8_t *btif_av_add_on_features_len) {
+  BTIF_TRACE_EVENT("%s: add_on_features_size: %d",
+                                       __func__, add_on_features_size);
+
+  *btif_av_add_on_features_len = add_on_features_size;
+  return add_on_features_list;
+}
 
 /*******************************************************************************
  *
