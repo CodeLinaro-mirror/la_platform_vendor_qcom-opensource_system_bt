@@ -848,6 +848,19 @@ static void btif_dm_cb_hid_remote_name(tBTM_REMOTE_DEV_NAME* p_remote_name) {
   }
 }
 
+tBTA_TRANSPORT btif_dm_get_adv_audio_transport(const RawAddress& bd_addr) {
+  tBTM_INQ_INFO* p_inq_info;
+
+  p_inq_info = BTM_InqDbRead(bd_addr);
+  if (p_inq_info != NULL) {
+    BTIF_TRACE_DEBUG("%s ", __func__);
+    if (p_inq_info->results.inq_result_type & BTM_INQ_RESULT_BLE) {
+      return BT_TRANSPORT_LE;
+    }
+  }
+  return BT_TRANSPORT_BR_EDR;
+}
+
 /*******************************************************************************
  *
  * Function         btif_dm_cb_create_bond
@@ -869,6 +882,8 @@ static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
     HAL_CBACK(bt_hal_cbacks, bond_state_changed_cb, BT_STATUS_FAIL, &tmp, BT_BOND_STATE_NONE);
     return;
   }
+
+  transport = btif_dm_get_adv_audio_transport(bd_addr);
 
   bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDING);
 
@@ -912,7 +927,7 @@ static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
     //TODO Verify it shouldnt impact the legacy
     if (is_remote_dev_le_support(bd_addr)) {
       BTIF_TRACE_DEBUG("%s bonding through LE_TRANSPORT ", __func__);
-      BTA_DmBondByTransport(bd_addr, BT_TRANSPORT_LE);
+      BTA_DmBondByTransport(bd_addr, transport);
     } else {
       BTIF_TRACE_DEBUG("%s bonding through TRANPORT %d ",
           __func__, transport);
@@ -2297,7 +2312,12 @@ static void btif_dm_lea_search_services_evt(uint16_t event, char* p_param) {
             }
           }
 
-          prop.type = (bt_property_type_t)BT_PROPERTY_LE_AUDIO_UUIDS;
+          if (btif_dm_get_adv_audio_transport(bd_addr) == BT_TRANSPORT_BR_EDR)
+          {
+            prop.type = BT_PROPERTY_UUIDS;
+          } else {
+            prop.type = (bt_property_type_t)BT_PROPERTY_LE_AUDIO_UUIDS;
+          }
           prop.val = &uuid;
           prop.len = Uuid::kNumBytes128;
 
@@ -2417,6 +2437,15 @@ static void btif_dm_lea_search_services_evt(uint16_t event, char* p_param) {
 
       HAL_CBACK(bt_hal_cbacks, remote_device_properties_cb, BT_STATUS_SUCCESS,
           &bd_addr, 1, &prop_dev);
+
+      if (btif_dm_get_adv_audio_transport(bd_addr) != BT_TRANSPORT_LE) {
+        BTIF_TRACE_DEBUG("%s: No LE Transport", __func__);
+        prop_dev.type = (bt_property_type_t)BT_PROPERTY_LE_AUDIO_ACTION_UUID;
+        prop_dev.val = (void *)&validAddr;
+        prop_dev.len = sizeof(uint8_t);
+        HAL_CBACK(bt_hal_cbacks, remote_device_properties_cb, BT_STATUS_SUCCESS,
+            &bd_addr, 1, &prop_dev);
+      }
 
     } break;
 
