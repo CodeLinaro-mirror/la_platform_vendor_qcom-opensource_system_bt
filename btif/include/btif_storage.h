@@ -28,13 +28,13 @@
 /*******************************************************************************
  *  Constants & Macros
  ******************************************************************************/
+#define BT_PROPERTY_REM_DEViCE_VALID_ADDR 0xA3
 #define BT_PROPERTY_CSET_DETAILS 0x10
-#define BT_PROPERTY_LE_AUDIO_UUIDS 0xA0
-#define BT_PROPERTY_LE_AUDIO_ACTION_UUID 0xA1
-#define BT_PROPERTY_LEA_UUID_TRANSPORT 0xA2
-#define BT_PROPERTY_LEA_VALID_ADDR 0xA3
-#define BT_PROPERTY_LEA_ID_BD_ADDR 0xA4
-#define BT_PROPERTY_LEA_UUID_BY_TRANSPORT 0xA5
+#define BT_PROPERTY_ADV_AUDIO_UUIDS 0xA0
+#define BT_PROPERTY_ADV_AUDIO_ACTION_UUID 0xA1
+#define BT_PROPERTY_UUID_ON_TRANSPORT 0xA2
+#define BT_PROPERTY_REM_DEV_IDENT_BD_ADDR 0xA4
+#define BT_PROPERTY_REM_UUID_BY_TRANSPORT 0xA5
 
 #define BTIF_STORAGE_FILL_PROPERTY(p_prop, t, l, p_v) \
   do {                                                \

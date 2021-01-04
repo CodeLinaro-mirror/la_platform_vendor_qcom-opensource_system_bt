@@ -86,7 +86,7 @@ using bluetooth::Uuid;
 #define BTIF_STORAGE_PATH_REMOTE_ALIASE "Aliase"
 #define BTIF_STORAGE_PATH_REMOTE_CSET "Cset"
 #define BTIF_STORAGE_PATH_REMOTE_SERVICE "Service"
-#define BTIF_STORAGE_PATH_LEA_REMOTE_SERVICE "LeaService"
+#define BTIF_STORAGE_PATH_ADV_AUDIO_REMOTE_SERVICE "AdvAudioService"
 #define BTIF_STORAGE_PATH_REMOTE_HIDINFO "HidInfo"
 #define BTIF_STORAGE_KEY_ADAPTER_NAME "Name"
 #define BTIF_STORAGE_KEY_ADAPTER_SCANMODE "ScanMode"
@@ -251,11 +251,11 @@ static bool prop_upd(const RawAddress* remote_bd_addr, bt_property_t *prop)
       btif_config_set_int(bdstr, BTIF_STORAGE_PATH_REMOTE_DEVTYPE,
                   *(int*)prop->val);
       break;
-    case BT_PROPERTY_LEA_VALID_ADDR:
+    case BT_PROPERTY_REM_DEViCE_VALID_ADDR:
       btif_config_set_int(bdstr, BTIF_STORAGE_PATH_REMOTE_VALID_ADDR,
                 *(int*)prop->val);
       break;
-    case BT_PROPERTY_LEA_ID_BD_ADDR:
+    case BT_PROPERTY_REM_DEV_IDENT_BD_ADDR:
     {
       RawAddress peer_addr;
       peer_addr = *(RawAddress *)prop->val;
@@ -289,7 +289,7 @@ static bool prop_upd(const RawAddress* remote_bd_addr, bt_property_t *prop)
                     info->sub_ver);
       }
       break;
-    case BT_PROPERTY_LE_AUDIO_UUIDS:
+    case BT_PROPERTY_ADV_AUDIO_UUIDS:
       {
         std::string val;
         size_t cnt = (prop->len) / sizeof(Uuid);
@@ -300,7 +300,7 @@ static bool prop_upd(const RawAddress* remote_bd_addr, bt_property_t *prop)
           val += tmp_uuid->ToString() + " ";
           //val += (reinterpret_cast<Uuid*>(prop->val) + i)->ToString() + " ";
         }
-        btif_config_set_str(bdstr, BTIF_STORAGE_PATH_LEA_REMOTE_SERVICE, val.c_str());
+        btif_config_set_str(bdstr, BTIF_STORAGE_PATH_ADV_AUDIO_REMOTE_SERVICE, val.c_str());
       }
       break;
     default:
@@ -466,15 +466,15 @@ static int cfg2prop(const RawAddress* remote_bd_addr, bt_property_t* prop) {
         ret = btif_config_get_int(bdstr, BTIF_STORAGE_PATH_REMOTE_DEVTYPE,
                                   (int*)prop->val);
       break;
-    case BT_PROPERTY_LEA_VALID_ADDR:
+    case BT_PROPERTY_REM_DEViCE_VALID_ADDR:
       if (prop->len >= (int)sizeof(int))
         ret = btif_config_get_int(bdstr, BTIF_STORAGE_PATH_REMOTE_VALID_ADDR,
                                   (int*)prop->val);
       break;
-    case BT_PROPERTY_LEA_ID_BD_ADDR:
+    case BT_PROPERTY_REM_DEV_IDENT_BD_ADDR:
     {
       int len = prop->len;
-      BTIF_TRACE_DEBUG("%s() BT_PROPERTY_LEA_ID_BD_ADDR %s", __func__, bdstr);
+      BTIF_TRACE_DEBUG("%s() BT_PROPERTY_REM_DEV_IDENT_BD_ADDR %s", __func__, bdstr);
       if (prop->len >= (int)sizeof(RawAddress))
         ret = btif_config_get_str(bdstr, BTIF_STORAGE_PATH_REMOTE_MAPPING_ADDR,
                                   (char*)prop->val, &len);
@@ -495,10 +495,10 @@ static int cfg2prop(const RawAddress* remote_bd_addr, bt_property_t* prop) {
         prop->len = 0;
       }
     } break;
-    case BT_PROPERTY_LE_AUDIO_UUIDS: {
+    case BT_PROPERTY_ADV_AUDIO_UUIDS: {
       char value[1280];
       int size = sizeof(value);
-      if (btif_config_get_str(bdstr, BTIF_STORAGE_PATH_LEA_REMOTE_SERVICE, value,
+      if (btif_config_get_str(bdstr, BTIF_STORAGE_PATH_ADV_AUDIO_REMOTE_SERVICE, value,
                               &size)) {
         Uuid* p_uuid = reinterpret_cast<Uuid*>(prop->val);
         size_t num_uuids =
@@ -1070,8 +1070,8 @@ bt_status_t btif_storage_remove_bonded_device(
     ret &= btif_config_remove(bdstr, "ValidAddr");
   if (btif_config_exist(bdstr, "MapAddr"))
     ret &= btif_config_remove(bdstr, "MapAddr");
-  if (btif_config_exist(bdstr, "LeaService"))
-    ret &= btif_config_remove(bdstr, "LeaService");
+  if (btif_config_exist(bdstr, "AdvAudioService"))
+    ret &= btif_config_remove(bdstr, "AdvAudioService");
   /* Retaining TwsPlusPeerAddr , AvrcpCtVersion and AvrcpFeatures
      as these are needed even after unpair */
   /* write bonded info immediately */
@@ -1169,7 +1169,7 @@ void btif_storage_get_remote_services(RawAddress *p_addr, Uuid *actual_rem_uuids
       valid_uuids++;
     }
   }
-  prop.type = (bt_property_type_t)BT_PROPERTY_LE_AUDIO_UUIDS;
+  prop.type = (bt_property_type_t)BT_PROPERTY_ADV_AUDIO_UUIDS;
   prop.val = &remote_le_uuids[0];
   prop.len = sizeof(remote_le_uuids);
   btif_storage_get_remote_device_property(p_addr, &prop);
@@ -1314,14 +1314,14 @@ bt_status_t btif_storage_load_bonded_devices(void) {
                                    remote_properties[num_props]);
       num_props++;
 
-      BTIF_STORAGE_GET_REMOTE_PROP(p_remote_addr, (bt_property_type_t)BT_PROPERTY_LEA_VALID_ADDR,
+      BTIF_STORAGE_GET_REMOTE_PROP(p_remote_addr, (bt_property_type_t)BT_PROPERTY_REM_DEViCE_VALID_ADDR,
                                    &validAddr, sizeof(int),
                                    remote_properties[num_props]);
       num_props++;
 
       char addr_map[1024] = "";
       int addr_len = RawAddress::kLength;
-      BTIF_STORAGE_GET_REMOTE_PROP(p_remote_addr, (bt_property_type_t)BT_PROPERTY_LEA_ID_BD_ADDR,
+      BTIF_STORAGE_GET_REMOTE_PROP(p_remote_addr, (bt_property_type_t)BT_PROPERTY_REM_DEV_IDENT_BD_ADDR,
                                    addr_map, addr_len,
                                    remote_properties[num_props]);
       RawAddress::FromString(addr_map, mapping_addr);

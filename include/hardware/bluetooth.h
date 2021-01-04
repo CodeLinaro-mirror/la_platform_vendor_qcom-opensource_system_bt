@@ -276,19 +276,19 @@ typedef enum {
   BT_PROPERTY_LOCAL_IO_CAPS_BLE,
 
     /**
-   * Description - Bluetooth Service 128-bit LE AUDIO UUIDs
+   * Description - Bluetooth Service 128-bit ADV AUDIO UUIDs
    * Access mode - Only GET.
    * Data type   - Array of bluetooth::Uuid (Array size inferred from property
    *               length).
    */
-  BT_PROPERTY_LE_AUDIO_UUIDS = 0xA0,
+  BT_PROPERTY_ADV_AUDIO_UUIDS = 0xA0,
 
   /**
-   * Description - LE AUDIO UUIDS Which triggers Action UUID
+   * Description - ADV AUDIO UUIDS Which triggers Action UUID
    * Access mode - GET
    * Data Type - Status flag.
    */
-  BT_PROPERTY_LE_AUDIO_ACTION_UUID,
+  BT_PROPERTY_ADV_AUDIO_ACTION_UUID,
 
 
   BT_PROPERTY_REMOTE_DEVICE_TIMESTAMP = 0xFF,
