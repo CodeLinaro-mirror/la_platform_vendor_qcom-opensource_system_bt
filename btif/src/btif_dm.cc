@@ -268,6 +268,8 @@ extern tBTA_LEA_PAIRING_DB bta_lea_pairing_cb;
 
 #define MAX_BTIF_BOND_EVENT_ENTRIES 15
 
+#define ADV_AUDIO_COD_BIT 14
+
 /* This flag will be true if HCI_Inquiry is in progress */
 static bool btif_dm_inquiry_in_progress = false;
 
@@ -1599,6 +1601,16 @@ static void btif_dm_search_devices_evt(uint16_t event, char* p_param) {
 
         /* DEV_CLASS */
         uint32_t cod = devclass2uint(p_search_data->inq_res.dev_class);
+
+        if (controller_get_interface()->is_adv_audio_supported() == 0) {
+          cod &= ~((uint32_t)1 << ADV_AUDIO_COD_BIT);
+          tBTM_INQ_INFO* p_inq_info;
+          p_inq_info = BTM_InqDbRead(bdaddr);
+          if (p_inq_info) {
+            uint2devclass(cod, p_inq_info->results.dev_class);
+          }
+        }
+
         BTIF_TRACE_DEBUG("%s cod is 0x%06x", __func__, cod);
         if ((p_search_data->inq_res.p_eir) &&
           ((services & BTA_LEA_BASS_SERVICE_MASK) ||
