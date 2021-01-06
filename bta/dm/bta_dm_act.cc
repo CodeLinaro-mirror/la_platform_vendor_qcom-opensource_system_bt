@@ -30,6 +30,7 @@
 #include <base/logging.h>
 #include <string.h>
 
+#include "utils/include/bt_features.h"
 #include "bt_common.h"
 #include "bt_target.h"
 #include "bt_types.h"

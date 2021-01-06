@@ -84,7 +84,7 @@ using bluetooth::Uuid;
 
 //#define BTIF_STORAGE_PATH_REMOTE_LINKKEYS "remote_linkkeys"
 #define BTIF_STORAGE_PATH_REMOTE_ALIASE "Aliase"
-#define BTIF_STORAGE_PATH_REMOTE_CSET "Cset"
+#define BTIF_STORAGE_PATH_REMOTE_DGROUP "DGroup"
 #define BTIF_STORAGE_PATH_REMOTE_SERVICE "Service"
 #define BTIF_STORAGE_PATH_ADV_AUDIO_REMOTE_SERVICE "AdvAudioService"
 #define BTIF_STORAGE_PATH_REMOTE_HIDINFO "HidInfo"
@@ -419,12 +419,12 @@ static int cfg2prop(const RawAddress* remote_bd_addr, bt_property_t* prop) {
       break;
     }
 
-    case BT_PROPERTY_CSET_DETAILS: {
-      BTIF_TRACE_DEBUG("loading cset details: %s", BTIF_STORAGE_PATH_REMOTE_CSET);//debug
+    case BT_PROPERTY_GROUP_DETAILS: {
+      BTIF_TRACE_DEBUG("loading device group details: %s", BTIF_STORAGE_PATH_REMOTE_DGROUP);
       int len = prop->len;
-      ret = btif_config_get_str(bdstr, BTIF_STORAGE_PATH_REMOTE_CSET,
+      ret = btif_config_get_str(bdstr, BTIF_STORAGE_PATH_REMOTE_DGROUP,
                                 (char*)prop->val, &len);
-      BTIF_TRACE_DEBUG("loading cset details val: %s ret = %d", prop->val, ret);//debug
+      BTIF_TRACE_DEBUG("loading group details val: %s ret = %d", prop->val, ret);
       if (ret && len && len <= prop->len)
         prop->len = len - 1;
       else {
@@ -1290,7 +1290,7 @@ bt_status_t btif_storage_load_bonded_devices(void) {
       uint32_t devtype = 0;
       int validAddr = 1;
       RawAddress mapping_addr;
-      char cset_details[256] = {0}; // shall it be increased ?
+      char group_details[512] = {0};
 
       num_props = 0;
       p_remote_addr = (RawAddress *)list_node(node);
@@ -1348,12 +1348,12 @@ bt_status_t btif_storage_load_bonded_devices(void) {
         }
       }
 
-      BTIF_STORAGE_GET_REMOTE_PROP(p_remote_addr, (bt_property_type_t)BT_PROPERTY_CSET_DETAILS,
-                                   cset_details, sizeof(cset_details),
+      BTIF_STORAGE_GET_REMOTE_PROP(p_remote_addr, (bt_property_type_t)BT_PROPERTY_GROUP_DETAILS,
+                                   group_details, sizeof(group_details),
                                    remote_properties[num_props]);
 
-      BTIF_TRACE_EVENT("%s: num_props = %d cset_details = %s",__func__ ,
-                          num_props, cset_details); //debug
+      BTIF_TRACE_EVENT("%s: num_props = %d group_details = %s",__func__ ,
+                          num_props, group_details); //debug
       num_props++;
       btif_remote_properties_evt(BT_STATUS_SUCCESS, p_remote_addr, num_props,
                                  remote_properties);

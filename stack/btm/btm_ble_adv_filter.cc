@@ -116,8 +116,8 @@ uint8_t btm_ble_condtype_to_ocf(uint8_t cond_type) {
     case BTM_BLE_PF_TDS_DATA:
       ocf = BTM_BLE_META_PF_TDS_DATA;
       break;
-    case BTM_BLE_PF_PSRI_FILTER:
-      ocf = BTM_BLE_META_PF_PSRI;
+    case BTM_BLE_PF_GROUP_FILTER:
+      ocf = BTM_BLE_META_PF_GROUP;
       break;
     case BTM_BLE_PF_TYPE_ALL:
       ocf = BTM_BLE_META_PF_ALL;
@@ -166,8 +166,8 @@ uint8_t btm_ble_ocf_to_condtype(uint8_t ocf) {
     case BTM_BLE_META_PF_TDS_DATA:
       cond_type = BTM_BLE_PF_TDS_DATA;
       break;
-    case BTM_BLE_META_PF_PSRI:
-      cond_type = BTM_BLE_PF_PSRI_FILTER;
+    case BTM_BLE_META_PF_GROUP:
+      cond_type = BTM_BLE_PF_GROUP_FILTER;
       break;
     case BTM_BLE_META_PF_ALL:
       cond_type = BTM_BLE_PF_TYPE_ALL;
@@ -461,7 +461,7 @@ uint8_t btm_ble_cs_update_pf_counter(tBTM_BLE_SCAN_COND_OP action,
   if (BTM_BLE_PF_ADDR_FILTER == cond_type ||
       BTM_BLE_PF_MANU_DATA == cond_type || BTM_BLE_PF_LOCAL_NAME == cond_type ||
       BTM_BLE_PF_SRVC_DATA_PATTERN == cond_type || BTM_BLE_PF_TDS_DATA == cond_type ||
-      BTM_BLE_PF_PSRI_FILTER == cond_type)
+      BTM_BLE_PF_GROUP_FILTER == cond_type)
     p_bd_addr = NULL;
 
   if ((p_addr_filter = btm_ble_find_addr_filter_counter(p_bd_addr)) == NULL &&
@@ -653,9 +653,9 @@ void BTM_LE_PF_tds_data(tBTM_BLE_SCAN_COND_OP action,
 }
 
 /**
- * This function updates(add,delete or clear) psri based filtering
+ * This function updates(add,delete or clear) group based filtering
  */
-void BTM_LE_PF_psri_filter(tBTM_BLE_SCAN_COND_OP action,
+void BTM_LE_PF_group_filter(tBTM_BLE_SCAN_COND_OP action,
                         tBTM_BLE_PF_FILT_INDEX filt_index,
                         tBTM_BLE_PF_CFG_CBACK cb) {
   uint8_t len = BTM_BLE_ADV_FILT_META_HDR_LENGTH;
@@ -666,13 +666,13 @@ void BTM_LE_PF_psri_filter(tBTM_BLE_SCAN_COND_OP action,
 
   BTM_TRACE_ERROR("%s: action = %d filt_index = %d", __func__, action, filt_index);
   uint8_t* p = param;
-  UINT8_TO_STREAM(p, BTM_BLE_META_PF_PSRI);
+  UINT8_TO_STREAM(p, BTM_BLE_META_PF_GROUP);
   UINT8_TO_STREAM(p, action);
   UINT8_TO_STREAM(p, filt_index);
 
   btu_hcif_send_cmd_with_cb(
       FROM_HERE, HCI_BLE_ADV_FILTER_OCF, param, len,
-      base::Bind(&btm_flt_update_cb, BTM_BLE_META_PF_PSRI, cb));
+      base::Bind(&btm_flt_update_cb, BTM_BLE_META_PF_GROUP, cb));
 
   memset(&btm_ble_adv_filt_cb.cur_filter_target, 0, sizeof(tBLE_BD_ADDR));
 }
@@ -807,8 +807,8 @@ void BTM_LE_PF_clear(tBTM_BLE_PF_FILT_INDEX filt_index,
     BTM_LE_PF_tds_data(BTM_BLE_SCAN_COND_CLEAR, filt_index, 0, 0, 0, {},
                        base::DoNothing());
 
-    /* clear PSRI AD Type filter */
-    BTM_LE_PF_psri_filter(BTM_BLE_SCAN_COND_CLEAR, filt_index, base::DoNothing());
+    /* clear GROUP AD Type filter */
+    BTM_LE_PF_group_filter(BTM_BLE_SCAN_COND_CLEAR, filt_index, base::DoNothing());
 
   }
 
