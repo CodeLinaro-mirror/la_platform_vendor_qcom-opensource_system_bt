@@ -18,6 +18,7 @@
 
 #include <log/log.h>
 #include <string.h>
+#include "btif_api.h"
 #include "btif_common.h"
 #include "btif_storage.h"
 #include "device/include/interop.h"
@@ -52,7 +53,7 @@ static bool pts_test_send_authentication_complete_failure(tSMP_CB* p_cb) {
   uint8_t reason = p_cb->cert_failure;
   if (reason == SMP_PAIR_AUTH_FAIL || reason == SMP_PAIR_FAIL_UNKNOWN ||
       reason == SMP_PAIR_NOT_SUPPORT || reason == SMP_PASSKEY_ENTRY_FAIL ||
-      reason == SMP_REPEATED_ATTEMPTS) {
+      reason == SMP_REPEATED_ATTEMPTS || reason == SMP_ENC_KEY_SIZE) {
     tSMP_INT_DATA smp_int_data;
     smp_int_data.status = reason;
     smp_sm_event(p_cb, SMP_AUTH_CMPL_EVT, &smp_int_data);
@@ -195,6 +196,11 @@ void smp_send_app_cback(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
             p_cb->loc_auth_req &= ~SMP_H7_SUPPORT_BIT;
           }
 
+          if (smp_cb.cert_disable_h7_support) {
+            SMP_TRACE_WARNING("Disabling H7 support for PTS testcase");
+            p_cb->loc_auth_req &= ~SMP_H7_SUPPORT_BIT;
+          }
+
           SMP_TRACE_WARNING(
               "set auth_req: 0x%02x, local_i_key: 0x%02x, local_r_key: 0x%02x",
               p_cb->loc_auth_req, p_cb->local_i_key, p_cb->local_r_key);
@@ -210,6 +216,11 @@ void smp_send_app_cback(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
 
           p_cb->local_i_key &= ~SMP_SEC_KEY_TYPE_LK;
           p_cb->local_r_key &= ~SMP_SEC_KEY_TYPE_LK;
+
+          if (smp_cb.cert_disable_h7_support) {
+            SMP_TRACE_WARNING("Disabling H7 support for PTS testcase");
+            p_cb->loc_auth_req &= ~SMP_H7_SUPPORT_BIT;
+          }
 
           SMP_TRACE_WARNING(
               "for SMP over BR max_key_size: 0x%02x, local_i_key: 0x%02x, "
@@ -793,6 +804,12 @@ void smp_br_process_pairing_command(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(p_cb->pairing_bda);
 
   SMP_TRACE_DEBUG("%s", __func__);
+
+  if (p_dev_rec == NULL) {
+    SMP_TRACE_ERROR("%s: pairing command for unknown device: %s",
+      __func__, p_cb->pairing_bda.ToString().c_str());
+    return;
+  }
   /* rejecting BR pairing request over non-SC BR link */
   if (!p_dev_rec->new_encryption_key_is_p256 && p_cb->role == HCI_ROLE_SLAVE) {
     tSMP_INT_DATA smp_int_data;
@@ -802,7 +819,7 @@ void smp_br_process_pairing_command(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
   }
 
   /* erase all keys if it is slave proc pairing req*/
-  if (p_dev_rec && (p_cb->role == HCI_ROLE_SLAVE))
+  if (p_cb->role == HCI_ROLE_SLAVE)
     btm_sec_clear_ble_keys(p_dev_rec);
 
   p_cb->flags |= SMP_PAIR_FLAG_ENC_AFTER_PAIR;
@@ -1264,7 +1281,17 @@ void smp_key_distribution(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
     /* state check to prevent re-entrant */
     if (smp_get_state() == SMP_STATE_BOND_PENDING) {
       if (p_cb->derive_lk) {
-        smp_derive_link_key_from_long_term_key(p_cb, NULL);
+        tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(p_cb->pairing_bda);
+        if (!(p_dev_rec->sec_flags & BTM_SEC_LE_LINK_KEY_AUTHED) &&
+            (p_dev_rec->sec_flags & BTM_SEC_LINK_KEY_AUTHED)) {
+          SMP_TRACE_DEBUG(
+              "%s BR key is higher security than existing LE keys, don't "
+              "derive LK from LTK",
+              __func__);
+          android_errorWriteLog(0x534e4554, "158854097");
+        } else {
+          smp_derive_link_key_from_long_term_key(p_cb, NULL);
+        }
         p_cb->derive_lk = false;
       }
 
@@ -1312,18 +1339,28 @@ void smp_decide_association_model(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
         smp_int_data.status = SMP_PAIR_AUTH_FAIL;
         int_evt = SMP_AUTH_CMPL_EVT;
       } else {
-        p_cb->sec_level = SMP_SEC_UNAUTHENTICATE;
-        SMP_TRACE_EVENT("p_cb->sec_level =%d (SMP_SEC_UNAUTHENTICATE) ",
-                        p_cb->sec_level);
+        if (!is_atv_device() &&
+            (p_cb->local_io_capability == SMP_IO_CAP_IO ||
+             p_cb->local_io_capability == SMP_IO_CAP_KBDISP)) {
+          /* display consent dialog if this device has a display */
+          SMP_TRACE_DEBUG("ENCRYPTION_ONLY showing Consent Dialog");
+          p_cb->cb_evt = SMP_CONSENT_REQ_EVT;
+          smp_set_state(SMP_STATE_WAIT_NONCE);
+          smp_sm_event(p_cb, SMP_SC_DSPL_NC_EVT, NULL);
+        } else {
+          p_cb->sec_level = SMP_SEC_UNAUTHENTICATE;
+          SMP_TRACE_EVENT("p_cb->sec_level =%d (SMP_SEC_UNAUTHENTICATE) ",
+                          p_cb->sec_level);
 
-        tSMP_KEY key;
-        key.key_type = SMP_KEY_TYPE_TK;
-        key.p_data = p_cb->tk.data();
-        smp_int_data.key = key;
+          tSMP_KEY key;
+          key.key_type = SMP_KEY_TYPE_TK;
+          key.p_data = p_cb->tk.data();
+          smp_int_data.key = key;
 
-        p_cb->tk = {0};
-        /* TK, ready  */
-        int_evt = SMP_KEY_READY_EVT;
+          p_cb->tk = {0};
+          /* TK, ready  */
+          int_evt = SMP_KEY_READY_EVT;
+        }
       }
       break;
 
@@ -1658,8 +1695,18 @@ void smp_process_peer_nonce(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
       }
 
       if (p_cb->selected_association_model == SMP_MODEL_SEC_CONN_JUSTWORKS) {
-        /* go directly to phase 2 */
-        smp_sm_event(p_cb, SMP_SC_PHASE1_CMPLT_EVT, NULL);
+        if (!is_atv_device() &&
+            (p_cb->local_io_capability == SMP_IO_CAP_IO ||
+             p_cb->local_io_capability == SMP_IO_CAP_KBDISP)) {
+          /* display consent dialog */
+          SMP_TRACE_DEBUG("JUST WORKS showing Consent Dialog");
+          p_cb->cb_evt = SMP_CONSENT_REQ_EVT;
+          smp_set_state(SMP_STATE_WAIT_NONCE);
+          smp_sm_event(p_cb, SMP_SC_DSPL_NC_EVT, NULL);
+        } else {
+          /* go directly to phase 2 */
+          smp_sm_event(p_cb, SMP_SC_PHASE1_CMPLT_EVT, NULL);
+        }
       } else /* numeric comparison */
       {
         smp_set_state(SMP_STATE_WAIT_NONCE);
