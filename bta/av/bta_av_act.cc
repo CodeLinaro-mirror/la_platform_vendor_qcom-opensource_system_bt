@@ -228,7 +228,11 @@ static void bta_av_rc_ctrl_cback(uint8_t handle, uint8_t event,
         (tBTA_AV_RC_CONN_CHG*)osi_malloc(sizeof(tBTA_AV_RC_CONN_CHG));
     p_msg->hdr.event = msg_event;
     p_msg->handle = handle;
-    if (peer_addr) p_msg->peer_addr = *peer_addr;
+    if (peer_addr) {
+        p_msg->peer_addr = *peer_addr;
+    } else {
+        p_msg->peer_addr = RawAddress::kEmpty;
+    }
     bta_sys_sendmsg(p_msg);
   }
 }
@@ -1864,9 +1868,10 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
             /* cannot create valid rc_handle for current device */
             APPL_TRACE_ERROR(" No link resources available");
             p_scb->use_rc = FALSE;
-            rc_open.peer_features = 0;
-            rc_open.status = BTA_AV_FAIL_RESOURCES;
-            (*p_cb->p_cback)(BTA_AV_RC_CLOSE_EVT, (tBTA_AV *) &rc_open);
+            tBTA_AV_RC_CLOSE rc_close;
+            rc_close.peer_addr = p_scb->PeerAddress();
+            rc_close.rc_handle = rc_handle;
+            (*p_cb->p_cback)(BTA_AV_RC_CLOSE_EVT, (tBTA_AV *) &rc_close);
           }
         } else {
           APPL_TRACE_ERROR("%s: can not find LCB!!", __func__);

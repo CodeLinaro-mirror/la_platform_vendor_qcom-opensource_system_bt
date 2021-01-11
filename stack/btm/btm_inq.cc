@@ -918,7 +918,8 @@ tBTM_STATUS BTM_CancelRemoteDeviceName(void) {
       /* Cancel remote name request for LE device, and process remote name
        * callback. */
       btm_inq_rmt_name_failed_cancelled();
-    } else
+    } else if (p_inq->remname_bda != btm_cb.pairing_bda)
+      /* Don't cancel RNR for pairing device */
       btsnd_hcic_rmt_name_req_cancel(p_inq->remname_bda);
     return (BTM_CMD_STARTED);
   } else
