@@ -1517,6 +1517,7 @@ bool BtifAvStateMachine::StateIdle::ProcessEvent(uint32_t event, void* p_data) {
                          BtifAvEvent::EventName(event).c_str());
 
       bool can_connect = true;
+      char pts_disable_a2dp_conn[PROPERTY_VALUE_MAX] = {0};
       // Check whether connection is allowed
       if (peer_.IsSink()) {
         can_connect = btif_av_source.AllowedToConnect(peer_.PeerAddress());
@@ -1537,9 +1538,12 @@ bool BtifAvStateMachine::StateIdle::ProcessEvent(uint32_t event, void* p_data) {
             peer_.AvOpenOnRcTimer(), BtifAvPeer::kTimeoutAvOpenOnRcMs,
             btif_av_source_initiate_av_open_timer_timeout, &peer_);
       } else if (btif_av_sink.Enabled()) {
-        alarm_set_on_mloop(peer_.AvOpenOnRcTimer(),
-                           BtifAvPeer::kTimeoutAvOpenOnRcMs,
-                           btif_av_sink_initiate_av_open_timer_timeout, &peer_);
+        osi_property_get("vendor.bt.pts.disable_a2dp_conn", pts_disable_a2dp_conn, "false");
+        if (strcmp(pts_disable_a2dp_conn, "false") == 0) {
+          alarm_set_on_mloop(peer_.AvOpenOnRcTimer(),
+                             BtifAvPeer::kTimeoutAvOpenOnRcMs,
+                             btif_av_sink_initiate_av_open_timer_timeout, &peer_);
+        }
       }
       if (event == BTA_AV_RC_OPEN_EVT) {
         btif_rc_handler(event, (tBTA_AV*)p_data);
