@@ -28,25 +28,54 @@
  *
  ******************************************************************************/
 
+#pragma once
+
 #include "audio_a2dp_hw/include/audio_a2dp_hw.h"
 #include <vendor/qti/hardware/bluetooth_audio/2.0/types.h>
 #include "osi/include/thread.h"
 #include "btif_av.h"
-//#include "bt_target.h"
 
 using vendor::qti::hardware::bluetooth_audio::V2_0::SessionType;
 using vendor::qti::hardware::bluetooth_audio::V2_0::SessionParamType;
 
-// TODO: This probably needs to be replaced with generic LE Audio enablement flag
 #define AHIM_ENABLED 1
 
-#define A2DP 1
-#define CAP 2
-#define BROADCAST 3
+enum
+{
+  A2DP = 0x1,
+  AUDIO_GROUP_MGR = 0x2,
+  BROADCAST = 0x3,
+  MAX_CLIENT
+};
 
 enum cap_evt{
   BTIF_CAP_PROCESS_HIDL_REQ_EVT = 0x1,
 };
+
+
+typedef void (* ahim_client_cb)(tA2DP_CTRL_CMD cmd);
+typedef uint16_t (* ahim_get_sample_rate_callback)();
+typedef uint8_t (* ahim_get_channel_mode_callback)();
+typedef uint32_t (* ahim_get_bitrate_callback)();
+typedef uint32_t (* ahim_get_mtu_callback)(uint32_t bit_rate);
+typedef uint16_t (* ahim_get_frame_length)();
+typedef uint8_t (* ahim_get_ch_count_callback)();
+typedef bool (* ahim_get_simulcast_status)();
+typedef struct {
+    uint8_t mode;
+    ahim_client_cb client_cb;
+    ahim_get_sample_rate_callback  get_sample_rate_cb;
+    ahim_get_channel_mode_callback get_channel_mode_cb;
+    ahim_get_bitrate_callback get_bitrate_cb;
+    ahim_get_mtu_callback get_mtu_cb;
+    ahim_get_frame_length get_frame_length_cb;
+    ahim_get_ch_count_callback get_ch_count_cb;
+    ahim_get_simulcast_status get_simulcast_status_cb;
+}btif_ahim_client_callbacks_t;
+
+extern btif_ahim_client_callbacks_t* pclient_cbs[MAX_CLIENT];
+
+void reg_cb_with_ahim(uint8_t client_id, btif_ahim_client_callbacks_t* pclient_cb);
 
 void btif_ahim_process_request(tA2DP_CTRL_CMD cmd);
 void btif_ahim_update_current_profile(uint8_t profile);

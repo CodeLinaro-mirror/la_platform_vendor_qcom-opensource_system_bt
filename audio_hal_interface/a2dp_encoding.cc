@@ -35,8 +35,7 @@
 #include <a2dp_vendor.h>
 #include "controller.h"
 #include "btif_bat.h"
-#include "btif_bap_broadcast.h"
-#include "btif_cap.h"
+#include "btif_ahim.h"
 
 extern bool audio_start_awaited;
 extern void btif_av_reset_reconfig_flag();
@@ -86,9 +85,7 @@ using ::bluetooth::audio::SessionType;
 std::mutex internal_mutex_;
 std::condition_variable ack_wait_cv;
 tA2DP_CTRL_ACK ack_status;
-#define BAP_UNICAST 1
-#define BAP_BROADCAST 2
-#define BAP_BA_SIMULCAST 3
+#define BA_SIMULCAST 3
 #define CHANNEL_MONO 0x00000000 //Mono/Unspecified
 #define CHANNEL_FL   0x00000001 //Front Left
 #define CHANNEL_FR   0x00000002 //Front Right
@@ -332,13 +329,8 @@ class A2dpTransport_2_1 : public ::bluetooth::audio::IBluetoothTransportInstance
 #if AHIM_ENABLED
     btif_ahim_process_request(cmd);
 #else
-    if (btif_bap_broadcast_is_active()) {
-      btif_bap_ba_dispatch_sm_event(BTIF_BAP_BROADCAST_PROCESS_HIDL_REQ_EVT, (char*)&cmd,
-                           sizeof(cmd));
-    } else {
-      btif_dispatch_sm_event(BTIF_AV_PROCESS_HIDL_REQ_EVT, (char*)&cmd,
-                            sizeof(cmd));
-    }
+    btif_dispatch_sm_event(BTIF_AV_PROCESS_HIDL_REQ_EVT, (char*)&cmd,
+                          sizeof(cmd));
 #endif
     return ack_status;
   }
@@ -503,7 +495,7 @@ SampleRate ba_codec_to_hal_sample_rate(uint8_t sample_rate) {
   }
 }
 
-ExtSampleRate btif_bap_lc3_sample_rate(uint16_t rate) {
+ExtSampleRate btif_lc3_sample_rate(uint16_t rate) {
   switch (rate) {
     case BTAV_A2DP_CODEC_SAMPLE_RATE_44100:
       return ExtSampleRate::RATE_44100;
@@ -519,7 +511,7 @@ ExtSampleRate btif_bap_lc3_sample_rate(uint16_t rate) {
   }
 }
 
-LC3ChannelMode btif_bap_lc3_channel_mode(uint8_t mode) {
+LC3ChannelMode btif_lc3_channel_mode(uint8_t mode) {
   switch (mode) {
     case BTAV_A2DP_CODEC_CHANNEL_MODE_MONO:
       return LC3ChannelMode::MONO;
@@ -1476,16 +1468,16 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
     return true;
   }
 /********LC3 Codec */
-  if (btif_bap_broadcast_is_active()) {
+  if (profile == BROADCAST) {
     //Populate LC3 codec info
     codec_config->codecType = CodecType_2_1::LC3;
     codec_config->config.lc3Config = {};
     auto lc3Config = codec_config->config.lc3Config;
-    lc3Config.txConfig.sampleRate = btif_bap_lc3_sample_rate(btif_bap_broadcast_get_sample_rate());
-    lc3Config.txConfig.channelMode = btif_bap_lc3_channel_mode(btif_bap_broadcast_get_ch_mode());
-    lc3Config.txConfig.bitrate = btif_bap_broadcast_get_bitrate();
-    lc3Config.txConfig.octetsPerFrame = btif_bap_broadcast_get_mtu(lc3Config.txConfig.bitrate);
-    lc3Config.txConfig.frameDuration = btif_bap_broadcast_get_framelength();
+    lc3Config.txConfig.sampleRate = btif_lc3_sample_rate(pclient_cbs[profile - 1]->get_sample_rate_cb());
+    lc3Config.txConfig.channelMode = btif_lc3_channel_mode(pclient_cbs[profile - 1]->get_channel_mode_cb());
+    lc3Config.txConfig.bitrate = pclient_cbs[profile - 1]->get_bitrate_cb();
+    lc3Config.txConfig.octetsPerFrame = pclient_cbs[profile - 1]->get_mtu_cb(lc3Config.txConfig.bitrate);
+    lc3Config.txConfig.frameDuration = pclient_cbs[profile - 1]->get_frame_length_cb();
     lc3Config.txConfig.bitsPerSample = BitsPerSample::BITS_24;
     lc3Config.txConfig.numBlocks = 1;
     uint8_t cs[16] = {0};
@@ -1493,12 +1485,12 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
       lc3Config.codecSpecific[i] = cs[i];
     }
     lc3Config.defaultQlevel = 3;
-    lc3Config.mode = BAP_BROADCAST;
+    lc3Config.mode = pclient_cbs[profile - 1]->mode;
     lc3Config.rxConfigSet = 0;
     lc3Config.decoderOuputChannels = 0;
 
-    int numBises = btif_bap_broadcast_get_ch_count();
-    bool simulcast = btif_bap_broadcast_is_simulcast_enabled();
+    int numBises = pclient_cbs[profile - 1]->get_ch_count_cb();
+    bool simulcast = pclient_cbs[profile -1]->get_simulcast_status_cb();
     if (simulcast) {
       lc3Config.rxConfigSet = 1;
       lc3Config.rxConfig.sampleRate = ExtSampleRate::RATE_16000;
@@ -1507,6 +1499,7 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
       lc3Config.rxConfig.octetsPerFrame = 60;
       lc3Config.rxConfig.frameDuration = 10000;
       lc3Config.rxConfig.bitsPerSample = BitsPerSample::BITS_24;
+      lc3Config.mode = BA_SIMULCAST;
     }
     lc3Config.NumStreamIDGroup = numBises; 
     for (int i = 0; i < numBises; i++) {
@@ -1521,19 +1514,19 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
       lc3Config.streamMap[(i*3)+2] = 0;
     }
     codec_config->config.lc3Config = lc3Config;
-    LOG(INFO) << __func__ << ": LC3 codec, CodecConfiguration=" << toString(*codec_config);
+    LOG(INFO) << __func__ << ": LC3 codec for broadcast, CodecConfiguration=" << toString(*codec_config);
     return true;
   }
 
-  if (profile == CAP) {
+  if (profile == AUDIO_GROUP_MGR) {
     codec_config->codecType = CodecType_2_1::LC3;
     codec_config->config.lc3Config = {};
     auto lc3Config = codec_config->config.lc3Config;
-    lc3Config.txConfig.sampleRate = btif_bap_lc3_sample_rate(btif_cap_get_sample_rate());
-    lc3Config.txConfig.channelMode = btif_bap_lc3_channel_mode(0x02);
-    lc3Config.txConfig.bitrate = btif_cap_get_bitrate();
-    lc3Config.txConfig.octetsPerFrame = btif_cap_get_octets();
-    lc3Config.txConfig.frameDuration = btif_cap_get_framelength();
+    lc3Config.txConfig.sampleRate = btif_lc3_sample_rate(pclient_cbs[profile - 1]->get_sample_rate_cb());
+    lc3Config.txConfig.channelMode = btif_lc3_channel_mode(0x02);
+    lc3Config.txConfig.bitrate = pclient_cbs[profile - 1]->get_bitrate_cb();
+    lc3Config.txConfig.octetsPerFrame = pclient_cbs[profile - 1]->get_mtu_cb(0);
+    lc3Config.txConfig.frameDuration = pclient_cbs[profile - 1]->get_frame_length_cb();
     lc3Config.txConfig.bitsPerSample = BitsPerSample::BITS_24;
     lc3Config.txConfig.numBlocks = 1;
     uint8_t cs[16] = {0};
@@ -1541,7 +1534,7 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
       lc3Config.codecSpecific[i] = cs[i];
     }
     lc3Config.defaultQlevel = 0;
-    lc3Config.mode = BAP_UNICAST;
+    lc3Config.mode = pclient_cbs[profile - 1]->mode;
     lc3Config.rxConfigSet = 0;
     lc3Config.decoderOuputChannels = 0;
     int numBises = 2;
@@ -2054,9 +2047,8 @@ bool init( thread_t* message_loop) {
         session_type = SessionType::A2DP_SOFTWARE_ENCODING_DATAPATH;
       }
 #if AHIM_ENABLED
-    } else if(profile == CAP || profile == BROADCAST) {
+    } else if(profile == AUDIO_GROUP_MGR || profile == BROADCAST) {
         CodecConfiguration_2_1 codec_config{};
-        // TODO: replace this with CAP get codec API once available
         if (!a2dp_get_selected_hal_codec_config_2_1(&codec_config, profile)) {
           LOG(ERROR) << __func__ << ": Failed to get CodecConfiguration";
           return false;
@@ -2271,7 +2263,7 @@ bool setup_codec() {
      AudioConfiguration_2_1 audio_config{};
 
 #if AHIM_ENABLED
-     if (profile == A2DP || profile == CAP) {
+     if (profile == A2DP || profile == AUDIO_GROUP_MGR) {
 #endif
        if (session_type == SessionType::A2DP_HARDWARE_OFFLOAD_DATAPATH) {
          CodecConfiguration_2_1 codec_config{};

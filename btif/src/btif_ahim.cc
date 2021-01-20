@@ -34,7 +34,23 @@
 
 #if AHIM_ENABLED
 
-uint8_t cur_active_profile = A2DP;
+uint8_t cur_active_profile = AUDIO_GROUP_MGR;
+
+btif_ahim_client_callbacks_t* pclient_cbs[MAX_CLIENT] = {NULL};
+
+void reg_cb_with_ahim(uint8_t client_id, btif_ahim_client_callbacks_t* pclient_cb)
+{
+  BTIF_TRACE_IMP("%s, registering callback for client id %u with AHIM", __func__, client_id);
+  // No need to register call back for A2DP.
+   if (client_id <= A2DP|| client_id >= MAX_CLIENT)
+   {
+      // invalid call back registration. return.
+      BTIF_TRACE_ERROR("%s, invalid client id %u", __func__, client_id);
+      return;
+   }
+
+   pclient_cbs[client_id - 1] = pclient_cb;
+}
 
 void btif_ahim_update_current_profile(uint8_t profile)
 {
@@ -42,7 +58,7 @@ void btif_ahim_update_current_profile(uint8_t profile)
   {
      case A2DP:
        FALLTHROUGH;
-     case CAP:
+     case AUDIO_GROUP_MGR:
        FALLTHROUGH;
      case BROADCAST:
        cur_active_profile = profile;
@@ -65,15 +81,23 @@ void btif_ahim_process_request(tA2DP_CTRL_CMD cmd)
       BTIF_TRACE_IMP("%s: sending HIDL request to AV", __func__);
       btif_dispatch_sm_event(BTIF_AV_PROCESS_HIDL_REQ_EVT, (char*)&cmd, sizeof(cmd));
       break;
-    case CAP:
-      BTIF_TRACE_IMP("%s: sending HIDL request to CAP", __func__);
-      btif_transfer_context(btif_cap_handle_event, BTIF_CAP_PROCESS_HIDL_REQ_EVT,
-               (char*)&cmd, sizeof(cmd), NULL);
+    case AUDIO_GROUP_MGR:
+      BTIF_TRACE_IMP("%s: sending HIDL request to Audio Group Manager", __func__);
+      if (pclient_cbs[cur_active_profile - 1] && pclient_cbs[cur_active_profile - 1]->client_cb) {
+        BTIF_TRACE_IMP("%s: calling call back for Audio Group Manager", __func__);
+        pclient_cbs[cur_active_profile - 1]->client_cb(cmd);
+      }
+      else
+        BTIF_TRACE_ERROR("%s, Audio Group Manager is not registered with AHIM", __func__);
       break;
     case BROADCAST:
-      BTIF_TRACE_IMP("%s: sending HIDL request to BAP Broadcast", __func__);
-      btif_bap_ba_dispatch_sm_event(BTIF_BAP_BROADCAST_PROCESS_HIDL_REQ_EVT,
-               (char*)&cmd, sizeof(cmd));
+      BTIF_TRACE_IMP("%s: sending HIDL request to BROADCAST", __func__);
+      if (pclient_cbs[cur_active_profile - 1] && pclient_cbs[cur_active_profile - 1]->client_cb) {
+        BTIF_TRACE_IMP("%s: calling call back for BROADCAST", __func__);
+        pclient_cbs[cur_active_profile - 1]->client_cb(cmd);
+      }
+      else
+        BTIF_TRACE_ERROR("%s, BROADCAST is not registered with AHIM", __func__);
       break;
   }
 }
