@@ -1209,7 +1209,7 @@ bt_status_t btif_storage_load_bonded_devices(void) {
   bt_scan_mode_t mode;
   uint32_t disc_timeout;
   Uuid local_uuids[BT_MAX_NUM_UUIDS];
-  Uuid remote_uuids[BT_MAX_NUM_UUIDS];
+  Uuid remote_uuids[BT_MAX_NUM_UUIDS] = {};
   bt_status_t status;
 
   remove_devices_with_sample_ltk();
@@ -1295,6 +1295,7 @@ bt_status_t btif_storage_load_bonded_devices(void) {
       num_props = 0;
       p_remote_addr = (RawAddress *)list_node(node);
       memset(remote_properties, 0, sizeof(remote_properties));
+      memset(remote_uuids, 0, sizeof(remote_uuids));
       BTIF_STORAGE_GET_REMOTE_PROP(p_remote_addr, BT_PROPERTY_BDNAME, &name,
                                    sizeof(name), remote_properties[num_props]);
       num_props++;
@@ -1332,18 +1333,14 @@ bt_status_t btif_storage_load_bonded_devices(void) {
       btif_storage_get_remote_services(p_remote_addr, remote_uuids,
         sizeof(remote_uuids));
 
-#if 0
-      BTIF_STORAGE_GET_REMOTE_PROP(p_remote_addr, BT_PROPERTY_UUIDS,
-                                   remote_uuids, sizeof(remote_uuids),
-                                   remote_properties[num_props]);
-#endif
+
       remote_properties[num_props].val = remote_uuids;
       remote_properties[num_props].len = sizeof(remote_uuids);
       remote_properties[num_props].type = BT_PROPERTY_UUIDS;
       num_props++;
       for (int i = 0; i < BT_MAX_NUM_UUIDS; i++) {
         if (remote_uuids[i] != Uuid::kEmpty) {
-          BTIF_TRACE_EVENT("%s: FINALLY index %d UUID %s", __func__,
+          BTIF_TRACE_EVENT("%s: index %d UUID %s", __func__,
             i, remote_uuids[i].ToString().c_str());
         }
       }
