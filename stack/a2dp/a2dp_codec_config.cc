@@ -1586,7 +1586,10 @@ void A2DP_SetOffloadStatus(bool offload_status, const char *offload_cap,
 
   mA2dp_offload_status = offload_status;
   offload_capability = true;
-  if (strcmp(offload_cap,"null") == 0) offload_capability = false;
+  if (offload_cap == nullptr ||
+      (strcmp(offload_cap,"null") == 0)) {
+    offload_capability = false;
+  }
 
   if (A2DP_IsHAL2Supported()) {// 2.0 hybrid
     offload_capability = offload_status;

@@ -279,6 +279,9 @@ uint8_t add_on_features_size = 0;
 bool isScramblingSupported = false;
 bool is44p1kFreqSupported = false;
 
+btav_connection_state_t conn_state =
+             BTAV_CONNECTION_STATE_DISCONNECTED;
+
 /*SPLITA2DP */
 /* both interface and media task needs to be ready to alloc incoming request */
 #define CHECK_BTAV_INIT()                                                    \
@@ -1281,13 +1284,12 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
 
     case BTA_AV_OPEN_EVT: {
       tBTA_AV* p_bta_data = (tBTA_AV*)p_data;
-      btav_connection_state_t state;
       btif_sm_state_t av_state;
       BTIF_TRACE_DEBUG("status:%d, edr 0x%x, role: 0x%x", p_bta_data->open.status,
                        p_bta_data->open.edr, p_bta_data->open.role);
 
       if (p_bta_data->open.status == BTA_AV_SUCCESS) {
-        state = BTAV_CONNECTION_STATE_CONNECTED;
+        conn_state = BTAV_CONNECTION_STATE_CONNECTED;
         av_state = BTIF_AV_STATE_OPENED;
         RawAddress target_bda = btif_av_get_addr_by_index(index);
         for (int i = 0; i < btif_max_av_clients; i++) {
@@ -1371,7 +1373,7 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
             BTIF_TRACE_WARNING("Keep AVRCP only connection");
           }
         }
-        state = BTAV_CONNECTION_STATE_DISCONNECTED;
+        conn_state = BTAV_CONNECTION_STATE_DISCONNECTED;
         av_state = BTIF_AV_STATE_IDLE;
 #if (BT_IOT_LOGGING_ENABLED == TRUE)
         device_iot_config_addr_int_add_one(btif_av_cb[index].peer_bda,
@@ -1382,11 +1384,10 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
               p_bta_data->open.status != BTA_AV_FAIL_SDP) {
           btif_av_check_and_start_collission_timer(index);
       }
-      /* inform the application of the event */
-      btif_report_connection_state(state, &(btif_av_cb[index].peer_bda));
+
       /* change state to open/idle based on the status */
       btif_sm_change_state(btif_av_cb[index].sm_handle, av_state);
-      btif_report_connection_state_to_ba(state);
+      btif_report_connection_state_to_ba(conn_state);
       /* Check if the other connected AV is playing. If YES, trigger DUAL Handoff */
       if (p_bta_data->open.status == BTA_AV_SUCCESS) {
         /* BTIF AV State updated, now check
@@ -1762,6 +1763,9 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
 
   switch (event) {
     case BTIF_SM_ENTER_EVT: {
+      /* inform the application of the event */
+      btif_report_connection_state(conn_state, &(btif_av_cb[index].peer_bda));
+
       btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_STOP;
       if (btif_av_cb[index].reconfig_pending &&
           (btif_av_cb[index].flags &= BTIF_AV_FLAG_PENDING_START) != 0 &&
