@@ -625,6 +625,8 @@ bool A2dpCodecConfigAptx::setCodecConfig(const uint8_t* p_peer_codec_info,
   tA2DP_APTX_CIE result_config_cie;
   uint8_t sampleRate;
   uint8_t channelMode;
+  sink_info_cie.future1 = A2DP_APTX_FUTURE_1;
+  sink_info_cie.future2 = A2DP_APTX_FUTURE_2;
 
   // Save the internal state
   btav_a2dp_codec_config_t saved_codec_config = codec_config_;
