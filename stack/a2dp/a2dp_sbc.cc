@@ -37,6 +37,8 @@
 #include <sbc_encoder.h>
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+#include "device/include/controller.h"
+#include <btcommon_interface_defs.h>
 
 #define A2DP_SBC_MAX_BITPOOL 53
 /* data type for the SBC Codec Information Element */
@@ -542,6 +544,21 @@ int A2DP_GetTrackSampleRateSbc(const uint8_t* p_codec_info) {
   return -1;
 }
 
+int A2DP_SMD_GetTrackChannelCountSbc(uint8_t ch_mode) {
+  switch (ch_mode) {
+    case A2DP_SBC_IE_CH_MD_MONO:
+      return 1;
+    case A2DP_SBC_IE_CH_MD_STEREO:
+      return 2;
+    case A2DP_SBC_IE_CH_MD_JOINT:
+      return 3;
+    case A2DP_SBC_IE_CH_MD_DUAL:
+      return 4;
+    default:
+      break;
+  }
+  return -1;
+}
 int A2DP_GetTrackChannelCountSbc(const uint8_t* p_codec_info) {
   tA2DP_SBC_CIE sbc_cie;
 
@@ -550,6 +567,10 @@ int A2DP_GetTrackChannelCountSbc(const uint8_t* p_codec_info) {
     LOG_ERROR(LOG_TAG, "%s: cannot decode codec information: %d", __func__,
               a2dp_status);
     return -1;
+  }
+
+  if(controller_get_interface()->get_soc_type() == BT_SOC_TYPE_SMD) {
+    return A2DP_SMD_GetTrackChannelCountSbc(sbc_cie.ch_mode);
   }
 
   switch (sbc_cie.ch_mode) {
