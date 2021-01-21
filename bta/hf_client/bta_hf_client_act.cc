@@ -88,8 +88,10 @@ void bta_hf_client_start_close(tBTA_HF_CLIENT_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_hf_client_start_open(tBTA_HF_CLIENT_DATA* p_data) {
-  tBTA_HF_CLIENT_CB* client_cb =
-      bta_hf_client_find_cb_by_handle(p_data->hdr.layer_specific);
+  tBTA_HF_CLIENT_CB* client_cb = NULL;
+  if (p_data) {
+    client_cb = bta_hf_client_find_cb_by_handle(p_data->hdr.layer_specific);
+  }
   if (client_cb == NULL) {
     APPL_TRACE_ERROR("%s: wrong handle to control block %d", __func__,
                      p_data->hdr.layer_specific);
