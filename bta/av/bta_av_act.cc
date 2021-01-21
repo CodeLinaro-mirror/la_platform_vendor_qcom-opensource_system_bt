@@ -1327,7 +1327,7 @@ void bta_av_conn_chg(tBTA_AV_DATA* p_data) {
   bool chk_restore = false;
 
   /* Validate array index*/
-  if (index < BTA_AV_NUM_STRS) {
+  if ((index < BTA_AV_NUM_STRS) && (index > -1)) {
     p_scb = p_cb->p_scb[index];
   }
   mask = BTA_AV_HNDL_TO_MSK(index);
