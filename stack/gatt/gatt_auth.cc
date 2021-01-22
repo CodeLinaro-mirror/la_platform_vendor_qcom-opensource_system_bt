@@ -183,6 +183,11 @@ void gatt_enc_cmpl_cback(const RawAddress* bd_addr, tBT_TRANSPORT transport,
     } else {
       status = true;
     }
+  } else {
+    /* Enc fail when perform GATTC_Read, GATTC_Write, etc.*/
+    LOG(ERROR) << StringPrintf("%s: encrypting fail, disconnect BLE link",
+                               __func__);
+    gatt_disconnect(p_tcb);
   }
 
   gatt_sec_check_complete(status, p_clcb, p_tcb->sec_act);
