@@ -1242,6 +1242,19 @@ extern uint8_t BTM_BleIsoTransmitTest(uint16_t conn_handle, uint8_t payload_type
  **************************************************************************************/
 extern uint8_t BTM_BleTransmitterTestV4 (tBTM_BLE_TRANSMITTER_TEST_PARAM* param);
 
+/*******************************************************************************
+ *
+ * Function         BTM_BleGetLTK
+ *
+ * Description      This function returns LTK of the LE connection.
+ *
+ * Parameter        bdaddr: remote device address.
+ *
+ * Returns         Octet16 (LTK)
+ *
+ ******************************************************************************/
+extern Octet16 BTM_BleGetLTK(const RawAddress& bd_addr);
+
 /* Below API's are used to parse parameters of HCI Events and then pass it to upper layer */
 extern void btm_ble_set_cis_req_evt_cb(tBTM_BLE_CIS_REQ_EVT_CB* p_cb);
 extern void btm_ble_cis_established_evt(uint8_t *param, uint16_t param_len);

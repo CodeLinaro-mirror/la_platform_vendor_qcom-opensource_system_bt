@@ -1508,15 +1508,11 @@ extern void BTM_SecClearSecurityFlags(const RawAddress& bd_addr);
  * Function         BTM_SecGetDeviceLinkKey
  *
  * Description      This function is called to obtain link key for the device
- *                  it returns BTM_SUCCESS if link key is available, or
- *                  BTM_UNKNOWN_ADDR if Security Manager does not know about
- *                  the device or device record does not contain link key info
  *
- * Returns          BTM_SUCCESS if successful, otherwise error code
+ * Returns          LinkKey (Empty Key for unknown device).
  *
  ******************************************************************************/
-extern tBTM_STATUS BTM_SecGetDeviceLinkKey(const RawAddress& bd_addr,
-                                           LinkKey* link_key);
+extern LinkKey BTM_SecGetDeviceLinkKey(const RawAddress& bd_addr);
 
 /*******************************************************************************
  *

@@ -1066,6 +1066,39 @@ void BTM_BleSetPhy(const RawAddress& bd_addr, uint8_t tx_phys, uint8_t rx_phys,
 
 /*******************************************************************************
  *
+ * Function         BTM_BleGetLTK
+ *
+ * Description      This function returns LTK of the LE connection.
+ *
+ * Parameter        bdaddr: remote device address
+ *
+ * Returns          Octet16 (LTK)
+ *
+ ******************************************************************************/
+Octet16 BTM_BleGetLTK(const RawAddress& bd_addr) {
+  Octet16 ltk = {};
+  tBTM_SEC_DEV_REC* p_rec = btm_find_dev(bd_addr);
+
+  if (p_rec == NULL) {
+    BTM_TRACE_ERROR("BTM_BleGetLTK: request received for unknown device");
+    return ltk;
+  }
+
+  tACL_CONN* p_acl = btm_bda_to_acl(bd_addr, BT_TRANSPORT_LE);
+
+  if (p_acl == NULL || p_acl->transport != BT_TRANSPORT_LE) {
+    BTM_TRACE_ERROR("%s: no LE link exist or not a LE link", __func__);
+    return ltk;
+  }
+
+  if (p_rec->ble.key_type && (p_rec->sec_flags & BTM_SEC_LE_LINK_KEY_KNOWN)) {
+    ltk = p_rec->ble.keys.lltk;
+  }
+  return ltk;
+}
+
+/*******************************************************************************
+ *
  * Function         btm_ble_determine_security_act
  *
  * Description      This function checks the security of current LE link
