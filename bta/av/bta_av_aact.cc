@@ -3484,6 +3484,8 @@ void bta_av_rcfg_str_ok(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   bta_av_st_rc_timer(p_scb, NULL);
   osi_free_and_reset((void**)&p_scb->p_cap);
 
+  if (p_scb->suspend_local_sent)
+    p_scb->suspend_local_sent = false;
   /* No need to keep the role bits once reconfig is done. */
   p_scb->role &= ~BTA_AV_ROLE_AD_ACP;
   p_scb->role &= ~BTA_AV_ROLE_SUSPEND_OPT;
@@ -4458,7 +4460,11 @@ void bta_av_offload_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     if ((codec_type == 0) &&
         (A2DP_GetMaxBitpoolSbc(p_scb->cfg.codec_info) <= BTIF_A2DP_MAX_BITPOOL_MQ)) {
       APPL_TRACE_IMP("Restricting streaming MTU size for MQ Bitpool");
-      mtu = MAX_2MBPS_AVDTP_MTU;
+      if (p_scb->stream_mtu > 0 &&
+        p_scb->stream_mtu < MAX_2MBPS_AVDTP_MTU)
+        mtu = p_scb->stream_mtu;
+      else
+        mtu = MAX_2MBPS_AVDTP_MTU;
     }
 
     mtu = mtu + AVDT_MEDIA_HDR_SIZE;
