@@ -265,6 +265,8 @@ typedef struct {
 #define MAX_BTIF_BOND_EVENT_ENTRIES 15
 
 #define ADV_AUDIO_COD_BIT 14
+#define BT_PROPERTY_REMOTE_GROUP_DATA 0xFE
+#define GROUP_DATA_LEN 6
 
 /* This flag will be true if HCI_Inquiry is in progress */
 static bool btif_dm_inquiry_in_progress = false;
@@ -1526,6 +1528,8 @@ static void btif_dm_search_devices_evt(uint16_t event, char* p_param) {
       bt_bdname_t bdname;
       uint8_t remote_name_len;
       tBTA_SERVICE_MASK services = 0;
+      uint8_t gid_data[GROUP_DATA_LEN] = {};
+      bool is_grpid_data_found = false;
 
       p_search_data = (tBTA_DM_SEARCH*)p_param;
       RawAddress bdaddr = p_search_data->inq_res.bd_addr;
@@ -1546,10 +1550,14 @@ static void btif_dm_search_devices_evt(uint16_t event, char* p_param) {
                          (uint32_t)services);
         /* TODO:  Get the service list and check to see which uuids we got and
          * send it back to the client. */
+#ifdef ADV_AUDIO_FEATURE
+        BTA_GetGroupData(p_search_data->inq_res.p_eir, p_search_data->inq_res.eir_len,
+                         gid_data, &is_grpid_data_found);
+#endif
       }
 
       {
-        bt_property_t properties[5];
+        bt_property_t properties[6];
         bt_device_type_t dev_type;
         uint32_t num_properties = 0;
         bt_status_t status;
@@ -1637,6 +1645,13 @@ static void btif_dm_search_devices_evt(uint16_t event, char* p_param) {
                                    BT_PROPERTY_REMOTE_RSSI, sizeof(int8_t),
                                    &(p_search_data->inq_res.rssi));
         num_properties++;
+        /*Group Identifier Data*/
+        if (is_grpid_data_found) {
+          BTIF_STORAGE_FILL_PROPERTY(&properties[num_properties],
+                                     (bt_property_type_t)BT_PROPERTY_REMOTE_GROUP_DATA,
+                                     sizeof(gid_data), &gid_data);
+          num_properties++;
+        }
 
         status =
             btif_storage_add_remote_device(&bdaddr, num_properties, properties);
