@@ -876,7 +876,7 @@ static void sync_queue_cleanup(remove_sync_node_t *p_param) {
 void btm_ble_start_sync_request(uint8_t sid, RawAddress addr, uint16_t skip, uint16_t timeout) {
   uint8_t address_type = BLE_ADDR_RANDOM;
   tINQ_DB_ENT* p_i = btm_inq_db_find(addr);
-  if (!p_i) {
+  if (p_i) {
     address_type = p_i->inq_info.results.ble_addr_type; //Random
   }
   btm_random_pseudo_to_identity_addr(&addr,&address_type);
