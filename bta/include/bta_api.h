@@ -1093,6 +1093,8 @@ typedef uint8_t tBTA_DM_LINK_TYPE;
 #define ALLOW_ALL_FILTER 0x00
 #define LOWEST_RSSI_VALUE 129
 
+/* Group Identifier data length */
+#define GROUP_DATA_LEN 6
 /*****************************************************************************
  *  External Function Declarations
  ****************************************************************************/
@@ -1907,5 +1909,16 @@ extern void BTA_VendorCleanup(void);
  ******************************************************************************/
 extern void BTA_DmProcessQueuedServiceDiscovery(void);
 
+/*******************************************************************************
+ *
+ * Function         BTA_GetGroupData
+ *
+ * Description      This function fetches group identifier data from EIR.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+extern void BTA_GetGroupData(uint8_t* p_eir, size_t eir_len, uint8_t* gid_data,
+                             bool* found);
 
 #endif /* BTA_API_H */
