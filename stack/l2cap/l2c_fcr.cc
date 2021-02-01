@@ -1705,6 +1705,11 @@ BT_HDR* l2c_fcr_get_next_xmit_sdu_seg(tL2C_CCB* p_ccb,
   }
 
   p_buf = (BT_HDR*)fixed_queue_try_peek_first(p_ccb->xmit_hold_q);
+  if(p_buf == NULL) {
+    L2CAP_TRACE_ERROR(
+          "L2CAP - cannot get buffer, xmit_hold_q is empty");
+    return NULL;
+  }
 
   /* If there is more data than the MPS, it requires segmentation */
   if (p_buf->len > max_pdu) {
@@ -1739,6 +1744,11 @@ BT_HDR* l2c_fcr_get_next_xmit_sdu_seg(tL2C_CCB* p_ccb,
   } else /* Use the original buffer if no segmentation, or the last segment */
   {
     p_xmit = (BT_HDR*)fixed_queue_try_dequeue(p_ccb->xmit_hold_q);
+    if (p_xmit == NULL) {
+      L2CAP_TRACE_ERROR("L2CAP - cannot get buffer due to failure in acquiring"
+                        "semaphore, try again in next round!");
+      return NULL;
+    }
 
     if (p_xmit->event != 0) last_seg = true;
 
