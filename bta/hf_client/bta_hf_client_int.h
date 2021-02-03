@@ -21,6 +21,7 @@
 #include "bta_hf_client_api.h"
 #include "bta_hf_client_at.h"
 #include "bta_sys.h"
+#include "stack/l2cap/l2c_int.h"
 
 /*****************************************************************************
  *  Constants
@@ -40,6 +41,11 @@
 /* Time (in milliseconds) to wait for retry in case of collision */
 #ifndef BTA_HF_CLIENT_COLLISION_TIMER_MS
 #define BTA_HF_CLIENT_COLLISION_TIMER_MS 2411
+#endif
+
+/* Time (in milliseconds) to wait for retry in case of ACL collision */
+#ifndef BTA_HF_CLIENT_ACL_COLLISION_TIMER_MS
+#define BTA_HF_CLIENT_ACL_COLLISION_TIMER_MS L2CAP_LINK_CONNECT_TIMEOUT_MS
 #endif
 
 /* Maximum number of HF devices supported simultaneously */
