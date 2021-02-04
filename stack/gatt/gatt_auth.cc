@@ -133,12 +133,14 @@ void gatt_sec_check_complete(bool sec_check_ok, tGATT_CLCB* p_clcb,
     gatt_set_sec_act(p_clcb->p_tcb, GATT_SEC_NONE);
   }
 
+  if (p_clcb) {
   if (!sec_check_ok) {
     gatt_end_operation(p_clcb, GATT_AUTH_FAIL, NULL);
   } else if (p_clcb->operation == GATTC_OPTYPE_WRITE) {
     gatt_act_write(p_clcb, sec_act);
   } else if (p_clcb->operation == GATTC_OPTYPE_READ) {
     gatt_act_read(p_clcb, p_clcb->counter);
+  }
   }
 }
 /*******************************************************************************
