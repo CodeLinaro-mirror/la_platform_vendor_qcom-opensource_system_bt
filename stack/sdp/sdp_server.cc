@@ -406,7 +406,7 @@ bool sdp_reset_avrcp_cover_art_bit (tSDP_ATTRIBUTE attr, tSDP_ATTRIBUTE *p_attr,
 **
 ** Description     Checks if UUID is AG_HANDSFREE, attribute id
 **                 is Profile descriptor list and remote BD address
-**                 matches device blacklist, change hfp version to 1.7
+**                 matches device blacklist, change hfp version
 **
 ** Returns         BOOLEAN
 **
