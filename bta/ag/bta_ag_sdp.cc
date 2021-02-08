@@ -364,6 +364,11 @@ bool bta_ag_sdp_find_attr(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
          interop_database_add_addr(INTEROP_HFP_1_7_BLACKLIST,
                           &p_scb->peer_addr, 3);
       }
+      /* Remote supports 1.8, store it in the file */
+      if (p_scb->peer_version == HFP_VERSION_1_8) {
+         interop_database_add_addr(INTEROP_HFP_1_8_BLACKLIST,
+                          &p_scb->peer_addr, 3);
+      }
     } else /* HSP */
     {
       p_attr =
