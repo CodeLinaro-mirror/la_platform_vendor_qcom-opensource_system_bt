@@ -16,6 +16,43 @@
  *
  ******************************************************************************/
 
+/************************************************************************************
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted (subject to the limitations in the
+ * disclaimer below) provided that the following conditions are met:
+ *
+ *      * Redistributions of source code must retain the above copyright
+ *        notice, this list of conditions and the following disclaimer.
+ *
+ *      * Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials provided
+ *        with the distribution.
+ *
+ *      * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *        contributors may be used to endorse or promote products derived
+ *        from this software without specific prior written permission.
+ *
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ * GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ * HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+ *
+ ***********************************************************************************/
+
 /*******************************************************************************
  *
  *  Filename:      btif_gatt_server.c
@@ -49,6 +86,7 @@
 #include "osi/include/log.h"
 #include "stack/include/btu.h"
 #include "types/bt_transport.h"
+#include "stack/gatt/gatt_int.h"
 
 using base::Bind;
 using base::Owned;
@@ -68,6 +106,8 @@ using std::vector;
       LOG_VERBOSE("%s", __func__);                      \
     }                                                   \
   } while (0)
+
+#define GATTS_ID_INVALID   -1
 
 /*******************************************************************************
  *  Static variables
@@ -326,6 +366,12 @@ static bt_status_t btif_gatts_open(int server_if, const RawAddress& bd_addr,
       Bind(&btif_gatts_open_impl, server_if, bd_addr, is_direct, transport));
 }
 
+static void disconnect_gatt_over_bredr(const RawAddress& bd_addr) {
+  LOG_INFO("%s", __func__);
+  tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, BT_TRANSPORT_BR_EDR);
+  gatt_disconnect(p_tcb);
+}
+
 static void btif_gatts_close_impl(int server_if, const RawAddress& address,
                                   int conn_id) {
   // Close active connection
@@ -340,6 +386,10 @@ static void btif_gatts_close_impl(int server_if, const RawAddress& address,
 
 static bt_status_t btif_gatts_close(int server_if, const RawAddress& bd_addr,
                                     int conn_id) {
+  if (server_if == GATTS_ID_INVALID) {
+    return do_in_jni_thread(
+      Bind(&disconnect_gatt_over_bredr, bd_addr));
+  }
   CHECK_BTGATT_INIT();
   return do_in_jni_thread(
       Bind(&btif_gatts_close_impl, server_if, bd_addr, conn_id));
