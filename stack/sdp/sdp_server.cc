@@ -378,14 +378,15 @@ bool sdp_reset_avrcp_cover_art_bit (tSDP_ATTRIBUTE attr, tSDP_ATTRIBUTE *p_attr,
 **
 ** Description     Checks if UUID is AG_HANDSFREE, attribute id
 **                 is Profile descriptor list and remote BD address
-**                 matches device blacklist, change hfp version to 1.7
+**                 matches device blacklist, change hfp version
 **
 ** Returns         BOOLEAN
 **
 +***************************************************************************************/
 bool sdp_change_hfp_version (tSDP_ATTRIBUTE *p_attr, RawAddress remote_address)
 {
-    bool is_blacklisted = FALSE;
+    bool is_v7_blacklisted = FALSE;
+    bool is_v8_blacklisted = FALSE;
     char value[PROPERTY_VALUE_MAX];
     if ((p_attr->id == ATTR_ID_BT_PROFILE_DESC_LIST) &&
         (p_attr->len >= SDP_PROFILE_DESC_LENGTH))
@@ -394,16 +395,33 @@ bool sdp_change_hfp_version (tSDP_ATTRIBUTE *p_attr, RawAddress remote_address)
         if (((p_attr->value_ptr[3] << 8) | (p_attr->value_ptr[4])) ==
                 UUID_SERVCLASS_HF_HANDSFREE)
         {
-            is_blacklisted = interop_database_match_addr(INTEROP_HFP_1_7_BLACKLIST,
+            is_v7_blacklisted = interop_database_match_addr(INTEROP_HFP_1_7_BLACKLIST,
                                                            &remote_address);
-            SDP_TRACE_DEBUG("%s: HF version is 1.7 for BD addr: %s",\
+
+            is_v8_blacklisted = interop_database_match_addr(INTEROP_HFP_1_8_BLACKLIST,
+                                                           &remote_address);
+            SDP_TRACE_DEBUG("%s: remote BD addr: %s",\
                            __func__, remote_address.ToString().c_str());
-            /* For PTS we should show AG's HFP version as 1.7 */
-            if (is_blacklisted ||
+
+            /* If peer version is greater than or equal to 1.7 and
+             * blacklisted, then set AG's HFP version accordingly.
+             */
+
+            /* If none of the version is blacklisted then
+             * we should show AG's HFP version as 1.8 for PTS
+             */
+            if (is_v7_blacklisted || is_v8_blacklisted ||
                 (property_get("bt.pts.certification", value, "false") &&
                 strcmp(value, "true") == 0))
             {
-                p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x07; // Update HFP version as 1.7
+                if (is_v7_blacklisted) {
+                    // Update HFP version as 1.7
+                    p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x07;
+                }
+                else {
+                    // Update HFP version as 1.8
+                    p_attr->value_ptr[PROFILE_VERSION_POSITION] = 0x08;
+                }
                 SDP_TRACE_ERROR("SDP Change HFP Version = 0x%x",
                          p_attr->value_ptr[PROFILE_VERSION_POSITION]);
                 return TRUE;

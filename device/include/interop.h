@@ -204,6 +204,7 @@ typedef enum {
   //collision which results in browsing channel open failure. For such devices, collision timer
   //is used avoid collision.
   INTEROP_AVRCP_BROWSE_OPEN_CHANNEL_COLLISION,
+  INTEROP_HFP_1_8_BLACKLIST,
 
   END_OF_INTEROP_LIST
 } interop_feature_t;
