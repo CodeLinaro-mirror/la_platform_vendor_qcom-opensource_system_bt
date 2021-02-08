@@ -37,6 +37,7 @@
 #define HFP_VERSION_1_5 0x0105
 #define HFP_VERSION_1_6 0x0106
 #define HFP_VERSION_1_7 0x0107
+#define HFP_VERSION_1_8 0x0108
 
 #define HSP_VERSION_1_0 0x0100
 #define HSP_VERSION_1_2 0x0102
@@ -45,7 +46,7 @@
  * bta_hs_api.h, they are meant to be the same.
  */
 #ifndef BTA_HFP_VERSION
-#define BTA_HFP_VERSION HFP_VERSION_1_7
+#define BTA_HFP_VERSION HFP_VERSION_1_8
 #endif
 
 /* AG feature masks */
