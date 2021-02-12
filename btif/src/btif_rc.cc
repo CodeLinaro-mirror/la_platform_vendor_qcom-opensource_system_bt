@@ -469,6 +469,7 @@ static int btif_max_rc_clients = 1;
  *****************************************************************************/
 extern bool btif_hf_call_terminated_recently();
 extern bool btif_hf_is_call_vr_idle();
+extern bool btif_hf_client_is_call_idle();
 extern bool check_cod(const RawAddress* remote_bdaddr, uint32_t cod);
 extern bool btif_av_is_split_a2dp_enabled();
 extern int btif_av_idx_by_bdaddr(const RawAddress *bd_addr);
@@ -1102,7 +1103,8 @@ void handle_rc_passthrough_cmd(tBTA_AV_REMOTE_CMD* p_remote_cmd) {
     return;
   }
 
-  if ((!bluetooth::headset::btif_hf_is_call_vr_idle()) && (p_remote_cmd->rc_id == BTA_AV_RC_PLAY)) {
+  if ((!bluetooth::headset::btif_hf_is_call_vr_idle()) && (!btif_hf_client_is_call_idle())
+      && (p_remote_cmd->rc_id == BTA_AV_RC_PLAY)) {
     BTIF_TRACE_ERROR("Ignore passthrough commands as call is present.");
     return;
   }

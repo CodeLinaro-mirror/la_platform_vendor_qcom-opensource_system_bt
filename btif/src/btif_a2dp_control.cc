@@ -39,6 +39,7 @@
 #include "btif_av.h"
 #include "btif_av_co.h"
 #include "btif_hf.h"
+#include "btif_hf_client.h"
 #include "osi/include/osi.h"
 #include "uipc.h"
 #include "btif_a2dp_audio_interface.h"
@@ -366,6 +367,10 @@ static void btif_a2dp_recv_ctrl_data(void) {
           break;
         }
 
+        if (!btif_hf_client_is_call_idle()) {
+          btif_a2dp_command_ack(A2DP_CTRL_ACK_INCALL_FAILURE);
+          break;
+        }
         if (btif_av_is_handoff_set() && is_block_hal_start) {
           APPL_TRACE_WARNING("%s: A2DP command %s under handoff and HAL Start block",
                   __func__, audio_a2dp_hw_dump_ctrl_event(cmd));
@@ -678,6 +683,11 @@ void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd) {
        * while in a call, and respond with BAD_STATE.
        */
       if (!bluetooth::headset::btif_hf_is_call_vr_idle()) {
+        btif_a2dp_command_ack(A2DP_CTRL_ACK_INCALL_FAILURE);
+        break;
+      }
+
+      if (!btif_hf_client_is_call_idle()) {
         btif_a2dp_command_ack(A2DP_CTRL_ACK_INCALL_FAILURE);
         break;
       }

@@ -58,7 +58,7 @@
 #include "btif_util.h"
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
-
+#include "btif_hf_client.h"
 /*******************************************************************************
  *  Constants & Macros
  ******************************************************************************/
@@ -101,6 +101,10 @@ typedef struct {
   bthf_client_connection_state_t state;  // State of current connection
   tBTA_HF_CLIENT_PEER_FEAT peer_feat;    // HF features
   tBTA_HF_CLIENT_CHLD_FEAT chld_feat;    // AT+CHLD=<> command features
+  bthf_client_call_t call_state;
+  bthf_client_callheld_t call_held;
+  bthf_client_callsetup_t call_setup_state;
+  bthf_client_audio_state_t audio_state;
 } btif_hf_client_cb_t;
 
 /* Max devices supported by BTIF (useful to match the value in BTA) */
@@ -194,6 +198,40 @@ bool is_connected(const btif_hf_client_cb_t* cb) {
 
   BTIF_TRACE_ERROR("%s: not connected!", __func__);
   return false;
+}
+
+
+bool btif_hf_client_is_call_idle() {
+
+   int i;
+
+   if (bt_hf_client_callbacks == NULL)
+       return true;
+
+   for (i = 0; i < HF_CLIENT_MAX_DEVICES; i++) {
+        BTIF_TRACE_EVENT("%s: call_setup_state: %d ", __func__,
+                     btif_hf_client_cb_arr.cb[i].call_setup_state);
+        BTIF_TRACE_EVENT("%s: call_state: %d  call_held %d", __func__,
+                     btif_hf_client_cb_arr.cb[i].call_state,
+                     btif_hf_client_cb_arr.cb[i].call_held);
+
+
+        if( (btif_hf_client_cb_arr.cb[i].audio_state == BTHF_CLIENT_AUDIO_STATE_CONNECTED) ||
+            (btif_hf_client_cb_arr.cb[i].audio_state == BTHF_CLIENT_AUDIO_STATE_CONNECTED_MSBC ))
+        {
+            BTIF_TRACE_EVENT("%s:sco is in connected sate",__func__);
+            return false;
+
+        }
+        if (!((btif_hf_client_cb_arr.cb[i].call_setup_state == BTHF_CLIENT_CALLSETUP_NONE) &&
+            (btif_hf_client_cb_arr.cb[i].call_state == BTHF_CLIENT_CALL_NO_CALLS_IN_PROGRESS) &&
+            (btif_hf_client_cb_arr.cb[i].call_held == BTHF_CLIENT_CALLHELD_NONE )))
+        {
+            BTIF_TRACE_EVENT("%s:Call is in active/progress state",__func__);
+            return false;
+        }
+    }
+    return true;
 }
 
 /*******************************************************************************
@@ -718,6 +756,7 @@ static bt_status_t request_last_voice_tag_number(const RawAddress* bd_addr) {
 static void cleanup(void) {
   BTIF_TRACE_EVENT("%s", __func__);
 
+  memset(&btif_hf_client_cb_arr, 0, sizeof(btif_hf_client_cb_arr_t));
 
   btif_queue_cleanup(UUID_SERVCLASS_HF_HANDSFREE);
   btif_disable_service(BTA_HFP_HS_SERVICE_ID);
@@ -776,15 +815,18 @@ static void process_ind_evt(tBTA_HF_CLIENT_IND* ind) {
 
   switch (ind->type) {
     case BTA_HF_CLIENT_IND_CALL:
+      cb->call_state = (bthf_client_call_t)ind->value;
       HAL_CBACK(bt_hf_client_callbacks, call_cb, &cb->peer_bda,
                 (bthf_client_call_t)ind->value);
       break;
 
     case BTA_HF_CLIENT_IND_CALLSETUP:
+      cb->call_setup_state = (bthf_client_callsetup_t)ind->value;
       HAL_CBACK(bt_hf_client_callbacks, callsetup_cb, &cb->peer_bda,
                 (bthf_client_callsetup_t)ind->value);
       break;
     case BTA_HF_CLIENT_IND_CALLHELD:
+      cb->call_held = (bthf_client_callheld_t)ind->value;
       HAL_CBACK(bt_hf_client_callbacks, callheld_cb, &cb->peer_bda,
                 (bthf_client_callheld_t)ind->value);
       break;
@@ -896,6 +938,9 @@ static void btif_hf_client_upstreams_evt(uint16_t event, char* p_param) {
       cb->peer_bda = RawAddress::kAny;
       cb->peer_feat = 0;
       cb->chld_feat = 0;
+      cb->call_setup_state = BTHF_CLIENT_CALLSETUP_NONE;
+      cb->call_state = BTHF_CLIENT_CALL_NO_CALLS_IN_PROGRESS;
+      cb->call_held = BTHF_CLIENT_CALLHELD_NONE;
       btif_queue_advance();
       break;
 
@@ -986,16 +1031,19 @@ static void btif_hf_client_upstreams_evt(uint16_t event, char* p_param) {
       break;
 
     case BTA_HF_CLIENT_AUDIO_OPEN_EVT:
+      cb->audio_state = BTHF_CLIENT_AUDIO_STATE_CONNECTED;
       HAL_CBACK(bt_hf_client_callbacks, audio_state_cb, &cb->peer_bda,
                 BTHF_CLIENT_AUDIO_STATE_CONNECTED);
       break;
 
     case BTA_HF_CLIENT_AUDIO_MSBC_OPEN_EVT:
+      cb->audio_state = BTHF_CLIENT_AUDIO_STATE_CONNECTED_MSBC;
       HAL_CBACK(bt_hf_client_callbacks, audio_state_cb, &cb->peer_bda,
                 BTHF_CLIENT_AUDIO_STATE_CONNECTED_MSBC);
       break;
 
     case BTA_HF_CLIENT_AUDIO_CLOSE_EVT:
+      cb->audio_state = BTHF_CLIENT_AUDIO_STATE_DISCONNECTED;
       HAL_CBACK(bt_hf_client_callbacks, audio_state_cb, &cb->peer_bda,
                 BTHF_CLIENT_AUDIO_STATE_DISCONNECTED);
       break;
