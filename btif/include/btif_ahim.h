@@ -48,8 +48,8 @@ enum
   MAX_CLIENT
 };
 
-enum cap_evt{
-  BTIF_CAP_PROCESS_HIDL_REQ_EVT = 0x1,
+enum acm_evt{
+  BTIF_ACM_PROCESS_HIDL_REQ_EVT = 0x1,
 };
 
 

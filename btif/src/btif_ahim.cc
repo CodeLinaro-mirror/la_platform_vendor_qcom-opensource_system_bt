@@ -29,8 +29,7 @@
  ******************************************************************************/
 
 #include "audio_hal_interface/a2dp_encoding.h"
-#include "btif_cap_source.h"
-#include "btif_bap_broadcast.h"
+#include "btif_acm_source.h"
 
 #if AHIM_ENABLED
 
