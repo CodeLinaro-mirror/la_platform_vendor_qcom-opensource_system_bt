@@ -1023,6 +1023,13 @@ class BleAdvertisingManagerImpl
       return;
     }
 
+    if (big_handle >= inst_count) {
+      LOG(ERROR) << " Invalid BIG handle";
+      if (cb) {
+        cb.Run(HCI_ERR_ILLEGAL_COMMAND, inst_id, big_handle, reason);
+      }
+      return;
+    }
     IsoBIGInstance* p_big_inst = &iso_big_inst[big_handle];
 
     std::lock_guard<std::mutex> lock(lock_);
@@ -1213,6 +1220,10 @@ class BleAdvertisingManagerImpl
       std::vector<uint16_t> conn_handle_list) override {
     VLOG(1) << __func__ << " big_handle: " << +big_handle << "status:" << +status;
 
+    if (big_handle >= inst_count) {
+      LOG(ERROR) << " Invalid BIG handle";
+      return;
+    }
     IsoBIGInstance* p_big_inst = &iso_big_inst[big_handle];
 
     if (status == HCI_SUCCESS) {
@@ -1237,9 +1248,13 @@ class BleAdvertisingManagerImpl
 
   void TerminateBIGComplete(uint8_t status, uint8_t big_handle,
                             bool cmd_status, uint8_t reason) override {
-    IsoBIGInstance* p_big_inst = &iso_big_inst[big_handle];
-
     VLOG(1) << __func__ << " big_handle: " << +big_handle;
+
+    if (big_handle >= inst_count) {
+      LOG(ERROR) << " Invalid BIG handle";
+      return;
+    }
+    IsoBIGInstance* p_big_inst = &iso_big_inst[big_handle];
 
     if (!cmd_status) {
       p_big_inst->in_use = false;
