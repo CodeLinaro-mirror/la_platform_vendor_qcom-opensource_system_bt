@@ -390,7 +390,9 @@ typedef uint8_t(tBTM_FILTER_CB)(const RawAddress& bd_addr, DEV_CLASS dc);
 #define BTM_COD_MAJOR_TOY 0x08
 #define BTM_COD_MAJOR_HEALTH 0x09
 #define BTM_COD_MAJOR_UNCLASSIFIED 0x1F
-#define BTM_COD_MAJOR_LE_AUDIO 0x40
+#ifdef ADV_AUDIO_FEATURE
+#define BTM_COD_MAJOR_ADV_AUDIO 0x40
+#endif
 
 /***************************
  * service class fields

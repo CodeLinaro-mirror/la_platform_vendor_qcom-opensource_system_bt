@@ -2482,7 +2482,7 @@ void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
                 || ((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_ADV_AUDIO_CONN_LESS)) {
               VLOG(1) << __func__ << " updated to ADV AUDIO COD PROP";
               p_cur->dev_class[0] = 0;
-              p_cur->dev_class[1] = BTM_COD_MAJOR_LE_AUDIO;
+              p_cur->dev_class[1] = BTM_COD_MAJOR_ADV_AUDIO;
               p_cur->dev_class[2] = 0;
               break;
             }
@@ -2504,7 +2504,7 @@ void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
               || ((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_ADV_AUDIO_CONN_LESS)) {
             VLOG(1) << __func__ << " updated to ADV AUDIO COD PROP";
             p_cur->dev_class[0] = 0;
-            p_cur->dev_class[1] = BTM_COD_MAJOR_LE_AUDIO;
+            p_cur->dev_class[1] = BTM_COD_MAJOR_ADV_AUDIO;
             p_cur->dev_class[2] = 0;
             break;
           }
