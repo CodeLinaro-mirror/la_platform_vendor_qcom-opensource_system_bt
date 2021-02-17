@@ -431,6 +431,7 @@ void gatt_process_read_info_rsp(UNUSED_ATTR tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
 
   STREAM_TO_UINT8(type, p);
   len -= 1;
+  result.handle = 0;
 
   if (type == GATT_INFO_TYPE_PAIR_16)
     uuid_len = Uuid::kNumBytes16;
