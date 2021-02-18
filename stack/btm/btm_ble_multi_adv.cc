@@ -788,7 +788,7 @@ class BleAdvertisingManagerImpl
 
     // sid must be in range 0x00 to 0x0F. Since no controller supports more than
     // 16 advertisers, it's safe to make sid equal to inst_id.
-    uint8_t sid = p_inst->inst_id % 0x0F;
+    uint8_t sid = p_inst->inst_id % 0x10;
 
     GetHciInterface()->SetParameters(
         p_inst->inst_id, p_params->advertising_event_properties,
