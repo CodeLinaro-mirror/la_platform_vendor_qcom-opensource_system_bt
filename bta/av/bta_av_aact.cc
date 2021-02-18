@@ -316,7 +316,13 @@ static void bta_av_update_flow_spec(tBTA_AV_SCB* p_scb) {
 
   tBT_FLOW_SPEC flow_spec;
   memset(&flow_spec, 0x00, sizeof(flow_spec));
-
+  if (p_scb->seps[p_scb->sep_idx].tsep == AVDT_TSEP_SRC) {
+    APPL_TRACE_DEBUG("%s: outgoing flow", __func__);
+    flow_spec.flow_direction = 0x00;     /* flow direction - outgoing flow */
+  } else if (p_scb->seps[p_scb->sep_idx].tsep == AVDT_TSEP_SNK) {
+    APPL_TRACE_DEBUG("%s: incoming flow", __func__);
+    flow_spec.flow_direction = 0x01;     /* flow direction - incoming flow */
+  }
   flow_spec.flow_direction = 0x00;     /* flow direction - out going */
   flow_spec.service_type = 0x02;       /* Guaranteed */
   flow_spec.token_rate = 0x00;         /* bytes/second - no token rate is specified*/
@@ -339,7 +345,7 @@ static void bta_av_update_flow_spec(tBTA_AV_SCB* p_scb) {
   } else if (strcmp(codec_name,"AAC") == 0) {
     flow_spec.peak_bandwidth = (320*1000)/8; /* bytes/second */
   }
-  APPL_TRACE_DEBUG("codec_name %s peak_bandwidth %d",codec_name,
+  APPL_TRACE_DEBUG("%s: codec_name %s peak_bandwidth %d", __func__, codec_name,
                                 flow_spec.peak_bandwidth);
   BTM_FlowSpec(p_scb->PeerAddress(), &flow_spec, NULL);
 }
