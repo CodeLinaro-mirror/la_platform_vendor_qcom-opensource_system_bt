@@ -116,5 +116,8 @@ filegroup {
         "android/bluetooth/le/IPeriodicAdvertisingCallback.aidl",
         "android/bluetooth/le/IScannerCallback.aidl",
         "android/bluetooth/IBluetoothDun.aidl",
+        "android/bluetooth/IBluetoothDeviceGroup.aidl",
+        "android/bluetooth/IBluetoothGroupCallback.aidl",
+        "android/bluetooth/IBluetoothVcp.aidl",
     ],
 }

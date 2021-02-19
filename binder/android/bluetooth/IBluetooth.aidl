@@ -188,4 +188,9 @@ interface IBluetooth
     List<BluetoothDevice> getMostRecentlyConnectedDevices();
 
     boolean removeActiveDevice(in int profiles);
+
+    int getDeviceType(in BluetoothDevice device);
+
+    boolean isBroadcastActive();
+
 }
