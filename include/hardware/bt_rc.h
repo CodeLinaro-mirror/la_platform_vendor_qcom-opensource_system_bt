@@ -644,6 +644,10 @@ typedef void (*btrc_ctrl_error_status_code_callback)(const RawAddress& bd_addr, 
                                                      uint8_t id, uint8_t status);
 
 
+typedef btrc_ctrl_track_changed_callback    btrc_ctrl_item_attr_rsp_callback;
+
+typedef void (* btrc_ctrl_add_to_now_playing_rsp_callback)(const RawAddress&, uint8_t status);
+
 /** BT-RC Controller callback structure. */
 typedef struct {
   /** set to sizeof(BtRcCallbacks) */
@@ -666,6 +670,7 @@ typedef struct {
   btrc_ctrl_change_path_callback change_folder_path_cb;
   btrc_ctrl_set_browsed_player_callback set_browsed_player_cb;
   btrc_ctrl_set_addressed_player_callback set_addressed_player_cb;
+  btrc_ctrl_add_to_now_playing_rsp_callback add_to_now_playing_cb;
   btrc_ctrl_addressed_player_changed_callback addressed_player_changed_cb;
   btrc_ctrl_now_playing_contents_changed_callback
       now_playing_contents_changed_cb;
@@ -673,6 +678,7 @@ typedef struct {
   btrc_ctrl_available_player_changed_callback available_player_changed_cb;
   btrc_ctrl_set_active_device_callback set_active_device_cb;
   btrc_ctrl_error_status_code_callback error_status_code_cb;
+  btrc_ctrl_item_attr_rsp_callback item_attr_rsp_cb;
 } btrc_ctrl_callbacks_t;
 
 /** Represents the standard BT-RC AVRCP Controller interface. */
@@ -729,6 +735,10 @@ typedef struct {
   bt_status_t (*set_addressed_player_cmd)(const RawAddress& bd_addr,
                                           uint16_t player_id);
 
+  /** Add to now playing */
+  bt_status_t (*add_to_now_playing_cmd)(const RawAddress& bd_addr, uint8_t scope,
+                                        uint8_t *uid, uint16_t uid_counter);
+
   /** send rsp to set_abs_vol received from target */
   bt_status_t (*set_volume_rsp)(const RawAddress& bd_addr, uint8_t abs_vol,
                                 uint8_t label);
@@ -740,6 +750,22 @@ typedef struct {
 
   /** set active device */
   bt_status_t (*set_active_device)(const RawAddress& bd_addr);
+
+  /** Get item attributes */
+  bt_status_t (*get_item_attr_cmd)(const RawAddress& bd_addr, uint8_t scope, uint8_t *uid,
+                                   uint16_t uid_counter, uint8_t num_attr, uint32_t *attr_id);
+
+  /** Get item attributes */
+  bt_status_t (*get_element_attribute_cmd)(const RawAddress& bd_addr, uint8_t numAttr, uint32_t *attr);
+
+  /** Get folder items */
+  bt_status_t (*get_folder_items_vendor_cmd)(const RawAddress& bd_addr, uint8_t scope, uint8_t start, uint8_t end,
+                                             uint8_t numAttr, uint32_t *attr);
+  /** Request for continuing response */
+  bt_status_t (*request_continuing_response_cmd)(const RawAddress& bd_addr, uint8_t pdu_id);
+
+  /** Abort continuing response */
+  bt_status_t (*abort_continuing_response_cmd)(const RawAddress& bd_addr, uint8_t pdu_id);
 
   /** Closes the interface. */
   void (*cleanup)(void);

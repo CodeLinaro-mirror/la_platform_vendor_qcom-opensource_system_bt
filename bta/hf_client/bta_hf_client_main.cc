@@ -367,10 +367,18 @@ void bta_hf_client_collision_cback(UNUSED_ATTR tBTA_SYS_CONN_STATUS status,
                                    uint8_t id, UNUSED_ATTR uint8_t app_id,
                                    const RawAddress& peer_addr) {
   tBTA_HF_CLIENT_CB* client_cb = bta_hf_client_find_cb_by_bda(peer_addr);
+  uint16_t collision_timeout = BTA_HF_CLIENT_COLLISION_TIMER_MS;
   if (client_cb != NULL && client_cb->state == BTA_HF_CLIENT_OPENING_ST) {
     if (id == BTA_ID_SYS) /* ACL collision */
     {
       APPL_TRACE_WARNING("HF Client found collision (ACL) ...");
+      /* There is a chance that collision in ACL is caused by
+       * 1. ACL link state of peer device is still in connected state
+       * 2. The state can't be reset before link supervision timeout.
+       * So it is necessary to retry the connection after link
+       * supervision timeout.
+       */
+      collision_timeout = BTA_HF_CLIENT_ACL_COLLISION_TIMER_MS;
     } else if (id == BTA_ID_HS) /* RFCOMM collision */
     {
       APPL_TRACE_WARNING("HF Client found collision (RFCOMM) ...");
@@ -391,8 +399,7 @@ void bta_hf_client_collision_cback(UNUSED_ATTR tBTA_SYS_CONN_STATUS status,
     bta_hf_client_start_server();
 
     /* Start timer to handle connection opening restart */
-    alarm_set_on_mloop(client_cb->collision_timer,
-                       BTA_HF_CLIENT_COLLISION_TIMER_MS,
+    alarm_set_on_mloop(client_cb->collision_timer, collision_timeout,
                        bta_hf_client_collision_timer_cback, (void*)client_cb);
   }
 }

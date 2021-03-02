@@ -36,4 +36,5 @@ interface IBluetoothAvrcpController {
     int getSupportedFeatures(in BluetoothDevice device);
     boolean setActiveDevice(in BluetoothDevice device);
     BluetoothDevice getActiveDevice();
+    void startFetchingAlbumArt(in BluetoothDevice device, String mimeType, int height, int width, long maxSize);
 }

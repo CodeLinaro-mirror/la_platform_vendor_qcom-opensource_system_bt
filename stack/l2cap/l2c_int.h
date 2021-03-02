@@ -60,7 +60,7 @@ static_assert(L2CAP_LE_CREDIT_THRESHOLD < L2CAP_LE_CREDIT_DEFAULT,
  * Timeout values (in milliseconds).
  */
 #define L2CAP_LINK_ROLE_SWITCH_TIMEOUT_MS (10 * 1000)  /* 10 seconds */
-#define L2CAP_LINK_CONNECT_TIMEOUT_MS (60 * 1000)      /* 30 seconds */
+#define L2CAP_LINK_CONNECT_TIMEOUT_MS (10 * 1000)      /* 10 seconds */
 #define L2CAP_LINK_CONNECT_EXT_TIMEOUT_MS (120 * 1000) /* 120 seconds */
 #define L2CAP_ECHO_RSP_TIMEOUT_MS (30 * 1000)          /* 30 seconds */
 #define L2CAP_LINK_FLOW_CONTROL_TIMEOUT_MS (2 * 1000)  /* 2 seconds */

@@ -74,11 +74,13 @@ void BTA_AvVendorCmd(uint8_t rc_handle, uint8_t label, tBTA_AV_CODE cmd_code,
                      uint8_t* p_data, uint16_t len) {}
 void BTA_AvVendorRsp(uint8_t rc_handle, uint8_t label, tBTA_AV_CODE rsp_code,
                      uint8_t* p_data, uint16_t len, uint32_t company_id) {}
+bool BTA_AvIsBrowsingSupported(void) {return false;}
 void btif_av_clear_remote_suspend_flag(void) {}
 bool btif_av_is_connected(void) { return false; }
 bool btif_av_is_sink_enabled(void) { return false; }
 RawAddress btif_av_sink_active_peer(void) { return RawAddress(); }
 RawAddress btif_av_source_active_peer(void) { return RawAddress(); }
+bool btif_av_sink_set_active_device(const RawAddress& peer_address) { return true; }
 bool btif_av_stream_started_ready(void) { return false; }
 bt_status_t btif_transfer_context(tBTIF_CBACK* p_cback, uint16_t event,
                                   char* p_params, int param_len,
