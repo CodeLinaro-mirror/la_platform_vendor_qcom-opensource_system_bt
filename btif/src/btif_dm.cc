@@ -1005,6 +1005,19 @@ static void btif_dm_ssp_cfm_req_evt(tBTA_DM_SP_CFM_REQ* p_ssp_cfm_req) {
 
   /* If JustWorks auto-accept */
   if (p_ssp_cfm_req->just_works) {
+    /* Pairing consent for JustWorks NOT needed if:
+     * 1. Incoming temporary pairing is detected
+     */
+    if (is_incoming && pairing_cb.bond_type == BOND_TYPE_TEMPORARY) {
+      BTIF_TRACE_EVENT(
+          "%s: Auto-accept JustWorks pairing for temporary incoming", __func__);
+      btif_dm_ssp_reply(&bd_addr, BT_SSP_VARIANT_CONSENT, true, 0);
+      return;
+    }
+  }
+
+  /* If JustWorks auto-accept */
+  if (p_ssp_cfm_req->just_works) {
     /* Pairing consent for JustWorks needed if:
      * 1. Incoming (non-temporary) pairing is detected AND
      * 2. local IO capabilities are DisplayYesNo AND
@@ -1838,9 +1851,13 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
           break;
       }
       break;
+    case BTA_DM_BLE_CONSENT_REQ_EVT:
+      BTIF_TRACE_DEBUG("BTA_DM_BLE_CONSENT_REQ_EVT. ");
+      btif_dm_ble_sec_req_evt(&p_data->ble_req, true);
+      break;
     case BTA_DM_BLE_SEC_REQ_EVT:
       BTIF_TRACE_DEBUG("BTA_DM_BLE_SEC_REQ_EVT. ");
-      btif_dm_ble_sec_req_evt(&p_data->ble_req);
+      btif_dm_ble_sec_req_evt(&p_data->ble_req, false);
       break;
     case BTA_DM_BLE_PASSKEY_NOTIF_EVT:
       BTIF_TRACE_DEBUG("BTA_DM_BLE_PASSKEY_NOTIF_EVT. ");
@@ -3072,14 +3089,14 @@ void btif_dm_remove_ble_bonding_keys(void) {
  * Returns          void
  *
  ******************************************************************************/
-void btif_dm_ble_sec_req_evt(tBTA_DM_BLE_SEC_REQ* p_ble_req) {
+void btif_dm_ble_sec_req_evt(tBTA_DM_BLE_SEC_REQ* p_ble_req, bool is_consent) {
   bt_bdname_t bd_name;
   uint32_t cod;
   int dev_type;
 
   BTIF_TRACE_DEBUG("%s", __func__);
 
-  if (pairing_cb.state == BT_BOND_STATE_BONDING) {
+  if (!is_consent && pairing_cb.state == BT_BOND_STATE_BONDING) {
     BTIF_TRACE_DEBUG("%s Discard security request", __func__);
     return;
   }
