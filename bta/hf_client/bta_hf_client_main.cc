@@ -660,11 +660,6 @@ void bta_hf_client_api_disable() {
   /* reinit the control block */
   for (int i = 0; i < HF_CLIENT_MAX_DEVICES; i++) {
     if (bta_hf_client_cb_arr.cb[i].is_allocated) {
-      /* release active connection */
-      tBTA_HF_CLIENT_DATA msg;
-      msg.hdr.layer_specific = bta_hf_client_cb_arr.cb[i].handle;
-      bta_hf_client_sm_execute(BTA_HF_CLIENT_API_CLOSE_EVT, &msg);
-
       bta_hf_client_cb_init(&(bta_hf_client_cb_arr.cb[i]), i);
     }
   }
