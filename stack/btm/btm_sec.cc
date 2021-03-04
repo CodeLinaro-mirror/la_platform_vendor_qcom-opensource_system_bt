@@ -3524,7 +3524,7 @@ void btm_read_local_oob_complete(uint8_t* p) {
 void btm_read_local_oob_ext_complete(uint8_t* p) {
   tBTM_SP_LOC_OOB_EXT evt_data;
   uint8_t status = *p++;
-  memset(&evt_data, 0, sizeof(tBTM_SP_LOC_OOB));
+  memset(&evt_data, 0, sizeof(tBTM_SP_LOC_OOB_EXT));
 
   BTM_TRACE_EVENT("btm_read_local_oob_ext_complete:%d", status);
   if (status == HCI_SUCCESS) {
