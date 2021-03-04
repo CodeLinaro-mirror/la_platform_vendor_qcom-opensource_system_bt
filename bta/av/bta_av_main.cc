@@ -580,10 +580,16 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
           profile_version = AVRC_REV_1_4;
         }
 
-        bta_ar_reg_avrc(
-            UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
-            p_bta_av_cfg->avrc_tg_cat, BTA_ID_AV,
-            (bta_av_cb.features & BTA_AV_FEAT_BROWSE), profile_version);
+        if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE ||
+          ((profile_initialized == UUID_SERVCLASS_AUDIO_SINK) &&
+          is_absolute_volume_enabled())) {
+          bta_ar_reg_avrc(
+                UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
+                p_bta_av_cfg->avrc_tg_cat, BTA_ID_AV,
+                (bta_av_cb.features & BTA_AV_FEAT_BROWSE), profile_version);
+        } else {
+          APPL_TRACE_DEBUG("%s AVRCP Target is disabled!", __func__);
+        }
 #endif
       }
 
@@ -1404,6 +1410,16 @@ const char* bta_av_evt_code(uint16_t evt_code) {
     default:
       return "unknown";
   }
+}
+
+bool is_absolute_volume_enabled() {
+  char volume_disabled[PROPERTY_VALUE_MAX] = {0};
+  osi_property_get("persist.bluetooth.disableabsvol", volume_disabled, "false");
+  if (strncmp(volume_disabled, "true", 4) == 0) {
+    BTIF_TRACE_WARNING("%s: Absolute volume disabled by property", __func__);
+    return false;
+  }
+  return true;
 }
 
 void bta_debug_av_dump(int fd) {

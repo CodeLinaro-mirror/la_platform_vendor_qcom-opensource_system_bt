@@ -352,7 +352,6 @@ static void btif_rc_upstreams_rsp_evt(uint16_t event,
                                       btif_rc_device_cb_t* p_dev);
 
 static void rc_start_play_status_timer(btif_rc_device_cb_t* p_dev);
-static bool absolute_volume_disabled(void);
 
 /*****************************************************************************
  *  Static variables
@@ -538,7 +537,7 @@ void handle_rc_features(btif_rc_device_cb_t* p_dev) {
       p_dev->rc_addr.ToString().c_str());
 
   if (interop_match_addr(INTEROP_DISABLE_ABSOLUTE_VOLUME, &p_dev->rc_addr) ||
-      absolute_volume_disabled() ||
+      !is_absolute_volume_enabled() ||
       (avdtp_source_active_peer_addr != p_dev->rc_addr &&
        avdtp_sink_active_peer_addr != p_dev->rc_addr)) {
     p_dev->rc_features &= ~BTA_AV_FEAT_ADV_CTRL;
@@ -5935,15 +5934,6 @@ static void sleep_ms(uint64_t timeout_ms) {
   OSI_NO_INTR(nanosleep(&delay, &delay));
 }
 
-static bool absolute_volume_disabled() {
-  char volume_disabled[PROPERTY_VALUE_MAX] = {0};
-  osi_property_get("persist.bluetooth.disableabsvol", volume_disabled, "false");
-  if (strncmp(volume_disabled, "true", 4) == 0) {
-    BTIF_TRACE_WARNING("%s: Absolute volume disabled by property", __func__);
-    return true;
-  }
-  return false;
-}
 /***************************************************************************
  *
  * Function         get_item_attr_cmd
