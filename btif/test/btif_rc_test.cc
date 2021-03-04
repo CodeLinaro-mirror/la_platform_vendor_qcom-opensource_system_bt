@@ -87,6 +87,7 @@ bt_status_t btif_transfer_context(tBTIF_CBACK* p_cback, uint16_t event,
                                   tBTIF_COPY_CBACK* p_copy_cback) {
   return BT_STATUS_SUCCESS;
 }
+bool is_absolute_volume_enabled() { return true; }
 const char* dump_rc_event(uint8_t event) { return nullptr; }
 const char* dump_rc_notification_event_id(uint8_t event_id) { return nullptr; }
 const char* dump_rc_pdu(uint8_t pdu) { return nullptr; }
