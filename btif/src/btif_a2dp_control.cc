@@ -203,6 +203,7 @@ static void btif_a2dp_recv_ctrl_data(void) {
         codec_config.codec_specific_2 = 0;
         codec_config.codec_specific_3 = 0;
         codec_config.codec_specific_4 = 0;
+        codec_config.codec_specific_5 = 0;
         codec_config.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_NONE;
         codec_config.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE;
         codec_config.channel_mode = BTAV_A2DP_CODEC_CHANNEL_MODE_NONE;
@@ -532,6 +533,7 @@ static void btif_a2dp_recv_ctrl_data(void) {
         codec_config.codec_specific_2 = 0;
         codec_config.codec_specific_3 = 0;
         codec_config.codec_specific_4 = 0;
+        codec_config.codec_specific_5 = 0;
         codec_config.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_NONE;
         codec_config.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE;
         codec_config.channel_mode = BTAV_A2DP_CODEC_CHANNEL_MODE_NONE;
