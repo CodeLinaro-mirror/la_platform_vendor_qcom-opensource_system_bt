@@ -5891,6 +5891,14 @@ static bt_status_t get_transaction(rc_transaction_t** ptransaction) {
     }
   }
   BTIF_TRACE_ERROR("%s: failed", __func__);
+
+  /*
+   * Abort Bluetooth process if AVRCP profile consumes all MAX_TRANSACTIONS_PER_SESSION
+   * transactions. This is error recovery so that Android framework can restart
+   * Bluetooth process.
+   */
+  abort();
+
   return BT_STATUS_NOMEM;
 }
 
