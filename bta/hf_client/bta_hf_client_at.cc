@@ -1214,7 +1214,7 @@ static char* bta_hf_client_parse_clcc(tBTA_HF_CLIENT_CB* client_cb,
                                       char* buffer) {
   uint16_t idx, dir, status, mode, mpty;
   char numstr[33]; /* spec forces 32 chars, plus one for \0*/
-  uint16_t type;
+  uint16_t type = 0;
   int res;
   int offset = 0;
 
@@ -1250,7 +1250,6 @@ static char* bta_hf_client_parse_clcc(tBTA_HF_CLIENT_CB* client_cb,
     }
 
     if (res2 >= 2) {
-      res += res2;
       /* Abort in case offset not set because of format error */
       if (offset == 0) {
         APPL_TRACE_ERROR("%s: Format Error %s", __func__, buffer);
@@ -1259,20 +1258,19 @@ static char* bta_hf_client_parse_clcc(tBTA_HF_CLIENT_CB* client_cb,
 
       buffer += offset;
     }
+
+    /* Append optional parts to res at end */
+    res += res2;
   }
+
+  APPL_TRACE_DEBUG("%s: Get %d params in callinfo", __func__, res);
 
   /* Skip any remaing param,as they are not defined by BT HFP spec */
   AT_SKIP_REST(buffer);
   AT_CHECK_RN(buffer);
 
-  if (res > 6) {
-    /* we also have last two optional parameters */
-    bta_hf_client_handle_clcc(client_cb, idx, dir, status, mode, mpty, numstr,
-                              type);
-  } else {
-    /* we didn't get the last two parameters */
-    bta_hf_client_handle_clcc(client_cb, idx, dir, status, mode, mpty, NULL, 0);
-  }
+  /* Pass all retreived parameters */
+  bta_hf_client_handle_clcc(client_cb, idx, dir, status, mode, mpty, numstr, type);
 
   // check for OK response in end
   AT_CHECK_EVENT(buffer, "OK");
