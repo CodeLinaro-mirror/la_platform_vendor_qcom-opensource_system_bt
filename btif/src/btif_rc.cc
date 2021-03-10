@@ -5890,6 +5890,14 @@ static bt_status_t get_transaction(rc_transaction_t** ptransaction) {
     }
   }
   BTIF_TRACE_ERROR("%s: failed", __func__);
+
+  /*
+   * It is unlikely to occupy all the MAX_TRANSACTIONS_PER_SESSION
+   * transactions unless task scheduler(including timer) for fluoride
+   * stack runs into stuck state.
+   */
+  abort();
+
   return BT_STATUS_NOMEM;
 }
 
