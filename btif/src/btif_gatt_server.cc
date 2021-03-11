@@ -48,6 +48,7 @@
 #include "btif_storage.h"
 #include "osi/include/log.h"
 #include "stack/include/btu.h"
+#include "stack/gatt/gatt_int.h"
 
 using base::Bind;
 using base::Owned;
@@ -67,6 +68,8 @@ using std::vector;
       LOG_VERBOSE(LOG_TAG, "%s", __func__);                      \
     }                                                            \
   } while (0)
+
+#define GATTS_ID_INVALID   -1
 
 /*******************************************************************************
  *  Static variables
@@ -324,6 +327,12 @@ static bt_status_t btif_gatts_open(int server_if, const RawAddress& bd_addr,
       Bind(&btif_gatts_open_impl, server_if, bd_addr, is_direct, transport));
 }
 
+static void disconnect_gatt_over_bredr(const RawAddress& bd_addr) {
+  LOG_INFO(LOG_TAG, "%s", __func__);
+  tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, GATT_TRANSPORT_BR_EDR);
+  gatt_disconnect(p_tcb);
+}
+
 static void btif_gatts_close_impl(int server_if, const RawAddress& address,
                                   int conn_id) {
   // Close active connection
@@ -338,6 +347,10 @@ static void btif_gatts_close_impl(int server_if, const RawAddress& address,
 
 static bt_status_t btif_gatts_close(int server_if, const RawAddress& bd_addr,
                                     int conn_id) {
+  if (server_if == GATTS_ID_INVALID) {
+    return do_in_jni_thread(
+      Bind(&disconnect_gatt_over_bredr, bd_addr));
+  }
   CHECK_BTGATT_INIT();
   return do_in_jni_thread(
       Bind(&btif_gatts_close_impl, server_if, bd_addr, conn_id));
