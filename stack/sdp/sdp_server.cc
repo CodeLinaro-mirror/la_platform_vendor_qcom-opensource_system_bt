@@ -700,8 +700,6 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   bool is_hfp_fallback = FALSE;
   uint16_t attr_len;
   uint16_t profile_version;
-  bool is_avrcp_browse_bit_set = FALSE;
-  bool is_avrcp_cover_bit_set = FALSE;
   if (p_req + sizeof(rec_handle) + sizeof(max_list_len) > p_req_end) {
     android_errorWriteLog(0x534e4554, "69384124");
     sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_SERV_REC_HDL,
@@ -809,10 +807,6 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
       *  There is no point in resetting CA bit, because if DUT 1.6, we have to show 1.6
       *  even if remote misbhevaes. If we DUT is not 1.6 then there would be no ca bit
       */
-      if (sdp_reset_avrcp_browsing_bit(p_rec->attribute[1], p_attr, p_ccb->device_address))
-        is_avrcp_browse_bit_set = FALSE;
-      if (sdp_reset_avrcp_cover_art_bit(p_rec->attribute[1], p_attr, p_ccb->device_address))
-        is_avrcp_cover_bit_set = FALSE;
       if ((p_attr->id == ATTR_ID_BT_PROFILE_DESC_LIST) &&
              (p_attr->len >= SDP_PROFILE_DESC_LENGTH)) {
         if (((p_attr->value_ptr[3] << 8) | (p_attr->value_ptr[4])) ==
@@ -1007,8 +1001,6 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   bool is_hfp_fallback = FALSE;
   uint16_t seq_len, attr_len;
   uint16_t profile_version;
-  bool is_avrcp_browse_bit_set = FALSE;
-  bool is_avrcp_cover_bit_set = FALSE;
   /* Extract the UUID sequence to search for */
   p_req = sdpu_extract_uid_seq(p_req, param_len, &uid_seq);
 
@@ -1130,10 +1122,6 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
           *  even if remote misbhevaes. If we DUT is not 1.6 then there would be no ca bit
           */
 
-        if (sdp_reset_avrcp_browsing_bit(p_rec->attribute[1], p_attr, p_ccb->device_address))
-          is_avrcp_browse_bit_set = FALSE;
-        if (sdp_reset_avrcp_cover_art_bit(p_rec->attribute[1], p_attr, p_ccb->device_address))
-          is_avrcp_cover_bit_set = FALSE;
         if ((p_attr->id == ATTR_ID_BT_PROFILE_DESC_LIST) &&
                (p_attr->len >= SDP_PROFILE_DESC_LENGTH)) {
           if (((p_attr->value_ptr[3] << 8) | (p_attr->value_ptr[4])) ==

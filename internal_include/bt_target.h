@@ -1419,7 +1419,7 @@ incoming connection
  *
  *****************************************************************************/
 #ifndef AVRC_QTI_V1_3_OPTIONAL_FEAT
-#define AVRC_QTI_V1_3_OPTIONAL_FEAT TRUE
+#define AVRC_QTI_V1_3_OPTIONAL_FEAT FALSE
 #endif
 
 #ifndef AVRC_METADATA_INCLUDED
