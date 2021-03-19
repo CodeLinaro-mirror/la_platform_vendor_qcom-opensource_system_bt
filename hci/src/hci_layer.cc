@@ -74,7 +74,7 @@ typedef struct {
 // Using a define here, because it can be stringified for the property lookup
 // Reducing startup timeout to less than 3sec to ensure that wakelock is aquired
 // during initialization
-#define DEFAULT_STARTUP_TIMEOUT_MS 2900
+#define DEFAULT_STARTUP_TIMEOUT_MS 4500
 // Increased STARTUP time to 11.9 sec for default XMEM patch download.
 #define DEFAULT_XMEM_STARTUP_TIMEOUT_MS    11900
 /* Increased STARTUP time to 19.9 sec for XMEM patch with download configuration
