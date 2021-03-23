@@ -984,6 +984,42 @@ void btif_dm_get_role_req(const bt_bdaddr_t *bd_addr)
 
 /*******************************************************************************
 **
+** Function         btif_dm_rs_cback
+**
+** Description      callback for notifying the upper layer about Host's new role
+**
+** Returns          void
+**
+*******************************************************************************/
+static void btif_dm_rs_cback (tBTM_ROLE_SWITCH_CMPL *p1)
+{
+    tBTM_ROLE_SWITCH_CMPL *ref_data = p1;
+
+    APPL_TRACE_WARNING("btif_dm_rs_cback hci_status:%d role=%u", ref_data->hci_status,
+                        ref_data->role);
+
+    btif_dm_get_role_req(ref_data->remote_bd_addr);
+}
+
+/*******************************************************************************
+**
+** Function         btif_dm_switch_role_req
+**
+** Description      Switch the current role to new role
+**
+** Returns          int
+**
+*******************************************************************************/
+int btif_dm_switch_role_req(const bt_bdaddr_t *bd_addr, UINT8 new_role)
+{
+    uint8_t *bda = (uint8_t*)bd_addr->address;
+
+    return BTM_SwitchRole (bda, new_role, (tBTM_CMPL_CB *) btif_dm_rs_cback);
+}
+
+
+/*******************************************************************************
+**
 ** Function         search_devices_copy_cb
 **
 ** Description      Deep copy callback for search devices event
@@ -3604,6 +3640,8 @@ void btif_dm_save_ble_bonding_keys(void)
     bt_bdaddr_t bd_addr;
 
     BTIF_TRACE_DEBUG("%s",__FUNCTION__ );
+    if( (pairing_cb.auth_req & BTM_LE_AUTH_REQ_BOND) == 0)
+        return;
 
     bdcpy(bd_addr.address, pairing_cb.bd_addr);
 
