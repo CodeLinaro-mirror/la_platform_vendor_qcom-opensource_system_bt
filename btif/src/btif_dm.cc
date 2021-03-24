@@ -285,7 +285,7 @@ static bool is_bonding_or_sdp() {
 
 static bool is_oob_enabled() {
   char prop_oob[PROPERTY_VALUE_MAX];
-  osi_property_get("vendor.bluetooth.oob", prop_oob, "false");
+  osi_property_get("vendor.bluetooth.oob", prop_oob, "true");
   BTIF_TRACE_DEBUG("%s: prop_oob = %s", __func__, prop_oob);
   return strcmp(prop_oob, "true") == 0 ? true : false;
 }
