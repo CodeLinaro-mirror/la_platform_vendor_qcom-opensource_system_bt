@@ -1379,7 +1379,10 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
         device_iot_config_addr_int_add_one(btif_av_cb[index].peer_bda,
             IOT_CONF_KEY_A2DP_CONN_FAIL_COUNT);
 #endif
+        /* inform the application of the event */
+        btif_report_connection_state(conn_state, &(btif_av_cb[index].peer_bda));
       }
+
       if (p_bta_data->open.status != BTA_AV_SUCCESS &&
               p_bta_data->open.status != BTA_AV_FAIL_SDP) {
           btif_av_check_and_start_collission_timer(index);
