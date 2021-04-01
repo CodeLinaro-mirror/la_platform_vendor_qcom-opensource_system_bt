@@ -638,36 +638,19 @@ void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
       avdt_set_scbs_busy(p_scb);
       p_scb->peer_seid = p_data->msg.config_cmd.int_seid;
       if (codec_type == A2DP_MEDIA_CT_SBC) {
-        //minbitpool < 2, then set minbitpool = 2
-        if ((p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]) < A2DP_SBC_IE_MIN_BITPOOL) {
-          p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET] = A2DP_SBC_IE_MIN_BITPOOL;
-          AVDT_TRACE_DEBUG("%s: Incoming connection set min bitpool: %x", __func__,
-                              p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]);
-        }
+        if (((p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]) < A2DP_SBC_IE_MIN_BITPOOL) ||
+            ((p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]) > A2DP_SBC_IE_MAX_BITPOOL) ||
+            ((p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET]) > A2DP_SBC_IE_MAX_BITPOOL) ||
+            ((p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]) >
+               (p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET]))) {
 
-        //minbitpool > 250, then set minbitpool = 250
-        if ((p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]) > A2DP_SBC_IE_MAX_BITPOOL) {
-          p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET] = A2DP_SBC_IE_MAX_BITPOOL;
-          AVDT_TRACE_DEBUG("%s: Incoming connection set min bitpool: %x", __func__,
-                              p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]);
-        }
+           p_data->msg.hdr.err_code = AVDT_ERR_UNSUP_CFG;
+           p_data->msg.hdr.err_param = 0;
+           AVDT_TRACE_DEBUG("%s: avdt_msg_send_rej()", __func__);
+           avdt_msg_send_rej(avdt_ccb_by_idx(p_data->msg.hdr.ccb_idx),
+                             p_data->msg.hdr.sig_id, &p_data->msg);
 
-        //maxbitpool > 250, then set minbitpool = 250
-        if ((p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET]) > A2DP_SBC_IE_MAX_BITPOOL) {
-          p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET] = A2DP_SBC_IE_MAX_BITPOOL;
-          AVDT_TRACE_DEBUG("%s: Incoming connection set max bitpool: %x", __func__,
-                              p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET]);
-        }
-
-        //minbitpool > maxbitpool, then set maxbitpool = minbitpool
-        if ((p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]) >
-            (p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET])) {
-          p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET] =
-                              p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET];
-          AVDT_TRACE_DEBUG("%s: Incoming connection minbitpool set by remote exceeds"
-                           "maxbitpool value, So set maxbitbool to minbitpool: %x to %x",
-                           __func__, p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET],
-                                     p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]);
+           return;
         }
       }
       memcpy(&p_scb->req_cfg, p_cfg, sizeof(tAVDT_CFG));
