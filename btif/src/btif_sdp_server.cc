@@ -75,7 +75,7 @@ static int add_maps_sdp(const bluetooth_sdp_mas_record* rec);
 static int add_mapc_sdp(const bluetooth_sdp_mns_record* rec);
 static int add_pbaps_sdp(const bluetooth_sdp_pse_record* rec);
 static int add_opps_sdp(const bluetooth_sdp_ops_record* rec);
-static int add_saps_sdp(const bluetooth_sdp_sap_record* rec);
+//static int add_saps_sdp(const bluetooth_sdp_sap_record* rec); SAP not yet supported for LAW.2.0
 bt_status_t remove_sdp_record(int record_id);
 static int free_sdp_slot(int id);
 
@@ -344,8 +344,8 @@ void on_create_record_event(int id) {
         handle = add_opps_sdp(&record->ops);
         break;
       case SDP_TYPE_SAP_SERVER:
-        handle = add_saps_sdp(&record->sap);
-        break;
+        //handle = add_saps_sdp(&record->sap);
+        //break; not yet supported
       case SDP_TYPE_PBAP_PCE:
       //        break; not yet supported
       default:
@@ -719,7 +719,7 @@ static int add_opps_sdp(const bluetooth_sdp_ops_record* rec) {
 
 // Create a Sim Access Profile SDP record based on information stored in a
 // bluetooth_sdp_sap_record.
-static int add_saps_sdp(const bluetooth_sdp_sap_record* rec) {
+/*static int add_saps_sdp(const bluetooth_sdp_sap_record* rec) {
   tSDP_PROTOCOL_ELEM protoList[2];
   uint16_t services[2];
   uint16_t browse = UUID_SERVCLASS_PUBLIC_BROWSE_GROUP;
@@ -774,4 +774,4 @@ static int add_saps_sdp(const bluetooth_sdp_sap_record* rec) {
                      sdp_handle);
   }
   return sdp_handle;
-}
+}*/
