@@ -107,7 +107,7 @@ typedef enum {
     BTIF_GATTC_GET_GATT_DB
 } btif_gattc_event_t;
 
-#define BTIF_GATT_MAX_OBSERVED_DEV 40
+#define BTIF_GATT_MAX_OBSERVED_DEV 400
 
 #define BTIF_GATT_OBSERVE_EVT   0x1000
 #define BTIF_GATTC_RSSI_EVT     0x1001
@@ -623,7 +623,7 @@ static void btif_gattc_upstreams_evt(uint16_t event, char* p_param)
             btif_storage_set_remote_addr_type( &p_btif_cb->bd_addr, p_btif_cb->addr_type);
 
             HAL_CBACK(bt_gatt_callbacks, client->scan_result_cb,
-                      &p_btif_cb->bd_addr, p_btif_cb->rssi, p_btif_cb->value);
+                      &p_btif_cb->bd_addr, p_btif_cb->rssi, p_btif_cb->value, p_btif_cb->adv_data_len);
             break;
         }
 

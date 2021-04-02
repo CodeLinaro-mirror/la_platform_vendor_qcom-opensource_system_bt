@@ -26,8 +26,9 @@
 
 #include <stdbool.h>
 #include "p_256_multprecision.h"
+#include "smp_int.h"
 
-typedef unsigned long  DWORD;
+typedef unsigned int DWORD;
 
 typedef struct {
     DWORD x[KEY_LENGTH_DWORDS_P256];

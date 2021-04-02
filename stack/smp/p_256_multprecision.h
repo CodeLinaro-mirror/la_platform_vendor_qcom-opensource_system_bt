@@ -26,7 +26,7 @@
 #include "bt_types.h"
 
 /* Type definitions */
-typedef unsigned long  DWORD;
+typedef unsigned int DWORD;
 
 #define DWORD_BITS      32
 #define DWORD_BYTES     4
