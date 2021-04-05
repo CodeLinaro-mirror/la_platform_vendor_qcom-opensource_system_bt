@@ -66,7 +66,7 @@
 #endif
 
 #ifndef BTA_JVC_IDLE_TO_SNIFF_DELAY_MS
-#define BTA_JVC_IDLE_TO_SNIFF_DELAY_MS (5000 - BTA_JV_IDLE_TIMEOUT_MS)
+#define BTA_JVC_IDLE_TO_SNIFF_DELAY_MS (2000 - BTA_JV_IDLE_TIMEOUT_MS)
 #endif
 const tBTA_DM_CFG bta_dm_cfg = {
     /* mobile phone COD */
