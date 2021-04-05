@@ -272,6 +272,8 @@ typedef enum {
   // indicators back to back.
   INTEROP_HFP_SEND_CALL_INDICATORS_BACK_TO_BACK,
 
+  INTEROP_HFP_1_8_BLACKLIST,
+
   END_OF_INTEROP_LIST
 } interop_feature_t;
 
