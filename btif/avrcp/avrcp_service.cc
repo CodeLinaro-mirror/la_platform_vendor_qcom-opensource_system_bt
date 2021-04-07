@@ -51,7 +51,7 @@ void do_in_avrcp_jni(const base::Closure& task) {
 }
 
 class A2dpInterfaceImpl : public A2dpInterface {
-  RawAddress active_peer() override { return btif_av_source_active_peer(); }
+  RawAddress active_peer() override { return *btif_av_source_active_peers().begin(); }
 
   bool is_peer_in_silence_mode(const RawAddress& peer_address) override {
     return btif_av_is_peer_silenced(peer_address);

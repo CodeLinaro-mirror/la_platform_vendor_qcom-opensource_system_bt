@@ -795,7 +795,8 @@ static void bta_av_ci_data(tBTA_AV_DATA* p_data) {
   for (i = 0; i < BTA_AV_NUM_STRS; i++) {
     p_scb = bta_av_cb.p_scb[i];
 
-    if (p_scb && p_scb->chnl == chnl) {
+    if (p_scb && p_scb->chnl == chnl && p_scb->PeerAddress() == p_data->ci_src_data.peer_address) {
+      APPL_TRACE_DEBUG("%s: p_scb->PeerAddress: %s", __func__, p_scb->PeerAddress().ToString().c_str());
       bta_av_ssm_execute(p_scb, BTA_AV_SRC_DATA_READY_EVT, p_data);
     }
   }

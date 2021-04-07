@@ -171,11 +171,11 @@ bool A2DP_VendorBuildCodecHeader(const uint8_t* p_codec_info, BT_HDR* p_buf,
                                  uint16_t frames_per_packet);
 
 // Gets the A2DP vendor encoder interface that can be used to encode and
-// prepare A2DP packets for transmission - see |tA2DP_ENCODER_INTERFACE|.
+// prepare A2DP packets for transmission - see |A2dpEncoderInterface|.
 // |p_codec_info| contains the codec information.
 // Returns the A2DP vendor encoder interface if the |p_codec_info| is valid and
 // supported, otherwise NULL.
-const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterface(
+const A2dpEncoderInterface* A2DP_VendorGetEncoderInterface(
     const uint8_t* p_codec_info);
 
 // Gets the current A2DP vendor decoder interface that can be used to decode

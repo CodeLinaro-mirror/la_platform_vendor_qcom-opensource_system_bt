@@ -1,5 +1,29 @@
-cc_library_static {
-    name: "libbt-sbc-encoder",
+cc_library {
+    name: "libbt-sbc-encoder1",
+    defaults: ["fluoride_defaults"],
+    srcs: [
+        "srce/sbc_analysis.c",
+        "srce/sbc_dct.c",
+        "srce/sbc_dct_coeffs.c",
+        "srce/sbc_enc_bit_alloc_mono.c",
+        "srce/sbc_enc_bit_alloc_ste.c",
+        "srce/sbc_enc_coeffs.c",
+        "srce/sbc_encoder.c",
+        "srce/sbc_packing.c",
+    ],
+    local_include_dirs: [
+        "include",
+        "srce",
+    ],
+    include_dirs: [
+        "system/bt",
+        "system/bt/internal_include",
+        "system/bt/stack/include",
+    ],
+}
+
+cc_library {
+    name: "libbt-sbc-encoder2",
     defaults: ["fluoride_defaults"],
     srcs: [
         "srce/sbc_analysis.c",

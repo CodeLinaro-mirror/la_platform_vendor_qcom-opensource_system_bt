@@ -187,18 +187,17 @@ typedef struct SBC_ENC_PARAMS_TAG {
 
 } SBC_ENC_PARAMS;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#define SBC_ENCODE_INTERFACE_STRING "sbc_encode_interface"
 
-/* Encode the frame using SBC. The output is written into |output|. Return
- * number of bytes written. */
-extern uint32_t SBC_Encode(SBC_ENC_PARAMS* strEncParams, int16_t* input,
+/** Represents the sbc encode interface. */
+
+typedef struct {
+  size_t size;
+
+  void (*tSBC_Encoder_Init)(SBC_ENC_PARAMS* strEncParams);
+
+  uint32_t (*tSBC_Encode)(SBC_ENC_PARAMS* strEncParams, int16_t* input,
                            uint8_t* output);
-extern void SBC_Encoder_Init(SBC_ENC_PARAMS* strEncParams);
-
-#ifdef __cplusplus
-}
-#endif
+}sbc_encode_interface_t;
 
 #endif /* SBC_ENCODER_H */

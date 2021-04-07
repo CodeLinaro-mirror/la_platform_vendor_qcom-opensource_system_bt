@@ -243,7 +243,7 @@ static void btif_a2dp_get_codec_configuration(
   }
 
   // Obtain the MTU
-  RawAddress peer_addr = btif_av_source_active_peer();
+  RawAddress peer_addr = *btif_av_source_active_peers().begin();
   tA2DP_ENCODER_INIT_PEER_PARAMS peer_param;
   bta_av_co_get_peer_params(peer_addr, &peer_param);
   int effectiveMtu = a2dpCodecConfig->getEffectiveMtu();
@@ -429,6 +429,9 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd) {
   LOG_INFO(LOG_TAG, "%s: cmd: %s", __func__,
            audio_a2dp_hw_dump_ctrl_event((tA2DP_CTRL_CMD)cmd));
   uint8_t status;
+  // Use empty address to fix build error.Add address parameter when use audio
+  // interface
+  RawAddress peer = RawAddress::kEmpty;
   switch (cmd) {
     case A2DP_CTRL_CMD_START:
       /*
@@ -443,7 +446,7 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd) {
         status = A2DP_CTRL_ACK_INCALL_FAILURE;
         break;
       }
-      if (btif_av_stream_started_ready()) {
+      if (btif_av_stream_started_ready(peer)) {
         /*
          * Already started, setup audio data channel listener and ACK
          * back immediately.
@@ -451,14 +454,14 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd) {
         status = A2DP_CTRL_ACK_SUCCESS;
         break;
       }
-      if (btif_av_stream_ready()) {
+      if (btif_av_stream_ready(peer)) {
         /*
          * Post start event and wait for audio path to open.
          * If we are the source, the ACK will be sent after the start
          * procedure is completed, othewise send it now.
          */
-        btif_av_stream_start();
-        if (btif_av_get_peer_sep() == AVDT_TSEP_SRC) {
+        btif_av_stream_start(peer);
+        if (btif_av_get_peer_sep(peer) == AVDT_TSEP_SRC) {
           status = A2DP_CTRL_ACK_SUCCESS;
           break;
         }
@@ -474,8 +477,8 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd) {
       break;
 
     case A2DP_CTRL_CMD_STOP:
-      if (btif_av_get_peer_sep() == AVDT_TSEP_SNK &&
-          !btif_a2dp_source_is_streaming()) {
+      if (btif_av_get_peer_sep(peer) == AVDT_TSEP_SNK &&
+          !btif_a2dp_source_is_streaming(peer)) {
         /* We are already stopped, just ack back */
         status = A2DP_CTRL_ACK_SUCCESS;
         break;
@@ -486,8 +489,8 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd) {
 
     case A2DP_CTRL_CMD_SUSPEND:
       /* Local suspend */
-      if (btif_av_stream_started_ready()) {
-        btif_av_stream_suspend();
+      if (btif_av_stream_started_ready(peer)) {
+        btif_av_stream_suspend(peer);
         status = A2DP_CTRL_ACK_PENDING;
         break;
       }
@@ -495,12 +498,12 @@ uint8_t btif_a2dp_audio_process_request(uint8_t cmd) {
        * audioflinger close the channel. This can happen if we are
        * remotely suspended, clear REMOTE SUSPEND flag.
        */
-      btif_av_clear_remote_suspend_flag();
+      btif_av_clear_remote_suspend_flag(peer);
       status = A2DP_CTRL_ACK_SUCCESS;
       break;
 
     case A2DP_CTRL_CMD_OFFLOAD_START:
-      btif_av_stream_start_offload();
+      btif_av_stream_start_offload(peer);
       status = A2DP_CTRL_ACK_PENDING;
       break;
 

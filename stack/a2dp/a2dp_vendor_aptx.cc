@@ -93,7 +93,7 @@ static const tA2DP_APTX_CIE a2dp_aptx_sink_default_config = {
     A2DP_APTX_FUTURE_2,                                        /* future2 */
     BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16                         /* bits_per_sample */
 };
-
+/*
 static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_aptx = {
     a2dp_vendor_aptx_encoder_init,
     a2dp_vendor_aptx_encoder_cleanup,
@@ -103,7 +103,7 @@ static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_aptx = {
     a2dp_vendor_aptx_send_frames,
     nullptr  // set_transmit_queue_length
 };
-
+*/
 static const tA2DP_DECODER_INTERFACE a2dp_decoder_interface_aptx = {
     a2dp_vendor_aptx_decoder_init, a2dp_vendor_aptx_decoder_cleanup,
     a2dp_vendor_aptx_decoder_decode_packet,
@@ -477,14 +477,14 @@ std::string A2DP_VendorCodecInfoStringAptx(const uint8_t* p_codec_info) {
 
   return res.str();
 }
-
+/*
 const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterfaceAptx(
     const uint8_t* p_codec_info) {
   if (!A2DP_IsVendorSourceCodecValidAptx(p_codec_info)) return NULL;
 
   return &a2dp_encoder_interface_aptx;
 }
-
+*/
 const tA2DP_DECODER_INTERFACE* A2DP_VendorGetDecoderInterfaceAptx(
     const uint8_t* p_codec_info) {
   if (!A2DP_IsVendorPeerSourceCodecValidAptx(p_codec_info) ||

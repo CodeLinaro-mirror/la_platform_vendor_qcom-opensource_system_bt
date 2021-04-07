@@ -573,8 +573,8 @@ bool A2DP_VendorBuildCodecHeader(const uint8_t* p_codec_info, BT_HDR* p_buf,
 
   return false;
 }
-
-const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterface(
+#if 0
+const A2dpEncoderInterface* A2DP_VendorGetEncoderInterface(
     const uint8_t* p_codec_info) {
   uint32_t vendor_id = A2DP_VendorCodecGetVendorId(p_codec_info);
   uint16_t codec_id = A2DP_VendorCodecGetCodecId(p_codec_info);
@@ -600,7 +600,7 @@ const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterface(
 
   return NULL;
 }
-
+#endif
 const tA2DP_DECODER_INTERFACE* A2DP_VendorGetDecoderInterface(
     const uint8_t* p_codec_info) {
   uint32_t vendor_id = A2DP_VendorCodecGetVendorId(p_codec_info);

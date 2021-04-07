@@ -207,8 +207,8 @@ std::string A2DP_VendorCodecInfoStringLdac(const uint8_t* p_codec_info);
 // |p_codec_info| contains the codec information.
 // Returns the A2DP LDAC encoder interface if the |p_codec_info| is valid and
 // supported, otherwise NULL.
-const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterfaceLdac(
-    const uint8_t* p_codec_info);
+/*const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterfaceLdac(
+    const uint8_t* p_codec_info);*/
 
 // Gets the current A2DP LDAC decoder interface that can be used to decode
 // received A2DP packets - see |tA2DP_DECODER_INTERFACE|.

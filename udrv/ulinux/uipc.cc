@@ -39,6 +39,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include <mutex>
+#include <map>
 #include <set>
 
 #include "audio_a2dp_hw/include/audio_a2dp_hw.h"
@@ -75,6 +76,8 @@ typedef enum {
   UIPC_TASK_FLAG_DISCONNECT_CHAN = 0x1,
 } tUIPC_TASK_FLAGS;
 
+std::map<int, RawAddress> ch_addr_map;
+
 /*****************************************************************************
  *  Static functions
  *****************************************************************************/
@@ -83,6 +86,8 @@ static int uipc_close_ch_locked(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id);
 /*****************************************************************************
  *  Externs
  *****************************************************************************/
+extern bool btif_a2dp_source_media_task_is_running(const RawAddress& peer_address);
+
 
 /*****************************************************************************
  *   Helper functions
@@ -103,6 +108,20 @@ const char* dump_uipc_event(tUIPC_EVENT event) {
 /*****************************************************************************
  *   socket helper functions
  ****************************************************************************/
+
+static std::string get_a2dp_socket_path(const RawAddress& peer_address, const char* path) {
+
+    std::string socket = path;
+    /* The control server socket named with Bluetooth address, for address
+     * 11:22:33:44:55:66, the socket is named like
+     * /data/misc/bluedroid/.a2dp_ctrl_11_22_33_44_55_66
+     * The data server socket named like
+     * /data/misc/bluedroid/.a2dp_data_11_22_33_44_55_66
+     */
+    socket.append("_" + peer_address.ToString());
+    std::replace(socket.begin(), socket.end(), ':', '_');
+    return socket;
+}
 
 static inline int create_server_socket(const char* name) {
   int s = socket(AF_LOCAL, SOCK_STREAM, 0);
@@ -299,7 +318,70 @@ static inline void uipc_wakeup_locked(tUIPC_STATE& uipc) {
   OSI_NO_INTR(send(uipc.signal_fds[1], &sig_on, sizeof(sig_on), 0));
 }
 
-static int uipc_setup_server_locked(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id,
+int uipc_get_free_ctrl_ch() {
+  if (ch_addr_map.find(UIPC_CH_ID_AV_CTRL_0) == ch_addr_map.end()) {
+    return UIPC_CH_ID_AV_CTRL_0;
+  } else if (ch_addr_map.find(UIPC_CH_ID_AV_CTRL_1) == ch_addr_map.end()) {
+    return UIPC_CH_ID_AV_CTRL_1;
+  } else {
+    return UIPC_CH_INVALID_ID;
+  }
+}
+
+int upic_get_audio_ch(int ctrl_ch) {
+  if (ctrl_ch == UIPC_CH_ID_AV_CTRL_0) {
+    return UIPC_CH_ID_AV_AUDIO_0;
+  } else if (ctrl_ch ==  UIPC_CH_ID_AV_CTRL_1) {
+    return UIPC_CH_ID_AV_AUDIO_1;
+  } else {
+    return UIPC_CH_INVALID_ID;
+  }
+}
+
+static void uipc_save_to_ch_address_map(int ch_id,
+                                        const RawAddress& peer_address) {
+  APPL_TRACE_DEBUG("%s: ch_id: %d, peer_address:%s", __func__,
+                   ch_id, peer_address.ToString().c_str());
+  ch_addr_map.emplace(ch_id, peer_address);
+}
+
+static void uipc_clear_ch_from_map(int ch_id) {
+  APPL_TRACE_DEBUG("%s: ch_id: %d", __func__, ch_id);
+  ch_addr_map.erase(ch_id);
+}
+
+const RawAddress& uipc_get_address_from_ch(int ch_id) {
+  APPL_TRACE_DEBUG("%s: ch_id: %d", __func__, ch_id);
+  if (ch_addr_map.find(ch_id) != ch_addr_map.end()) {
+    APPL_TRACE_DEBUG("%s: found address: %s", __func__,
+                     ch_addr_map.find(ch_id)->second.ToString().c_str());
+    return ch_addr_map.find(ch_id)->second;
+  } else {
+    return RawAddress::kEmpty;
+  }
+}
+
+int uipc_get_ch_from_address(const RawAddress& peer_address, bool ctrl) {
+  BTIF_TRACE_VERBOSE("%s find  %s channel from peer_address:%s", __func__,
+                     ctrl ? "control":"data", peer_address.ToString().c_str());
+  for (auto it = ch_addr_map.begin(); it != ch_addr_map.end(); it++) {
+    if (it->second == peer_address) {
+      if (ctrl == UIPC_CTRL_CH) {
+        APPL_TRACE_DEBUG("%s: ch_id: %d", __func__, it->first);
+        return it->first;
+      } else {
+        // return audio channel
+        APPL_TRACE_DEBUG("%s: ch_id: %d", __func__,
+                          upic_get_audio_ch(it->first));
+        return upic_get_audio_ch(it->first);
+      }
+    }
+   }
+   return UIPC_CH_INVALID_ID;
+}
+
+static int uipc_setup_server_locked(const RawAddress& peer_address,
+                                    tUIPC_STATE& uipc, tUIPC_CH_ID ch_id,
                                     const char* name, tUIPC_RCV_CBACK* cback) {
   int fd;
 
@@ -309,10 +391,11 @@ static int uipc_setup_server_locked(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id,
 
   std::lock_guard<std::recursive_mutex> guard(uipc.mutex);
 
-  fd = create_server_socket(name);
+  fd = create_server_socket(get_a2dp_socket_path(peer_address, name).c_str());
 
   if (fd < 0) {
-    BTIF_TRACE_ERROR("failed to setup %s", name, strerror(errno));
+    BTIF_TRACE_ERROR("failed to setup %s", get_a2dp_socket_path(peer_address, name).c_str(),
+      strerror(errno));
     return -1;
   }
 
@@ -323,6 +406,8 @@ static int uipc_setup_server_locked(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id,
   uipc.ch[ch_id].srvfd = fd;
   uipc.ch[ch_id].cback = cback;
   uipc.ch[ch_id].read_poll_tmo_ms = DEFAULT_READ_POLL_TMO_MS;
+  uipc.ch[ch_id].peer_address = peer_address;
+  uipc_save_to_ch_address_map(ch_id, peer_address);
 
   /* trigger main thread to update read set */
   uipc_wakeup_locked(uipc);
@@ -373,12 +458,11 @@ static void uipc_flush_locked(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id) {
   if (ch_id >= UIPC_CH_NUM) return;
 
   switch (ch_id) {
-    case UIPC_CH_ID_AV_CTRL:
-      uipc_flush_ch_locked(uipc, UIPC_CH_ID_AV_CTRL);
-      break;
-
-    case UIPC_CH_ID_AV_AUDIO:
-      uipc_flush_ch_locked(uipc, UIPC_CH_ID_AV_AUDIO);
+    case UIPC_CH_ID_AV_CTRL_0:
+    case UIPC_CH_ID_AV_CTRL_1:
+    case UIPC_CH_ID_AV_AUDIO_0:
+    case UIPC_CH_ID_AV_AUDIO_1:
+      uipc_flush_ch_locked(uipc, ch_id);
       break;
   }
 }
@@ -424,6 +508,10 @@ void uipc_close_locked(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id) {
   /* schedule close on this channel */
   uipc.ch[ch_id].task_evt_flags |= UIPC_TASK_FLAG_DISCONNECT_CHAN;
   uipc_wakeup_locked(uipc);
+  // Don't clear the map when A2DP source has been startup.
+  if (!btif_a2dp_source_media_task_is_running(uipc_get_address_from_ch(ch_id))) {
+    uipc_clear_ch_from_map(ch_id);
+  }
 }
 
 static void* uipc_read_task(void* arg) {
@@ -461,11 +549,14 @@ static void* uipc_read_task(void* arg) {
       uipc_check_task_flags_locked(uipc);
 
       /* make sure we service audio channel first */
-      uipc_check_fd_locked(uipc, UIPC_CH_ID_AV_AUDIO);
+      uipc_check_fd_locked(uipc, UIPC_CH_ID_AV_AUDIO_0);
+      uipc_check_fd_locked(uipc, UIPC_CH_ID_AV_AUDIO_1);
 
       /* check for other connections */
       for (ch_id = 0; ch_id < UIPC_CH_NUM; ch_id++) {
-        if (ch_id != UIPC_CH_ID_AV_AUDIO) uipc_check_fd_locked(uipc, ch_id);
+        if (ch_id != UIPC_CH_ID_AV_AUDIO_0 && ch_id != UIPC_CH_ID_AV_AUDIO_1) {
+          uipc_check_fd_locked(uipc, ch_id);
+        }
       }
     }
   }
@@ -539,13 +630,15 @@ std::unique_ptr<tUIPC_STATE> UIPC_Init() {
  ** Returns          true in case of success, false in case of failure.
  **
  ******************************************************************************/
-bool UIPC_Open(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, tUIPC_RCV_CBACK* p_cback,
+bool UIPC_Open(const RawAddress& peer_address, tUIPC_STATE& uipc,
+               tUIPC_CH_ID ch_id, tUIPC_RCV_CBACK* p_cback,
                const char* socket_path) {
   BTIF_TRACE_DEBUG("UIPC_Open : ch_id %d, p_cback %x", ch_id, p_cback);
 
   std::lock_guard<std::recursive_mutex> lock(uipc.mutex);
 
   if (ch_id >= UIPC_CH_NUM) {
+    BTIF_TRACE_ERROR("Invalid ch_id %d", ch_id);
     return false;
   }
 
@@ -554,7 +647,7 @@ bool UIPC_Open(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, tUIPC_RCV_CBACK* p_cback,
     return 0;
   }
 
-  uipc_setup_server_locked(uipc, ch_id, socket_path, p_cback);
+  uipc_setup_server_locked(peer_address, uipc, ch_id, socket_path, p_cback);
 
   return true;
 }
@@ -571,13 +664,18 @@ bool UIPC_Open(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, tUIPC_RCV_CBACK* p_cback,
 void UIPC_Close(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id) {
   BTIF_TRACE_DEBUG("UIPC_Close : ch_id %d", ch_id);
 
+  if (ch_id >= UIPC_CH_NUM) {
+    BTIF_TRACE_ERROR("Invalid ch_id %d", ch_id);
+    return;
+  }
+
   /* special case handling uipc shutdown */
   if (ch_id != UIPC_CH_ID_ALL) {
     std::lock_guard<std::recursive_mutex> lock(uipc.mutex);
     uipc_close_locked(uipc, ch_id);
     return;
   }
-
+  ch_addr_map.clear();
   BTIF_TRACE_DEBUG("UIPC_Close : waiting for shutdown to complete");
   uipc_stop_main_server_thread(uipc);
   BTIF_TRACE_DEBUG("UIPC_Close : shutdown complete");

@@ -63,10 +63,11 @@ cc_library_shared {
         "libkeystore_aidl",
         "libkeystore_binder",
         "libkeystore_parcelables",
+        "libbt-sbc-encoder1",
+        "libbt-sbc-encoder2",
     ],
     static_libs: [
         "libbt-sbc-decoder",
-        "libbt-sbc-encoder",
         "libFraunhoferAAC",
         "libg722codec",
         "libudrv-uipc",

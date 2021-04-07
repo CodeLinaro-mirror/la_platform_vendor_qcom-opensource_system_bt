@@ -525,20 +525,25 @@ void handle_rc_features(btif_rc_device_cb_t* p_dev) {
   CHECK(bt_rc_callbacks);
 
   btrc_remote_features_t rc_features = BTRC_FEAT_NONE;
-  RawAddress avdtp_source_active_peer_addr = btif_av_source_active_peer();
+  std::set<RawAddress> avdtp_source_active_peer_addrs = btif_av_source_active_peers();
   RawAddress avdtp_sink_active_peer_addr = btif_av_sink_active_peer();
 
+  for (auto it : avdtp_source_active_peer_addrs) {
+    BTIF_TRACE_DEBUG(
+        "%s: AVDTP Source Active Peer Address: %s "
+        "AVCTP address: %s",
+        __func__, it.ToString().c_str(),
+        p_dev->rc_addr.ToString().c_str());
+  }
   BTIF_TRACE_DEBUG(
-      "%s: AVDTP Source Active Peer Address: %s "
-      "AVDTP Sink Active Peer Address: %s "
+      "%s: AVDTP Sink Active Peer Address: %s "
       "AVCTP address: %s",
-      __func__, avdtp_source_active_peer_addr.ToString().c_str(),
-      avdtp_sink_active_peer_addr.ToString().c_str(),
+      __func__, avdtp_sink_active_peer_addr.ToString().c_str(),
       p_dev->rc_addr.ToString().c_str());
 
   if (interop_match_addr(INTEROP_DISABLE_ABSOLUTE_VOLUME, &p_dev->rc_addr) ||
       !is_absolute_volume_enabled() ||
-      (avdtp_source_active_peer_addr != p_dev->rc_addr &&
+      (!btif_av_source_is_active_peer(p_dev->rc_addr) &&
        avdtp_sink_active_peer_addr != p_dev->rc_addr)) {
     p_dev->rc_features &= ~BTA_AV_FEAT_ADV_CTRL;
   }
@@ -613,7 +618,7 @@ void handle_rc_browse_connect(tBTA_AV_RC_BROWSE_OPEN* p_rc_br_open) {
   /* check that we are already connected to this address since being connected
    * to a browse when not connected to the control channel over AVRCP is
    * probably not preferred anyways. */
-  if (p_rc_br_open->status == BTA_AV_SUCCESS) {
+  if (p_rc_br_open->status == BTA_AV_SUCCESS && bt_rc_ctrl_callbacks != nullptr) {
     p_dev->br_connected = true;
     do_in_jni_thread(FROM_HERE,
                      base::Bind(bt_rc_ctrl_callbacks->connection_state_cb, true,
@@ -777,7 +782,7 @@ void handle_rc_passthrough_cmd(tBTA_AV_REMOTE_CMD* p_remote_cmd) {
 
   /* If AVRC is open and peer sends PLAY but there is no AVDT, then we queue-up
    * this PLAY */
-  if ((p_remote_cmd->rc_id == AVRC_ID_PLAY) && (!btif_av_is_connected())) {
+  if ((p_remote_cmd->rc_id == AVRC_ID_PLAY) && (!btif_av_is_connected(p_dev->rc_addr))) {
     if (p_remote_cmd->key_state == AVRC_STATE_PRESS) {
       APPL_TRACE_WARNING("%s: AVDT not open, queuing the PLAY command",
                          __func__);
@@ -795,7 +800,7 @@ void handle_rc_passthrough_cmd(tBTA_AV_REMOTE_CMD* p_remote_cmd) {
   }
 
   if ((p_remote_cmd->rc_id == AVRC_ID_STOP) &&
-      (!btif_av_stream_started_ready())) {
+      (!btif_av_stream_started_ready(p_dev->rc_addr))) {
     APPL_TRACE_WARNING("%s: Stream suspended, ignore STOP cmd", __func__);
     return;
   }
@@ -1968,7 +1973,7 @@ static bt_status_t register_notification_rsp(
       case BTRC_EVT_PLAY_STATUS_CHANGED:
         avrc_rsp.reg_notif.param.play_status = p_param->play_status;
         if (avrc_rsp.reg_notif.param.play_status == PLAY_STATUS_PLAYING)
-          btif_av_clear_remote_suspend_flag();
+          btif_av_clear_remote_suspend_flag(btif_rc_cb.rc_multi_cb[idx].rc_addr);
         break;
       case BTRC_EVT_TRACK_CHANGE:
         memcpy(&(avrc_rsp.reg_notif.param.track), &(p_param->track),

@@ -107,6 +107,7 @@ struct a2dp_audio_device {
   std::recursive_mutex* mutex;  // See note below on mutex acquisition order.
   struct a2dp_stream_in* input;
   struct a2dp_stream_out* output;
+  std::string bdaddress;
 };
 
 struct a2dp_config {
@@ -125,6 +126,7 @@ struct a2dp_stream_common {
   size_t buffer_sz;
   struct a2dp_config cfg;
   a2dp_state_t state;
+  std::string bdaddress;
 };
 
 struct a2dp_stream_out {
@@ -780,6 +782,25 @@ static int a2dp_get_presentation_position_cmd(struct a2dp_stream_common* common,
   return 0;
 }
 
+static std::string get_a2dp_socket_path(struct a2dp_stream_common* common, const char* path) {
+  DEBUG("path:%s, address:%s", path, common->bdaddress.c_str());
+  std::string socket = path;
+  // Append the address as socket name to connect socket for specified device
+  if (common->bdaddress.compare("") != 0) {
+    /* The control server socket named with Bluetooth address, for address
+    * 11:22:33:44:55:66, the socket is named like
+    * /data/misc/bluedroid/.a2dp_ctrl_11_22_33_44_AA_BB
+    * The data server socket named like
+    * /data/misc/bluedroid/.a2dp_data_11_22_33_44_AA_BB
+    */
+    std::transform(common->bdaddress.begin(), common->bdaddress.end(),
+            common->bdaddress.begin(), ::tolower);
+    socket.append("_" + common->bdaddress);
+    std::replace(socket.begin(), socket.end(), ':', '_');
+  }
+  return socket;
+}
+
 static void a2dp_open_ctrl_path(struct a2dp_stream_common* common) {
   int i;
 
@@ -789,7 +810,8 @@ static void a2dp_open_ctrl_path(struct a2dp_stream_common* common) {
   for (i = 0; i < CTRL_CHAN_RETRY_COUNT; i++) {
     /* connect control channel if not already connected */
     if ((common->ctrl_fd = skt_connect(
-             A2DP_CTRL_PATH, AUDIO_STREAM_CONTROL_OUTPUT_BUFFER_SZ)) >= 0) {
+             get_a2dp_socket_path(common, A2DP_CTRL_PATH).c_str(),
+             AUDIO_STREAM_CONTROL_OUTPUT_BUFFER_SZ)) >= 0) {
       /* success, now check if stack is ready */
       if (check_a2dp_ready(common) == 0) break;
 
@@ -847,7 +869,7 @@ static int start_audio_datapath(struct a2dp_stream_common* common) {
 
   /* connect socket if not yet connected */
   if (common->audio_fd == AUDIO_SKT_DISCONNECTED) {
-    common->audio_fd = skt_connect(A2DP_DATA_PATH, common->buffer_sz);
+    common->audio_fd = skt_connect(get_a2dp_socket_path(common, A2DP_DATA_PATH).c_str(), common->buffer_sz);
     if (common->audio_fd < 0) {
       ERROR("Audiopath start failed - error opening data socket");
       goto error;
@@ -1582,6 +1604,7 @@ static int adev_open_output_stream(struct audio_hw_device* dev,
   int ret = 0;
 
   INFO("opening output");
+  INFO("address %s, a2dp_dev->bdaddress %s", address, a2dp_dev->bdaddress.c_str());
   // protect against adev->output and stream_out from being inconsistent
   std::lock_guard<std::recursive_mutex> lock(*a2dp_dev->mutex);
   out = (struct a2dp_stream_out*)calloc(1, sizeof(struct a2dp_stream_out));
@@ -1609,6 +1632,10 @@ static int adev_open_output_stream(struct audio_hw_device* dev,
   /* initialize a2dp specifics */
   a2dp_stream_common_init(&out->common);
 
+  if (strcmp(a2dp_dev->bdaddress.c_str(), address) == 0) {
+    INFO("Save address to out->common.bdaddress");
+    out->common.bdaddress = a2dp_dev->bdaddress;
+  }
   // Make sure we always have the feeding parameters configured
   btav_a2dp_codec_config_t codec_config;
   btav_a2dp_codec_config_t codec_capability;
@@ -1708,6 +1735,16 @@ static int adev_set_parameters(struct audio_hw_device* dev,
                                const char* kvpairs) {
   struct a2dp_audio_device* a2dp_dev = (struct a2dp_audio_device*)dev;
   int retval = 0;
+
+  std::unordered_map<std::string, std::string> params =
+    hash_map_utils_new_from_string_params(kvpairs);
+  if (!params.empty()) {
+       std::string address = params["bdaddress"];
+      INFO("address %s", address.c_str());
+      if (params["bdaddress"] != "") {
+        a2dp_dev->bdaddress = address;
+      }
+  }
 
   // prevent interference with adev_close_output_stream
   std::lock_guard<std::recursive_mutex> lock(*a2dp_dev->mutex);

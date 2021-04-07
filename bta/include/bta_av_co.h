@@ -175,7 +175,8 @@ void bta_av_co_audio_stop(tBTA_AV_HNDL bta_av_handle,
  *                  Otherwise, a buffer (BT_HDR*) containing the audio data.
  *
  ******************************************************************************/
-BT_HDR* bta_av_co_audio_source_data_path(const uint8_t* p_codec_info,
+BT_HDR* bta_av_co_audio_source_data_path(const RawAddress& peer_address,
+                                         const uint8_t* p_codec_info,
                                          uint32_t* p_timestamp);
 
 /*******************************************************************************
