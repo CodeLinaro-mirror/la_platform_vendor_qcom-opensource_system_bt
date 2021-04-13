@@ -1173,7 +1173,10 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
     // derivation to allow bond state change notification for the BR/EDR
     // transport so that the subsequent BR/EDR connections to the remote can use
     // the derived link key.
+    // For OOB incoming bond, bond state change from NONE to Bonding directly.
+    // In above case, shall NOT return.
     if (p_auth_cmpl->bd_addr != pairing_cb.bd_addr &&
+        pairing_cb.state != BT_BOND_STATE_NONE &&
         (!pairing_cb.ble.is_penc_key_rcvd)) {
       LOG(INFO) << __func__
                 << " skipping SDP since we did not initiate pairing to "
