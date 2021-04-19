@@ -132,7 +132,7 @@ A2dpCodecConfig* A2dpCodecConfig::createCodec(
       codec_config = new A2dpCodecConfigAacSink(codec_priority);
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX:
-      //codec_config = new A2dpCodecConfigAptxSource(codec_priority);
+      codec_config = new A2dpCodecConfigAptxSource(codec_priority);
       break;
     case BTAV_A2DP_CODEC_INDEX_SINK_APTX:
       codec_config = new A2dpCodecConfigAptxSink(codec_priority);
@@ -176,9 +176,9 @@ int A2dpCodecConfig::getTrackBitRate()      {
       #if 0
     case A2DP_MEDIA_CT_AAC:
       return A2DP_GetBitRateAac(p_codec_info);
-    case A2DP_MEDIA_CT_NON_A2DP:
-      return A2DP_VendorGetBitRate(p_codec_info);
       #endif
+    case A2DP_MEDIA_CT_NON_A2DP:
+      return A2DP_VendorGetBitRate(getPeerAddress(), p_codec_info);
     default:
       break;
   }
@@ -1377,10 +1377,10 @@ A2dpEncoderInterface* A2DP_GetEncoderInterface(
       /*
     case A2DP_MEDIA_CT_AAC:
       return A2DP_GetEncoderInterfaceAac(p_codec_info);
-    case A2DP_MEDIA_CT_NON_A2DP:
-      return A2DP_VendorGetEncoderInterface(p_codec_info);
       */
-    default:
+    case A2DP_MEDIA_CT_NON_A2DP:
+      return A2DP_VendorGetEncoderInterface(peer_address, p_codec_info);
+     default:
       break;
   }
 

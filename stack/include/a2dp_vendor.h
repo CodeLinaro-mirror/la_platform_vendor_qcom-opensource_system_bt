@@ -141,10 +141,12 @@ int A2DP_VendorGetTrackBitsPerSample(const uint8_t* p_codec_info);
 int A2DP_VendorGetTrackChannelCount(const uint8_t* p_codec_info);
 
 // Gets the bitrate for the A2DP vendor-specific codec.
+// |peer_address| is the peer address
 // |p_codec_info| is a pointer to the vendor-specific codec_info to decode.
 // Returns the channel count on success, or -1 if |p_codec_info|
 // contains invalid codec information.
-int A2DP_VendorGetBitRate(const uint8_t* p_codec_info);
+int A2DP_VendorGetBitRate(const RawAddress& peer_address,
+                          const uint8_t* p_codec_info);
 
 // Gets the channel type for the A2DP vendor-specific Sink codec:
 // 1 for mono, or 3 for dual/stereo/joint.
@@ -172,10 +174,12 @@ bool A2DP_VendorBuildCodecHeader(const uint8_t* p_codec_info, BT_HDR* p_buf,
 
 // Gets the A2DP vendor encoder interface that can be used to encode and
 // prepare A2DP packets for transmission - see |A2dpEncoderInterface|.
+// |peer_address| is the peer address
 // |p_codec_info| contains the codec information.
 // Returns the A2DP vendor encoder interface if the |p_codec_info| is valid and
 // supported, otherwise NULL.
-const A2dpEncoderInterface* A2DP_VendorGetEncoderInterface(
+A2dpEncoderInterface* A2DP_VendorGetEncoderInterface(
+    const RawAddress& peer_address,
     const uint8_t* p_codec_info);
 
 // Gets the current A2DP vendor decoder interface that can be used to decode
