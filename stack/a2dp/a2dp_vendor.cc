@@ -396,13 +396,13 @@ int A2DP_VendorGetBitRate(const RawAddress& peer_address,
       codec_id == A2DP_APTX_CODEC_ID_BLUETOOTH) {
     return A2DP_VendorGetBitRateAptx(peer_address, p_codec_info);
   }
-/*
+
   // Check for aptX-HD
   if (vendor_id == A2DP_APTX_HD_VENDOR_ID &&
       codec_id == A2DP_APTX_HD_CODEC_ID_BLUETOOTH) {
-    return A2DP_VendorGetBitRateAptxHd(p_codec_info);
+    return A2DP_VendorGetBitRateAptxHd(peer_address, p_codec_info);
   }
-
+/*
   // Check for LDAC
   if (vendor_id == A2DP_LDAC_VENDOR_ID && codec_id == A2DP_LDAC_CODEC_ID) {
     return A2DP_VendorGetBitRateLdac(p_codec_info);
@@ -586,13 +586,13 @@ A2dpEncoderInterface* A2DP_VendorGetEncoderInterface(
       codec_id == A2DP_APTX_CODEC_ID_BLUETOOTH) {
     return A2DP_VendorGetEncoderInterfaceAptx(peer_address, p_codec_info);
   }
-/*
+
   // Check for aptX-HD
   if (vendor_id == A2DP_APTX_HD_VENDOR_ID &&
       codec_id == A2DP_APTX_HD_CODEC_ID_BLUETOOTH) {
-    return A2DP_VendorGetEncoderInterfaceAptxHd(p_codec_info);
+    return A2DP_VendorGetEncoderInterfaceAptxHd(peer_address, p_codec_info);
   }
-
+/*
   // Check for LDAC
   if (vendor_id == A2DP_LDAC_VENDOR_ID && codec_id == A2DP_LDAC_CODEC_ID) {
     return A2DP_VendorGetEncoderInterfaceLdac(p_codec_info);

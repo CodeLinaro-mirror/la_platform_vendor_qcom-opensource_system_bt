@@ -138,7 +138,7 @@ A2dpCodecConfig* A2dpCodecConfig::createCodec(
       codec_config = new A2dpCodecConfigAptxSink(codec_priority);
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD:
-      //codec_config = new A2dpCodecConfigAptxHdSource(codec_priority);
+      codec_config = new A2dpCodecConfigAptxHdSource(codec_priority);
       break;
     case BTAV_A2DP_CODEC_INDEX_SINK_APTX_HD:
       codec_config = new A2dpCodecConfigAptxHdSink(codec_priority);
