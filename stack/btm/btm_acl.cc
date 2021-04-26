@@ -53,6 +53,7 @@
 #include "l2c_int.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+#include "osi/include/properties.h"
 
 static void btm_read_remote_features(uint16_t handle);
 static void btm_read_remote_ext_features(uint16_t handle, uint8_t page_number);
@@ -71,6 +72,12 @@ static void btm_process_remote_ext_features(tACL_CONN* p_acl_cb,
  * Returns          void
  *
  ******************************************************************************/
+static bool btm_is_set_link_super_tout_supported() {
+  char value[PROPERTY_VALUE_MAX] = {0};
+  osi_property_get("vendor.bt.set_link_super_tout_supported", value, "true");
+  return strcmp(value, "true") == 0 ? true : false;
+}
+
 void btm_acl_init(void) {
   BTM_TRACE_DEBUG("btm_acl_init");
   /* Initialize nonzero defaults */
@@ -1287,6 +1294,7 @@ tBTM_STATUS BTM_GetLinkSuperTout(const RawAddress& remote_bda,
   return (BTM_UNKNOWN_ADDR);
 }
 
+#if (BTM_SET_LINK_SUPER_TOUT == TRUE)
 /*******************************************************************************
  *
  * Function         BTM_SetLinkSuperTout
@@ -1301,6 +1309,12 @@ tBTM_STATUS BTM_SetLinkSuperTout(const RawAddress& remote_bda,
   tACL_CONN* p = btm_bda_to_acl(remote_bda, BT_TRANSPORT_BR_EDR);
 
   BTM_TRACE_DEBUG("BTM_SetLinkSuperTout");
+
+  if (!btm_is_set_link_super_tout_supported()) {
+    L2CAP_TRACE_WARNING("BTM_SetLinkSuperTout is not supported by Bluetooth chip!");
+    return BTM_ERR_PROCESSING;
+  }
+
   if (p != (tACL_CONN*)NULL) {
     p->link_super_tout = timeout;
 
@@ -1317,6 +1331,7 @@ tBTM_STATUS BTM_SetLinkSuperTout(const RawAddress& remote_bda,
   /* If here, no BD Addr found */
   return (BTM_UNKNOWN_ADDR);
 }
+#endif
 
 /*******************************************************************************
  *
@@ -1514,9 +1529,11 @@ void btm_acl_role_changed(uint8_t hci_status, const RawAddress* bd_addr,
 
     /* Reload LSTO: link supervision timeout is reset in the LM after a role
      * switch */
+#if (BTM_SET_LINK_SUPER_TOUT == TRUE)
     if (new_role == BTM_ROLE_MASTER) {
       BTM_SetLinkSuperTout(p->remote_addr, p->link_super_tout);
     }
+#endif
   } else {
     /* so the BTM_BL_ROLE_CHG_EVT uses the old role */
     new_role = p->link_role;

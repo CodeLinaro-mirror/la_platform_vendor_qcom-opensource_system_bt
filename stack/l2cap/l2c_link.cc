@@ -200,7 +200,9 @@ bool l2c_link_hci_conn_comp(uint8_t status, uint16_t handle,
       btm_acl_created(ci.bd_addr, NULL, NULL, handle, p_lcb->link_role,
                       BT_TRANSPORT_BR_EDR);
 
+#if (BTM_SET_LINK_SUPER_TOUT == TRUE)
     BTM_SetLinkSuperTout(ci.bd_addr, btm_cb.btm_def_link_super_tout);
+#endif
 
     /* If dedicated bonding do not process any further */
     if (p_lcb->is_bonding) {

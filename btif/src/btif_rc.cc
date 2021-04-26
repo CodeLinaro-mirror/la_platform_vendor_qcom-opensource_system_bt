@@ -3436,6 +3436,8 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
         } else {
           uint8_t* p_data = p_rsp->param.track;
           BE_STREAM_TO_UINT64(p_dev->rc_playing_uid, p_data);
+          /* try to update play position once track changed */
+          get_play_status_cmd(p_dev);
         }
         break;
       case AVRC_EVT_APP_SETTING_CHANGE: {
@@ -5890,9 +5892,9 @@ static bt_status_t get_transaction(rc_transaction_t** ptransaction) {
   BTIF_TRACE_ERROR("%s: failed", __func__);
 
   /*
-   * It is unlikely to occupy all the MAX_TRANSACTIONS_PER_SESSION
-   * transactions unless task scheduler(including timer) for fluoride
-   * stack runs into stuck state.
+   * Abort Bluetooth process if AVRCP profile consumes all MAX_TRANSACTIONS_PER_SESSION
+   * transactions. This is error recovery so that Android framework can restart
+   * Bluetooth process.
    */
   abort();
 
