@@ -1427,6 +1427,7 @@ bool BtifAvStateMachine::StateIdle::ProcessEvent(uint32_t event, void* p_data) {
     case BTIF_AV_STOP_STREAM_REQ_EVT:
     case BTIF_AV_SUSPEND_STREAM_REQ_EVT:
     case BTIF_AV_ACL_DISCONNECTED:
+    case BTA_AV_RC_BROWSE_CLOSE_EVT:
       // Ignore. Just re-enter Idle so the peer can be deleted
       peer_.StateMachine().TransitionTo(BtifAvStateMachine::kStateIdle);
       break;
@@ -1604,6 +1605,8 @@ bool BtifAvStateMachine::StateIdle::ProcessEvent(uint32_t event, void* p_data) {
 
       if (event == BTA_AV_RC_CLOSE_EVT) {
         btif_rc_handler(event, (tBTA_AV*)p_data);
+        // Just re-enter Idle so the peer can be deleted
+        peer_.StateMachine().TransitionTo(BtifAvStateMachine::kStateIdle);
       }
     } break;
 

@@ -732,4 +732,9 @@ bool BTA_AvIsBrowsingSupported(void);
  */
 void bta_debug_av_dump(int fd);
 
+/**
+ * Check whether absolute volume is enabled or not.
+ */
+bool is_absolute_volume_enabled(void);
+
 #endif /* BTA_AV_API_H */

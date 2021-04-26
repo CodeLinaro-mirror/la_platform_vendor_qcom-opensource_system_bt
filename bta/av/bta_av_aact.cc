@@ -1316,7 +1316,6 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       open.starting = false;
       open.sep = AVDT_TSEP_SNK;
     } else if (p_scb->seps[p_scb->sep_idx].tsep == AVDT_TSEP_SNK) {
-      open.starting = bta_av_chk_start(p_scb);
       open.sep = AVDT_TSEP_SRC;
     }
 

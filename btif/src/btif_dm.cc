@@ -386,8 +386,10 @@ static bool get_rem_oob_data_from_file(btif_dm_oob_cb_t* oobData) {
 
   BTIF_TRACE_DEBUG("%s: get remote OOB data from file %s", __func__, path);
 
-  fread(oobData->oob_data.c192, 1, OCTET16_LEN, fp);
-  fread(oobData->oob_data.r192, 1, OCTET16_LEN, fp);
+  if (fread(oobData->oob_data.c192, 1, OCTET16_LEN, fp) != OCTET16_LEN)
+    memset(oobData->oob_data.c192, 0, OCTET16_LEN);
+  if (fread(oobData->oob_data.r192, 1, OCTET16_LEN, fp) != OCTET16_LEN)
+    memset(oobData->oob_data.r192, 0, OCTET16_LEN);
   if (fread(oobData->oob_data.c256, 1, OCTET16_LEN, fp) != OCTET16_LEN)
     memset(oobData->oob_data.c256, 0, OCTET16_LEN);
   if (fread(oobData->oob_data.r256, 1, OCTET16_LEN, fp) != OCTET16_LEN)
