@@ -107,7 +107,7 @@ typedef enum {
     BTIF_GATTC_GET_GATT_DB
 } btif_gattc_event_t;
 
-#define BTIF_GATT_MAX_OBSERVED_DEV 400
+#define BTIF_GATT_MAX_OBSERVED_DEV 200
 
 #define BTIF_GATT_OBSERVE_EVT   0x1000
 #define BTIF_GATTC_RSSI_EVT     0x1001
