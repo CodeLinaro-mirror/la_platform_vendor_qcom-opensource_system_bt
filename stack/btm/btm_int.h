@@ -118,7 +118,7 @@ extern uint16_t btm_get_acl_disc_reason_code(void);
 extern tBTM_STATUS btm_remove_acl(const RawAddress& bd_addr,
                                   tBT_TRANSPORT transport);
 extern void btm_read_remote_features_complete(uint8_t* p);
-extern void btm_read_remote_ext_features_complete(uint8_t* p);
+extern void btm_read_remote_ext_features_complete(uint8_t* p, uint8_t evt_len);
 extern void btm_read_remote_ext_features_failed(uint8_t status,
                                                 uint16_t handle);
 extern void btm_read_remote_version_complete(uint8_t* p);
@@ -208,7 +208,7 @@ extern bool btm_dev_support_switch(const RawAddress& bd_addr);
 
 extern tBTM_SEC_DEV_REC* btm_sec_allocate_dev_rec(void);
 extern tBTM_SEC_DEV_REC* btm_sec_alloc_dev(const RawAddress& bd_addr);
-extern void btm_sec_free_dev(tBTM_SEC_DEV_REC* p_dev_rec);
+extern void wipe_secrets_and_remove(tBTM_SEC_DEV_REC* p_dev_rec);
 extern tBTM_SEC_DEV_REC* btm_find_dev(const RawAddress& bd_addr);
 extern tBTM_SEC_DEV_REC* btm_find_or_alloc_dev(const RawAddress& bd_addr);
 extern tBTM_SEC_DEV_REC* btm_find_dev_by_handle(uint16_t handle);

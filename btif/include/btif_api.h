@@ -105,6 +105,18 @@ bool is_restricted_mode(void);
 
 /*******************************************************************************
  *
+ * Function         is_atv_device
+ *
+ * Description      Returns true if the local device is an Android TV
+ *                  device, false if it is not.
+ *
+ * Returns          bool
+ *
+ ******************************************************************************/
+bool is_atv_device(void);
+
+/*******************************************************************************
+ *
  * Function         btif_get_adapter_properties
  *
  * Description      Fetches all local adapter properties
@@ -356,6 +368,17 @@ bt_status_t btif_dm_get_remote_service_record(const RawAddress& remote_addr,
  *
  ******************************************************************************/
 bt_status_t btif_dm_get_remote_services(const RawAddress& remote_addr);
+
+/*******************************************************************************
+ *
+ * Function         btif_dm_get_remote_services_from_app
+ *
+ * Description      Start SDP to get remote services
+ *
+ * Returns          bt_status_t
+ *
+ ******************************************************************************/
+bt_status_t btif_dm_get_remote_services_from_app(const RawAddress& remote_addr);
 
 /*******************************************************************************
  *

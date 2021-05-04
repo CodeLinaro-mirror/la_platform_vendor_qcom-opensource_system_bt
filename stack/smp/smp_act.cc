@@ -17,6 +17,7 @@
  ******************************************************************************/
 
 #include <string.h>
+#include "btif_api.h"
 #include "btif_common.h"
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
@@ -341,7 +342,7 @@ void smp_send_keypress_notification(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
  * Description  send encryption information command.
  ******************************************************************************/
 void smp_send_enc_info(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
-  tBTM_LE_LENC_KEYS le_key;
+  tBTM_LE_KEY_VALUE le_key;
 
   SMP_TRACE_DEBUG("%s: p_cb->loc_enc_size = %d", __func__, p_cb->loc_enc_size);
   smp_update_key_mask(p_cb, SMP_SEC_KEY_TYPE_ENC, false);
@@ -350,15 +351,14 @@ void smp_send_enc_info(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
   smp_send_cmd(SMP_OPCODE_MASTER_ID, p_cb);
 
   /* save the DIV and key size information when acting as slave device */
-  memcpy(le_key.ltk, p_cb->ltk, BT_OCTET16_LEN);
-  le_key.div = p_cb->div;
-  le_key.key_size = p_cb->loc_enc_size;
-  le_key.sec_level = p_cb->sec_level;
+  memcpy(le_key.lenc_key.ltk, p_cb->ltk, BT_OCTET16_LEN);
+  le_key.lenc_key.div = p_cb->div;
+  le_key.lenc_key.key_size = p_cb->loc_enc_size;
+  le_key.lenc_key.sec_level = p_cb->sec_level;
 
   if ((p_cb->peer_auth_req & SMP_AUTH_BOND) &&
       (p_cb->loc_auth_req & SMP_AUTH_BOND))
-    btm_sec_save_le_key(p_cb->pairing_bda, BTM_LE_KEY_LENC,
-                        (tBTM_LE_KEY_VALUE*)&le_key, true);
+    btm_sec_save_le_key(p_cb->pairing_bda, BTM_LE_KEY_LENC, &le_key, true);
 
   SMP_TRACE_WARNING("%s", __func__);
 
@@ -390,17 +390,16 @@ void smp_send_id_info(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
  * Description  send CSRK command.
  ******************************************************************************/
 void smp_send_csrk_info(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
-  tBTM_LE_LCSRK_KEYS key;
+  tBTM_LE_KEY_VALUE key;
   SMP_TRACE_DEBUG("%s", __func__);
   smp_update_key_mask(p_cb, SMP_SEC_KEY_TYPE_CSRK, false);
 
   if (smp_send_cmd(SMP_OPCODE_SIGN_INFO, p_cb)) {
-    key.div = p_cb->div;
-    key.sec_level = p_cb->sec_level;
-    key.counter = 0; /* initialize the local counter */
-    memcpy(key.csrk, p_cb->csrk, BT_OCTET16_LEN);
-    btm_sec_save_le_key(p_cb->pairing_bda, BTM_LE_KEY_LCSRK,
-                        (tBTM_LE_KEY_VALUE*)&key, true);
+    key.lcsrk_key.div = p_cb->div;
+    key.lcsrk_key.sec_level = p_cb->sec_level;
+    key.lcsrk_key.counter = 0; /* initialize the local counter */
+    memcpy(key.lcsrk_key.csrk, p_cb->csrk, BT_OCTET16_LEN);
+    btm_sec_save_le_key(p_cb->pairing_bda, BTM_LE_KEY_LCSRK, &key, true);
   }
 
   smp_key_distribution_by_transport(p_cb, NULL);
@@ -935,7 +934,7 @@ void smp_proc_enc_info(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
  ******************************************************************************/
 void smp_proc_master_id(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
   uint8_t* p = p_data->p_data;
-  tBTM_LE_PENC_KEYS le_key;
+  tBTM_LE_KEY_VALUE le_key;
 
   SMP_TRACE_DEBUG("%s", __func__);
 
@@ -948,18 +947,17 @@ void smp_proc_master_id(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
 
   smp_update_key_mask(p_cb, SMP_SEC_KEY_TYPE_ENC, true);
 
-  STREAM_TO_UINT16(le_key.ediv, p);
-  STREAM_TO_ARRAY(le_key.rand, p, BT_OCTET8_LEN);
+  STREAM_TO_UINT16(le_key.penc_key.ediv, p);
+  STREAM_TO_ARRAY(le_key.penc_key.rand, p, BT_OCTET8_LEN);
 
   /* store the encryption keys from peer device */
-  memcpy(le_key.ltk, p_cb->ltk, BT_OCTET16_LEN);
-  le_key.sec_level = p_cb->sec_level;
-  le_key.key_size = p_cb->loc_enc_size;
+  memcpy(le_key.penc_key.ltk, p_cb->ltk, BT_OCTET16_LEN);
+  le_key.penc_key.sec_level = p_cb->sec_level;
+  le_key.penc_key.key_size = p_cb->loc_enc_size;
 
   if ((p_cb->peer_auth_req & SMP_AUTH_BOND) &&
       (p_cb->loc_auth_req & SMP_AUTH_BOND))
-    btm_sec_save_le_key(p_cb->pairing_bda, BTM_LE_KEY_PENC,
-                        (tBTM_LE_KEY_VALUE*)&le_key, true);
+    btm_sec_save_le_key(p_cb->pairing_bda, BTM_LE_KEY_PENC, &le_key, true);
 
   smp_key_distribution(p_cb, NULL);
 }
@@ -991,25 +989,24 @@ void smp_proc_id_info(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
  ******************************************************************************/
 void smp_proc_id_addr(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
   uint8_t* p = p_data->p_data;
-  tBTM_LE_PID_KEYS pid_key;
+  tBTM_LE_KEY_VALUE pid_key;
 
   SMP_TRACE_DEBUG("%s", __func__);
   smp_update_key_mask(p_cb, SMP_SEC_KEY_TYPE_ID, true);
 
-  STREAM_TO_UINT8(pid_key.addr_type, p);
-  STREAM_TO_BDADDR(pid_key.static_addr, p);
-  memcpy(pid_key.irk, p_cb->tk, BT_OCTET16_LEN);
+  STREAM_TO_UINT8(pid_key.pid_key.addr_type, p);
+  STREAM_TO_BDADDR(pid_key.pid_key.static_addr, p);
+  memcpy(pid_key.pid_key.irk, p_cb->tk, BT_OCTET16_LEN);
 
   /* to use as BD_ADDR for lk derived from ltk */
   p_cb->id_addr_rcvd = true;
-  p_cb->id_addr_type = pid_key.addr_type;
-  p_cb->id_addr = pid_key.static_addr;
+  p_cb->id_addr_type = pid_key.pid_key.addr_type;
+  p_cb->id_addr = pid_key.pid_key.static_addr;
 
   /* store the ID key from peer device */
   if ((p_cb->peer_auth_req & SMP_AUTH_BOND) &&
       (p_cb->loc_auth_req & SMP_AUTH_BOND))
-    btm_sec_save_le_key(p_cb->pairing_bda, BTM_LE_KEY_PID,
-                        (tBTM_LE_KEY_VALUE*)&pid_key, true);
+    btm_sec_save_le_key(p_cb->pairing_bda, BTM_LE_KEY_PID, &pid_key, true);
   smp_key_distribution_by_transport(p_cb, NULL);
 }
 
@@ -1018,24 +1015,23 @@ void smp_proc_id_addr(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
  * Description  process security information from peer device
  ******************************************************************************/
 void smp_proc_srk_info(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
-  tBTM_LE_PCSRK_KEYS le_key;
+  tBTM_LE_KEY_VALUE le_key;
 
   SMP_TRACE_DEBUG("%s", __func__);
   smp_update_key_mask(p_cb, SMP_SEC_KEY_TYPE_CSRK, true);
 
   /* save CSRK to security record */
-  le_key.sec_level = p_cb->sec_level;
+  le_key.pcsrk_key.sec_level = p_cb->sec_level;
 
   /* get peer CSRK */
-  maybe_non_aligned_memcpy(le_key.csrk, p_data->p_data, BT_OCTET16_LEN);
+  maybe_non_aligned_memcpy(le_key.pcsrk_key.csrk, p_data->p_data, BT_OCTET16_LEN);
 
   /* initialize the peer counter */
-  le_key.counter = 0;
+  le_key.pcsrk_key.counter = 0;
 
   if ((p_cb->peer_auth_req & SMP_AUTH_BOND) &&
       (p_cb->loc_auth_req & SMP_AUTH_BOND))
-    btm_sec_save_le_key(p_cb->pairing_bda, BTM_LE_KEY_PCSRK,
-                        (tBTM_LE_KEY_VALUE*)&le_key, true);
+    btm_sec_save_le_key(p_cb->pairing_bda, BTM_LE_KEY_PCSRK, &le_key, true);
   smp_key_distribution_by_transport(p_cb, NULL);
 }
 
@@ -1287,18 +1283,28 @@ void smp_decide_association_model(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
         smp_int_data.status = SMP_PAIR_AUTH_FAIL;
         int_evt = SMP_AUTH_CMPL_EVT;
       } else {
-        p_cb->sec_level = SMP_SEC_UNAUTHENTICATE;
-        SMP_TRACE_EVENT("p_cb->sec_level =%d (SMP_SEC_UNAUTHENTICATE) ",
-                        p_cb->sec_level);
+        if (!is_atv_device() &&
+            (p_cb->local_io_capability == SMP_IO_CAP_IO ||
+             p_cb->local_io_capability == SMP_IO_CAP_KBDISP)) {
+          /* display consent dialog if this device has a display */
+          SMP_TRACE_DEBUG("ENCRYPTION_ONLY showing Consent Dialog");
+          p_cb->cb_evt = SMP_CONSENT_REQ_EVT;
+          smp_set_state(SMP_STATE_WAIT_NONCE);
+          smp_sm_event(p_cb, SMP_SC_DSPL_NC_EVT, NULL);
+        } else {
+          p_cb->sec_level = SMP_SEC_UNAUTHENTICATE;
+          SMP_TRACE_EVENT("p_cb->sec_level =%d (SMP_SEC_UNAUTHENTICATE) ",
+                          p_cb->sec_level);
 
-        tSMP_KEY key;
-        key.key_type = SMP_KEY_TYPE_TK;
-        key.p_data = p_cb->tk;
-        smp_int_data.key = key;
+          tSMP_KEY key;
+          key.key_type = SMP_KEY_TYPE_TK;
+          key.p_data = p_cb->tk;
+          smp_int_data.key = key;
 
-        memset(p_cb->tk, 0, BT_OCTET16_LEN);
-        /* TK, ready  */
-        int_evt = SMP_KEY_READY_EVT;
+          memset(p_cb->tk, 0, BT_OCTET16_LEN);
+          /* TK, ready  */
+          int_evt = SMP_KEY_READY_EVT;
+        }
       }
       break;
 
@@ -1645,8 +1651,18 @@ void smp_process_peer_nonce(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
       }
 
       if (p_cb->selected_association_model == SMP_MODEL_SEC_CONN_JUSTWORKS) {
-        /* go directly to phase 2 */
-        smp_sm_event(p_cb, SMP_SC_PHASE1_CMPLT_EVT, NULL);
+        if (!is_atv_device() &&
+            (p_cb->local_io_capability == SMP_IO_CAP_IO ||
+             p_cb->local_io_capability == SMP_IO_CAP_KBDISP)) {
+          /* display consent dialog */
+          SMP_TRACE_DEBUG("JUST WORKS showing Consent Dialog");
+          p_cb->cb_evt = SMP_CONSENT_REQ_EVT;
+          smp_set_state(SMP_STATE_WAIT_NONCE);
+          smp_sm_event(p_cb, SMP_SC_DSPL_NC_EVT, NULL);
+        } else {
+          /* go directly to phase 2 */
+          smp_sm_event(p_cb, SMP_SC_PHASE1_CMPLT_EVT, NULL);
+        }
       } else /* numeric comparison */
       {
         smp_set_state(SMP_STATE_WAIT_NONCE);

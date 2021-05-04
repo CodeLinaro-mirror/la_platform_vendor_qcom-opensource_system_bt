@@ -39,6 +39,7 @@
 #include "gap_api.h"
 #include "gatt_api.h"
 #include "hcimsgs.h"
+#include "log/log.h"
 #include "l2c_int.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
@@ -2066,6 +2067,7 @@ uint8_t btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr,
         /* fall through */
         p_dev_rec->sec_flags |= BTM_SEC_LE_AUTHENTICATED;
 
+      case SMP_CONSENT_REQ_EVT:
       case SMP_SEC_REQUEST_EVT:
         if (event == SMP_SEC_REQUEST_EVT &&
             btm_cb.pairing_state != BTM_PAIR_STATE_IDLE) {
@@ -2073,7 +2075,9 @@ uint8_t btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr,
           break;
         }
         btm_cb.pairing_bda = bd_addr;
-        p_dev_rec->sec_state = BTM_SEC_STATE_AUTHENTICATING;
+        if (event != SMP_CONSENT_REQ_EVT) {
+          p_dev_rec->sec_state = BTM_SEC_STATE_AUTHENTICATING;
+        }
         btm_cb.pairing_flags |= BTM_PAIR_FLAGS_LE_ACTIVE;
       /* fall through */
 
@@ -2088,6 +2092,12 @@ uint8_t btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr,
         }
 
         if (event == SMP_COMPLT_EVT) {
+          p_dev_rec = btm_find_dev(bd_addr);
+          if (p_dev_rec == NULL) {
+            BTM_TRACE_ERROR("%s: p_dev_rec is NULL", __func__);
+            android_errorWriteLog(0x534e4554, "120612744");
+            return 0;
+          }
           BTM_TRACE_DEBUG(
               "evt=SMP_COMPLT_EVT before update sec_level=0x%x sec_flags=0x%x",
               p_data->cmplt.sec_level, p_dev_rec->sec_flags);
