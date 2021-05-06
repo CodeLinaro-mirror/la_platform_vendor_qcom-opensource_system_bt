@@ -969,6 +969,7 @@ tHID_STATUS hidd_conn_send_data(uint8_t channel, uint8_t msg_type,
       return HID_SUCCESS;
     }
 
+    osi_free_and_reset((void**)&p_buf);
     return HID_ERR_NO_CONNECTION;
   }
 
