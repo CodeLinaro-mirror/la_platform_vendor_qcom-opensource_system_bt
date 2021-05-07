@@ -131,10 +131,10 @@ typedef struct {
   int64_t codec_specific_3;  // Codec-specific value 3
   int64_t codec_specific_4;  // Codec-specific value 4
   int64_t codec_specific_5;  // Codec-specific value 5
-  uint8_t ttp_ll_min; // TTP values for LL and HQ
-  uint8_t ttp_ll_max;
-  uint8_t ttp_hq_min;
-  uint8_t ttp_hq_max;
+  uint16_t ttp_ll_min; // LL & HQ TTP values of aptx-AD
+  uint16_t ttp_ll_max;
+  uint16_t ttp_hq_min;
+  uint16_t ttp_hq_max;
 
   std::string ToString() const {
     std::string codec_name_str;
