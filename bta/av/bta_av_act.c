@@ -537,6 +537,9 @@ void bta_av_rc_opened(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
     UINT8       tmp;
     UINT8       disc = 0;
 
+     if (p_data == NULL)
+          return;
+
     /* find the SCB & stop the timer */
     for(i=0; i<BTA_AV_NUM_STRS; i++)
     {
