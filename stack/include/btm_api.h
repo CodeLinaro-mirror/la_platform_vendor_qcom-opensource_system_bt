@@ -813,6 +813,9 @@ extern tBTM_STATUS BTM_RegBusyLevelNotif(tBTM_BL_CHANGE_CB* p_cb,
  ******************************************************************************/
 extern uint16_t BTM_GetNumAclLinks(void);
 
+extern tBTM_STATUS BTM_FlowSpec(const RawAddress& bd, tBT_FLOW_SPEC* p_flow,
+                              tBTM_CMPL_CB* p_cb);
+
 /*****************************************************************************
  *  (e)SCO CHANNEL MANAGEMENT FUNCTIONS
  ****************************************************************************/

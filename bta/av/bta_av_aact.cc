@@ -309,6 +309,47 @@ static void notify_start_failed(tBTA_AV_SCB* p_scb) {
   (*bta_av_cb.p_cback)(BTA_AV_START_EVT, &bta_av_data);
 }
 
+static void bta_av_update_flow_spec(tBTA_AV_SCB* p_scb) {
+
+  const char *codec_name;
+  uint8_t *p_codec_info = (uint8_t*) p_scb->cfg.codec_info;
+
+  tBT_FLOW_SPEC flow_spec;
+  memset(&flow_spec, 0x00, sizeof(flow_spec));
+  if (p_scb->seps[p_scb->sep_idx].tsep == AVDT_TSEP_SRC) {
+    APPL_TRACE_DEBUG("%s: outgoing flow", __func__);
+    flow_spec.flow_direction = 0x00;     /* flow direction - outgoing flow */
+  } else if (p_scb->seps[p_scb->sep_idx].tsep == AVDT_TSEP_SNK) {
+    APPL_TRACE_DEBUG("%s: incoming flow", __func__);
+    flow_spec.flow_direction = 0x01;     /* flow direction - incoming flow */
+  }
+  flow_spec.flow_direction = 0x00;     /* flow direction - out going */
+  flow_spec.service_type = 0x02;       /* Guaranteed */
+  flow_spec.token_rate = 0x00;         /* bytes/second - no token rate is specified*/
+  flow_spec.token_bucket_size = 0x00;  /* bytes - no token bucket is needed*/
+  flow_spec.latency = 0xFFFFFFFF;      /* microseconds - default value */
+
+  codec_name = A2DP_CodecName(p_codec_info);
+  if (strcmp(codec_name,"SBC") == 0) {
+    flow_spec.peak_bandwidth = (345*1000)/8; /* bytes/second */
+
+  } else if (strcmp(codec_name,"aptX") == 0)  {
+    flow_spec.peak_bandwidth = (380*1000)/8; /* bytes/second */
+
+  } else if (strcmp(codec_name,"aptX-HD") == 0) {
+    flow_spec.peak_bandwidth = (660*1000)/8; /* bytes/second */
+
+  } else if (strcmp(codec_name,"LDAC") == 0) {
+    flow_spec.peak_bandwidth = (660*1000)/8; /* bytes/second */
+
+  } else if (strcmp(codec_name,"AAC") == 0) {
+    flow_spec.peak_bandwidth = (320*1000)/8; /* bytes/second */
+  }
+  APPL_TRACE_DEBUG("%s: codec_name %s peak_bandwidth %d", __func__, codec_name,
+                                flow_spec.peak_bandwidth);
+  BTM_FlowSpec(p_scb->PeerAddress(), &flow_spec, NULL);
+}
+
 /*******************************************************************************
  *
  * Function         bta_av_st_rc_timer
@@ -1247,6 +1288,8 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 
   p_scb->l2c_bufs = 0;
   p_scb->p_cos->open(p_scb->hndl, p_scb->PeerAddress(), p_scb->stream_mtu);
+
+  bta_av_update_flow_spec(p_scb);
 
   {
     /* TODO check if other audio channel is open.
@@ -2665,6 +2708,7 @@ void bta_av_rcfg_str_ok(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     bta_av_data.reconfig = reconfig;
     (*bta_av_cb.p_cback)(BTA_AV_RECONFIG_EVT, &bta_av_data);
   }
+  bta_av_update_flow_spec(p_scb);
 }
 
 /*******************************************************************************

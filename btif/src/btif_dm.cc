@@ -285,7 +285,7 @@ static bool is_bonding_or_sdp() {
 
 static bool is_oob_enabled() {
   char prop_oob[PROPERTY_VALUE_MAX];
-  osi_property_get("vendor.bluetooth.oob", prop_oob, "false");
+  osi_property_get("vendor.bluetooth.oob", prop_oob, "true");
   BTIF_TRACE_DEBUG("%s: prop_oob = %s", __func__, prop_oob);
   return strcmp(prop_oob, "true") == 0 ? true : false;
 }
@@ -333,8 +333,10 @@ static bool get_rem_oob_data_from_file(btif_dm_oob_cb_t* oobData) {
 
   BTIF_TRACE_DEBUG("%s: get remote OOB data from file %s", __func__, path);
 
-  fread(oobData->oob_data.c192, 1, OCTET16_LEN, fp);
-  fread(oobData->oob_data.r192, 1, OCTET16_LEN, fp);
+  if (fread(oobData->oob_data.c192, 1, OCTET16_LEN, fp) != OCTET16_LEN)
+    memset(oobData->oob_data.c192, 0, OCTET16_LEN);
+  if (fread(oobData->oob_data.r192, 1, OCTET16_LEN, fp) != OCTET16_LEN)
+    memset(oobData->oob_data.r192, 0, OCTET16_LEN);
   if (fread(oobData->oob_data.c256, 1, OCTET16_LEN, fp) != OCTET16_LEN)
     memset(oobData->oob_data.c256, 0, OCTET16_LEN);
   if (fread(oobData->oob_data.r256, 1, OCTET16_LEN, fp) != OCTET16_LEN)
@@ -1171,7 +1173,10 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
     // derivation to allow bond state change notification for the BR/EDR
     // transport so that the subsequent BR/EDR connections to the remote can use
     // the derived link key.
+    // For OOB incoming bond, bond state change from NONE to Bonding directly.
+    // In above case, shall NOT return.
     if (p_auth_cmpl->bd_addr != pairing_cb.bd_addr &&
+        pairing_cb.state != BT_BOND_STATE_NONE &&
         (!pairing_cb.ble.is_penc_key_rcvd)) {
       LOG(INFO) << __func__
                 << " skipping SDP since we did not initiate pairing to "
