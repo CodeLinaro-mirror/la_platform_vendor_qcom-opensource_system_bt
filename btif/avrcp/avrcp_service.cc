@@ -51,7 +51,7 @@ void do_in_avrcp_jni(const base::Closure& task) {
 }
 
 class A2dpInterfaceImpl : public A2dpInterface {
-  RawAddress active_peer() override { return *btif_av_source_active_peers().begin(); }
+  std::set<RawAddress> active_peers() override { return btif_av_source_active_peers(); }
 
   bool is_peer_in_silence_mode(const RawAddress& peer_address) override {
     return btif_av_is_peer_silenced(peer_address);
@@ -143,6 +143,11 @@ class MediaInterfaceWrapper : public MediaInterface {
                                base::Unretained(wrapped_), key, state));
   }
 
+  void SendKeyEventExt(const RawAddress& address, uint8_t key, KeyState state) override {
+    do_in_avrcp_jni(base::Bind(&MediaInterface::SendKeyEventExt,
+                               base::Unretained(wrapped_), address, key, state));
+  }
+
   void GetSongInfo(SongInfoCallback info_cb) override {
     auto cb_lambda = [](SongInfoCallback cb, SongInfo data) {
       do_in_main_thread(FROM_HERE, base::Bind(cb, data));
@@ -154,6 +159,18 @@ class MediaInterfaceWrapper : public MediaInterface {
                                base::Unretained(wrapped_), bound_cb));
   }
 
+  void GetSongInfoExt(const RawAddress& address, SongInfoCallback info_cb) override {
+    auto cb_lambda = [](SongInfoCallback cb, SongInfo data) {
+      do_in_main_thread(FROM_HERE, base::Bind(cb, data));
+    };
+
+    auto bound_cb = base::Bind(cb_lambda, info_cb);
+
+    do_in_avrcp_jni(base::Bind(&MediaInterface::GetSongInfoExt,
+                               base::Unretained(wrapped_), address, bound_cb));
+  }
+
+
   void GetPlayStatus(PlayStatusCallback status_cb) override {
     auto cb_lambda = [](PlayStatusCallback cb, PlayStatus status) {
       do_in_main_thread(FROM_HERE, base::Bind(cb, status));
@@ -163,6 +180,17 @@ class MediaInterfaceWrapper : public MediaInterface {
 
     do_in_avrcp_jni(base::Bind(&MediaInterface::GetPlayStatus,
                                base::Unretained(wrapped_), bound_cb));
+  }
+
+  void GetPlayStatusExt(const RawAddress& address, PlayStatusCallback status_cb) override {
+    auto cb_lambda = [](PlayStatusCallback cb, PlayStatus status) {
+      do_in_main_thread(FROM_HERE, base::Bind(cb, status));
+    };
+
+    auto bound_cb = base::Bind(cb_lambda, status_cb);
+
+    do_in_avrcp_jni(base::Bind(&MediaInterface::GetPlayStatusExt,
+                               base::Unretained(wrapped_), address, bound_cb));
   }
 
   void GetNowPlayingList(NowPlayingCallback now_playing_cb) override {
@@ -177,6 +205,21 @@ class MediaInterfaceWrapper : public MediaInterface {
     do_in_avrcp_jni(base::Bind(&MediaInterface::GetNowPlayingList,
                                base::Unretained(wrapped_), bound_cb));
   }
+
+  void GetNowPlayingListExt(const RawAddress& address, NowPlayingCallback now_playing_cb) override {
+    auto cb_lambda = [](NowPlayingCallback cb, std::string curr_media_id,
+                        std::vector<SongInfo> song_list) {
+      do_in_main_thread(FROM_HERE,
+                        base::Bind(cb, curr_media_id, std::move(song_list)));
+    };
+
+    auto bound_cb = base::Bind(cb_lambda, now_playing_cb);
+
+    do_in_avrcp_jni(base::Bind(&MediaInterface::GetNowPlayingListExt,
+                               base::Unretained(wrapped_), address, bound_cb));
+
+  }
+
 
   void GetMediaPlayerList(MediaListCallback list_cb) override {
     auto cb_lambda = [](MediaListCallback cb, uint16_t curr_player,
@@ -353,9 +396,26 @@ void AvrcpService::SendMediaUpdate(bool track_changed, bool play_state,
   for (const auto& device :
        instance_->connection_handler_->GetListOfDevices()) {
     do_in_main_thread(FROM_HERE,
-                      base::Bind(&Device::SendMediaUpdate, device.get()->Get(), track_changed, play_state, queue));
+                      base::Bind(&Device::SendMediaUpdateExt, device.get()->Get(), track_changed, play_state, queue));
   }
 }
+
+void AvrcpService::SendMediaUpdateExt(const RawAddress& bdaddr, bool track_changed,
+                                      bool play_state, bool queue) {
+  LOG(INFO) << __PRETTY_FUNCTION__ << " bdaddr=" << bdaddr
+            << " track_changed=" << track_changed << " : "
+            << " play_state=" << play_state << " : "
+            << " queue=" << queue;
+
+  // This function may be called on any thread, we need to make sure that the
+  // device update happens on the main thread.
+  std::shared_ptr<Device> device = instance_->connection_handler_->GetDevice(bdaddr);
+  if (device != nullptr) {
+    do_in_main_thread(FROM_HERE,
+                      base::Bind(&Device::SendMediaUpdateExt, device.get()->Get(), track_changed, play_state, queue));
+  }
+}
+
 
 void AvrcpService::SendFolderUpdate(bool available_players,
                                     bool addressed_players, bool uids) {
