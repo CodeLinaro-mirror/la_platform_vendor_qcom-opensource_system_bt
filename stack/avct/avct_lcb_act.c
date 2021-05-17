@@ -528,6 +528,9 @@ void avct_lcb_open_fail(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
     tAVCT_CCB           *p_ccb = &avct_cb.ccb[0];
     int                 i;
 
+    if(p_data == NULL)
+      return;
+
     for (i = 0; i < AVCT_NUM_CONN; i++, p_ccb++)
     {
         if (p_ccb->allocated && (p_ccb->p_lcb == p_lcb))
@@ -730,6 +733,7 @@ void avct_bcb_close_cfm(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
         p_cback = p_ccb->cc.p_ctrl_cback;
         p_ccb->p_bcb = NULL;
         if (p_ccb->p_lcb == NULL) avct_ccb_dealloc(p_ccb, AVCT_NO_EVT, 0, NULL);
+        if (p_data)
         (*p_cback)(avct_ccb_to_idx(p_ccb), event, p_data->result,
                    p_bcb->peer_addr);
       }

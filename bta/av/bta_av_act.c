@@ -641,6 +641,10 @@ void bta_av_rc_opened(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 void bta_av_rc_remote_cmd(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 {
     tBTA_AV_RCB    *p_rcb;
+
+    if (p_data == NULL)
+      return;
+
     if (p_cb->features & BTA_AV_FEAT_RCCT)
     {
         if (p_data->hdr.layer_specific < BTA_AV_NUM_RCB)

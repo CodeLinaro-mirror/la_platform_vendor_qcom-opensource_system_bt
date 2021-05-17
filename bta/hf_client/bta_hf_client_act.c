@@ -275,6 +275,9 @@ void bta_hf_client_rfc_acp_open(tBTA_HF_CLIENT_DATA *p_data)
     BD_ADDR         dev_addr;
     int             status;
 
+    if (p_data == NULL)
+      return;
+
     /* set role */
     bta_hf_client_cb.scb.role = BTA_HF_CLIENT_ACP;
 
