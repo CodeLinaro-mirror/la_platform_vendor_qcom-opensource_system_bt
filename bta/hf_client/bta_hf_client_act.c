@@ -60,6 +60,9 @@ void bta_hf_client_register(tBTA_HF_CLIENT_DATA *p_data)
     tBTA_HF_CLIENT evt;
     tBTA_UTL_COD   cod;
 
+    if (p_data == NULL)
+      return;
+
     memset(&evt, 0, sizeof(evt));
 
     /* initialize control block */

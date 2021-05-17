@@ -1071,6 +1071,8 @@ void avct_lcb_send_msg(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
     UINT16          temp;
     UINT16          buf_size = p_lcb->peer_mtu + L2CAP_MIN_OFFSET + BT_HDR_SIZE;
 
+     if (p_data == NULL)
+          return;
 
     /* store msg len */
     curr_msg_len = p_data->ul_msg.p_buf->len;
@@ -1180,6 +1182,9 @@ void avct_bcb_send_msg(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
     UINT8           pkt_type;
     UINT8           *p;
     BT_HDR          *p_buf;
+
+     if (p_data == NULL)
+          return;
     /* store msg len */
     curr_msg_len = p_data->ul_msg.p_buf->len;
     AVCT_TRACE_DEBUG("avct_bcb_send_msg  length: %x",curr_msg_len);

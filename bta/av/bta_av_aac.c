@@ -49,6 +49,7 @@ UINT8 bta_av_aac_cfg_in_cap(UINT8 *p_cfg, tA2D_AAC_CIE *p_cap)
     UINT8           status = 0;
     tA2D_AAC_CIE    cfg_cie;
 
+     memset(&cfg_cie, 0x00, sizeof(cfg_cie));
     /* parse configuration */
     if ((status = A2D_ParsAacInfo(&cfg_cie, p_cfg, FALSE)) != 0)
     {
