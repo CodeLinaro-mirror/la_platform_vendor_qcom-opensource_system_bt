@@ -104,6 +104,7 @@ cc_library_shared {
         "libbt-hci_qti",
         "libldacBT_enc",
         "libldacBT_abr",
+        "leaudio_configs.xml",
     ],
     cflags: [
         "-DBUILDCFG",
