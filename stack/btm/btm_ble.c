@@ -1812,6 +1812,7 @@ UINT8 btm_ble_io_capabilities_req(tBTM_SEC_DEV_REC *p_dev_rec, tBTM_LE_IO_REQ *p
         /* remove MITM protection requirement if IO cap does not allow it */
         if ((p_data->io_cap == BTM_IO_CAP_NONE) && p_data->oob_data == SMP_OOB_NONE)
             p_data->auth_req &= ~BTM_LE_AUTH_REQ_MITM;
+        p_data->auth_req &= ~BTM_LE_AUTH_REQ_BOND;
 
         if (!(p_data->auth_req & SMP_SC_SUPPORT_BIT))
         {

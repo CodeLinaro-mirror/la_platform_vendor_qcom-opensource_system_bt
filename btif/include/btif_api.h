@@ -312,6 +312,17 @@ void btif_dm_get_role_req(const bt_bdaddr_t *bd_addr);
 
 /*******************************************************************************
 **
+** Function         btif_dm_switch_role_req
+**
+** Description      Switch the current role to new role
+**
+** Returns          int
+**
+*******************************************************************************/
+int btif_dm_switch_role_req(const bt_bdaddr_t *bd_addr, UINT8 new_role);
+
+/*******************************************************************************
+**
 ** Function         btif_dm_pin_reply
 **
 ** Description      BT legacy pairing - PIN code reply

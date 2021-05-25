@@ -623,7 +623,7 @@ static void btif_gattc_upstreams_evt(uint16_t event, char* p_param)
             btif_storage_set_remote_addr_type( &p_btif_cb->bd_addr, p_btif_cb->addr_type);
 
             HAL_CBACK(bt_gatt_callbacks, client->scan_result_cb,
-                      &p_btif_cb->bd_addr, p_btif_cb->rssi, p_btif_cb->value);
+                      &p_btif_cb->bd_addr, p_btif_cb->addr_type, p_btif_cb->rssi, p_btif_cb->value, p_btif_cb->adv_data_len);
             break;
         }
 
