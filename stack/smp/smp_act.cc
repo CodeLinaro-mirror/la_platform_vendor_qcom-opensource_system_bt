@@ -2064,7 +2064,7 @@ void smp_br_process_link_key(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
     SMP_TRACE_ERROR("%s: failed", __func__);
     tSMP_INT_DATA smp_int_data;
     smp_int_data.status = status;
-    smp_sm_event(p_cb, SMP_BR_AUTH_CMPL_EVT, &smp_int_data);
+    smp_br_state_machine_event(p_cb, SMP_BR_AUTH_CMPL_EVT, &smp_int_data);
     return;
   }
 
