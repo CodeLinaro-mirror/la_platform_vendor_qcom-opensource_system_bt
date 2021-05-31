@@ -317,6 +317,7 @@ static void btif_av_reset_remote_started_flag();
 extern void btif_a2dp_update_sink_latency_change();
 extern bt_status_t send_av_passthrough_cmd(RawAddress* bd_addr, uint8_t key_code,
                                         uint8_t key_state);
+extern uint16_t btif_hf_client_is_call_idle();
 static int other_device_media_packet_count = 0;
 void btif_av_set_reconfig_flag(tBTA_AV_HNDL bta_handle);
 void btif_av_clear_pending_start_flag();
@@ -1822,7 +1823,7 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
     if (btif_av_check_flag_remote_suspend(index)) {
       BTIF_TRACE_EVENT("%s: Resetting remote suspend flag on RC PLAY", __func__);
       btif_av_clear_remote_suspend_flag();
-      if (bluetooth::headset::btif_hf_is_call_vr_idle())
+      if (bluetooth::headset::btif_hf_is_call_vr_idle() && btif_hf_client_is_call_idle())
       {
         RawAddress addr = btif_rc_get_connected_peer_address(p_av->remote_cmd.rc_handle);
         if (!addr.IsEmpty() && btif_av_is_current_device(addr)) {
@@ -1961,7 +1962,7 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
 
       /* if remote tries to start a2dp when call is in progress, suspend it right away */
       if ((!(btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START)) &&
-            (!bluetooth::headset::btif_hf_is_call_vr_idle())) {
+            (!bluetooth::headset::btif_hf_is_call_vr_idle()) && (!btif_hf_client_is_call_idle())) {
         BTIF_TRACE_EVENT("%s: trigger suspend as call is in progress!!", __func__);
         btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
         btif_av_cb[index].remote_started = true;
