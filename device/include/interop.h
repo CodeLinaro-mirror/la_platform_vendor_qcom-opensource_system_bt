@@ -279,6 +279,8 @@ typedef enum {
   //Some LE mouses want to use preferred connection parameters
   INTEROP_ENABLE_PREFERRED_CONN_PARAMETER,
 
+  INTEROP_HFP_1_8_BLACKLIST,
+
   END_OF_INTEROP_LIST
 } interop_feature_t;
 
