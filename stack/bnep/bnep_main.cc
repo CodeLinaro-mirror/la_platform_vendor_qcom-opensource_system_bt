@@ -460,6 +460,12 @@ static void bnep_data_ind(uint16_t l2cap_cid, BT_HDR* p_buf) {
   type = *p++;
   extension_present = type >> 7;
   type &= 0x7f;
+  if (type >= sizeof(bnep_frame_hdr_sizes) / sizeof(bnep_frame_hdr_sizes[0])) {
+    BNEP_TRACE_EVENT("BNEP - rcvd frame, bad type: 0x%02x", type);
+    android_errorWriteLog(0x534e4554, "68818034");
+    osi_free(p_buf);
+    return;
+  }
   if ((rem_len <= bnep_frame_hdr_sizes[type]) || (rem_len > BNEP_MTU_SIZE)) {
     BNEP_TRACE_EVENT("BNEP - rcvd frame, bad len: %d  type: 0x%02x", p_buf->len,
                      type);
@@ -625,6 +631,7 @@ static void bnep_data_ind(uint16_t l2cap_cid, BT_HDR* p_buf) {
   if (bnep_cb.p_data_buf_cb) {
     (*bnep_cb.p_data_buf_cb)(p_bcb->handle, *p_src_addr, *p_dst_addr, protocol,
                              p_buf, fw_ext_present);
+    osi_free(p_buf);
   } else if (bnep_cb.p_data_ind_cb) {
     (*bnep_cb.p_data_ind_cb)(p_bcb->handle, *p_src_addr, *p_dst_addr, protocol,
                              p, rem_len, fw_ext_present);

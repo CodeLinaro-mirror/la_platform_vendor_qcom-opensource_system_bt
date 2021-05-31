@@ -197,12 +197,6 @@ static void bta_pan_data_buf_ind_cback(uint16_t handle, const RawAddress& src,
   ((tBTA_PAN_DATA_PARAMS*)p_new_buf)->ext = ext;
   ((tBTA_PAN_DATA_PARAMS*)p_new_buf)->forward = forward;
 
-  p_scb = bta_pan_scb_by_handle(handle);
-  if (p_scb == NULL) {
-    osi_free(p_new_buf);
-    return;
-  }
-
   fixed_queue_enqueue(p_scb->data_queue, p_new_buf);
   BT_HDR* p_event = (BT_HDR*)osi_malloc(sizeof(BT_HDR));
   p_event->layer_specific = handle;
