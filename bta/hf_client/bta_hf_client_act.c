@@ -457,6 +457,9 @@ void bta_hf_client_disc_int_res(tBTA_HF_CLIENT_DATA *p_data)
 {
     UINT16 event = BTA_HF_CLIENT_DISC_FAIL_EVT;
 
+    if (p_data == NULL)
+      return;
+
     APPL_TRACE_DEBUG ("bta_hf_client_disc_int_res: Status: %d", p_data->disc_result.status);
 
     /* if found service */

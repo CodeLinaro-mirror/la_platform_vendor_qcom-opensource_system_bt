@@ -687,13 +687,15 @@ void avct_lcb_close_cfm(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 
             if (p_ccb->cc.role == AVCT_INT)
             {
-                avct_ccb_dealloc(p_ccb, event, p_data->result, p_lcb->peer_addr);
+                if(p_data)
+                  avct_ccb_dealloc(p_ccb, event, p_data->result, p_lcb->peer_addr);
             }
             else
             {
                 p_ccb->p_lcb = NULL;
-                (*p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_ccb), event,
-                                       p_data->result, p_lcb->peer_addr);
+                if (p_data)
+                  (*p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_ccb), event,
+                                         p_data->result, p_lcb->peer_addr);
             }
         }
     }
@@ -1371,6 +1373,9 @@ void avct_bcb_msg_ind(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
      * responding AVCT_MsgReq, AVCT layer knows to respond to
      * Browsing channel
     */
+    if (p_data == NULL)
+      return;
+
     p_data->p_buf->layer_specific = AVCT_DATA_BROWSE;
 
     /*
