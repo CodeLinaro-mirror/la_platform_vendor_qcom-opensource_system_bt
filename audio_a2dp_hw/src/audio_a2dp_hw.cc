@@ -167,6 +167,7 @@ struct a2dp_stream_in {
 static bool enable_delay_reporting = false;
 
 static std::unordered_map<std::string, struct a2dp_stream_out*> device_stream_map;
+static std::unordered_map<std::string, struct a2dp_stream_out*> bus_stream_map;
 
 /*****************************************************************************
  *  Static functions
@@ -1265,8 +1266,7 @@ static int out_set_parameters(struct audio_stream* stream,
           ERROR("a2dp_read_output_audio_config failed");
         }
       }
-    }
-    else {
+    } else {
       // for A2DP device
       INFO("save bdaddress %s", address.c_str());
       out->common.bdaddress = address;
@@ -1768,6 +1768,11 @@ static int adev_open_output_stream(struct audio_hw_device* dev,
   *stream_out = &out->stream;
   a2dp_dev->output = out;
 
+  if (devices == AUDIO_DEVICE_OUT_BUS) {
+    INFO("out while inserting %p busaddress= %s, handle=%d", out,address,handle);
+    bus_stream_map.emplace(address, out);
+  }
+
   DEBUG("success");
   /* Delay to ensure Headset is in proper state when START is initiated from
    * DUT immediately after the connection due to ongoing music playback. */
@@ -1826,8 +1831,16 @@ static int adev_set_parameters(struct audio_hw_device* dev,
   if (!params.empty()) {
        std::string address = params["bdaddress"];
       INFO("address %s", address.c_str());
-      if (params["bdaddress"] != "") {
+      if (address != "") {
         a2dp_dev->bdaddress = address;
+      }
+
+      std::string busaddress = params["busaddress"];
+      if (busaddress != "") {
+         if (bus_stream_map.find(busaddress) != bus_stream_map.end()) {
+             out = bus_stream_map.find(busaddress)->second;
+             INFO("out while retriving %p busaddress= %s", out, busaddress.c_str());
+         }
       }
   }
   if (out == NULL) return retval;
@@ -1851,7 +1864,7 @@ static char* adev_get_parameters(UNUSED_ATTR const struct audio_hw_device* dev,
   if (!params.empty()) {
     std::string address = params["bdaddress"];
     INFO("address %s", address.c_str());
-    if (params["bdaddress"] != "") {
+    if (address != "") {
       if (device_stream_map.find(address) != device_stream_map.end()) {
         struct a2dp_stream_out* out = device_stream_map.find(address)->second;
         if (out != nullptr) {
