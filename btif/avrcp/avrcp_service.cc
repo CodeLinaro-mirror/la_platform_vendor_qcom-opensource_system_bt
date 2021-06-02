@@ -322,6 +322,11 @@ class VolumeInterfaceWrapper : public VolumeInterface {
                                base::Unretained(wrapped_), volume));
   }
 
+  void SetVolumeExt(const RawAddress& bdaddr, int8_t volume) override {
+    do_in_avrcp_jni(base::Bind(&VolumeInterface::SetVolumeExt,
+                              base::Unretained(wrapped_), bdaddr, volume));
+  }
+
  private:
   VolumeInterface* wrapped_;
 };
