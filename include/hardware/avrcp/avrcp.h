@@ -173,6 +173,8 @@ class VolumeInterface {
 
   virtual void SetVolume(int8_t volume) = 0;
 
+  virtual void SetVolumeExt(const RawAddress& bdaddr, int8_t volume) = 0;
+
   virtual ~VolumeInterface() = default;
 };
 

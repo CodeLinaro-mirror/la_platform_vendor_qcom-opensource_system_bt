@@ -390,7 +390,7 @@ void Device::HandleVolumeChanged(
 
   volume_ = pkt->GetVolume();
   DEVICE_VLOG(1) << __func__ << ": Volume has changed to " << (uint32_t)volume_;
-  volume_interface_->SetVolume(volume_);
+  volume_interface_->SetVolumeExt(GetAddress(), volume_);
 }
 
 void Device::SetVolume(int8_t volume) {
