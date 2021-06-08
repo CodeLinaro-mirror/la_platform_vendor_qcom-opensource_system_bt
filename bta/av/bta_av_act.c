@@ -537,6 +537,9 @@ void bta_av_rc_opened(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
     UINT8       tmp;
     UINT8       disc = 0;
 
+     if (p_data == NULL)
+          return;
+
     /* find the SCB & stop the timer */
     for(i=0; i<BTA_AV_NUM_STRS; i++)
     {
@@ -638,6 +641,10 @@ void bta_av_rc_opened(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 void bta_av_rc_remote_cmd(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 {
     tBTA_AV_RCB    *p_rcb;
+
+    if (p_data == NULL)
+      return;
+
     if (p_cb->features & BTA_AV_FEAT_RCCT)
     {
         if (p_data->hdr.layer_specific < BTA_AV_NUM_RCB)
@@ -664,6 +671,10 @@ void bta_av_rc_remote_cmd(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 void bta_av_rc_vendor_cmd(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 {
     tBTA_AV_RCB    *p_rcb;
+
+    if (p_data == NULL)
+      return;
+
     if ( (p_cb->features & (BTA_AV_FEAT_RCCT | BTA_AV_FEAT_VENDOR)) ==
          (BTA_AV_FEAT_RCCT | BTA_AV_FEAT_VENDOR))
     {
