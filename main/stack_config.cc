@@ -26,6 +26,7 @@
 #include "osi/include/log.h"
 
 const char* TRACE_CONFIG_ENABLED_KEY = "TraceConf";
+const char* ATT_PSM_REGISTERED = "RegisterATT";
 const char* PTS_SECURE_ONLY_MODE = "PTS_SecurePairOnly";
 const char* PTS_LE_CONN_UPDATED_DISABLED = "PTS_DisableConnUpdates";
 const char* PTS_DISABLE_SDP_LE_PAIR = "PTS_DisableSDPOnLEPair";
@@ -84,6 +85,11 @@ static bool get_trace_config_enabled(void) {
                          TRACE_CONFIG_ENABLED_KEY, false);
 }
 
+static bool get_att_psm_registered(void) {
+  return config_get_bool(config, CONFIG_DEFAULT_SECTION,
+                         ATT_PSM_REGISTERED, false);
+}
+
 static bool get_pts_secure_only_mode(void) {
   return config_get_bool(config, CONFIG_DEFAULT_SECTION, PTS_SECURE_ONLY_MODE,
                          false);
@@ -130,6 +136,7 @@ static bool get_pts_le_fresh_pairing_enabled(void) {
 static config_t* get_all(void) { return config; }
 
 const stack_config_t interface = {get_trace_config_enabled,
+                                  get_att_psm_registered,
                                   get_pts_secure_only_mode,
                                   get_pts_conn_updates_disabled,
                                   get_pts_crosskey_sdp_disable,

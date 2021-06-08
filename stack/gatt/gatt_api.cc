@@ -33,6 +33,7 @@
 #include "gatt_api.h"
 #include "gatt_int.h"
 #include "l2c_api.h"
+#include "stack_config.h"
 
 #define SYSTEM_APP_GATT_IF 3
 
@@ -286,7 +287,8 @@ uint16_t GATTS_AddService(tGATT_IF gatt_if, btgatt_db_element_t* service,
   elem.type = list.asgn_range.is_primary ? GATT_UUID_PRI_SERVICE
                                          : GATT_UUID_SEC_SERVICE;
 
-  if (elem.type == GATT_UUID_PRI_SERVICE) {
+  if (elem.type == GATT_UUID_PRI_SERVICE &&
+           stack_config_get_interface()->get_att_psm_registered()) {
     Uuid* p_uuid = gatts_get_service_uuid(elem.p_db);
     elem.sdp_handle = gatt_add_sdp_record(*p_uuid, elem.s_hdl, elem.e_hdl);
   } else {

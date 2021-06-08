@@ -1123,11 +1123,11 @@ bool A2dpCodecConfigAptxAdaptive::setCodecConfig(const uint8_t* p_peer_codec_inf
     codec_user_config_.codec_specific_3 = codec_config_.codec_specific_3;
   }
 
-  //set TTP min and max values
-  codec_config_.ttp_ll_min = result_config_cie.ttp_ll_0;
-  codec_config_.ttp_ll_max = result_config_cie.ttp_ll_1;
-  codec_config_.ttp_hq_min = result_config_cie.ttp_hq_0;
-  codec_config_.ttp_hq_max = result_config_cie.ttp_hq_1;
+  //set TTP min and max values to report application.
+  codec_config_.ttp_ll_min = (uint16_t) result_config_cie.ttp_ll_0;
+  codec_config_.ttp_ll_max = (uint16_t) (result_config_cie.ttp_ll_1 * 4);
+  codec_config_.ttp_hq_min = (uint16_t) result_config_cie.ttp_hq_0;
+  codec_config_.ttp_hq_max = (uint16_t) (result_config_cie.ttp_hq_1 * 4);
 
   LOG_ERROR(LOG_TAG, "setting codec_config_.codec_specific_4 to channelMode: %d", channelMode);
   // Store the channel mode in spare field
