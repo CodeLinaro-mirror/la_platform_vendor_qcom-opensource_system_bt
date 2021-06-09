@@ -2878,8 +2878,8 @@ void btif_dm_proc_loc_oob(bool valid, const Octet16& c192, const Octet16& r192,
                           const Octet16& c256, const Octet16& r256) {
 
   if (!valid) {
+    /* All zero oob data is set when state is invalid */
     BTIF_TRACE_ERROR("%s: read local oob data valid=%d", __func__, valid);
-    return;
   }
 
   BTIF_TRACE_DEBUG("save local OOB data in memory");

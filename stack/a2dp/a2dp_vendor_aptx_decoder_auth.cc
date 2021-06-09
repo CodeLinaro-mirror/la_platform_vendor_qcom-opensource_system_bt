@@ -134,13 +134,8 @@ static void token_key_generate_vsc_op_cmpl(tBTM_VSC_CMPL* param) {
   LockGuard lock(g_mutex);
   LOG_DEBUG(LOG_TAG, "%s" , __func__);
 
-  uint8_t status = 0;
+  uint8_t status = param->p_param_buf[0];
   uint8_t sub_opcode = 0;
-  if (param->param_len < 0) {
-    LOG_ERROR(LOG_TAG, "%s: param_len = %d status = %d", __func__,
-                     param->param_len, param->p_param_buf[0]);
-    status = param->p_param_buf[0];
-  }
 
   if (a2dp_token_key_cb.callback.empty()) {
     LOG_WARN(LOG_TAG, "%s: Callback queue is empty", __func__);
