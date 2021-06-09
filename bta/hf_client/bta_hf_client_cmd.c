@@ -22,6 +22,9 @@
 
 void bta_hf_client_send_at_cmd(tBTA_HF_CLIENT_DATA *p_data)
 {
+    if (p_data == NULL)
+        return;
+
     tBTA_HF_CLIENT_DATA_VAL *p_val = (tBTA_HF_CLIENT_DATA_VAL *)p_data;
     char buf[BTA_HF_CLIENT_AT_MAX_LEN];
 
