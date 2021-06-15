@@ -36,6 +36,7 @@ const char *PTS_LE_NONCONN_ADV_MODE = "PTS_EnableNonConnAdvMode";
 const char *PTS_LE_CONN_NONDISC_ADV_MODE = "PTS_EnableConnNonDiscAdvMode";
 const char* PTS_LE_SEC_REQUEST_DISABLED = "PTS_DisableSecRequest";
 const char* PTS_LE_FRESH_PAIRING_ENABLED = "PTS_EnableFreshPairing";
+const char* PTS_BREDR_SECURECONNECTION_HOSTSUPPORT_DISABLE = "PTS_BredrSecConnHostSupportDisable";
 
 static config_t* config;
 
@@ -133,6 +134,11 @@ static bool get_pts_le_fresh_pairing_enabled(void) {
                          PTS_LE_FRESH_PAIRING_ENABLED, false);
 }
 
+static bool get_pts_bredr_secureconnection_host_support_disabled(void) {
+  return config_get_bool(config, CONFIG_DEFAULT_SECTION,
+                         PTS_BREDR_SECURECONNECTION_HOSTSUPPORT_DISABLE, false);
+}
+
 static config_t* get_all(void) { return config; }
 
 const stack_config_t interface = {get_trace_config_enabled,
@@ -146,6 +152,7 @@ const stack_config_t interface = {get_trace_config_enabled,
                                   get_pts_le_conn_nondisc_adv_enabled,
                                   get_pts_le_sec_request_disabled,
                                   get_pts_le_fresh_pairing_enabled,
+                                  get_pts_bredr_secureconnection_host_support_disabled,
                                   get_all};
 
 const stack_config_t* stack_config_get_interface(void) { return &interface; }

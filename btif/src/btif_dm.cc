@@ -1260,6 +1260,11 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
         ASSERTC(status == TRUE, "Adding TWS_PLUS dev type failed", status);
       }
 
+      if (stack_config_get_interface()->get_pts_bredr_secureconnection_host_support_disabled()) {
+        HAL_CBACK(bt_hal_cbacks, bond_state_changed_cb, BT_STATUS_SUCCESS, &bd_addr, BT_BOND_STATE_BONDED);
+        BTIF_TRACE_DEBUG("%s: Only one key is expected, return bond_state", __func__);
+      }
+
       ret = btif_storage_add_bonded_device(&bd_addr, p_auth_cmpl->key,
                                            p_auth_cmpl->key_type,
                                            pairing_cb.pin_code_len);
