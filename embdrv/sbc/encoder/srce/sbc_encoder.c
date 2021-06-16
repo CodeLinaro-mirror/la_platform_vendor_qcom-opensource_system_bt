@@ -256,3 +256,10 @@ void SBC_Encoder_Init(SBC_ENC_PARAMS* pstrEncParams) {
 
   SbcAnalysisInit();
 }
+
+EXPORT_SYMBOL sbc_encode_interface_t sbc_encode_interface = {
+  sizeof(sbc_encode_interface),
+  SBC_Encoder_Init,
+  SBC_Encode,
+};
+

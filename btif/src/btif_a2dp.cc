@@ -35,15 +35,19 @@
 #include "btif_hf.h"
 #include "btif_util.h"
 #include "osi/include/log.h"
+#include "uipc.h"
 
 void btif_a2dp_on_idle(const RawAddress& peer_addr) {
-  LOG_INFO(LOG_TAG, "%s: ## ON A2DP IDLE ## peer_addr %s, active addr %s, peer_sep = %d", __func__,
-           peer_addr.ToString().c_str(), btif_av_sink_active_peer().ToString().c_str(), btif_av_get_peer_sep());
+  LOG_INFO(LOG_TAG, "%s: ## ON A2DP IDLE ## peer_sep = %d", __func__,
+           btif_av_get_peer_sep(peer_addr));
+
   // Don't stop decoder when it is not the active peer
-  if (btif_av_sink_active_peer() == peer_addr || btif_av_sink_active_peer().IsEmpty()) {
-    if (btif_av_get_peer_sep() == AVDT_TSEP_SNK) {
-      btif_a2dp_source_on_idle();
-    } else if (btif_av_get_peer_sep() == AVDT_TSEP_SRC) {
+  if (btif_av_get_peer_sep(peer_addr) == AVDT_TSEP_SNK) {
+      btif_a2dp_source_on_idle(peer_addr);
+  } else if (btif_av_get_peer_sep(peer_addr) == AVDT_TSEP_SRC) {
+    LOG_INFO(LOG_TAG, "%s: ## ON A2DP IDLE ## peer_addr %s, active addr %s, peer_sep = %d", __func__,
+             peer_addr.ToString().c_str(), btif_av_sink_active_peer().ToString().c_str(), btif_av_get_peer_sep(peer_addr));
+    if (btif_av_sink_active_peer() == peer_addr || btif_av_sink_active_peer().IsEmpty()) {
       btif_a2dp_sink_on_idle();
     }
   }
@@ -65,7 +69,7 @@ bool btif_a2dp_on_started(const RawAddress& peer_addr, tBTA_AV_START* p_av_start
     } else if (btif_av_is_a2dp_offload_enabled()) {
       btif_a2dp_audio_on_started(status);
     } else {
-      btif_a2dp_command_ack(status);
+      btif_a2dp_command_ack(uipc_get_ch_from_address(peer_addr, UIPC_CTRL_CH), status);
     }
     return true;
   }
@@ -79,11 +83,11 @@ bool btif_a2dp_on_started(const RawAddress& peer_addr, tBTA_AV_START* p_av_start
       return false;
     }
     if (btif_av_is_a2dp_offload_enabled()) {
-      btif_av_stream_start_offload();
+      btif_av_stream_start_offload(peer_addr);
     } else if (bluetooth::audio::a2dp::is_hal_2_0_enabled()) {
-      if (btif_av_get_peer_sep() == AVDT_TSEP_SNK) {
+      if (btif_av_get_peer_sep(peer_addr) == AVDT_TSEP_SNK) {
         /* Start the media encoder to do the SW audio stream */
-        btif_a2dp_source_start_audio_req();
+        btif_a2dp_source_start_audio_req(peer_addr);
       }
       if (p_av_start->initiator) {
         bluetooth::audio::a2dp::ack_stream_started(A2DP_CTRL_ACK_SUCCESS);
@@ -91,7 +95,7 @@ bool btif_a2dp_on_started(const RawAddress& peer_addr, tBTA_AV_START* p_av_start
       }
     } else {
       if (p_av_start->initiator) {
-        btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
+        btif_a2dp_command_ack(uipc_get_ch_from_address(peer_addr, UIPC_CTRL_CH), A2DP_CTRL_ACK_SUCCESS);
         return true;
       }
       /* media task is auto-started upon UIPC connection of a2dp audiopath */
@@ -103,7 +107,7 @@ bool btif_a2dp_on_started(const RawAddress& peer_addr, tBTA_AV_START* p_av_start
     } else if (btif_av_is_a2dp_offload_enabled()) {
       btif_a2dp_audio_on_started(p_av_start->status);
     } else {
-      btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
+      btif_a2dp_command_ack(uipc_get_ch_from_address(peer_addr, UIPC_CTRL_CH), A2DP_CTRL_ACK_FAILURE);
     }
     return true;
   }
@@ -114,13 +118,13 @@ void btif_a2dp_on_stopped(const RawAddress& peer_addr, tBTA_AV_SUSPEND* p_av_sus
   LOG_INFO(LOG_TAG, "%s: ## ON A2DP STOPPED ## p_av_suspend=%p", __func__,
            p_av_suspend);
   // Don't stop decoder when it is not the active peer
-  if (btif_av_get_peer_sep() == AVDT_TSEP_SRC && btif_av_sink_active_peer() == peer_addr) {
+  if (btif_av_get_peer_sep(peer_addr) == AVDT_TSEP_SRC && btif_av_sink_active_peer() == peer_addr) {
     btif_a2dp_sink_on_stopped(p_av_suspend);
     return;
   }
   if (bluetooth::audio::a2dp::is_hal_2_0_enabled() ||
       !btif_av_is_a2dp_offload_enabled()) {
-    btif_a2dp_source_on_stopped(p_av_suspend);
+    btif_a2dp_source_on_stopped(peer_addr, p_av_suspend);
   } else if (p_av_suspend != NULL) {
     btif_a2dp_audio_on_stopped(p_av_suspend->status);
   }
@@ -130,13 +134,13 @@ void btif_a2dp_on_suspended(const RawAddress& peer_addr, tBTA_AV_SUSPEND* p_av_s
   LOG_INFO(LOG_TAG, "%s: ## ON A2DP SUSPENDED ## p_av_suspend=%p", __func__,
            p_av_suspend);
   // Don't stop decoder when it is not the active peer
-  if (btif_av_get_peer_sep() == AVDT_TSEP_SRC && btif_av_sink_active_peer() == peer_addr) {
+  if (btif_av_get_peer_sep(peer_addr) == AVDT_TSEP_SRC && btif_av_sink_active_peer() == peer_addr) {
     btif_a2dp_sink_on_suspended(p_av_suspend);
     return;
   }
   if (bluetooth::audio::a2dp::is_hal_2_0_enabled() ||
       !btif_av_is_a2dp_offload_enabled()) {
-    btif_a2dp_source_on_suspended(p_av_suspend);
+    btif_a2dp_source_on_suspended(peer_addr, p_av_suspend);
   } else if (p_av_suspend != NULL) {
     btif_a2dp_audio_on_suspended(p_av_suspend->status);
   }
@@ -164,7 +168,7 @@ void btif_a2dp_on_offload_started(const RawAddress& peer_addr,
       break;
   }
   if (btif_av_is_a2dp_offload_enabled()) {
-    if (ack != BTA_AV_SUCCESS && btif_av_stream_started_ready()) {
+    if (ack != BTA_AV_SUCCESS && btif_av_stream_started_ready(peer_addr)) {
       // Offload request will return with failure from btif_av sm if
       // suspend is triggered for remote start. Disconnect only if SoC
       // returned failure for offload VSC
@@ -176,7 +180,7 @@ void btif_a2dp_on_offload_started(const RawAddress& peer_addr,
   if (bluetooth::audio::a2dp::is_hal_2_0_enabled()) {
     bluetooth::audio::a2dp::ack_stream_started(ack);
   } else {
-    btif_a2dp_command_ack(ack);
+    btif_a2dp_command_ack(uipc_get_ch_from_address(peer_addr, UIPC_CTRL_CH), ack);
     btif_a2dp_audio_on_started(status);
   }
 }

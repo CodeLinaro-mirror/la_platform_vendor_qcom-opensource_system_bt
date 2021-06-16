@@ -22,9 +22,11 @@
 #include "btif/include/btif_a2dp_source.h"
 #include "stack/include/a2dp_codec_api.h"
 
-// Sets the active peer to |peer_addr|.
+// Sets the active status for the peer
+// |peer_addr| is the peer address
+// |active| set active when true; deactivate the peer when false
 // Returns true on success, otherwise false.
-bool bta_av_co_set_active_peer(const RawAddress& peer_addr);
+bool bta_av_co_set_active_peer(const RawAddress& peer_addr, bool active);
 
 // Gets the A2DP peer parameters that are used to initialize the encoder.
 // The peer address is |peer_addr|.
@@ -37,7 +39,8 @@ void bta_av_co_get_peer_params(const RawAddress& peer_addr,
 // prepare A2DP packets for transmission - see |tA2DP_ENCODER_INTERFACE|.
 // Returns the A2DP encoder interface if the current codec is setup,
 // otherwise NULL.
-const tA2DP_ENCODER_INTERFACE* bta_av_co_get_encoder_interface(void);
+// The peer address is |peer_addr|.
+A2dpEncoderInterface* bta_av_co_get_encoder_interface(const RawAddress& peer_addr);
 
 // Gets the current A2DP decoder interface that can be used to decode received
 // A2DP packets - see |tA2DP_DECODER_INTERFACE|.
@@ -55,9 +58,11 @@ bool bta_av_co_set_codec_user_config(
 
 // Sets the Audio HAL selected audio feeding parameters.
 // Those parameters are applied only to the currently selected codec.
+// The peer address is |peer_addr|.
 // |codec_audio_config| contains the selected audio feeding configuration.
 // Returns true on success, otherwise false.
 bool bta_av_co_set_codec_audio_config(
+    const RawAddress& peer_address,
     const btav_a2dp_codec_config_t& codec_audio_config);
 
 // Initializes the control block.

@@ -126,7 +126,7 @@ A2dpCodecConfig* A2dpCodecConfig::createCodec(
       codec_config = new A2dpCodecConfigSbcSink(codec_priority);
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_AAC:
-      codec_config = new A2dpCodecConfigAacSource(codec_priority);
+      //codec_config = new A2dpCodecConfigAacSource(codec_priority);
       break;
     case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
       codec_config = new A2dpCodecConfigAacSink(codec_priority);
@@ -144,7 +144,7 @@ A2dpCodecConfig* A2dpCodecConfig::createCodec(
       codec_config = new A2dpCodecConfigAptxHdSink(codec_priority);
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
-      codec_config = new A2dpCodecConfigLdacSource(codec_priority);
+      //codec_config = new A2dpCodecConfigLdacSource(codec_priority);
       break;
     case BTAV_A2DP_CODEC_INDEX_SINK_LDAC:
       codec_config = new A2dpCodecConfigLdacSink(codec_priority);
@@ -163,7 +163,7 @@ A2dpCodecConfig* A2dpCodecConfig::createCodec(
   return codec_config;
 }
 
-int A2dpCodecConfig::getTrackBitRate() const {
+int A2dpCodecConfig::getTrackBitRate()      {
   uint8_t p_codec_info[AVDT_CODEC_SIZE];
   memcpy(p_codec_info, ota_codec_config_, sizeof(ota_codec_config_));
   tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
@@ -172,11 +172,13 @@ int A2dpCodecConfig::getTrackBitRate() const {
 
   switch (codec_type) {
     case A2DP_MEDIA_CT_SBC:
-      return A2DP_GetBitrateSbc();
+      return A2DP_GetBitrateSbc(getPeerAddress());
+      #if 0
     case A2DP_MEDIA_CT_AAC:
       return A2DP_GetBitRateAac(p_codec_info);
+      #endif
     case A2DP_MEDIA_CT_NON_A2DP:
-      return A2DP_VendorGetBitRate(p_codec_info);
+      return A2DP_VendorGetBitRate(getPeerAddress(), p_codec_info);
     default:
       break;
   }
@@ -698,7 +700,8 @@ bool A2dpCodecs::isSupportedCodec(btav_a2dp_codec_index_t codec_index) {
   return indexed_codecs_.find(codec_index) != indexed_codecs_.end();
 }
 
-bool A2dpCodecs::setCodecConfig(const uint8_t* p_peer_codec_info,
+bool A2dpCodecs::setCodecConfig(const RawAddress& peer_address,
+                                const uint8_t* p_peer_codec_info,
                                 bool is_capability,
                                 uint8_t* p_result_codec_config,
                                 bool select_current_codec) {
@@ -711,6 +714,7 @@ bool A2dpCodecs::setCodecConfig(const uint8_t* p_peer_codec_info,
   }
   if (select_current_codec) {
     current_codec_config_ = a2dp_codec_config;
+    current_codec_config_->setPeerAddress(peer_address);
   }
   return true;
 }
@@ -733,6 +737,7 @@ bool A2dpCodecs::setSinkCodecConfig(const uint8_t* p_peer_codec_info,
 }
 
 bool A2dpCodecs::setCodecUserConfig(
+    const RawAddress& peer_address,
     const btav_a2dp_codec_config_t& codec_user_config,
     const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
     const uint8_t* p_peer_sink_capabilities, uint8_t* p_result_codec_config,
@@ -830,6 +835,7 @@ bool A2dpCodecs::setCodecUserConfig(
             "config_updated = %d",
             __func__, *p_restart_input, *p_restart_output, *p_config_updated);
 
+  current_codec_config_->setPeerAddress(peer_address);
   return true;
 
 fail:
@@ -1358,7 +1364,8 @@ bool A2DP_BuildCodecHeader(const uint8_t* p_codec_info, BT_HDR* p_buf,
   return false;
 }
 
-const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterface(
+A2dpEncoderInterface* A2DP_GetEncoderInterface(
+    const RawAddress& peer_address,
     const uint8_t* p_codec_info) {
   tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
 
@@ -1366,12 +1373,14 @@ const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterface(
 
   switch (codec_type) {
     case A2DP_MEDIA_CT_SBC:
-      return A2DP_GetEncoderInterfaceSbc(p_codec_info);
+      return A2DP_GetEncoderInterfaceSbc(peer_address, p_codec_info);
+      /*
     case A2DP_MEDIA_CT_AAC:
       return A2DP_GetEncoderInterfaceAac(p_codec_info);
+      */
     case A2DP_MEDIA_CT_NON_A2DP:
-      return A2DP_VendorGetEncoderInterface(p_codec_info);
-    default:
+      return A2DP_VendorGetEncoderInterface(peer_address, p_codec_info);
+     default:
       break;
   }
 

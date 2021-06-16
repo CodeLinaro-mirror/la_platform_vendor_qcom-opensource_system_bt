@@ -165,7 +165,7 @@ cc_test {
         "libbt-common",
         "libbt-stack",
         "libbt-sbc-decoder",
-        "libbt-sbc-encoder",
+        "libbt-sbc-encoder1",
         "libbt-utils",
         "libFraunhoferAAC",
         "libg722codec",

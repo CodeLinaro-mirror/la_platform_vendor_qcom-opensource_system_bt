@@ -106,6 +106,7 @@ static const tA2DP_APTX_HD_CIE a2dp_aptx_hd_sink_default_config = {
     BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24 /* bits_per_sample */
 };
 
+#if 0
 static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_aptx_hd = {
     a2dp_vendor_aptx_hd_encoder_init,
     a2dp_vendor_aptx_hd_encoder_cleanup,
@@ -115,7 +116,7 @@ static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_aptx_hd = {
     a2dp_vendor_aptx_hd_send_frames,
     nullptr  // set_transmit_queue_length
 };
-
+#endif
 static const tA2DP_DECODER_INTERFACE a2dp_decoder_interface_aptx_hd = {
     a2dp_vendor_aptx_hd_decoder_init, a2dp_vendor_aptx_hd_decoder_cleanup,
     a2dp_vendor_aptx_hd_decoder_decode_packet,
@@ -366,8 +367,9 @@ bool A2DP_VendorCodecEqualsAptxHd(const uint8_t* p_codec_info_a,
          (aptx_hd_cie_a.channelMode == aptx_hd_cie_b.channelMode);
 }
 
-int A2DP_VendorGetBitRateAptxHd(const uint8_t* p_codec_info) {
-  A2dpCodecConfig* CodecConfig = bta_av_get_a2dp_current_codec();
+int A2DP_VendorGetBitRateAptxHd(const RawAddress& peer_address,
+                                         const uint8_t* p_codec_info) {
+  A2dpCodecConfig* CodecConfig = bta_av_get_a2dp_peer_current_codec(peer_address);
   tA2DP_BITS_PER_SAMPLE bits_per_sample = CodecConfig->getAudioBitsPerSample();
   uint16_t samplerate = A2DP_GetTrackSampleRate(p_codec_info);
   return (samplerate * bits_per_sample * 2) / 4;
@@ -502,11 +504,18 @@ std::string A2DP_VendorCodecInfoStringAptxHd(const uint8_t* p_codec_info) {
   return res.str();
 }
 
-const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterfaceAptxHd(
+A2dpEncoderInterface* A2DP_VendorGetEncoderInterfaceAptxHd(
+    const RawAddress& peer_address,
     const uint8_t* p_codec_info) {
+  LOG_DEBUG(LOG_TAG, "%s: peer_address:%s", __func__,
+            peer_address.ToString().c_str());
+
   if (!A2DP_IsVendorSourceCodecValidAptxHd(p_codec_info)) return NULL;
 
-  return &a2dp_encoder_interface_aptx_hd;
+  A2dpEncoderInterface* encoder =
+    (A2dpEncoderInterface*)new A2dpAptxHdEncoder(peer_address);
+  setA2dpSourceEncoders(peer_address, encoder);
+  return encoder;
 }
 
 const tA2DP_DECODER_INTERFACE* A2DP_VendorGetDecoderInterfaceAptxHd(

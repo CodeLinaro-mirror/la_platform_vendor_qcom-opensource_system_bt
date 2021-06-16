@@ -67,6 +67,8 @@ class A2dpTransport : public ::bluetooth::audio::IBluetoothTransportInstance {
         data_position_({}){};
 
   BluetoothAudioCtrlAck StartRequest() override {
+    // auido hal is not used, so use empty address parameter to fix build error
+    RawAddress peer = RawAddress::kEmpty;
     // Check if a previous request is not finished
     if (a2dp_pending_cmd_ == A2DP_CTRL_CMD_START) {
       LOG(INFO) << __func__ << ": A2DP_CTRL_CMD_START in progress";
@@ -82,28 +84,29 @@ class A2dpTransport : public ::bluetooth::audio::IBluetoothTransportInstance {
       return a2dp_ack_to_bt_audio_ctrl_ack(A2DP_CTRL_ACK_INCALL_FAILURE);
     }
 
-    if (btif_a2dp_source_is_streaming()) {
+    if (btif_a2dp_source_is_streaming(peer)) {
       LOG(ERROR) << __func__ << ": source is busy streaming";
       return a2dp_ack_to_bt_audio_ctrl_ack(A2DP_CTRL_ACK_FAILURE);
     }
 
-    if (btif_av_stream_ready()) {
+    if (btif_av_stream_ready(peer)) {
       /*
        * Post start event and wait for audio path to open.
        * If we are the source, the ACK will be sent after the start
        * procedure is completed, othewise send it now.
        */
       a2dp_pending_cmd_ = A2DP_CTRL_CMD_START;
-      btif_av_stream_start();
+      btif_av_stream_start(peer);
+      /*
       if (btif_av_get_peer_sep() != AVDT_TSEP_SRC) {
         LOG(INFO) << __func__ << ": accepted";
         return a2dp_ack_to_bt_audio_ctrl_ack(A2DP_CTRL_ACK_PENDING);
-      }
+      }*/
       a2dp_pending_cmd_ = A2DP_CTRL_CMD_NONE;
       return a2dp_ack_to_bt_audio_ctrl_ack(A2DP_CTRL_ACK_SUCCESS);
     }
 
-    if (btif_av_stream_started_ready()) {
+    if (btif_av_stream_started_ready(peer)) {
       // Already started, ACK back immediately.
       return a2dp_ack_to_bt_audio_ctrl_ack(A2DP_CTRL_ACK_SUCCESS);
     }
@@ -112,6 +115,7 @@ class A2dpTransport : public ::bluetooth::audio::IBluetoothTransportInstance {
   }
 
   BluetoothAudioCtrlAck SuspendRequest() override {
+    RawAddress peer = RawAddress::kEmpty;
     // Previous request is not finished
     if (a2dp_pending_cmd_ == A2DP_CTRL_CMD_SUSPEND) {
       LOG(INFO) << __func__ << ": A2DP_CTRL_CMD_SUSPEND in progress";
@@ -121,23 +125,24 @@ class A2dpTransport : public ::bluetooth::audio::IBluetoothTransportInstance {
       return a2dp_ack_to_bt_audio_ctrl_ack(A2DP_CTRL_ACK_FAILURE);
     }
     // Local suspend
-    if (btif_av_stream_started_ready()) {
+    if (btif_av_stream_started_ready(peer)) {
       LOG(INFO) << __func__ << ": accepted";
       a2dp_pending_cmd_ = A2DP_CTRL_CMD_SUSPEND;
-      btif_av_stream_suspend();
+      btif_av_stream_suspend(peer);
       return BluetoothAudioCtrlAck::PENDING;
     }
     /* If we are not in started state, just ack back ok and let
      * audioflinger close the channel. This can happen if we are
      * remotely suspended, clear REMOTE SUSPEND flag.
      */
-    btif_av_clear_remote_suspend_flag();
+    btif_av_clear_remote_suspend_flag(peer);
     return a2dp_ack_to_bt_audio_ctrl_ack(A2DP_CTRL_ACK_SUCCESS);
   }
 
   void StopRequest() override {
-    if (btif_av_get_peer_sep() == AVDT_TSEP_SNK &&
-        !btif_a2dp_source_is_streaming()) {
+    RawAddress peer = RawAddress::kEmpty;
+    if (btif_av_get_peer_sep(peer) == AVDT_TSEP_SNK &&
+        !btif_a2dp_source_is_streaming(peer)) {
       return;
     }
     LOG(INFO) << __func__ << ": handling";
@@ -540,7 +545,7 @@ bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
   }
   codec_config->encodedAudioBitrate = a2dp_codec_configs->getTrackBitRate();
   // Obtain the MTU
-  RawAddress peer_addr = btif_av_source_active_peer();
+  RawAddress peer_addr = *btif_av_source_active_peers().begin();
   tA2DP_ENCODER_INIT_PEER_PARAMS peer_param;
   bta_av_co_get_peer_params(peer_addr, &peer_param);
   int effectiveMtu = a2dp_codec_configs->getEffectiveMtu();

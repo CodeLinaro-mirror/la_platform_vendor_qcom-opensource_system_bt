@@ -43,8 +43,15 @@ ConnectionHandler* ConnectionHandler::Get() {
   return instance_;
 }
 
+bool IsSupportDualA2dpSource() {
+  char support[PROPERTY_VALUE_MAX] = {0};
+  osi_property_get("vendor.bt.duala2dpsource", support, "true");
+  return strncmp(support, "true", 4) == 0;
+}
+
 bool IsAbsoluteVolumeEnabled(const RawAddress* bdaddr) {
   char volume_disabled[PROPERTY_VALUE_MAX] = {0};
+
   osi_property_get("persist.bluetooth.disableabsvol", volume_disabled, "false");
   if (strncmp(volume_disabled, "true", 4) == 0) {
     LOG(INFO) << "Absolute volume disabled by property";
@@ -155,6 +162,15 @@ std::vector<std::shared_ptr<Device>> ConnectionHandler::GetListOfDevices()
   return list;
 }
 
+std::shared_ptr<Device> ConnectionHandler::GetDevice(const RawAddress& bdaddr) {
+  for (auto it = device_map_.begin(); it != device_map_.end(); it++) {
+    if (bdaddr == it->second->GetAddress()) {
+        return it->second;
+    }
+  }
+  return nullptr;
+}
+
 bool ConnectionHandler::SdpLookup(const RawAddress& bdaddr, SdpCallback cb) {
   LOG(INFO) << __PRETTY_FUNCTION__;
 
@@ -226,8 +242,13 @@ void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event,
         return;
       }
 
-      bool supports_browsing = feature_iter->second & BTA_AV_FEAT_BROWSE;
-
+      bool supports_browsing;
+      if (IsSupportDualA2dpSource()) {
+        supports_browsing = false;
+      } else {
+        supports_browsing = feature_iter->second & BTA_AV_FEAT_BROWSE;
+      }
+      LOG(INFO) << __PRETTY_FUNCTION__ << ": supports_browsing=" << supports_browsing;
       if (supports_browsing) {
         avrc_->OpenBrowse(handle, AVCT_INT);
       }
@@ -311,8 +332,14 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event,
                                    weak_ptr_factory_.GetWeakPtr(), handle);
       auto&& ctrl_mtu = avrc_->GetPeerMtu(handle) - AVCT_HDR_LEN;
       auto&& browse_mtu = avrc_->GetBrowseMtu(handle) - AVCT_HDR_LEN;
+      bool avrcp13_compatibility = false;
+      bool browsing = true;
+      if (IsSupportDualA2dpSource()) {
+        avrcp13_compatibility = true;
+        browsing = false;
+      }
       std::shared_ptr<Device> newDevice = std::make_shared<Device>(
-          *peer_addr, false, callback, ctrl_mtu, browse_mtu);
+          *peer_addr, avrcp13_compatibility, callback, ctrl_mtu, browse_mtu);
 
       device_map_[handle] = newDevice;
       connection_cb_.Run(newDevice);
@@ -343,8 +370,9 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event,
       };
 
       SdpLookup(*peer_addr, base::Bind(sdp_lambda, this, handle));
-
-      avrc_->OpenBrowse(handle, AVCT_ACP);
+      if (browsing) {
+        avrc_->OpenBrowse(handle, AVCT_ACP);
+      }
       AvrcpConnect(false, RawAddress::kAny);
     } break;
 

@@ -34,6 +34,7 @@
 #include <base/logging.h>
 #include "a2dp_sbc_decoder.h"
 #include "a2dp_sbc_encoder.h"
+#include "btif_a2dp_source.h"
 #include "bt_utils.h"
 #include "embdrv/sbc/encoder/include/sbc_encoder.h"
 #include "osi/include/log.h"
@@ -90,16 +91,6 @@ const tA2DP_SBC_CIE a2dp_sbc_default_config = {
     A2DP_SBC_IE_MIN_BITPOOL,           /* min_bitpool */
     A2DP_SBC_MAX_BITPOOL,              /* max_bitpool */
     BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16 /* bits_per_sample */
-};
-
-static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_sbc = {
-    a2dp_sbc_encoder_init,
-    a2dp_sbc_encoder_cleanup,
-    a2dp_sbc_feeding_reset,
-    a2dp_sbc_feeding_flush,
-    a2dp_sbc_get_encoder_interval_ms,
-    a2dp_sbc_send_frames,
-    nullptr  // set_transmit_queue_length
 };
 
 static const tA2DP_DECODER_INTERFACE a2dp_decoder_interface_sbc = {
@@ -168,12 +159,20 @@ static tA2DP_STATUS A2DP_ParseInfoSbc(tA2DP_SBC_CIE* p_ie,
 
   // Check the codec capability length
   losc = *p_codec_info++;
-  if (losc != A2DP_SBC_INFO_LEN) return A2DP_WRONG_CODEC;
+  if (losc != A2DP_SBC_INFO_LEN) {
+    LOG_ERROR(LOG_TAG, "%s: losc is %d, not equal %d",
+              __func__, losc, A2DP_SBC_INFO_LEN);
+    return A2DP_WRONG_CODEC;
+  }
 
   media_type = (*p_codec_info++) >> 4;
   codec_type = *p_codec_info++;
   /* Check the Media Type and Media Codec Type */
   if (media_type != AVDT_MEDIA_TYPE_AUDIO || codec_type != A2DP_MEDIA_CT_SBC) {
+    LOG_ERROR(LOG_TAG,
+              "%s: media_type is %d, expect %d, codec_type is %d expect %d",
+              __func__, media_type, AVDT_MEDIA_TYPE_AUDIO, codec_type,
+              A2DP_MEDIA_CT_SBC);
     return A2DP_WRONG_CODEC;
   }
 
@@ -669,7 +668,16 @@ int A2DP_GetMaxBitpoolSbc(const uint8_t* p_codec_info) {
   return sbc_cie.max_bitpool;
 }
 
-uint32_t A2DP_GetBitrateSbc() { return a2dp_sbc_get_bitrate(); }
+uint32_t A2DP_GetBitrateSbc(const RawAddress& peer_address) {
+  A2dpSbcEncoder* encoder = (A2dpSbcEncoder*)findA2dpSourceEncoder(peer_address);
+  if (encoder == nullptr) {
+    LOG_ERROR(LOG_TAG, "%s: failed to find encoder for peer_address:%s",
+              __func__, peer_address.ToString().c_str());
+    return 0;
+  }
+  return encoder->get_bitrate();
+}
+
 int A2DP_GetSinkTrackChannelTypeSbc(const uint8_t* p_codec_info) {
   tA2DP_SBC_CIE sbc_cie;
 
@@ -778,11 +786,18 @@ std::string A2DP_CodecInfoStringSbc(const uint8_t* p_codec_info) {
   return res.str();
 }
 
-const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceSbc(
+A2dpEncoderInterface* A2DP_GetEncoderInterfaceSbc(
+    const RawAddress& peer_address,
     const uint8_t* p_codec_info) {
   if (!A2DP_IsSourceCodecValidSbc(p_codec_info)) return NULL;
 
-  return &a2dp_encoder_interface_sbc;
+  LOG_DEBUG(LOG_TAG, "%s: peer_address:%s",
+            __func__, peer_address.ToString().c_str());
+
+  A2dpEncoderInterface* encoder =
+     (A2dpEncoderInterface*)new A2dpSbcEncoder(peer_address);
+  setA2dpSourceEncoders(peer_address, encoder);
+  return encoder;
 }
 
 const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceSbc(
@@ -900,7 +915,7 @@ bool A2dpCodecConfigSbcSource::init() {
   if (!isValid()) return false;
 
   // Load the encoder
-  if (!A2DP_LoadEncoderSbc()) {
+  if (!A2dpSbcEncoder::A2DP_LoadEncoderSbc()) {
     LOG_ERROR(LOG_TAG, "%s: cannot load the encoder", __func__);
     return false;
   }
