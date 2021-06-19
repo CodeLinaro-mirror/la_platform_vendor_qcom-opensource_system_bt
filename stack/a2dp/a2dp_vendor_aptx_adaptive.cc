@@ -57,6 +57,7 @@
 #include "osi/include/osi.h"
 #include "hardware/bt_av.h"
 
+#define HQ_0_MAX 255
 int a2dp_aptxad_caps_initialized = 0;
 
 /* aptX-adaptive Source codec capabilities */
@@ -1098,6 +1099,15 @@ bool A2dpCodecConfigAptxAdaptive::setCodecConfig(const uint8_t* p_peer_codec_inf
   result_config_cie.ttp_ll_1 = sink_info_cie.ttp_ll_1;
   result_config_cie.ttp_hq_0 = sink_info_cie.ttp_hq_0;
   result_config_cie.ttp_hq_1 = sink_info_cie.ttp_hq_1;
+
+//IOP Issue: Modify ttp hq min value, when remote sent as 0.
+  if (! result_config_cie.ttp_hq_0 ) {
+    uint8_t ll_min = sink_info_cie.ttp_ll_0;
+    result_config_cie.ttp_hq_0 =
+     ((ll_min*2 <= HQ_0_MAX) && (ll_min*2 < (result_config_cie.ttp_hq_1*4))) ? ll_min*2 : HQ_0_MAX;
+
+    LOG_ERROR(LOG_TAG,"TTP HQ min is changing from 0 to %d", result_config_cie.ttp_hq_0);
+  }
 
   //Update in a2dp_aptx_adaptive_caps for future use
   a2dp_aptx_adaptive_caps.ttp_ll_0 = sink_info_cie.ttp_ll_0;
