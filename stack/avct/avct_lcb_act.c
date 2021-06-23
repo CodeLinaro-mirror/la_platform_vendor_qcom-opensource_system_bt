@@ -332,7 +332,8 @@ void avct_lcb_unbind_disc(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 {
     UNUSED(p_lcb);
 
-    avct_ccb_dealloc(p_data->p_ccb, AVCT_DISCONNECT_CFM_EVT, 0, NULL);
+    if (p_data)
+        avct_ccb_dealloc(p_data->p_ccb, AVCT_DISCONNECT_CFM_EVT, 0, NULL);
 }
 
 #if (AVCT_BROWSE_INCLUDED == TRUE)
@@ -349,6 +350,9 @@ void avct_lcb_unbind_disc(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 void avct_bcb_unbind_disc(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 {
     AVCT_TRACE_DEBUG("avct_bcb_unbind_disc !~");
+
+    if (p_data == NULL)
+        return;
 
     p_data->p_ccb->p_bcb = NULL;
     (*p_data->p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_data->p_ccb),
@@ -528,6 +532,9 @@ void avct_lcb_open_fail(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
     tAVCT_CCB           *p_ccb = &avct_cb.ccb[0];
     int                 i;
 
+    if(p_data == NULL)
+      return;
+
     for (i = 0; i < AVCT_NUM_CONN; i++, p_ccb++)
     {
         if (p_ccb->allocated && (p_ccb->p_lcb == p_lcb))
@@ -684,13 +691,15 @@ void avct_lcb_close_cfm(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 
             if (p_ccb->cc.role == AVCT_INT)
             {
-                avct_ccb_dealloc(p_ccb, event, p_data->result, p_lcb->peer_addr);
+                if(p_data)
+                  avct_ccb_dealloc(p_ccb, event, p_data->result, p_lcb->peer_addr);
             }
             else
             {
                 p_ccb->p_lcb = NULL;
-                (*p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_ccb), event,
-                                       p_data->result, p_lcb->peer_addr);
+                if (p_data)
+                  (*p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_ccb), event,
+                                         p_data->result, p_lcb->peer_addr);
             }
         }
     }
@@ -730,6 +739,7 @@ void avct_bcb_close_cfm(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
         p_cback = p_ccb->cc.p_ctrl_cback;
         p_ccb->p_bcb = NULL;
         if (p_ccb->p_lcb == NULL) avct_ccb_dealloc(p_ccb, AVCT_NO_EVT, 0, NULL);
+        if (p_data)
         (*p_cback)(avct_ccb_to_idx(p_ccb), event, p_data->result,
                    p_bcb->peer_addr);
       }
@@ -751,6 +761,8 @@ void avct_bcb_close_cfm(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 *******************************************************************************/
 void avct_lcb_bind_conn(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 {
+    if (p_data == NULL)
+        return;
     p_data->p_ccb->p_lcb = p_lcb;
     (*p_data->p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_data->p_ccb),
                                       AVCT_CONNECT_CFM_EVT, 0, p_lcb->peer_addr);
@@ -772,6 +784,10 @@ void avct_bcb_bind_conn(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
     AVCT_TRACE_DEBUG("avct_bcb_bind_conn !~");
 
     tAVCT_LCB* p_lcb = avct_lcb_by_bcb(p_bcb);
+
+    if (p_data == NULL)
+        return;
+
     p_data->p_ccb->p_bcb = p_bcb;
     (*p_data->p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_data->p_ccb),
                                       AVCT_BROWSE_CONN_CFM_EVT, 0,
@@ -795,9 +811,14 @@ void avct_bcb_bind_conn(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 void avct_lcb_chk_disc(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 {
     AVCT_TRACE_WARNING("avct_lcb_chk_disc");
+
+    if (p_data == NULL)
+        return;
+
 #if (AVCT_BROWSE_INCLUDED == TRUE)
     avct_close_bcb(p_lcb, p_data);
 #endif
+
     if (avct_lcb_last_ccb(p_lcb, p_data->p_ccb))
     {
         AVCT_TRACE_WARNING("closing");
@@ -824,6 +845,9 @@ void avct_lcb_chk_disc(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 void avct_bcb_chk_disc(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 {
     AVCT_TRACE_WARNING("avct_bcb_chk_disc !~");
+
+    if (p_data == NULL)
+        return;
 
     p_bcb->ch_close = avct_bcb_get_last_ccb_index(p_bcb, p_data->p_ccb);
     if (p_bcb->ch_close) {
@@ -887,7 +911,8 @@ void avct_lcb_bind_fail(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 {
     UNUSED(p_lcb);
 
-    avct_ccb_dealloc(p_data->p_ccb, AVCT_CONNECT_CFM_EVT, AVCT_RESULT_FAIL, NULL);
+    if (p_data)
+        avct_ccb_dealloc(p_data->p_ccb, AVCT_CONNECT_CFM_EVT, AVCT_RESULT_FAIL, NULL);
 }
 
 #if (AVCT_BROWSE_INCLUDED == TRUE)
@@ -903,6 +928,9 @@ void avct_lcb_bind_fail(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 void avct_bcb_bind_fail(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 {
     AVCT_TRACE_DEBUG("avct_bcb_bind_fail !~");
+
+    if (p_data == NULL)
+        return;
 
     p_data->p_ccb->p_bcb = NULL;
     (*p_data->p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_data->p_ccb),
@@ -928,6 +956,9 @@ void avct_lcb_cong_ind(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
     int                 i;
     UINT8               event;
     BT_HDR          *p_buf;
+
+    if (p_data == NULL)
+        return;
 
     /* set event */
     event = (p_data->cong) ? AVCT_CONG_IND_EVT : AVCT_UNCONG_IND_EVT;
@@ -971,10 +1002,13 @@ void avct_bcb_cong_ind(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
     BT_HDR       *p_buf;
 
     AVCT_TRACE_DEBUG("avct_bcb_cong_ind");
+
     if (p_bcb != NULL)
     {
-        AVCT_TRACE_DEBUG("avct_bcb_cong_ind = %d", p_data->cong);
+        if (p_data == NULL)
+            return;
 
+        AVCT_TRACE_DEBUG("avct_bcb_cong_ind = %d", p_data->cong);
         event = (p_data->cong) ? AVCT_CONG_IND_EVT : AVCT_UNCONG_IND_EVT;
         p_bcb->cong = p_data->cong;
         if (p_bcb->cong == FALSE && !fixed_queue_is_empty(p_bcb->tx_q))
@@ -1011,7 +1045,9 @@ void avct_lcb_discard_msg(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
     UNUSED(p_lcb);
 
     AVCT_TRACE_WARNING("Dropping message");
-    osi_free_and_reset((void **)&p_data->ul_msg.p_buf);
+    if (p_data) {
+        osi_free_and_reset((void **)&p_data->ul_msg.p_buf);
+    }
 }
 
 #if (AVCT_BROWSE_INCLUDED == TRUE)
@@ -1028,6 +1064,9 @@ void avct_lcb_discard_msg(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
 void avct_bcb_discard_msg(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
 {
     osi_free_and_reset((void**)&p_bcb->p_tx_msg);
+
+    if (p_data == NULL)
+        return;
 
     /* if control channel is up, save the message and open the browsing channel */
     if (p_data->ul_msg.p_ccb->p_lcb == NULL) {
@@ -1287,6 +1326,8 @@ void avct_lcb_msg_ind(tAVCT_LCB *p_lcb, tAVCT_LCB_EVT *p_data)
     UINT16      pid;
     tAVCT_CCB   *p_ccb;
 
+    if (p_data == NULL)
+        return;
     /* this p_buf is to be reported through p_msg_cback. The layer_specific
      * needs to be set properly to indicate that it is received through
      * control channel */
@@ -1367,6 +1408,9 @@ void avct_bcb_msg_ind(tAVCT_BCB *p_bcb, tAVCT_LCB_EVT *p_data)
      * responding AVCT_MsgReq, AVCT layer knows to respond to
      * Browsing channel
     */
+    if (p_data == NULL)
+      return;
+
     p_data->p_buf->layer_specific = AVCT_DATA_BROWSE;
 
     /*
