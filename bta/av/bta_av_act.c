@@ -641,6 +641,10 @@ void bta_av_rc_opened(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 void bta_av_rc_remote_cmd(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 {
     tBTA_AV_RCB    *p_rcb;
+
+    if (p_data == NULL)
+      return;
+
     if (p_cb->features & BTA_AV_FEAT_RCCT)
     {
         if (p_data->hdr.layer_specific < BTA_AV_NUM_RCB)
@@ -667,6 +671,10 @@ void bta_av_rc_remote_cmd(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 void bta_av_rc_vendor_cmd(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 {
     tBTA_AV_RCB    *p_rcb;
+
+    if (p_data == NULL)
+      return;
+
     if ( (p_cb->features & (BTA_AV_FEAT_RCCT | BTA_AV_FEAT_VENDOR)) ==
          (BTA_AV_FEAT_RCCT | BTA_AV_FEAT_VENDOR))
     {
@@ -690,6 +698,10 @@ void bta_av_rc_vendor_cmd(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 void bta_av_rc_vendor_rsp(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 {
     tBTA_AV_RCB    *p_rcb;
+
+    if (p_data == NULL)
+        return;
+
     if ( (p_cb->features & (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_VENDOR)) ==
          (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_VENDOR))
     {
@@ -714,6 +726,9 @@ void bta_av_rc_meta_rsp(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 {
     tBTA_AV_RCB *p_rcb;
     BOOLEAN         do_free = TRUE;
+
+    if (p_data == NULL)
+        return;
 
     if ((p_cb->features & BTA_AV_FEAT_METADATA) && (p_data->hdr.layer_specific < BTA_AV_NUM_RCB))
     {
@@ -748,7 +763,8 @@ void bta_av_rc_meta_rsp(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 void bta_av_rc_free_rsp (tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 {
     UNUSED(p_cb);
-    osi_free_and_reset((void **)&p_data->api_meta_rsp.p_pkt);
+    if (p_data)
+        osi_free_and_reset((void **)&p_data->api_meta_rsp.p_pkt);
 }
 
 /*******************************************************************************
@@ -985,6 +1001,10 @@ void bta_av_rc_msg(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
     tBTA_AV_EVT evt = 0;
     tBTA_AV     av;
     BT_HDR      *p_pkt = NULL;
+
+    if (p_data == NULL)
+        return;
+
     tAVRC_MSG_VENDOR    *p_vendor = &p_data->rc_msg.msg.vendor;
     BOOLEAN is_inquiry =
         ((p_data->rc_msg.msg.hdr.ctype == AVRC_CMD_SPEC_INQ) ||
@@ -1187,6 +1207,10 @@ void bta_av_rc_msg(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 *******************************************************************************/
 void bta_av_rc_close (tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 {
+
+    if (p_data == NULL)
+        return;
+
     UINT16 handle = p_data->hdr.layer_specific;
     tBTA_AV_SCB  *p_scb;
     tBTA_AV_RCB *p_rcb;
