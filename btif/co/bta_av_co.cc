@@ -2057,7 +2057,7 @@ bool bta_av_co_is_scrambling_enabled() {
   if(no_of_freqs == 0) {
     return false;
   }
-  return true;
+  return false;
 }
 
 bool bta_av_co_is_44p1kFreq_enabled() {
@@ -2072,7 +2072,7 @@ bool bta_av_co_is_44p1kFreq_enabled() {
 
   if (add_on_features_list != NULL) {
     if (HCI_SPLIT_A2DP_44P1KHZ_SAMPLE_FREQ(add_on_features_list->as_array)) {
-      return true;
+      return false;
     }
   }
   return false;
