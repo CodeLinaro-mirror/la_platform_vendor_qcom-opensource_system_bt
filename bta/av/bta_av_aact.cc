@@ -4189,6 +4189,7 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb)
     }
     p_scb->vendor_start = true;
     uint8_t *p_param = param;
+    uint8_t channel_mode;
     int param_len = 0;
     uint16_t opcode;
     if(is_soc_smd()) {
@@ -4220,7 +4221,9 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb)
       UINT8_TO_STREAM(p_param,bits_per_sample);
       param_len++;
       /* ch_mode */
-      UINT8_TO_STREAM(p_param,3);
+      channel_mode =  A2DP_GetTrackChannelCountSbc(p_scb->cfg.codec_info);
+      APPL_TRACE_DEBUG("bta_av_vendor_offload_start channel_mode : %d", channel_mode);
+      UINT8_TO_STREAM(p_param,channel_mode);
       param_len++;
       /* encoder audio bitrates */
       UINT32_TO_STREAM(p_param,A2DP_SBC_DEFAULT_BITRATE *1000);
