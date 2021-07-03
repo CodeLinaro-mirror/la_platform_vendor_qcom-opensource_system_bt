@@ -492,6 +492,10 @@ void bta_hf_client_disc_int_res(tBTA_HF_CLIENT_DATA *p_data)
 *******************************************************************************/
 void bta_hf_client_disc_acp_res(tBTA_HF_CLIENT_DATA *p_data)
 {
+
+   if (p_data == NULL)
+       return;
+
     APPL_TRACE_DEBUG ("%s: Status: %d", __func__, p_data->disc_result.status);
     /* if found service */
     if (p_data->disc_result.status == SDP_SUCCESS ||
