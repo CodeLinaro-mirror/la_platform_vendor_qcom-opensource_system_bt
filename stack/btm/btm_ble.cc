@@ -85,17 +85,7 @@ bool BTM_SecAddBleDevice(const RawAddress& bd_addr, BD_NAME bd_name,
 
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
   if (!p_dev_rec) {
-    p_dev_rec = btm_sec_allocate_dev_rec();
-
-    p_dev_rec->bd_addr = bd_addr;
-    p_dev_rec->hci_handle = BTM_GetHCIConnHandle(bd_addr, BT_TRANSPORT_BR_EDR);
-    p_dev_rec->ble_hci_handle = BTM_GetHCIConnHandle(bd_addr, BT_TRANSPORT_LE);
-
-    /* update conn params, use default value for background connection params */
-    p_dev_rec->conn_params.min_conn_int = BTM_BLE_CONN_PARAM_UNDEF;
-    p_dev_rec->conn_params.max_conn_int = BTM_BLE_CONN_PARAM_UNDEF;
-    p_dev_rec->conn_params.supervision_tout = BTM_BLE_CONN_PARAM_UNDEF;
-    p_dev_rec->conn_params.slave_latency = BTM_BLE_CONN_PARAM_UNDEF;
+    p_dev_rec = btm_sec_alloc_dev(bd_addr);
 
     BTM_TRACE_DEBUG("%s: Device added, handle=0x%x, p_dev_rec=%p, bd_addr=%s",
                     __func__, p_dev_rec->ble_hci_handle, p_dev_rec,
@@ -1069,7 +1059,7 @@ void BTM_BleSetPhy(const RawAddress& bd_addr, uint8_t tx_phys, uint8_t rx_phys,
  *
  * Function         BTM_BleGetLTK
  *
- * Description      This function returns LTK of the LE connection.
+ * Description      This function returns peer LTK of the LE connection.
  *
  * Parameter        bdaddr: remote device address
  *
@@ -1093,7 +1083,7 @@ Octet16 BTM_BleGetLTK(const RawAddress& bd_addr) {
   }
 
   if (p_rec->ble.key_type && (p_rec->sec_flags & BTM_SEC_LE_LINK_KEY_KNOWN)) {
-    ltk = p_rec->ble.keys.lltk;
+    ltk = p_rec->ble.keys.pltk;
   }
   return ltk;
 }
@@ -2438,7 +2428,7 @@ bool BTM_GetRemoteQLLFeatures(uint16_t handle, uint8_t* features) {
   int idx;
   bool res = false;
 
-  if (!controller_get_interface()->is_qbce_qhs_commands_supported()) {
+  if (!controller_get_interface()->is_qbce_QLE_HCI_supported()) {
     BTM_TRACE_DEBUG("%s: QHS not support", __func__);
     return false;
   }
@@ -2494,6 +2484,27 @@ bool BTM_QHS_Phy_supported(uint16_t handle) {
     qhs_phy = true;
 
   return qhs_phy;
+}
+
+/*******************************************************************************
+ *
+ * Function         BTM_BleIsQHSPhySupported
+ *
+ * Description      This function is called to determine if QHS phy can be used
+ *
+ * Parameter        bda: BD address of the remote device
+ *
+ * Returns          bool true if qhs phy can be used, false otherwise
+ *
+ ******************************************************************************/
+bool BTM_BleIsQHSPhySupported(const RawAddress& bda) {
+  tACL_CONN* p = btm_bda_to_acl(bda, BT_TRANSPORT_LE);
+  if (p == NULL) {
+    BTM_TRACE_ERROR("%s: invalid bda %s", __func__,
+                     bda.ToString().c_str());
+    return false;
+  }
+  return BTM_QHS_Phy_supported(p->hci_handle);
 }
 
 /*******************************************************************************
