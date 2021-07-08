@@ -3606,7 +3606,12 @@ void btm_proc_sp_req_evt(tBTM_SP_EVT event, uint8_t* p) {
             evt_data.cfm_req.just_works, btm_cb.devcb.loc_io_caps,
             p_dev_rec->rmt_io_caps, btm_cb.devcb.loc_auth_req,
             p_dev_rec->rmt_auth_req);
-
+#if (BTM_LOCAL_IO_CAPS == BTM_IO_CAP_NONE)
+        if(p_dev_rec->rmt_io_caps == BTM_IO_CAP_NONE){
+            BTM_TRACE_DEBUG("%s setting bond_type_persistent when Remote device io caps is BTM_IO_CAP_NONE",__func__);
+            btm_set_bond_type_dev(p_dev_rec->bd_addr, BOND_TYPE_PERSISTENT);
+        }
+#endif
         evt_data.cfm_req.loc_auth_req = btm_cb.devcb.loc_auth_req;
         evt_data.cfm_req.rmt_auth_req = p_dev_rec->rmt_auth_req;
         evt_data.cfm_req.loc_io_caps = btm_cb.devcb.loc_io_caps;
