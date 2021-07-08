@@ -647,9 +647,11 @@ void bond_state_changed(bt_status_t status, const RawAddress& bd_addr,
     }
     return;
   }
-
+#if (BTM_LOCAL_IO_CAPS == BTM_IO_CAP_NONE)
+  if(btm_get_bond_type_dev(bd_addr) == BOND_TYPE_TEMPORARY) state = BT_BOND_STATE_NONE;
+#else
   if (pairing_cb.bond_type == BOND_TYPE_TEMPORARY) state = BT_BOND_STATE_NONE;
-
+#endif
   BTIF_TRACE_DEBUG("%s: state=%d, prev_state=%d, sdp_attempts = %d", __func__,
                    state, pairing_cb.state, pairing_cb.sdp_attempts);
 
@@ -1243,7 +1245,14 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
   bt_bond_state_t state = BT_BOND_STATE_NONE;
 
   BTIF_TRACE_DEBUG("%s: bond state=%d", __func__, pairing_cb.state);
-
+  BTIF_TRACE_DEBUG("%s: bond type=%d", __func__, btm_get_bond_type_dev(p_auth_cmpl->bd_addr));
+#if (BTM_LOCAL_IO_CAPS == BTM_IO_CAP_NONE)
+  if (btm_get_bond_type_dev(p_auth_cmpl->bd_addr) == BOND_TYPE_PERSISTENT) {
+    BTIF_TRACE_DEBUG("%s: setting bond type for persistance pairing",
+                     __func__);
+    pairing_cb.bond_type = BOND_TYPE_PERSISTENT;
+  }
+#endif
   RawAddress bd_addr = p_auth_cmpl->bd_addr;
   if ((p_auth_cmpl->success == true) && (p_auth_cmpl->key_present)) {
     if ((p_auth_cmpl->key_type < HCI_LKEY_TYPE_DEBUG_COMB) ||
