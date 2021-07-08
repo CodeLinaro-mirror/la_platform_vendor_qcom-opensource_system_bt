@@ -1736,6 +1736,10 @@ bool smp_calculate_link_key_from_long_term_key(tSMP_CB* p_cb) {
 
     link_key_type += BTM_LTK_DERIVED_LKEY_OFFSET;
 
+  if ((p_cb->peer_auth_req & SMP_AUTH_BOND) &&
+    (p_cb->loc_auth_req & SMP_AUTH_BOND))
+    p_dev_rec->bond_type = BOND_TYPE_PERSISTENT;
+
     uint8_t* p;
     BT_OCTET16 notif_link_key;
     p = notif_link_key;
