@@ -37,6 +37,7 @@
 #include "port_int.h"
 #include "rfc_int.h"
 #include "rfcdefs.h"
+#include "lpm_api.h"
 
 #include "stack/l2cap/l2c_int.h"
 #include "hci/include/btsnoop.h"
@@ -95,6 +96,8 @@ int port_open_continue(tPORT* p_port) {
         "port_open_continue: mx state(%d) mx channel is openning",
         p_mcb->state);
   }
+  RFCOMM_TRACE_API("port_open_continue: copying parameters");
+  LPM_CopyPortInfo(p_port);
   return (PORT_SUCCESS);
 }
 

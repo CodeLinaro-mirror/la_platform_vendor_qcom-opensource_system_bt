@@ -39,6 +39,7 @@
 #include "rfc_int.h"
 #include "rfcdefs.h"
 #include "sdp_api.h"
+#include "lpm_api.h"
 
 /* duration of break in 200ms units */
 #define PORT_BREAK_DURATION 1
@@ -226,9 +227,10 @@ int RFCOMM_CreateConnection(uint16_t uuid, uint8_t scn, bool is_server,
 
   /* If this is not initiator of the connection need to just wait */
   if (p_port->is_server) {
+    RFCOMM_TRACE_API("RFCOMM_CreateConnection() copying parameters is_server");
+    LPM_CopyPortInfo(p_port);
     return (PORT_SUCCESS);
   }
-
   /* Open will be continued after security checks are passed */
   return port_open_continue(p_port);
 }
