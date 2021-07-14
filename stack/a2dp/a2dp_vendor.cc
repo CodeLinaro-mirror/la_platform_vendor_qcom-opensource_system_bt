@@ -796,6 +796,12 @@ bool A2DP_VendorDumpCodecInfo(const uint8_t* p_codec_info) {
     return A2DP_VendorDumpCodecInfoAptx(p_codec_info);
   }
 
+  // Check for aptX-AD
+  if (vendor_id == A2DP_APTX_ADAPTIVE_VENDOR_ID &&
+      codec_id == A2DP_APTX_ADAPTIVE_CODEC_ID_BLUETOOTH) {
+    return A2DP_VendorDumpCodecInfoAptxAdaptive(p_codec_info);
+  }
+
   // Check for aptX-HD
   if (vendor_id == A2DP_APTX_HD_VENDOR_ID &&
       codec_id == A2DP_APTX_HD_CODEC_ID_BLUETOOTH) {
