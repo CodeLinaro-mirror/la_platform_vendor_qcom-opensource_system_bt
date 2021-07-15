@@ -54,6 +54,11 @@ void btm_gen_resolvable_private_addr(
   cb.Run(RawAddress::kEmpty);
 }
 
+bool btm_update_dev_to_white_list(bool to_add, const RawAddress& bd_addr,
+        uint8_t background_role, uint8_t adv_handle) {
+  return true;
+}
+
 alarm_callback_t last_alarm_cb = nullptr;
 void* last_alarm_data = nullptr;
 void alarm_set_on_mloop(alarm_t* alarm, uint64_t interval_ms,
@@ -233,6 +238,7 @@ TEST_F(BleAdvertisingManagerTest, test_android_flow) {
 
   parameters_cb set_params_cb;
   tBTM_BLE_ADV_PARAMS params;
+  std::vector<RawAddress> bd_addr_list;
   EXPECT_CALL(*hci_mock, SetParameters1(advertiser_id, _, _, _, _, _, _, _, _))
       .Times(1);
   EXPECT_CALL(*hci_mock, SetParameters2(_, _, _, _, _, _, _, _))
@@ -240,6 +246,7 @@ TEST_F(BleAdvertisingManagerTest, test_android_flow) {
       .WillOnce(SaveArg<7>(&set_params_cb));
   BleAdvertisingManager::Get()->SetParameters(
       advertiser_id, &params,
+      bd_addr_list,
       Bind(&BleAdvertisingManagerTest::SetParametersCb,
            base::Unretained(this)));
   ::testing::Mock::VerifyAndClearExpectations(hci_mock.get());
@@ -307,6 +314,7 @@ TEST_F(BleAdvertisingManagerTest, test_adv_data_filling) {
 
   parameters_cb set_params_cb;
   tBTM_BLE_ADV_PARAMS params;
+  std::vector<RawAddress> bd_addr_list;
   params.advertising_event_properties =
       BleAdvertisingManager::advertising_prop_legacy_connectable;
   params.tx_power = -15;
@@ -317,6 +325,7 @@ TEST_F(BleAdvertisingManagerTest, test_adv_data_filling) {
       .WillOnce(SaveArg<7>(&set_params_cb));
   BleAdvertisingManager::Get()->SetParameters(
       advertiser_id, &params,
+      bd_addr_list,
       Bind(&BleAdvertisingManagerTest::SetParametersCb,
            base::Unretained(this)));
   ::testing::Mock::VerifyAndClearExpectations(hci_mock.get());
@@ -356,6 +365,7 @@ TEST_F(BleAdvertisingManagerTest, test_adv_data_not_filling) {
 
   parameters_cb set_params_cb;
   tBTM_BLE_ADV_PARAMS params;
+  std::vector<RawAddress> bd_addr_list;
   params.advertising_event_properties =
       BleAdvertisingManager::advertising_prop_legacy_non_connectable;
   params.tx_power = -15;
@@ -367,6 +377,7 @@ TEST_F(BleAdvertisingManagerTest, test_adv_data_not_filling) {
       .WillOnce(SaveArg<7>(&set_params_cb));
   BleAdvertisingManager::Get()->SetParameters(
       advertiser_id, &params,
+      bd_addr_list,
       Bind(&BleAdvertisingManagerTest::SetParametersCb,
            base::Unretained(this)));
   ::testing::Mock::VerifyAndClearExpectations(hci_mock.get());
@@ -440,6 +451,7 @@ TEST_F(BleAdvertisingManagerTest, test_reenabling_disabled_instance) {
 TEST_F(BleAdvertisingManagerTest, test_start_advertising_set) {
   std::vector<uint8_t> adv_data;
   std::vector<uint8_t> scan_resp;
+  std::vector<RawAddress> bd_addr_list;
   tBTM_BLE_ADV_PARAMS params;
   tBLE_PERIODIC_ADV_PARAMS periodic_params;
   periodic_params.enable = false;
@@ -471,7 +483,7 @@ TEST_F(BleAdvertisingManagerTest, test_start_advertising_set) {
       Bind(&BleAdvertisingManagerTest::StartAdvertisingSetCb,
            base::Unretained(this)),
       &params, adv_data, scan_resp, &periodic_params, periodic_data,
-      0 /* duration */, 0 /* maxExtAdvEvents */, Bind(DoNothing2));
+      0 /* duration */, 0 /* maxExtAdvEvents */, bd_addr_list, Bind(DoNothing2));
 
   // we are a truly gracious fake controller, let the commands succeed!
   int selected_tx_power = -15;
@@ -680,6 +692,7 @@ TEST_F(BleAdvertisingManagerTest,
        test_connectable_address_update_during_timeout) {
   std::vector<uint8_t> adv_data;
   std::vector<uint8_t> scan_resp;
+  std::vector<RawAddress> bd_addr_list;
   tBTM_BLE_ADV_PARAMS params;
   params.advertising_event_properties = 0x1 /* connectable */;
   tBLE_PERIODIC_ADV_PARAMS periodic_params;
@@ -721,7 +734,7 @@ TEST_F(BleAdvertisingManagerTest,
       Bind(&BleAdvertisingManagerTest::StartAdvertisingSetCb,
            base::Unretained(this)),
       &params, adv_data, scan_resp, &periodic_params, periodic_data,
-      0 /* duration */, maxExtAdvEvents, Bind(DoNothing2));
+      0 /* duration */, maxExtAdvEvents, bd_addr_list, Bind(DoNothing2));
 
   // we are a truly gracious fake controller, let the commands succeed!
   int selected_tx_power = -15;
@@ -794,6 +807,7 @@ TEST_F(BleAdvertisingManagerTest,
 TEST_F(BleAdvertisingManagerTest, test_periodic_adv_disable_on_unregister) {
   std::vector<uint8_t> adv_data;
   std::vector<uint8_t> scan_resp;
+  std::vector<RawAddress> bd_addr_list;
   tBTM_BLE_ADV_PARAMS params;
   params.advertising_event_properties = 0x1 /* connectable */;
   tBLE_PERIODIC_ADV_PARAMS periodic_params;
@@ -838,7 +852,7 @@ TEST_F(BleAdvertisingManagerTest, test_periodic_adv_disable_on_unregister) {
       Bind(&BleAdvertisingManagerTest::StartAdvertisingSetCb,
            base::Unretained(this)),
       &params, adv_data, scan_resp, &periodic_params, periodic_data,
-      0 /* duration */, 0 /* maxExtAdvEvents */, Bind(DoNothing2));
+      0 /* duration */, 0 /* maxExtAdvEvents */, bd_addr_list, Bind(DoNothing2));
 
   // we are a truly gracious fake controller, let the commands succeed!
   int selected_tx_power = -15;
@@ -954,6 +968,7 @@ TEST_F(BleAdvertisingManagerTest, test_suspend_resume) {
 TEST_F(BleAdvertisingManagerTest, test_duration_update_during_timeout) {
   std::vector<uint8_t> adv_data;
   std::vector<uint8_t> scan_resp;
+  std::vector<RawAddress> bd_addr_list;
   tBTM_BLE_ADV_PARAMS params;
   params.advertising_event_properties = 0x1 /* connectable */;
   params.adv_int_min = params.adv_int_max = 0xA0 /* 100ms */;
@@ -998,7 +1013,7 @@ TEST_F(BleAdvertisingManagerTest, test_duration_update_during_timeout) {
       Bind(&BleAdvertisingManagerTest::StartAdvertisingSetCb,
            base::Unretained(this)),
       &params, adv_data, scan_resp, &periodic_params, periodic_data, duration,
-      maxExtAdvEvents, Bind(DoNothing2));
+      maxExtAdvEvents, bd_addr_list, Bind(DoNothing2));
 
   // we are a truly gracious fake controller, let the commands succeed!
   int selected_tx_power = -15;
@@ -1067,6 +1082,7 @@ TEST_F(BleAdvertisingManagerTest, test_cleanup_during_execution) {
   tBLE_PERIODIC_ADV_PARAMS periodic_params;
   periodic_params.enable = false;
   std::vector<uint8_t> periodic_data;
+  std::vector<RawAddress> bd_addr_list;
 
   parameters_cb set_params_cb;
   status_cb set_address_cb;
@@ -1086,7 +1102,7 @@ TEST_F(BleAdvertisingManagerTest, test_cleanup_during_execution) {
       Bind(&BleAdvertisingManagerTest::StartAdvertisingSetCb,
            base::Unretained(this)),
       &params, adv_data, scan_resp, &periodic_params, periodic_data,
-      0 /* duration */, 0 /* maxExtAdvEvents */, Bind(DoNothing2));
+      0 /* duration */, 0 /* maxExtAdvEvents */, bd_addr_list, Bind(DoNothing2));
 
   // we are a truly gracious fake controller, let the commands succeed!
   int selected_tx_power = -15;
