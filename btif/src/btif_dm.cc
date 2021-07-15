@@ -2060,6 +2060,8 @@ static void btif_dm_cb_add_oob_bond_device(const RawAddress& bd_addr, LinkKey li
 
   if (ret == BT_STATUS_SUCCESS) {
     bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDED);
+    /* Start SDP if bonding succeeds */
+    btif_dm_get_remote_services(bd_addr);
   } else {
     bond_state_changed(BT_STATUS_FAIL, bd_addr, BT_BOND_STATE_NONE);
   }
@@ -2878,8 +2880,8 @@ void btif_dm_proc_loc_oob(bool valid, const Octet16& c192, const Octet16& r192,
                           const Octet16& c256, const Octet16& r256) {
 
   if (!valid) {
+    /* All zero oob data is set when state is invalid */
     BTIF_TRACE_ERROR("%s: read local oob data valid=%d", __func__, valid);
-    return;
   }
 
   BTIF_TRACE_DEBUG("save local OOB data in memory");
