@@ -90,7 +90,7 @@ static const tA2DP_AAC_CIE a2dp_aac_default_config = {
     A2DP_AAC_DEFAULT_BITRATE,             // bitRate
     BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16    // bits_per_sample
 };
-
+/*
 static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_aac = {
     a2dp_aac_encoder_init,
     a2dp_aac_encoder_cleanup,
@@ -100,7 +100,7 @@ static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_aac = {
     a2dp_aac_send_frames,
     nullptr  // set_transmit_queue_length
 };
-
+*/
 static const tA2DP_DECODER_INTERFACE a2dp_decoder_interface_aac = {
     a2dp_aac_decoder_init, a2dp_aac_decoder_cleanup,
     a2dp_aac_decoder_decode_packet,
@@ -665,14 +665,14 @@ std::string A2DP_CodecInfoStringAac(const uint8_t* p_codec_info) {
 
   return res.str();
 }
-
+/*
 const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceAac(
     const uint8_t* p_codec_info) {
   if (!A2DP_IsSourceCodecValidAac(p_codec_info)) return NULL;
 
   return &a2dp_encoder_interface_aac;
 }
-
+*/
 const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceAac(
     const uint8_t* p_codec_info) {
   if (!A2DP_IsSinkCodecValidAac(p_codec_info)) return NULL;

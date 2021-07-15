@@ -40,7 +40,7 @@
  * Returns          void
  *
  ******************************************************************************/
-extern void bta_av_ci_src_data_ready(tBTA_AV_CHNL chnl);
+extern void bta_av_ci_src_data_ready(const RawAddress& peer_address, tBTA_AV_CHNL chnl);
 
 /*******************************************************************************
  *

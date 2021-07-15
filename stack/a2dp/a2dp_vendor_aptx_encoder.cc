@@ -25,6 +25,7 @@
 
 #include "a2dp_vendor.h"
 #include "a2dp_vendor_aptx.h"
+#include "btif_a2dp_source.h"
 #include "bt_common.h"
 #include "common/time_util.h"
 #include "osi/include/log.h"
@@ -46,7 +47,6 @@ typedef int (*tAPTX_ENCODER_INIT)(void* state, short endian);
 static const char* APTX_ENCODER_ENCODE_STEREO_NAME = "aptxbtenc_encodestereo";
 typedef int (*tAPTX_ENCODER_ENCODE_STEREO)(void* state, void* pcmL, void* pcmR,
                                            void* buffer);
-
 static const char* APTX_ENCODER_SIZEOF_PARAMS_NAME = "SizeofAptxbtenc";
 typedef int (*tAPTX_ENCODER_SIZEOF_PARAMS)(void);
 
@@ -63,55 +63,6 @@ static tAPTX_ENCODER_SIZEOF_PARAMS aptx_encoder_sizeof_params_func;
 #endif
 
 #define A2DP_APTX_MAX_PCM_BYTES_PER_READ 4096
-
-typedef struct {
-  uint64_t sleep_time_ns;
-  uint32_t pcm_reads;
-  uint32_t pcm_bytes_per_read;
-  uint32_t aptx_bytes;
-  uint32_t frame_size_counter;
-} tAPTX_FRAMING_PARAMS;
-
-typedef struct {
-  uint64_t session_start_us;
-
-  size_t media_read_total_expected_packets;
-  size_t media_read_total_expected_reads_count;
-  size_t media_read_total_expected_read_bytes;
-
-  size_t media_read_total_dropped_packets;
-  size_t media_read_total_actual_reads_count;
-  size_t media_read_total_actual_read_bytes;
-} a2dp_aptx_encoder_stats_t;
-
-typedef struct {
-  a2dp_source_read_callback_t read_callback;
-  a2dp_source_enqueue_callback_t enqueue_callback;
-
-  bool use_SCMS_T;
-  bool is_peer_edr;          // True if the peer device supports EDR
-  bool peer_supports_3mbps;  // True if the peer device supports 3Mbps EDR
-  uint16_t peer_mtu;         // MTU of the A2DP peer
-  uint32_t timestamp;        // Timestamp for the A2DP frames
-
-  tA2DP_FEEDING_PARAMS feeding_params;
-  tAPTX_FRAMING_PARAMS framing_params;
-  void* aptx_encoder_state;
-  a2dp_aptx_encoder_stats_t stats;
-} tA2DP_APTX_ENCODER_CB;
-
-static tA2DP_APTX_ENCODER_CB a2dp_aptx_encoder_cb;
-
-static void a2dp_vendor_aptx_encoder_update(uint16_t peer_mtu,
-                                            A2dpCodecConfig* a2dp_codec_config,
-                                            bool* p_restart_input,
-                                            bool* p_restart_output,
-                                            bool* p_config_updated);
-static void aptx_init_framing_params(tAPTX_FRAMING_PARAMS* framing_params);
-static void aptx_update_framing_params(tAPTX_FRAMING_PARAMS* framing_params);
-static size_t aptx_encode_16bit(tAPTX_FRAMING_PARAMS* framing_params,
-                                size_t* data_out_index, uint16_t* data16_in,
-                                uint8_t* data_out);
 
 bool A2DP_VendorLoadEncoderAptx(void) {
   if (aptx_encoder_lib_handle != NULL) return true;  // Already loaded
@@ -168,33 +119,33 @@ void A2DP_VendorUnloadEncoderAptx(void) {
   }
 }
 
-void a2dp_vendor_aptx_encoder_init(
-    const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
+void A2dpAptxEncoder::encoder_init(
+    tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
     A2dpCodecConfig* a2dp_codec_config,
     a2dp_source_read_callback_t read_callback,
     a2dp_source_enqueue_callback_t enqueue_callback) {
-  memset(&a2dp_aptx_encoder_cb, 0, sizeof(a2dp_aptx_encoder_cb));
+  memset(&this->a2dp_aptx_encoder_cb, 0, sizeof(this->a2dp_aptx_encoder_cb));
 
-  a2dp_aptx_encoder_cb.stats.session_start_us =
+  this->a2dp_aptx_encoder_cb.stats.session_start_us =
       bluetooth::common::time_get_os_boottime_us();
 
-  a2dp_aptx_encoder_cb.read_callback = read_callback;
-  a2dp_aptx_encoder_cb.enqueue_callback = enqueue_callback;
-  a2dp_aptx_encoder_cb.is_peer_edr = p_peer_params->is_peer_edr;
-  a2dp_aptx_encoder_cb.peer_supports_3mbps = p_peer_params->peer_supports_3mbps;
-  a2dp_aptx_encoder_cb.peer_mtu = p_peer_params->peer_mtu;
-  a2dp_aptx_encoder_cb.timestamp = 0;
+  this->a2dp_aptx_encoder_cb.read_callback = read_callback;
+  this->a2dp_aptx_encoder_cb.enqueue_callback = enqueue_callback;
+  this->a2dp_aptx_encoder_cb.is_peer_edr = p_peer_params->is_peer_edr;
+  this->a2dp_aptx_encoder_cb.peer_supports_3mbps = p_peer_params->peer_supports_3mbps;
+  this->a2dp_aptx_encoder_cb.peer_mtu = p_peer_params->peer_mtu;
+  this->a2dp_aptx_encoder_cb.timestamp = 0;
 
   /* aptX encoder config */
-  a2dp_aptx_encoder_cb.use_SCMS_T = false;  // TODO: should be a parameter
+  this->a2dp_aptx_encoder_cb.use_SCMS_T = false;  // TODO: should be a parameter
 #if (BTA_AV_CO_CP_SCMS_T == TRUE)
-  a2dp_aptx_encoder_cb.use_SCMS_T = true;
+  this->a2dp_aptx_encoder_cb.use_SCMS_T = true;
 #endif
 
-  a2dp_aptx_encoder_cb.aptx_encoder_state =
+  this->a2dp_aptx_encoder_cb.aptx_encoder_state =
       osi_malloc(aptx_encoder_sizeof_params_func());
-  if (a2dp_aptx_encoder_cb.aptx_encoder_state != NULL) {
-    aptx_encoder_init_func(a2dp_aptx_encoder_cb.aptx_encoder_state, 0);
+  if (this->a2dp_aptx_encoder_cb.aptx_encoder_state != NULL) {
+    aptx_encoder_init_func(this->a2dp_aptx_encoder_cb.aptx_encoder_state, 0);
   } else {
     LOG_ERROR(LOG_TAG, "%s: Cannot allocate aptX encoder state", __func__);
     // TODO: Return an error?
@@ -205,7 +156,7 @@ void a2dp_vendor_aptx_encoder_init(
   bool restart_input = false;
   bool restart_output = false;
   bool config_updated = false;
-  a2dp_vendor_aptx_encoder_update(a2dp_aptx_encoder_cb.peer_mtu,
+  a2dp_vendor_aptx_encoder_update(this->a2dp_aptx_encoder_cb.peer_mtu,
                                   a2dp_codec_config, &restart_input,
                                   &restart_output, &config_updated);
 }
@@ -213,12 +164,19 @@ void a2dp_vendor_aptx_encoder_init(
 bool A2dpCodecConfigAptxSource::updateEncoderUserConfig(
     const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params, bool* p_restart_input,
     bool* p_restart_output, bool* p_config_updated) {
-  a2dp_aptx_encoder_cb.is_peer_edr = p_peer_params->is_peer_edr;
-  a2dp_aptx_encoder_cb.peer_supports_3mbps = p_peer_params->peer_supports_3mbps;
-  a2dp_aptx_encoder_cb.peer_mtu = p_peer_params->peer_mtu;
-  a2dp_aptx_encoder_cb.timestamp = 0;
+  A2dpAptxEncoder* encoder = (A2dpAptxEncoder*)findA2dpSourceEncoder(getPeerAddress());
+  if (encoder == nullptr) {
+    LOG_ERROR(LOG_TAG, "%s: failed to find encoder for peer_address:%s",
+               __func__, getPeerAddress().ToString().c_str());
+    return 0;
+  }
 
-  if (a2dp_aptx_encoder_cb.peer_mtu == 0) {
+  encoder->a2dp_aptx_encoder_cb.is_peer_edr = p_peer_params->is_peer_edr;
+  encoder->a2dp_aptx_encoder_cb.peer_supports_3mbps = p_peer_params->peer_supports_3mbps;
+  encoder->a2dp_aptx_encoder_cb.peer_mtu = p_peer_params->peer_mtu;
+  encoder->a2dp_aptx_encoder_cb.timestamp = 0;
+
+  if (encoder->a2dp_aptx_encoder_cb.peer_mtu == 0) {
     LOG_ERROR(LOG_TAG,
               "%s: Cannot update the codec encoder for %s: "
               "invalid peer MTU",
@@ -226,7 +184,7 @@ bool A2dpCodecConfigAptxSource::updateEncoderUserConfig(
     return false;
   }
 
-  a2dp_vendor_aptx_encoder_update(a2dp_aptx_encoder_cb.peer_mtu, this,
+  encoder->a2dp_vendor_aptx_encoder_update(encoder->a2dp_aptx_encoder_cb.peer_mtu, this,
                                   p_restart_input, p_restart_output,
                                   p_config_updated);
   return true;
@@ -235,7 +193,7 @@ bool A2dpCodecConfigAptxSource::updateEncoderUserConfig(
 // Update the A2DP aptX encoder.
 // |peer_mtu| is the peer MTU.
 // |a2dp_codec_config| is the A2DP codec to use for the update.
-static void a2dp_vendor_aptx_encoder_update(uint16_t peer_mtu,
+void A2dpAptxEncoder::a2dp_vendor_aptx_encoder_update(uint16_t peer_mtu,
                                             A2dpCodecConfig* a2dp_codec_config,
                                             bool* p_restart_input,
                                             bool* p_restart_output,
@@ -255,7 +213,7 @@ static void a2dp_vendor_aptx_encoder_update(uint16_t peer_mtu,
   const uint8_t* p_codec_info = codec_info;
 
   // The feeding parameters
-  tA2DP_FEEDING_PARAMS* p_feeding_params = &a2dp_aptx_encoder_cb.feeding_params;
+  tA2DP_FEEDING_PARAMS* p_feeding_params = &this->a2dp_aptx_encoder_cb.feeding_params;
   p_feeding_params->sample_rate =
       A2DP_VendorGetTrackSampleRateAptx(p_codec_info);
   p_feeding_params->bits_per_sample =
@@ -265,34 +223,34 @@ static void a2dp_vendor_aptx_encoder_update(uint16_t peer_mtu,
   LOG_DEBUG(LOG_TAG, "%s: sample_rate=%u bits_per_sample=%u channel_count=%u",
             __func__, p_feeding_params->sample_rate,
             p_feeding_params->bits_per_sample, p_feeding_params->channel_count);
-  a2dp_vendor_aptx_feeding_reset();
+  feeding_reset();
 }
 
-void a2dp_vendor_aptx_encoder_cleanup(void) {
-  osi_free(a2dp_aptx_encoder_cb.aptx_encoder_state);
-  memset(&a2dp_aptx_encoder_cb, 0, sizeof(a2dp_aptx_encoder_cb));
+void A2dpAptxEncoder::encoder_cleanup(void) {
+  osi_free(this->a2dp_aptx_encoder_cb.aptx_encoder_state);
+  memset(&this->a2dp_aptx_encoder_cb, 0, sizeof(this->a2dp_aptx_encoder_cb));
 }
 
 //
 // Initialize the framing parameters, and set those that don't change
 // while streaming (e.g., 'sleep_time_ns').
 //
-static void aptx_init_framing_params(tAPTX_FRAMING_PARAMS* framing_params) {
+void A2dpAptxEncoder::aptx_init_framing_params(tAPTX_FRAMING_PARAMS* framing_params) {
   framing_params->sleep_time_ns = 0;
   framing_params->pcm_reads = 0;
   framing_params->pcm_bytes_per_read = 0;
   framing_params->aptx_bytes = 0;
   framing_params->frame_size_counter = 0;
 
-  if (a2dp_aptx_encoder_cb.feeding_params.sample_rate == 48000) {
-    if (a2dp_aptx_encoder_cb.use_SCMS_T) {
+  if (this->a2dp_aptx_encoder_cb.feeding_params.sample_rate == 48000) {
+    if (this->a2dp_aptx_encoder_cb.use_SCMS_T) {
       framing_params->sleep_time_ns = 13000000;
     } else {
       framing_params->sleep_time_ns = 14000000;
     }
   } else {
     // Assume the sample rate is 44100
-    if (a2dp_aptx_encoder_cb.use_SCMS_T) {
+    if (this->a2dp_aptx_encoder_cb.use_SCMS_T) {
       framing_params->sleep_time_ns = 14000000;
     } else {
       framing_params->sleep_time_ns = 15000000;
@@ -316,9 +274,9 @@ static void aptx_init_framing_params(tAPTX_FRAMING_PARAMS* framing_params) {
 // and
 //     number of aptX samples produced = pcm_bytes_per_read / 16
 //
-static void aptx_update_framing_params(tAPTX_FRAMING_PARAMS* framing_params) {
-  if (a2dp_aptx_encoder_cb.feeding_params.sample_rate == 48000) {
-    if (a2dp_aptx_encoder_cb.use_SCMS_T) {
+void A2dpAptxEncoder::aptx_update_framing_params(tAPTX_FRAMING_PARAMS* framing_params) {
+  if (this->a2dp_aptx_encoder_cb.feeding_params.sample_rate == 48000) {
+    if (this->a2dp_aptx_encoder_cb.use_SCMS_T) {
       framing_params->aptx_bytes = 624;
       framing_params->pcm_bytes_per_read = 208;
       framing_params->pcm_reads = 12;
@@ -329,7 +287,7 @@ static void aptx_update_framing_params(tAPTX_FRAMING_PARAMS* framing_params) {
     }
   } else {
     // Assume the sample rate is 44100
-    if (a2dp_aptx_encoder_cb.use_SCMS_T) {
+    if (this->a2dp_aptx_encoder_cb.use_SCMS_T) {
       if (++framing_params->frame_size_counter < 20) {
         framing_params->aptx_bytes = 616;
         framing_params->pcm_bytes_per_read = 224;
@@ -363,20 +321,20 @@ static void aptx_update_framing_params(tAPTX_FRAMING_PARAMS* framing_params) {
               framing_params->pcm_reads, framing_params->frame_size_counter);
 }
 
-void a2dp_vendor_aptx_feeding_reset(void) {
-  aptx_init_framing_params(&a2dp_aptx_encoder_cb.framing_params);
+void A2dpAptxEncoder::feeding_reset(void) {
+  aptx_init_framing_params(&this->a2dp_aptx_encoder_cb.framing_params);
 }
 
-void a2dp_vendor_aptx_feeding_flush(void) {
-  aptx_init_framing_params(&a2dp_aptx_encoder_cb.framing_params);
+void A2dpAptxEncoder::feeding_flush(void) {
+  aptx_init_framing_params(&this->a2dp_aptx_encoder_cb.framing_params);
 }
 
-uint64_t a2dp_vendor_aptx_get_encoder_interval_ms(void) {
-  return a2dp_aptx_encoder_cb.framing_params.sleep_time_ns / (1000 * 1000);
+uint64_t A2dpAptxEncoder::get_encoder_interval_ms(void) {
+  return this->a2dp_aptx_encoder_cb.framing_params.sleep_time_ns / (1000 * 1000);
 }
 
-void a2dp_vendor_aptx_send_frames(uint64_t timestamp_us) {
-  tAPTX_FRAMING_PARAMS* framing_params = &a2dp_aptx_encoder_cb.framing_params;
+void A2dpAptxEncoder::send_frames(uint64_t timestamp_us) {
+  tAPTX_FRAMING_PARAMS* framing_params = &this->a2dp_aptx_encoder_cb.framing_params;
 
   // Prepare the packet to send
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(BT_DEFAULT_BUFFER_SIZE);
@@ -399,25 +357,26 @@ void a2dp_vendor_aptx_send_frames(uint64_t timestamp_us) {
   size_t pcm_bytes_encoded = 0;
   uint32_t bytes_read = 0;
 
-  a2dp_aptx_encoder_cb.stats.media_read_total_expected_packets++;
-  a2dp_aptx_encoder_cb.stats.media_read_total_expected_reads_count++;
-  a2dp_aptx_encoder_cb.stats.media_read_total_expected_read_bytes +=
+  this->a2dp_aptx_encoder_cb.stats.media_read_total_expected_packets++;
+  this->a2dp_aptx_encoder_cb.stats.media_read_total_expected_reads_count++;
+  this->a2dp_aptx_encoder_cb.stats.media_read_total_expected_read_bytes +=
       expected_read_bytes;
 
   LOG_VERBOSE(LOG_TAG, "%s: PCM read of size %u", __func__,
               expected_read_bytes);
-  bytes_read = a2dp_aptx_encoder_cb.read_callback((uint8_t*)read_buffer16,
-                                                  expected_read_bytes);
-  a2dp_aptx_encoder_cb.stats.media_read_total_actual_read_bytes += bytes_read;
+  bytes_read = btif_a2dp_source_read_callback(get_peer_address(),
+                                              (uint8_t*)read_buffer16,
+                                              expected_read_bytes);
+  this->a2dp_aptx_encoder_cb.stats.media_read_total_actual_read_bytes += bytes_read;
   if (bytes_read < expected_read_bytes) {
     LOG_WARN(LOG_TAG,
              "%s: underflow at PCM reading: read %u bytes instead of %u",
              __func__, bytes_read, expected_read_bytes);
-    a2dp_aptx_encoder_cb.stats.media_read_total_dropped_packets++;
+    this->a2dp_aptx_encoder_cb.stats.media_read_total_dropped_packets++;
     osi_free(p_buf);
     return;
   }
-  a2dp_aptx_encoder_cb.stats.media_read_total_actual_reads_count++;
+  this->a2dp_aptx_encoder_cb.stats.media_read_total_actual_reads_count++;
 
   for (uint32_t reads = 0, offset = 0; reads < framing_params->pcm_reads;
        reads++, offset +=
@@ -434,22 +393,22 @@ void a2dp_vendor_aptx_send_frames(uint64_t timestamp_us) {
               pcm_bytes_encoded, encoded_bytes);
 
   // Update the RTP timestamp
-  *((uint32_t*)(p_buf + 1)) = a2dp_aptx_encoder_cb.timestamp;
+  *((uint32_t*)(p_buf + 1)) = this->a2dp_aptx_encoder_cb.timestamp;
   const uint8_t BYTES_PER_FRAME = 2;
   uint32_t rtp_timestamp =
-      (pcm_bytes_encoded / a2dp_aptx_encoder_cb.feeding_params.channel_count) /
+      (pcm_bytes_encoded / this->a2dp_aptx_encoder_cb.feeding_params.channel_count) /
       BYTES_PER_FRAME;
-  a2dp_aptx_encoder_cb.timestamp += rtp_timestamp;
+  this->a2dp_aptx_encoder_cb.timestamp += rtp_timestamp;
 
   if (p_buf->len > 0) {
-    a2dp_aptx_encoder_cb.enqueue_callback(p_buf, 1, bytes_read);
+    btif_a2dp_source_enqueue_callback(get_peer_address(), p_buf, 1, bytes_read);
   } else {
-    a2dp_aptx_encoder_cb.stats.media_read_total_dropped_packets++;
+    this->a2dp_aptx_encoder_cb.stats.media_read_total_dropped_packets++;
     osi_free(p_buf);
   }
 }
 
-static size_t aptx_encode_16bit(tAPTX_FRAMING_PARAMS* framing_params,
+size_t A2dpAptxEncoder::aptx_encode_16bit(tAPTX_FRAMING_PARAMS* framing_params,
                                 size_t* data_out_index, uint16_t* data16_in,
                                 uint8_t* data_out) {
   size_t pcm_bytes_encoded = 0;
@@ -466,7 +425,7 @@ static size_t aptx_encode_16bit(tAPTX_FRAMING_PARAMS* framing_params,
       pcmR[i] = (uint16_t) * (data16_in + ((2 * j) + 1));
     }
 
-    aptx_encoder_encode_stereo_func(a2dp_aptx_encoder_cb.aptx_encoder_state,
+    aptx_encoder_encode_stereo_func(this->a2dp_aptx_encoder_cb.aptx_encoder_state,
                                     &pcmL, &pcmR, &encoded_sample);
 
     data_out[*data_out_index + 0] = (uint8_t)((encoded_sample[0] >> 8) & 0xff);
@@ -483,15 +442,35 @@ static size_t aptx_encode_16bit(tAPTX_FRAMING_PARAMS* framing_params,
 }
 
 uint64_t A2dpCodecConfigAptxSource::encoderIntervalMs() const {
-  return a2dp_vendor_aptx_get_encoder_interval_ms();
+  A2dpAptxEncoder* encoder = (A2dpAptxEncoder*)findA2dpSourceEncoder(getPeerAddress());
+  if (encoder == nullptr) {
+    LOG_ERROR(LOG_TAG, "%s: failed to find encoder for peer_address:%s",
+               __func__, getPeerAddress().ToString().c_str());
+    return 0;
+  }
+  return encoder->get_encoder_interval_ms();
 }
 
 int A2dpCodecConfigAptxSource::getEffectiveMtu() const {
-  return a2dp_aptx_encoder_cb.peer_mtu;
+  A2dpAptxEncoder* encoder = (A2dpAptxEncoder*)findA2dpSourceEncoder(getPeerAddress());
+  if (encoder == nullptr) {
+    LOG_ERROR(LOG_TAG, "%s: failed to find encoder for peer_address:%s",
+               __func__, getPeerAddress().ToString().c_str());
+    return 0;
+  }
+
+  return encoder->a2dp_aptx_encoder_cb.peer_mtu;
 }
 
 void A2dpCodecConfigAptxSource::debug_codec_dump(int fd) {
-  a2dp_aptx_encoder_stats_t* stats = &a2dp_aptx_encoder_cb.stats;
+  A2dpAptxEncoder* encoder = (A2dpAptxEncoder*)findA2dpSourceEncoder(getPeerAddress());
+  if (encoder == nullptr) {
+    LOG_ERROR(LOG_TAG, "%s: failed to find encoder for peer_address:%s",
+               __func__, getPeerAddress().ToString().c_str());
+    return;
+  }
+
+  a2dp_aptx_encoder_stats_t* stats = &encoder->a2dp_aptx_encoder_cb.stats;
 
   A2dpCodecConfig::debug_codec_dump(fd);
 

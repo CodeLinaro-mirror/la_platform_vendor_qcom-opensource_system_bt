@@ -332,7 +332,7 @@ typedef struct {
   bt_status_t (*set_silence_device)(const RawAddress& bd_addr, bool silence);
 
   /** sets the connected device as active */
-  bt_status_t (*set_active_device)(const RawAddress& bd_addr);
+  bt_status_t (*set_active_device)(const RawAddress& bd_addr, bool active);
 
   /** configure the codecs settings preferences */
   bt_status_t (*config_codec)(

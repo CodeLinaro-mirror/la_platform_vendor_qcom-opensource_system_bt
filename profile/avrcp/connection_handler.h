@@ -119,6 +119,11 @@ class ConnectionHandler {
    */
   static void InitForTesting(ConnectionHandler* handler);
 
+ /**
+  * Get <Device> by bluetooth address
+  */
+ std::shared_ptr<Device> GetDevice(const RawAddress& bdaddr);
+
  private:
   AvrcpInterface* avrc_;
   SdpInterface* sdp_;

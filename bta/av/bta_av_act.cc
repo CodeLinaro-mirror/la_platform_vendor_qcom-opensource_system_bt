@@ -490,7 +490,7 @@ tBTA_AV_LCB* bta_av_find_lcb(const RawAddress& addr, uint8_t op) {
 void bta_av_rc_opened(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
   tBTA_AV_RC_OPEN rc_open;
   tBTA_AV_SCB* p_scb;
-  int i;
+  uint8_t i;
   uint8_t shdl = 0;
   tBTA_AV_LCB* p_lcb;
   tBTA_AV_RCB* p_rcb;
@@ -514,7 +514,7 @@ void bta_av_rc_opened(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
   }
 
   i = p_data->rc_conn_chg.handle;
-  if (p_cb->rcb[i].handle == BTA_AV_RC_HANDLE_NONE) {
+  if (i >= BTA_AV_NUM_RCB || p_cb->rcb[i].handle == BTA_AV_RC_HANDLE_NONE) {
     APPL_TRACE_ERROR("%s: not a valid handle:%d any more", __func__, i);
     return;
   }

@@ -70,6 +70,13 @@
 // sockets
 #define WRITE_POLL_MS 20
 
+// Note: zone id and bus name is from /vendor/etc/car_audio_configuration.xml
+// To be fixed: use properties  ??/
+#define ZONE_HEADSET_1 3
+#define BUS_HEADSET_1 "BUS09_BT_HEADPHONE_1"
+#define ZONE_HEADSET_2 4
+#define BUS_HEADSET_2 "BUS17_BT_HEADPHONE_1"
+
 #define FNLOG() LOG_VERBOSE(LOG_TAG, "%s", __func__);
 #define DEBUG(fmt, ...) \
   LOG_VERBOSE(LOG_TAG, "%s: " fmt, __func__, ##__VA_ARGS__)
@@ -107,6 +114,7 @@ struct a2dp_audio_device {
   std::recursive_mutex* mutex;  // See note below on mutex acquisition order.
   struct a2dp_stream_in* input;
   struct a2dp_stream_out* output;
+  std::string bdaddress;
 };
 
 struct a2dp_config {
@@ -125,6 +133,10 @@ struct a2dp_stream_common {
   size_t buffer_sz;
   struct a2dp_config cfg;
   a2dp_state_t state;
+  std::string bdaddress;
+  audio_devices_t device_type;
+  std::string bus_address;
+  int zone;
 };
 
 struct a2dp_stream_out {
@@ -153,6 +165,9 @@ struct a2dp_stream_in {
  *****************************************************************************/
 
 static bool enable_delay_reporting = false;
+
+static std::unordered_map<std::string, struct a2dp_stream_out*> device_stream_map;
+static std::unordered_map<std::string, struct a2dp_stream_out*> bus_stream_map;
 
 /*****************************************************************************
  *  Static functions
@@ -780,6 +795,25 @@ static int a2dp_get_presentation_position_cmd(struct a2dp_stream_common* common,
   return 0;
 }
 
+static std::string get_a2dp_socket_path(struct a2dp_stream_common* common, const char* path) {
+  DEBUG("path:%s, address:%s", path, common->bdaddress.c_str());
+  std::string socket = path;
+  // Append the address as socket name to connect socket for specified device
+  if (common->bdaddress.compare("") != 0) {
+    /* The control server socket named with Bluetooth address
+    * for example when adddress is 11:22:33:44:55:66, the ctrl server socket is
+    * named like /data/misc/bluedroid/.a2dp_ctrl_11_22_33_44_AA_BB
+    * The data server socket is named like
+    * /data/misc/bluedroid/.a2dp_data_11_22_33_44_AA_BB
+    */
+    std::transform(common->bdaddress.begin(), common->bdaddress.end(),
+            common->bdaddress.begin(), ::tolower);
+    socket.append("_" + common->bdaddress);
+    std::replace(socket.begin(), socket.end(), ':', '_');
+  }
+  return socket;
+}
+
 static void a2dp_open_ctrl_path(struct a2dp_stream_common* common) {
   int i;
 
@@ -789,7 +823,8 @@ static void a2dp_open_ctrl_path(struct a2dp_stream_common* common) {
   for (i = 0; i < CTRL_CHAN_RETRY_COUNT; i++) {
     /* connect control channel if not already connected */
     if ((common->ctrl_fd = skt_connect(
-             A2DP_CTRL_PATH, AUDIO_STREAM_CONTROL_OUTPUT_BUFFER_SZ)) >= 0) {
+             get_a2dp_socket_path(common, A2DP_CTRL_PATH).c_str(),
+             AUDIO_STREAM_CONTROL_OUTPUT_BUFFER_SZ)) >= 0) {
       /* success, now check if stack is ready */
       if (check_a2dp_ready(common) == 0) break;
 
@@ -821,6 +856,8 @@ static void a2dp_stream_common_init(struct a2dp_stream_common* common) {
 
   /* manages max capacity of socket pipe */
   common->buffer_sz = AUDIO_STREAM_OUTPUT_BUFFER_SZ;
+
+  common->device_type = AUDIO_DEVICE_NONE;
 }
 
 static void a2dp_stream_common_destroy(struct a2dp_stream_common* common) {
@@ -847,7 +884,7 @@ static int start_audio_datapath(struct a2dp_stream_common* common) {
 
   /* connect socket if not yet connected */
   if (common->audio_fd == AUDIO_SKT_DISCONNECTED) {
-    common->audio_fd = skt_connect(A2DP_DATA_PATH, common->buffer_sz);
+    common->audio_fd = skt_connect(get_a2dp_socket_path(common, A2DP_DATA_PATH).c_str(), common->buffer_sz);
     if (common->audio_fd < 0) {
       ERROR("Audiopath start failed - error opening data socket");
       goto error;
@@ -921,6 +958,8 @@ static ssize_t out_write(struct audio_stream_out* stream, const void* buffer,
   struct a2dp_stream_out* out = (struct a2dp_stream_out*)stream;
   int sent = -1;
   size_t write_bytes = bytes;
+
+  DEBUG("bdaddress:%s, bus:%s", out->common.bdaddress.c_str(), out->common.bus_address.c_str());
 
   DEBUG("write %zu bytes (fd %d)", bytes, out->common.audio_fd);
 
@@ -1141,13 +1180,25 @@ static int out_standby(struct audio_stream* stream) {
   int retVal = 0;
 
   FNLOG();
-
+  // prevent interference with adev_set_parameters.
   std::lock_guard<std::recursive_mutex> lock(*out->common.mutex);
-  // Do nothing in SUSPENDED state.
-  if (out->common.state != AUDIO_A2DP_STATE_SUSPENDED)
-    retVal = suspend_audio_datapath(&out->common, true);
-  out->frames_rendered = 0;  // rendered is reset, presented is not
+  if (out->common.device_type != AUDIO_DEVICE_OUT_BUS) {
+    // Do nothing in SUSPENDED state.
+    if (out->common.state != AUDIO_A2DP_STATE_SUSPENDED)
+      retVal = suspend_audio_datapath(&out->common, true);
+  } else {
+    const a2dp_state_t state = out->common.state;
+    INFO("closing output (state %d)", (int)state);
+    if ((state == AUDIO_A2DP_STATE_STARTED) ||
+        (state == AUDIO_A2DP_STATE_STOPPING)) {
+      retVal = stop_audio_datapath(&out->common);
+    }
 
+    skt_disconnect(out->common.ctrl_fd);
+    out->common.ctrl_fd = AUDIO_SKT_DISCONNECTED;
+  }
+
+  out->frames_rendered = 0;  // rendered is reset, presented is not
   return retVal;
 }
 
@@ -1189,6 +1240,37 @@ static int out_set_parameters(struct audio_stream* stream,
     if (out->common.state == AUDIO_A2DP_STATE_SUSPENDED)
       out->common.state = AUDIO_A2DP_STATE_STANDBY;
     /* Irrespective of the state, return 0 */
+  }
+
+  std::string address = params["bdaddress"];
+
+  INFO("bdaddress %s", address.c_str());
+  if (address.compare("") != 0) {
+    // for BUS device
+    if (out->common.device_type == AUDIO_DEVICE_OUT_BUS) {
+      int zone = -1;
+      if (params["zone"].compare("") != 0) {
+        zone = std::stoi(params["zone"]);
+      }
+      INFO("bdaddress %s, zone %d, out->common.zone %d, bus %s", address.c_str(),
+          zone, out->common.zone, out->common.bus_address.c_str());
+      if (out->common.zone == zone) {
+        INFO("save bdaddress %s", address.c_str());
+        out->common.bdaddress = address;
+        device_stream_map.emplace(address, out);
+        btav_a2dp_codec_config_t codec_config;
+        btav_a2dp_codec_config_t codec_capability;
+        if (a2dp_read_output_audio_config(&out->common, &codec_config,
+                                      &codec_capability,
+                                      true /* update_stream_config */) < 0) {
+          ERROR("a2dp_read_output_audio_config failed");
+        }
+      }
+    } else {
+      // for A2DP device
+      INFO("save bdaddress %s", address.c_str());
+      out->common.bdaddress = address;
+    }
   }
 
   return status;
@@ -1580,8 +1662,12 @@ static int adev_open_output_stream(struct audio_hw_device* dev,
   struct a2dp_audio_device* a2dp_dev = (struct a2dp_audio_device*)dev;
   struct a2dp_stream_out* out;
   int ret = 0;
+  // Make sure we always have the feeding parameters configured
+  btav_a2dp_codec_config_t codec_config;
+  btav_a2dp_codec_config_t codec_capability;
 
   INFO("opening output");
+  INFO("address %s, a2dp_dev->bdaddress %s", address, a2dp_dev->bdaddress.c_str());
   // protect against adev->output and stream_out from being inconsistent
   std::lock_guard<std::recursive_mutex> lock(*a2dp_dev->mutex);
   out = (struct a2dp_stream_out*)calloc(1, sizeof(struct a2dp_stream_out));
@@ -1609,15 +1695,35 @@ static int adev_open_output_stream(struct audio_hw_device* dev,
   /* initialize a2dp specifics */
   a2dp_stream_common_init(&out->common);
 
-  // Make sure we always have the feeding parameters configured
-  btav_a2dp_codec_config_t codec_config;
-  btav_a2dp_codec_config_t codec_capability;
-  if (a2dp_read_output_audio_config(&out->common, &codec_config,
-                                    &codec_capability,
-                                    true /* update_stream_config */) < 0) {
-    ERROR("a2dp_read_output_audio_config failed");
-    ret = -1;
-    goto err_open;
+  if (strcmp(a2dp_dev->bdaddress.c_str(), address) == 0) {
+    INFO("Save bdaddress to out->common.bdaddress");
+    out->common.bdaddress = address;
+  }
+
+  out->common.device_type = devices;
+
+  if(devices == AUDIO_DEVICE_OUT_BUS) {
+    out->common.bus_address = address;
+    if (strcmp(address, BUS_HEADSET_1) == 0) {
+      out->common.zone = ZONE_HEADSET_1;
+    } else if (strcmp(address, BUS_HEADSET_2) == 0) {
+      out->common.zone = ZONE_HEADSET_2;
+    } else {
+      ERROR("Invalid bus %s", address);
+      out->common.zone = -1;
+    }
+    INFO("bus %s, zone %d", out->common.bus_address.c_str(), out->common.zone);
+  }
+
+  // AUDIO_DEVICE_OUT_BLUETOOTH_A2DP
+  if(devices != AUDIO_DEVICE_OUT_BUS) {
+    if (a2dp_read_output_audio_config(&out->common, &codec_config,
+                                      &codec_capability,
+                                      true /* update_stream_config */) < 0) {
+      ERROR("a2dp_read_output_audio_config failed");
+      ret = -1;
+      goto err_open;
+    }
   }
   // a2dp_read_output_audio_config() opens the socket control path (or fails)
 
@@ -1631,18 +1737,20 @@ static int adev_open_output_stream(struct audio_hw_device* dev,
       out->common.cfg.channel_mask = config->channel_mask;
     if ((out->common.cfg.format != 0) || (out->common.cfg.rate != 0) ||
         (out->common.cfg.channel_mask != 0)) {
-      if (a2dp_write_output_audio_config(&out->common) < 0) {
-        ERROR("a2dp_write_output_audio_config failed");
-        ret = -1;
-        goto err_open;
-      }
-      // Read again and make sure we use the same parameters as the remote side
-      if (a2dp_read_output_audio_config(&out->common, &codec_config,
-                                        &codec_capability,
-                                        true /* update_stream_config */) < 0) {
-        ERROR("a2dp_read_output_audio_config failed");
-        ret = -1;
-        goto err_open;
+      if(devices != AUDIO_DEVICE_OUT_BUS) {
+        if (a2dp_write_output_audio_config(&out->common) < 0) {
+          ERROR("a2dp_write_output_audio_config failed");
+          ret = -1;
+          goto err_open;
+        }
+        // Read again and make sure we use the same parameters as the remote side
+        if (a2dp_read_output_audio_config(&out->common, &codec_config,
+                                          &codec_capability,
+                                          true /* update_stream_config */) < 0) {
+          ERROR("a2dp_read_output_audio_config failed");
+          ret = -1;
+          goto err_open;
+        }
       }
     }
     config->format = out_get_format((const struct audio_stream*)&out->stream);
@@ -1659,6 +1767,11 @@ static int adev_open_output_stream(struct audio_hw_device* dev,
   }
   *stream_out = &out->stream;
   a2dp_dev->output = out;
+
+  if (devices == AUDIO_DEVICE_OUT_BUS) {
+    INFO("out while inserting %p busaddress= %s, handle=%d", out,address,handle);
+    bus_stream_map.emplace(address, out);
+  }
 
   DEBUG("success");
   /* Delay to ensure Headset is in proper state when START is initiated from
@@ -1713,6 +1826,23 @@ static int adev_set_parameters(struct audio_hw_device* dev,
   std::lock_guard<std::recursive_mutex> lock(*a2dp_dev->mutex);
   struct a2dp_stream_out* out = a2dp_dev->output;
 
+  std::unordered_map<std::string, std::string> params =
+    hash_map_utils_new_from_string_params(kvpairs);
+  if (!params.empty()) {
+       std::string address = params["bdaddress"];
+      INFO("address %s", address.c_str());
+      if (address != "") {
+        a2dp_dev->bdaddress = address;
+      }
+
+      std::string busaddress = params["busaddress"];
+      if (busaddress != "") {
+         if (bus_stream_map.find(busaddress) != bus_stream_map.end()) {
+             out = bus_stream_map.find(busaddress)->second;
+             INFO("out while retriving %p busaddress= %s", out, busaddress.c_str());
+         }
+      }
+  }
   if (out == NULL) return retval;
 
   INFO("state %d", out->common.state);
@@ -1731,6 +1861,19 @@ static char* adev_get_parameters(UNUSED_ATTR const struct audio_hw_device* dev,
       hash_map_utils_new_from_string_params(keys);
   hash_map_utils_dump_string_keys_string_values(params);
 
+  if (!params.empty()) {
+    std::string address = params["bdaddress"];
+    INFO("address %s", address.c_str());
+    if (address != "") {
+      if (device_stream_map.find(address) != device_stream_map.end()) {
+        struct a2dp_stream_out* out = device_stream_map.find(address)->second;
+        if (out != nullptr) {
+          INFO("found bus: %s",  out->common.bus_address.c_str());
+          return strdup(out->common.bus_address.c_str());
+        }
+      }
+    }
+  }
   return strdup("");
 }
 

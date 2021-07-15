@@ -863,6 +863,8 @@ static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
 
   if (ret == BT_STATUS_SUCCESS) {
     bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDED);
+    /* Start SDP if bonding succeeds */
+    btif_dm_get_remote_services(bd_addr);
   } else {
     bond_state_changed(BT_STATUS_FAIL, bd_addr, BT_BOND_STATE_NONE);
   }
