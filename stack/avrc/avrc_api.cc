@@ -237,7 +237,7 @@ static uint8_t* avrc_get_data_ptr(BT_HDR* p_pkt) {
 static BT_HDR* avrc_copy_packet(BT_HDR* p_pkt, int rsp_pkt_len) {
   const int offset = MAX(AVCT_MSG_OFFSET, p_pkt->offset);
   const int pkt_len = MAX(rsp_pkt_len, p_pkt->len);
-  BT_HDR* p_pkt_copy = (BT_HDR*)osi_malloc(BT_HDR_SIZE + offset + pkt_len);
+  BT_HDR* p_pkt_copy = (BT_HDR*)osi_calloc(BT_HDR_SIZE + offset + pkt_len);
 
   /* Copy the packet header, set the new offset, and copy the payload */
   memcpy(p_pkt_copy, p_pkt, BT_HDR_SIZE);
@@ -634,9 +634,10 @@ static void avrc_msg_cback(uint8_t handle, uint8_t label, uint8_t cr,
   tAVRC_MSG_VENDOR* p_msg = &msg.vendor;
 
   if (cr == AVCT_CMD && (p_pkt->layer_specific & AVCT_DATA_CTRL &&
-                         AVRC_PACKET_LEN < sizeof(p_pkt->len))) {
-    /* Ignore the invalid AV/C command frame */
-    p_drop_msg = "dropped - too long AV/C cmd frame size";
+                         p_pkt->len > AVRC_PACKET_LEN)) {
+    android_errorWriteLog(0x534e4554, "177611958");
+    AVRC_TRACE_WARNING("%s: Command length %d too long: must be at most %d",
+                       __func__, p_pkt->len, AVRC_PACKET_LEN);
     osi_free(p_pkt);
     return;
   }
