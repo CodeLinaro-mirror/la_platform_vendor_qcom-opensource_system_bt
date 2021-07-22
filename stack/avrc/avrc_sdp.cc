@@ -272,10 +272,7 @@ uint16_t AVRC_AddRecord(uint16_t service_uuid, const char* p_service_name,
 
   /* add supported categories */
   p = temp;
-  if (profile_version == AVRC_REV_1_6 && service_uuid == UUID_SERVCLASS_AV_REM_CTRL_TARGET) {
-      /* Add cover art supported bit */
-      categories |= AVRC_SUPF_TG_PLAYER_COVER_ART;
-  }
+
   UINT16_TO_BE_STREAM(p, categories);
   result &= SDP_AddAttribute(sdp_handle, ATTR_ID_SUPPORTED_FEATURES,
                              UINT_DESC_TYPE, (uint32_t)2, (uint8_t*)temp);

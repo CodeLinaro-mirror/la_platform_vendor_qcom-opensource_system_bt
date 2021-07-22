@@ -37,6 +37,7 @@
 #include "btm_api.h"
 
 #include "device/include/interop.h"
+#include <cutils/properties.h>
 
 extern fixed_queue_t* btu_bta_alarm_queue;
 
@@ -763,6 +764,11 @@ static bool bta_dm_pm_sniff(tBTA_DM_PEER_DEVICE* p_peer_dev, uint8_t index) {
   tBTM_PM_MODE mode = BTM_PM_STS_ACTIVE;
   tBTM_PM_PWR_MD pwr_md;
   tBTM_STATUS status;
+  int32_t value_max =0;
+  int32_t value_min =0;
+  char sniff_max[PROPERTY_VALUE_MAX] = {'\0'};
+  char sniff_min[PROPERTY_VALUE_MAX] = {'\0'};
+
 #if (BTM_SSR_INCLUDED == TRUE)
   uint8_t* p_rem_feat = NULL;
 #endif
@@ -794,6 +800,14 @@ static bool bta_dm_pm_sniff(tBTA_DM_PEER_DEVICE* p_peer_dev, uint8_t index) {
     /* if the current mode is not sniff, issue the sniff command.
      * If sniff, but SSR is not used in this link, still issue the command */
     memcpy(&pwr_md, &p_bta_dm_pm_md[index], sizeof(tBTM_PM_PWR_MD));
+    property_get("persist.vendor.btstack.sniff.max",sniff_max,"800");
+    property_get("persist.vendor.btstack.sniff.min",sniff_min,"400");
+    value_max = (int32_t)atoi(sniff_max);
+    value_min = (int32_t)atoi(sniff_min);
+    APPL_TRACE_DEBUG("%s Max value : %d, Min value : %d ", __func__, value_max, value_min);
+    pwr_md.max = value_max;
+    pwr_md.min = value_min;
+
     if (p_peer_dev->info & BTA_DM_DI_INT_SNIFF) {
       pwr_md.mode |= BTM_PM_MD_FORCE;
     }

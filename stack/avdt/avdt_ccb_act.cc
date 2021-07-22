@@ -310,37 +310,36 @@ void avdt_ccb_hdl_discover_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
   i = (avdt_scb_to_hdl(p_scb) - 1);
 
   if (p_ccb != NULL) {
-    std::string bdaddr_str = p_ccb->peer_addr.ToString();
-    const char* bd_addrstr  = bdaddr_str.c_str();
-    char value[PROPERTY_VALUE_MAX];
-    int size = sizeof(value);
-    if (btif_config_get_str(bd_addrstr, BTIF_STORAGE_KEY_FOR_SUPPORTED_CODECS, value, &size)) {
-      APPL_TRACE_DEBUG("cached remote supported codec -> %s", value);
+    if (A2DP_GetOffloadStatus()) {
+      // this evnetually fetches values from offload property
+      const char *value = controller_get_interface()->get_a2dp_offload_cap();
+
+      APPL_TRACE_DEBUG("Offload supported codecs -> %s", value);
       codecs_cached = true;
       char *tok = NULL;
       char *tmp_token = NULL;
-      tok = strtok_r((char*)value, ",", &tmp_token);
+      tok = strtok_r((char*)value, "-", &tmp_token);
       while (tok != NULL)
       {
-       if (strcmp(tok,"SBC") == 0) {
+       if (strcmp(tok,"sbc") == 0) {
          sbc_support = true;
-       } else if (strcmp(tok,"AAC") == 0) {
+       } else if (strcmp(tok,"aac") == 0) {
          aac_support = true;
-       } else if (strcmp(tok,"aptX") == 0) {
+       } else if (strcmp(tok,"aptx") == 0) {
          aptx_support = true;
-       } else if (strcmp(tok,"aptX-HD") == 0) {
+       } else if (strcmp(tok,"aptxhd") == 0) {
          aptx_hd_support = true;
-       } else if (strcmp(tok,"aptX-adaptive") == 0) {
+       } else if (strcmp(tok,"aptxadaptive") == 0) {
          aptx_adaptive_support = true;
-       } else if (strcmp(tok,"LDAC") == 0) {
+       } else if (strcmp(tok,"ldac") == 0) {
          ldac_support = true;
-       } else if (strcmp(tok,"aptX-TWS") == 0) {
+       } else if (strcmp(tok,"aptxtws") == 0) {
          aptx_tws_support = true;
        }
-       tok = strtok_r(NULL, ",", &tmp_token);
+       tok = strtok_r(NULL, "-", &tmp_token);
       }
     } else {
-      APPL_TRACE_DEBUG("Remote supported codecs are not cached");
+      APPL_TRACE_DEBUG("Offload codecs are not enabled");
     }
   }
   for (; i < AVDT_NUM_SEPS; i++, p_scb++) {

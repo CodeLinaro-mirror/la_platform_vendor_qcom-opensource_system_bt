@@ -567,21 +567,12 @@ tA2DP_STATUS bta_av_co_audio_getconfig(tBTA_AV_HNDL hndl, uint8_t* p_codec_info,
     }
   }
 
-  std::string remote_bd_addr_str = p_peer->addr.ToString();
-  const char* remote_bdstr  = remote_bd_addr_str.c_str();
-
-  bta_av_co_check_and_add_soc_supported_codecs(p_codec_info);
-
   // Check if this is the last SINK get capabilities or all supported codec
   // capabilities are retrieved.
   if ((p_peer->num_rx_sinks != p_peer->num_sinks) &&
       (p_peer->num_sup_sinks != BTA_AV_CO_NUM_ELEMENTS(p_peer->sinks))) {
     return A2DP_FAIL;
   }
-
-  //store peer supported codecs in bt_config.conf file
-  btif_config_set_str(remote_bdstr,BTIF_STORAGE_KEY_FOR_SUPPORTED_CODECS, supported_codecs.c_str());
-  supported_codecs.clear();
 
   APPL_TRACE_DEBUG("%s: last Sink codec reached for peer %s (local %s)",
                    __func__, p_peer->addr.ToString().c_str(),
@@ -2066,7 +2057,7 @@ bool bta_av_co_is_scrambling_enabled() {
   if(no_of_freqs == 0) {
     return false;
   }
-  return true;
+  return false;
 }
 
 bool bta_av_co_is_44p1kFreq_enabled() {
@@ -2081,7 +2072,7 @@ bool bta_av_co_is_44p1kFreq_enabled() {
 
   if (add_on_features_list != NULL) {
     if (HCI_SPLIT_A2DP_44P1KHZ_SAMPLE_FREQ(add_on_features_list->as_array)) {
-      return true;
+      return false;
     }
   }
   return false;
