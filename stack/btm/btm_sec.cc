@@ -3862,8 +3862,14 @@ static bool btm_sec_auth_retry(uint16_t handle, uint8_t status) {
  ******************************************************************************/
 void btm_sec_auth_complete(uint16_t handle, uint8_t status) {
   tBTM_PAIRING_STATE old_state = btm_cb.pairing_state;
-  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev_by_handle(handle);
+  tBTM_SEC_DEV_REC* p_dev_rec;
   bool are_bonding = false;
+
+  if (handle == BTM_SEC_INVALID_HANDLE) {
+    p_dev_rec = btm_sec_find_dev_by_sec_state(BTM_SEC_STATE_AUTHENTICATING);
+  } else {
+    p_dev_rec = btm_find_dev_by_handle(handle);
+  }
 
   if (p_dev_rec) {
     VLOG(2) << __func__ << ": Security Manager: in state: "
