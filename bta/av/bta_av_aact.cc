@@ -1513,11 +1513,6 @@ void bta_av_setconfig_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   uint8_t local_sep;
   uint8_t* p_seid = p_data->ci_setconfig.p_seid;
   int i;
-  std::string bd_addr_str = p_scb->peer_addr.ToString();
-  const char* bdstr  = bd_addr_str.c_str();
-  char value[PROPERTY_VALUE_MAX];
-  int size = sizeof(value);
-  int codec_count = 0;
 
   /* we like this codec_type. find the sep_idx */
   local_sep = bta_av_get_scb_sep_type(p_scb, avdt_handle);
@@ -1559,21 +1554,7 @@ void bta_av_setconfig_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     else
       p_scb->avdt_version = AVDT_VERSION;
 
-    if (btif_config_get_str(bdstr, BTIF_STORAGE_KEY_FOR_SUPPORTED_CODECS, value, &size)) {
-      APPL_TRACE_DEBUG("%s: cached remote supported codec -> %s", __func__, value);
-      char *token = NULL;
-      char *tmp_token = NULL;
-      token = strtok_r((char*)value, ",", &tmp_token);
-      while (token != NULL)
-      {
-        token = strtok_r(NULL, ",", &tmp_token);
-        codec_count++;
-      }
-    } else {
-      APPL_TRACE_DEBUG("%s: Remote supported codecs are not cached", __func__);
-    }
-    if ((A2DP_GetCodecType(p_scb->cfg.codec_info) == A2DP_MEDIA_CT_SBC || num > 1) &&
-         codec_count == 1) {
+    if (A2DP_GetCodecType(p_scb->cfg.codec_info) == A2DP_MEDIA_CT_SBC || num > 1) {
         /* For any codec used by the SNK as INT, discover req is not sent in bta_av_config_ind.
          * This is done since we saw an IOT issue with APTX codec. Thus, we now take same
          * path for all codecs as for SBC. call disc_res now */
