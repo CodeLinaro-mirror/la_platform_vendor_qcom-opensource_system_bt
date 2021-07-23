@@ -12,6 +12,11 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ *
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear.
  */
 
 #ifndef ANDROID_INCLUDE_BT_RC_H
@@ -631,6 +636,8 @@ typedef void (* btrc_ctrl_uids_changed_callback)(const RawAddress& bd_addr,
 typedef void (*btrc_ctrl_get_peer_rc_version_callback)(const RawAddress& bd_addr,
     const uint16_t peer_rc_version);
 
+typedef btrc_ctrl_track_changed_callback btrc_ctrl_item_attr_rsp_callback;
+
 /** BT-RC Controller callback structure. */
 typedef struct {
   /** set to sizeof(BtRcCallbacks) */
@@ -660,6 +667,7 @@ typedef struct {
   btrc_ctrl_get_cover_art_psm_callback get_cover_art_psm_cb;
   btrc_ctrl_uids_changed_callback uids_changed_cb;
   btrc_ctrl_get_peer_rc_version_callback get_peer_rc_version_cb;
+  btrc_ctrl_item_attr_rsp_callback item_attr_rsp_cb;
 } btrc_ctrl_callbacks_t;
 
 /** Represents the standard BT-RC AVRCP Controller interface. */
@@ -727,6 +735,10 @@ typedef struct {
   bt_status_t (*register_abs_vol_rsp)(const RawAddress& bd_addr,
                                       btrc_notification_type_t rsp_type,
                                       uint8_t abs_vol, uint8_t label);
+
+    /** Get item attributes */
+  bt_status_t (*get_item_attribute_cmd)(const RawAddress& bd_addr, uint8_t scope, uint8_t* uid,
+                                   uint16_t uid_counter, uint8_t num_attr, uint32_t *attr_id);
 
   /** Closes the interface. */
   void (*cleanup)(void);
