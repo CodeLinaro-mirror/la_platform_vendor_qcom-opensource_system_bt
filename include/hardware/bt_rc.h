@@ -634,6 +634,8 @@ typedef void (*btrc_ctrl_get_peer_rc_version_callback)(const RawAddress& bd_addr
 typedef void (*btrc_ctrl_search_rsp_callback)(const RawAddress& bd_addr, uint8_t status,
                                               uint16_t uid_counter, uint32_t num_items);
 
+typedef btrc_ctrl_track_changed_callback btrc_ctrl_item_attr_rsp_callback;
+
 /** BT-RC Controller callback structure. */
 typedef struct {
   /** set to sizeof(BtRcCallbacks) */
@@ -664,6 +666,7 @@ typedef struct {
   btrc_ctrl_uids_changed_callback uids_changed_cb;
   btrc_ctrl_get_peer_rc_version_callback get_peer_rc_version_cb;
   btrc_ctrl_search_rsp_callback search_rsp_cb;
+  btrc_ctrl_item_attr_rsp_callback item_attr_rsp_cb;
 } btrc_ctrl_callbacks_t;
 
 /** Represents the standard BT-RC AVRCP Controller interface. */
@@ -739,6 +742,10 @@ typedef struct {
   bt_status_t (*register_abs_vol_rsp)(const RawAddress& bd_addr,
                                       btrc_notification_type_t rsp_type,
                                       uint8_t abs_vol, uint8_t label);
+
+    /** Get item attributes */
+  bt_status_t (*get_item_attribute_cmd)(const RawAddress& bd_addr, uint8_t scope, uint8_t* uid,
+                                   uint16_t uid_counter, uint8_t num_attr, uint32_t *attr_id);
 
   /** Closes the interface. */
   void (*cleanup)(void);
