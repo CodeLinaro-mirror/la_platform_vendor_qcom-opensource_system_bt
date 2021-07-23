@@ -89,6 +89,7 @@
 #include "btif_bat.h"
 #include "btif_tws_plus.h"
 #include "btif/include/btif_config.h"
+#include "stack_config.h"
 #define RC_INVALID_TRACK_ID (0xFFFFFFFFFFFFFFFFULL)
 
 /*****************************************************************************
@@ -2913,6 +2914,7 @@ static bt_status_t get_element_attr_rsp(RawAddress* bd_addr, uint8_t num_attr,
                                         btrc_element_attr_val_t* p_attrs) {
   tAVRC_RESPONSE avrc_rsp;
   uint32_t i;
+  uint8_t sample_str[]="Bluetooth1";
   tAVRC_ATTR_ENTRY element_attrs[BTRC_MAX_ELEM_ATTR_SIZE];
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
   int rsp_index = IDX_GET_ELEMENT_ATTR_RSP;
@@ -2931,15 +2933,27 @@ static bt_status_t get_element_attr_rsp(RawAddress* bd_addr, uint8_t num_attr,
 
   memset(element_attrs, 0, sizeof(tAVRC_ATTR_ENTRY) * num_attr);
 
+  bool pts_avctp_fragment_rsp_msg_enabled =
+       stack_config_get_interface()->get_pts_avctp_fragment_rsp_msg_enabled();
+  BTIF_TRACE_DEBUG("%s: PTS frag support %d", __func__,pts_avctp_fragment_rsp_msg_enabled);
+
   if (num_attr == 0) {
     avrc_rsp.get_play_status.status = AVRC_STS_BAD_PARAM;
   } else {
     for (i = 0; i < num_attr; i++) {
       element_attrs[i].attr_id = p_attrs[i].attr_id;
       element_attrs[i].name.charset_id = AVRC_CHARSET_ID_UTF8;
-      element_attrs[i].name.str_len =
-             (uint16_t)strnlen((char*)p_attrs[i].text, BTRC_MAX_ATTR_STR_LEN);
-      element_attrs[i].name.p_str = p_attrs[i].text;
+
+      if (pts_avctp_fragment_rsp_msg_enabled) {
+          element_attrs[i].name.str_len = (uint16_t )strlen((char*)sample_str);
+          element_attrs[i].name.p_str = sample_str;
+      }
+      else {
+          element_attrs[i].name.str_len =
+                 (uint16_t)strnlen((char*)p_attrs[i].text, BTRC_MAX_ATTR_STR_LEN);
+          element_attrs[i].name.p_str = p_attrs[i].text;
+      }
+
       BTIF_TRACE_DEBUG(
           "%s: attr_id: 0x%x, charset_id: 0x%x, str_len: %d, str: %s", __func__,
           (unsigned int)element_attrs[i].attr_id,
