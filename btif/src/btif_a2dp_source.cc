@@ -219,8 +219,7 @@ class BtifA2dpSource {
   uint64_t encoder_interval_ms; /* Local copy of the encoder interval */
   BtifMediaStats stats;
   BtifMediaStats accumulated_stats;
-
- bluetooth::common::MessageLoopThread encode_timer_thread;
+  bluetooth::common::MessageLoopThread encode_timer_thread;
  private:
   BtifA2dpSource::RunState state_;
 };
