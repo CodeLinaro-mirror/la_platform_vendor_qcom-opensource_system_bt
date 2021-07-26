@@ -26,6 +26,7 @@
  *
  ******************************************************************************/
 
+#include <log/log.h>
 #include <string.h>
 #include "avdt_api.h"
 #include "avdt_int.h"
@@ -603,6 +604,11 @@ static uint8_t avdt_msg_prs_cfg(tAVDT_CFG* p_cfg, uint8_t* p, uint16_t len,
 
       case AVDT_CAT_PROTECT:
         p_cfg->psc_mask &= ~AVDT_PSC_PROTECT;
+        if (p + elem_len > p_end) {
+          err = AVDT_ERR_LENGTH;
+          android_errorWriteLog(0x534e4554, "78288378");
+          break;
+        }
         if ((elem_len + protect_offset) < AVDT_PROTECT_SIZE) {
           p_cfg->num_protect++;
           p_cfg->protect_info[protect_offset] = elem_len;
@@ -622,6 +628,11 @@ static uint8_t avdt_msg_prs_cfg(tAVDT_CFG* p_cfg, uint8_t* p, uint16_t len,
         tmp = elem_len;
         if (elem_len >= AVDT_CODEC_SIZE) {
           tmp = AVDT_CODEC_SIZE - 1;
+        }
+        if (p + tmp > p_end) {
+          err = AVDT_ERR_LENGTH;
+          android_errorWriteLog(0x534e4554, "78288378");
+          break;
         }
         p_cfg->num_codec++;
         p_cfg->codec_info[0] = elem_len;
@@ -969,19 +980,31 @@ static uint8_t avdt_msg_prs_security_rsp(tAVDT_MSG* p_msg, uint8_t* p,
  * Returns          Error code or zero if no error.
  *
  ******************************************************************************/
-static uint8_t avdt_msg_prs_rej(tAVDT_MSG* p_msg, uint8_t* p, uint8_t sig) {
-  if ((sig == AVDT_SIG_SETCONFIG) || (sig == AVDT_SIG_RECONFIG)) {
-    p_msg->hdr.err_param = *p++;
-    p_msg->hdr.err_code = *p;
-  } else if ((sig == AVDT_SIG_START) || (sig == AVDT_SIG_SUSPEND)) {
-    AVDT_MSG_PRS_SEID(p, p_msg->hdr.err_param);
-    p_msg->hdr.err_code = *p;
+static uint8_t avdt_msg_prs_rej(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len,
+                                uint8_t sig) {
+  uint8_t error = 0;
+
+  if (len > 0) {
+    if ((sig == AVDT_SIG_SETCONFIG) || (sig == AVDT_SIG_RECONFIG)) {
+      p_msg->hdr.err_param = *p++;
+      len--;
+    } else if ((sig == AVDT_SIG_START) || (sig == AVDT_SIG_SUSPEND)) {
+      AVDT_MSG_PRS_SEID(p, p_msg->hdr.err_param);
+      len--;
+    }
+  }
+
+  if (len < 1) {
+    char error_info[] = "AVDT rejected response length mismatch";
+    android_errorWriteWithInfoLog(0x534e4554, "79702484", -1, error_info,
+                                  strlen(error_info));
+    error = AVDT_ERR_LENGTH;
   } else {
     p_msg->hdr.err_code = *p;
   }
 
-  return 0;
-}
+  return error;
+ }
 
 /*******************************************************************************
  *
@@ -1588,7 +1611,7 @@ void avdt_msg_ind(tAVDT_CCB* p_ccb, BT_HDR* p_buf) {
       evt = avdt_msg_rsp_2_evt[sig - 1];
     } else /* msg_type == AVDT_MSG_TYPE_REJ */
     {
-      err = avdt_msg_prs_rej(&msg, p, sig);
+      err = avdt_msg_prs_rej(&msg, p, p_buf->len, sig);
       evt = avdt_msg_rej_2_evt[sig - 1];
     }
 
