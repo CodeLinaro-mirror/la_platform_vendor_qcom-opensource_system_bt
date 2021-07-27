@@ -60,6 +60,9 @@ void bta_hf_client_register(tBTA_HF_CLIENT_DATA *p_data)
     tBTA_HF_CLIENT evt;
     tBTA_UTL_COD   cod;
 
+    if (p_data == NULL)
+      return;
+
     memset(&evt, 0, sizeof(evt));
 
     /* initialize control block */
@@ -272,6 +275,9 @@ void bta_hf_client_rfc_acp_open(tBTA_HF_CLIENT_DATA *p_data)
     BD_ADDR         dev_addr;
     int             status;
 
+    if (p_data == NULL)
+      return;
+
     /* set role */
     bta_hf_client_cb.scb.role = BTA_HF_CLIENT_ACP;
 
@@ -451,6 +457,9 @@ void bta_hf_client_disc_int_res(tBTA_HF_CLIENT_DATA *p_data)
 {
     UINT16 event = BTA_HF_CLIENT_DISC_FAIL_EVT;
 
+    if (p_data == NULL)
+      return;
+
     APPL_TRACE_DEBUG ("bta_hf_client_disc_int_res: Status: %d", p_data->disc_result.status);
 
     /* if found service */
@@ -483,6 +492,10 @@ void bta_hf_client_disc_int_res(tBTA_HF_CLIENT_DATA *p_data)
 *******************************************************************************/
 void bta_hf_client_disc_acp_res(tBTA_HF_CLIENT_DATA *p_data)
 {
+
+   if (p_data == NULL)
+       return;
+
     APPL_TRACE_DEBUG ("%s: Status: %d", __func__, p_data->disc_result.status);
     /* if found service */
     if (p_data->disc_result.status == SDP_SUCCESS ||
