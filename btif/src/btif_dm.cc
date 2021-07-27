@@ -1308,6 +1308,15 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
       LOG_INFO(LOG_TAG,
                "%s skipping SDP since we did not initiate pairing to %s.",
                __func__, p_auth_cmpl->bd_addr.ToString().c_str());
+
+#if (BTM_LOCAL_IO_CAPS == BTM_IO_CAP_NONE)
+     if(!p_auth_cmpl->smp_over_br) {
+     LOG_INFO(LOG_TAG,
+               "%s calling bond state callback in case of non smp pairing and local io is set to io none",
+               __func__);
+     HAL_CBACK(bt_hal_cbacks, bond_state_changed_cb, BT_STATUS_SUCCESS, &bd_addr, BT_BOND_STATE_BONDED);
+     }
+#endif
       return;
     }
 
