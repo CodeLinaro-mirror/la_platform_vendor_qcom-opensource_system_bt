@@ -298,7 +298,14 @@ static bt_status_t init(bthf_client_callbacks_t* callbacks) {
  *
  ******************************************************************************/
 static bt_status_t connect_int(RawAddress* bd_addr, uint16_t uuid) {
-  btif_hf_client_cb_t* cb = btif_hf_client_allocate_cb();
+  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
+  if (cb != NULL) {
+    BTIF_TRACE_ERROR("%s: HFP connection to %s is already ongoing",
+                                         __func__, bd_addr->ToString().c_str());
+    return BT_STATUS_BUSY;
+  }
+
+  cb = btif_hf_client_allocate_cb();
   if (cb == NULL) {
     BTIF_TRACE_ERROR("%s: could not allocate block!", __func__);
     return BT_STATUS_BUSY;
