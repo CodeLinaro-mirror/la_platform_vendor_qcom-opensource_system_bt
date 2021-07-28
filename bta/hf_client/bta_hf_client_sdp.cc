@@ -25,7 +25,7 @@
  ******************************************************************************/
 
 #include <string.h>
-
+#include <base/logging.h>
 #include "bt_utils.h"
 #include "bta_api.h"
 #include "bta_hf_client_api.h"
@@ -350,6 +350,7 @@ void bta_hf_client_do_disc(tBTA_HF_CLIENT_CB* client_cb) {
  *
  ******************************************************************************/
 void bta_hf_client_free_db(tBTA_HF_CLIENT_DATA* p_data) {
+  CHECK(p_data != NULL);
   tBTA_HF_CLIENT_CB* client_cb =
       bta_hf_client_find_cb_by_handle(p_data->hdr.layer_specific);
   if (client_cb == NULL) {
