@@ -1,5 +1,5 @@
 soong_config_module_type_import {
-    from: "device/qcom/qssi/Android.bp",
+    from: "device/qcom/common/Android.bp",
     module_types: [
          "bredr_vs_btadva_cc_defaults",
     ],
@@ -22,7 +22,6 @@ bredr_vs_btadva_cc_defaults {
               cflags: [
                  "-DADV_AUDIO_FEATURE=1",
               ],
-              required: ["leaudio_configs.xml"],
            }
        }
    }
