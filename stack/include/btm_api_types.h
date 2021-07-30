@@ -51,7 +51,8 @@ enum {
   BTM_REPEATED_ATTEMPTS,   /* 19 repeated attempts for LE security requests */
   BTM_MODE4_LEVEL4_NOT_SUPPORTED, /* 20 Secure Connections Only Mode can't be
                                      supported */
-  BTM_DEV_BLACKLISTED             /* 21 The device is Blacklisted */
+  BTM_DEV_BLACKLISTED,             /* 21 The device is Blacklisted */
+  BTM_COLLISION_ACTION     /* 22 operation is conflicted with peer device */
 };
 
 typedef uint8_t tBTM_STATUS;
