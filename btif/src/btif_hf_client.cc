@@ -302,6 +302,9 @@ static bt_status_t connect_int(RawAddress* bd_addr, uint16_t uuid) {
   btif_hf_client_cb_t* cb = btif_hf_client_allocate_cb();
   if (cb == NULL) {
     BTIF_TRACE_ERROR("%s: could not allocate block!", __func__);
+    HAL_CBACK(bt_hf_client_callbacks, connection_state_cb, bd_addr,
+          BTHF_CLIENT_CONNECTION_STATE_DISCONNECTED, 0, /* peer feat */
+          0 /* AT+CHLD feat */);
     return BT_STATUS_BUSY;
   }
 
