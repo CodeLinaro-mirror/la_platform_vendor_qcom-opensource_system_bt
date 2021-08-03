@@ -293,8 +293,9 @@ void btm_acl_created(const RawAddress& bda, DEV_CLASS dc, BD_NAME bdn,
 
         btsnd_hcic_read_rmt_clk_offset(p->hci_handle);
 
-        if ((soc_type == BT_SOC_TYPE_CHEROKEE || soc_type == BT_SOC_TYPE_HASTINGS) &&
-            interop_match_addr_or_name(INTEROP_ENABLE_PL10_ADAPTIVE_CONTROL, &bda)) {
+        if ((soc_type == BT_SOC_TYPE_CHEROKEE || soc_type == BT_SOC_TYPE_HASTINGS ||
+             BT_SOC_TYPE_MOSELLE) && interop_match_addr_or_name(
+                     INTEROP_ENABLE_PL10_ADAPTIVE_CONTROL, &bda)) {
           btm_enable_link_PL10_adaptive_ctrl(hci_handle, true);
         }
 
@@ -437,6 +438,7 @@ void btm_acl_removed(const RawAddress& bda, tBT_TRANSPORT transport) {
       BTM_TRACE_DEBUG("before update p_dev_rec->sec_flags=0x%x",
                       p_dev_rec->sec_flags);
       if (p->transport == BT_TRANSPORT_LE) {
+        p_dev_rec->is_le_disc_pending = false;
         BTM_TRACE_DEBUG("LE link down");
         p_dev_rec->sec_flags &= ~(BTM_SEC_LE_ENCRYPTED | BTM_SEC_ROLE_SWITCHED);
         if ((p_dev_rec->sec_flags & BTM_SEC_LE_LINK_KEY_KNOWN) == 0) {

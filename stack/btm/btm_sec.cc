@@ -1491,6 +1491,11 @@ static tBTM_STATUS btm_sec_send_hci_disconnect(tBTM_SEC_DEV_REC* p_dev_rec,
       break;
   }
 
+  if (p_dev_rec->sec_state & BTM_SEC_STATE_DISCONNECTING_BLE) {
+    p_dev_rec->is_le_disc_pending = true;
+    BTM_TRACE_EVENT("btm_sec_send_hci_disconnect:  handle:0x%x, state =0x%x",
+        conn_handle, p_dev_rec->sec_state);
+  }
   /* If a role switch is in progress, delay the HCI Disconnect to avoid
    * controller problem */
   if (p_dev_rec->rs_disc_pending == BTM_SEC_RS_PENDING &&
@@ -4277,8 +4282,7 @@ void btm_sec_encrypt_change(uint16_t handle, uint8_t status,
       (p_dev_rec->hci_handle == handle)) {
     /* if BR key is temporary no need for LE LTK derivation */
     bool derive_ltk = true;
-    if (p_dev_rec->rmt_auth_req == BTM_AUTH_SP_NO &&
-        btm_cb.devcb.loc_auth_req == BTM_AUTH_SP_NO) {
+    if (p_dev_rec->bond_type == BOND_TYPE_TEMPORARY) {
       derive_ltk = false;
       BTM_TRACE_DEBUG("%s: BR key is temporary, skip derivation of LE LTK",
                       __func__);
@@ -5191,6 +5195,13 @@ void btm_sec_pin_code_request(const RawAddress& p_bda) {
 
   VLOG(2) << __func__ << " BDA: " << p_bda
           << " state: " << btm_pair_state_descr(btm_cb.pairing_state);
+
+  RawAddress local_bd_addr = *controller_get_interface()->get_address();
+  if (p_bda == local_bd_addr) {
+    android_errorWriteLog(0x534e4554, "174626251");
+    btsnd_hcic_pin_code_neg_reply(p_bda);
+    return;
+  }
 
   if (btm_cb.pairing_state != BTM_PAIR_STATE_IDLE) {
     if ((p_bda == btm_cb.pairing_bda) &&
