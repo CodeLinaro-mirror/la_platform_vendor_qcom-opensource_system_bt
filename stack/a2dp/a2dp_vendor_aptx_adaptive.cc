@@ -56,7 +56,7 @@
 #include "osi/include/osi.h"
 #include "hardware/bt_av.h"
 
-
+#if 0
 /* aptX-adaptive Source codec capabilities */
 static const tA2DP_APTX_ADAPTIVE_CIE a2dp_aptx_adaptive_src_caps = {
     A2DP_APTX_ADAPTIVE_VENDOR_ID,          /* vendorId */
@@ -89,6 +89,7 @@ static const tA2DP_APTX_ADAPTIVE_CIE a2dp_aptx_adaptive_src_caps = {
     BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24, /* bits_per_sample */
     {0}
 };
+#endif
 
 /* Default aptX-adaptive codec configuration */
 static const tA2DP_APTX_ADAPTIVE_CIE a2dp_aptx_adaptive_offload_caps = {
@@ -121,6 +122,8 @@ static const tA2DP_APTX_ADAPTIVE_CIE a2dp_aptx_adaptive_offload_caps = {
     BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24, /* bits_per_sample */
     {0}
 };
+
+#if 0
 /* Default aptX-adaptive codec configuration */
 static const tA2DP_APTX_ADAPTIVE_CIE a2dp_aptx_adaptive_default_src_config = {
 //static const tA2DP_APTX_ADAPTIVE_CIE a2dp_aptx_adaptive_default_config = {
@@ -148,6 +151,8 @@ static const tA2DP_APTX_ADAPTIVE_CIE a2dp_aptx_adaptive_default_src_config = {
     BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24, /* bits_per_sample */
     {0}
 };
+#endif
+
 /* Default aptX-adaptive offload codec configuration */
 static const tA2DP_APTX_ADAPTIVE_CIE a2dp_aptx_adaptive_default_offload_config = {
 //static const tA2DP_APTX_ADAPTIVE_CIE a2dp_aptx_adaptive_default_config = {
@@ -622,8 +627,8 @@ A2dpCodecConfigAptxAdaptive::A2dpCodecConfigAptxAdaptive(
       a2dp_aptx_adaptive_caps = a2dp_aptx_adaptive_offload_caps;
       a2dp_aptx_adaptive_default_config = a2dp_aptx_adaptive_default_offload_config;
     } else {
-      a2dp_aptx_adaptive_caps = a2dp_aptx_adaptive_src_caps;
-      a2dp_aptx_adaptive_default_config = a2dp_aptx_adaptive_default_src_config;
+      LOG_ERROR(LOG_TAG,"aptX-AD supported only in offload mode");
+      return;
     }
   if (a2dp_aptx_adaptive_caps.sampleRate & A2DP_APTX_ADAPTIVE_SAMPLERATE_44100) {
     codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
