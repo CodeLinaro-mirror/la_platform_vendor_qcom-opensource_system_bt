@@ -2004,7 +2004,12 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
        * we still need to send RC feature event. So we need to get BD
        * from Message.  Note that lidx is 1 based not 0 based
        */
-      rc_feat.peer_addr = p_cb->lcb[p_cb->rcb[rc_handle].lidx - 1].addr;
+      uint8_t lcb_index = p_cb->rcb[rc_handle].lidx - 1;
+      if (lcb_index > BTA_AV_NUM_LINKS) {
+        APPL_TRACE_ERROR("%s: incorrect index of LCB 0x%x", __func__, lcb_index);
+        return;
+      }
+      rc_feat.peer_addr = p_cb->lcb[lcb_index].addr;
     } else {
       rc_feat.peer_addr = p_scb->PeerAddress();
     }
