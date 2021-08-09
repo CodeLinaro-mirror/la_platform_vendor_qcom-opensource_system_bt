@@ -4756,9 +4756,9 @@ void btm_sec_link_key_notification(const RawAddress& p_bda, uint8_t* p_link_key,
     if (we_are_bonding) {
       btsnd_hcic_rmt_name_req(p_bda, HCI_PAGE_SCAN_REP_MODE_R1,
                               HCI_MANDATARY_PAGE_SCAN_MODE, 0);
+      btm_sec_change_pairing_state(BTM_PAIR_STATE_GET_REM_NAME);
     }
 
-    btm_sec_change_pairing_state(BTM_PAIR_STATE_GET_REM_NAME);
     BTM_TRACE_EVENT("rmt_io_caps:%d, sec_flags:x%x, dev_class[1]:x%02x",
                     p_dev_rec->rmt_io_caps, p_dev_rec->sec_flags,
                     p_dev_rec->dev_class[1])
