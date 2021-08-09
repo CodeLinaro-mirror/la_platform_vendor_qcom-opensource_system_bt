@@ -5137,6 +5137,35 @@ static bt_status_t get_search_list_cmd(const RawAddress &bd_addr, uint32_t start
                               num_items);
 }
 
+static bt_status_t get_folder_items_vendor_cmd(const RawAddress& bd_addr, uint8_t scope,
+                                               uint8_t start_item, uint8_t end_item,
+                                               uint8_t numAttr, uint32_t* attr) {
+    /* Check that both avrcp and browse channel are connected. */
+    btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
+    if (p_dev == NULL) {
+      BTIF_TRACE_ERROR("%s: p_dev NULL", __func__);
+      return BT_STATUS_FAIL;
+    }
+    BTIF_TRACE_DEBUG("%s", __func__);
+    CHECK_RC_CONNECTED(p_dev);
+    CHECK_BR_CONNECTED(p_dev);
+
+    tAVRC_COMMAND avrc_cmd = {0};
+
+    /* Set the layer specific to point to browse although this should really
+     * be done by lower layers and looking at the PDU
+     */
+    avrc_cmd.get_items.pdu = AVRC_PDU_GET_FOLDER_ITEMS;
+    avrc_cmd.get_items.status = AVRC_STS_NO_ERROR;
+    avrc_cmd.get_items.scope = scope;
+    avrc_cmd.get_items.start_item = start_item;
+    avrc_cmd.get_items.end_item = end_item;
+    avrc_cmd.get_items.attr_count = numAttr;
+    avrc_cmd.get_items.p_attr_list = attr;
+
+    return build_and_send_browsing_cmd(&avrc_cmd, p_dev);
+}
+
 /***************************************************************************
  *
  * Function         change_player_app_setting
@@ -5620,6 +5649,7 @@ static const btrc_ctrl_interface_t bt_rc_ctrl_interface = {
     volume_change_notification_rsp,
     get_item_attribute_cmd,
     get_element_attribute_cmd,
+    get_folder_items_vendor_cmd,
     cleanup_ctrl,
 };
 
