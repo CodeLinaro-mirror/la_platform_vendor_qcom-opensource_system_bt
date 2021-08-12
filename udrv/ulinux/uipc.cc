@@ -328,7 +328,7 @@ int uipc_get_free_ctrl_ch() {
   }
 }
 
-int upic_get_audio_ch(int ctrl_ch) {
+int uipc_get_audio_ch(int ctrl_ch) {
   if (ctrl_ch == UIPC_CH_ID_AV_CTRL_0) {
     return UIPC_CH_ID_AV_AUDIO_0;
   } else if (ctrl_ch ==  UIPC_CH_ID_AV_CTRL_1) {
@@ -342,6 +342,7 @@ static void uipc_save_to_ch_address_map(int ch_id,
                                         const RawAddress& peer_address) {
   APPL_TRACE_DEBUG("%s: ch_id: %d, peer_address:%s", __func__,
                    ch_id, peer_address.ToString().c_str());
+  ch_addr_map.erase(ch_id);
   ch_addr_map.emplace(ch_id, peer_address);
 }
 
@@ -372,8 +373,8 @@ int uipc_get_ch_from_address(const RawAddress& peer_address, bool ctrl) {
       } else {
         // return audio channel
         APPL_TRACE_DEBUG("%s: ch_id: %d", __func__,
-                          upic_get_audio_ch(it->first));
-        return upic_get_audio_ch(it->first);
+                          uipc_get_audio_ch(it->first));
+        return uipc_get_audio_ch(it->first);
       }
     }
    }

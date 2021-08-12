@@ -106,10 +106,10 @@ void btif_a2dp_control_init(const RawAddress& peer_address) {
 void btif_a2dp_control_cleanup(const RawAddress& peer_address) {
   /* This calls blocks until UIPC is fully closed */
   if (a2dp_uipc != nullptr) {
-    // close ctrl channel
-    UIPC_Close(*a2dp_uipc, uipc_get_ch_from_address(peer_address, UIPC_CTRL_CH));
     // close data channel
     UIPC_Close(*a2dp_uipc, uipc_get_ch_from_address(peer_address, UIPC_DATA_CH));
+    // close ctrl channel
+    UIPC_Close(*a2dp_uipc, uipc_get_ch_from_address(peer_address, UIPC_CTRL_CH));
   }
 }
 
