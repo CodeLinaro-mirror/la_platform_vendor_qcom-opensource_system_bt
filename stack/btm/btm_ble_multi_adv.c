@@ -1280,6 +1280,7 @@ tBTM_STATUS btm_ble_extended_adv_set_params (tBTM_BLE_MULTI_ADV_INST *p_inst,
                     break;
             }
             pri_phy = BTM_DATA_RATE_ONE;
+            sec_adv_phy = BTM_DATA_RATE_ONE;
             adv_sid = 0x01;
 
         }
