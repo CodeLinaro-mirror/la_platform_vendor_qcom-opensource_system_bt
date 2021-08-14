@@ -439,6 +439,13 @@ typedef struct {
 
 } tL2CAP_ERTM_INFO;
 
+// Structure for holding L2CAP credit info
+typedef struct {
+  uint16_t controller_xmit_window;
+  uint16_t controller_le_xmit_window;
+}tL2CAP_credits;
+
+
 #define L2CA_REGISTER(a, b, c) L2CA_Register(a, (tL2CAP_APPL_INFO*)(b), c)
 #define L2CA_DEREGISTER(a) L2CA_Deregister(a)
 #define L2CA_CONNECT_REQ(a, b, c) L2CA_ErtmConnectReq(a, b, c)
@@ -454,6 +461,8 @@ typedef struct {
 #define L2CA_CONNECT_COC_RSP(a, b, c, d, e, f) \
   L2CA_ConnectLECocRsp(a, b, c, d, e, f)
 #define L2CA_GET_PEER_COC_CONFIG(a, b) L2CA_GetPeerLECocConfig(a, b)
+
+extern bool lpm_flow_off_flag;
 
 /*****************************************************************************
  *  External Function Declarations
@@ -1562,4 +1571,7 @@ extern bool L2CA_isMediaChannel(uint16_t handle, uint16_t channel_id, bool is_lo
 extern void L2CA_AdjustConnectionIntervals(uint16_t* min_interval,
                                            uint16_t* max_interval,
                                            uint16_t floor_interval);
+
+extern void L2CA_setLpmFlowoff(bool flag);
+
 #endif /* L2C_API_H */

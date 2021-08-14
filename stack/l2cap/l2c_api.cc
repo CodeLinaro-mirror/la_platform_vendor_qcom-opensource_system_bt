@@ -41,8 +41,10 @@
 #include "l2cdefs.h"
 #include "osi/include/allocator.h"
 #include "osi/include/log.h"
+#include "lpm_api.h"
 
 using base::StringPrintf;
+bool lpm_flow_off_flag;
 
 extern fixed_queue_t* btu_general_alarm_queue;
 tL2C_AVDT_CHANNEL_INFO av_media_channels[MAX_ACTIVE_AVDT_CONN];
@@ -2844,4 +2846,15 @@ BT_HDR* L2CA_ReadData (uint16_t cid) {
 
   p_data = (BT_HDR *)fixed_queue_dequeue(p_ccb->rx_buf.rcv_data_q);
   return (p_data);
+}
+
+void L2CA_setLpmFlowoff (bool flag)
+{
+   L2CAP_TRACE_DEBUG("%s flag: %d", __func__, flag);
+   lpm_flow_off_flag = flag;
+   tL2CAP_credits credits;
+   credits.controller_xmit_window = l2cb.controller_xmit_window;
+   credits.controller_le_xmit_window = l2cb.controller_le_xmit_window;
+   LPM_CopyL2CAPCredits(credits);
+   return;
 }
