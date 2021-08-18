@@ -302,6 +302,8 @@ static void handle_get_metadata_attr_response(tBTA_AV_META_MSG* pmeta_msg,
                                           tAVRC_GET_ATTRS_RSP* p_rsp);
 static void handle_set_app_attr_val_response(tBTA_AV_META_MSG* pmeta_msg,
                                              tAVRC_RSP* p_rsp);
+static void handle_add_to_now_playing_response(tBTA_AV_META_MSG* pmeta_msg,
+                                             tAVRC_RSP* p_rsp);
 static bt_status_t get_play_status_cmd(btif_rc_device_cb_t* p_dev);
 static bt_status_t get_player_app_setting_attr_text_cmd(
     uint8_t* attrs, uint8_t num_attrs, btif_rc_device_cb_t* p_dev);
@@ -3984,6 +3986,32 @@ static void handle_set_app_attr_val_response(tBTA_AV_META_MSG* pmeta_msg,
 
 /***************************************************************************
  *
+ * Function         handle_add_to_now_playing_response
+ *
+ * Description      handles the add to now playing response, calls
+ *                  HAL callback
+ * Returns          None
+ *
+ **************************************************************************/
+static void handle_add_to_now_playing_response(tBTA_AV_META_MSG* pmeta_msg,
+                                               tAVRC_RSP* p_rsp) {
+
+  btif_rc_device_cb_t* p_dev =
+      btif_rc_get_device_by_handle(pmeta_msg->rc_handle);
+
+  if (p_dev == NULL) {
+    BTIF_TRACE_ERROR("%s: p_dev NULL", __func__);
+    return;
+  }
+
+  do_in_jni_thread(
+    FROM_HERE,
+    base::Bind(bt_rc_ctrl_callbacks->add_to_now_playing_cb,
+                    p_dev->rc_addr,  p_rsp->status));
+}
+
+/***************************************************************************
+ *
  * Function         handle_get_metadata_attr_response
  *
  * Description      handles the the element attributes response, calls
@@ -4552,6 +4580,15 @@ static void handle_avk_rc_metamsg_rsp(tBTA_AV_META_MSG* pmeta_msg) {
 
       case AVRC_PDU_SET_ADDRESSED_PLAYER:
         handle_set_addressed_player_response(pmeta_msg, &avrc_response.rsp);
+        break;
+
+      case AVRC_PDU_ADD_TO_NOW_PLAYING:
+        handle_add_to_now_playing_response(pmeta_msg, &avrc_response.add_to_play);
+        break;
+
+      default:
+        BTIF_TRACE_ERROR("%s cannot handle vendor pdu %d", __func__,
+                         pmeta_msg->p_msg->hdr.opcode);
         break;
     }
   } else if (AVRC_OP_BROWSE == pmeta_msg->p_msg->hdr.opcode) {
@@ -5222,6 +5259,38 @@ static bt_status_t abort_continuing_response_cmd(const RawAddress& bd_addr, uint
 
 /***************************************************************************
  *
+ * Function         add_to_now_playing_cmd
+ *
+ * Description      Send add to now playing command
+ *
+ * Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
+ *                  BT_STATUS_FAIL.
+ *
+ **************************************************************************/
+bt_status_t add_to_now_playing_cmd(const RawAddress& bd_addr, uint8_t scope, uint8_t* uid,
+                                   uint16_t uid_counter) {
+  BTIF_TRACE_DEBUG("%s: scope %d uid_counter %d", __func__, scope, uid_counter);
+  btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
+  if (p_dev == NULL) {
+    BTIF_TRACE_ERROR("%s: p_dev NULL", __func__);
+    return BT_STATUS_FAIL;
+  }
+  CHECK_RC_CONNECTED(p_dev);
+  CHECK_BR_CONNECTED(p_dev);
+
+  tAVRC_COMMAND avrc_cmd = {0};
+  avrc_cmd.pdu = AVRC_PDU_ADD_TO_NOW_PLAYING;
+  avrc_cmd.add_to_play.opcode = AVRC_OP_VENDOR;
+  avrc_cmd.add_to_play.status = AVRC_STS_NO_ERROR;
+  avrc_cmd.add_to_play.scope = scope;
+  memcpy(avrc_cmd.add_to_play.uid, uid, AVRC_UID_SIZE);
+  avrc_cmd.add_to_play.uid_counter = uid_counter;
+
+  return build_and_send_vendor_cmd(&avrc_cmd, AVRC_CMD_CTRL, p_dev);
+}
+
+/***************************************************************************
+ *
  * Function         change_player_app_setting
  *
  * Description      Set current values of Player Attributes
@@ -5699,6 +5768,7 @@ static const btrc_ctrl_interface_t bt_rc_ctrl_interface = {
     set_addressed_player_cmd,
     search_cmd,
     get_search_list_cmd,
+    add_to_now_playing_cmd,
     set_volume_rsp,
     volume_change_notification_rsp,
     get_item_attribute_cmd,
