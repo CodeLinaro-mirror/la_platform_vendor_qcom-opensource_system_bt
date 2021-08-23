@@ -3380,12 +3380,10 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
         } else {
           uint8_t* p_data = p_rsp->param.track;
           BE_STREAM_TO_UINT64(p_dev->rc_playing_uid, p_data);
-          get_play_status_cmd(p_dev);
-          get_metadata_attribute_cmd(p_dev->rc_addr, attr_list_size, attr_list);
           if (p_dev->rc_supported_play_pos_changed == true) {
             get_play_status_cmd(p_dev);
           }
-          get_element_attribute_cmd(p_dev->rc_addr, 0, attr_list);
+          get_metadata_attribute_cmd(p_dev->rc_addr, attr_list_size, attr_list);
         }
         break;
 
