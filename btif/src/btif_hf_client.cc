@@ -298,7 +298,14 @@ static bt_status_t init(bthf_client_callbacks_t* callbacks) {
  *
  ******************************************************************************/
 static bt_status_t connect_int(RawAddress* bd_addr, uint16_t uuid) {
-  btif_hf_client_cb_t* cb = btif_hf_client_allocate_cb();
+  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
+  if (cb != NULL) {
+    BTIF_TRACE_ERROR("%s: HFP connection to %s is already ongoing",
+                                         __func__, bd_addr->ToString().c_str());
+    return BT_STATUS_BUSY;
+  }
+
+  cb = btif_hf_client_allocate_cb();
   if (cb == NULL) {
     BTIF_TRACE_ERROR("%s: could not allocate block!", __func__);
     return BT_STATUS_BUSY;
@@ -485,7 +492,7 @@ static bt_status_t dial(UNUSED_ATTR const RawAddress* bd_addr,
 
   CHECK_BTHF_CLIENT_SLC_CONNECTED(cb);
 
-  if (number) {
+  if (number && strlen(number)) {
     BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_ATD, 0, 0, number);
   } else {
     BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_BLDN, 0, 0, NULL);
@@ -831,6 +838,10 @@ static void btif_hf_client_upstreams_evt(uint16_t event, char* p_param) {
     BTIF_TRACE_DEBUG("%s: event BTA_HF_CLIENT_OPEN_EVT allocating block",
                      __func__);
     cb = btif_hf_client_allocate_cb();
+    if (cb == NULL) {
+      BTIF_TRACE_ERROR("%s: could not allocate block!", __func__);
+      return;
+    }
     cb->handle = p_data->open.handle;
     cb->peer_bda = p_data->open.bd_addr;
   } else if (cb == NULL) {

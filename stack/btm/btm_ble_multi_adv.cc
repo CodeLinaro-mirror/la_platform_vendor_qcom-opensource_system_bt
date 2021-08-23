@@ -24,7 +24,9 @@
 #include "ble_advertiser.h"
 #include "ble_advertiser_hci_interface.h"
 #include "btm_int_types.h"
-#include "stack/btm/btm_ble_int.h"
+#include "btm_ble_int.h"
+
+#define ADV_WHITE_LIST_POLICY 0x02
 
 #include <string.h>
 #include <queue>
@@ -72,6 +74,7 @@ struct AdvertisingInstance {
   bool address_update_required;
   bool periodic_enabled;
   uint32_t advertising_interval;  // 1 unit is 0.625 ms
+  bool is_wlist_adv_filter_policy = false;
 
   /* When true, advertising set is enabled, or last scheduled call to "LE Set
    * Extended Advertising Set Enable" is to enable this advertising set. Any
@@ -152,6 +155,7 @@ struct CreatorParams {
   std::vector<uint8_t> periodic_data;
   uint16_t duration;
   uint8_t maxExtAdvEvents;
+  std::vector<RawAddress> bd_addr_list;
   RegisterCb timeout_cb;
 };
 
@@ -290,8 +294,11 @@ class BleAdvertisingManagerImpl
       std::vector<uint8_t> advertise_data;
       std::vector<uint8_t> scan_response_data;
       int duration;
+      std::vector<RawAddress> bd_addr_list;
       MultiAdvCb timeout_cb;
     };
+
+    std::vector<RawAddress> bd_list;
 
     std::unique_ptr<CreatorParams> c;
     c.reset(new CreatorParams());
@@ -304,13 +311,13 @@ class BleAdvertisingManagerImpl
     c->duration = duration;
     c->timeout_cb = std::move(timeout_cb);
     c->inst_id = advertiser_id;
-
+    c->bd_addr_list = std::move(bd_list);
     using c_type = std::unique_ptr<CreatorParams>;
 
     // this code is intentionally left formatted this way to highlight the
     // asynchronous flow
     // clang-format off
-    c->self->SetParameters(c->inst_id, &c->params, Bind(
+    c->self->SetParameters(c->inst_id, &c->params, c->bd_addr_list, Bind(
       [](c_type c, uint8_t status, int8_t tx_power) {
         if (!c->self) {
           LOG(INFO) << "Stack was shut down";
@@ -380,6 +387,7 @@ class BleAdvertisingManagerImpl
                            tBLE_PERIODIC_ADV_PARAMS* periodic_params,
                            std::vector<uint8_t> periodic_data,
                            uint16_t duration, uint8_t maxExtAdvEvents,
+                           std::vector<RawAddress> bd_addr_list,
                            RegisterCb timeout_cb) override {
     std::unique_ptr<CreatorParams> c;
     c.reset(new CreatorParams());
@@ -393,6 +401,7 @@ class BleAdvertisingManagerImpl
     c->periodic_data = std::move(periodic_data);
     c->duration = duration;
     c->maxExtAdvEvents = maxExtAdvEvents;
+    c->bd_addr_list = std::move(bd_addr_list);
     c->timeout_cb = std::move(timeout_cb);
 
     // this code is intentionally left formatted this way to highlight the
@@ -413,7 +422,7 @@ class BleAdvertisingManagerImpl
 
         c->inst_id = advertiser_id;
 
-        c->self->SetParameters(c->inst_id, &c->params, Bind(
+        c->self->SetParameters(c->inst_id, &c->params, c->bd_addr_list, Bind(
           [](c_type c, uint8_t status, int8_t tx_power) {
             if (!c->self) {
               LOG(INFO) << "Stack was shut down";
@@ -669,6 +678,7 @@ class BleAdvertisingManagerImpl
   }
 
   void SetParameters(uint8_t inst_id, tBTM_BLE_ADV_PARAMS* p_params,
+                     std::vector<RawAddress> bd_addr_list,
                      ParametersCb cb) override {
     VLOG(1) << __func__ << " inst_id: " << +inst_id;
     if (inst_id >= inst_count) {
@@ -691,7 +701,27 @@ class BleAdvertisingManagerImpl
         p_params->advertising_event_properties;
     p_inst->tx_power = p_params->tx_power;
     p_inst->advertising_interval = p_params->adv_int_min;
+
+    /*If BD address list sent from upper layers is not empty,
+      then the advertiser filter policy is whitelist.
+      Otherwise the advertiser filter policy is 0 */
+    if (!bd_addr_list.empty()) {
+      p_params->adv_filter_policy = ADV_WHITE_LIST_POLICY;
+      p_inst->is_wlist_adv_filter_policy = true;
+    } else {
+      p_params->adv_filter_policy = 0;
+      p_inst->is_wlist_adv_filter_policy = false;
+    }
+
     const RawAddress& peer_address = RawAddress::kEmpty;
+
+    if (p_inst->is_wlist_adv_filter_policy) {
+      if (!bd_addr_list.empty()) {
+        for (size_t i=0; i < bd_addr_list.size(); i++) {
+          btm_update_dev_to_white_list(true, bd_addr_list[i], BLE_BG_ADVERTISER, inst_id);
+        }
+      }
+    }
 
     GetHciInterface()->SetParameters(
         p_inst->inst_id, p_params->advertising_event_properties,
@@ -848,6 +878,14 @@ class BleAdvertisingManagerImpl
                                                     std::move(enable_cb));
   }
 
+  void UpdateAdvertisingWhiteList(uint8_t inst_id, RawAddress bd_addr,
+                          bool to_add,
+                          MultiAdvCb cb) override {
+      VLOG(1) << __func__ << " inst_id: " << +inst_id;
+
+      btm_update_dev_to_white_list(to_add, bd_addr, BLE_BG_ADVERTISER, inst_id);
+  }
+
   void Unregister(uint8_t inst_id) override {
     AdvertisingInstance* p_inst = &adv_inst[inst_id];
 
@@ -868,8 +906,13 @@ class BleAdvertisingManagerImpl
                                                       base::DoNothing());
     }
 
+    RawAddress dummy = RawAddress::kEmpty;
+    //removing dev from adv white list
+    btm_update_dev_to_white_list(false, dummy, BLE_BG_ADVERTISER, inst_id);
+
     alarm_cancel(p_inst->adv_raddr_timer);
     p_inst->in_use = false;
+    p_inst->is_wlist_adv_filter_policy = false;
     GetHciInterface()->RemoveAdvertisingSet(inst_id, base::DoNothing());
     p_inst->address_update_required = false;
   }
@@ -899,6 +942,18 @@ class BleAdvertisingManagerImpl
         inst->maxExtAdvEvents = inst->maxExtAdvEvents - eventsDone;
       }
     }
+  }
+
+  bool IsWhiteListAdvActive() {
+    VLOG(1) << __func__;
+    if (!adv_inst.empty()) {
+      for (AdvertisingInstance& inst : adv_inst) {
+        if (inst.in_use && inst.is_wlist_adv_filter_policy) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   void Suspend() override {
