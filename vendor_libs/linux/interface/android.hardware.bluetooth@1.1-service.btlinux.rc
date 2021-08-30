@@ -2,4 +2,9 @@ service btlinux-1.1 /vendor/bin/hw/android.hardware.bluetooth@1.1-service.btlinu
     class hal
     user bluetooth
     group bluetooth net_admin net_bt_admin
-    capabilities NET_ADMIN
+    capabilities NET_ADMIN NET_RAW SYS_NICE
+    disabled
+
+on property:qemu.preferred.bt.service=passthrough
+    stop vendor.bluetooth-1-1
+    start btlinux-1.1
