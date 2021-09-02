@@ -4145,6 +4145,7 @@ void btm_sec_encrypt_change(uint16_t handle, uint8_t status,
   tACL_CONN* p_acl = NULL;
   tBTM_LE_EVT_DATA p_data;
   uint8_t acl_idx = btm_handle_to_acl_index(handle);
+  tACL_CONN      *p = &btm_cb.acl_db[btm_handle_to_acl_index(handle)];
   BTM_TRACE_EVENT(
       "Security Manager: encrypt_change status:%d State:%d, encr_enable = %d",
       status, (p_dev_rec) ? p_dev_rec->sec_state : 0, encr_enable);
@@ -4263,7 +4264,12 @@ void btm_sec_encrypt_change(uint16_t handle, uint8_t status,
 
         BTM_TRACE_DEBUG("updated link key type to %d",
                         p_dev_rec->link_key_type);
-        btm_send_link_key_notif(p_dev_rec);
+        /* If encrypt change evt is introduced by role change evt, do not report linkkey notify */
+        if (p != NULL){
+          if (p->switch_role_state == BTM_ACL_SWKEY_STATE_IDLE) {
+            btm_send_link_key_notif(p_dev_rec);
+          }
+        }
       }
     }
   }
