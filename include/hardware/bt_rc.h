@@ -750,6 +750,9 @@ typedef struct {
                                       btrc_notification_type_t rsp_type,
                                       uint8_t abs_vol, uint8_t label);
 
+  /** Get element attributes */
+  bt_status_t (*get_element_attribute_cmd)(const RawAddress& bd_addr, uint8_t numAttr, uint32_t *attr);
+
   /** Closes the interface. */
   void (*cleanup)(void);
 } btrc_ctrl_interface_t;

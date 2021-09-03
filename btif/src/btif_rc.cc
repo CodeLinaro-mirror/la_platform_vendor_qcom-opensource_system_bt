@@ -314,9 +314,9 @@ static bt_status_t get_player_app_setting_value_text_cmd(
 static bt_status_t register_notification_cmd(uint8_t label, uint8_t event_id,
                                              uint32_t event_value,
                                              btif_rc_device_cb_t* p_dev);
-static bt_status_t get_element_attribute_cmd(uint8_t num_attribute,
-                                             uint32_t* p_attr_ids,
-                                             btif_rc_device_cb_t* p_dev);
+static bt_status_t get_element_attribute_cmd(const RawAddress& bd_addr,
+                                             uint8_t num_attribute,
+                                             uint32_t* p_attr_ids);
 bt_status_t get_item_attr_cmd(const RawAddress& bd_addr, uint8_t scope, uint8_t* uid,
                               uint16_t uid_counter,
                               uint8_t num_attr,
@@ -5462,12 +5462,35 @@ static bt_status_t register_notification_cmd(uint8_t label, uint8_t event_id,
  * Returns          void
  *
  **************************************************************************/
-static bt_status_t get_element_attribute_cmd(uint8_t num_attribute,
-                                             uint32_t* p_attr_ids,
-                                             btif_rc_device_cb_t* p_dev) {
-  BTIF_TRACE_DEBUG("%s: num_attribute: %d ", __func__,
-                   num_attribute);
+static bt_status_t get_element_attribute_cmd(const RawAddress& bd_addr,
+                                             uint8_t num_attribute,
+                                             uint32_t* p_attr_ids) {
+  BTIF_TRACE_DEBUG("%s: num_attribute: %d ", __func__, num_attribute);
+
+  btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
+  if (p_dev == NULL) {
+    BTIF_TRACE_ERROR("%s: p_dev NULL", __func__);
+    return BT_STATUS_FAIL;
+  }
+
   CHECK_RC_CONNECTED(p_dev);
+
+  // For IOP Issue
+  // Few peer devices without CA featue forcibly restart BT
+  // when it receives request to retrieve value of attribute
+  // AVRC_MEDIA_ATTR_ID_COVER_ART.
+  uint32_t attr_list[] = {
+    AVRC_MEDIA_ATTR_ID_TITLE, 	  AVRC_MEDIA_ATTR_ID_ARTIST,
+    AVRC_MEDIA_ATTR_ID_ALBUM, 	  AVRC_MEDIA_ATTR_ID_TRACK_NUM,
+    AVRC_MEDIA_ATTR_ID_NUM_TRACKS,  AVRC_MEDIA_ATTR_ID_GENRE,
+    AVRC_MEDIA_ATTR_ID_PLAYING_TIME
+  };
+
+  if (!(p_dev->rc_features & BTRC_FEAT_COVER_ART) &&
+    num_attribute == AVRC_MAX_NUM_MEDIA_ATTR_ID) {
+    p_attr_ids = attr_list;
+    num_attribute = sizeof(attr_list)/sizeof(attr_list[0]);
+  }
 
   tAVRC_COMMAND avrc_cmd = {0};
   avrc_cmd.get_elem_attrs.opcode = AVRC_OP_VENDOR;
@@ -5716,7 +5739,7 @@ void get_attribute_cmd(uint8_t num_attr, uint32_t* p_attr_list,
             p_dev->uid_counter,
             num_attr, p_attr_list);
   } else {
-    get_element_attribute_cmd(num_attr, p_attr_list, p_dev);
+    get_element_attribute_cmd(p_dev->rc_addr, num_attr, p_attr_list);
   }
 }
 static const btrc_interface_t bt_rc_interface = {
@@ -5766,6 +5789,7 @@ static const btrc_ctrl_interface_t bt_rc_ctrl_interface = {
     fetch_player_app_setting_cmd,
     set_volume_rsp,
     volume_change_notification_rsp,
+    get_element_attribute_cmd,
     cleanup_ctrl,
 };
 
