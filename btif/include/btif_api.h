@@ -272,6 +272,18 @@ bt_status_t btif_dm_remove_bond(const RawAddress* bd_addr);
 uint16_t btif_dm_get_connection_state(const RawAddress* bd_addr);
 
 /*******************************************************************************
+**
+** Function         btif_dm_switch_role_req
+**
+** Description      Switch the current role to new role
+**
+** Returns          int
+**
+*******************************************************************************/
+int btif_dm_switch_role_req(const RawAddress *bd_addr, uint8_t new_role);
+
+
+/*******************************************************************************
  *
  *  Function         btif_dm_get_role_req
  *
