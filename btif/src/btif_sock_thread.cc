@@ -466,6 +466,12 @@ static void print_events(short events) {
 static void process_data_sock(int h, struct pollfd* pfds, int count) {
   asrt(count <= ts[h].poll_count);
   int i;
+  /*
+   * poll_count is the total number of data fd registered to be polled,
+   * and count is the actual number of data fd to be processed after
+   * this polling.
+   */
+  int num_events = count;
   for (i = 1; i < ts[h].poll_count; i++) {
     if (pfds[i].revents) {
       int ps_i = ts[h].psi[i];
@@ -485,9 +491,13 @@ static void process_data_sock(int h, struct pollfd* pfds, int count) {
         // remove the whole slot not flags
         remove_poll(h, &ts[h].ps[ps_i], ts[h].ps[ps_i].flags);
       } else if (flags)
-        remove_poll(h, &ts[h].ps[ps_i],
-                    flags);  // remove the monitor flags that already processed
+        // remove the monitor flags that already processed
+        remove_poll(h, &ts[h].ps[ps_i], flags);
       if (flags) ts[h].callback(pfds[i].fd, type, flags, user_id);
+
+      // when the value of num_events becomes 0, it means that all fd have been processed.
+      if (--num_events == 0)
+        break;
     }
   }
 }
@@ -544,8 +554,8 @@ static void* sock_poll_thread(void* arg) {
       }
       if (need_process_data_fd) process_data_sock(h, pfds, ret);
     } else {
-      APPL_TRACE_DEBUG("no data, select ret: %d", ret)
-    };
+      APPL_TRACE_DEBUG("no data, select ret: %d", ret);
+    }
   }
   APPL_TRACE_DEBUG("socket poll thread exiting, h:%d", h);
   return 0;
