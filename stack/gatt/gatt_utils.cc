@@ -600,8 +600,8 @@ void gatt_rsp_timeout(void* data) {
     }
   }
 
-  LOG(WARNING) << __func__ << " disconnecting...";
-  gatt_disconnect(p_clcb->p_tcb);
+  // LOG(WARNING) << __func__ << " disconnecting...";
+  //gatt_disconnect(p_clcb->p_tcb);
 }
 
 extern void gatts_proc_srv_chg_ind_ack(tGATT_TCB tcb);
