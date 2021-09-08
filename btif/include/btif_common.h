@@ -134,6 +134,7 @@ enum {
   BTIF_DM_CB_LE_TX_TEST,  /* BLE Tx Test command complete callback */
   BTIF_DM_CB_LE_RX_TEST,  /* BLE Rx Test command complete callback */
   BTIF_DM_CB_LE_TEST_END, /* BLE Test mode end callback */
+  BTIF_DM_READ_CLOCK_CMPL_EVT, /* Read Clock complete */
 
   BTIF_HFP_CB_START = BTIF_SIG_CB_START(BTIF_HFP),
   BTIF_HFP_CB_AUDIO_CONNECTING, /* HF AUDIO connect has been sent to BTA

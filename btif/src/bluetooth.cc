@@ -81,6 +81,7 @@
 #include "osi/include/osi.h"
 #include "osi/include/wakelock.h"
 #include "stack_manager.h"
+#include "btm_int.h"
 
 /* Test interface includes */
 #include "mca_api.h"
@@ -505,6 +506,11 @@ static int config_clear(void) {
   LOG_INFO(LOG_TAG, "%s", __func__);
   return btif_config_clear() ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
 }
+
+static int read_clock(const RawAddress* bd_addr, int which_clock) {
+    return btif_dm_read_clock(bd_addr, which_clock);
+}
+
 #ifdef ANDROID
 static bluetooth::avrcp::ServiceInterface* get_avrcp_service(void) {
   //return bluetooth::avrcp::AvrcpService::GetServiceInterface();
@@ -552,6 +558,7 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
 #ifdef ANDROID
     get_avrcp_service,
 #endif
+    read_clock,
 };
 const bt_interface_t* bluetooth__get_bluetooth_interface() {
   /* fixme -- add property to disable bt interface ? */

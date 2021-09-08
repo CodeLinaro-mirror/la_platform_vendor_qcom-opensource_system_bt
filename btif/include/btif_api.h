@@ -413,6 +413,17 @@ bt_status_t btif_hci_cmd_send(uint16_t opcode, uint8_t *buf, uint8_t len);
 
 /*******************************************************************************
  *
+ * Function         btif_dm_read_clock
+ *
+ * Description      Initiate read clock
+ *
+ * Returns          bt_status_t
+ *
+*******************************************************************************/
+bt_status_t btif_dm_read_clock(const RawAddress* bd_addr, int which_clock);
+
+/*******************************************************************************
+ *
  * Function         btif_le_test_mode
  *
  * Description     Sends a HCI BLE Test command to the Controller
