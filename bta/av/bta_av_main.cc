@@ -349,6 +349,26 @@ tBTA_AV_SCB* bta_av_hndl_to_scb(uint16_t handle) {
   return p_scb;
 }
 
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+/*******************************************************************************
+**
+** Function         bta_avk_is_avdt_sync
+**
+** Description      If the current connection supports AVDT1.3
+**
+** Returns          true for supports AVDT1.3, false for not.
+**
+*******************************************************************************/
+bool bta_avk_is_avdt_sync(uint16_t handle) {
+  tBTA_AV_SCB* p_scb = bta_av_hndl_to_scb(handle);
+  if (p_scb && (p_scb->AvdtpVersion() >= AVDT_VERSION_1_3)) {
+    APPL_TRACE_DEBUG("%s: peer supports 1.3", __func__);
+    return true;
+  }
+  return false;
+}
+#endif
+
 /*******************************************************************************
  *
  * Function         bta_av_alloc_scb

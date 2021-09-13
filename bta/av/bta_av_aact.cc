@@ -478,6 +478,12 @@ void bta_av_proc_stream_evt(uint8_t handle, const RawAddress& bd_addr,
           p_msg->cfg = *p_data->config_ind.p_cfg;
           break;
 
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+        case AVDT_DELAY_REPORT_CFM_EVT:
+          APPL_TRACE_DEBUG("%s: AVDT_DELAY_REPORT_CFM_EVT", __func__);
+          return;
+#endif
+
         case AVDT_SECURITY_IND_EVT:
           p_msg->msg.security_ind.p_data = (uint8_t*)(p_msg + 1);
           memcpy(p_msg->msg.security_ind.p_data, p_data->security_ind.p_data,
@@ -1805,7 +1811,12 @@ void bta_av_getcap_results(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
         "cur_psc_mask:0x%x",
         __func__, p_scb->PeerAddress().ToString().c_str(), p_scb->hndl,
         p_scb->sep_idx, p_scb->sep_info_idx, p_scb->cur_psc_mask);
-
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+    if (p_scb->cur_psc_mask & AVDT_PSC_DELAY_RPT) {
+      p_scb->SetAvdtpVersion(AVDT_VERSION_1_3);
+      APPL_TRACE_DEBUG("%s: set v1.3", __func__);
+    }
+#endif
     if ((uuid_int == UUID_SERVCLASS_AUDIO_SINK) &&
         (p_scb->seps[p_scb->sep_idx].p_app_sink_data_cback != NULL)) {
       APPL_TRACE_DEBUG("%s: configure decoder for Sink connection", __func__);

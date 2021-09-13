@@ -35,6 +35,9 @@
 #include "bt_utils.h"
 #include "btu.h"
 #include "osi/include/osi.h"
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+#include "btif/include/btif_av.h"
+#endif
 
 /* This table is used to lookup the callback event that matches a particular
  * state machine API request event.  Note that state machine API request
@@ -53,6 +56,14 @@ const uint8_t avdt_scb_cback_evt[] = {
     AVDT_SECURITY_CFM_EVT, /* API_SECURITY_REQ_EVT */
     0                      /* API_ABORT_REQ_EVT (no event) */
 };
+
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+#define SINK_DRT_INIT_TIME        4000      /* in 1/10 millisecond */
+#define SINK_DRT_RANGE            150       /* in 1/10 millisecond */
+#define SINK_DRT_ALARM_INTERVAL   1000      /* 1000 millisecond */
+static alarm_t* delay_rpt_alarm = NULL;
+static uint16_t reported_delay  = SINK_DRT_INIT_TIME;
+#endif
 
 /*******************************************************************************
  *
@@ -670,6 +681,14 @@ void avdt_scb_hdl_setconfig_rsp(AvdtpScb* p_scb,
     /* save configuration */
     p_scb->curr_cfg = p_scb->req_cfg;
 
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+    if ((p_scb->stream_config.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
+      reported_delay = SINK_DRT_INIT_TIME;
+      AVDT_TRACE_DEBUG("%s: set init rpt:%d", __func__, reported_delay);
+      AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay);
+    }
+#endif
+
     /* initiate open */
     single.seid = p_scb->peer_seid;
     tAVDT_SCB_EVT avdt_scb_evt;
@@ -788,6 +807,14 @@ void avdt_scb_hdl_tc_close(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
 
   alarm_cancel(p_scb->transport_channel_timer);
 
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+  if (delay_rpt_alarm != NULL) {
+    alarm_free(delay_rpt_alarm);
+    delay_rpt_alarm = NULL;
+    AVDT_TRACE_DEBUG("%s: free rpt alarm",__func__);
+  }
+#endif
+
   if ((p_scb->role == AVDT_CLOSE_INT) || (p_scb->role == AVDT_OPEN_INT)) {
     /* tell ccb we're done with signaling channel */
     avdt_ccb_event(p_ccb, AVDT_CCB_UL_CLOSE_EVT, NULL);
@@ -894,6 +921,36 @@ void avdt_scb_hdl_tc_close_sto(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
 
 /*******************************************************************************
  *
+ * Function         avdt_delay_rpt_tmr_hdlr
+ *
+ * Description      Timer to trigger checking average_delay,
+ *                  compare the latest reported delay,
+ *                  if the current delay is out of accure range,
+ *                  start a new Delay report procedure.
+ *
+ * Returns          Nothing.
+ *
+ ******************************************************************************/
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+static void avdt_delay_rpt_tmr_hdlr(void* data) {
+  uint64_t average_delay = btif_get_average_delay();
+  AVDT_TRACE_DEBUG("%s: ", __func__);
+  if (average_delay == 0)
+    return;
+
+  uint16_t delay_ms = (uint16_t)(average_delay / 100000); /* report value is in 1/10 millisecond */
+
+  if (abs(reported_delay - delay_ms) >= SINK_DRT_RANGE) {
+    reported_delay = delay_ms;
+    AvdtpScb *p_scb = (AvdtpScb *)data;
+    AVDT_TRACE_DEBUG("%s: reported_delay: 0x%x", __func__, reported_delay);
+    AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay);
+  }
+}
+#endif
+
+/*******************************************************************************
+ *
  * Function         avdt_scb_hdl_tc_open
  *
  * Description      This function is called when the transport channel is
@@ -909,6 +966,16 @@ void avdt_scb_hdl_tc_open(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
   uint8_t role;
 
   alarm_cancel(p_scb->transport_channel_timer);
+
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+  AVDT_TRACE_DEBUG("%s: ", __func__);
+  if ((p_scb->stream_config.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
+    delay_rpt_alarm = alarm_new_periodic("avdt.delayreport");
+    alarm_set(delay_rpt_alarm, (uint64_t)(SINK_DRT_ALARM_INTERVAL),(alarm_callback_t)avdt_delay_rpt_tmr_hdlr,
+              (void*)p_scb);
+    AVDT_TRACE_DEBUG("%s: set alarm interval:%ldms", __func__, (uint64_t)(SINK_DRT_ALARM_INTERVAL));
+  }
+#endif
 
   event =
       (p_scb->role == AVDT_OPEN_INT) ? AVDT_OPEN_CFM_EVT : AVDT_OPEN_IND_EVT;
@@ -1336,6 +1403,14 @@ void avdt_scb_snd_setconfig_rsp(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
     p_scb->curr_cfg = p_scb->req_cfg;
 
     avdt_msg_send_rsp(p_scb->p_ccb, AVDT_SIG_SETCONFIG, &p_data->msg);
+
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+    if ((p_scb->stream_config.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
+      reported_delay = SINK_DRT_INIT_TIME;
+      AVDT_TRACE_DEBUG("%s: set init rpt:%u", __func__, reported_delay);
+      AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay);
+    }
+#endif
   }
 }
 

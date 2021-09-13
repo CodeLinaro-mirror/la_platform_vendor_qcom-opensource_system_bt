@@ -79,6 +79,20 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int bits_per_sample,
   return (void*)trackHolder;
 }
 
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+int BtifAvrcpAudioTrackLatency(void* handle) {
+  if (handle == NULL) {
+    LOG_ERROR(LOG_TAG, "%s: handle is null!", __func__);
+    return 0;
+  }
+  BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(handle);
+  CHECK(trackHolder != NULL);
+  CHECK(trackHolder->track != NULL);
+  LOG_VERBOSE(LOG_TAG, "%s: get latency", __func__);
+  return trackHolder->track->latency();
+}
+#endif
+
 void BtifAvrcpAudioTrackStart(void* handle) {
   if (handle == NULL) {
     LOG_ERROR(LOG_TAG, "%s: handle is null!", __func__);
