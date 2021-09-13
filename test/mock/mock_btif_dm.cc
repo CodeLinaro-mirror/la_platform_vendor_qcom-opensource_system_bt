@@ -164,12 +164,13 @@ bool btif_dm_get_smp_config(tBTE_APPL_CFG* p_cfg) {
 }
 
 bool btif_dm_proc_rmt_oob(const RawAddress& bd_addr, Octet16* p_c,
-                          Octet16* p_r) {
+                          Octet16* p_r, Octet16* p_c_ext, Octet16* p_r_ext) {
   mock_function_count_map[__func__]++;
   return false;
 }
 
 void btif_dm_proc_loc_oob(tBT_TRANSPORT transport, bool is_valid,
-                          const Octet16& c, const Octet16& r) {
+                          const Octet16& c, const Octet16& r,
+                          const Octet16& c_ext, const Octet16& r_ext) {
   mock_function_count_map[__func__]++;
 }

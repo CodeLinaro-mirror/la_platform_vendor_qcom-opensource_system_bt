@@ -347,6 +347,8 @@ typedef struct {
   uint8_t oob_data_length[2]; /* Classic only data Length. Value includes this
                                  in length */
   uint8_t class_of_device[2]; /* Class of Device (Classic or LE) */
+  uint8_t c_ext[16];  /* Simple Pairing Hash C-256 (Classic P192 & P256 coexsist) */
+  uint8_t r_ext[16];  /* Simple Pairing Randomizer R-256 Classic P192 & P256 coexsist) */
 
   // LE
   uint8_t le_device_role;   /* Supported and preferred role of device */

@@ -740,8 +740,8 @@ void invoke_ssp_request_cb(RawAddress bd_addr, bt_bdname_t bd_name,
 }
 
 void invoke_oob_data_request_cb(tBT_TRANSPORT t, bool valid, Octet16 c,
-                                Octet16 r, RawAddress raw_address,
-                                uint8_t address_type) {
+                                Octet16 r, Octet16 c_ext, Octet16 r_ext,
+                                RawAddress raw_address, uint8_t address_type) {
   LOG_INFO("%s", __func__);
   bt_oob_data_t oob_data = {};
   char* local_name;
@@ -766,12 +766,20 @@ void invoke_oob_data_request_cb(tBT_TRANSPORT t, bool valid, Octet16 c,
     oob_data.c[i] = c[i];
     // R is optional and may be empty
     oob_data.r[i] = r[i];
+    oob_data.c_ext[i] = c_ext[i];
+    oob_data.r_ext[i] = r_ext[i];
   }
   oob_data.is_valid = valid && !c_empty;
   // The oob_data_length is 2 octects in length.  The value includes the length
   // of itself. 16 + 16 + 2 = 34 Data 0x0022 Little Endian order 0x2200
+  // If P192 and P256 both exsist, the length is  16 + 16 +16 + 16 + 2 = 66
   oob_data.oob_data_length[0] = 0;
-  oob_data.oob_data_length[1] = 34;
+  uint8_t zero[16] = {0};
+  if (memcmp(zero, oob_data.c_ext, sizeof(oob_data.c_ext)) &&
+        memcmp(zero, oob_data.r_ext, sizeof(oob_data.r_ext)))
+    oob_data.oob_data_length[1] = 66;
+  else
+    oob_data.oob_data_length[1] = 34;
   bt_status_t status = do_in_jni_thread(
       FROM_HERE, base::BindOnce(
                      [](tBT_TRANSPORT t, bt_oob_data_t oob_data) {

@@ -108,6 +108,16 @@ typedef struct {
   bool accept;
 } tBTA_DM_CI_RMT_OOB;
 
+/* data type for BTA_DM_CI_RMT_OOB_EXTENDED */
+typedef struct {
+  RawAddress bd_addr;
+  Octet16 c192;
+  Octet16 r192;
+  Octet16 c256;
+  Octet16 r256;
+  bool accept;
+} tBTA_DM_CI_RMT_OOB_EXTENDED;
+
 /* data type for BTA_DM_REMT_NAME_EVT */
 typedef struct {
   BT_HDR_RIGID hdr;
@@ -520,6 +530,7 @@ extern void bta_dm_set_encryption(const RawAddress&, tBT_TRANSPORT,
 extern void bta_dm_confirm(const RawAddress&, bool);
 
 extern void bta_dm_ci_rmt_oob_act(std::unique_ptr<tBTA_DM_CI_RMT_OOB> msg);
+extern void bta_dm_ci_rmt_oob_extended_act(std::unique_ptr<tBTA_DM_CI_RMT_OOB_EXTENDED> msg);
 
 extern void bta_dm_init_pm(void);
 extern void bta_dm_disable_pm(void);

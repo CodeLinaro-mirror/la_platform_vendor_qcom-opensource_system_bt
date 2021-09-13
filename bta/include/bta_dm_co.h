@@ -86,13 +86,16 @@ extern void bta_dm_co_io_rsp(const RawAddress& bd_addr, tBTM_IO_CAP io_cap,
  *                  data of the local device for the Simple Pairing process
  *
  * Parameters       valid - true, if the local OOB data is retrieved from LM
- *                  c     - Simple Pairing Hash C
- *                  r     - Simple Pairing Randomnizer R
+ *                  c     - Simple Pairing Hash C 192
+ *                  r     - Simple Pairing Randomnizer R 192
+ *                  c_ext - Simple Pairing Hash C 256
+ *                  r_ext - Simple Pairing Randomnizer R 256
  *
  * Returns          void.
  *
  ******************************************************************************/
-extern void bta_dm_co_loc_oob(bool valid, const Octet16& c, const Octet16& r);
+extern void bta_dm_co_loc_oob(bool valid, const Octet16& c, const Octet16& r,
+                                   const Octet16& c_ext, const Octet16& r_ext);
 
 /*******************************************************************************
  *
