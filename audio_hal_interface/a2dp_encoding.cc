@@ -36,7 +36,6 @@
 #include "controller.h"
 #include "btif_bat.h"
 #include "btif_ahim.h"
-#include "btif_vmcp.h"
 
 extern bool audio_start_awaited;
 extern void btif_av_reset_reconfig_flag();
@@ -1551,7 +1550,7 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
     lc3Config.decoderOuputChannels = 0;
     int cis_count = 2;
 
-    if (type == WMCP/*TODO*/) {
+    if (type == 0x04) {
       LOG(ERROR) << __func__ << ": Filling Tx dummy values";
       lc3Config.txConfig.sampleRate = ExtSampleRate::RATE_48000;
       lc3Config.txConfig.channelMode = LC3ChannelMode::STEREO;

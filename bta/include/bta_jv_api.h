@@ -73,7 +73,9 @@ typedef uint8_t tBTA_JV_STATUS;
   (BTA_LAST_JV_SERVICE_ID - BTA_FIRST_JV_SERVICE_ID + 1)
 
 /* Intermediate Idle timeout(s) for TX/RX*/
-#define BTA_JV_IDLE_TIMEOUT_MS 1000
+// Reducing the Idle timeout to 900ms to avoid sending Intermediate Sniff during Data Receive
+// from Remote as the Sniff Timer is matched exactly with Idle Timeout
+#define BTA_JV_IDLE_TIMEOUT_MS 900
 /* Discoverable modes */
 enum { BTA_JV_DISC_NONE, BTA_JV_DISC_LIMITED, BTA_JV_DISC_GENERAL };
 typedef uint16_t tBTA_JV_DISC;
