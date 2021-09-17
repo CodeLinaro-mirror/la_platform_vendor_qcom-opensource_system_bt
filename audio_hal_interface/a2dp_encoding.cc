@@ -97,6 +97,18 @@ tA2DP_CTRL_ACK ack_status;
 #define FROM_AIR     0x01
 #define TO_AIR       0x00
 
+#define  ADV_AUD_CODEC_SAMPLE_RATE_NONE    0x0
+#define  ADV_AUD_CODEC_SAMPLE_RATE_44100   0x1 << 0
+#define  ADV_AUD_CODEC_SAMPLE_RATE_48000   0x1 << 1
+#define  ADV_AUD_CODEC_SAMPLE_RATE_88200   0x1 << 2
+#define  ADV_AUD_CODEC_SAMPLE_RATE_96000   0x1 << 3
+#define  ADV_AUD_CODEC_SAMPLE_RATE_176400  0x1 << 4
+#define  ADV_AUD_CODEC_SAMPLE_RATE_192000  0x1 << 5
+#define  ADV_AUD_CODEC_SAMPLE_RATE_16000   0x1 << 6
+#define  ADV_AUD_CODEC_SAMPLE_RATE_24000   0x1 << 7
+#define  ADV_AUD_CODEC_SAMPLE_RATE_32000   0x1 << 8
+#define  ADV_AUD_CODEC_SAMPLE_RATE_8000    0x1 << 9
+
 BluetoothAudioCtrlAck a2dp_ack_to_bt_audio_ctrl_ack(tA2DP_CTRL_ACK ack);
 
 // Provide call-in APIs for the Bluetooth Audio HAL
@@ -500,16 +512,30 @@ SampleRate ba_codec_to_hal_sample_rate(uint8_t sample_rate) {
 }
 
 ExtSampleRate btif_lc3_sample_rate(uint16_t rate) {
+  LOG(ERROR) << __func__
+               << ": sample_rate: " << rate;
+
   switch (rate) {
-    case BTAV_A2DP_CODEC_SAMPLE_RATE_44100:
+    case ADV_AUD_CODEC_SAMPLE_RATE_44100:
       return ExtSampleRate::RATE_44100;
-    case BTAV_A2DP_CODEC_SAMPLE_RATE_48000:
+    case ADV_AUD_CODEC_SAMPLE_RATE_48000:
       return ExtSampleRate::RATE_48000;
-    case BTAV_A2DP_CODEC_SAMPLE_RATE_24000:
+    case ADV_AUD_CODEC_SAMPLE_RATE_32000:
+      return ExtSampleRate::RATE_32000;
+    case ADV_AUD_CODEC_SAMPLE_RATE_24000:
       return ExtSampleRate::RATE_24000_2;
-    //TODO:32K and 8K to be defined added
-    case BTAV_A2DP_CODEC_SAMPLE_RATE_16000:
+    case ADV_AUD_CODEC_SAMPLE_RATE_16000:
       return ExtSampleRate::RATE_16000;
+    case ADV_AUD_CODEC_SAMPLE_RATE_8000:
+      return ExtSampleRate::RATE_8000;
+    case ADV_AUD_CODEC_SAMPLE_RATE_88200:
+      return ExtSampleRate::RATE_88200;
+    case ADV_AUD_CODEC_SAMPLE_RATE_96000:
+      return ExtSampleRate::RATE_96000;
+    case ADV_AUD_CODEC_SAMPLE_RATE_176400:
+      return ExtSampleRate::RATE_176400;
+    case ADV_AUD_CODEC_SAMPLE_RATE_192000:
+      return ExtSampleRate::RATE_192000;
     default:
       return ExtSampleRate::RATE_UNKNOWN;
   }
@@ -1543,6 +1569,17 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
       lc3Config.codecSpecific[i] = cs[i];
     }
 
+    if (pclient_cbs[profile - 1]->get_is_codec_type_lc3q()) {
+      LOG(ERROR) << __func__ << ": Lc3q params are updated";
+      lc3Config.codecSpecific[0] = 0x0F;  //Vendor Metadata Length
+      lc3Config.codecSpecific[1] = 0xFF;  //Vendor META data type
+      lc3Config.codecSpecific[2] = 0x0A;  //Qtil ID
+      lc3Config.codecSpecific[3] = 0x00;
+      lc3Config.codecSpecific[4] = 0x0B;  //Vendor Metadata length
+      lc3Config.codecSpecific[5] = 0x10;  //LC3Q Type
+      lc3Config.codecSpecific[6] = pclient_cbs[profile - 1]->get_lc3q_ver(); //0x01;  //LC3Q version
+    }
+
     lc3Config.defaultQlevel = 0;
     lc3Config.mode = pclient_cbs[profile - 1]->mode;
     lc3Config.rxConfigSet = 0;
@@ -1560,11 +1597,12 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
       lc3Config.txConfig.numBlocks = 1;
 
       lc3Config.rxConfigSet = 1;
-      lc3Config.rxConfig.sampleRate = ExtSampleRate::RATE_48000;
-      lc3Config.rxConfig.channelMode = LC3ChannelMode::STEREO;
-      lc3Config.rxConfig.bitrate = 80000;
-      lc3Config.rxConfig.octetsPerFrame = 100;
-      lc3Config.rxConfig.frameDuration = 10000;
+      lc3Config.rxConfig.sampleRate =
+                btif_lc3_sample_rate(pclient_cbs[profile - 1]->get_sample_rate_cb());
+      lc3Config.rxConfig.channelMode = btif_lc3_channel_mode(0x02);
+      lc3Config.rxConfig.bitrate = pclient_cbs[profile - 1]->get_bitrate_cb();
+      lc3Config.rxConfig.octetsPerFrame = pclient_cbs[profile - 1]->get_mtu_cb(0);
+      lc3Config.rxConfig.frameDuration = pclient_cbs[profile - 1]->get_frame_length_cb();
       lc3Config.rxConfig.bitsPerSample = BitsPerSample::BITS_24;
       lc3Config.rxConfig.numBlocks = 1;
     }
@@ -1601,16 +1639,6 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
         lc3Config.streamMap[(i*3)+2] = FROM_AIR;  // direction
       }
       lc3Config.NumStreamIDGroup += cis_count;
-
-      if (pclient_cbs[profile - 1]->get_is_codec_type_lc3q()) {
-        lc3Config.codecSpecific[0] = 0x0F;  //Vendor Metadata Length
-        lc3Config.codecSpecific[1] = 0xFF;  //Vendor META data type
-        lc3Config.codecSpecific[2] = 0x0A;  //Qtil ID
-        lc3Config.codecSpecific[3] = 0x00;
-        lc3Config.codecSpecific[4] = 0x0B;  //Vendor Metadata length
-        lc3Config.codecSpecific[5] = 0x10;  //LC3Q Type
-        lc3Config.codecSpecific[6] = pclient_cbs[profile - 1]->get_lc3q_ver(); //0x01;  //LC3Q version
-      }
     }
 
     codec_config->config.lc3Config = lc3Config;

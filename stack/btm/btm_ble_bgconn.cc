@@ -281,10 +281,11 @@ bool btm_add_dev_to_controller(bool to_add, const RawAddress& bd_addr) {
   } else {
     /* not a known device, i.e. attempt to connect to device never seen before
      */
-    if (to_add)
+    if (to_add) {
       background_connection_add(BLE_ADDR_PUBLIC, bd_addr);
-    else
+    } else {
       background_connection_remove(bd_addr);
+    }
   }
 
   return true;
@@ -359,6 +360,14 @@ bool btm_execute_wl_dev_operation(void) {
  ******************************************************************************/
 void btm_ble_white_list_init(uint8_t white_list_size) {
   BTM_TRACE_DEBUG("%s white_list_size = %d", __func__, white_list_size);
+}
+
+uint8_t BTM_GetWhiteListSize() {
+  const controller_t* controller = controller_get_interface();
+  if (!controller->supports_ble()) {
+    return 0;
+  }
+  return controller->get_ble_white_list_size();
 }
 
 bool BTM_SetLeConnectionModeToFast() {
@@ -542,4 +551,16 @@ void BTM_WhiteListClear() {
   btm_ble_stop_auto_conn();
   btsnd_hcic_ble_clear_white_list(base::Bind(&wl_clear_complete));
   background_connections_clear();
+}
+
+/** Returns the hci disconnect is in progress or not */
+bool BTM_GetLeDisconnectStatus(const RawAddress& address) {
+  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(address);
+
+  if (p_dev_rec != NULL) {
+    VLOG(1) << __func__ << " is_le_disc_pending " << p_dev_rec->is_le_disc_pending;
+    return p_dev_rec->is_le_disc_pending;
+  }
+
+  return false;
 }
