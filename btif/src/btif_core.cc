@@ -1048,6 +1048,7 @@ bt_status_t btif_set_adapter_property(const bt_property_t* property) {
   int storage_req_id = BTIF_CORE_STORAGE_NOTIFY_STATUS; /* default */
   char bd_name[BTM_MAX_LOC_BD_NAME_LEN + 1];
   uint16_t name_len = 0;
+  uint8_t conn_filter = BTA_DM_CONN_ALL;
 
   BTIF_TRACE_EVENT("btif_set_adapter_property type: %d, len %d, 0x%x",
                    property->type, property->len, property->val);
@@ -1083,6 +1084,7 @@ bt_status_t btif_set_adapter_property(const bt_property_t* property) {
         case BT_SCAN_MODE_CONNECTABLE:
           disc_mode = BTA_DM_NON_DISC;
           conn_mode = BTA_DM_CONN;
+          conn_filter = BTA_DM_CONN_PAIRED;
           break;
 
         case BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE:
@@ -1097,7 +1099,7 @@ bt_status_t btif_set_adapter_property(const bt_property_t* property) {
 
       BTIF_TRACE_EVENT("set property scan mode : %x", mode);
 
-      BTA_DmSetVisibility(disc_mode, conn_mode, BTA_DM_IGNORE, BTA_DM_IGNORE);
+      BTA_DmSetVisibility(disc_mode, conn_mode, BTA_DM_IGNORE, conn_filter);
 
       storage_req_id = BTIF_CORE_STORAGE_ADAPTER_WRITE;
     } break;
