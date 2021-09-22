@@ -225,13 +225,14 @@ std::string A2DP_CodecInfoStringAac(const uint8_t* p_codec_info);
 
 // Gets the A2DP AAC encoder interface that can be used to encode and prepare
 // A2DP packets for transmission - see |tA2DP_ENCODER_INTERFACE|.
+// |peer_address| is the peer address
 // |p_codec_info| contains the codec information.
 // Returns the A2DP AAC encoder interface if the |p_codec_info| is valid and
 // supported, otherwise NULL.
-/*
-const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceAac(
+A2dpEncoderInterface* A2DP_GetEncoderInterfaceAac(
+    const RawAddress& peer_address,
     const uint8_t* p_codec_info);
-*/
+
 // Gets the current A2DP AAC decoder interface that can be used to decode
 // received A2DP packets - see |tA2DP_DECODER_INTERFACE|.
 // |p_codec_info| contains the codec information.
