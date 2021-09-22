@@ -2985,6 +2985,7 @@ static void bta_dm_bl_change_cback(tBTM_BL_EVENT_DATA* p_data) {
     case BTM_BL_CONN_EVT:
       p_msg->is_new = true;
       p_msg->bd_addr = *p_data->conn.p_bda;
+      memcpy(p_msg->dc, p_data->conn.p_dc,sizeof(DEV_CLASS));
       p_msg->transport = p_data->conn.transport;
       p_msg->handle = p_data->conn.handle;
       break;
@@ -3303,6 +3304,7 @@ void bta_dm_acl_change(tBTA_DM_MSG* p_data) {
     bta_dm_cb.device_list.peer_device[i].conn_state = BTA_DM_CONNECTED;
     bta_dm_cb.device_list.peer_device[i].pref_role = BTA_ANY_ROLE;
     conn.link_up.bd_addr = p_bda;
+    memcpy(conn.link_up.dc, p_data->acl_change.dc, sizeof(DEV_CLASS));    
     bta_dm_cb.device_list.peer_device[i].info = BTA_DM_DI_NONE;
     conn.link_up.link_type = p_data->acl_change.transport;
     bta_dm_cb.device_list.peer_device[i].transport =
