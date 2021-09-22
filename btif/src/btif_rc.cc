@@ -3316,9 +3316,6 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
         break;
 
       case AVRC_EVT_UIDS_CHANGE:
-        do_in_jni_thread(
-            FROM_HERE, base::Bind(bt_rc_ctrl_callbacks->uids_changed_cb,
-                                  p_dev->rc_addr, p_rsp->param.uid_counter));
         break;
 
       case AVRC_EVT_TRACK_REACHED_END:
