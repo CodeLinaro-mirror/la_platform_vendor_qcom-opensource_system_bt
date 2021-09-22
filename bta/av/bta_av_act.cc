@@ -1479,8 +1479,11 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
     /* disconnected. */
     APPL_TRACE_DEBUG("%s: bta_av_cb.conn_lcb is %d", __func__,
                      bta_av_cb.conn_lcb);
-
-    p_lcb = bta_av_find_lcb(p_data->str_msg.bd_addr, BTA_AV_LCB_FREE);
+    /* let it have chance to send and handle the event
+     * BTA_AV_AVDT_DISCONNECT_EVT for signal channel to
+     * change the state of BtifAvStateMachine from opening to idle.
+     */
+    p_lcb = bta_av_find_lcb(p_data->str_msg.bd_addr, BTA_AV_LCB_FIND);
     if (p_lcb && (p_lcb->conn_msk || bta_av_cb.conn_lcb)) {
       APPL_TRACE_DEBUG("%s: conn_msk: 0x%x", __func__, p_lcb->conn_msk);
       /* clean up ssm  */
@@ -1502,6 +1505,7 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
         }
       }
     }
+    p_lcb = bta_av_find_lcb(p_data->str_msg.bd_addr, BTA_AV_LCB_FREE);
     if (p_lcb && !p_lcb->conn_msk) {
       /* stream and signal are both disconnected
        * clean peer_address_ for future connection
