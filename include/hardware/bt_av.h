@@ -104,8 +104,10 @@ typedef enum {
 
 typedef enum {
   BTAV_A2DP_CODEC_CHANNEL_MODE_NONE = 0x0,
-  BTAV_A2DP_CODEC_CHANNEL_MODE_MONO = 0x1 << 0,
-  BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO = 0x1 << 1
+  BTAV_A2DP_CODEC_CHANNEL_MODE_JOINT = 0x1 << 0,
+  BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO = 0x1 << 1,
+  BTAV_A2DP_CODEC_CHANNEL_MODE_DUAL = 0x1 << 2,
+  BTAV_A2DP_CODEC_CHANNEL_MODE_MONO = 0x1 << 3,
 } btav_a2dp_codec_channel_mode_t;
 
 #define CMD_ACCEPTED 0
@@ -224,6 +226,12 @@ typedef struct {
     AppendCapability(channel_mode_str,
                      (channel_mode & BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO),
                      "STEREO");
+    AppendCapability(channel_mode_str,
+                     (channel_mode & BTAV_A2DP_CODEC_CHANNEL_MODE_JOINT),
+                     "JOINT");
+    AppendCapability(channel_mode_str,
+                     (channel_mode & BTAV_A2DP_CODEC_CHANNEL_MODE_DUAL),
+                     "DUAL");
 
     return "codec: " + codec_name_str + " sample_rate: " + sample_rate_str +
            " bits_per_sample: " + bits_per_sample_str +
