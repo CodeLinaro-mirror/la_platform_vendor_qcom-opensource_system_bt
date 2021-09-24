@@ -1030,6 +1030,11 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
       BTIF_TRACE_EVENT("The AV Handle:%d", ((tBTA_AV*)p_data)->registr.hndl);
       btif_av_cb[index].bta_handle = ((tBTA_AV*)p_data)->registr.hndl;
       btif_read_adapter_property(BT_PROPERTY_CLASS_OF_DEVICE);
+      if (btif_max_av_clients == index + 1) {
+         if (bt_av_src_vendor_callbacks != NULL) {
+            HAL_CBACK(bt_av_src_vendor_callbacks, registration_vendor_cb, TRUE);
+         }
+      }
       break;
     case BTIF_AV_CONNECT_REQ_EVT: {
         btif_av_connect_req_t* connect_req_p = (btif_av_connect_req_t*)p_data;
