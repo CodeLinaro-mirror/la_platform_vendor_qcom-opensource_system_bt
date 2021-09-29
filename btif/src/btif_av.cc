@@ -3540,7 +3540,9 @@ uint64_t btif_update_reported_delay(uint64_t inst_delay) {
       break;
   }
 
-  average_delay = (sum_delay / count);
+  if (count > 0) {
+    average_delay = (sum_delay / count);
+  }
   BTIF_TRACE_DEBUG("%s: ~~inst_delay = [%09llu](ns) average_delay = [%09llu](ns),Delay records = %d",
                     __func__,inst_delay, average_delay, count);
   return average_delay;

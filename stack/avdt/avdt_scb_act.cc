@@ -973,7 +973,7 @@ void avdt_scb_hdl_tc_open(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
     delay_rpt_alarm = alarm_new_periodic("avdt.delayreport");
     alarm_set(delay_rpt_alarm, (uint64_t)(SINK_DRT_ALARM_INTERVAL),(alarm_callback_t)avdt_delay_rpt_tmr_hdlr,
               (void*)p_scb);
-    AVDT_TRACE_DEBUG("%s: set alarm interval:%ldms", __func__, (uint64_t)(SINK_DRT_ALARM_INTERVAL));
+    AVDT_TRACE_DEBUG("%s: set alarm interval:%llums", __func__, (uint64_t)(SINK_DRT_ALARM_INTERVAL));
   }
 #endif
 
