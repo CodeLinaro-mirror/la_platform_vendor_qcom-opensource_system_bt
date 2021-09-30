@@ -669,7 +669,8 @@ static void btif_a2dp_sink_avk_handle_timer(fixed_queue_t* queue, tMEDIA_HANDLER
                      fixed_queue_length(queue));
 
 #if (A2DP_SINK_DELAY_REPORT == TRUE)
-    if (btif_is_sink_delay_report_supported()) {
+    if (btif_is_sink_delay_report_supported() &&
+        handler == btif_a2dp_sink_handle_inc_media) {
       struct timespec ts_now;
       uint64_t curr_time;
       clock_gettime(CLOCK_BOOTTIME, &ts_now);
