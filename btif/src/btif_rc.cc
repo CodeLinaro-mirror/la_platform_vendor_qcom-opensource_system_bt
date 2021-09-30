@@ -3048,7 +3048,7 @@ static void btif_rc_play_status_timeout_handler(UNUSED_ATTR uint16_t event,
 static void btif_rc_play_status_timer_timeout(void* data) {
   btif_rc_handle_t rc_handle;
   rc_handle.handle = PTR_TO_UINT(data);
-  BTIF_TRACE_DEBUG("%s called with handle: %d", __func__, rc_handle);
+  BTIF_TRACE_DEBUG("%s called with handle: %d", __func__, rc_handle.handle);
   btif_transfer_context(btif_rc_play_status_timeout_handler, 0,
                         (char*)(&rc_handle), sizeof(btif_rc_handle_t), NULL);
 }
