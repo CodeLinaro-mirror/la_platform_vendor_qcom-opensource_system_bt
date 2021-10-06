@@ -603,6 +603,8 @@ static int a2dp_read_output_audio_config(
       stream_config.channel_mask = AUDIO_CHANNEL_OUT_MONO;
       stream_config.is_stereo_to_mono = false;
       break;
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_JOINT:
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_DUAL:
     case BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO:
       stream_config.channel_mask = AUDIO_CHANNEL_OUT_STEREO;
       stream_config.is_stereo_to_mono = false;
@@ -1156,6 +1158,8 @@ size_t audio_a2dp_hw_stream_compute_buffer_size(
     case BTAV_A2DP_CODEC_CHANNEL_MODE_MONO:
       number_of_channels = 1;
       break;
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_JOINT:
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_DUAL:
     case BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO:
       number_of_channels = 2;
       break;
@@ -1367,7 +1371,9 @@ static char* out_get_parameters(const struct audio_stream* stream,
       if (!param.empty()) param += "|";
       param += "AUDIO_CHANNEL_OUT_MONO";
     }
-    if (codec_capability.channel_mode & BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO) {
+    if ((codec_capability.channel_mode & BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO) ||
+        (codec_capability.channel_mode & BTAV_A2DP_CODEC_CHANNEL_MODE_JOINT) ||
+        (codec_capability.channel_mode & BTAV_A2DP_CODEC_CHANNEL_MODE_DUAL)) {
       if (!param.empty()) param += "|";
       param += "AUDIO_CHANNEL_OUT_STEREO";
     }

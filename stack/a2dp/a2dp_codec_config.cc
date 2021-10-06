@@ -484,6 +484,14 @@ std::string A2dpCodecConfig::codecChannelMode2Str(
     if (!result.empty()) result += "|";
     result += "STEREO";
   }
+  if (codec_channel_mode & BTAV_A2DP_CODEC_CHANNEL_MODE_JOINT) {
+    if (!result.empty()) result += "|";
+    result += "JOINT";
+  }
+  if (codec_channel_mode & BTAV_A2DP_CODEC_CHANNEL_MODE_DUAL) {
+    if (!result.empty()) result += "|";
+    result += "DUAL";
+  }
   if (result.empty()) {
     std::stringstream ss;
     ss << "UnknownChannelMode(0x" << std::hex << codec_channel_mode << ")";
