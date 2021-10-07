@@ -184,6 +184,22 @@ static void bta_dm_pm_stop_timer(const RawAddress& peer_addr) {
 
 /*******************************************************************************
  *
+ * Function         bta_dm_pm_stop_timer_helper
+ *
+ * Description      Helper method to stop PM timer when we receive pm_conn_busy
+ *                  event.
+ *
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void bta_dm_pm_stop_timer_helper(const RawAddress& peer_addr) {
+  APPL_TRACE_DEBUG("%s: ", __func__);
+  bta_dm_pm_stop_timer(peer_addr);
+}
+
+/*******************************************************************************
+ *
  * Function         bta_pm_action_to_timer_idx
  *
  * Description      convert power mode into timer index for each connected
