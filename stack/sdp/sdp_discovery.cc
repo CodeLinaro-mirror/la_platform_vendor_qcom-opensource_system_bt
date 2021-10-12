@@ -1055,9 +1055,18 @@ static uint8_t* add_attr(uint8_t* p, uint8_t* p_end, tSDP_DISCOVERY_DB* p_db,
           p_parent_attr, p_parent_attr->attr_id, p_attr, p_attr->attr_id); */
     } else {
       tSDP_DISC_ATTR* p_attr1 = p_parent_attr->attr_value.v.p_sub_attr;
-      /* SDP_TRACE_DEBUG ("parent:0x%x(id:%d), ch1:0x%x(id:%d)",
-          p_parent_attr, p_parent_attr->attr_id, p_attr1, p_attr1->attr_id); */
-
+      SDP_TRACE_DEBUG ("parent:0x%x(id:%d), ch1:0x%x(id:%d)",
+          p_parent_attr, p_parent_attr->attr_id, p_attr1, p_attr1->attr_id);
+      if (p_attr1 == NULL)
+      {
+        SDP_TRACE_DEBUG ("SDP - add_attr - Attribute is null");
+        return (p);
+      }
+      if (p_attr1->p_next_attr == NULL)
+      {
+        SDP_TRACE_DEBUG ("SDP - add_attr - Attribute to next is null");
+        return (p);
+      }
       while (p_attr1->p_next_attr) p_attr1 = p_attr1->p_next_attr;
 
       p_attr1->p_next_attr = p_attr;
