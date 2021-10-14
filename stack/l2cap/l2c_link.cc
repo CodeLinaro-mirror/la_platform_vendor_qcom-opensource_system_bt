@@ -522,6 +522,7 @@ bool l2c_link_hci_disc_comp(uint16_t handle, uint8_t reason) {
      }
       if (l2cu_create_conn(p_lcb, transport)) {
         lcb_is_free = false; /* still using this lcb */
+        p_lcb->handle = HCI_INVALID_HANDLE;
         p_lcb->link_role = HCI_ROLE_MASTER; /* reset to default role */
       }
     }
@@ -1007,6 +1008,9 @@ bool l2c_link_check_power_mode(tL2C_LCB* p_lcb) {
   tBTM_PM_MODE mode;
   tL2C_CCB* p_ccb;
   bool need_to_active = false;
+
+  // Return false as LM modes are applicable for BREDR transport
+  if (p_lcb->transport == BT_TRANSPORT_LE) return false;
 
   /*
    * We only switch park to active only if we have unsent packets
