@@ -57,6 +57,7 @@
 #include "device/include/device_iot_config.h"
 #include "controller.h"
 #include <btcommon_interface_defs.h>
+#include <cutils/properties.h>
 
 static void btm_read_remote_features(uint16_t handle);
 static void btm_read_remote_ext_features(uint16_t handle, uint8_t page_number);
@@ -1885,6 +1886,7 @@ bool BTM_FreeSCN(uint8_t scn) {
  ******************************************************************************/
 tBTM_STATUS btm_set_packet_types(tACL_CONN* p, uint16_t pkt_types) {
   uint16_t temp_pkt_types;
+  char pkt_type[PROPERTY_VALUE_MAX];
   BTM_TRACE_DEBUG("btm_set_packet_types");
   /* Save in the ACL control blocks, types that we support */
   temp_pkt_types = (pkt_types & BTM_ACL_SUPPORTED_PKTS_MASK &
@@ -1897,6 +1899,74 @@ tBTM_STATUS btm_set_packet_types(tACL_CONN* p, uint16_t pkt_types) {
 
   /* Exclude packet types not supported by the peer */
   btm_acl_chk_peer_pkt_type_support(p, &temp_pkt_types);
+
+  /* Check if supported packet types is set by property otherwise use default */
+  property_get("persist.vendor.btstack.bredr.pkttype",pkt_type,"null");
+  if(!(strcmp(pkt_type, "null") == 0))
+  {
+     BTM_TRACE_DEBUG("Supported packet types is set by property : %s",pkt_type);
+     char* tok = NULL;
+     char* tmp_token = NULL;
+     tok = strtok_r((char*)pkt_type, "-", &tmp_token);
+     temp_pkt_types = (BTM_ACL_PKT_TYPES_MASK_NO_2_DH1 + BTM_ACL_PKT_TYPES_MASK_NO_2_DH3 + BTM_ACL_PKT_TYPES_MASK_NO_2_DH5)
+                      + (BTM_ACL_PKT_TYPES_MASK_NO_3_DH1 + BTM_ACL_PKT_TYPES_MASK_NO_3_DH3 + BTM_ACL_PKT_TYPES_MASK_NO_3_DH5);
+
+     while (tok != NULL) {
+      if (strcmp(tok, "DH1") == 0) {
+        BTM_TRACE_DEBUG("Adding DH1 to supported packet types");
+        temp_pkt_types |= BTM_ACL_PKT_TYPES_MASK_DH1;
+      }
+      else if(strcmp(tok, "DH3") == 0) {
+        BTM_TRACE_DEBUG("Adding DH3 to supported packet types");
+        temp_pkt_types |= BTM_ACL_PKT_TYPES_MASK_DH3;
+      }
+      else if(strcmp(tok, "DH5") == 0) {
+        BTM_TRACE_DEBUG("Adding DH5 to supported packet types");
+        temp_pkt_types |= BTM_ACL_PKT_TYPES_MASK_DH5;
+      }
+      else if(strcmp(tok, "DM1") == 0) {
+        BTM_TRACE_DEBUG("Adding DM1 to supported packet types");
+        temp_pkt_types |= BTM_ACL_PKT_TYPES_MASK_DM1;
+      }
+      else if(strcmp(tok, "DM3") == 0) {
+        BTM_TRACE_DEBUG("Adding DM3 to supported packet types");
+        temp_pkt_types |= BTM_ACL_PKT_TYPES_MASK_DM3;
+      }
+      else if(strcmp(tok, "DM5") == 0) {
+        BTM_TRACE_DEBUG("Adding DM5 to supported packet types");
+        temp_pkt_types |= BTM_ACL_PKT_TYPES_MASK_DM5;
+      }
+      else if(strcmp(tok, "2DH1") == 0) {
+        BTM_TRACE_DEBUG("Adding 2DH1 to supported packet types");
+        temp_pkt_types &= ~(BTM_ACL_PKT_TYPES_MASK_NO_2_DH1);
+      }
+      else if(strcmp(tok, "2DH3") == 0) {
+        BTM_TRACE_DEBUG("Adding 2DH3 to supported packet types");
+        temp_pkt_types &= ~(BTM_ACL_PKT_TYPES_MASK_NO_2_DH3);
+      }
+      else if(strcmp(tok, "2DH5") == 0) {
+        BTM_TRACE_DEBUG("Adding 2DH5 to supported packet types");
+        temp_pkt_types &= ~(BTM_ACL_PKT_TYPES_MASK_NO_2_DH5);
+      }
+      else if(strcmp(tok, "3DH1") == 0) {
+        BTM_TRACE_DEBUG("Adding 3DH1 to supported packet types");
+        temp_pkt_types &= ~(BTM_ACL_PKT_TYPES_MASK_NO_3_DH1);
+      }
+      else if(strcmp(tok, "3DH3") == 0) {
+        BTM_TRACE_DEBUG("Adding 3DH3 to supported packet types");
+        temp_pkt_types &= ~(BTM_ACL_PKT_TYPES_MASK_NO_3_DH3);
+      }
+      else if(strcmp(tok, "3DH5") == 0) {
+        BTM_TRACE_DEBUG("Adding 3DH5 to supported packet types");
+        temp_pkt_types &= ~(BTM_ACL_PKT_TYPES_MASK_NO_3_DH5);
+      }
+      tok = strtok_r(NULL, "-", &tmp_token);
+     }
+  }
+  else
+  {
+   BTM_TRACE_DEBUG("Packet types is not set by property, use default supported packet types");
+  }
 
   BTM_TRACE_DEBUG("SetPacketType Mask -> 0x%04x", temp_pkt_types);
 
