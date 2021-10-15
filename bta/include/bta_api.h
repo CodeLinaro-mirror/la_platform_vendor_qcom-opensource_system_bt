@@ -544,6 +544,7 @@ typedef struct {
 /* Structure associated with BTA_DM_LINK_UP_EVT */
 typedef struct {
   RawAddress bd_addr; /* BD address peer device. */
+  DEV_CLASS dc;
   tBTA_TRANSPORT link_type;
 } tBTA_DM_LINK_UP;
 
