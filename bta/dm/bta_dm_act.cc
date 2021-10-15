@@ -1557,7 +1557,11 @@ void bta_dm_inq_cmpl(tBTA_DM_MSG* p_data) {
  ******************************************************************************/
 void bta_dm_rmt_name(tBTA_DM_MSG* p_data) {
   APPL_TRACE_DEBUG("bta_dm_rmt_name");
-
+  if(BTM_IsInquiryActive())
+  {
+     /*we shall not rx remote name evt when inquiry active */
+     return;
+  }
   if (p_data->rem_name.result.disc_res.bd_name[0] &&
       bta_dm_search_cb.p_btm_inq_info) {
     bta_dm_search_cb.p_btm_inq_info->appl_knows_rem_name = true;
