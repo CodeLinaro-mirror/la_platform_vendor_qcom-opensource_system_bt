@@ -1576,6 +1576,7 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
   tBTA_AV_CB* p_cb = &bta_av_cb;
   uint32_t xx;
   uint8_t mask;
+  uint8_t sep_type;
   tBTA_AV_LCB* p_lcb = NULL;
 
   APPL_TRACE_IMP("%s:bta_av_sig_chg event: %d", __func__, event);
@@ -1674,6 +1675,26 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
   }
 #if (BTA_AR_INCLUDED == TRUE)
   else if (event == BTA_AR_AVDT_CONN_EVT) {
+    sep_type = get_remote_sep_type(p_data->str_msg.bd_addr);
+    if((sep_type & BTA_AR_EXT_AV_MASK) && (sep_type & BTA_AR_EXT_AVK_MASK))
+      {
+        p_lcb = bta_av_find_lcb(p_data->str_msg.bd_addr, BTA_AV_LCB_FREE);
+        if (p_lcb)
+        {
+        /* clean up ssm  */
+        for(xx=0; xx < BTA_AV_NUM_STRS; xx++)
+          {
+             APPL_TRACE_DEBUG("conn_idx: 0x%x", xx);
+             if ((p_cb->p_scb[xx]) &&
+                 (p_cb->p_scb[xx]->peer_addr ==  p_data->str_msg.bd_addr))
+             {
+               APPL_TRACE_DEBUG("%s: Sending AVDT_DISCONNECT_EVT", __func__);
+               bta_av_ssm_execute(p_cb->p_scb[xx], BTA_AV_AVDT_DISCONNECT_EVT, NULL);
+               bta_av_str_closed(p_cb->p_scb[xx], p_data);
+             }
+           }
+        }
+      }
     alarm_cancel(bta_av_cb.link_signalling_timer);
   }
 #endif
