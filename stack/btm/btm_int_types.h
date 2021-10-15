@@ -125,6 +125,9 @@ typedef struct {
   tBTM_CMPL_CB* p_rln_cmpl_cb;    /* Callback function to be called when  */
                                   /* read local name function complete    */
 
+  tBTM_CMPL_CB *p_rc_cmpl_cb;     /* Callback function to be called when */
+                                  /* read clock function complete */
+
   alarm_t* read_rssi_timer;       /* Read RSSI timer */
   tBTM_CMPL_CB* p_rssi_cmpl_cb;   /* Callback function to be called when  */
                                   /* read RSSI function completes */

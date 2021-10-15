@@ -507,6 +507,37 @@ tBTM_STATUS BTM_ReadLocalDeviceNameFromController(
   return BTM_CMD_STARTED;
 }
 
+tBTM_STATUS BTM_ReadClock(uint16_t handle, int which_clock, tBTM_CMPL_CB *p_rc_cmpl_cback)
+{
+    btm_cb.devcb.p_rc_cmpl_cb = p_rc_cmpl_cback;
+    btsnd_hcic_read_clock(handle, which_clock);
+    return BTM_CMD_STARTED;
+}
+
+void btm_read_clock_complete(uint8_t *p)
+{
+    tBTM_CMPL_CB *p_cb = btm_cb.devcb.p_rc_cmpl_cb;
+    uint8_t status;
+    BTM_TRACE_DEBUG("%s", __func__);
+    bt_clock_info clk_info;
+
+    if (p_cb)
+    {
+        STREAM_TO_UINT8  (clk_info.status, p);
+        BTM_TRACE_DEBUG("%s status:%d", __func__, clk_info.status);
+
+        if (clk_info.status == HCI_SUCCESS) {
+            STREAM_TO_UINT16 (clk_info.handle, p);
+            BTM_TRACE_DEBUG("%s handle:%d", __func__, clk_info.handle);
+            STREAM_TO_UINT32 (clk_info.clock, p);
+            BTM_TRACE_DEBUG("%s clock:0x%x", __func__, clk_info.clock);
+            STREAM_TO_UINT16 (clk_info.accuracy, p);
+            BTM_TRACE_DEBUG("%s accuracy:0x%x", __func__, clk_info.accuracy);
+        }
+        (p_cb)(&clk_info);
+    }
+}
+
 /*******************************************************************************
  *
  * Function         btm_read_local_name_complete

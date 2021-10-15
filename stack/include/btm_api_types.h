@@ -695,6 +695,14 @@ typedef struct {
   uint8_t num_resp; /* Number of results from the current inquiry */
 } tBTM_INQUIRY_CMPL;
 
+typedef struct
+{
+    uint8_t hci_status;
+    uint16_t handle;
+    uint32_t clock;
+    uint16_t accuracy;
+} tBTM_CLOCK_RESULTS;
+
 /* Structure returned with remote name  request */
 typedef struct {
   uint16_t status;

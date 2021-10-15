@@ -132,6 +132,17 @@ extern tBTM_STATUS BTM_ReadLocalDeviceNameFromController(
 
 /*******************************************************************************
  *
+ * Function         BTM_ReadClock
+ *
+ * Description      Read Clock
+ *
+ * Returns          BTM_CMD_STARTED if successful, otherwise an error
+ *
+*******************************************************************************/
+extern tBTM_STATUS BTM_ReadClock(uint16_t handle, int which_clock, tBTM_CMPL_CB *p_rc_cmpl_cback);
+
+/*******************************************************************************
+ *
  * Function         BTM_ReadDeviceClass
  *
  * Description      This function is called to read the local device class

@@ -270,6 +270,7 @@ static size_t btif_events_end_index = 0;
  *  Static functions
  *****************************************************************************/
 static btif_dm_pairing_cb_t pairing_cb;
+static int btif_dm_read_clock_flag = 0;
 static btif_dm_oob_cb_t oob_cb;
 static uint16_t num_active_br_edr_links;
 static uint16_t num_active_le_links;
@@ -2453,6 +2454,16 @@ static void btif_dm_generic_evt(uint16_t event, char* p_param) {
       HAL_CBACK(bt_hal_cbacks, le_test_mode_cb,
                 (status == 0) ? BT_STATUS_SUCCESS : BT_STATUS_FAIL, count);
     } break;
+
+    case BTIF_DM_READ_CLOCK_CMPL_EVT: {
+      bt_clock_info clk_info;
+      memcpy(&clk_info, p_param, sizeof(bt_clock_info));
+      BTIF_TRACE_ERROR("%s clock:0x%.8x",__func__, clk_info.clock);
+      BTIF_TRACE_ERROR("%s clock:0x%x",__func__, clk_info.clock);
+      btif_dm_read_clock_flag = 0;
+      HAL_CBACK(bt_hal_cbacks,read_clock_cb,&clk_info);
+    } break;
+
     default: {
       BTIF_TRACE_WARNING("%s : Unknown event 0x%x", __func__, event);
     } break;
@@ -2758,6 +2769,44 @@ bt_status_t btif_dm_create_bond_out_of_band(
   BTIF_TRACE_EVENT("%s: bd_addr=%s, transport=%d", __func__,
                    bd_addr->ToString().c_str(), transport);
   return btif_dm_create_bond(bd_addr, transport);
+}
+
+void btif_dm_read_clock_cmpl_evt(void *p)
+{
+    tBTM_CLOCK_RESULTS * p_results = (tBTM_CLOCK_RESULTS *)p;
+    BTIF_TRACE_EVENT("%s clock:0x%.8x",__func__, p_results->clock);
+    BTIF_TRACE_EVENT("%s clock:0x%x",__func__, p_results->clock);
+    btif_transfer_context(btif_dm_generic_evt, BTIF_DM_READ_CLOCK_CMPL_EVT,
+                          (char*)p, sizeof(bt_clock_info), NULL);
+}
+
+bt_status_t btif_dm_read_clock(const RawAddress* bd_addr, int which_clock)
+{
+    BTIF_TRACE_EVENT("%s which_clock:%d",__func__, which_clock);
+    bt_status_t status = BT_STATUS_SUCCESS;
+    tBTM_SEC_DEV_REC* p_dev_rec;
+    uint16_t handle = 0;
+    if(btif_dm_read_clock_flag)
+    {
+        status = BT_STATUS_BUSY;
+    }
+
+    if(which_clock) {
+        p_dev_rec = btm_find_dev(*bd_addr);
+        if(!p_dev_rec) {
+            status = BT_STATUS_PARM_INVALID;
+       } else {
+           handle = p_dev_rec->hci_handle;
+       }
+    }
+
+    if(status != BT_STATUS_SUCCESS)
+        return status;
+
+    //btsnd_hci_read_clock(handle, which_clock);
+    BTM_ReadClock(handle, which_clock, (tBTM_CMPL_CB *) btif_dm_read_clock_cmpl_evt);
+    btif_dm_read_clock_flag = 1;
+    return BT_STATUS_SUCCESS;
 }
 
 /*******************************************************************************
