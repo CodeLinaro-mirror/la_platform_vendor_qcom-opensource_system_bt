@@ -77,7 +77,8 @@ void uid_set_add_tx(uid_set_t* set, int32_t app_uid, uint64_t bytes) {
 
   std::unique_lock<std::mutex> guard(set_lock);
   uid_set_node_t* node = uid_set_find_or_create_node(set, app_uid);
-  node->data.tx_bytes += bytes;
+  if (node)
+    node->data.tx_bytes += bytes;
 }
 
 void uid_set_add_rx(uid_set_t* set, int32_t app_uid, uint64_t bytes) {
@@ -85,7 +86,8 @@ void uid_set_add_rx(uid_set_t* set, int32_t app_uid, uint64_t bytes) {
 
   std::unique_lock<std::mutex> guard(set_lock);
   uid_set_node_t* node = uid_set_find_or_create_node(set, app_uid);
-  node->data.rx_bytes += bytes;
+  if (node)
+    node->data.rx_bytes += bytes;
 }
 
 bt_uid_traffic_t* uid_set_read_and_clear(uid_set_t* set) {
