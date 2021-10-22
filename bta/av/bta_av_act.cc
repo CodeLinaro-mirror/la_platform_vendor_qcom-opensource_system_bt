@@ -1894,7 +1894,8 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
     rc_handle = p_cb->disc & (~BTA_AV_CHNL_MSK);
   } else {
     /* Validate array index*/
-    if (((p_cb->disc & BTA_AV_HNDL_MSK) - 1) < BTA_AV_NUM_STRS) {
+    if ((((p_cb->disc & BTA_AV_HNDL_MSK) - 1) < BTA_AV_NUM_STRS) &&
+      (((p_cb->disc & BTA_AV_HNDL_MSK) - 1) >= 0)) {
       p_scb = p_cb->p_scb[(p_cb->disc & BTA_AV_HNDL_MSK) - 1];
     }
     if (p_scb) {
@@ -2002,6 +2003,11 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
        * we still need to send RC feature event. So we need to get BD
        * from Message.  Note that lidx is 1 based not 0 based
        */
+      if (p_cb->rcb[rc_handle].lidx == 0){
+        APPL_TRACE_ERROR("%s: incorrect index of LCB 0x%x", __func__,
+                             p_cb->rcb[rc_handle].lidx);
+        return;
+      }
       rc_feat.peer_addr = p_cb->lcb[p_cb->rcb[rc_handle].lidx - 1].addr;
     } else {
       rc_feat.peer_addr = p_scb->PeerAddress();
