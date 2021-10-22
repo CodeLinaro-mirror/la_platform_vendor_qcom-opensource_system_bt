@@ -44,7 +44,8 @@
 #include "device/include/interop.h"
 #include "btif/include/btif_storage.h"
 
-
+//declare sep_info global
+tAVDT_SEP_INFO sep_info[AVDT_NUM_SEPS];
 /*******************************************************************************
  *
  * Function         avdt_ccb_clear_ccb
@@ -173,7 +174,6 @@ static int avdt_ccb_get_num_allocated_seps() {
  *
  ******************************************************************************/
 void avdt_ccb_hdl_discover_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
-  tAVDT_SEP_INFO sep_info[AVDT_NUM_SEPS];
   tAVDT_SCB* p_scb = &avdt_cb.scb[0];
   int i;
   int num_conn = avdt_scb_get_max_av_client();
