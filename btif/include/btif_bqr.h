@@ -51,6 +51,9 @@ namespace bqr {
 //     connection fail event to the host. However, if remote doesn't respond
 //     at all(most likely remote is powered off or out of range), controller
 //     will not report this event.
+//   [Debug Info]
+//     Enable/disable the Controller Debug information mechanism
+//     on the controller side.
 
 // Bit masks for the selected quality event reporting.
 static constexpr uint32_t kQualityEventMaskAllOff = 0;
@@ -60,10 +63,12 @@ static constexpr uint32_t kQualityEventMaskA2dpAudioChoppy = 0x00000004;
 static constexpr uint32_t kQualityEventMaskScoVoiceChoppy = 0x00000008;
 static constexpr uint32_t kQualityEventMaskRootInflammation = 0x00000010;
 static constexpr uint32_t kQualityEventMaskConnectFail = 0x80000000;
+static constexpr uint32_t kQualityEventMaskDebugInfo = 0x00040000;
 static constexpr uint32_t kQualityEventMaskAll =
     kQualityEventMaskMonitorMode | kQualityEventMaskApproachLsto |
     kQualityEventMaskA2dpAudioChoppy | kQualityEventMaskScoVoiceChoppy |
-    kQualityEventMaskRootInflammation | kQualityEventMaskConnectFail;
+    kQualityEventMaskRootInflammation | kQualityEventMaskConnectFail |
+    kQualityEventMaskDebugInfo;
 // Define the minimum time interval (in ms) of quality event reporting for the
 // selected quality event(s). Controller Firmware should not report the next
 // event within the defined time interval.
@@ -71,6 +76,10 @@ static constexpr uint16_t kMinReportIntervalNoLimit = 0;
 static constexpr uint16_t kMinReportIntervalMaxMs = 0xFFFF;
 // Total length of all BQR parameters except Vendor Specific Parameters.
 static constexpr uint8_t kBqrParamTotalLen = 48;
+/* Total length of all parameters of the ROOT_INFLAMMATION event except Vendor
+ * Specific Parameters.
+ */
+static constexpr uint8_t kRootInflammationParamTotalLen = 3;
 // Warning criteria of the RSSI value.
 static constexpr int8_t kCriWarnRssi = -80;
 // Warning criteria of the unused AFH channel count.
@@ -112,6 +121,11 @@ enum BqrQualityReportId : uint8_t {
   QUALITY_REPORT_ID_ROOT_INFLAMMATION = 0x05,
   //Vendor Specific Report IDs from 0x20
   QUALITY_REPORT_ID_CONNECT_FAIL = 0x20,
+};
+
+// BQR RIE vendor specific params IDs
+enum BqrRieVsParamsId : uint8_t {
+  PC_ADDRESS = 0x01
 };
 
 // Packet Type definition
@@ -285,6 +299,16 @@ void BqrVscCompleteCallback(tBTM_VSC_CMPL* p_vsc_cmpl_params);
 // @param p_quality_report A pointer to the quality report which is sent from
 //   the Bluetooth controller via Vendor Specific Event.
 void AddBqrEventToQueue(uint8_t length, uint8_t* p_stream);
+
+// Parse the different type of Vendor Specific BQR RIE parameter.
+//
+// @param param_id Type of Vendor Specific BQR RIE parameter.
+//
+// @param p_quality_report A pointer to the quality report which is sent from
+//   the Bluetooth controller via Vendor Specific Event.
+//
+// @return a string representation of the parameter value
+std::string ParseVsBqrRieParams(BqrRieVsParamsId param_id, uint8_t** p_stream, int& pending_bytes);
 
 }  // namespace bqr
 }  // namespace bluetooth

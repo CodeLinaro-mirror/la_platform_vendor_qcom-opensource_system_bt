@@ -1251,6 +1251,12 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
                    pairing_cb.state, p_auth_cmpl->success,
                    p_auth_cmpl->key_present);
 
+  if (btm_get_bond_type_dev(p_auth_cmpl->bd_addr) == BOND_TYPE_PERSISTENT) {
+    BTIF_TRACE_DEBUG("%s: setting bond type for persistance pairing",
+                     __func__);
+    pairing_cb.bond_type = BOND_TYPE_PERSISTENT;
+  }
+
   RawAddress bd_addr = p_auth_cmpl->bd_addr;
   if ((p_auth_cmpl->success == true) && (p_auth_cmpl->key_present)) {
     if ((p_auth_cmpl->key_type < HCI_LKEY_TYPE_DEBUG_COMB) ||
@@ -1693,16 +1699,12 @@ static void btif_dm_search_services_evt(uint16_t event, char* p_param) {
           BTIF_TRACE_WARNING(
             "%s: SDP reached to maximum attempts, sending bond fail to upper layers",
             __func__);
-          /* For HID pointing device upon authentication is successful, SDP
-           * is delayed by 500ms and bond state is updated to BONDED from bonding.
-           * When SDP failed deleting bonded device from the database and sending
-           * disconnect before moving bond state to BOND NONE.
-           */
-          if (check_cod(&bd_addr, COD_HID_POINTING)) {
-            BTIF_TRACE_WARNING("%s: deleting bonded device from database", __func__);
-            btif_storage_remove_bonded_device(&bd_addr);
-            BTA_DmRemoveDevice(bd_addr);
-          }
+          /* When SDP failed, deleting bonded device from the database and sending
+          * disconnect before moving bond state to BOND NONE.
+          */
+          BTIF_TRACE_WARNING("%s: deleting bonded device from database", __func__);
+          btif_storage_remove_bonded_device(&bd_addr);
+          BTA_DmRemoveDevice(bd_addr);
           pairing_cb.sdp_attempts = 0;
           bond_state_changed(BT_STATUS_FAIL, pairing_cb.bd_addr, BT_BOND_STATE_NONE);
           return;
@@ -2017,7 +2019,6 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
           (tBTA_SERVICE_MASK)(BTA_SERVICE_ID_TO_SERVICE_MASK(BTA_BLE_SERVICE_ID))) {
         btif_in_execute_service_request(BTA_BLE_SERVICE_ID, FALSE);
       }
-      bluetooth::bqr::EnableBtQualityReport(false);
       btif_disable_bluetooth_evt();
       break;
 
@@ -2400,6 +2401,11 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
      }
 
     break;
+
+    case BTA_DM_DISABLE_BQR_EVT: {
+      bluetooth::bqr::EnableBtQualityReport(false);
+      break;
+    }
 
     case BTA_DM_AUTHORIZE_EVT:
     case BTA_DM_SIG_STRENGTH_EVT:

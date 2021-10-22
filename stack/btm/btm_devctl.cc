@@ -107,6 +107,17 @@ void btm_dev_init(void) {
       ESCO_PKT_TYPES_MASK_EV4 + ESCO_PKT_TYPES_MASK_EV5;
 }
 
+void btm_dev_free() {
+  alarm_free(btm_cb.devcb.read_local_name_timer);
+  alarm_free(btm_cb.devcb.read_rssi_timer);
+  alarm_free(btm_cb.devcb.read_failed_contact_counter_timer);
+  alarm_free(btm_cb.devcb.read_automatic_flush_timeout_timer);
+  alarm_free(btm_cb.devcb.read_link_quality_timer);
+  alarm_free(btm_cb.devcb.read_inq_tx_power_timer);
+  alarm_free(btm_cb.devcb.qos_setup_timer);
+  alarm_free(btm_cb.devcb.read_tx_power_timer);
+}
+
 /*******************************************************************************
  *
  * Function         btm_db_reset
@@ -873,7 +884,22 @@ void btm_vendor_specific_evt(uint8_t* p, uint8_t evt_len) {
         decode_crash_reason(pp, (evt_len - 2));
         return;
       }
-   }
+  } else if (HCI_VSE_SUBCODE_QBCE == vse_subcode) {
+    uint8_t vse_msg_type;
+
+    STREAM_TO_UINT8(vse_msg_type, pp);
+    BTM_TRACE_DEBUG("%s: QBCE VSE event received, msg = %x", __func__,
+                     vse_msg_type);
+    switch(vse_msg_type) {
+      case MSG_QBCE_QCM_PHY_CHANGE:
+        btm_acl_update_qcm_phy_state(pp);
+        break;
+      default:
+        BTM_TRACE_ERROR("%s: unknown msg type: %d", __func__, vse_msg_type);
+        break;
+    }
+    return;
+  }
 
   BTM_TRACE_DEBUG("BTM Event: Vendor Specific event from controller");
 

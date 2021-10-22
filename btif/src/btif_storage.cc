@@ -983,6 +983,8 @@ bt_status_t btif_storage_remove_bonded_device(
     ret &= btif_config_remove(bdstr, "ProductVersion");
   if (btif_config_exist(bdstr, MAP_MCE_VERSION_CONFIG_KEY))
     ret &= btif_config_remove(bdstr, MAP_MCE_VERSION_CONFIG_KEY);
+  if (btif_config_exist(bdstr, "QCM_PHY_STATE"))
+    ret &= btif_config_remove(bdstr, "QCM_PHY_STATE");
   /* Retaining TwsPlusPeerAddr , AvrcpCtVersion and AvrcpFeatures
      as these are needed even after unpair */
   /* write bonded info immediately */
@@ -1424,8 +1426,14 @@ static bt_status_t btif_in_fetch_bonded_ble_device(
 
     if (btif_storage_get_remote_addr_type(&bd_addr, &addr_type) !=
         BT_STATUS_SUCCESS) {
-      addr_type = BLE_ADDR_PUBLIC;
-      btif_storage_set_remote_addr_type(&bd_addr, BLE_ADDR_PUBLIC);
+      /* Try to read address type from device info, if not present,
+      then it defaults to BLE_ADDR_PUBLIC */
+      uint8_t tmp_dev_type;
+      uint8_t tmp_addr_type;
+      BTM_ReadDevInfo(bd_addr, &tmp_dev_type, &tmp_addr_type);
+      addr_type = tmp_addr_type;
+
+      btif_storage_set_remote_addr_type(&bd_addr, addr_type);
     }
 
     btif_read_le_key(BTIF_DM_LE_KEY_PENC, sizeof(tBTM_LE_PENC_KEYS), bd_addr,

@@ -207,6 +207,11 @@ typedef enum {
   // as supported version.
   INTEROP_ADV_PBAP_VER_1_2,
 
+  // Disable profile PCE SDP request for headsets/car-kits
+  // Some car kits going bad state when DUT initiate PCE SDP request during BONDING time
+  // Hence don't send PCE SDP request for to prevent this abnormal behaviour.
+  INTEROP_DISABLE_PCE_SDP_AFTER_PAIRING,
+
   //Few remote sends avrcp browsing request just after host sends avrcp browsing request leading
   //collision which results in browsing channel open failure. For such devices, collision timer
   //is used avoid collision.
@@ -271,6 +276,13 @@ typedef enum {
   // are sent with a delay. Blacklist the devices to send call
   // indicators back to back.
   INTEROP_HFP_SEND_CALL_INDICATORS_BACK_TO_BACK,
+
+  // Some remotes need SCO immediately after SLC if there is an ongoing
+  // call on the phone
+  INTEROP_SETUP_SCO_WITH_NO_DELAY_AFTER_SLC_DURING_CALL,
+
+  //Some LE mouses want to use preferred connection parameters
+  INTEROP_ENABLE_PREFERRED_CONN_PARAMETER,
 
   END_OF_INTEROP_LIST
 } interop_feature_t;

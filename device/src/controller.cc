@@ -58,6 +58,9 @@ const uint8_t SCO_HOST_BUFFER_SIZE = 0xff;
 #define MAX_SCRAMBLING_FREQS_SIZE 64
 #define UNUSED(x) (void)(x)
 
+const bt_event_mask_t QBCE_QLM_EVENT_MASK = {
+  {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02}};
+
 static const hci_t* hci;
 static const hci_packet_factory_t* packet_factory;
 static const hci_packet_parser_t* packet_parser;
@@ -170,11 +173,21 @@ static bool is_soc_logging_enabled() {
 
 bool is_soc_lpa_enh_pwr_enabled() {
   char lpa_enh_pwr_enabled[PROPERTY_VALUE_MAX] = {0};
+  bt_soc_type_t socs[] = { BT_SOC_TYPE_HASTINGS,
+                           BT_SOC_TYPE_CHEROKEE,
+                           BT_SOC_TYPE_MOSELLE };
+  int i, num = sizeof(socs)/sizeof(socs[0]);
 
-  if (soc_type != BT_SOC_TYPE_HASTINGS &&
-       soc_type != BT_SOC_TYPE_CHEROKEE) {
+  for (i = 0; i < num; i++) {
+    if (soc_type == socs[i]) {
+      break;
+    }
+  }
+
+  if (i >= num) {
     return false;
   }
+
   osi_property_get("persist.vendor.btstack.enable.lpa", lpa_enh_pwr_enabled, "false");
   return strncmp(lpa_enh_pwr_enabled, "true", 4) == 0;
 }
@@ -574,6 +587,12 @@ static future_t* start_up(void) {
   }
 
 
+  if (HCI_QBCE_QCM_HCI_SUPPORTED(soc_add_on_features.as_array)) {
+    response = AWAIT_COMMAND(packet_factory->make_qbce_set_qlm_event_mask(
+                            &QBCE_QLM_EVENT_MASK));
+    packet_parser->parse_generic_command_complete(response);
+  }
+
   if (!HCI_READ_ENCR_KEY_SIZE_SUPPORTED(supported_commands)) {
     LOG(FATAL) << " Controller must support Read Encryption Key Size command";
   }
@@ -920,6 +939,11 @@ static bool get_max_power_values(uint8_t *power_val) {
   return max_power_prop_enabled;
 }
 
+static bool is_qbce_QCM_HCI_supported(void) {
+  return HCI_QBCE_QCM_HCI_SUPPORTED(
+               soc_add_on_features.as_array);
+}
+
 static const controller_t interface = {
     get_is_ready,
 
@@ -987,6 +1011,7 @@ static const controller_t interface = {
     is_multicast_enabled,
     supports_twsp_remote_state,
     get_max_power_values,
+    is_qbce_QCM_HCI_supported,
 };
 
 const controller_t* controller_get_interface() {
