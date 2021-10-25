@@ -435,6 +435,23 @@ void Device::SetVolume(int8_t volume) {
   send_message_cb_.Run(label, false, std::move(request));
 }
 
+void Device::AdjustVolume(int cmd) {
+  DEVICE_VLOG(1) << __func__ << ": cmd=" << cmd;
+
+  // Press key
+  auto request = PassThroughPacketBuilder::MakeBuilder(
+    false, true, cmd);
+
+  // Use fixed label
+  send_message_cb_.Run(1, false, std::move(request));
+
+  // Release key
+  request = PassThroughPacketBuilder::MakeBuilder(
+    false, false, cmd);
+
+  send_message_cb_.Run(2, false, std::move(request));
+}
+
 void Device::TrackChangedNotificationResponse(uint8_t label, bool interim,
                                               std::string curr_song_id,
                                               std::vector<SongInfo> song_list) {

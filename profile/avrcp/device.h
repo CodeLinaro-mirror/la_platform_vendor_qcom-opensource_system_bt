@@ -274,6 +274,9 @@ class Device {
   // SET VOLUME
   virtual void SetVolume(int8_t volume);
 
+  // Adjust Volume to up/down/mute
+  virtual void AdjustVolume(int32_t cmd);
+
   /**
    * This function is called by Avrcp::ConnectionHandler to signify that
    * the remote device was disconnected.

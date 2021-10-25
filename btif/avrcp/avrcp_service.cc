@@ -311,6 +311,23 @@ class VolumeInterfaceWrapper : public VolumeInterface {
                                base::Unretained(wrapped_), bdaddr, bound_cb));
   }
 
+  // For volume up / down / mute
+  void DeviceConnectedExt(const RawAddress& bdaddr, AdjustVolumeCb cb) override {
+    if (!osi_property_get_bool("persist.bluetooth.pts", false))
+      return;
+    LOG(INFO) << "VolumeInterfaceWrapper.DeviceConnectedExt";
+    auto cb_lambda = [](AdjustVolumeCb cb, int32_t flag) {
+      do_in_main_thread(FROM_HERE, base::Bind(cb, flag));
+    };
+
+    auto bound_cb = base::Bind(cb_lambda, cb);
+
+    do_in_avrcp_jni(base::Bind(static_cast<void (VolumeInterface::*)(
+                                   const RawAddress&, AdjustVolumeCb)>(
+                                   &VolumeInterface::DeviceConnectedExt),
+                               base::Unretained(wrapped_), bdaddr, bound_cb));
+  }
+
   void DeviceDisconnected(const RawAddress& bdaddr) override {
     do_in_avrcp_jni(base::Bind(&VolumeInterface::DeviceDisconnected,
                                base::Unretained(wrapped_), bdaddr));

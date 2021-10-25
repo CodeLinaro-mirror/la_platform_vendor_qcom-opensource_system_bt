@@ -289,6 +289,8 @@ void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event,
         newDevice->RegisterVolumeChanged();
       } else if (instance_->vol_ != nullptr) {
         instance_->vol_->DeviceConnected(newDevice->GetAddress());
+        instance_->vol_->DeviceConnectedExt(newDevice->GetAddress(),
+            base::Bind(&Device::AdjustVolume, newDevice->Get()));
       }
 
     } break;
@@ -375,12 +377,16 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event,
         auto device = instance_->device_map_[handle];
         instance_->feature_map_.emplace(device->GetAddress(), features);
 
+        LOG(INFO) << __PRETTY_FUNCTION__ << ": features " << loghex(features);
+
         // TODO (apanicke): Report to the VolumeInterface that a new Device is
         // connected that doesn't support absolute volume.
         if (features & BTA_AV_FEAT_ADV_CTRL) {
           device->RegisterVolumeChanged();
         } else if (instance_->vol_ != nullptr) {
           instance_->vol_->DeviceConnected(device->GetAddress());
+          instance_->vol_->DeviceConnectedExt(device->GetAddress(),
+              base::Bind(&Device::AdjustVolume, device->Get()));
         }
       };
 
