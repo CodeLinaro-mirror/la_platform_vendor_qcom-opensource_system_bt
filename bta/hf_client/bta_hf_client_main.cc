@@ -329,6 +329,8 @@ void bta_hf_client_resume_open(tBTA_HF_CLIENT_CB* client_cb) {
     client_cb->state = BTA_HF_CLIENT_OPENING_ST;
     tBTA_HF_CLIENT_DATA msg;
     msg.hdr.layer_specific = client_cb->handle;
+    msg.api_open.bd_addr = client_cb->peer_addr;
+    msg.api_open.sec_mask = client_cb->cli_sec_mask;
     bta_hf_client_start_open(&msg);
   }
 }
@@ -386,7 +388,7 @@ void bta_hf_client_collision_cback(UNUSED_ATTR tBTA_SYS_CONN_STATUS status,
 
     /* reopen registered server */
     /* Collision may be detected before or after we close servers. */
-    // bta_hf_client_start_server();
+    bta_hf_client_start_server();
 
     /* Start timer to handle connection opening restart */
     alarm_set_on_mloop(client_cb->collision_timer,
