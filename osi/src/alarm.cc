@@ -267,7 +267,7 @@ static void alarm_set_internal(alarm_t* alarm, period_ms_t period,
   if (info_cb) {
     char alarm_name[50];
     memset(alarm_name, 0, 50);
-    strlcpy(alarm_name,alarm->stats.name,strlen(alarm->stats.name));
+    strlcpy(alarm_name,alarm->stats.name,(strlen(alarm->stats.name)+1));
     (*info_cb)(true, alarm_name);
   }
 }
@@ -311,7 +311,7 @@ static void* alarm_cancel_internal(alarm_t* alarm) {
   if (info_cb) {
     char alarm_name[50];
     memset(alarm_name, 0, 50);
-    strlcpy(alarm_name,alarm->stats.name,strlen(alarm->stats.name));
+    strlcpy(alarm_name,alarm->stats.name,(strlen(alarm->stats.name)+1));
     (*info_cb)(false, alarm_name);
   }
   return data;
@@ -461,8 +461,15 @@ static void schedule_next_instance(alarm_t* alarm) {
   // we'll need to re-schedule since we've adjusted the earliest deadline.
   bool needs_reschedule =
       (!list_is_empty(alarms) && list_front(alarms) == alarm);
-  if (alarm->callback) remove_pending_alarm(alarm);
-
+  if (alarm->callback) {
+    if (info_cb) {
+      char alarm_name[50];
+      memset(alarm_name, 0, 50);
+      strlcpy(alarm_name,alarm->stats.name,(strlen(alarm->stats.name)+1));
+      (*info_cb)(false, alarm_name);
+    }
+    remove_pending_alarm(alarm);
+  }
   // Calculate the next deadline for this alarm
   period_ms_t just_now = now();
   period_ms_t ms_into_period = 0;
@@ -689,7 +696,7 @@ static void callback_dispatch(UNUSED_ATTR void* context) {
       if (info_cb) {
         char alarm_name[50];
         memset(alarm_name, 0, 50);
-        strlcpy(alarm_name,alarm->stats.name,strlen(alarm->stats.name));
+        strlcpy(alarm_name,alarm->stats.name,(strlen(alarm->stats.name)+1));
         (*info_cb)(false, alarm_name);
       }
     } else {
