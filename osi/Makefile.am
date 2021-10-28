@@ -15,10 +15,9 @@ AM_CPPFLAGS = \
         -I../utils/include \
         -I../stack/include \
         -I../include \
-        -I../types \
-        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/hal/include \
-        -I$(external_bt_path)/vhal/include
+        -I../types
 
+AM_CPPFLAGS += @LIBCHROME_CFLAGS@
 cpp_sources = \
         src/alarm.cc \
         src/allocation_tracker.cc \
@@ -45,7 +44,8 @@ cpp_sources = \
         src/wakelock.cc \
         ${external_bt_path}/system_bt_ext/osi/src/vnd_log.cc
 
-common_LDFLAGS = -lpthread
+common_LDFLAGS = -lpthread -llog -lcutils 
+common_LDFLAGS += "-Wl,--unresolved-symbols=ignore-in-shared-libs"
 common_CFLAGS =  $(AM_CFLAGS) -fPIC -D_GNU_SOURCE
 
 library_includedir = $(pkgincludedir)\

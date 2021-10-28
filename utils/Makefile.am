@@ -19,9 +19,10 @@ AM_CPPFLAGS= \
         -I../include \
         -I../types \
         -I../ \
-        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/hal/include \
         -I$(bdroid_C_INCLUDES)
 
+AM_CFLAGS += -DUSE_ANDROID_LOGGING -DUSE_LIBHW_AOSP @LIBCHROME_CFLAGS@
+common_LDFLAGS = -llog -lcutils -Wl,--unresolved-symbols=ignore-in-shared-libs
 if MDM_ROME
 AM_CFLAGS += -DBT_SOC_TYPE_ROME
 AM_CPPFLAGS += -DBT_SOC_TYPE_ROME
@@ -45,8 +46,8 @@ endif
 cpp_sources = \
         src/bt_utils.cc
 
-common_LDFLAGS = -lpthread
-common_CFLAGS =  $(AM_CFLAGS) -fPIC -DHAS_NO_BDROID_BUILDCFG
+common_LDFLAGS += -lpthread
+common_CFLAGS  =  $(AM_CFLAGS) -fPIC -DHAS_NO_BDROID_BUILDCFG
 
 library_includedir = $(pkgincludedir)
 lib_LTLIBRARIES = libbtutils.la

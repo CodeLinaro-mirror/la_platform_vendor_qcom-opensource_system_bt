@@ -8,16 +8,17 @@ AM_CFLAGS = -Wall \
         -std=c++11 \
         -DHAS_NO_BDROID_BUILDCFG
 
-AM_CPPFLAGS= \
+AM_CPPFLAGS = \
         -I. \
         -I../ \
         -I../include \
         -I../types \
         -I../utils/include \
         -I../audio_a2dp_hw/include \
-        -I${WORKSPACE}/system/media/audio/include \
-        -I${WORKSPACE}/hardware/libhardware/include \
         -I$(bdroid_C_INCLUDES)
+
+AM_CPPFLAGS += @LIBHARDWARE_CFLAGS@ @LIBCHROME_CFLAGS@
+AM_CPPFLAGS += -DUSE_ANDROID_LOGGING -DUSE_LIBHW_AOSP
 
 cpp_sources = \
         src/audio_a2dp_hw.cc \
@@ -25,6 +26,7 @@ cpp_sources = \
 
 common_LDFLAGS = -lpthread  -lrt ../osi/libbtosi.la -lchrome
 common_CFLAGS =  $(AM_CFLAGS) -fPIC -D_GNU_SOURCE
+common_LDFLAGS += -llog -lcutils 
 
 library_includedir = $(pkgincludedir)
 lib_LTLIBRARIES = libaudioa2dpdefault.la

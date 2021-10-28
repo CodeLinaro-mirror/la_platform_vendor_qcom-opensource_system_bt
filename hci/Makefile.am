@@ -16,13 +16,10 @@ AM_CPPFLAGS = -Iinclude -I../include \
         -I../bta/include \
         -I../types \
         -I../internal_include \
-        -I$(external_bt_path)/system_bt_ext \
-        -I$(external_bt_path)/system_bt_ext/include \
-        -I$(external_bt_path)/vhal/include \
-        -I$(external_bt_path)/system_bt_ext/bta/ar \
-        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/hal/include \
         -I$(bdroid_C_INCLUDES) \
         -I${D}${includedir}
+
+AM_CPPFLAGS += @LIBCHROME_CFLAGS@
 
 if MDM_ROME
 AM_CFLAGS += -DBT_SOC_TYPE_ROME
@@ -91,6 +88,8 @@ common_CFLAGS =  $(AM_CFLAGS) -fPIC -D_GNU_SOURCE -DBTSNOOP_DEFAULT=TRUE -DBT_NE
 common_CPPFLAGS = $(common_CFLAGS) -DHAS_NO_BDROID_BUILDCFG -fPIC -DBTSNOOP_DEFAULT=TRUE -DBT_NET_DEBUG=TRUE
 library_includedir = $(pkgincludedir)\
 library_include_HEADERS = $(h_sources)
+btHci_includedir = $(includedir)/
+btHci_include_HEADERS = $(srcdir)/include/bt_vendor_lib.h
 lib_LTLIBRARIES = libbthci.la
 libbthci_la_CC = @CC@
 libbthci_la_SOURCES = $(cpp_sources)
