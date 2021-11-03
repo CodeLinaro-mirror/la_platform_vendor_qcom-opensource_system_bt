@@ -126,7 +126,7 @@ A2dpCodecConfig* A2dpCodecConfig::createCodec(
       codec_config = new A2dpCodecConfigSbcSink(codec_priority);
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_AAC:
-      //codec_config = new A2dpCodecConfigAacSource(codec_priority);
+      codec_config = new A2dpCodecConfigAacSource(codec_priority);
       break;
     case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
       codec_config = new A2dpCodecConfigAacSink(codec_priority);
@@ -173,10 +173,8 @@ int A2dpCodecConfig::getTrackBitRate()      {
   switch (codec_type) {
     case A2DP_MEDIA_CT_SBC:
       return A2DP_GetBitrateSbc(getPeerAddress());
-      #if 0
     case A2DP_MEDIA_CT_AAC:
       return A2DP_GetBitRateAac(p_codec_info);
-      #endif
     case A2DP_MEDIA_CT_NON_A2DP:
       return A2DP_VendorGetBitRate(getPeerAddress(), p_codec_info);
     default:
@@ -630,8 +628,10 @@ bool A2dpCodecs::init() {
 
     A2dpCodecConfig* codec_config =
         A2dpCodecConfig::createCodec(codec_index, codec_priority);
-    if (codec_config == nullptr) continue;
-
+    if (codec_config == nullptr) {
+      LOG_WARN(LOG_TAG, "%s: codec_config is null", __func__);
+      continue;
+    }
     if (codec_priority != BTAV_A2DP_CODEC_PRIORITY_DEFAULT) {
       LOG_INFO(LOG_TAG, "%s: updated %s codec priority to %d", __func__,
                codec_config->name().c_str(), codec_priority);
@@ -640,6 +640,7 @@ bool A2dpCodecs::init() {
     // Test if the codec is disabled
     if (codec_config->codecPriority() == BTAV_A2DP_CODEC_PRIORITY_DISABLED) {
       disabled_codecs_.insert(std::make_pair(codec_index, codec_config));
+      LOG_WARN(LOG_TAG, "%s: codecPriority is BTAV_A2DP_CODEC_PRIORITY_DISABLED", __func__);
       continue;
     }
 
@@ -1374,10 +1375,8 @@ A2dpEncoderInterface* A2DP_GetEncoderInterface(
   switch (codec_type) {
     case A2DP_MEDIA_CT_SBC:
       return A2DP_GetEncoderInterfaceSbc(peer_address, p_codec_info);
-      /*
     case A2DP_MEDIA_CT_AAC:
-      return A2DP_GetEncoderInterfaceAac(p_codec_info);
-      */
+      return A2DP_GetEncoderInterfaceAac(peer_address, p_codec_info);
     case A2DP_MEDIA_CT_NON_A2DP:
       return A2DP_VendorGetEncoderInterface(peer_address, p_codec_info);
      default:
