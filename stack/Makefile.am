@@ -48,16 +48,11 @@ AM_CPPFLAGS = \
         -I../bta/sys \
         -I../utils/include \
         -I../types \
-        -I../internal_include \
-        -I$(external_bt_path)/system_bt_ext \
-        -I$(external_bt_path)/system_bt_ext/stack/btm \
-        -I$(external_bt_path)/vhal/include \
-        -I$(external_bt_path)/system_bt_ext/bta/ar \
-        -I$(external_bt_path)/system_bt_ext/stack/include/ \
-        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/hal/include \
-        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/stack/include \
-        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/include
+        -I../internal_include
 
+AM_CPPFLAGS += -DUSE_ANDROID_LOGGING -DUSE_LIBHW_AOSP
+
+AM_CPPFLAGS += @BLUETOOTHEXT_CFLAGS@ @LIBCHROME_CFLAGS@
 if MDM_CHEROKEE
 AM_CPPFLAGS += -DBTA_AV_SPLIT_A2DP_ENABLED
 endif
@@ -209,7 +204,7 @@ if SSR_CLEANUP_SUPPORT
 AM_CPPFLAGS += -DSSR_CLEANUP=TRUE
 endif
 
-common_LDFLAGS = -lpthread
+common_LDFLAGS = -lpthread -llog -lcutils
 common_CFLAGS =  $(AM_CFLAGS) -fPIC -D_GNU_SOURCE
 
 library_includedir = $(pkgincludedir)\

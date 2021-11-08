@@ -17,11 +17,9 @@ AM_CPPFLAGS = \
         -I../include \
         -I../types \
         -I../internal_include \
-        -I../stack/include \
-        -I$(external_bt_path)/system_bt_ext \
-        -I$(external_bt_path)/vhal/include \
-        -I$(external_bt_path)/system_bt_ext/device/include \
-        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/hal/include
+        -I../stack/include
+
+AM_CPPFLAGS += @BLUETOOTHEXT_CFLAGS@ @LIBCHROME_CFLAGS@
 
 cpp_sources = \
         src/controller.cc \
