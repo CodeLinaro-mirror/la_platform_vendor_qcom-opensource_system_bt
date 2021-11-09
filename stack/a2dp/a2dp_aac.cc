@@ -1039,6 +1039,12 @@ bool A2dpCodecConfigAac::setCodecConfig(const uint8_t* p_peer_codec_info,
         std::min(a2dp_aac_caps.bitRate, sink_info_cie.bitRate);
   }
 
+  // Update AAC supported values to application
+  codec_config_.objectType = result_config_cie.objectType;
+  codec_config_.variableBitRateSupport =
+       result_config_cie.variableBitRateSupport;
+  codec_config_.bitRate = result_config_cie.bitRate;
+
   //
   // Select the sample frequency
   //

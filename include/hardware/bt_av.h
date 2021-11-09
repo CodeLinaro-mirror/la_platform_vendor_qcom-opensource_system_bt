@@ -137,6 +137,9 @@ typedef struct {
   uint16_t ttp_ll_max;
   uint16_t ttp_hq_min;
   uint16_t ttp_hq_max;
+  uint8_t objectType;  //for AAC codec
+  uint8_t variableBitRateSupport;
+  uint32_t bitRate;
 
   std::string ToString() const {
     std::string codec_name_str;
