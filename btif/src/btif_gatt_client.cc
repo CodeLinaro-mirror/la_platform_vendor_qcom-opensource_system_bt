@@ -46,6 +46,7 @@
 #include "btif_config.h"
 #include "btif_dm.h"
 #include "btif_gatt.h"
+#include "btif_lpm.h"
 #include "btif_gatt_util.h"
 #include "btif_storage.h"
 #include "osi/include/log.h"
@@ -104,6 +105,7 @@ void btif_gattc_upstreams_evt(uint16_t event, char* p_param) {
   LOG_VERBOSE(LOG_TAG, "%s: Event %d", __func__, event);
 
   tBTA_GATTC* p_data = (tBTA_GATTC*)p_param;
+  btif_lpm_update_gattc_upstreams_evt(event, p_data);
   switch (event) {
     case BTA_GATTC_DEREG_EVT:
       break;
@@ -520,6 +522,10 @@ void btif_gattc_reg_for_notification_impl(tGATT_IF client_if,
   tGATT_STATUS status =
       BTA_GATTC_RegisterForNotifications(client_if, bda, handle);
 
+  /*get handle from here and understand in lpm profile
+   what are the services for which noifications are registered*/
+  btif_lpm_gattc_inform_notify_reg(bda, handle, true, status);
+
   // TODO(jpawlowski): conn_id is currently unused
   HAL_CBACK(bt_gatt_callbacks, client->register_for_notification_cb,
             /* conn_id */ 0, 1, status, handle);
@@ -541,7 +547,9 @@ void btif_gattc_dereg_for_notification_impl(tGATT_IF client_if,
   tGATT_STATUS status =
       BTA_GATTC_DeregisterForNotifications(client_if, bda, handle);
 
-  // TODO(jpawlowski): conn_id is currently unused
+  btif_lpm_gattc_inform_notify_reg(bda, handle, false, status);
+
+  // TODO(jpawlowski): conn_id is currently unused  
   HAL_CBACK(bt_gatt_callbacks, client->register_for_notification_cb,
             /* conn_id */ 0, 0, status, handle);
 }

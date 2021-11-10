@@ -29,6 +29,7 @@
 #include "btif_storage.h"
 #include "btm_ble_int.h"
 #include "btm_int.h"
+#include "stack/lpm/lpm_int.h"
 #include "connection_manager.h"
 #include "device/include/interop.h"
 #include "gatt_int.h"
@@ -624,6 +625,7 @@ static void gatt_le_connect_cback(uint16_t chan, const RawAddress& bd_addr,
 
   if (!connected) {
     gatt_cleanup_upon_disc(bd_addr, reason, transport);
+    lpm_send_conn_cback(bd_addr, LPM_BLE_NONE);
     VLOG(1) << "ATT disconnected";
     return;
   }
@@ -637,6 +639,7 @@ static void gatt_le_connect_cback(uint16_t chan, const RawAddress& bd_addr,
       p_tcb->payload_size = GATT_DEF_BLE_MTU_SIZE;
 
       gatt_send_conn_cback(p_tcb, chan);
+      lpm_send_conn_cback(bd_addr, LPM_BLE_MASTER);
     }
     if (check_srv_chg) gatt_chk_srv_chg(p_srv_chg_clt);
   }
@@ -656,6 +659,7 @@ static void gatt_le_connect_cback(uint16_t chan, const RawAddress& bd_addr,
     p_tcb->payload_size = GATT_DEF_BLE_MTU_SIZE;
 
     gatt_send_conn_cback(p_tcb, chan);
+    lpm_send_conn_cback(bd_addr, LPM_BLE_SLAVE);
     if (check_srv_chg) {
       gatt_chk_srv_chg(p_srv_chg_clt);
     }

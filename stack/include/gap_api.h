@@ -21,6 +21,7 @@
 
 #include "btm_api.h"
 #include "l2c_api.h"
+#include "gatt_api.h"
 #include "profiles_api.h"
 
 /*****************************************************************************
