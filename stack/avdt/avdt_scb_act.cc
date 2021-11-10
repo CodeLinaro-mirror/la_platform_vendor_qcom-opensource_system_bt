@@ -685,7 +685,8 @@ void avdt_scb_hdl_setconfig_rsp(AvdtpScb* p_scb,
     if ((p_scb->stream_config.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
       reported_delay = SINK_DRT_INIT_TIME;
       AVDT_TRACE_DEBUG("%s: set init rpt:%d", __func__, reported_delay);
-      AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay);
+      do_in_main_thread(FROM_HERE, base::Bind([](AvdtpScb *p_scb) {
+          AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay); }, p_scb));
     }
 #endif
 
@@ -944,7 +945,8 @@ static void avdt_delay_rpt_tmr_hdlr(void* data) {
     reported_delay = delay_ms;
     AvdtpScb *p_scb = (AvdtpScb *)data;
     AVDT_TRACE_DEBUG("%s: reported_delay: 0x%x", __func__, reported_delay);
-    AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay);
+    do_in_main_thread(FROM_HERE, base::Bind([](AvdtpScb *p_scb) {
+        AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay); }, p_scb));
   }
 }
 #endif
@@ -1408,7 +1410,9 @@ void avdt_scb_snd_setconfig_rsp(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
     if ((p_scb->stream_config.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
       reported_delay = SINK_DRT_INIT_TIME;
       AVDT_TRACE_DEBUG("%s: set init rpt:%u", __func__, reported_delay);
-      AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay);
+      do_in_main_thread(FROM_HERE, base::Bind([](AvdtpScb *p_scb) {
+          AVDT_DelayReport(avdt_scb_to_hdl(p_scb), p_scb->peer_seid, reported_delay); }, p_scb));
+
     }
 #endif
   }
