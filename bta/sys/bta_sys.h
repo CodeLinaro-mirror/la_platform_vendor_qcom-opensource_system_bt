@@ -99,24 +99,26 @@ typedef uint16_t tBTA_SYS_HW_MODULE;
 #define BTA_ID_BAT 35           /* Broadcast Audio Transmitter  */
 #ifdef ADV_AUDIO_FEATURE
 #define BTA_ID_GROUP 36          /* GROUP Client */
-#define BTA_ID_BLUETOOTH_MAX 37 /* last BT profile */
+#define BTA_ID_LPM 37           /* LPM Profile */
+#define BTA_ID_BLUETOOTH_MAX 38 /* last BT profile */
 #else
-#define BTA_ID_BLUETOOTH_MAX 36 /* last BT profile */
+#define BTA_ID_LPM 36           /* LPM Profile */
+#define BTA_ID_BLUETOOTH_MAX 37 /* last BT profile */
 #endif
 
 /* GENERIC */
-#define BTA_ID_PRM 38
-#define BTA_ID_SYSTEM 39  /* platform-specific */
-#define BTA_ID_SWRAP 40   /* Insight script wrapper */
-#define BTA_ID_MIP 41     /* Multicase Individual Polling */
-#define BTA_ID_RT 42      /* Audio Routing module: This module is always on. */
-#define BTA_ID_CLOSURE 43 /* Generic C++ closure  */
+#define BTA_ID_PRM 39
+#define BTA_ID_SYSTEM 40  /* platform-specific */
+#define BTA_ID_SWRAP 41   /* Insight script wrapper */
+#define BTA_ID_MIP 42     /* Multicase Individual Polling */
+#define BTA_ID_RT 43      /* Audio Routing module: This module is always on. */
+#define BTA_ID_CLOSURE 44 /* Generic C++ closure  */
 
 /* JV */
-#define BTA_ID_JV1 44 /* JV1 */
-#define BTA_ID_JV2 45 /* JV2 */
+#define BTA_ID_JV1 45 /* JV1 */
+#define BTA_ID_JV2 46 /* JV2 */
 
-#define BTA_ID_MAX (44 + BTA_DM_NUM_JV_ID)
+#define BTA_ID_MAX (45 + BTA_DM_NUM_JV_ID)
 
 typedef uint8_t tBTA_SYS_ID;
 

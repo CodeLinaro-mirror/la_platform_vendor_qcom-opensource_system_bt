@@ -986,6 +986,13 @@ enum {
 };
 typedef uint16_t tBT_ERROR_INFO;
 
+enum {
+  LPM_ACTIVE = 1,
+  LPM_TRACKER,
+  LPM_TWM,
+};
+typedef uint8_t tLPM_mode;
+
 #define A2DP_GLITCH_REPORT_INTERVAL_MS (60 * 1000)
 #define A2DP_GLITCH_THRESHOLD 9
 #define SCO_GLITCH_REPORT_INTERVAL_MS (60 * 1000)

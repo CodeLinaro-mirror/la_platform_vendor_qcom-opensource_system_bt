@@ -56,6 +56,7 @@
 #include "btif_storage.h"
 #include "btif_uid.h"
 #include "btif_util.h"
+#include "btif_lpm.h"
 #include "btu.h"
 #include "device/include/controller.h"
 #include "osi/include/fixed_queue.h"
@@ -448,6 +449,11 @@ void btif_enable_bluetooth_evt(tBTA_STATUS status) {
     /* init rfcomm & l2cap api */
     btif_sock_init(uid_set);
 
+#ifdef BT_LPM_SUPPORTED
+    /* init lpm profile */
+    LOG_DEBUG(LOG_TAG, "%s LPM Profile init", __func__);
+    btif_lpm_init();
+#endif //BT_LPM_SUPPORTED
 
     /* load did configuration */
     bte_load_did_conf(BTE_DID_CONF_FILE);
@@ -494,6 +500,10 @@ bt_status_t btif_disable_bluetooth(void) {
   /* cleanup rfcomm & l2cap api */
   btif_sock_cleanup();
   btif_pan_cleanup();
+#ifdef BT_LPM_SUPPORTED
+  /* de-init lpm profile */
+  btif_lpm_deinit();
+#endif //BT_LPM_SUPPORTED
   BTA_DisableBluetooth();
 
   LOG_INFO(LOG_TAG, "%s finished", __func__);
@@ -837,6 +847,7 @@ static void execute_storage_request(uint16_t event, char* p_param) {
                        p_prop->val);
 
       status = btif_storage_set_adapter_property(p_prop);
+
       HAL_CBACK(bt_hal_cbacks, adapter_properties_cb, status, 1, p_prop);
     } break;
 
