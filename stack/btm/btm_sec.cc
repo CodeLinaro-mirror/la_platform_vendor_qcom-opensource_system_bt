@@ -1899,6 +1899,17 @@ void BTM_SetOutService(const RawAddress& bd_addr, uint8_t service_id,
   }
 }
 
+bool BTM_SecUseSmpBrChnl(const RawAddress& bd_addr) {
+   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
+   BTM_TRACE_DEBUG("%s Check if smp pairing is enabled or not", __func__);
+
+   if(p_dev_rec != NULL && p_dev_rec->new_encryption_key_is_p256 &&
+            (btm_sec_use_smp_br_chnl(p_dev_rec)))
+   {
+       return true;
+   }
+   return false ;
+}
 /************************************************************************
  *              I N T E R N A L     F U N C T I O N S
  ************************************************************************/
