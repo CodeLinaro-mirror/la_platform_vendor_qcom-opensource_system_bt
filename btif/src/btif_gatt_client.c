@@ -646,8 +646,12 @@ static void btif_gattc_upstreams_evt(uint16_t event, char* p_param)
 
             btif_storage_set_remote_addr_type( &p_btif_cb->bd_addr, p_btif_cb->addr_type);
 
-            HAL_CBACK(bt_gatt_callbacks, client->scan_result_cb,
-                      &p_btif_cb->bd_addr, p_btif_cb->rssi, p_btif_cb->value);
+            if(bt_gatt_callbacks != NULL && bt_gatt_callbacks->client != NULL && bt_gatt_callbacks->client->scan_result_cb != NULL) {
+               HAL_CBACK(bt_gatt_callbacks, client->scan_result_cb,
+                     &p_btif_cb->bd_addr, p_btif_cb->rssi, p_btif_cb->value);
+              }
+            else
+              LOG_ERROR(LOG_TAG, "%s: GATT Callbacks released, skip scan_result_cb", __FUNCTION__);
             break;
         }
 
