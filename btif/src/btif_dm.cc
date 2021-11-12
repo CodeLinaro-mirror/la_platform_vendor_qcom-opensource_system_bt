@@ -893,6 +893,52 @@ static void btif_dm_ssp_key_notif_evt(tBTA_DM_SP_KEY_NOTIF* p_ssp_key_notif) {
                         BT_SSP_VARIANT_PASSKEY_NOTIFICATION,
                         p_ssp_key_notif->passkey);
 }
+
+static void btif_dm_oob_req_evt(tBTA_DM_SP_RMT_OOB* p_rmt_oob_req)
+{
+  uint32_t cod = COD_UNCLASSIFIED;
+  int dev_type = BT_DEVICE_TYPE_BREDR;
+
+  BTIF_TRACE_DEBUG("%s", __func__);
+
+  if ((pairing_cb.state == BT_BOND_STATE_BONDING && p_rmt_oob_req->bd_addr != pairing_cb.bd_addr)
+      || (is_empty_128bit(oob_cb.p192_data.c))) {
+    BTIF_TRACE_WARNING("%s(): already in bonding state or lack of oob data, reject request",
+                       __FUNCTION__);
+    return;
+  }
+
+  /* Remote properties update */
+  if (!btif_get_device_type(p_rmt_oob_req->bd_addr, &dev_type)) {
+    dev_type = BT_DEVICE_TYPE_BREDR;
+  }
+
+
+  btif_update_remote_properties(p_rmt_oob_req->bd_addr, p_rmt_oob_req->bd_name,
+                                p_rmt_oob_req->dev_class,
+                                (tBT_DEVICE_TYPE)dev_type);
+
+  /* bond_state_changed to BONDING
+   */
+  bond_state_changed(BT_STATUS_SUCCESS, p_rmt_oob_req->bd_addr, BT_BOND_STATE_BONDING);
+
+  /* bond_type is PERSISTENT by default in OOB bond
+   */
+  pairing_cb.bond_type = tBTM_SEC_DEV_REC::BOND_TYPE_PERSISTENT;
+
+  btm_set_bond_type_dev(p_rmt_oob_req->bd_addr, pairing_cb.bond_type);
+
+
+  cod = devclass2uint(p_rmt_oob_req->dev_class);
+
+  if (cod == 0) {
+    BTIF_TRACE_DEBUG("%s cod is 0, set as unclassified", __func__);
+    cod = COD_UNCLASSIFIED;
+  }
+
+  pairing_cb.sdp_attempts = 0;
+  pairing_cb.is_ssp = false;
+}
 /*******************************************************************************
  *
  * Function         btif_dm_auth_cmpl_evt
@@ -1015,6 +1061,11 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
           // for static address now
           LOG_INFO("%s: send bonding state update for static address %s",
                    __func__, bd_addr.ToString().c_str());
+          bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDING);
+        }
+        /* Incoming OOB bond
+         * Previous state is BOND_NONE, change it to bonding first */
+        if (pairing_cb.state == BT_BOND_STATE_NONE) {
           bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDING);
         }
         bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDED);
@@ -1759,6 +1810,12 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
           cmn_vsc_cb.dynamic_audio_buffer_support;
 
       invoke_adapter_properties_cb(BT_STATUS_SUCCESS, 1, &prop);
+      break;
+    }
+
+    case BTA_DM_SP_RMT_OOB_EVT: {
+      BTIF_TRACE_WARNING("%s: BTA_DM_SP_RMT_OOB_EVT", __func__);
+      btif_dm_oob_req_evt(&p_data->rmt_oob);
       break;
     }
 
