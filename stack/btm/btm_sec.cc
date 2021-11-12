@@ -3908,13 +3908,6 @@ void btm_sec_encrypt_change(uint16_t handle, uint8_t status,
           SMP_BR_PairWith(p_dev_rec->bd_addr);
         }
       }
-    } else {
-      if ((encr_enable == 1) && /* encryption is ON for SSP */
-          /* LK type is for BR/EDR SC */
-          (p_dev_rec->link_key_type == BTM_LKEY_TYPE_UNAUTH_COMB_P_256 ||
-           p_dev_rec->link_key_type == BTM_LKEY_TYPE_AUTH_COMB_P_256)) {
-        btm_send_link_key_notif(p_dev_rec);
-      }
     }
   }
 
