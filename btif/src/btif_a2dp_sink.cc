@@ -943,6 +943,14 @@ static void btif_a2dp_sink_set_focus_state_event(
     fixed_queue_flush(btif_a2dp_sink_cb.rx_audio_queue, osi_free);
     fixed_queue_flush(btif_a2dp_sink_cb.play_audio_queue, osi_free);
     btif_a2dp_sink_cb.rx_flush = true;
+    APPL_TRACE_DEBUG("%s: re-init decoder to clear the buffer", __func__);
+    if (btif_a2dp_sink_cb.decoder_interface &&
+        (btif_a2dp_sink_cb.decoder_interface->decoder_init)) {
+        if (!btif_a2dp_sink_cb.decoder_interface->decoder_init(
+                btif_a2dp_sink_on_decode_complete)) {
+          LOG_ERROR(LOG_TAG, "%s: failed to initialize decoder", __func__);
+        }
+    }
   } else if (btif_a2dp_sink_cb.rx_focus_state == BTIF_A2DP_SINK_FOCUS_GRANTED) {
     btif_a2dp_sink_cb.rx_flush = false;
   }
