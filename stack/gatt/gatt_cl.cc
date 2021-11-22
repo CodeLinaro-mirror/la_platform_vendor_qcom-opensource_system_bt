@@ -712,7 +712,7 @@ void gatt_process_notification(tGATT_TCB& tcb, uint16_t lcid, uint8_t op_code,
   gatt_cl_complete.att_value = value;
 
   if (tcb.is_eatt_supported) {
-    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(lcid);
+    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(&tcb, lcid);
     if (p_eatt_bcb) {
       ++tcb.cl_trans_id;
       tcb.trans_id %= GATT_TRANS_ID_MAX;
@@ -756,29 +756,35 @@ void gatt_process_multi_notification(tGATT_TCB& tcb, uint16_t lcid,
   uint32_t cl_trans_id = 0;
   uint8_t hdl_length_bytes = 4;
 
+  VLOG(1) <<  __func__;
   if (len < GATT_NOTIFICATION_MIN_LEN) {
     LOG(ERROR) << "illegal notification PDU length, discard";
     return;
   }
 
-  while (len > 0) {
+  while (len > hdl_length_bytes) {
     memset(&value, 0, sizeof(value));
     STREAM_TO_UINT16(value.handle, p);
-    STREAM_TO_UINT16(value.len, p);
-    memcpy(value.value, p, value.len);
-    p += value.len;
-
     if (!GATT_HANDLE_IS_VALID(value.handle)) {
       LOG(ERROR) << " Handle is invalid";
       return;
     }
+
+    STREAM_TO_UINT16(value.len, p);
+    if ((value.len > GATT_MAX_ATTR_LEN) ||
+        (value.len > (len - hdl_length_bytes))) {
+      LOG(ERROR) << " Invalid value length " << value.len;
+      return;
+    }
+    memcpy(value.value, p, value.len);
+    p += value.len;
 
     encrypt_status = gatt_get_link_encrypt_status(tcb);
     tGATT_CL_COMPLETE gatt_cl_complete;
     gatt_cl_complete.att_value = value;
 
     if (tcb.is_eatt_supported) {
-      p_eatt_bcb = gatt_find_eatt_bcb_by_cid(lcid);
+      p_eatt_bcb = gatt_find_eatt_bcb_by_cid(&tcb, lcid);
       if(p_eatt_bcb) {
         ++tcb.cl_trans_id;
         tcb.trans_id %= GATT_TRANS_ID_MAX;
@@ -1142,7 +1148,7 @@ void gatt_process_mtu_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint16_t len,
     else
       tcb.mtu_for_eatt = GATT_DEF_EATT_MTU_SIZE;
 
-    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(L2CAP_ATT_CID);
+    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(&tcb, L2CAP_ATT_CID);
     if (p_eatt_bcb)
       p_eatt_bcb->payload_size = tcb.payload_size;
 
@@ -1181,7 +1187,7 @@ bool gatt_cl_send_next_cmd_inq(tGATT_TCB& tcb, uint16_t lcid) {
   tGATT_EBCB* p_eatt_bcb;
 
   if (tcb.is_eatt_supported) {
-    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(lcid);
+    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(&tcb, lcid);
     if (p_eatt_bcb) {
       cl_cmd_q = &(p_eatt_bcb->cl_cmd_q);
     }
@@ -1231,7 +1237,7 @@ bool gatt_cl_send_next_cmd_inq(tGATT_TCB& tcb, uint16_t lcid) {
 void gatt_client_handle_server_rsp(tGATT_TCB& tcb, uint16_t lcid, uint8_t op_code,
                                    uint16_t len, uint8_t* p_data) {
   uint16_t payload_size = gatt_get_payload_size(&tcb, lcid);
-  tGATT_EBCB* p_eatt_bcb = gatt_find_eatt_bcb_by_cid(lcid);
+  tGATT_EBCB* p_eatt_bcb = gatt_find_eatt_bcb_by_cid(&tcb, lcid);
 
   if (op_code == GATT_HANDLE_VALUE_IND || op_code == GATT_HANDLE_VALUE_NOTIF) {
     if (len >= payload_size) {
@@ -1266,7 +1272,7 @@ void gatt_client_handle_server_rsp(tGATT_TCB& tcb, uint16_t lcid, uint8_t op_cod
     if (p_eatt_bcb->cl_cmd_q.empty()) {
       VLOG(1) << __func__ << " check if uncongestion needs to be sent"
                              " to apps after rcving client response";
-      eatt_congest_notify_apps(lcid, false);
+      eatt_congest_notify_apps(&tcb, lcid, false);
     }
   }
 
