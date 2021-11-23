@@ -453,7 +453,9 @@ static tAVRC_STS avrc_bld_get_item_attributes_cmd(
   length = 12 + cmd->attr_count * sizeof(uint32_t);
   UINT16_TO_BE_STREAM(p_data, length);
   UINT8_TO_BE_STREAM(p_data, cmd->scope);
-  ARRAY_TO_BE_STREAM(p_data, cmd->uid, AVRC_UID_SIZE);
+  uint64_t uid;
+  memcpy(&uid, cmd->uid, AVRC_UID_SIZE);
+  UINT64_TO_BE_STREAM(p_data, uid);
   UINT16_TO_BE_STREAM(p_data, cmd->uid_counter);
   UINT8_TO_BE_STREAM(p_data, cmd->attr_count);
   for (uint8_t index = 0; index < cmd->attr_count; index++) {
