@@ -56,7 +56,11 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
   AAudioStreamBuilder_setPerformanceMode(builder,
                                          AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
   result = AAudioStreamBuilder_openStream(builder, &stream);
-  CHECK(result == AAUDIO_OK);
+  // CHECK(result == AAUDIO_OK);
+  /* Return nullptr if Audio framework isn't activated */
+  if (result != AAUDIO_OK) {
+    return nullptr;
+  }
   AAudioStreamBuilder_delete(builder);
 
   BtifAvrcpAudioTrack* trackHolder = new BtifAvrcpAudioTrack;
