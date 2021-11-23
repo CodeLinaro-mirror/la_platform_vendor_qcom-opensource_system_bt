@@ -2592,15 +2592,16 @@ void btm_sec_conn_req(const RawAddress& bda, uint8_t* dc) {
   btm_cb.connecting_bda = bda;
   memcpy(btm_cb.connecting_dc, dc, DEV_CLASS_LEN);
 
-  if (l2c_link_hci_conn_req(bda)) {
-    if (!p_dev_rec) {
-      /* accept the connection -> allocate a device record */
-      p_dev_rec = btm_sec_alloc_dev(bda);
-    }
-    if (p_dev_rec) {
-      p_dev_rec->sm4 |= BTM_SM4_CONN_PEND;
-    }
+  if (!p_dev_rec) {
+    /* accept the connection -> allocate a device record */
+    p_dev_rec = btm_sec_alloc_dev(bda);
   }
+  if (p_dev_rec) {
+    p_dev_rec->sm4 |= BTM_SM4_CONN_PEND;
+  }
+  /* alloc p_dev_rec first and then process in l2c_link
+   * otherwise local device have no chance to switch to Master during ACL connection */
+  l2c_link_hci_conn_req(bda);
 }
 
 /*******************************************************************************
