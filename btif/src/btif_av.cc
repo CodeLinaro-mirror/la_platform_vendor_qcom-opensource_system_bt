@@ -2117,6 +2117,14 @@ bool BtifAvStateMachine::StateStarted::ProcessEvent(uint32_t event,
     case BTIF_AV_ACL_DISCONNECTED:
       break;  // Ignore
 
+    case BTIF_AV_CONNECT_REQ_EVT: {
+      BTIF_TRACE_WARNING("%s: Peer %s : Ignore %s for same device",
+                         __PRETTY_FUNCTION__,
+                         peer_.PeerAddress().ToString().c_str(),
+                         BtifAvEvent::EventName(event).c_str());
+      btif_queue_advance();
+    } break;
+
     case BTIF_AV_START_STREAM_REQ_EVT:
       LOG_INFO(LOG_TAG, "%s: Peer %s : event=%s flags=%s", __PRETTY_FUNCTION__,
                peer_.PeerAddress().ToString().c_str(),
@@ -2320,6 +2328,14 @@ bool BtifAvStateMachine::StateClosing::ProcessEvent(uint32_t event,
     case BTIF_AV_SUSPEND_STREAM_REQ_EVT:
     case BTIF_AV_ACL_DISCONNECTED:
       break;  // Ignore
+
+    case BTIF_AV_CONNECT_REQ_EVT: {
+      BTIF_TRACE_WARNING("%s: Peer %s : Ignore %s for same device",
+                         __PRETTY_FUNCTION__,
+                         peer_.PeerAddress().ToString().c_str(),
+                         BtifAvEvent::EventName(event).c_str());
+      btif_queue_advance();
+    } break;
 
     case BTA_AV_STOP_EVT:
     case BTIF_AV_STOP_STREAM_REQ_EVT:
