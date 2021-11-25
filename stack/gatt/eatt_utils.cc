@@ -78,7 +78,8 @@ tGATT_EBCB* gatt_eatt_bcb_alloc(tGATT_TCB* p_tcb, uint16_t lcid, bool create_in_
   std::string conf_timer = "gatt.conf_timer";
   std::string ind_ack_timer = "gatt.ind_ack_timer";
 
-  p_eatt_bcb = gatt_find_eatt_bcb_by_cid(lcid);
+  VLOG(1) << __func__ << " lcid:" << +lcid;
+  p_eatt_bcb = gatt_find_eatt_bcb_by_cid(p_tcb, lcid);
   if (p_eatt_bcb) {
     VLOG(1) << __func__ << " p_eatt_bcb already available for lcid: " << +lcid;
     return p_eatt_bcb;
@@ -132,17 +133,19 @@ tGATT_EBCB* gatt_eatt_bcb_alloc(tGATT_TCB* p_tcb, uint16_t lcid, bool create_in_
  * Returns          true if EATT bearer control block is deallocated.
  *
  ******************************************************************************/
-bool gatt_eatt_bcb_dealloc(uint16_t lcid) {
+bool gatt_eatt_bcb_dealloc(tGATT_TCB* p_tcb, uint16_t lcid) {
   uint16_t i = 0;
   tGATT_EBCB* p_eatt_bcb = NULL;
   bool ret = false;
 
+  VLOG(1) << __func__ << " lcid:" << +lcid;
   for (i = 0; i < GATT_MAX_EATT_CHANNELS; i++) {
     if (gatt_cb.eatt_bcb[i].in_use &&
-       (gatt_cb.eatt_bcb[i].cid == lcid)) {
+       (gatt_cb.eatt_bcb[i].cid == lcid) &&
+       (p_tcb && (gatt_cb.eatt_bcb[i].p_tcb->peer_bda == p_tcb->peer_bda))) {
       p_eatt_bcb = &gatt_cb.eatt_bcb[i];
 
-      gatt_remove_conns_by_cid(p_eatt_bcb->cid);
+      gatt_remove_conns_by_cid(p_tcb, p_eatt_bcb->cid);
 
       if (lcid != L2CAP_ATT_CID) {
         alarm_free(p_eatt_bcb->ind_ack_timer);
@@ -150,8 +153,6 @@ bool gatt_eatt_bcb_dealloc(uint16_t lcid) {
         alarm_free(p_eatt_bcb->conf_timer);
         p_eatt_bcb->conf_timer = NULL;
         gatt_free_pending_ind(p_eatt_bcb->p_tcb, lcid);
-        fixed_queue_free(p_eatt_bcb->sr_cmd.multi_rsp_q, NULL);
-        p_eatt_bcb->sr_cmd.multi_rsp_q = NULL;
       }
 
       p_eatt_bcb->in_use = false;
@@ -160,6 +161,8 @@ bool gatt_eatt_bcb_dealloc(uint16_t lcid) {
 
       p_eatt_bcb->create_in_prg = false;
       p_eatt_bcb->is_remote_initiated = false;
+      p_eatt_bcb->no_credits = false;
+      p_eatt_bcb->send_uncongestion = false;
       p_eatt_bcb->apps.clear();
       p_eatt_bcb->opportunistic_apps.clear();
 
@@ -186,12 +189,19 @@ uint8_t gatt_eatt_bcb_in_progress_dealloc(RawAddress& bda) {
   tGATT_EBCB* p_eatt_bcb = NULL;
   uint8_t num_dealloc = 0;
 
+  VLOG(1) << __func__;
   for (i = 0; i < GATT_MAX_EATT_CHANNELS; i++) {
     if (gatt_cb.eatt_bcb[i].in_use && (gatt_cb.eatt_bcb[i].create_in_prg) &&
        (gatt_cb.eatt_bcb[i].p_tcb->peer_bda == bda)) {
       p_eatt_bcb = &gatt_cb.eatt_bcb[i];
 
-      *p_eatt_bcb = tGATT_EBCB();
+      if (p_eatt_bcb->cid != L2CAP_ATT_CID) {
+        alarm_free(p_eatt_bcb->ind_ack_timer);
+        p_eatt_bcb->ind_ack_timer = NULL;
+        alarm_free(p_eatt_bcb->conf_timer);
+        p_eatt_bcb->conf_timer = NULL;
+        gatt_free_pending_ind(p_eatt_bcb->p_tcb, p_eatt_bcb->cid);
+      }
 
       p_eatt_bcb->in_use = false;
       p_eatt_bcb->p_tcb = NULL;
@@ -199,6 +209,7 @@ uint8_t gatt_eatt_bcb_in_progress_dealloc(RawAddress& bda) {
 
       p_eatt_bcb->create_in_prg = false;
       p_eatt_bcb->apps.clear();
+      *p_eatt_bcb = tGATT_EBCB();
       num_dealloc++;
     }
   }
@@ -235,17 +246,19 @@ tGATT_TCB* gatt_find_tcb_by_eatt_cid(uint16_t lcid) {
  * Function         gatt_find_eatt_bcb_by_cid
  *
  * Description      The function searches for the eatt_bcb entry
- *                  based on channel id
+ *                  based on channel id and BD address
  *
  * Returns          NULL if not found. Otherwise pointer to the eatt_bcb.
  *
  ******************************************************************************/
-tGATT_EBCB* gatt_find_eatt_bcb_by_cid(uint16_t lcid) {
+tGATT_EBCB* gatt_find_eatt_bcb_by_cid(tGATT_TCB* p_tcb, uint16_t lcid) {
   uint16_t i = 0;
   tGATT_EBCB* p_eatt_bcb = NULL;
 
   for (i = 0; i < GATT_MAX_EATT_CHANNELS; i++) {
-    if (gatt_cb.eatt_bcb[i].in_use && gatt_cb.eatt_bcb[i].cid == lcid
+    if (gatt_cb.eatt_bcb[i].in_use && (gatt_cb.eatt_bcb[i].cid == lcid)
+        && (p_tcb && ((RawAddress::kAny == p_tcb->peer_bda) ||
+        (gatt_cb.eatt_bcb[i].p_tcb->peer_bda == p_tcb->peer_bda)))
         && (!gatt_cb.eatt_bcb[i].create_in_prg)) {
       p_eatt_bcb = &gatt_cb.eatt_bcb[i];
       break;
@@ -254,6 +267,29 @@ tGATT_EBCB* gatt_find_eatt_bcb_by_cid(uint16_t lcid) {
   return p_eatt_bcb;
 }
 
+/*******************************************************************************
+ *
+ * Function         gatt_find_eatt_bcb_using_all_cids
+ *
+ * Description      The function searches for the eatt_bcb entry
+ *                  based on channel id, even eatt connection on that channel
+ *                  is still in connecting state.
+ *
+ * Returns          NULL if not found. Otherwise pointer to the eatt_bcb.
+ *
+ ******************************************************************************/
+tGATT_EBCB* gatt_find_eatt_bcb_using_all_cids(uint16_t lcid) {
+  uint16_t i = 0;
+  tGATT_EBCB* p_eatt_bcb = NULL;
+
+  for (i = 0; i < GATT_MAX_EATT_CHANNELS; i++) {
+    if (gatt_cb.eatt_bcb[i].in_use && gatt_cb.eatt_bcb[i].cid == lcid) {
+      p_eatt_bcb = &gatt_cb.eatt_bcb[i];
+      break;
+    }
+  }
+  return p_eatt_bcb;
+}
 /*******************************************************************************
  *
  * Function         gatt_find_eatt_bcb_by_srv_trans_id
@@ -389,7 +425,7 @@ tGATT_EBCB* gatt_find_best_eatt_bcb(tGATT_TCB* p_tcb, tGATT_IF gatt_if, uint16_t
   std::vector<tGATT_APPS_EBCB> apps_in_ebcb_list;
   tGATT_APPS_EBCB apps_in_ebcb;
   uint16_t conn_id = 0;
-  tGATT_EBCB* p_eatt_bcb_old = gatt_find_eatt_bcb_by_cid(old_cid);
+  tGATT_EBCB* p_eatt_bcb_old = gatt_find_eatt_bcb_by_cid(p_tcb, old_cid);
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
 
   //Find all EATT channels with suitable MTU size
@@ -416,11 +452,11 @@ tGATT_EBCB* gatt_find_best_eatt_bcb(tGATT_TCB* p_tcb, tGATT_IF gatt_if, uint16_t
   if(apps_in_ebcb_list.size() > 0) {
     //Select the least burdened EATT channel
     std::sort(apps_in_ebcb_list.begin(), apps_in_ebcb_list.end(), compare_num_apps_in_ebcb_list);
-    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(apps_in_ebcb_list[0].lcid);
+    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(p_tcb, apps_in_ebcb_list[0].lcid);
   }
   // Unable to find any suitable EATT channel, use ATT
   else {
-    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(L2CAP_ATT_CID);
+    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(p_tcb, L2CAP_ATT_CID);
     if ((old_cid > 0) && p_eatt_bcb && p_eatt_bcb_old &&
         (p_eatt_bcb->payload_size < p_eatt_bcb_old->payload_size)) {
       VLOG(1) << __func__ << " cid:" << +p_eatt_bcb->cid << " does not have required MTU";
@@ -548,10 +584,13 @@ struct find_gatt_cid
 
 struct is_gatt_cid_found
 {
+  RawAddress bda;
   uint16_t cid;
-  is_gatt_cid_found(uint16_t cid) : cid(cid) {}
+  is_gatt_cid_found(RawAddress bda, uint16_t cid) : bda(bda), cid(cid) {}
   bool operator () (const tGATT_CONN& gatt_conn) const {
-    return (gatt_conn.lcid == cid);
+    uint8_t tcb_idx = GATT_GET_TCB_IDX(gatt_conn.conn_id);
+    tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(tcb_idx);
+    return ((p_tcb && (p_tcb->peer_bda == bda)) && (gatt_conn.lcid == cid));
   }
 };
 
@@ -582,14 +621,15 @@ void gatt_remove_conn(uint16_t conn_id, uint16_t lcid) {
  * Returns          void.
  *
  ******************************************************************************/
-void gatt_remove_conns_by_cid(uint16_t lcid) {
+void gatt_remove_conns_by_cid(tGATT_TCB* p_tcb, uint16_t lcid) {
   if (gatt_cb.gatt_conn_list.empty()) {
     VLOG(1) << __func__ << " empty list:";
     return;
   }
 
   std::vector<tGATT_CONN>::iterator it
-        = std::remove_if(gatt_cb.gatt_conn_list.begin(), gatt_cb.gatt_conn_list.end(), is_gatt_cid_found(lcid));
+        = std::remove_if(gatt_cb.gatt_conn_list.begin(), gatt_cb.gatt_conn_list.end(),
+                         is_gatt_cid_found(p_tcb->peer_bda, lcid));
   if (it != gatt_cb.gatt_conn_list.end()) {
     gatt_cb.gatt_conn_list.erase(it, gatt_cb.gatt_conn_list.end());
   }
@@ -681,6 +721,24 @@ uint16_t gatt_get_cid_by_conn_id(uint16_t conn_id) {
   return lcid;
 }
 
+/*
+** Return true if any Apps needs EATT channel
+*/
+bool gatt_apps_need_eatt(tGATT_TCB* p_tcb) {
+  uint8_t num_apps_hold_link = 0;
+  tGATT_REG* p_reg;
+  auto& holders = p_tcb->app_hold_link;
+  num_apps_hold_link = holders.size();
+  VLOG(1) << __func__ << " num_apps_hold_link: " << +num_apps_hold_link;
+  for (auto it = holders.begin(); it != holders.end(); ++it) {
+    p_reg = gatt_get_regcb(*it);
+    if (p_reg && p_reg->eatt_support) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /*******************************************************************************
  *
  * Function         gatt_upgrade_conn
@@ -732,26 +790,252 @@ void gatt_upgrade_conn(tGATT_TCB* p_tcb) {
 void gatt_send_pending_ind(tGATT_TCB& tcb, uint16_t lcid) {
   tGATT_EBCB* p_eatt_bcb = NULL;
   fixed_queue_t** pending_ind_q = &(tcb.pending_ind_q);
-  tGATT_VALUE* p_buf =
-      (tGATT_VALUE*)fixed_queue_try_peek_first(tcb.pending_ind_q);
+  tGATT_VALUE* p_buf = NULL;
+  uint8_t att_ret;
+  std::vector<uint16_t>::iterator it;
+  VLOG(1) << __func__;
 
   if (tcb.is_eatt_supported) {
-    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(lcid);
+    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(&tcb, lcid);
     if (p_eatt_bcb) {
       VLOG(1) << __func__ << " Known EATT bearer";
       pending_ind_q = &(p_eatt_bcb->pending_ind_q);
-      p_buf = (tGATT_VALUE*)fixed_queue_try_peek_first(*pending_ind_q);
     }
   }
 
   p_buf = (tGATT_VALUE*)fixed_queue_try_peek_first(*pending_ind_q);
   if (p_buf != NULL) {
-    GATTS_HandleValueIndication(p_buf->conn_id, p_buf->handle, p_buf->len,
+    att_ret = GATTS_HandleValueIndication(p_buf->conn_id, p_buf->handle, p_buf->len,
                                 p_buf->value);
-    osi_free(fixed_queue_try_remove_from_queue(*pending_ind_q, p_buf));
+    if (((att_ret == GATT_CONGESTED) || (att_ret == GATT_NO_CREDITS))
+        && p_eatt_bcb && p_eatt_bcb->no_credits) {
+      VLOG(1) << __func__ << " EATT channel has no credits, dont dequeue";
+      return;
+    }
+    else {
+      osi_free(fixed_queue_try_remove_from_queue(*pending_ind_q, p_buf));
+
+      if (!p_eatt_bcb->ind_no_credits_apps.empty()) {
+        it = std::find(p_eatt_bcb->ind_no_credits_apps.begin(),
+                       p_eatt_bcb->ind_no_credits_apps.end(), p_buf->conn_id);
+        if (it != p_eatt_bcb->ind_no_credits_apps.end()) {
+          p_eatt_bcb->ind_no_credits_apps.erase(it);
+        }
+      }
+
+      //No credits, check if uncongestion needs to be sent
+      if (p_eatt_bcb && p_eatt_bcb->send_uncongestion) {
+        if (fixed_queue_is_empty(p_eatt_bcb->pending_ind_q)) {
+          VLOG(1) << __func__ << " check if uncongestion needs to be sent"
+                                 " to apps after sending queued indication";
+          eatt_congest_notify_apps(&tcb, lcid, false);
+        }
+      }
+    }
   }
 }
 
+/** Enqueue GATT notification for no credits reason, only for EATT */
+void gatt_notif_enq(tGATT_TCB* p_tcb, uint16_t cid, tGATT_VALUE* p_notif) {
+  tGATT_EBCB* p_eatt_bcb;
+  VLOG(1) << __func__;
+
+  if (p_tcb->is_eatt_supported && (cid != L2CAP_ATT_CID)) {
+    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(p_tcb, cid);
+    if (p_eatt_bcb) {
+      p_eatt_bcb->notif_q.push_back(*p_notif);
+    }
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         gatt_send_pending_notif
+ *
+ * Description      This function checks any pending notification needs to be sent
+ *                  if there is a pending notification then it is sent
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void gatt_send_pending_notif(tGATT_TCB& tcb, uint16_t cid) {
+  tGATT_EBCB* p_eatt_bcb = NULL;
+  std::deque<tGATT_VALUE>* notif_q;
+  tGATT_VALUE* p_buf;
+  uint8_t att_ret;
+  std::vector<uint16_t>::iterator it;
+  VLOG(1) << __func__;
+
+  if (tcb.is_eatt_supported) {
+    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(&tcb, cid);
+    if (p_eatt_bcb) {
+      VLOG(1) << __func__ << " Known EATT bearer";
+      notif_q = &(p_eatt_bcb->notif_q);
+      if (notif_q->empty()) {
+        VLOG(1) << __func__ << " notif q is empty";
+        return;
+      }
+
+      p_buf = (tGATT_VALUE*)&(notif_q->front());
+      if (p_buf != NULL) {
+        att_ret = GATTS_HandleValueNotification(p_buf->conn_id, p_buf->handle, p_buf->len,
+                                                p_buf->value);
+        if (((att_ret == GATT_CONGESTED) || (att_ret == GATT_NO_CREDITS))
+            && p_eatt_bcb->no_credits) {
+          VLOG(1) << __func__ << " EATT channel has no credits, dont dequeue";
+          return;
+        }
+        else {
+          notif_q->pop_front();
+          if (!p_eatt_bcb->notif_no_credits_apps.empty()) {
+            it = std::find(p_eatt_bcb->notif_no_credits_apps.begin(),
+                           p_eatt_bcb->notif_no_credits_apps.end(), p_buf->conn_id);
+            if (it != p_eatt_bcb->notif_no_credits_apps.end()) {
+              p_eatt_bcb->notif_no_credits_apps.erase(it);
+            }
+          }
+
+          if (p_eatt_bcb && p_eatt_bcb->send_uncongestion) {
+            if (p_eatt_bcb->notif_q.empty()) {
+              VLOG(1) << __func__ << " check if uncongestion needs to be sent to apps"
+                                     " after sending queued notification";
+              eatt_congest_notify_apps(&tcb, cid, false);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/** Enqueue GATT response for no credits reason, only for EATT */
+void gatt_rsp_enq(tGATT_TCB* p_tcb, uint16_t cid, tGATT_PEND_RSP* p_rsp) {
+  VLOG(1) << __func__;
+  tGATT_EBCB* p_eatt_bcb;
+
+  if (p_tcb->is_eatt_supported && (cid != L2CAP_ATT_CID)) {
+    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(p_tcb, cid);
+    if (p_eatt_bcb) {
+      p_eatt_bcb->gatt_rsp_q.push_back(*p_rsp);
+    }
+  }
+}
+
+/** Enqueue GATT discovery response for no credits reason, only for EATT */
+void eatt_disc_rsp_enq(tGATT_TCB* p_tcb, uint16_t cid, BT_HDR *p_msg) {
+  tGATT_PEND_SRVC_DISC_RSP gatt_rsp;
+  gatt_rsp.p_msg = p_msg;
+  gatt_rsp.lcid = cid;
+  tGATT_EBCB* p_eatt_bcb;
+
+  VLOG(1) << __func__;
+  if (cid != L2CAP_ATT_CID) {
+    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(p_tcb, cid);
+    if (p_eatt_bcb) {
+      p_eatt_bcb->gatt_disc_rsp_q.push_back(gatt_rsp);
+    }
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         gatt_send_pending_rsp
+ *
+ * Description      This function checks any pending GATT rsp needs to be sent
+ *                  if there is a pending rsp, then it is sent
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void gatt_send_pending_rsp(tGATT_TCB& tcb, uint16_t cid) {
+  tGATT_EBCB* p_eatt_bcb = NULL;
+  std::deque<tGATT_PEND_RSP>* gatt_rsp_q;
+  tGATT_PEND_RSP* p_buf;
+  uint8_t att_ret;
+  VLOG(1) << __func__;
+
+  if (tcb.is_eatt_supported && (cid != L2CAP_ATT_CID)) {
+    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(&tcb, cid);
+    if (p_eatt_bcb) {
+      VLOG(1) << __func__ << " Known EATT bearer";
+      gatt_rsp_q = &(p_eatt_bcb->gatt_rsp_q);
+      if (gatt_rsp_q->empty()) {
+        VLOG(1) << __func__ << " pending gatt rsp q empty";
+        return;
+      }
+
+      p_buf = (tGATT_PEND_RSP*)&(gatt_rsp_q->front());
+      if (p_buf != NULL) {
+        att_ret = GATTS_SendRsp(p_buf->conn_id, p_buf->trans_id, p_buf->status, p_buf->p_msg);
+        if (((att_ret == GATT_CONGESTED) || (att_ret == GATT_NO_CREDITS))
+            && p_eatt_bcb->no_credits) {
+          VLOG(1) << __func__ << " EATT channel has no credits, dont dequeue";
+          return;
+        }
+        else {
+          gatt_rsp_q->pop_front();
+          if (p_eatt_bcb && p_eatt_bcb->send_uncongestion) {
+            if (p_eatt_bcb->gatt_rsp_q.empty()) {
+              VLOG(1) << __func__ << " check if uncongestion needs to be sent to apps"
+                                     " after sending queued GATT Rsp";
+              eatt_congest_notify_apps(&tcb, cid, false);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         gatt_send_pending_disc_rsp
+ *
+ * Description      This function checks any pending GATT discovery rsp needs
+ *                  to be sent. If there is a pending rsp, then it is sent
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void gatt_send_pending_disc_rsp(tGATT_TCB& tcb, uint16_t cid) {
+  tGATT_EBCB* p_eatt_bcb = NULL;
+  std::deque<tGATT_PEND_SRVC_DISC_RSP>* gatt_rsp_q;
+  tGATT_PEND_SRVC_DISC_RSP* p_buf;
+  uint8_t att_ret;
+  VLOG(1) << __func__;
+
+  if (tcb.is_eatt_supported && (cid != L2CAP_ATT_CID)) {
+    p_eatt_bcb = gatt_find_eatt_bcb_by_cid(&tcb, cid);
+
+    if (p_eatt_bcb) {
+      VLOG(1) << __func__ << " Known EATT bearer";
+      gatt_rsp_q = &(p_eatt_bcb->gatt_disc_rsp_q);
+
+      if (gatt_rsp_q->empty()) {
+        VLOG(1) << __func__ << " pending gatt rsp q empty";
+        return;
+      }
+
+      p_buf = (tGATT_PEND_SRVC_DISC_RSP*)&(gatt_rsp_q->front());
+      if (p_buf != NULL) {
+        att_ret = attp_send_sr_msg(tcb, cid, p_buf->p_msg);
+
+        if (((att_ret == GATT_CONGESTED) || (att_ret == GATT_NO_CREDITS))
+            && p_eatt_bcb->no_credits){
+          VLOG(1) << __func__ << " EATT channel has no credits, dont dequeue";
+          return;
+        } else {
+          gatt_rsp_q->pop_front();
+          if (p_eatt_bcb->send_uncongestion && p_eatt_bcb->gatt_disc_rsp_q.empty()) {
+            VLOG(1) << __func__ << " check if uncongestion needs to be sent to apps"
+                                   " after sending queued GATT srvc disc rsp";
+            eatt_congest_notify_apps(&tcb, cid, false);
+          }
+        }
+      }
+    }
+  }
+}
 /*******************************************************************************
  *
  * Function         gatt_move_apps
@@ -762,9 +1046,8 @@ void gatt_send_pending_ind(tGATT_TCB& tcb, uint16_t lcid) {
  * Returns          void
  *
  ******************************************************************************/
-void gatt_move_apps(uint16_t cid) {
-  tGATT_EBCB* p_eatt_bcb_old = gatt_find_eatt_bcb_by_cid(cid);
-  tGATT_TCB* p_tcb = NULL;
+void gatt_move_apps(tGATT_TCB* p_tcb, uint16_t cid) {
+  tGATT_EBCB* p_eatt_bcb_old = gatt_find_eatt_bcb_by_cid(p_tcb, cid);
   tGATT_EBCB* p_eatt_bcb = NULL;
   tGATT_IF gatt_if;
   uint16_t cl_conn_id = 0;
@@ -775,8 +1058,6 @@ void gatt_move_apps(uint16_t cid) {
   VLOG(1) << __func__ << " cid:" << +cid;
 
   if (p_eatt_bcb_old) {
-    p_tcb = p_eatt_bcb_old->p_tcb;
-
     if (!p_tcb || !p_tcb->is_eatt_supported || (cid == L2CAP_ATT_CID)) {
       VLOG(1) << __func__ << " Invalid scenario for moving apps";
       return;
@@ -838,13 +1119,17 @@ void gatt_move_apps(uint16_t cid) {
         tGATT_APPS_Q app = {.conn_id = conn_id,
                             .lcid = p_eatt_bcb->cid,
                             .cl_to_send = false,
-                            .sr_to_send = false};
+                            .sr_to_send = false,
+                            .notif_to_send = false};
 
-       if (p_eatt_bcb->cl_cmd_q.empty()) {
+        if (p_eatt_bcb->cl_cmd_q.empty()) {
           app.cl_to_send = true;
         }
         if (!GATT_HANDLE_IS_VALID(p_eatt_bcb->indicate_handle)) {
           app.sr_to_send = true;
+        }
+        if (p_eatt_bcb->notif_q.empty()) {
+          app.notif_to_send = true;
         }
         apps_q.push_back(app);
       }
@@ -858,7 +1143,7 @@ void gatt_move_apps(uint16_t cid) {
         tGATT_APPS_Q app = apps_q[i];
         if ((app.conn_id == cmd.p_clcb->conn_id) && (app.conn_id != cl_conn_id) &&
             (cmd.p_cmd != NULL)) {
-          p_eatt_bcb = gatt_find_eatt_bcb_by_cid(app.lcid);
+          p_eatt_bcb = gatt_find_eatt_bcb_by_cid(p_tcb, app.lcid);
           if (p_eatt_bcb)
             p_eatt_bcb->cl_cmd_q.push(cmd);
         }
@@ -874,12 +1159,30 @@ void gatt_move_apps(uint16_t cid) {
         for (uint8_t i=0; i<apps_q.size(); i++) {
           tGATT_APPS_Q app = apps_q[i];
           if ((app.conn_id == p_buf->conn_id) && (app.conn_id != sr_conn_id)) {
-            p_eatt_bcb = gatt_find_eatt_bcb_by_cid(app.lcid);
+            p_eatt_bcb = gatt_find_eatt_bcb_by_cid(p_tcb, app.lcid);
             if (p_eatt_bcb)
               gatt_add_pending_ind(p_tcb, p_eatt_bcb->cid, p_buf);
           }
         }
         osi_free(fixed_queue_try_remove_from_queue(p_eatt_bcb_old->pending_ind_q, p_buf));
+      }
+    }
+
+    //Move server notifications(queued for no credits) to selected cid
+    while (!p_eatt_bcb_old->notif_q.empty()) {
+      tGATT_VALUE* p_buf = &(p_eatt_bcb_old->notif_q.front());
+
+      if (p_buf != NULL) {
+        for (uint8_t i=0; i<apps_q.size(); i++) {
+          tGATT_APPS_Q app = apps_q[i];
+          if (app.conn_id == p_buf->conn_id) {
+            p_eatt_bcb = gatt_find_eatt_bcb_by_cid(p_tcb, app.lcid);
+            if (p_eatt_bcb)
+              p_eatt_bcb->notif_q.push_back(*p_buf);
+          }
+        }
+        p_eatt_bcb_old->notif_q.pop_front();
+        osi_free(p_buf);
       }
     }
 
@@ -890,6 +1193,10 @@ void gatt_move_apps(uint16_t cid) {
 
       if (apps_q[i].sr_to_send) {
         gatt_send_pending_ind(*(p_tcb), apps_q[i].lcid);
+      }
+
+      if (apps_q[i].notif_to_send) {
+        gatt_send_pending_notif(*(p_tcb), apps_q[i].lcid);
       }
     }
 
@@ -1000,7 +1307,77 @@ void eatt_cleanup_upon_disc(const RawAddress& bda) {
     if (gatt_cb.eatt_bcb[i].in_use && (gatt_cb.eatt_bcb[i].p_tcb->peer_bda == bda)
         && (!gatt_cb.eatt_bcb[i].create_in_prg)) {
       p_eatt_bcb = &gatt_cb.eatt_bcb[i];
-      gatt_eatt_bcb_dealloc(p_eatt_bcb->cid);
+      gatt_eatt_bcb_dealloc(p_eatt_bcb->p_tcb, p_eatt_bcb->cid);
     }
   }
+}
+
+/*******************************************************************************
+ *
+ * Function         eatt_congest_notify_apps
+ *
+ * Description      The function sends congestion/uncogestion cb to apps on cid.
+ *
+ * Returns          bool
+ *
+ ******************************************************************************/
+bool eatt_congest_notify_apps(tGATT_TCB* p_tcb, uint16_t cid, bool congested) {
+  tGATT_EBCB* p_eatt_bcb = gatt_find_eatt_bcb_by_cid(p_tcb, cid);
+  bool ret = false;
+  tGATT_REG* p_reg = NULL;
+  uint16_t conn_id;
+  std::vector<tGATT_IF> apps;
+  std::vector<tGATT_IF> opp_apps;
+  uint8_t i = 0;
+
+  VLOG(1) << __func__ << " cid:" << +cid << " congested:" << +congested;
+  if (!p_eatt_bcb) {
+    VLOG(1) << __func__ << " error, p_eatt_bcb is null";
+    return ret;
+  }
+
+  p_tcb = p_eatt_bcb->p_tcb;
+  apps = p_eatt_bcb->apps;
+  opp_apps = p_eatt_bcb->opportunistic_apps;
+  apps.insert(apps.end(), opp_apps.begin(), opp_apps.end());
+
+  if (congested) {
+    VLOG(1) << __func__ << " sending congestion cb to apps on EATT channel:" << +cid;
+    /* notifying all applications on the EATT channel with congestion cb */
+    for (i = 0; i < apps.size(); i++) {
+      p_reg = gatt_get_regcb(apps[i]);
+      if (p_reg && p_reg->in_use) {
+        if (p_reg->app_cb.p_congestion_cb && p_tcb) {
+          conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
+          (*p_reg->app_cb.p_congestion_cb)(conn_id, true);
+        }
+      }
+    }
+    ret = true;
+  }
+  else {
+    if (p_eatt_bcb->send_uncongestion && p_eatt_bcb->cl_cmd_q.empty()
+        && fixed_queue_is_empty(p_eatt_bcb->pending_ind_q)
+        && p_eatt_bcb->notif_q.empty() && p_eatt_bcb->gatt_rsp_q.empty()
+        && p_eatt_bcb->gatt_disc_rsp_q.empty()) {
+      VLOG(1) << __func__ << " All queues for this EATT chnl are empty,"
+                             " send uncongestion cb to apps";
+
+      /* notifying all applications on the EATT channel with uncongestion cb */
+      for (i = 0; i < apps.size(); i++) {
+        p_reg = gatt_get_regcb(apps[i]);
+        if (p_reg && p_reg->in_use) {
+          if (p_reg->app_cb.p_congestion_cb && p_tcb) {
+            conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
+            (*p_reg->app_cb.p_congestion_cb)(conn_id, false);
+          }
+        }
+      }
+      p_eatt_bcb->send_uncongestion = false;
+      p_eatt_bcb->no_credits = false;
+      ret = true;
+    }
+  }
+
+  return ret;
 }

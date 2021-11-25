@@ -166,7 +166,21 @@ typedef enum {
   BT_HOST_REASON_PATCH_CONFIG_CMD_STUCK          =  0x37,
   BT_HOST_REASON_GET_APP_VER_CMD_STUCK           =  0x38,
   BT_HOST_REASON_DIAG_LOG_API_STUCK              =  0x39,
-
+  BT_HOST_REASON_SOC_NAME_UNKOWN                 =  0x3A,
+  // Exception in HOST reason, below is actually related to SoC.
+  SOC_REASON_START_TX_IOS_SOC_RFR_HIGH_DURING_INIT = 0x3B,
+  BT_HOST_REASON_GETVER_CMD_FAILED               = 0x3C,
+  BT_HOST_REASON_BAUDRATE_CHANGE_FAILED          = 0x3D,
+  BT_HOST_REASON_TLV_DOWNLOAD_FAILED             = 0x3E,
+  BT_HOST_REASON_FW_BUILD_INFO_CMD_FAILED        = 0x3F,
+  BT_HOST_REASON_HCI_RESET_CMD_FAILED            = 0x40,
+  BT_HOST_REASON_UART_INIT_FAILED                = 0x41,
+  BT_HOST_REASON_MEMORY_ALLOCATION_FAILED        = 0x42,
+  BT_HOST_REASON_READ_THREAD_START_FAILED        = 0x43,
+  BT_HOST_REASON_HW_FLOW_ON_FAILED               = 0x44,
+  BT_HOST_REASON_NVM_FILE_NOT_FOUND              = 0x45,
+  BT_HOST_REASON_UART_BAUDRATE_CHANGE_FAILED     = 0x46,
+  BT_HOST_REASON_PATCH_CONFIG_FAILED             = 0x47,
   // UART driver crash reasons
   UART_REASON_DEFAULT                            =  0x51,
   UART_REASON_INVALID_FW_LOADED                  =  0x52,
@@ -200,7 +214,7 @@ static secondary_reason secondary_crash_reason [] = {
 { BT_SOC_REASON_DEFAULT                 ,    "Default"},
 { BT_SOC_REASON_UNKNOWN                 ,    "Unknown"},
 { BT_SOC_REASON_TX_RX_INVALID_PKT_FATAL ,    "Tx/Rx invalid packet fatal error"},
-{ BT_SOC_REASON_TX_RX_INVALID_LEN_FATAL ,    "Tx/Rx invalid lenght fatal error"},
+{ BT_SOC_REASON_TX_RX_INVALID_LEN_FATAL ,    "Tx/Rx invalid length fatal error"},
 { BT_SOC_REASON_SW_REQUESTED            ,    "SW Requested"},
 { BT_SOC_REASON_STACK_OVERFLOW          ,    "Stack Overflow"},
 { BT_SOC_REASON_EXCEPTION               ,    "Exception"},
@@ -285,6 +299,21 @@ static secondary_reason secondary_crash_reason [] = {
 { BT_HOST_REASON_PATCH_CONFIG_CMD_STUCK          ,  "Patch config cmd stuck"},
 { BT_HOST_REASON_GET_APP_VER_CMD_STUCK           ,  "Get APP version cmd stuck"},
 { BT_HOST_REASON_DIAG_LOG_API_STUCK              ,  "DIAG log API stuck"},
+{ BT_HOST_REASON_SOC_NAME_UNKOWN                 ,  "SoC name unkown"},
+{ SOC_REASON_START_TX_IOS_SOC_RFR_HIGH_DURING_INIT, "SoC RFR high during INIT"},
+{ BT_HOST_REASON_GETVER_CMD_FAILED               ,  "Get Version cmd failed"},
+{ BT_HOST_REASON_BAUDRATE_CHANGE_FAILED          ,  "Baudrate change failed"},
+{ BT_HOST_REASON_TLV_DOWNLOAD_FAILED             ,  "TLV download failed"},
+{ BT_HOST_REASON_FW_BUILD_INFO_CMD_FAILED        ,  "FW build info. cmd failed"},
+{ BT_HOST_REASON_HCI_RESET_CMD_FAILED            ,  "HCI reset cmd failed"},
+{ BT_HOST_REASON_UART_INIT_FAILED                ,  "UART INIT failed"},
+{ BT_HOST_REASON_MEMORY_ALLOCATION_FAILED        ,  "Memory allocation failed"},
+{ BT_HOST_REASON_READ_THREAD_START_FAILED        ,  "Read thread start failed"},
+{ BT_HOST_REASON_HW_FLOW_ON_FAILED               ,  "HW flow ON failed"},
+{ BT_HOST_REASON_NVM_FILE_NOT_FOUND              ,  "NVM File not found"},
+{ BT_HOST_REASON_UART_BAUDRATE_CHANGE_FAILED     ,  "UART Baudrate change failed"},
+{ BT_HOST_REASON_PATCH_CONFIG_FAILED             ,  "Patch config cmd failed"},
+  // UART driver crash reasons
 { UART_REASON_DEFAULT                            ,  "UART reason Default"},
 { UART_REASON_INVALID_FW_LOADED                  ,  "UART invalid FW loaded"},
 { UART_REASON_CLK_GET_FAIL                       ,  "UART CLK get failed"},
@@ -305,7 +334,7 @@ static secondary_reason secondary_crash_reason [] = {
 { UART_REASON_RX_PARITY_REASON                   ,  "UART rx parity error"},
 { UART_REASON_RX_BREAK_REASON                    ,  "UART rx break error"},
 { UART_REASON_RX_SBE_REASON                      ,  "UART rx SBE error"},
-{ SOC_REASON_START_TX_IOS_SOC_RFR_HIGH           ,  "UART start tx SoC rfr high"}
+{ SOC_REASON_START_TX_IOS_SOC_RFR_HIGH           ,  "SoC RFR high"}
 };
 
 enum host_crash_reason_e  {
