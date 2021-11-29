@@ -26,27 +26,21 @@ AC_PROG_LN_S
 AC_PROG_MAKE_SET
 PKG_PROG_PKG_CONFIG
 
-# Library configs
-AC_ARG_WITH([common_includes],
-      AC_HELP_STRING([--with-common-includes=@<:@dir@:>@],
-         [Specify the location of the common headers]),
-      [common_incdir=$withval],
-      with_common_includes=no)
+PKG_CHECK_MODULES([LIBHARDWARE], [hardware])
+AC_SUBST([LIBHARDWARE_CFLAGS])
+AC_SUBST([LIBHARDWARE_LIBS])
 
-if test "x$with_common_includes" != "xno"; then
-   CFLAGS="${CFLAGS} -I${common_incdir}"
-fi
+PKG_CHECK_MODULES([BLUETOOTHHOST], [bluetoothHost])
+AC_SUBST([BLUETOOTHHOST_CFLAGS])
+AC_SUBST([BLUETOOTHHOST_LIBS])
 
-AC_ARG_WITH([chrome_includes],
-      AC_HELP_STRING([--with-chrome-includes=@<:@dir@:>@],
-         [Specify the location of the common headers]),
-      [chrome_incdir=$withval],
-      with_chrome_includes=no)
+PKG_CHECK_MODULES([BLUETOOTHEXT], [bluetoothExt])
+AC_SUBST([BLUETOOTHEXT_CFLAGS])
+AC_SUBST([BLUETOOTHEXT_LIBS])
 
-if test "x$with_chrome_includes" != "xno"; then
-   CPPFLAGS="${CPPFLAGS} -I${chrome_incdir}"
-   CFLAGS="${CFLAGS} -I${chrome_incdir}"
-fi
+PKG_CHECK_MODULES([LIBCHROME], [libchrome])
+AC_SUBST([LIBCHROME_CFLAGS])
+AC_SUBST([LIBCHROME_LIBS])
 
 AC_ARG_WITH([hardware_include],
                   AC_HELP_STRING([--with-hardware-include=@<:@dir@:>@],
@@ -125,16 +119,6 @@ if test "$WITH_ZLIB" != "no"; then
 fi
 AC_SUBST(Z_LIB)
 
-AC_ARG_WITH([lib_path],
-      AC_HELP_STRING([--with-lib-path=@<:@dir@:>@],
-         [Specify the location of the libraries]),
-      [std_libdir=$withval],
-      with_lib_path=no)
-
-if test "x$with_lib_path" != "xno"; then
-   SYS_LIB=${std_libdir}
-fi
-
 AC_ARG_ENABLE([static],
         [  --enable-static Statically link vendor image],
         [case "${enableval}" in
@@ -204,6 +188,7 @@ AC_CONFIG_FILES([ \
          embdrv/sbc/decoder/Makefile \
          btif/Makefile
          audio_a2dp_hw/Makefile \
+         system_bt.pc \
          ])
 
 AC_OUTPUT

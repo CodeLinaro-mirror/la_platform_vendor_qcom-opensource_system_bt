@@ -47,18 +47,13 @@ AM_CPPFLAGS = \
         -I../embdrv/sbc/decoder/include \
         -I../audio_a2dp_hw \
         -I../utils/include \
-        -I../internal_include \
-        -I${WORKSPACE}/external/tinyxml2 \
-        -I${WORKSPACE}/external/zlib \
-        -I${external_bt_path}/vhal/include \
-        -I$(external_bt_path)/system_bt_ext \
-        -I$(external_bt_path)/system_bt_ext/btif/include \
-        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/hal/include \
-        -I$(WORKSPACE)/frameworks/av/include \
-        -I$(WORKSPACE)/system/media/audio/include \
-        -I$(WORKSPACE)/system/media/audio_utils/include \
-        -I$(WORKSPACE)/system/core/include
+        -I../internal_include 
 
+AM_CPPFLAGS += @BLUETOOTHHOST_CFLAGS@ @BLUETOOTHEXT_CFLAGS@ @LIBCHROME_CFLAGS@
+
+AM_CPPFLAGS += -DUSE_ANDROID_LOGGING -DUSE_LIBHW_AOSP
+
+requiredlibs = @BLUETOOTHEXT_LIBS@
 if MDM_CHEROKEE
 AM_CPPFLAGS += -DBTA_AV_SPLIT_A2DP_ENABLED
 AM_CPPFLAGS += -DBTA_AV_SPLIT_A2DP_DEF_FREQ_48KHZ
@@ -133,6 +128,8 @@ cpp_sources = \
 
 common_LDFLAGS = -lpthread  -lrt -lresolv ../bta/libbtbta.la ../osi/libbtosi.la \
                   ../device/libbtdevice.la ../audio_a2dp_hw/libaudioa2dpdefault.la
+
+common_LDFLAGS += -llog -lcutils
 
 common_CFLAGS =  $(AM_CFLAGS) -D_GNU_SOURCE $(Z_LIB) -fPIC
 
