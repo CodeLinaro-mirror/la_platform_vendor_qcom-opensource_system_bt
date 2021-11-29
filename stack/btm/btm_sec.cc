@@ -881,9 +881,15 @@ tBTM_STATUS btm_sec_bond_by_transport(const RawAddress& bd_addr,
 
   /* Other security process is in progress */
   if (btm_cb.pairing_state != BTM_PAIR_STATE_IDLE) {
-    BTM_TRACE_ERROR("BTM_SecBond: already busy in state: %s",
-                    btm_pair_state_descr(btm_cb.pairing_state));
-    return (BTM_WRONG_MODE);
+    if (btm_cb.pairing_bda == bd_addr) {
+      BTM_TRACE_ERROR("BTM_SecBond: bonding with the same bd_addr=%s is ongoing",
+                      bd_addr.ToString().c_str());
+      return (BTM_COLLISION_ACTION);
+    } else {
+      BTM_TRACE_ERROR("BTM_SecBond: already busy in state: %s",
+                      btm_pair_state_descr(btm_cb.pairing_state));
+      return (BTM_WRONG_MODE);
+    }
   }
 
   p_dev_rec = btm_find_or_alloc_dev(bd_addr);
@@ -3862,8 +3868,14 @@ static bool btm_sec_auth_retry(uint16_t handle, uint8_t status) {
  ******************************************************************************/
 void btm_sec_auth_complete(uint16_t handle, uint8_t status) {
   tBTM_PAIRING_STATE old_state = btm_cb.pairing_state;
-  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev_by_handle(handle);
+  tBTM_SEC_DEV_REC* p_dev_rec;
   bool are_bonding = false;
+
+  if (handle == BTM_SEC_INVALID_HANDLE) {
+    p_dev_rec = btm_sec_find_dev_by_sec_state(BTM_SEC_STATE_AUTHENTICATING);
+  } else {
+    p_dev_rec = btm_find_dev_by_handle(handle);
+  }
 
   if (p_dev_rec) {
     VLOG(2) << __func__ << ": Security Manager: in state: "
@@ -4756,9 +4768,9 @@ void btm_sec_link_key_notification(const RawAddress& p_bda, uint8_t* p_link_key,
     if (we_are_bonding) {
       btsnd_hcic_rmt_name_req(p_bda, HCI_PAGE_SCAN_REP_MODE_R1,
                               HCI_MANDATARY_PAGE_SCAN_MODE, 0);
+      btm_sec_change_pairing_state(BTM_PAIR_STATE_GET_REM_NAME);
     }
 
-    btm_sec_change_pairing_state(BTM_PAIR_STATE_GET_REM_NAME);
     BTM_TRACE_EVENT("rmt_io_caps:%d, sec_flags:x%x, dev_class[1]:x%02x",
                     p_dev_rec->rmt_io_caps, p_dev_rec->sec_flags,
                     p_dev_rec->dev_class[1])
