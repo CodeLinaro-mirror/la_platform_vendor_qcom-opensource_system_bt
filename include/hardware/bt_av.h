@@ -287,6 +287,14 @@ typedef void (*btav_audio_sink_start_ind_callback)(const RawAddress& bd_addr );
  */
 typedef void (*btav_audio_sink_suspend_ind_callback)(const RawAddress& bd_addr );
 
+/** Callback for get avdtp capabilities response.
+ *  seid: SEP ID
+ *  psc_mask: service capabilities mask
+ */
+typedef void (* btav_avdt_cap)(const RawAddress& bd_addr,
+                                uint8_t seid,
+                                uint16_t psc_mask);
+
 /** BT-AV A2DP Source callback structure. */
 typedef struct {
   /** set to sizeof(btav_source_callbacks_t) */
@@ -294,6 +302,7 @@ typedef struct {
   btav_connection_state_callback connection_state_cb;
   btav_audio_state_callback audio_state_cb;
   btav_audio_source_config_callback audio_config_cb;
+  btav_avdt_cap peer_avdt_cap;
 } btav_source_callbacks_t;
 
 /** BT-AV A2DP Sink callback structure. */
