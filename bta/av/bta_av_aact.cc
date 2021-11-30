@@ -2044,6 +2044,14 @@ void bta_av_save_caps(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   A2DP_DumpCodecInfo(p_scb->p_cap->codec_info);
 
   memcpy(&cfg, p_scb->p_cap, sizeof(tAVDT_CFG));
+  APPL_TRACE_DEBUG("bta_av_save_caps p_scb->seps[p_scb->sep_info_idx].tsep:%d",
+       p_scb->seps[p_scb->sep_info_idx].tsep);
+  tBTA_AV_AVDT_CAP avdt_cap;
+  avdt_cap.peer_addr = p_scb->peer_addr;
+  avdt_cap.seid = p_info->seid;
+  avdt_cap.psc_mask = cfg.psc_mask;
+  (*bta_av_cb.p_cback)(BTA_AV_AVDT_CAP_EVT, (tBTA_AV *) &avdt_cap);
+
   /* let application know the capability of the SNK */
   p_scb->p_cos->getcfg(p_scb->hndl, cfg.codec_info, &p_scb->sep_info_idx,
                        p_info->seid, &cfg.num_protect, cfg.protect_info);
@@ -2253,6 +2261,7 @@ void bta_av_getcap_results(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
                      p_scb->p_cap->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET]);
   A2DP_DumpCodecInfo(p_scb->cfg.codec_info);
 
+  uuid_int = p_scb->uuid_int;
   /* if codec present and we get a codec configuration */
   if ((p_scb->p_cap->num_codec != 0) && (media_type == p_scb->media_type) &&
       (p_scb->p_cos->getcfg(p_scb->hndl, cfg.codec_info, &p_scb->sep_info_idx,
@@ -2265,7 +2274,6 @@ void bta_av_getcap_results(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
                      p_scb->sep_info_idx);
     A2DP_DumpCodecInfo(p_scb->cfg.codec_info);
 
-    uuid_int = p_scb->uuid_int;
     APPL_TRACE_DEBUG("%s: initiator UUID = 0x%x", __func__, uuid_int);
     if (uuid_int == UUID_SERVCLASS_AUDIO_SOURCE)
       bta_av_adjust_seps_idx(p_scb,
@@ -2307,6 +2315,12 @@ void bta_av_getcap_results(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     /* open the stream */
     AVDT_OpenReq(p_scb->seps[p_scb->sep_idx].av_handle, p_scb->peer_addr,
                  p_scb->sep_info[p_scb->sep_info_idx].seid, &cfg);
+
+    tBTA_AV_AVDT_CAP avdt_cap;
+    avdt_cap.peer_addr = p_scb->peer_addr;
+    avdt_cap.seid = p_scb->sep_info[p_scb->sep_info_idx].seid;
+    avdt_cap.psc_mask = cfg.psc_mask;
+    (*bta_av_cb.p_cback)(BTA_AV_AVDT_CAP_EVT, (tBTA_AV *) &avdt_cap);
 
     if (!bta_av_is_rcfg_sst(p_scb)) {
       /* free capabilities buffer */
