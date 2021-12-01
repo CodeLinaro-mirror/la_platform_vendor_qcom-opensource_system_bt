@@ -1,5 +1,7 @@
 # sources and intermediate files are separated
 
+external_bt_path := $(top_srcdir)/../../bluetooth_ext
+
 AM_CFLAGS = -Wno-gnu-variable-sized-type-not-at-end \
         -Wundef \
         -Wstrict-prototypes \
@@ -16,6 +18,9 @@ AM_CPPFLAGS= \
         -I../btcore/include \
         -I../stack/include \
         -I../utils/include \
+        -I../bta/include \
+        -I../internal_include \
+        -I$(external_bt_path)/vhal/include \
         -I../include \
         -I../types \
         -I../ \
@@ -37,8 +42,19 @@ AM_CFLAGS += -DBT_SOC_TYPE_CHEROKEE
 AM_CPPFLAGS += -DBT_SOC_TYPE_CHEROKEE
 endif
 
+if ACL_TIMING_CALC_SUPPORT
+AM_CFLAGS += -DBT_ACL_TIMIMG_ENABLED=TRUE
+AM_CPPFLAGS += -DBT_ACL_TIMIMG_ENABLED=TRUE
+endif
+
+if ACL_TIMING_CALC_SUPPORT
+cpp_sources = \
+        src/bt_utils.cc \
+        src/bt_acl_timestamps.cc
+else
 cpp_sources = \
         src/bt_utils.cc
+endif
 
 common_LDFLAGS = -lpthread
 common_CFLAGS =  $(AM_CFLAGS) -fPIC -DHAS_NO_BDROID_BUILDCFG

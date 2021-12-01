@@ -48,6 +48,9 @@
 #include "osi/include/properties.h"
 #include "osi/include/reactor.h"
 #include "packet_fragmenter.h"
+#if (BT_ACL_TIMIMG_ENABLED == TRUE)
+#include "bt_acl_timestamps.h"
+#endif
 
 #define BT_HCI_TIMEOUT_TAG_NUM 1010000
 
@@ -158,6 +161,10 @@ void hci_event_received(const tracked_objects::Location& from_here,
 
 void acl_event_received(BT_HDR* packet) {
   btsnoop->capture(packet, true);
+#if (BT_ACL_TIMIMG_ENABLED == TRUE)
+  // save the timestamps for the acl data
+  bt_acl_save_acl_timestamps(packet);
+#endif
   packet_fragmenter->reassemble_and_dispatch(packet);
 }
 
@@ -471,6 +478,13 @@ static void transmit_fragment(BT_HDR* packet, bool send_transmit_finished) {
    * process the event and frees the packet*/
   uint16_t event = packet->event & MSG_EVT_MASK;
 
+#if (BT_ACL_TIMIMG_ENABLED == TRUE)
+  // save the timestamps for the acl data
+  if (event == MSG_STACK_TO_HC_HCI_ACL) {
+      bt_acl_save_acl_timestamps(packet);
+  }
+#endif
+
   hci_transmit_status_t status = hci_transmit(packet);
 
   if(status == HCI_TRANSMIT_DAEMON_DIED) {
@@ -528,6 +542,30 @@ static void hci_timeout_abort(UNUSED_ATTR void *context) {
 #endif
 }
 
+#if (BT_ACL_TIMIMG_ENABLED == TRUE)
+void hci_calc_acl_timestamps(BT_HDR *buffer)
+{
+    const uint8_t *p = buffer->data + buffer->offset;
+    int idx = 0;
+    if (MSG_HC_TO_STACK_HCI_EVT == (buffer->event & MSG_EVT_MASK)) {
+        uint8_t hci_evt_code;
+        STREAM_TO_UINT8  (hci_evt_code, p);
+        p++; // skip the length
+        if (hci_evt_code == HCI_NUM_COMPL_DATA_PKTS_EVT) {
+            uint8_t     num_handles, xx;
+            uint16_t    handle, num_sent;
+            STREAM_TO_UINT8 (num_handles, p);
+
+            for (xx = 0; xx < num_handles; xx++)
+            {
+                STREAM_TO_UINT16 (handle, p);
+                STREAM_TO_UINT16 (num_sent, p);
+                bt_acl_calc_timestamps_by_handle(handle, num_sent);
+            }
+        }
+    }
+}
+#endif
 // Print debugging information and quit. Don't dereference original_wait_entry.
 static void command_timed_out(void* original_wait_entry) {
   std::unique_lock<std::recursive_mutex> lock(commands_pending_response_mutex);

@@ -35,6 +35,9 @@
 #include "l2c_int.h"
 #include "l2cdefs.h"
 #include "device/include/interop.h"
+#if (BT_ACL_TIMIMG_ENABLED == TRUE)
+#include "bt_acl_timestamps.h"
+#endif
 
 /******************************************************************************/
 /*            L O C A L    F U N C T I O N     P R O T O T Y P E S            */
@@ -846,7 +849,11 @@ static void l2c_csm_config(tL2C_CCB* p_ccb, uint16_t event, void* p_data) {
       }
 
       L2CAP_TRACE_WARNING("L2CAP-peer_Config_Rsp,Local CID: 0x%04x,Remote CID: 0x%04x,PSM: %d,peer MTU present: %d,peer MTU: %d",
-                               p_ccb->local_cid,p_ccb->remote_cid,p_ccb->p_rcb->psm ,p_ccb->peer_cfg.mtu_present,p_ccb->peer_cfg.mtu);
+                             p_ccb->local_cid,p_ccb->remote_cid,p_ccb->p_rcb->psm ,p_ccb->peer_cfg.mtu_present,p_ccb->peer_cfg.mtu);
+#if (BT_ACL_TIMIMG_ENABLED == TRUE)
+      if (p_ccb->p_rcb->psm == BT_PSM_AVDTP)
+          bt_acl_update_lcid(p_ccb->p_lcb->handle, p_ccb->local_cid, p_ccb->remote_cid);
+#endif
       (*p_ccb->p_rcb->api.pL2CA_ConfigCfm_Cb)(p_ccb->local_cid, p_cfg);
       break;
 

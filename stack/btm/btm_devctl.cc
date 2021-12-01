@@ -40,6 +40,9 @@
 #include "l2c_int.h"
 #include "osi/include/osi.h"
 #include "osi/include/thread.h"
+#if (BT_ACL_TIMIMG_ENABLED == TRUE)
+#include "bt_acl_timestamps.h"
+#endif
 
 #include "gatt_int.h"
 
@@ -165,7 +168,9 @@ static void reset_complete(void* result) {
 
   /* Clear current security state */
   list_foreach(btm_cb.sec_dev_rec, set_sec_state_idle, NULL);
-
+#if (BT_ACL_TIMIMG_ENABLED == TRUE)
+  bt_acl_init_timestamps_info();
+#endif
   /* After the reset controller should restore all parameters to defaults. */
   btm_cb.btm_inq_vars.inq_counter = 1;
   btm_cb.btm_inq_vars.inq_scan_window = HCI_DEF_INQUIRYSCAN_WINDOW;

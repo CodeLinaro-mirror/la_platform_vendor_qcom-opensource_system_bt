@@ -49,6 +49,11 @@ AM_CFLAGS += -DSSR_CLEANUP=TRUE
 AM_CPPFLAGS += -DSSR_CLEANUP=TRUE
 endif
 
+if ACL_TIMING_CALC_SUPPORT
+AM_CFLAGS += -DBT_ACL_TIMIMG_ENABLED=TRUE
+AM_CPPFLAGS += -DBT_ACL_TIMIMG_ENABLED=TRUE
+endif
+
 cpp_sources = \
         src/btsnoop.cc \
         src/btsnoop_mem.cc \

@@ -104,6 +104,9 @@ AM_CONDITIONAL([BTC_SUPPORT], false)
 # on detection of SSR/command timeout/Hw eror event
 AM_CONDITIONAL([SSR_CLEANUP_SUPPORT], true)
 
+# ACL Timing Calc support
+# make below flag to true to enable the ACT Timing Calculate feature
+AM_CONDITIONAL([ACL_TIMING_CALC_SUPPORT], true)
 
 AC_MSG_CHECKING(for zlib support)
 AC_ARG_WITH(zlib, AC_HELP_STRING([--with-zlib],[Enable zlib support for mod_compress]),
