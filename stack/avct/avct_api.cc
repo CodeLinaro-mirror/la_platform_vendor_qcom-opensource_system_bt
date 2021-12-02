@@ -57,6 +57,7 @@ tAVCT_CB avct_cb;
  ******************************************************************************/
 void AVCT_Register(uint16_t mtu, UNUSED_ATTR uint16_t mtu_br,
                    uint8_t sec_mask) {
+  uint8_t temp_trace_level;
   AVCT_TRACE_API("AVCT_Register");
 
   /* register PSM with L2CAP */
@@ -67,9 +68,10 @@ void AVCT_Register(uint16_t mtu, UNUSED_ATTR uint16_t mtu_br,
                        0);
   BTM_SetSecurityLevel(false, "", BTM_SEC_SERVICE_AVCTP, sec_mask, AVCT_PSM, 0,
                        0);
-
+  temp_trace_level = avct_cb.trace_level;
   /* initialize AVCTP data structures */
   memset(&avct_cb, 0, sizeof(tAVCT_CB));
+  avct_cb.trace_level = temp_trace_level; // restore trace_level for logging
 
   /* Include the browsing channel which uses eFCR */
   L2CA_Register(AVCT_BR_PSM, (tL2CAP_APPL_INFO*)&avct_l2c_br_appl);
