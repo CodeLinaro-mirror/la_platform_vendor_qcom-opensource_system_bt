@@ -1051,6 +1051,7 @@ static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer) {
       continue;
     }
 #endif
+#if 0
     if (!strcmp(iter->name().c_str(),"AAC")) {
       if (bta_av_co_audio_is_aac_wl_enabled(&p_peer->addr) &&
           btif_storage_get_stored_remote_name(p_peer->addr, remote_name) &&
@@ -1067,7 +1068,6 @@ static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer) {
       p_sink = bta_av_co_audio_codec_selected(*iter, p_peer);
     }
 
-#if 0
     } else {
       if ((!strcmp(iter->name().c_str(),"AAC")) && (interop_match_addr_or_name(INTEROP_DISABLE_AAC_CODEC, &p_peer->addr)))
       {
@@ -1081,6 +1081,7 @@ static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer) {
     }
 #endif
 
+    p_sink = bta_av_co_audio_codec_selected(*iter, p_peer);
     if (p_sink != NULL) {
       APPL_TRACE_DEBUG("%s: selected codec %s", __func__, iter->name().c_str());
       break;

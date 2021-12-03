@@ -180,9 +180,7 @@ void avdt_ccb_hdl_discover_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
   //int num_codecs = AVDT_NUM_SEPS / num_conn;
   int num_codecs = ((avdt_ccb_get_num_allocated_seps()) / num_conn);
   int effective_num_seps = 0;
-  char value[PROPERTY_VALUE_MAX] = {'\0'};
   const char *codec_name;
-  property_get("vendor.qcom.bluetooth.soc", value, NULL);
   p_data->msg.discover_rsp.p_sep_info = sep_info;
   p_data->msg.discover_rsp.num_seps = 0;
   char remote_name[BTM_MAX_REM_BD_NAME_LEN] = "";
@@ -219,6 +217,7 @@ void avdt_ccb_hdl_discover_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
       effective_num_seps++;
       codec_name = A2DP_CodecName(p_scb->cs.cfg.codec_info);
       APPL_TRACE_DEBUG("codec name %s", A2DP_CodecName(p_scb->cs.cfg.codec_info));
+#if 0
       if (strcmp(value, "cherokee") == 0) {
         if (p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == A2DP_MEDIA_CT_AAC && (p_scb->cs.tsep == AVDT_TSEP_SRC) ) {
           if (bta_av_co_audio_is_aac_wl_enabled(&p_ccb->peer_addr) &&
@@ -240,7 +239,6 @@ void avdt_ccb_hdl_discover_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
         }
       }
 
-#if 0
     else {
            if (p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == A2DP_MEDIA_CT_AAC &&
                interop_match_addr_or_name(INTEROP_DISABLE_AAC_CODEC, &p_ccb->peer_addr)) {
