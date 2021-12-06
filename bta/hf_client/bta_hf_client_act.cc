@@ -105,11 +105,19 @@ void bta_hf_client_start_open(tBTA_HF_CLIENT_DATA* p_data) {
   /* Check if RFCOMM has any incoming connection to avoid collision. */
   RawAddress pending_bd_addr = RawAddress::kEmpty;
   if (PORT_IsOpening(&pending_bd_addr)) {
-    /* Let the incoming connection goes through.                        */
-    /* Issue collision for now.                                         */
-    /* We will decide what to do when we find incoming connection later.*/
-    bta_hf_client_collision_cback(0, BTA_ID_HS, 0, client_cb->peer_addr);
-    return;
+    if ((!pending_bd_addr.IsEmpty()) && (!client_cb->peer_addr.IsEmpty())
+       && (pending_bd_addr == client_cb->peer_addr)) {
+      /* Let the incoming connection goes through.                        */
+      /* Issue collision for now.                                         */
+      /* We will decide what to do when we find incoming connection later.*/
+      bta_hf_client_collision_cback(0, BTA_ID_HS, 0, client_cb->peer_addr);
+      APPL_TRACE_ERROR("%s: collision, device %s is opening port", __func__,
+                       pending_bd_addr.ToString().c_str());
+      return;
+    } else {
+      APPL_TRACE_DEBUG("%s: device %s is not opening port", __func__,
+                       client_cb->peer_addr.ToString().c_str());
+    }
   }
 
   /* set role */
