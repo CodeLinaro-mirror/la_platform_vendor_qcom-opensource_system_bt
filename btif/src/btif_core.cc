@@ -147,9 +147,6 @@ static void btif_sendmsg(void* p_msg);
 extern fixed_queue_t* btu_hci_msg_queue;
 
 void btif_dm_execute_service_request(uint16_t event, char* p_param);
-#ifdef BTIF_DM_OOB_TEST
-void btif_dm_load_local_oob(void);
-#endif
 
 /*******************************************************************************
  *
@@ -384,10 +381,6 @@ void btif_enable_bluetooth_evt(tBTA_STATUS status) {
 
     /* load did configuration */
     bte_load_did_conf(BTE_DID_CONF_FILE);
-
-#ifdef BTIF_DM_OOB_TEST
-    btif_dm_load_local_oob();
-#endif
 
     future_ready(stack_manager_get_hack_future(), FUTURE_SUCCESS);
   } else {
