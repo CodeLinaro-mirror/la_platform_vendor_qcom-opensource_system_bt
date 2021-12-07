@@ -1752,24 +1752,25 @@ bool A2dpCodecConfigSbc::setCodecConfig(const uint8_t* p_peer_codec_info,
         codec_config_.channel_mode = codec_user_config_.channel_mode;
       }
       break;
-    case BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO:
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_JOINT:
       if (ch_mode & A2DP_SBC_IE_CH_MD_JOINT) {
         result_config_cie.ch_mode = A2DP_SBC_IE_CH_MD_JOINT;
         codec_capability_.channel_mode = BTAV_A2DP_CODEC_CHANNEL_MODE_JOINT;
         codec_config_.channel_mode = BTAV_A2DP_CODEC_CHANNEL_MODE_JOINT;
-        break;
       }
+      break;
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO:
       if (ch_mode & A2DP_SBC_IE_CH_MD_STEREO) {
         result_config_cie.ch_mode = A2DP_SBC_IE_CH_MD_STEREO;
         codec_capability_.channel_mode = codec_user_config_.channel_mode;
         codec_config_.channel_mode = codec_user_config_.channel_mode;
-        break;
       }
+      break;
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_DUAL:
       if (ch_mode & A2DP_SBC_IE_CH_MD_DUAL) {
         result_config_cie.ch_mode = A2DP_SBC_IE_CH_MD_DUAL;
         codec_capability_.channel_mode = BTAV_A2DP_CODEC_CHANNEL_MODE_DUAL;
         codec_config_.channel_mode = BTAV_A2DP_CODEC_CHANNEL_MODE_DUAL;
-        break;
       }
       break;
     case BTAV_A2DP_CODEC_CHANNEL_MODE_NONE:
@@ -2249,6 +2250,12 @@ void update_sbc_cap(btav_a2dp_codec_config_t config)
       break;
     case BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO:
       a2dp_sbc_caps.ch_mode = a2dp_sbc_caps.ch_mode|A2DP_SBC_IE_CH_MD_STEREO;
+      break;
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_DUAL:
+      a2dp_sbc_caps.ch_mode = a2dp_sbc_caps.ch_mode|A2DP_SBC_IE_CH_MD_DUAL;
+      break;
+    case BTAV_A2DP_CODEC_CHANNEL_MODE_JOINT:
+      a2dp_sbc_caps.ch_mode = a2dp_sbc_caps.ch_mode|A2DP_SBC_IE_CH_MD_JOINT;
       break;
     default:
       break;

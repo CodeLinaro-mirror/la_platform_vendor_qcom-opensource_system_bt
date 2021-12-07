@@ -593,6 +593,8 @@ bt_status_t check_valid_param(std::vector<btav_a2dp_codec_config_t> p_codec_list
                 switch (cp.channel_mode) {
                     case BTAV_A2DP_CODEC_CHANNEL_MODE_MONO:
                     case BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO:
+                    case BTAV_A2DP_CODEC_CHANNEL_MODE_DUAL:
+                    case BTAV_A2DP_CODEC_CHANNEL_MODE_JOINT:
                         break;
                     default:
                         BTIF_TRACE_ERROR(" %s Invalid SBC channel mode = %d",
