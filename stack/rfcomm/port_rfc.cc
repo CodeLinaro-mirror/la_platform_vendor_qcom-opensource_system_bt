@@ -1026,9 +1026,10 @@ void port_rfc_closed(tPORT* p_port, uint8_t res) {
 
   RFCOMM_TRACE_WARNING(
       "%s: RFCOMM connection closed, index=%d, state=%d reason=%s[%d], "
-      "UUID=%04X, bd_addr=%s, is_server=%d",
+      "UUID=%04X, bd_addr=%s, is_server=%d, dlci=%d",
       __func__, p_port->inx, p_port->state, PORT_GetResultString(res), res,
-      p_port->uuid, p_port->bd_addr.ToString().c_str(), p_port->is_server);
+      p_port->uuid, p_port->bd_addr.ToString().c_str(), p_port->is_server, p_port->dlci);
+ LPM_ReleasePortInfo(p_port);
 
   port_release_port(p_port);
 }
