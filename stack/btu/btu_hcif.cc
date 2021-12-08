@@ -49,6 +49,9 @@
 #include "l2c_int.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+#if (BT_ACL_TIMIMG_ENABLED == TRUE)
+#include "bt_acl_timestamps.h"
+#endif
 
 using tracked_objects::Location;
 
@@ -80,7 +83,7 @@ static void btu_hcif_command_complete_evt(BT_HDR* response, void* context);
 static void btu_hcif_command_status_evt(uint8_t status, BT_HDR* command,
                                         void* context);
 static void btu_hcif_hardware_error_evt(uint8_t* p);
-static void btu_hcif_flush_occured_evt(void);
+static void btu_hcif_flush_occured_evt(uint8_t *p);
 static void btu_hcif_role_change_evt(uint8_t* p);
 static void btu_hcif_num_compl_data_pkts_evt(uint8_t* p);
 static void btu_hcif_mode_change_evt(uint8_t* p);
@@ -224,7 +227,7 @@ void btu_hcif_process_event(UNUSED_ATTR uint8_t controller_id, BT_HDR* p_msg) {
       btu_hcif_hardware_error_evt(p);
       break;
     case HCI_FLUSH_OCCURED_EVT:
-      btu_hcif_flush_occured_evt();
+      btu_hcif_flush_occured_evt(p);
       break;
     case HCI_ROLE_CHANGE_EVT:
       btu_hcif_role_change_evt(p);
@@ -605,11 +608,14 @@ static void btu_hcif_connection_comp_evt(uint8_t* p) {
 
   if (link_type == HCI_LINK_TYPE_ACL) {
     btm_sec_connected(bda, handle, status, enc_mode);
-
-    l2c_link_hci_conn_comp(status, handle, bda);
+#if (BT_ACL_TIMIMG_ENABLED == TRUE)
+    bt_acl_init_timestamps_by_handle(handle);
+#endif
+    l2c_link_hci_conn_comp (status, handle, bda);
   }
 #if (BTM_SCO_INCLUDED == TRUE)
-  else {
+  else
+  {
     memset(&esco_data, 0, sizeof(tBTM_ESCO_DATA));
     /* esco_data.link_type = HCI_LINK_TYPE_SCO; already zero */
     esco_data.bd_addr = bda;
@@ -676,6 +682,9 @@ static void btu_hcif_disconnection_comp_evt(uint8_t* p) {
 
   /* Notify security manager */
   btm_sec_disconnected(handle, reason);
+#if (BT_ACL_TIMIMG_ENABLED == TRUE)
+    bt_acl_remove_timestamps_by_handle(handle);
+#endif
 }
 
 /*******************************************************************************
@@ -1326,7 +1335,14 @@ static void btu_hcif_hardware_error_evt(uint8_t* p) {
  * Returns          void
  *
  ******************************************************************************/
-static void btu_hcif_flush_occured_evt(void) {}
+static void btu_hcif_flush_occured_evt (uint8_t *p)
+{
+#if (BT_ACL_TIMIMG_ENABLED == TRUE)
+    uint16_t handle;
+    STREAM_TO_UINT16 (handle, p);
+    bt_acl_set_flush_occur_status(handle, TRUE);
+#endif
+}
 
 /*******************************************************************************
  *
