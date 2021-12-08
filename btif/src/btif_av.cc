@@ -3124,6 +3124,16 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
       index = 0;
       BTIF_TRACE_EVENT("RC events: on index = %d", index);
       break;
+    case BTA_AV_AVDT_CAP_EVT:
+      BTIF_TRACE_EVENT("BTA_AV_AVDT_CAP_EVT");
+      tBTA_AV_AVDT_CAP avdt_cap;
+      memcpy(&avdt_cap, (tBTA_AV_AVDT_CAP*)p_param, sizeof(tBTA_AV_AVDT_CAP));
+      if(bt_av_src_callbacks)
+      {
+        HAL_CBACK(bt_av_src_callbacks, peer_avdt_cap, avdt_cap.peer_addr, avdt_cap.seid,
+             avdt_cap.psc_mask);
+      }
+      break;
     case BTIF_AV_SETUP_CODEC_REQ_EVT:
       index = btif_av_get_latest_device_idx_to_start();
       break;
