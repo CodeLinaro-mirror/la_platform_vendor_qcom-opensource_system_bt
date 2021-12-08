@@ -104,6 +104,7 @@
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
 #include "stack/btm/btm_int.h"
+#include "stack/include/btm_api.h"
 #include "stack_config.h"
 #include "stack/sdp/sdpint.h"
 
@@ -1287,6 +1288,13 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
                          __func__);
         btif_storage_remove_bonded_device(&bd_addr);
         bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_NONE);
+        //disconnect acl connection if any
+        if(BTM_IsAclConnectionUp(bd_addr, BT_TRANSPORT_BR_EDR))
+        {
+          BTIF_TRACE_DEBUG("%s: Removing acl connection for Temp pairing",
+                         __func__);
+          btm_remove_acl(bd_addr, BT_TRANSPORT_BR_EDR);
+        }
         return;
       }
     }
