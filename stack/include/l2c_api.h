@@ -1574,4 +1574,5 @@ extern void L2CA_AdjustConnectionIntervals(uint16_t* min_interval,
 
 extern void L2CA_setLpmFlowoff(bool flag);
 
+extern void L2CA_updateLpmFlowoffCredits(bool flag, tL2CAP_credits credits);
 #endif /* L2C_API_H */

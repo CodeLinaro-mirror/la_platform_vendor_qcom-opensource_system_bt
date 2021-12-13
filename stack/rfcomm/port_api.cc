@@ -1846,3 +1846,30 @@ int PORT_GetStateBySCN(const RawAddress& bd_addr, uint32_t scn_id, bool is_serve
   return PORT_STATE_CLOSED;
 }
 
+void RFCOMM_UpdatePortInfo(void* port_info) {
+
+      RFCOMM_TRACE_API(" %s ", __func__);
+      tPORT* p_port;
+      tPORT* port = (tPORT*)port_info;
+      //Find rfcomm port and update parameters
+      if (port->is_server) {
+        p_port = port_find_port(port->dlci, port->bd_addr);
+        if (p_port != NULL) {
+          RFCOMM_TRACE_API(" %s : updating rfcomm port info",
+                                              __func__);
+          p_port->state = port->state;
+          p_port->scn = port->scn;
+          p_port->uuid = port->uuid;
+          p_port->bd_addr = port->bd_addr;
+          p_port->is_server = port->is_server;
+          p_port->dlci = port->dlci;
+          p_port->mtu  = port->mtu;
+          p_port->peer_mtu = port->peer_mtu;
+          p_port->credit_tx = port->credit_tx;
+          p_port->credit_rx = port->credit_rx;
+          p_port->credit_rx_max = port->credit_rx_max;
+          p_port->credit_rx_low = port->credit_rx_low;
+          p_port->keep_mtu = port->keep_mtu;
+        }
+     }
+}
