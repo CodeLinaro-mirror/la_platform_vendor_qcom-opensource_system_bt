@@ -179,6 +179,9 @@ void initialization_complete() {
 void hci_event_received(const tracked_objects::Location& from_here,
                         BT_HDR* packet) {
   btsnoop->capture(packet, true);
+#if (BT_ACL_TIMIMG_ENABLED == TRUE)
+  hci_calc_acl_timestamps(packet);
+#endif
 
   if (!filter_incoming_event(packet)) {
     send_data_upwards.Run(from_here, packet);
