@@ -228,7 +228,11 @@ static void bta_av_rc_ctrl_cback(uint8_t handle, uint8_t event,
         (tBTA_AV_RC_CONN_CHG*)osi_malloc(sizeof(tBTA_AV_RC_CONN_CHG));
     p_msg->hdr.event = msg_event;
     p_msg->handle = handle;
-    if (peer_addr) p_msg->peer_addr = *peer_addr;
+    if (peer_addr) {
+        p_msg->peer_addr = *peer_addr;
+    } else {
+        p_msg->peer_addr = RawAddress::kEmpty;
+    }
     bta_sys_sendmsg(p_msg);
   }
 }
@@ -1879,6 +1883,7 @@ uint16_t bta_avk_get_cover_art_psm() {
 void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
   tBTA_AV_CB* p_cb = &bta_av_cb;
   tBTA_AV_SCB* p_scb = NULL;
+  tBTA_AV_RC_OPEN rc_open;
   tBTA_AV_LCB* p_lcb;
   uint8_t rc_handle;
   tBTA_AV_FEAT peer_features = 0; /* peer features mask */
@@ -1974,8 +1979,18 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
         if (p_lcb) {
           rc_handle = bta_av_rc_create(p_cb, AVCT_INT,
                                        (uint8_t)(p_scb->hdi + 1), p_lcb->lidx);
-          p_cb->rcb[rc_handle].peer_features = peer_features;
-          p_cb->rcb[rc_handle].cover_art_psm = cover_art_psm;
+          if (rc_handle < BTA_AV_NUM_RCB) {
+            p_cb->rcb[rc_handle].peer_features = peer_features;
+            p_cb->rcb[rc_handle].cover_art_psm = cover_art_psm;
+          } else {
+            /* cannot create valid rc_handle for current device */
+            APPL_TRACE_ERROR("%s:  No link resources available", __func__);
+            p_scb->use_rc = FALSE;
+            rc_open.peer_addr = p_scb->PeerAddress();
+            rc_open.peer_features = 0;
+            rc_open.status = BTA_AV_FAIL_RESOURCES;
+            (*p_cb->p_cback)(BTA_AV_RC_OPEN_EVT, (tBTA_AV *) &rc_open);
+          }
         } else {
           APPL_TRACE_ERROR("%s: can not find LCB!!", __func__);
         }
