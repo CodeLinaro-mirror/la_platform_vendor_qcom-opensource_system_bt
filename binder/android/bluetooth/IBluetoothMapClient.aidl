@@ -59,5 +59,5 @@ interface IBluetoothMapClient {
     boolean setMessageStatus(in BluetoothDevice device, in String handle, in int status, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf = { android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.SEND_SMS })")
     boolean sendImage(in BluetoothDevice device, in Uri[] contacts, in  String ImagePath, in PendingIntent sentIntent, in PendingIntent deliveryIntent, in AttributionSource attributionSource);
-
+    boolean abort(in BluetoothDevice device, in AttributionSource attributionSource);
 }
