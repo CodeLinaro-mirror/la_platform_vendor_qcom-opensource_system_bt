@@ -34,6 +34,7 @@
 #include "bt_common.h"
 #include "bt_types.h"
 #include "bta_api.h"
+#include "bta_dm_api.h"
 #include "bta_jv_api.h"
 #include "bta_jv_co.h"
 #include "bta_jv_int.h"
@@ -2148,6 +2149,8 @@ static void bta_jv_pm_conn_busy(tBTA_JV_PM_CB* p_cb) {
       if (mode == BTM_PM_MD_SNIFF) {
         bta_jv_pm_state_change(p_cb, BTA_JV_CONN_BUSY);
       } else {
+        //calling bta_dm_pm_stop_timer to stop SNIFF timer if it's started
+        bta_dm_pm_stop_timer_helper(p_cb->peer_bd_addr);
         p_cb->state = BTA_JV_PM_BUSY_ST;
         APPL_TRACE_DEBUG("bta_jv_pm_conn_busy:power mode: %d", mode);
       }
@@ -2191,11 +2194,14 @@ static void bta_jv_pm_conn_idle(tBTA_JV_PM_CB* p_cb) {
     APPL_TRACE_DEBUG("bta_jv_pm_conn_idle, p_cb: %p", p_cb);
     p_cb->state = BTA_JV_PM_IDLE_ST;
 
-    // start intermediate idle timer for 1s
-    if (!alarm_is_scheduled(p_cb->idle_timer)) {
-      alarm_set_on_mloop(p_cb->idle_timer, BTA_JV_IDLE_TIMEOUT_MS,
-      bta_jv_idle_timeout_handler, p_cb);
+    // Check for idle timer already started, If yes stop that and
+    // start new idle timer
+    if (alarm_is_scheduled(p_cb->idle_timer)) {
+        alarm_cancel(p_cb->idle_timer);
     }
+    alarm_set_on_mloop(p_cb->idle_timer, BTA_JV_IDLE_TIMEOUT_MS,
+            bta_jv_idle_timeout_handler, p_cb);
+
   }
 }
 

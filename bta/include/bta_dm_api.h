@@ -30,4 +30,7 @@
 // Brings connection to active mode
 void bta_dm_pm_active(const RawAddress& peer_addr);
 
+//Used to reset the sniff timer when we receive or sending data
+void bta_dm_pm_stop_timer_helper(const RawAddress& peer_addr);
+
 #endif /* BTA_DM_API_H */
