@@ -213,7 +213,8 @@ void invoke_oob_data_request_cb(tBT_TRANSPORT t, bool valid, Octet16 c,
 void invoke_bond_state_changed_cb(bt_status_t status, RawAddress bd_addr,
                                   bt_bond_state_t state);
 void invoke_acl_state_changed_cb(bt_status_t status, RawAddress bd_addr,
-                                 bt_acl_state_t state, bt_hci_error_code_t hci_reason);
+                                 bt_acl_state_t state, bt_hci_error_code_t hci_reason,
+                                 tBT_TRANSPORT link_type);
 void invoke_thread_evt_cb(bt_cb_thread_evt event);
 void invoke_le_test_mode_cb(bt_status_t status, uint16_t count);
 void invoke_energy_info_cb(bt_activity_energy_info energy_info,
