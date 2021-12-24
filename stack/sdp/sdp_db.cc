@@ -1016,10 +1016,18 @@ bool SDP_DeleteAttributeFromRecord (tSDP_RECORD* p_rec, uint16_t attr_id)
 
       /* adjust attribute values if needed */
       if (len) {
+        uint8_t *pad_ptr_start = &p_rec->attr_pad[0];
+        uint8_t *pad_ptr_end = pad_ptr_start + SDP_MAX_PAD_LEN - 1;
         xx = (p_rec->free_pad_ptr - ((pad_ptr+len) -
                                   &p_rec->attr_pad[0]));
         for( yy=0; yy<xx; yy++, pad_ptr++) {
+          /* make sure memory writing in right range */
+          if (((pad_ptr >= pad_ptr_start) && (pad_ptr <= pad_ptr_end)) &&
+              ((pad_ptr + len >= pad_ptr_start) && (pad_ptr + len <= pad_ptr_end))) {
           *pad_ptr = *(pad_ptr+len);
+          } else {
+            SDP_TRACE_ERROR("memory overflow, %p %p", pad_ptr, pad_ptr+len);
+          }
         }
         p_rec->free_pad_ptr -= len;
       }
