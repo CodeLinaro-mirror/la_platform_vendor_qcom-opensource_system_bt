@@ -4506,6 +4506,12 @@ void btm_sec_connected(const RawAddress& bda, uint16_t handle, uint8_t status,
       }
     }
 
+    p_dev_rec = btm_find_dev(bda);
+    if (NULL == p_dev_rec) {
+      BTM_TRACE_WARNING("%s : p_dev_rec NULL", __func__);
+      return;
+    }
+
     if (status == HCI_ERR_CONNECTION_TOUT ||
         status == HCI_ERR_LMP_RESPONSE_TIMEOUT ||
         status == HCI_ERR_UNSPECIFIED || status == HCI_ERR_PAGE_TIMEOUT)
@@ -5821,9 +5827,14 @@ static const char* btm_pair_state_descr(tBTM_PAIRING_STATE state) {
  ******************************************************************************/
 void btm_sec_dev_rec_cback_event(tBTM_SEC_DEV_REC* p_dev_rec, uint8_t res,
                                  bool is_le_transport) {
-  tBTM_SEC_CALLBACK* p_callback = p_dev_rec->p_callback;
 
+
+  if (NULL == p_dev_rec) {
+      BTM_TRACE_WARNING("%s : p_dev_rec NULL", __func__);
+      return;
+  }
   if (p_dev_rec->p_callback) {
+    tBTM_SEC_CALLBACK* p_callback = p_dev_rec->p_callback;
     p_dev_rec->p_callback = NULL;
 
     if (is_le_transport)
