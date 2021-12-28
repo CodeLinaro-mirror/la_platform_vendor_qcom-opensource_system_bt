@@ -176,26 +176,6 @@ typedef struct {
   tSDP_PROTOCOL_ELEM list_elem[SDP_MAX_LIST_ELEMS];
 } tSDP_PROTO_LIST_ELEM;
 
-/* Device Identification (DI) data structure
-*/
-/* Used to set the DI record */
-typedef struct t_sdp_di_record {
-  uint16_t vendor;
-  uint16_t vendor_id_source;
-  uint16_t product;
-  uint16_t version;
-  bool primary_record;
-  char client_executable_url[SDP_MAX_ATTR_LEN]; /* optional */
-  char service_description[SDP_MAX_ATTR_LEN];   /* optional */
-  char documentation_url[SDP_MAX_ATTR_LEN];     /* optional */
-} tSDP_DI_RECORD;
-
-/* Used to get the DI record */
-typedef struct t_sdp_di_get_record {
-  uint16_t spec_id;
-  tSDP_DI_RECORD rec;
-} tSDP_DI_GET_RECORD;
-
 /* API into the SDP layer for service discovery. */
 
 /*******************************************************************************
