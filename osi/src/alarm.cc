@@ -126,7 +126,7 @@ static const clockid_t CLOCK_ID_ALARM = CLOCK_BOOTTIME_ALARM;
 // functions execute serially and not concurrently. As a result, this mutex
 // also protects the |alarms| list.
 static std::mutex alarms_mutex;
-static list_t* alarms;
+static list_t* alarms = NULL;
 static timer_t timer;
 static timer_t wakeup_timer;
 static bool timer_set;
@@ -254,18 +254,23 @@ void alarm_cancel(alarm_t* alarm) {
   CHECK(alarms != NULL);
   if (!alarm) return;
 
+  std::recursive_mutex* local_mutex_ref;
   {
     std::lock_guard<std::mutex> lock(alarms_mutex);
+    local_mutex_ref = alarm->callback_mutex;
     alarm_cancel_internal(alarm);
   }
 
   // If the callback for |alarm| is in progress, wait here until it completes.
-  std::lock_guard<std::recursive_mutex> lock(*alarm->callback_mutex);
+  if ((alarm) && (alarm->callback_mutex)) {
+    std::lock_guard<std::recursive_mutex> lock(*local_mutex_ref);
+  }
 }
 
 // Internal implementation of canceling an alarm.
 // The caller must hold the |alarms_mutex|
 static void alarm_cancel_internal(alarm_t* alarm) {
+  CHECK(alarms != NULL);
   bool needs_reschedule =
       (!list_is_empty(alarms) && list_front(alarms) == alarm);
 
@@ -321,7 +326,9 @@ static bool lazy_initialize(void) {
 
   std::lock_guard<std::mutex> lock(alarms_mutex);
 
-  alarms = list_new(NULL);
+  if (!alarms) {
+    alarms = list_new(NULL);
+  }
   if (!alarms) {
     LOG_ERROR(LOG_TAG, "%s unable to allocate alarm list.", __func__);
     goto error;
