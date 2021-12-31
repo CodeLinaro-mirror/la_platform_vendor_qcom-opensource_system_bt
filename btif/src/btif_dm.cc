@@ -113,6 +113,8 @@ const Uuid UUID_VC = Uuid::FromString("1844");
 #define ENCRYPTED_BREDR 2
 #define ENCRYPTED_LE 4
 
+#define BTIF_VENDOR_GET_LINK_KEY  1
+
 typedef struct {
   bt_bond_state_t state;
   RawAddress static_bdaddr;
@@ -3248,3 +3250,30 @@ void btif_debug_bond_event_dump(int fd) {
             event->bd_addr.ToString().c_str(), func_name, bond_state);
   }
 }
+
+static void btif_vendor_get_link_key_event(uint16_t event, char *p_param){
+  bool bt_linkkey_file_found = false;
+  RawAddress *bd_addr = (RawAddress *)p_param;
+  LinkKey link_key;
+  int linkkey_type = 0;
+  size_t size = sizeof(link_key);
+
+  BTIF_TRACE_DEBUG("%s", __func__);
+
+  /* Get linkkey from config file */
+  if (btif_config_get_bin(bd_addr->ToString().c_str(), "LinkKey",  link_key.data(), &size)) {
+    if (btif_config_get_int(bd_addr->ToString().c_str(), "LinkKeyType", &linkkey_type)) {
+      bt_linkkey_file_found = true;
+    } else {
+      bt_linkkey_file_found = false;
+    }
+  }
+  invoke_get_linkkey_cb(bd_addr, bt_linkkey_file_found, linkkey_type, link_key);
+}
+
+void btif_dm_get_link_key(const RawAddress *bd_addr){
+  BTIF_TRACE_DEBUG("%s", __func__);
+  btif_transfer_context(btif_vendor_get_link_key_event, BTIF_VENDOR_GET_LINK_KEY,
+                        (char *)bd_addr, sizeof(RawAddress), NULL);
+}
+

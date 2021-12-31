@@ -390,4 +390,15 @@ void btif_debug_bond_event_dump(int fd);
  ******************************************************************************/
 bt_status_t btif_set_dynamic_audio_buffer_size(int codec, int size);
 
+/*******************************************************************************
+ *
+ * Function         btif_dm_get_link_key
+ *
+ * Description     get link key information
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btif_dm_get_link_key(const RawAddress *bd_addr);
+
 #endif /* BTIF_API_H */

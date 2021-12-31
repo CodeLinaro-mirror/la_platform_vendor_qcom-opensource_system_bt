@@ -222,5 +222,8 @@ void invoke_link_quality_report_cb(
     uint64_t timestamp, int report_id, int rssi, int snr,
     int retransmission_count, int packets_not_receive_count,
     int negative_acknowledgement_count);
+void invoke_get_linkkey_cb(
+    RawAddress* remote_bd_addr, bool key_found,
+    int key_type, Link_Key link_key);
 
 #endif /* BTIF_COMMON_H */

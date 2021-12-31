@@ -575,6 +575,11 @@ static int set_dynamic_audio_buffer_size(int codec, int size) {
   return btif_set_dynamic_audio_buffer_size(codec, size);
 }
 
+static void get_link_key(const RawAddress *bd_addr){
+  LOG_INFO("%s", __func__);
+  btif_dm_get_link_key(bd_addr);
+}
+
 EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     sizeof(bluetoothInterface),
     init,
@@ -593,6 +598,7 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     cancel_discovery,
     create_bond,
     create_bond_out_of_band,
+    get_link_key,
     remove_bond,
     cancel_bond,
     get_connection_state,
@@ -868,4 +874,18 @@ void invoke_link_quality_report_cb(
           },
           timestamp, report_id, rssi, snr, retransmission_count,
           packets_not_receive_count, negative_acknowledgement_count));
+}
+
+void invoke_get_linkkey_cb(
+    RawAddress* remote_bd_addr, bool key_found,
+    int key_type, Link_Key link_key) {
+  do_in_jni_thread(
+      FROM_HERE,
+      base::BindOnce(
+          [](RawAddress* remote_bd_addr,
+             bool key_found, int key_type, Link_Key link_key) {
+            HAL_CBACK(bt_hal_cbacks, get_link_key_cb,
+                      remote_bd_addr, key_found, link_key, key_type);
+          },
+          remote_bd_addr, key_found, key_type, link_key));
 }
