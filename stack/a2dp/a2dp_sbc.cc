@@ -1586,6 +1586,20 @@ bool A2dpCodecConfigSbc::setCodecConfig(const uint8_t* p_peer_codec_info,
   samp_freq = a2dp_sbc_caps.samp_freq & sink_info_cie.samp_freq;
   codec_config_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_NONE;
   switch (codec_user_config_.sample_rate) {
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_16000:
+      if (samp_freq & A2DP_SBC_IE_SAMP_FREQ_16) {
+        result_config_cie.samp_freq = A2DP_SBC_IE_SAMP_FREQ_16;
+        codec_capability_.sample_rate = codec_user_config_.sample_rate;
+        codec_config_.sample_rate = codec_user_config_.sample_rate;
+      }
+      break;
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_32000:
+      if (samp_freq & A2DP_SBC_IE_SAMP_FREQ_32) {
+        result_config_cie.samp_freq = A2DP_SBC_IE_SAMP_FREQ_32;
+        codec_capability_.sample_rate = codec_user_config_.sample_rate;
+        codec_config_.sample_rate = codec_user_config_.sample_rate;
+      }
+      break;
     case BTAV_A2DP_CODEC_SAMPLE_RATE_44100:
       if (samp_freq & A2DP_SBC_IE_SAMP_FREQ_44) {
         result_config_cie.samp_freq = A2DP_SBC_IE_SAMP_FREQ_44;
@@ -1613,6 +1627,16 @@ bool A2dpCodecConfigSbc::setCodecConfig(const uint8_t* p_peer_codec_info,
   // Select the sample frequency if there is no user preference
   do {
     // Compute the selectable capability
+    if(samp_freq & A2DP_SBC_IE_SAMP_FREQ_16) {
+      LOG_VERBOSE(LOG_TAG,"FREQ_16");
+      codec_selectable_capability_.sample_rate |=
+          BTAV_A2DP_CODEC_SAMPLE_RATE_16000;
+    }
+    if(samp_freq & A2DP_SBC_IE_SAMP_FREQ_32) {
+      LOG_VERBOSE(LOG_TAG,"FREQ_32");
+      codec_selectable_capability_.sample_rate |=
+          BTAV_A2DP_CODEC_SAMPLE_RATE_32000;
+    }
     if (samp_freq & A2DP_SBC_IE_SAMP_FREQ_44) {
       codec_selectable_capability_.sample_rate |=
           BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
@@ -1625,6 +1649,10 @@ bool A2dpCodecConfigSbc::setCodecConfig(const uint8_t* p_peer_codec_info,
     if (codec_config_.sample_rate != BTAV_A2DP_CODEC_SAMPLE_RATE_NONE) break;
 
     // Compute the common capability
+    if(samp_freq & A2DP_SBC_IE_SAMP_FREQ_16)
+      codec_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_16000;
+    if(samp_freq & A2DP_SBC_IE_SAMP_FREQ_32)
+      codec_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_32000;
     if (samp_freq & A2DP_SBC_IE_SAMP_FREQ_44)
       codec_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
     if (samp_freq & A2DP_SBC_IE_SAMP_FREQ_48)
@@ -2206,6 +2234,12 @@ period_ms_t A2dpCodecConfigSbcSink::encoderIntervalMs() const {
 void update_sbc_cap(btav_a2dp_codec_config_t config)
 {
   switch (config.sample_rate) {
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_16000:
+      a2dp_sbc_caps.samp_freq = a2dp_sbc_caps.samp_freq|A2DP_SBC_IE_SAMP_FREQ_16;
+      break;
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_32000:
+      a2dp_sbc_caps.samp_freq = a2dp_sbc_caps.samp_freq|A2DP_SBC_IE_SAMP_FREQ_32;
+      break;
     case BTAV_A2DP_CODEC_SAMPLE_RATE_44100:
       a2dp_sbc_caps.samp_freq = a2dp_sbc_caps.samp_freq|A2DP_SBC_IE_SAMP_FREQ_44;
       break;

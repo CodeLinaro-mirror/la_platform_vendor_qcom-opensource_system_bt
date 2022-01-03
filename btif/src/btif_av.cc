@@ -580,6 +580,8 @@ bt_status_t check_valid_param(std::vector<btav_a2dp_codec_config_t> p_codec_list
         switch (cp.codec_type) {
             case BTAV_A2DP_CODEC_INDEX_SOURCE_SBC:
                 switch (cp.sample_rate) {
+                    case BTAV_A2DP_CODEC_SAMPLE_RATE_16000:
+                    case BTAV_A2DP_CODEC_SAMPLE_RATE_32000:
                     case BTAV_A2DP_CODEC_SAMPLE_RATE_44100:
                     case BTAV_A2DP_CODEC_SAMPLE_RATE_48000:
                         break;
