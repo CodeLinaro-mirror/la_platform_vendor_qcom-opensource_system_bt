@@ -1388,6 +1388,15 @@ void update_aac_cap(btav_a2dp_codec_config_t config){
     default:
       break;
   }
+
+  if (config.bitRate >= A2DP_AAC_MIN_BITRATE) {
+    if(config.variableBitRateSupport == A2DP_AAC_VARIABLE_BIT_RATE_ENABLED) {
+      a2dp_aac_caps.variableBitRateSupport = A2DP_AAC_VARIABLE_BIT_RATE_ENABLED;
+    } else if (config.variableBitRateSupport == A2DP_AAC_VARIABLE_BIT_RATE_DISABLED) {
+      a2dp_aac_caps.variableBitRateSupport = A2DP_AAC_VARIABLE_BIT_RATE_DISABLED;
+    }
+    a2dp_aac_caps.bitRate = config.bitRate;
+  }
 }
 
 void reset_a2dp_aac_caps_initialized()
