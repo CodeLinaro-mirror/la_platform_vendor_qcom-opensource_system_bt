@@ -2320,6 +2320,14 @@ static void bta_dm_pinname_cback(void* p_data) {
   tBTA_DM_SEC_EVT event = bta_dm_cb.pin_evt;
 
   if (BTA_DM_SP_CFM_REQ_EVT == event) {
+    tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bta_dm_cb.pin_bd_addr);
+    if (p_dev_rec != nullptr && p_dev_rec->sec_state == BTM_SEC_STATE_IDLE) {
+      BTM_TRACE_WARNING(
+          "%s Pairing process ends abnormally, ignore this User Confirmation Request!",
+              __func__);
+      return;
+    }
+
     /* Retrieved saved device class and bd_addr */
     sec_event.cfm_req.bd_addr = bta_dm_cb.pin_bd_addr;
     BTA_COPY_DEVICE_CLASS(sec_event.cfm_req.dev_class, bta_dm_cb.pin_dev_class);
