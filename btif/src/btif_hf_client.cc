@@ -141,6 +141,14 @@ static const char* dump_hf_client_conn_state(uint16_t event) {
     }                                                                        \
   } while (0)
 
+#define CHECK_BTHF_CLIENT_CALLBACKS()                                     \
+  do {                                                                    \
+    if (bt_hf_client_callbacks == NULL) {                                 \
+      BTIF_TRACE_ERROR("BTHF CLIENT: %s: has been cleaned up", __func__); \
+      return;                                                             \
+    }                                                                     \
+  } while (0)
+
 static btif_hf_client_cb_arr_t btif_hf_client_cb_arr;
 
 /*******************************************************************************
@@ -839,6 +847,7 @@ static void btif_hf_client_upstreams_evt(uint16_t event, char* p_param) {
   BTIF_TRACE_DEBUG("%s: event=%s (%u)", __func__, dump_hf_client_event(event),
                    event);
 
+  CHECK_BTHF_CLIENT_CALLBACKS();
   switch (event) {
     case BTA_HF_CLIENT_OPEN_EVT:
       if (p_data->open.status == BTA_HF_CLIENT_SUCCESS) {
