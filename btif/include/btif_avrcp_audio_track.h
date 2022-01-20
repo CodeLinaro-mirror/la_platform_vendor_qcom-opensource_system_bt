@@ -36,7 +36,14 @@
  * deleted using BtifAvrcpAudioTrackDelete (see below).
  */
 void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
-                                int channelCount);
+                                int channelCount, int channelType);
+
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+/**
+ * Gets latency from audio track.
+ */
+int BtifAvrcpAudioTrackLatency(void* handle);
+#endif
 
 /**
  * Starts the audio track.

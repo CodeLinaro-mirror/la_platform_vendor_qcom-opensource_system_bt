@@ -169,6 +169,9 @@ hci_t mock_hci = {
 };
 
 bool is_bluetooth_uid() { return false; }
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+bool bta_avk_is_avdt_sync(uint16_t handle) { return false; }
+#endif
 const tBTA_AG_RES_DATA tBTA_AG_RES_DATA::kEmpty = {};
 
 namespace bluetooth {

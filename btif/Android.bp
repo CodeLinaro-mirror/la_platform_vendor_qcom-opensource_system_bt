@@ -116,9 +116,19 @@ cc_library_static {
     ],
     target: {
         android: {
+            header_libs: [
+                "libmedia_headers",
+                "libmediametrics_headers",
+            ],
             shared_libs: [
+                "framework-permission-aidl-cpp",
+                "libaudioclient",
+                "libbinder",
                 "libaaudio",
                 "libfmq",
+            ],
+            export_shared_lib_headers: [
+                "framework-permission-aidl-cpp",
             ],
             srcs: ["src/btif_avrcp_audio_track.cc"],
         },
@@ -151,6 +161,8 @@ cc_test {
     header_libs: ["libbluetooth_headers"],
     shared_libs: [
         "libaaudio",
+        "framework-permission-aidl-cpp",
+        "libaudioclient",
         "android.hardware.bluetooth@1.0",
         "android.hardware.bluetooth@1.1",
         "android.hardware.bluetooth.a2dp@1.0",
@@ -358,7 +370,27 @@ cc_test {
         "BluetoothGeneratedDumpsysTestData_h",
         "BluetoothGeneratedPackets_h",
       ],
-      header_libs: ["libbluetooth_headers"],
+      header_libs: [
+        "libbluetooth_headers",
+      ],
+      target: {
+          android: {
+              export_shared_lib_headers: [
+                  "framework-permission-aidl-cpp",
+              ],
+              header_libs: [
+                  "libmedia_headers",
+                  "libmediametrics_headers",
+              ],
+              shared_libs: [
+                  "framework-permission-aidl-cpp",
+                  "libaudioclient",
+                  "libbinder",
+                  "libaaudio",
+                  "libfmq",
+              ],
+          },
+      },
       shared_libs: [
           "android.hardware.bluetooth.a2dp@1.0",
           "android.hardware.bluetooth.audio@2.0",

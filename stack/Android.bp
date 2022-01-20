@@ -241,6 +241,8 @@ cc_test {
         "android.hardware.bluetooth.audio@2.1",
         "android.system.suspend.control-V1-ndk",
         "libaaudio",
+        "framework-permission-aidl-cpp",
+        "libaudioclient",
         "libbinder_ndk",
         "libcutils",
         "libdl",
