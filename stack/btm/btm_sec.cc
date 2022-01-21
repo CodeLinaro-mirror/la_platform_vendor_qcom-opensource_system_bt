@@ -3901,6 +3901,9 @@ void btm_sec_encrypt_change(uint16_t handle, uint8_t status,
           BTM_TRACE_DEBUG("%s NO SM over BR/EDR", __func__);
         } else {
           BTM_TRACE_DEBUG("%s start SM over BR/EDR", __func__);
+          uint16_t link_policy = btm_cb.btm_def_link_policy & (~HCI_ENABLE_MASTER_SLAVE_SWITCH);
+          BTM_TRACE_DEBUG("%s, disable role switch", __func__);
+          BTM_SetLinkPolicy(p_dev_rec->bd_addr, &link_policy);
           SMP_BR_PairWith(p_dev_rec->bd_addr);
         }
       }
