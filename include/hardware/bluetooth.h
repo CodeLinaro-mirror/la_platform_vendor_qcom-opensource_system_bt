@@ -736,6 +736,13 @@ typedef struct {
    * Fetches the local Out of Band data.
    */
   int (*generate_local_oob_data)(tBT_TRANSPORT transport);
+
+  /**
+   * load remote Out of Band data to BT stack
+   */
+  int (*load_remote_oob_data)(const RawAddress* bd_addr, int transport,
+                              const bt_oob_data_t* p192_data,
+                              const bt_oob_data_t* p256_data);
 } bt_interface_t;
 
 #define BLUETOOTH_INTERFACE_STRING "bluetoothInterface"
