@@ -2685,6 +2685,7 @@ static uint8_t bta_dm_new_link_key_cback(const RawAddress& bd_addr,
   tBTA_DM_SEC sec_event;
   tBTA_DM_AUTH_CMPL* p_auth_cmpl;
   uint8_t event;
+  APPL_TRACE_EVENT("bta_dm_new_link_key_cback bd_addr : %s", bd_addr.ToString().c_str());
 
   memset(&sec_event, 0, sizeof(tBTA_DM_SEC));
 
@@ -2701,6 +2702,10 @@ static uint8_t bta_dm_new_link_key_cback(const RawAddress& bd_addr,
     p_auth_cmpl->key_present = true;
     p_auth_cmpl->key_type = key_type;
     p_auth_cmpl->success = true;
+
+    if(BTM_SecUseSmpBrChnl(bd_addr)) {
+       p_auth_cmpl->smp_over_br = true;
+    }
 
     memcpy(p_auth_cmpl->key, key, LINK_KEY_LEN);
     sec_event.auth_cmpl.fail_reason = HCI_SUCCESS;
