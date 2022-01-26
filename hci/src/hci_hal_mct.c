@@ -176,6 +176,8 @@ static bool hal_dev_in_reset()
   volatile int serial_bits;
   bool dev_reset_done =0;
   uint8_t retry_count = 0;
+
+  serial_bits = 0;
   ioctl(uart_fds[CH_EVT], TIOCMGET, &serial_bits);
   if (serial_bits & TIOCM_OUT2) {
     while(serial_bits & TIOCM_OUT1) {

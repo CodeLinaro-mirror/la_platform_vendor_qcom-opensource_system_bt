@@ -52,6 +52,11 @@ static void l2c_csm_open (tL2C_CCB *p_ccb, UINT16 event, void *p_data);
 static void l2c_csm_w4_l2cap_disconnect_rsp (tL2C_CCB *p_ccb, UINT16 event, void *p_data);
 static void l2c_csm_w4_l2ca_disconnect_rsp (tL2C_CCB *p_ccb, UINT16 event, void *p_data);
 
+#ifdef BT_TRACE_VERBOSE
+#undef BT_TRACE_VERBOSE
+#endif
+#define BT_TRACE_VERBOSE TRUE
+
 #if (BT_TRACE_VERBOSE == TRUE)
 static char *l2c_csm_get_event_name (UINT16 event);
 #endif
