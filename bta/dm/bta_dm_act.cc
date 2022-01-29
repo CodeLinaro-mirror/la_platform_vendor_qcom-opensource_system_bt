@@ -987,10 +987,10 @@ void bta_dm_remove_device(tBTA_DM_MSG* p_data) {
     APPL_TRACE_DEBUG("%s: ACL Up count  %d", __func__,
                      bta_dm_cb.device_list.count);
     continue_delete_dev = false;
-
+    int i = 0 ;
     /* Take the link down first, and mark the device for removal when
      * disconnected */
-    for (int i = 0; i < bta_dm_cb.device_list.count; i++) {
+    for (i = 0; i < bta_dm_cb.device_list.count; i++) {
       auto& peer_device = bta_dm_cb.device_list.peer_device[i];
       if (peer_device.peer_bdaddr == p_dev->bd_addr) {
         peer_device.conn_state = BTA_DM_UNPAIRING;
@@ -1011,6 +1011,18 @@ void bta_dm_remove_device(tBTA_DM_MSG* p_data) {
         break;
       }
     }
+   /*
+    The remote device is not in bta_dm_cb.device_list because remote extended
+    features complete event is not retured.   The reason may be remote device 
+    is in bad state and has no response.
+    For this case, ACL link shall be removed also.
+    */
+   if (i == bta_dm_cb.device_list.count){
+    if (BTM_IsAclConnectionUp(p_dev->bd_addr, BT_TRANSPORT_LE))
+      btm_remove_acl(p_dev->bd_addr, BT_TRANSPORT_LE);
+    if (BTM_IsAclConnectionUp(p_dev->bd_addr, BT_TRANSPORT_BR_EDR))
+      btm_remove_acl(p_dev->bd_addr, BT_TRANSPORT_BR_EDR);
+   }
   } else {
     continue_delete_dev = true;
   }
@@ -5749,8 +5761,8 @@ static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
       if(p_data->close.conn_id == bta_dm_search_cb.conn_id)
           bta_dm_search_cb.conn_id = GATT_INVALID_CONN_ID;
 #ifdef ADV_AUDIO_FEATURE
-      if (is_remote_support_adv_audio(bta_dm_search_cb.peer_bdaddr)) {
-        bta_dm_reset_adv_audio_dev_info(bta_dm_search_cb.peer_bdaddr);
+      if (is_remote_support_adv_audio(p_data->close.remote_bda)) {
+        bta_dm_reset_adv_audio_dev_info(p_data->close.remote_bda);
       }
 #endif
       /* in case of disconnect before search is completed */
