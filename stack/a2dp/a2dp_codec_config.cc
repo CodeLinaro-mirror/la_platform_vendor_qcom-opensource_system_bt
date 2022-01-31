@@ -414,6 +414,14 @@ std::string A2dpCodecConfig::codecSampleRate2Str(
     btav_a2dp_codec_sample_rate_t codec_sample_rate) {
   std::string result;
 
+  if(codec_sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_16000) {
+    if (!result.empty()) result += "|";
+    result += "16000";
+  }
+  if(codec_sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_32000) {
+    if (!result.empty()) result += "|";
+    result += "32000";
+  }
   if (codec_sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_44100) {
     if (!result.empty()) result += "|";
     result += "44100";
