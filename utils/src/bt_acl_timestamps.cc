@@ -50,6 +50,7 @@
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"
 
+#define LOG_TAG "bt_acl_timestamps"
 
 /*******************************************************************************
 **  Constants & Macros
@@ -108,11 +109,11 @@ extern uint8_t avdt_ad_tcid_to_type(uint8_t tcid);
 static uint16_t bt_acl_find_cid_by_handle(uint16_t handle)
 {
     for (int i = 0; i < MAX_CONNECTIONS; i++) {
-        /*LOG_ERROR("%s handle %x.", __func__, cid_info[i].handle, cid_info[i].lcid);*/
+        /*LOG_ERROR(LOG_TAG,"%s handle %x.", __func__, cid_info[i].handle, cid_info[i].lcid);*/
         if (cid_info[i].handle == handle)
             return cid_info[i].lcid;
     }
-    LOG_ERROR("%s cid for handle %d is not found.", __func__, handle);
+    LOG_ERROR(LOG_TAG, "%s cid for handle %d is not found.", __func__, handle);
     return 0;
 }
 
@@ -131,7 +132,7 @@ static fixed_queue_t *bt_acl_find_queue_by_handle(uint16_t handle)
         if (packet_time_info[i].handle == handle)
             return packet_time_info[i].pktQ;
     }
-    LOG_ERROR("%s packet queue is not found.", __func__);
+    LOG_ERROR(LOG_TAG, "%s packet queue is not found.", __func__);
     return NULL;
 }
 
@@ -146,7 +147,7 @@ static fixed_queue_t *bt_acl_find_queue_by_handle(uint16_t handle)
  *******************************************************************************/
 void bt_acl_init_timestamps_info(void)
 {
-    LOG_VERBOSE("%s ", __func__);
+    LOG_VERBOSE(LOG_TAG, "%s ", __func__);
     for (int i = 0; i < MAX_CONNECTIONS; i++) {
         cid_info[i].handle = HCI_INVALID_HANDLE;
         packet_time_info[i].handle = HCI_INVALID_HANDLE;
@@ -169,7 +170,7 @@ void bt_acl_save_acl_timestamps(BT_HDR *packet)
 {
     l2cap_hdr_t *hdr = (l2cap_hdr_t *)(packet->data + packet->offset);
     uint16_t handle = hdr->handle & 0x3f;
-    /*LOG_ERROR("%s handle:%d, cid:%x.", __func__, handle, hdr->lcid);*/
+    /*LOG_ERROR(LOG_TAG, "%s handle:%d, cid:%x.", __func__, handle, hdr->lcid);*/
     fixed_queue_t *pktQ = bt_acl_find_queue_by_handle(handle);
     if (pktQ != NULL) {
         time_stamp_t* pktItem = (time_stamp_t *)osi_malloc(sizeof(time_stamp_t));
@@ -181,7 +182,7 @@ void bt_acl_save_acl_timestamps(BT_HDR *packet)
         }
 
         fixed_queue_enqueue(pktQ, pktItem);
-        LOG_VERBOSE("%s handle:%d, queue size:%d isA2dpPkt:%d.", __func__, handle, fixed_queue_length(pktQ), pktItem->isA2dpPkt);
+        LOG_VERBOSE(LOG_TAG, "%s handle:%d, queue size:%d isA2dpPkt:%d.", __func__, handle, fixed_queue_length(pktQ), pktItem->isA2dpPkt);
     }
 }
 
@@ -196,7 +197,7 @@ void bt_acl_save_acl_timestamps(BT_HDR *packet)
  *******************************************************************************/
 void bt_acl_update_lcid(uint16_t handle, uint16_t local_cid, uint16_t remote_cid)
 {
-    LOG_VERBOSE("%s add local_cid %d remote_cid %d for handle %d.", __func__, local_cid, remote_cid, handle);
+    LOG_VERBOSE(LOG_TAG, "%s add local_cid %d remote_cid %d for handle %d.", __func__, local_cid, remote_cid, handle);
     /* look up info for this channel */
     tAVDT_TC_TBL *p_tbl = avdt_ad_tc_tbl_by_lcid(local_cid);
     if (p_tbl == NULL || avdt_ad_tcid_to_type(p_tbl->tcid) != AVDT_CHAN_MEDIA) {
@@ -204,7 +205,7 @@ void bt_acl_update_lcid(uint16_t handle, uint16_t local_cid, uint16_t remote_cid
         if (p_tbl != NULL) {
             tcid = p_tbl->tcid;
         }
-        LOG_WARN("%s :local_cid :%x and remote_cid %x is not for A2DP Meida, tcid: %d", __func__, local_cid, remote_cid, tcid);
+        LOG_WARN(LOG_TAG, "%s :local_cid :%x and remote_cid %x is not for A2DP Meida, tcid: %d", __func__, local_cid, remote_cid, tcid);
         return;
     }
 
@@ -222,7 +223,7 @@ void bt_acl_update_lcid(uint16_t handle, uint16_t local_cid, uint16_t remote_cid
             return;
         }
     }
-    LOG_WARN("%s cid_info is full.", __func__);
+    LOG_WARN(LOG_TAG, "%s cid_info is full.", __func__);
 }
 
 /*******************************************************************************
@@ -244,7 +245,7 @@ void bt_acl_init_timestamps_by_handle(uint16_t handle)
             return;
         }
     }
-    LOG_WARN("%s packet_time_info is full.", __func__);
+    LOG_WARN(LOG_TAG, "%s packet_time_info is full.", __func__);
 }
 
 /*******************************************************************************
@@ -261,7 +262,7 @@ void bt_acl_remove_timestamps_by_handle(uint16_t handle)
     for (int i = 0; i < MAX_CONNECTIONS; i++) {
         if (cid_info[i].handle == handle) {
             cid_info[i].handle = HCI_INVALID_HANDLE;
-            LOG_VERBOSE("%s free lcid_info, handle %d", __func__, handle);
+            LOG_VERBOSE(LOG_TAG, "%s free lcid_info, handle %d", __func__, handle);
             break;
         }
     }
@@ -269,7 +270,7 @@ void bt_acl_remove_timestamps_by_handle(uint16_t handle)
     for (int i = 0; i < MAX_CONNECTIONS; i++) {
         if (packet_time_info[i].handle == handle) {
             packet_time_info[i].handle = HCI_INVALID_HANDLE;
-            LOG_VERBOSE("%s handle %d. queue size: %d", __func__, handle, fixed_queue_length(packet_time_info[i].pktQ));
+            LOG_VERBOSE(LOG_TAG, "%s handle %d. queue size: %d", __func__, handle, fixed_queue_length(packet_time_info[i].pktQ));
             fixed_queue_free(packet_time_info[i].pktQ, osi_free);
             packet_time_info[i].pktQ = NULL;
             return;
@@ -294,7 +295,7 @@ void bt_acl_set_flush_occur_status(uint16_t handle, bool status)
             return;
         }
     }
-    LOG_WARN("%s handle is not found.", __func__);
+    LOG_WARN(LOG_TAG, "%s handle is not found.", __func__);
 }
 
 /*******************************************************************************
@@ -314,7 +315,7 @@ static bool bt_acl_get_flush_occur_status(uint16_t handle)
             return packet_time_info[i].flush_occured;
         }
     }
-    LOG_WARN("%s handle is not found.", __func__);
+    LOG_WARN(LOG_TAG, "%s handle is not found.", __func__);
     return FALSE;
 }
 
@@ -332,14 +333,14 @@ void bt_acl_calc_timestamps_by_handle(uint16_t handle, uint8_t num)
     int time_delta = 0;
     fixed_queue_t *pktQ = bt_acl_find_queue_by_handle(handle);
     if (pktQ == NULL) {
-        LOG_ERROR("%s pktQ is not found, handle :%d.", __func__, handle);
+        LOG_ERROR(LOG_TAG, "%s pktQ is not found, handle :%d.", __func__, handle);
         return;
     }
 
     bool flush_occured = bt_acl_get_flush_occur_status(handle);
     tBTM_SEC_DEV_REC *p_dev_rec = btm_find_dev_by_handle (handle);
     if (p_dev_rec == NULL) {
-        LOG_ERROR("%s device is not found, handle :%d.", __func__, handle);
+        LOG_ERROR(LOG_TAG, "%s device is not found, handle :%d.", __func__, handle);
         return;
     }
     struct timeval curTime;
@@ -352,7 +353,7 @@ void bt_acl_calc_timestamps_by_handle(uint16_t handle, uint8_t num)
         for (int i = 0; i < num; i++) {
             time_stamp_t* pktItem = (time_stamp_t *)fixed_queue_dequeue(pktQ);
             time_delta = (curTime.tv_sec - pktItem->timestamp.tv_sec) * 1000000 + (curTime.tv_usec - pktItem->timestamp.tv_usec);
-            LOG_ERROR("%s handle:%d, A2DP: %d, Tx time_delta:%d.", __func__, handle, pktItem->isA2dpPkt, time_delta);
+            LOG_ERROR(LOG_TAG, "%s handle:%d, A2DP: %d, Tx time_delta:%d.", __func__, handle, pktItem->isA2dpPkt, time_delta);
             if (pktItem->isA2dpPkt)
                 HAL_CBACK(bt_vendor_callbacks, a2dp_tx_complete_cb, &bd_addr, FALSE);
             osi_free(pktItem);
@@ -364,7 +365,7 @@ void bt_acl_calc_timestamps_by_handle(uint16_t handle, uint8_t num)
         for (int i = 0; i < num; i++) {
             time_stamp_t* pktItem = (time_stamp_t *)fixed_queue_dequeue(pktQ);
             if (pktItem->isA2dpPkt) {
-                LOG_WARN("%s firmware flush occur :", __func__);
+                LOG_WARN(LOG_TAG, "%s firmware flush occur :", __func__);
                 HAL_CBACK(bt_vendor_callbacks, a2dp_tx_complete_cb, &bd_addr, TRUE);
             }
             osi_free(pktItem);

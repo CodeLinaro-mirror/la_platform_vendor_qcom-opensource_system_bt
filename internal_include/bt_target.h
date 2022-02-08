@@ -873,11 +873,6 @@
 #define SDP_MAX_PAD_LEN 600
 #endif
 
-/* The maximum length, in bytes, of an attribute. */
-#ifndef SDP_MAX_ATTR_LEN
-#define SDP_MAX_ATTR_LEN 400
-#endif
-
 /* The maximum number of attribute filters supported by SDP databases. */
 #ifndef SDP_MAX_ATTR_FILTERS
 #define SDP_MAX_ATTR_FILTERS 15

@@ -25,7 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <hardware/bluetooth.h>
 #include "bt_common.h"
 #include "bt_target.h"
 #include "bt_utils.h"

@@ -54,6 +54,31 @@ typedef bluetooth::Uuid bt_uuid_t;
 /** Bluetooth test interface IDs */
 #define BT_TEST_INTERFACE_MCAP_ID "mcap_test"
 
+/* The maximum length, in bytes, of an attribute. */
+#ifndef SDP_MAX_ATTR_LEN
+#define SDP_MAX_ATTR_LEN 400
+#endif
+
+/* Device Identification (DI) data structure
+*/
+/* Used to set the DI record */
+typedef struct t_sdp_di_record {
+  uint16_t vendor;
+  uint16_t vendor_id_source;
+  uint16_t product;
+  uint16_t version;
+  bool primary_record;
+  char client_executable_url[SDP_MAX_ATTR_LEN]; /* optional */
+  char service_description[SDP_MAX_ATTR_LEN];   /* optional */
+  char documentation_url[SDP_MAX_ATTR_LEN];     /* optional */
+} tSDP_DI_RECORD;
+
+/* Used to get the DI record */
+typedef struct t_sdp_di_get_record {
+  uint16_t spec_id;
+  tSDP_DI_RECORD rec;
+} tSDP_DI_GET_RECORD;
+
 /** Bluetooth Device Name */
 typedef struct { uint8_t name[249]; } __attribute__((packed)) bt_bdname_t;
 

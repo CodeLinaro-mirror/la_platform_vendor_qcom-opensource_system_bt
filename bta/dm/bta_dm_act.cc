@@ -49,12 +49,15 @@
 #include "utl.h"
 #include "device/include/interop_config.h"
 #include "stack/sdp/sdpint.h"
-
+#include <hardware/bluetooth.h>
 #include "bta_avk_int.h"
-
+#include "btif/include/btif_common.h"
+#include <hardware/vendor.h>
 #if (GAP_INCLUDED == TRUE)
 #include "gap_api.h"
 #endif
+
+extern btvendor_callbacks_t *bt_vendor_callbacks;
 
 using bluetooth::Uuid;
 
@@ -1610,6 +1613,7 @@ void bta_dm_sdp_result(tBTA_DM_MSG* p_data) {
   bool scn_found = false;
   uint16_t service = 0xFFFF;
   tSDP_PROTOCOL_ELEM pe;
+  tSDP_DI_GET_RECORD di_rec;
 
   Uuid* p_uuid = bta_dm_search_cb.p_srvc_uuid;
   tBTA_DM_SEARCH result;
@@ -1636,6 +1640,16 @@ void bta_dm_sdp_result(tBTA_DM_MSG* p_data) {
             bta_service_id_to_uuid_lkup_tbl[bta_dm_search_cb.service_index - 1];
         p_sdp_rec =
             SDP_FindServiceInDb(bta_dm_search_cb.p_sdp_db, service, p_sdp_rec);
+        if (service == UUID_SERVCLASS_PNP_INFORMATION) {
+          APPL_TRACE_DEBUG(" Store DI info to conf file " );
+          if (SDP_GetNumDiRecords(bta_dm_search_cb.p_sdp_db) != 0) {
+            /* always update information with primary DI record */
+            if (SDP_GetDiRecord(1, &di_rec, bta_dm_search_cb.p_sdp_db) == SDP_SUCCESS) {
+               APPL_TRACE_DEBUG("%s: DID info callback", __func__);
+               HAL_CBACK(bt_vendor_callbacks, did_info_cb,di_rec);
+            }
+          }
+        }
         // for PBAP PCE UUID, check remote PBAP PCE Profile Version
         if (service == UUID_SERVCLASS_PBAP_PCE) {
           APPL_TRACE_DEBUG("%s: remote PBAP PCE reord", __func__);
