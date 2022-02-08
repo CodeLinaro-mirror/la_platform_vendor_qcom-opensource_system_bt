@@ -133,6 +133,9 @@ static void bta_hf_client_mgmt_cback(uint32_t code, uint16_t port_handle) {
 
     RFCOMM_RemoveServer(port_handle);
     p_buf->hdr.event = BTA_HF_CLIENT_RFC_CLOSE_EVT;
+  } else {
+    APPL_TRACE_DEBUG("%s: RFC_SRV_CLOSE_EVT ",__func__);
+    p_buf->hdr.event = BTA_HF_CLIENT_RFC_SRV_CLOSE_EVT;
   }
 
   p_buf->hdr.layer_specific = client_cb != NULL ? client_cb->handle : 0;
