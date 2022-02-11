@@ -816,8 +816,8 @@ static bool bta_dm_pm_sniff(tBTA_DM_PEER_DEVICE* p_peer_dev, uint8_t index) {
     /* if the current mode is not sniff, issue the sniff command.
      * If sniff, but SSR is not used in this link, still issue the command */
     memcpy(&pwr_md, &p_bta_dm_pm_md[index], sizeof(tBTM_PM_PWR_MD));
-    property_get("persist.vendor.btstack.sniff.max",sniff_max,"800");
-    property_get("persist.vendor.btstack.sniff.min",sniff_min,"400");
+    property_get("persist.vendor.btstack.sniff.max",sniff_max,std::to_string(pwr_md.max).c_str());
+    property_get("persist.vendor.btstack.sniff.min",sniff_min,std::to_string(pwr_md.min).c_str());
     value_max = (int32_t)atoi(sniff_max);
     value_min = (int32_t)atoi(sniff_min);
     APPL_TRACE_DEBUG("%s Max value : %d, Min value : %d ", __func__, value_max, value_min);
