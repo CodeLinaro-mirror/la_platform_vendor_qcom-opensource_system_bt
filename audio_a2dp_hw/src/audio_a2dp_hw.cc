@@ -556,6 +556,12 @@ static int a2dp_read_output_audio_config(
 
   // Check the codec config sample rate
   switch (codec_config->sample_rate) {
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_16000:
+      stream_config.rate = 16000;
+      break;
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_32000:
+      stream_config.rate = 32000;
+      break;
     case BTAV_A2DP_CODEC_SAMPLE_RATE_44100:
       stream_config.rate = 44100;
       break;
@@ -1112,6 +1118,12 @@ size_t audio_a2dp_hw_stream_compute_buffer_size(
 
   // Check the codec config sample rate
   switch (codec_sample_rate) {
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_16000:
+     sample_rate = 16000;
+     break;
+    case BTAV_A2DP_CODEC_SAMPLE_RATE_32000:
+     sample_rate = 32000;
+     break;
     case BTAV_A2DP_CODEC_SAMPLE_RATE_44100:
       sample_rate = 44100;
       break;
