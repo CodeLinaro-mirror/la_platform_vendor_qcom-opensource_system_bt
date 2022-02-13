@@ -446,7 +446,8 @@ typedef void (*bond_state_changed_callback)(bt_status_t status,
 typedef void (*acl_state_changed_callback)(bt_status_t status,
                                            RawAddress* remote_bd_addr,
                                            bt_acl_state_t state,
-                                           bt_hci_error_code_t hci_reason);
+                                           bt_hci_error_code_t hci_reason,
+                                           tBT_TRANSPORT link_type);
 
 /** Bluetooth link quality report callback */
 typedef void (*link_quality_report_callback)(
