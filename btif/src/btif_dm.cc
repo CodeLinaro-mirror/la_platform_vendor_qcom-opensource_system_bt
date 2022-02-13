@@ -1958,6 +1958,10 @@ bool btif_dm_pairing_is_busy() {
  *
  ******************************************************************************/
 void btif_dm_create_bond(const RawAddress bd_addr, int transport) {
+  if (!pairing_cb.is_local_initiated) {
+    /* Not Bond initiator, clean OOB data and use in-band Bond */
+    memset(&oob_cb, 0, sizeof(oob_cb));
+  }
   BTIF_TRACE_EVENT("%s: bd_addr=%s, transport=%d", __func__,
                    bd_addr.ToString().c_str(), transport);
   btif_stats_add_bond_event(bd_addr, BTIF_DM_FUNC_CREATE_BOND,
@@ -2484,6 +2488,43 @@ void btif_dm_generate_local_oob_data(tBT_TRANSPORT transport) {
   }
 }
 
+/*******************************************************************************
+ *
+ * Function         btif_dm_load_remote_oob_data
+ *
+ * Description      Load remote OOB data to Fluoride stack
+ *
+ * Parameters       transport; Classic or LE
+ *
+ ******************************************************************************/
+void btif_dm_load_remote_oob_data(const RawAddress bd_addr,
+                                  tBT_TRANSPORT transport,
+                                  const bt_oob_data_t p192_data,
+                                  const bt_oob_data_t p256_data) {
+  LOG_DEBUG("Transport %s", bt_transport_text(transport).c_str());
+  bt_oob_data_t empty_data;
+  memset(&empty_data, 0, sizeof(empty_data));
+
+  oob_cb.bdaddr = bd_addr;
+  oob_cb.transport = transport;
+  oob_cb.data_present = (int)BTM_OOB_NONE;
+  if (memcmp(&p192_data, &empty_data, sizeof(p192_data)) != 0) {
+    memcpy(&oob_cb.p192_data, &p192_data, sizeof(bt_oob_data_t));
+    oob_cb.data_present = (int)BTM_OOB_PRESENT_192;
+  }
+
+  if (memcmp(&p256_data, &empty_data, sizeof(p256_data)) != 0) {
+    memcpy(&oob_cb.p256_data, &p256_data, sizeof(bt_oob_data_t));
+    if (oob_cb.data_present == (int)BTM_OOB_PRESENT_192) {
+      oob_cb.data_present = (int)BTM_OOB_PRESENT_192_AND_256;
+    } else {
+      oob_cb.data_present = (int)BTM_OOB_PRESENT_256;
+    }
+  }
+  /* Set is_local_initiated to false*/
+  if (oob_cb.data_present) pairing_cb.is_local_initiated = false;
+  return;
+}
 // Step Four: CallBack from Step Three
 static void get_address_callback(tBT_TRANSPORT transport, bool is_valid,
                                  const Octet16& c, const Octet16& r,

@@ -334,6 +334,18 @@ static int generate_local_oob_data(tBT_TRANSPORT transport) {
       FROM_HERE, base::BindOnce(btif_dm_generate_local_oob_data, transport));
 }
 
+static int load_remote_oob_data(const RawAddress* bd_addr, int transport,
+                                const bt_oob_data_t* p192_data,
+                                const bt_oob_data_t* p256_data) {
+  if (!interface_ready()) return BT_STATUS_NOT_READY;
+  if (btif_dm_pairing_is_busy()) return BT_STATUS_BUSY;
+
+  do_in_main_thread(FROM_HERE,
+                    base::BindOnce(btif_dm_load_remote_oob_data, *bd_addr,
+                                   transport, *p192_data, *p256_data));
+  return BT_STATUS_SUCCESS;
+}
+
 static int cancel_bond(const RawAddress* bd_addr) {
   if (!interface_ready()) return BT_STATUS_NOT_READY;
 
@@ -619,7 +631,8 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     obfuscate_address,
     get_metric_id,
     set_dynamic_audio_buffer_size,
-    generate_local_oob_data};
+    generate_local_oob_data,
+    load_remote_oob_data};
 
 // callback reporting helpers
 
