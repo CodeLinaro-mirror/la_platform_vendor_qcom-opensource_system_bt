@@ -1838,13 +1838,23 @@ void bta_av_connect_req(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
                      p_scb->coll_mask);
     return;
   }
-  if(bta_av_find_lcb(p_scb->peer_addr, BTA_AV_LCB_FIND) != NULL)
-  {
-    APPL_TRACE_EVENT("bta_av_connect_req: same address has connected to av");
-    bta_av_ssm_execute(p_scb, BTA_AV_AVDT_DISCONNECT_EVT, NULL);
-    bta_av_str_closed(p_scb, p_data);
-    return;
-  }
+
+    char value[PROPERTY_VALUE_MAX] = {0};
+    property_get("vendor.bt.pts.certification", value, "false");
+
+    if(!strcmp(value, "false")){
+        if(bta_av_find_lcb(p_scb->peer_addr, BTA_AV_LCB_FIND) != NULL)
+        {
+            APPL_TRACE_EVENT("bta_av_connect_req: same address has connected to av");
+            bta_av_ssm_execute(p_scb, BTA_AV_AVDT_DISCONNECT_EVT, NULL);
+            bta_av_str_closed(p_scb, p_data);
+            return;
+        }
+    }
+    else {
+        APPL_TRACE_EVENT("vendor.bt.pts.certification is set to true");
+    }
+
   update_avdtp_connection_info(p_scb->peer_addr, AVDT_AR_EXT_CONNECT_REQ_EVT, BTA_AR_EXT_AV_MASK);
   result = AVDT_ConnectReq(p_scb->peer_addr, p_scb->sec_mask,
                   bta_av_dt_cback[p_scb->hdi]);

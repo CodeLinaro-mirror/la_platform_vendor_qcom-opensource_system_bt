@@ -1641,13 +1641,14 @@ void bta_dm_sdp_result(tBTA_DM_MSG* p_data) {
         p_sdp_rec =
             SDP_FindServiceInDb(bta_dm_search_cb.p_sdp_db, service, p_sdp_rec);
         if (service == UUID_SERVCLASS_PNP_INFORMATION) {
-          APPL_TRACE_DEBUG(" Store DI info to conf file " );
           if (SDP_GetNumDiRecords(bta_dm_search_cb.p_sdp_db) != 0) {
             /* always update information with primary DI record */
-            if (SDP_GetDiRecord(1, &di_rec, bta_dm_search_cb.p_sdp_db) == SDP_SUCCESS) {
-               APPL_TRACE_DEBUG("%s: DID info callback", __func__);
-               HAL_CBACK(bt_vendor_callbacks, did_info_cb,di_rec);
-            }
+            if (SDP_GetDiRecord(1, &di_rec, bta_dm_search_cb.p_sdp_db) == SDP_SUCCESS)
+                di_rec.status = BTA_SUCCESS;
+            else
+                di_rec.status=BTA_FAILURE;
+            APPL_TRACE_DEBUG("%s: DID info callback", __func__);
+            HAL_CBACK(bt_vendor_callbacks, did_info_cb,di_rec);
           }
         }
         // for PBAP PCE UUID, check remote PBAP PCE Profile Version

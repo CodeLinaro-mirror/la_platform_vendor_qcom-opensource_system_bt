@@ -75,6 +75,7 @@ typedef struct t_sdp_di_record {
 
 /* Used to get the DI record */
 typedef struct t_sdp_di_get_record {
+  uint8_t status;       /* success or fail */
   uint16_t spec_id;
   tSDP_DI_RECORD rec;
 } tSDP_DI_GET_RECORD;
