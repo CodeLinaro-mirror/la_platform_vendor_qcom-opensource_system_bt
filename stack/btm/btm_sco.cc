@@ -176,6 +176,8 @@ static void btm_esco_conn_rsp(uint16_t sco_inx, uint8_t hci_status,
     if (p_sco->esco.data.link_type == BTM_LINK_TYPE_SCO) {
       temp_packet_types &= BTM_SCO_LINK_ONLY_MASK;
       temp_packet_types |= BTM_SCO_EXCEPTION_PKTS_MASK;
+      p_setup->retransmission_effort = 0;
+      BTM_TRACE_DEBUG("%s: change retransmision effort to 0", __func__);
     } else {
       /* OR in any exception packet types */
       temp_packet_types |=
