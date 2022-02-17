@@ -27,6 +27,7 @@
 #include "bt_target.h"
 #include "osi/include/log.h"
 #include "osi/include/properties.h"
+#include "stack/include/a2dp_constants.h"
 
 using namespace android;
 
@@ -137,6 +138,9 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
 
 #if (DUMP_PCM_DATA == TRUE)
   outputPcmSampleFile = fopen(outputFilename, "ab");
+  if (!outputPcmSampleFile) {
+    LOG_ERROR("%s: Create file %s failed:%s", __func__, outputFilename, strerror(errno));
+  }
 #endif
   return (void*)trackHolder;
 }

@@ -209,6 +209,7 @@ static const char* APTX_ENCODER_LIB_NAME = "libaptX_encoder.so";
 static const char* APTX_HD_ENCODER_LIB_NAME = "libaptXHD_encoder.so";
 static const char* LDAC_ENCODER_LIB_NAME = "libldacBT_enc.so";
 static const char* LDAC_DECODER_LIB_NAME = "libldacBT_dec.so";
+static const char* APTX_DECODER_LIB_NAME = "libaptX_decoder.so";
 
 static bool has_shared_library(const char* name) {
   void* lib_handle = dlopen(name, RTLD_NOW);
@@ -263,6 +264,9 @@ class StackA2dpTest : public ::testing::Test {
           // Codec LDAC is supported only if the device has the corresponding
           // shared library installed.
           supported = has_shared_library(LDAC_DECODER_LIB_NAME);
+          break;
+        case BTAV_A2DP_CODEC_INDEX_SINK_APTX:
+          supported = has_shared_library(APTX_DECODER_LIB_NAME);
           break;
         case BTAV_A2DP_CODEC_INDEX_MAX:
           // Needed to avoid using "default:" case so we can capture when
