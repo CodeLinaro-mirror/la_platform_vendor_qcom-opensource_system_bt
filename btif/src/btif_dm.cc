@@ -1118,6 +1118,52 @@ static void btif_dm_ssp_key_notif_evt(tBTA_DM_SP_KEY_NOTIF* p_ssp_key_notif) {
   HAL_CBACK(bt_hal_cbacks, ssp_request_cb, &bd_addr, &bd_name, cod,
             BT_SSP_VARIANT_PASSKEY_NOTIFICATION, p_ssp_key_notif->passkey);
 }
+
+static void btif_dm_oob_req_evt(tBTA_DM_SP_RMT_OOB* p_rmt_oob_req)
+{
+  uint32_t cod = COD_UNCLASSIFIED;
+  int dev_type = BT_DEVICE_TYPE_BREDR;
+
+  BTIF_TRACE_DEBUG("%s", __func__);
+
+  if ((pairing_cb.state == BT_BOND_STATE_BONDING && p_rmt_oob_req->bd_addr != pairing_cb.bd_addr)
+      || (is_empty_128bit(oob_cb.oob_data.c192))) {
+    BTIF_TRACE_WARNING("%s(): already in bonding state or lack of oob data, reject request",
+                       __FUNCTION__);
+    return;
+  }
+
+  /* Remote properties update */
+  if (!btif_get_device_type(p_rmt_oob_req->bd_addr, &dev_type)) {
+    dev_type = BT_DEVICE_TYPE_BREDR;
+  }
+
+
+  btif_update_remote_properties(p_rmt_oob_req->bd_addr, p_rmt_oob_req->bd_name,
+                                p_rmt_oob_req->dev_class,
+                                (tBT_DEVICE_TYPE)dev_type);
+
+  /* bond_state_changed to BONDING
+   */
+  bond_state_changed(BT_STATUS_SUCCESS, p_rmt_oob_req->bd_addr, BT_BOND_STATE_BONDING);
+
+  /* bond_type is PERSISTENT by default in OOB bond
+   */
+  pairing_cb.bond_type = BOND_TYPE_PERSISTENT;
+
+  btm_set_bond_type_dev(p_rmt_oob_req->bd_addr, pairing_cb.bond_type);
+
+
+  cod = devclass2uint(p_rmt_oob_req->dev_class);
+
+  if (cod == 0) {
+    LOG_DEBUG(LOG_TAG, "%s cod is 0, set as unclassified", __func__);
+    cod = COD_UNCLASSIFIED;
+  }
+
+  pairing_cb.sdp_attempts = 0;
+  pairing_cb.is_ssp = false;
+}
 /*******************************************************************************
  *
  * Function         btif_dm_auth_cmpl_evt
@@ -1235,6 +1281,11 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
           LOG_INFO(LOG_TAG,
                    "%s: send bonding state update for static address %s",
                    __func__, bd_addr.ToString().c_str());
+          bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDING);
+        }
+        /* Incoming OOB bond
+         * Previous state is BOND_NONE, change it to bonding first */
+        if (pairing_cb.state == BT_BOND_STATE_NONE) {
           bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDING);
         }
         bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDED);
@@ -1819,11 +1870,21 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
     case BTA_DM_LINK_DOWN_EVT:
       bd_addr = p_data->link_down.bd_addr;
       btm_set_bond_type_dev(p_data->link_down.bd_addr, BOND_TYPE_UNKNOWN);
-      btif_av_acl_disconnected(bd_addr);
       BTIF_TRACE_DEBUG(
-          "BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
-      HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
-                &bd_addr, BT_ACL_STATE_DISCONNECTED);
+          "BTA_DM_LINK_DOWN_EVT. transport = %d", p_data->link_down.link_type);
+
+      if (p_data->link_down.link_type == BT_TRANSPORT_BR_EDR) {
+        btif_av_acl_disconnected(bd_addr);
+        BTIF_TRACE_DEBUG(
+            "BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
+        HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
+                  &bd_addr, BT_ACL_STATE_DISCONNECTED);
+      } else {
+        /* LE connection dropped, No need handle */
+        BTIF_TRACE_DEBUG(
+            "BTA_DM_LINK_DOWN_EVT. BLE transport is disconnected");
+      }
+
       break;
 
     case BTA_DM_HW_ERROR_EVT:
@@ -2021,9 +2082,14 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       break;
     }
 
+    case BTA_DM_SP_RMT_OOB_EVT: {
+      BTIF_TRACE_WARNING("%s: BTA_DM_SP_RMT_OOB_EVT", __func__);
+      btif_dm_oob_req_evt(&p_data->rmt_oob);
+      break;
+    }
+
     case BTA_DM_AUTHORIZE_EVT:
     case BTA_DM_SIG_STRENGTH_EVT:
-    case BTA_DM_SP_RMT_OOB_EVT:
     case BTA_DM_SP_KEYPRESS_EVT:
     case BTA_DM_ROLE_CHG_EVT:
 
