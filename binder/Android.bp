@@ -121,3 +121,11 @@ filegroup {
         "android/bluetooth/IBluetoothVcp.aidl",
     ],
 }
+
+filegroup {
+    name: "libbluetooth_offload-binder-aidl",
+    srcs: [
+        "android/bluetooth/bluetooth_offload/vendor/qti/bluetooth_offload/*.aidl",
+    ],
+    path: "android/bluetooth/bluetooth_offload",
+}
