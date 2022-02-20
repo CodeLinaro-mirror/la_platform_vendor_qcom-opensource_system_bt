@@ -80,6 +80,7 @@ bt_interface_t fake_bt_iface = {
     nullptr, /* set_dynamic_audio_buffer_size */
     nullptr, /* generate_local_oob_data */
     nullptr, /* load_remote_oob_data */
+    nullptr, /* get_rssi */
 };
 
 }  // namespace

@@ -755,6 +755,11 @@ typedef struct {
   int (*load_remote_oob_data)(const RawAddress* bd_addr, int transport,
                               const bt_oob_data_t* p192_data,
                               const bt_oob_data_t* p256_data);
+
+  /**
+   * get remote device's rssi
+   */
+  int (*get_rssi)(const RawAddress* bd_addr, int transport);
 } bt_interface_t;
 
 #define BLUETOOTH_INTERFACE_STRING "bluetoothInterface"
