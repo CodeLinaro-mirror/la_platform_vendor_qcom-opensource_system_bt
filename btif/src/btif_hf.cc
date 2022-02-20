@@ -140,6 +140,9 @@ static uint32_t btif_hf_features = BTIF_HF_FEATURES;
 uint16_t btif_max_hf_clients = 1;
 static RawAddress active_bda = {};
 
+/* keep track if SCO allowed for AG */
+bool btif_is_sco_allowed = true;
+
 /*******************************************************************************
  *  Local type definitions
  ******************************************************************************/
@@ -961,6 +964,11 @@ void btif_in_hf_generic_evt(uint16_t event, char* p_param) {
        btif_hf_cb[idx].audio_state, btif_hf_cb[idx].connected_bda.ToString().c_str());
   switch (event) {
     case BTIF_HFP_CB_AUDIO_CONNECTING: {
+       /* Check if SCO is allowed */
+      if (!btif_is_sco_allowed) {
+        BTIF_TRACE_ERROR("%s: sco not allowed for ag ", __func__);
+        return;
+      }
       if (btif_hf_cb[idx].audio_state != BTHF_AUDIO_STATE_CONNECTED) {
         BTIF_TRACE_DEBUG("%s: Moving the audio_state to CONNECTING for device %s",
                   __FUNCTION__, btif_hf_cb[idx].connected_bda.ToString().c_str());
@@ -1218,6 +1226,12 @@ bt_status_t HeadsetInterface::ConnectAudio(RawAddress* bd_addr) {
   if (!IsSlcConnected(bd_addr)) {
     LOG(ERROR) << ": SLC not connected for " << *bd_addr;
     return BT_STATUS_NOT_READY;
+  }
+
+  /* Check if SLC is connected */
+  if (!btif_is_sco_allowed) {
+    BTIF_TRACE_ERROR("%s: sco not allowed for ag ", __func__);
+    return BT_STATUS_FAIL;
   }
 
   /* Check if SCO is already connecting/connected for the same device*/
@@ -1563,6 +1577,7 @@ bt_status_t HeadsetInterface::CindResponse(int svc, int num_active, int num_held
 bt_status_t HeadsetInterface::SetScoAllowed(bool value) {
   CHECK_BTHF_INIT();
 
+  btif_is_sco_allowed = value;
   BTA_AgSetScoAllowed(value);
   return BT_STATUS_SUCCESS;
 }
