@@ -573,6 +573,14 @@ void handle_rc_ctrl_psm(btif_rc_device_cb_t* p_dev) {
       p_dev->rc_addr, cover_art_psm));
 }
 
+void handle_rc_ctrl_version(tBTA_AV_RC_VER* peer_rc_version) {
+  BTIF_TRACE_DEBUG("%s: Update peer rc version to upper layer: %d", __func__,
+      peer_rc_version->peer_rc_version);
+  do_in_jni_thread(FROM_HERE, base::Bind(
+                   bt_rc_ctrl_callbacks->get_peer_rc_version_cb,
+                   peer_rc_version->peer_addr, peer_rc_version->peer_rc_version));
+}
+
 void handle_rc_features(btif_rc_device_cb_t* p_dev) {
 
   CHECK(bt_rc_callbacks);
@@ -1115,6 +1123,16 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV* p_data) {
       p_dev->rc_cover_art_psm = p_data->rc_cover_art_psm.cover_art_psm;
       if ((p_dev->rc_connected) && (bt_rc_ctrl_callbacks != NULL)) {
         handle_rc_ctrl_psm(p_dev);
+      }
+    } break;
+
+    case BTA_AV_RC_VER_EVT: {
+      BTIF_TRACE_DEBUG("%s: Peer rc version: 0x%x", __func__,
+                       p_data->peer_rc_version.peer_rc_version);
+      if (bt_rc_ctrl_callbacks != NULL) {
+        handle_rc_ctrl_version((&p_data->peer_rc_version));
+      } else {
+        BTIF_TRACE_ERROR("%s: TG role is not up", __func__);
       }
     } break;
 

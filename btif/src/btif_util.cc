@@ -350,6 +350,7 @@ const char* dump_rc_event(uint8_t event) {
     CASE_RETURN_STR(BTA_AV_META_MSG_EVT)
     CASE_RETURN_STR(BTA_AV_RC_FEAT_EVT)
     CASE_RETURN_STR(BTA_AV_RC_PSM_EVT)
+    CASE_RETURN_STR(BTA_AV_RC_VER_EVT)
     default:
       return "UNKNOWN_EVENT";
   }
