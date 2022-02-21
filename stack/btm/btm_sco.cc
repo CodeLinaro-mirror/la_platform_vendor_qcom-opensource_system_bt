@@ -176,6 +176,8 @@ static void btm_esco_conn_rsp(uint16_t sco_inx, uint8_t hci_status,
     if (p_sco->esco.data.link_type == BTM_LINK_TYPE_SCO) {
       temp_packet_types &= BTM_SCO_LINK_ONLY_MASK;
       temp_packet_types |= BTM_SCO_EXCEPTION_PKTS_MASK;
+      p_setup->retransmission_effort = 0;
+      BTM_TRACE_DEBUG("%s: change retransmision effort to 0", __func__);
     } else {
       /* OR in any exception packet types */
       temp_packet_types |=
@@ -448,7 +450,10 @@ static tBTM_STATUS btm_send_connect_request(uint16_t acl_handle,
 
     bt_soc_type_t soc_type = controller_get_interface()->get_soc_type();
     BTM_TRACE_DEBUG("%s: soc_type: %d", __func__, soc_type);
-
+    if(!(p_setup->packet_types & ~BTM_SCO_LINK_ONLY_MASK)){
+       p_setup->retransmission_effort = 0;
+       BTM_TRACE_DEBUG("%s: change retransmission effort to 0", __func__);
+    }
     /* Use Enhanced Synchronous commands if supported */
     if (controller_get_interface()
             ->supports_enhanced_setup_synchronous_connection() &&
@@ -901,7 +906,7 @@ void btm_sco_conn_req(const RawAddress& bda, DEV_CLASS dev_class,
           btm_esco_conn_rsp(xx, HCI_ERR_HOST_REJECT_RESOURCES, bda, NULL);
         } else /* Accept the request */
         {
-          btm_esco_conn_rsp(xx, HCI_SUCCESS, bda, NULL);
+           btm_esco_conn_rsp(xx, HCI_SUCCESS, bda, NULL);
         }
       } else /* Notify upper layer of connect indication */
       {
@@ -966,6 +971,13 @@ void btm_sco_connected(uint8_t hci_status, const RawAddress* bda,
   tBTM_CHG_ESCO_PARAMS parms;
 #endif
 
+  if (bda != NULL) {
+    BTM_TRACE_DEBUG("%s: hci_status 0x%x, bda %s, hci_handle 0x%04x",
+            __func__, hci_status, bda->ToString().c_str(), hci_handle);
+  } else {
+    BTM_TRACE_DEBUG("%s: hci_status 0x%x, hci_handle 0x%04x", __func__,
+            hci_status, hci_handle);
+  }
   btm_cb.sco_cb.sco_disc_reason = hci_status;
 
 #if (BTM_MAX_SCO_LINKS > 0)
@@ -1033,6 +1045,12 @@ void btm_sco_connected(uint8_t hci_status, const RawAddress* bda,
       (*p->p_conn_cb)(xx);
 
       return;
+    } else if (p->state == SCO_ST_UNUSED &&
+        (p->rem_bd_known) && (!bda || p->esco.data.bd_addr == *bda)) {
+      if (hci_status == HCI_SUCCESS) {
+        BTM_TRACE_WARNING("%s: Unused control block, disconnect sco", __func__);
+        btsnd_hcic_disconnect(hci_handle, HCI_ERR_PEER_USER);
+      }
     }
   }
 #endif
@@ -1086,6 +1104,7 @@ tBTM_STATUS BTM_RemoveSco(uint16_t sco_inx) {
   if (p->state == SCO_ST_UNUSED)
     return (BTM_UNKNOWN_ADDR);
 
+  BTM_TRACE_DEBUG("%s: state 0x%x, handle 0x%04x", __func__, p->state, p->hci_handle);
   /* If no HCI handle, simply drop the connection and return */
   if (p->hci_handle == BTM_INVALID_HCI_HANDLE ||
       p->state == SCO_ST_PEND_UNPARK) {
