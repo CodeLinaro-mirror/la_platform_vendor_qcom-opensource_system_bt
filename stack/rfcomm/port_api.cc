@@ -228,7 +228,9 @@ int RFCOMM_CreateConnection(uint16_t uuid, uint8_t scn, bool is_server,
   /* If this is not initiator of the connection need to just wait */
   if (p_port->is_server) {
     RFCOMM_TRACE_API("RFCOMM_CreateConnection() address %s, mtu %d, local_cred %d, remote_cred %d, dlci %d, scn %d, is_server %d ",p_port->bd_addr.ToString().c_str(), p_port->mtu, p_port->credit_tx, p_port->credit_rx, p_port->dlci, p_port->scn, p_port->is_server);
+#ifdef BT_LPM_SUPPORTED
     LPM_CopyPortInfo(p_port);
+#endif
     return (PORT_SUCCESS);
   }
   /* Open will be continued after security checks are passed */

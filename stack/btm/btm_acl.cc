@@ -290,7 +290,9 @@ void btm_acl_created(const RawAddress& bda, DEV_CLASS dc, BD_NAME bdn,
 
       /* if BR/EDR do something more */
       if (transport == BT_TRANSPORT_BR_EDR) {
+#ifdef BT_LPM_SUPPORTED
         LPM_CopyHCIInfo(p->hci_handle,p->link_role,bda);
+#endif
         bt_soc_type_t soc_type = controller_get_interface()->get_soc_type();
         BTM_TRACE_DEBUG("%s: soc_type: %d", __func__, soc_type);
 

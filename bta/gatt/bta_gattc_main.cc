@@ -331,6 +331,7 @@ bool bta_gattc_sm_execute(tBTA_GATTC_CLCB* p_clcb, uint16_t event,
     }
   }
 
+#ifdef BT_LPM_SUPPORTED
   if (in_state != p_clcb->state) {
     if (p_clcb->state == (BTA_GATTC_W4_CONN_ST || BTA_GATTC_DISCOVER_ST)) {
       lpm_profile_update_evt(BTA_ID_GATTC, BTA_LPM_CONN_PROGRESS);
@@ -338,6 +339,7 @@ bool bta_gattc_sm_execute(tBTA_GATTC_CLCB* p_clcb, uint16_t event,
       lpm_profile_update_evt(BTA_ID_GATTC, BTA_LPM_CONN_DONE);
 	  }	
   }
+#endif /*BT_LPM_SUPPORTED*/
 
 #if (BTA_GATT_DEBUG == TRUE)
   if (in_state != p_clcb->state) {
