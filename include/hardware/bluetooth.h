@@ -372,7 +372,8 @@ typedef void (*bond_state_changed_callback)(bt_status_t status,
 /** Bluetooth ACL connection state changed callback */
 typedef void (*acl_state_changed_callback)(bt_status_t status,
                                            RawAddress* remote_bd_addr,
-                                           bt_acl_state_t state);
+                                           bt_acl_state_t state,
+                                           uint8_t link_type);
 
 typedef enum { ASSOCIATE_JVM, DISASSOCIATE_JVM } bt_cb_thread_evt;
 

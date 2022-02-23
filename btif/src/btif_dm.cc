@@ -1740,6 +1740,7 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
   tBTA_SERVICE_MASK service_mask;
   uint32_t i;
   RawAddress bd_addr;
+  tBTA_TRANSPORT link_type = BT_TRANSPORT_INVALID;
 
   BTIF_TRACE_EVENT("%s: ev: %s", __func__, dump_dm_event(event));
 
@@ -1859,31 +1860,28 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
 
     case BTA_DM_LINK_UP_EVT:
       bd_addr = p_data->link_up.bd_addr;
+      link_type = p_data->link_up.link_type;
       BTIF_TRACE_DEBUG("BTA_DM_LINK_UP_EVT. Sending BT_ACL_STATE_CONNECTED");
 
       btif_update_remote_version_property(&bd_addr);
 
       HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
-                &bd_addr, BT_ACL_STATE_CONNECTED);
+                &bd_addr, BT_ACL_STATE_CONNECTED, (uint8_t)link_type);
       break;
 
     case BTA_DM_LINK_DOWN_EVT:
       bd_addr = p_data->link_down.bd_addr;
+      link_type = p_data->link_down.link_type;
       btm_set_bond_type_dev(p_data->link_down.bd_addr, BOND_TYPE_UNKNOWN);
       BTIF_TRACE_DEBUG(
-          "BTA_DM_LINK_DOWN_EVT. transport = %d", p_data->link_down.link_type);
+          "BTA_DM_LINK_DOWN_EVT. transport = %d", link_type);
 
-      if (p_data->link_down.link_type == BT_TRANSPORT_BR_EDR) {
+      if (link_type == BT_TRANSPORT_BR_EDR) {
         btif_av_acl_disconnected(bd_addr);
-        BTIF_TRACE_DEBUG(
-            "BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
-        HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
-                  &bd_addr, BT_ACL_STATE_DISCONNECTED);
-      } else {
-        /* LE connection dropped, No need handle */
-        BTIF_TRACE_DEBUG(
-            "BTA_DM_LINK_DOWN_EVT. BLE transport is disconnected");
       }
+
+      HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
+                &bd_addr, BT_ACL_STATE_DISCONNECTED, (uint8_t)link_type);
 
       break;
 
