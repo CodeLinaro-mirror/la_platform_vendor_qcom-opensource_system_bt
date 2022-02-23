@@ -101,5 +101,5 @@ const btgatt_interface_t* btif_gatt_get_interface() {
   // until those dependencies are properly abstracted for tests.
   btgattInterface.scanner = get_ble_scanner_instance();
   btgattInterface.advertiser = get_ble_advertiser_instance();
-  return &btgattInterface;
+  return is_ble_supported() ? &btgattInterface : NULL;
 }

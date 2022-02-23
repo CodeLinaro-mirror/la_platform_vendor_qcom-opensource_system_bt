@@ -243,16 +243,19 @@ bool BTM_SecRegister(const tBTM_APPL_INFO* p_cb_info) {
 
   LOG_INFO(LOG_TAG, "%s p_cb_info->p_le_callback == 0x%p", __func__,
            p_cb_info->p_le_callback);
-  if (p_cb_info->p_le_callback) {
-    BTM_TRACE_EVENT("%s SMP_Register( btm_proc_smp_cback )", __func__);
-    SMP_Register(btm_proc_smp_cback);
-    Octet16 zero{0};
-    /* if no IR is loaded, need to regenerate all the keys */
-    if (btm_cb.devcb.id_keys.ir == zero) {
-      btm_ble_reset_id();
+
+  if (is_ble_supported()) {
+    if (p_cb_info->p_le_callback) {
+      BTM_TRACE_EVENT("%s SMP_Register( btm_proc_smp_cback )", __func__);
+      SMP_Register(btm_proc_smp_cback);
+      Octet16 zero{0};
+      /* if no IR is loaded, need to regenerate all the keys */
+      if (btm_cb.devcb.id_keys.ir == zero) {
+        btm_ble_reset_id();
+      }
+    } else {
+      LOG_WARN(LOG_TAG, "%s p_cb_info->p_le_callback == NULL", __func__);
     }
-  } else {
-    LOG_WARN(LOG_TAG, "%s p_cb_info->p_le_callback == NULL", __func__);
   }
 
   btm_cb.api = *p_cb_info;
@@ -2378,15 +2381,16 @@ void btm_sec_conn_req(const RawAddress& bda, uint8_t* dc) {
   btm_cb.connecting_bda = bda;
   memcpy(btm_cb.connecting_dc, dc, DEV_CLASS_LEN);
 
-  if (l2c_link_hci_conn_req(bda)) {
-    if (!p_dev_rec) {
-      /* accept the connection -> allocate a device record */
-      p_dev_rec = btm_sec_alloc_dev(bda);
-    }
-    if (p_dev_rec) {
-      p_dev_rec->sm4 |= BTM_SM4_CONN_PEND;
-    }
+  if (!p_dev_rec) {
+    /* accept the connection -> allocate a device record */
+    p_dev_rec = btm_sec_alloc_dev(bda);
   }
+  if (p_dev_rec) {
+    p_dev_rec->sm4 |= BTM_SM4_CONN_PEND;
+  }
+  /* alloc p_dev_rec first and then process in l2c_link
+   * otherwise local device have no chance to switch to Master during ACL connection */
+  l2c_link_hci_conn_req(bda);
 }
 
 /*******************************************************************************
@@ -4397,8 +4401,10 @@ void btm_sec_disconnected(uint16_t handle, uint8_t reason) {
     }
   }
 
-  btm_ble_update_mode_operation(HCI_ROLE_UNKNOWN, &p_dev_rec->bd_addr,
+  if (is_ble_supported()) {
+    btm_ble_update_mode_operation(HCI_ROLE_UNKNOWN, &p_dev_rec->bd_addr,
                                 HCI_SUCCESS);
+  }
   /* see sec_flags processing in btm_acl_removed */
 
   if (transport == BT_TRANSPORT_LE) {
@@ -5804,6 +5810,8 @@ static bool btm_sec_use_smp_br_chnl(tBTM_SEC_DEV_REC* p_dev_rec) {
 
   BTM_TRACE_DEBUG("%s() link_key_type = 0x%x", __func__,
                   p_dev_rec->link_key_type);
+
+  if (!is_ble_supported()) return false;
 
   if ((p_dev_rec->link_key_type != BTM_LKEY_TYPE_UNAUTH_COMB_P_256) &&
       (p_dev_rec->link_key_type != BTM_LKEY_TYPE_AUTH_COMB_P_256))
