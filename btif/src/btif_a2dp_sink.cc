@@ -28,6 +28,7 @@
 
 #include "a2dp_vendor.h"
 #include "a2dp_vendor_aptx.h"
+#include "a2dp_vendor_aptx_hd.h"
 #include "btif/include/btif_a2dp_sink.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_av_co.h"

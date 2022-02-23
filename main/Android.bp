@@ -159,6 +159,7 @@ cc_library_shared {
         "bt_did.conf",
         "bt_stack.conf",
         "libaptX_decoder",
+        "libaptX_HD_decoder",
     ],
     cflags: [
         "-DBUILDCFG",
