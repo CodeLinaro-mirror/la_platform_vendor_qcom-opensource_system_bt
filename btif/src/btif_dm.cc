@@ -1741,6 +1741,7 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
   uint32_t i;
   RawAddress bd_addr;
   tBTA_TRANSPORT link_type = BT_TRANSPORT_INVALID;
+  uint8_t hci_reason = HCI_SUCCESS;
 
   BTIF_TRACE_EVENT("%s: ev: %s", __func__, dump_dm_event(event));
 
@@ -1861,17 +1862,19 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
     case BTA_DM_LINK_UP_EVT:
       bd_addr = p_data->link_up.bd_addr;
       link_type = p_data->link_up.link_type;
+      hci_reason = (uint8_t)btm_get_acl_disc_reason_code();
       BTIF_TRACE_DEBUG("BTA_DM_LINK_UP_EVT. Sending BT_ACL_STATE_CONNECTED");
 
       btif_update_remote_version_property(&bd_addr);
 
       HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
-                &bd_addr, BT_ACL_STATE_CONNECTED, (uint8_t)link_type);
+                &bd_addr, BT_ACL_STATE_CONNECTED, (uint8_t)link_type, hci_reason);
       break;
 
     case BTA_DM_LINK_DOWN_EVT:
       bd_addr = p_data->link_down.bd_addr;
       link_type = p_data->link_down.link_type;
+      hci_reason = (uint8_t)btm_get_acl_disc_reason_code();
       btm_set_bond_type_dev(p_data->link_down.bd_addr, BOND_TYPE_UNKNOWN);
       BTIF_TRACE_DEBUG(
           "BTA_DM_LINK_DOWN_EVT. transport = %d", link_type);
@@ -1881,8 +1884,7 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       }
 
       HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
-                &bd_addr, BT_ACL_STATE_DISCONNECTED, (uint8_t)link_type);
-
+                &bd_addr, BT_ACL_STATE_DISCONNECTED, (uint8_t)link_type, hci_reason);
       break;
 
     case BTA_DM_HW_ERROR_EVT:
