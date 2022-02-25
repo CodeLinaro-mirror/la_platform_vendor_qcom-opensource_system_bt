@@ -991,11 +991,11 @@ enum {
 typedef uint16_t tBT_ERROR_INFO;
 
 enum {
-  LPM_ACTIVE = 0,
-  LPM_TRACKER,
+  LPM_TRACKER = 0,
+  LPM_TWM,
+  LPM_ACTIVE,
   LPM_DEEPSLEEP,
   LPM_SUSPEND,
-  LPM_TWM,
 };
 typedef uint8_t tLPM_mode;
 
