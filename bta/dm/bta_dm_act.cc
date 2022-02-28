@@ -25,11 +25,14 @@
 
 #define LOG_TAG "bt_bta_dm"
 
+#include <base/logging.h>
+
 #include <cstdint>
 
 #include "bta/dm/bta_dm_int.h"
 #include "bta/gatt/bta_gattc_int.h"
 #include "bta/include/bta_dm_ci.h"
+#include "btif/include/btif_config.h"
 #include "btif/include/btif_dm.h"
 #include "btif/include/btif_storage.h"
 #include "btif/include/stack_manager.h"
@@ -42,6 +45,7 @@
 #include "osi/include/fixed_queue.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+#include "stack/btm/btm_ble_int.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/btm/neighbor_inquiry.h"
 #include "stack/gatt/connection_manager.h"
@@ -645,6 +649,13 @@ void bta_dm_remove_device(const RawAddress& bd_addr) {
   if (!other_address_connected && !other_address.IsEmpty()) {
     bta_dm_process_remove_device(other_address);
   }
+
+  /* Check the length of the paired devices, and if 0 then reset IRK */
+  auto paired_devices = btif_config_get_paired_devices();
+  if (paired_devices.empty()) {
+    LOG_INFO("Last paired device removed, resetting IRK");
+    btm_ble_reset_id();
+  }
 }
 
 /*******************************************************************************
@@ -979,7 +990,7 @@ static bool bta_dm_read_remote_device_name(const RawAddress& bd_addr,
 void bta_dm_inq_cmpl(uint8_t num) {
   if (bta_dm_search_get_state() == BTA_DM_SEARCH_CANCELLING) {
     bta_dm_search_set_state(BTA_DM_SEARCH_IDLE);
-    bta_dm_search_cancel_cmpl();
+    bta_dm_execute_queued_request();
     return;
   }
 
@@ -1278,6 +1289,7 @@ void bta_dm_search_cmpl() {
   /* no BLE connection, i.e. Classic service discovery end */
   if (conn_id == GATT_INVALID_CONN_ID) {
     bta_dm_search_cb.p_search_cback(BTA_DM_DISC_CMPL_EVT, nullptr);
+    bta_dm_execute_queued_request();
     return;
   }
 
@@ -1288,6 +1300,7 @@ void bta_dm_search_cmpl() {
   if (count == 0) {
     LOG_INFO("Empty GATT database - no BLE services discovered");
     bta_dm_search_cb.p_search_cback(BTA_DM_DISC_CMPL_EVT, nullptr);
+    bta_dm_execute_queued_request();
     return;
   }
 
@@ -1497,17 +1510,6 @@ void bta_dm_search_clear_queue() {
   osi_free_and_reset((void**)&bta_dm_search_cb.p_pending_search);
   fixed_queue_flush(bta_dm_search_cb.pending_discovery_queue, osi_free);
 }
-
-/*******************************************************************************
- *
- * Function         bta_dm_search_cancel_cmpl
- *
- * Description      Search cancel is complete
- *
- * Returns          void
- *
- ******************************************************************************/
-void bta_dm_search_cancel_cmpl() { bta_dm_execute_queued_request(); }
 
 /*******************************************************************************
  *
