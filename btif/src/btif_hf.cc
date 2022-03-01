@@ -848,7 +848,11 @@ static void btif_hf_upstreams_evt(uint16_t event, char* p_param) {
       /* If the peer supports SWB and the BTIF preferred codec is also SWB,
       then we should set the BTA AG Codec to SWB. This would trigger a +QCS
       to SWB at the time of SCO connection establishment */
-      if (!get_swb_codec_status()) break;
+      if (!((btif_hf_features & BTA_AG_FEAT_CODEC) &&
+          (btif_hf_cb[idx].peer_feat & BTA_AG_PEER_FEAT_CODEC)) || !get_swb_codec_status()) {
+           BTIF_TRACE_DEBUG("QAC is not allowed. Bail out");
+          break;
+      }
 
       if (p_data->val.num == BTA_AG_SCO_SWB_SETTINGS_Q0) {
         BTIF_TRACE_EVENT("%s: btif_hf override-Preferred Codec to SWB",

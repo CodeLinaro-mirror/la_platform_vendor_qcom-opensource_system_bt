@@ -1523,9 +1523,15 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type,
       break;
 #if (SWB_ENABLED == TRUE)
     case BTA_AG_AT_QAC_EVT:
-        p_scb->peer_codecs |= bta_ag_parse_qac(p_scb, p_arg);
-        bta_ag_swb_handle_vs_at_events(p_scb, cmd, int_arg, val);
         bta_ag_send_ok(p_scb);
+        if ((p_scb->peer_features & BTA_AG_PEER_FEAT_CODEC) &&
+          (p_scb->features & BTA_AG_FEAT_CODEC)) {
+            p_scb->peer_codecs |= bta_ag_parse_qac(p_scb, p_arg);
+            bta_ag_swb_handle_vs_at_events(p_scb, cmd, int_arg, val);
+        } else {
+            p_scb->peer_codecs = BTA_AG_CODEC_CVSD;
+            APPL_TRACE_ERROR("Codec Negotiation not supported, updating codec CVSD");
+        }
       break;
     case BTA_AG_AT_QCS_EVT:
         bta_ag_send_ok(p_scb);
