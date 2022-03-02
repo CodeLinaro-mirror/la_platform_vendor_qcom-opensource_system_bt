@@ -47,6 +47,7 @@
 #include "bta/include/bta_av_api.h"
 #include "btif/include/btif_config.h"
 #include "a2dp_aac_constants.h"
+#include "osi/include/properties.h"
 int avdt_ccb_get_num_allocated_seps();
 /*******************************************************************************
  *
@@ -350,6 +351,9 @@ void avdt_ccb_hdl_discover_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
       effective_num_seps++;
       codec_name = A2DP_CodecName(p_scb->cs.cfg.codec_info);
       APPL_TRACE_DEBUG("codec name %s", codec_name);
+      if (!is_codec_supported(codec_name)) {
+        continue;
+      }
       if ((soc_type != BT_SOC_TYPE_SMD && soc_type != BT_SOC_TYPE_ROME)) {
         if (p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == A2DP_MEDIA_CT_AAC) {
           if (A2DP_Get_AAC_VBR_Status(&p_ccb->peer_addr)) {
@@ -1325,4 +1329,51 @@ void avdt_ccb_ll_opened(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
     (*p_ccb->p_conn_cback)(0, &p_ccb->peer_addr, AVDT_CONNECT_IND_EVT,
                            &avdt_ctrl);
   }
+}
+
+/*******************************************************************************
+ *
+ * Function         is_codec_supported
+ *
+ * Description      Function to check the suported codec.
+ *                  In this function we will check if a particular codec is
+ *                  exists in the a2dp_offload_Cap property or not.
+ *
+ * Returns          Return true if codec exists in a2dp_offload_Cap property.
+ *                  Return false if codec not exists in a2dp_offload_Cap property.
+ *
+ ******************************************************************************/
+bool is_codec_supported (const char *codec) {
+   char a2dp_offload_Cap[PROPERTY_VALUE_MAX] = {'\0'};
+   bool is_supported = false;
+
+   if (osi_property_get("persist.vendor.qcom.bluetooth.a2dp_offload_cap",
+                           a2dp_offload_Cap, "")) {
+     char *tok = NULL;
+     char *tmp_token = NULL;
+     tok = strtok_r(a2dp_offload_Cap, "-", &tmp_token);
+     while (tok != NULL) {
+       if (strcasecmp(tok, "aptxhd") == 0 &&
+                       strcasecmp(codec, "aptX-HD") == 0) {
+         is_supported = true;
+         break;
+       } else if (strcasecmp(tok, "aptxadaptive") == 0 &&
+                       strcasecmp(codec, "aptX-adaptive") == 0) {
+         is_supported = true;
+         break;
+       } else if (strcasecmp(tok, "aptxadaptiver2") == 0 &&
+                       strcasecmp(codec, "aptX-adaptiver2") == 0) {
+         is_supported = true;
+         break;
+       } else if (strcasecmp(tok, codec) == 0) {
+         is_supported = true;
+         break;
+       }
+       tok = strtok_r(NULL, "-", &tmp_token);
+     }
+   } else {
+       APPL_TRACE_DEBUG("Failed to get the a2dp_offload_Cap property");
+   }
+   APPL_TRACE_DEBUG("codec = %s is supported = %d ", codec, is_supported);
+   return is_supported;
 }
