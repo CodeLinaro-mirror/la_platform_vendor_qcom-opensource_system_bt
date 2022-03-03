@@ -388,7 +388,7 @@ int BtifAvrcpLegacyAudioTrackWriteData(void* handle, void* audioBuffer,
   int retval = -1;
 #if (DUMP_PCM_DATA == TRUE)
   if (outputPcmSampleFile) {
-    fwrite((audioBuffer), 1, (size_t)bufferlen, outputPcmSampleFile);
+    fwrite((audioBuffer), 1, (size_t)bufferLength, outputPcmSampleFile);
   }
 #endif
   retval = trackHolder->track->write(audioBuffer, (size_t)bufferLength);
