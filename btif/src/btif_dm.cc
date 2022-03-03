@@ -1862,7 +1862,9 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       btif_hd_remove_device(bd_addr);
 #endif
 #if (LPM_SLEEP_WAKEUP == TRUE)
-      btif_dm_remove_device_whitelist(bd_addr);
+      if (is_ble_offload_enabled()) {
+        btif_dm_remove_device_whitelist(bd_addr);
+      }
 #endif
       btif_hearing_aid_get_interface()->RemoveDevice(bd_addr);
       btif_storage_remove_bonded_device(&bd_addr);
