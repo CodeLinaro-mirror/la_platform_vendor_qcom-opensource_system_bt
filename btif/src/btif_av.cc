@@ -25,6 +25,7 @@
 #include <base/strings/stringprintf.h>
 #include <string.h>
 #include <map>
+#include <mutex>
 
 #include <hardware/bluetooth.h>
 #include <hardware/bt_av.h>
@@ -561,6 +562,7 @@ class BtifAvSource {
   std::set<RawAddress> silenced_peers_;
   std::set<RawAddress> active_peers_;
   std::map<uint8_t, tBTA_AV_HNDL> peer_id2bta_handle_;
+  std::mutex mutex_;
 };
 
 class BtifAvSink {
@@ -587,6 +589,9 @@ class BtifAvSink {
   BtifAvPeer* FindOrCreatePeer(const RawAddress& peer_address,
                                tBTA_AV_HNDL bta_handle);
 
+  uint8_t* FindCodec(const RawAddress& peer_address);
+  void ClearCodec(const RawAddress& peer_address);
+  void SaveCodec(const RawAddress& peer_address, uint8_t* codec, int size);
   /**
    * Check whether a connection to a peer is allowed.
    * The check considers the maximum number of connected peers.
@@ -675,6 +680,7 @@ class BtifAvSink {
 
  private:
   void CleanupAllPeers();
+  void CleanupAllCodecs();
 
   btav_sink_callbacks_t* callbacks_;
   bool enabled_;
@@ -682,6 +688,10 @@ class BtifAvSink {
   std::map<RawAddress, BtifAvPeer*> peers_;
   RawAddress active_peer_;
   std::map<uint8_t, tBTA_AV_HNDL> peer_id2bta_handle_;
+  std::mutex mutex_;
+  // Save the codecs for devices to work around some phone no sound issue when change codec
+  // the codec will be cleaned in btif_av_sink clean up
+  std::map<RawAddress, uint8_t*>map_codec_;
 };
 
 /*****************************************************************************
@@ -997,11 +1007,14 @@ bool BtifAvPeer::IsStreaming() const {
 }
 
 void BtifAvPeer::SaveAvConfig(uint8_t* codec, int size) {
+  LOG_INFO(LOG_TAG, "%s: codec=%p, size=%d", __func__, codec, size);
+
   if (codec_ != nullptr) {
     osi_free(codec_);
   }
   codec_ = (uint8_t *)osi_calloc(size);
   memcpy(codec_, codec, size);
+  btif_av_sink.SaveCodec(PeerAddress(), codec, size);
 }
 
 BtifAvSource::~BtifAvSource() { CleanupAllPeers(); }
@@ -1087,6 +1100,7 @@ BtifAvPeer* BtifAvSource::FindPeerByPeerId(uint8_t peer_id) {
 
 BtifAvPeer* BtifAvSource::FindOrCreatePeer(const RawAddress& peer_address,
                                            tBTA_AV_HNDL bta_handle) {
+  std::unique_lock<std::mutex> lock(mutex_);
   BTIF_TRACE_DEBUG("%s: peer_address=%s bta_handle=0x%x", __PRETTY_FUNCTION__,
                    peer_address.ToString().c_str(), bta_handle);
 
@@ -1186,6 +1200,7 @@ void BtifAvSource::RegisterAllBtaHandles() {
 }
 
 void BtifAvSource::DeregisterAllBtaHandles() {
+  std::unique_lock<std::mutex> lock(mutex_);
   for (auto it : peer_id2bta_handle_) {
     tBTA_AV_HNDL bta_handle = it.second;
     BTA_AvDeregister(bta_handle);
@@ -1195,6 +1210,7 @@ void BtifAvSource::DeregisterAllBtaHandles() {
 
 void BtifAvSource::BtaHandleRegistered(uint8_t peer_id,
                                        tBTA_AV_HNDL bta_handle) {
+  std::unique_lock<std::mutex> lock(mutex_);
   peer_id2bta_handle_.insert(std::make_pair(peer_id, bta_handle));
 
   // Set the BTA Handle for the Peer (if exists)
@@ -1241,6 +1257,7 @@ void BtifAvSink::Cleanup() {
 
   btif_disable_service(BTA_A2DP_SINK_SERVICE_ID);
   CleanupAllPeers();
+  CleanupAllCodecs();
 
   callbacks_ = nullptr;
   enabled_ = false;
@@ -1274,6 +1291,7 @@ BtifAvPeer* BtifAvSink::FindPeerByPeerId(uint8_t peer_id) {
 
 BtifAvPeer* BtifAvSink::FindOrCreatePeer(const RawAddress& peer_address,
                                          tBTA_AV_HNDL bta_handle) {
+  std::unique_lock<std::mutex> lock(mutex_);
   BTIF_TRACE_DEBUG("%s: peer_address=%s bta_handle=0x%x", __PRETTY_FUNCTION__,
                    peer_address.ToString().c_str(), bta_handle);
 
@@ -1309,6 +1327,29 @@ BtifAvPeer* BtifAvSink::FindOrCreatePeer(const RawAddress& peer_address,
   peers_.insert(std::make_pair(peer_address, peer));
   peer->Init();
   return peer;
+}
+
+uint8_t* BtifAvSink::FindCodec(const RawAddress& peer_address) {
+  auto it = map_codec_.find(peer_address);
+  if (it != map_codec_.end()) return it->second;
+  return nullptr;
+}
+
+void BtifAvSink::ClearCodec(const RawAddress& peer_address) {
+  auto it = map_codec_.find(peer_address);
+  if (it != map_codec_.end()) {
+    if (it->second != nullptr) {
+      osi_free(it->second);
+    }
+    map_codec_.erase(it);
+  }
+}
+
+void BtifAvSink::SaveCodec(const RawAddress& peer_address, uint8_t* codec, int size) {
+  ClearCodec(peer_address);
+  uint8_t* saved_codec = (uint8_t* )osi_malloc(size);
+  memcpy(saved_codec, codec, size);
+  map_codec_.insert(std::make_pair(peer_address, saved_codec));
 }
 
 bool BtifAvSink::AllowedToConnect(const RawAddress& peer_address) const {
@@ -1366,6 +1407,17 @@ void BtifAvSink::CleanupAllPeers() {
   }
 }
 
+void BtifAvSink::CleanupAllCodecs() {
+  while (!map_codec_.empty()) {
+    auto it = map_codec_.begin();
+    uint8_t* codec = it->second;
+    if (codec != nullptr) {
+      osi_free(codec);
+    }
+    map_codec_.erase(it);
+  }
+}
+
 void BtifAvSink::RegisterAllBtaHandles() {
   for (int peer_id = kPeerIdMin; peer_id < kPeerIdMax; peer_id++) {
     BTA_AvRegister(BTA_AV_CHNL_AUDIO, kBtifAvSinkServiceName.c_str(), peer_id,
@@ -1374,6 +1426,7 @@ void BtifAvSink::RegisterAllBtaHandles() {
 }
 
 void BtifAvSink::DeregisterAllBtaHandles() {
+  std::unique_lock<std::mutex> lock(mutex_);
   for (auto it : peer_id2bta_handle_) {
     tBTA_AV_HNDL bta_handle = it.second;
     BTA_AvDeregister(bta_handle);
@@ -1382,6 +1435,7 @@ void BtifAvSink::DeregisterAllBtaHandles() {
 }
 
 void BtifAvSink::BtaHandleRegistered(uint8_t peer_id, tBTA_AV_HNDL bta_handle) {
+  std::unique_lock<std::mutex> lock(mutex_);
   peer_id2bta_handle_.insert(std::make_pair(peer_id, bta_handle));
 
   // Set the BTA Handle for the Peer (if exists)
@@ -2054,6 +2108,14 @@ bool BtifAvStateMachine::StateStarted::ProcessEvent(uint32_t event,
     case BTIF_AV_ACL_DISCONNECTED:
       break;  // Ignore
 
+    case BTIF_AV_CONNECT_REQ_EVT: {
+      BTIF_TRACE_WARNING("%s: Peer %s : Ignore %s for same device",
+                         __PRETTY_FUNCTION__,
+                         peer_.PeerAddress().ToString().c_str(),
+                         BtifAvEvent::EventName(event).c_str());
+      btif_queue_advance();
+    } break;
+
     case BTIF_AV_START_STREAM_REQ_EVT:
       LOG_INFO(LOG_TAG, "%s: Peer %s : event=%s flags=%s", __PRETTY_FUNCTION__,
                peer_.PeerAddress().ToString().c_str(),
@@ -2247,6 +2309,14 @@ bool BtifAvStateMachine::StateClosing::ProcessEvent(uint32_t event,
     case BTIF_AV_SUSPEND_STREAM_REQ_EVT:
     case BTIF_AV_ACL_DISCONNECTED:
       break;  // Ignore
+
+    case BTIF_AV_CONNECT_REQ_EVT: {
+      BTIF_TRACE_WARNING("%s: Peer %s : Ignore %s for same device",
+                         __PRETTY_FUNCTION__,
+                         peer_.PeerAddress().ToString().c_str(),
+                         BtifAvEvent::EventName(event).c_str());
+      btif_queue_advance();
+    } break;
 
     case BTA_AV_STOP_EVT:
     case BTIF_AV_STOP_STREAM_REQ_EVT:
@@ -2930,8 +3000,17 @@ static void set_active_src_int(const RawAddress& peer_address) {
       BTIF_TRACE_DEBUG("%s: %s update decoder", __PRETTY_FUNCTION__,
                        peer_address.ToString().c_str());
       // Update the codec info of the A2DP Sink decoder
-      btif_a2dp_sink_update_decoder((uint8_t*)(peer->GetAvConfig()));
-      result = true;
+      uint8_t* codec = peer->GetAvConfig();
+      if (codec == nullptr) {
+        BTIF_TRACE_ERROR("%s: peer->GetAvConfig() is null, try to get saved codec", __func__);
+        codec = btif_av_sink.FindCodec(peer_address);
+      }
+      if (codec != nullptr) {
+        btif_a2dp_sink_update_decoder(codec);
+        result = true;
+      } else {
+        BTIF_TRACE_ERROR("%s: faild to update decoder", __func__);
+      }
     } else {
       BTIF_TRACE_ERROR("%s: Error setting %s as active Source peer", __func__,
                        peer_address.ToString().c_str());

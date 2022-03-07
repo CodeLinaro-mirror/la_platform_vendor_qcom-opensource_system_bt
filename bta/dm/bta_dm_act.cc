@@ -2320,6 +2320,14 @@ static void bta_dm_pinname_cback(void* p_data) {
   tBTA_DM_SEC_EVT event = bta_dm_cb.pin_evt;
 
   if (BTA_DM_SP_CFM_REQ_EVT == event) {
+    tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bta_dm_cb.pin_bd_addr);
+    if (p_dev_rec != nullptr && p_dev_rec->sec_state == BTM_SEC_STATE_IDLE) {
+      BTM_TRACE_WARNING(
+          "%s Pairing process ends abnormally, ignore this User Confirmation Request!",
+              __func__);
+      return;
+    }
+
     /* Retrieved saved device class and bd_addr */
     sec_event.cfm_req.bd_addr = bta_dm_cb.pin_bd_addr;
     BTA_COPY_DEVICE_CLASS(sec_event.cfm_req.dev_class, bta_dm_cb.pin_dev_class);
@@ -3913,6 +3921,16 @@ static uint8_t bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
       APPL_TRACE_EVENT("io mitm: %d oob_data:%d", p_data->io_req.auth_req,
                        p_data->io_req.oob_data);
 
+      break;
+
+    case BTM_LE_CONSENT_REQ_EVT:
+      sec_event.ble_req.bd_addr = bda;
+      p_name = BTM_SecReadDevName(bda);
+      if (p_name != NULL)
+        strlcpy((char*)sec_event.ble_req.bd_name, p_name, BD_NAME_LEN);
+      else
+        sec_event.ble_req.bd_name[0] = 0;
+      bta_dm_cb.p_sec_cback(BTA_DM_BLE_CONSENT_REQ_EVT, &sec_event);
       break;
 
     case BTM_LE_SEC_REQUEST_EVT:

@@ -3424,6 +3424,8 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
             rc_start_play_status_timer(p_dev);
           }
           get_attribute_cmd(AVRC_MAX_NUM_MEDIA_ATTR_ID, attr_list, p_dev);
+          // set active device here to reduce delay to handle audio data
+          btif_av_sink_set_active_device(p_dev->rc_addr);
         } else {
           rc_stop_play_status_timer(p_dev);
         }
