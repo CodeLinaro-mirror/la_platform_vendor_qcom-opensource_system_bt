@@ -1364,6 +1364,7 @@ bool L2CA_DisconnectReq(uint16_t cid) {
 
   L2CAP_TRACE_WARNING("L2CA_DisconnectReq()  CID: 0x%04x", cid);
 
+  LPM_ClearL2CAPInfo(cid);
   /* Find the channel control block. We don't know the link it is on. */
   p_ccb = l2cu_find_ccb_by_cid(NULL, cid);
   if (p_ccb == NULL) {
