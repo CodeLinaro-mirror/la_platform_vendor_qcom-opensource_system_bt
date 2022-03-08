@@ -36,6 +36,7 @@
 #include "osi/include/log.h"
 #include "btif_a2dp_audio_interface.h"
 #include "btif_hf.h"
+#include "btif_hf_client.h"
 
 #if (OFF_TARGET_TEST_ENABLED == FALSE)
 #include "audio_hal_interface/a2dp_encoding.h"
@@ -85,7 +86,7 @@ bool btif_a2dp_on_started(tBTA_AV_START* p_av_start, bool pending_start,
   if (p_av_start == NULL) {
     /* ack back a local start request */
     if (btif_av_is_split_a2dp_enabled()) {
-      if (bluetooth::headset::btif_hf_is_call_vr_idle())
+      if (bluetooth::headset::btif_hf_is_call_vr_idle() && btif_hf_client_is_call_idle())
         btif_dispatch_sm_event(BTIF_AV_OFFLOAD_START_REQ_EVT, (char *)&hdl, 1);
       else {
         APPL_TRACE_ERROR("call in progress, do not start offload");

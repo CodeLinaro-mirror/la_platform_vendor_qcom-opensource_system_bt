@@ -103,12 +103,12 @@ static void fragment_and_dispatch(BT_HDR* packet) {
     // transmit
     if (packet->layer_specific) {
       packet->layer_specific--;
-
-      if (packet->layer_specific == 0) {
-        packet->event = MSG_HC_TO_STACK_L2C_SEG_XMIT;
-        callbacks->transmit_finished(packet, false);
-        return;
-      }
+    }
+    /* Since layer specific can be 0 in some cases (congestion) */
+    if (packet->layer_specific == 0) {
+      packet->event = MSG_HC_TO_STACK_L2C_SEG_XMIT;
+      callbacks->transmit_finished(packet, false);
+      return;
     }
   }
 

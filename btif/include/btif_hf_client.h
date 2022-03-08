@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright (C) 2006-2012 Broadcom Corporation
+ *  Copyright (C) 2016 Google, Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,21 +16,14 @@
  *
  ******************************************************************************/
 
-/******************************************************************************
- *
- *  This is the interface file for device mananger functions.
- *
- ******************************************************************************/
-#ifndef BTA_DM_API_H
-#define BTA_DM_API_H
+#ifndef BTIF_HF_CLIENT_H
+#define BTIF_HF_CLIENT_H
 
-#include "stack/include/bt_types.h"
-#include "bta/dm/bta_dm_int.h"
+#include <stdbool.h>
 
-// Brings connection to active mode
-void bta_dm_pm_active(const RawAddress& peer_addr);
+// Check whether there is a hfpclient call in progress.
+// Returns true if no call is in progress.
+bool btif_hf_client_is_call_idle(void);
 
-//Used to reset the sniff timer when we receive or sending data
-void bta_dm_pm_stop_timer_helper(const RawAddress& peer_addr);
+#endif /* BTIF_HF_CLIENT_H */
 
-#endif /* BTA_DM_API_H */

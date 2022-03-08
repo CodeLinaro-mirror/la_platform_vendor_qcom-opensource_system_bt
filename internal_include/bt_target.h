@@ -191,7 +191,7 @@
 // How long to wait before activating sniff mode after entering the
 // idle state for FTS, OPS connections
 #ifndef BTA_FTS_OPS_IDLE_TO_SNIFF_DELAY_MS
-#define BTA_FTS_OPS_IDLE_TO_SNIFF_DELAY_MS 7000
+#define BTA_FTS_OPS_IDLE_TO_SNIFF_DELAY_MS 2000
 #endif
 
 //------------------End added from bdroid_buildcfg.h---------------------
@@ -1428,7 +1428,7 @@ incoming connection
  *
  *****************************************************************************/
 #ifndef AVRC_QTI_V1_3_OPTIONAL_FEAT
-#define AVRC_QTI_V1_3_OPTIONAL_FEAT TRUE
+#define AVRC_QTI_V1_3_OPTIONAL_FEAT FALSE
 #endif
 
 #ifndef AVRC_METADATA_INCLUDED
