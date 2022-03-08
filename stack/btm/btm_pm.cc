@@ -46,6 +46,7 @@
 #include "l2c_int.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+#include "lpm_api.h"
 
 /*****************************************************************************/
 /*      to handle different modes                                            */
@@ -785,6 +786,7 @@ void btm_pm_proc_mode_change(uint8_t hci_status, uint16_t hci_handle,
 
   BTM_TRACE_DEBUG("%s switched from %s to %s.", __func__,
                   mode_to_string(old_state), mode_to_string(p_cb->state));
+  LPM_UpdateHCIMode(hci_handle, p_cb->state);
 
   p_lcb = l2cu_find_lcb_by_bd_addr(p->remote_addr, BT_TRANSPORT_BR_EDR);
   if (p_lcb != NULL) {
