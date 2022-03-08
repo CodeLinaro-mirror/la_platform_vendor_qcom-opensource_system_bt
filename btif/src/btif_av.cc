@@ -1979,9 +1979,17 @@ bool BtifAvStateMachine::StateOpened::ProcessEvent(uint32_t event,
       // Remain in Open state if status failed
       if (p_av->start.status != BTA_AV_SUCCESS) return false;
 
-      if (peer_.IsSource() && peer_.IsActivePeer()) {
-        // Remove flush state, ready for streaming
-        btif_a2dp_sink_set_rx_flush(false);
+      if (peer_.IsSource()) {
+        // If there is no active device, set the device to active to play immediately
+        // If there is an active device which is not this device, AvrcpControllerService
+        // will set the active device
+        if (btif_av_sink_active_peer().IsEmpty()) {
+          btif_av_sink_set_active_device(peer_.PeerAddress());
+        }
+        if (peer_.IsActivePeer()) {
+          // Remove flush state, ready for streaming
+          btif_a2dp_sink_set_rx_flush(false);
+        }
       }
 
       if (should_suspend) {
