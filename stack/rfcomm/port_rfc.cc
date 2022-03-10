@@ -186,6 +186,7 @@ void port_start_close(tPORT* p_port) {
  ******************************************************************************/
 void PORT_StartCnf(tRFC_MCB* p_mcb, uint16_t result) {
   bool no_ports_up = true;
+  bool need_release_mcb = false;
 
   RFCOMM_TRACE_EVENT("%s: result %d", __func__, result);
 
@@ -208,7 +209,11 @@ void PORT_StartCnf(tRFC_MCB* p_mcb, uint16_t result) {
           p_port->error = PORT_START_FAILED;
         }
 
-        rfc_release_multiplexer_channel(p_mcb);
+        /* Don't release RFCOMM multiplexer control block untill all
+         * the ports are checked. This is to ensure that all the
+         * matched ports can be processed..
+         */
+        need_release_mcb = true;
 
         /* Send event to the application */
         if (p_port->p_callback && (p_port->ev_mask & PORT_EV_CONNECT_ERR)) {
@@ -228,6 +233,10 @@ void PORT_StartCnf(tRFC_MCB* p_mcb, uint16_t result) {
   /* port, we can catch it here to close multiplexor channel */
   if (no_ports_up) {
     rfc_check_mcb_active(p_mcb);
+  }
+
+  if (need_release_mcb) {
+    rfc_release_multiplexer_channel(p_mcb);
   }
 }
 
