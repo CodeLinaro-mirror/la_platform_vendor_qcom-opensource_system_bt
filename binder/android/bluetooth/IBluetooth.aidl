@@ -250,4 +250,6 @@ interface IBluetooth
     void generateLocalOobData(in int transport, IBluetoothOobDataCallback callback, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
     boolean loadRemoteOobData(in BluetoothDevice device, in int transport, in OobData p192Data, in OobData p256Data, in AttributionSource attributionSource);
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
+    boolean getRssi(in BluetoothDevice device, in int transport);
 }

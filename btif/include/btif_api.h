@@ -401,4 +401,13 @@ bt_status_t btif_set_dynamic_audio_buffer_size(int codec, int size);
  ******************************************************************************/
 void btif_dm_get_link_key(const RawAddress *bd_addr);
 
+/*******************************************************************************
+ *
+ * Function         btif_dm_get_rssi
+ *
+ * Description      BT get remote rssi
+ *
+ ******************************************************************************/
+void btif_dm_get_rssi(const RawAddress bd_addr, int transport);
+
 #endif /* BTIF_API_H */

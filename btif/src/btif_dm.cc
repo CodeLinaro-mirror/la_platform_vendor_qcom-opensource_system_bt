@@ -2210,6 +2210,104 @@ void btif_dm_ssp_reply(const RawAddress bd_addr, bt_ssp_variant_t variant,
 }
 
 /*******************************************************************************
+**
+** Function         btif_dm_get_rssi_vsc_cback
+**
+** Description      Get Rssi VSC Cback
+**
+** Returns          void
+**
+*******************************************************************************/
+void btif_dm_get_rssi_vsc_cback(tBTM_VSC_CMPL* p_params) {
+  BTIF_TRACE_DEBUG("%s", __func__);
+
+  /* [Return Parameter]         | [Size]   | [Purpose]
+   * Status                     | 1 octet  | Command complete status
+   * SubOpcode                  | 1 octet  | 0x01 READ_RSSI
+   * Connection_handle          | 2 octet  | Connection_handle of ACL link
+   * Rssi_Value                 | 1 octet  | Rssi_Value: -128 ~ +127 */
+
+  uint8_t  status = BT_STATUS_FAIL;
+  uint8_t  sub_op_code = 0xFF;
+  uint16_t opcode = 0xFFFF;
+  uint16_t conn_handle = HCI_INVALID_HANDLE;
+  int8_t rssi = 0;
+  uint8_t* p;
+
+  bt_property_t prop;
+  prop.type = BT_PROPERTY_REMOTE_RSSI;
+  prop.val = &rssi;
+  prop.len = sizeof(int8_t);
+
+  /* Check status of command complete event */
+  if ((p_params->opcode == opcode) &&
+      (p_params->param_len > 0)) {
+    p = p_params->p_param_buf;
+    STREAM_TO_UINT8(status, p);
+    STREAM_TO_UINT8(sub_op_code, p);
+    STREAM_TO_UINT16(conn_handle, p);
+    STREAM_TO_INT8(rssi, p);
+  } else {
+    BTIF_TRACE_ERROR("%s, not rssi vsc", __func__);
+    return;
+  }
+
+  BTIF_TRACE_DEBUG("%s， conn_handle %d, rssi = %d", __func__, conn_handle, rssi);
+
+  /* find bd_addr through connection handle */
+  const RawAddress bd_addr = acl_address_from_handle(conn_handle);
+
+  if (status == BT_STATUS_SUCCESS && conn_handle != HCI_INVALID_HANDLE) {
+    invoke_remote_device_properties_cb(BT_STATUS_SUCCESS, bd_addr, 1, &prop);
+  } else {
+    invoke_remote_device_properties_cb(BT_STATUS_FAIL, bd_addr, 1, &prop);
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         btif_dm_get_rssi
+ *
+ * Description      BT Get Remote Device Rssi
+ *
+ ******************************************************************************/
+void btif_dm_get_rssi(const RawAddress bd_addr, int transport) {
+  BTIF_TRACE_DEBUG("%s", __func__);
+  /* Get Rssi via sending HCI VS command
+   * Opcode: 0xFFFF
+   * VSC param 1st 1 byte - SubOpcode: 0x01 (READ_RSSI)
+   * VSC param 2nd 2 bytes - Connection_handle: 0x0000-0x0EFF (Connection_handle of ACL link) */
+
+  uint8_t  param[3], *pp;
+  uint16_t opcode = 0xFFFF;
+  uint8_t  sub_op_code = 0x01; /* READ_RSSI */
+  uint16_t conn_handle = HCI_INVALID_HANDLE;
+
+  conn_handle = BTM_GetHCIConnHandle(bd_addr, transport);
+
+  if (conn_handle == HCI_INVALID_HANDLE) {
+    BTIF_TRACE_ERROR("%s， conn_handle invalid");
+    return;
+  }
+
+  pp = param;
+  memset(param, 0, sizeof(param));
+
+  UINT8_TO_STREAM (pp, sub_op_code);
+  UINT16_TO_STREAM (pp, conn_handle);
+
+  BTIF_TRACE_DEBUG("%s， conn_handle = %d", __func__, conn_handle);
+
+  if (transport == BT_TRANSPORT_BR_EDR) {
+    BTM_VendorSpecificCommand(opcode, 3, param, btif_dm_get_rssi_vsc_cback);
+  } else if (transport == BT_TRANSPORT_LE) {
+    /* TBD */
+    /* Using GATT client read_remote_rssi instead*/
+    BTIF_TRACE_WARNING("%s， LE transport is not implemented", __func__);
+  }
+}
+
+/*******************************************************************************
  *
  * Function         btif_dm_get_adapter_property
  *
