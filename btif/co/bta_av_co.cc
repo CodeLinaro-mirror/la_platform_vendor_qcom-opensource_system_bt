@@ -1719,7 +1719,6 @@ bool bta_av_co_set_codec_user_config(
         return success;
 
       switch(codec_user_config.codec_specific_4 & APTX_MODE_MASK) {
-        case APTX_ULL:
         case APTX_LL:
           APPL_TRACE_DEBUG("%s: Disabling BLE Scanning", __func__);
           btif_gatt_get_interface()->scanner->Scan(false);
