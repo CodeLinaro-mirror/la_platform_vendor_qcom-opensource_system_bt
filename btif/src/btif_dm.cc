@@ -2028,6 +2028,8 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
 
     case BTA_DM_BLE_AUTH_CMPL_EVT:
       BTIF_TRACE_DEBUG("BTA_DM_BLE_AUTH_CMPL_EVT. ");
+      BTIF_TRACE_DEBUG("Restore link policy");
+      BTM_SetLinkPolicy(p_data->auth_cmpl.bd_addr, &btm_cb.btm_def_link_policy);
       btif_dm_ble_auth_cmpl_evt(&p_data->auth_cmpl);
       break;
 
