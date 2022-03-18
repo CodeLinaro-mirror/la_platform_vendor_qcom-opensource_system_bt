@@ -16,6 +16,15 @@
  *
  ******************************************************************************/
 
+/******************************************************************************
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ ******************************************************************************/
+
 /*******************************************************************************
  *
  *  Filename:      btif_dm.c
@@ -2872,7 +2881,15 @@ static void btif_dm_ble_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
       state = BT_BOND_STATE_NONE;
     } else {
       btif_dm_save_ble_bonding_keys(bdaddr);
-      btif_dm_get_remote_services(bd_addr, BT_TRANSPORT_LE);
+      BTIF_TRACE_DEBUG("%s: smp_over_br %d", __func__, p_auth_cmpl->smp_over_br);
+      // Ensure inquiry is stopped before attempting service discovery
+      btif_dm_cancel_discovery();
+      // Discover service over BR transport if smp pair is over BR
+      if (p_auth_cmpl->smp_over_br) {
+        btif_dm_get_remote_services(bd_addr, BT_TRANSPORT_BR_EDR);
+      } else {
+        btif_dm_get_remote_services(bd_addr, BT_TRANSPORT_LE);
+      }
     }
   } else {
     /*Map the HCI fail reason  to  bt status  */
