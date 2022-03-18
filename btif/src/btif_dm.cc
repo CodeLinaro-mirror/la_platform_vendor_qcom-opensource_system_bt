@@ -4025,7 +4025,10 @@ static void btif_dm_ble_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
       state = BT_BOND_STATE_NONE;
     } else {
       btif_dm_save_ble_bonding_keys(bdaddr);
-      btif_dm_get_remote_services_by_transport(&bd_addr, GATT_TRANSPORT_LE);
+      // Don't discover service over BLE transport if smp pair is over BR
+      if (!p_auth_cmpl->smp_over_br) {
+        btif_dm_get_remote_services_by_transport(&bd_addr, GATT_TRANSPORT_LE);
+      }
 
 #if (LPM_SLEEP_WAKEUP == TRUE)
       if (is_ble_offload_enabled()) {
