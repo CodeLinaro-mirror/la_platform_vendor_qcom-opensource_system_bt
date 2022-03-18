@@ -18,6 +18,15 @@
 
 /******************************************************************************
  *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ ******************************************************************************/
+
+/******************************************************************************
+ *
  *  This is the public interface file for BTA, Broadcom's Bluetooth
  *  application layer for mobile phones.
  *
@@ -510,6 +519,7 @@ typedef struct {
   uint8_t fail_reason; /* The HCI reason/error code for when success=false */
   tBLE_ADDR_TYPE addr_type; /* Peer device address type */
   tBT_DEVICE_TYPE dev_type;
+  bool smp_over_br;
 } tBTA_DM_AUTH_CMPL;
 
 /* Structure associated with BTA_DM_AUTHORIZE_EVT */
