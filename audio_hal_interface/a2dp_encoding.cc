@@ -1731,7 +1731,9 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
     // To Air
     for (int i = 0; i < cis_count; i++) {
       if (lc3Config.txConfig.channelMode == LC3ChannelMode::STEREO) {//TODO:change rx in wmcp case
-        lc3Config.streamMap[(i*3)] = (CHANNEL_FL + (i % 2));
+        int audio_location = pclient_cbs[profile - 1]->get_audio_location(i%2, TX_ONLY_CONFIG);
+        LOG(ERROR) << __func__ << ": Stereo config audio_location: " << audio_location;
+        lc3Config.streamMap[(i*3)] = audio_location & (CHANNEL_FR | CHANNEL_FL);
         LOG(ERROR) << __func__ << ": Stereo config of ToAir";
       } else if (lc3Config.txConfig.channelMode == LC3ChannelMode::JOINT_STEREO) {
         LOG(ERROR) << __func__ << ": joint Stereo config of ToAir";
@@ -1751,7 +1753,9 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
         if (((type == WMCP_PROFILE) || (type == GCP_RX_PROFILE)) ?
              lc3Config.rxConfig.channelMode == LC3ChannelMode::STEREO :
              lc3Config.txConfig.channelMode == LC3ChannelMode::STEREO) {//TODO:change rx in wmcp case
-          lc3Config.streamMap[(i*3)] = (CHANNEL_FL + (i % 2));
+          int audio_location = pclient_cbs[profile - 1]->get_audio_location(i%2, RX_ONLY_CONFIG);
+          LOG(ERROR) << __func__ << ": Stereo config audio_location: " << audio_location;
+          lc3Config.streamMap[(i*3)] = audio_location & (CHANNEL_FR | CHANNEL_FL);
           LOG(ERROR) << __func__ << ": Stereo/VBC config of FromAir";
         } else if (lc3Config.txConfig.channelMode == LC3ChannelMode::JOINT_STEREO) {
           lc3Config.streamMap[(i*3)] = (CHANNEL_FR | CHANNEL_FL);
