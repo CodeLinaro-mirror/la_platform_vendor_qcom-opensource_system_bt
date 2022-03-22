@@ -32,6 +32,7 @@
 #include "bta_gatts_int.h"
 #include "bta_sys.h"
 #include "stack/include/btu.h"
+#include "bt_utils.h"
 
 /*****************************************************************************
  *  Constants
@@ -78,6 +79,9 @@ void BTA_GATTS_Disable(void) {
  ******************************************************************************/
 void BTA_GATTS_AppRegister(const bluetooth::Uuid& app_uuid,
                            tBTA_GATTS_CBACK* p_cback) {
+  if (!is_ble_supported())
+    return;
+
   tBTA_GATTS_API_REG* p_buf =
       (tBTA_GATTS_API_REG*)osi_malloc(sizeof(tBTA_GATTS_API_REG));
 

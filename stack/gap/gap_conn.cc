@@ -1165,5 +1165,5 @@ extern void gap_attr_db_init(void);
  */
 void GAP_Init(void) {
   gap_conn_init();
-  gap_attr_db_init();
+  if (is_ble_supported()) gap_attr_db_init();
 }

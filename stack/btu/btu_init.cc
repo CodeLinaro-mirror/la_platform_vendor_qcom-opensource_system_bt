@@ -35,6 +35,7 @@
 #include "osi/include/log.h"
 #include "sdpint.h"
 #include "smp_int.h"
+#include "bt_utils.h"
 
 using bluetooth::common::MessageLoopThread;
 
@@ -61,11 +62,11 @@ void btu_init_core() {
 
   sdp_init();
 
-  gatt_init();
-
-  SMP_Init();
-
-  btm_ble_init();
+  if (is_ble_supported()) {
+    gatt_init();
+    SMP_Init();
+    btm_ble_init();
+  }
 }
 
 /*****************************************************************************
@@ -80,7 +81,7 @@ void btu_init_core() {
  *****************************************************************************/
 void btu_free_core() {
   /* Free the mandatory core stack components */
-  gatt_free();
+  if (is_ble_supported()) gatt_free();
 
   l2c_free();
 
