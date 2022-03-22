@@ -2163,6 +2163,12 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       BTIF_TRACE_DEBUG("BTA_DM_BLE_SC_OOB_REQ_EVT. ");
       btif_dm_ble_sc_oob_req_evt(&p_data->rmt_oob);
       break;
+    case BTA_DM_BLE_SC_CR_LOC_OOB_EVT:
+      BTIF_TRACE_DEBUG("BTA_DM_BLE_SC_CR_LOC_OOB_EVT");
+      btif_dm_proc_loc_oob(true,
+                           p_data->local_oob_data.local_oob_c,
+                           p_data->local_oob_data.local_oob_r);
+      break;
     case BTA_DM_BLE_LOCAL_IR_EVT:
       BTIF_TRACE_DEBUG("BTA_DM_BLE_LOCAL_IR_EVT. ");
       ble_local_key_cb.is_id_keys_rcvd = true;
@@ -3090,7 +3096,16 @@ void btif_dm_load_local_oob(void) {
   }
 }
 
+void btif_dm_generate_local_oob_data(void) 
+{
+  BTIF_TRACE_DEBUG("%s", __func__);
+  SMP_CrLocScOobData();
+}
+
 void btif_dm_proc_loc_oob(bool valid, BT_OCTET16 c, BT_OCTET16 r) {
+  BTIF_TRACE_DEBUG("%s", __func__);
+  HAL_CBACK(bt_hal_cbacks, generate_oob_cb, c, r);
+  /*
   FILE* fp;
   const char* path_a = "/data/misc/bluedroid/LOCAL/a.key";
   const char* path_b = "/data/misc/bluedroid/LOCAL/b.key";
@@ -3121,6 +3136,7 @@ void btif_dm_proc_loc_oob(bool valid, BT_OCTET16 c, BT_OCTET16 r) {
       }
     }
   }
+  */
 }
 
 /*******************************************************************************

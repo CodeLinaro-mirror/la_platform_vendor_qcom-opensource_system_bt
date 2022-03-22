@@ -58,6 +58,9 @@ static void btm_read_remote_features(uint16_t handle);
 static void btm_read_remote_ext_features(uint16_t handle, uint8_t page_number);
 static void btm_process_remote_ext_features(tACL_CONN* p_acl_cb,
                                             uint8_t num_read_pages);
+extern bool irobot_send_conn_update_request_to_peer(tL2C_LCB *p_lcb,
+                                uint16_t min_int, uint16_t max_int,
+                                uint16_t latency, uint16_t timeout);
 
 /* 3 seconds timeout waiting for responses */
 #define BTM_DEV_REPLY_TIMEOUT_MS (3 * 1000)
@@ -237,7 +240,7 @@ void btm_acl_created(const RawAddress& bda, DEV_CLASS dc, BD_NAME bdn,
     p->transport = transport;
     VLOG(1) << "Duplicate btm_acl_created: RemBdAddr: " << bda;
     BTM_SetLinkPolicy(p->remote_addr, &btm_cb.btm_def_link_policy);
-    return;
+    goto exit_func;
   }
 
   /* Allocate acl_db entry */
@@ -301,7 +304,7 @@ void btm_acl_created(const RawAddress& bda, DEV_CLASS dc, BD_NAME bdn,
             l2cu_resubmit_pending_sec_req(&p_dev_rec->bd_addr);
           }
           btm_establish_continue(p);
-          return;
+	  goto exit_func;
         }
       }
 
@@ -323,9 +326,17 @@ void btm_acl_created(const RawAddress& bda, DEV_CLASS dc, BD_NAME bdn,
 
 
       /* read page 1 - on rmt feature event for buffer reasons */
-      return;
+      goto exit_func;
     }
   }
+  /* iRobot modification -- unless set here link_role will never be set which
+   * will default it to HCI_ROLE_MASTER; during provisioning we are
+   * HCI_ROLE_SLAVE there this change is to preserve the correct link role while
+   * we can
+   */
+exit_func:
+  L2CA_SetDesireRole(link_role);
+  return;
 }
 
 void btm_acl_update_conn_addr(uint16_t conn_handle, const RawAddress& address) {
@@ -962,16 +973,23 @@ void btm_use_preferred_conn_params(const RawAddress& bda) {
         p_dev_rec->conn_params.slave_latency,
         p_dev_rec->conn_params.supervision_tout);
 
-    p_lcb->min_interval = p_dev_rec->conn_params.min_conn_int;
-    p_lcb->max_interval = p_dev_rec->conn_params.max_conn_int;
-    p_lcb->timeout = p_dev_rec->conn_params.supervision_tout;
-    p_lcb->latency = p_dev_rec->conn_params.slave_latency;
+    // p_lcb->min_interval = p_dev_rec->conn_params.min_conn_int;
+    // p_lcb->max_interval = p_dev_rec->conn_params.max_conn_int;
+    // p_lcb->timeout = p_dev_rec->conn_params.supervision_tout;
+    // p_lcb->latency = p_dev_rec->conn_params.slave_latency;
 
-    btsnd_hcic_ble_upd_ll_conn_params(
-        p_lcb->handle, p_dev_rec->conn_params.min_conn_int,
+    irobot_send_conn_update_request_to_peer(
+        p_lcb, 
+        p_dev_rec->conn_params.min_conn_int,
         p_dev_rec->conn_params.max_conn_int,
         p_dev_rec->conn_params.slave_latency,
-        p_dev_rec->conn_params.supervision_tout, 0, 0);
+        p_dev_rec->conn_params.supervision_tout);
+
+    // btsnd_hcic_ble_upd_ll_conn_params(
+    //    p_lcb->handle, p_dev_rec->conn_params.min_conn_int,
+    //    p_dev_rec->conn_params.max_conn_int,
+    //    p_dev_rec->conn_params.slave_latency,
+    //    p_dev_rec->conn_params.supervision_tout, 0, 0);
   }
 }
 

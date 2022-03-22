@@ -1994,6 +1994,28 @@ void btm_ble_conn_complete(uint8_t* p, UNUSED_ATTR uint16_t evt_len,
       STREAM_TO_BDADDR(peer_rpa, p);
     }
 
+    /* FIXME:
+     *	This code is changed from Old stack referenced in Trident.
+     *	btm_ble_resolve_random_addr_on_conn_cmpl function code is moved into
+     *	btm_ble_conn_complete, and condition check on status variable is used
+     *	for sort of related code.
+     *	Also RawAddress class object size is streamed twice in the new stack
+     *	code. So don't know if we still need to skip 12Bytes.
+     *	Also no need to add skip 12Bytes within conditional compilation
+     *	BLE_PRIVACY_SPT == TRUE as both functions merged
+     */
+    /* TODO:
+     *	This change should be double checked and should be reverted if this
+     *	doesn't work.
+     */
+    /* iRobot modification!
+     * Qualcomm is sending the HCI LE Connection Complete Event wrong, and not
+     * adhereing to BT spec. They are reserving 18 bytes instead of the 6 bytes
+     * for bda (bt addr) liek the BT spec indicates. Therefore, we must skip 12
+     * bytes to get to remaining fields
+     */
+    STREAM_SKIP_12BYTES (p);
+
     STREAM_TO_UINT16(conn_interval, p);
     STREAM_TO_UINT16(conn_latency, p);
     STREAM_TO_UINT16(conn_timeout, p);
@@ -2199,7 +2221,11 @@ uint8_t btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr,
         break;
     }
   } else {
-    BTM_TRACE_ERROR("btm_proc_smp_cback received for unknown device");
+      if (event == SMP_SC_LOC_OOB_DATA_UP_EVT) {
+          btm_sec_cr_loc_oob_data_cback_event(bd_addr, p_data->loc_oob_data);
+      } else {
+          BTM_TRACE_ERROR("btm_proc_smp_cback received for unknown device");
+      }
   }
 
   return 0;

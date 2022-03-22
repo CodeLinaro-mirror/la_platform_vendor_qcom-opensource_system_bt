@@ -420,17 +420,24 @@
 #define BTM_DEFAULT_DISC_INTERVAL 0x0800
 #endif
 
+/* FIXME:
+ *	Changing default device from Audio Speaker to Phone as suggested by
+ *	Vendor. Qcom.
+ * TODO:
+ *	Check/validate if profile configuration/selection is available in
+ *	configuration file
+ */
 /* Default class of device
 * {SERVICE_CLASS, MAJOR_CLASS, MINOR_CLASS}
 *
-* SERVICE_CLASS:0x00
-* MAJOR_CLASS:0x02 - Audio / Video
-* MINOR_CLASS:0x0C - Loudspeaker
+* SERVICE_CLASS:0x5A (Bit17 -Networking,Bit19 - Capturing,Bit20 -Object Transfer,Bit22 -Telephony)
+* MAJOR_CLASS:0x02 - PHONE
+* MINOR_CLASS:0x0C - SMART_PHONE
 *
 */
 #ifndef BTA_DM_COD
 #define BTA_DM_COD \
-  { 0x00, 0x04, 0x14 }
+  { 0x5A, 0x02, 0x0C }
 #endif
 
 /* The number of SCO links. */
@@ -745,7 +752,7 @@
  * Enables or disables support for local privacy (ex. address rotation)
  */
 #ifndef BLE_LOCAL_PRIVACY_ENABLED
-#define BLE_LOCAL_PRIVACY_ENABLED TRUE
+#define BLE_LOCAL_PRIVACY_ENABLED FALSE
 #endif
 
 /*
@@ -826,7 +833,7 @@
  *
  *****************************************************************************/
 #ifndef SMP_DEBUG
-#define SMP_DEBUG FALSE
+#define SMP_DEBUG TRUE
 #endif
 
 #ifndef SMP_DEFAULT_AUTH_REQ

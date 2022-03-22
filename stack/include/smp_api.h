@@ -231,6 +231,8 @@ extern void SMP_KeypressNotification(const RawAddress& bd_addr, uint8_t value);
 extern bool SMP_CreateLocalSecureConnectionsOobData(
     tBLE_BD_ADDR* addr_to_send_to);
 
+extern void SMP_CrLocScOobData();
+
 // Called when LTK request is received from controller.
 extern bool smp_proc_ltk_request(const RawAddress& bda);
 

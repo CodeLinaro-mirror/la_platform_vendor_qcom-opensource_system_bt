@@ -54,6 +54,24 @@ static void smp_process_private_key(tSMP_CB* p_cb);
 
 #define SMP_PASSKEY_MASK 0xfff00000
 
+// If there is data saved here, then use its info instead
+// This needs to be cleared on a successfult pairing using the oob data
+static tSMP_LOC_OOB_DATA saved_local_oob_data = {};
+
+void smp_save_local_oob_data(tSMP_CB* p_cb) {
+  saved_local_oob_data = p_cb->sc_oob_data.loc_oob_data;
+}
+
+void smp_clear_local_oob_data() { saved_local_oob_data = {}; }
+
+static bool is_empty(tSMP_LOC_OOB_DATA* data) {
+  tSMP_LOC_OOB_DATA empty_data = {};
+  return memcmp(data, &empty_data, sizeof(tSMP_LOC_OOB_DATA)) == 0;
+}
+
+bool smp_has_local_oob_data() { return !is_empty(&saved_local_oob_data); }
+
+
 void smp_debug_print_nbyte_little_endian(uint8_t* p, const char* key_name,
                                          uint8_t len) {
 #if (SMP_DEBUG == TRUE)
@@ -760,6 +778,27 @@ bool smp_calculate_legacy_short_term_key(tSMP_CB* p_cb, tSMP_ENC* output) {
  ******************************************************************************/
 void smp_create_private_key(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
   SMP_TRACE_DEBUG("%s", __func__);
+  // Only use the stored OOB data if we are in an oob association model
+  if (p_cb->selected_association_model == SMP_MODEL_SEC_CONN_OOB) {
+    SMP_TRACE_DEBUG("%s OOB Association Model", __func__);
+    // Make sure our data isn't empty, otherwise we generate new and eventually
+    // pairing will fail Not much we can do about it at this point, just have to
+    // generate new data The data will be cleared after the advertiser times
+    // out, so if the advertiser times out we want the pairing to fail anyway.
+    if (!is_empty(&saved_local_oob_data)) {
+      SMP_TRACE_DEBUG("%s Found OOB data, loading keys", __func__);
+      for (int i = 0; i < BT_OCTET32_LEN; i++) {
+        p_cb->private_key[i] = saved_local_oob_data.private_key_used[i];
+        p_cb->loc_publ_key.x[i] = saved_local_oob_data.publ_key_used.x[i];
+        p_cb->loc_publ_key.y[i] = saved_local_oob_data.publ_key_used.y[i];
+      }
+      p_cb->sc_oob_data.loc_oob_data = saved_local_oob_data;
+      memcpy(p_cb->local_random, saved_local_oob_data.randomizer, BT_OCTET16_LEN);
+      smp_process_private_key(p_cb);
+      return;
+    }
+    SMP_TRACE_DEBUG("%s OOB Association Model with no saved data present", __func__);
+  }
 
   btsnd_hcic_ble_rand(Bind(
       [](tSMP_CB* p_cb, BT_OCTET8 rand) {
@@ -805,13 +844,40 @@ void smp_use_oob_private_key(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
   SMP_TRACE_DEBUG("%s req_oob_type: %d, role: %d", __func__, p_cb->req_oob_type,
                   p_cb->role);
 
+  int i = 0;
   switch (p_cb->req_oob_type) {
     case SMP_OOB_BOTH:
     case SMP_OOB_LOCAL:
-      SMP_TRACE_DEBUG("%s restore secret key", __func__)
-      memcpy(p_cb->private_key, p_cb->sc_oob_data.loc_oob_data.private_key_used,
-             BT_OCTET32_LEN);
-      smp_process_private_key(p_cb);
+      SMP_TRACE_DEBUG("%s restore secret key", __func__);
+      // Only use the stored OOB data if we are in an oob association model
+      if (p_cb->selected_association_model == SMP_MODEL_SEC_CONN_OOB) {
+        SMP_TRACE_DEBUG("%s OOB Association Model", __func__);
+        // Make sure our data isn't empty, otherwise we generate new and
+        // eventually pairing will fail Not much we can do about it at this
+        // point, just have to generate new data The data will be cleared after
+        // the advertiser times out, so if the advertiser times out we want the
+        // pairing to fail anyway.
+        if (!is_empty(&saved_local_oob_data)) {
+          SMP_TRACE_DEBUG("%s Found OOB data, loading keys", __func__);
+          for (i = 0; i < BT_OCTET32_LEN; i++) {
+            p_cb->private_key[i] = saved_local_oob_data.private_key_used[i];
+            p_cb->loc_publ_key.x[i] = saved_local_oob_data.publ_key_used.x[i];
+            p_cb->loc_publ_key.y[i] = saved_local_oob_data.publ_key_used.y[i];
+          }
+	  // Duyen: remove later, this is where we set our custom private key for testing purposes
+          uint8_t custom_priv_key[] = {0x19, 0x7a, 0xcb, 0x53, 0x19, 0x5c, 0xd2, 0xb9, 0x99, 0xcb, 0x11, 0x56, 0x36, 0x9d, 0x25, 0x58,
+                                      0x5a, 0xa2, 0xef, 0xd0, 0xd2, 0xb3, 0x19, 0xfb, 0xe5, 0x89, 0xe2, 0x5e, 0x0f, 0x89, 0x28, 0x69};
+          memcpy(p_cb->private_key, custom_priv_key, BT_OCTET32_LEN);
+          for(i = 0; i < 32; i++) {
+            SMP_TRACE_DEBUG("%s custom private_key[%d] = %x --Duyen", __func__, i, p_cb->private_key[i]);
+          }
+          p_cb->sc_oob_data.loc_oob_data = saved_local_oob_data;
+          memcpy(p_cb->local_random, saved_local_oob_data.randomizer, BT_OCTET16_LEN);
+          smp_process_private_key(p_cb);
+          return;
+        }
+        SMP_TRACE_DEBUG("%s OOB Association Model with no saved data present", __func__);
+      }
       break;
     default:
       SMP_TRACE_DEBUG("%s create secret key anew", __func__);
@@ -832,7 +898,7 @@ void smp_use_oob_private_key(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
  * Returns          void
  *
  ******************************************************************************/
-void smp_process_private_key(tSMP_CB* p_cb) {
+static void smp_process_private_key(tSMP_CB* p_cb) {
   Point public_key;
   BT_OCTET32 private_key;
 
@@ -1952,6 +2018,26 @@ void smp_start_nonce_generation(tSMP_CB* p_cb) {
         btsnd_hcic_ble_rand(Bind(
             [](tSMP_CB* p_cb, BT_OCTET8 rand) {
               memcpy((void*)&p_cb->rand[8], rand, BT_OCTET8_LEN);
+	      // Duyen: remove later, this is where we set our custom rand value for testing
+	      p_cb->rand[0] = 0x21;
+	      p_cb->rand[1] = 0x22;
+	      p_cb->rand[2] = 0x23;
+	      p_cb->rand[3] = 0x24;
+	      p_cb->rand[4] = 0x25;
+	      p_cb->rand[5] = 0x26;
+	      p_cb->rand[6] = 0x27;
+	      p_cb->rand[7] = 0x28;
+	      p_cb->rand[8] = 0x29;
+	      p_cb->rand[9] = 0x2a;
+	      p_cb->rand[10] = 0x2b;
+	      p_cb->rand[11] = 0x2c;
+	      p_cb->rand[12] = 0x2d;
+	      p_cb->rand[13] = 0x2e;
+	      p_cb->rand[14] = 0x2f;
+	      p_cb->rand[15] = 0x12;
+              for(int i = 0; i < 16; i++) {
+	        SMP_TRACE_DEBUG("%s custom rand[%d] = %x --Duyen", __func__, i, p_cb->rand[i]);
+	      }
               SMP_TRACE_DEBUG("%s round %d", __func__, p_cb->round);
               /* notifies SM that it has new nonce. */
               smp_sm_event(p_cb, SMP_HAVE_LOC_NONCE_EVT, NULL);

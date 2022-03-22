@@ -814,11 +814,19 @@ void bta_gattc_start_discover(tBTA_GATTC_CLCB* p_clcb,
       p_clcb->p_srcb->update_count = 0;
       p_clcb->p_srcb->state = BTA_GATTC_SERV_DISC_ACT;
 
-      if (p_clcb->transport == BTA_TRANSPORT_LE) {
+      /* iRobot modification -- bta_gattc_set_discover_st already calls
+       * L2CA_EnableUpdateBleConnParams
+       */
+      /* FIXME:
+       *	This should be double checked. In older stack code there is no
+       *	interop_match_addr_or_name call and return change before calling
+       *	L2CA_EnableUpdateBleConnParams
+       */
+      /*if (p_clcb->transport == BTA_TRANSPORT_LE) {
         if (!interop_match_addr_or_name(INTEROP_DISABLE_LE_CONN_UPDATES, &p_clcb->p_srcb->server_bda)) {
           L2CA_EnableUpdateBleConnParams(p_clcb->p_srcb->server_bda, false);
         }
-      }
+      }*/
 
       /* set all srcb related clcb into discovery ST */
       bta_gattc_set_discover_st(p_clcb->p_srcb);
@@ -888,18 +896,33 @@ void bta_gattc_disc_cmpl(tBTA_GATTC_CLCB* p_clcb,
     p_clcb->auto_update = BTA_GATTC_REQ_WAITING;
     bta_gattc_sm_execute(p_clcb, BTA_GATTC_INT_DISCOVER_EVT, NULL);
   }
-  /* get any queued command to proceed */
-  else if (p_q_cmd != NULL) {
-    p_clcb->p_q_cmd = NULL;
-    /* execute pending operation of link block still present */
-    if (l2cu_find_lcb_by_bd_addr(p_clcb->p_srcb->server_bda, BT_TRANSPORT_LE)) {
-      bta_gattc_sm_execute(p_clcb, p_q_cmd->hdr.event, p_q_cmd);
+  else
+  {
+    /* iRobot modificiation -- call callback here */
+    if (p_clcb->p_rcb && p_clcb->p_rcb->p_cback)
+    {
+      tBTA_GATTC cb_data;
+      cb_data.search_cmpl.status = p_clcb->status;
+      cb_data.search_cmpl.conn_id = p_clcb->bta_conn_id;
+      (*p_clcb->p_rcb->p_cback)(BTA_GATTC_SEARCH_CMPL_EVT, &cb_data);
     }
-    /* if the command executed requeued the cmd, we don't
-     * want to free the underlying buffer that's being
-     * referenced by p_clcb->p_q_cmd
-     */
-    if (p_q_cmd != p_clcb->p_q_cmd) osi_free_and_reset((void**)&p_q_cmd);
+    /* end iRobot modification */
+
+    if (p_q_cmd != NULL)
+    {
+      p_clcb->p_q_cmd = NULL;
+      /* execute pending operation of link block still present */
+      if (l2cu_find_lcb_by_bd_addr(p_clcb->p_srcb->server_bda, BT_TRANSPORT_LE) != NULL)
+      {
+        bta_gattc_sm_execute(p_clcb, p_q_cmd->hdr.event, p_q_cmd);
+      }
+      /* if the command executed requeued the cmd, we don't
+       * want to free the underlying buffer that's being
+       * referenced by p_clcb->p_q_cmd
+       */
+      if (p_q_cmd != p_clcb->p_q_cmd)
+        osi_free_and_reset((void **)&p_q_cmd);
+    }
   }
 }
 /*******************************************************************************

@@ -1803,6 +1803,8 @@ void smp_set_local_oob_random_commitment(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
                    p_cb->sc_oob_data.loc_oob_data.randomizer, 0,
                    p_cb->sc_oob_data.loc_oob_data.commitment);
 
+  p_cb->sc_oob_data.loc_oob_data.present = true;
+
 #if (SMP_DEBUG == TRUE)
   uint8_t* p_print = NULL;
   SMP_TRACE_DEBUG("local SC OOB data set:");
@@ -1828,6 +1830,15 @@ void smp_set_local_oob_random_commitment(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
   /* pass created OOB data up */
   p_cb->cb_evt = SMP_SC_LOC_OOB_DATA_UP_EVT;
   smp_send_app_cback(p_cb, NULL);
+
+  // Store the data for later use when we are paired with
+  // Event though the doc above says to pass up for safe keeping it never gets
+  // kept safe. Additionally, when we need the data to make a decision we
+  // wouldn't have it.  This will save the sc_oob_data in the smp_keys.cc such
+  // that when we receive a request to create new keys we check to see if the
+  // sc_oob_data exists and utilize the keys that are stored there otherwise the
+  // connector will fail commitment check and dhkey exchange.
+  smp_save_local_oob_data(p_cb);
 
   smp_cb_cleanup(p_cb);
 }

@@ -5878,6 +5878,15 @@ void btm_sec_dev_rec_cback_event(tBTM_SEC_DEV_REC* p_dev_rec, uint8_t res,
   btm_sec_check_pending_reqs();
 }
 
+void btm_sec_cr_loc_oob_data_cback_event(const RawAddress& address,
+                                         tSMP_LOC_OOB_DATA loc_oob_data) {
+  tBTM_LE_EVT_DATA evt_data = {
+      .local_oob_data = loc_oob_data,
+  };
+  if (btm_cb.api.p_le_callback) {
+    (*btm_cb.api.p_le_callback)(BTM_LE_SC_LOC_OOB_EVT, address, &evt_data);
+  }
+}
 /*******************************************************************************
  *
  * Function         btm_sec_queue_mx_request
