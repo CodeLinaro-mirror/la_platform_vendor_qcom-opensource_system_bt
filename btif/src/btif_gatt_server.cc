@@ -131,6 +131,11 @@ static void btapp_gatts_handle_cback(uint16_t event, char* p_param) {
   LOG_VERBOSE(LOG_TAG, "%s: Event %d", __func__, event);
 
   tBTA_GATTS* p_data = (tBTA_GATTS*)p_param;
+
+#ifdef BT_LPM_SUPPORTED
+  btif_lpm_update_gatts_handle_event(event, p_data);
+#endif
+
   switch (event) {
     case BTA_GATTS_REG_EVT: {
       HAL_CBACK(bt_gatt_callbacks, server->register_server_cb,
