@@ -132,6 +132,7 @@ static tAVRC_STS avrc_pars_vendor_cmd(tAVRC_MSG_VENDOR* p_msg,
 
   switch (p_result->pdu) {
     case AVRC_PDU_GET_CAPABILITIES: /* 0x10 */
+      if (len == 0) return AVRC_STS_INTERNAL_ERR;
       p_result->get_caps.capability_id = *p++;
       if (!AVRC_IS_VALID_CAP_ID(p_result->get_caps.capability_id))
         status = AVRC_STS_BAD_PARAM;
@@ -145,6 +146,7 @@ static tAVRC_STS avrc_pars_vendor_cmd(tAVRC_MSG_VENDOR* p_msg,
       break;
 
     case AVRC_PDU_LIST_PLAYER_APP_VALUES: /* 0x12 */
+      if (len == 0) return AVRC_STS_INTERNAL_ERR;
       p_result->list_app_values.attr_id = *p++;
       if (!AVRC_IS_VALID_ATTRIBUTE(p_result->list_app_values.attr_id))
         status = AVRC_STS_BAD_PARAM;
@@ -154,6 +156,7 @@ static tAVRC_STS avrc_pars_vendor_cmd(tAVRC_MSG_VENDOR* p_msg,
 
     case AVRC_PDU_GET_CUR_PLAYER_APP_VALUE: /* 0x13 */
     case AVRC_PDU_GET_PLAYER_APP_ATTR_TEXT: /* 0x15 */
+      if (len == 0) return AVRC_STS_INTERNAL_ERR;
       BE_STREAM_TO_UINT8(p_result->get_cur_app_val.num_attr, p);
       if (len != (p_result->get_cur_app_val.num_attr + 1)) {
         status = AVRC_STS_INTERNAL_ERR;
@@ -178,6 +181,7 @@ static tAVRC_STS avrc_pars_vendor_cmd(tAVRC_MSG_VENDOR* p_msg,
       break;
 
     case AVRC_PDU_SET_PLAYER_APP_VALUE: /* 0x14 */
+      if (len == 0) return AVRC_STS_INTERNAL_ERR;
       BE_STREAM_TO_UINT8(p_result->set_app_val.num_val, p);
       size_needed = sizeof(tAVRC_APP_SETTING);
       if (p_buf && (len == ((p_result->set_app_val.num_val << 1) + 1))) {
@@ -303,10 +307,9 @@ static tAVRC_STS avrc_pars_vendor_cmd(tAVRC_MSG_VENDOR* p_msg,
       break;
 
     case AVRC_PDU_REGISTER_NOTIFICATION: /* 0x31 */
-      if (len != 5) {
-        status = AVRC_STS_INTERNAL_ERR;
-        AVRC_TRACE_ERROR("%s: length is incorrect, status: %d", __func__, status);
-      } else {
+      if (len != 5)
+        return AVRC_STS_INTERNAL_ERR;
+      else {
         BE_STREAM_TO_UINT8(p_result->reg_notif.event_id, p);
         BE_STREAM_TO_UINT32(p_result->reg_notif.param, p);
       }
