@@ -2536,9 +2536,14 @@ void bta_ag_sco_conn_close(tBTA_AG_SCB* p_scb,
             (p_scb->post_sco == BTA_AG_POST_SCO_CALL_END)) {
            bta_sys_sco_unuse(BTA_ID_AG, p_scb->app_id, p_scb->peer_addr);
      }
-
-     /* call app callback */
-     bta_ag_cback_sco(p_scb, BTA_AG_AUDIO_CLOSE_EVT);
+     if (p_scb->no_of_xsco_retry == 1) {
+       APPL_TRACE_WARNING(
+        "%s: Retry xSCO connection. Don't notify app callback xSCO disconnected",
+        __func__);
+     } else {
+       /* call app callback */
+       bta_ag_cback_sco(p_scb, BTA_AG_AUDIO_CLOSE_EVT);
+     }
      p_scb->codec_msbc_settings = BTA_AG_SCO_MSBC_SETTINGS_T2;
 #if (SWB_ENABLED == TRUE)
      p_scb->codec_swb_settings = BTA_AG_SCO_SWB_SETTINGS_Q0;
