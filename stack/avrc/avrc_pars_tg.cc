@@ -435,7 +435,7 @@ static tAVRC_STS avrc_pars_browsing_cmd(tAVRC_MSG_BROWSE* p_msg,
                                         uint16_t buf_len) {
   tAVRC_STS status = AVRC_STS_NO_ERROR;
   uint8_t* p = p_msg->p_browse_data;
-  int count;
+  int count, p_browse_packet_len = 0;
 
   uint32_t min_len = 3;
   RETURN_STATUS_IF_FALSE(AVRC_STS_BAD_CMD, (p_msg->browse_len >= min_len),
@@ -443,8 +443,18 @@ static tAVRC_STS avrc_pars_browsing_cmd(tAVRC_MSG_BROWSE* p_msg,
 
   p_result->pdu = *p++;
   AVRC_TRACE_DEBUG("avrc_pars_browsing_cmd() pdu:0x%x", p_result->pdu);
-  /* skip over len */
-  p += 2;
+  p += 1; //length of the header
+  p_browse_packet_len = *p;
+  p += 1;
+
+  AVRC_TRACE_DEBUG("%s: p_browse_packet_len = %d, *p:%d, browse_len: %d",
+                                     __func__, p_browse_packet_len, *p, p_msg->browse_len);
+  if ((p_browse_packet_len + 3) != p_msg->browse_len) {
+    status = AVRC_STS_INTERNAL_ERR;
+    AVRC_TRACE_ERROR("%s total Browse length packet criteria didn't match, status: %d",
+                                            __func__, status)
+    return status;
+  }
 
   switch (p_result->pdu) {
     case AVRC_PDU_SET_BROWSED_PLAYER: /* 0x70 */
@@ -565,6 +575,11 @@ static tAVRC_STS avrc_pars_browsing_cmd(tAVRC_MSG_BROWSE* p_msg,
 
       BE_STREAM_TO_UINT16(p_result->search.string.charset_id, p);
       BE_STREAM_TO_UINT16(p_result->search.string.str_len, p);
+      if (p_browse_packet_len - 4 != p_result->search.string.str_len) {
+        AVRC_TRACE_ERROR("%s: browse packet length criteria didn't match,status:%d ",
+                                 __func__, status);
+        return AVRC_STS_BAD_CMD;
+      }
       p_result->search.string.p_str = p_buf;
       if (p_buf) {
         if (p_result->search.string.str_len > buf_len) {
