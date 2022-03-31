@@ -42,6 +42,10 @@ PKG_CHECK_MODULES([LIBCHROME], [libchrome])
 AC_SUBST([LIBCHROME_CFLAGS])
 AC_SUBST([LIBCHROME_LIBS])
 
+PKG_CHECK_MODULES([QMIFW], [qmi-framework])
+AC_SUBST([QMIFW_CFLAGS])	AC_SUBST([QMIFW_CFLAGS])
+AC_SUBST([QMIFW_LIBS])	AC_SUBST([QMIFW_LIBS])
+
 AC_ARG_WITH([hardware_include],
                   AC_HELP_STRING([--with-hardware-include=@<:@dir@:>@],
                                  [Specify the location of the hardware headers]),
