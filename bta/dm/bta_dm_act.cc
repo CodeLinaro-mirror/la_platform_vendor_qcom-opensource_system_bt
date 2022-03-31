@@ -1648,6 +1648,7 @@ void bta_dm_sdp_result(tBTA_DM_MSG* p_data) {
             else
                 di_rec.status=BTA_FAILURE;
             APPL_TRACE_DEBUG("%s: DID info callback", __func__);
+            di_rec.bd_addr=bta_dm_search_cb.peer_bdaddr;
             HAL_CBACK(bt_vendor_callbacks, did_info_cb,di_rec);
           }
         }
