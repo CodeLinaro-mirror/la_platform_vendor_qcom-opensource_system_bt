@@ -656,6 +656,10 @@ static UINT8 avdt_msg_prs_cfg(tAVDT_CFG *p_cfg, UINT8 *p, UINT16 len, UINT8* p_e
         switch (elem)
         {
             case AVDT_CAT_RECOV:
+                if ((p_end - p) < 3) {
+                    err = AVDT_ERR_PAYLOAD;
+                    break;
+                }
                 p_cfg->recov_type = *p++;
                 p_cfg->recov_mrws = *p++;
                 p_cfg->recov_mnmp = *p++;
@@ -691,6 +695,10 @@ static UINT8 avdt_msg_prs_cfg(tAVDT_CFG *p_cfg, UINT8 *p, UINT16 len, UINT8* p_e
                 break;
 
             case AVDT_CAT_HDRCMP:
+                if ((p_end - p) < 1) {
+                    err = AVDT_ERR_PAYLOAD;
+                    break;
+                }
                 p_cfg->hdrcmp_mask = *p++;
                 break;
 
