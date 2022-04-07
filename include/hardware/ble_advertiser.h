@@ -103,6 +103,7 @@ class BleAdvertiserInterface {
 
   virtual void SetPeriodicAdvertisingEnable(int advertiser_id, bool enable,
                                             StatusCallback cb) = 0;
+  virtual void StopAdvertisements() = 0;
 };
 
 #endif /* ANDROID_INCLUDE_BLE_ADVERTISER_H */
