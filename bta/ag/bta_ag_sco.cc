@@ -199,6 +199,7 @@ static void bta_ag_xsco_collision_timer_cback(void* data) {
  ******************************************************************************/
 static void bta_ag_sco_disc_cback(uint16_t sco_idx) {
   uint16_t handle = 0;
+  char value[PROPERTY_VALUE_MAX];
   tBTA_AG_SCB* curr_scb;
   uint8_t status = BTM_ReadScoDiscReason();
   bt_soc_type_t soc_type = controller_get_interface()->get_soc_type();
@@ -322,6 +323,8 @@ static void bta_ag_sco_disc_cback(uint16_t sco_idx) {
     p_buf->layer_specific = handle;
     bta_sys_sendmsg(p_buf);
 
+    property_get("vendor.bt.pts.certification", value, "false");
+
     if ( status == HCI_ERR_DIFF_TRANSACTION_COLLISION &&
          bta_ag_cb.sco.p_curr_scb != NULL &&
          bta_ag_cb.sco.p_curr_scb->no_of_xsco_trials == 0 ) {
@@ -333,7 +336,8 @@ static void bta_ag_sco_disc_cback(uint16_t sco_idx) {
                         bta_ag_xsco_collision_timer_cback,
                         bta_ag_cb.sco.p_curr_scb);
       bta_ag_cb.sco.p_curr_scb->no_of_xsco_trials++;
-    }  else if ( status != HCI_ERR_CONN_CAUSE_LOCAL_HOST &&
+    }  else if ( (strcmp(value, "true") !=0) &&
+                 status != HCI_ERR_CONN_CAUSE_LOCAL_HOST &&
                  status != HCI_ERR_PEER_USER &&
                  status != HCI_ERR_HOST_REJECT_SECURITY &&
                  bta_ag_cb.sco.p_curr_scb != NULL &&
