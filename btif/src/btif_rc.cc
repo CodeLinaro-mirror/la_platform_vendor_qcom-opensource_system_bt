@@ -644,7 +644,7 @@ void handle_rc_browse_connect(tBTA_AV_RC_BROWSE_OPEN* p_rc_br_open) {
   /* check that we are already connected to this address since being connected
    * to a browse when not connected to the control channel over AVRCP is
    * probably not preferred anyways. */
-  if (p_rc_br_open->status == BTA_AV_SUCCESS) {
+  if (p_rc_br_open->status == BTA_AV_SUCCESS && bt_rc_ctrl_callbacks != nullptr) {
     p_dev->br_connected = true;
     do_in_jni_thread(FROM_HERE,
                      base::Bind(bt_rc_ctrl_callbacks->connection_state_cb, true,
