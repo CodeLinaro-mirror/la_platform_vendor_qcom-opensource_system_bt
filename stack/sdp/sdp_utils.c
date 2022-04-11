@@ -210,6 +210,11 @@ UINT8 *sdpu_build_attrib_seq (UINT8 *p_out, UINT16 *p_attr, UINT16 num_attrs)
 {
     UINT16  xx;
 
+    if(num_attrs > SDP_MAX_ATTR_FILTERS) {
+	    SDP_TRACE_ERROR("%s: num_attrs(%d) > SDP_MAX_ATTR_FILTERS(%d)", __func__, num_attrs, SDP_MAX_ATTR_FILTERS);
+	    num_attrs = SDP_MAX_ATTR_FILTERS;
+    }
+
     /* First thing is the data element header. See if the length fits 1 byte */
     /* If no attributes, assume a 4-byte wildcard */
     if (!p_attr)
