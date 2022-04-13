@@ -1870,11 +1870,21 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
     case BTA_DM_LINK_DOWN_EVT:
       bd_addr = p_data->link_down.bd_addr;
       btm_set_bond_type_dev(p_data->link_down.bd_addr, BOND_TYPE_UNKNOWN);
-      btif_av_acl_disconnected(bd_addr);
       BTIF_TRACE_DEBUG(
-          "BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
-      HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
-                &bd_addr, BT_ACL_STATE_DISCONNECTED);
+          "BTA_DM_LINK_DOWN_EVT. transport = %d", p_data->link_down.link_type);
+
+      if (p_data->link_down.link_type == BT_TRANSPORT_BR_EDR) {
+        btif_av_acl_disconnected(bd_addr);
+        BTIF_TRACE_DEBUG(
+            "BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
+        HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
+                  &bd_addr, BT_ACL_STATE_DISCONNECTED);
+      } else {
+        /* LE connection dropped, No need handle */
+        BTIF_TRACE_DEBUG(
+            "BTA_DM_LINK_DOWN_EVT. BLE transport is disconnected");
+      }
+
       break;
 
     case BTA_DM_HW_ERROR_EVT:
