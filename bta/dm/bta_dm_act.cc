@@ -2221,6 +2221,11 @@ static void bta_dm_remname_cback(void* p) {
   APPL_TRACE_DEBUG("bta_dm_remname_cback len = %d name=<%s>",
                    p_remote_name->length, p_remote_name->remote_bd_name);
 
+  if ((p_remote_name->bd_addr != bta_dm_search_cb.peer_bdaddr) &&
+      (p_remote_name->status == BTM_BAD_VALUE_RET)) {
+    return;
+  }
+
   /* remote name discovery is done but it could be failed */
   bta_dm_search_cb.name_discover_done = true;
   strlcpy((char*)bta_dm_search_cb.peer_name,
