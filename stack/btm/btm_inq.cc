@@ -1932,6 +1932,7 @@ void btm_process_remote_name(const RawAddress* bda, BD_NAME bdn,
   uint16_t temp_evt_len;
 
   if (bda) {
+    rem_name.bd_addr = *bda;
     VLOG(2) << "BDA " << *bda;
   }
 
