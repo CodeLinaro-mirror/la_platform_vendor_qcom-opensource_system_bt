@@ -662,6 +662,7 @@ extern void avdt_scb_clr_pkt(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data);
 extern void avdt_scb_transport_channel_timer(tAVDT_SCB* p_scb,
                                              tAVDT_SCB_EVT* p_data);
 extern void avdt_scb_clr_vars(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data);
+bool is_codec_supported(const char *codec);
 
 /* msg function declarations */
 extern bool avdt_msg_send(tAVDT_CCB* p_ccb, BT_HDR* p_msg);
