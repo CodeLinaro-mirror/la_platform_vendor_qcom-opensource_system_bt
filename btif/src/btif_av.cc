@@ -2870,11 +2870,26 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
 
     case BTA_AV_STOP_EVT:
       btif_av_cb[index].flags |= BTIF_AV_FLAG_PENDING_STOP;
-      BTIF_TRACE_DEBUG("%s: Stop the AV Data channel", __func__);
+      BTIF_TRACE_DEBUG("%s: Stop the AV Data channel for index: %d, "
+                       " current_playing: %d, peer_sep: %d",
+                       __func__, index, btif_av_cb[index].current_playing,
+                       btif_av_cb[index].peer_sep);
       if (is_multicast_supported && !btif_av_cb[index].current_playing) {
+        //Multicast case
         APPL_TRACE_WARNING("%s:Non active device disconnected,continue streaming",__func__);
       } else {
-        btif_a2dp_on_stopped(&p_av->suspend);
+        if (btif_av_cb[index].peer_sep == AVDT_TSEP_SRC) {
+          //When DUT is in Sink role
+          if (!btif_av_cb[index].current_playing) {
+            BTIF_TRACE_DEBUG("%s: Non active source device disconnected, "
+                                  "continue streaming with active source device",__func__);
+          } else {
+            btif_a2dp_on_stopped(&p_av->suspend);
+          }
+        } else {
+          //When DUT is in source role
+          btif_a2dp_on_stopped(&p_av->suspend);
+        }
       }
       btif_av_cb[index].is_device_playing = false;
 

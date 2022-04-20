@@ -1450,6 +1450,16 @@ bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
     codec_based_bit_rate = aac_cie.bitRate;
 
     if (is_AAC_frame_ctrl_stack_enable) {
+      if (btif_av_is_peer_edr() && (btif_av_peer_supports_3mbps() == FALSE)) {
+        // This condition would be satisfied only if the remote device is
+        // EDR and supports only 2 Mbps, but the effective AVDTP MTU size
+        // exceeds the 2DH5 packet size.
+        if (peer_param.peer_mtu > MAX_2MBPS_AVDTP_MTU) {
+          peer_param.peer_mtu = MAX_2MBPS_AVDTP_MTU;
+          codec_config->peerMtu = peer_param.peer_mtu - A2DP_HEADER_SIZE;
+          APPL_TRACE_WARNING("%s Restricting MTU size to %d", __func__, peer_param.peer_mtu);
+        }
+      }
       int sample_rate = A2DP_GetTrackSampleRate(p_codec_info);
       mtu_based_bit_rate = (peer_param.peer_mtu - AAC_LATM_HEADER)
                                           * (8 * sample_rate / AAC_SAMPLE_SIZE);
@@ -2150,6 +2160,16 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
     codec_based_bit_rate = aac_cie.bitRate;
 
     if (is_AAC_frame_ctrl_stack_enable) {
+      if (btif_av_is_peer_edr() && (btif_av_peer_supports_3mbps() == FALSE)) {
+        // This condition would be satisfied only if the remote device is
+        // EDR and supports only 2 Mbps, but the effective AVDTP MTU size
+        // exceeds the 2DH5 packet size.
+        if (peer_param.peer_mtu > MAX_2MBPS_AVDTP_MTU) {
+          peer_param.peer_mtu = MAX_2MBPS_AVDTP_MTU;
+          codec_config->peerMtu = peer_param.peer_mtu - A2DP_HEADER_SIZE;
+          APPL_TRACE_WARNING("%s Restricting MTU size to %d", __func__, peer_param.peer_mtu);
+        }
+      }
       int sample_rate = A2DP_GetTrackSampleRate(p_codec_info);
       mtu_based_bit_rate = (peer_param.peer_mtu - AAC_LATM_HEADER)
                                           * (8 * sample_rate / AAC_SAMPLE_SIZE);
