@@ -1556,13 +1556,17 @@ bool BtifAvStateMachine::StateIdle::ProcessEvent(uint32_t event, void* p_data) {
                          BtifAvEvent::EventName(event).c_str());
 
       bool can_connect = true;
+      tBTA_AV* p_av = (tBTA_AV*)p_data;
       // Check whether connection is allowed
       if (peer_.IsSink()) {
         can_connect = btif_av_source.AllowedToConnect(peer_.PeerAddress());
         if (!can_connect) src_disconnect_sink(peer_.PeerAddress());
       } else if (peer_.IsSource()) {
         can_connect = btif_av_sink.AllowedToConnect(peer_.PeerAddress());
-        if (!can_connect) sink_disconnect_src(peer_.PeerAddress());
+        if (!can_connect) {
+            BTA_AvCloseRc(p_av->rc_open.rc_handle);
+            sink_disconnect_src(peer_.PeerAddress());
+        }
       }
       if (!can_connect) {
         BTIF_TRACE_ERROR(
