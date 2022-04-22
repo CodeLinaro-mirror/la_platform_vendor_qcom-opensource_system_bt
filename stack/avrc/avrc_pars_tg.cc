@@ -147,6 +147,7 @@ static tAVRC_STS avrc_pars_vendor_cmd(tAVRC_MSG_VENDOR* p_msg,
 
   switch (p_result->pdu) {
     case AVRC_PDU_GET_CAPABILITIES: /* 0x10 */
+      if (len == 0) return AVRC_STS_INTERNAL_ERR;
       p_result->get_caps.capability_id = *p++;
       if (!AVRC_IS_VALID_CAP_ID(p_result->get_caps.capability_id))
         status = AVRC_STS_BAD_PARAM;
