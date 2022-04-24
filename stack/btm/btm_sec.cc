@@ -1899,6 +1899,17 @@ void BTM_SetOutService(const RawAddress& bd_addr, uint8_t service_id,
   }
 }
 
+bool BTM_SecUseSmpBrChnl(const RawAddress& bd_addr) {
+   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
+   BTM_TRACE_DEBUG("%s Check if smp pairing is enabled or not", __func__);
+
+   if(p_dev_rec != NULL && p_dev_rec->new_encryption_key_is_p256 &&
+            (btm_sec_use_smp_br_chnl(p_dev_rec)))
+   {
+       return true;
+   }
+   return false ;
+}
 /************************************************************************
  *              I N T E R N A L     F U N C T I O N S
  ************************************************************************/
@@ -3606,7 +3617,12 @@ void btm_proc_sp_req_evt(tBTM_SP_EVT event, uint8_t* p) {
             evt_data.cfm_req.just_works, btm_cb.devcb.loc_io_caps,
             p_dev_rec->rmt_io_caps, btm_cb.devcb.loc_auth_req,
             p_dev_rec->rmt_auth_req);
-
+#if (BTM_LOCAL_IO_CAPS == BTM_IO_CAP_NONE)
+        if(p_dev_rec->rmt_io_caps == BTM_IO_CAP_NONE){
+            BTM_TRACE_DEBUG("%s setting bond_type_persistent when Remote device io caps is BTM_IO_CAP_NONE",__func__);
+            btm_set_bond_type_dev(p_dev_rec->bd_addr, BOND_TYPE_PERSISTENT);
+        }
+#endif
         evt_data.cfm_req.loc_auth_req = btm_cb.devcb.loc_auth_req;
         evt_data.cfm_req.rmt_auth_req = p_dev_rec->rmt_auth_req;
         evt_data.cfm_req.loc_io_caps = btm_cb.devcb.loc_io_caps;
