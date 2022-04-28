@@ -29,7 +29,9 @@
 #include "btif_storage.h"
 #include "btm_ble_int.h"
 #include "btm_int.h"
+#ifdef BT_LPM_SUPPORTED
 #include "stack/lpm/lpm_int.h"
+#endif
 #include "connection_manager.h"
 #include "device/include/interop.h"
 #include "gatt_int.h"

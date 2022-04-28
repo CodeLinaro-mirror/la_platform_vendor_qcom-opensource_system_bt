@@ -46,7 +46,9 @@
 #include "sdp_api.h"
 #include "sdpdefs.h"
 #include "utl.h"
+#ifdef BT_LPM_SUPPORTED
 #include "stack/lpm/lpm_int.h"
+#endif
 
 using base::StringPrintf;
 using bluetooth::Uuid;

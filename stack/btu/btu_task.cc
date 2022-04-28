@@ -37,7 +37,9 @@
 #include "stack/btm/btm_int.h"
 #include "stack/include/btu.h"
 #include "stack/l2cap/l2c_int.h"
+#ifdef BT_LPM_SUPPORTED
 #include "stack/lpm/lpm_int.h"
+#endif
 #include "bt_types.h"
 
 static const int THREAD_RT_PRIORITY = 1;
