@@ -81,6 +81,7 @@
 #include "btif/include/btif_a2dp_source.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_hf.h"
+#include "bta_avk_int.h"
 #if (BTA_AR_INCLUDED == TRUE)
 #include "bta_ar_api.h"
 #endif
@@ -1843,9 +1844,9 @@ void bta_av_connect_req(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
     property_get("vendor.bt.pts.certification", value, "false");
 
     if(!strcmp(value, "false")){
-        if(bta_av_find_lcb(p_scb->peer_addr, BTA_AV_LCB_FIND) != NULL)
+        if(bta_avk_find_lcb(p_scb->peer_addr, BTA_AVK_LCB_FIND) != NULL)
         {
-            APPL_TRACE_EVENT("bta_av_connect_req: same address has connected to av");
+            APPL_TRACE_EVENT("bta_av_connect_req: same address has connected to avk");
             bta_av_ssm_execute(p_scb, BTA_AV_AVDT_DISCONNECT_EVT, NULL);
             bta_av_str_closed(p_scb, p_data);
             return;
