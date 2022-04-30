@@ -1329,7 +1329,7 @@ tBTM_STATUS btm_ble_set_connectability(uint16_t combined_mode) {
                  own_addr_type = p_addr_cb->own_addr_type;
   uint16_t adv_int_min, adv_int_max;
 
-  BTM_TRACE_EVENT("%s mode=0x%0x combined_mode=0x%x", __func__, mode,
+  BTM_TRACE_EVENT("%s connectible mode=0x%0x combined_mode=0x%x", __FUNCTION__, mode,
                   combined_mode);
 
   /*** Check mode parameter ***/
@@ -1631,15 +1631,32 @@ bool btm_ble_cancel_remote_name(const RawAddress& remote_bda) {
  * Returns          void
  *
  ******************************************************************************/
-static void btm_ble_update_adv_flag(uint8_t flag) {
+static void btm_ble_update_adv_flag(uint8_t aFlag) {
   tBTM_BLE_LOCAL_ADV_DATA* p_adv_data = &btm_cb.ble_ctr_cb.inq_var.adv_data;
   uint8_t* p;
 
-  BTM_TRACE_DEBUG("btm_ble_update_adv_flag new=0x%x", flag);
+  BTM_TRACE_DEBUG ("btm_ble_update_adv_flag passed new=0x%x", aFlag);
+
+  /* FIXME: Below changes are temporary solution
+   * TODO: Should remove this patch once the respective or
+   * appropriate api is available from vendor (Qualcomm)
+   * in recent releases when customer(iRobot)
+   * decides to move to recent/latest release
+   * from vendor.
+   * Below changes are to support/fulfill the release
+   * requirement from customer as BT advertising should
+   * be BLE only and classic should be disabled
+   */
+
+  /** !!! Change starts here **/
+  uint8_t flag = 0x06;
+
+  BTM_TRACE_DEBUG ("btm_ble_update_adv_flag flag hardcoded=0x%x", flag);
 
   if (p_adv_data->p_flags != NULL) {
     BTM_TRACE_DEBUG("btm_ble_update_adv_flag old=0x%x", *p_adv_data->p_flags);
     *p_adv_data->p_flags = flag;
+    BTM_TRACE_DEBUG ("btm_ble_update_adv_flag being sent to lower=0x%x", *p_adv_data->p_flags);
   } else /* no FLAGS in ADV data*/
   {
     p = (p_adv_data->p_pad == NULL) ? p_adv_data->ad_data : p_adv_data->p_pad;

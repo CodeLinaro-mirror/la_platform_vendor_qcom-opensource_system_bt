@@ -1208,7 +1208,7 @@ uint8_t L2CA_SetTraceLevel(uint8_t new_level) {
  *
  ******************************************************************************/
 uint8_t L2CA_SetDesireRole(uint8_t new_role) {
-  L2CAP_TRACE_WARNING("L2CA_SetDesireRole() new:x%x, disallow_switch:%d", new_role,
+  L2CAP_TRACE_WARNING("L2CA_SetDesireRole() new:x%02x, disallow_switch:%d", new_role,
                   l2cb.disallow_switch);
 
   if (L2CAP_ROLE_CHECK_SWITCH != (L2CAP_ROLE_CHECK_SWITCH & new_role)) {

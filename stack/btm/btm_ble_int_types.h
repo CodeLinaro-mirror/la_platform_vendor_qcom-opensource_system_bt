@@ -55,12 +55,29 @@
 /* scan_window = 5s= 8000 * 0.625 ms */
 #define BTM_BLE_LOW_LATENCY_SCAN_WIN 8000
 
+/* FIXME:
+ *	Below changes are temporary solution
+ * TODO:
+ *	Should remove this patch once the respective or appropriate api is
+ *	available from vendor (Qualcomm) in recent releases when customer(iRobot
+ *	decides to move to recent/latest release from vendor.
+ *
+ *	Below changes are to support/fulfill the release requirement from
+ *	customer as BT advertising timing interval should be 20ms instead of
+ *	default 30ms-6sec.
+ *	With below changes BT HW respects 20ms advertising timing interval but
+ *	might add +/- 10ms due to interference or HW internal delays which is
+ *	accepted.
+ *	calculated values in the comments are not correct for 20ms, and those
+ *	are for original values provided by vendor
+ */
+
 /* TGAP(adv_fast_interval1) = 30(used) ~ 60 ms  = 48 *0.625 */
-#define BTM_BLE_GAP_ADV_FAST_INT_1 48
+#define BTM_BLE_GAP_ADV_FAST_INT_1 32
 /* TGAP(adv_fast_interval2) = 100(used) ~ 150 ms = 160 * 0.625 ms */
-#define BTM_BLE_GAP_ADV_FAST_INT_2 160
+#define BTM_BLE_GAP_ADV_FAST_INT_2 32
 /* Tgap(adv_slow_interval) = 1.28 s= 512 * 0.625 ms */
-#define BTM_BLE_GAP_ADV_SLOW_INT 2048
+#define BTM_BLE_GAP_ADV_SLOW_INT 32
 /* Tgap(dir_conn_adv_int_max) = 500 ms = 800 * 0.625 ms */
 #define BTM_BLE_GAP_ADV_DIR_MAX_INT 800
 /* Tgap(dir_conn_adv_int_min) = 250 ms = 400 * 0.625 ms */

@@ -404,6 +404,14 @@ typedef struct {
     (p) += 2;                 \
   } while (0)
 
+/* iRobot modification -- needed for workaround of QC bug regarding HCI LE
+ * Connection Complete Evt
+ */
+#define STREAM_SKIP_12BYTES(p) \
+  do {                          \
+    (p) += 12;                  \
+  } while (0)
+
 /*******************************************************************************
  * Macros to get and put bytes to and from a field (Little Endian format).
  * These are the same as to stream, except the pointer is not incremented.

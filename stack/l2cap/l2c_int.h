@@ -845,6 +845,11 @@ extern void l2c_ble_link_adjust_allocation(void);
 extern void l2cble_process_conn_update_evt(uint16_t handle, uint8_t status,
                                            uint16_t interval, uint16_t latency,
                                            uint16_t timeout);
+
+extern void irobot_l2cble_process_conn_update_evt(uint16_t handle, uint8_t status,
+					          uint16_t interval,
+						  uint16_t latency,
+						  uint16_t timeout);
 extern void l2cble_process_conn_update_failed(uint16_t handle, uint8_t status);
 extern void l2cble_credit_based_conn_req(tL2C_CCB* p_ccb);
 extern void l2cble_credit_based_conn_res(tL2C_CCB* p_ccb, uint16_t result);
@@ -862,6 +867,11 @@ extern void l2cble_process_rc_param_request_evt(uint16_t handle,
                                                 uint16_t int_max,
                                                 uint16_t latency,
                                                 uint16_t timeout);
+
+extern void irobot_l2cble_process_rc_param_request_evt(uint16_t handle,
+					uint16_t int_min, uint16_t int_max,
+					uint16_t latency, uint16_t timeout);
+
 #endif
 
 extern void l2cble_update_data_length(tL2C_LCB* p_lcb);

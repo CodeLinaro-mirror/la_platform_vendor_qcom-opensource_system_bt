@@ -3403,7 +3403,9 @@ void bta_dm_acl_change(tBTA_DM_MSG* p_data) {
     }
   }
 
-  bta_dm_adjust_roles(true);
+  // iRobot modification -- btm_acl_created will set link role
+  // we do not want to call this anymore!
+  //bta_dm_adjust_roles(TRUE);
 }
 
 /*******************************************************************************
@@ -3599,7 +3601,8 @@ static void bta_dm_remove_sec_dev_entry(const RawAddress& remote_bd_addr) {
  *
  * Function         bta_dm_adjust_roles
  *
- * Description      Adjust roles
+ * Description      Adjust roles -- this will always set role to HCI_ROLE_MASTER
+ *                  no matter the path; so do NOT call.
  *
  *
  * Returns          void
@@ -4396,6 +4399,14 @@ static uint8_t bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
     case BTM_LE_SC_OOB_REQ_EVT:
       sec_event.ble_req.bd_addr = bda;
       bta_dm_cb.p_sec_cback(BTA_DM_BLE_SC_OOB_REQ_EVT, &sec_event);
+      break;
+
+    case BTM_LE_SC_LOC_OOB_EVT:
+      tBTA_DM_LOC_OOB_DATA local_oob_data;
+      memcpy(local_oob_data.local_oob_c, p_data->local_oob_data.commitment, sizeof(BT_OCTET16));
+      memcpy(local_oob_data.local_oob_r, p_data->local_oob_data.randomizer, sizeof(BT_OCTET16));
+      sec_event.local_oob_data = local_oob_data;
+      bta_dm_cb.p_sec_cback(BTA_DM_BLE_SC_CR_LOC_OOB_EVT, &sec_event);
       break;
 
     case BTM_LE_KEY_EVT:

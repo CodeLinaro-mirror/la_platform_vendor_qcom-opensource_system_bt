@@ -1747,7 +1747,6 @@ static void btu_hcif_encryption_key_refresh_cmpl_evt(uint8_t* p) {
 
   btm_sec_encrypt_change(handle, status, enc_enable);
 }
-
 static void btu_ble_ll_conn_complete_evt(uint8_t* p, uint16_t evt_len) {
   btm_ble_conn_complete(p, evt_len, false);
 }
@@ -1762,9 +1761,14 @@ extern void gatt_notify_conn_update(uint16_t handle, uint16_t interval,
                                     uint8_t status);
 
 static void btu_ble_ll_conn_param_upd_evt(uint8_t* p, uint16_t evt_len) {
-  /* LE connection update has completed successfully as a master. */
-  /* We can enable the update request if the result is a success. */
-  /* extract the HCI handle first */
+  /* The LE Connection Update Complete event is used to indicate that the
+   * Controller process to update the connection has completed.
+   *
+   * This event shall be issued if the LE Connection Update command was issued
+   * by the Host or if the connection parameters are updated following a request
+   * from the peer device.
+   */
+
   uint8_t status;
   uint16_t handle;
   uint16_t interval;
@@ -1777,7 +1781,14 @@ static void btu_ble_ll_conn_param_upd_evt(uint8_t* p, uint16_t evt_len) {
   STREAM_TO_UINT16(latency, p);
   STREAM_TO_UINT16(timeout, p);
 
-  l2cble_process_conn_update_evt(handle, status, interval, latency, timeout);
+  /* FIXME:
+   *	In new stack code, gatt_notify_conn_update is added
+   *
+   * TODO:
+   *	Due to above call addition, please double checl if there is an impact
+   *	when iRobot changes and new addition is used together
+   */
+  irobot_l2cble_process_conn_update_evt(handle, status, interval, latency, timeout);
 
   gatt_notify_conn_update(handle & 0x0FFF, interval, latency, timeout, status);
 }
@@ -1829,7 +1840,7 @@ static void btu_ble_rc_param_req_evt(uint8_t* p) {
   STREAM_TO_UINT16(latency, p);
   STREAM_TO_UINT16(timeout, p);
 
-  l2cble_process_rc_param_request_evt(handle, int_min, int_max, latency,
+  irobot_l2cble_process_rc_param_request_evt(handle, int_min, int_max, latency,
                                       timeout);
 }
 #endif /* BLE_LLT_INCLUDED */

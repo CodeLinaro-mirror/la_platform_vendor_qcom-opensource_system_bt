@@ -41,6 +41,10 @@
 using base::StringPrintf;
 
 static void l2cble_start_conn_update(tL2C_LCB* p_lcb);
+static void irobot_l2cble_start_conn_update (tL2C_LCB *p_lcb);
+bool irobot_send_conn_update_request_to_peer(tL2C_LCB *p_lcb,
+				uint16_t min_int, uint16_t max_int,
+				uint16_t latency, uint16_t timeout);
 
 /*******************************************************************************
  *
@@ -125,16 +129,17 @@ bool L2CA_UpdateBleConnParams(const RawAddress& rem_bda, uint16_t min_int,
     LOG(WARNING) << __func__ << " - BD_ADDR " << rem_bda << " not LE";
     return (false);
   }
+  // IROBOT MODIFICATION
+  // p_lcb->min_interval = min_int;
+  // p_lcb->max_interval = max_int;
+  // p_lcb->latency = latency;
+  // p_lcb->timeout = timeout;
+  // p_lcb->conn_update_mask |= L2C_BLE_NEW_CONN_PARAM;
 
-  p_lcb->min_interval = min_int;
-  p_lcb->max_interval = max_int;
-  p_lcb->latency = latency;
-  p_lcb->timeout = timeout;
-  p_lcb->conn_update_mask |= L2C_BLE_NEW_CONN_PARAM;
+  // l2cble_start_conn_update(p_lcb);
 
-  l2cble_start_conn_update(p_lcb);
-
-  return (true);
+  // return (true);
+  return irobot_send_conn_update_request_to_peer(p_lcb, min_int, max_int, latency, timeout);
 }
 
 /*******************************************************************************
@@ -177,7 +182,7 @@ bool L2CA_EnableUpdateBleConnParams(const RawAddress& rem_bda, bool enable) {
   else
     p_lcb->conn_update_mask |= L2C_BLE_CONN_UPDATE_DISABLE;
 
-  l2cble_start_conn_update(p_lcb);
+  irobot_l2cble_start_conn_update(p_lcb);
 
   return (true);
 }
@@ -442,6 +447,64 @@ void l2cble_conn_comp(uint16_t handle, uint8_t role, const RawAddress& bda,
   }
 }
 
+// In order to not override any pending update parameters, use this function to
+// attempt to send connection update request to a peer device -- returns true
+// if update is allowed
+bool irobot_send_conn_update_request_to_peer(tL2C_LCB *p_lcb,
+					uint16_t min_int, uint16_t max_int,
+					uint16_t latency, uint16_t timeout)
+{
+    if (p_lcb->conn_update_mask & L2C_BLE_UPDATE_PENDING) return(FALSE);
+
+    p_lcb->min_interval = min_int;
+    p_lcb->max_interval = max_int;
+    p_lcb->latency = latency;
+    p_lcb->timeout = timeout;
+
+    p_lcb->conn_update_mask |= L2C_BLE_NEW_CONN_PARAM;
+
+    irobot_l2cble_start_conn_update(p_lcb);
+
+    return(TRUE);
+}
+
+static void irobot_l2cble_start_conn_update(tL2C_LCB *p_lcb)
+{
+    tACL_CONN *p_acl_cb = btm_bda_to_acl(p_lcb->remote_bd_addr, BT_TRANSPORT_LE);
+
+    L2CAP_TRACE_API("%s: min=%d, max=%d, latency=%d, timeout=%d",
+                    __func__, p_lcb->min_interval, p_lcb->max_interval, p_lcb->latency, p_lcb->timeout);
+
+    if (p_lcb->conn_update_mask & L2C_BLE_UPDATE_PENDING) return;
+    if (p_lcb->conn_update_mask & L2C_BLE_CONN_UPDATE_DISABLE) return;
+
+    // If this was called in order to send a connection update param request to peer device, 
+    // then caller must set the L2C_BLE_NEW_CONN_PARAM flag in mask
+    if (p_lcb->conn_update_mask & L2C_BLE_NEW_CONN_PARAM) {
+        /* if both side 4.1, or we are master device, send HCI command */
+        if (p_lcb->link_role == HCI_ROLE_MASTER
+#if (defined BLE_LLT_INCLUDED) && (BLE_LLT_INCLUDED == TRUE)
+            || (HCI_LE_CONN_PARAM_REQ_SUPPORTED(controller_get_interface()->get_features_ble()->as_array) &&
+                HCI_LE_CONN_PARAM_REQ_SUPPORTED(p_acl_cb->peer_le_features))
+#endif
+        )
+        {
+            btsnd_hcic_ble_upd_ll_conn_params(p_lcb->handle, p_lcb->min_interval,
+                                              p_lcb->max_interval, p_lcb->latency, p_lcb->timeout, 0, 0);
+            L2CAP_TRACE_API("%s: calling btsnd_hcic_ble_upd_ll_conn_params(...) to send conn update request to stack",
+                            __func__);
+            p_lcb->conn_update_mask |= L2C_BLE_UPDATE_PENDING;
+        }
+        else
+        {
+            l2cu_send_peer_ble_par_req(p_lcb, p_lcb->min_interval, p_lcb->max_interval,
+                                       p_lcb->latency, p_lcb->timeout);
+        }
+        p_lcb->conn_update_mask |= L2C_BLE_NOT_DEFAULT_PARAM;
+    }
+}
+
+// BELOW FUNCTION SHOULD NOT BE USED
 /*******************************************************************************
  *
  *  Function        l2cble_start_conn_update
@@ -525,6 +588,43 @@ static void l2cble_start_conn_update(tL2C_LCB* p_lcb) {
     }
   }
 }
+
+void irobot_l2cble_process_conn_update_evt(uint16_t handle, uint8_t status,
+                                           uint16_t interval, uint16_t latency, uint16_t timeout)
+{
+    tL2C_LCB *p_lcb = l2cu_find_lcb_by_handle(handle);
+    if (!p_lcb)
+    {
+        L2CAP_TRACE_WARNING("%s: Invalid handle: %d", __func__, handle);
+        return;
+    }
+
+    // only reset flag if update event is for request we sent
+    // in other words do not reset for connection updates from peer
+    if (((p_lcb->min_interval <= interval) || (p_lcb->max_interval >= interval)) &&
+        (p_lcb->latency == latency) && (p_lcb->timeout == timeout))
+    {
+        p_lcb->conn_update_mask &= ~L2C_BLE_NEW_CONN_PARAM;
+        p_lcb->conn_update_mask &= ~L2C_BLE_UPDATE_PENDING;
+    }
+
+    if (status != HCI_SUCCESS)
+    {
+        // no need to print conn params since they will be the same as the 
+        // one currenlty being used and not the the ones that were rejected
+        L2CAP_TRACE_WARNING("%s: Error status: %d", __func__, status);
+        return;
+    }
+
+    if ((p_lcb->conn_update_mask & L2C_BLE_NEW_CONN_PARAM) == 0)
+    {
+        p_lcb->min_interval = interval;
+        p_lcb->max_interval = interval;
+        p_lcb->latency = latency;
+        p_lcb->timeout = timeout;
+    }
+}
+// BELOW FUNCTION SHOULD NOT BE USED
 
 /*******************************************************************************
  *
@@ -667,13 +767,13 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         } else {
           l2cu_send_peer_ble_par_rsp(p_lcb, L2CAP_CFG_OK, id);
 
-          p_lcb->min_interval = min_interval;
-          p_lcb->max_interval = max_interval;
-          p_lcb->latency = latency;
-          p_lcb->timeout = timeout;
-          p_lcb->conn_update_mask |= L2C_BLE_NEW_CONN_PARAM;
+          // p_lcb->min_interval = min_interval;
+          // p_lcb->max_interval = max_interval;
+          // p_lcb->latency = latency;
+          // p_lcb->timeout = timeout;
+          // p_lcb->conn_update_mask |= L2C_BLE_NEW_CONN_PARAM;
 
-          l2cble_start_conn_update(p_lcb);
+          irobot_send_conn_update_request_to_peer(p_lcb, min_interval, max_interval, latency, timeout);
         }
       } else
         l2cu_send_peer_cmd_reject(p_lcb, L2CAP_CMD_REJ_NOT_UNDERSTOOD, id, 0,
@@ -1131,6 +1231,48 @@ void l2c_ble_link_adjust_allocation(void) {
 }
 
 #if (BLE_LLT_INCLUDED == TRUE)
+/* FIXME:
+ *	defined(BLE_LLT_INCLUDED) is not added to above conditional compilation
+ *	while porting change from fluoride stack used on apq8009 targets.
+ *	In apq8009 fluoride stack defined check was not part of the change
+ */
+void irobot_l2cble_process_rc_param_request_evt(uint16_t handle, uint16_t int_min, uint16_t int_max,
+                                                uint16_t latency, uint16_t timeout)
+{
+    tL2C_LCB *p_lcb = l2cu_find_lcb_by_handle(handle);
+
+    do
+    {
+        if (p_lcb == NULL)
+        {
+            L2CAP_TRACE_WARNING("No link to update connection parameter");
+            break;
+        }
+        // when role is slave we should always accept the master device's connection update
+        // so only reject if role is master
+        else if ((p_lcb->conn_update_mask & L2C_BLE_CONN_UPDATE_DISABLE) &&
+                 (HCI_ROLE_MASTER == p_lcb->link_role))
+        {
+            L2CAP_TRACE_WARNING("L2CAP - LE - update currently disabled");
+            btsnd_hcic_ble_rc_param_req_neg_reply(handle, HCI_ERR_UNACCEPT_CONN_INTERVAL);
+            break;
+        }
+
+        // do not override params if we are pending a conn req
+        if ((p_lcb->conn_update_mask & L2C_BLE_NEW_CONN_PARAM) == 0)
+        {
+            p_lcb->min_interval = int_min;
+            p_lcb->max_interval = int_max;
+            p_lcb->latency = latency;
+            p_lcb->timeout = timeout;
+        }
+
+        btsnd_hcic_ble_rc_param_req_reply(handle, int_min, int_max, latency, timeout, 0, 0);
+    } while(0);
+
+    return;
+}
+// BELOW FUNCTION SHOULD NOT BE USED
 /*******************************************************************************
  *
  * Function         l2cble_process_rc_param_request_evt

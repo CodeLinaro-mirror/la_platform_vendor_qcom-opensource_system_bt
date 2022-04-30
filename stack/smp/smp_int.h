@@ -541,4 +541,9 @@ extern bool aes_cipher_msg_auth_code(BT_OCTET16 key, uint8_t* input,
                                      uint8_t* p_signature);
 extern void print128(BT_OCTET16 x, const uint8_t* key_name);
 
+/* Save the p_cb->sc_oob_data.loc_oob_data for later, since the p_cb gets
+ * cleaned up */
+extern void smp_save_local_oob_data(tSMP_CB* p_cb);
+extern void smp_clear_local_oob_data();
+extern bool smp_has_local_oob_data();
 #endif /* SMP_INT_H */

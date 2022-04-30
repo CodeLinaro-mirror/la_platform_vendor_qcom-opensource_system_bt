@@ -67,6 +67,7 @@
 #include "btif_a2dp.h"
 #include "btif_hf.h"
 #include "btif_api.h"
+#include "btif_dm.h"
 #include "btif_config.h"
 #include "device/include/controller.h"
 #include "btif_debug.h"
@@ -512,6 +513,18 @@ static bluetooth::avrcp::ServiceInterface* get_avrcp_service(void) {
   return NULL;
 }
 #endif
+
+static int generate_local_oob_data(void) 
+{
+  /* sanity check */
+  if (interface_ready() == false) return BT_STATUS_NOT_READY;
+
+#ifdef BTIF_DM_OOB_TEST
+  btif_dm_generate_local_oob_data();
+#endif
+  return BT_STATUS_SUCCESS;
+}
+
 EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     sizeof(bluetoothInterface),
     init,
@@ -552,6 +565,7 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
 #ifdef ANDROID
     get_avrcp_service,
 #endif
+    generate_local_oob_data,
 };
 const bt_interface_t* bluetooth__get_bluetooth_interface() {
   /* fixme -- add property to disable bt interface ? */

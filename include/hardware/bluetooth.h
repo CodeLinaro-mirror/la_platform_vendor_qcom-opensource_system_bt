@@ -378,6 +378,9 @@ typedef void (*le_test_mode_callback)(bt_status_t status, uint16_t num_packets);
 typedef void (*energy_info_callback)(bt_activity_energy_info* energy_info,
                                      bt_uid_traffic_t* uid_data);
 
+typedef void (*generate_oob_callback)(uint8_t *c, uint8_t *r);
+
+
 /** TODO: Add callbacks for Link Up/Down and other generic
  *  notifications/callbacks */
 
@@ -398,6 +401,7 @@ typedef struct {
   dut_mode_recv_callback dut_mode_recv_cb;
   le_test_mode_callback le_test_mode_cb;
   energy_info_callback energy_info_cb;
+  generate_oob_callback generate_oob_cb;
 } bt_callbacks_t;
 
 typedef void (*alarm_cb)(void* data);
@@ -586,6 +590,9 @@ typedef struct {
    */
   void (*interop_database_add)(uint16_t feature, const RawAddress* addr,
                                size_t len);
+
+  int (*generate_local_oob_data)(void);
+
 } bt_interface_t;
 
 #define BLUETOOTH_INTERFACE_STRING "bluetoothInterface"
