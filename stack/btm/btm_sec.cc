@@ -1010,7 +1010,9 @@ tBTM_STATUS btm_sec_bond_by_transport(const RawAddress& bd_addr,
        * RNR when no ACL causes HCI_RMT_HOST_SUP_FEAT_NOTIFY_EVT */
       btm_sec_change_pairing_state(BTM_PAIR_STATE_GET_REM_NAME);
       status = BTM_ReadRemoteDeviceName(bd_addr, NULL, BT_TRANSPORT_BR_EDR);
+      p_dev_rec->rnr_no_acl = true;
     } else {
+      p_dev_rec->rnr_no_acl = false;
       /* We are accepting connection request from peer */
       btm_sec_change_pairing_state(BTM_PAIR_STATE_WAIT_PIN_REQ);
       status = BTM_CMD_STARTED;
@@ -2996,6 +2998,21 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr,
     if (p_bd_addr && btm_cb.pairing_bda == *p_bd_addr) {
       BTM_TRACE_EVENT("%s() continue bonding sm4: 0x%04x, status:0x%x",
                       __func__, p_dev_rec->sm4, status);
+      /* If ACL connection complete is after Read Remote Name for bonding and
+      * before Read Remote Name complete, start authentication and go to
+      * BTM_PAIR_STATE_WAIT_PIN_REQ state to wait for link key request or pin
+      * code request
+      */
+      if (p_dev_rec->rnr_no_acl && p_dev_rec->hci_handle != HCI_INVALID_HANDLE) {
+        BTM_TRACE_EVENT("%s() ACL create connection complete between Read Name "
+                       "Request and RNR complete", __func__);
+        btm_sec_start_authentication(p_dev_rec);
+        btm_sec_change_pairing_state(BTM_PAIR_STATE_WAIT_PIN_REQ);
+        /* Mark lcb as bonding */
+        l2cu_update_lcb_4_bonding(btm_cb.pairing_bda, true);
+        p_dev_rec->rnr_no_acl = false;
+        return;
+      }
       if (btm_cb.pairing_flags & BTM_PAIR_FLAGS_WE_CANCEL_DD) {
         btm_sec_bond_cancel_complete();
         return;
