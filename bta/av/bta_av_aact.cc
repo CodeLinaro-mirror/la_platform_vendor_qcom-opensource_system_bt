@@ -3426,9 +3426,11 @@ void bta_av_rcfg_str_ok(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_av_rcfg_failed(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
-  APPL_TRACE_ERROR("%s: num_recfg=%d conn_lcb=0x%x peer_addr=%s", __func__,
-                   p_scb->num_recfg, bta_av_cb.conn_lcb,
-                   p_scb->peer_addr.ToString().c_str());
+  uint8_t err_code = p_data->str_msg.msg.hdr.err_code;
+
+  APPL_TRACE_ERROR("%s: num_recfg=%d conn_lcb=0x%x peer_addr=%s, err_code: %d",
+                   __func__, p_scb->num_recfg, bta_av_cb.conn_lcb,
+                   p_scb->peer_addr.ToString().c_str(), err_code);
 
   if ((p_scb->num_recfg > BTA_AV_RECONFIG_RETRY) ||
       (!BTM_IsAclConnectionUp(p_scb->peer_addr, BT_TRANSPORT_BR_EDR))) {
