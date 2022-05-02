@@ -1287,7 +1287,6 @@ class BleAdvertisingManagerImpl
     }
   }
 
-#ifdef BT_LPM_SUPPORTED
   void unRegisterAdvertisements() override
   {
       for (auto it = adv_inst.begin(); it != adv_inst.end(); it++) {
@@ -1300,7 +1299,6 @@ class BleAdvertisingManagerImpl
           }
       }
   }
-#endif
 
  private:
   BleAdvertiserHciInterface* GetHciInterface() { return hci_interface; }

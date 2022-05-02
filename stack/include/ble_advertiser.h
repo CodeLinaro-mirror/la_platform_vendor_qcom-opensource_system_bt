@@ -219,9 +219,7 @@ class BleAdvertisingManager {
        * just for tests. It should never be called from upper layers*/
   virtual void TerminateBIGComplete(
       uint8_t status, uint8_t big_handle, bool cmd_status, uint8_t reason) = 0;
-#ifdef BT_LPM_SUPPORTED
   virtual void unRegisterAdvertisements() = 0;
-#endif
 };
 
 #endif  // BLE_ADVERTISER_H
