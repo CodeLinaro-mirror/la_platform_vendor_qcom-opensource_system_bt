@@ -54,6 +54,10 @@
 #define BT_ACTIVITY_ATTRIBUTION_ID "activity_attribution"
 #define BT_PROFILE_VC_ID "volume_control"
 
+#define KEY_LEN 16
+//typedef uint8_t Link_Key[KEY_LEN]; /* Link Key */
+typedef std::array<uint8_t, KEY_LEN> Link_Key;
+
 /** Bluetooth Device Name */
 typedef struct { uint8_t name[249]; } __attribute__((packed)) bt_bdname_t;
 
@@ -347,6 +351,8 @@ typedef struct {
   uint8_t oob_data_length[2]; /* Classic only data Length. Value includes this
                                  in length */
   uint8_t class_of_device[2]; /* Class of Device (Classic or LE) */
+  uint8_t c_ext[16];  /* Simple Pairing Hash C-256 (Classic P192 & P256 coexsist) */
+  uint8_t r_ext[16];  /* Simple Pairing Randomizer R-256 Classic P192 & P256 coexsist) */
 
   // LE
   uint8_t le_device_role;   /* Supported and preferred role of device */
@@ -440,7 +446,8 @@ typedef void (*bond_state_changed_callback)(bt_status_t status,
 typedef void (*acl_state_changed_callback)(bt_status_t status,
                                            RawAddress* remote_bd_addr,
                                            bt_acl_state_t state,
-                                           bt_hci_error_code_t hci_reason);
+                                           bt_hci_error_code_t hci_reason,
+                                           tBT_TRANSPORT link_type);
 
 /** Bluetooth link quality report callback */
 typedef void (*link_quality_report_callback)(
@@ -482,6 +489,9 @@ typedef void (*energy_info_callback)(bt_activity_energy_info* energy_info,
 typedef void (*generate_local_oob_data_callback)(tBT_TRANSPORT transport,
                                                  bt_oob_data_t oob_data);
 
+typedef void (*get_link_key_callback)(RawAddress* remote_bd_addr,
+                                      bool key_found, Link_Key link_key, int key_type);
+
 /** TODO: Add callbacks for Link Up/Down and other generic
  *  notifications/callbacks */
 
@@ -504,6 +514,7 @@ typedef struct {
   energy_info_callback energy_info_cb;
   link_quality_report_callback link_quality_report_cb;
   generate_local_oob_data_callback generate_local_oob_data_cb;
+  get_link_key_callback get_link_key_cb;
 } bt_callbacks_t;
 
 typedef void (*alarm_cb)(void* data);
@@ -616,6 +627,9 @@ typedef struct {
   int (*create_bond_out_of_band)(const RawAddress* bd_addr, int transport,
                                  const bt_oob_data_t* p192_data,
                                  const bt_oob_data_t* p256_data);
+
+  /** Get link key message */
+  void (*get_link_key)(const RawAddress* bd_addr);
 
   /** Remove Bond */
   int (*remove_bond)(const RawAddress* bd_addr);
@@ -734,6 +748,18 @@ typedef struct {
    * Fetches the local Out of Band data.
    */
   int (*generate_local_oob_data)(tBT_TRANSPORT transport);
+
+  /**
+   * load remote Out of Band data to BT stack
+   */
+  int (*load_remote_oob_data)(const RawAddress* bd_addr, int transport,
+                              const bt_oob_data_t* p192_data,
+                              const bt_oob_data_t* p256_data);
+
+  /**
+   * get remote device's rssi
+   */
+  int (*get_rssi)(const RawAddress* bd_addr, int transport);
 } bt_interface_t;
 
 #define BLUETOOTH_INTERFACE_STRING "bluetoothInterface"

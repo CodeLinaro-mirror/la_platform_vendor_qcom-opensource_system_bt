@@ -17,5 +17,12 @@
  ******************************************************************************/
 
 #include "common/message_loop_thread.h"
+#include <hardware/bluetooth.h>
+
 
 bluetooth::common::MessageLoopThread* get_main_thread() { return nullptr; }
+bt_status_t do_in_main_thread(const base::Location& from_here,
+                              base::OnceClosure task) {
+  return BT_STATUS_SUCCESS;
+}
+

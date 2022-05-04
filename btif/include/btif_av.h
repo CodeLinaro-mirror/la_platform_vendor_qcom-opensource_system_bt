@@ -228,4 +228,15 @@ bool btif_av_is_peer_silenced(const RawAddress& peer_address);
  */
 void btif_av_set_dynamic_audio_buffer_size(uint8_t dynamic_audio_buffer_size);
 
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+/*******************************************************************************
+**
+** Function         btif_get_average_delay
+**
+** Description      Returns average of instantaneous delay values
+**
+** Returns          int64_t
+*******************************************************************************/
+int64_t btif_get_average_delay();
+#endif
 #endif /* BTIF_AV_H */
