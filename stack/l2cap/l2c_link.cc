@@ -414,9 +414,14 @@ bool l2c_link_hci_disc_comp(uint16_t handle, uint8_t reason) {
         osi_free(p_buf);
       }
       transport = p_lcb->transport;
-      /* for LE link, always drop and re-open to ensure to get LE remote feature
+      tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(p_lcb->remote_bd_addr);
+      /* Always drop and re-open to ensure to get remote feature if
+       * 1. Transport is LE link
+       * or
+       * 2. Flag SM4 is cleared after authentication failure
        */
-      if (p_lcb->transport == BT_TRANSPORT_LE) {
+      if ((p_lcb->transport == BT_TRANSPORT_LE) ||
+         ((p_dev_rec != NULL) && ((p_dev_rec->sm4 & BTM_SM4_UNKNOWN) == BTM_SM4_UNKNOWN))) {
         btm_acl_removed(p_lcb->remote_bd_addr, p_lcb->transport);
       } else {
 #if (L2CAP_NUM_FIXED_CHNLS > 0)
