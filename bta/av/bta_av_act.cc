@@ -18,7 +18,7 @@
 /******************************************************************************
  *  Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted (subject to the limitations in the
@@ -2185,7 +2185,9 @@ void bta_av_rc_closed(tBTA_AV_DATA* p_data) {
           p_scb = bta_av_cb.p_scb[p_rcb->shdl - 1];
         }
         if (p_scb) {
-          rc_close.peer_addr = p_scb->PeerAddress();
+          rc_close.peer_addr = (p_scb->IsAssigned()) ?
+            p_scb->PeerAddress() : p_msg->peer_addr;
+
           if (p_scb->rc_handle == p_rcb->handle)
             p_scb->rc_handle = BTA_AV_RC_HANDLE_NONE;
           APPL_TRACE_DEBUG("%s: shdl:%d, srch:%d", __func__, p_rcb->shdl,
@@ -2200,6 +2202,13 @@ void bta_av_rc_closed(tBTA_AV_DATA* p_data) {
                  p_msg->peer_addr.ToString().c_str());
         p_lcb->conn_msk = 0;
         p_lcb->lidx = 0;
+      } else {
+        /* In case A2DP disconnection earlier than AVRCP disconnection,
+         * p_rcb->shdl = 0 and p_rcb->lidx != (BTA_AV_NUM_LINKS + 1).
+         * rc_close.peer_addr failed to set in above, so set as below */
+        rc_close.peer_addr = p_msg->peer_addr;
+        LOG_INFO("%s: av disconnected earlier, bd_addr: %s", __func__,
+                 rc_close.peer_addr.ToString().c_str());
       }
       p_rcb->lidx = 0;
 
