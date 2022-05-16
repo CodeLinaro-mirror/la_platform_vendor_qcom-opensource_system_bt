@@ -755,6 +755,11 @@ void l2c_link_adjust_allocation(void) {
     l2cb.round_robin_quota = 0;
     l2cb.round_robin_unacked = 0;
     qq = qq_remainder = 1;
+    // Setting the high priority link_xmit_quota to max value when there are no other links
+    if(num_hipri_links == 1){
+        hi_quota = high_pri_link_quota = controller_xmit_quota;
+        low_quota = 0;
+    }
   }
 
   L2CAP_TRACE_EVENT(
