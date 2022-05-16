@@ -3137,6 +3137,48 @@ static void btm_ble_observer_timer_timeout(UNUSED_ATTR void* data) {
   btm_ble_stop_observe();
 }
 
+#ifdef BT_LPM_SUPPORTED
+/*******************************************************************************
+ *
+ * Function         btm_ble_cancel_refresh_raddr_timer
+ *
+ * Description      Cancels refresh raddr timer if it is active
+ *
+ * Returns          operation status. true if sucessful, false otherwise.
+ *
+ ******************************************************************************/
+bool btm_ble_cancel_refresh_raddr_timer(void) {
+  tBTM_LE_RANDOM_CB* p_cb = &btm_cb.ble_ctr_cb.addr_mgnt_cb;
+
+  if (alarm_is_scheduled(p_cb->refresh_raddr_timer)) {
+    alarm_cancel(p_cb->refresh_raddr_timer);
+    return true;
+  }
+  return false;
+}
+
+/*******************************************************************************
+ *
+ * Function         btm_ble_restart_refresh_raddr_timer
+ *
+ * Description      Restarts refresh raddr timer
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btm_ble_restart_refresh_raddr_timer(void) {
+  tBTM_LE_RANDOM_CB* p_cb = &btm_cb.ble_ctr_cb.addr_mgnt_cb;
+
+  /* start a periodical timer to refresh random addr */
+  uint64_t interval_ms = btm_get_next_private_addrress_interval_ms();
+#if (BTM_BLE_CONFORMANCE_TESTING == TRUE)
+  interval_ms = btm_cb.ble_ctr_cb.rpa_tout * 1000;
+#endif
+  alarm_set_on_mloop(p_cb->refresh_raddr_timer, interval_ms,
+                   btm_ble_refresh_raddr_timer_timeout, NULL);
+}
+#endif //BT_LPM_SUPPORTED
+
 void btm_ble_refresh_raddr_timer_timeout(UNUSED_ATTR void* data) {
   if (btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type == BLE_ADDR_RANDOM) {
     /* refresh the random addr */

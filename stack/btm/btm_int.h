@@ -302,4 +302,12 @@ extern void btm_acl_paging(BT_HDR* p, const RawAddress& dest);
 extern uint8_t btm_sec_clr_service_by_psm(uint16_t psm);
 extern void btm_sec_clr_temp_auth_service(const RawAddress& bda);
 
+#ifdef BT_LPM_SUPPORTED
+/* Internal functions for LPM Profile
+ *************************************
+*/
+extern bool btm_ble_cancel_refresh_raddr_timer(void);
+extern void btm_ble_restart_refresh_raddr_timer(void);
+#endif //BT_LPM_SUPPORTED
+
 #endif
