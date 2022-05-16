@@ -44,6 +44,7 @@
 #include "osi/include/osi.h"
 #include "device/include/device_iot_config.h"
 #include "btif/include/btif_av.h"
+#include "bta/lpm/bta_lpm_int.h"
 
 extern bool btif_av_is_split_a2dp_enabled(void);
 static bool l2c_link_send_to_lower(tL2C_LCB* p_lcb, BT_HDR* p_buf,
@@ -537,6 +538,11 @@ bool l2c_link_hci_disc_comp(uint16_t handle, uint8_t reason) {
     /* Release the LCB */
     if (lcb_is_free) l2cu_release_lcb(p_lcb);
   }
+#ifdef BT_LPM_SUPPORTED
+  /*disconnected*/
+  L2CAP_TRACE_DEBUG("%s: Inform LPM DISCONN DONE", __func__) ;
+  lpm_profile_update_evt(BTA_ID_GATTC, BTA_LPM_DISC_DONE);
+#endif /* BT_LPM_SUPPORTED */
 
   /* Now that we have a free acl connection, see if any lcbs are pending */
   if (lcb_is_free &&
@@ -654,6 +660,11 @@ void l2c_link_timeout(tL2C_LCB* p_lcb) {
       } else if (rc == BTM_CMD_STARTED) {
         p_lcb->link_state = LST_DISCONNECTING;
         timeout_ms = L2CAP_LINK_DISCONNECT_TIMEOUT_MS;
+#ifdef BT_LPM_SUPPORTED
+        /*disconnecting*/
+        L2CAP_TRACE_DEBUG("%s: Inform LPM DISCONN Progress DONE", __func__) ;
+        lpm_profile_update_evt(BTA_ID_GATTC, BTA_LPM_DISC_PROGRESS);
+#endif /* BT_LPM_SUPPORTED */
       } else if (rc == BTM_SUCCESS) {
         l2cu_process_fixed_disc_cback(p_lcb);
         /* BTM SEC will make sure that link is release (probably after pairing
