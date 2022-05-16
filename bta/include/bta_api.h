@@ -1921,5 +1921,20 @@ extern void BTA_DmProcessQueuedServiceDiscovery(void);
  ******************************************************************************/
 extern void BTA_GetGroupData(uint8_t* p_eir, size_t eir_len, uint8_t* gid_data,
                              bool* found);
+#ifdef BT_LPM_SUPPORTED
+/*******************************************************************************
+ *
+ * Function         BTA_DmSetLPMInfo
+ *
+ * Description      This function processes offloadable connections and mode
+ *
+ * Parameters       remote_bd_addr - List of all offloadable devices
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+
+extern void BTA_DmSetLPMInfo(uint8_t lpm_mode, std::vector<RawAddress> remote_bd_addr);
+#endif
 
 #endif /* BTA_API_H */

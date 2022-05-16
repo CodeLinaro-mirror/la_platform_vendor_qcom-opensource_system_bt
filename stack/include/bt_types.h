@@ -82,6 +82,9 @@
 /* HCI command from upper layer     */
 #define BT_EVT_TO_BTU_HCI_CMD 0x1600
 
+/* LPM Profile.Error              */
+#define BT_EVT_TO_LPM_HCI_ERR 0x1700
+
 /* L2CAP segment(s) transmitted     */
 #define BT_EVT_TO_BTU_L2C_SEG_XMIT 0x1900
 
@@ -987,8 +990,10 @@ enum {
 typedef uint16_t tBT_ERROR_INFO;
 
 enum {
-  LPM_ACTIVE = 1,
+  LPM_ACTIVE = 0,
   LPM_TRACKER,
+  LPM_DEEPSLEEP,
+  LPM_SUSPEND,
   LPM_TWM,
 };
 typedef uint8_t tLPM_mode;

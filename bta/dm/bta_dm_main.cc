@@ -98,6 +98,10 @@ const tBTA_DM_ACTION bta_dm_action[] = {
     bta_dm_bredr_cleanup, /* BTA_DM_API_BREDR_CLEANUP_EVT */
     bta_dm_bredr_startup, /* BTA_DM_API_BREDR_STARTUP_EVT */
     bta_dm_reset_pairing_flag, /*BTA_DM_API_RST_PAIR_FLAG_EVT*/
+
+#ifdef BT_LPM_SUPPORTED
+    bta_dm_set_lpm_device_info, /*BTA_DM_API_SET_LPM_INFO_EVT*/
+#endif
 };
 
 /* state machine action enumeration list */

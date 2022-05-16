@@ -559,7 +559,9 @@ typedef struct {
     /* controller problems */
 #define BTM_SEC_STATE_DISCONNECTING_BLE 8  /* disconnecting BLE */
 #define BTM_SEC_STATE_DISCONNECTING_BOTH 9 /* disconnecting BR/EDR and BLE */
-
+#if (BT_LPM_SUPPORTED == TRUE)
+#define BTM_SEC_STATE_OFFLOADED 10 /* offloaded device to onchip stack */
+#endif
   uint8_t sec_state;  /* Operating state                    */
   bool is_originator; /* true if device is originating connection */
 #if (L2CAP_UCD_INCLUDED == TRUE)
@@ -917,6 +919,10 @@ typedef struct {
   // BQR Receiver
   tBTM_BT_QUALITY_REPORT_RECEIVER* p_bqr_report_receiver;
   bool rpa_gen_offload_enabled;
+
+#ifdef BT_LPM_SUPPORTED
+  uint8_t lpm_mode;
+#endif
 } tBTM_CB;
 
 /* security action for L2CAP COC channels */

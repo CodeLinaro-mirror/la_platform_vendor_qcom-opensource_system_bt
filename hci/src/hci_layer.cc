@@ -49,6 +49,7 @@
 #include "osi/include/reactor.h"
 #include "packet_fragmenter.h"
 #include "controller.h"
+#include "bt_types.h"
 
 #define BT_HCI_TIMEOUT_TAG_NUM 1010000
 
