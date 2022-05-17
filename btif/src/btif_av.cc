@@ -62,6 +62,13 @@ namespace {
 constexpr char kBtmLogHistoryTag[] = "A2DP";
 }
 
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+/* Parameter id for bitrate and bits per sample */
+#define BITRATE_PARAM_ID 1
+#define BITSPERSAMPLE_PARAM_ID 2
+extern bool bta_avk_is_avdt_sync(uint16_t handle);
+#endif
+
 /*****************************************************************************
  *  Local type definitions
  *****************************************************************************/
@@ -89,6 +96,14 @@ typedef enum {
   BTIF_AV_AVRCP_CLOSE_EVT,
   BTIF_AV_AVRCP_REMOTE_PLAY_EVT,
 } btif_av_sm_event_t;
+
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+#define DELAY_RECORD_COUNT 100
+#define MISC_RENDERING_DELAY 50
+int64_t average_delay;
+static int64_t delay_record[DELAY_RECORD_COUNT] = {0}; /* store latest packets delay */
+static int delay_record_idx = 0;
+#endif
 
 class BtifAvEvent {
  public:
@@ -279,7 +294,10 @@ class BtifAvPeer {
   void SetEdr(tBTA_AV_EDR edr) { edr_ = edr; }
   bool IsEdr() const { return (edr_ != 0); }
   bool Is3Mbps() const { return ((edr_ & BTA_AV_EDR_3MBPS) != 0); }
-
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+  bool IsSync() const { return avdt_sync; }
+  void SetSync(bool sync) { avdt_sync = sync; }
+#endif
   bool IsConnected() const;
   bool IsStreaming() const;
   bool IsInSilenceMode() const { return is_silenced_; }
@@ -345,6 +363,9 @@ class BtifAvPeer {
   bool is_silenced_;
   uint16_t delay_report_;
   bool mandatory_codec_preferred_ = false;
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+  bool avdt_sync; /* for AVDT1.3 delay reporting */
+#endif
 };
 
 class BtifAvSource {
@@ -673,7 +694,8 @@ static BtifAvSink btif_av_sink;
   case BTA_AV_META_MSG_EVT:        \
   case BTA_AV_RC_FEAT_EVT:         \
   case BTA_AV_RC_PSM_EVT:          \
-  case BTA_AV_REMOTE_RSP_EVT: {    \
+  case BTA_AV_REMOTE_RSP_EVT:      \
+  case BTA_AV_RC_VER_EVT: {        \
     btif_rc_handler(e, d);         \
   } break;
 
@@ -761,6 +783,7 @@ const char* dump_av_sm_event_name(btif_av_sm_event_t event) {
     CASE_RETURN_STR(BTIF_AV_AVRCP_OPEN_EVT)
     CASE_RETURN_STR(BTIF_AV_AVRCP_CLOSE_EVT)
     CASE_RETURN_STR(BTIF_AV_AVRCP_REMOTE_PLAY_EVT)
+    CASE_RETURN_STR(BTA_AV_RC_VER_EVT)
     default:
       return "UNKNOWN_EVENT";
   }
@@ -1600,6 +1623,7 @@ bool BtifAvStateMachine::StateIdle::ProcessEvent(uint32_t event, void* p_data) {
     case BTA_AV_RC_FEAT_EVT:
     case BTA_AV_RC_PSM_EVT:
     case BTA_AV_REMOTE_RSP_EVT:
+    case BTA_AV_RC_VER_EVT:
       btif_rc_handler(event, (tBTA_AV*)p_data);
       break;
 
@@ -1708,6 +1732,14 @@ bool BtifAvStateMachine::StateOpening::ProcessEvent(uint32_t event,
         av_state = BtifAvStateMachine::kStateOpened;
         peer_.SetEdr(p_bta_data->open.edr);
         CHECK(peer_.PeerSep() == p_bta_data->open.sep);
+
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+        bool sync = bta_avk_is_avdt_sync(peer_.BtaHandle());
+        peer_.SetSync(sync);
+        if (peer_.IsSync()) {
+          BTIF_TRACE_DEBUG("%s: set sync to TRUE", __func__);
+        }
+#endif
       } else {
         if (btif_rc_is_connected_peer(peer_.PeerAddress())) {
           // Disconnect the AVRCP connection, in case the A2DP connectiton
@@ -1785,6 +1817,10 @@ bool BtifAvStateMachine::StateOpening::ProcessEvent(uint32_t event,
 
     case BTA_AV_CLOSE_EVT:
       btif_a2dp_on_stopped(nullptr);
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+      peer_.SetSync(FALSE);
+      BTIF_TRACE_DEBUG("%s: BTA_AV_CLOSE_EVT", __func__);
+#endif
       btif_report_connection_state(peer_.PeerAddress(),
                                    BTAV_CONNECTION_STATE_DISCONNECTED);
       peer_.StateMachine().TransitionTo(BtifAvStateMachine::kStateIdle);
@@ -2169,6 +2205,13 @@ bool BtifAvStateMachine::StateStarted::ProcessEvent(uint32_t event,
         state = BTAV_AUDIO_STATE_STOPPED;
       }
 
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+      /* clear delay record array when stream suspended */
+      BTIF_TRACE_DEBUG("%s: clear delay record array when stream suspended", __func__);
+      delay_record_idx = 0;
+      average_delay = 0;
+      memset(delay_record, 0, sizeof(int64_t) * DELAY_RECORD_COUNT);
+#endif
       btif_report_audio_state(peer_.PeerAddress(), state);
       // Suspend completed, clear local pending flags while entering Opened
       peer_.StateMachine().TransitionTo(BtifAvStateMachine::kStateOpened);
@@ -2691,6 +2734,11 @@ static void btif_av_handle_bta_av_event(uint8_t peer_sep,
     case BTA_AV_RC_PSM_EVT: {
       const tBTA_AV_RC_PSM& rc_psm = p_data->rc_cover_art_psm;
       peer_address = rc_psm.peer_addr;
+      break;
+    }
+    case BTA_AV_RC_VER_EVT: {
+      const tBTA_AV_RC_VER& peer_rc_version = p_data->peer_rc_version;
+      peer_address = peer_rc_version.peer_addr;
       break;
     }
   }
@@ -3222,21 +3270,38 @@ bt_status_t btif_av_source_execute_service(bool enable) {
 bt_status_t btif_av_sink_execute_service(bool enable) {
   BTIF_TRACE_EVENT("%s: Sink service: %s", __func__,
                    (enable) ? "enable" : "disable");
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+  char value[PROPERTY_VALUE_MAX] = {'\0'};
+  tBTA_AV_FEAT feat_delay_rpt = 0;
+#endif
 
   if (enable) {
     // Added BTA_AV_FEAT_NO_SCO_SSPD - this ensures that the BTA does not
     // auto-suspend AV streaming on AG events (SCO or Call). The suspend shall
     // be initiated by the app/audioflinger layers.
+
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+    osi_property_get("persist.bt.a2dp_sink.enable_delay_report", value, "true");
+    if (strcmp(value, "true") == 0) {
+      BTIF_TRACE_EVENT("%s: delay report enabled for sink", __func__);
+      feat_delay_rpt = BTA_AV_FEAT_DELAY_RPT;
+    }
+#endif
+
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+    tBTA_AV_FEAT features = BTA_AV_FEAT_NO_SCO_SSPD | BTA_AV_FEAT_RCCT |
+                            BTA_AV_FEAT_METADATA | BTA_AV_FEAT_VENDOR |
+                            BTA_AV_FEAT_ADV_CTRL | BTA_AV_FEAT_RCTG |
+                            BTA_AV_FEAT_BROWSE | BTA_AV_FEAT_COVER_ARTWORK |
+                            feat_delay_rpt;
+#else
     tBTA_AV_FEAT features = BTA_AV_FEAT_NO_SCO_SSPD | BTA_AV_FEAT_RCCT |
                             BTA_AV_FEAT_METADATA | BTA_AV_FEAT_VENDOR |
                             BTA_AV_FEAT_ADV_CTRL | BTA_AV_FEAT_RCTG |
                             BTA_AV_FEAT_BROWSE | BTA_AV_FEAT_COVER_ARTWORK;
-
-    if (delay_reporting_enabled()) {
-      features |= BTA_AV_FEAT_DELAY_RPT;
-    }
-
+#endif
     BTA_AvEnable(features, bta_av_sink_callback);
+
     btif_av_sink.RegisterAllBtaHandles();
     return BT_STATUS_SUCCESS;
   }
@@ -3479,3 +3544,69 @@ bool btif_av_is_peer_silenced(const RawAddress& peer_address) {
 void btif_av_set_dynamic_audio_buffer_size(uint8_t dynamic_audio_buffer_size) {
   btif_a2dp_source_set_dynamic_audio_buffer_size(dynamic_audio_buffer_size);
 }
+
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+/*******************************************************************************
+**
+** Function         btif_update_reported_delay
+**
+** Description      Count average packet delay (include buffering, decoding,
+**                  rending delay)
+**
+** Returns          delay value (nanosencond)
+*******************************************************************************/
+uint64_t btif_update_reported_delay(uint64_t inst_delay) {
+  average_delay = 0;
+  if (delay_record_idx >= DELAY_RECORD_COUNT)
+    delay_record_idx = 0;
+  delay_record[delay_record_idx++] = inst_delay +
+    ((get_audiotrack_latency() + MISC_RENDERING_DELAY) * 1000000);
+
+  int64_t sum_delay = 0; int i = 0; int count = 0;
+  for (; i < DELAY_RECORD_COUNT; i++) {
+    if (delay_record[i] > 0) {
+      sum_delay += delay_record[i];
+      count++;
+    }
+    else
+      break;
+  }
+
+  average_delay = (sum_delay / count);
+  BTIF_TRACE_DEBUG("%s: ~~inst_delay = [%09llu](ns) average_delay = [%09llu](ns),Delay records = %d",
+                    __func__,inst_delay, average_delay, count);
+  return average_delay;
+}
+
+/*******************************************************************************
+**
+** Function         btif_is_sink_delay_report_supported
+**
+** Description      check if the connected a2dp device supports
+**                  delay reporting.
+**
+** Returns          bool
+*******************************************************************************/
+bool btif_is_sink_delay_report_supported() {
+  BTIF_TRACE_DEBUG("%s:", __func__);
+  BtifAvPeer* peer = btif_av_sink_find_peer(btif_av_sink.ActivePeer());
+  if (peer != nullptr) {
+    bool sync = peer->IsSync();
+    BTIF_TRACE_DEBUG("%s: sync: %d", __func__, sync);
+    return sync;
+  }
+  return FALSE;
+}
+
+/*******************************************************************************
+**
+** Function         btif_get_average_delay
+**
+** Description      Returns average of instantaneous delay values
+**
+** Returns          int64_t
+*******************************************************************************/
+int64_t btif_get_average_delay() {
+  return average_delay;
+}
+#endif

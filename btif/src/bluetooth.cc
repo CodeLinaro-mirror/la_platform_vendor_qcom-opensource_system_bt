@@ -334,6 +334,18 @@ static int generate_local_oob_data(tBT_TRANSPORT transport) {
       FROM_HERE, base::BindOnce(btif_dm_generate_local_oob_data, transport));
 }
 
+static int load_remote_oob_data(const RawAddress* bd_addr, int transport,
+                                const bt_oob_data_t* p192_data,
+                                const bt_oob_data_t* p256_data) {
+  if (!interface_ready()) return BT_STATUS_NOT_READY;
+  if (btif_dm_pairing_is_busy()) return BT_STATUS_BUSY;
+
+  do_in_main_thread(FROM_HERE,
+                    base::BindOnce(btif_dm_load_remote_oob_data, *bd_addr,
+                                   transport, *p192_data, *p256_data));
+  return BT_STATUS_SUCCESS;
+}
+
 static int cancel_bond(const RawAddress* bd_addr) {
   if (!interface_ready()) return BT_STATUS_NOT_READY;
 
@@ -381,6 +393,13 @@ static int read_energy_info() {
   if (!interface_ready()) return BT_STATUS_NOT_READY;
 
   do_in_main_thread(FROM_HERE, base::BindOnce(btif_dm_read_energy_info));
+  return BT_STATUS_SUCCESS;
+}
+
+static int get_rssi(const RawAddress* bd_addr, int transport) {
+  if (!interface_ready()) return BT_STATUS_NOT_READY;
+
+  do_in_main_thread(FROM_HERE, base::BindOnce(btif_dm_get_rssi, *bd_addr, transport));
   return BT_STATUS_SUCCESS;
 }
 
@@ -575,6 +594,11 @@ static int set_dynamic_audio_buffer_size(int codec, int size) {
   return btif_set_dynamic_audio_buffer_size(codec, size);
 }
 
+static void get_link_key(const RawAddress *bd_addr){
+  LOG_INFO("%s", __func__);
+  btif_dm_get_link_key(bd_addr);
+}
+
 EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     sizeof(bluetoothInterface),
     init,
@@ -593,6 +617,7 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     cancel_discovery,
     create_bond,
     create_bond_out_of_band,
+    get_link_key,
     remove_bond,
     cancel_bond,
     get_connection_state,
@@ -613,7 +638,9 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     obfuscate_address,
     get_metric_id,
     set_dynamic_audio_buffer_size,
-    generate_local_oob_data};
+    generate_local_oob_data,
+    load_remote_oob_data,
+    get_rssi};
 
 // callback reporting helpers
 
@@ -740,8 +767,8 @@ void invoke_ssp_request_cb(RawAddress bd_addr, bt_bdname_t bd_name,
 }
 
 void invoke_oob_data_request_cb(tBT_TRANSPORT t, bool valid, Octet16 c,
-                                Octet16 r, RawAddress raw_address,
-                                uint8_t address_type) {
+                                Octet16 r, Octet16 c_ext, Octet16 r_ext,
+                                RawAddress raw_address, uint8_t address_type) {
   LOG_INFO("%s", __func__);
   bt_oob_data_t oob_data = {};
   char* local_name;
@@ -766,12 +793,20 @@ void invoke_oob_data_request_cb(tBT_TRANSPORT t, bool valid, Octet16 c,
     oob_data.c[i] = c[i];
     // R is optional and may be empty
     oob_data.r[i] = r[i];
+    oob_data.c_ext[i] = c_ext[i];
+    oob_data.r_ext[i] = r_ext[i];
   }
   oob_data.is_valid = valid && !c_empty;
   // The oob_data_length is 2 octects in length.  The value includes the length
   // of itself. 16 + 16 + 2 = 34 Data 0x0022 Little Endian order 0x2200
+  // If P192 and P256 both exsist, the length is  16 + 16 +16 + 16 + 2 = 66
   oob_data.oob_data_length[0] = 0;
-  oob_data.oob_data_length[1] = 34;
+  uint8_t zero[16] = {0};
+  if (memcmp(zero, oob_data.c_ext, sizeof(oob_data.c_ext)) &&
+        memcmp(zero, oob_data.r_ext, sizeof(oob_data.r_ext)))
+    oob_data.oob_data_length[1] = 66;
+  else
+    oob_data.oob_data_length[1] = 34;
   bt_status_t status = do_in_jni_thread(
       FROM_HERE, base::BindOnce(
                      [](tBT_TRANSPORT t, bt_oob_data_t oob_data) {
@@ -797,16 +832,17 @@ void invoke_bond_state_changed_cb(bt_status_t status, RawAddress bd_addr,
 }
 
 void invoke_acl_state_changed_cb(bt_status_t status, RawAddress bd_addr,
-                                 bt_acl_state_t state, bt_hci_error_code_t hci_reason) {
+                                 bt_acl_state_t state, bt_hci_error_code_t hci_reason,
+                                 tBT_TRANSPORT link_type) {
   do_in_jni_thread(
       FROM_HERE,
       base::BindOnce(
           [](bt_status_t status, RawAddress bd_addr, bt_acl_state_t state,
-             bt_hci_error_code_t hci_reason) {
+             bt_hci_error_code_t hci_reason,tBT_TRANSPORT link_type) {
             HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, status, &bd_addr,
-                      state, hci_reason);
+                      state, hci_reason,link_type);
           },
-          status, bd_addr, state, hci_reason));
+          status, bd_addr, state, hci_reason,link_type));
 }
 
 void invoke_thread_evt_cb(bt_cb_thread_evt event) {
@@ -860,4 +896,18 @@ void invoke_link_quality_report_cb(
           },
           timestamp, report_id, rssi, snr, retransmission_count,
           packets_not_receive_count, negative_acknowledgement_count));
+}
+
+void invoke_get_linkkey_cb(
+    RawAddress* remote_bd_addr, bool key_found,
+    int key_type, Link_Key link_key) {
+  do_in_jni_thread(
+      FROM_HERE,
+      base::BindOnce(
+          [](RawAddress* remote_bd_addr,
+             bool key_found, int key_type, Link_Key link_key) {
+            HAL_CBACK(bt_hal_cbacks, get_link_key_cb,
+                      remote_bd_addr, key_found, link_key, key_type);
+          },
+          remote_bd_addr, key_found, key_type, link_key));
 }
