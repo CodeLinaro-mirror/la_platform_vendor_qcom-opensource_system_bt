@@ -828,3 +828,16 @@ void btm_sec_cr_loc_oob_data_cback_event(const RawAddress& address,
 
 // Return DEV_CLASS (uint8_t[3]) of bda. If record doesn't exist, create one.
 const uint8_t* btm_get_dev_class(const RawAddress& bda);
+
+/*******************************************************************************
+ *
+ * Function         btm_sec_role_changed
+ *
+ * Description      This function is called when receiving an HCI role change
+ *                  event
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btm_sec_role_changed(uint8_t hci_status, const RawAddress& bd_addr,
+                                         uint8_t new_role);
