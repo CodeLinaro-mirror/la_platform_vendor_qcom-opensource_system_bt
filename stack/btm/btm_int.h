@@ -242,6 +242,8 @@ extern void btm_sec_connected(const RawAddress& bda, uint16_t handle,
                               uint8_t status, uint8_t enc_mode);
 extern tBTM_STATUS btm_sec_disconnect(uint16_t handle, uint8_t reason);
 extern void btm_sec_disconnected(uint16_t handle, uint8_t reason);
+extern void btm_sec_role_changed(uint8_t hci_status, const RawAddress& bd_addr,
+                          uint8_t new_role);
 extern void btm_sec_rmt_name_request_complete(const RawAddress* bd_addr,
                                               uint8_t* bd_name, uint8_t status);
 extern void btm_sec_rmt_host_support_feat_evt(uint8_t* p);
