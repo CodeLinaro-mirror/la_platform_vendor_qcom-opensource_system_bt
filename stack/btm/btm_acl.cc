@@ -1535,6 +1535,7 @@ void btm_acl_role_changed(uint8_t hci_status, const RawAddress* bd_addr,
 
   /* if role switch complete is needed, report it now */
   btm_acl_report_role_change(hci_status, bd_addr);
+  btm_sec_role_changed(hci_status, *bd_addr, new_role);
 
   /* if role change event is registered, report it now */
   if (btm_cb.p_bl_changed_cb && (btm_cb.bl_evt_mask & BTM_BL_ROLE_CHG_MASK)) {
