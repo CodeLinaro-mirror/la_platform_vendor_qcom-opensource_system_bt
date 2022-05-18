@@ -1,4 +1,4 @@
-/******************************************************************************
+/*****************************************************************************************
  *
  *  Copyright 1999-2012 Broadcom Corporation
  *
@@ -14,16 +14,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- ******************************************************************************/
-
-/******************************************************************************
+ *  Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  *
- *  Changes from Qualcomm Innovation Center are provided under the following license:
- *
- *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *  SPDX-License-Identifier: BSD-3-Clause-Clear
  *
- ******************************************************************************/
+ *****************************************************************************************/
 
 /******************************************************************************
  *
@@ -3300,6 +3296,13 @@ void btm_sec_auth_complete(uint16_t handle, tHCI_STATUS status) {
           // indicate that this is encryption after authentication
           BTM_SetEncryption(p_dev_rec->bd_addr, BT_TRANSPORT_BR_EDR, NULL, NULL,
                             BTM_BLE_SEC_NONE);
+        } else if (p_dev_rec->is_originator) {
+          // Encryption will be set in role_changed callback
+          BTM_TRACE_DEBUG(
+              "%s auth completed in role=slave, try to switch role and "
+              "encrypt",
+              __func__);
+          BTM_SwitchRoleToCentral(p_dev_rec->bd_addr);
         }
       }
       l2cu_start_post_bond_timer(p_dev_rec->hci_handle);
@@ -3924,6 +3927,32 @@ void btm_sec_disconnected(uint16_t handle, tHCI_REASON reason) {
     LOG_DEBUG("Cleaned up pending security state device:%s transport:%s",
               PRIVATE_ADDRESS(p_dev_rec->bd_addr),
               bt_transport_text(transport).c_str());
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         btm_sec_role_changed
+ *
+ * Description      This function is called when receiving an HCI role change
+ *                  event
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btm_sec_role_changed(uint8_t hci_status, const RawAddress& bd_addr,
+                          uint8_t new_role) {
+  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
+
+  if (p_dev_rec == nullptr || hci_status != HCI_SUCCESS) {
+    return;
+  }
+  if (new_role == HCI_ROLE_CENTRAL && btm_dev_authenticated(p_dev_rec) &&
+      !btm_dev_encrypted(p_dev_rec)) {
+    BTM_TRACE_DEBUG("%s: start encryption after role switched to master",
+                  __func__);
+    BTM_SetEncryption(p_dev_rec->bd_addr, BT_TRANSPORT_BR_EDR, NULL, NULL,
+                      BTM_BLE_SEC_NONE);
   }
 }
 

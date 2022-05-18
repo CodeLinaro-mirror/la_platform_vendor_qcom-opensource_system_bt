@@ -1,4 +1,4 @@
-/******************************************************************************
+/*****************************************************************************************
  *
  *  Copyright 2000-2012 Broadcom Corporation
  *
@@ -14,7 +14,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- ******************************************************************************/
+ *  Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ *
+ *  Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ *****************************************************************************************/
 
 /*****************************************************************************
  *
@@ -1458,6 +1463,7 @@ void StackAclBtmAcl::btm_acl_role_changed(tHCI_STATUS hci_status,
   }
 
   BTA_dm_report_role_change(bd_addr, new_role, hci_status);
+  btm_sec_role_changed(hci_status, bd_addr, new_role);
 
   /* If a disconnect is pending, issue it now that role switch has completed */
   if (p_acl->rs_disc_pending == BTM_SEC_DISC_PENDING) {

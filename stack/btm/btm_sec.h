@@ -1,4 +1,4 @@
-/******************************************************************************
+/*****************************************************************************************
  *
  *  Copyright 1999-2012 Broadcom Corporation
  *
@@ -14,7 +14,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- ******************************************************************************/
+ *  Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ *
+ *  Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ *****************************************************************************************/
 
 /******************************************************************************
  *
@@ -828,3 +833,16 @@ void btm_sec_cr_loc_oob_data_cback_event(const RawAddress& address,
 
 // Return DEV_CLASS (uint8_t[3]) of bda. If record doesn't exist, create one.
 const uint8_t* btm_get_dev_class(const RawAddress& bda);
+
+/*******************************************************************************
+ *
+ * Function         btm_sec_role_changed
+ *
+ * Description      This function is called when receiving an HCI role change
+ *                  event
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btm_sec_role_changed(uint8_t hci_status, const RawAddress& bd_addr,
+                                         uint8_t new_role);
