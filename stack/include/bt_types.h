@@ -82,9 +82,10 @@
 /* HCI command from upper layer     */
 #define BT_EVT_TO_BTU_HCI_CMD 0x1600
 
+//#ifdef BT_LPM_SUPPORTED
 /* LPM Profile.Error              */
 #define BT_EVT_TO_LPM_HCI_ERR 0x1700
-
+//#endif
 /* L2CAP segment(s) transmitted     */
 #define BT_EVT_TO_BTU_L2C_SEG_XMIT 0x1900
 

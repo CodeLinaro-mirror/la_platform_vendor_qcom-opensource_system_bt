@@ -37,6 +37,8 @@
 #include "stack/btm/btm_int.h"
 #include "stack/include/btu.h"
 #include "stack/l2cap/l2c_int.h"
+#include "stack/lpm/lpm_int.h"
+#include "bt_types.h"
 
 static const int THREAD_RT_PRIORITY = 1;
 
@@ -76,6 +78,12 @@ void btu_hci_msg_process(BT_HDR* p_msg) {
     case BT_EVT_TO_BTU_HCI_CMD:
       btu_hcif_send_cmd((uint8_t)(p_msg->event & BT_SUB_EVT_MASK), p_msg);
       break;
+
+#ifdef BT_LPM_SUPPORTED
+    case BT_EVT_TO_LPM_HCI_ERR:
+      btu_inform_lpm_profile();
+      break;
+#endif
 
     default:
       osi_free(p_msg);

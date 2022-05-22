@@ -124,6 +124,10 @@ static std::recursive_mutex commands_pending_response_mutex;
 // The hand-off point for data going to a higher layer, set by the higher layer
 static base::Callback<void(const base::Location&, BT_HDR*)>
     send_data_upwards;
+#ifdef BT_LPM_SUPPORTED
+//Flow off flag
+static bool flow_off_flag;
+#endif
 
 static bool filter_incoming_event(BT_HDR* packet);
 static waiting_command_t* get_waiting_command(command_opcode_t opcode);
@@ -147,6 +151,21 @@ static void fragmenter_transmit_finished(BT_HDR* packet,
 
 static const packet_fragmenter_callbacks_t packet_fragmenter_callbacks = {
     transmit_fragment, dispatch_reassembled, fragmenter_transmit_finished};
+
+#ifdef BT_LPM_SUPPORTED
+void send_packet_after_flow_off(const base::Location& from_here) {
+    LOG_DEBUG(LOG_TAG, "%s", __func__);
+    size_t packet_size = BT_HDR_SIZE;
+    BT_HDR* packet =
+        reinterpret_cast<BT_HDR*>(buffer_allocator->alloc(packet_size));
+    packet->offset = 0;
+    packet->len = 0;
+    packet->layer_specific = 0;
+    packet->event = BT_EVT_TO_LPM_HCI_ERR;
+
+    send_data_upwards.Run(from_here, packet);
+}
+#endif
 
 void initialization_complete() {
   std::lock_guard<std::mutex> lock(message_loop_mutex);
@@ -358,6 +377,27 @@ static void transmit_command(BT_HDR* command,
   // in case the upper layer didn't already
   command->event = MSG_STACK_TO_HC_HCI_CMD;
 
+#ifdef BT_LPM_SUPPORTED
+  //If command is flow on or off set flow_off_flag
+  if(wait_entry->opcode == (HCI_GRP_VENDOR_SPECIFIC | HCI_BLE_LPM_PREPARE_OFFLOAD_OPCODE)) {
+    uint8_t flow_flag;
+    stream++;
+    STREAM_TO_UINT8(flow_flag,stream);
+    if (flow_flag) {
+      flow_off_flag = true;
+    } else {
+      flow_off_flag = false;
+      return;
+    }
+  } else if(wait_entry->opcode == (HCI_GRP_VENDOR_SPECIFIC | HCI_BLE_LPM_VSC_OPCODE)) {
+    uint8_t sub_cmd;
+    stream++;
+    STREAM_TO_UINT8(sub_cmd, stream);
+    if ((sub_cmd == HCI_BLE_FLOW_ON_SUB_OPCODE) || (sub_cmd == HCI_BLE_LPM_EXIT_SUB_OPCODE))
+      flow_off_flag = false;
+  }
+#endif
+
   enqueue_command(wait_entry);
 }
 
@@ -427,7 +467,19 @@ static void enqueue_command(waiting_command_t* wait_entry) {
   base::Closure callback = base::Bind(&event_command_ready, wait_entry);
 
   std::lock_guard<std::mutex> command_credits_lock(command_credits_mutex);
+
+#ifdef BT_LPM_SUPPORTED
+  if (flow_off_flag && (wait_entry->opcode !=
+       (HCI_GRP_VENDOR_SPECIFIC | HCI_BLE_LPM_VSC_OPCODE))
+       && (wait_entry->opcode != (HCI_GRP_VENDOR_SPECIFIC
+       | HCI_BLE_LPM_PREPARE_OFFLOAD_OPCODE))) {
+    LOG_DEBUG(LOG_TAG,"%s Inform LPM about packet during flow off", __func__);
+    command_queue.push(std::move(callback));
+    send_packet_after_flow_off(FROM_HERE);
+  } else if (command_credits > 0) {
+#else
   if (command_credits > 0) {
+#endif
     std::lock_guard<std::mutex> message_loop_lock(message_loop_mutex);
     if (message_loop_ == nullptr) {
       // HCI Layer was shut down
@@ -600,7 +652,11 @@ void process_command_credits(int credits) {
   // Subtract commands in flight.
   command_credits = credits - get_num_waiting_commands();
 
+#ifdef BT_LPM_SUPPORTED
+  while (command_credits > 0 && command_queue.size() > 0 && !flow_off_flag) {
+#else
   while (command_credits > 0 && command_queue.size() > 0) {
+#endif
     message_loop_->task_runner()->PostTask(FROM_HERE,
                                            std::move(command_queue.front()));
     command_queue.pop();
