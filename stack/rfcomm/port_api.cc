@@ -227,7 +227,7 @@ int RFCOMM_CreateConnection(uint16_t uuid, uint8_t scn, bool is_server,
 
   /* If this is not initiator of the connection need to just wait */
   if (p_port->is_server) {
-    RFCOMM_TRACE_API("RFCOMM_CreateConnection() copying parameters is_server");
+    RFCOMM_TRACE_API("RFCOMM_CreateConnection() address %s, mtu %d, local_cred %d, remote_cred %d, dlci %d, scn %d, is_server %d ",p_port->bd_addr.ToString().c_str(), p_port->mtu, p_port->credit_tx, p_port->credit_rx, p_port->dlci, p_port->scn, p_port->is_server);
     LPM_CopyPortInfo(p_port);
     return (PORT_SUCCESS);
   }
@@ -259,7 +259,7 @@ int RFCOMM_RemoveConnection(uint16_t handle) {
   if (!p_port->in_use ||
       (p_port->state == PORT_STATE_CLOSED) ||
       (p_port->state == PORT_STATE_CLOSING)) {
-    RFCOMM_TRACE_ERROR("RFCOMM_RemoveConnection handle:%d, port state %d", handle,p_port->state);
+    RFCOMM_TRACE_ERROR("RFCOMM_RemoveConnection handle:%d, port state %d, dlci %d", handle,p_port->state, p_port->dlci);
     return (PORT_SUCCESS);
   }
 

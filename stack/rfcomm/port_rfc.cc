@@ -96,7 +96,7 @@ int port_open_continue(tPORT* p_port) {
         "port_open_continue: mx state(%d) mx channel is openning",
         p_mcb->state);
   }
-  RFCOMM_TRACE_API("port_open_continue: copying parameters");
+  RFCOMM_TRACE_API("port_open_continue: copying parameters address %s, mtu %d, local_cred %d, remote_cred %d, dlci %d, scn = %d, is_server =%d",p_port->bd_addr.ToString().c_str(), p_port->mtu, p_port->credit_tx, p_port->credit_rx, p_port->dlci, p_port->scn, p_port->is_server);
   LPM_CopyPortInfo(p_port);
   return (PORT_SUCCESS);
 }
@@ -151,6 +151,7 @@ void port_start_close(tPORT* p_port) {
   tRFC_MCB* p_mcb = p_port->rfc.p_mcb;
   uint8_t old_signals;
   uint32_t events = 0;
+  RFCOMM_TRACE_DEBUG("port_start_close , dlci:%d , p_port:%p", p_port->dlci, p_port);
 
   /* At first indicate to the user that signals on the connection were dropped
    */
@@ -201,7 +202,10 @@ void PORT_StartCnf(tRFC_MCB* p_mcb, uint16_t result) {
   RFCOMM_TRACE_EVENT("PORT_StartCnf result:%d", result);
 
   p_port = &rfc_cb.port.port[0];
+  RFCOMM_TRACE_DEBUG("Copying multiplexer channel, dlci:%d , p_port:%p", p_port->dlci, p_port);
+  LPM_CopyPortInfo(p_port);
   for (i = 0; i < MAX_RFC_PORTS; i++, p_port++) {
+
     if (p_port->rfc.p_mcb == p_mcb) {
       no_ports_up = false;
 
@@ -350,6 +354,9 @@ void PORT_ParNegInd(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu, uint8_t cl,
   }
   RFCOMM_TRACE_WARNING("PORT_ParNegCnf incoming conn on dlci:%d start timer ",
                         dlci);
+  RFCOMM_TRACE_API("PORT_ParNegCnf incoming conn: copying parameters address %s, mtu %d, local_cred %d, remote_cred %d, dlci %d, scn = %d, is_server =%d",p_port->bd_addr.ToString().c_str(), p_port->mtu, p_port->credit_tx, p_port->credit_rx, p_port->dlci, p_port->scn, p_port->is_server);
+  LPM_CopyPortInfo(p_port);
+
   rfc_timer_start(p_mcb, RFC_MCB_INIT_INACT_TIMER);
   RFCOMM_ParNegRsp(p_mcb, dlci, p_port->mtu, our_cl, our_k);
 }
