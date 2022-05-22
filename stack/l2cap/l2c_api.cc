@@ -2858,3 +2858,14 @@ void L2CA_setLpmFlowoff (bool flag)
    LPM_CopyL2CAPCredits(credits);
    return;
 }
+
+void L2CA_updateLpmFlowoffCredits(bool flag, tL2CAP_credits credits) {
+      L2CAP_TRACE_DEBUG("%s flag: %d ", __func__, flag);
+      L2CAP_TRACE_DEBUG("%s xmit window : %d ", __func__, credits.controller_xmit_window);
+      L2CAP_TRACE_DEBUG("%s le xmit window : %d ", __func__,
+                                      credits.controller_le_xmit_window);
+      lpm_flow_off_flag = flag;
+      l2cb.controller_xmit_window = credits.controller_xmit_window;
+      l2cb.controller_le_xmit_window = credits.controller_le_xmit_window;
+      return;
+}

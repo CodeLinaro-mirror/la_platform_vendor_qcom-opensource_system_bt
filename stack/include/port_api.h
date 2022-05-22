@@ -682,4 +682,5 @@ extern const char* PORT_GetResultString(const uint8_t result_code);
  ******************************************************************************/
 extern int PORT_GetStateBySCN(const RawAddress& bd_addr, uint32_t scn_id, bool is_server);
 
+extern void RFCOMM_UpdatePortInfo(void* port_info);
 #endif /* PORT_API_H */
