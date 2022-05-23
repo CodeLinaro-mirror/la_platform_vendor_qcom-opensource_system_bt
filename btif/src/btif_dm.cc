@@ -2502,6 +2502,22 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
   btif_dm_data_free(event, p_data);
 }
 
+#ifdef BT_LPM_SUPPORTED
+/*******************************************************************************
+ *
+ * Function         btif_get_num_active_links
+ *
+ * Description      Gets total number of active links
+ *
+ * Returns          number of active links
+ *
+ ******************************************************************************/
+uint16_t btif_get_num_active_links(void) {
+    uint16_t total_active_links = num_active_br_edr_links + num_active_le_links;
+    BTIF_TRACE_WARNING("btif_get_num_active_links: Total active links (%d)", total_active_links);
+    return total_active_links;
+}
+#endif /* BT_LPM_SUPPORTED */
 /*******************************************************************************
  *
  * Function         btif_dm_generic_evt
