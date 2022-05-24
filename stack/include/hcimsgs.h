@@ -209,6 +209,7 @@ struct Interface {
   void (*ReadSimplePairingMode)();
   void (*WriteSimplePairingMode)();
   void (*ReadLocalOobData)();
+  void (*ReadLocalOobExtendData)();
   void (*ReadInquiryResponseTransmitPowerLevel)();
   void (*WriteInquiryTransmitPowerLevel)();
   void (*EnhancedFlush)(uint16_t handle, uint8_t packet_type);
@@ -383,6 +384,7 @@ extern void btsnd_hcic_io_cap_req_neg_reply(const RawAddress& bd_addr,
                                             uint8_t err_code);
 /* Read Local OOB Data */
 extern void btsnd_hcic_read_local_oob_data(void);
+extern void btsnd_hcic_read_local_oob_ext_data(void);
 
 extern void btsnd_hcic_user_conf_reply(const RawAddress& bd_addr, bool is_yes);
 
@@ -394,6 +396,11 @@ extern void btsnd_hcic_user_passkey_neg_reply(const RawAddress& bd_addr);
 /* Remote OOB Data Request Reply */
 extern void btsnd_hcic_rem_oob_reply(const RawAddress& bd_addr,
                                      const Octet16& c, const Octet16& r);
+
+/* Remote OOB extended Data Request Reply */
+extern void btsnd_hcic_rem_oob_ext_reply(const RawAddress& bd_addr,
+                                     const Octet16& c192, const Octet16& r192,
+                                     const Octet16& c256, const Octet16& r256);
 
 /* Remote OOB Data Request Negative Reply */
 extern void btsnd_hcic_rem_oob_neg_reply(const RawAddress& bd_addr);

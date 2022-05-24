@@ -197,6 +197,7 @@ tAVRC_STS avrc_parse_notification_rsp(uint8_t* p_stream, uint16_t len,
       break;
 
     case AVRC_EVT_UIDS_CHANGE:
+      BE_STREAM_TO_UINT16(p_rsp->param.uid_counter, p_stream);
       break;
 
     case AVRC_EVT_TRACK_REACHED_END:
@@ -498,6 +499,18 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
             (uint8_t*)osi_calloc((folder_name->str_len + 1) * sizeof(uint8_t));
         BE_STREAM_TO_ARRAY(p, folder_name->p_str, folder_name->str_len);
       }
+      break;
+    }
+
+    case AVRC_PDU_SEARCH: {
+      tAVRC_SEARCH_RSP* search_rsp = &(p_rsp->search);
+      /* Copyback the PDU */
+      search_rsp->pdu = pdu;
+      BE_STREAM_TO_UINT8(search_rsp->status, p);
+      BE_STREAM_TO_UINT16(search_rsp->uid_counter, p);
+      BE_STREAM_TO_UINT32(search_rsp->num_items, p);
+      min_len += 7;
+      if (pkt_len < min_len) goto browse_length_error;
       break;
     }
 
@@ -841,6 +854,14 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR* p_msg,
       break;
 
     case AVRC_PDU_SET_ADDRESSED_PLAYER:
+      if (len != 1) {
+        AVRC_TRACE_ERROR("%s pdu: %d len %d", __func__, p_result->pdu, len);
+        return AVRC_STS_BAD_CMD;
+      }
+      BE_STREAM_TO_UINT8(p_result->rsp.status, p);
+      break;
+
+    case AVRC_PDU_ADD_TO_NOW_PLAYING:
       if (len != 1) {
         AVRC_TRACE_ERROR("%s pdu: %d len %d", __func__, p_result->pdu, len);
         return AVRC_STS_BAD_CMD;

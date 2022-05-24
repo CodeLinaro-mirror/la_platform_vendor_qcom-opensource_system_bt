@@ -216,8 +216,14 @@ void BTM_PasskeyReqReply(tBTM_STATUS res, const RawAddress& bd_addr,
   mock_function_count_map[__func__]++;
 }
 void BTM_ReadLocalOobData(void) { mock_function_count_map[__func__]++; }
+void BTM_ReadLocalOobExtendData(void) { mock_function_count_map[__func__]++; }
 void BTM_RemoteOobDataReply(tBTM_STATUS res, const RawAddress& bd_addr,
                             const Octet16& c, const Octet16& r) {
+  mock_function_count_map[__func__]++;
+}
+void BTM_RemoteOobExtendedDataReply(tBTM_STATUS res, const RawAddress& bd_addr,
+                            const Octet16& c, const Octet16& r,
+                            const Octet16& c_ext, const Octet16& r_ext) {
   mock_function_count_map[__func__]++;
 }
 void BTM_SetPinType(uint8_t pin_type, PIN_CODE pin_code, uint8_t pin_code_len) {
@@ -239,6 +245,9 @@ void btm_proc_sp_req_evt(tBTM_SP_EVT event, uint8_t* p) {
   mock_function_count_map[__func__]++;
 }
 void btm_read_local_oob_complete(uint8_t* p) {
+  mock_function_count_map[__func__]++;
+}
+void btm_read_local_oob_ext_complete(uint8_t* p) {
   mock_function_count_map[__func__]++;
 }
 void btm_rem_oob_req(uint8_t* p) { mock_function_count_map[__func__]++; }

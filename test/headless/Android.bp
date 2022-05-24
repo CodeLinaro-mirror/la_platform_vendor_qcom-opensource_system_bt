@@ -63,6 +63,8 @@ cc_test {
         "android.system.suspend.control-V1-ndk",
         "android.system.suspend@1.0",
         "libaaudio",
+        "libaudioclient",
+        "framework-permission-aidl-cpp",
         "libbase",
         "libbinder_ndk",
         "libcrypto",

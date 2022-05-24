@@ -819,6 +819,12 @@ void bta_dm_ci_rmt_oob_act(std::unique_ptr<tBTA_DM_CI_RMT_OOB> msg) {
   }
 }
 
+/** respond to the OOB extended data request for the remote device from BTM */
+void bta_dm_ci_rmt_oob_extended_act(std::unique_ptr<tBTA_DM_CI_RMT_OOB_EXTENDED> msg) {
+  BTM_RemoteOobExtendedDataReply(msg->accept ? BTM_SUCCESS : BTM_NOT_AUTHORIZED,
+                                 msg->bd_addr, msg->c192, msg->r192, msg->c256, msg->r256);
+}
+
 /*******************************************************************************
  *
  * Function         bta_dm_search_start
@@ -2272,19 +2278,51 @@ static tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event,
 #ifdef BTIF_DM_OOB_TEST
       btif_dm_proc_loc_oob(BT_TRANSPORT_BR_EDR,
                            (bool)(p_data->loc_oob.status == BTM_SUCCESS),
-                           p_data->loc_oob.c, p_data->loc_oob.r);
+                           p_data->loc_oob.c, p_data->loc_oob.r, {0}, {0});
+#endif
+      break;
+
+    case BTM_SP_LOC_OOB_EXT_EVT:
+#ifdef BTIF_DM_OOB_TEST
+      btif_dm_proc_loc_oob(BT_TRANSPORT_BR_EDR,
+                           (bool)(p_data->loc_oob.status == BTM_SUCCESS),
+                           p_data->loc_oob.c, p_data->loc_oob.r,
+                           p_data->loc_oob.c_ext, p_data->loc_oob.r_ext);
 #endif
       break;
 
     case BTM_SP_RMT_OOB_EVT: {
-      Octet16 c;
-      Octet16 r;
+      Octet16 c192;
+      Octet16 r192;
+      Octet16 c256;
+      Octet16 r256;
       sp_rmt_result = false;
+
+      /* If the device name is not known, save bdaddr and devclass and initiate
+       * a name request */
+      if (p_data->rmt_oob.bd_name[0] == 0) {
+        bta_dm_cb.pin_evt = BTA_DM_SP_RMT_OOB_EVT;
+        bta_dm_cb.pin_bd_addr = p_data->rmt_oob.bd_addr;
+        BTA_COPY_DEVICE_CLASS(bta_dm_cb.pin_dev_class,
+                              p_data->rmt_oob.dev_class);
+        if ((BTM_ReadRemoteDeviceName(p_data->rmt_oob.bd_addr,
+                                      bta_dm_pinname_cback,
+                                      BT_TRANSPORT_BR_EDR)) == BTM_CMD_STARTED)
+          return BTM_CMD_STARTED;
+        APPL_TRACE_WARNING(
+            " bta_dm_sp_cback() -> Failed to start Remote Name Request  ");
+      }
+      sec_event.rmt_oob.bd_addr = p_data->rmt_oob.bd_addr;
+      BTA_COPY_DEVICE_CLASS(sec_event.rmt_oob.dev_class,
+                            p_data->rmt_oob.dev_class);
+      strlcpy((char*)sec_event.rmt_oob.bd_name, (char*)p_data->rmt_oob.bd_name,
+              BD_NAME_LEN);
+      bta_dm_cb.p_sec_cback(BTA_DM_SP_RMT_OOB_EVT, &sec_event);
 #ifdef BTIF_DM_OOB_TEST
-      sp_rmt_result = btif_dm_proc_rmt_oob(p_data->rmt_oob.bd_addr, &c, &r);
+      sp_rmt_result = btif_dm_proc_rmt_oob(p_data->rmt_oob.bd_addr, &c192, &r192, &c256 ,&r256);
 #endif
       BTIF_TRACE_DEBUG("bta_dm_ci_rmt_oob: result=%d", sp_rmt_result);
-      bta_dm_ci_rmt_oob(sp_rmt_result, p_data->rmt_oob.bd_addr, c, r);
+      bta_dm_ci_rmt_oob_extended(sp_rmt_result, p_data->rmt_oob.bd_addr, c192, r192, c256, r256);
       break;
     }
 
@@ -2520,6 +2558,7 @@ static void bta_dm_acl_down(const RawAddress& bd_addr,
     tBTA_DM_SEC conn;
     memset(&conn, 0, sizeof(tBTA_DM_SEC));
     conn.link_down.bd_addr = bd_addr;
+    conn.link_down.link_type = transport;
 
     bta_dm_cb.p_sec_cback(BTA_DM_LINK_DOWN_EVT, &conn);
     if (issue_unpair_cb) bta_dm_cb.p_sec_cback(BTA_DM_DEV_UNPAIRED_EVT, &conn);

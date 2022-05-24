@@ -141,6 +141,14 @@ static const char* dump_hf_client_conn_state(uint16_t event) {
     }                                                                        \
   } while (0)
 
+#define CHECK_BTHF_CLIENT_CALLBACKS()                                     \
+  do {                                                                    \
+    if (bt_hf_client_callbacks == NULL) {                                 \
+      BTIF_TRACE_ERROR("BTHF CLIENT: %s: has been cleaned up", __func__); \
+      return;                                                             \
+    }                                                                     \
+  } while (0)
+
 static btif_hf_client_cb_arr_t btif_hf_client_cb_arr;
 
 /*******************************************************************************
@@ -482,7 +490,7 @@ static bt_status_t dial(UNUSED_ATTR const RawAddress* bd_addr,
 
   CHECK_BTHF_CLIENT_SLC_CONNECTED(cb);
 
-  if (number) {
+  if (number && strlen(number)) {
     BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_ATD, 0, 0, number);
   } else {
     BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_BLDN, 0, 0, NULL);
@@ -839,6 +847,7 @@ static void btif_hf_client_upstreams_evt(uint16_t event, char* p_param) {
   BTIF_TRACE_DEBUG("%s: event=%s (%u)", __func__, dump_hf_client_event(event),
                    event);
 
+  CHECK_BTHF_CLIENT_CALLBACKS();
   switch (event) {
     case BTA_HF_CLIENT_OPEN_EVT:
       if (p_data->open.status == BTA_HF_CLIENT_SUCCESS) {

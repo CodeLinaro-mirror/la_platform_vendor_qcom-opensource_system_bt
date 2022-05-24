@@ -59,4 +59,21 @@ cc_defaults {
         "libutils",
         "libcrypto",
     ],
+    target: {
+        android: {
+            export_shared_lib_headers: [
+                "framework-permission-aidl-cpp",
+            ],
+            header_libs: [
+                "libmedia_headers",
+                "libmediametrics_headers",
+            ],
+            shared_libs: [
+                "framework-permission-aidl-cpp",
+                "libaudioclient",
+                "libbinder",
+                "libfmq",
+            ],
+        },
+    },
 }

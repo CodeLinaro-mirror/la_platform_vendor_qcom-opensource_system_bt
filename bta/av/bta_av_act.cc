@@ -1868,6 +1868,32 @@ uint16_t bta_avk_get_cover_art_psm() {
   return 0x0000;
 }
 
+/******************************************************************************
+ *
+ * Function         bta_avk_get_peer_version
+ *
+ * Description      Get the rc verison associated with the AVRCP Target
+ *
+ * Returns          uint16_t version value
+ *
+ *****************************************************************************/
+uint16_t bta_avk_get_peer_version(uint16_t service_uuid) {
+  APPL_TRACE_DEBUG("%s: service_uuid:x%x", __func__, service_uuid);
+  tSDP_DISC_REC* p_rec = nullptr;
+  tBTA_AV_CB* p_cb = &bta_av_cb;
+  uint16_t peer_rc_version = 0;
+  p_rec = SDP_FindServiceInDb(p_cb->p_disc_db,
+                              service_uuid, p_rec);
+  if (p_rec != NULL &&
+      SDP_FindAttributeInRec(p_rec, ATTR_ID_BT_PROFILE_DESC_LIST) != NULL) {
+    /* get profile version (if failure, version parameter is not updated) */
+    SDP_FindProfileVersionInRec(p_rec, UUID_SERVCLASS_AV_REMOTE_CONTROL,
+                                &peer_rc_version);
+  }
+  APPL_TRACE_DEBUG("%s: peer_rc_version:0x%x", __func__, peer_rc_version);
+  return peer_rc_version;
+}
+
 /*******************************************************************************
  *
  * Function         bta_av_rc_disc_done
@@ -1885,6 +1911,7 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
   uint8_t rc_handle;
   tBTA_AV_FEAT peer_features = 0; /* peer features mask */
   uint16_t cover_art_psm = 0x0000;
+  uint16_t rc_version = 0;
 
   APPL_TRACE_DEBUG("%s: bta_av_rc_disc_done disc:x%x", __func__, p_cb->disc);
   if (!p_cb->disc) {
@@ -1924,6 +1951,8 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
 
     APPL_TRACE_DEBUG("%s: populating rem ctrl target bip psm 0x%x", __func__,
                      cover_art_psm);
+    // Get remote device's version
+    rc_version = bta_avk_get_peer_version(UUID_SERVCLASS_AV_REM_CTRL_TARGET);
   } else
 #endif
       if (p_cb->sdp_a2dp_handle) {
@@ -2004,7 +2033,12 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
        * we still need to send RC feature event. So we need to get BD
        * from Message.  Note that lidx is 1 based not 0 based
        */
-      rc_feat.peer_addr = p_cb->lcb[p_cb->rcb[rc_handle].lidx - 1].addr;
+      uint8_t lcb_index = p_cb->rcb[rc_handle].lidx - 1;
+      if (lcb_index > BTA_AV_NUM_LINKS) {
+        APPL_TRACE_ERROR("%s: incorrect index of LCB 0x%x", __func__, lcb_index);
+        return;
+      }
+      rc_feat.peer_addr = p_cb->lcb[lcb_index].addr;
     } else {
       rc_feat.peer_addr = p_scb->PeerAddress();
     }
@@ -2031,6 +2065,22 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
     bta_av_psm.rc_cover_art_psm = rc_psm;
     (*p_cb->p_cback)(BTA_AV_RC_PSM_EVT, &bta_av_psm);
   }
+  // Send peer AVRCP version
+  APPL_TRACE_DEBUG("%s: Send peer rc version ", __func__);
+  tBTA_AV_RC_VER peer_rc_version;
+  peer_rc_version.rc_handle = rc_handle;
+  peer_rc_version.peer_rc_version = rc_version;
+  if (p_scb == NULL) {
+    peer_rc_version.peer_addr = p_cb->lcb[p_cb->rcb[rc_handle].lidx - 1].addr;
+  } else {
+    peer_rc_version.peer_addr = p_scb->PeerAddress();
+  }
+
+  APPL_TRACE_DEBUG("%s: peer_rc_version = 0x%x", __func__, peer_rc_version.peer_rc_version);
+
+  tBTA_AV bta_av_ver;
+  bta_av_ver.peer_rc_version = peer_rc_version;
+  (*p_cb->p_cback)(BTA_AV_RC_VER_EVT, &bta_av_ver);
 }
 
 /*******************************************************************************

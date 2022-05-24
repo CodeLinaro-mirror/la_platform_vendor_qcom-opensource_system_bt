@@ -107,6 +107,7 @@ struct btm_client_interface_s btm_client_interface = {
             .BTM_ConfirmReqReply = BTM_ConfirmReqReply,
             .BTM_PINCodeReply = BTM_PINCodeReply,
             .BTM_RemoteOobDataReply = BTM_RemoteOobDataReply,
+            .BTM_RemoteOobExtendedDataReply = BTM_RemoteOobExtendedDataReply,
             .BTM_SecAddBleDevice = BTM_SecAddBleDevice,
             .BTM_SecAddBleKey = BTM_SecAddBleKey,
             .BTM_SecAddDevice = BTM_SecAddDevice,

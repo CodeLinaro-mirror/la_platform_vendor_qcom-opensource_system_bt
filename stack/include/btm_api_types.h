@@ -573,6 +573,7 @@ enum {
   BTM_SP_KEY_REQ_EVT,   /* received USER_PASSKEY_REQUEST event */
   BTM_SP_LOC_OOB_EVT,   /* received result for READ_LOCAL_OOB_DATA command */
   BTM_SP_RMT_OOB_EVT,   /* received REMOTE_OOB_DATA_REQUEST event */
+  BTM_SP_LOC_OOB_EXT_EVT,/* received result for READ_LOCAL_OOB_EXTENDED_DATA command */
 };
 typedef uint8_t tBTM_SP_EVT;
 
@@ -706,6 +707,8 @@ typedef struct {
   tBTM_STATUS status; /* */
   Octet16 c;          /* Simple Pairing Hash C */
   Octet16 r;          /* Simple Pairing Randomnizer R */
+  Octet16 c_ext;      /* Simple Pairing Hash C extended*/
+  Octet16 r_ext;      /* Simple Pairing Randomnizer R extended*/
 } tBTM_SP_LOC_OOB;
 
 /* data type for BTM_SP_RMT_OOB_EVT */
@@ -722,6 +725,7 @@ typedef union {
   tBTM_SP_KEY_NOTIF key_notif; /* BTM_SP_KEY_NOTIF_EVT   */
   tBTM_SP_KEY_REQ key_req;     /* BTM_SP_KEY_REQ_EVT     */
   tBTM_SP_LOC_OOB loc_oob;     /* BTM_SP_LOC_OOB_EVT     */
+  tBTM_SP_LOC_OOB loc_oob_ext; /* BTM_SP_LOC_OOB_EXT_EVT */
   tBTM_SP_RMT_OOB rmt_oob;     /* BTM_SP_RMT_OOB_EVT     */
 } tBTM_SP_EVT_DATA;
 

@@ -25,7 +25,9 @@
 #ifndef UNUSED_ATTR
 #define UNUSED_ATTR
 #endif
-
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+int64_t btif_get_average_delay() {return 0;}
+#endif
 // Global trace level referred in the code under test
 uint8_t appl_trace_level = BT_TRACE_LEVEL_VERBOSE;
 

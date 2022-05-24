@@ -140,6 +140,7 @@ static tAVRC_STS avrc_pars_vendor_cmd(tAVRC_MSG_VENDOR* p_msg,
 
   switch (p_result->pdu) {
     case AVRC_PDU_GET_CAPABILITIES: /* 0x10 */
+      if (len == 0) return AVRC_STS_INTERNAL_ERR;
       p_result->get_caps.capability_id = *p++;
       if (!AVRC_IS_VALID_CAP_ID(p_result->get_caps.capability_id))
         status = AVRC_STS_BAD_PARAM;
@@ -559,6 +560,11 @@ static tAVRC_STS avrc_pars_browsing_cmd(tAVRC_MSG_BROWSE* p_msg,
 
       BE_STREAM_TO_UINT16(p_result->search.string.charset_id, p);
       BE_STREAM_TO_UINT16(p_result->search.string.str_len, p);
+      if (p_msg->browse_len - min_len != p_result->search.string.str_len) {
+        AVRC_TRACE_ERROR("%s: browse packet length criteria didn't match,status:%d ",
+                                 __func__, status);
+        return AVRC_STS_BAD_CMD;
+      }
       p_result->search.string.p_str = p_buf;
       if (p_buf) {
         if (p_result->search.string.str_len > buf_len) {

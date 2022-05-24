@@ -139,6 +139,8 @@ cc_library_shared {
                 "android.system.suspend.control-V1-ndk",
                 "android.system.suspend@1.0",
                 "libaaudio",
+                "libaudioclient",
+                "framework-permission-aidl-cpp",
                 "libfmq",
             ],
             required: [
@@ -156,6 +158,8 @@ cc_library_shared {
     required: [
         "bt_did.conf",
         "bt_stack.conf",
+        "libaptX_decoder",
+        "libaptX_HD_decoder",
     ],
     cflags: [
         "-DBUILDCFG",

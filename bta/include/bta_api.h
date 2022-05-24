@@ -198,6 +198,7 @@ typedef uint8_t tBTA_DM_BLE_RSSI_ALERT_TYPE;
   10 /* Simple Pairing User Confirmation request. \
         */
 #define BTA_DM_SP_KEY_NOTIF_EVT 11 /* Simple Pairing Passkey Notification */
+#define BTA_DM_SP_RMT_OOB_EVT 12   /* Simple Pairing Remote OOB Data request. */
 #define BTA_DM_BLE_KEY_EVT 15      /* BLE SMP key event for peer device keys */
 #define BTA_DM_BLE_SEC_REQ_EVT 16  /* BLE SMP security request */
 #define BTA_DM_BLE_PASSKEY_NOTIF_EVT 17 /* SMP passkey notification event */
@@ -303,11 +304,13 @@ typedef struct {
 /* Structure associated with BTA_DM_LINK_UP_EVT */
 typedef struct {
   RawAddress bd_addr; /* BD address peer device. */
+  tBT_TRANSPORT link_type;
 } tBTA_DM_LINK_UP;
 
 /* Structure associated with BTA_DM_LINK_DOWN_EVT */
 typedef struct {
   RawAddress bd_addr; /* BD address peer device. */
+  tBT_TRANSPORT link_type;
 } tBTA_DM_LINK_DOWN;
 
 #define BTA_AUTH_SP_YES                                                       \
