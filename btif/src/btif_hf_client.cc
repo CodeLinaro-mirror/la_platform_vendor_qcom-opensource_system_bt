@@ -724,9 +724,10 @@ static void cleanup(void) {
   BTIF_TRACE_EVENT("%s", __func__);
 
   btif_queue_cleanup(UUID_SERVCLASS_HF_HANDSFREE);
+  btif_disable_service(BTA_HFP_HS_SERVICE_ID);
   if (bt_hf_client_callbacks) {
-    btif_disable_service(BTA_HFP_HS_SERVICE_ID);
-    bt_hf_client_callbacks = NULL;
+    do_in_jni_thread(FROM_HERE,
+                     base::Bind([]() { bt_hf_client_callbacks = nullptr; }));
   }
 }
 
