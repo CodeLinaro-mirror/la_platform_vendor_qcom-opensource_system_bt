@@ -46,6 +46,9 @@
 #include "btif_config.h"
 #include "btif_dm.h"
 #include "btif_gatt.h"
+#ifdef BT_LPM_SUPPORTED
+#include "btif_lpm.h"
+#endif
 #include "btif_gatt_util.h"
 #include "btif_storage.h"
 #include "osi/include/log.h"
