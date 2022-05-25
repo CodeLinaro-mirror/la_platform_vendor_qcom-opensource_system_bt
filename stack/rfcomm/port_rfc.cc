@@ -425,6 +425,10 @@ void PORT_ParNegCnf(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu, uint8_t cl,
 
   if (p_port->state == PORT_STATE_OPENING)
     RFCOMM_DlcEstablishReq(p_mcb, p_port->dlci, p_port->mtu);
+
+  LPM_CopyRfCommCredits(p_port->dlci, p_port->credit_tx, true);
+  LPM_CopyRfCommCredits(p_port->dlci, p_port->credit_rx, false);
+  RFCOMM_TRACE_DEBUG("%s: dlci %d, credit_tx %d, credit_rx %d",__func__, p_port->dlci, p_port->credit_rx, p_port->credit_rx);
 }
 
 /*******************************************************************************

@@ -35,6 +35,7 @@
 #include "port_int.h"
 #include "rfc_int.h"
 #include "rfcdefs.h"
+#include "lpm_api.h"
 
 static const tPORT_STATE default_port_pars = {
     PORT_BAUD_RATE_9600,
@@ -493,6 +494,8 @@ void port_flow_control_peer(tPORT* p_port, bool enable, uint16_t count) {
         p_port->rx.peer_fc = true;
       }
     }
+    LPM_CopyRfCommCredits(p_port->dlci, p_port->credit_rx, false);
+    RFCOMM_TRACE_DEBUG("%s: dlci %d enable %d, count %d credit_rx %d",__func__, p_port->dlci, enable, count, p_port->credit_rx);
   }
   /* else using TS 07.10 flow control */
   else {
