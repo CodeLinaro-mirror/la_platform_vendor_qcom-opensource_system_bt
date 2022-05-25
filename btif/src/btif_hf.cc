@@ -67,6 +67,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <hardware/bt_hf.h>
 #include <log/log.h>
 #include "device/include/interop.h"
+#include "btif_lpm.h"
 
 #include "bta/include/bta_ag_api.h"
 #if (SWB_ENABLED == TRUE)
@@ -674,6 +675,7 @@ static void btif_hf_upstreams_evt(uint16_t event, char* p_param) {
         BTIF_TRACE_DEBUG("%s: Moving the audio_state to CONNECTED for device %s",
                         __FUNCTION__, btif_hf_cb[idx].connected_bda.ToString().c_str());
         btif_hf_cb[idx].audio_state = BTHF_AUDIO_STATE_CONNECTED;
+        btif_lpm_hf_audio_update(BTHF_LPM_AUDIO_STATE_CONNECTED);
         HAL_HF_CBACK(bt_hf_callbacks, AudioStateCallback, BTHF_AUDIO_STATE_CONNECTED,
                   &btif_hf_cb[idx].connected_bda);
       }
@@ -689,6 +691,7 @@ static void btif_hf_upstreams_evt(uint16_t event, char* p_param) {
       }
 #endif
       btif_hf_cb[idx].audio_state = BTHF_AUDIO_STATE_DISCONNECTED;
+      btif_lpm_hf_audio_update(BTHF_LPM_AUDIO_STATE_DISCONNECTED);
 
       // Ignore SCO disconnection event if SLC is already disconnected
       if (btif_hf_cb[idx].state == BTHF_CONNECTION_STATE_SLC_CONNECTED) {
@@ -987,6 +990,7 @@ void btif_in_hf_generic_evt(uint16_t event, char* p_param) {
       BTIF_TRACE_DEBUG("%s: Moving the audio_state to DISCONNECTED for device %s",
                 __FUNCTION__, btif_hf_cb[idx].connected_bda.ToString().c_str());
       btif_hf_cb[idx].audio_state = BTHF_AUDIO_STATE_DISCONNECTED;
+      btif_lpm_hf_audio_update(BTHF_LPM_AUDIO_STATE_DISCONNECTED);
       HAL_HF_CBACK(bt_hf_callbacks, AudioStateCallback, BTHF_AUDIO_STATE_DISCONNECTED,
               &btif_hf_cb[idx].connected_bda);
     } break;
