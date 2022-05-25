@@ -851,7 +851,6 @@ void bta_dm_set_lpm_device_info(tBTA_DM_MSG *p_data) {
   tBT_TRANSPORT transport = BT_TRANSPORT_BR_EDR;
   uint8_t i;
   bool offloaded_device;
-  uint32_t param = PTR_TO_UINT(p_data);
   BTM_SetLPMMode(mode);
 
   if (mode != LPM_TWM)
@@ -870,7 +869,7 @@ void bta_dm_set_lpm_device_info(tBTA_DM_MSG *p_data) {
     }
   }
 
-  if (BTM_GetNumAclLinks() && (param == 0) && (BTM_GetLPMMode() == LPM_TWM)) {
+  if (BTM_GetNumAclLinks() && (BTM_GetLPMMode() == LPM_TWM)) {
     for (i = 0; i < bta_dm_cb.device_list.count; i++) {
       offloaded_device = false;
       for (auto device : offloaded_connections) {
@@ -880,6 +879,7 @@ void bta_dm_set_lpm_device_info(tBTA_DM_MSG *p_data) {
         }
       }
       if (!offloaded_device) {
+        APPL_TRACE_WARNING("%s: Removing acl", __func__);
         transport = bta_dm_cb.device_list.peer_device[i].transport;
         btm_remove_acl(bta_dm_cb.device_list.peer_device[i].peer_bdaddr,
                      transport);
