@@ -675,7 +675,6 @@ static void bta_dm_disable_timer_cback(void* data) {
   uint8_t i;
   tBT_TRANSPORT transport = BT_TRANSPORT_BR_EDR;
   bool trigger_disc = false;
-  bool offloaded_device;
   uint32_t param = PTR_TO_UINT(data);
 
   APPL_TRACE_WARNING("%s trial %u", __func__, param);
@@ -691,24 +690,6 @@ static void bta_dm_disable_timer_cback(void* data) {
       }
     }
   }
-#ifdef BT_LPM_SUPPORTED
-  else if (BTM_GetNumAclLinks() && (param == 0) && BTM_GetLPMMode() == LPM_TWM) {
-    for (i = 0; i < bta_dm_cb.device_list.count; i++) {
-      offloaded_device = false;
-      for (auto device : offloaded_connections) {
-        if (device == bta_dm_cb.device_list.peer_device[i].peer_bdaddr) {
-          offloaded_device = true;
-          break;
-        }
-      }
-      if (!offloaded_device) {
-        transport = bta_dm_cb.device_list.peer_device[i].transport;
-        btm_remove_acl(bta_dm_cb.device_list.peer_device[i].peer_bdaddr,
-                     transport);
-      }
-    }
-  }
-#endif
   else if (BTM_GetNumAclLinks() && (param == 0)) {
     for (i = 0; i < bta_dm_cb.device_list.count; i++) {
       transport = bta_dm_cb.device_list.peer_device[i].transport;
@@ -867,6 +848,10 @@ void bta_dm_reset_pairing_flag(tBTA_DM_MSG *p_data) {
  ******************************************************************************/
 void bta_dm_set_lpm_device_info(tBTA_DM_MSG *p_data) {
   uint8_t mode = p_data->lpm_device_info.lpm_mode;
+  tBT_TRANSPORT transport = BT_TRANSPORT_BR_EDR;
+  uint8_t i;
+  bool offloaded_device;
+  uint32_t param = PTR_TO_UINT(p_data);
   BTM_SetLPMMode(mode);
 
   if (mode != LPM_TWM)
@@ -882,6 +867,23 @@ void bta_dm_set_lpm_device_info(tBTA_DM_MSG *p_data) {
     if (p_dev_rec) {
       /* To avoid disconnect after app deregistration */
       p_dev_rec->sec_state = BTM_SEC_STATE_OFFLOADED;
+    }
+  }
+
+  if (BTM_GetNumAclLinks() && (param == 0) && (BTM_GetLPMMode() == LPM_TWM)) {
+    for (i = 0; i < bta_dm_cb.device_list.count; i++) {
+      offloaded_device = false;
+      for (auto device : offloaded_connections) {
+        if (device == bta_dm_cb.device_list.peer_device[i].peer_bdaddr) {
+          offloaded_device = true;
+          break;
+        }
+      }
+      if (!offloaded_device) {
+        transport = bta_dm_cb.device_list.peer_device[i].transport;
+        btm_remove_acl(bta_dm_cb.device_list.peer_device[i].peer_bdaddr,
+                     transport);
+      }
     }
   }
 }
