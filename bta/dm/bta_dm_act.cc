@@ -1078,8 +1078,11 @@ void bta_dm_remove_device(tBTA_DM_MSG* p_data) {
   if (continue_delete_other_dev && !other_address.IsEmpty())
     bta_dm_process_remove_device(other_address);
 
+  uint32_t num_bond_devices = btif_storage_get_num_bonded_devices();
+    APPL_TRACE_DEBUG("%s: btif_storage_get_num_bonded_devices()  %d ",
+        __func__, num_bond_devices);
   /* Check the length of the paired devices, and if 0 then reset IRK */
-  if (btif_storage_get_num_bonded_devices() < 1) {
+  if (num_bond_devices < 1) {
     LOG(INFO) << "Last paired device removed, resetting IRK";
     btm_ble_reset_id();
   }
