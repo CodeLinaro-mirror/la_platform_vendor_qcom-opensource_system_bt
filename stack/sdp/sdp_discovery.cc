@@ -223,6 +223,12 @@ void sdp_disc_server_rsp(tCONN_CB* p_ccb, BT_HDR* p_msg) {
     return;
   }
 
+  if (p_msg->len < 1) {
+    android_errorWriteLog(0x534e4554, "79883568");
+    sdp_disconnect(p_ccb, SDP_GENERIC_ERROR);
+    return;
+  }
+
   BE_STREAM_TO_UINT8(rsp_pdu, p);
 
   p_msg->len--;
