@@ -33,7 +33,10 @@ Event RegisterNotificationResponse::GetEvent() const {
 uint8_t RegisterNotificationResponse::GetVolume() const {
   CHECK(GetEvent() == Event::VOLUME_CHANGED);
   auto it = begin() + VendorPacket::kMinSize() + static_cast<size_t>(1);
-  return *it;
+  // AVRCP spec v1.6, chapter 6.13.1 Absolute Volume:
+  // The top bit (bit 7) is reserved for future addition (RFA)
+  // Mask the reserved bit
+  return *it & 0x7f;
 }
 
 bool RegisterNotificationResponse::IsValid() const {
