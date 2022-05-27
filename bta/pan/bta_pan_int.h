@@ -165,6 +165,9 @@ extern tBTA_PAN_SCB* bta_pan_scb_alloc(void);
 extern void bta_pan_scb_dealloc(tBTA_PAN_SCB* p_scb);
 extern uint8_t bta_pan_scb_to_idx(tBTA_PAN_SCB* p_scb);
 extern tBTA_PAN_SCB* bta_pan_scb_by_handle(uint16_t handle);
+extern tBTA_PAN_SCB* bta_pan_scb_by_bdaddr(const RawAddress &bd_addr);
+extern bool bta_pan_is_remote_panu_role_active(const RawAddress &bd_addr);
+
 extern bool bta_pan_hdl_event(BT_HDR* p_msg);
 
 /* action functions */

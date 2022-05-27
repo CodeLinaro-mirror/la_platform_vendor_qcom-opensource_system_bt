@@ -824,6 +824,20 @@ void avdt_scb_hdl_suspend_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
       AVDT_SUSPEND_CFM_EVT, (tAVDT_CTRL*)&p_data->msg.hdr);
 }
 
+void avdt_scb_clr_address(RawAddress& peer_addr) {
+  AVDT_TRACE_DEBUG("%s: clearing the scb's address", __func__);
+  tAVDT_SCB       *p_scb = &avdt_cb.scb[0];
+  for (int i = 0; i < AVDT_NUM_SEPS; i++, p_scb++) {
+    if (p_scb->peer_addr == peer_addr) {
+      AVDT_TRACE_DEBUG("%s: pscb address: %s and arg P_scb: %x, index %d",
+                             __func__, p_scb->peer_addr.ToString().c_str(), p_scb, i);
+      memset(&p_scb->peer_addr , 0, sizeof(RawAddress));
+      break;
+     }
+  }
+}
+
+
 /*******************************************************************************
  *
  * Function         avdt_scb_hdl_tc_close
@@ -858,6 +872,10 @@ void avdt_scb_hdl_tc_close(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   avdt_scb_clr_vars(p_scb, p_data);
   p_scb->media_seq = 0;
   p_scb->cong = false;
+  AVDT_TRACE_DEBUG(" %s: ccb address is %s",
+                 __func__, remote_addr.ToString().c_str());
+
+  avdt_scb_clr_address(remote_addr);
 
   /* free pkt we're holding, if any */
   osi_free_and_reset((void**)&p_scb->p_pkt);

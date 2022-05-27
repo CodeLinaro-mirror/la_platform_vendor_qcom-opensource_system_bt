@@ -230,6 +230,10 @@ static bt_status_t btpan_connect(const RawAddress* bd_addr, int local_role,
     BTIF_TRACE_WARNING("%s: connection already present conn->handle: %d remote bd address: %s",
         __func__, conn->handle, bd_addr->ToString().c_str());
     return BT_STATUS_FAIL;
+  } else if(BTA_PANIsRemotePanuRoleActive(*bd_addr)) {
+    BTIF_TRACE_WARNING("%s: connection already present with remote bd address: %s",
+        __func__, bd_addr->ToString().c_str());
+    return BT_STATUS_FAIL;
   }
 
   btpan_new_conn(-1, *bd_addr, bta_local_role, bta_remote_role);
@@ -623,7 +627,7 @@ static void bta_pan_callback_transfer(uint16_t event, char* p_param) {
       bt_status_t status;
       btpan_conn_t* conn;
 
-      LOG_VERBOSE(LOG_TAG, "%s pan connection open status: %d", __func__,
+      BTIF_TRACE_WARNING("%s pan connection open status: %d", __func__,
                   p_data->open.status);
       if (p_data->open.status == BTA_PAN_SUCCESS) {
         state = BTPAN_STATE_CONNECTED;
@@ -647,7 +651,7 @@ static void bta_pan_callback_transfer(uint16_t event, char* p_param) {
       break;
     }
     case BTA_PAN_CLOSE_EVT: {
-      LOG_INFO(LOG_TAG, "%s event = BTA_PAN_CLOSE_EVT handle %d", __func__,
+      BTIF_TRACE_WARNING("%s event = BTA_PAN_CLOSE_EVT handle %d", __func__,
                p_data->close.handle);
       btpan_conn_t* conn = btpan_find_conn_addr(p_data->close.bd_addr);
 

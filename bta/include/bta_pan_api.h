@@ -177,4 +177,16 @@ void BTA_PanOpen(const RawAddress& bd_addr, tBTA_PAN_ROLE local_role,
  ******************************************************************************/
 extern void BTA_PanClose(uint16_t handle);
 
+/*******************************************************************************
+ *
+ * Function         BTA_PANIsRemotePanuRoleActive
+ *
+ * Description      To check, if Remote is already in active PANU role.
+ *
+ *
+ * Returns          bool
+ *
+ ******************************************************************************/
+extern bool BTA_PANIsRemotePanuRoleActive(const RawAddress &bd_addr);
+
 #endif /* BTA_PAN_API_H */

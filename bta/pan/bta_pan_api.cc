@@ -173,6 +173,21 @@ void BTA_PanClose(uint16_t handle) {
 
   bta_sys_sendmsg(p_buf);
 }
+
+/*******************************************************************************
+ *
+ * Function         BTA_PANIsRemotePanuRoleActive
+ *
+ * Description      To check, if Remote is already in active PANU role.
+ *
+ *
+ * Returns          bool
+ *
+ ******************************************************************************/
+bool BTA_PANIsRemotePanuRoleActive(const RawAddress &bd_addr){
+  return bta_pan_is_remote_panu_role_active(bd_addr);
+}
+
 #else
 
 void BTA_PanEnable(UNUSED_ATTR tBTA_PAN_CBACK p_cback) {}
@@ -189,5 +204,5 @@ void BTA_PanOpen(UNUSED_ATTR const RawAddress& bd_addr,
                  UNUSED_ATTR tBTA_PAN_ROLE peer_role) {}
 
 void BTA_PanClose(UNUSED_ATTR uint16_t handle) {}
-
+bool BTA_PANIsRemotePanuRoleActive(const RawAddress &bd_addr){}
 #endif /* BTA_PAN_INCLUDED */
