@@ -14,4 +14,10 @@
  * limitations under the License.
  */
 
+#pragma once
+
 bool is_bluetooth_uid();
+
+int get_adapter_index();
+bool is_default_bluetooth();
+bool create_folder(const char* path_name);

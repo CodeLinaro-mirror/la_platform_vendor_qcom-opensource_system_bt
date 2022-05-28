@@ -43,6 +43,7 @@
 #include "btif_metrics_logging.h"
 #include "common/address_obfuscator.h"
 #include "common/metric_id_allocator.h"
+#include "common/os_utils.h"
 #include "main/shim/config.h"
 #include "main/shim/shim.h"
 #include "osi/include/alarm.h"
@@ -78,10 +79,18 @@ static const char* CONFIG_FILE_PATH = "bt_config.conf";
 static const char* CONFIG_BACKUP_PATH = "bt_config.bak";
 static const char* CONFIG_LEGACY_FILE_PATH = "bt_config.xml";
 #else   // !defined(OS_GENERIC)
-static const char* CONFIG_FILE_PATH = "/data/misc/bluedroid/bt_config.conf";
-static const char* CONFIG_BACKUP_PATH = "/data/misc/bluedroid/bt_config.bak";
-static const char* CONFIG_LEGACY_FILE_PATH =
-    "/data/misc/bluedroid/bt_config.xml";
+#define DEFAULT_CONFIG_FILE_PATH "/data/misc/bluedroid/bt_config.conf"
+#define DEFAULT_CONFIG_BACKUP_PATH "/data/misc/bluedroid/bt_config.bak"
+#define DEFAULT_CONFIG_LEGACY_FILE_PATH "/data/misc/bluedroid/bt_config.xml"
+
+#define NEW_CONFIG_FOLDER "/data/misc/bluedroid/new"
+#define NEW_CONFIG_FILE_PATH "/data/misc/bluedroid/new/bt_config.conf"
+#define NEW_CONFIG_BACKUP_PATH "/data/misc/bluedroid/new/bt_config.bak"
+#define NEW_CONFIG_LEGACY_FILE_PATH "/data/misc/bluedroid/new/bt_config.xml"
+
+static const char* CONFIG_FILE_PATH;
+static const char* CONFIG_BACKUP_PATH;
+static const char* CONFIG_LEGACY_FILE_PATH;
 #endif  // defined(OS_GENERIC)
 static const uint64_t CONFIG_SETTLE_PERIOD_MS = 3000;
 
@@ -248,7 +257,35 @@ static BtifConfigCache btif_config_cache(TEMPORARY_SECTION_CAPACITY);
 
 // Module lifecycle functions
 
+static void init_config_file(void) {
+#ifndef OS_GENERIC
+  bool default_bluetooth = is_default_bluetooth();
+
+  // Create sub-folder to store config file for new Bluetooth
+  if (!default_bluetooth) {
+    if (!create_folder(NEW_CONFIG_FOLDER)) {
+      LOG_ERROR("fail to create folder(%s) for new Bluetooth, error: %d(%s)",
+          NEW_CONFIG_FOLDER, errno, strerror(errno));
+    }
+  }
+
+  CONFIG_FILE_PATH = default_bluetooth ?
+        DEFAULT_CONFIG_FILE_PATH :
+        NEW_CONFIG_FILE_PATH;
+  LOG_INFO("config file path: %s", CONFIG_FILE_PATH);
+
+  CONFIG_BACKUP_PATH = default_bluetooth ?
+        DEFAULT_CONFIG_BACKUP_PATH :
+        NEW_CONFIG_BACKUP_PATH;
+
+  CONFIG_LEGACY_FILE_PATH = default_bluetooth ?
+        DEFAULT_CONFIG_LEGACY_FILE_PATH :
+        NEW_CONFIG_LEGACY_FILE_PATH;
+#endif
+}
+
 static future_t* init(void) {
+  init_config_file();
   if (bluetooth::shim::is_any_gd_enabled()) {
     CHECK(bluetooth::shim::is_gd_stack_started_up());
     // TODO (b/158035889) Migrate metrics module to GD

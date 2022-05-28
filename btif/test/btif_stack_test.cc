@@ -174,6 +174,8 @@ bool is_bluetooth_uid() { return false; }
 bool bta_avk_is_avdt_sync(uint16_t handle) { return false; }
 #endif
 const tBTA_AG_RES_DATA tBTA_AG_RES_DATA::kEmpty = {};
+bool is_default_bluetooth() { return true; }
+bool create_folder(const char* path_name) { return true; }
 
 namespace bluetooth {
 namespace common {

@@ -36,6 +36,7 @@
 #include <base/logging.h>
 
 #include "buffer_allocator.h"
+#include "common/os_utils.h"
 #include "common/stop_watch_legacy.h"
 #include "osi/include/log.h"
 
@@ -77,6 +78,19 @@ std::string GetTimerText(std::string func_name, const hidl_vec<uint8_t>& vec) {
   std::string text = func_name + ": len " + std::to_string(vec.size()) +
                      ", 1st 5 bytes '" + ss.str() + "'";
   return text;
+}
+
+std::string GetHciInstance() {
+  char buf[64];
+  int hci_adapter = get_adapter_index();
+  // 0 -> "default" (default bluetooth adapter)
+  // 1 -> "hci1" (new bluetooth adapter)
+  if (hci_adapter > 0) {
+    snprintf(buf, sizeof(buf), "hci%d", hci_adapter);
+  } else {
+    snprintf(buf, sizeof(buf), "default");
+  }
+  return std::string(buf);
 }
 
 class BluetoothHciDeathRecipient : public hidl_death_recipient {
@@ -156,14 +170,15 @@ class BluetoothHciCallbacks : public V1_1::IBluetoothHciCallbacks {
 };
 
 void hci_initialize() {
-  LOG_INFO("%s", __func__);
+  std::string instance = GetHciInstance();
+  LOG_INFO("%s: instance=%s", __func__, instance.c_str());
 
-  btHci_1_1 = V1_1::IBluetoothHci::getService();
+  btHci_1_1 = V1_1::IBluetoothHci::getService(instance);
 
   if (btHci_1_1 != nullptr) {
     btHci = btHci_1_1;
   } else {
-    btHci = V1_0::IBluetoothHci::getService();
+    btHci = V1_0::IBluetoothHci::getService(instance);
   }
 
   // If android.hardware.bluetooth* is not found, Bluetooth can not continue.

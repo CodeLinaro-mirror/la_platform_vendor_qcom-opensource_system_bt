@@ -19,10 +19,35 @@
 #include <unistd.h>
 #endif
 
+#include <iostream>
+#include <sys/stat.h>
+#include <unistd.h>
+#include "gd/common/init_flags.h"
+
+using ::bluetooth::common::InitFlags;
+
 bool is_bluetooth_uid() {
 #ifdef OS_ANDROID
   return getuid() == AID_BLUETOOTH;
 #else
   return false;
 #endif
+}
+
+int get_adapter_index() {
+  return InitFlags::GetAdapterIndex();
+}
+
+bool is_default_bluetooth() {
+  int hci_adapter = get_adapter_index();
+  return hci_adapter == 0;
+}
+
+bool create_folder(const char* path_name) {
+  if (access(path_name, F_OK) < 0) {
+    if (mkdir(path_name, S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
+      return false;
+    }
+  }
+  return true;
 }

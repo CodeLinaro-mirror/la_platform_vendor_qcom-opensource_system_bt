@@ -40,6 +40,7 @@
 #include <unordered_set>
 
 #include "bt_types.h"
+#include "common/os_utils.h"
 #include "common/time_util.h"
 #include "hci/include/btsnoop.h"
 #include "hci/include/btsnoop_mem.h"
@@ -68,7 +69,10 @@
 #define BTSNOOP_MODE_FULL "full"
 
 #define BTSNOOP_PATH_PROPERTY "persist.bluetooth.btsnooppath"
+#define NEW_BTSNOOP_PATH_PROPERTY "persist.bluetooth.newbtsnooppath"
 #define DEFAULT_BTSNOOP_PATH "/data/misc/bluetooth/logs/btsnoop_hci.log"
+#define NEW_BTSNOOP_PATH "/data/misc/bluetooth/newlogs/btsnoop_hci.log"
+#define NEW_BTSNOOP_FOLDER "/data/misc/bluetooth/newlogs"
 #define BTSNOOP_MAX_PACKETS_PROPERTY "persist.bluetooth.btsnoopsize"
 
 typedef enum {
@@ -167,6 +171,7 @@ void btsnoop_net_open();
 void btsnoop_net_close();
 void btsnoop_net_write(const void* data, size_t length);
 
+static void init_btsnoop_path();
 static void delete_btsnoop_files(bool filtered);
 static std::string get_btsnoop_log_path(bool filtered);
 static std::string get_btsnoop_last_log_path(std::string log_path);
@@ -195,6 +200,7 @@ static future_t* start_up() {
                              default_mode.c_str());
   std::string btsnoop_mode(property.data(), len);
 
+  init_btsnoop_path();
   if (btsnoop_mode == BTSNOOP_MODE_FILTERED) {
     LOG(INFO) << __func__ << ": Filtered Snoop Logs enabled";
     is_btsnoop_enabled = true;
@@ -352,6 +358,17 @@ static const btsnoop_t interface = {capture, allowlist_l2c_channel,
 
 const btsnoop_t* btsnoop_get_interface() { return &interface; }
 
+static void init_btsnoop_path() {
+  // Create sub-folder to store btsnoop log for new Bluetooth
+  if (!is_default_bluetooth()) {
+    if (!create_folder(NEW_BTSNOOP_FOLDER)) {
+      LOG(ERROR) << __func__
+          << " fail to create folder(" << NEW_BTSNOOP_FOLDER << ") for new Bluetooth"
+          << ", error: " << errno << "(" << strerror(errno) << ")";
+    }
+  }
+}
+
 static void delete_btsnoop_files(bool filtered) {
   LOG(INFO) << __func__
             << ": Deleting snoop logs if they exist. filtered = " << filtered;
@@ -362,7 +379,13 @@ static void delete_btsnoop_files(bool filtered) {
 
 std::string get_btsnoop_log_path(bool filtered) {
   char btsnoop_path[PROPERTY_VALUE_MAX];
-  osi_property_get(BTSNOOP_PATH_PROPERTY, btsnoop_path, DEFAULT_BTSNOOP_PATH);
+  if (is_default_bluetooth()) {
+    // btsnoop path for default Bluetooth
+    osi_property_get(BTSNOOP_PATH_PROPERTY, btsnoop_path, DEFAULT_BTSNOOP_PATH);
+  } else {
+    // btsnoop path for new Bluetooth
+    osi_property_get(NEW_BTSNOOP_PATH_PROPERTY, btsnoop_path, NEW_BTSNOOP_PATH);
+  }
   std::string result(btsnoop_path);
   if (filtered) result = result.append(".filtered");
 

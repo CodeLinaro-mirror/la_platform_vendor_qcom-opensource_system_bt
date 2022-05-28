@@ -28,6 +28,7 @@
 #include "avrc_int.h"
 #include "bt_common.h"
 #include "btu.h"
+#include "common/os_utils.h"
 #include "osi/include/fixed_queue.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
@@ -71,6 +72,21 @@ static const uint8_t avrc_ctrl_event_map[] = {
 /* Flags definitions for AVRC_MsgReq */
 #define AVRC_MSG_MASK_IS_VENDOR_CMD 0x01
 #define AVRC_MSG_MASK_IS_CONTINUATION_RSP 0x02
+
+/******************************************************************************
+ *
+ * Function         is_new_avrcp_enabled
+ *
+ * Description      Check whether new AVRCP(TG) is enabled
+ *
+ * Returns          true: enabled, false: disabled.
+ *
+ *****************************************************************************/
+static bool is_new_avrcp_enabled() {
+  // New Bluetooth adapter supports AVRCP(TG)
+  return osi_property_get_bool("persist.bluetooth.enablenewavrcp", true) ||
+        !is_default_bluetooth();
+}
 
 /******************************************************************************
  *
@@ -1142,7 +1158,7 @@ uint16_t AVRC_MsgReq(uint8_t handle, uint8_t label, uint8_t ctype,
   AVRC_TRACE_DEBUG("%s handle = %u label = %u ctype = %u len = %d", __func__,
                    handle, label, ctype, p_pkt->len);
   /* Handle for AVRCP fragment */
-  bool is_new_avrcp = osi_property_get_bool("persist.bluetooth.enablenewavrcp", true);
+  bool is_new_avrcp = is_new_avrcp_enabled();
   if (ctype >= AVRC_RSP_NOT_IMPL) cr = AVCT_RSP;
 
   if (p_pkt->event == AVRC_OP_VENDOR) {

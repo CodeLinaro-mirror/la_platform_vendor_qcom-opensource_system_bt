@@ -20,6 +20,7 @@
 #include <memory>
 #include <mutex>
 
+#include "common/os_utils.h"
 #include "hardware/avrcp/avrcp.h"
 #include "osi/include/properties.h"
 #include "profile/avrcp/connection_handler.h"
@@ -111,5 +112,7 @@ class AvrcpService : public MediaCallbacks {
 }  // namespace bluetooth
 
 inline bool is_new_avrcp_enabled() {
-  return osi_property_get_bool("persist.bluetooth.enablenewavrcp", true);
+  // New Bluetooth adapter supports AVRCP(TG)
+  return osi_property_get_bool("persist.bluetooth.enablenewavrcp", true) ||
+        !is_default_bluetooth();
 }
