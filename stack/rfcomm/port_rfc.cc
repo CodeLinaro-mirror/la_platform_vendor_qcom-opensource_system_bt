@@ -204,10 +204,6 @@ void PORT_StartCnf(tRFC_MCB* p_mcb, uint16_t result) {
   RFCOMM_TRACE_EVENT("PORT_StartCnf result:%d", result);
 
   p_port = &rfc_cb.port.port[0];
-  RFCOMM_TRACE_DEBUG("Copying multiplexer channel, dlci:%d , p_port:%p", p_port->dlci, p_port);
-#ifdef BT_LPM_SUPPORTED
-  LPM_CopyPortInfo(p_port);
-#endif
   for (i = 0; i < MAX_RFC_PORTS; i++, p_port++) {
 
     if (p_port->rfc.p_mcb == p_mcb) {
@@ -263,8 +259,6 @@ void PORT_StartInd(tRFC_MCB* p_mcb) {
   RFCOMM_TRACE_EVENT("PORT_StartInd");
 
   p_port = &rfc_cb.port.port[0];
-  RFCOMM_TRACE_DEBUG("Copying multiplexer channel, dlci:%d , p_port:%p", p_port->dlci, p_port);
-  LPM_CopyPortInfo(p_port);
   for (i = 0; i < MAX_RFC_PORTS; i++, p_port++) {
     if ((p_port->rfc.p_mcb == NULL) || (p_port->rfc.p_mcb == p_mcb)) {
       RFCOMM_TRACE_DEBUG(

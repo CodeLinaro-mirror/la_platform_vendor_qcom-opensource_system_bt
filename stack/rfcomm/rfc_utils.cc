@@ -178,6 +178,15 @@ tRFC_MCB* rfc_alloc_multiplexer_channel(const RawAddress& bd_addr,
       fixed_queue_free(p_mcb->cmd_q, NULL);
       memset(p_mcb, 0, sizeof(tRFC_MCB));
       p_mcb->bd_addr = bd_addr;
+#ifdef BT_LPM_SUPPORTED
+      VLOG(1) << __func__ << ":creating new block for bd_addr:" << p_mcb->bd_addr;
+
+      /*Creating port to copy multiplexer channel in lpm*/
+      tPORT* p_port = &rfc_cb.port.port[0];
+      p_port->bd_addr = bd_addr;
+      LPM_CopyPortInfo(p_port);
+#endif
+
       RFCOMM_TRACE_DEBUG(
           "rfc_alloc_multiplexer_channel:is_initiator:%d, create new p_mcb:%p, "
           "index:%d",
@@ -207,6 +216,14 @@ tRFC_MCB* rfc_alloc_multiplexer_channel(const RawAddress& bd_addr,
 void rfc_release_multiplexer_channel(tRFC_MCB* p_mcb) {
   /* Remove the MCB from the mapping table */
   rfc_save_lcid_mcb(NULL, p_mcb->lcid);
+
+#ifdef BT_LPM_SUPPORTED
+  VLOG(1) << __func__ << ": bd_addr:" << p_mcb->bd_addr;
+  /* To remove multiplexer channel from lpm*/
+  tPORT* p_port = &rfc_cb.port.port[0];
+  p_port->bd_addr = p_mcb->bd_addr;
+  LPM_ReleasePortInfo(p_port);
+#endif
 
   /* Remove the MCB from the ports */
   for (int i = 0; i < MAX_RFC_PORTS; i++) {

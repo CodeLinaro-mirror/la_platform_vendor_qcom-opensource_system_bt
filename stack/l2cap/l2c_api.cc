@@ -1364,8 +1364,10 @@ bool L2CA_DisconnectReq(uint16_t cid) {
   tL2C_CCB* p_ccb;
 
   L2CAP_TRACE_WARNING("L2CA_DisconnectReq()  CID: 0x%04x", cid);
-
+#ifdef BT_LPM_SUPPORTED
+  /* Calling LPM to clear L2CAP Info*/
   LPM_ClearL2CAPInfo(cid);
+#endif
   /* Find the channel control block. We don't know the link it is on. */
   p_ccb = l2cu_find_ccb_by_cid(NULL, cid);
   if (p_ccb == NULL) {
@@ -1392,6 +1394,10 @@ bool L2CA_DisconnectRsp(uint16_t cid) {
   tL2C_CCB* p_ccb;
 
   L2CAP_TRACE_WARNING("L2CA_DisconnectRsp()  CID: 0x%04x", cid);
+#ifdef BT_LPM_SUPPORTED
+  /* Calling LPM to clear L2CAP Info*/
+  LPM_ClearL2CAPInfo(cid);
+#endif
 
   /* Find the channel control block. We don't know the link it is on. */
   p_ccb = l2cu_find_ccb_by_cid(NULL, cid);
