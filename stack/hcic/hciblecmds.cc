@@ -14,6 +14,40 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted (subject to the limitations in the
+ *  disclaimer below) provided that the following conditions are met:
+ *
+ *  Redistributions of source code must retain the above copyright
+ *  notice, this list of conditions and the following disclaimer.
+ *
+ *  Redistributions in binary form must reproduce the above
+ *  copyright notice, this list of conditions and the following
+ *  disclaimer in the documentation and/or other materials provided
+ *  with the distribution.
+ *
+ *  Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *  contributors may be used to endorse or promote products derived
+ *  from this software without specific prior written permission.
+ *
+ *  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ *  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ *  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+ *
  ******************************************************************************/
 
 /******************************************************************************
@@ -1319,6 +1353,55 @@ void btsnd_hcic_ble_pa_sync_tx_parameters(uint16_t conn_handle,
   UINT16_TO_STREAM(pp, skip);
   UINT16_TO_STREAM(pp, timeout);
   UINT16_TO_STREAM(pp, cte_type);
+
+  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
+}
+
+void btsnd_hcic_ble_subrate_request(uint16_t conn_handle,
+                                    uint16_t subrate_min,
+                                    uint16_t subrate_max,
+                                    uint16_t max_latency,
+                                    uint16_t cont_num,
+                                    uint16_t sup_tout) {
+  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
+  uint8_t* pp = (uint8_t*)(p + 1);
+
+  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_BLE_SUBRATE_REQ;
+  p->offset = 0;
+
+  UINT16_TO_STREAM(pp, HCI_BLE_SUBRATE_REQ);
+  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_BLE_SUBRATE_REQ);
+
+  UINT16_TO_STREAM(pp, conn_handle);
+
+  UINT16_TO_STREAM(pp, subrate_min);
+  UINT16_TO_STREAM(pp, subrate_max);
+  UINT16_TO_STREAM(pp, max_latency);
+  UINT16_TO_STREAM(pp, cont_num);
+  UINT16_TO_STREAM(pp, sup_tout);
+
+  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
+}
+
+void btsnd_hcic_ble_set_default_subrate(uint16_t subrate_min,
+                                        uint16_t subrate_max,
+                                        uint16_t max_latency,
+                                        uint16_t cont_num,
+                                        uint16_t sup_tout) {
+  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
+  uint8_t* pp = (uint8_t*)(p + 1);
+
+  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_BLE_SET_DEFAULT_SUBRATE;
+  p->offset = 0;
+
+  UINT16_TO_STREAM(pp, HCI_BLE_SET_DEFAULT_SUBRATE);
+  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_BLE_SET_DEFAULT_SUBRATE);
+
+  UINT16_TO_STREAM(pp, subrate_min);
+  UINT16_TO_STREAM(pp, subrate_max);
+  UINT16_TO_STREAM(pp, max_latency);
+  UINT16_TO_STREAM(pp, cont_num);
+  UINT16_TO_STREAM(pp, sup_tout);
 
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }

@@ -22,6 +22,7 @@
 
 #define SOC_ADD_ON_FEATURES_MAX_SIZE 245
 #define HOST_ADD_ON_FEATURES_MAX_SIZE 255
+#define QLL_LOCAL_SUPPORTED_FEATURES_MAX_SIZE 8
 
 #define HOST_ADD_ON_ADV_AUDIO_UNICAST_FEAT_MASK(x) ((x)[0] & 0x01)
 #define HOST_ADD_ON_ADV_AUDIO_BCA_FEAT_MASK(x)     ((x)[0] & 0x02)
@@ -42,3 +43,6 @@ typedef struct {
   uint8_t as_array[HOST_ADD_ON_FEATURES_MAX_SIZE];
 } bt_device_host_add_on_features_t;
 
+typedef struct {
+   uint8_t as_array[QLL_LOCAL_SUPPORTED_FEATURES_MAX_SIZE];
+} bt_device_qll_local_supported_features_t;

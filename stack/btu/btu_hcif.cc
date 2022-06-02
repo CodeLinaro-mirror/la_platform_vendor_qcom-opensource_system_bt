@@ -14,6 +14,40 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted (subject to the limitations in the
+ *  disclaimer below) provided that the following conditions are met:
+ *
+ *  Redistributions of source code must retain the above copyright
+ *  notice, this list of conditions and the following disclaimer.
+ *
+ *  Redistributions in binary form must reproduce the above
+ *  copyright notice, this list of conditions and the following
+ *  disclaimer in the documentation and/or other materials provided
+ *  with the distribution.
+ *
+ *  Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *  contributors may be used to endorse or promote products derived
+ *  from this software without specific prior written permission.
+ *
+ *  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ *  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ *  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+ *
  ******************************************************************************/
 
 /******************************************************************************
@@ -138,6 +172,8 @@ static void btu_ble_rc_param_req_evt(uint8_t* p);
 #if (BLE_PRIVACY_SPT == TRUE)
 static void btu_ble_proc_enhanced_conn_cmpl(uint8_t* p, uint16_t evt_len);
 #endif
+
+static void btu_ble_subrate_change_evt(uint8_t* p, uint16_t evt_len);
 
 static void do_in_hci_thread(const base::Location& from_here,
                              const base::Closure& task) {
@@ -432,6 +468,10 @@ void btu_hcif_process_event(UNUSED_ATTR uint8_t controller_id, BT_HDR* p_msg) {
             return;
           }
           btm_le_terminate_big_complete(p, hci_evt_len);
+          break;
+
+        case HCI_LE_SUBRATE_CHANGE_EVT:
+          btu_ble_subrate_change_evt(p, hci_evt_len);
           break;
       }
       break;
@@ -1357,6 +1397,14 @@ static void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status,
             btm_ble_create_ll_conn_complete(status);
             break;
 
+          case HCI_BLE_SUBRATE_REQ:
+            if (p_cmd != NULL) {
+              p_cmd++; /* bypass length field */
+              STREAM_TO_UINT16(handle, p_cmd);
+              btm_ble_subrate_req_cmd_status(status, handle);
+            }
+            break;
+
 #if (BTM_SCO_INCLUDED == TRUE)
           case HCI_SETUP_ESCO_CONNECTION:
           case HCI_ENH_SETUP_ESCO_CONNECTION:
@@ -1958,6 +2006,10 @@ extern void gatt_notify_conn_update(uint16_t handle, uint16_t interval,
                                     uint16_t latency, uint16_t timeout,
                                     uint8_t status);
 
+extern void gatt_notify_subrate_change(uint16_t handle, uint16_t subrate_factor,
+                                       uint16_t latency, uint16_t cont_num,
+                                       uint16_t timeout, uint8_t status);
+
 static void btu_ble_ll_conn_param_upd_evt(uint8_t* p, uint16_t evt_len) {
   /* LE connection update has completed successfully as a master. */
   /* We can enable the update request if the result is a success. */
@@ -2030,3 +2082,41 @@ static void btu_ble_rc_param_req_evt(uint8_t* p) {
                                       timeout);
 }
 #endif /* BLE_LLT_INCLUDED */
+
+static void btu_ble_subrate_change_evt(uint8_t* p, uint16_t evt_len) {
+  uint8_t status;
+  uint16_t handle;
+  uint16_t subrate_factor;
+  uint16_t peripheral_latency;
+  uint16_t cont_num;
+  uint16_t timeout;
+
+  STREAM_TO_UINT8(status, p);
+  STREAM_TO_UINT16(handle, p);
+  STREAM_TO_UINT16(subrate_factor, p);
+  STREAM_TO_UINT16(peripheral_latency, p);
+  STREAM_TO_UINT16(cont_num, p);
+  STREAM_TO_UINT16(timeout, p);
+
+  l2cble_process_subrate_change_evt(handle, status, subrate_factor,
+                                    peripheral_latency, cont_num, timeout);
+
+  gatt_notify_subrate_change(handle & 0x0FFF, subrate_factor,
+                             peripheral_latency, cont_num, timeout, status);
+}
+
+void btm_ble_subrate_req_cmd_status(uint8_t status, uint16_t handle) {
+  uint16_t subrate_factor = 0;
+  uint16_t peripheral_latency = 0;
+  uint16_t cont_num = 0;
+  uint16_t timeout = 0;
+
+  if (status == HCI_SUCCESS) return;
+
+  LOG(ERROR) << "LE Subrate request - cmd status error";
+  l2cble_process_subrate_change_evt(handle, status, subrate_factor,
+                                    peripheral_latency, cont_num, timeout);
+
+  gatt_notify_subrate_change(handle & 0x0FFF, subrate_factor,
+                             peripheral_latency, cont_num, timeout, status);
+}

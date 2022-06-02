@@ -197,6 +197,17 @@ void btm_register_iot_info_cback (tBTM_VS_EVT_CB *p_cb);
 
 /*******************************************************************************
 **
+** Function         btm_register_qle_cig_latency_change_cback
+**
+** Description      Register callback to process qle_cig_latency_changed event
+**
+** Returns          void
+**
+*******************************************************************************/
+void btm_register_qle_cig_latency_changed_cback (tBTM_VS_EVT_CB *p_cb);
+
+/*******************************************************************************
+**
 ** Function         btm_register_ssr_cback
 **
 ** Description      Register callback to process SSR

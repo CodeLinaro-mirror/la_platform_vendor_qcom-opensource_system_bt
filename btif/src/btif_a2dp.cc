@@ -72,7 +72,7 @@ bool btif_a2dp_on_started(tBTA_AV_START* p_av_start, bool pending_start,
   tA2DP_CTRL_CMD pending_cmd = A2DP_CTRL_CMD_NONE;
   if (btif_a2dp_source_is_hal_v2_enabled()) {
 #if AHIM_ENABLED
-    pending_cmd = btif_ahim_get_pending_command();
+    pending_cmd = btif_ahim_get_pending_command(A2DP);
 #else
     pending_cmd = bluetooth::audio::a2dp::get_pending_command();
 #endif
@@ -111,7 +111,7 @@ bool btif_a2dp_on_started(tBTA_AV_START* p_av_start, bool pending_start,
           if (btif_av_get_peer_sep() == AVDT_TSEP_SNK) {
             /* Start the media task to encode the audio */
 #if AHIM_ENABLED
-             if(btif_ahim_get_session_type() ==
+             if(btif_ahim_get_session_type(A2DP) ==
 #else
              if(bluetooth::audio::a2dp::get_session_type() ==
 #endif
@@ -151,7 +151,7 @@ bool btif_a2dp_on_started(tBTA_AV_START* p_av_start, bool pending_start,
                 if (btif_av_get_peer_sep() == AVDT_TSEP_SNK) {
                   /* Start the media task to encode the audio */
 #if AHIM_ENABLED
-                  if(btif_ahim_get_session_type() ==
+                  if(btif_ahim_get_session_type(A2DP) ==
 #else
                   if(bluetooth::audio::a2dp::get_session_type() ==
 #endif

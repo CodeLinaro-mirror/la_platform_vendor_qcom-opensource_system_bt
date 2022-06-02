@@ -329,7 +329,7 @@ static void btif_a2dp_source_shutdown_delayed(UNUSED_ATTR void* context) {
   if (btif_a2dp_source_is_hal_v2_supported()){
 
 #if AHIM_ENABLED
-    btif_ahim_cleanup_hal();
+    btif_ahim_cleanup_hal(A2DP);
 #else
     bluetooth::audio::a2dp::cleanup();
 #endif
@@ -627,7 +627,7 @@ void btif_a2dp_source_stop_audio_req(void) {
   tA2DP_CTRL_CMD pending_cmd = A2DP_CTRL_CMD_NONE;
   if (btif_a2dp_source_is_hal_v2_enabled()) {
 #if AHIM_ENABLED
-    pending_cmd = btif_ahim_get_pending_command();
+    pending_cmd = btif_ahim_get_pending_command(A2DP);
 #else 
     pending_cmd = bluetooth::audio::a2dp::get_pending_command();
 #endif
@@ -778,7 +778,7 @@ void btif_a2dp_source_on_stopped(tBTA_AV_SUSPEND* p_av_suspend) {
   tA2DP_CTRL_CMD pending_cmd = A2DP_CTRL_CMD_NONE;
   if (btif_a2dp_source_is_hal_v2_enabled()) {
 #if AHIM_ENABLED
-    pending_cmd = btif_ahim_get_pending_command(); 
+    pending_cmd = btif_ahim_get_pending_command(A2DP);
 #else
     pending_cmd = bluetooth::audio::a2dp::get_pending_command();
 #endif
@@ -840,7 +840,7 @@ void btif_a2dp_source_on_stopped(tBTA_AV_SUSPEND* p_av_suspend) {
   if (!btif_a2dp_source_is_hal_v2_enabled() ||
        (btif_a2dp_source_is_hal_v2_enabled() &&
 #if AHIM_ENABLED
-       btif_ahim_get_session_type() ==
+       btif_ahim_get_session_type(A2DP) ==
 #else
        bluetooth::audio::a2dp::get_session_type() ==
 #endif
@@ -858,7 +858,7 @@ void btif_a2dp_source_on_suspended(tBTA_AV_SUSPEND* p_av_suspend) {
   tA2DP_CTRL_CMD pending_cmd = A2DP_CTRL_CMD_NONE;
   if (btif_a2dp_source_is_hal_v2_enabled()) {
 #if AHIM_ENABLED
-    pending_cmd = btif_ahim_get_pending_command();
+    pending_cmd = btif_ahim_get_pending_command(A2DP);
 #else
     pending_cmd = bluetooth::audio::a2dp::get_pending_command();
 #endif
@@ -922,7 +922,7 @@ void btif_a2dp_source_on_suspended(tBTA_AV_SUSPEND* p_av_suspend) {
   if (!btif_a2dp_source_is_hal_v2_enabled() ||
        (btif_a2dp_source_is_hal_v2_enabled() &&
 #if AHIM_ENABLED
-       btif_ahim_get_session_type() ==
+       btif_ahim_get_session_type(A2DP) ==
 #else
        bluetooth::audio::a2dp::get_session_type() ==
 #endif
@@ -1010,7 +1010,7 @@ static void btif_a2dp_source_audio_tx_stop_event(void) {
    */
   if (btif_a2dp_source_is_hal_v2_enabled()) {
 #if AHIM_ENABLED
-    pending_cmd = btif_ahim_get_pending_command();
+    pending_cmd = btif_ahim_get_pending_command(A2DP);
 #else
     pending_cmd = bluetooth::audio::a2dp::get_pending_command();
 #endif
@@ -1644,8 +1644,8 @@ bool btif_a2dp_source_start_session(const RawAddress& peer_address) {
 
   if (btif_a2dp_source_is_hal_v2_enabled()) {
 #if AHIM_ENABLED
-    btif_ahim_start_session();
-    if (btif_ahim_get_session_type() ==
+    btif_ahim_start_session(A2DP);
+    if (btif_ahim_get_session_type(A2DP) ==
 #else
     bluetooth::audio::a2dp::start_session();
     if (bluetooth::audio::a2dp::get_session_type() ==
@@ -1663,7 +1663,7 @@ bool btif_a2dp_source_is_restart_session_needed() {
   bool restart_session = false;
   if (btif_a2dp_source_is_hal_v2_enabled()) {
 #if AHIM_ENABLED
-     restart_session = btif_ahim_is_restart_session_needed();
+     restart_session = btif_ahim_is_restart_session_needed(A2DP);
 #else
      restart_session = bluetooth::audio::a2dp::is_restart_session_needed();
 #endif
@@ -1676,7 +1676,7 @@ bool btif_a2dp_source_restart_session(const RawAddress& old_peer_address,
                                       const RawAddress& new_peer_address) {
 #if AHIM_ENABLED
   bool is_streaming = btif_ahim_is_streaming();
-  SessionType session_type = btif_ahim_get_session_type();
+  SessionType session_type = btif_ahim_get_session_type(A2DP);
 #else
   bool is_streaming = bluetooth::audio::a2dp::is_streaming();
   SessionType session_type = bluetooth::audio::a2dp::get_session_type();
@@ -1725,7 +1725,7 @@ bool btif_a2dp_source_end_session(const RawAddress& peer_address) {
   if (!btif_a2dp_source_is_hal_v2_enabled() ||
        (btif_a2dp_source_is_hal_v2_enabled() &&
 #if AHIM_ENABLED
-       btif_ahim_get_session_type() ==
+       btif_ahim_get_session_type(A2DP) ==
 #else
        bluetooth::audio::a2dp::get_session_type() ==
 #endif
@@ -1740,7 +1740,7 @@ bool btif_a2dp_source_end_session(const RawAddress& peer_address) {
 
   if (btif_a2dp_source_is_hal_v2_enabled()) {
 #if AHIM_ENABLED
-    btif_ahim_end_session();
+    btif_ahim_end_session(A2DP);
 #else
     bluetooth::audio::a2dp::end_session();
 #endif
@@ -1760,7 +1760,7 @@ void btif_a2dp_update_sink_latency_change() {
     }
     APPL_TRACE_EVENT("%s latency/delay value %d", __func__, sink_latency);
 #if AHIM_ENABLED
-    btif_ahim_set_remote_delay(sink_latency);
+    btif_ahim_set_remote_delay(sink_latency, A2DP);
 #else
     bluetooth::audio::a2dp::set_remote_delay(sink_latency);
 #endif

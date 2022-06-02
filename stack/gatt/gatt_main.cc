@@ -14,6 +14,40 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted (subject to the limitations in the
+ *  disclaimer below) provided that the following conditions are met:
+ *
+ *  Redistributions of source code must retain the above copyright
+ *  notice, this list of conditions and the following disclaimer.
+ *
+ *  Redistributions in binary form must reproduce the above
+ *  copyright notice, this list of conditions and the following
+ *  disclaimer in the documentation and/or other materials provided
+ *  with the distribution.
+ *
+ *  Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *  contributors may be used to endorse or promote products derived
+ *  from this software without specific prior written permission.
+ *
+ *  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ *  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ *  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+ *
  ******************************************************************************/
 
 /******************************************************************************
@@ -224,9 +258,11 @@ void gatt_free(void) {
     fixed_queue_free(gatt_cb.tcb[i].pending_ind_q, NULL);
     gatt_cb.tcb[i].pending_ind_q = NULL;
 
+    alarm_cancel(gatt_cb.tcb[i].conf_timer);
     alarm_free(gatt_cb.tcb[i].conf_timer);
     gatt_cb.tcb[i].conf_timer = NULL;
 
+    alarm_cancel(gatt_cb.tcb[i].ind_ack_timer);
     alarm_free(gatt_cb.tcb[i].ind_ack_timer);
     gatt_cb.tcb[i].ind_ack_timer = NULL;
 
@@ -237,7 +273,9 @@ void gatt_free(void) {
   for (i = 0; i < GATT_MAX_EATT_CHANNELS; i++) {
     if(gatt_cb.eatt_bcb[i].cid != L2CAP_ATT_CID) {
       fixed_queue_free(gatt_cb.eatt_bcb[i].pending_ind_q, NULL);
+      alarm_cancel(gatt_cb.eatt_bcb[i].conf_timer);
       alarm_free(gatt_cb.eatt_bcb[i].conf_timer);
+      alarm_cancel(gatt_cb.eatt_bcb[i].ind_ack_timer);
       alarm_free(gatt_cb.eatt_bcb[i].ind_ack_timer);
     }
     gatt_cb.eatt_bcb[i].pending_ind_q = NULL;
@@ -740,6 +778,26 @@ void gatt_notify_conn_update(uint16_t handle, uint16_t interval,
       uint16_t conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
       (*p_reg->app_cb.p_conn_update_cb)(p_reg->gatt_if, conn_id, interval,
                                         latency, timeout, status);
+    }
+  }
+}
+
+void gatt_notify_subrate_change(uint16_t handle, uint16_t subrate_factor,
+                                uint16_t latency, uint16_t cont_num,
+                                uint16_t timeout, uint8_t status) {
+  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev_by_handle(handle);
+  if (!p_dev_rec) return;
+
+  tGATT_TCB* p_tcb =
+      gatt_find_tcb_by_addr(p_dev_rec->ble.pseudo_addr, BT_TRANSPORT_LE);
+  if (!p_tcb) return;
+
+  for (int i = 0; i < GATT_MAX_APPS; i++) {
+    tGATT_REG* p_reg = &gatt_cb.cl_rcb[i];
+    if (p_reg->in_use && p_reg->app_cb.p_subrate_chg_cb) {
+      uint16_t conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
+      (*p_reg->app_cb.p_subrate_chg_cb)(p_reg->gatt_if, conn_id, subrate_factor,
+                                        latency, cont_num, timeout, status);
     }
   }
 }

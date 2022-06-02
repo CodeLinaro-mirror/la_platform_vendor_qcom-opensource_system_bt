@@ -115,8 +115,7 @@ void BTA_GATTS_AppDeregister(tGATT_IF server_if) {
 }
 
 void bta_gatts_add_service_impl(tGATT_IF server_if,
-                                const btgatt_db_element_t *service,
-                                size_t service_count,
+                                std::vector<btgatt_db_element_t> service,
                                 BTA_GATTS_AddServiceCb cb) {
   uint8_t rcb_idx =
       bta_gatts_find_app_rcb_idx_by_app_if(&bta_gatts_cb, server_if);
@@ -124,37 +123,32 @@ void bta_gatts_add_service_impl(tGATT_IF server_if,
   LOG(INFO) << __func__ << ": rcb_idx=" << +rcb_idx;
 
   if (rcb_idx == BTA_GATTS_INVALID_APP) {
-    cb.Run(GATT_ERROR, server_if, service, service_count);
+    cb.Run(GATT_ERROR, server_if, std::move(service));
     return;
   }
 
   uint8_t srvc_idx = bta_gatts_alloc_srvc_cb(&bta_gatts_cb, rcb_idx);
   if (srvc_idx == BTA_GATTS_INVALID_APP) {
-    cb.Run(GATT_ERROR, server_if, service, service_count);
+    cb.Run(GATT_ERROR, server_if, std::move(service));
     return;
   }
 
-  // FIXME:
-  btgatt_db_element_t *service_copy = new btgatt_db_element_t[service_count];
-  for (size_t i = 0; i < service_count; i++)
-   service_copy[i] = service[i];
-  uint16_t status = GATTS_AddService(server_if, service_copy, service_count);
+  uint16_t status = GATTS_AddService(server_if, service.data(), service.size());
+
   if (status != GATT_SERVICE_STARTED) {
     memset(&bta_gatts_cb.srvc_cb[srvc_idx], 0, sizeof(tBTA_GATTS_SRVC_CB));
     LOG(ERROR) << __func__ << ": service creation failed.";
-    cb.Run(GATT_ERROR, server_if, service, service_count);
-    delete[] service_copy;
+    cb.Run(GATT_ERROR, server_if, std::move(service));
     return;
   }
 
-  bta_gatts_cb.srvc_cb[srvc_idx].service_uuid = service_copy[0].uuid;
+  bta_gatts_cb.srvc_cb[srvc_idx].service_uuid = service[0].uuid;
 
   // service_id is equal to service start handle
-  bta_gatts_cb.srvc_cb[srvc_idx].service_id = service_copy[0].attribute_handle;
+  bta_gatts_cb.srvc_cb[srvc_idx].service_id = service[0].attribute_handle;
   bta_gatts_cb.srvc_cb[srvc_idx].idx = srvc_idx;
 
-  cb.Run(GATT_SUCCESS, server_if, (const btgatt_db_element_t *)service_copy, service_count);
-  delete[] service_copy;
+  cb.Run(GATT_SUCCESS, server_if, std::move(service));
   return;
 }
 
@@ -174,11 +168,10 @@ void bta_gatts_add_service_impl(tGATT_IF server_if,
  *
  ******************************************************************************/
 extern void BTA_GATTS_AddService(tGATT_IF server_if,
-                                 const btgatt_db_element_t* service,
-                                 size_t service_count,
+                                 std::vector<btgatt_db_element_t> service,
                                  BTA_GATTS_AddServiceCb cb) {
   do_in_bta_thread(FROM_HERE, base::Bind(&bta_gatts_add_service_impl, server_if,
-                                         service, service_count, std::move(cb)));
+                                         std::move(service), std::move(cb)));
 }
 
 /*******************************************************************************

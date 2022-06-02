@@ -289,6 +289,10 @@ typedef enum {
   //are sent before sco is opened
   INTEROP_DELAY_SCO_FOR_MO_CALL,
 
+  //Some remote hid devices cannot work properly as they laod special hid usb driver in kernel,
+  //so modify their vid/pid so that generic hid driver are loaded.
+  INTEROP_CHANGE_HID_VID_PID,
+
   END_OF_INTEROP_LIST
 } interop_feature_t;
 

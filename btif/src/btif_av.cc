@@ -47,6 +47,39 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+/*
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+
+    * Redistribution and use in source and binary forms, with or without
+      modification, are permitted (subject to the limitations in the
+      disclaimer below) provided that the following conditions are met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided
+      with the distribution.
+
+    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+
+NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+*/
 
 #define LOG_TAG "btif_av"
 
@@ -84,6 +117,7 @@
 #include "device/include/device_iot_config.h"
 #include "bt_types.h"
 #include "btm_int.h"
+#include "btif_ahim.h"
 
 #ifdef ADV_AUDIO_FEATURE
 #include "btif_bap_broadcast.h"
@@ -213,6 +247,8 @@ typedef struct {
   struct alarm_t *remote_start_alarm;
   btif_sm_event_t reconfig_event;
   btif_av_codec_config_req_t reconfig_data;
+  btav_a2dp_codec_config_t cached_aptx_mode;
+  bool cache_aptx_mode;
   struct alarm_t *suspend_rsp_track_timer;
   bool fake_suspend_rsp;
   bool is_retry_reconfig;
@@ -327,6 +363,8 @@ extern void btif_a2dp_update_sink_latency_change();
 extern bt_status_t send_av_passthrough_cmd(RawAddress* bd_addr, uint8_t key_code,
                                         uint8_t key_state);
 static int other_device_media_packet_count = 0;
+static bt_status_t codec_config_source(const RawAddress& bd_addr,
+    std::vector<btav_a2dp_codec_config_t> codec_preferences);
 void btif_av_set_reconfig_flag(tBTA_AV_HNDL bta_handle);
 void btif_av_clear_pending_start_flag();
 bool isBATEnabled();
@@ -1027,6 +1065,9 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
       btif_av_cb[index].codec_latency = 0;
       btif_av_cb[index].reconfig_event = 0;
       memset(&btif_av_cb[index].reconfig_data, 0, sizeof(btif_av_codec_config_req_t));
+      memset(&btif_av_cb[index].cached_aptx_mode, 0, sizeof(btav_a2dp_codec_config_t));
+      btif_av_cb[index].cache_aptx_mode = false;
+
       if (alarm_is_scheduled(btif_av_cb[index].suspend_rsp_track_timer)) {
         BTIF_TRACE_DEBUG("%s: clear suspend_rsp_track_timer", __func__);
         alarm_cancel(btif_av_cb[index].suspend_rsp_track_timer);
@@ -2133,6 +2174,15 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
 
       btif_report_source_codec_state(p_data, bt_addr);
       btif_av_update_reconfigure_event(index);
+      if (btif_av_cb[index].cache_aptx_mode) {
+        BTIF_TRACE_IMP("%s Trigger pending mode change for index =%d", __func__, index);
+        std::vector<btav_a2dp_codec_config_t> codec_preferences;
+        codec_preferences.push_back(btif_av_cb[index].cached_aptx_mode);
+        codec_config_source(btif_av_cb[index].peer_bda, codec_preferences);
+        memset(&btif_av_cb[index].cached_aptx_mode, 0, sizeof(btav_a2dp_codec_config_t));
+        btif_av_cb[index].cache_aptx_mode = false;
+      }
+
     } break;
 
     case BTIF_AV_DISCONNECT_REQ_EVT: {
@@ -2265,7 +2315,8 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
       if (!btif_av_cb[index].reconfig_event) {
         btif_av_cb[index].reconfig_pending = false;
       }
-      bluetooth::audio::a2dp::update_session_params(SessionParamType::MTU);
+       btif_ahim_update_session_params(SessionParamType::MTU);
+      //bluetooth::audio::a2dp::update_session_params(SessionParamType::MTU);
     } break;
 
     case BTIF_AV_CONNECT_REQ_EVT: {
@@ -2495,6 +2546,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
      if (!btif_av_is_split_a2dp_enabled() && btif_av_cb[index].reconfig_event) {
        btif_av_process_cached_src_codec_config(index);
      }
+
      break;
 
     case BTIF_SM_EXIT_EVT:
@@ -2561,6 +2613,15 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
 
       btif_report_source_codec_state(p_data, bt_addr);
       btif_av_update_reconfigure_event(index);
+      if (btif_av_cb[index].cache_aptx_mode) {
+        BTIF_TRACE_IMP("%s Trigger pending mode change for index =%d", __func__, index);
+        std::vector<btav_a2dp_codec_config_t> codec_preferences;
+        codec_preferences.push_back(btif_av_cb[index].cached_aptx_mode);
+        codec_config_source(btif_av_cb[index].peer_bda, codec_preferences);
+        memset(&btif_av_cb[index].cached_aptx_mode, 0, sizeof(btav_a2dp_codec_config_t));
+        btif_av_cb[index].cache_aptx_mode = false;
+      }
+
       break;
 
     /* fixme -- use suspend = true always to work around issue with BTA AV */
@@ -4376,6 +4437,7 @@ static bt_status_t init_src(
   tws_defaultmono_supported = (strcmp(value, "mono") == 0);
   BTIF_TRACE_DEBUG("default mono channel mode = %d",tws_defaultmono_supported);
   offload_enabled_codecs_config_ = offload_enabled_codecs;
+  btif_ahim_update_codec_offloading_capabilities(offload_enabled_codecs_config_);
   codec_priorities_ = codec_priorities;
 #if (TWS_STATE_ENABLED == TRUE)
   //osi_property_get("persist.vendor.btstack.twsplus.state", value, "false");
@@ -4806,6 +4868,11 @@ static bt_status_t set_active_device(const RawAddress& bd_addr) {
 
 static bt_status_t codec_config_src(const RawAddress& bd_addr,
     std::vector<btav_a2dp_codec_config_t> codec_preferences) {
+  return codec_config_source(bd_addr, codec_preferences);
+}
+
+static bt_status_t codec_config_source(const RawAddress& bd_addr,
+    std::vector<btav_a2dp_codec_config_t> codec_preferences) {
   BTIF_TRACE_EVENT("%s", __func__);
   CHECK_BTAV_INIT();
   int index = btif_av_idx_by_bdaddr(const_cast<RawAddress*>(&bd_addr));
@@ -4846,10 +4913,18 @@ static bt_status_t codec_config_src(const RawAddress& bd_addr,
       }
     }
 
-    if(cp.codec_specific_4 > 0 &&
+    if (cp.codec_specific_4 > 0 &&
           cp.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE) {
-          codec_cfg_change = false;
-      BTIF_TRACE_WARNING("%s: Reset codec_cfg_change for Aptx mode change call", __func__);
+      if (saved_codec_cfg_change == false) {
+        codec_cfg_change = false;
+        BTIF_TRACE_WARNING("%s: Reset codec_cfg_change for Aptx mode change call", __func__);
+      } else {
+        BTIF_TRACE_WARNING("%s: Don't Reset codec_cfg_change for Aptx mode change call "
+                           "for ongoing codec config", __func__);
+        memcpy(&btif_av_cb[index].cached_aptx_mode, (char*)(&cp), sizeof(btav_a2dp_codec_config_t));
+        btif_av_cb[index].cache_aptx_mode = true;
+        return BT_STATUS_SUCCESS;
+      }
     }
 
     if (index < btif_max_av_clients && btif_av_cb[index].reconfig_pending && codec_cfg_change) {

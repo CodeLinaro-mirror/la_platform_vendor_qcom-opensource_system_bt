@@ -5,6 +5,7 @@ soong_config_module_type_import {
     from: "device/qcom/qssi/Android.bp",
     module_types: [
          "bredr_vs_btadva_cc_defaults",
+         "aosp_vs_qva_cc_defaults",
     ],
 }
 
@@ -31,11 +32,26 @@ bredr_vs_btadva_cc_defaults {
    }
 }
 
+aosp_vs_qva_cc_defaults {
+     name: "qva_cc_defaults",
+     soong_config_variables: {
+         aosp_or_qva: {
+           qva: {
+             static_libs: [
+                "libbt-sbc-encoder",
+                "libbt-sbc-decoder",
+             ],
+           }
+        }
+    }
+}
+
+
 // Bluetooth main HW module / shared library for target
 // ========================================================
 cc_library_shared {
     name: "libbluetooth_qti",
-    defaults: ["fluoride_defaults_qti", "btadva_main_cc-default"],
+    defaults: ["fluoride_defaults_qti", "btadva_main_cc-default", "qva_cc_defaults"],
     header_libs: ["libbluetooth_headers"],
     export_header_lib_headers: ["libbluetooth_headers"],
     system_ext_specific: true,
@@ -80,6 +96,9 @@ cc_library_shared {
         "com.qualcomm.qti.bluetooth_audio@1.0",
         "vendor.qti.hardware.bluetooth_audio@2.0",
         "vendor.qti.hardware.bluetooth_audio@2.1",
+        "android.hardware.bluetooth.audio-V1-ndk",
+        "libbinder_ndk",
+        "android.hardware.audio.common-V1-ndk",
         "libaaudio",
         "libcutils",
         "libdl",
@@ -96,8 +115,6 @@ cc_library_shared {
         "libxml2",
     ],
     static_libs: [
-        "libbt-sbc-decoder",
-        "libbt-sbc-encoder",
         "libFraunhoferAAC",
         "libudrv-uipc_qti",
         "libg722codec_qti",

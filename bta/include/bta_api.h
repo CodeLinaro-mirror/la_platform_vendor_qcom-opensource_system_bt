@@ -14,6 +14,40 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted (subject to the limitations in the
+ *  disclaimer below) provided that the following conditions are met:
+ *
+ *  Redistributions of source code must retain the above copyright
+ *  notice, this list of conditions and the following disclaimer.
+ *
+ *  Redistributions in binary form must reproduce the above
+ *  copyright notice, this list of conditions and the following
+ *  disclaimer in the documentation and/or other materials provided
+ *  with the distribution.
+ *
+ *  Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *  contributors may be used to endorse or promote products derived
+ *  from this software without specific prior written permission.
+ *
+ *  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ *  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ *  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+ *
  ******************************************************************************/
 
 /******************************************************************************
@@ -798,6 +832,7 @@ typedef struct {
   uint8_t flag;
   RawAddress original_bda; /* original address to pass up to
                               GattService#onScanResult */
+  bool include_rsi; /* true, if ADV contains RSI data */
 } tBTA_DM_INQ_RES;
 
 /* Structure associated with BTA_DM_INQ_CMPL_EVT */
@@ -1938,5 +1973,28 @@ extern void BTA_DmProcessQueuedServiceDiscovery(void);
  ******************************************************************************/
 extern void BTA_GetGroupData(uint8_t* p_eir, size_t eir_len, uint8_t* gid_data,
                              bool* found);
+
+/*******************************************************************************
+ *
+ * Function         BTA_DmBleSubrateRequest
+ *
+ * Description      subrate request, can only be used when
+ *                  connection is up.
+ *
+ * Parameters:      bd_addr   - BD address of the peer
+ *                  subrate_min   - subrate min
+ *                  subrate_max   - subrate max
+ *                  max_latency   - max latency
+ *                  cont_num      - continuation number
+ *                  timeout   - supervision timeout
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+extern void BTA_DmBleSubrateRequest(const RawAddress& bd_addr,
+                                    uint16_t subrate_min, uint16_t subrate_max,
+                                    uint16_t max_latency, uint16_t cont_num,
+                                    uint16_t timeout);
+
 
 #endif /* BTA_API_H */

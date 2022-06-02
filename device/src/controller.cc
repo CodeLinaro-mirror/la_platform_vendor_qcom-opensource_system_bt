@@ -14,6 +14,40 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted (subject to the limitations in the
+ *  disclaimer below) provided that the following conditions are met:
+ *
+ *  Redistributions of source code must retain the above copyright
+ *  notice, this list of conditions and the following disclaimer.
+ *
+ *  Redistributions in binary form must reproduce the above
+ *  copyright notice, this list of conditions and the following
+ *  disclaimer in the documentation and/or other materials provided
+ *  with the distribution.
+ *
+ *  Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *  contributors may be used to endorse or promote products derived
+ *  from this software without specific prior written permission.
+ *
+ *  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ *  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ *  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+ *
  ******************************************************************************/
 
 #define LOG_TAG "bt_controller"
@@ -45,7 +79,7 @@
 #define BTSNOOP_SOCLOG_PROPERTY "persist.vendor.service.bdroid.soclog"
 
 const bt_event_mask_t BLE_EVENT_MASK = {
-    {0x00, 0x00, 0x00, 0x02, 0x4F, 0x0B, 0xFE, 0x7f}};
+    {0x00, 0x00, 0x00, 0x06, 0x4F, 0x0B, 0xFE, 0x7f}};
 
 const bt_event_mask_t CLASSIC_EVENT_MASK = {HCI_DUMO_EVENT_MASK_EXT};
 
@@ -61,13 +95,26 @@ const uint8_t SCO_HOST_BUFFER_SIZE = 0xff;
 #define MAX_SCRAMBLING_FREQS_SIZE 64
 #define ISO_CHANNEL_HOST_SUPPORT_BIT 32
 #define MIN_ENCRYPTION_KEY_SIZE 7
+#define CONN_SUBRATING_HOST_SUPPORT_BIT 38
 #define UNUSED(x) (void)(x)
 
+#define QHS_TRANSPORT_BREDR 0
+#define QHS_TRANSPORT_LE 1
 #define QHS_TRANSPORT_LE_ISO 2
+
+/* Disable QHS */
+#define QHS_HOST_MODE_HOST_DISABLE 0
+/* Enable QHS support */
 #define QHS_HOST_MODE_HOST_AWARE 3
+/* Disable QHS, QLL and QLMP modes */
+#define QHS_HOST_DISABLE_ALL 4
+
+#define QHS_BREDR_MASK 0x01
+#define QHS_LE_MASK 0x02
+#define QHS_LE_ISO_MASK 0x04
 
 const bt_event_mask_t QBCE_QLM_AND_QLL_EVENT_MASK = {
-  {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x42}};
+  {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x4A}};
 
 static const hci_t* hci;
 static const hci_packet_factory_t* packet_factory;
@@ -109,6 +156,7 @@ static bt_device_host_add_on_features_t host_add_on_features;
 static uint8_t host_add_on_features_length = 0;
 static uint8_t simple_pairing_options = 0;
 static uint8_t maximum_encryption_key_size = 0;
+static bt_device_qll_local_supported_features_t qll_features;
 
 static bool readable;
 static bool ble_supported;
@@ -227,6 +275,8 @@ static future_t* start_up(void) {
   number_of_scrambling_supported_freqs = 0;
   soc_add_on_features_length = 0;
   host_add_on_features_length = 0;
+  char qhs_value[2] = {};
+  uint8_t qhs_support_mask = 0;
 
 // read properties  for offtarget test setup
 #if (OFF_TARGET_TEST_ENABLED == TRUE)
@@ -498,6 +548,14 @@ static future_t* start_up(void) {
       HCI_LE_SET_CIS_HOST_SUPPORT(features_ble.as_array);
     }
 
+    // Set Host support for LE connection subrating
+    if (HCI_LE_CONN_SUBRATING_SUPPORT(features_ble.as_array)) {
+      response = AWAIT_COMMAND(
+          packet_factory->make_ble_set_host_feature_cmd(CONN_SUBRATING_HOST_SUPPORT_BIT, 1));
+      packet_parser->parse_ble_set_host_feature_cmd(response);
+      HCI_LE_SET_CONN_SUBRATING_HOST_SUPPORT(features_ble.as_array);
+    }
+
     if (HCI_LE_ENHANCED_PRIVACY_SUPPORTED(features_ble.as_array)) {
       response =
           AWAIT_COMMAND(packet_factory->make_ble_read_resolving_list_size());
@@ -674,9 +732,44 @@ static future_t* start_up(void) {
   osi_property_set("persist.vendor.service.bt.adv_audio_mask", adv_audio_property);
 
   if (HCI_QBCE_QLE_HCI_SUPPORTED(soc_add_on_features.as_array)) {
-    response = AWAIT_COMMAND(packet_factory->make_qbce_set_qhs_host_mode(
-                   QHS_TRANSPORT_LE_ISO, QHS_HOST_MODE_HOST_AWARE));
-    packet_parser->parse_generic_command_complete(response);
+    BT_HDR* response;
+    char qhs_iso[PROPERTY_VALUE_MAX] = "false";
+    property_get("persist.vendor.btstack.qhs_enable", qhs_iso, "false");
+    if (!strncmp("true", qhs_iso, 4)) {
+        response = AWAIT_COMMAND(packet_factory->make_qbce_set_qhs_host_mode(
+                                 QHS_TRANSPORT_LE_ISO, QHS_HOST_MODE_HOST_AWARE));
+        packet_parser->parse_generic_command_complete(response);
+    } else {
+        response = AWAIT_COMMAND(packet_factory->make_qbce_set_qhs_host_mode(
+                                 QHS_TRANSPORT_LE_ISO, QHS_HOST_DISABLE_ALL));
+        packet_parser->parse_generic_command_complete(response);
+    }
+
+    /* This property is for test/debug purpose only */
+    osi_property_get("persist.vendor.btstack.qhs_support", qhs_value, "255");
+    qhs_support_mask = (uint8_t)atoi(qhs_value);
+    if (qhs_support_mask != 0xFF) {
+        response = qhs_support_mask & QHS_BREDR_MASK?
+                   AWAIT_COMMAND(packet_factory->make_qbce_set_qhs_host_mode(
+                                 QHS_TRANSPORT_BREDR, QHS_HOST_MODE_HOST_AWARE)):
+                   AWAIT_COMMAND(packet_factory->make_qbce_set_qhs_host_mode(
+                                 QHS_TRANSPORT_BREDR, QHS_HOST_DISABLE_ALL));
+        packet_parser->parse_generic_command_complete(response);
+
+        response = qhs_support_mask & QHS_LE_MASK?
+                   AWAIT_COMMAND(packet_factory->make_qbce_set_qhs_host_mode(
+                                 QHS_TRANSPORT_LE, QHS_HOST_MODE_HOST_AWARE)):
+                   AWAIT_COMMAND(packet_factory->make_qbce_set_qhs_host_mode(
+                                 QHS_TRANSPORT_LE, QHS_HOST_DISABLE_ALL));
+        packet_parser->parse_generic_command_complete(response);
+
+        response = qhs_support_mask & QHS_LE_ISO_MASK?
+                   AWAIT_COMMAND(packet_factory->make_qbce_set_qhs_host_mode(
+                                 QHS_TRANSPORT_LE_ISO, QHS_HOST_MODE_HOST_AWARE)):
+                   AWAIT_COMMAND(packet_factory->make_qbce_set_qhs_host_mode(
+                                 QHS_TRANSPORT_LE_ISO, QHS_HOST_DISABLE_ALL));
+        packet_parser->parse_generic_command_complete(response);
+    }
 
     response = AWAIT_COMMAND(packet_factory->make_qbce_set_qll_event_mask(
                    &QBCE_QLM_AND_QLL_EVENT_MASK));
@@ -687,6 +780,11 @@ static future_t* start_up(void) {
     response = AWAIT_COMMAND(packet_factory->make_qbce_set_qlm_event_mask(
                             &QBCE_QLM_AND_QLL_EVENT_MASK));
     packet_parser->parse_generic_command_complete(response);
+  }
+
+  if (HCI_QBCE_QLE_HCI_SUPPORTED(soc_add_on_features.as_array)) {
+    response = AWAIT_COMMAND(packet_factory->make_qbce_read_qll_local_supported_features());
+    packet_parser->parse_qll_read_local_supported_features_response(response, &qll_features);
   }
 
   if (!HCI_READ_ENCR_KEY_SIZE_SUPPORTED(supported_commands)) {
@@ -1100,6 +1198,21 @@ static bool supports_twsp_remote_state() {
   return twsp_state_supported;
 }
 
+/* to check if support for conn subrating is set in LL Feature Mask*/
+static bool is_conn_subrating_supported(void) {
+  CHECK(readable);
+  CHECK(ble_supported);
+  return HCI_LE_CONN_SUBRATING_SUPPORT(features_ble.as_array);
+}
+
+/* to check if host support for conn subrating is set in LL Feature Mask*/
+static bool is_conn_subrating_host_supported(void) {
+  CHECK(readable);
+  CHECK(ble_supported);
+  return HCI_LE_CONN_SUBRATING_HOST_SUPPORT(features_ble.as_array);
+}
+
+
 /* save transport information of standard and vendor specific codecs */
 void update_soc_codec_transport() {
   int number_of_codecs = (number_of_local_supported_codecs > number_of_vs_supported_codecs ?
@@ -1165,6 +1278,12 @@ static bool is_qbce_QLE_HCI_supported(void) {
 static bool is_qbce_QCM_HCI_supported(void) {
   return HCI_QBCE_QCM_HCI_SUPPORTED(
                soc_add_on_features.as_array);
+}
+
+static const bt_device_qll_local_supported_features_t* get_qll_features(void) {
+  CHECK(readable);
+  CHECK(ble_supported);
+  return &qll_features;
 }
 
 static const controller_t interface = {
@@ -1251,6 +1370,9 @@ static const controller_t interface = {
     is_adv_audio_supported,
     is_qbce_QLE_HCI_supported,
     is_qbce_QCM_HCI_supported,
+    get_qll_features,
+    is_conn_subrating_supported,
+    is_conn_subrating_host_supported,
 };
 
 const controller_t* controller_get_interface() {

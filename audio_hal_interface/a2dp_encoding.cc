@@ -17,6 +17,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+
+    * Redistribution and use in source and binary forms, with or without
+      modification, are permitted (subject to the limitations in the
+      disclaimer below) provided that the following conditions are met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided
+      with the distribution.
+
+    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+
+NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+*/
 
 #include "a2dp_encoding.h"
 #include "client_interface.h"
@@ -86,35 +119,7 @@ std::mutex internal_mutex_;
 std::condition_variable ack_wait_cv;
 tA2DP_CTRL_ACK ack_status;
 
-#define BA_SIMULCAST 3
-#define CHANNEL_MONO 0x00000000 //Mono/Unspecified
-#define CHANNEL_FL   0x00000001 //Front Left
-#define CHANNEL_FR   0x00000002 //Front Right
-#define CHANNEL_FC   0x00000004 //Front Centre
-#define CHANNEL_LFE  0x00000008 //Low Frequency Effect
-#define CHANNEL_BL   0x00000010 //Back Left
-#define CHANNEL_BR   0x00000020 //Back Right
-#define FROM_AIR     0x01
-#define TO_AIR       0x00
 
-#define  ADV_AUD_CODEC_SAMPLE_RATE_NONE    0x0
-#define  ADV_AUD_CODEC_SAMPLE_RATE_44100   0x1 << 0
-#define  ADV_AUD_CODEC_SAMPLE_RATE_48000   0x1 << 1
-#define  ADV_AUD_CODEC_SAMPLE_RATE_88200   0x1 << 2
-#define  ADV_AUD_CODEC_SAMPLE_RATE_96000   0x1 << 3
-#define  ADV_AUD_CODEC_SAMPLE_RATE_176400  0x1 << 4
-#define  ADV_AUD_CODEC_SAMPLE_RATE_192000  0x1 << 5
-#define  ADV_AUD_CODEC_SAMPLE_RATE_16000   0x1 << 6
-#define  ADV_AUD_CODEC_SAMPLE_RATE_24000   0x1 << 7
-#define  ADV_AUD_CODEC_SAMPLE_RATE_32000   0x1 << 8
-#define  ADV_AUD_CODEC_SAMPLE_RATE_8000    0x1 << 9
-
-#define WMCP_PROFILE       0x04
-#define GCP_RX_PROFILE     0x20
-
-#define  RX_ONLY_CONFIG    0x1
-#define  TX_ONLY_CONFIG    0x2
-#define  TX_RX_BOTH_CONFIG 0x3
 
 BluetoothAudioCtrlAck a2dp_ack_to_bt_audio_ctrl_ack(tA2DP_CTRL_ACK ack);
 
@@ -350,7 +355,7 @@ class A2dpTransport_2_1 : public ::bluetooth::audio::IBluetoothTransportInstance
   tA2DP_CTRL_ACK ProcessRequest(tA2DP_CTRL_CMD cmd) {
     ack_status = A2DP_CTRL_ACK_PENDING;
 #if AHIM_ENABLED
-    btif_ahim_process_request(cmd);
+    btif_ahim_process_request(cmd, A2DP);
 #else
     btif_dispatch_sm_event(BTIF_AV_PROCESS_HIDL_REQ_EVT, (char*)&cmd,
                           sizeof(cmd));
@@ -384,6 +389,7 @@ bool is_configured = false;
 bool is_playing = false;
 bool is_hal_version_fetched = false;
 bool hal_2_1_enabled = false;
+bool hal_2_0_enabled = false;
 
 BluetoothAudioCtrlAck a2dp_ack_to_bt_audio_ctrl_ack(tA2DP_CTRL_ACK ack) {
   switch (ack) {
@@ -2231,6 +2237,10 @@ namespace bluetooth {
 namespace audio {
 namespace a2dp {
 
+// Checking if new bluetooth_audio is enabled
+bool is_hal_2_0_enabled() { return ((a2dp_sink_2_1 && a2dp_sink_2_1->IsActvie()) ||
+                                     (a2dp_sink && a2dp_sink->IsActvie())); }
+
 // Checking if new bluetooth_audio is supported
 bool is_hal_2_0_supported() {
   if (!is_configured) {
@@ -2251,13 +2261,27 @@ void get_hal_version() {
       LOG(WARNING) << __func__ << ":hal version 2.1";
       hal_2_1_enabled = true;
       is_hal_version_fetched = true;
+    } else if (!strcmp(hal_clientif->GetHalVersion(),"hal_2_0")) {
+      LOG(WARNING) << __func__ << ":hal version 2.1";
+      hal_2_0_enabled = true;
+      is_hal_version_fetched = true;
     }
   }
 }
 
-// Checking if new bluetooth_audio is enabled
-bool is_hal_2_0_enabled() { return ((a2dp_sink_2_1 && a2dp_sink_2_1->IsActvie()) ||
-                                     (a2dp_sink && a2dp_sink->IsActvie())); }
+static bool is_qti_hal_enabled = false;
+
+bool is_qc_hal_enabled() {
+  LOG(WARNING) << __func__;
+  get_hal_version();
+  return (hal_2_0_enabled || hal_2_1_enabled);
+}
+
+bool is_qc_lea_enabled() {
+  LOG(WARNING) << __func__;
+  get_hal_version();
+  return hal_2_1_enabled;
+}
 
 // Initialize BluetoothAudio HAL: openProvider
 #if AHIM_ENABLED

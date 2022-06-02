@@ -2,6 +2,7 @@ soong_config_module_type_import {
     from: "device/qcom/qssi/Android.bp",
     module_types: [
          "bredr_vs_btadva_cc_defaults",
+         "aosp_vs_qva_cc_defaults",
     ],
 }
 
@@ -17,6 +18,19 @@ bredr_vs_btadva_cc_defaults {
            }
        }
    }
+}
+
+aosp_vs_qva_cc_defaults {
+     name: "qva_stack_cc_defaults",
+     soong_config_variables: {
+         aosp_or_qva: {
+           qva: {
+             static_libs: [
+                "libbt-sbc-encoder",
+             ],
+           }
+        }
+    }
 }
 
 crypto_toolbox_srcs = [
@@ -221,7 +235,7 @@ cc_library_static {
 // ========================================================
 cc_test {
     name: "net_test_stack_qti",
-    defaults: ["fluoride_defaults_qti"],
+    defaults: ["fluoride_defaults_qti", "qva_stack_cc_defaults"],
     local_include_dirs: [
         "include",
     ],
@@ -238,7 +252,6 @@ cc_test {
     static_libs: [
         "libbt-stack_qti",
         "libbt-stack_ext",
-        "libbt-sbc-encoder",
         "libFraunhoferAAC",
         "libosi_qti",
     ],

@@ -14,6 +14,40 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted (subject to the limitations in the
+ *  disclaimer below) provided that the following conditions are met:
+ *
+ *  Redistributions of source code must retain the above copyright
+ *  notice, this list of conditions and the following disclaimer.
+ *
+ *  Redistributions in binary form must reproduce the above
+ *  copyright notice, this list of conditions and the following
+ *  disclaimer in the documentation and/or other materials provided
+ *  with the distribution.
+ *
+ *  Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *  contributors may be used to endorse or promote products derived
+ *  from this software without specific prior written permission.
+ *
+ *  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ *  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ *  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+ *
  ******************************************************************************/
 
 /*******************************************************************************
@@ -254,6 +288,13 @@ static void btapp_gatts_handle_cback(uint16_t event, char* p_param) {
                 p_data->conn_update.status);
       break;
 
+    case BTA_GATTS_SUBRATE_CHG_EVT:
+      HAL_CBACK(bt_gatt_callbacks, server->subrate_chg_cb,
+                p_data->subrate_chg.conn_id, p_data->subrate_chg.subrate_factor,
+                p_data->subrate_chg.latency, p_data->subrate_chg.cont_num,
+                p_data->subrate_chg.timeout, p_data->subrate_chg.status);
+      break;
+
     default:
       LOG_ERROR(LOG_TAG, "%s: Unhandled event (%d)!", __func__, event);
       break;
@@ -361,15 +402,13 @@ static bt_status_t btif_gatts_close(int server_if, const RawAddress& bd_addr,
 }
 
 static void on_service_added_cb(uint8_t status, int server_if,
-                                const btgatt_db_element_t *service,
-                                size_t service_count) {
+                                vector<btgatt_db_element_t> service) {
   HAL_CBACK(bt_gatt_callbacks, server->service_added_cb, status, server_if,
-            service, service_count);
+            service.data(), service.size());
 }
 
 static void add_service_impl(int server_if,
-                             const btgatt_db_element_t *service,
-                             size_t service_count) {
+                             vector<btgatt_db_element_t> service) {
   // TODO(jpawlowski): btif should be a pass through layer, and no checks should
   // be made here. This exception is added only until GATT server code is
   // refactored, and one can distinguish stack-internal aps from external apps
@@ -377,12 +416,12 @@ static void add_service_impl(int server_if,
       service[0].uuid == Uuid::From16Bit(UUID_SERVCLASS_GAP_SERVER)) {
     LOG_ERROR(LOG_TAG, "%s: Attept to register restricted service", __func__);
     HAL_CBACK(bt_gatt_callbacks, server->service_added_cb, BT_STATUS_FAIL,
-              server_if, service, service_count);
+              server_if, service.data(), service.size());
     return;
   }
 
   BTA_GATTS_AddService(
-      server_if, service, service_count,
+      server_if, service,
       jni_thread_wrapper(FROM_HERE, base::Bind(&on_service_added_cb)));
 }
 
@@ -392,7 +431,7 @@ static bt_status_t btif_gatts_add_service(int server_if,
   CHECK_BTGATT_INIT();
   return do_in_jni_thread(FROM_HERE,
                           Bind(&add_service_impl, server_if,
-                               service, service_count));
+                               std::vector(service, service + service_count)));
 }
 
 static bt_status_t btif_gatts_stop_service(int server_if, int service_handle) {

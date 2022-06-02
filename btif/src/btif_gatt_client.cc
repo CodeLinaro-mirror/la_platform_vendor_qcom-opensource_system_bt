@@ -14,6 +14,40 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted (subject to the limitations in the
+ *  disclaimer below) provided that the following conditions are met:
+ *
+ *  Redistributions of source code must retain the above copyright
+ *  notice, this list of conditions and the following disclaimer.
+ *
+ *  Redistributions in binary form must reproduce the above
+ *  copyright notice, this list of conditions and the following
+ *  disclaimer in the documentation and/or other materials provided
+ *  with the distribution.
+ *
+ *  Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *  contributors may be used to endorse or promote products derived
+ *  from this software without specific prior written permission.
+ *
+ *  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ *  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ *  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+ *
  ******************************************************************************/
 
 /*******************************************************************************
@@ -208,6 +242,13 @@ void btif_gattc_upstreams_evt(uint16_t event, char* p_param) {
     case BTA_GATTC_SRVC_CHG_EVT:
       HAL_CBACK(bt_gatt_callbacks, client->service_changed_cb,
                 p_data->service_changed.conn_id);
+      break;
+
+    case BTA_GATTC_SUBRATE_CHG_EVT:
+      HAL_CBACK(bt_gatt_callbacks, client->subrate_chg_cb,
+                p_data->subrate_chg.conn_id, p_data->subrate_chg.subrate_factor,
+                p_data->subrate_chg.latency, p_data->subrate_chg.cont_num,
+                p_data->subrate_chg.timeout, p_data->subrate_chg.status);
       break;
 
     default:
@@ -639,6 +680,26 @@ bt_status_t btif_gattc_test_command(int command,
   return btif_gattc_test_command_impl(command, &params);
 }
 
+void btif_gattc_subrate_request_impl(RawAddress addr, int subrate_min,
+                                     int subrate_max, int max_latency,
+                                     int cont_num, int sup_timeout) {
+  if (BTA_DmGetConnectionState(addr)) {
+    BTA_DmBleSubrateRequest(addr, subrate_min, subrate_max, max_latency,
+                            cont_num, sup_timeout);
+  }
+}
+
+bt_status_t btif_gattc_subrate_request(const RawAddress& bd_addr,
+                                       int subrate_min, int subrate_max,
+                                       int max_latency, int cont_num,
+                                       int sup_timeout) {
+  CHECK_BTGATT_INIT();
+  return do_in_jni_thread(Bind(
+      base::IgnoreResult(&btif_gattc_subrate_request_impl), bd_addr,
+      subrate_min, subrate_max, max_latency, cont_num, sup_timeout));
+}
+
+
 }  // namespace
 
 const btgatt_client_interface_t btgattClientInterface = {
@@ -664,4 +725,5 @@ const btgatt_client_interface_t btgattClientInterface = {
     btif_gattc_set_preferred_phy,
     btif_gattc_read_phy,
     btif_gattc_test_command,
-    btif_gattc_get_gatt_db};
+    btif_gattc_get_gatt_db,
+    btif_gattc_subrate_request};

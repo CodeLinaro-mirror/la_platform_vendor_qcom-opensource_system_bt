@@ -2862,6 +2862,12 @@ static void btm_ble_process_adv_pkt_cont(
     return;
   }
 
+  bool include_rsi = false;
+  uint8_t len;
+  if (AdvertiseDataParser::GetFieldByType(adv_data, BTM_BLE_AD_TYPE_RSI, &len)) {
+    include_rsi = true;
+  }
+
   tINQ_DB_ENT* p_i = btm_inq_db_find(bda);
 
   /* Check if this address has already been processed for this inquiry */
@@ -2869,7 +2875,8 @@ static void btm_ble_process_adv_pkt_cont(
     /* never been report as an LE device */
     if (p_i && (!(p_i->inq_info.results.device_type & BT_DEVICE_TYPE_BLE) ||
                 /* scan repsonse to be updated */
-                (!p_i->scan_rsp))) {
+                (!p_i->scan_rsp) ||
+                (!p_i->inq_info.results.include_rsi && include_rsi))) {
       update = true;
     } else if (p_i && ((!ble_evt_type_is_legacy(evt_type) &&
           ble_evt_type_is_legacy(p_i->inq_info.results.ble_evt_type))
@@ -2908,6 +2915,9 @@ static void btm_ble_process_adv_pkt_cont(
   btm_ble_update_inq_result(p_i, addr_type, bda, evt_type, primary_phy,
                             secondary_phy, advertising_sid, tx_power, rssi,
                             periodic_adv_int, adv_data);
+  if (include_rsi) {
+    (&p_i->inq_info.results)->include_rsi = true;
+  }
 
   uint8_t result = btm_ble_is_discoverable(bda, adv_data);
   if (result == 0) {

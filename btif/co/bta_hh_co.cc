@@ -239,8 +239,7 @@ static int uhid_read_event(btif_hh_device_t* p_dev) {
         }
         /* Copy new output report data for future tracking */
         memcpy(&p_dev->last_output_rpt_data, &ev.u.output.data, ev.u.output.size);
-        btif_hh_setreport(p_dev, BTHH_OUTPUT_REPORT, ev.u.output.size,
-                          ev.u.output.data);
+        btif_hh_senddata(p_dev, ev.u.output.size, ev.u.output.data);
       } else
         btif_hh_setreport(p_dev, BTHH_INPUT_REPORT, ev.u.output.size,
                           ev.u.output.data);
@@ -711,6 +710,16 @@ int bta_hh_co_send_hid_info(btif_hh_device_t* p_dev, const char* dev_name,
                                        vendor_id, product_id) ||
       interop_match_name(INTEROP_REMOVE_HID_DIG_DESCRIPTOR, dev_name))
     remove_digitizer_descriptor(p_dscp, (uint16_t*)&dscp_len);
+
+  if (interop_match_vendor_product_ids(INTEROP_CHANGE_HID_VID_PID,
+                                       vendor_id, product_id) &&
+      interop_match_name(INTEROP_CHANGE_HID_VID_PID, dev_name)) {
+
+      vendor_id = 0x1000;
+      product_id = 0x1000;
+      APPL_TRACE_WARNING("%s: vendor_id = 0x%04x, product_id = 0x%04x, name = [%s]",
+      __func__, vendor_id, product_id, dev_name);
+  }
 
   // Create and send hid descriptor to kernel
   memset(&ev, 0, sizeof(ev));

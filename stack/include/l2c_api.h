@@ -14,6 +14,40 @@
 *  See the License for the specific language governing permissions and
 *  limitations under the License.
 *
+*  Changes from Qualcomm Innovation Center are provided under the following license:
+*
+*  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+*
+*  Redistribution and use in source and binary forms, with or without
+*  modification, are permitted (subject to the limitations in the
+*  disclaimer below) provided that the following conditions are met:
+*
+*  Redistributions of source code must retain the above copyright
+*  notice, this list of conditions and the following disclaimer.
+*
+*  Redistributions in binary form must reproduce the above
+*  copyright notice, this list of conditions and the following
+*  disclaimer in the documentation and/or other materials provided
+*  with the distribution.
+*
+*  Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+*  contributors may be used to endorse or promote products derived
+*  from this software without specific prior written permission.
+*
+*  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+*  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+*  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+*  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+*  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+*  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+*  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+*  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+*  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+*  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+*  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+*  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+*  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+*
 ******************************************************************************/
 
 /******************************************************************************
@@ -1564,4 +1598,37 @@ extern bool L2CA_isMediaChannel(uint16_t handle, uint16_t channel_id, bool is_lo
 extern void L2CA_AdjustConnectionIntervals(uint16_t* min_interval,
                                            uint16_t* max_interval,
                                            uint16_t floor_interval);
+
+/*******************************************************************************
+ *
+ *  Function        L2CA_SetDefaultSubrate
+ *
+ *  Description     BLE Set Default Subrate.
+ *
+ *  Parameters:     Subrate parameters
+ *
+ *  Return value:   void
+ *
+ ******************************************************************************/
+extern void L2CA_SetDefaultSubrate(uint16_t subrate_min, uint16_t subrate_max,
+                                   uint16_t max_latency, uint16_t cont_num,
+                                   uint16_t timeout);
+
+
+/*******************************************************************************
+ *
+ *  Function        L2CA_SubrateRequest
+ *
+ *  Description     BLE Subrate request.
+ *
+ *  Parameters:     Subrate parameters
+ *
+ *  Return value:   true if update started
+ *
+ ******************************************************************************/
+extern bool L2CA_SubrateRequest(const RawAddress& rem_bda,
+                                uint16_t subrate_min, uint16_t subrate_max,
+                                uint16_t max_latency, uint16_t cont_num,
+                                uint16_t timeout);
+
 #endif /* L2C_API_H */

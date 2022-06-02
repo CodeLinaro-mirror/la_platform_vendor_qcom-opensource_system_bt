@@ -360,6 +360,7 @@ extern void btif_iot_update_remote_info(tBTA_DM_AUTH_CMPL* p_auth_cmpl,
 extern bool is_remote_support_adv_audio(const RawAddress remote_bdaddr);
 extern void bta_adv_audio_update_bond_db(RawAddress p_bd_addr, uint8_t transport);
 extern void btif_store_adv_audio_pair_info(RawAddress bd_addr);
+extern bool bta_lea_is_le_pairing();
 #endif
 /******************************************************************************
  *  Functions
@@ -1579,7 +1580,7 @@ static void btif_dm_search_devices_evt(uint16_t event, char* p_param) {
       }
 
       {
-        bt_property_t properties[6];
+        bt_property_t properties[7];
         bt_device_type_t dev_type;
         uint32_t num_properties = 0;
         bt_status_t status;
@@ -1674,6 +1675,13 @@ static void btif_dm_search_devices_evt(uint16_t event, char* p_param) {
                                      sizeof(gid_data), &gid_data);
           num_properties++;
         }
+
+        /* CSIP supported device */
+        BTIF_STORAGE_FILL_PROPERTY(&properties[num_properties],
+                                   BT_PROPERTY_REMOTE_IS_COORDINATED_SET_MEMBER,
+                                   sizeof(bool),
+                                   &(p_search_data->inq_res.include_rsi));
+        num_properties++;
 
         status =
             btif_storage_add_remote_device(&bdaddr, num_properties, properties);
@@ -2765,6 +2773,12 @@ bt_status_t btif_dm_start_discovery(void) {
   /* We should not go for inquiry in BONDING STATE. */
   if (pairing_cb.state == BT_BOND_STATE_BONDING)
       return BT_STATUS_BUSY;
+ #ifdef ADV_AUDIO_FEATURE
+   if (bta_lea_is_le_pairing()){
+      BTIF_TRACE_EVENT("%s : LEA pairing is ongoing, ignore inquiry", __FUNCTION__);
+      return BT_STATUS_BUSY;
+   }
+#endif
 
   char donglemode_prop[PROPERTY_VALUE_MAX] = "false";
   if(osi_property_get("persist.bluetooth.donglemode", donglemode_prop, "false") &&

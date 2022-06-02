@@ -81,6 +81,7 @@ extern void btm_ble_create_ll_conn_complete(uint8_t status);
 extern void btm_le_create_big_complete(uint8_t* p, uint16_t length);
 extern void btm_le_create_big_cmd_status(uint8_t status);
 extern void btm_le_terminate_big_complete(uint8_t* p, uint16_t length);
+extern void btm_ble_subrate_req_cmd_status(uint8_t status, uint16_t handle);
 
 /* LE security function from btm_sec.cc */
 extern void btm_ble_link_sec_check(const RawAddress& bd_addr,

@@ -114,8 +114,11 @@ static uint16_t compute_service_size(btgatt_db_element_t* service, int count) {
       db_size += 1;
     else if (el->type == BTGATT_DB_CHARACTERISTIC)
       db_size += 2;
-    else
+    else {
       LOG(ERROR) << __func__ << ": Unknown element type: " << el->type;
+      db_size = 0;
+      break;
+    }
 
   return db_size;
 }
@@ -171,6 +174,10 @@ uint16_t GATTS_AddService(tGATT_IF gatt_if, btgatt_db_element_t* service,
   }
 
   uint16_t num_handles = compute_service_size(service, count);
+  if (num_handles == 0) {
+    LOG(ERROR) << "Invalid Gatt Service. Skip adding in db. gatt_if:" << +gatt_if;
+    return GATT_INTERNAL_ERROR;
+  }
 
   if (svc_uuid == Uuid::From16Bit(UUID_SERVCLASS_GATT_SERVER)) {
     s_hdl = gatt_cb.hdl_cfg.gatt_start_hdl;

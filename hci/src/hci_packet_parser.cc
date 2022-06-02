@@ -332,6 +332,25 @@ static void parse_set_min_encryption_key_size_response(BT_HDR* response) {
       response, HCI_SET_MIN_ENCRYPTION_KEY_SIZE, 0) != NULL);
 }
 
+static void parse_qll_read_local_supported_features_response(
+     BT_HDR* response, bt_device_qll_local_supported_features_t* supported_features) {
+  uint8_t* stream = read_command_complete_header(
+                response, HCI_VS_QBCE_OCF,
+       9 /* bytes after */);
+
+   if (stream) {
+     uint8_t sub_opcode;
+     STREAM_TO_UINT8(sub_opcode, stream);
+     if (sub_opcode == QBCE_READ_LOCAL_QLL_SUPPORTED_FEATURES)
+     {
+       STREAM_TO_ARRAY(supported_features->as_array, stream,
+                (int)sizeof(bt_device_qll_local_supported_features_t));
+     }
+   } else {
+     LOG_ERROR(LOG_TAG, "%s: stream null check cmnd status reason", __func__);
+   }
+   buffer_allocator->free(response);
+}
 
 // Internal functions
 
@@ -397,6 +416,7 @@ static const hci_packet_parser_t interface = {
     parse_read_local_simple_paring_options_response,
     parse_ble_set_host_feature_cmd,
     parse_set_min_encryption_key_size_response,
+    parse_qll_read_local_supported_features_response,
 };
 
 const hci_packet_parser_t* hci_packet_parser_get_interface() {

@@ -206,6 +206,7 @@ typedef struct {
                                 /* itself or peer device doesn't support */
                                 /* secure connections */
   tBTM_VS_EVT_CB *p_vnd_iot_info_cb;
+  tBTM_VS_EVT_CB *p_vnd_qle_cig_latency_changed_cb;
   tBTM_NOTIFY_SSR_CB * p_ssr_cb;
   /*callback for HCI_Configure_Data_Path command complete*/
   tBTM_CONFIGURE_DATA_PATH_CB *cfg_datapath_cmpl_cb = NULL;

@@ -14,6 +14,40 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted (subject to the limitations in the
+ *  disclaimer below) provided that the following conditions are met:
+ *
+ *  Redistributions of source code must retain the above copyright
+ *  notice, this list of conditions and the following disclaimer.
+ *
+ *  Redistributions in binary form must reproduce the above
+ *  copyright notice, this list of conditions and the following
+ *  disclaimer in the documentation and/or other materials provided
+ *  with the distribution.
+ *
+ *  Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *  contributors may be used to endorse or promote products derived
+ *  from this software without specific prior written permission.
+ *
+ *  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ *  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ *  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+ *
  ******************************************************************************/
 
 /******************************************************************************
@@ -87,6 +121,9 @@ static void bta_gattc_phy_update_cback(tGATT_IF gatt_if, uint16_t conn_id,
 static void bta_gattc_conn_update_cback(tGATT_IF gatt_if, uint16_t conn_id,
                                         uint16_t interval, uint16_t latency,
                                         uint16_t timeout, uint8_t status);
+static void bta_gattc_subrate_chg_cback(tGATT_IF gatt_if, uint16_t conn_id,
+                                        uint16_t subrate_factor, uint16_t latency,
+                                        uint16_t cont_num, uint16_t timeout, uint8_t status);
 
 static tGATT_CBACK bta_gattc_cl_cback = {bta_gattc_conn_cback,
                                          bta_gattc_cmpl_cback,
@@ -96,7 +133,8 @@ static tGATT_CBACK bta_gattc_cl_cback = {bta_gattc_conn_cback,
                                          bta_gattc_enc_cmpl_cback,
                                          bta_gattc_cong_cback,
                                          bta_gattc_phy_update_cback,
-                                         bta_gattc_conn_update_cback};
+                                         bta_gattc_conn_update_cback,
+                                         bta_gattc_subrate_chg_cback};
 
 /* opcode(tGATTC_OPTYPE) order has to be comply with internal event order */
 static uint16_t bta_gattc_opcode_to_int_evt[] = {
@@ -1740,4 +1778,25 @@ static void bta_gattc_conn_update_cback(tGATT_IF gatt_if, uint16_t conn_id,
   cb_data.conn_update.timeout = timeout;
   cb_data.conn_update.status = status;
   (*p_clreg->p_cback)(BTA_GATTC_CONN_UPDATE_EVT, &cb_data);
+}
+
+static void bta_gattc_subrate_chg_cback(tGATT_IF gatt_if, uint16_t conn_id,
+                                        uint16_t subrate_factor, uint16_t latency,
+                                        uint16_t cont_num, uint16_t timeout,
+                                        uint8_t status) {
+  tBTA_GATTC_RCB* p_clreg = bta_gattc_cl_get_regcb(gatt_if);
+
+  if (!p_clreg || !p_clreg->p_cback) {
+    LOG(ERROR) << __func__ << ": client_if=" << gatt_if << " not found";
+    return;
+  }
+
+  tBTA_GATTC cb_data;
+  cb_data.subrate_chg.conn_id = conn_id;
+  cb_data.subrate_chg.subrate_factor = subrate_factor;
+  cb_data.subrate_chg.latency = latency;
+  cb_data.subrate_chg.cont_num = cont_num;
+  cb_data.subrate_chg.timeout = timeout;
+  cb_data.subrate_chg.status = status;
+  (*p_clreg->p_cback)(BTA_GATTC_SUBRATE_CHG_EVT, &cb_data);
 }

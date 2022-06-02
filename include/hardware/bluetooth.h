@@ -292,6 +292,14 @@ typedef enum {
   BT_PROPERTY_LOCAL_IO_CAPS_BLE,
 
   BT_PROPERTY_DYNAMIC_AUDIO_BUFFER,
+
+  /**
+   * Description - True if Remote is a Member of a Coordinated Set.
+   * Access mode - GET.
+   * Data Type - bool.
+   */
+  BT_PROPERTY_REMOTE_IS_COORDINATED_SET_MEMBER,
+
     /**
    * Description - Bluetooth Service 128-bit ADV AUDIO UUIDs
    * Access mode - Only GET.

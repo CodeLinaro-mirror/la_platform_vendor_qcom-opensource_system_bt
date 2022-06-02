@@ -14,6 +14,40 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted (subject to the limitations in the
+ *  disclaimer below) provided that the following conditions are met:
+ *
+ *  Redistributions of source code must retain the above copyright
+ *  notice, this list of conditions and the following disclaimer.
+ *
+ *  Redistributions in binary form must reproduce the above
+ *  copyright notice, this list of conditions and the following
+ *  disclaimer in the documentation and/or other materials provided
+ *  with the distribution.
+ *
+ *  Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *  contributors may be used to endorse or promote products derived
+ *  from this software without specific prior written permission.
+ *
+ *  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ *  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ *  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+ *
  ******************************************************************************/
 
 /******************************************************************************
@@ -561,6 +595,22 @@ typedef struct t_l2c_linkcb {
   uint16_t min_ce_len;
   uint16_t max_ce_len;
 
+#define L2C_BLE_SUBRATE_REQ_DISABLE \
+  0x1                              /* disable subrate req */
+#define L2C_BLE_NEW_SUBRATE_PARAM 0x2 /* new subrate req parameter to be set */
+#define L2C_BLE_SUBRATE_REQ_PENDING                  \
+  0x4 /* waiting for subrate change to be completed \
+         */
+
+  /* subrate req params */
+  uint16_t subrate_min;
+  uint16_t subrate_max;
+  uint16_t max_latency;
+  uint16_t cont_num;
+  uint16_t supervision_tout;
+
+  uint8_t subrate_req_mask;
+
 #if (L2CAP_ROUND_ROBIN_CHANNEL_SERVICE == TRUE)
   /* each priority group is limited burst transmission */
   /* round robin service for the same priority channels */
@@ -1028,5 +1078,9 @@ extern void l2cu_send_peer_coc_disc_req(tL2C_CCB* p_ccb);
 extern void l2cu_clear_reconfig_params(tL2C_CCB* p_ccb);
 extern tL2C_CCB* l2cu_find_ccb_by_l2cap_id(tL2C_LCB* p_lcb, uint16_t l2cap_id);
 bool l2cu_is_unaccepted_coc_result_code(uint16_t result);
+
+extern void l2cble_process_subrate_change_evt(uint16_t handle, uint8_t status,
+                                              uint16_t subrate_factor, uint16_t peripheral_latency,
+                                              uint16_t cont_num, uint16_t timeout);
 
 #endif

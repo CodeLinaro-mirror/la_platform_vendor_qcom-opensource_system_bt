@@ -829,6 +829,19 @@ tBTM_STATUS BTM_RegisterForVSEvents(tBTM_VS_EVT_CB* p_cb, bool is_register) {
 
 /*******************************************************************************
 **
+** Function         btm_register_qle_cig_latency_change_cback
+**
+** Description      Register callback to process qle_cig_latency_changed event
+**
+** Returns          void
+**
+*******************************************************************************/
+void btm_register_qle_cig_latency_changed_cback (tBTM_VS_EVT_CB *p_cb) {
+    btm_cb.devcb.p_vnd_qle_cig_latency_changed_cb = p_cb;
+}
+
+/*******************************************************************************
+**
 ** Function         btm_register_iot_info_cback
 **
 ** Description      Register callback to process iot info report
@@ -899,6 +912,13 @@ void btm_vendor_specific_evt(uint8_t* p, uint8_t evt_len) {
         break;
       case MSG_QBCE_QCM_PHY_CHANGE:
         btm_acl_update_qcm_phy_state(pp);
+        break;
+      case MSG_QBCE_QLE_CIG_LATENCY_CHANGED:
+        if (btm_cb.devcb.p_vnd_qle_cig_latency_changed_cb) {
+          BTM_TRACE_DEBUG ("Calling qle_cig_latency_changed_cb");
+          (*btm_cb.devcb.p_vnd_qle_cig_latency_changed_cb)((evt_len - 2), pp);
+          return;
+        }
         break;
       default:
         BTM_TRACE_ERROR("%s: unknown msg type: %d", __func__, vse_msg_type);

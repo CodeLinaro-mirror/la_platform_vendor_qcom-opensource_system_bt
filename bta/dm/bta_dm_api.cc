@@ -14,6 +14,40 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted (subject to the limitations in the
+ *  disclaimer below) provided that the following conditions are met:
+ *
+ *  Redistributions of source code must retain the above copyright
+ *  notice, this list of conditions and the following disclaimer.
+ *
+ *  Redistributions in binary form must reproduce the above
+ *  copyright notice, this list of conditions and the following
+ *  disclaimer in the documentation and/or other materials provided
+ *  with the distribution.
+ *
+ *  Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *  contributors may be used to endorse or promote products derived
+ *  from this software without specific prior written permission.
+ *
+ *  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ *  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ *  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+ *
  ******************************************************************************/
 
 /******************************************************************************
@@ -1392,4 +1426,43 @@ void BTA_DmProcessQueuedServiceDiscovery(void) {
       }
     }
   }
+}
+
+/*******************************************************************************
+ *
+ * Function         BTA_DmBleSubrateRequest
+ *
+ * Description      subrate request, can only be used when
+ *                  connection is up.
+ *
+ * Parameters:      bd_addr       - BD address of the peer
+ *                  subrate_min   - subrate factor minimum,
+ *                                  [0x0001 - 0x01F4]
+ *                  subrate_max   - subrate factor maximum,
+ *                                  [0x0001 - 0x01F4]
+ *                  max_latency   - max peripheral latency [0x0000 - 01F3]
+ *                  cont_num      - continuation number [0x0000 - 01F3]
+ *                  timeout       - supervision timeout [0x000a - 0xc80]
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_DmBleSubrateRequest(const RawAddress& bd_addr,
+                             uint16_t subrate_min, uint16_t subrate_max,
+                             uint16_t max_latency, uint16_t cont_num,
+                             uint16_t timeout) {
+  tBTA_DM_API_SUBRATE_REQ* p_msg =
+      (tBTA_DM_API_SUBRATE_REQ*)osi_calloc(
+       sizeof(tBTA_DM_API_SUBRATE_REQ));
+
+  APPL_TRACE_API("%s", __func__);
+  p_msg->hdr.event = BTA_DM_API_SUBRATE_REQ_EVT;
+  p_msg->bd_addr = bd_addr;
+  p_msg->subrate_min = subrate_min;
+  p_msg->subrate_max = subrate_max;
+  p_msg->max_latency = max_latency;
+  p_msg->cont_num = cont_num;
+  p_msg->timeout = timeout;
+
+  bta_sys_sendmsg(p_msg);
 }

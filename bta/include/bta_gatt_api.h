@@ -14,6 +14,40 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted (subject to the limitations in the
+ *  disclaimer below) provided that the following conditions are met:
+ *
+ *  Redistributions of source code must retain the above copyright
+ *  notice, this list of conditions and the following disclaimer.
+ *
+ *  Redistributions in binary form must reproduce the above
+ *  copyright notice, this list of conditions and the following
+ *  disclaimer in the documentation and/or other materials provided
+ *  with the distribution.
+ *
+ *  Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *  contributors may be used to endorse or promote products derived
+ *  from this software without specific prior written permission.
+ *
+ *  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ *  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ *  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+ *
  ******************************************************************************/
 
 /******************************************************************************
@@ -65,6 +99,7 @@ typedef struct {
 #define BTA_GATTC_CONGEST_EVT 24     /* Congestion event */
 #define BTA_GATTC_PHY_UPDATE_EVT 25  /* PHY change event */
 #define BTA_GATTC_CONN_UPDATE_EVT 26 /* Connection parameters update event */
+#define BTA_GATTC_SUBRATE_CHG_EVT 27 /* Subrate Change event */
 
 typedef uint8_t tBTA_GATTC_EVT;
 
@@ -210,6 +245,16 @@ typedef struct {
   uint16_t conn_id;
 } tBTA_GATTC_SERVICE_CHANGED;
 
+typedef struct {
+  tGATT_IF server_if;
+  uint16_t conn_id;
+  uint16_t subrate_factor;
+  uint16_t latency;
+  uint16_t cont_num;
+  uint16_t timeout;
+  tGATT_STATUS status;
+} tBTA_GATTC_SUBRATE_CHG;
+
 typedef union {
   tGATT_STATUS status;
 
@@ -229,6 +274,7 @@ typedef union {
   tBTA_GATTC_PHY_UPDATE phy_update;
   tBTA_GATTC_CONN_UPDATE conn_update;
   tBTA_GATTC_SERVICE_CHANGED service_changed;
+  tBTA_GATTC_SUBRATE_CHG subrate_chg;
 } tBTA_GATTC;
 
 /* GATTC enable callback function */
@@ -261,6 +307,7 @@ typedef void(tBTA_GATTC_CBACK)(tBTA_GATTC_EVT event, tBTA_GATTC* p_data);
 #define BTA_GATTS_PHY_UPDATE_EVT 21
 #define BTA_GATTS_CONN_UPDATE_EVT 22
 #define BTA_GATTS_MULTI_NTF_EVT 23
+#define BTA_GATTS_SUBRATE_CHG_EVT 24
 
 typedef uint8_t tBTA_GATTS_EVT;
 
@@ -347,6 +394,16 @@ typedef struct {
   tGATT_STATUS status;
 } tBTA_GATTS_CONN_UPDATE;
 
+typedef struct {
+  tGATT_IF server_if;
+  uint16_t conn_id;
+  uint16_t subrate_factor;
+  uint16_t latency;
+  uint16_t cont_num;
+  uint16_t timeout;
+  tGATT_STATUS status;
+} tBTA_GATTS_SUBRATE_CHG;
+
 /* Multiple Handle value Notifications*/
 typedef struct {
   uint8_t num_attr;
@@ -367,6 +424,7 @@ typedef union {
   tBTA_GATTS_PHY_UPDATE phy_update; /* BTA_GATTS_PHY_UPDATE_EVT callback data */
   tBTA_GATTS_CONN_UPDATE
       conn_update; /* BTA_GATTS_CONN_UPDATE_EVT callback data */
+  tBTA_GATTS_SUBRATE_CHG subrate_chg;
 } tBTA_GATTS;
 
 /* GATTS enable callback function */
@@ -905,12 +963,11 @@ extern void BTA_GATTS_AppDeregister(tGATT_IF server_if);
  *
  ******************************************************************************/
 typedef base::Callback<void(uint8_t status, int server_if,
-                            const btgatt_db_element_t* service, size_t service_count)>
+                            std::vector<btgatt_db_element_t> service)>
     BTA_GATTS_AddServiceCb;
 
 extern void BTA_GATTS_AddService(tGATT_IF server_if,
-                                 const btgatt_db_element_t* service,
-                                 size_t service_count,
+                                 std::vector<btgatt_db_element_t> service,
                                  BTA_GATTS_AddServiceCb cb);
 
 /*******************************************************************************
