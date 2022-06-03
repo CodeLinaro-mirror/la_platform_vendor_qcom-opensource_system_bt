@@ -35,6 +35,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package vendor.qti.bluetooth_offload;
 
 import vendor.qti.bluetooth_offload.IBluetoothOffloadApp;
+import vendor.qti.bluetooth_offload.IBluetoothOffloadLpm;
 
 /**
  * API for Communication between NotificationOffloadAdapter and NotificationOffloadMgr
@@ -42,7 +43,7 @@ import vendor.qti.bluetooth_offload.IBluetoothOffloadApp;
  * {@hide}
  */
 oneway interface INotificationOffloadMgrCallback {
-    void onBluetoothOffloadServiceUp(in IBluetoothOffloadApp offloadService);
+    void onBluetoothOffloadServiceUp(in IBluetoothOffloadApp offloadService, in IBluetoothOffloadLpm lpmOffloadService);
     void onBluetoothOffloadServiceDown();
 }
 
