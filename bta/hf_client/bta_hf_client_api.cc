@@ -25,6 +25,7 @@
  ******************************************************************************/
 
 #include <cstdint>
+#include <base/bind.h>
 
 #include "bt_trace.h"  // Legacy trace logging
 
@@ -35,11 +36,18 @@
 #include "osi/include/compat.h"
 #include "stack/include/bt_types.h"
 #include "types/raw_address.h"
+#include "stack/include/btu.h"
 
 /*****************************************************************************
  *  External Function Declarations
  ****************************************************************************/
 
+/*****************************************************************************
+ *  Constants
+ ****************************************************************************/
+/* Event handler for the state machine */
+static const tBTA_SYS_REG bta_hf_client_reg = {bta_hf_client_hdl_event,
+                                               BTA_HfClientDisable};
 /*******************************************************************************
  *
  * Function         BTA_HfClientEnable
@@ -58,7 +66,17 @@
 tBTA_STATUS BTA_HfClientEnable(tBTA_HF_CLIENT_CBACK* p_cback,
                                tBTA_HF_CLIENT_FEAT features,
                                const char* p_service_name) {
-  return bta_hf_client_api_enable(p_cback, features, p_service_name);
+  /* If already registered then return error */
+  if (bta_sys_is_register(BTA_ID_HS)) {
+    APPL_TRACE_ERROR("BTA HF Client is already enabled, ignoring ...");
+    return BTA_FAILURE;
+  }
+
+  /* register with BTA system manager */
+  bta_sys_register(BTA_ID_HS, &bta_hf_client_reg);
+  do_in_main_thread(FROM_HERE,
+                    base::Bind(&bta_hf_client_api_enable, p_cback, features, p_service_name));
+  return BTA_SUCCESS;
 }
 
 /*******************************************************************************
@@ -70,7 +88,9 @@ tBTA_STATUS BTA_HfClientEnable(tBTA_HF_CLIENT_CBACK* p_cback,
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HfClientDisable(void) { bta_hf_client_api_disable(); }
+void BTA_HfClientDisable(void) {
+  do_in_main_thread(FROM_HERE, base::Bind(&bta_hf_client_api_disable));
+}
 
 /*******************************************************************************
  *
