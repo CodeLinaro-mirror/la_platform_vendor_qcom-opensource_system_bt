@@ -607,6 +607,8 @@ static void gap_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid,
       break;
   }
 
+  if (p_ccb == NULL) return;
+
   if (xx == GAP_MAX_CONNECTIONS) {
     LOG(WARNING) << "*******";
     LOG(WARNING) << "WARNING: GAP Conn Indication for Unexpected Bd "
