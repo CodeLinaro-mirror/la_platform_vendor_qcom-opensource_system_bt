@@ -509,4 +509,15 @@ void btif_debug_bond_event_dump(int fd);
 void btif_register_uuid_srvc_disc(bluetooth::Uuid uuid);
 #endif
 
+/*******************************************************************************
+ *
+ * Function         btif_dm_get_discovery_state
+ *
+ * Description      returs a boolean value of discovery started or not
+ *
+ * Returns          true on discovery on going
+ *
+ ******************************************************************************/
+bool btif_dm_get_discovery_state();
+
 #endif /* BTIF_API_H */
