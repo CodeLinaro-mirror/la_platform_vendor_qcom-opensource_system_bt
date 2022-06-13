@@ -32,7 +32,9 @@
 #include "gatt_api.h"
 #include "gatt_int.h"
 #include "l2c_api.h"
+#ifdef BT_LPM_SUPPORTED
 #include "stack/lpm/lpm_int.h"
+#endif
 #include "stack/gatt/connection_manager.h"
 #include "stack/gatt/eatt_int.h"
 #include "btif_storage.h"

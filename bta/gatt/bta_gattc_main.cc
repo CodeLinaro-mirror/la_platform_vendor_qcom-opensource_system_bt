@@ -28,7 +28,9 @@
 
 #include "bt_common.h"
 #include "bta_gattc_int.h"
+#ifdef BT_LPM_SUPPORTED
 #include "bta/lpm/bta_lpm_int.h"
+#endif
 
 using base::StringPrintf;
 

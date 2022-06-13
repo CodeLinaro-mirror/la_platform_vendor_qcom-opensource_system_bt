@@ -82,7 +82,9 @@
 #include "btif_bat.h"
 #include "bta/av/bta_av_int.h"
 #include "device/include/device_iot_config.h"
+#ifdef BT_LPM_SUPPORTED
 #include "btif_lpm.h"
+#endif
 
 #ifdef ADV_AUDIO_FEATURE
 #include "btif_bap_broadcast.h"
@@ -595,8 +597,10 @@ void btif_report_connection_state_to_ba(btav_connection_state_t state) {
  ******************************************************************************/
 static void btif_report_audio_state(btav_audio_state_t state,
                                     RawAddress* bd_addr) {
+#ifdef BT_LPM_SUPPORTED
   BTIF_TRACE_DEBUG("Inform lpm about audio state change, state: %d", state);
   btif_lpm_a2dp_on_stream_update((btav_lpm_audio_state_t)state);
+#endif
   if (bt_av_sink_callbacks != NULL) {
     HAL_CBACK(bt_av_sink_callbacks, audio_state_cb, *bd_addr, state);
   } else if (bt_av_src_callbacks != NULL) {
