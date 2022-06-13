@@ -295,7 +295,6 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
   }
 #endif /* BLE_ISO_IF_SUPPORTED == TRUE */
 
-#ifdef BT_LPM_SUPPORTED
   void StopAdvertisements() override {
     VLOG(1) << __func__ ;
     if (!BleAdvertisingManager::IsInitialized()) return;
@@ -305,7 +304,6 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
                      Bind(&BleAdvertisingManager::unRegisterAdvertisements,
                           BleAdvertisingManager::Get()));
   }
-#endif
 };
 
 BleAdvertiserInterface* btLeAdvertiserInstance = nullptr;
