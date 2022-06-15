@@ -18,6 +18,7 @@
 
 #define LOG_TAG "bt_btif_ble_advertiser"
 
+#include "bt_common.h"
 #include <hardware/bluetooth.h>
 #include <hardware/bt_gatt.h>
 
