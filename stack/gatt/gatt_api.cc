@@ -32,6 +32,7 @@
 #include "gatt_api.h"
 #include "gatt_int.h"
 #include "l2c_api.h"
+#include "stack/lpm/lpm_int.h"
 #include "stack/gatt/connection_manager.h"
 #include "stack/gatt/eatt_int.h"
 #include "btif_storage.h"
@@ -298,7 +299,9 @@ uint16_t GATTS_AddService(tGATT_IF gatt_if, btgatt_db_element_t* service,
   }
 
   gatt_update_last_srv_info();
-
+#ifdef BT_LPM_SUPPORTED
+  lpm_gatts_serv_db_element(elem);
+#endif
   VLOG(1) << __func__ << ": allocated el s_hdl=" << loghex(elem.s_hdl)
           << ", e_hdl=" << loghex(elem.e_hdl) << ", type=" << loghex(elem.type)
           << ", sdp_hdl=" << loghex(elem.sdp_handle);

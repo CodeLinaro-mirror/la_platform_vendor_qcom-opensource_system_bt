@@ -1444,3 +1444,30 @@ void BTM_SetEcosystemBaseInterval(uint16_t interval,
   btsnd_hcic_set_ecosystem_base_interval(interval,
                                  base::Bind(&btm_set_ecosystem_base_interval_cmd_cmpl));
 }
+#ifdef BT_LPM_SUPPORTED
+/*******************************************************************************
+ *
+ * Function         BTM_SetLPMMode
+ *
+ * Description      This function set LPM mode
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTM_SetLPMMode(uint8_t mode) {
+  btm_cb.lpm_mode = mode;
+}
+
+/*******************************************************************************
+ *
+ * Function         BTM_GetLPMMode
+ *
+ * Description      This function returns LPM mode
+ *
+ * Returns          LPM mode
+ *
+ ******************************************************************************/
+uint8_t BTM_GetLPMMode(void) {
+  return btm_cb.lpm_mode;
+}
+#endif

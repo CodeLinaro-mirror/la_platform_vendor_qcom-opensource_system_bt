@@ -28,6 +28,7 @@
 
 #include "bt_common.h"
 #include "bta_gattc_int.h"
+#include "bta/lpm/bta_lpm_int.h"
 
 using base::StringPrintf;
 
@@ -329,6 +330,16 @@ bool bta_gattc_sm_execute(tBTA_GATTC_CLCB* p_clcb, uint16_t event,
       break;
     }
   }
+
+#ifdef BT_LPM_SUPPORTED
+  if (in_state != p_clcb->state) {
+    if (p_clcb->state == (BTA_GATTC_W4_CONN_ST || BTA_GATTC_DISCOVER_ST)) {
+      lpm_profile_update_evt(BTA_ID_GATTC, BTA_LPM_CONN_PROGRESS);
+	  } else if (p_clcb->state == BTA_GATTC_CONN_ST) {
+      lpm_profile_update_evt(BTA_ID_GATTC, BTA_LPM_CONN_DONE);
+	  }	
+  }
+#endif /*BT_LPM_SUPPORTED*/
 
 #if (BTA_GATT_DEBUG == TRUE)
   if (in_state != p_clcb->state) {

@@ -34,6 +34,7 @@
 #include "hcimsgs.h"
 #include "l2c_int.h"
 #include "l2cdefs.h"
+#include "lpm_api.h"
 #include "device/include/interop.h"
 #include "hci/include/btsnoop.h"
 
@@ -1484,8 +1485,11 @@ static void l2c_csm_config(tL2C_CCB* p_ccb, uint16_t event, void* p_data) {
         }
       }
       L2CAP_TRACE_WARNING("L2CAP-peer_Config_Rsp,Local CID: 0x%04x,Remote CID: 0x%04x,"
-               "PSM: %d,peer MTU present: %d,peer MTU: %d", p_ccb->local_cid,p_ccb->remote_cid,
-               p_ccb->p_rcb?p_ccb->p_rcb->psm:0,p_ccb->peer_cfg.mtu_present,p_ccb->peer_cfg.mtu);
+               "PSM: %d,peer MTU present: %d,peer MTU: %d, Handle %d, Remote addr %s", p_ccb->local_cid,p_ccb->remote_cid,
+               p_ccb->p_rcb?p_ccb->p_rcb->psm:0,p_ccb->peer_cfg.mtu_present,p_ccb->peer_cfg.mtu, p_ccb->p_lcb->handle,p_ccb->p_lcb->remote_bd_addr.ToString().c_str());
+#ifdef BT_LPM_SUPPORTED
+      LPM_CopyL2CAPInfo(p_ccb->p_lcb->remote_bd_addr, p_ccb->p_rcb->psm, p_ccb->local_cid, p_ccb->remote_cid, p_ccb->our_cfg.mtu, p_ccb->peer_cfg.mtu);
+#endif
       if (p_ccb->p_rcb && p_ccb->p_rcb->api.pL2CA_ConfigCfm_Cb) {
         (*p_ccb->p_rcb->api.pL2CA_ConfigCfm_Cb)(p_ccb->local_cid, p_cfg);
       }

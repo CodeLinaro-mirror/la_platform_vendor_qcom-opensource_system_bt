@@ -122,4 +122,8 @@ void btif_reset_pairing_cb() ;
 void btif_reset_sdp_attempts();
 int btif_dm_is_adv_audio();
 
+#ifdef BT_LPM_SUPPORTED
+uint16_t btif_get_num_active_links(void);
+#endif /* BT_LPM_SUPPORTED */
+
 #endif

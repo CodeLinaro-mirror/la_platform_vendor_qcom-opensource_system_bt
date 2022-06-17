@@ -107,6 +107,10 @@ enum {
   BTA_DM_API_BREDR_CLEANUP_EVT,
   BTA_DM_API_BREDR_STARTUP_EVT,
   BTA_DM_API_RST_PAIR_FLAG_EVT,
+
+#ifdef BT_LPM_SUPPORTED
+  BTA_DM_API_SET_LPM_INFO_EVT,
+#endif
   BTA_DM_MAX_EVT
 };
 
@@ -510,6 +514,14 @@ typedef struct {
   uint16_t max_ce_len;
 } tBTA_DM_API_UPDATE_CONN_PARAM;
 
+#ifdef BT_LPM_SUPPORTED
+typedef struct {
+  BT_HDR hdr;
+  uint8_t lpm_mode;
+  uint8_t num_addr;
+  RawAddress* bd_addr;
+}  tBTA_DM_API_SET_LPM_INFO;
+#endif
 /* union of all data types */
 typedef union {
   /* GKI event buffer header */
@@ -584,6 +596,10 @@ typedef union {
   tBTA_DM_API_BREDR_CLEANUP  bredr_cleanup;
   tBTA_DM_API_BREDR_STARTUP  bredr_startup;
   tBTA_DM_API_RST_PAIR_FLAG pair_state;
+
+#ifdef BT_LPM_SUPPORTED
+  tBTA_DM_API_SET_LPM_INFO lpm_device_info;
+#endif
 } tBTA_DM_MSG;
 
 #define BTA_DM_NUM_PEER_DEVICE MAX_L2CAP_LINKS
@@ -975,5 +991,7 @@ extern void bta_dm_hci_raw_command(tBTA_DM_MSG *p_data);
 
 extern void bta_dm_queue_service_disc(tBTA_DM_MSG* p_data);
 
-
+#ifdef BT_LPM_SUPPORTED
+extern void bta_dm_set_lpm_device_info(tBTA_DM_MSG *p_data);
+#endif
 #endif /* BTA_DM_INT_H */

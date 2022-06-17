@@ -35,6 +35,7 @@
 #include "port_int.h"
 #include "rfc_int.h"
 #include "rfcdefs.h"
+#include "lpm_api.h"
 
 #include <string.h>
 
@@ -388,7 +389,8 @@ void rfc_inc_credit(tPORT* p_port, uint8_t credit) {
   if (p_port->rfc.p_mcb->flow == PORT_FC_CREDIT) {
     p_port->credit_tx += credit;
 
-    RFCOMM_TRACE_EVENT("rfc_inc_credit:%d", p_port->credit_tx);
+    RFCOMM_TRACE_EVENT("rfc_inc_credit:%d, dlci %d", p_port->credit_tx, p_port->dlci);
+    LPM_CopyRfCommCredits(p_port->dlci, p_port->credit_tx, true);
 
     if (p_port->tx.peer_fc == true)
       PORT_FlowInd(p_port->rfc.p_mcb, p_port->dlci, true);
@@ -410,7 +412,8 @@ void rfc_dec_credit(tPORT* p_port) {
   if (p_port->rfc.p_mcb->flow == PORT_FC_CREDIT) {
     if (p_port->credit_tx > 0) p_port->credit_tx--;
 
-        RFCOMM_TRACE_EVENT ("rfc_dec_credit:%d", p_port->credit_tx);
+        RFCOMM_TRACE_EVENT ("rfc_dec_credit:%d, dlci %d ", p_port->credit_tx, p_port->dlci);
+        LPM_CopyRfCommCredits(p_port->dlci, p_port->credit_tx, true);
 
     if (p_port->credit_tx == 0) p_port->tx.peer_fc = true;
   }

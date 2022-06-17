@@ -1479,6 +1479,10 @@ static tBTM_STATUS btm_sec_send_hci_disconnect(tBTM_SEC_DEV_REC* p_dev_rec,
     case BTM_SEC_STATE_DISCONNECTING_BOTH:
       return status;
 
+#if (BT_LPM_SUPPORTED == TRUE)
+    case BTM_SEC_STATE_OFFLOADED:
+      return BTM_SUCCESS;
+#endif
     default:
       p_dev_rec->sec_state = (conn_handle == p_dev_rec->hci_handle)
                                  ? BTM_SEC_STATE_DISCONNECTING

@@ -121,6 +121,9 @@
 #include "btif_dm_adv_audio.h"
 #include "bta_dm_adv_audio.h"
 #endif
+#ifdef BT_LPM_SUPPORTED
+#include "btif_lpm.h"
+#endif
 
 using bluetooth::Uuid;
 /******************************************************************************
@@ -2229,6 +2232,11 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
         BTIF_TRACE_DEBUG("num_active_br_edr_links is %d ",num_active_br_edr_links);
       }
       btif_av_move_idle(bd_addr);
+
+#ifdef BT_LPM_SUPPORTED
+      btif_lmp_dm_link_down_event(num_active_br_edr_links, num_active_le_links);
+#endif
+
       BTIF_TRACE_DEBUG(
           "BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
       HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
@@ -2502,6 +2510,22 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
   btif_dm_data_free(event, p_data);
 }
 
+#ifdef BT_LPM_SUPPORTED
+/*******************************************************************************
+ *
+ * Function         btif_get_num_active_links
+ *
+ * Description      Gets total number of active links
+ *
+ * Returns          number of active links
+ *
+ ******************************************************************************/
+uint16_t btif_get_num_active_links(void) {
+    uint16_t total_active_links = num_active_br_edr_links + num_active_le_links;
+    BTIF_TRACE_WARNING("btif_get_num_active_links: Total active links (%d)", total_active_links);
+    return total_active_links;
+}
+#endif /* BT_LPM_SUPPORTED */
 /*******************************************************************************
  *
  * Function         btif_dm_generic_evt

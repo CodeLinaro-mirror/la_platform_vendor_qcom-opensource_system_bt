@@ -2267,4 +2267,10 @@ extern void BTM_ConfigureDataPath(tBTM_CFG_DATA_PATH_PARAM* param);
 
 extern uint16_t BTM_GetNumSlaveAclLinks(void);
 
+#ifdef BT_LPM_SUPPORTED
+extern void BTM_SetLPMMode(uint8_t mode);
+
+extern uint8_t BTM_GetLPMMode();
+#endif
+
 #endif /* BTM_API_H */

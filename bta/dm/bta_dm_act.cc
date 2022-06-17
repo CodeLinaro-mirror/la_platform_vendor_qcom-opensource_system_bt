@@ -306,6 +306,10 @@ extern DEV_CLASS local_device_default_class;
 // Stores the local Input/Output Capabilities of the Bluetooth device.
 static uint8_t btm_local_io_caps;
 
+#ifdef BT_LPM_SUPPORTED
+static std::vector<RawAddress> offloaded_connections;
+#endif
+
 /** Initialises the BT device manager */
 void bta_dm_enable(tBTA_DM_MSG* p_data) {
   tBTA_DM_ENABLE enable_event;
@@ -685,7 +689,8 @@ static void bta_dm_disable_timer_cback(void* data) {
         }
       }
     }
-  }else if (BTM_GetNumAclLinks() && (param == 0)) {
+  }
+  else if (BTM_GetNumAclLinks() && (param == 0)) {
     for (i = 0; i < bta_dm_cb.device_list.count; i++) {
       transport = bta_dm_cb.device_list.peer_device[i].transport;
       btm_remove_acl(bta_dm_cb.device_list.peer_device[i].peer_bdaddr,
@@ -831,6 +836,58 @@ void bta_dm_reset_pairing_flag(tBTA_DM_MSG *p_data) {
 
 }
 
+#ifdef BT_LPM_SUPPORTED
+/*******************************************************************************
+ *
+ * Function         bta_dm_set_lpm_device_info
+ *
+ * Description      Set LPM device info
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void bta_dm_set_lpm_device_info(tBTA_DM_MSG *p_data) {
+  uint8_t mode = p_data->lpm_device_info.lpm_mode;
+  tBT_TRANSPORT transport = BT_TRANSPORT_BR_EDR;
+  uint8_t i;
+  bool offloaded_device;
+  BTM_SetLPMMode(mode);
+
+  if (mode != LPM_TWM)
+    return;
+
+  int num_devices = (int) p_data->lpm_device_info.num_addr;
+  tBTM_SEC_DEV_REC* p_dev_rec;
+  APPL_TRACE_WARNING("%s: num of LPM devices %d", __func__, num_devices);
+
+  for (int i = 0; i < num_devices; i++) {
+    offloaded_connections.push_back(p_data->lpm_device_info.bd_addr[i]);
+    p_dev_rec = btm_find_dev(p_data->lpm_device_info.bd_addr[i]);
+    if (p_dev_rec) {
+      /* To avoid disconnect after app deregistration */
+      p_dev_rec->sec_state = BTM_SEC_STATE_OFFLOADED;
+    }
+  }
+
+  if (BTM_GetNumAclLinks() && (BTM_GetLPMMode() == LPM_TWM)) {
+    for (i = 0; i < bta_dm_cb.device_list.count; i++) {
+      offloaded_device = false;
+      for (auto device : offloaded_connections) {
+        if (device == bta_dm_cb.device_list.peer_device[i].peer_bdaddr) {
+          offloaded_device = true;
+          break;
+        }
+      }
+      if (!offloaded_device) {
+        APPL_TRACE_WARNING("%s: Removing acl", __func__);
+        transport = bta_dm_cb.device_list.peer_device[i].transport;
+        btm_remove_acl(bta_dm_cb.device_list.peer_device[i].peer_bdaddr,
+                     transport);
+      }
+    }
+  }
+}
+#endif
 /*******************************************************************************
  *
  * Function         bta_dm_set_visibility

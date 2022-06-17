@@ -67,8 +67,10 @@ cc_library_static {
         "vendor/qcom/opensource/commonsys/system/bt/utils/include",
         "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext",
         "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/stack/include",
+        "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/bta/include",
         "vendor/qcom/opensource/commonsys/bluetooth_ext/vhal/include",
         "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/stack/btm",
+        "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/stack/lpm",
         "vendor/qcom/opensource/commonsys-intf/bluetooth/include",
         "vendor/qcom/opensource/commonsys/system/bt/device/include",
         "system/bt/embdrv/sbc/encoder/include",
@@ -348,6 +350,8 @@ cc_test {
         "vendor/qcom/opensource/commonsys/system/bt/internal_include",
         "vendor/qcom/opensource/commonsys/system/bt/btcore/include",
         "vendor/qcom/opensource/commonsys/system/bt/bta/include",
+        "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext",
+        "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/stack/include"
     ],
     srcs: [
         "btu/btu_task.cc",

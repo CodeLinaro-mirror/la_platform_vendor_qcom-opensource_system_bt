@@ -28,6 +28,9 @@
 using base::StringPrintf;
 using bluetooth::Uuid;
 
+extern tGATT_STATUS read_gap_attr_value(uint16_t handle, tGATT_VALUE* p_value,
+                              bool is_long);
+
 namespace {
 
 typedef struct {
@@ -113,62 +116,6 @@ void clcb_dealloc(tGAP_CLCB& clcb) {
   }
 }
 
-/** GAP Attributes Database Request callback */
-tGATT_STATUS read_attr_value(uint16_t handle, tGATT_VALUE* p_value,
-                             bool is_long) {
-  uint8_t* p = p_value->value;
-  uint16_t offset = p_value->offset;
-  uint8_t* p_dev_name = NULL;
-
-  for (const tGAP_ATTR& db_attr : gatt_attr) {
-    const tGAP_BLE_ATTR_VALUE& attr_value = db_attr.attr_value;
-    if (handle == db_attr.handle) {
-      if (db_attr.uuid != GATT_UUID_GAP_DEVICE_NAME && is_long)
-        return GATT_NOT_LONG;
-
-      switch (db_attr.uuid) {
-        case GATT_UUID_GAP_DEVICE_NAME:
-          BTM_ReadLocalDeviceName((char**)&p_dev_name);
-          if (strlen((char*)p_dev_name) > GATT_MAX_ATTR_LEN)
-            p_value->len = GATT_MAX_ATTR_LEN;
-          else
-            p_value->len = (uint16_t)strlen((char*)p_dev_name);
-
-          if (offset > p_value->len)
-            return GATT_INVALID_OFFSET;
-          else {
-            p_value->len -= offset;
-            p_dev_name += offset;
-            ARRAY_TO_STREAM(p, p_dev_name, p_value->len);
-            DVLOG(1) << "GATT_UUID_GAP_DEVICE_NAME len=" << +p_value->len;
-          }
-          break;
-
-        case GATT_UUID_GAP_ICON:
-          UINT16_TO_STREAM(p, attr_value.icon);
-          p_value->len = 2;
-          break;
-
-        case GATT_UUID_GAP_PREF_CONN_PARAM:
-          UINT16_TO_STREAM(p, attr_value.conn_param.int_min); /* int_min */
-          UINT16_TO_STREAM(p, attr_value.conn_param.int_max); /* int_max */
-          UINT16_TO_STREAM(p, attr_value.conn_param.latency); /* latency */
-          UINT16_TO_STREAM(p, attr_value.conn_param.sp_tout); /* sp_tout */
-          p_value->len = 8;
-          break;
-
-        /* address resolution */
-        case GATT_UUID_GAP_CENTRAL_ADDR_RESOL:
-          UINT8_TO_STREAM(p, attr_value.addr_resolution);
-          p_value->len = 1;
-          break;
-      }
-      return GATT_SUCCESS;
-    }
-  }
-  return GATT_NOT_FOUND;
-}
-
 /** GAP Attributes Database Read/Read Blob Request process */
 tGATT_STATUS proc_read(tGATTS_REQ_TYPE, tGATT_READ_REQ* p_data,
                        tGATTS_RSP* p_rsp) {
@@ -176,7 +123,7 @@ tGATT_STATUS proc_read(tGATTS_REQ_TYPE, tGATT_READ_REQ* p_data,
 
   p_rsp->attr_value.handle = p_data->handle;
 
-  return read_attr_value(p_data->handle, &p_rsp->attr_value, p_data->is_long);
+  return read_gap_attr_value(p_data->handle, &p_rsp->attr_value, p_data->is_long);
 }
 
 /** GAP ATT server process a write request */
@@ -382,6 +329,62 @@ bool accept_client_operation(const RawAddress& peer_bda, uint16_t uuid,
 }
 
 }  // namespace
+
+/** GAP Attributes Database Request callback */
+tGATT_STATUS read_gap_attr_value(uint16_t handle, tGATT_VALUE* p_value,
+                             bool is_long) {
+  uint8_t* p = p_value->value;
+  uint16_t offset = p_value->offset;
+  uint8_t* p_dev_name = NULL;
+
+  for (const tGAP_ATTR& db_attr : gatt_attr) {
+    const tGAP_BLE_ATTR_VALUE& attr_value = db_attr.attr_value;
+    if (handle == db_attr.handle) {
+      if (db_attr.uuid != GATT_UUID_GAP_DEVICE_NAME && is_long)
+        return GATT_NOT_LONG;
+
+      switch (db_attr.uuid) {
+        case GATT_UUID_GAP_DEVICE_NAME:
+          BTM_ReadLocalDeviceName((char**)&p_dev_name);
+          if (strlen((char*)p_dev_name) > GATT_MAX_ATTR_LEN)
+            p_value->len = GATT_MAX_ATTR_LEN;
+          else
+            p_value->len = (uint16_t)strlen((char*)p_dev_name);
+
+          if (offset > p_value->len)
+            return GATT_INVALID_OFFSET;
+          else {
+            p_value->len -= offset;
+            p_dev_name += offset;
+            ARRAY_TO_STREAM(p, p_dev_name, p_value->len);
+            DVLOG(1) << "GATT_UUID_GAP_DEVICE_NAME len=" << +p_value->len;
+          }
+          break;
+
+        case GATT_UUID_GAP_ICON:
+          UINT16_TO_STREAM(p, attr_value.icon);
+          p_value->len = 2;
+          break;
+
+        case GATT_UUID_GAP_PREF_CONN_PARAM:
+          UINT16_TO_STREAM(p, attr_value.conn_param.int_min); /* int_min */
+          UINT16_TO_STREAM(p, attr_value.conn_param.int_max); /* int_max */
+          UINT16_TO_STREAM(p, attr_value.conn_param.latency); /* latency */
+          UINT16_TO_STREAM(p, attr_value.conn_param.sp_tout); /* sp_tout */
+          p_value->len = 8;
+          break;
+
+        /* address resolution */
+        case GATT_UUID_GAP_CENTRAL_ADDR_RESOL:
+          UINT8_TO_STREAM(p, attr_value.addr_resolution);
+          p_value->len = 1;
+          break;
+      }
+      return GATT_SUCCESS;
+    }
+  }
+  return GATT_NOT_FOUND;
+}
 
 /*******************************************************************************
  *

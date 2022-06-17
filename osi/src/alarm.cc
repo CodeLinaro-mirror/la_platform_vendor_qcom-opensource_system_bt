@@ -130,6 +130,7 @@ static list_t* alarms;
 static timer_t timer;
 static timer_t wakeup_timer;
 static bool timer_set;
+static alarm_info_callback_t* info_cb = NULL;
 
 // All alarm callbacks are dispatched from |dispatcher_thread|
 static thread_t* dispatcher_thread;
@@ -166,6 +167,18 @@ static void update_stat(stat_t* stat, period_ms_t delta) {
   stat->count++;
 }
 #endif
+
+void alarm_register_info(alarm_info_callback_t* cb) {
+  if (info_cb != NULL) {
+    LOG_DEBUG(LOG_TAG, "%s Client already registered", __func__);
+    return;
+  }
+  info_cb = cb;
+}
+
+void alarm_deregister_info(void) {
+  info_cb = NULL;
+}
 
 alarm_t* alarm_new(const char* name) { return alarm_new_internal(name, false); }
 
@@ -251,6 +264,12 @@ static void alarm_set_internal(alarm_t* alarm, period_ms_t period,
 
   schedule_next_instance(alarm);
   alarm->stats.scheduled_count++;
+  if (info_cb) {
+    char alarm_name[50];
+    memset(alarm_name, 0, 50);
+    strlcpy(alarm_name,alarm->stats.name,(strlen(alarm->stats.name)+1));
+    (*info_cb)(true, alarm_name);
+  }
 }
 
 void* alarm_cancel(alarm_t* alarm) {
@@ -289,6 +308,12 @@ static void* alarm_cancel_internal(alarm_t* alarm) {
   alarm->queue = NULL;
 
   if (needs_reschedule) reschedule_root_alarm();
+  if (info_cb) {
+    char alarm_name[50];
+    memset(alarm_name, 0, 50);
+    strlcpy(alarm_name,alarm->stats.name,(strlen(alarm->stats.name)+1));
+    (*info_cb)(false, alarm_name);
+  }
   return data;
 }
 
@@ -436,8 +461,15 @@ static void schedule_next_instance(alarm_t* alarm) {
   // we'll need to re-schedule since we've adjusted the earliest deadline.
   bool needs_reschedule =
       (!list_is_empty(alarms) && list_front(alarms) == alarm);
-  if (alarm->callback) remove_pending_alarm(alarm);
-
+  if (alarm->callback) {
+    if (info_cb) {
+      char alarm_name[50];
+      memset(alarm_name, 0, 50);
+      strlcpy(alarm_name,alarm->stats.name,(strlen(alarm->stats.name)+1));
+      (*info_cb)(false, alarm_name);
+    }
+    remove_pending_alarm(alarm);
+  }
   // Calculate the next deadline for this alarm
   period_ms_t just_now = now();
   period_ms_t ms_into_period = 0;
@@ -661,6 +693,12 @@ static void callback_dispatch(UNUSED_ATTR void* context) {
 
       alarm->closure.i.Reset(Bind(alarm_ready_mloop, alarm));
       get_message_loop()->task_runner()->PostTask(FROM_HERE, alarm->closure.i.callback());
+      if (info_cb) {
+        char alarm_name[50];
+        memset(alarm_name, 0, 50);
+        strlcpy(alarm_name,alarm->stats.name,(strlen(alarm->stats.name)+1));
+        (*info_cb)(false, alarm_name);
+      }
     } else {
       fixed_queue_enqueue(alarm->queue, alarm);
     }

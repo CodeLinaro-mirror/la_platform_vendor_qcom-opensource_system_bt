@@ -540,6 +540,10 @@ void BTM_WhiteListClear() {
   VLOG(1) << __func__;
   if (!controller_get_interface()->supports_ble()) return;
   btm_ble_stop_auto_conn();
-  btsnd_hcic_ble_clear_white_list(base::Bind(&wl_clear_complete));
   background_connections_clear();
+#ifdef BT_LPM_SUPPORTED
+  if (btm_cb.lpm_mode == LPM_TWM) return;
+#endif
+  btsnd_hcic_ble_clear_white_list(base::Bind(&wl_clear_complete));
+
 }

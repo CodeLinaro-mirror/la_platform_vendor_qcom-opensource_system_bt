@@ -39,6 +39,7 @@
 #include "rfc_int.h"
 #include "rfcdefs.h"
 #include "sdp_api.h"
+#include "lpm_api.h"
 
 /* duration of break in 200ms units */
 #define PORT_BREAK_DURATION 1
@@ -226,9 +227,12 @@ int RFCOMM_CreateConnection(uint16_t uuid, uint8_t scn, bool is_server,
 
   /* If this is not initiator of the connection need to just wait */
   if (p_port->is_server) {
+    RFCOMM_TRACE_API("RFCOMM_CreateConnection() address %s, mtu %d, local_cred %d, remote_cred %d, dlci %d, scn %d, is_server %d ",p_port->bd_addr.ToString().c_str(), p_port->mtu, p_port->credit_tx, p_port->credit_rx, p_port->dlci, p_port->scn, p_port->is_server);
+#ifdef BT_LPM_SUPPORTED
+    LPM_CopyPortInfo(p_port);
+#endif
     return (PORT_SUCCESS);
   }
-
   /* Open will be continued after security checks are passed */
   return port_open_continue(p_port);
 }
@@ -257,7 +261,7 @@ int RFCOMM_RemoveConnection(uint16_t handle) {
   if (!p_port->in_use ||
       (p_port->state == PORT_STATE_CLOSED) ||
       (p_port->state == PORT_STATE_CLOSING)) {
-    RFCOMM_TRACE_ERROR("RFCOMM_RemoveConnection handle:%d, port state %d", handle,p_port->state);
+    RFCOMM_TRACE_ERROR("RFCOMM_RemoveConnection handle:%d, port state %d, dlci %d", handle,p_port->state, p_port->dlci);
     return (PORT_SUCCESS);
   }
 
@@ -1844,3 +1848,30 @@ int PORT_GetStateBySCN(const RawAddress& bd_addr, uint32_t scn_id, bool is_serve
   return PORT_STATE_CLOSED;
 }
 
+void RFCOMM_UpdatePortInfo(void* port_info) {
+
+      RFCOMM_TRACE_API(" %s ", __func__);
+      tPORT* p_port;
+      tPORT* port = (tPORT*)port_info;
+      //Find rfcomm port and update parameters
+      if (port->is_server) {
+        p_port = port_find_port(port->dlci, port->bd_addr);
+        if (p_port != NULL) {
+          RFCOMM_TRACE_API(" %s : updating rfcomm port info",
+                                              __func__);
+          p_port->state = port->state;
+          p_port->scn = port->scn;
+          p_port->uuid = port->uuid;
+          p_port->bd_addr = port->bd_addr;
+          p_port->is_server = port->is_server;
+          p_port->dlci = port->dlci;
+          p_port->mtu  = port->mtu;
+          p_port->peer_mtu = port->peer_mtu;
+          p_port->credit_tx = port->credit_tx;
+          p_port->credit_rx = port->credit_rx;
+          p_port->credit_rx_max = port->credit_rx_max;
+          p_port->credit_rx_low = port->credit_rx_low;
+          p_port->keep_mtu = port->keep_mtu;
+        }
+     }
+}

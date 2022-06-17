@@ -82,6 +82,10 @@
 /* HCI command from upper layer     */
 #define BT_EVT_TO_BTU_HCI_CMD 0x1600
 
+//#ifdef BT_LPM_SUPPORTED
+/* LPM Profile.Error              */
+#define BT_EVT_TO_LPM_HCI_ERR 0x1700
+//#endif
 /* L2CAP segment(s) transmitted     */
 #define BT_EVT_TO_BTU_L2C_SEG_XMIT 0x1900
 
@@ -985,6 +989,15 @@ enum {
   SOC_CONN_FAIL               = 1 << 9,
 };
 typedef uint16_t tBT_ERROR_INFO;
+
+enum {
+  LPM_TRACKER = 0,
+  LPM_TWM,
+  LPM_ACTIVE,
+  LPM_DEEPSLEEP,
+  LPM_SUSPEND,
+};
+typedef uint8_t tLPM_mode;
 
 #define A2DP_GLITCH_REPORT_INTERVAL_MS (60 * 1000)
 #define A2DP_GLITCH_THRESHOLD 9

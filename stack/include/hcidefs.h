@@ -464,6 +464,25 @@
 
 /* Link Power Ctrl OCF  */
 #define HCI_VS_LINK_POWER_CTRL_REQ_OPCODE (0x00DA | HCI_GRP_VENDOR_SPECIFIC)
+
+/* LPM VSC OCF */
+#define HCI_BLE_LPM_VSC_OPCODE (0x003A | HCI_GRP_VENDOR_SPECIFIC)
+
+/* Prepare offload OCF */
+#define HCI_BLE_LPM_PREPARE_OFFLOAD_OPCODE  (0x00FA | HCI_GRP_VENDOR_SPECIFIC)
+
+/* LPM Enter OCF */
+#define HCI_BLE_LPM_ENTER_SUB_OPCODE (0x0003)
+
+/* LPM Exit OCF */
+#define HCI_BLE_LPM_EXIT_SUB_OPCODE (0x0004)
+
+/* Flow On OCF */
+#define HCI_BLE_FLOW_ON_SUB_OPCODE (0x0002)
+
+/* Flow Off OCF */
+#define HCI_BLE_FLOW_OFF_SUB_OPCODE (0x0001)
+
 /* subopcode for enable/disable PL10 adaptive control */
 #define HCI_VS_ENABLE_HPA_CONTROL_FOR_CONN_HANDLE  0x04
 #define HCI_VS_DISABLE_HPA_CONTROL_FOR_CONN_HANDLE 0x05
@@ -516,6 +535,13 @@
 
 /* Bluetooth Quality Report sub event */
 #define HCI_VSE_SUBCODE_BQR_SUB_EVT 0x58
+
+/* LPM VSC Events */
+#define HCI_VSE_SUBCODE_PREPARE_OFFLOAD_SUB_EVT 0x05
+#define HCI_VSE_SUBCODE_LPM_ENTER_SUB_EVT 0x03
+#define HCI_VSE_SUBCODE_LPM_EXIT_SUB_EVT 0x04
+#define HCI_VSE_SUBCODE_FLOW_ON_SUB_EVT 0x02
+#define HCI_VSE_SUBCODE_FLOW_OFF_SUB_EVT 0x01
 
 /* LE supported states definition */
 #define HCI_LE_ADV_STATE 0x00000001

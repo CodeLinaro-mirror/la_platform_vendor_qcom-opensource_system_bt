@@ -29,6 +29,9 @@ typedef struct thread_t thread_t;
 // Prototype for the alarm callback function.
 typedef void (*alarm_callback_t)(void* data);
 
+// Prototype for the alarm info callback function
+typedef void (alarm_info_callback_t)(bool state, char* name);
+
 // Creates a new one-time off alarm object with user-assigned
 // |name|. |name| may not be NULL, and a copy of the string will
 // be stored internally. The value of |name| has no semantic
@@ -112,3 +115,9 @@ void alarm_cleanup(void);
 // Dump alarm-related statistics and debug info to the |fd| file descriptor.
 // The information is in user-readable text format. The |fd| must be valid.
 void alarm_debug_dump(int fd);
+
+// Register a callback to get info about active alarms
+void alarm_register_info(alarm_info_callback_t* info_cb);
+
+// De-register a callback to get info about active alarms
+void alarm_deregister_info(void);

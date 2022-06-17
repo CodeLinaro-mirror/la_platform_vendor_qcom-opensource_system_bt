@@ -1393,3 +1393,29 @@ void BTA_DmProcessQueuedServiceDiscovery(void) {
     }
   }
 }
+
+#ifdef BT_LPM_SUPPORTED
+/*******************************************************************************
+ *
+ * Function         BTA_DmSetLPMInfo
+ *
+ * Description      This function processes offloadable connections and lpm mode
+ *
+ * Parameters       remote_bd_addr - List of all offloadable devices
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+extern void BTA_DmSetLPMInfo(uint8_t mode, std::vector<RawAddress> remote_bd_addr) {
+  tBTA_DM_API_SET_LPM_INFO* p_msg =
+      (tBTA_DM_API_SET_LPM_INFO*)osi_malloc(sizeof(tBTA_DM_API_SET_LPM_INFO) +
+                                     (sizeof(RawAddress))*(remote_bd_addr.size()));
+
+  p_msg->hdr.event = BTA_DM_API_SET_LPM_INFO_EVT;
+  p_msg->lpm_mode = mode;
+  p_msg->bd_addr = remote_bd_addr.data();
+  p_msg->num_addr = remote_bd_addr.size();
+
+  bta_sys_sendmsg(p_msg);
+}
+#endif
