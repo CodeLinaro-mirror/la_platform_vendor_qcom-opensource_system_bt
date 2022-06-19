@@ -239,8 +239,7 @@ static int uhid_read_event(btif_hh_device_t* p_dev) {
         }
         /* Copy new output report data for future tracking */
         memcpy(&p_dev->last_output_rpt_data, &ev.u.output.data, ev.u.output.size);
-        btif_hh_setreport(p_dev, BTHH_OUTPUT_REPORT, ev.u.output.size,
-                          ev.u.output.data);
+        btif_hh_senddata(p_dev, ev.u.output.size, ev.u.output.data);
       } else
         btif_hh_setreport(p_dev, BTHH_INPUT_REPORT, ev.u.output.size,
                           ev.u.output.data);

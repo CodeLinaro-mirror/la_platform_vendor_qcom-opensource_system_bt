@@ -224,9 +224,11 @@ void gatt_free(void) {
     fixed_queue_free(gatt_cb.tcb[i].pending_ind_q, NULL);
     gatt_cb.tcb[i].pending_ind_q = NULL;
 
+    alarm_cancel(gatt_cb.tcb[i].conf_timer);
     alarm_free(gatt_cb.tcb[i].conf_timer);
     gatt_cb.tcb[i].conf_timer = NULL;
 
+    alarm_cancel(gatt_cb.tcb[i].ind_ack_timer);
     alarm_free(gatt_cb.tcb[i].ind_ack_timer);
     gatt_cb.tcb[i].ind_ack_timer = NULL;
 
@@ -237,7 +239,9 @@ void gatt_free(void) {
   for (i = 0; i < GATT_MAX_EATT_CHANNELS; i++) {
     if(gatt_cb.eatt_bcb[i].cid != L2CAP_ATT_CID) {
       fixed_queue_free(gatt_cb.eatt_bcb[i].pending_ind_q, NULL);
+      alarm_cancel(gatt_cb.eatt_bcb[i].conf_timer);
       alarm_free(gatt_cb.eatt_bcb[i].conf_timer);
+      alarm_cancel(gatt_cb.eatt_bcb[i].ind_ack_timer);
       alarm_free(gatt_cb.eatt_bcb[i].ind_ack_timer);
     }
     gatt_cb.eatt_bcb[i].pending_ind_q = NULL;

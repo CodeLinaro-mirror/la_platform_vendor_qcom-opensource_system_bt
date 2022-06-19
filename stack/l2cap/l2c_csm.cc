@@ -451,17 +451,20 @@ static void l2c_csm_closed(tL2C_CCB* p_ccb, uint16_t event, void* p_data) {
       if (p_ccb->p_lcb->transport == BT_TRANSPORT_LE) {
         l2cu_set_coc_chnl_state(p_ccb, CST_TERM_W4_SEC_COMP);
         uint16_t result;
-
+        /* errata id = 14605 */
+        p_ccb->coc_cmd_info.connection_pending = CONNECTION_PENDING ;
         result = l2ble_sec_access_req(p_ccb->p_lcb->remote_bd_addr,
             p_ccb->p_rcb->psm, false, &l2c_link_sec_comp2, p_ccb);
-
         switch (result) {
           case L2CAP_ECFC_ALL_CONNS_REFUSED_INSUFF_AUTHENTICATION:
           case L2CAP_ECFC_ALL_CONNS_REFUSED_INSUFF_AUTHERIZATION:
           case L2CAP_ECFC_ALL_CONNS_REFUSED_INSUFF_ENCRYPTION_KEY_SIZE:
           case L2CAP_ECFC_ALL_CONNS_REFUSED_INSUFF_ENCRYPTION:
-            l2cu_reject_coc_connection(p_ccb->p_lcb, p_ccb->remote_id,
-              result, p_ccb->coc_cmd_info.num_coc_chnls);
+            /* errata id = 14605 */
+            p_ccb->coc_cmd_info.connection_pending =
+              CONNECTION_PENDING_RESET;
+            l2cu_reject_coc_connection(p_ccb->p_lcb, p_ccb->remote_id,result,
+            p_ccb->coc_cmd_info.num_coc_chnls);
             l2cu_release_coc_ccbs(p_ccb);
             break;
         }
@@ -831,8 +834,13 @@ static void l2c_csm_term_w4_sec_comp(tL2C_CCB* p_ccb, uint16_t event,
                   p_ccb->remote_id,
                   p_ccb->coc_cmd_info.ecfc_conn_result,
                   L2CAP_CONN_OK);
+            /* errata id = 14605 */
+            p_ccb->coc_cmd_info.authorization_pending =
+              L2CAP_AUTHORIZATION_PENDING ;
           }
         }
+        p_ccb->coc_cmd_info.connection_pending =
+          CONNECTION_PENDING_RESET;
       }
       break;
 
@@ -854,6 +862,8 @@ static void l2c_csm_term_w4_sec_comp(tL2C_CCB* p_ccb, uint16_t event,
           l2cu_release_ccb(p_ccb);
       }
     } else {
+      /* errata id = 14605 */
+      p_ccb->coc_cmd_info.connection_pending =  CONNECTION_PENDING_RESET;
       l2cu_reject_coc_connection(p_ccb->p_lcb, p_ccb->remote_id,
                               L2CAP_ECFC_ALL_CONNS_REFUSED_INSUFF_AUTHENTICATION,
                               p_ccb->coc_cmd_info.num_coc_chnls);
@@ -1320,7 +1330,6 @@ static void l2c_csm_w4_l2ca_connect_rsp(tL2C_CCB* p_ccb, uint16_t event,
                            l2c_ccb_timer_timeout, p_ccb);
         L2CAP_TRACE_API("L2CAP - Calling Connect_Ind_Cb(), CID: 0x%04x",
                         p_ccb->local_cid);
-
         if (p_ccb->p_rcb && p_ccb->p_rcb->api.pL2CA_ConnectInd_Cb) {
           (*p_ccb->p_rcb->api.pL2CA_ConnectInd_Cb)(
             p_ccb->p_lcb->remote_bd_addr, p_ccb->local_cid, p_ccb->p_rcb->psm,
@@ -1331,6 +1340,9 @@ static void l2c_csm_w4_l2ca_connect_rsp(tL2C_CCB* p_ccb, uint16_t event,
     case L2CEVT_L2CA_COC_CONNECT_RSP:
       alarm_cancel(p_ccb->coc_cmd_info.ecfc_conn_alarm);
       alarm_free(p_ccb->coc_cmd_info.ecfc_conn_alarm);
+      /* errata id = 14605 */
+      p_ccb->coc_cmd_info.authorization_pending =
+        L2CAP_AUTHORIZATION_PENDING_RESET;
       /* Result should be OK */
       if (p_ccb->p_lcb->transport == BT_TRANSPORT_LE) {
         if(!l2cu_set_data_length_ext(p_ccb)) {
@@ -1342,6 +1354,9 @@ static void l2c_csm_w4_l2ca_connect_rsp(tL2C_CCB* p_ccb, uint16_t event,
       l2cu_set_coc_chnl_state(p_ccb, CST_OPEN);
       break;
     case L2CEVT_L2CA_COC_CONNECT_NEG_RSP:
+      /* errata id = 14605 */
+      p_ccb->coc_cmd_info.authorization_pending =
+        L2CAP_AUTHORIZATION_PENDING_RESET;
       /* Result should be Reject */
       l2cu_reject_coc_connection(p_ccb->p_lcb, p_ccb->remote_id,
         p_ccb->coc_cmd_info.ecfc_conn_result,

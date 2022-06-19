@@ -386,6 +386,7 @@ static void bta_av_save_addr(tBTA_AV_SCB* p_scb, const RawAddress& b) {
  ******************************************************************************/
 static void notify_start_failed(tBTA_AV_SCB* p_scb) {
   tBTA_AV_START start;
+  memset(&start, 0, sizeof(tBTA_AV_START));
   /* if start failed, clear role */
   p_scb->role &= ~BTA_AV_ROLE_START_INT;
   start.chnl = p_scb->chnl;
@@ -472,6 +473,7 @@ static bool bta_av_next_getcap(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       if ((*p_req)(p_scb->peer_addr,
                      p_scb->sep_info[i].seid,
                      p_scb->p_cap, bta_av_dt_cback[p_scb->hdi]) == AVDT_SUCCESS) {
+        APPL_TRACE_DEBUG("%s: hdi is: %d , pscb is %x\n", __func__, p_scb->hdi, p_scb);
         sent_cmd = TRUE;
         break;
       } else
@@ -1425,6 +1427,7 @@ void bta_av_disconnect_req(tBTA_AV_SCB* p_scb,
     p_rcb = bta_av_get_rcb_by_shdl((uint8_t)(p_scb->hdi + 1));
     if (p_rcb) bta_av_del_rc(p_rcb);
     AVDT_DisconnectReq(p_scb->peer_addr, bta_av_dt_cback[p_scb->hdi]);
+    APPL_TRACE_DEBUG("%s: hdi is: %d , pscb is %x\n", __func__, p_scb->hdi, p_scb);
   } else {
     bta_av_ssm_execute(p_scb, BTA_AV_AVDT_DISCONNECT_EVT, NULL);
   }
@@ -1906,6 +1909,7 @@ void bta_av_connect_req(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
 
   result = AVDT_ConnectReq(p_scb->peer_addr, p_scb->sec_mask,
                   bta_av_dt_cback[p_scb->hdi]);
+  APPL_TRACE_DEBUG("%s: hdi is: %d , pscb is %x\n", __func__, p_scb->hdi, p_scb);
   if (result != AVDT_SUCCESS) {
     /* AVDT connect failed because of resource issue
      * trigger the SDP fail event to enable the cleanup
@@ -2240,6 +2244,7 @@ void bta_av_open_failed(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     (*bta_av_cb.p_cback)(BTA_AV_OPEN_EVT, &bta_av_data);
   } else {
     AVDT_DisconnectReq(p_scb->peer_addr, bta_av_dt_cback[p_scb->hdi]);
+    APPL_TRACE_DEBUG("%s: hdi is: %d , pscb is %x\n", __func__, p_scb->hdi, p_scb);
   }
 }
 
@@ -2425,6 +2430,7 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
  ******************************************************************************/
 void bta_av_discover_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   /* send avdtp discover request */
+  APPL_TRACE_DEBUG("%s: hdi is: %d , pscb is %x\n", __func__, p_scb->hdi, p_scb);
   if (AVDT_DiscoverReq(p_scb->peer_addr, p_scb->sep_info,
       BTA_AV_NUM_SEPS, bta_av_dt_cback[p_scb->hdi]) != AVDT_SUCCESS) {
     APPL_TRACE_ERROR("bta_av_discover_req command couldn't be sent because of resource constraint");
@@ -3426,7 +3432,14 @@ void bta_av_rcfg_str_ok(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_av_rcfg_failed(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
-  uint8_t err_code = p_data->str_msg.msg.hdr.err_code;
+
+  uint8_t err_code;
+  if (p_data) {
+    err_code = p_data->str_msg.msg.hdr.err_code;
+  } else {
+    APPL_TRACE_ERROR("%s:data is null",__func__);
+    err_code = 0;
+  }
 
   APPL_TRACE_ERROR("%s: num_recfg=%d conn_lcb=0x%x peer_addr=%s, err_code: %d",
                    __func__, p_scb->num_recfg, bta_av_cb.conn_lcb,
@@ -3451,6 +3464,7 @@ void bta_av_rcfg_failed(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     p_scb->num_recfg++;
     if (bta_av_cb.conn_lcb) {
       AVDT_DisconnectReq(p_scb->peer_addr, bta_av_dt_cback[p_scb->hdi]);
+      APPL_TRACE_DEBUG("%s: hdi is: %d , pscb is %x\n", __func__, p_scb->hdi, p_scb);
     } else {
       bta_av_connect_req(p_scb, NULL);
     }
@@ -3481,6 +3495,7 @@ void bta_av_rcfg_connect(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
 
     AVDT_ConnectReq(p_scb->peer_addr, p_scb->sec_mask,
                     bta_av_dt_cback[p_scb->hdi]);
+    APPL_TRACE_DEBUG("%s: hdi is: %d , pscb is %x\n", __func__, p_scb->hdi, p_scb);
   }
 }
 
@@ -3513,6 +3528,7 @@ void bta_av_rcfg_discntd(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
   } else
     AVDT_ConnectReq(p_scb->peer_addr, p_scb->sec_mask,
                     bta_av_dt_cback[p_scb->hdi]);
+    APPL_TRACE_DEBUG("%s: hdi is: %d , pscb is %x\n", __func__, p_scb->hdi, p_scb);
 }
 
 /*******************************************************************************
@@ -3639,6 +3655,7 @@ void bta_av_rcfg_open(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
     /* send avdtp discover request */
     AVDT_DiscoverReq(p_scb->peer_addr, p_scb->sep_info, BTA_AV_NUM_SEPS,
                      bta_av_dt_cback[p_scb->hdi]);
+    APPL_TRACE_DEBUG("%s: hdi is: %d , pscb is %x\n", __func__, p_scb->hdi, p_scb);
   } else {
     APPL_TRACE_DEBUG("%s: calling AVDT_OpenReq()", __func__);
     A2DP_DumpCodecInfo(p_scb->cfg.codec_info);

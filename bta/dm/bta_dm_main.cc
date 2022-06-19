@@ -189,7 +189,7 @@ const uint8_t bta_dm_search_search_active_st_table[][BTA_DM_SEARCH_NUM_COLS] = {
                       BTA_DM_SEARCH_ACTIVE},
     /* API_SEARCH_CANCEL */ {BTA_DM_API_SEARCH_CANCEL, BTA_DM_SEARCH_IGNORE,
                              BTA_DM_SEARCH_CANCELLING},
-    /* API_SEARCH_DISC */ {BTA_DM_SEARCH_IGNORE, BTA_DM_SEARCH_IGNORE,
+    /* API_SEARCH_DISC */ {BTA_DM_QUEUE_DISC, BTA_DM_SEARCH_IGNORE,
                            BTA_DM_SEARCH_ACTIVE},
     /* INQUIRY_CMPL */ {BTA_DM_INQUIRY_CMPL, BTA_DM_SEARCH_IGNORE,
                         BTA_DM_SEARCH_ACTIVE},

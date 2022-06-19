@@ -307,6 +307,57 @@ tBTA_PAN_SCB* bta_pan_scb_by_handle(uint16_t handle) {
 
 /*******************************************************************************
  *
+ * Function         bta_pan_scb_by_bdaddr
+ *
+ * Description      Find scb associated with bd address.
+ *
+ *
+ * Returns          Pointer to scb or NULL if not found.
+ *
+ ******************************************************************************/
+tBTA_PAN_SCB* bta_pan_scb_by_bdaddr(const RawAddress &bd_addr) {
+  tBTA_PAN_SCB* p_scb = &bta_pan_cb.scb[0];
+  uint8_t i;
+
+  for (i = 0; i < BTA_PAN_NUM_CONN; i++, p_scb++) {
+    if (p_scb->in_use && p_scb->bd_addr == bd_addr) {
+      return p_scb;
+    }
+  }
+
+  APPL_TRACE_WARNING(" %s: No scb for bdaddr %s", __func__, bd_addr.ToString().c_str());
+
+  return NULL;
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_pan_is_remote_panu_role_active
+ *
+ * Description      To check, if Remote is already in active PANU role.
+ *
+ *
+ * Returns          bool
+ *
+ ******************************************************************************/
+bool bta_pan_is_remote_panu_role_active(const RawAddress &bd_addr)
+{
+  tBTA_PAN_SCB* p_scb = bta_pan_scb_by_bdaddr(bd_addr);
+
+  if (p_scb == NULL) {
+    return false;
+  } else {
+    if (p_scb->peer_role == PAN_ROLE_CLIENT && p_scb->local_role == PAN_ROLE_NAP_SERVER)
+    {
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
+
+/*******************************************************************************
+ *
  * Function         bta_pan_hdl_event
  *
  * Description      Data gateway main event handling function.
