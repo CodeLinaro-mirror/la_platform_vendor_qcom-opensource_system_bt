@@ -4588,6 +4588,26 @@ void l2cu_process_peer_conn_request(tL2C_LCB* p_lcb,
     }
   }
 
+  //errata id = 14605
+  for (int i = 0; i < num_chnls; i++) {
+    p_ccb = l2cu_find_ccb_by_remote_cid(p_lcb, dest_cid[i]);
+    if (p_ccb) {
+      if (p_ccb->remote_id == id) {
+        L2CAP_TRACE_WARNING("L2CAP - rcvd conn req with ID: 0x%d", id);
+        if (p_ccb->coc_cmd_info.connection_pending == CONNECTION_PENDING) {
+          p_ccb->coc_cmd_info.ecfc_conn_result =
+            L2CAP_ECFC_ALL_CONNS_PENDING_AUTHENTICATION_PENDING ;
+        } else if (p_ccb->coc_cmd_info.authorization_pending ==
+            L2CAP_AUTHORIZATION_PENDING) {
+          p_ccb->coc_cmd_info.ecfc_conn_result =
+            L2CAP_ECFC_ALL_CONNS_PENDING_AUTHORIZATION_PENDING ;
+        }
+        l2cu_send_peer_credit_based_conn_res(p_ccb,
+          p_ccb->coc_cmd_info.ecfc_conn_result);
+        return;
+      }
+    }
+  }
   for (int i = 0; i < num_chnls; i++) {
     p_ccb = l2cu_find_ccb_by_remote_cid(p_lcb, dest_cid[i]);
     if (p_ccb) {
