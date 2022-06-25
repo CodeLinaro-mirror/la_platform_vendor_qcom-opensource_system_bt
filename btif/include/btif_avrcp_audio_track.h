@@ -27,6 +27,7 @@
  */
 
 #include "btif_av.h"
+#include <system/audio-hal-enums.h>
 
 /**
  * Creates an audio track object and returns a void handle. Use this handle to
@@ -37,7 +38,8 @@
  * deleted using BtifAvrcpAudioTrackDelete (see below).
  */
 void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
-                                int channelCount, int channelType);
+                                int channelCount, int channelType,
+                                audio_output_flags_t audio_flag);
 
 #if (A2DP_SINK_DELAY_REPORT == TRUE)
 /**
