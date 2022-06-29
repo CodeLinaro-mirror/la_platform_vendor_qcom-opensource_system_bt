@@ -2307,7 +2307,18 @@ bt_status_t HeadsetInterface::SendBsir(bool value, RawAddress* bd_addr) {
   tBTA_AG_RES_DATA ag_res;
   memset(&ag_res, 0, sizeof(tBTA_AG_RES_DATA));
   ag_res.state = value;
-  BTA_AgResult(btif_hf_cb[idx].handle, BTA_AG_INBAND_RING_RES, &ag_res);
+  #ifdef ADV_AUDIO_FEATURE
+     btif_post_ag_params_t new_bta_ag_params;
+     new_bta_ag_params.peer_bda = *bd_addr;
+     new_bta_ag_params.handle = btif_hf_cb[idx].handle;
+     memset(&new_bta_ag_params.ag_response_structure, 0, sizeof(tBTA_AG_RES_DATA));
+     memcpy(&new_bta_ag_params.ag_response_structure, &ag_res, sizeof(tBTA_AG_RES_DATA));
+     int btif_transf_status = btif_transfer_context(btif_ag_result, uint8_t(BTA_AG_INBAND_RING_RES),
+                              (char *)&new_bta_ag_params, sizeof(new_bta_ag_params), NULL);
+     BTIF_TRACE_IMP("%s: btif_trans_status is %d", __func__, btif_transf_status);
+ #else
+    BTA_AgResult(btif_hf_cb[idx].handle, BTA_AG_INBAND_RING_RES, &ag_res);
+ #endif
   return BT_STATUS_SUCCESS;
 }
 

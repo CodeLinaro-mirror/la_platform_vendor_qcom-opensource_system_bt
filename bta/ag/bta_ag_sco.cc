@@ -337,14 +337,18 @@ static void bta_ag_sco_disc_cback(uint16_t sco_idx) {
                  status != HCI_ERR_PEER_USER &&
                  status !=HCI_ERR_HOST_REJECT_SECURITY &&
                  bta_ag_cb.sco.p_curr_scb != NULL &&
-        bta_ag_cb.sco.p_curr_scb->no_of_xsco_retry == 0){
-      APPL_TRACE_IMP("%s: xSCO disc status is %x, retry xSCO after %x ms",
+        bta_ag_cb.sco.p_curr_scb->no_of_xsco_retry == 0 ) {
+       char value[PROPERTY_VALUE_MAX] = {0};
+       osi_property_get("vendor.bt.pts.certification", value, "false");
+       if (strcmp(value, "true")) {
+        APPL_TRACE_IMP("%s: xSCO disc status is %x, retry xSCO after %x ms",
                      __func__, status, BTA_AG_XSCO_FALLBACK_SCO_TIMEOUT_MS);
-      alarm_set_on_mloop(bta_ag_cb.sco.p_curr_scb->xsco_conn_collision_timer,
+        alarm_set_on_mloop(bta_ag_cb.sco.p_curr_scb->xsco_conn_collision_timer,
                         BTA_AG_XSCO_FALLBACK_SCO_TIMEOUT_MS,
                         bta_ag_xsco_collision_timer_cback,
                         bta_ag_cb.sco.p_curr_scb);
-      bta_ag_cb.sco.p_curr_scb->no_of_xsco_retry++;
+       bta_ag_cb.sco.p_curr_scb->no_of_xsco_retry++;
+      }
     }
   } else {
     /* no match found */

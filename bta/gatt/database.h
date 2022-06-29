@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <bluetooth/uuid.h>
+#include "stack/include/bt_types.h" /* for Octet16 */
 
 namespace gatt {
 constexpr uint16_t HANDLE_MIN = 0x0001;
@@ -48,14 +49,16 @@ struct StoredAttribute {
       bluetooth::Uuid uuid;
     } included_service;
 
-    /* characteristic deifnition */
+    /* characteristic definition */
     struct {
       uint8_t properties;
       uint16_t value_handle;
       bluetooth::Uuid uuid;
     } characteristic;
 
-    /* for descriptor definition we don't store value*/
+    /* for descriptor we store value only for
+     * «Characteristic Extended Properties» */
+    uint16_t characteristic_extended_properties;
   } value;
 };
 
@@ -90,6 +93,8 @@ struct Characteristic {
 struct Descriptor {
   uint16_t handle;
   bluetooth::Uuid uuid;
+  /* set and used for «Characteristic Extended Properties» only */
+  uint16_t characteristic_extended_properties;
 };
 
 class DatabaseBuilder;
@@ -112,6 +117,9 @@ class Database {
 
   static Database Deserialize(const std::vector<gatt::StoredAttribute>& nv_attr,
                               bool* success);
+
+  /* Return 128 bit unique identifier of this GATT database */
+  Octet16 Hash() const;
 
   friend class DatabaseBuilder;
 

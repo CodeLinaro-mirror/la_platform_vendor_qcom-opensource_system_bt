@@ -362,6 +362,11 @@ class BleScannerInterfaceImpl : public BleScannerInterface {
                      jni_thread_wrapper(FROM_HERE, std::move(lost_cb))));
   }
 
+  void StartSync(uint8_t sid, RawAddress address, uint16_t skip,
+                 uint16_t timeout, int reg_id) override {
+    BTIF_TRACE_DEBUG("%s:", __func__);
+  }
+
   void StopSync(uint16_t handle) override {
     BTIF_TRACE_DEBUG("%s: handle: %d", __func__, handle);
     const controller_t* controller = controller_get_interface();
@@ -396,6 +401,11 @@ class BleScannerInterfaceImpl : public BleScannerInterface {
                      sync_handle, jni_thread_wrapper(FROM_HERE, std::move(cb))));
   }
 
+  void TransferSync(RawAddress address, uint16_t service_data,
+                    uint16_t sync_handle, int pa_source) override {
+    BTIF_TRACE_DEBUG("%s:", __func__);
+  }
+
   void TransferSetInfo(RawAddress address, uint16_t service_data,
                          uint8_t adv_handle, SyncTransferCb cb) override {
     BTIF_TRACE_DEBUG("%s: to %s", __func__, address.ToString().c_str());
@@ -411,6 +421,11 @@ class BleScannerInterfaceImpl : public BleScannerInterface {
                      adv_handle, jni_thread_wrapper(FROM_HERE, std::move(cb))));
   }
 
+  void TransferSetInfo(RawAddress address, uint16_t service_data,
+                       uint8_t adv_handle, int pa_source) override {
+    BTIF_TRACE_DEBUG("%s:", __func__);
+  }
+
   void SyncTxParameters(RawAddress addr, uint8_t mode,
                                        uint16_t skip, uint16_t timeout,StartSyncCb cb) {
     BTIF_TRACE_DEBUG("%s",__func__);
@@ -423,6 +438,11 @@ class BleScannerInterfaceImpl : public BleScannerInterface {
     do_in_bta_thread(FROM_HERE,
                      base::Bind(&BTM_BlePeriodicSyncTxParameters, addr, mode, skip, timeout,
                      jni_thread_wrapper(FROM_HERE, std::move(cb))));
+  }
+
+  void SyncTxParameters(RawAddress addr, uint8_t mode, uint16_t skip,
+                        uint16_t timeout, int reg_id) {
+    BTIF_TRACE_DEBUG("%s:", __func__);
   }
 #endif
 };

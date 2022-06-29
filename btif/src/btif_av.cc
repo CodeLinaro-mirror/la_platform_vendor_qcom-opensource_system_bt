@@ -252,6 +252,7 @@ typedef struct {
   struct alarm_t *suspend_rsp_track_timer;
   bool fake_suspend_rsp;
   bool is_retry_reconfig;
+  bool suspend_for_call;
 } btif_av_cb_t;
 
 typedef struct {
@@ -1067,7 +1068,7 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
       memset(&btif_av_cb[index].reconfig_data, 0, sizeof(btif_av_codec_config_req_t));
       memset(&btif_av_cb[index].cached_aptx_mode, 0, sizeof(btav_a2dp_codec_config_t));
       btif_av_cb[index].cache_aptx_mode = false;
-
+      btif_av_cb[index].suspend_for_call = false;
       if (alarm_is_scheduled(btif_av_cb[index].suspend_rsp_track_timer)) {
         BTIF_TRACE_DEBUG("%s: clear suspend_rsp_track_timer", __func__);
         alarm_cancel(btif_av_cb[index].suspend_rsp_track_timer);
@@ -2031,7 +2032,14 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
         btif_dispatch_sm_event(BTIF_AV_REMOTE_SUSPEND_STREAM_REQ_EVT, &index, sizeof(index));
         break;
       }
-
+      if (btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START &&
+        !bluetooth::headset::btif_hf_is_call_vr_idle()) {
+        BTIF_TRACE_EVENT("%s: trigger suspend as call is in progress!!", __func__);
+        btif_av_cb[index].suspend_for_call = true;
+        btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_STARTED);
+        btif_dispatch_sm_event(BTIF_AV_REMOTE_SUSPEND_STREAM_REQ_EVT, &index, sizeof(index));
+        break;
+      }
       if ((!btif_av_cb[index].current_playing) &&
           (btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START)) {
 #if (TWS_ENABLED == TRUE)
@@ -2462,6 +2470,10 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
               btif_av_cb[index].bta_handle)) {
             /* only clear pending flag after acknowledgement */
             btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
+            if (btif_av_cb[index].suspend_for_call) {
+              btif_av_cb[index].suspend_for_call = false;
+              break;
+            }
           }
         } else {
           BTIF_TRACE_IMP("%s Do not update media task on remote start for index =%d", __func__, index);

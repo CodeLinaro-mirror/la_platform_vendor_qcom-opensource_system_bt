@@ -901,6 +901,24 @@ tBTM_STATUS BTM_BleSetConnectableMode(tBTM_BLE_CONN_MODE connectable_mode) {
   return btm_ble_set_connectability(p_cb->connectable_mode);
 }
 
+/*******************************************************************************
+ *
+ * Function         BTM_BleEnableCsipOpportunisticScan
+ *
+ * Description      This function is called to enable csip opportunistic scan.
+ *
+ * Parameters       is_enabled: whether to enable opportunistic scan results.
+ *                  c_back: callback to csip calling module.
+ *
+ ******************************************************************************/
+void BTM_BleEnableCsipOpportunisticScan(bool is_enabled,
+    tBTM_CSIP_OPPORTUNISTIC_SCAN_CB *c_back) {
+  BTM_TRACE_DEBUG(" %s is_enabled = %d ", __func__, is_enabled);
+
+  btm_cb.is_csip_opportunistic_scan_enabled = is_enabled;
+  btm_cb.p_csip_scan_cb = (is_enabled) ? c_back : NULL;
+}
+
 #if (BLE_PRIVACY_SPT == TRUE)
 static bool is_resolving_list_bit_set(void* data, void* context) {
   tBTM_SEC_DEV_REC* p_dev_rec = static_cast<tBTM_SEC_DEV_REC*>(data);
@@ -2596,6 +2614,7 @@ void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
             p_cur->dev_class[0] = 0;
             p_cur->dev_class[1] = BTM_COD_MAJOR_ADV_AUDIO;
             p_cur->dev_class[2] = 0;
+            p_cur->is_adv_audio = true;
             break;
           }
         }
@@ -2951,6 +2970,18 @@ static void btm_ble_process_adv_pkt_cont(
 
       btm_acl_update_busy_level(BTM_BLI_INQ_DONE_EVT);
     }
+  }
+
+  if (btm_cb.is_csip_opportunistic_scan_enabled && btm_cb.p_csip_scan_cb) {
+      uint8_t data_len = 0;
+      const uint8_t* g_data = NULL;
+      g_data = AdvertiseDataParser::GetFieldByType(adv_data, BTM_CSIP_RSI_TYPE,
+                                                   &data_len);
+      if (g_data && data_len == BTM_CSIP_RSI_LEN) {
+         uint8_t gid_data[BTM_CSIP_RSI_LEN] = {};
+         memcpy(gid_data, g_data, BTM_CSIP_RSI_LEN);
+         (*btm_cb.p_csip_scan_cb) (bda, (uint8_t *)gid_data);
+      }
   }
 
   tBTM_INQ_RESULTS_CB* p_inq_results_cb = p_inq->p_inq_results_cb;

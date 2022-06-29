@@ -107,6 +107,8 @@ tA2DP_CTRL_CMD A2dpTransport::a2dp_pending_cmd_ = A2DP_CTRL_CMD_NONE;
 uint16_t A2dpTransport::remote_delay_report_ = 0;
 CodecConfiguration codec_config_global;
 PcmConfiguration pcm_config_global;
+static bool is_aidl_checked = false;
+static bool is_aidl_available = false;
 
 
 
@@ -129,7 +131,7 @@ BluetoothAudioCtrlAck A2dpTransport::StartRequest(bool is_low_latency) {
     return a2dp_ack_to_bt_audio_ctrl_ack(A2DP_CTRL_ACK_FAILURE);
   }
   a2dp_pending_cmd_ = A2DP_CTRL_CMD_START;
-  btif_ahim_process_request(A2DP_CTRL_CMD_START, A2DP);
+  btif_ahim_process_request(A2DP_CTRL_CMD_START, A2DP, TO_AIR);
   return a2dp_ack_to_bt_audio_ctrl_ack(status);
 }
 
@@ -144,12 +146,12 @@ BluetoothAudioCtrlAck A2dpTransport::SuspendRequest() {
     return a2dp_ack_to_bt_audio_ctrl_ack(A2DP_CTRL_ACK_FAILURE);
   }
   a2dp_pending_cmd_ = A2DP_CTRL_CMD_SUSPEND;
-  btif_ahim_process_request(A2DP_CTRL_CMD_SUSPEND, A2DP);
+  btif_ahim_process_request(A2DP_CTRL_CMD_SUSPEND, A2DP, TO_AIR);
   return a2dp_ack_to_bt_audio_ctrl_ack(status);
 }
 
 void A2dpTransport::StopRequest() {
-  btif_ahim_process_request(A2DP_CTRL_CMD_STOP, A2DP);
+  btif_ahim_process_request(A2DP_CTRL_CMD_STOP, A2DP, TO_AIR);
 }
 
 bool A2dpTransport::GetPresentationPosition(uint64_t* remote_delay_report_ns,
@@ -420,7 +422,12 @@ bool is_hal_enabled() { return active_hal_interface != nullptr; }
 
 // Checking if new bluetooth_audio is enabled
 bool is_aidl_hal_available() {
-  return BluetoothAudioClientInterface::is_aidl_available();
+  if (is_aidl_checked) return is_aidl_available;
+
+  is_aidl_available = BluetoothAudioClientInterface::is_aidl_available();
+  is_aidl_checked = true;
+  LOG(INFO) << __func__ << ": " << is_aidl_available;
+  return is_aidl_available;
 }
 
 // Check if new bluetooth_audio is running with offloading encoders
@@ -617,6 +624,9 @@ void end_session() {
 void ack_stream_started(const tA2DP_CTRL_ACK& ack) {
   auto ctrl_ack = a2dp_ack_to_bt_audio_ctrl_ack(ack);
   LOG(INFO) << __func__ << "aidl: result=" << ctrl_ack;
+
+  if (active_hal_interface == nullptr) return;
+
   auto a2dp_sink =
       static_cast<A2dpTransport*>(active_hal_interface->GetTransportInstance());
   auto pending_cmd = a2dp_sink->GetPendingCmd();
@@ -635,6 +645,9 @@ void ack_stream_started(const tA2DP_CTRL_ACK& ack) {
 void ack_stream_suspended(const tA2DP_CTRL_ACK& ack) {
   auto ctrl_ack = a2dp_ack_to_bt_audio_ctrl_ack(ack);
   LOG(INFO) << __func__ << "aidl: result=" << ctrl_ack;
+
+  if (active_hal_interface == nullptr) return;
+
   auto a2dp_sink =
       static_cast<A2dpTransport*>(active_hal_interface->GetTransportInstance());
   auto pending_cmd = a2dp_sink->GetPendingCmd();

@@ -1430,4 +1430,17 @@ void BTM_BlePeriodicSyncSetInfo(RawAddress addr, uint16_t service_data,
 void BTM_BlePeriodicSyncTxParameters(RawAddress addr, uint8_t mode,
                                      uint16_t skip, uint16_t timeout, StartSyncCb syncCb);
 
+/*******************************************************************************
+ *
+ * Function         BTM_BleEnableCsipOpportunisticScan
+ *
+ * Description      This function is called to enable csip opportunistic scan.
+ *
+ * Parameters       is_enabled: whether to enable opportunistic scan results.
+ *                  c_back: callback to csip calling module.
+ *
+ ******************************************************************************/
+extern void BTM_BleEnableCsipOpportunisticScan(bool is_enabled,
+    tBTM_CSIP_OPPORTUNISTIC_SCAN_CB *c_back);
+
 #endif

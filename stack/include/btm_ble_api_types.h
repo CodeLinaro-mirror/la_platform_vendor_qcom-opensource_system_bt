@@ -573,6 +573,14 @@ typedef void (*tBLE_SCAN_PARAM_SETUP_CBACK)(tGATT_IF client_if,
 
 #endif  // BTM_BLE_API_TYPES_H
 
+#ifndef CSIP_OPPORTUNISTIC_SCAN_CB
+#define CSIP_OPPORTUNISTIC_SCAN_CB
+#define BTM_CSIP_RSI_LEN 6
+#define BTM_CSIP_RSI_TYPE 0x2E
+typedef void (tBTM_CSIP_OPPORTUNISTIC_SCAN_CB)(const RawAddress& bda,
+                                               uint8_t* rsi_data);
+#endif
+
 #ifndef LE_ISO_HCI_CMD_PARAM
 #define LE_ISO_HCI_CMD_PARAM
 

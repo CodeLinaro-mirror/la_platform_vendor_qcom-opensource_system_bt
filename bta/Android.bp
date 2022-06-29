@@ -2,6 +2,7 @@ soong_config_module_type_import {
     from: "device/qcom/qssi/Android.bp",
     module_types: [
          "bredr_vs_btadva_cc_defaults",
+         "aosp_vs_qva_cc_defaults",
     ],
 }
 
@@ -21,6 +22,19 @@ bredr_vs_btadva_cc_defaults {
            }
        }
    }
+}
+
+aosp_vs_qva_cc_defaults {
+     name: "qva_bta_defaults",
+     soong_config_variables: {
+         aosp_or_qva: {
+           qva: {
+             static_libs: [
+                "crypto_toolbox_for_tests",
+             ],
+           }
+        }
+    }
 }
 
 cc_defaults {
@@ -95,6 +109,7 @@ cc_library_static {
         "gatt/bta_gattc_act.cc",
         "gatt/bta_gattc_api.cc",
         "gatt/bta_gattc_cache.cc",
+        "gatt/bta_gattc_db_storage.cc",
         "gatt/bta_gattc_main.cc",
         "gatt/bta_gattc_queue.cc",
         "gatt/bta_gattc_utils.cc",
@@ -152,7 +167,7 @@ cc_library_static {
 // ========================================================
 cc_test {
     name: "net_test_bta_qti",
-    defaults: ["fluoride_bta_defaults_qti"],
+    defaults: ["fluoride_bta_defaults_qti","qva_bta_defaults"],
     srcs: [
         "test/bta_hf_client_test.cc",
         "test/bta_dip_test.cc",
@@ -163,7 +178,7 @@ cc_test {
     shared_libs: [
         "liblog",
         "libprotobuf-cpp-lite",
-        "android.hardware.bluetooth.audio-V1-ndk",
+        "android.hardware.bluetooth.audio-V2-ndk",
         "android.hardware.audio.common-V1-ndk",
     ],
     static_libs: [

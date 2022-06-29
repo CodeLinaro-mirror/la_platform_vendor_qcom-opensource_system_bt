@@ -137,4 +137,7 @@
 #define GATT_UUID_MAG_DATA_STR         "00000002-2000-1000-8000-cec278b6b50a"
 #define GATT_UUID_PRESSURE_SENSOR_STR  "00000003-2000-1000-8000-cec278b6b50a"
 
+/* Database Hash characteristic */
+#define GATT_UUID_DATABASE_HASH 0x2B2A
+
 #endif

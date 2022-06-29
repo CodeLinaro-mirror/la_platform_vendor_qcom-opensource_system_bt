@@ -14,11 +14,45 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted (subject to the limitations in the
+ *  disclaimer below) provided that the following conditions are met:
+ *  Redistributions of source code must retain the above copyright
+ *  notice, this list of conditions and the following disclaimer.
+ *
+ *  Redistributions in binary form must reproduce the above
+ *  copyright notice, this list of conditions and the following
+ *  disclaimer in the documentation and/or other materials provided
+ *  with the distribution.
+ *
+ *  Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *  contributors may be used to endorse or promote products derived
+ *  from this software without specific prior written permission.
+ *
+ *  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ *  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ *  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  ******************************************************************************/
 
 #include "database_builder.h"
 
 #include "bt_trace.h"
+#include "stack/include/gattdefs.h"
 
 #include <base/logging.h>
 #include <algorithm>
@@ -120,6 +154,11 @@ void DatabaseBuilder::AddDescriptor(uint16_t handle, const Uuid& uuid) {
 
   char_node->descriptors.emplace_back(
       gatt::Descriptor{.handle = handle, .uuid = uuid});
+
+  // We must read value for Characteristic Extended Properties
+  if (uuid == Uuid::From16Bit(GATT_UUID_CHAR_EXT_PROP)) {
+    descriptor_handles_to_read.emplace_back(handle);
+  }
 }
 
 bool DatabaseBuilder::StartNextServiceExploration() {
@@ -173,6 +212,51 @@ std::pair<uint16_t, uint16_t> DatabaseBuilder::NextDescriptorRangeToExplore() {
 
   pending_characteristic = HANDLE_MAX;
   return {HANDLE_MAX, HANDLE_MAX};
+}
+
+Descriptor* FindDescriptorByHandle(std::vector<Service>& services,
+                                   uint16_t handle) {
+  Service* service = FindService(services, handle);
+  if (!service) return nullptr;
+
+  Characteristic* char_node = &service->characteristics.front();
+  for (auto it = service->characteristics.begin();
+       it != service->characteristics.end(); it++) {
+    if (it->declaration_handle > handle) break;
+    char_node = &(*it);
+  }
+
+  for (auto& descriptor : char_node->descriptors) {
+    if (descriptor.handle == handle) return &descriptor;
+  }
+
+  return nullptr;
+}
+
+bool DatabaseBuilder::SetValueOfDescriptors(
+    const std::vector<uint16_t>& values) {
+  if (values.size() > descriptor_handles_to_read.size()) {
+    LOG(ERROR) << "values.size() <= descriptors.size() expected";
+    descriptor_handles_to_read.clear();
+    return false;
+  }
+
+  for (size_t i = 0; i < values.size(); i++) {
+    Descriptor* d = FindDescriptorByHandle(database.services,
+                                           descriptor_handles_to_read[i]);
+    if (!d) {
+      LOG(ERROR) << __func__ << "non-existing descriptor!";
+      descriptor_handles_to_read.clear();
+      return false;
+    }
+
+    d->characteristic_extended_properties = values[i];
+  }
+
+  descriptor_handles_to_read.erase(
+      descriptor_handles_to_read.begin(),
+      descriptor_handles_to_read.begin() + values.size());
+  return true;
 }
 
 bool DatabaseBuilder::InProgress() const { return !database.services.empty(); }

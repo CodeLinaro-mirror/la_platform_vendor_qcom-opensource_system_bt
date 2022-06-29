@@ -249,6 +249,11 @@ typedef enum {
 #define L2CAP_MIN_MONITOR_TOUT 12000
 
 #define L2CAP_MAX_FCR_CFG_TRIES 2 /* Config attempts before disconnecting */
+//errata id = 14605
+#define CONNECTION_PENDING 1
+#define CONNECTION_PENDING_RESET 0
+#define L2CAP_AUTHORIZATION_PENDING 1
+#define L2CAP_AUTHORIZATION_PENDING_RESET 0
 
 typedef uint8_t tL2C_BLE_FIXED_CHNLS_MASK;
 
@@ -370,6 +375,9 @@ typedef struct {
   uint16_t peer_rsp_cids[L2C_MAX_ECFC_CHNLS_PER_CONN];
   uint64_t disc_pending;
   alarm_t* ecfc_conn_alarm;
+  //errata id = 14605
+  uint64_t connection_pending;
+  uint64_t authorization_pending;
 } tL2C_coc_cmd_info;
 
 /* This structure contains information needed to handle ECFC reconfig Request */
@@ -943,7 +951,7 @@ extern void l2c_info_resp_timer_timeout(void* data);
 extern void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, tL2C_CCB* p_ccb,
                                      BT_HDR* p_buf);
 extern void l2c_link_adjust_allocation(void);
-extern void l2c_link_process_num_completed_pkts(uint8_t* p);
+extern void l2c_link_process_num_completed_pkts(uint8_t* p, uint8_t evt_len);
 extern void l2c_link_process_num_completed_blocks(uint8_t controller_id,
                                                   uint8_t* p, uint16_t evt_len);
 extern void l2c_link_processs_num_bufs(uint16_t num_lm_acl_bufs);

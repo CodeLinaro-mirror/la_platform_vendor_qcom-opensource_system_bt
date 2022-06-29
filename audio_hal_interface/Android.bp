@@ -61,7 +61,7 @@ cc_library_static {
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
         "libfmq",
-        "android.hardware.bluetooth.audio-V1-ndk",
+        "android.hardware.bluetooth.audio-V2-ndk",
         "libbinder_ndk",
         "libhidlbase",
     ],

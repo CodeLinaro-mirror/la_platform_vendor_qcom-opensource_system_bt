@@ -39,6 +39,15 @@ crypto_toolbox_srcs = [
     "crypto_toolbox/crypto_toolbox.cc",
 ]
 
+cc_test_library {
+    name: "crypto_toolbox_for_tests_qti",
+    defaults: ["fluoride_defaults_qti"],
+    include_dirs: [
+        "vendor/qcom/opensource/commonsys/system/bt",
+    ],
+    srcs: crypto_toolbox_srcs
+}
+
 // Bluetooth stack static library for target
 // ========================================================
 cc_library_static {
@@ -165,6 +174,7 @@ cc_library_static {
         "gatt/gatt_db.cc",
         "gatt/gatt_main.cc",
         "gatt/gatt_sr.cc",
+        "gatt/gatt_sr_hash.cc",
         "gatt/gatt_utils.cc",
         "gatt/eatt_utils.cc",
         "hcic/hciblecmds.cc",

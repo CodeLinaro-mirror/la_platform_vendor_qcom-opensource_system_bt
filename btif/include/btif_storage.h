@@ -263,6 +263,18 @@ void btif_storage_remove_hearing_aid(const RawAddress& address);
 void btif_storage_set_hearing_aid_acceptlist(const RawAddress& address,
                                              bool add_to_acceptlist);
 
+/** Remove client supported features */
+void btif_storage_remove_gatt_cl_supp_feat(const RawAddress& bd_addr);
+
+/** Store last server database hash for remote client */
+void btif_storage_set_gatt_cl_db_hash(const RawAddress& bd_addr, Octet16 hash);
+
+/** Get last server database hash for remote client */
+Octet16 btif_storage_get_gatt_cl_db_hash(const RawAddress& bd_addr);
+
+/** Remove last server database hash for remote client */
+void btif_storage_remove_gatt_cl_db_hash(const RawAddress& bd_addr);
+
 /** Get the hearing aid device properties. */
 bool btif_storage_get_hearing_aid_prop(
     const RawAddress& address, uint8_t* capabilities, uint64_t* hi_sync_id,

@@ -717,6 +717,10 @@ static void gatt_le_connect_cback(uint16_t chan, const RawAddress& bd_addr,
     }
   }
 
+  if (gatt_is_robust_caching_enabled()) {
+    GATT_EnableRobustCaching(bd_addr, BT_TRANSPORT_LE);
+  }
+
 }
 
 /** This function is called to process the congestion callback from lcb */

@@ -123,7 +123,7 @@ enum acm_evt{
 #define RX_ONLY_CONFIG    0x1
 #define TX_RX_BOTH_CONFIG 0x3
 
-typedef void (* ahim_client_cb)(tA2DP_CTRL_CMD cmd);
+typedef void (* ahim_client_cb)(tA2DP_CTRL_CMD cmd, uint8_t direction);
 typedef uint16_t (* ahim_get_sample_rate_callback)(uint8_t direction);
 typedef uint8_t (* ahim_get_channel_mode_callback)(uint8_t direction);
 typedef uint32_t (* ahim_get_bitrate_callback)(uint8_t direction);
@@ -132,8 +132,12 @@ typedef uint16_t (* ahim_get_frame_length)(uint8_t direction);
 typedef uint8_t (* ahim_get_ch_count_callback)();
 typedef bool (* ahim_get_simulcast_status)();
 typedef uint16_t (* ahim_get_profile_status)();
+typedef uint8_t (* ahim_get_codec_type)(uint8_t direction);
 typedef bool (* ahim_is_codec_type_lc3q)(uint8_t direction);
-typedef uint8_t (* ahim_lc3q_ver)(uint8_t direction);
+typedef uint8_t (* ahim_get_codec_encoder_version)(uint8_t direction);
+typedef uint8_t (* ahim_get_codec_decoder_version)(uint8_t direction);
+typedef uint8_t (* ahim_get_min_sup_frame_dur)(uint8_t direction);
+typedef uint8_t (* ahim_get_feature_map)(uint8_t direction);
 typedef uint8_t (* ahim_lc3_blocks_per_sdu)(uint8_t direction);
 typedef uint32_t (* ahim_get_audio_location)(uint32_t stream_id, uint8_t direction);
 typedef void (* ahim_update_src_metadata)(const source_metadata_t& source_metadata);
@@ -150,8 +154,12 @@ typedef struct {
     ahim_get_ch_count_callback get_ch_count_cb;
     ahim_get_simulcast_status get_simulcast_status_cb;
     ahim_get_profile_status get_profile_status_cb;
+    ahim_get_codec_type get_codec_type;
     ahim_is_codec_type_lc3q get_is_codec_type_lc3q;
-    ahim_lc3q_ver get_lc3q_ver;
+    ahim_get_codec_encoder_version get_codec_encoder_version;
+    ahim_get_codec_decoder_version get_codec_decoder_version;
+    ahim_get_min_sup_frame_dur get_min_sup_frame_dur;
+    ahim_get_feature_map get_feature_map;
     ahim_lc3_blocks_per_sdu get_lc3_blocks_per_sdu;
     ahim_get_audio_location get_audio_location;
     ahim_update_src_metadata src_meta_update;
@@ -162,7 +170,7 @@ extern btif_ahim_client_callbacks_t* pclient_cbs[MAX_CLIENT];
 
 void reg_cb_with_ahim(uint8_t client_id, btif_ahim_client_callbacks_t* pclient_cb);
 
-void btif_ahim_process_request(tA2DP_CTRL_CMD cmd, uint8_t profile);
+void btif_ahim_process_request(tA2DP_CTRL_CMD cmd, uint8_t profile, uint8_t direction);
 void btif_ahim_update_current_profile(uint8_t profile);
 
 void btif_ahim_update_src_metadata(const source_metadata_t& source_metadata);

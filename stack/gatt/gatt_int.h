@@ -14,6 +14,39 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted (subject to the limitations in the
+ *  disclaimer below) provided that the following conditions are met:
+ *  Redistributions of source code must retain the above copyright
+ *  notice, this list of conditions and the following disclaimer.
+ *
+ *  Redistributions in binary form must reproduce the above
+ *  copyright notice, this list of conditions and the following
+ *  disclaimer in the documentation and/or other materials provided
+ *  with the distribution.
+ *
+ *  Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *  contributors may be used to endorse or promote products derived
+ *  from this software without specific prior written permission.
+ *
+ *  NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ *  GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ *  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ *  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ *  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  ******************************************************************************/
 
 #ifndef GATT_INT_H
@@ -157,6 +190,7 @@ typedef union {
   bluetooth::Uuid uuid;        /* service declaration */
   tGATT_CHAR_DECL char_decl;   /* characteristic declaration */
   tGATT_INCL_SRVC incl_handle; /* included service */
+  uint16_t char_ext_prop;      /* Characteristic Extended Properties */
 } tGATT_ATTR_VALUE;
 
 /* Attribute UUID type
@@ -303,6 +337,12 @@ typedef struct {
   std::queue<tGATT_CMD_Q> cl_cmd_q;
   alarm_t* ind_ack_timer; /* local app confirm to indication timer */
 
+  // TODO(hylo): support byte array data
+  /* Client supported feature*/
+  uint8_t cl_supp_feat;
+  /* Use for server. if false, should handle database out of sync. */
+  bool is_robust_cache_change_aware;
+
   bool in_use;
   uint8_t tcb_idx;
 
@@ -431,6 +471,9 @@ typedef struct {
 #define GATT_CL_SUPP_FEAT_READ 9 /*Read client supported features char */
 #define GATT_CL_SUPP_FEAT_WRITE 10 /* Write client supported features char */
 
+#define GATT_ROBUST_CACHING_CL_SUPP_FEAT_CONNECTING  11 /*wait for connection */
+#define GATT_ROBUST_CACHING_CL_SUPP_FEAT_READ        12 /*Read client supported features char */
+#define GATT_ROBUST_CACHING_CL_SUPP_FEAT_WRITE       13 /* Write client supported features char */
 
 typedef struct {
   uint16_t conn_id;
@@ -456,6 +499,11 @@ typedef struct {
   uint8_t cl_supp_feat_result;
   uint16_t cl_supp_feat_s_handle;
   uint16_t cl_supp_feat_e_handle;
+
+  /* GATT robust caching variables */
+  uint8_t robust_caching_stage;
+  uint8_t robust_caching_result;
+  uint16_t robust_caching_handle;
 } tGATT_PROFILE_CLCB;
 
 typedef struct {
@@ -485,6 +533,9 @@ typedef struct {
   uint16_t
       handle_of_h_r; /* Handle of the handles reused characteristic value */
 
+  uint16_t handle_of_database_hash;
+  Octet16 database_hash;
+
   tGATT_APPL_INFO cb_info;
 
   tGATT_HDL_CFG hdl_cfg;
@@ -493,6 +544,12 @@ typedef struct {
   std::vector<RawAddress> eatt_devices_list;
   tGATT_EBCB eatt_bcb[GATT_MAX_EATT_CHANNELS]; /* EATT Bearer control block */
   std::vector<tGATT_CONN> gatt_conn_list;
+
+  /* Supported features as a client. To be written to remote device.
+   * Note this is NOT a value of the characteristic with handle
+   * handle_cl_support_feat, as that one should be written by remote device.
+   */
+   uint8_t gatt_cl_supported_feat_mask;
 } tGATT_CB;
 
 #define GATT_SIZE_OF_SRV_CHG_HNDL_RANGE 4
@@ -526,9 +583,14 @@ extern void gatt_send_srv_chg_ind(const RawAddress& peer_bda);
 extern void gatt_chk_srv_chg(tGATTS_SRV_CHG* p_srv_chg_clt);
 extern void gatt_add_a_bonded_dev_for_srv_chg(const RawAddress& bda);
 extern void gatt_establish_eatt_connect(tGATT_TCB* p_tcb, uint8_t num_chnls);
+extern bool gatt_is_robust_caching_enabled(void);
 
 /* from gatt_attr.cc */
 extern uint16_t gatt_profile_find_conn_id_by_bd_addr(const RawAddress& bda);
+
+extern bool gatt_sr_is_cl_change_aware(tGATT_TCB& tcb);
+extern void gatt_sr_init_cl_status(tGATT_TCB& tcb);
+extern void gatt_sr_update_cl_status(tGATT_TCB& tcb, bool chg_unaware);
 
 /* Functions provided by att_protocol.cc */
 extern tGATT_STATUS attp_send_cl_msg(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint16_t lcid,
@@ -671,6 +733,8 @@ extern uint16_t gatts_add_included_service(tGATT_SVC_DB& db, uint16_t s_handle,
 extern uint16_t gatts_add_characteristic(tGATT_SVC_DB& db, tGATT_PERM perm,
                                          tGATT_CHAR_PROP property,
                                          const bluetooth::Uuid& char_uuid);
+extern uint16_t gatts_add_char_ext_prop_descr(tGATT_SVC_DB& db,
+                                              uint16_t extended_properties);
 extern uint16_t gatts_add_char_descr(tGATT_SVC_DB& db, tGATT_PERM perm,
                                      const bluetooth::Uuid& dscp_uuid);
 extern tGATT_STATUS gatts_db_read_attr_value_by_type(
@@ -694,6 +758,12 @@ extern void gatt_free_pending_ind(tGATT_TCB* p_tcb, uint16_t lcid);
 
 extern bool gatt_profile_sr_is_eatt_supported(uint16_t conn_id, uint16_t handle);
 
+extern uint16_t gatt_get_db_hash_char_handle();
+
 extern void gatt_notify_eatt_congestion(tGATT_TCB* p_tcb, uint16_t cid, bool congested);
+
+/* gatt_sr_hash.cc */
+extern Octet16 gatts_calculate_database_hash(
+    std::list<tGATT_SRV_LIST_ELEM>* lst_ptr);
 
 #endif

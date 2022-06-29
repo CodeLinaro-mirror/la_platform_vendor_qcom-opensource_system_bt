@@ -64,6 +64,7 @@ namespace aidl {
 namespace le_audio {
 using AudioConfigurationAIDL =
     ::aidl::android::hardware::bluetooth::audio::AudioConfiguration;
+using ::aidl::android::hardware::bluetooth::audio::LeAudioBroadcastConfiguration;
 using ::aidl::android::hardware::bluetooth::audio::LeAudioCodecConfiguration;
 using ::aidl::android::hardware::bluetooth::audio::LeAudioConfiguration;
 using ::aidl::android::hardware::bluetooth::audio::PcmConfiguration;
@@ -85,7 +86,6 @@ constexpr uint8_t kBitsPerSample16 = 16;
 constexpr uint8_t kBitsPerSample24 = 24;
 constexpr uint8_t kBitsPerSample32 = 32;
 
-void flush_sink();
 void flush_source();
 
 bool is_source_hal_enabled();
@@ -101,13 +101,13 @@ struct StreamCallbacks {
 class LeAudioTransport {
  public:
   LeAudioTransport(void (*flush)(void), StreamCallbacks stream_cb,
-                   PcmConfiguration pcm_config);
+                   PcmConfiguration pcm_config, bool is_broadcast_session);
 
-  BluetoothAudioCtrlAck StartRequest(bool is_low_latency);
+  BluetoothAudioCtrlAck StartRequest(bool is_low_latency, uint8_t direction);
 
-  BluetoothAudioCtrlAck SuspendRequest();
+  BluetoothAudioCtrlAck SuspendRequest(uint8_t direction);
 
-  void StopRequest();
+  void StopRequest(uint8_t direction);
 
   bool GetPresentationPosition(uint64_t* remote_delay_report_ns,
                                uint64_t* total_bytes_processed,
@@ -135,6 +135,7 @@ class LeAudioTransport {
 
   bool IsPendingStartStream(void);
   void ClearPendingStartStream(void);
+  bool IsBroadcastSession() { return is_broadcast_session_; }
 
  private:
   void (*flush_)(void);
@@ -145,6 +146,7 @@ class LeAudioTransport {
   PcmConfiguration pcm_config_;
   tA2DP_CTRL_CMD lea_pending_cmd_;
   bool is_pending_start_request_;
+  bool is_broadcast_session_;
 };
 
 // Sink transport implementation for Le Audio
@@ -188,8 +190,10 @@ class LeAudioSinkTransport
   bool IsPendingStartStream(void);
   void ClearPendingStartStream(void);
 
-  static inline LeAudioSinkTransport* instance = nullptr;
-  static inline BluetoothAudioSinkClientInterface* interface = nullptr;
+  static inline LeAudioSinkTransport* instance_unicast_ = nullptr;
+  static inline LeAudioSinkTransport* instance_broadcast_ = nullptr;
+  static inline BluetoothAudioSinkClientInterface* interface_unicast_ = nullptr;
+  static inline BluetoothAudioSinkClientInterface* interface_broadcast_ = nullptr;
 
  private:
   LeAudioTransport* transport_;
@@ -274,6 +278,7 @@ class LeAudioClientInterface {
  public:
   class Sink : public IClientInterfaceEndpoint {
    public:
+    Sink(bool is_broadcaster = false) : is_broadcaster_(is_broadcaster){};
     virtual ~Sink() = default;
 
     void Cleanup() override;
@@ -294,6 +299,10 @@ class LeAudioClientInterface {
 
     // Read the stream of bytes sinked to us by the upper layers
     size_t Read(uint8_t* p_buf, uint32_t len);
+    bool IsBroadcaster() { return is_broadcaster_; }
+
+   private:
+    bool is_broadcaster_ = false;
   };
   class Source : public IClientInterfaceEndpoint {
    public:
@@ -322,9 +331,12 @@ class LeAudioClientInterface {
   // Get LE Audio sink client interface if it's not previously acquired and not
   // yet released.
   Sink* GetSink(StreamCallbacks stream_cb,
-                thread_t* message_loop);
+                thread_t* message_loop,
+                bool is_broadcasting_session_type);
   // This should be called before trying to get sink interface
-  bool IsSinkAcquired();
+  bool IsUnicastSinkAcquired();
+  // This should be called before trying to get broadcast sink interface
+  bool IsBroadcastSinkAcquired();
   // Release sink interface if belongs to LE audio client interface
   bool ReleaseSink(Sink* sink);
 
@@ -342,7 +354,8 @@ class LeAudioClientInterface {
 
  private:
   static LeAudioClientInterface* interface;
-  Sink* sink_ = nullptr;
+  Sink* unicast_sink_ = nullptr;
+  Sink* broadcast_sink_ = nullptr;
   Source* source_ = nullptr;
 };
 

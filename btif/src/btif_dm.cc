@@ -189,6 +189,7 @@ typedef struct {
   uint8_t is_adv_audio;
   bool is_le_only;
   bool is_le_nc; /* LE Numeric comparison */
+  uint8_t fail_reason; /* The HCI reason/error code */
   btif_dm_ble_cb_t ble;
 } btif_dm_pairing_cb_t;
 
@@ -707,7 +708,7 @@ void bond_state_changed(bt_status_t status, const RawAddress& bd_addr,
     // Cross key pairing so send callback for static address
     if (!pairing_cb.static_bdaddr.IsEmpty()) {
       auto tmp = bd_addr;
-      HAL_CBACK(bt_hal_cbacks, bond_state_changed_cb, status, &tmp, state, 0);
+      HAL_CBACK(bt_hal_cbacks, bond_state_changed_cb, status, &tmp, state, pairing_cb.fail_reason);
     }
     return;
   }
@@ -720,7 +721,7 @@ void bond_state_changed(bt_status_t status, const RawAddress& bd_addr,
                    state, pairing_cb.state, pairing_cb.sdp_attempts);
 
   auto tmp = bd_addr;
-  HAL_CBACK(bt_hal_cbacks, bond_state_changed_cb, status, &tmp, state, 0);
+  HAL_CBACK(bt_hal_cbacks, bond_state_changed_cb, status, &tmp, state, pairing_cb.fail_reason);
 
   if (state == BT_BOND_STATE_BONDING ||
       (state == BT_BOND_STATE_BONDED && pairing_cb.sdp_attempts > 0)) {
@@ -1313,6 +1314,10 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
   }
 
   RawAddress bd_addr = p_auth_cmpl->bd_addr;
+
+  //in success case, fail_reason would be HCI_SUCCESS
+  pairing_cb.fail_reason = p_auth_cmpl->fail_reason;
+
   if ((p_auth_cmpl->success == true) && (p_auth_cmpl->key_present)) {
     if ((p_auth_cmpl->key_type < HCI_LKEY_TYPE_DEBUG_COMB) ||
         (p_auth_cmpl->key_type == HCI_LKEY_TYPE_AUTH_COMB) ||
@@ -2209,7 +2214,7 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       btif_update_remote_version_property(&bd_addr);
 
       HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
-                &bd_addr, BT_ACL_STATE_CONNECTED, 0, HCI_SUCCESS);
+                &bd_addr, BT_ACL_STATE_CONNECTED, p_data->link_down.link_type, HCI_SUCCESS);
       break;
 
     case BTA_DM_LINK_DOWN_EVT:
@@ -2250,7 +2255,7 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       BTIF_TRACE_DEBUG(
           "BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
       HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
-                &bd_addr, BT_ACL_STATE_DISCONNECTED, 0,
+                &bd_addr, BT_ACL_STATE_DISCONNECTED, p_data->link_down.link_type,
                 static_cast<bt_hci_error_code_t>(btm_get_acl_disc_reason_code()));
       break;
 
@@ -3738,6 +3743,9 @@ static void btif_dm_ble_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
 
   RawAddress bd_addr = p_auth_cmpl->bd_addr;
 
+  //in success case, fail_reason would be HCI_SUCCESS
+  pairing_cb.fail_reason = p_auth_cmpl->fail_reason;
+
   /* Clear OOB data */
   memset(&oob_cb, 0, sizeof(oob_cb));
 
@@ -3762,6 +3770,16 @@ static void btif_dm_ble_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
     } else {
       btif_dm_save_ble_bonding_keys(bdaddr);
 #ifdef ADV_AUDIO_FEATURE
+      if (is_remote_support_adv_audio(bd_addr)) {
+        APPL_TRACE_DEBUG("%s saving the pairing info in adv audio CB",
+            __func__);
+        uint16_t transport = BT_TRANSPORT_LE;
+        if (p_auth_cmpl->smp_over_br) {
+          transport = BT_TRANSPORT_BR_EDR;
+        }
+        bta_adv_audio_update_bond_db(bd_addr, transport);
+        pairing_cb.is_adv_audio = 1;
+      }
       if (bta_remote_device_is_dumo(bd_addr)) {
         APPL_TRACE_DEBUG("%s Storing BLE KEYS Identity Address ", __func__);
         RawAddress id_addr = bta_get_rem_dev_id_addr(bd_addr);

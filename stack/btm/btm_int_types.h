@@ -933,6 +933,8 @@ typedef struct {
   #define BTM_CODEC_TYPE_MAX_RECORDS 32
   tBTM_BT_DYNAMIC_AUDIO_BUFFER_CB
       dynamic_audio_buffer_cb[BTM_CODEC_TYPE_MAX_RECORDS];
+  tBTM_CSIP_OPPORTUNISTIC_SCAN_CB* p_csip_scan_cb = NULL;
+  bool is_csip_opportunistic_scan_enabled = false;
 } tBTM_CB;
 
 /* security action for L2CAP COC channels */

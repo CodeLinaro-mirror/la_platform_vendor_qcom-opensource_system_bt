@@ -828,6 +828,10 @@ void l2c_lcc_proc_pdu(tL2C_CCB* p_ccb, BT_HDR* p_buf) {
 
   /* Buffer length should not exceed local mps */
   if (p_buf->len > p_ccb->local_conn_cfg.mps) {
+    L2CAP_TRACE_ERROR("%s: p_buf_len length less than MPS %d",
+                      __func__, p_buf->len);
+    //ECFC-BV-37, ECFC-BV-77, CFC-BV-27
+    l2cu_disconnect_chnl(p_ccb);
     /* Discard the buffer */
     osi_free(p_buf);
     return;
@@ -846,6 +850,10 @@ void l2c_lcc_proc_pdu(tL2C_CCB* p_ccb, BT_HDR* p_buf) {
 
     /* Check the SDU Length with local MTU size */
     if (sdu_length > p_ccb->local_conn_cfg.mtu) {
+      L2CAP_TRACE_ERROR("%s: SDU length less than MTU %d",
+                        __func__, sdu_length);
+      //ECFC-BV-76, ECFC-BV-36, CFC-BV-26-C
+      l2cu_disconnect_chnl(p_ccb);
       /* Discard the buffer */
       osi_free(p_buf);
       return;

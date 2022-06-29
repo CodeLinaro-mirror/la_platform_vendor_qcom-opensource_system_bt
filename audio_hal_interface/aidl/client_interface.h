@@ -76,6 +76,8 @@ using ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioPort;
 using ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider;
 using ::aidl::android::hardware::bluetooth::audio::
     IBluetoothAudioProviderFactory;
+using ::aidl::android::hardware::bluetooth::audio::LeAudioBroadcastConfiguration;
+using ::aidl::android::hardware::bluetooth::audio::LeAudioCodecConfiguration;
 using ::aidl::android::hardware::bluetooth::audio::PcmConfiguration;
 
 using ::aidl::android::hardware::common::fmq::MQDescriptor;
@@ -136,6 +138,8 @@ class BluetoothAudioClientInterface {
   static void binderDiedCallbackAidl(void* cookie_ptr);
 
   std::shared_ptr<IBluetoothAudioProvider> provider_;
+
+  std::shared_ptr<IBluetoothAudioProviderFactory> provider_factory_;
 
   bool session_started_;
   std::unique_ptr<DataMQ> data_mq_;

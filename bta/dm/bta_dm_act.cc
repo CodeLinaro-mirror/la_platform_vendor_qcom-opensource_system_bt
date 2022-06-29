@@ -1086,6 +1086,8 @@ void bta_dm_remove_device(tBTA_DM_MSG* p_data) {
 
 
         btm_remove_acl(other_address, peer_device.transport);
+        APPL_TRACE_DEBUG("%s: continue to delete the other dev after acl removing ", __func__);
+        continue_delete_other_dev = true;
         break;
       }
     }
@@ -4955,6 +4957,14 @@ static void bta_dm_observe_results_cb(tBTM_INQ_RESULTS* p_inq, uint8_t* p_eir,
   result.inq_res.p_eir = p_eir;
   result.inq_res.eir_len = eir_len;
 
+#ifdef ADV_AUDIO_FEATURE
+  if (p_inq->is_adv_audio) {
+    BTIF_TRACE_DEBUG("%s Add to ADV Audio Database %s", __func__,
+        p_inq->remote_bd_addr.ToString().c_str());
+    bta_dm_update_adv_audio_db(p_inq->remote_bd_addr);
+  }
+#endif
+
   p_inq_info = BTM_InqDbRead(p_inq->remote_bd_addr);
   if (p_inq_info != NULL) {
     /* initialize remt_name_not_required to false so that we get the name by
@@ -5127,7 +5137,7 @@ static uint8_t bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
 
       } else {
         sec_event.auth_cmpl.success = true;
-
+        sec_event.auth_cmpl.fail_reason = HCI_SUCCESS;
         sec_event.auth_cmpl.smp_over_br = p_data->complt.smp_over_br;
         if (!p_data->complt.smp_over_br)
           GATT_ConfigServiceChangeCCC(bda, true, BT_TRANSPORT_LE);
@@ -5798,6 +5808,8 @@ static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
           }
         } else {
           APPL_TRACE_DEBUG("%s Discovery Failure ", __func__);
+          if (is_remote_support_adv_audio(bta_dm_search_cb.peer_bdaddr))
+            bta_le_audio_service_search_failed(&bta_dm_search_cb.peer_bdaddr);
         }
 #endif
       }

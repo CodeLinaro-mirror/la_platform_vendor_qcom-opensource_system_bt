@@ -110,11 +110,14 @@ static uint16_t compute_service_size(btgatt_db_element_t* service, int count) {
     if (el->type == BTGATT_DB_PRIMARY_SERVICE ||
         el->type == BTGATT_DB_SECONDARY_SERVICE ||
         el->type == BTGATT_DB_DESCRIPTOR ||
-        el->type == BTGATT_DB_INCLUDED_SERVICE)
+        el->type == BTGATT_DB_INCLUDED_SERVICE) {
       db_size += 1;
-    else if (el->type == BTGATT_DB_CHARACTERISTIC)
+    } else if (el->type == BTGATT_DB_CHARACTERISTIC) {
       db_size += 2;
-    else {
+
+      // if present, Characteristic Extended Properties takes one handle
+      if (el->properties & GATT_CHAR_PROP_BIT_EXT_PROP) db_size++;
+    } else {
       LOG(ERROR) << __func__ << ": Unknown element type: " << el->type;
       db_size = 0;
       break;
@@ -139,6 +142,17 @@ static void gatt_update_last_srv_info() {
 
   for (tGATT_SRV_LIST_ELEM& el : *gatt_cb.srv_list_info) {
     gatt_cb.last_service_handle = el.s_hdl;
+  }
+}
+
+/** Update database hash and client status */
+static void gatt_update_for_database_change() {
+  gatt_cb.database_hash = gatts_calculate_database_hash(gatt_cb.srv_list_info);
+
+  uint8_t i = 0;
+  for (i = 0; i < GATT_MAX_PHY_CHANNEL; i++) {
+    tGATT_TCB& tcb = gatt_cb.tcb[i];
+    if (tcb.in_use) gatt_sr_update_cl_status(tcb, /* chg_aware= */ false);
   }
 }
 
@@ -248,6 +262,12 @@ uint16_t GATTS_AddService(tGATT_IF gatt_if, btgatt_db_element_t* service,
 
       el->attribute_handle = gatts_add_characteristic(
           list.svc_db, el->permissions, el->properties, uuid);
+
+      // add characteristic extended properties descriptor if needed
+      if (el->properties & GATT_CHAR_PROP_BIT_EXT_PROP) {
+        gatts_add_char_ext_prop_descr(list.svc_db, el->extended_properties);
+      }
+
     } else if (el->type == BTGATT_DB_DESCRIPTOR) {
       if (is_gatt_attr_type(uuid)) {
         LOG(ERROR) << __func__
@@ -311,6 +331,7 @@ uint16_t GATTS_AddService(tGATT_IF gatt_if, btgatt_db_element_t* service,
           << ", e_hdl=" << loghex(elem.e_hdl) << ", type=" << loghex(elem.type)
           << ", sdp_hdl=" << loghex(elem.sdp_handle);
 
+  gatt_update_for_database_change();
   gatt_proc_srv_chg();
 
   return GATT_SERVICE_STARTED;
@@ -361,11 +382,12 @@ bool GATTS_DeleteService(tGATT_IF gatt_if, Uuid* p_svc_uuid,
     return false;
   }
 
-  gatt_proc_srv_chg();
-
   if (is_active_service(p_reg->app_uuid128, p_svc_uuid, svc_inst)) {
     GATTS_StopService(it->asgn_range.s_handle);
   }
+
+  gatt_update_for_database_change();
+  gatt_proc_srv_chg();
 
   VLOG(1) << "released handles s_hdl=" << loghex(it->asgn_range.s_handle)
           << ", e_hdl=" << loghex(it->asgn_range.e_handle);
