@@ -1315,7 +1315,10 @@ void bta_av_disable(tBTA_AV_CB* p_cb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
 
   bta_av_close_all_rc(p_cb);
 
-  osi_free_and_reset((void**)&p_cb->p_disc_db);
+  if (p_cb->p_disc_db) {
+    (void)SDP_CancelServiceSearch(p_cb->p_disc_db);
+    osi_free_and_reset((void**)&p_cb->p_disc_db);
+  }
 
   /* disable audio/video - de-register all channels,
    * expect BTA_AV_DEREG_COMP_EVT when deregister is complete */
