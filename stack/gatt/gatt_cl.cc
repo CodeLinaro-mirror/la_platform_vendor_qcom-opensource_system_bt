@@ -1184,7 +1184,7 @@ uint8_t gatt_cmd_to_rsp_code(uint8_t cmd_code) {
 /** Find next command in queue and sent to server */
 bool gatt_cl_send_next_cmd_inq(tGATT_TCB& tcb, uint16_t lcid) {
   std::queue<tGATT_CMD_Q>* cl_cmd_q = &tcb.cl_cmd_q;
-  tGATT_EBCB* p_eatt_bcb;
+  tGATT_EBCB* p_eatt_bcb = NULL;
 
   if (tcb.is_eatt_supported) {
     p_eatt_bcb = gatt_find_eatt_bcb_by_cid(&tcb, lcid);
@@ -1221,7 +1221,17 @@ bool gatt_cl_send_next_cmd_inq(tGATT_TCB& tcb, uint16_t lcid) {
         gatt_end_operation(p_clcb, att_ret, NULL);
 
       /* if no ack needed, keep sending */
-      if (att_ret == GATT_SUCCESS) continue;
+      if (att_ret == GATT_SUCCESS) {
+        //No credits, check if uncongestion needs to be sent
+        if (p_eatt_bcb && p_eatt_bcb->send_uncongestion) {
+          if (p_eatt_bcb->cl_cmd_q.empty()) {
+            VLOG(1) << __func__ << " check if uncongestion needs to be sent"
+                                   " to apps after sending queued write cmd";
+            eatt_congest_notify_apps(&tcb, lcid, false);
+          }
+        }
+        continue;
+      }
 
       return true;
     }
