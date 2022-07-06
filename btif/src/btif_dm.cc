@@ -361,6 +361,7 @@ extern bool is_remote_support_adv_audio(const RawAddress remote_bdaddr);
 extern void bta_adv_audio_update_bond_db(RawAddress p_bd_addr, uint8_t transport);
 extern void btif_store_adv_audio_pair_info(RawAddress bd_addr);
 extern bool bta_lea_is_le_pairing();
+extern void bta_dm_reset_adv_audio_pairing_info(RawAddress p_addr);
 #endif
 /******************************************************************************
  *  Functions
@@ -699,7 +700,9 @@ void bond_state_changed(bt_status_t status, const RawAddress& bd_addr,
   if (is_remote_support_adv_audio(bd_addr)) {
     if (state == BT_BOND_STATE_BONDED) {
       btif_store_adv_audio_pair_info(bd_addr);
-    }
+    }else if(state == BT_BOND_STATE_NONE) {
+     bta_dm_reset_adv_audio_pairing_info(bd_addr);
+   }
   }
 #endif
 
@@ -933,6 +936,9 @@ static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
     if (is_remote_support_adv_audio(bd_addr)) {
       transport = btif_dm_get_adv_audio_transport(bd_addr);
       bta_adv_audio_update_bond_db(bd_addr, transport);
+      BTIF_TRACE_DEBUG("%s make sure inquiry was stopped before create LEA bond",
+     __func__);
+      btif_dm_cancel_discovery();
       pairing_cb.is_adv_audio = 1;
     }
 #endif
@@ -981,6 +987,11 @@ is a valid hid connection with this bd_addr. If yes VUP will be issued.*/
   {
     BTIF_TRACE_DEBUG("%s: Removing HH device", __func__);
     BTA_DmRemoveDevice(*bd_addr);
+ #ifdef ADV_AUDIO_FEATURE
+   if (is_remote_support_adv_audio(*bd_addr)){
+      bta_dm_reset_adv_audio_pairing_info(*bd_addr);
+    }
+#endif
   }
 }
 
@@ -3001,6 +3012,11 @@ bt_status_t btif_dm_cancel_bond(const RawAddress* bd_addr) {
       /* Cancel bonding, in case it is in ACL connection setup state */
       BTA_DmBondCancel(*bd_addr);
     }
+#ifdef ADV_AUDIO_FEATURE
+    if (is_remote_support_adv_audio(*bd_addr)){
+      bta_dm_reset_adv_audio_pairing_info(*bd_addr);
+   }
+#endif
   }
 
   return BT_STATUS_SUCCESS;
@@ -3749,6 +3765,16 @@ static void btif_dm_ble_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
     } else {
       btif_dm_save_ble_bonding_keys(bdaddr);
 #ifdef ADV_AUDIO_FEATURE
+      if (is_remote_support_adv_audio(bd_addr)) {
+        APPL_TRACE_DEBUG("%s saving the pairing info in adv audio CB",
+            __func__);
+        uint16_t transport = BT_TRANSPORT_LE;
+        if (p_auth_cmpl->smp_over_br) {
+          transport = BT_TRANSPORT_BR_EDR;
+        }
+        bta_adv_audio_update_bond_db(bd_addr, transport);
+        pairing_cb.is_adv_audio = 1;
+      }
       if (bta_remote_device_is_dumo(bd_addr)) {
         APPL_TRACE_DEBUG("%s Storing BLE KEYS Identity Address ", __func__);
         RawAddress id_addr = bta_get_rem_dev_id_addr(bd_addr);
