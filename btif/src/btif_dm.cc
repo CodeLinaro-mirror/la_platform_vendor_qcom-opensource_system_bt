@@ -2251,7 +2251,9 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
         num_active_br_edr_links--;
         BTIF_TRACE_DEBUG("num_active_br_edr_links is %d ",num_active_br_edr_links);
       }
-      btif_av_move_idle(bd_addr);
+     if (p_data->link_down.link_type == BT_TRANSPORT_BR_EDR) {
+        btif_av_move_idle(bd_addr);
+     }
       BTIF_TRACE_DEBUG(
           "BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
       HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,

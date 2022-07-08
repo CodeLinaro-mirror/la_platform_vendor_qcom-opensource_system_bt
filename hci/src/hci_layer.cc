@@ -137,6 +137,7 @@ struct monitor_command cmd_stats;
 static base::Callback<void(const base::Location&, BT_HDR*)>
     send_data_upwards;
 
+static bool silentRecovery = false;
 static bool filter_incoming_event(BT_HDR* packet);
 static waiting_command_t* get_waiting_command(command_opcode_t opcode);
 static int get_num_waiting_commands();
@@ -565,6 +566,9 @@ static void command_timed_out(void* original_wait_entry) {
       alarm_set(command_response_timer, new_timeout, command_timed_out,
                 list_front(commands_pending_response));
       return;
+    } else {
+      if (cmd_stats.lapsed_timeout >= MAX_CMD_TIMEOUT)
+        silentRecovery = true;
     }
   }
 
@@ -618,7 +622,12 @@ static void command_timed_out(void* original_wait_entry) {
 
   UINT16_TO_STREAM(hci_packet,
                    HCI_GRP_VENDOR_SPECIFIC | HCI_CONTROLLER_DEBUG_INFO_OCF);
-  UINT8_TO_STREAM(hci_packet, 0);  // No parameters
+
+  if (silentRecovery) {
+    UINT8_TO_STREAM(hci_packet, 0x01);
+  } else {
+    UINT8_TO_STREAM(hci_packet, 0x00);
+  }
 
   hci_firmware_log_fd = hci_open_firmware_log_file();
 

@@ -81,6 +81,7 @@ cc_library_static {
     srcs: [
         // HAL layer
         "src/bluetooth.cc",
+        "src/bluetooth_data_migration.cc",
         // BTIF implementation
         "src/btif_a2dp.cc",
         "src/btif_a2dp_control.cc",
@@ -161,6 +162,7 @@ cc_library_static {
         "libbt-audio-hal-interface-qti",
         "libbt-common-qti",
         //"libbtif_ext",
+        "libc++fs",
     ],
     header_libs: [
         "libmedia_headers",
