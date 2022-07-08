@@ -177,6 +177,8 @@ bool avdt_ccb_check_peer_eligible_for_aac_codec(tAVDT_CCB* p_ccb) {
   uint16_t version = 0;
   bool vndr_prdt_ver_present = false;
   bool aac_support = false;
+  tAVDT_SCB* p_scb = avdt_scb_by_peer_addr(p_ccb->peer_addr);
+
   if (btif_config_get_uint16(p_ccb->peer_addr.ToString().c_str(), PNP_VENDOR_ID_CONFIG_KEY,
       (uint16_t*)&vendor) && btif_config_get_uint16(p_ccb->peer_addr.ToString().c_str(),
       PNP_PRODUCT_ID_CONFIG_KEY, (uint16_t*)&product) &&
@@ -186,7 +188,12 @@ bool avdt_ccb_check_peer_eligible_for_aac_codec(tAVDT_CCB* p_ccb) {
                           vendor, product, version);
     vndr_prdt_ver_present = true;
   }
-  if (vndr_prdt_ver_present && (vendor == A2DP_AAC_BOSE_VENDOR_ID)) {
+
+  if((p_scb != NULL) && (p_scb->cs.tsep == AVDT_TSEP_SNK)
+      &&(p_scb->cs.is_split_enabled)) {
+    AVDT_TRACE_EVENT("%s: Enable AAC for sink role\n", __func__);
+    aac_support = true;
+  } else if (vndr_prdt_ver_present && (vendor == A2DP_AAC_BOSE_VENDOR_ID)) {
     APPL_TRACE_DEBUG("%s: vendor id info matches ", __func__);
     vndr_prdt_ver_present = false;
     aac_support = true;
