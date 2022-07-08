@@ -20,6 +20,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /******************************************************************************
  *
  *  This module contains the action functions associated with the channel
@@ -76,6 +82,7 @@ static void avdt_ccb_clear_ccb(tAVDT_CCB* p_ccb) {
   while ((p_buf = (BT_HDR*)fixed_queue_try_dequeue(p_ccb->rsp_q)) != NULL)
     osi_free(p_buf);
 }
+
 
 /*******************************************************************************
  *
@@ -518,6 +525,8 @@ void avdt_ccb_hdl_getcap_rsp(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
  ******************************************************************************/
 void avdt_ccb_hdl_start_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
   uint8_t err_code = 0;
+  uint8_t i = 0;
+  tAVDT_SCB *p_scb;
 
   /* verify all streams in the right state */
   uint8_t seid =
@@ -526,14 +535,90 @@ void avdt_ccb_hdl_start_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
   AVDT_TRACE_DEBUG("%s: bd_add: %s, seid: %d", __func__,
                      p_ccb->peer_addr.ToString().c_str(), seid);
   if (seid == 0 && err_code == 0) {
-    /* we're ok, send response */
-    avdt_ccb_event(p_ccb, AVDT_CCB_API_START_RSP_EVT, p_data);
+    /* If tsep is SNK , snd start IND to BTA */
+    for (i = 0; i < p_data->msg.multi.num_seps; i++)
+    {
+      p_scb = avdt_scb_by_hdl(p_data->msg.multi.seid_list[i]);
+      if (p_scb!= NULL) {
+          AVDT_TRACE_DEBUG("%s SEP=%d split_enabled = %d ",__func__,p_scb->cs.tsep, p_scb->cs.is_split_enabled);
+      }
+      if((p_scb != NULL) && (p_scb->cs.tsep == AVDT_TSEP_SNK)&& (p_scb->p_ccb == p_ccb)
+          &&(p_scb->cs.is_split_enabled))
+      {
+        // we don't need timer (delay reporting) for split a2dp case
+        (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
+                 &p_ccb->peer_addr,AVDT_START_IND_EVT,NULL);
+        p_ccb->start_pending_label = p_data->msg.hdr.label;
+        AVDT_TRACE_DEBUG(" %s  split_sink start_ind seid = %d label = %d",__func__,
+                         p_data->msg.multi.seid_list[i],p_ccb->start_pending_label);
+        return;
+      }
+    }
+    // if split is not enabled on this scb
+     /* we're ok, send response */
+     avdt_ccb_event(p_ccb, AVDT_CCB_API_START_RSP_EVT, p_data);
   } else {
     /* not ok, send reject */
     p_data->msg.hdr.err_code = err_code;
     p_data->msg.hdr.err_param = seid;
     avdt_msg_send_rej(p_ccb, AVDT_SIG_START, &p_data->msg);
   }
+}
+
+/*******************************************************************************
+ *
+ * Function         avdt_ccb_snd_pending_start_rsp
+ *
+ * Description      This funciton is called when response to avdtp start is sent
+ *                  from applicaiton.
+ *
+ *
+ * Returns          void.
+ *
+ ******************************************************************************/
+
+void avdt_ccb_snd_pending_start_rsp(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
+  tAVDT_MSG msg;
+  uint8_t accepted = p_data->msg.hdr.err_code;
+  msg.hdr.label = p_ccb->start_pending_label;
+
+  AVDT_TRACE_DEBUG("%s: label = %d accepted = %d", __func__,msg.hdr.label, accepted);
+  if (accepted == 0) {
+    avdt_msg_send_rsp(p_ccb, AVDT_SIG_START, &msg);
+  } else {
+    msg.hdr.err_code = AVDT_ERR_BAD_STATE;
+    //TODO:  Find right SEID
+    avdt_msg_send_rej(p_ccb, AVDT_SIG_START, &msg);
+  }
+  p_ccb->start_pending_label = UNUSED_T_LABEL;
+}
+
+/*******************************************************************************
+ *
+ * Function         avdt_ccb_snd_pending_suspend_rsp
+ *
+ * Description      This funciton is called when response to avdtp start is sent
+ *                  from applicaiton.
+ *
+ *
+ * Returns          void.
+ *
+ ******************************************************************************/
+
+void avdt_ccb_snd_pending_suspend_rsp(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
+  tAVDT_MSG msg;
+  uint8_t accepted = p_data->msg.hdr.err_code;
+  msg.hdr.label = p_ccb->suspend_pending_label;
+
+  AVDT_TRACE_DEBUG("%s: label = %d accepted = %d", __func__,msg.hdr.label, accepted);
+  if (accepted == 0) {
+    avdt_msg_send_rsp(p_ccb, AVDT_SIG_SUSPEND, &msg);
+  } else {
+    msg.hdr.err_code = AVDT_ERR_BAD_STATE;
+    //TODO:  Find right SEID
+    avdt_msg_send_rej(p_ccb, AVDT_SIG_SUSPEND, &msg);
+  }
+  p_ccb->suspend_pending_label = UNUSED_T_LABEL;
 }
 
 /*******************************************************************************
@@ -589,6 +674,8 @@ void avdt_ccb_hdl_start_rsp(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
 void avdt_ccb_hdl_suspend_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
   uint8_t seid;
   uint8_t err_code = 0;
+  uint8_t i = 0;
+  tAVDT_SCB *p_scb;
 
   AVDT_TRACE_DEBUG("%s: bd_add: %s", __func__, p_ccb->peer_addr.ToString().c_str());
   /* verify all streams in the right state */
@@ -596,8 +683,30 @@ void avdt_ccb_hdl_suspend_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
                               p_data->msg.multi.seid_list,
                               p_data->msg.multi.num_seps, &err_code)) == 0 &&
       err_code == 0) {
-    /* we're ok, send response */
-    avdt_ccb_event(p_ccb, AVDT_CCB_API_SUSPEND_RSP_EVT, p_data);
+    /* If tsep is SNK , snd start IND to BTA */
+    for (i = 0; i < p_data->msg.multi.num_seps; i++)
+    {
+      p_scb = avdt_scb_by_hdl(p_data->msg.multi.seid_list[i]);
+      if (p_scb!= NULL) {
+          AVDT_TRACE_DEBUG("%s SEP=%d split_enabled = %d ",__func__,p_scb->cs.tsep,
+            p_scb->cs.is_split_enabled);
+      }
+      if((p_scb != NULL) && (p_scb->cs.tsep == AVDT_TSEP_SNK)&& (p_scb->p_ccb == p_ccb)
+          &&(p_scb->cs.is_split_enabled))
+      {
+        // we don't need timer (delay reporting) for split a2dp case
+        (*p_scb->cs.p_ctrl_cback)(avdt_scb_to_hdl(p_scb),
+                                  &p_scb->p_ccb->peer_addr, AVDT_SUSPEND_IND_EVT, NULL);
+
+        p_ccb->suspend_pending_label = p_data->msg.hdr.label;
+        AVDT_TRACE_DEBUG(" %s  split_sink suspend_ind seid = %d label = %d",__func__,
+                         p_data->msg.multi.seid_list[i],p_ccb->suspend_pending_label);
+        return;
+      }
+    }
+    // split is not enabled on this SCB.
+     /* we're ok, send response */
+     avdt_ccb_event(p_ccb, AVDT_CCB_API_SUSPEND_RSP_EVT, p_data);
   } else {
     /* not ok, send reject */
     p_data->msg.hdr.err_code = err_code;

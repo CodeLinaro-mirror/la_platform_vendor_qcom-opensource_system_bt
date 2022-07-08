@@ -20,6 +20,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /******************************************************************************
  *
  *  This is the stream state machine for the BTA advanced audio/video.
@@ -100,6 +106,13 @@ enum {
   BTA_AV_OFFLOAD_RSP,
   BTA_AV_DISC_FAIL_AS_ACP,
   BTA_AV_HANDLE_COLLISION,
+  BTA_AV_SINK_OFFLOAD_START_REQ,
+  BTA_AV_SINK_OFFLOAD_STOP_REQ,
+  BTA_AV_SINK_SEND_PENDING_START_CNF,
+  BTA_AV_SINK_SEND_PENDING_START_REJ,
+  BTA_AV_SINK_SEND_PENDING_SUSPEND_CNF,
+  BTA_AV_SINK_SEND_PENDING_SUSPEND_REJ,
+  BTA_AVK_UPDATE_DELAY_REPORT,
   BTA_AV_NUM_SACTIONS
 };
 
@@ -159,7 +172,22 @@ static const uint8_t bta_av_sst_init[][BTA_AV_NUM_COLS] = {
                                      BTA_AV_INIT_SST},
     /* API_RECONFIG_FAIL_EVT */ {BTA_AV_SIGNORE, BTA_AV_SIGNORE,
                                      BTA_AV_INIT_SST},
-    /* COLLISION_EVT */ {BTA_AV_SIGNORE, BTA_AV_SIGNORE, BTA_AV_INIT_SST}};
+    /* COLLISION_EVT */ {BTA_AV_SIGNORE, BTA_AV_SIGNORE, BTA_AV_INIT_SST},
+    /* API_OFFLOAD_START_EVT */
+          {BTA_AV_SIGNORE,        BTA_AV_SIGNORE,       BTA_AV_INIT_SST },
+    /* API_OFFLOAD_STOP_EVT */
+          {BTA_AV_SINK_OFFLOAD_STOP_REQ, BTA_AV_SIGNORE, BTA_AV_INIT_SST },
+    /* API_PENDING_START_CNF_EVT */
+          {BTA_AV_SIGNORE,        BTA_AV_SIGNORE,        BTA_AV_INIT_SST },
+    /* API_PENDING_START_REJECT_EVT */
+          {BTA_AV_SIGNORE,        BTA_AV_SIGNORE,        BTA_AV_INIT_SST },
+    /* API_PENDING_SUSPEND_CNF_EVT */
+          {BTA_AV_SIGNORE,        BTA_AV_SIGNORE,        BTA_AV_INIT_SST },
+    /* API_PENDING_SUSPEND_REJECT_EVT */
+          {BTA_AV_SIGNORE,        BTA_AV_SIGNORE,        BTA_AV_INIT_SST },
+    /* BTA_AVK_API_UPDATE_DELAY_REPORT_EVT*/
+          {BTA_AV_SIGNORE,        BTA_AV_SIGNORE,        BTA_AV_INIT_SST }
+};
 
 /* state table for incoming state */
 static const uint8_t bta_av_sst_incoming[][BTA_AV_NUM_COLS] = {
@@ -229,7 +257,23 @@ static const uint8_t bta_av_sst_incoming[][BTA_AV_NUM_COLS] = {
                                      BTA_AV_INCOMING_SST},
     /* API_RECONFIG_FAIL_EVT */ {BTA_AV_SIGNORE, BTA_AV_SIGNORE,
                                      BTA_AV_INCOMING_SST},
-    /* COLLISION_EVT */ {BTA_AV_SIGNORE, BTA_AV_SIGNORE, BTA_AV_INCOMING_SST}};
+    /* COLLISION_EVT */ {BTA_AV_SIGNORE, BTA_AV_SIGNORE, BTA_AV_INCOMING_SST},
+    /* API_OFFLOAD_START_EVT */
+           {BTA_AV_SIGNORE,    BTA_AV_SIGNORE,       BTA_AV_INCOMING_SST },
+    /* API_OFFLOAD_STOP_EVT */
+           {BTA_AV_SINK_OFFLOAD_STOP_REQ,    BTA_AV_SIGNORE,       BTA_AV_INCOMING_SST },
+    /* API_PENDING_START_CNF_EVT */
+           {BTA_AV_SIGNORE,    BTA_AV_SIGNORE,        BTA_AV_INCOMING_SST },
+    /* API_PENDING_START_REJECT_EVT */
+           {BTA_AV_SIGNORE,    BTA_AV_SIGNORE,        BTA_AV_INCOMING_SST },
+    /* API_PENDING_SUSPEND_CNF_EVT */
+           {BTA_AV_SIGNORE,    BTA_AV_SIGNORE,        BTA_AV_INCOMING_SST },
+    /* API_PENDING_SUSPEND_REJECT_EVT */
+           {BTA_AV_SIGNORE,    BTA_AV_SIGNORE,        BTA_AV_INCOMING_SST },
+    /* BTA_AVK_API_UPDATE_DELAY_REPORT_EVT*/
+          {BTA_AV_SIGNORE,        BTA_AV_SIGNORE,        BTA_AV_INCOMING_SST }
+
+    };
 
 /* state table for opening state */
 static const uint8_t bta_av_sst_opening[][BTA_AV_NUM_COLS] = {
@@ -298,7 +342,22 @@ static const uint8_t bta_av_sst_opening[][BTA_AV_NUM_COLS] = {
                                      BTA_AV_OPENING_SST},
     /* API_RECONFIG_FAIL_EVT */ {BTA_AV_SIGNORE, BTA_AV_SIGNORE,
                                      BTA_AV_OPENING_SST},
-    /* COLLISION_EVT */ {BTA_AV_HANDLE_COLLISION, BTA_AV_SIGNORE, BTA_AV_INIT_SST}};
+    /* COLLISION_EVT */ {BTA_AV_HANDLE_COLLISION, BTA_AV_SIGNORE, BTA_AV_INIT_SST},
+    /* API_OFFLOAD_START_EVT */
+             {BTA_AV_SIGNORE, BTA_AV_SIGNORE,       BTA_AV_OPENING_SST },
+    /* API_OFFLOAD_STOP_EVT */
+             {BTA_AV_SIGNORE,BTA_AV_SIGNORE,       BTA_AV_OPENING_SST },
+    /* API_PENDING_START_CNF_EVT */
+             {BTA_AV_SIGNORE,    BTA_AV_SIGNORE,        BTA_AV_OPENING_SST },
+    /* API_PENDING_START_REJECT_EVT */
+             {BTA_AV_SIGNORE,    BTA_AV_SIGNORE,        BTA_AV_OPENING_SST },
+    /* API_PENDING_SUSPEND_CNF_EVT */
+             {BTA_AV_SIGNORE,    BTA_AV_SIGNORE,        BTA_AV_OPENING_SST },
+    /* API_PENDING_SUSPEND_REJECT_EVT */
+             {BTA_AV_SIGNORE,    BTA_AV_SIGNORE,        BTA_AV_OPENING_SST },
+    /* BTA_AVK_API_UPDATE_DELAY_REPORT_EVT*/
+          {BTA_AV_SIGNORE,        BTA_AV_SIGNORE,        BTA_AV_OPENING_SST }
+    };
 
 /* state table for open state */
 static const uint8_t bta_av_sst_open[][BTA_AV_NUM_COLS] = {
@@ -356,7 +415,22 @@ static const uint8_t bta_av_sst_open[][BTA_AV_NUM_COLS] = {
                                      BTA_AV_OPEN_SST},
     /* API_RECONFIG_FAIL_EVT */ {BTA_AV_SIGNORE, BTA_AV_SIGNORE,
                                      BTA_AV_OPEN_SST},
-    /* COLLISION_EVT */ {BTA_AV_SIGNORE, BTA_AV_SIGNORE, BTA_AV_OPEN_SST}};
+    /* COLLISION_EVT */ {BTA_AV_SIGNORE, BTA_AV_SIGNORE, BTA_AV_OPEN_SST},
+    /* API_OFFLOAD_START_EVT */
+      {BTA_AV_SINK_OFFLOAD_START_REQ, BTA_AV_SIGNORE, BTA_AV_OPEN_SST },
+    /* API_OFFLOAD_STOP_EVT */
+      {BTA_AV_SINK_OFFLOAD_STOP_REQ, BTA_AV_SIGNORE, BTA_AV_OPEN_SST },
+    /* API_PENDING_START_CNF_EVT */
+      {BTA_AV_SINK_SEND_PENDING_START_CNF,  BTA_AV_SIGNORE,  BTA_AV_OPEN_SST },
+    /* API_PENDING_START_REJECT_EVT */
+      {BTA_AV_SINK_SEND_PENDING_START_REJ,  BTA_AV_SIGNORE,   BTA_AV_OPEN_SST },
+    /* API_PENDING_SUSPEND_CNF_EVT */
+      {BTA_AV_SINK_SEND_PENDING_SUSPEND_CNF,  BTA_AV_SIGNORE,  BTA_AV_OPEN_SST },
+    /* API_PENDING_SUSPEND_REJECT_EVT */
+      {BTA_AV_SINK_SEND_PENDING_SUSPEND_REJ,  BTA_AV_SIGNORE,   BTA_AV_OPEN_SST },
+    /* BTA_AVK_API_UPDATE_DELAY_REPORT_EVT*/
+      {BTA_AVK_UPDATE_DELAY_REPORT,   BTA_AV_SIGNORE,        BTA_AV_OPEN_SST }
+    };
 
 /* state table for reconfig state */
 static const uint8_t bta_av_sst_rcfg[][BTA_AV_NUM_COLS] = {
@@ -414,7 +488,22 @@ static const uint8_t bta_av_sst_rcfg[][BTA_AV_NUM_COLS] = {
                                      BTA_AV_RCFG_SST},
     /* API_RECONFIG_FAIL_EVT */ {BTA_AV_SIGNORE, BTA_AV_SIGNORE,
                                      BTA_AV_OPEN_SST},
-    /* COLLISION_EVT */ {BTA_AV_SIGNORE, BTA_AV_SIGNORE, BTA_AV_RCFG_SST}};
+    /* COLLISION_EVT */ {BTA_AV_SIGNORE, BTA_AV_SIGNORE, BTA_AV_RCFG_SST},
+    /* API_OFFLOAD_START_EVT */
+         {BTA_AV_SIGNORE,        BTA_AV_SIGNORE,       BTA_AV_RCFG_SST },
+    /* API_OFFLOAD_STOP_EVT */
+         {BTA_AV_SIGNORE,        BTA_AV_SIGNORE,       BTA_AV_RCFG_SST },
+    /* API_PENDING_START_CNF_EVT */
+         {BTA_AV_SIGNORE,    BTA_AV_SIGNORE,        BTA_AV_RCFG_SST },
+    /* API_PENDING_START_REJECT_EVT */
+         {BTA_AV_SIGNORE,    BTA_AV_SIGNORE,        BTA_AV_RCFG_SST },
+    /* API_PENDING_SUSPEND_CNF_EVT */
+         {BTA_AV_SIGNORE,    BTA_AV_SIGNORE,        BTA_AV_RCFG_SST },
+    /* API_PENDING_SUSPEND_REJECT_EVT */
+         {BTA_AV_SIGNORE,    BTA_AV_SIGNORE,        BTA_AV_RCFG_SST },
+    /* BTA_AVK_API_UPDATE_DELAY_REPORT_EVT*/
+      {BTA_AV_SIGNORE,       BTA_AV_SIGNORE,        BTA_AV_RCFG_SST }
+    };
 
 /* state table for closing state */
 static const uint8_t bta_av_sst_closing[][BTA_AV_NUM_COLS] = {
@@ -480,7 +569,22 @@ static const uint8_t bta_av_sst_closing[][BTA_AV_NUM_COLS] = {
                                      BTA_AV_CLOSING_SST},
     /* API_RECONFIG_FAIL_EVT */ {BTA_AV_SIGNORE, BTA_AV_SIGNORE,
                                      BTA_AV_CLOSING_SST},
-    /* COLLISION_EVT */ {BTA_AV_SIGNORE, BTA_AV_SIGNORE, BTA_AV_CLOSING_SST}};
+    /* COLLISION_EVT */ {BTA_AV_SIGNORE, BTA_AV_SIGNORE, BTA_AV_CLOSING_SST},
+    /* API_OFFLOAD_START_EVT */
+       {BTA_AV_SIGNORE,        BTA_AV_SIGNORE,       BTA_AV_CLOSING_SST },
+    /* API_OFFLOAD_STOP_EVT */
+       {BTA_AV_SIGNORE,        BTA_AV_SIGNORE,       BTA_AV_CLOSING_SST },
+    /* API_PENDING_START_CNF_EVT */
+       {BTA_AV_SIGNORE,    BTA_AV_SIGNORE,        BTA_AV_CLOSING_SST },
+    /* API_PENDING_START_REJECT_EVT */
+       {BTA_AV_SIGNORE,    BTA_AV_SIGNORE,        BTA_AV_CLOSING_SST },
+    /* API_PENDING_SUSPEND_CNF_EVT */
+       {BTA_AV_SIGNORE,    BTA_AV_SIGNORE,        BTA_AV_CLOSING_SST },
+    /* API_PENDING_SUSPEND_REJECT_EVT */
+       {BTA_AV_SIGNORE,    BTA_AV_SIGNORE,        BTA_AV_CLOSING_SST },
+    /* BTA_AVK_API_UPDATE_DELAY_REPORT_EVT*/
+      {BTA_AV_SIGNORE,       BTA_AV_SIGNORE,        BTA_AV_RCFG_SST }
+    };
 
 /* type for state table */
 typedef const uint8_t (*tBTA_AV_SST_TBL)[BTA_AV_NUM_COLS];

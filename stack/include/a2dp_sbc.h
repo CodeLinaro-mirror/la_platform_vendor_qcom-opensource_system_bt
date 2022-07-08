@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 //
 // A2DP Codec API for low complexity subband codec (SBC)
 //
@@ -24,6 +30,18 @@
 #include "a2dp_codec_api.h"
 #include "a2dp_sbc_constants.h"
 #include "avdt_api.h"
+
+/* data type for the SBC Codec Information Element */
+typedef struct {
+  uint8_t samp_freq;    /* Sampling frequency */
+  uint8_t ch_mode;      /* Channel mode */
+  uint8_t block_len;    /* Block length */
+  uint8_t num_subbands; /* Number of subbands */
+  uint8_t alloc_method; /* Allocation method */
+  uint8_t min_bitpool;  /* Minimum bitpool */
+  uint8_t max_bitpool;  /* Maximum bitpool */
+  btav_a2dp_codec_bits_per_sample_t bits_per_sample;
+} tA2DP_SBC_CIE;
 
 class A2dpCodecConfigSbc : public A2dpCodecConfig {
  public:
@@ -263,4 +281,13 @@ bool A2DP_InitCodecConfigSbcSink(tAVDT_CFG* p_cfg);
 // |is_peer_edr| flag is true if peer is edr else false
 // Returns |uint16_t| bitrate value
 uint16_t A2DP_GetOffloadBitrateSbc(A2dpCodecConfig* config, bool is_peer_edr);
+
+tA2DP_STATUS A2DP_ParseInfoSbc(tA2DP_SBC_CIE* p_ie,
+                               const uint8_t* p_codec_info,
+                               bool is_capability);
+
+int A2DP_GetBitsPerSampleSbc(const uint8_t* p_codec_info);
+
+uint16_t A2DP_GetOffloadBitrateSbcUsingCodecInfo(const uint8_t *codec_info,
+                                                 bool peer_edr);
 #endif  // A2DP_SBC_H

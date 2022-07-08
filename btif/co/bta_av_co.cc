@@ -49,6 +49,7 @@
  *
  ******************************************************************************/
 
+
 /******************************************************************************
  *
  *  This is the advanced audio/video call-out function implementation for
@@ -102,6 +103,8 @@ std::mutex isDevUiReq_mutex_;
 /* Macro to convert audio handle to index and vice versa */
 #define BTA_AV_CO_AUDIO_HNDL_TO_INDX(hndl) (((hndl) & (~BTA_AV_CHNL_MSK)) - 1)
 #define BTA_AV_CO_AUDIO_INDX_TO_HNDL(indx) (((indx) + 1) | BTA_AV_CHNL_AUDIO)
+
+#define A2DP_SINK_AUDIO_CODEC_AAC 0x02
 
 static void bta_av_co_free_peer(tBTA_AV_CO_PEER* p_peer);
 /* SCMS-T protect info */

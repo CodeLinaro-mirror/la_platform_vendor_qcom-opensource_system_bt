@@ -20,6 +20,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /*******************************************************************************
  *
  *  Filename:      btif_av.h
@@ -85,6 +91,14 @@ typedef enum {
   BTIF_AV_PROCESS_HIDL_REQ_EVT,
   BTIF_AV_CHECK_PENDING_PLAY_EVT,
   BTIF_AV_REPORT_AUDIO_STATE_EVT,
+  BTIF_AV_SINK_START_IND_RSP,
+  BTIF_AV_SINK_SUSPEND_IND_RSP,
+  BTIF_AV_SINK_OFFLOAD_START_CFM_EVT,
+  BTIF_AV_SINK_OFFLOAD_STOP_CFM_EVT,
+  BTIF_AV_SINK_OFFLOAD_SETUP_COMPLETE_EVT,
+  BTIF_AV_SINK_OFFLOAD_SEND_VSC_A2DP_START_EVT,
+  BTIF_AV_SINK_OFFLOAD_SEND_VSC_A2DP_STOP_EVT,
+  BTIF_AV_SINK_OFFLOAD_SINK_LATENCY_EVT
 } btif_av_sm_event_t;
 
 /*******************************************************************************
