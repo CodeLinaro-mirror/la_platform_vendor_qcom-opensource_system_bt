@@ -1470,6 +1470,11 @@ static bool btm_sec_is_upgrade_possible(tBTM_SEC_DEV_REC* p_dev_rec,
   uint16_t mtm_check = is_originator ? BTM_SEC_OUT_MITM : BTM_SEC_IN_MITM;
   bool is_possible = true;
 
+  if (BTM_SecIsSecurityPending(p_dev_rec->bd_addr)) {
+    BTM_TRACE_DEBUG("%s() upgrade is on-going, return directly!", __func__);
+    return true;
+  }
+
   if (p_dev_rec->sec_flags & BTM_SEC_LINK_KEY_KNOWN) {
     is_possible = false;
     /* Already have a link key to the connected peer. Is the link key secure
