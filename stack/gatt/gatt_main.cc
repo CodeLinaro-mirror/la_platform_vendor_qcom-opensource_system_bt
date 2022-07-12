@@ -1307,9 +1307,9 @@ static void gatt_l2cif_eatt_connect_cfm_cback(RawAddress &p_bd_addr,
     if (result == L2CAP_ECFC_ALL_CONNS_REFUSED_INSUFF_AUTHENTICATION) {
       VLOG(1) << " EATT connection rejected due to insufficient authentication,"
                  " Set eatt as not supported";
-      p_tcb->is_eatt_supported = false;
       gatt_eatt_bcb_in_progress_dealloc(p_bd_addr);
       p_tcb->apps_needing_eatt.clear();
+      p_tcb->is_eatt_supported = false;
 
       gatt_send_conn_cb_after_enc_failure(p_tcb);
       return;
@@ -1337,11 +1337,12 @@ static void gatt_l2cif_eatt_connect_cfm_cback(RawAddress &p_bd_addr,
         }
       }
     }
+    gatt_eatt_bcb_in_progress_dealloc(p_bd_addr);
+
     if (gatt_num_eatt_bcbs(p_tcb) == 0) {
       VLOG(1) << " First EATT conn attempt rejected, set eatt as not supported";
       p_tcb->is_eatt_supported = false;
     }
-    gatt_eatt_bcb_in_progress_dealloc(p_bd_addr);
   }
 
   if (p_tcb && !p_tcb->apps_needing_eatt.empty()) {
