@@ -37,6 +37,7 @@ package vendor.qti.bluetooth_offload;
 import vendor.qti.bluetooth_offload.IBluetoothOffloadApp;
 import vendor.qti.bluetooth_offload.INotificationOffloadMgr;
 import vendor.qti.bluetooth_offload.INotificationOffloadMgrCallback;
+import vendor.qti.bluetooth_offload.IBluetoothOffloadLpm;
 
 /**
  * System private API for talking with the NotificationOffload service.
@@ -46,6 +47,7 @@ import vendor.qti.bluetooth_offload.INotificationOffloadMgrCallback;
 interface INotificationOffloadMgr
 {
     IBluetoothOffloadApp registerAdapter(in INotificationOffloadMgrCallback callback);
+    IBluetoothOffloadLpm registerLPMAdapter(in INotificationOffloadMgrCallback callback);
     void unregisterAdapter(in INotificationOffloadMgrCallback callback);
 }
 

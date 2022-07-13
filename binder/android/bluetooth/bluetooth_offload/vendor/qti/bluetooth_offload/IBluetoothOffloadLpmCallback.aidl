@@ -41,5 +41,4 @@ package vendor.qti.bluetooth_offload;
   */
 interface IBluetoothOffloadLpmCallback {
     void transitionToPwrStateCb(int status);
-    void notifyAthWakeupEvent();
 }
