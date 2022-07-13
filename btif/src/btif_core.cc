@@ -56,7 +56,9 @@
 #include "btif_storage.h"
 #include "btif_uid.h"
 #include "btif_util.h"
+#ifdef BT_LPM_SUPPORTED
 #include "btif_lpm.h"
+#endif
 #include "btu.h"
 #include "device/include/controller.h"
 #include "osi/include/fixed_queue.h"

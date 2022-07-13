@@ -559,7 +559,7 @@ typedef struct {
     /* controller problems */
 #define BTM_SEC_STATE_DISCONNECTING_BLE 8  /* disconnecting BLE */
 #define BTM_SEC_STATE_DISCONNECTING_BOTH 9 /* disconnecting BR/EDR and BLE */
-#if (BT_LPM_SUPPORTED == TRUE)
+#ifdef BT_LPM_SUPPORTED
 #define BTM_SEC_STATE_OFFLOADED 10 /* offloaded device to onchip stack */
 #endif
   uint8_t sec_state;  /* Operating state                    */

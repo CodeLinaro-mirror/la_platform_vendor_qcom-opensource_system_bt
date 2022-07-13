@@ -18,6 +18,7 @@
 
 #define LOG_TAG "bt_btif_ble_advertiser"
 
+#include "bt_common.h"
 #include <hardware/bluetooth.h>
 #include <hardware/bt_gatt.h>
 
@@ -294,6 +295,16 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
                           jni_thread_wrapper(FROM_HERE, cb)));
   }
 #endif /* BLE_ISO_IF_SUPPORTED == TRUE */
+
+  void StopAdvertisements() override {
+    VLOG(1) << __func__ ;
+    if (!BleAdvertisingManager::IsInitialized()) return;
+    VLOG(1) << __func__ << " BleAdvertisingManager::IsInitialized";
+
+    do_in_bta_thread(FROM_HERE,
+                     Bind(&BleAdvertisingManager::unRegisterAdvertisements,
+                          BleAdvertisingManager::Get()));
+  }
 };
 
 BleAdvertiserInterface* btLeAdvertiserInstance = nullptr;

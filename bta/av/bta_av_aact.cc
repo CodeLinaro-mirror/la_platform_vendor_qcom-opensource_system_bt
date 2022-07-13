@@ -386,6 +386,7 @@ static void bta_av_save_addr(tBTA_AV_SCB* p_scb, const RawAddress& b) {
  ******************************************************************************/
 static void notify_start_failed(tBTA_AV_SCB* p_scb) {
   tBTA_AV_START start;
+  memset(&start, 0, sizeof(tBTA_AV_START));
   /* if start failed, clear role */
   p_scb->role &= ~BTA_AV_ROLE_START_INT;
   start.chnl = p_scb->chnl;

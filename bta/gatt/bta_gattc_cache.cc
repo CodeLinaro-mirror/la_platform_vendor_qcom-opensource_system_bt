@@ -46,7 +46,6 @@
 #include "sdp_api.h"
 #include "sdpdefs.h"
 #include "utl.h"
-#include "stack/lpm/lpm_int.h"
 
 using base::StringPrintf;
 using bluetooth::Uuid;
@@ -711,10 +710,6 @@ void bta_gattc_get_gatt_db(uint16_t conn_id, uint16_t start_handle,
 
   bta_gattc_get_gatt_db_impl(p_clcb->p_srcb, start_handle, end_handle, db,
                              count);
-#ifdef BT_LPM_SUPPORTED
-  VLOG(1) << "service discovery done inform lpm profile";
-  bta_rmt_srvc_disc_done(conn_id, *db, *count);
-#endif /*BT_LPM_SUPPORTED*/
 
 }
 

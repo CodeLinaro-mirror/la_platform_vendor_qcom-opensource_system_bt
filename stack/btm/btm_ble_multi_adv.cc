@@ -1287,6 +1287,19 @@ class BleAdvertisingManagerImpl
     }
   }
 
+  void unRegisterAdvertisements() override
+  {
+      for (auto it = adv_inst.begin(); it != adv_inst.end(); it++) {
+          if (adv_inst[it->inst_id].IsEnabled()) {
+              VLOG(1) << __func__ << " instance id " << +(it->inst_id);
+              Unregister(it->inst_id);
+          } else
+          {
+              VLOG(1) << __func__ << " skipping as adv instance is not enabled " << +(it->inst_id);
+          }
+      }
+  }
+
  private:
   BleAdvertiserHciInterface* GetHciInterface() { return hci_interface; }
 

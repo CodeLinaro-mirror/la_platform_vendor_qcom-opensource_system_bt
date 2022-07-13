@@ -127,6 +127,7 @@ static base::Callback<void(const base::Location&, BT_HDR*)>
 #ifdef BT_LPM_SUPPORTED
 //Flow off flag
 static bool flow_off_flag;
+static uint8_t lpm_mode = LPM_ACTIVE;
 #endif
 
 static bool filter_incoming_event(BT_HDR* packet);
@@ -381,8 +382,15 @@ static void transmit_command(BT_HDR* command,
   //If command is flow on or off set flow_off_flag
   if(wait_entry->opcode == (HCI_GRP_VENDOR_SPECIFIC | HCI_BLE_LPM_PREPARE_OFFLOAD_OPCODE)) {
     uint8_t flow_flag;
+    uint8_t mode;
     stream++;
     STREAM_TO_UINT8(flow_flag,stream);
+    STREAM_TO_UINT8(mode, stream);
+
+    lpm_mode = mode;
+
+    LOG_WARN(LOG_TAG, "%s  mode %d", __func__, lpm_mode);
+
     if (flow_flag) {
       flow_off_flag = true;
     } else {
@@ -396,8 +404,15 @@ static void transmit_command(BT_HDR* command,
     if ((sub_cmd == HCI_BLE_FLOW_ON_SUB_OPCODE) || (sub_cmd == HCI_BLE_LPM_EXIT_SUB_OPCODE))
       flow_off_flag = false;
   }
-#endif
 
+  /*TWM mode after flow off is set further commands will not be processed */
+  if (lpm_mode == LPM_TWM
+      && flow_off_flag
+      && !(wait_entry->opcode == (HCI_GRP_VENDOR_SPECIFIC | HCI_BLE_LPM_PREPARE_OFFLOAD_OPCODE))
+      && !(wait_entry->opcode == (HCI_GRP_VENDOR_SPECIFIC | HCI_BLE_LPM_VSC_OPCODE))) {
+      LOG_WARN(LOG_TAG, "%s In TWM mode skipping enqueue", __func__);
+  } else
+#endif
   enqueue_command(wait_entry);
 }
 
@@ -653,7 +668,7 @@ void process_command_credits(int credits) {
   command_credits = credits - get_num_waiting_commands();
 
 #ifdef BT_LPM_SUPPORTED
-  while (command_credits > 0 && command_queue.size() > 0 && !flow_off_flag) {
+  while (command_credits > 0 && command_queue.size() > 0 && (!flow_off_flag || (lpm_mode == LPM_TWM))) {
 #else
   while (command_credits > 0 && command_queue.size() > 0) {
 #endif

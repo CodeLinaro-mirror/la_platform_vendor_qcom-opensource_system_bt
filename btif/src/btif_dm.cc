@@ -4189,3 +4189,17 @@ void btif_store_adv_audio_pair_info(RawAddress bd_addr) {
       ret);
 }
 #endif
+
+/*******************************************************************************
+ *
+ * Function         btif_dm_get_discovery_state
+ *
+ * Description      returs a boolean value of discovery started or not
+ *
+ * Returns          true on discovery on going
+ *
+ ******************************************************************************/
+bool btif_dm_get_discovery_state() {
+    BTIF_TRACE_DEBUG("%s: ",__func__);
+    return btif_dm_inquiry_in_progress;
+}

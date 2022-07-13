@@ -44,7 +44,9 @@
 #include "osi/include/osi.h"
 #include "device/include/device_iot_config.h"
 #include "btif/include/btif_av.h"
+#ifdef BT_LPM_SUPPORTED
 #include "bta/lpm/bta_lpm_int.h"
+#endif
 
 extern bool btif_av_is_split_a2dp_enabled(void);
 static bool l2c_link_send_to_lower(tL2C_LCB* p_lcb, BT_HDR* p_buf,
@@ -1214,13 +1216,13 @@ static bool l2c_link_send_to_lower(tL2C_LCB* p_lcb, BT_HDR* p_buf,
   uint16_t num_segs;
   uint16_t xmit_window, acl_data_size;
   const controller_t* controller = controller_get_interface();
-
+#ifdef BT_LPM_SUPPORTED
   if (lpm_flow_off_flag == true) {
     L2CAP_TRACE_DEBUG(" %a : lpm_flow_off_flag is True. Returning ", __func__);
     //Need to verify any isssues with returning false
     return false;
   }
-
+#endif
   if ((p_buf->len <= controller->get_acl_packet_size_classic() &&
        (p_lcb->transport == BT_TRANSPORT_BR_EDR)) ||
       ((p_lcb->transport == BT_TRANSPORT_LE) &&
