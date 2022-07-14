@@ -579,6 +579,8 @@ typedef struct {
   uint8_t last_author_service_id; /* ID of last serviced authorized: Reset after
                                      each l2cap connection */
 
+  bool rnr_no_acl; /* true: no ACL connection when start Read Name Req.
+                      otherwise false */
 } tBTM_SEC_DEV_REC;
 
 #define BTM_SEC_IS_SM4(sm) ((bool)(BTM_SM4_TRUE == ((sm)&BTM_SM4_TRUE)))

@@ -1320,6 +1320,7 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
     // Do not call bond_state_changed_cb yet. Wait until remote service
     // discovery is complete
   } else {
+    bool is_bonded_device_removed = false;
     // Map the HCI fail reason  to  bt status
     switch (p_auth_cmpl->fail_reason) {
       case HCI_ERR_PAGE_TIMEOUT:
@@ -1338,7 +1339,8 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
         break;
 
       case HCI_ERR_PAIRING_NOT_ALLOWED:
-        btif_storage_remove_bonded_device(&bd_addr);
+        is_bonded_device_removed =
+            (btif_storage_remove_bonded_device(&bd_addr) == BT_STATUS_SUCCESS);
         status = BT_STATUS_AUTH_REJECTED;
         break;
 
@@ -1346,6 +1348,9 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
       case HCI_ERR_AUTH_FAILURE:
       case HCI_ERR_KEY_MISSING:
         btif_storage_remove_bonded_device(&bd_addr);
+        is_bonded_device_removed =
+            (btif_storage_remove_bonded_device(&bd_addr) == BT_STATUS_SUCCESS);
+        [[fallthrough]];
       case HCI_ERR_HOST_REJECT_SECURITY:
       case HCI_ERR_ENCRY_MODE_NOT_ACCEPTABLE:
       case HCI_ERR_UNIT_KEY_USED:
@@ -1375,9 +1380,14 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
       /* Remove Device as bonded in nvram as authentication failed */
       BTIF_TRACE_DEBUG("%s(): removing hid pointing device from nvram",
                        __func__);
-      btif_storage_remove_bonded_device(&bd_addr);
+      is_bonded_device_removed =
+          (btif_storage_remove_bonded_device(&bd_addr) == BT_STATUS_SUCCESS);
     }
-    bond_state_changed(status, bd_addr, state);
+    // Report bond state change to java only if we are bonding to a device or
+    // a device is removed from the pairing list.
+    if (pairing_cb.state == BT_BOND_STATE_BONDING || is_bonded_device_removed) {
+      bond_state_changed(status, bd_addr, state);
+    }
   }
 }
 
@@ -1862,7 +1872,9 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       btif_hd_remove_device(bd_addr);
 #endif
 #if (LPM_SLEEP_WAKEUP == TRUE)
-      btif_dm_remove_device_whitelist(bd_addr);
+      if (is_ble_offload_enabled()) {
+        btif_dm_remove_device_whitelist(bd_addr);
+      }
 #endif
       btif_hearing_aid_get_interface()->RemoveDevice(bd_addr);
       btif_storage_remove_bonded_device(&bd_addr);
@@ -2028,6 +2040,8 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
 
     case BTA_DM_BLE_AUTH_CMPL_EVT:
       BTIF_TRACE_DEBUG("BTA_DM_BLE_AUTH_CMPL_EVT. ");
+      BTIF_TRACE_DEBUG("Restore link policy");
+      BTM_SetLinkPolicy(p_data->auth_cmpl.bd_addr, &btm_cb.btm_def_link_policy);
       btif_dm_ble_auth_cmpl_evt(&p_data->auth_cmpl);
       break;
 
@@ -4021,7 +4035,10 @@ static void btif_dm_ble_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
       state = BT_BOND_STATE_NONE;
     } else {
       btif_dm_save_ble_bonding_keys(bdaddr);
-      btif_dm_get_remote_services_by_transport(&bd_addr, GATT_TRANSPORT_LE);
+      // Don't discover service over BLE transport if smp pair is over BR
+      if (!p_auth_cmpl->smp_over_br) {
+        btif_dm_get_remote_services_by_transport(&bd_addr, GATT_TRANSPORT_LE);
+      }
 
 #if (LPM_SLEEP_WAKEUP == TRUE)
       if (is_ble_offload_enabled()) {

@@ -43,6 +43,8 @@
 #include "osi/include/log.h"
 
 using base::StringPrintf;
+// Increase vpsm for next l2cap outgoing connection to avoid vpsm conflict
+static uint16_t gvpsm = 0x1002;
 
 /*******************************************************************************
  *
@@ -85,13 +87,16 @@ uint16_t L2CA_Register(uint16_t psm, tL2CAP_APPL_INFO* p_cb_info,
   /* Check if this is a registration for an outgoing-only connection to */
   /* a dynamic PSM. If so, allocate a "virtual" PSM for the app to use. */
   if ((psm >= 0x1001) && (p_cb_info->pL2CA_ConnectInd_Cb == NULL)) {
-    for (vpsm = 0x1002; vpsm < 0x8000; vpsm += 2) {
+    for (vpsm = gvpsm ; ; vpsm += 2) {
+      if (vpsm >= 0x8000) {
+       vpsm = 0x1002;
+      }
       p_rcb = l2cu_find_rcb_by_psm(vpsm);
       if (p_rcb == NULL) break;
     }
-
-    L2CAP_TRACE_API("L2CA_Register - Real PSM: 0x%04x  Virtual PSM: 0x%04x",
-                    psm, vpsm);
+    gvpsm = vpsm + 2;
+    L2CAP_TRACE_API("L2CA_Register - Real PSM: 0x%04x  Virtual PSM: 0x%04x gvpsm: 0x%04x",
+                    psm, vpsm, gvpsm);
   }
 
   /* If registration block already there, just overwrite it */

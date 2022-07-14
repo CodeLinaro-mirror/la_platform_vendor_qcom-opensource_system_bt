@@ -1010,7 +1010,9 @@ tBTM_STATUS btm_sec_bond_by_transport(const RawAddress& bd_addr,
        * RNR when no ACL causes HCI_RMT_HOST_SUP_FEAT_NOTIFY_EVT */
       btm_sec_change_pairing_state(BTM_PAIR_STATE_GET_REM_NAME);
       status = BTM_ReadRemoteDeviceName(bd_addr, NULL, BT_TRANSPORT_BR_EDR);
+      p_dev_rec->rnr_no_acl = true;
     } else {
+      p_dev_rec->rnr_no_acl = false;
       /* We are accepting connection request from peer */
       btm_sec_change_pairing_state(BTM_PAIR_STATE_WAIT_PIN_REQ);
       status = BTM_CMD_STARTED;
@@ -2592,15 +2594,16 @@ void btm_sec_conn_req(const RawAddress& bda, uint8_t* dc) {
   btm_cb.connecting_bda = bda;
   memcpy(btm_cb.connecting_dc, dc, DEV_CLASS_LEN);
 
-  if (l2c_link_hci_conn_req(bda)) {
-    if (!p_dev_rec) {
-      /* accept the connection -> allocate a device record */
-      p_dev_rec = btm_sec_alloc_dev(bda);
-    }
-    if (p_dev_rec) {
-      p_dev_rec->sm4 |= BTM_SM4_CONN_PEND;
-    }
+  if (!p_dev_rec) {
+    /* accept the connection -> allocate a device record */
+    p_dev_rec = btm_sec_alloc_dev(bda);
   }
+  if (p_dev_rec) {
+    p_dev_rec->sm4 |= BTM_SM4_CONN_PEND;
+  }
+  /* alloc p_dev_rec first and then process in l2c_link
+   * otherwise local device have no chance to switch to Master during ACL connection */
+  l2c_link_hci_conn_req(bda);
 }
 
 /*******************************************************************************
@@ -2995,6 +2998,21 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr,
     if (p_bd_addr && btm_cb.pairing_bda == *p_bd_addr) {
       BTM_TRACE_EVENT("%s() continue bonding sm4: 0x%04x, status:0x%x",
                       __func__, p_dev_rec->sm4, status);
+      /* If ACL connection complete is after Read Remote Name for bonding and
+      * before Read Remote Name complete, start authentication and go to
+      * BTM_PAIR_STATE_WAIT_PIN_REQ state to wait for link key request or pin
+      * code request
+      */
+      if (p_dev_rec->rnr_no_acl && p_dev_rec->hci_handle != HCI_INVALID_HANDLE) {
+        BTM_TRACE_EVENT("%s() ACL create connection complete between Read Name "
+                       "Request and RNR complete", __func__);
+        btm_sec_start_authentication(p_dev_rec);
+        btm_sec_change_pairing_state(BTM_PAIR_STATE_WAIT_PIN_REQ);
+        /* Mark lcb as bonding */
+        l2cu_update_lcb_4_bonding(btm_cb.pairing_bda, true);
+        p_dev_rec->rnr_no_acl = false;
+        return;
+      }
       if (btm_cb.pairing_flags & BTM_PAIR_FLAGS_WE_CANCEL_DD) {
         btm_sec_bond_cancel_complete();
         return;
@@ -4112,23 +4130,17 @@ void btm_sec_encrypt_change(uint16_t handle, uint8_t status,
           BTM_TRACE_DEBUG("%s NO SM over BR/EDR", __func__);
         } else {
           BTM_TRACE_DEBUG("%s start SM over BR/EDR", __func__);
+          uint16_t link_policy = btm_cb.btm_def_link_policy & (~HCI_ENABLE_MASTER_SLAVE_SWITCH);
+          BTM_TRACE_DEBUG("%s, disable role switch", __func__);
+          BTM_SetLinkPolicy(p_dev_rec->bd_addr, &link_policy);
           SMP_BR_PairWith(p_dev_rec->bd_addr);
         }
       }
     } else {
-      // BR/EDR is successfully encrypted. Correct LK type if needed
-      // (BR/EDR LK derived from LE LTK was used for encryption)
       if ((encr_enable == 1) && /* encryption is ON for SSP */
           /* LK type is for BR/EDR SC */
           (p_dev_rec->link_key_type == BTM_LKEY_TYPE_UNAUTH_COMB_P_256 ||
            p_dev_rec->link_key_type == BTM_LKEY_TYPE_AUTH_COMB_P_256)) {
-        if (p_dev_rec->link_key_type == BTM_LKEY_TYPE_UNAUTH_COMB_P_256)
-          p_dev_rec->link_key_type = BTM_LKEY_TYPE_UNAUTH_COMB;
-        else /* BTM_LKEY_TYPE_AUTH_COMB_P_256 */
-          p_dev_rec->link_key_type = BTM_LKEY_TYPE_AUTH_COMB;
-
-        BTM_TRACE_DEBUG("updated link key type to %d",
-                        p_dev_rec->link_key_type);
         btm_send_link_key_notif(p_dev_rec);
       }
     }
@@ -4202,7 +4214,6 @@ static void btm_sec_connect_after_reject_timeout(UNUSED_ATTR void* data) {
  ******************************************************************************/
 void btm_sec_connected(const RawAddress& bda, uint16_t handle, uint8_t status,
                        uint8_t enc_mode) {
-  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bda);
   uint8_t res;
   bool is_pairing_device = false;
   bool addr_matched;
@@ -4211,6 +4222,7 @@ void btm_sec_connected(const RawAddress& bda, uint16_t handle, uint8_t status,
 
   btm_acl_resubmit_page();
 
+  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bda);
   if (p_dev_rec) {
     VLOG(2) << __func__ << ": Security Manager: in state: "
             << btm_pair_state_descr(btm_cb.pairing_state)
@@ -4547,7 +4559,6 @@ tBTM_STATUS btm_sec_disconnect(uint16_t handle, uint8_t reason) {
  *
  ******************************************************************************/
 void btm_sec_disconnected(uint16_t handle, uint8_t reason) {
-  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev_by_handle(handle);
   uint8_t old_pairing_flags = btm_cb.pairing_flags;
   int result = HCI_ERR_AUTH_FAILURE;
   tBTM_SEC_CALLBACK* p_callback = NULL;
@@ -4558,6 +4569,7 @@ void btm_sec_disconnected(uint16_t handle, uint8_t reason) {
 
   btm_acl_resubmit_page();
 
+  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev_by_handle(handle);
   if (!p_dev_rec) return;
 
   transport =

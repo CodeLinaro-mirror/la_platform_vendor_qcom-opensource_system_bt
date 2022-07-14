@@ -39,6 +39,7 @@
 #include "bta_dm_int.h"
 #include "bta_sys.h"
 #include "btif_storage.h"
+#include "btif_config.h"
 #include "btm_api.h"
 #include "btm_int.h"
 #include "btu.h"
@@ -47,6 +48,7 @@
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
 #include "sdp_api.h"
+#include "stack/btm/btm_ble_int.h"
 #include "stack/gatt/connection_manager.h"
 #include "stack/include/gatt_api.h"
 #include "utl.h"
@@ -710,6 +712,12 @@ void bta_dm_remove_device(const RawAddress& bd_addr) {
   /* Delete the other paired device too */
   if (!other_address_connected && !other_address.IsEmpty()) {
     bta_dm_process_remove_device(other_address);
+  }
+
+  /* Check the length of the paired devices, and if 0 then reset IRK */
+  if (btif_storage_get_num_bonded_devices() < 1) {
+    LOG(INFO) << "Last paired device removed, resetting IRK";
+    btm_ble_reset_id();
   }
 }
 
@@ -3994,6 +4002,8 @@ static uint8_t bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
       else
         sec_event.auth_cmpl.bd_name[0] = 0;
 
+      APPL_TRACE_EVENT("%s smp_over_br %d", __func__, p_data->complt.smp_over_br);
+      sec_event.auth_cmpl.smp_over_br = p_data->complt.smp_over_br;
       if (p_data->complt.reason != 0) {
         sec_event.auth_cmpl.fail_reason =
             BTA_DM_AUTH_CONVERT_SMP_CODE(((uint8_t)p_data->complt.reason));
