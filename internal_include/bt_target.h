@@ -1180,12 +1180,13 @@
 #endif
 
 /* Number of simultaneous stream endpoints. */
-#if defined (AVDT_NUM_SEPS) && (AVDT_NUM_SEPS < (7*5))
+//Align as per the enum vaule BTAV_A2DP_CODEC_INDEX_MAX in bt_av.h
+#if defined (AVDT_NUM_SEPS) && (AVDT_NUM_SEPS < (BTAV_A2DP_CODEC_INDEX_MAX*AVDT_NUM_LINKS))
 #undef AVDT_NUM_SEPS
 #endif
 
 #ifndef AVDT_NUM_SEPS
-#define AVDT_NUM_SEPS 35
+#define AVDT_NUM_SEPS (BTAV_A2DP_CODEC_INDEX_MAX * AVDT_NUM_LINKS)
 #endif
 
 /* Number of transport channels setup by AVDT for all media streams */
