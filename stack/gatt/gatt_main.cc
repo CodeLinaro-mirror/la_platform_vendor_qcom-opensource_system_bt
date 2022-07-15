@@ -1206,6 +1206,7 @@ static void gatt_l2cif_eatt_connect_ind_cback(tL2CAP_COC_CONN_REQ *p_conn_req,
 
     if (p_conn_rsp->num_chnls >= 1) {
       VLOG(1) << __func__ << " Updating EATT support";
+      gatt_eatt_bcb_alloc(p_tcb, L2CAP_ATT_CID, false, false);
       p_tcb->is_eatt_supported = true;
     }
 
