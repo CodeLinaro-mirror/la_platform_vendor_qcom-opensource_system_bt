@@ -20,6 +20,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /******************************************************************************
  *
  *  This interface file contains the interface to the Audio Video
@@ -442,6 +448,7 @@ typedef struct {
   uint8_t media_type; /* Media type: AVDT_MEDIA_TYPE_* */
   uint16_t nsc_mask;  /* Nonsupported protocol command messages */
   uint8_t registration_id;/* All SCBs created during single registration will have same value.*/
+  bool is_split_enabled; /* variable to indicate is split is enabled on this SEP */
 } tAVDT_CS;
 
 /* AVDT data option mask is used in the write request */
@@ -948,6 +955,28 @@ extern uint16_t AVDT_GetSignalChannel(uint8_t handle,
                                       const RawAddress& bd_addr);
 
 /*******************************************************************************
+ *
+ * Function         AVDT_SndPendingSigStart_Rsp
+ *
+ * Description      Send pending Start Response to remote
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+extern void AVDT_SndPendingSigStart_Rsp(uint8_t handle, bool accepted);
+
+/*******************************************************************************
+ *
+ * Function         AVDT_SndPendingSigSuspend_Rsp
+ *
+ * Description      Send pending Start Response to remote
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+extern void AVDT_SndPendingSigSuspend_Rsp(uint8_t handle, bool accepted);
+
+/*******************************************************************************
 **
 ** Function         AVDT_UpdateMaxAvClients
 **
@@ -1018,4 +1047,6 @@ extern void AVDT_AssociateScb(uint8_t handle, const RawAddress& bd_addr);
  *
  ******************************************************************************/
 extern uint8_t AVDT_GetPeerSeid(uint8_t handle);
+
+extern void AVDT_UpdateDelayReport(uint8_t handle, uint16_t sink_latency);
 #endif /* AVDT_API_H */

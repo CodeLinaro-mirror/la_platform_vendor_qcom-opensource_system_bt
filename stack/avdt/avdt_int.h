@@ -20,6 +20,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /******************************************************************************
  *
  *  This file contains interfaces which are internal to AVDTP.
@@ -134,8 +140,10 @@ enum {
   AVDT_CCB_SND_GETCAP_RSP,
   AVDT_CCB_SND_START_CMD,
   AVDT_CCB_SND_START_RSP,
+  AVDT_CCB_SND_PENDING_START_RSP,
   AVDT_CCB_SND_SUSPEND_CMD,
   AVDT_CCB_SND_SUSPEND_RSP,
+  AVDT_CCB_SND_PENDING_SUSPEND_RSP,
   AVDT_CCB_CLEAR_CMDS,
   AVDT_CCB_CMD_FAIL,
   AVDT_CCB_FREE_CMD,
@@ -167,7 +175,9 @@ enum {
   AVDT_CCB_API_DISCOVER_RSP_EVT,
   AVDT_CCB_API_GETCAP_RSP_EVT,
   AVDT_CCB_API_START_RSP_EVT,
+  AVDT_CCB_API_PENDING_START_RSP_EVT,
   AVDT_CCB_API_SUSPEND_RSP_EVT,
+  AVDT_CCB_API_PENDING_SUSPEND_RSP_EVT,
   AVDT_CCB_API_CONNECT_REQ_EVT,
   AVDT_CCB_API_DISCONNECT_REQ_EVT,
   AVDT_CCB_MSG_DISCOVER_CMD_EVT,
@@ -224,8 +234,10 @@ enum {
   AVDT_SCB_HDL_SETCONFIG_RSP,
   AVDT_SCB_HDL_START_CMD,
   AVDT_SCB_HDL_START_RSP,
+  AVDT_SCB_HDL_PENDING_START_RSP,
   AVDT_SCB_HDL_SUSPEND_CMD,
   AVDT_SCB_HDL_SUSPEND_RSP,
+  AVDT_SCB_HDL_PENDING_SUSPEND_RSP,
   AVDT_SCB_HDL_TC_CLOSE,
 #if (AVDT_REPORTING == TRUE)
   AVDT_SCB_HDL_TC_CLOSE_STO,
@@ -288,6 +300,8 @@ enum {
   AVDT_SCB_API_SETCONFIG_RSP_EVT,
   AVDT_SCB_API_SETCONFIG_REJ_EVT,
   AVDT_SCB_API_OPEN_RSP_EVT,
+  AVDT_SCB_API_PENDING_START_RSP_EVT,
+  AVDT_SCB_API_PENDING_SUSPEND_RSP_EVT,
   AVDT_SCB_API_CLOSE_RSP_EVT,
   AVDT_SCB_API_RECONFIG_RSP_EVT,
   AVDT_SCB_API_SECURITY_RSP_EVT,
@@ -360,6 +374,8 @@ enum {
 /*****************************************************************************
  * data types
  ****************************************************************************/
+
+#define UNUSED_T_LABEL        255
 
 /* msg union of all message parameter types */
 typedef union {
@@ -437,6 +453,8 @@ typedef struct {
                          or number of SEPS for discover */
   bool cong;          /* Whether signaling channel is congested */
   uint8_t label;      /* Message header "label" (sequence number) */
+  uint8_t start_pending_label; /* T-label for pending Start command*/
+  uint8_t suspend_pending_label; /* T-label for pending Start command*/
   bool reconn;        /* If true, reinitiate connection after transitioning from
                          CLOSING to IDLE state */
   uint8_t ret_count;  /* Command retransmission count */
@@ -569,6 +587,8 @@ extern void avdt_ccb_snd_getcap_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data);
 extern void avdt_ccb_snd_getcap_rsp(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data);
 extern void avdt_ccb_snd_start_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data);
 extern void avdt_ccb_snd_start_rsp(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data);
+extern void avdt_ccb_snd_pending_start_rsp(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data);
+extern void avdt_ccb_snd_pending_suspend_rsp(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data);
 extern void avdt_ccb_snd_suspend_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data);
 extern void avdt_ccb_snd_suspend_rsp(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data);
 extern void avdt_ccb_clear_cmds(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data);
@@ -624,6 +644,8 @@ extern void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data);
 extern void avdt_scb_hdl_setconfig_rej(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data);
 extern void avdt_scb_hdl_setconfig_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data);
 extern void avdt_scb_hdl_start_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data);
+extern void avdt_scb_hdl_pending_start_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data);
+extern void avdt_scb_hdl_pending_suspend_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data);
 extern void avdt_scb_hdl_start_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data);
 extern void avdt_scb_hdl_suspend_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data);
 extern void avdt_scb_hdl_suspend_rsp(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data);

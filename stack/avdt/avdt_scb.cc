@@ -20,6 +20,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /******************************************************************************
  *
  *  This module contains the stream control block and functions which
@@ -54,8 +60,9 @@ const char* const avdt_scb_evt_str[] = {
     "API_DELAY_RPT_REQ",     "API_SETCONFIG_REQ_EVT", "API_OPEN_REQ_EVT",
     "API_CLOSE_REQ_EVT",     "API_RECONFIG_REQ_EVT",  "API_SECURITY_REQ_EVT",
     "API_ABORT_REQ_EVT",     "API_GETCONFIG_RSP_EVT", "API_SETCONFIG_RSP_EVT",
-    "API_SETCONFIG_REJ_EVT", "API_OPEN_RSP_EVT",      "API_CLOSE_RSP_EVT",
-    "API_RECONFIG_RSP_EVT",  "API_SECURITY_RSP_EVT",  "API_ABORT_RSP_EVT",
+    "API_SETCONFIG_REJ_EVT", "API_OPEN_RSP_EVT",      "API_PENDING_START_RSP_EVT",
+    "API_PENDING_SUSPEND_RSP_EVT", "API_CLOSE_RSP_EVT", "API_RECONFIG_RSP_EVT",
+    "API_SECURITY_RSP_EVT",  "API_ABORT_RSP_EVT",
     "MSG_SETCONFIG_CMD_EVT", "MSG_GETCONFIG_CMD_EVT", "MSG_OPEN_CMD_EVT",
     "MSG_START_CMD_EVT",     "MSG_SUSPEND_CMD_EVT",   "MSG_CLOSE_CMD_EVT",
     "MSG_ABORT_CMD_EVT",     "MSG_RECONFIG_CMD_EVT",  "MSG_SECURITY_CMD_EVT",
@@ -90,8 +97,10 @@ const tAVDT_SCB_ACTION avdt_scb_action[] = {avdt_scb_hdl_abort_cmd,
                                             avdt_scb_hdl_setconfig_rsp,
                                             avdt_scb_hdl_start_cmd,
                                             avdt_scb_hdl_start_rsp,
+                                            avdt_scb_hdl_pending_start_rsp,
                                             avdt_scb_hdl_suspend_cmd,
                                             avdt_scb_hdl_suspend_rsp,
+                                            avdt_scb_hdl_pending_suspend_rsp,
                                             avdt_scb_hdl_tc_close,
 #if (AVDT_REPORTING == TRUE)
                                             avdt_scb_hdl_tc_close_sto,
@@ -171,6 +180,10 @@ const uint8_t avdt_scb_st_idle[][AVDT_SCB_NUM_COLS] = {
     {AVDT_SCB_SND_SETCONFIG_REJ, AVDT_SCB_IGNORE, AVDT_SCB_IDLE_ST},
     /* API_OPEN_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_IDLE_ST},
+    /* AVDT_SCB_API_PENDING_START_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPEN_ST},
+    /* AVDT_SCB_API_PENDING_SUSPEND_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPEN_ST},
     /* API_CLOSE_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_IDLE_ST},
     /* API_RECONFIG_RSP_EVT */
@@ -272,6 +285,10 @@ const uint8_t avdt_scb_st_conf[][AVDT_SCB_NUM_COLS] = {
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CONF_ST},
     /* API_OPEN_RSP_EVT */
     {AVDT_SCB_SND_OPEN_RSP, AVDT_SCB_IGNORE, AVDT_SCB_OPENING_ST},
+    /* AVDT_SCB_API_PENDING_START_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CONF_ST},
+    /* AVDT_SCB_API_PENDING_SUSPEND_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CONF_ST},
     /* API_CLOSE_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CONF_ST},
     /* API_RECONFIG_RSP_EVT */
@@ -373,6 +390,10 @@ const uint8_t avdt_scb_st_opening[][AVDT_SCB_NUM_COLS] = {
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPENING_ST},
     /* API_OPEN_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPENING_ST},
+    /* AVDT_SCB_API_PENDING_START_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPENING_ST},
+    /* AVDT_SCB_API_PENDING_SUSPEND_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPENING_ST},
     /* API_CLOSE_RSP_EVT */
     {AVDT_SCB_SND_CLOSE_RSP, AVDT_SCB_SND_TC_CLOSE, AVDT_SCB_CLOSING_ST},
     /* API_RECONFIG_RSP_EVT */
@@ -473,6 +494,10 @@ const uint8_t avdt_scb_st_open[][AVDT_SCB_NUM_COLS] = {
     /* API_SETCONFIG_REJ_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPEN_ST},
     /* API_OPEN_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPEN_ST},
+    /* AVDT_SCB_API_PENDING_START_RSP_EVT */
+    {AVDT_SCB_HDL_PENDING_START_RSP, AVDT_SCB_IGNORE, AVDT_SCB_STREAM_ST},
+    /* AVDT_SCB_API_PENDING_SUSPEND_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_OPEN_ST},
     /* API_CLOSE_RSP_EVT */
     {AVDT_SCB_SND_CLOSE_RSP, AVDT_SCB_TC_TIMER, AVDT_SCB_CLOSING_ST},
@@ -582,6 +607,10 @@ const uint8_t avdt_scb_st_stream[][AVDT_SCB_NUM_COLS] = {
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_STREAM_ST},
     /* API_OPEN_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_STREAM_ST},
+    /* AVDT_SCB_API_PENDING_START_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_STREAM_ST},
+    /* AVDT_SCB_API_PENDING_SUPSEND_RSP_EVT */
+    {AVDT_SCB_HDL_PENDING_SUSPEND_RSP, AVDT_SCB_IGNORE, AVDT_SCB_OPEN_ST},
     /* API_CLOSE_RSP_EVT */
     {AVDT_SCB_SND_CLOSE_RSP, AVDT_SCB_TC_TIMER, AVDT_SCB_CLOSING_ST},
     /* API_RECONFIG_RSP_EVT */
@@ -682,6 +711,10 @@ const uint8_t avdt_scb_st_closing[][AVDT_SCB_NUM_COLS] = {
     /* API_SETCONFIG_REJ_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CLOSING_ST},
     /* API_OPEN_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CLOSING_ST},
+    /* AVDT_SCB_API_PENDING_START_RSP_EVT */
+    {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CLOSING_ST},
+    /* AVDT_SCB_API_PENDING_SUSPEND_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CLOSING_ST},
     /* API_CLOSE_RSP_EVT */
     {AVDT_SCB_IGNORE, AVDT_SCB_IGNORE, AVDT_SCB_CLOSING_ST},
@@ -965,7 +998,7 @@ uint8_t avdt_scb_verify(tAVDT_CCB* p_ccb, uint8_t state, uint8_t* p_seid,
   uint8_t nsc_mask;
   uint8_t ret = 0;
 
-  AVDT_TRACE_DEBUG("avdt_scb_verify state %d", state);
+  AVDT_TRACE_DEBUG("avdt_scb_verify state %d num seid = %d", state,num_seid);
   /* set nonsupported command mask */
   /* translate public state into private state */
   nsc_mask = 0;
