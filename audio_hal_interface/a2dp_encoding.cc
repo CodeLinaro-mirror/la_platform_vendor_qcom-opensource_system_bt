@@ -289,6 +289,14 @@ class A2dpTransport_2_1 : public ::bluetooth::audio::IBluetoothTransportInstance
     ProcessRequest(A2DP_CTRL_CMD_STOP);
   }
 
+  void NotifyHalRestart() override {
+    if(!IsActvie()) {
+      LOG(WARNING) << __func__ << ": Not active";
+      return;
+    }
+    ProcessRequest(A2DP_CTRL_NOTIFY_HAL_RESTART);
+  }
+
   bool GetPresentationPosition(uint64_t* remote_delay_report,
                                uint64_t* total_bytes_read,
                                timespec* data_position) override {

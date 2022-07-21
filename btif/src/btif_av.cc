@@ -161,6 +161,7 @@ typedef enum {
 #define BTIF_AV_FLAG_PENDING_START 0x4
 #define BTIF_AV_FLAG_PENDING_STOP 0x8
 #define BTIF_AV_FLAG_PENDING_DISCONNECT 0x10
+#define BTIF_AV_FLAG_HAL_RESTART_RECOVERY 0x20
 #define BTIF_TIMEOUT_AV_COLL_DETECTED_MS (4500)
 #define BTIF_ERROR_SRV_AV_CP_NOT_SUPPORTED   705
 
@@ -233,6 +234,9 @@ typedef struct {
   bool fake_suspend_rsp;
   bool is_retry_reconfig;
   uint8_t vsc_command_status;
+  bool start_cfm_pending;
+  bool suspend_cfm_pending;
+  bool stream_stopped_internally;
 } btif_av_cb_t;
 
 typedef struct {
@@ -435,6 +439,9 @@ void btif_av_reinit_audio_interface();
 bool btif_av_is_suspend_stop_pending_ack();
 static void allow_connection(int is_valid, RawAddress *bd_addr);
 bool btif_av_is_local_started_on_other_idx(int current_index);
+int btif_av_get_latest_start_pending_idx();
+int btif_av_get_latest_suspend_pending_idx();
+int btif_av_get_interally_stopped_idx();
 
 const char* dump_av_sm_state_name(btif_av_state_t state) {
   switch (state) {
@@ -498,6 +505,7 @@ const char* dump_av_sm_event_name(btif_av_sm_event_t event) {
     CASE_RETURN_STR(BTIF_AV_SINK_OFFLOAD_SEND_VSC_A2DP_START_EVT)
     CASE_RETURN_STR(BTIF_AV_SINK_OFFLOAD_SEND_VSC_A2DP_STOP_EVT)
     CASE_RETURN_STR(BTIF_AV_SINK_OFFLOAD_SINK_LATENCY_EVT)
+    CASE_RETURN_STR(BTIF_AV_SINK_OFFLOAD_HAL_RESTART_EVT)
     default:
       return "UNKNOWN_EVENT";
   }
@@ -848,8 +856,13 @@ static void btif_report_sink_codec_state(void* p_data,
 
     //check for codec update for active device
     if(index < btif_max_av_clients) {
-      if(true /*btif_a2dp_sink_is_restart_session_needed()*/) {
+      int start_pending_index = btif_av_get_latest_start_pending_idx();
+      if( start_pending_index == btif_max_av_clients ||
+         start_pending_index == index) {
         RawAddress bt_addr = btif_av_cb[index].peer_bda;
+        uint8_t* a2dp_codec_config =
+           bta_av_co_get_peer_codec_info(btif_av_cb[index].bta_handle);
+        memcpy(active_codec_info, a2dp_codec_config, AVDT_CODEC_SIZE);
         btif_a2dp_sink_restart_session(bt_addr, bt_addr);
         if (btif_av_cb[index].reconfig_pending) {
           BTIF_TRACE_DEBUG("%s:Set reconfig_a2dp true",__func__);
@@ -1088,6 +1101,9 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
       btif_av_cb[index].is_suspend_for_remote_start = false;
       btif_av_cb[index].retry_rc_connect = false;
       btif_av_cb[index].mandatory_codec_preferred = false;
+      btif_av_cb[index].start_cfm_pending = false;
+      btif_av_cb[index].stream_stopped_internally = false;
+      btif_av_cb[index].suspend_cfm_pending = false;
 #if (TWS_ENABLED == TRUE)
       BTIF_TRACE_EVENT("%s: reset tws_device flag in IDLE state", __func__);
       btif_av_cb[index].tws_device = false;
@@ -1981,11 +1997,19 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
       if (bt_split_a2dp_sink_enabled &&
           (btif_av_cb[index].peer_sep == AVDT_TSEP_SRC)) {
         btif_av_sink_config_req_t req;
-        req.channel_count = A2DP_GetTrackChannelCount(active_codec_info);
+        uint8_t* a2dp_codec_config =
+           bta_av_co_get_peer_codec_info(btif_av_cb[index].bta_handle);
+        req.channel_count = A2DP_GetTrackChannelCount(a2dp_codec_config);
         req.peer_bd = btif_av_cb[index].peer_bda;
         BTIF_TRACE_WARNING("btif_report_sink_codec_state %d %d", req.sample_rate,
                            req.channel_count);
         btif_report_sink_codec_state(&req, &btif_av_cb[index].peer_bda);
+        if(btif_av_cb[index].flags & BTIF_AV_FLAG_HAL_RESTART_RECOVERY) {
+          BTIF_TRACE_WARNING("HAL restart recovery ");
+          HAL_CBACK(bt_vendor_av_sink_callbacks, start_ind_cb,
+                    &btif_av_cb[index].peer_bda);
+          btif_av_cb[index].flags &= ~BTIF_AV_FLAG_HAL_RESTART_RECOVERY;
+        }
       }
     } break;
 
@@ -2209,6 +2233,13 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
             // incmoing START request. send HAL_CBAC to btapp
             //memcpy(&streaming_bda, &(btif_av_cb[index].peer_bda),
             //                      sizeof(bt_bdaddr_t));
+            // refresh the sessions
+            uint8_t* a2dp_codec_config =
+                bta_av_co_get_peer_codec_info(btif_av_cb[index].bta_handle);
+            memcpy(active_codec_info, a2dp_codec_config, AVDT_CODEC_SIZE);
+            btif_a2dp_sink_restart_session(btif_av_cb[index].peer_bda,
+                                           btif_av_cb[index].peer_bda);
+            btif_av_cb[index].start_cfm_pending = true;
             HAL_CBACK(bt_vendor_av_sink_callbacks, start_ind_cb,
                       &btif_av_cb[index].peer_bda);
             break;
@@ -2223,6 +2254,7 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
 
         // if we are in this state, VSC command has already been sent
     case BTIF_AV_SINK_START_IND_RSP:
+        btif_av_cb[index].start_cfm_pending = false;
         BTIF_TRACE_DEBUG(" %s START_CMD_RSP accepted =%d ",__FUNCTION__,
                          p_av->start_rsp.accepted);
          if (!p_av->start_rsp.accepted) {
@@ -2242,6 +2274,10 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
     // sink_start capture called by mm-audio, we will move to vsc state
     case BTIF_AV_SINK_OFFLOAD_START_CFM_EVT:
         // send a message to send VSC command
+        if(btif_av_cb[index].stream_stopped_internally) {
+          BTIF_TRACE_DEBUG(" %s Resuming internally stopped stream  ",__FUNCTION__);
+          btif_av_cb[index].stream_stopped_internally = false;
+        }
         btif_av_cb[index].vsc_command_status = BTIF_AVK_VSC_STARTING;
         BTA_AvkOffloadStart(btif_av_cb[index].bta_handle);
         break;
@@ -2251,7 +2287,10 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
                          p_av->offload_rsp.status,btif_av_cb[index].vsc_command_status);
         if (p_av->offload_rsp.status == 0) {
             btif_av_cb[index].vsc_command_status = BTIF_AVK_VSC_STARTED;
-            BTA_AvkSendPedingStartCnf(btif_av_cb[index].bta_handle);
+            if(btif_av_cb[index].start_cfm_pending == true) {
+              BTA_AvkSendPedingStartCnf(btif_av_cb[index].bta_handle);
+              btif_av_cb[index].start_cfm_pending = false;
+            }
             btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_STARTED);
         } else {
             btif_av_cb[index].vsc_command_status = BTIF_AVK_VSC_START_FAILED;
@@ -2521,6 +2560,11 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
         btif_av_cb[index].fake_suspend_rsp = false;
         BTIF_TRACE_DEBUG("%s: BTA_AV_SUSPEND_EVT received in opened state for index: %d, ignore.",
                             __func__, index);
+        if (p_av->suspend.initiator != true && (bt_split_a2dp_sink_enabled)) {
+          BTIF_TRACE_DEBUG("%s: SUSPEND_EVT recieved for sink which already in opened state , ack it",__func__);
+          BTA_AvkSendPedingSuspendCnf(btif_av_cb[index].bta_handle);
+          break;
+        }
       }
       break;
 
@@ -2629,6 +2673,14 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
                 /* only clear pending flag after acknowledgement */
                 btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
               }
+            }
+            btif_report_audio_state(BTAV_AUDIO_STATE_STARTED, &(btif_av_cb[index].peer_bda));
+          } else if(bt_split_a2dp_sink_enabled) {
+            if (btif_a2dp_on_started(nullptr,
+                ((btif_av_cb[index].flags & BTIF_AV_FLAG_PENDING_START) != 0),
+                btif_av_cb[index].bta_handle)) {
+              /* only clear pending flag after acknowledgement */
+              btif_av_cb[index].flags &= ~BTIF_AV_FLAG_PENDING_START;
             }
             btif_report_audio_state(BTAV_AUDIO_STATE_STARTED, &(btif_av_cb[index].peer_bda));
           }
@@ -2947,6 +2999,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
                btif_av_cb[index].flags |= BTIF_AV_FLAG_REMOTE_SUSPEND;
            }
            btif_av_cb[index].flags &= ~BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING;
+           btif_av_cb[index].suspend_cfm_pending = true;
            HAL_CBACK(bt_vendor_av_sink_callbacks, suspend_ind_cb, &btif_av_cb[index].peer_bda);
            break;
          } else {
@@ -3075,6 +3128,12 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
          // else suspend request is accepted, will wait for stop capture to happen
          break;
 
+    case BTIF_AV_SINK_OFFLOAD_HAL_RESTART_EVT:
+        if(bt_split_a2dp_sink_enabled) {
+           btif_av_cb[index].flags |= BTIF_AV_FLAG_HAL_RESTART_RECOVERY;
+        }
+        FALLTHROUGH;
+        // Fall through
     case BTIF_AV_SINK_OFFLOAD_STOP_CFM_EVT:
         // MM-Audio sessoin is stopped
         BTIF_TRACE_DEBUG(" %s vsc_command_status %d",__FUNCTION__,
@@ -3099,11 +3158,13 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
               break;
         }
         break;
+
     case BTIF_AV_SINK_OFFLOAD_SINK_LATENCY_EVT:
         BTA_AvkUpdateDelayReport(btif_av_cb[index].bta_handle,
                                  btif_ahim_get_sink_latency());
 
         break;
+
     case BTA_AV_SINK_OFFLOAD_STOP_RSP_EVT:
         btif_av_cb[index].vsc_command_status = BTIF_AVK_VSC_STOP;
         BTIF_TRACE_DEBUG(" %s vsc_command_status %d",__FUNCTION__,
@@ -3113,7 +3174,12 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
              btif_a2dp_on_stopped(nullptr);
              btif_report_audio_state(BTAV_AUDIO_STATE_STOPPED, &(btif_av_cb[index].peer_bda));
            } else {
-             BTA_AvkSendPedingSuspendCnf(btif_av_cb[index].bta_handle);
+             if(btif_av_cb[index].suspend_cfm_pending == true) {
+               BTA_AvkSendPedingSuspendCnf(btif_av_cb[index].bta_handle);
+               btif_av_cb[index].suspend_cfm_pending = false;
+             } else {
+               btif_av_cb[index].stream_stopped_internally = true;
+             }
              btif_a2dp_on_suspended(nullptr);
              btif_report_audio_state(BTAV_AUDIO_STATE_REMOTE_SUSPEND, &(btif_av_cb[index].peer_bda));
            }
@@ -3682,6 +3748,34 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
         btif_report_audio_state(BTAV_AUDIO_STATE_STARTED, &(btif_av_cb[index].peer_bda));
       }
       return;
+
+    case BTA_AV_SINK_OFFLOAD_STOP_RSP_EVT:
+      index = HANDLE_TO_INDEX(p_bta_data->offload_rsp.hndl);
+      BTIF_TRACE_EVENT("index = %d, max connections = %d", index, btif_max_av_clients);
+      break;
+    case BTIF_AV_SINK_OFFLOAD_STOP_CFM_EVT:
+      index = btif_av_get_latest_suspend_pending_idx();
+      if(index == btif_max_av_clients) {
+        index = btif_av_get_latest_stream_device_idx();
+      }
+      BTIF_TRACE_EVENT("index = %d, max connections = %d", index, btif_max_av_clients);
+      break;
+    case BTIF_AV_SINK_OFFLOAD_HAL_RESTART_EVT:
+    case BTIF_AV_SINK_OFFLOAD_SINK_LATENCY_EVT:
+      index = btif_av_get_latest_stream_device_idx();
+      BTIF_TRACE_EVENT("index = %d, max connections = %d", index, btif_max_av_clients);
+      break;
+    case BTA_AV_SINK_OFFLOAD_START_RSP_EVT:
+      index = HANDLE_TO_INDEX(p_bta_data->offload_rsp.hndl);
+      BTIF_TRACE_EVENT("index = %d, max connections = %d", index, btif_max_av_clients);
+      break;
+    case BTIF_AV_SINK_OFFLOAD_START_CFM_EVT:
+      index = btif_av_get_latest_start_pending_idx();
+      if(index == btif_max_av_clients) {
+        index = btif_av_get_interally_stopped_idx();
+      }
+      BTIF_TRACE_EVENT("index = %d, max connections = %d", index, btif_max_av_clients);
+      break;
       // Events from the stack, BTA
     case BTA_AV_ENABLE_EVT:
       index = 0;
@@ -3982,6 +4076,41 @@ int btif_av_get_latest_playing_device_idx() {
     state = btif_sm_get_state(btif_av_cb[i].sm_handle);
     if (state == BTIF_AV_STATE_STARTED) {
       BTIF_TRACE_IMP("Latest playing device index %d", i);
+      break;
+    }
+  }
+  return i;
+}
+
+
+int btif_av_get_latest_start_pending_idx() {
+  int i;
+  for (i = 0; i < btif_max_av_clients; i++) {
+    if (btif_av_cb[i].start_cfm_pending == true) {
+      BTIF_TRACE_IMP("Latest start cfm device index %d", i);
+      break;
+    }
+  }
+  return i;
+}
+
+
+int btif_av_get_latest_suspend_pending_idx() {
+  int i;
+  for (i = 0; i < btif_max_av_clients; i++) {
+    if (btif_av_cb[i].suspend_cfm_pending == true) {
+      BTIF_TRACE_IMP("Latest suspend cfm device index %d", i);
+      break;
+    }
+  }
+  return i;
+}
+
+int btif_av_get_interally_stopped_idx() {
+  int i;
+  for (i = 0; i < btif_max_av_clients; i++) {
+    if (btif_av_cb[i].stream_stopped_internally == true) {
+      BTIF_TRACE_IMP("stopped internally device index %d", i);
       break;
     }
   }
@@ -4543,8 +4672,8 @@ static void bte_av_sink_media_callback(tBTA_AV_EVT event,
       }
 
       APPL_TRACE_ERROR("%s: copied the config to active_codec_info ", __func__);
-
-      memcpy(active_codec_info, p_data->avk_config.codec_info, AVDT_CODEC_SIZE);
+      memcpy(active_codec_info, p_data->avk_config.codec_info,
+             AVDT_CODEC_SIZE);
       config_req.channel_count =
           A2DP_GetTrackChannelCount(p_data->avk_config.codec_info);
       if (config_req.channel_count == -1) {
