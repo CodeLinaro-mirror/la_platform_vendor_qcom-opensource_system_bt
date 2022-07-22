@@ -5495,8 +5495,11 @@ static bt_status_t get_metadata_attribute_cmd(const RawAddress& bd_addr,
   uint8_t* uid_p = uid;
   UINT64_TO_BE_STREAM(uid_p, p_dev->rc_playing_uid);
   if (p_dev->br_connected) {
+    // Should not use uid_p as the input parameter since after executing the
+    // macro UINT64_TO_BE_STREAM, pointer uid_p has moved forward 8 steps, it
+    // does not point to the first element of matrix uid[] any longer.
     return get_item_attribute_cmd(bd_addr, AVRC_SCOPE_NOW_PLAYING,
-                                  uid_p,
+                                  uid,
                                   p_dev->uid_counter,
                                   num_attribute,
                                   p_attr_ids);
