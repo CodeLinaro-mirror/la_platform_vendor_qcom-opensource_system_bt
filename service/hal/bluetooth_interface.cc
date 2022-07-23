@@ -147,7 +147,8 @@ void BondStateChangedCallback(bt_status_t status, RawAddress* remote_bd_addr,
 }
 
 void AclStateChangedCallback(bt_status_t status, RawAddress* remote_bd_addr,
-                             bt_acl_state_t state, bt_hci_error_code_t hci_reason) {
+                             bt_acl_state_t state, bt_hci_error_code_t hci_reason,
+                             tBT_TRANSPORT link_type) {
   shared_lock<shared_mutex_impl> lock(g_instance_lock);
   VERIFY_INTERFACE_OR_RETURN();
   CHECK(remote_bd_addr);
