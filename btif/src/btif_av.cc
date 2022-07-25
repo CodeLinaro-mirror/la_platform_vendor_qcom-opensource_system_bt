@@ -630,6 +630,15 @@ class BtifAvSink {
       return true;  // Nothing has changed
     }
     if (peer_address.IsEmpty()) {
+      if (btif_av_is_connected()) {
+        // No sound issue fix: AVRCP was disconnected earlier than A2DP.
+        // And set active peer as empty while A2DP opened/started,
+        // that blocks stopping decoder in following A2DP disconnection.
+        // Don't reset the active peer when not in Idle state.
+        peer_ready_promise.set_value();
+        return true;  // Nothing has changed
+      }
+      // Reset the active peer to empty only in Idle state.
       BTIF_TRACE_EVENT("%s: peer address is empty, shutdown the Audio sink",
                        __func__);
       if (!bta_av_co_set_active_peer(peer_address)) {
