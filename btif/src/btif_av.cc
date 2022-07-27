@@ -1688,6 +1688,7 @@ bool BtifAvStateMachine::StateIdle::ProcessEvent(uint32_t event, void* p_data) {
     } break;
 
     case BTA_AV_RC_BROWSE_CLOSE_EVT:
+      btif_rc_handler(event, (tBTA_AV*)p_data);
       // Re-enter Idle so the peer can be deleted
       peer_.StateMachine().TransitionTo(BtifAvStateMachine::kStateIdle);
       break;
