@@ -202,6 +202,21 @@ bool SDP_ServiceSearchAttributeRequest2(const RawAddress& p_bd_addr,
                                         void* user_data) {
   tCONN_CB* p_ccb;
 
+  if (p_db->uuid_filters[0] == Uuid::From16Bit(UUID_SERVCLASS_OBEX_OBJECT_PUSH)) {
+    tSDP_UUID_SEQ uid_seq;
+    uid_seq.num_uids = 1;
+    uid_seq.uuid_entry[0].len = 2;
+    uid_seq.uuid_entry[0].value[0] = (uint8_t)((UUID_SERVCLASS_OBEX_OBJECT_PUSH) >> 8);
+    uid_seq.uuid_entry[0].value[1] = (uint8_t)(UUID_SERVCLASS_OBEX_OBJECT_PUSH);
+    tSDP_RECORD* p_rec = NULL;
+    p_rec = sdp_db_service_search(NULL, &uid_seq);
+    if (!p_rec) {
+      SDP_TRACE_DEBUG("%s UUID %s. Is not supported",__func__, p_db->uuid_filters[0].ToString().c_str());
+      return false;
+    } else {
+      SDP_TRACE_DEBUG("%s UUID %s : Supported",__func__, p_db->uuid_filters[0].ToString().c_str());
+    }
+  }
   /* Specific BD address */
   p_ccb = sdp_conn_originate(p_bd_addr);
 
