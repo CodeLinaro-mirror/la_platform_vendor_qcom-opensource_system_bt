@@ -1029,33 +1029,38 @@ class BleAdvertisingManagerImpl
         advertising_handle <= BTM_BLE_MULTI_ADV_MAX) {
       btm_acl_update_conn_addr(connection_handle, p_inst->own_address);
     }
+    /*if disable adv after conn is enabled in stack conf, disable adv */
+    if(true == stack_config_get_interface()->get_pts_le_disable_adv_after_conn()) {
+      p_inst->in_use = false;
+      VLOG(1) << "disabling advertising";
+    } else {
+      VLOG(1) << "reneabling advertising";
 
-    VLOG(1) << "reneabling advertising";
-
-    if (p_inst->in_use == true) {
-      // TODO(jpawlowski): we don't really allow to do directed advertising
-      // right now. This should probably be removed, check with Andre.
-      if ((p_inst->advertising_event_properties & 0x0C) == 0) {
-        /* directed advertising bits not set */
+      if (p_inst->in_use == true) {
+        // TODO(jpawlowski): we don't really allow to do directed advertising
+        // right now. This should probably be removed, check with Andre.
+        if ((p_inst->advertising_event_properties & 0x0C) == 0) {
+          /* directed advertising bits not set */
 
 #ifdef WIPOWER_SUPPORTED
-        if (!(is_wipower_adv && (advertising_handle == wipower_inst_id))) {
+          if (!(is_wipower_adv && (advertising_handle == wipower_inst_id))) {
+            RecomputeTimeout(p_inst, TimeTicks::Now());
+            if (p_inst->enable_status) {
+                GetHciInterface()->Enable(true, advertising_handle, 0x00, 0x00,
+                                    Bind(DoNothing));
+            }
+          }
+#else
           RecomputeTimeout(p_inst, TimeTicks::Now());
           if (p_inst->enable_status) {
-              GetHciInterface()->Enable(true, advertising_handle, 0x00, 0x00,
-                                  Bind(DoNothing));
+            GetHciInterface()->Enable(true, advertising_handle, p_inst->duration,
+                                      p_inst->maxExtAdvEvents, Bind(DoNothing));
           }
-        }
-#else
-        RecomputeTimeout(p_inst, TimeTicks::Now());
-        if (p_inst->enable_status) {
-          GetHciInterface()->Enable(true, advertising_handle, p_inst->duration,
-                                    p_inst->maxExtAdvEvents, Bind(DoNothing));
-        }
 #endif
-      } else {
-        /* mark directed adv as disabled if adv has been stopped */
-        p_inst->in_use = false;
+        } else {
+          /* mark directed adv as disabled if adv has been stopped */
+          p_inst->in_use = false;
+        }
       }
     }
   }
