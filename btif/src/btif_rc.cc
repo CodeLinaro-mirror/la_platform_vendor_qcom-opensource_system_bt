@@ -3456,7 +3456,9 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
        */
       p_dev->rc_app_settings.query_started = true;
       if (p_dev->rc_features & BTA_AV_FEAT_APP_SETTING) {
-        list_player_app_setting_attrib_cmd(p_dev);
+        if (!p_dev->br_connected) {
+          list_player_app_setting_attrib_cmd(p_dev);
+        }
       } else {
         BTIF_TRACE_DEBUG("%s: App setting not supported, complete procedure",
                          __func__);
