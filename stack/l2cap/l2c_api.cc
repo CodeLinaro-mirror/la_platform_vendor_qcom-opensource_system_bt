@@ -1397,6 +1397,7 @@ bool L2CA_RemoveFixedChnl(uint16_t fixed_cid, const RawAddress& rem_bda) {
   if (bluetooth::shim::is_gd_l2cap_enabled()) {
     return bluetooth::shim::L2CA_RemoveFixedChnl(fixed_cid, rem_bda);
   }
+  LOG_DEBUG("CID 0x%x", fixed_cid);
 
   tL2C_LCB* p_lcb;
   tL2C_CCB* p_ccb;
@@ -1430,6 +1431,12 @@ bool L2CA_RemoveFixedChnl(uint16_t fixed_cid, const RawAddress& rem_bda) {
   /* Release the CCB, starting an inactivity timeout on the LCB if no other CCBs
    * exist */
   p_ccb = p_lcb->p_fixed_ccbs[fixed_cid - L2CAP_FIRST_FIXED_CHNL];
+
+  if (!fixed_queue_is_empty(p_ccb->xmit_hold_q)) {
+    LOG_INFO("Transmit data hold queue is NOT empty!");
+    p_ccb->pending_remove = true;
+    return false;
+  }
 
   p_lcb->p_fixed_ccbs[fixed_cid - L2CAP_FIRST_FIXED_CHNL] = NULL;
   p_lcb->SetDisconnectReason(HCI_ERR_CONN_CAUSE_LOCAL_HOST);

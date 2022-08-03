@@ -1464,6 +1464,8 @@ tL2C_CCB* l2cu_allocate_ccb(tL2C_LCB* p_lcb, uint16_t cid) {
   alarm_free(p_ccb->l2c_ccb_timer);
   p_ccb->l2c_ccb_timer = alarm_new("l2c.l2c_ccb_timer");
 
+  p_ccb->pending_remove = false;
+
   l2c_link_adjust_chnl_allocation();
 
   return p_ccb;
@@ -1575,6 +1577,8 @@ void l2cu_release_ccb(tL2C_CCB* p_ccb) {
 
   /* Flag as not in use */
   p_ccb->in_use = false;
+
+  p_ccb->pending_remove = false;
 
   /* If no channels on the connection, start idle timeout */
   if ((p_lcb) && p_lcb->in_use) {
