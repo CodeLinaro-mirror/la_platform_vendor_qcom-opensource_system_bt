@@ -490,7 +490,7 @@ static bt_status_t dial(UNUSED_ATTR const RawAddress* bd_addr,
 
   CHECK_BTHF_CLIENT_SLC_CONNECTED(cb);
 
-  if (number) {
+  if (number && strlen(number)) {
     BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_ATD, 0, 0, number);
   } else {
     BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_BLDN, 0, 0, NULL);
@@ -722,9 +722,10 @@ static void cleanup(void) {
   BTIF_TRACE_EVENT("%s", __func__);
 
   btif_queue_cleanup(UUID_SERVCLASS_HF_HANDSFREE);
+  btif_disable_service(BTA_HFP_HS_SERVICE_ID);
   if (bt_hf_client_callbacks) {
-    btif_disable_service(BTA_HFP_HS_SERVICE_ID);
-    bt_hf_client_callbacks = NULL;
+    do_in_jni_thread(FROM_HERE,
+                     base::Bind([]() { bt_hf_client_callbacks = nullptr; }));
   }
 }
 

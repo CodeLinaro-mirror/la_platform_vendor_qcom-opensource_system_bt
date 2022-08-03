@@ -502,6 +502,18 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
       break;
     }
 
+    case AVRC_PDU_SEARCH: {
+      tAVRC_SEARCH_RSP* search_rsp = &(p_rsp->search);
+      /* Copyback the PDU */
+      search_rsp->pdu = pdu;
+      BE_STREAM_TO_UINT8(search_rsp->status, p);
+      BE_STREAM_TO_UINT16(search_rsp->uid_counter, p);
+      BE_STREAM_TO_UINT32(search_rsp->num_items, p);
+      min_len += 7;
+      if (pkt_len < min_len) goto browse_length_error;
+      break;
+    }
+
     default:
       AVRC_TRACE_ERROR("%s pdu %d not handled", __func__, pdu);
   }
@@ -582,6 +594,10 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR* p_msg,
                        p_result->get_caps.capability_id,
                        p_result->get_caps.count);
       if (p_result->get_caps.capability_id == AVRC_CAP_COMPANY_ID) {
+        if (p_result->get_caps.count > AVRC_CAP_MAX_NUM_COMP_ID) {
+          android_errorWriteLog(0x534e4554, "205837191");
+          return AVRC_STS_INTERNAL_ERR;
+        }
         min_len += MIN(p_result->get_caps.count, AVRC_CAP_MAX_NUM_COMP_ID) * 3;
         if (len < min_len) goto length_error;
         for (int xx = 0; ((xx < p_result->get_caps.count) &&
@@ -591,6 +607,10 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR* p_msg,
         }
       } else if (p_result->get_caps.capability_id ==
                  AVRC_CAP_EVENTS_SUPPORTED) {
+        if (p_result->get_caps.count > AVRC_CAP_MAX_NUM_EVT_ID) {
+          android_errorWriteLog(0x534e4554, "205837191");
+          return AVRC_STS_INTERNAL_ERR;
+        }
         min_len += MIN(p_result->get_caps.count, AVRC_CAP_MAX_NUM_EVT_ID);
         if (len < min_len) goto length_error;
         for (int xx = 0; ((xx < p_result->get_caps.count) &&
@@ -842,6 +862,14 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR* p_msg,
       break;
 
     case AVRC_PDU_SET_ADDRESSED_PLAYER:
+      if (len != 1) {
+        AVRC_TRACE_ERROR("%s pdu: %d len %d", __func__, p_result->pdu, len);
+        return AVRC_STS_BAD_CMD;
+      }
+      BE_STREAM_TO_UINT8(p_result->rsp.status, p);
+      break;
+
+    case AVRC_PDU_ADD_TO_NOW_PLAYING:
       if (len != 1) {
         AVRC_TRACE_ERROR("%s pdu: %d len %d", __func__, p_result->pdu, len);
         return AVRC_STS_BAD_CMD;
