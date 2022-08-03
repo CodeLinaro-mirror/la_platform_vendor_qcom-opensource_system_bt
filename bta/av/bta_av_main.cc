@@ -49,6 +49,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /******************************************************************************
  *
  *  This is the main implementation file for the BTA advanced audio/video.
@@ -209,6 +215,8 @@ static void bta_av_api_set_tws_earbud_role(tBTA_AV_DATA * p_data);
 static void bta_av_api_set_is_tws_device(tBTA_AV_DATA * p_data);
 #endif
 
+bool is_split_enabled();
+
 /* action functions */
 const tBTA_AV_NSM_ACT bta_av_nsm_act[] = {
     bta_av_api_enable,       /* BTA_AV_API_ENABLE_EVT */
@@ -308,6 +316,21 @@ static void bta_av_api_enable(tBTA_AV_DATA* p_data) {
   tBTA_AV bta_av_data;
   bta_av_data.enable = enable;
   (*bta_av_cb.p_cback)(BTA_AV_ENABLE_EVT, &bta_av_data);
+}
+
+/*******************************************************************************
+**
+** Function         is_split_enabled
+**
+** Description      api to check if split is enabled or not
+**
+** Returns          boolean
+**
+*******************************************************************************/
+bool is_split_enabled() {
+    APPL_TRACE_DEBUG("%s split_enabled = %d ",__func__,
+                  (bta_av_cb.features & BTA_AV_FEAT_SPLIT_ENABLED));
+    return (bta_av_cb.features & BTA_AV_FEAT_SPLIT_ENABLED);
 }
 
 /*******************************************************************************
@@ -651,6 +674,10 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
         cs.p_sink_data_cback = bta_av_sink_data_cback;
         codec_index_min = BTAV_A2DP_CODEC_INDEX_SINK_MIN;
         codec_index_max = BTAV_A2DP_CODEC_INDEX_SINK_MAX;
+      }
+
+      if (is_split_enabled()) {
+          cs.is_split_enabled = TRUE;
       }
 
       /* Initialize handles to zero */
@@ -1774,6 +1801,18 @@ const char* bta_av_evt_code(uint16_t evt_code) {
       return "AVDT_DELAY_RPT";
     case BTA_AV_ACP_CONNECT_EVT:
       return "ACP_CONNECT";
+    case BTA_AV_SINK_API_OFFLOAD_START_EVT:
+      return "API_SINK_OFFLOAD_START_REQ";
+    case BTA_AV_SINK_API_OFFLOAD_STOP_EVT:
+      return " API_SINK_OFFLOAD_STOP_REQ";
+    case BTA_AV_SINK_API_PENDING_START_CNF_EVT:
+      return "API_SINK_PENDING_START_CNF";
+    case BTA_AV_SINK_API_PENDING_START_REJECT_EVT:
+      return " API_SINK_PENDING_START_REJ";
+    case BTA_AV_SINK_API_PENDING_SUSPEND_CNF_EVT:
+      return " API_SINK_PENDING_SUSPEND_CNF";
+    case BTA_AV_SINK_API_PENDING_SUSPEND_REJECT_EVT:
+      return " API_PENDING_SUSPEND_REJECT ";
 
     case BTA_AV_API_ENABLE_EVT:
       return "API_ENABLE";

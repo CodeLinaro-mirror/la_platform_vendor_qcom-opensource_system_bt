@@ -20,6 +20,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /******************************************************************************
  *
  *  This module contains API of the audio/video distribution transport
@@ -1369,4 +1375,76 @@ uint8_t AVDT_GetPeerSeid(uint8_t handle) {
 
   AVDT_TRACE_DEBUG("%s: handle=%d, seid=%d", __func__, handle, peer_seid);
   return peer_seid;
+}
+
+/*******************************************************************************
+ *
+ * Function         AVDT_SndPendingSigStart_Rsp
+ *
+ * Description      Send pending Start Response to remote
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+
+void AVDT_SndPendingSigStart_Rsp(uint8_t handle, bool accepted )
+{
+    AVDT_TRACE_DEBUG("%s", __func__);
+    tAVDT_SCB *p_scb = avdt_scb_by_hdl(handle);
+    tAVDT_SCB_EVT evt;
+    if (p_scb != NULL)
+    {
+        AVDT_TRACE_DEBUG("%s accepted = %d ", __func__,accepted);
+        if (accepted) {
+          evt.msg.hdr.err_code = AVDT_SUCCESS;
+        } else {
+          evt.msg.hdr.err_code = AVDT_BAD_PARAMS;
+        }
+        avdt_scb_event(p_scb, AVDT_SCB_API_PENDING_START_RSP_EVT, &evt);
+    } else {
+        AVDT_TRACE_DEBUG("%s Improper SCB, can not send SIG START", __func__);
+    }
+}
+
+/*******************************************************************************
+ *
+ * Function         AVDT_SndPendingSigSuspend_Rsp
+ *
+ * Description      Send pending Start Response to remote
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+
+void AVDT_SndPendingSigSuspend_Rsp(uint8_t handle, bool accepted )
+{
+    AVDT_TRACE_DEBUG("%s", __func__);
+    tAVDT_SCB *p_scb = avdt_scb_by_hdl(handle);
+    tAVDT_SCB_EVT evt;
+    if (p_scb != NULL)
+    {
+        AVDT_TRACE_DEBUG("%s accepted = %d ", __func__,accepted);
+        if (accepted) {
+          evt.msg.hdr.err_code = AVDT_SUCCESS;
+        } else {
+          evt.msg.hdr.err_code = AVDT_BAD_PARAMS;
+        }
+        avdt_scb_event(p_scb, AVDT_SCB_API_PENDING_SUSPEND_RSP_EVT, &evt);
+    } else {
+        AVDT_TRACE_DEBUG("%s Improper SCB, can not send SIG SUSPEND", __func__);
+    }
+}
+
+void AVDT_UpdateDelayReport(uint8_t handle, uint16_t sink_latency) {
+  tAVDT_SCB* p_scb;
+  AVDT_TRACE_DEBUG("%s: handle=%d", __func__, handle);
+
+  /* map handle to scb */
+  p_scb = avdt_scb_by_hdl(handle);
+  if (p_scb->cs.is_split_enabled && (p_scb->cs.tsep == AVDT_TSEP_SNK) &&
+      (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
+    //p_scb->reported_delay = sink_latency;
+    AVDT_TRACE_DEBUG(" %s ~~  update delay report to %d  ",__func__,sink_latency);
+    AVDT_DelayReport(handle, p_scb->peer_seid, sink_latency);
+  }
 }
