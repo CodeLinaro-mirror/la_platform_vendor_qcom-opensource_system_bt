@@ -355,6 +355,9 @@ typedef struct t_l2c_ccb {
   bool ecoc{false};
   bool reconfig_started;
 
+  /* Used to indicate ccb shall be released after data in holding queue is sent out */
+  bool pending_remove;
+
   struct {
     struct {
       unsigned bytes{0};
