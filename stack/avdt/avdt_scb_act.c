@@ -299,15 +299,20 @@ void avdt_scb_hdl_pkt_no_frag(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
         p += ex_len * 4;
     }
 
+    if ((p - p_start) > len) {
+        GKI_freebuf(p_data->p_pkt);
+        return;
+    }
+
     /* adjust length for any padding at end of packet */
     if (o_p)
     {
         /* padding length in last byte of packet */
-        pad_len =  *(p_start + p_data->p_pkt->len);
+        pad_len =  *(p_start + len);
     }
 
     /* do sanity check */
-    if ((offset > p_data->p_pkt->len) || ((pad_len + offset) > p_data->p_pkt->len))
+    if (pad_len > (len - offset))
     {
         AVDT_TRACE_WARNING("Got bad media packet");
         GKI_freebuf(p_data->p_pkt);
