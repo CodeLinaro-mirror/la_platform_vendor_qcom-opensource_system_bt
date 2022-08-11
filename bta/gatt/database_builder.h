@@ -62,6 +62,9 @@ class DatabaseBuilder {
    * problem mapping values to descriptors. */
   bool SetValueOfDescriptors(const std::vector<uint16_t>& values);
 
+  /* clear handles of "Characteristic Extended Properties" descriptors */
+  bool RemoveCEPDescriptorsHandlesToRead(uint16_t handle);
+
   /* Returns true, if GATT discovery is in progress, false if discovery was not
    * started, or is already finished.
    */

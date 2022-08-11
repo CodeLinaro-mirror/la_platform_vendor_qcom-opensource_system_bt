@@ -449,6 +449,7 @@ struct tGATT_CLCB {
   uint16_t read_req_current_mtu; /* This is the MTU value that the read was
                                     initiated with */
 
+  uint16_t err_handle;
   uint8_t notif_ind_opcode;
   uint16_t notif_ind_handle;
 };

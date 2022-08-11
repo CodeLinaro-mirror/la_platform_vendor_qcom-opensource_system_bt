@@ -118,7 +118,7 @@ std::mutex active_profile_mtx;
 #define BAP        0x01
 #define GCP        0x02
 #define WMCP       0x04
-#define VMCP       0x08
+#define TMAP       0x08
 #define BAP_CALL   0x10
 #define GCP_RX     0x20
 
@@ -223,6 +223,12 @@ void btif_ahim_process_request(tA2DP_CTRL_CMD cmd, uint8_t profile,
 }
 
 void btif_ahim_update_src_metadata (const source_metadata_t& source_metadata) {
+  auto track_count = source_metadata.track_count;
+  auto usage = source_metadata.tracks->usage;
+
+  LOG(INFO) << __func__ << ", track_count: " << track_count
+                        << ", usage: " << usage;
+
   // pass on the callbacks to ACM only for new vendor
   if(btif_ahim_is_aosp_aidl_hal_enabled()) {
     BTIF_TRACE_IMP("%s: sending AIDL request to Audio Group Manager", __func__);
@@ -240,6 +246,12 @@ void btif_ahim_update_src_metadata (const source_metadata_t& source_metadata) {
 }
 
 void btif_ahim_update_sink_metadata (const sink_metadata_t& sink_metadata) {
+  auto track_count = sink_metadata.track_count;
+  auto source = sink_metadata.tracks->source;
+
+  LOG(INFO) << __func__ << ", track_count: " << track_count
+                        << ", source: " << source;
+
   // pass on the callbacks to ACM only for new vendor
   if(btif_ahim_is_aosp_aidl_hal_enabled()) {
     BTIF_TRACE_IMP("%s: sending AIDL request to Audio Group Manager", __func__);
@@ -874,11 +886,22 @@ void btif_ahim_ack_stream_started(const tA2DP_CTRL_ACK& ack, uint8_t profile) {
       uint16_t profile_type =
                btif_ahim_get_lea_active_profile(profile);
 
-      if (ack != A2DP_CTRL_ACK_SUCCESS) {
+      if (ack != A2DP_CTRL_ACK_SUCCESS && ack != A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS) {
         BTIF_TRACE_IMP("%s: Ack is not success yet, return", __func__);
         return;
       }
-
+      if (ack == A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS) {
+        if (profile_type == BAP || profile_type == GCP ||
+          profile_type == BAP_CALL || profile_type == GCP_RX) {
+          if(unicastSinkClientInterface)
+            unicastSinkClientInterface->CancelStreamingRequest();
+        }
+        if (profile_type == BAP_CALL || profile_type == GCP_RX ||
+          profile_type == WMCP) {
+          if(unicastSourceClientInterface)
+            unicastSourceClientInterface->CancelStreamingRequest();
+        }
+      }
       if(profile_type == BAP || profile_type == GCP) {  // ToAIr only
         if(unicastSinkClientInterface)
           unicastSinkClientInterface->ConfirmStreamingRequest();
@@ -945,6 +968,18 @@ void btif_ahim_ack_stream_profile_suspended(const tA2DP_CTRL_ACK& ack, uint8_t p
         } else if(profile_type == WMCP) { // FromAir only
           if(unicastSourceClientInterface)
             unicastSourceClientInterface->CancelSuspendRequestWithReconfig();
+        }
+        return;
+      } else if (ack == A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS) {
+        if(profile_type == BAP || profile_type == GCP ||
+          profile_type == BAP_CALL || profile_type == GCP_RX) {
+          if(unicastSinkClientInterface)
+            unicastSinkClientInterface->CancelSuspendRequest();
+        }
+        if (profile_type == BAP_CALL || profile_type == GCP_RX ||
+          profile_type == WMCP) {
+          if(unicastSourceClientInterface)
+            unicastSourceClientInterface->CancelSuspendRequest();
         }
         return;
       } else if (ack != A2DP_CTRL_ACK_SUCCESS) {

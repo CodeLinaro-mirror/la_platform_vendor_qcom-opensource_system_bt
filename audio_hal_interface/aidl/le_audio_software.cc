@@ -83,6 +83,7 @@ using ::bluetooth::audio::aidl::AudioConfiguration;
 using ::bluetooth::audio::aidl::BluetoothAudioCtrlAck;
 
 static ChannelMode le_audio_channel_mode2audio_hal(uint8_t channels_count) {
+  LOG(INFO) << __func__ << ": channels_count: " << channels_count;
   switch (channels_count) {
     case 1:
       return ChannelMode::MONO;
@@ -107,10 +108,13 @@ LeAudioTransport::LeAudioTransport(void (*flush)(void),
 
 BluetoothAudioCtrlAck LeAudioTransport::StartRequest(bool is_low_latency,
                                                      uint8_t direction) {
-  LOG(INFO) << __func__;
 
   BluetoothAudioCtrlAck status = BluetoothAudioCtrlAck::PENDING;
   uint8_t profile = is_broadcast_session_ ? BROADCAST : AUDIO_GROUP_MGR;
+
+  LOG(INFO) << __func__ << ": is_low_latency: " << is_low_latency
+                        << ", direction: " << direction
+                        << ", profile: " << profile;
   btif_ahim_process_request(A2DP_CTRL_CMD_START, profile, direction);
   lea_pending_cmd_ = A2DP_CTRL_CMD_START;
   is_pending_start_request_ = true;
@@ -118,27 +122,31 @@ BluetoothAudioCtrlAck LeAudioTransport::StartRequest(bool is_low_latency,
 }
 
 BluetoothAudioCtrlAck LeAudioTransport::SuspendRequest(uint8_t direction) {
-  LOG(INFO) << __func__;
   BluetoothAudioCtrlAck status = BluetoothAudioCtrlAck::PENDING;
   uint8_t profile = is_broadcast_session_ ? BROADCAST : AUDIO_GROUP_MGR;
+
+  LOG(INFO) << __func__ << ": direction: " << direction
+                        << ", profile: " << profile;
   btif_ahim_process_request(A2DP_CTRL_CMD_SUSPEND, profile, direction);
   lea_pending_cmd_ = A2DP_CTRL_CMD_SUSPEND;
   return status;
 }
 
 void LeAudioTransport::StopRequest(uint8_t direction) {
-  LOG(INFO) << __func__;
   uint8_t profile = is_broadcast_session_ ? BROADCAST : AUDIO_GROUP_MGR;
+
+  LOG(INFO) << __func__ << ": direction: " << direction
+                        << ", profile: " << profile;
   btif_ahim_process_request(A2DP_CTRL_CMD_STOP, profile, direction);
 }
 
 bool LeAudioTransport::GetPresentationPosition(uint64_t* remote_delay_report_ns,
                                                uint64_t* total_bytes_processed,
                                                timespec* data_position) {
-  VLOG(2) << __func__ << ": data=" << total_bytes_processed_
-          << " byte(s), timestamp=" << data_position_.tv_sec << "."
-          << data_position_.tv_nsec
-          << "s, delay report=" << remote_delay_report_ms_ << " msec.";
+  LOG(INFO) << __func__ << ": data=" << total_bytes_processed_
+            << " byte(s), timestamp=" << data_position_.tv_sec << "."
+            << data_position_.tv_nsec
+            << "s, delay report=" << remote_delay_report_ms_ << " msec.";
   if (remote_delay_report_ns != nullptr) {
     *remote_delay_report_ns = remote_delay_report_ms_ * 1000000u;
   }
@@ -154,15 +162,23 @@ void LeAudioTransport::SourceMetadataChanged(
   auto track_count = source_metadata.track_count;
 
   if (is_broadcast_session_) {
-      LOG(WARNING) << ", ignore metadata update for broadcast session";
+      LOG(WARNING) << __func__ <<": ignore metadata update for broadcast session";
       return;
   }
 
-    if (track_count == 0) {
-      LOG(WARNING) << ", invalid number of metadata changed tracks";
-      return;
-    }
-    btif_ahim_update_src_metadata(source_metadata);
+  if (track_count == 0) {
+    LOG(WARNING) << __func__ << ": invalid number of metadata changed tracks";
+    return;
+  }
+
+  auto usage = source_metadata.tracks->usage;
+
+  LOG(INFO) << __func__ << ": is_broadcast_session_: "
+                        << is_broadcast_session_
+                        << ", track_count: " << track_count
+                        << ", usage: " << usage;
+
+  btif_ahim_update_src_metadata(source_metadata);
 }
 
 void LeAudioTransport::SinkMetadataChanged(
@@ -170,15 +186,23 @@ void LeAudioTransport::SinkMetadataChanged(
   auto track_count = sink_metadata.track_count;
 
   if (is_broadcast_session_) {
-      LOG(WARNING) << ", ignore metadata update for broadcast session";
+      LOG(WARNING) << __func__ <<": ignore metadata update for broadcast session";
       return;
   }
 
-    if (track_count == 0) {
-      LOG(WARNING) << ", invalid number of metadata changed tracks";
-      return;
-    }
-    btif_ahim_update_sink_metadata(sink_metadata);
+  if (track_count == 0) {
+    LOG(WARNING) << __func__ << ": invalid number of metadata changed tracks";
+    return;
+  }
+
+  auto source = sink_metadata.tracks->source;
+
+  LOG(INFO) << __func__ << ": is_broadcast_session_: "
+                        << is_broadcast_session_
+                        << ", track_count: " << track_count
+                        << ", source: " << source;
+
+  btif_ahim_update_sink_metadata(sink_metadata);
 }
 
 
@@ -284,11 +308,23 @@ bool LeAudioSinkTransport::GetPresentationPosition(
 
 void LeAudioSinkTransport::SourceMetadataChanged(
     const source_metadata_t& source_metadata) {
+
+  auto track_count = source_metadata.track_count;
+  auto usage = source_metadata.tracks->usage;
+  LOG(INFO) << __func__ << ", track_count: " << track_count
+                        << ", usage: " << usage;
+
   transport_->SourceMetadataChanged(source_metadata);
 }
 
 void LeAudioSinkTransport::SinkMetadataChanged(
     const sink_metadata_t& sink_metadata) {
+
+  auto track_count = sink_metadata.track_count;
+  auto source = sink_metadata.tracks->source;
+  LOG(INFO) << __func__ << ", track_count: " << track_count
+                        << ", source: " << source;
+
   transport_->SinkMetadataChanged(sink_metadata);
 }
 
@@ -365,11 +401,23 @@ bool LeAudioSourceTransport::GetPresentationPosition(
 
 void LeAudioSourceTransport::SourceMetadataChanged(
     const source_metadata_t& source_metadata) {
+
+  auto track_count = source_metadata.track_count;
+  auto usage = source_metadata.tracks->usage;
+  LOG(INFO) << __func__  << ", track_count: " << track_count
+                         << ", usage: " << usage;
+
   transport_->SourceMetadataChanged(source_metadata);
 }
 
 void LeAudioSourceTransport::SinkMetadataChanged(
     const sink_metadata_t& sink_metadata) {
+
+  auto track_count = sink_metadata.track_count;
+  auto source = sink_metadata.tracks->source;
+  LOG(INFO) << __func__ << ", track_count: " << track_count
+                        << ", source: " << source;
+
   transport_->SinkMetadataChanged(sink_metadata);
 }
 

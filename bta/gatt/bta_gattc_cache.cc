@@ -760,6 +760,8 @@ static void bta_gattc_read_ext_prop_desc_cmpl(tBTA_GATTC_CLCB* p_clcb,
     VLOG(1) << __func__ << ": op = " << +p_data->hdr.layer_specific;
     return;
   }
+  p_clcb->handle = p_data->p_cmpl->att_value.handle;
+  p_clcb->status = p_data->status;
 
   if (!p_clcb->disc_active) {
     VLOG(1) << __func__ << ": not active in discover state";
@@ -774,6 +776,12 @@ static void bta_gattc_read_ext_prop_desc_cmpl(tBTA_GATTC_CLCB* p_clcb,
       !p_srvc_cb->read_multiple_not_supported) {
     // can't do "read multiple request", fall back to "read request"
     p_srvc_cb->read_multiple_not_supported = true;
+    bta_gattc_explore_next_service(p_clcb->bta_conn_id, p_srvc_cb);
+    return;
+  }
+
+  if (status == GATT_NOT_FOUND) {
+    p_srvc_cb->pending_discovery.RemoveCEPDescriptorsHandlesToRead(p_clcb->handle);
     bta_gattc_explore_next_service(p_clcb->bta_conn_id, p_srvc_cb);
     return;
   }
@@ -802,15 +810,7 @@ static void bta_gattc_read_ext_prop_desc_cmpl(tBTA_GATTC_CLCB* p_clcb,
     value_of_descriptors.push_back(extended_properties);
   }
 
-  bool ret =
-      p_srvc_cb->pending_discovery.SetValueOfDescriptors(value_of_descriptors);
-  if (!ret) {
-    LOG(WARNING) << __func__
-                 << " Problem setting Extended Properties descriptors values";
-    bta_gattc_reset_discover_st(p_clcb->p_srcb, GATT_ERROR);
-    return;
-  }
-
+  p_srvc_cb->pending_discovery.SetValueOfDescriptors(value_of_descriptors);
   // Continue service discovery
   bta_gattc_explore_next_service(p_clcb->bta_conn_id, p_srvc_cb);
 }

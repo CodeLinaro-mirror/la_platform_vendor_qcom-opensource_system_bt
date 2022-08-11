@@ -769,7 +769,13 @@ void bta_gattc_set_discover_st(tBTA_GATTC_SERV* p_srcb) {
   for (i = 0; i < BTA_GATTC_CLCB_MAX; i++) {
     if (bta_gattc_cb.clcb[i].p_srcb == p_srcb) {
       bta_gattc_cb.clcb[i].status = GATT_SUCCESS;
-      bta_gattc_cb.clcb[i].state = BTA_GATTC_DISCOVER_ST;
+      if (p_srcb->srvc_hdl_db_hash &&
+          (bta_gattc_cb.clcb[i].state == BTA_GATTC_W4_CONN_ST)) {
+        bta_gattc_cb.clcb[i].state = BTA_GATTC_DISCOVER_ST_RC;
+      }
+      else {
+        bta_gattc_cb.clcb[i].state = BTA_GATTC_DISCOVER_ST;
+      }
       bta_gattc_cb.clcb[i].request_during_discovery =
           BTA_GATTC_DISCOVER_REQ_NONE;
     }
@@ -1110,17 +1116,33 @@ void bta_gattc_read_cmpl(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_OP_CMPL* p_data) {
 }
 
 /** write complete */
-void bta_gattc_write_cmpl(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_OP_CMPL* p_data) {
+static void bta_gattc_write_cmpl(tBTA_GATTC_CLCB* p_clcb,
+                                 const tBTA_GATTC_OP_CMPL* p_data) {
   GATT_WRITE_OP_CB cb = p_clcb->p_q_cmd->api_write.write_cb;
   void* my_cb_data = p_clcb->p_q_cmd->api_write.write_cb_data;
 
-  osi_free_and_reset((void**)&p_clcb->p_q_cmd);
-
   if (cb) {
-    cb(p_clcb->bta_conn_id, p_data->status, p_data->p_cmpl->att_value.handle,
-       p_data->p_cmpl->att_value.len, p_data->p_cmpl->att_value.value,
-       my_cb_data);
+    if (p_data->status == 0 &&
+        p_clcb->p_q_cmd->api_write.write_type == BTA_GATTC_WRITE_PREPARE) {
+      LOG_DEBUG(LOG_TAG, "Handling prepare write success response: handle 0x%04x",
+                p_data->p_cmpl->att_value.handle);
+      /* If this is successful Prepare write, lets provide to the callback the
+       * data provided by server */
+      cb(p_clcb->bta_conn_id, p_data->status, p_data->p_cmpl->att_value.handle,
+         p_data->p_cmpl->att_value.len, p_data->p_cmpl->att_value.value,
+         my_cb_data);
+    } else {
+      LOG_DEBUG(LOG_TAG, "Handling write response type: %d: handle 0x%04x",
+                p_clcb->p_q_cmd->api_write.write_type,
+                p_data->p_cmpl->att_value.handle);
+      /* Otherwise, provide data which were intended to write. */
+      cb(p_clcb->bta_conn_id, p_data->status, p_data->p_cmpl->att_value.handle,
+         p_clcb->p_q_cmd->api_write.len, p_clcb->p_q_cmd->api_write.p_value,
+         my_cb_data);
+    }
   }
+
+  osi_free_and_reset((void**)&p_clcb->p_q_cmd);
 }
 
 /** execute write complete */

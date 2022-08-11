@@ -293,7 +293,7 @@ bool btif_storage_get_hearing_aid_prop(
  ******************************************************************************/
 bool btif_storage_is_restricted_device(const RawAddress* remote_bd_addr);
 
-int btif_storage_get_num_bonded_devices(void);
+uint32_t btif_storage_get_num_bonded_devices(void);
 
 bt_status_t btif_storage_add_ble_bonding_key(RawAddress* remote_bd_addr,
                                              const uint8_t* key,

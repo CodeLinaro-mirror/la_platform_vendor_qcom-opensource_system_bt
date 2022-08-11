@@ -180,10 +180,15 @@ extern bool is_remote_support_adv_audio(const RawAddress remote_bdaddr);
  *  Internal Functions
  ******************************************************************************/
 
+static bt_status_t btif_in_get_bonded_devices(list_t** p_bonded_devices);
+static bt_status_t btif_in_get_bonded_ble_device(
+    const char* remote_bd_addr, list_t** p_bonded_devices);
 static bt_status_t btif_in_fetch_bonded_ble_device(
     const char* remote_bd_addr, int add,
     list_t** p_bonded_devices);
 static bt_status_t btif_in_fetch_bonded_device(const char* bdstr, int *dev_type);
+bt_status_t btif_storage_find_ble_bonding_key(RawAddress* remote_bd_addr,
+                                              uint8_t key_type);
 
 bool btif_has_ble_keys(const char* bdstr);
 
@@ -640,6 +645,8 @@ static bt_status_t btif_in_fetch_bonded_devices(
         bt_linkkey_file_found = true;
         RawAddress *remote_addr =  (RawAddress *)osi_malloc(sizeof(RawAddress));
         memcpy(remote_addr, &bd_addr, RawAddress::kLength);
+        BTIF_TRACE_DEBUG("%s Remote_addr %s",
+            __func__, bd_addr.ToString().c_str());
         list_append(*p_bonded_devices, remote_addr);
       } else {
         bt_linkkey_file_found = false;
@@ -653,6 +660,18 @@ static bt_status_t btif_in_fetch_bonded_devices(
   return BT_STATUS_SUCCESS;
 }
 
+static void btif_find_le_key(const uint8_t key_type,
+                             RawAddress bd_addr, const uint8_t addr_type,
+                             bool* device_added, bool* key_found) {
+  CHECK(device_added);
+  CHECK(key_found);
+
+  if (btif_storage_find_ble_bonding_key(&bd_addr, key_type)
+      == BT_STATUS_SUCCESS) {
+    *device_added = true;
+    *key_found = true;
+  }
+}
 static void btif_read_le_key(const uint8_t key_type, const size_t key_len,
                              RawAddress bd_addr, const uint8_t addr_type,
                              const bool add_key, bool* device_added,
@@ -1477,6 +1496,34 @@ bt_status_t btif_storage_get_ble_bonding_key(RawAddress* remote_bd_addr,
   return ret ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
 }
 
+bt_status_t btif_storage_find_ble_bonding_key(RawAddress* remote_bd_addr,
+                                             uint8_t key_type) {
+  const char* name;
+  switch (key_type) {
+    case BTIF_DM_LE_KEY_PENC:
+      name = "LE_KEY_PENC";
+      break;
+    case BTIF_DM_LE_KEY_PID:
+      name = "LE_KEY_PID";
+      break;
+    case BTIF_DM_LE_KEY_PCSRK:
+      name = "LE_KEY_PCSRK";
+      break;
+    case BTIF_DM_LE_KEY_LENC:
+      name = "LE_KEY_LENC";
+      break;
+    case BTIF_DM_LE_KEY_LCSRK:
+      name = "LE_KEY_LCSRK";
+      break;
+    case BTIF_DM_LE_KEY_LID:
+      name = "LE_KEY_LID";
+      break;
+    default:
+      return BT_STATUS_FAIL;
+  }
+  int ret = btif_config_get_key_from_bin(remote_bd_addr->ToString().c_str(), name);
+  return ret ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
+}
 /*******************************************************************************
  *
  * Function         btif_storage_remove_ble_keys
@@ -1595,6 +1642,69 @@ bt_status_t btif_storage_remove_ble_local_keys(void) {
   return ret ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
 }
 
+static bt_status_t btif_in_get_bonded_ble_device(
+    const char* remote_bd_addr, list_t** p_bonded_devices) {
+  int device_type;
+  int addr_type;
+  bool device_added = false;
+  bool key_found = false;
+
+  if (!btif_config_get_int(remote_bd_addr, "DevType", &device_type))
+    return BT_STATUS_FAIL;
+
+  if ((device_type & BT_DEVICE_TYPE_BLE) == BT_DEVICE_TYPE_BLE ||
+      btif_has_ble_keys(remote_bd_addr)) {
+    BTIF_TRACE_DEBUG("%s Found a LE device: %s", __func__, remote_bd_addr);
+
+    RawAddress bd_addr;
+    RawAddress::FromString(remote_bd_addr, bd_addr);
+
+    if (btif_storage_get_remote_addr_type(&bd_addr, &addr_type) !=
+        BT_STATUS_SUCCESS) {
+      /* Try to read address type from device info, if not present,
+      then it defaults to BLE_ADDR_PUBLIC */
+      uint8_t tmp_dev_type;
+      uint8_t tmp_addr_type;
+      BTM_ReadDevInfo(bd_addr, &tmp_dev_type, &tmp_addr_type);
+      addr_type = tmp_addr_type;
+
+      btif_storage_set_remote_addr_type(&bd_addr, addr_type);
+    }
+
+    btif_find_le_key(BTIF_DM_LE_KEY_PENC, bd_addr,
+                     addr_type, &device_added, &key_found);
+
+    btif_find_le_key(BTIF_DM_LE_KEY_PID, bd_addr,
+                     addr_type, &device_added, &key_found);
+
+    btif_find_le_key(BTIF_DM_LE_KEY_LID, bd_addr,
+                     addr_type, &device_added, &key_found);
+
+    btif_find_le_key(BTIF_DM_LE_KEY_PCSRK, bd_addr,
+                     addr_type, &device_added, &key_found);
+
+    btif_find_le_key(BTIF_DM_LE_KEY_LENC, bd_addr,
+                     addr_type, &device_added, &key_found);
+
+    btif_find_le_key(BTIF_DM_LE_KEY_LCSRK, bd_addr,
+                     addr_type, &device_added, &key_found);
+
+    // Fill in the bonded devices
+    if (device_added) {
+        RawAddress *remote_addr =  (RawAddress*)osi_malloc(sizeof(RawAddress));
+        memcpy(remote_addr, &bd_addr, RawAddress::kLength);
+        BTIF_TRACE_DEBUG("%s Added Remote_addr %s key_found %d",
+            __func__, bd_addr.ToString().c_str(), key_found);
+        list_append(*p_bonded_devices, remote_addr);
+        btif_gatts_add_bonded_dev_from_nv(bd_addr);
+    }
+
+    if (key_found) return BT_STATUS_SUCCESS;
+  }
+  return BT_STATUS_FAIL;
+}
+
+
 static bt_status_t btif_in_fetch_bonded_ble_device(
     const char* remote_bd_addr, int add,
     list_t** p_bonded_devices) {
@@ -1647,6 +1757,8 @@ static bt_status_t btif_in_fetch_bonded_ble_device(
     if (device_added) {
         RawAddress *remote_addr =  (RawAddress*)osi_malloc(sizeof(RawAddress));
         memcpy(remote_addr, &bd_addr, RawAddress::kLength);
+        BTIF_TRACE_DEBUG("%s Added Remote_addr %s key_found %d",
+            __func__, bd_addr.ToString().c_str(), key_found);
         list_append(*p_bonded_devices, remote_addr);
         btif_gatts_add_bonded_dev_from_nv(bd_addr);
     }
@@ -2071,10 +2183,55 @@ bool btif_storage_is_restricted_device(const RawAddress* remote_bd_addr) {
   return btif_config_exist(remote_bd_addr->ToString().c_str(), "Restricted");
 }
 
-int btif_storage_get_num_bonded_devices(void) {
+/*******************************************************************************
+ *
+ * Function         btif_in_get_bonded_devices
+ *
+ * Description      Internal helper function to get the bonded devices
+ *                  from NVRAM
+ *
+ * Returns          BT_STATUS_SUCCESS if successful, BT_STATUS_FAIL otherwise
+ *
+ ******************************************************************************/
+static bt_status_t btif_in_get_bonded_devices(list_t** p_bonded_devices) {
+
+  bool bt_linkkey_file_found = false;
+
+  for (const btif_config_section_iter_t* iter = btif_config_section_begin();
+       iter != btif_config_section_end();
+       iter = btif_config_section_next(iter)) {
+    const char* name = btif_config_section_name(iter);
+    if (!RawAddress::IsValidAddress(name)) continue;
+
+    BTIF_TRACE_DEBUG("Remote device:%s", name);
+    LinkKey link_key;
+    size_t size = sizeof(link_key);
+    if (btif_config_get_bin(name, "LinkKey", link_key.data(), &size)) {
+      int linkkey_type;
+      if (btif_config_get_int(name, "LinkKeyType", &linkkey_type)) {
+        RawAddress bd_addr;
+        RawAddress::FromString(name, bd_addr);
+
+        bt_linkkey_file_found = true;
+        RawAddress *remote_addr =  (RawAddress *)osi_malloc(sizeof(RawAddress));
+        memcpy(remote_addr, &bd_addr, RawAddress::kLength);
+        list_append(*p_bonded_devices, remote_addr);
+      } else {
+        bt_linkkey_file_found = false;
+      }
+    }
+    if (!btif_in_get_bonded_ble_device(name, p_bonded_devices) &&
+        !bt_linkkey_file_found) {
+      BTIF_TRACE_DEBUG("Remote device:%s, no link key or ble key found", name);
+    }
+  }
+  return BT_STATUS_SUCCESS;
+}
+
+uint32_t btif_storage_get_num_bonded_devices(void) {
   uint32_t num_bonded_devices = 0;
   list_t *bonded_devices = list_new(osi_free);
-  btif_in_fetch_bonded_devices(&bonded_devices, 0);
+  btif_in_get_bonded_devices(&bonded_devices);
   if (bonded_devices != NULL) {
     num_bonded_devices = list_length(bonded_devices);
     list_free(bonded_devices);

@@ -236,7 +236,8 @@ Descriptor* FindDescriptorByHandle(std::vector<Service>& services,
 bool DatabaseBuilder::SetValueOfDescriptors(
     const std::vector<uint16_t>& values) {
   if (values.size() > descriptor_handles_to_read.size()) {
-    LOG(ERROR) << "values.size() <= descriptors.size() expected";
+    LOG(ERROR) << "value size: "<<values.size()
+               << " <= Descriptor size: "<<descriptor_handles_to_read.size() <<" expected";
     descriptor_handles_to_read.clear();
     return false;
   }
@@ -257,6 +258,17 @@ bool DatabaseBuilder::SetValueOfDescriptors(
       descriptor_handles_to_read.begin(),
       descriptor_handles_to_read.begin() + values.size());
   return true;
+}
+
+bool DatabaseBuilder::RemoveCEPDescriptorsHandlesToRead(uint16_t handle) {
+  for ( std::vector<uint16_t>::iterator it = descriptor_handles_to_read.begin();
+      it != descriptor_handles_to_read.end(); ++it) {
+    if ( handle == *it) {
+      descriptor_handles_to_read.erase(it);
+      return true;
+    }
+  }
+  return false;
 }
 
 bool DatabaseBuilder::InProgress() const { return !database.services.empty(); }

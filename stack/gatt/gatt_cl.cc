@@ -565,6 +565,11 @@ void gatt_process_error_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
     STREAM_TO_UINT8(reason, p);
   }
 
+  p_clcb->err_handle = handle;
+  VLOG(1) << __func__ << "reason: " << +reason
+          << "handle: " << +p_clcb->err_handle
+          << "opcode: " << +opcode;
+
   if (p_clcb->operation == GATTC_OPTYPE_DISCOVERY) {
     gatt_proc_disc_error_rsp(tcb, p_clcb, opcode, handle, reason);
   } else {
@@ -581,6 +586,9 @@ void gatt_process_error_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
                p_clcb->first_read_blob_after_read &&
                (reason == GATT_NOT_LONG)) {
       gatt_end_operation(p_clcb, GATT_SUCCESS, (void*)p_clcb->p_attr_buf);
+    } else if ((p_clcb->operation == GATTC_OPTYPE_READ) &&
+              (p_clcb->op_subtype == GATT_READ_MULTIPLE)) {
+      gatt_end_operation(p_clcb, GATT_NOT_FOUND, (void*)p_clcb->p_attr_buf);
     } else
       gatt_end_operation(p_clcb, reason, NULL);
   }

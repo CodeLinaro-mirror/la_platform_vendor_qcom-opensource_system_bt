@@ -199,7 +199,8 @@ enum {
   BTA_GATTC_IDLE_ST = 0, /* Idle  */
   BTA_GATTC_W4_CONN_ST,  /* Wait for connection -  (optional) */
   BTA_GATTC_CONN_ST,     /* connected state */
-  BTA_GATTC_DISCOVER_ST  /* discover is in progress */
+  BTA_GATTC_DISCOVER_ST,  /* discover is in progress */
+  BTA_GATTC_DISCOVER_ST_RC /* discover is in progress with Robust caching support */
 };
 typedef uint8_t tBTA_GATTC_STATE;
 
@@ -282,6 +283,7 @@ typedef struct {
   tBTA_GATTC_STATE state;
   tGATT_STATUS status;
   uint16_t reason;
+  uint16_t handle;
 } tBTA_GATTC_CLCB;
 
 /* back ground connection tracking information */

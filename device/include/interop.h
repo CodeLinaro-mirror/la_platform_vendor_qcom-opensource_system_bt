@@ -293,6 +293,11 @@ typedef enum {
   //so modify their vid/pid so that generic hid driver are loaded.
   INTEROP_CHANGE_HID_VID_PID,
 
+  // Some remote always set DUT in slave role during connection which restricts
+  // setting supervision timeout to required value. This interop will allow
+  // local device to be only master as role switch would be restricted during connection.
+  INTEROP_DISABLE_ROLE_SWITCH_DURING_CONNECTION,
+
   END_OF_INTEROP_LIST
 } interop_feature_t;
 

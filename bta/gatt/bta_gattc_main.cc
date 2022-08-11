@@ -262,6 +262,49 @@ static const uint8_t bta_gattc_st_discover[][BTA_GATTC_NUM_COLS] = {
 
 };
 
+/* state table for discover state with Robust caching support */
+static const uint8_t bta_gattc_st_discover_rc[][BTA_GATTC_NUM_COLS] = {
+    /* Event                            Action 1 Next state */
+    /* BTA_GATTC_API_OPEN_EVT           */ {BTA_GATTC_OPEN,
+                                            BTA_GATTC_DISCOVER_ST},
+    /* BTA_GATTC_INT_OPEN_FAIL_EVT      */ {BTA_GATTC_IGNORE,
+                                            BTA_GATTC_DISCOVER_ST},
+    /* BTA_GATTC_API_CANCEL_OPEN_EVT    */ {BTA_GATTC_CANCEL_OPEN_ERROR,
+                                            BTA_GATTC_DISCOVER_ST},
+    /* BTA_GATTC_INT_CANCEL_OPEN_OK_EVT */ {BTA_GATTC_FAIL,
+                                            BTA_GATTC_DISCOVER_ST},
+
+    /* BTA_GATTC_API_READ_EVT           */ {BTA_GATTC_Q_CMD,
+                                            BTA_GATTC_DISCOVER_ST},
+    /* BTA_GATTC_API_WRITE_EVT          */ {BTA_GATTC_Q_CMD,
+                                            BTA_GATTC_DISCOVER_ST},
+    /* BTA_GATTC_API_EXEC_EVT           */ {BTA_GATTC_Q_CMD,
+                                            BTA_GATTC_DISCOVER_ST},
+    /* BTA_GATTC_API_CFG_MTU_EVT        */ {BTA_GATTC_Q_CMD,
+                                            BTA_GATTC_DISCOVER_ST},
+
+    /* BTA_GATTC_API_CLOSE_EVT          */ {BTA_GATTC_DISC_CLOSE,
+                                            BTA_GATTC_DISCOVER_ST},
+
+    /* BTA_GATTC_API_SEARCH_EVT         */ {BTA_GATTC_Q_CMD,
+                                            BTA_GATTC_DISCOVER_ST},
+    /* BTA_GATTC_API_CONFIRM_EVT        */ {BTA_GATTC_CONFIRM,
+                                            BTA_GATTC_DISCOVER_ST},
+    /* BTA_GATTC_API_READ_MULTI_EVT     */ {BTA_GATTC_Q_CMD,
+                                            BTA_GATTC_DISCOVER_ST},
+
+    /* BTA_GATTC_INT_CONN_EVT           */ {BTA_GATTC_CONN,
+                                            BTA_GATTC_DISCOVER_ST},
+    /* BTA_GATTC_INT_DISCOVER_EVT       */ {BTA_GATTC_RESTART_DISCOVER,
+                                            BTA_GATTC_DISCOVER_ST},
+    /* BTA_GATTC_DISCOVER_CMPL_EVT      */ {BTA_GATTC_IGNORE,
+                                            BTA_GATTC_W4_CONN_ST},
+    /* BTA_GATTC_OP_CMPL_EVT            */ {BTA_GATTC_OP_CMPL_DURING_DISCOVERY,
+                                            BTA_GATTC_DISCOVER_ST},
+    /* BTA_GATTC_INT_DISCONN_EVT        */ {BTA_GATTC_CLOSE, BTA_GATTC_IDLE_ST},
+
+};
+
 /* type for state table */
 typedef const uint8_t (*tBTA_GATTC_ST_TBL)[BTA_GATTC_NUM_COLS];
 
@@ -270,7 +313,8 @@ const tBTA_GATTC_ST_TBL bta_gattc_st_tbl[] = {
     bta_gattc_st_idle,      /* BTA_GATTC_IDLE_ST */
     bta_gattc_st_w4_conn,   /* BTA_GATTC_W4_CONN_ST */
     bta_gattc_st_connected, /* BTA_GATTC_CONN_ST */
-    bta_gattc_st_discover   /* BTA_GATTC_DISCOVER_ST */
+    bta_gattc_st_discover,   /* BTA_GATTC_DISCOVER_ST */
+    bta_gattc_st_discover_rc   /* BTA_GATTC_DISCOVER_ST_RC */
 };
 
 /*****************************************************************************
@@ -464,6 +508,8 @@ static const char* gattc_state_code(tBTA_GATTC_STATE state_code) {
       return "GATTC_CONN_ST";
     case BTA_GATTC_DISCOVER_ST:
       return "GATTC_DISCOVER_ST";
+    case BTA_GATTC_DISCOVER_ST_RC:
+      return "GATTC_DISCOVER_ST_RC";
     default:
       return "unknown GATTC state code";
   }

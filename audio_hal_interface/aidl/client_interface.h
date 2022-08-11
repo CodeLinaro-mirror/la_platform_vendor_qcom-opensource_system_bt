@@ -55,6 +55,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 #include <ctime>
 #include <mutex>
 #include <vector>
+#include <unordered_set>
 
 #include "audio_aidl_interfaces.h"
 #include "audio_ctrl_ack.h"
@@ -97,7 +98,7 @@ using DataMQDesc = MQDescriptor<MqDataType, MqDataMode>;
 class BluetoothAudioClientInterface {
  public:
   BluetoothAudioClientInterface(IBluetoothTransportInstance* instance);
-  virtual ~BluetoothAudioClientInterface() = default;
+  virtual ~BluetoothAudioClientInterface();
 
   bool IsValid() const { return provider_ != nullptr; }
 
@@ -137,6 +138,8 @@ class BluetoothAudioClientInterface {
    ***/
   static void binderDiedCallbackAidl(void* cookie_ptr);
 
+  static bool isDestroy(BluetoothAudioClientInterface *ptr) { return objs_address_.find(ptr) == objs_address_.end(); }
+
   std::shared_ptr<IBluetoothAudioProvider> provider_;
 
   std::shared_ptr<IBluetoothAudioProviderFactory> provider_factory_;
@@ -156,6 +159,7 @@ class BluetoothAudioClientInterface {
   static inline bool aidl_available = true;
   IBluetoothTransportInstance* transport_;
   std::vector<AudioCapabilities> capabilities_;
+  static std::unordered_set<BluetoothAudioClientInterface *> objs_address_;
 };
 
 /***

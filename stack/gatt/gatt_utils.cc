@@ -1488,11 +1488,13 @@ void gatt_end_operation(tGATT_CLCB* p_clcb, tGATT_STATUS status, void* p_data) {
   if (p_cmpl_cb != NULL && p_clcb->operation != 0) {
     if (p_clcb->operation == GATTC_OPTYPE_READ) {
       //Add for read multi rsp
-      if ((p_clcb->op_subtype == GATT_READ_MULTIPLE) ||
-          (p_clcb->op_subtype == GATT_READ_MULTIPLE_VARIABLE)) {
+      if ((p_clcb->op_subtype == GATT_READ_MULTIPLE ||
+          p_clcb->op_subtype == GATT_READ_MULTIPLE_VARIABLE)) {
+        if (status == GATT_NOT_FOUND) {
+          cb_data.att_value.handle = p_clcb->err_handle;
+        }
         cb_data.att_value.read_sub_type = p_clcb->op_subtype;
-      }
-      else {
+      } else {
         cb_data.att_value.handle = p_clcb->s_handle;
       }
 

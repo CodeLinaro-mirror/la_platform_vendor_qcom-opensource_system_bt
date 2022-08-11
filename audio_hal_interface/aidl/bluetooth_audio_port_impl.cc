@@ -109,10 +109,10 @@ ndk::ScopedAStatus BluetoothAudioPortImpl::getPresentationPosition(
     total_bytes_read = 0;
     transmittedOctetsTimeStamp = {};
   }
-  VLOG(2) << __func__ << ": result=" << retval
-          << ", delay=" << remote_delay_report_ns
-          << ", data=" << total_bytes_read
-          << " byte(s), timestamp=" << transmittedOctetsTimeStamp.toString();
+  LOG(INFO) << __func__ << ": result=" << retval
+            << ", delay=" << remote_delay_report_ns
+            << ", data=" << total_bytes_read
+            << " byte(s), timestamp=" << transmittedOctetsTimeStamp.toString();
   _aidl_return->remoteDeviceAudioDelayNanos =
       static_cast<int64_t>(remote_delay_report_ns);
   _aidl_return->transmittedOctets = static_cast<int64_t>(total_bytes_read);
@@ -122,11 +122,17 @@ ndk::ScopedAStatus BluetoothAudioPortImpl::getPresentationPosition(
 
 ndk::ScopedAStatus BluetoothAudioPortImpl::updateSourceMetadata(
     const SourceMetadata& source_metadata) {
-  LOG(INFO) << __func__ << ": " << source_metadata.tracks.size() << "track(s)";
+  LOG(INFO) << __func__ << ": " << source_metadata.tracks.size() << " track(s)";
+
+  if (source_metadata.tracks.size() == 0) {
+    LOG(INFO) << __func__ << ": Invalid Source metadata, return";
+    return ndk::ScopedAStatus::ok();
+  }
 
   std::vector<playback_track_metadata> metadata_vec;
   metadata_vec.reserve(source_metadata.tracks.size());
   for (const auto& metadata : source_metadata.tracks) {
+    LOG(INFO) << __func__ << ": usage: " << static_cast<audio_usage_t>(metadata.usage);
     metadata_vec.push_back({
         .usage = static_cast<audio_usage_t>(metadata.usage),
         .content_type = static_cast<audio_content_type_t>(metadata.contentType),
@@ -143,9 +149,15 @@ ndk::ScopedAStatus BluetoothAudioPortImpl::updateSinkMetadata(
     const SinkMetadata& sink_metadata) {
   LOG(INFO) << __func__ << ": " << sink_metadata.tracks.size() << " track(s)";
 
+  if (sink_metadata.tracks.size() == 0) {
+    LOG(INFO) << __func__ << ": Invalid Sink metadata, return";
+    return ndk::ScopedAStatus::ok();
+  }
+
   std::vector<record_track_metadata> metadata_vec;
   metadata_vec.reserve(sink_metadata.tracks.size());
   for (const auto& metadata : sink_metadata.tracks) {
+    LOG(INFO) << __func__ << ": source: " << static_cast<audio_source_t>(metadata.source);
     metadata_vec.push_back({
         .source = static_cast<audio_source_t>(metadata.source),
         .gain = metadata.gain,

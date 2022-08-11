@@ -40,6 +40,7 @@
 #include "l2cdefs.h"
 #include "osi/include/allocator.h"
 #include "osi/include/time.h"
+#include "device/include/interop.h"
 
 #define MAX_ACL_SLAVE_LINKS  0x03
 
@@ -2422,12 +2423,15 @@ bool l2cu_create_conn_after_switch(tL2C_LCB* p_lcb) {
   L2CAP_TRACE_DEBUG(
       "l2cu_create_conn_after_switch :%d num_slave_acl_links :%d no_hi: %d is_bonding:%d",
       l2cb.disallow_switch, num_slave_acl_links, no_hi_prio_chs, p_lcb->is_bonding);
+
+  bool switch_disallowed = interop_match_addr_or_name(
+      INTEROP_DISABLE_ROLE_SWITCH_DURING_CONNECTION, &p_lcb->remote_bd_addr);
   /* FW team says that we can participant in 4 piconets
    * typically 3 piconet + 1 for scanning.
    * We can enhance the code to count the number of piconets later. */
   if (((!l2cb.disallow_switch && (num_slave_acl_links < MAX_ACL_SLAVE_LINKS)) ||
        (p_lcb->is_bonding && (no_hi_prio_chs == 0))) &&
-      HCI_SWITCH_SUPPORTED(p_features))
+      HCI_SWITCH_SUPPORTED(p_features) && !switch_disallowed)
     allow_switch = HCI_CR_CONN_ALLOW_SWITCH;
   else
     allow_switch = HCI_CR_CONN_NOT_ALLOW_SWITCH;

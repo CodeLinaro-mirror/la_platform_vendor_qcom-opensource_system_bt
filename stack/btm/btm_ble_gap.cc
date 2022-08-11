@@ -655,8 +655,8 @@ static void btm_ble_vendor_capability_vsc_cmpl_cback(
   if (btm_cb.cmn_ble_vsc_cb.version_supported >=
       BTM_VSC_CHIP_CAPABILITY_M_VERSION) {
     STREAM_TO_UINT16(btm_cb.cmn_ble_vsc_cb.total_trackable_advertisers, p);
-    STREAM_TO_UINT16(btm_cb.cmn_ble_vsc_cb.extended_scan_support, p);
-    STREAM_TO_UINT16(btm_cb.cmn_ble_vsc_cb.debug_logging_supported, p);
+    STREAM_TO_UINT8(btm_cb.cmn_ble_vsc_cb.extended_scan_support, p);
+    STREAM_TO_UINT8(btm_cb.cmn_ble_vsc_cb.debug_logging_supported, p);
   }
 
   if (btm_cb.cmn_ble_vsc_cb.version_supported >=
@@ -2508,6 +2508,33 @@ static void btm_ble_appearance_to_cod(uint16_t appearance, uint8_t* dev_class) {
   };
 }
 
+bool parse_adv_audio_uuids_from_adv_pkt (const uint8_t* ad, size_t ad_len,
+    uint8_t type) {
+  size_t position = 0;
+
+  while (position < ad_len) {
+    uint8_t len = ad[position];
+
+    if (len == 0) break;
+
+    if (position + len >= ad_len) break;
+
+    uint8_t adv_type = ad[position + 1];
+
+    if (adv_type == type) {
+      const uint8_t *p_uuid16 = ad + position + 2;
+      BTM_TRACE_DEBUG(" %s: position = %d, len = %d, p_uuid16 = %04x",
+            __func__, position, len, (p_uuid16[0] | (p_uuid16[1] << 8)));
+      if (((p_uuid16[0] | (p_uuid16[1] << 8)) == UUID_SERVCLASS_ADV_AUDIO_CONN)
+          || ((p_uuid16[0] | (p_uuid16[1] << 8)) == UUID_SERVCLASS_ADV_AUDIO_CONN_LESS)) {
+        return true;
+      }
+    }
+    position += len + 1; /* skip the length of data */
+
+  }
+  return false;
+}
 /**
  * Update adv packet information into inquiry result.
  */
@@ -2600,24 +2627,17 @@ void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
       }
     }
 #ifdef ADV_AUDIO_FEATURE
-    p_uuid16 = AdvertiseDataParser::GetFieldByType(
-      data, 0x16, &len);
-    if (p_uuid16 != NULL) {
-      uint8_t i;
-      for (i = 0; i + 2 <= len; i = i + 2) {
-        if (controller_get_interface()->is_adv_audio_supported()) {
-          /* if this BLE device support ADV AUDIO over LE, set ADV AUDIO Major
-           * in class of device */
-          if (((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_ADV_AUDIO_CONN)
-              || ((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_ADV_AUDIO_CONN_LESS)) {
-            VLOG(1) << __func__ << " updated to ADV AUDIO COD PROP";
-            p_cur->dev_class[0] = 0;
-            p_cur->dev_class[1] = BTM_COD_MAJOR_ADV_AUDIO;
-            p_cur->dev_class[2] = 0;
-            p_cur->is_adv_audio = true;
-            break;
-          }
-        }
+    bool is_adv_audio_support = parse_adv_audio_uuids_from_adv_pkt
+      (data.data(),data.size(), 0x16);
+    if (controller_get_interface()->is_adv_audio_supported()) {
+      /* if this BLE device support ADV AUDIO over LE, set ADV AUDIO Major
+       * in class of device */
+      if (is_adv_audio_support) {
+        VLOG(1) << __func__ << " updated to ADV AUDIO COD PROP";
+        p_cur->dev_class[0] = 0;
+        p_cur->dev_class[1] = BTM_COD_MAJOR_ADV_AUDIO;
+        p_cur->dev_class[2] = 0;
+        p_cur->is_adv_audio = true;
       }
     }
 #endif

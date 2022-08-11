@@ -974,8 +974,9 @@ void bta_dm_hci_raw_command (tBTA_DM_MSG *p_data)
  ***
  ******************************************************************************/
 void bta_dm_process_remove_device(const RawAddress& bd_addr) {
+
   /* need to remove all pending background connection before unpair */
-  BTA_GATTC_CancelOpen(0, bd_addr, false);
+  GATT_CancelConnect(0, bd_addr, false);
 
   BTM_SecDeleteDevice(bd_addr);
 
@@ -1111,8 +1112,11 @@ void bta_dm_remove_device(tBTA_DM_MSG* p_data) {
   if (continue_delete_other_dev && !other_address.IsEmpty())
     bta_dm_process_remove_device(other_address);
 
+  uint32_t num_bond_devices = btif_storage_get_num_bonded_devices();
+    APPL_TRACE_DEBUG("%s: btif_storage_get_num_bonded_devices()  %d ",
+        __func__, num_bond_devices);
   /* Check the length of the paired devices, and if 0 then reset IRK */
-  if (btif_storage_get_num_bonded_devices() < 1) {
+  if (num_bond_devices < 1) {
     LOG(INFO) << "Last paired device removed, resetting IRK";
     btm_ble_reset_id();
   }
@@ -4164,7 +4168,7 @@ static void bta_dm_adjust_roles(bool delay_role_switch) {
                   BTA_SLAVE_ROLE_ONLY && !delay_role_switch) {
             BTM_SwitchRole(bta_dm_cb.device_list.peer_device[i].peer_bdaddr,
                            HCI_ROLE_MASTER, NULL);
-          } else {
+          } else if (delay_role_switch) {
             alarm_set_on_mloop(bta_dm_cb.switch_delay_timer,
                                BTA_DM_SWITCH_DELAY_TIMER_MS,
                                bta_dm_delay_role_switch_cback, NULL);

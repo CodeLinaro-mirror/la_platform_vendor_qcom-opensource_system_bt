@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "build/build_config.h"
 #ifdef OS_ANDROID
 #include <private/android_filesystem_config.h>
 #include <unistd.h>
