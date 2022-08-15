@@ -1219,6 +1219,10 @@ static bool l2c_link_send_to_lower(tL2C_LCB* p_lcb, BT_HDR* p_buf,
 #ifdef BT_LPM_SUPPORTED
   if (lpm_flow_off_flag == true) {
     L2CAP_TRACE_DEBUG(" %a : lpm_flow_off_flag is True. Returning ", __func__);
+    if (p_buf != NULL) {
+        osi_free(p_buf);
+        p_buf = NULL;
+    }
     //Need to verify any isssues with returning false
     return false;
   }
