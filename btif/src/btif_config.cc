@@ -451,6 +451,24 @@ static bool btif_in_encrypt_key_name_list(std::string key) {
                    key) != (encrypt_key_name_list + ENCRYPT_KEY_NAME_LIST_SIZE);
 }
 
+bool btif_config_get_key_from_bin(const char* section, const char* key) {
+  CHECK(config != NULL);
+  CHECK(section != NULL);
+  CHECK(key != NULL);
+
+  std::unique_lock<std::recursive_mutex> lock(config_lock);
+
+  const char* value_str_from_config = config_get_string(config, section, key, NULL);
+
+  if (!value_str_from_config) {
+    VLOG(1)  << __func__ << ": cannot find string for section " << section
+                 << ", key " << key;
+    return false;
+  }
+
+  return true;
+}
+
 bool btif_config_get_bin(const char* section, const char* key, uint8_t* value,
                          size_t* length) {
   CHECK(config != NULL);
@@ -465,7 +483,7 @@ bool btif_config_get_bin(const char* section, const char* key, uint8_t* value,
   const char* value_str_from_config = config_get_string(config, section, key, NULL);
 
   if (!value_str_from_config) {
-    VLOG(2)  << __func__ << ": cannot find string for section " << section
+    VLOG(1)  << __func__ << ": cannot find string for section " << section
                  << ", key " << key;
     return false;
   }
@@ -483,14 +501,26 @@ bool btif_config_get_bin(const char* section, const char* key, uint8_t* value,
     value_str = svalue_str_from_config;
   }
 
-  if (!value_str) return false;
+  if (!value_str) {
+    VLOG(2)  << __func__ << ": cannot find string for section " << section
+                 << ", key VALUE ";
+    return false;
+  }
 
   const char* cvalue_str = value_str->c_str();
   size_t value_len = strlen(cvalue_str);
-  if ((value_len % 2) != 0 || *length < (value_len / 2)) return false;
+  if ((value_len % 2) != 0 || *length < (value_len / 2)) {
+    VLOG(2)  << __func__ << ": cannot find string for section " << section
+                 << ", INVALID KEY LEN ";
+    return false;
+  }
 
   for (size_t i = 0; i < value_len; ++i)
-    if (!isxdigit(value_str->c_str()[i])) return false;
+    if (!isxdigit(value_str->c_str()[i])) {
+      VLOG(2)  << __func__ << ": cannot find string for section " << section
+                   << ", INVALID KEY VALUE ";
+      return false;
+    }
 
   for (*length = 0; *cvalue_str; cvalue_str += 2, *length += 1) {
     sscanf(cvalue_str, "%02hhx", &value[*length]);

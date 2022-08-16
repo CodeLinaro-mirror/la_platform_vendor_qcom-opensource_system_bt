@@ -27,6 +27,13 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  ******************************************************************************/
+
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #include <mutex>
 #include "audio_hal_interface/a2dp_encoding.h"
 
@@ -143,6 +150,10 @@ void btif_ahim_end_session() {
 
 tA2DP_CTRL_CMD btif_ahim_get_pending_command() {
   return bluetooth::audio::a2dp::get_pending_command();
+}
+
+uint16_t btif_ahim_get_sink_latency() {
+  return bluetooth::audio::a2dp::get_sink_latency();
 }
 
 void btif_ahim_reset_pending_command(uint8_t profile) {

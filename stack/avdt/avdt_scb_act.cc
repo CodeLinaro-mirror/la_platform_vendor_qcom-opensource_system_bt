@@ -20,6 +20,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /******************************************************************************
  *
  *  This module contains the action functions associated with the stream
@@ -844,6 +850,46 @@ void avdt_scb_hdl_start_cmd(tAVDT_SCB* p_scb,
 
 /*******************************************************************************
  *
+ * Function         avdt_scb_hdl_pending_start_rsp
+ *
+ * Description      This function send a indication to ccb to send response
+ *                  for a pending start request.
+ *
+ * Returns          Nothing.
+ *
+ ******************************************************************************/
+void avdt_scb_hdl_pending_start_rsp(tAVDT_SCB* p_scb,
+                            tAVDT_SCB_EVT* p_data) {
+  tAVDT_CCB           *p_ccb = p_scb->p_ccb;
+  tAVDT_CCB_EVT avdt_ccb_evt;
+  AVDT_TRACE_DEBUG(" %s send event to ccb error_code =%d", __func__,p_data->msg.hdr.err_code);
+  avdt_ccb_evt.msg.hdr.err_code = p_data->msg.hdr.err_code;
+
+  avdt_ccb_event(p_ccb, AVDT_CCB_API_PENDING_START_RSP_EVT, &avdt_ccb_evt);
+}
+
+/*******************************************************************************
+ *
+ * Function         avdt_scb_hdl_pending_suspend_rsp
+ *
+ * Description      This function send a indication to ccb to send response
+ *                  for a pending start request.
+ *
+ * Returns          Nothing.
+ *
+ ******************************************************************************/
+void avdt_scb_hdl_pending_suspend_rsp(tAVDT_SCB* p_scb,
+                            tAVDT_SCB_EVT* p_data) {
+  tAVDT_CCB           *p_ccb = p_scb->p_ccb;
+  tAVDT_CCB_EVT avdt_ccb_evt;
+  AVDT_TRACE_DEBUG(" %s send event to ccb error_code =%d", __func__,p_data->msg.hdr.err_code);
+  avdt_ccb_evt.msg.hdr.err_code = p_data->msg.hdr.err_code;
+
+  avdt_ccb_event(p_ccb, AVDT_CCB_API_PENDING_SUSPEND_RSP_EVT, &avdt_ccb_evt);
+}
+
+/*******************************************************************************
+ *
  * Function         avdt_scb_hdl_start_rsp
  *
  * Description      This function calls the application callback with a
@@ -1130,14 +1176,17 @@ void avdt_scb_hdl_tc_open(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   alarm_cancel(p_scb->transport_channel_timer);
 
   if ((p_scb->cs.tsep == AVDT_TSEP_SNK) && (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
-    delay_rpt_alarm = alarm_new_periodic("avdt.delayreport");
-    if (delay_rpt_alarm == NULL) {
-      AVDT_TRACE_ERROR("%s: unable to allocate delay report alarm", __func__);
-      return;
+    // in case of split mode, no need for timer,
+    if(!p_scb->cs.is_split_enabled) {
+      delay_rpt_alarm = alarm_new_periodic("avdt.delayreport");
+      if (delay_rpt_alarm == NULL) {
+        AVDT_TRACE_ERROR("%s: unable to allocate delay report alarm", __func__);
+        return;
+      }
+      alarm_set(delay_rpt_alarm, (period_ms_t)1000 ,(alarm_callback_t)avdt_delay_rpt_tmr_hdlr,
+                (void*)p_scb);
+      AVDT_TRACE_DEBUG(" %s ~~ start update delay report timer",__func__);
     }
-    alarm_set(delay_rpt_alarm, (period_ms_t)1000 ,(alarm_callback_t)avdt_delay_rpt_tmr_hdlr,
-              (void*)p_scb);
-    AVDT_TRACE_DEBUG(" %s ~~ start update delay report timer",__func__);
   }
 
   event =

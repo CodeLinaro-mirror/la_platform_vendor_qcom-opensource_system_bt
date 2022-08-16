@@ -21,6 +21,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #ifndef BTIF_A2DP_H
 #define BTIF_A2DP_H
 
@@ -77,4 +83,19 @@ void btif_a2dp_sink_on_init(void);
 
 // Honor remote start
 void btif_a2dp_honor_remote_start(struct alarm_t **remote_start_alarm, int index);
+
+bool btif_a2dp_sink_is_hal_v2_enabled(void);
+
+bool btif_a2dp_sink_is_hal_v2_supported(void);
+
+bt_status_t btif_a2dp_sink_setup_codec(tBTA_AV_HNDL hndl);
+
+bool btif_a2dp_sink_start_session(const RawAddress& peer_address);
+
+bool btif_a2dp_sink_is_restart_session_needed();
+
+bool btif_a2dp_sink_restart_session(const RawAddress& old_peer_address,
+                                      const RawAddress& new_peer_address);
+
+void btif_a2dp_sink_process_request(tA2DP_CTRL_CMD cmd);
 #endif /* BTIF_A2DP_H */

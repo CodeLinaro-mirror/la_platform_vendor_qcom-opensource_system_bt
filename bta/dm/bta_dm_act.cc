@@ -427,6 +427,7 @@ static void bta_dm_sys_hw_cback(tBTA_SYS_HW_EVT status) {
   uint8_t key_mask = 0;
   tBTA_BLE_LOCAL_ID_KEYS id_key;
   tBTA_DM_MSG* p_data;
+  char board_name[PROPERTY_VALUE_MAX];
 #ifdef ADV_AUDIO_FEATURE
   char adv_audio_support_prop_value[PROPERTY_VALUE_MAX];
 #endif
@@ -525,8 +526,14 @@ static void bta_dm_sys_hw_cback(tBTA_SYS_HW_EVT status) {
                        dev_class[0], dev_class[1], dev_class[2]);
     }
 #endif
-
-    BTM_SetDeviceClass(dev_class);
+    osi_property_get("ro.board.platform", board_name, "");
+    if (!strncmp("neo", board_name, 3)) {
+      APPL_TRACE_DEBUG("%s chanding class name for neo", __func__);
+      dev_class[0] = 0x14; // minor dev class as Glass
+      dev_class[1] = 0x07; // major dev class as Wearable
+      dev_class[1] = 0x20; // Service class as Audio
+      BTM_SetDeviceClass(dev_class);
+    }
 
     /* load BLE local information: ID keys, ER if available */
     Octet16 er;
@@ -1013,7 +1020,7 @@ void bta_dm_remove_device(tBTA_DM_MSG* p_data) {
     }
    /*
     The remote device is not in bta_dm_cb.device_list because remote extended
-    features complete event is not retured.   The reason may be remote device 
+    features complete event is not retured.   The reason may be remote device
     is in bad state and has no response.
     For this case, ACL link shall be removed also.
     */
@@ -1078,8 +1085,11 @@ void bta_dm_remove_device(tBTA_DM_MSG* p_data) {
   if (continue_delete_other_dev && !other_address.IsEmpty())
     bta_dm_process_remove_device(other_address);
 
+  uint32_t num_bond_devices = btif_storage_get_num_bonded_devices();
+    APPL_TRACE_DEBUG("%s: btif_storage_get_num_bonded_devices()  %d ",
+        __func__, num_bond_devices);
   /* Check the length of the paired devices, and if 0 then reset IRK */
-  if (btif_storage_get_num_bonded_devices() < 1) {
+  if (num_bond_devices < 1) {
     LOG(INFO) << "Last paired device removed, resetting IRK";
     btm_ble_reset_id();
   }
@@ -4130,7 +4140,7 @@ static void bta_dm_adjust_roles(bool delay_role_switch) {
                   BTA_SLAVE_ROLE_ONLY && !delay_role_switch) {
             BTM_SwitchRole(bta_dm_cb.device_list.peer_device[i].peer_bdaddr,
                            HCI_ROLE_MASTER, NULL);
-          } else {
+          } else if (delay_role_switch) {
             alarm_set_on_mloop(bta_dm_cb.switch_delay_timer,
                                BTA_DM_SWITCH_DELAY_TIMER_MS,
                                bta_dm_delay_role_switch_cback, NULL);
