@@ -49,6 +49,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /******************************************************************************
  *
  *  This is the implementation of the API for the advanced audio/video (AV)
@@ -807,4 +813,55 @@ void bta_av_sniff_enable(bool policy_enable, const RawAddress& peer_addr) {
     bta_sys_set_policy(BTA_ID_AV, policy, peer_addr);
   else
     bta_sys_clear_policy(BTA_ID_AV, policy, peer_addr);
+}
+
+void BTA_AvkOffloadStart(tBTA_AV_HNDL  hndl) {
+    BT_HDR *p_buf = (BT_HDR *)osi_malloc(sizeof(BT_HDR));
+    p_buf->event = BTA_AV_SINK_API_OFFLOAD_START_EVT;
+    p_buf->layer_specific = hndl;
+    bta_sys_sendmsg(p_buf);
+}
+
+void BTA_AvkOffloadStop(tBTA_AV_HNDL  hndl) {
+    BT_HDR *p_buf = (BT_HDR *)osi_malloc(sizeof(BT_HDR));
+    p_buf->event = BTA_AV_SINK_API_OFFLOAD_STOP_EVT;
+    p_buf->layer_specific = hndl;
+    bta_sys_sendmsg(p_buf);
+}
+
+void BTA_AvkSendPedingStartCnf(tBTA_AV_HNDL  hndl) {
+    BT_HDR *p_buf = (BT_HDR *)osi_malloc(sizeof(BT_HDR));
+    p_buf->event = BTA_AV_SINK_API_PENDING_START_CNF_EVT;
+    p_buf->layer_specific = hndl;
+    bta_sys_sendmsg(p_buf);
+}
+
+void BTA_AvkSendPedingStartRej(tBTA_AV_HNDL  hndl) {
+    BT_HDR *p_buf = (BT_HDR *)osi_malloc(sizeof(BT_HDR));
+    p_buf->event = BTA_AV_SINK_API_PENDING_START_REJECT_EVT;
+    p_buf->layer_specific = hndl;
+    bta_sys_sendmsg(p_buf);
+}
+
+void BTA_AvkSendPedingSuspendCnf(tBTA_AV_HNDL  hndl) {
+    BT_HDR *p_buf = (BT_HDR *)osi_malloc(sizeof(BT_HDR));
+    p_buf->event = BTA_AV_SINK_API_PENDING_SUSPEND_CNF_EVT;
+    p_buf->layer_specific = hndl;
+    bta_sys_sendmsg(p_buf);
+}
+
+void BTA_AvkSendPedingSuspendRej(tBTA_AV_HNDL  hndl) {
+    BT_HDR *p_buf = (BT_HDR *)osi_malloc(sizeof(BT_HDR));
+    p_buf->event = BTA_AV_SINK_API_PENDING_SUSPEND_REJECT_EVT;
+    p_buf->layer_specific = hndl;
+    bta_sys_sendmsg(p_buf);
+}
+
+void BTA_AvkUpdateDelayReport(tBTA_AV_HNDL hndl, uint16_t sink_latency) {
+    tBTA_AV_API_SINK_LATENCY* p_buf =
+       (tBTA_AV_API_SINK_LATENCY*)osi_malloc(sizeof(tBTA_AV_API_SINK_LATENCY));
+    p_buf->hdr.layer_specific = hndl;
+    p_buf->sink_latency = sink_latency;
+    p_buf->hdr.event = BTA_AV_SINK_API_UPDATE_DELAY_REPORT_EVT;
+    bta_sys_sendmsg(p_buf);
 }

@@ -21,6 +21,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #define LOG_TAG "bt_btif_a2dp_source"
 #define ATRACE_TAG ATRACE_TAG_AUDIO
 
@@ -174,6 +180,8 @@ extern int btif_av_get_tws_pair_idx(int index);
 extern void btif_av_clear_pending_start_flag();
 extern bool btif_av_is_tws_suspend_triggered(int index);
 
+extern bool bt_split_a2dp_sink_enabled;
+extern thread_t* get_sink_worker_thread();
 static char a2dp_hal_imp[PROPERTY_VALUE_MAX] = "false";
 UNUSED_ATTR static const char* dump_media_event(uint16_t event) {
   switch (event) {
@@ -628,7 +636,7 @@ void btif_a2dp_source_stop_audio_req(void) {
   if (btif_a2dp_source_is_hal_v2_enabled()) {
 #if AHIM_ENABLED
     pending_cmd = btif_ahim_get_pending_command();
-#else 
+#else
     pending_cmd = bluetooth::audio::a2dp::get_pending_command();
 #endif
   } else {
@@ -778,7 +786,7 @@ void btif_a2dp_source_on_stopped(tBTA_AV_SUSPEND* p_av_suspend) {
   tA2DP_CTRL_CMD pending_cmd = A2DP_CTRL_CMD_NONE;
   if (btif_a2dp_source_is_hal_v2_enabled()) {
 #if AHIM_ENABLED
-    pending_cmd = btif_ahim_get_pending_command(); 
+    pending_cmd = btif_ahim_get_pending_command();
 #else
     pending_cmd = bluetooth::audio::a2dp::get_pending_command();
 #endif
@@ -2123,6 +2131,10 @@ void btif_a2dp_source_process_request(tA2DP_CTRL_CMD cmd) {
 }
 
 thread_t* get_worker_thread() {
-  return btif_a2dp_source_cb.worker_thread;
+  if(bt_split_a2dp_sink_enabled) {
+    return get_sink_worker_thread();
+  } else {
+    return btif_a2dp_source_cb.worker_thread;
+  }
 }
 

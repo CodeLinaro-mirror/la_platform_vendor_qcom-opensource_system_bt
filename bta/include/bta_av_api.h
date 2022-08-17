@@ -49,6 +49,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /******************************************************************************
  *
  *  This is the public interface file for the advanced audio/video streaming
@@ -118,7 +124,9 @@ typedef uint8_t tBTA_AV_STATUS;
 #define BTA_AV_FEAT_NO_SCO_SSPD \
   0x8000 /* Do not suspend av streaming as to AG events(SCO or Call) */
 
-typedef uint16_t tBTA_AV_FEAT;
+#define BTA_AV_FEAT_SPLIT_ENABLED 0x20000  /* Do not suspend av streaming as to AG events(SCO or Cal
+l) */
+typedef uint32_t tBTA_AV_FEAT;
 
 /* AV channel values */
 #define BTA_AV_CHNL_MSK 0xC0
@@ -292,9 +300,10 @@ typedef uint8_t tBTA_AV_ERR;
 #define BTA_AV_DELAY_REPORT_EVT 27      /* update delay report */
 #define BTA_AV_OFFLOAD_STOP_RSP_EVT 28  /* a2dp offload start response */
 #define BTA_AV_COLL_DETECTED_EVT 29     /* AV channel collission detected */
-
+#define BTA_AV_SINK_OFFLOAD_START_RSP_EVT 30    /* a2dp offload start response */
+#define BTA_AV_SINK_OFFLOAD_STOP_RSP_EVT 31    /* a2dp offload stop response */
 /* Max BTA event */
-#define BTA_AV_MAX_EVT 30
+#define BTA_AV_MAX_EVT 32
 
 typedef uint8_t tBTA_AV_EVT;
 
@@ -382,6 +391,21 @@ typedef struct {
   tBTA_AV_STATUS status;
   uint16_t cover_art_psm;  /* l2cap psm for cover art on remote */
 } tBTA_AV_RC_OPEN;
+
+typedef struct {
+  tBTA_AV_HNDL hndl;
+  tBTA_AV_STATUS status;
+} tBTA_AV_SINK_OFFLOAD_RSP;
+
+typedef struct {
+  uint8_t index;
+  bool accepted;
+} tBTA_AV_SINK_START_RSP;
+
+typedef struct {
+  uint8_t index;
+  bool accepted;
+} tBTA_AV_SINK_SUSPEND_RSP;
 
 /* data associated with BTA_AV_RC_CLOSE_EVT */
 typedef struct {
@@ -531,6 +555,9 @@ typedef union {
   tBTA_AV_ROLE_CHANGED role_changed;
   tBTA_AV_DELAY_RPT delay_rpt;
   tBTA_AV_OFFLOAD_RSP offload_rsp;
+  tBTA_AV_SINK_OFFLOAD_RSP snk_offload_rsp;
+  tBTA_AV_SINK_START_RSP   start_rsp;// to handle response from btapp for start ind
+  tBTA_AV_SINK_SUSPEND_RSP   suspend_rsp; // to handle response from btapp for suspend ind
 } tBTA_AV;
 
 typedef struct {
@@ -774,7 +801,6 @@ void BTA_AvUpdateEncoderMode(uint16_t enc_mode);
  ******************************************************************************/
 void BTA_AvUpdateAptxData(uint32_t data);
 
-
 /*******************************************************************************
  * Function         BTA_AvProtectReq
  *
@@ -959,4 +985,11 @@ bool bta_av_get_is_peer_state_incoming(const RawAddress& bd_addr);
 void bta_av_refresh_accept_signalling_timer(const RawAddress &remote_bdaddr);
 tBTA_AV_SCB* bta_av_addr_to_scb(const RawAddress& bd_addr);
 void bta_av_fake_suspend_rsp(const RawAddress &remote_bdaddr);
+void BTA_AvkOffloadStart(tBTA_AV_HNDL hndl);
+void BTA_AvkOffloadStop(tBTA_AV_HNDL hndl);
+void BTA_AvkSendPedingStartCnf(tBTA_AV_HNDL hndl);
+void BTA_AvkSendPedingStartRej(tBTA_AV_HNDL  hndl);
+void BTA_AvkSendPedingSuspendCnf(tBTA_AV_HNDL  hndl);
+void BTA_AvkSendPedingSuspendRej(tBTA_AV_HNDL  hndl);
+void BTA_AvkUpdateDelayReport(tBTA_AV_HNDL hndl, uint16_t sink_latency);
 #endif /* BTA_AV_API_H */

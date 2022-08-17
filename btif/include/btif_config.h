@@ -55,6 +55,7 @@ bool btif_config_set_str(const char* section, const char* key,
                          const char* value);
 bool btif_config_get_bin(const char* section, const char* key, uint8_t* value,
                          size_t* length);
+bool btif_config_get_key_from_bin(const char* section, const char* key);
 bool btif_config_set_bin(const char* section, const char* key,
                          const uint8_t* value, size_t length);
 bool btif_config_remove(const char* section, const char* key);
