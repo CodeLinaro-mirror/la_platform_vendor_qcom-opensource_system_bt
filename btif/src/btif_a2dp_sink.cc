@@ -808,10 +808,13 @@ static void btif_a2dp_sink_decoder_update_event(
     btif_a2dp_sink_cb.decoder_interface->decoder_configure(p_buf->codec_info);
   }
 
+  APPL_TRACE_DEBUG("%s: codex_index %d", __func__, codec_index);
+  audio_output_flags_t audio_flag = (codec_index == BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD) ?
+      AUDIO_OUTPUT_FLAG_DIRECT : AUDIO_OUTPUT_FLAG_DEEP_BUFFER;
   APPL_TRACE_DEBUG("%s: create audio track", __func__);
   btif_a2dp_sink_cb.audio_track =
 #ifndef OS_GENERIC
-      BtifAvrcpAudioTrackCreate(sample_rate, bits_per_sample, channel_type);
+      BtifAvrcpAudioTrackCreate(sample_rate, bits_per_sample, channel_type, audio_flag);
 #else
       NULL;
 #endif
