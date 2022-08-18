@@ -17,6 +17,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #ifndef BTIF_A2DP_SINK_H
 #define BTIF_A2DP_SINK_H
 
@@ -107,4 +113,5 @@ void btif_a2dp_sink_set_focus_state_req(btif_a2dp_sink_focus_state_t state);
 // |gain| is the audio track gain value to use.
 void btif_a2dp_sink_set_audio_track_gain(float gain);
 
+void btif_a2dp_sink_on_started(tBTA_AV_START* p_av_start);
 #endif /* BTIF_A2DP_SINK_H */
