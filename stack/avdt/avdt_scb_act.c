@@ -319,7 +319,6 @@ void avdt_scb_hdl_pkt_no_frag(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
     }
 
     if ((p - p_start) > len) {
-      android_errorWriteLog(0x534e4554, "142546355");
       osi_free_and_reset((void**)&p_data->p_pkt);
       return;
     }
