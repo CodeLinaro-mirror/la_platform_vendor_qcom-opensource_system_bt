@@ -274,6 +274,7 @@ void avdt_scb_hdl_pkt_no_frag(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
     UINT16  offset;
     UINT16  ex_len;
     UINT8   pad_len = 0;
+    UINT16  len;
 
     if ((p_scb != NULL)&&(p_scb->cs.p_data_cback != NULL))
     {
@@ -287,7 +288,12 @@ void avdt_scb_hdl_pkt_no_frag(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
             return;
         }
     }
+    len = p_data->p_pkt->len;
     p = p_start = (UINT8 *)(p_data->p_pkt + 1) + p_data->p_pkt->offset;
+
+    offset = 12;
+    // AVDT_MSG_PRS_OCTET1(1) + AVDT_MSG_PRS_M_PT(1) + UINT16(2) + UINT32(4) + 4
+    if (offset > len) goto length_error;
 
     /* parse media packet header */
     AVDT_MSG_PRS_OCTET1(p, o_v, o_p, o_x, o_cc);
@@ -299,28 +305,34 @@ void avdt_scb_hdl_pkt_no_frag(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
     UNUSED(o_v);
 
     /* skip over any csrc's in packet */
+    offset += o_cc * 4;
     p += o_cc * 4;
 
     /* check for and skip over extension header */
     if (o_x)
     {
+        offset += 4;
+        if (offset > len) goto length_error;
         p += 2;
         BE_STREAM_TO_UINT16(ex_len, p);
         p += ex_len * 4;
     }
 
-    /* save our new offset */
-    offset = (UINT16) (p - p_start);
+    if ((p - p_start) > len) {
+        osi_free_and_reset((void**)&p_data->p_pkt);
+        return;
+    }
+    offset = p - p_start;
 
     /* adjust length for any padding at end of packet */
     if (o_p)
     {
         /* padding length in last byte of packet */
-        pad_len =  *(p_start + p_data->p_pkt->len);
+        pad_len =  *(p_start + len);
     }
 
     /* do sanity check */
-    if ((offset > p_data->p_pkt->len) || ((pad_len + offset) > p_data->p_pkt->len))
+    if (pad_len > (len - offset))
     {
         AVDT_TRACE_WARNING("Got bad media packet");
         osi_free_and_reset((void **)&p_data->p_pkt);
@@ -358,6 +370,12 @@ void avdt_scb_hdl_pkt_no_frag(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
             osi_free_and_reset((void **)&p_data->p_pkt);
         }
     }
+
+    return;
+length_error:
+    AVDT_TRACE_WARNING("%s: hdl packet length %d too short: must be at least %d",
+		       __func__, len, offset);
+    osi_free_and_reset((void **)&p_data->p_pkt);
 }
 
 #if AVDT_REPORTING == TRUE
@@ -375,6 +393,7 @@ UINT8 * avdt_scb_hdl_report(tAVDT_SCB *p_scb, UINT8 *p, UINT16 len)
     UINT16  result = AVDT_SUCCESS;
     UINT8   *p_start = p;
     UINT32  ssrc;
+    UINT16 min_len = 0;
     UINT8   o_v, o_p, o_cc;
     AVDT_REPORT_TYPE    pt;
     tAVDT_REPORT_DATA   report, *p_rpt;
@@ -383,6 +402,13 @@ UINT8 * avdt_scb_hdl_report(tAVDT_SCB *p_scb, UINT8 *p, UINT16 len)
     if(p_scb->cs.p_report_cback)
     {
         p_rpt = &report;
+	min_len += 8;
+	if (min_len > len) {
+		AVDT_TRACE_WARNING("%s: hdl packet length %d too short: must be at least %d",
+				   __func__, len, min_len);
+		goto avdt_scb_hdl_report_exit;
+	}
+
         /* parse report packet header */
         AVDT_MSG_PRS_RPT_OCTET1(p, o_v, o_p, o_cc);
         pt = *p++;
@@ -394,7 +420,13 @@ UINT8 * avdt_scb_hdl_report(tAVDT_SCB *p_scb, UINT8 *p, UINT16 len)
 
         switch(pt)
         {
-        case AVDT_RTCP_PT_SR:   /* the packet type - SR (Sender Report) */
+	case AVDT_RTCP_PT_SR:   /* the packet type - SR (Sender Report) */
+	    min_len += 20;
+	    if (min_len > len) {
+	        AVDT_TRACE_WARNING("%s: hdl packet length %d too short: must be at least %d",
+	                           __func__, len, min_len);
+		goto avdt_scb_hdl_report_exit;
+	    }
             BE_STREAM_TO_UINT32(report.sr.ntp_sec, p);
             BE_STREAM_TO_UINT32(report.sr.ntp_frac, p);
             BE_STREAM_TO_UINT32(report.sr.rtp_time, p);
@@ -403,6 +435,12 @@ UINT8 * avdt_scb_hdl_report(tAVDT_SCB *p_scb, UINT8 *p, UINT16 len)
             break;
 
         case AVDT_RTCP_PT_RR:   /* the packet type - RR (Receiver Report) */
+	    min_len += 20;
+	    if (min_len > len) {
+		    AVDT_TRACE_WARNING("%s: hdl packet length %d too short: must be at least %d",
+				       __func__, len, min_len);
+		    goto avdt_scb_hdl_report_exit;
+	    }
             report.rr.frag_lost = *p;
             BE_STREAM_TO_UINT32(report.rr.packet_lost, p);
             report.rr.packet_lost &= 0xFFFFFF;
@@ -413,14 +451,28 @@ UINT8 * avdt_scb_hdl_report(tAVDT_SCB *p_scb, UINT8 *p, UINT16 len)
             break;
 
         case AVDT_RTCP_PT_SDES: /* the packet type - SDES (Source Description) */
+	    min_len += 1;
+	    if (min_len > len) {
+		    AVDT_TRACE_WARNING("%s: hdl packet length %d too short: must be at least %d",
+				       __func__, len, min_len);
+		    goto avdt_scb_hdl_report_exit;
+	    }
             if(*p == AVDT_RTCP_SDES_CNAME)
             {
+	        min_len += 1;
+		if (min_len > len) {
+		    AVDT_TRACE_WARNING("%s: hdl packet length %d too short: must be at least %d",
+					 __func__, len, min_len);
+		    goto avdt_scb_hdl_report_exit;
+		}
                 p_rpt = (tAVDT_REPORT_DATA *)(p+2);
             }
             else
             {
-                AVDT_TRACE_WARNING( " - SDES SSRC=0x%08x sc=%d %d len=%d %s",
-                    ssrc, o_cc, *p, *(p+1), p+2);
+	        min_len += 2;
+		if (len >= min_len)
+		    AVDT_TRACE_WARNING( " - SDES SSRC=0x%08x sc=%d %d len=%d %s",
+		            ssrc, o_cc, *p, *(p+1), p+2);
                 result = AVDT_BUSY;
             }
             break;
@@ -434,6 +486,7 @@ UINT8 * avdt_scb_hdl_report(tAVDT_SCB *p_scb, UINT8 *p, UINT16 len)
             (*p_scb->cs.p_report_cback)(avdt_scb_to_hdl(p_scb), pt, p_rpt);
 
     }
+avdt_scb_hdl_report_exit:
     p_start += len;
     return p_start;
 }
