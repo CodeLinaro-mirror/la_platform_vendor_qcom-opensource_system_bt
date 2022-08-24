@@ -1522,6 +1522,13 @@ BT_HDR* l2cu_get_next_buffer_to_send(tL2C_LCB* p_lcb) {
           return (NULL);
         }
 
+        // Check if ccb needs to be released after transmit data hold queue is empty
+        if (p_ccb->pending_remove && fixed_queue_is_empty(p_ccb->xmit_hold_q)) {
+          int fixed_cid = xx + L2CAP_FIRST_FIXED_CHNL;
+          L2CA_RemoveFixedChnl(fixed_cid, p_lcb->remote_bd_addr);
+          p_ccb->pending_remove = false;
+        }
+
         l2cu_check_channel_congestion(p_ccb);
         l2cu_set_acl_hci_header(p_buf, p_ccb);
         return (p_buf);
