@@ -389,6 +389,14 @@ uint8_t* avdt_scb_hdl_report(tAVDT_SCB* p_scb, uint8_t* p, uint16_t len) {
         break;
 
       case AVDT_RTCP_PT_SDES: /* the packet type - SDES (Source Description) */
+        min_len += 1;
+        if (min_len > len) {
+          android_errorWriteLog(0x534e4554, "111450156");
+          AVDT_TRACE_WARNING(
+              "%s: hdl packet length %d too short: must be at least %d",
+              __func__, len, min_len);
+          goto avdt_scb_hdl_report_exit;
+        }
         uint8_t sdes_type;
         min_len += 1;
         if (min_len > len) {
