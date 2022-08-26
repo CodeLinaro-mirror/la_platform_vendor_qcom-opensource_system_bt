@@ -295,4 +295,9 @@ int A2DP_GetBitsPerSampleSbc(const uint8_t* p_codec_info);
 
 uint16_t A2DP_GetOffloadBitrateSbcUsingCodecInfo(const uint8_t *codec_info,
                                                  bool peer_edr);
+
+// Checks peer initiated setconfig with DUT supported config
+// and returns proper status.
+tA2DP_STATUS A2DP_IsCodecConfigMatchSbc(const uint8_t* p_codec_info);
+
 #endif  // A2DP_SBC_H
