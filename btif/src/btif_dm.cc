@@ -378,6 +378,7 @@ extern void btif_store_adv_audio_pair_info(RawAddress bd_addr);
 extern bool bta_lea_is_le_pairing();
 extern void bta_dm_reset_adv_audio_pairing_info(RawAddress p_addr);
 #endif
+extern void btif_vendor_le_acl_disconnected (RawAddress bd_addr);
 /******************************************************************************
  *  Functions
  *****************************************************************************/
@@ -2265,7 +2266,7 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
         btm_set_bond_type_dev(pairing_cb.bd_addr, BOND_TYPE_UNKNOWN);
         bond_state_changed((bt_status_t)p_data->bond_cancel_cmpl.result,
                            bd_addr, BT_BOND_STATE_NONE);
-		btif_dm_remove_bond(&bd_addr);
+        btif_dm_remove_bond(&bd_addr);
       }
       break;
 
@@ -2426,9 +2427,13 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
         num_active_br_edr_links--;
         BTIF_TRACE_DEBUG("num_active_br_edr_links is %d ",num_active_br_edr_links);
       }
-     if (p_data->link_down.link_type == BT_TRANSPORT_BR_EDR) {
+      if (p_data->link_down.link_type == BT_TRANSPORT_BR_EDR) {
         //btif_av_move_idle(bd_addr);
-     }
+      }
+      if (p_data->link_down.link_type == BT_TRANSPORT_LE) {
+       //  btif_vendor_le_acl_disconnected(bd_addr);
+      }
+
       BTIF_TRACE_DEBUG(
           "BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
       bt_conn_direction_t direction;
