@@ -40,6 +40,7 @@
 #include "stack/l2cap/l2c_int.h"
 #include "utl.h"
 #include "device/include/interop.h"
+#include "osi/include/alarm.h"
 
 #if (BTA_HH_LE_INCLUDED == TRUE)
 #include "bta_hh_int.h"
@@ -90,6 +91,9 @@ static uint16_t bta_gattc_opcode_to_int_evt[] = {
 static const char* bta_gattc_op_code_name[] = {
     "Unknown", "Discovery", "Read",         "Write",
     "Exec",    "Config",    "Notification", "Indication"};
+
+static alarm_t* register_timer = NULL;
+
 /*****************************************************************************
  *  Action Functions
  ****************************************************************************/
@@ -117,6 +121,12 @@ static void bta_gattc_enable() {
   } else {
     APPL_TRACE_DEBUG("GATTC is already enabled");
   }
+}
+
+static void register_timer_cb(UNUSED_ATTR void* data) {
+  LOG_ERROR(LOG_TAG, "%s enter..", __func__);
+  alarm_free(register_timer);
+  register_timer = NULL;
 }
 
 /*******************************************************************************
@@ -159,6 +169,16 @@ void bta_gattc_disable() {
     memset(&bta_gattc_cb, 0, sizeof(tBTA_GATTC_CB));
     bta_gattc_cb.state = BTA_GATTC_STATE_DISABLED;
   }
+
+  if(register_timer == NULL) {
+      register_timer = alarm_new("gatt.register");
+      if (register_timer == NULL) {
+         LOG_ERROR(LOG_TAG, "%s unable to create gatt register alarm.", __func__);
+         return;
+      }
+  }
+  LOG_ERROR(LOG_TAG, "%s set register_timer 10ms start.", __func__);
+  alarm_set(register_timer, 10, register_timer_cb, NULL);
 }
 
 /** start an application interface */
@@ -182,6 +202,14 @@ void bta_gattc_register(const Uuid& app_uuid, tBTA_GATTC_CBACK* p_cback,
   if (bta_gattc_cb.state == BTA_GATTC_STATE_DISABLED) {
     bta_gattc_enable();
   }
+
+  if(register_timer != NULL) {
+    APPL_TRACE_ERROR("gattc register is so close to bta_gattc_disable, ignor it this time");
+    alarm_free(register_timer);
+    register_timer = NULL;
+    return;
+  }
+
   /* todo need to check duplicate uuid */
   for (uint8_t i = 0; i < BTA_GATTC_CL_MAX; i++) {
     if (!bta_gattc_cb.cl_rcb[i].in_use) {
