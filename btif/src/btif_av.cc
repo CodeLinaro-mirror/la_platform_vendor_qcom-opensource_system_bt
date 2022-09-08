@@ -2826,6 +2826,8 @@ static void bta_av_sink_media_callback(const RawAddress& peer_address,
     case BTA_AV_SINK_MEDIA_CFG_EVT: {
       btif_av_sink_config_req_t config_req;
 
+      // Set Active Peer to update decoder success in case BtaAvCo codec_config_ is cleared
+      bta_av_co_set_active_peer(peer_address);
       // Update the codec info of the A2DP Sink decoder
       btif_a2dp_sink_update_decoder((uint8_t*)(p_data->avk_config.codec_info));
 
