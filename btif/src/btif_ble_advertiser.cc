@@ -256,6 +256,14 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
                            BleAdvertisingManager::Get(), advertiser_id, enable,
                            jni_thread_wrapper(FROM_HERE, cb)));
   }
+#ifdef BT_LPM_SUPPORTED
+  void StopAdvertisements() override {
+    VLOG(1) << __func__ ;
+    if (!BleAdvertisingManager::IsInitialized()) return;
+        VLOG(1) << __func__ << " BleAdvertisingManager::IsInitialized";
+    //dummy function
+  }
+#endif
 };
 
 BleAdvertiserInterface* btLeAdvertiserInstance = nullptr;
