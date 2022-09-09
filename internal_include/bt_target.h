@@ -423,7 +423,7 @@
 */
 #ifndef BTA_DM_COD
 #define BTA_DM_COD \
-  { 0x5A, 0x02, 0x0C }
+    { 0x08, BTM_COD_MAJOR_WEARABLE, BTM_COD_MINOR_WRIST_WATCH }
 #endif
 
 /* The number of SCO links. */
