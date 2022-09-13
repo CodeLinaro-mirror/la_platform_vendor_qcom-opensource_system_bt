@@ -487,7 +487,8 @@ static future_t* start_up() {
   }
 
   if (is_btsnoop_enabled || is_vndbtsnoop_enabled) {
-    open_next_snoop_file();
+    LOG_DEBUG(LOG_TAG, "%s: is_btsnoop_enabled : %d ", __func__, is_btsnoop_enabled);
+    LOG_DEBUG(LOG_TAG, "%s: is_vndbtsnoop_enabled : %d ", __func__, is_vndbtsnoop_enabled);
     packets_per_file = (//osi_property_get_int32(BTSNOOP_MAX_PACKETS_PROPERTY,
                                               DEFAULT_BTSNOOP_SIZE);
     btsnoop_net_open();
