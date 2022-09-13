@@ -398,14 +398,6 @@ uint8_t* avdt_scb_hdl_report(tAVDT_SCB* p_scb, uint8_t* p, uint16_t len) {
           goto avdt_scb_hdl_report_exit;
         }
         uint8_t sdes_type;
-        min_len += 1;
-        if (min_len > len) {
-          android_errorWriteLog(0x534e4554, "111450156");
-          AVDT_TRACE_WARNING(
-              "%s: hdl packet length %d too short: must be at least %d",
-              __func__, len, min_len);
-          goto avdt_scb_hdl_report_exit;
-        }
         BE_STREAM_TO_UINT8(sdes_type, p);
         if (sdes_type == AVDT_RTCP_SDES_CNAME) {
           uint8_t name_length;
