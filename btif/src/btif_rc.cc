@@ -673,6 +673,7 @@ void handle_rc_connect(tBTA_AV_RC_OPEN* p_rc_open) {
     BTIF_TRACE_ERROR("%s: Connect failed with error code: %d", __func__,
                      p_rc_open->status);
     p_dev->rc_connected = false;
+    return;
   }
 
   // check if already some RC is connected
@@ -765,6 +766,7 @@ void handle_rc_disconnect(tBTA_AV_RC_CLOSE* p_rc_close) {
   if (p_dev->rc_state == BTRC_CONNECTION_STATE_CONNECTED) {
     p_dev->rc_handle = 0;
     p_dev->rc_connected = false;
+    p_dev->br_connected = false;
     p_dev->rc_state = BTRC_CONNECTION_STATE_DISCONNECTED;
 
     memset(p_dev->rc_notif, 0, sizeof(p_dev->rc_notif));
@@ -1063,6 +1065,13 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV* p_data) {
 
     case BTA_AV_RC_BROWSE_CLOSE_EVT: {
       BTIF_TRACE_DEBUG("%s: BTA_AV_RC_BROWSE_CLOSE_EVT", __func__);
+      p_dev = btif_rc_get_device_by_handle(p_data->rc_feat.rc_handle);
+      if (p_dev == NULL) {
+        BTIF_TRACE_ERROR("%s: BTA_AV_RC_BROWSE_CLOSE_EVT for Invalid rc handle",
+                         __func__);
+        break;
+      }
+      p_dev->br_connected = false;
     } break;
 
     case BTA_AV_REMOTE_CMD_EVT: {
@@ -3455,7 +3464,9 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
        */
       p_dev->rc_app_settings.query_started = true;
       if (p_dev->rc_features & BTA_AV_FEAT_APP_SETTING) {
-        list_player_app_setting_attrib_cmd(p_dev);
+        if (!p_dev->br_connected) {
+          list_player_app_setting_attrib_cmd(p_dev);
+        }
       } else {
         BTIF_TRACE_DEBUG("%s: App setting not supported, complete procedure",
                          __func__);
