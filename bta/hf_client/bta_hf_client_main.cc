@@ -237,7 +237,7 @@ const uint8_t bta_hf_client_st_closing[][BTA_HF_CLIENT_NUM_COLS] = {
                          BTA_HF_CLIENT_CLOSING_ST},
     /* SCO_OPEN_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
                         BTA_HF_CLIENT_CLOSING_ST},
-    /* SCO_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
+    /* SCO_CLOSE_EVT */ {BTA_HF_CLIENT_SCO_CONN_CLOSE, BTA_HF_CLIENT_IGNORE,
                          BTA_HF_CLIENT_CLOSING_ST},
     /* SEND_AT_CMD_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
                            BTA_HF_CLIENT_CLOSING_ST},
