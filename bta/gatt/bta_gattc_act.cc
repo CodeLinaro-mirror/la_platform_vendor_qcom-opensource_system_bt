@@ -26,6 +26,7 @@
 #define LOG_TAG "bt_bta_gattc"
 
 #include <string.h>
+#include <map>
 
 #include <base/callback.h>
 #include "bt_common.h"
@@ -108,6 +109,7 @@ static const char* bta_gattc_op_code_name[] = {
     "Indication"    /* GATTC_OPTYPE_INDICATION */
 };
 
+extern std::map<RawAddress, int> client_if_map;
 /*****************************************************************************
  *  Action Functions
  ****************************************************************************/
@@ -481,7 +483,7 @@ void bta_gattc_cancel_open(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
 
 /** receive connection callback from stack */
 void bta_gattc_conn(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
-  tGATT_IF gatt_if;
+  tGATT_IF gatt_if = 0xff;
   VLOG(1) << __func__ << ": server cache state=" << +p_clcb->p_srcb->state;
 
   if (p_data != NULL) {
@@ -492,34 +494,51 @@ void bta_gattc_conn(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
                             &p_clcb->transport);
   }
 
+
+ if ( (gatt_if == 0xff) && p_clcb && p_clcb->p_rcb) {
+     VLOG(1) << __func__ << ": gatt_if =" << loghex(p_clcb->p_rcb->client_if);
+     gatt_if = p_clcb->p_rcb->client_if;
+ }
+
+  int opportunistic_client_if = gatt_if + 1;
+  auto it = client_if_map.find(p_clcb->bda);
+  if (it != client_if_map.end()) {
+    opportunistic_client_if = it->second;
+  }
+  VLOG(1) << __func__ << ": gatt_if =" << loghex(gatt_if) << "opportunistic_client_if:" << loghex(opportunistic_client_if);
   p_clcb->p_srcb->connected = true;
 
   if (p_clcb->p_srcb->mtu == 0) p_clcb->p_srcb->mtu = GATT_DEF_BLE_MTU_SIZE;
 
-  /* start database cache if needed */
-  if (p_clcb->p_srcb->gatt_database.IsEmpty() ||
-      p_clcb->p_srcb->state != BTA_GATTC_SERV_IDLE) {
-    if (p_clcb->p_srcb->state == BTA_GATTC_SERV_IDLE) {
-      p_clcb->p_srcb->state = BTA_GATTC_SERV_LOAD;
-      if (bta_gattc_cache_load(p_clcb)) {
-        p_clcb->p_srcb->state = BTA_GATTC_SERV_IDLE;
-        bta_gattc_reset_discover_st(p_clcb->p_srcb, GATT_SUCCESS);
-      } else {
-        p_clcb->p_srcb->state = BTA_GATTC_SERV_DISC;
-        /* cache load failure, start discovery */
-        bta_gattc_start_discover(p_clcb, NULL);
-      }
-    } else /* cache is building */
-      p_clcb->state = BTA_GATTC_DISCOVER_ST;
-  }
-
-  else {
-    /* a pending service handle change indication */
-    if (p_clcb->p_srcb->srvc_hdl_chg) {
-      p_clcb->p_srcb->srvc_hdl_chg = false;
-      /* start discovery */
-      bta_gattc_sm_execute(p_clcb, BTA_GATTC_INT_DISCOVER_EVT, NULL);
+  if (opportunistic_client_if != gatt_if) {
+    /* start database cache if needed */
+    if (p_clcb->p_srcb->gatt_database.IsEmpty() ||
+        p_clcb->p_srcb->state != BTA_GATTC_SERV_IDLE) {
+      if (p_clcb->p_srcb->state == BTA_GATTC_SERV_IDLE) {
+        p_clcb->p_srcb->state = BTA_GATTC_SERV_LOAD;
+        if (bta_gattc_cache_load(p_clcb)) {
+          p_clcb->p_srcb->state = BTA_GATTC_SERV_IDLE;
+          bta_gattc_reset_discover_st(p_clcb->p_srcb, GATT_SUCCESS);
+        } else {
+          p_clcb->p_srcb->state = BTA_GATTC_SERV_DISC;
+          /* cache load failure, start discovery */
+          bta_gattc_start_discover(p_clcb, NULL);
+        }
+      } else /* cache is building */
+        p_clcb->state = BTA_GATTC_DISCOVER_ST;
     }
+
+    else {
+      /* a pending service handle change indication */
+      if (p_clcb->p_srcb->srvc_hdl_chg) {
+        p_clcb->p_srcb->srvc_hdl_chg = false;
+        /* start discovery */
+        bta_gattc_sm_execute(p_clcb, BTA_GATTC_INT_DISCOVER_EVT, NULL);
+      }
+    }
+  }
+  else {
+      client_if_map.erase(it);
   }
 
   if (p_clcb->p_rcb) {
