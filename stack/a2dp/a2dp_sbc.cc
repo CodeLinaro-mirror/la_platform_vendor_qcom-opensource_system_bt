@@ -285,6 +285,12 @@ const char* A2DP_CodecNameSbc(UNUSED_ATTR const uint8_t* p_codec_info) {
   return "SBC";
 }
 
+uint8_t A2DP_IsPeerCodecValidSbc(const uint8_t* p_codec_info) {
+
+  return A2DP_CodecInfoMatchesCapabilitySbc(&a2dp_sbc_caps, p_codec_info,
+                                             false);
+}
+
 bool A2DP_IsSourceCodecValidSbc(const uint8_t* p_codec_info) {
   tA2DP_SBC_CIE cfg_cie;
 

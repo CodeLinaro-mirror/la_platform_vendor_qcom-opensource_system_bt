@@ -207,6 +207,12 @@ static tA2DP_STATUS A2DP_ParseInfoAptxHd(tA2DP_APTX_HD_CIE* p_ie,
   return A2DP_SUCCESS;
 }
 
+uint8_t A2DP_IsPeerVendorCodecValidAptxHd(const uint8_t* p_codec_info) {
+
+  return A2DP_CodecInfoMatchesCapabilityAptxHd(&a2dp_aptx_hd_caps, p_codec_info,
+                                               false);
+}
+
 bool A2DP_IsVendorSourceCodecValidAptxHd(const uint8_t* p_codec_info) {
   tA2DP_APTX_HD_CIE cfg_cie;
 

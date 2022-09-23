@@ -105,6 +105,13 @@ bool A2DP_GetAptxAdaptiveCIE(const uint8_t* p_codec_info,
 // codec.
 // NOTE: only codecs that are implemented are considered valid.
 // Returns true if |p_codec_info| contains information about a valid aptX-adaptive
+// codec, otherwise specific error code.
+uint8_t A2DP_IsPeerVendorCodecValidAptxAdaptive(const uint8_t* p_codec_info);
+
+// Checks whether the codec capabilities contain a valid A2DP aptX-adaptive Source
+// codec.
+// NOTE: only codecs that are implemented are considered valid.
+// Returns true if |p_codec_info| contains information about a valid aptX-adaptive
 // codec, otherwise false.
 bool A2DP_IsVendorSourceCodecValidAptxAdaptive(const uint8_t* p_codec_info);
 

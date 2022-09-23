@@ -48,6 +48,13 @@ class A2dpCodecConfigLdac : public A2dpCodecConfig {
 // codec.
 // NOTE: only codecs that are implemented are considered valid.
 // Returns true if |p_codec_info| contains information about a valid LDAC
+// codec, otherwise specific error code.
+uint8_t A2DP_IsPeerVendorCodecValidLdac(const uint8_t* p_codec_info);
+
+// Checks whether the codec capabilities contain a valid A2DP LDAC Source
+// codec.
+// NOTE: only codecs that are implemented are considered valid.
+// Returns true if |p_codec_info| contains information about a valid LDAC
 // codec, otherwise false.
 bool A2DP_IsVendorSourceCodecValidLdac(const uint8_t* p_codec_info);
 

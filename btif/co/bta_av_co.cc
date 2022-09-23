@@ -700,7 +700,11 @@ void bta_av_co_audio_setconfig(tBTA_AV_HNDL hndl, const uint8_t* p_codec_info,
   tA2DP_STATUS status = A2DP_SUCCESS;
   uint8_t category = A2DP_SUCCESS;
   bool reconfig_needed = false;
+  bool pts_status = false;
   char value[PROPERTY_VALUE_MAX] = "false";
+  char pts_value[PROPERTY_VALUE_MAX] = {'\0'};
+  property_get("vendor.bt.pts.certification", pts_value, "false");
+  if (!(strcmp(pts_value,"true"))) { pts_status = true; }
 
   std::string addrstr = addr.ToString();
   const char* bd_addr_str = addrstr.c_str();
@@ -775,6 +779,10 @@ void bta_av_co_audio_setconfig(tBTA_AV_HNDL hndl, const uint8_t* p_codec_info,
       APPL_TRACE_DEBUG("%s: peer is A2DP SINK", __func__);
       bool restart_output = false;
       p_peer->addr = addr;
+      if (pts_status) {
+        /* To Fetch proper status code */
+        status = A2DP_IsPeerCodecValid(p_codec_info);
+      }
       if ((p_peer->codecs == nullptr) ||
           !bta_av_co_set_codec_ota_config(p_peer, p_codec_info, num_protect,
                                           p_protect_info, &restart_output)) {
@@ -794,7 +802,9 @@ void bta_av_co_audio_setconfig(tBTA_AV_HNDL hndl, const uint8_t* p_codec_info,
     /* Check if codec configuration is supported */
     if (!codec_config_supported) {
       category = AVDT_ASC_CODEC;
-      status = A2DP_WRONG_CODEC;
+      if (!pts_status) {
+        status = A2DP_WRONG_CODEC;
+      }
     }
   }
 
