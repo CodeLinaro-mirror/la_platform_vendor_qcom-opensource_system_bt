@@ -149,6 +149,10 @@ typedef uint8_t tBTA_AV_HNDL;
 #define BTA_AV_MAX_A2DP_MTU 1008
 #endif
 
+#ifndef BTA_AVK_MAX_A2DP_MTU
+#define BTA_AVK_MAX_A2DP_MTU 990
+#endif
+
 #ifndef BTA_AV_MAX_VDP_MTU
 #define BTA_AV_MAX_VDP_MTU 1008
 #endif

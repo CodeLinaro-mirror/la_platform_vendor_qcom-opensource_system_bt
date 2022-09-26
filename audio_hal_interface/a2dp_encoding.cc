@@ -49,7 +49,7 @@ extern void btif_a2dp_source_encoder_init(void);
 
 extern uint8_t active_codec_info[AVDT_CODEC_SIZE];
 #define AAC_SAMPLE_SIZE  1024
-#define MAX_MTU_SIZE 1024
+#define MAX_MTU_SIZE 990
 #define AAC_LATM_HEADER  12
 
 namespace {

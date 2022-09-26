@@ -2688,8 +2688,8 @@ void bta_av_sink_offload_start_req(tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     mtu = bta_av_chk_mtu(p_scb, p_scb->stream_mtu);
     offload_sink_start.stream_handle = 0;//stream handle is 0 always
     offload_sink_start.connection_handle = acl_hdl;
-    offload_sink_start.l2cap_mtu = (mtu < p_scb->stream_mtu) ? mtu : p_scb->stream_mtu;
-    offload_sink_start.l2cap_mtu = BTA_AV_MAX_A2DP_MTU;
+    //offload_sink_start.l2cap_mtu = (mtu < p_scb->stream_mtu) ? mtu : p_scb->stream_mtu;
+    offload_sink_start.l2cap_mtu = BTA_AVK_MAX_A2DP_MTU;
     offload_sink_start.lcid = p_scb->l2c_cid;
     offload_sink_start.codec_id = codec_type;
     offload_sink_start.cp_enable = 0x0;
