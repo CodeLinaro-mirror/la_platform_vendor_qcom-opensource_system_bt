@@ -295,6 +295,8 @@ const char* config_section_name(const config_section_node_t* node) {
 }
 
 bool config_save(const config_t* config, const char* filename) {
+  LOG_ERROR(LOG_TAG, "%s enter.", __func__);
+
   CHECK(config != NULL);
   CHECK(filename != NULL);
   CHECK(*filename != '\0');
@@ -417,6 +419,8 @@ bool config_save(const config_t* config, const char* filename) {
   sync();
   osi_free(temp_filename);
   osi_free(temp_dirname);
+
+  LOG_ERROR(LOG_TAG, "%s return.", __func__);
   return true;
 
 error:
@@ -427,6 +431,8 @@ error:
   if (dir_fd != -1) close(dir_fd);
   osi_free(temp_filename);
   osi_free(temp_dirname);
+
+  LOG_ERROR(LOG_TAG, "%s write error.", __func__);
   return false;
 }
 

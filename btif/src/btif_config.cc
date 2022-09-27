@@ -226,7 +226,10 @@ static config_t* btif_config_open(const char* filename) {
 }
 
 static future_t* shut_down(void) {
-  btif_config_flush();
+  LOG_ERROR(LOG_TAG, "btif_config shut_down enter.");
+  alarm_cancel(config_timer);
+  //no need do config flush here, the cleanup process will do it.
+  //btif_config_flush();
   return future_new_immediate(FUTURE_SUCCESS);
 }
 
