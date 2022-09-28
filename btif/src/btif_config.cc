@@ -234,7 +234,8 @@ static future_t* shut_down(void) {
 }
 
 static future_t* clean_up(void) {
-  btif_config_flush();
+  //btif_config_flush();
+  btif_config_save();
 
   alarm_free(config_timer);
   config_timer = NULL;
@@ -426,9 +427,10 @@ bool btif_config_remove(const char* section, const char* key) {
 }
 
 void btif_config_save(void) {
+  BTIF_TRACE_DEBUG("%s: enter", __func__);
   CHECK(config != NULL);
   CHECK(config_timer != NULL);
-
+  BTIF_TRACE_DEBUG("%s: alarm_set config_timer timer_config_save_cb", __func__);
   alarm_set(config_timer, CONFIG_SETTLE_PERIOD_MS, timer_config_save_cb, NULL);
 }
 
@@ -468,13 +470,14 @@ static void btif_config_write(UNUSED_ATTR uint16_t event,
                               UNUSED_ATTR char* p_param) {
   CHECK(config != NULL);
   CHECK(config_timer != NULL);
-
+  BTIF_TRACE_DEBUG("%s: enter", __func__);
   std::unique_lock<std::mutex> lock(config_lock);
   rename(CONFIG_FILE_PATH, CONFIG_BACKUP_PATH);
   config_t* config_paired = config_new_clone(config);
   btif_config_remove_unpaired(config_paired);
   config_save(config_paired, CONFIG_FILE_PATH);
   config_free(config_paired);
+  BTIF_TRACE_DEBUG("%s: return", __func__);
 }
 
 static void btif_config_remove_unpaired(config_t* conf) {

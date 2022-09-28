@@ -27,6 +27,7 @@
 #include <string.h>
 #include <sys/eventfd.h>
 #include <unistd.h>
+#include <sys/resource.h>
 
 #include "osi/include/allocator.h"
 #include "osi/include/log.h"
@@ -40,14 +41,35 @@ struct semaphore_t {
   int fd;
 };
 
+bool modifyfdlimit() {
+    rlimit fdLimit;
+    fdLimit.rlim_cur = 30000;
+    fdLimit.rlim_max = 30000;
+    if (-1 == setrlimit(RLIMIT_NOFILE, &fdLimit)) {
+       char cmdBuffer[ 64];
+       snprintf(cmdBuffer,sizeof(cmdBuffer), "ulimit -n %d", 30000);
+       if (-1 == system(cmdBuffer)) {
+            LOG_ERROR(LOG_TAG, "%s failed. /n", cmdBuffer);
+            return false;
+      }
+  }
+  return true;
+}
+
 semaphore_t* semaphore_new(unsigned int value) {
   semaphore_t* ret = static_cast<semaphore_t*>(osi_malloc(sizeof(semaphore_t)));
   ret->fd = eventfd(value, EFD_SEMAPHORE);
   if (ret->fd == INVALID_FD) {
-    LOG_ERROR(LOG_TAG, "%s unable to allocate semaphore: %s", __func__,
+    LOG_ERROR(LOG_TAG, "%s unable to allocate semaphore: %s, modifyfdlimit and try again", __func__,
               strerror(errno));
-    osi_free(ret);
-    ret = NULL;
+    if(modifyfdlimit() == true) {
+      ret->fd = eventfd(value, EFD_SEMAPHORE);
+      if(ret->fd == INVALID_FD) {
+        LOG_ERROR(LOG_TAG, "%s unable to allocate semaphore, return", __func__);
+        osi_free(ret);
+        ret = NULL;
+      }
+    }
   }
   return ret;
 }
