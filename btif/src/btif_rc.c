@@ -5350,7 +5350,7 @@ static void handle_app_attr_txt_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_GET
          * for standard attributes.
          */
         p_app_settings->num_ext_attrs = 0;
-        for (xx = 0; xx < p_app_settings->ext_attr_index; xx++)
+        for (xx = 0; xx < p_app_settings->ext_attr_index && xx < AVRC_MAX_APP_ATTR_SIZE; xx++)
             osi_free_and_reset((void **)&p_app_settings->ext_attrs[xx].p_str);
         p_app_settings->ext_attr_index = 0;
         /* Klockwork Fix for below issue at line 4765
@@ -5369,7 +5369,7 @@ static void handle_app_attr_txt_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC_GET
     for (xx = 0; xx < p_rsp->num_attr; xx++)
     {
         UINT8 x;
-        for (x = 0; x < p_app_settings->num_ext_attrs; x++)
+        for (x = 0; x < p_app_settings->num_ext_attrs && x < AVRC_MAX_APP_ATTR_SIZE; x++)
         {
             if (p_app_settings->ext_attrs[x].attr_id == p_rsp->p_attrs[xx].attr_id)
             {
@@ -5425,12 +5425,12 @@ static void handle_app_attr_val_txt_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC
          * for standard attributes.
          */
         p_app_settings->num_ext_attrs = 0;
-        for (xx = 0; xx < p_app_settings->ext_attr_index; xx++)
+        for (xx = 0; xx < p_app_settings->ext_attr_index && xx < AVRC_MAX_APP_ATTR_SIZE; xx++)
         {
             int x;
             btrc_player_app_ext_attr_t *p_ext_attr = &p_app_settings->ext_attrs[xx];
 
-            for (x = 0; x < p_ext_attr->num_val; x++)
+            for (x = 0; x < p_ext_attr->num_val && x < BTRC_MAX_APP_ATTR_SIZE; x++)
                 osi_free_and_reset((void **)&p_ext_attr->ext_attr_val[x].p_str);
             p_ext_attr->num_val = 0;
             osi_free_and_reset((void **)&p_app_settings->ext_attrs[xx].p_str);
@@ -5450,12 +5450,18 @@ static void handle_app_attr_val_txt_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC
         return;
     }
 
+    if (p_app_settings->ext_val_index >= AVRC_MAX_APP_ATTR_SIZE) {
+	    BTIF_TRACE_ERROR("%s: ext_val_index is 0x%02x, overflow!",
+			     __func__, p_app_settings->ext_val_index);
+	    return;
+    }
+
     for (xx = 0; xx < p_rsp->num_attr; xx++)
     {
         UINT8 x;
         btrc_player_app_ext_attr_t *p_ext_attr;
         p_ext_attr = &p_app_settings->ext_attrs[p_app_settings->ext_val_index];
-        for (x = 0; x < p_rsp->num_attr; x++)
+        for (x = 0; x < p_rsp->num_attr && x < BTRC_MAX_APP_ATTR_SIZE; x++)
         {
             if (p_ext_attr->ext_attr_val[x].val == p_rsp->p_attrs[xx].attr_id)
             {
@@ -5506,12 +5512,12 @@ static void handle_app_attr_val_txt_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC
         /* Free the application settings information after sending to
          * application.
          */
-        for (xx = 0; xx < p_app_settings->ext_attr_index; xx++)
+        for (xx = 0; xx < p_app_settings->ext_attr_index && xx < AVRC_MAX_APP_ATTR_SIZE; xx++)
         {
             int x;
             btrc_player_app_ext_attr_t *p_ext_attr = &p_app_settings->ext_attrs[xx];
 
-            for (x = 0; x < p_ext_attr->num_val; x++)
+            for (x = 0; x < p_ext_attr->num_val && x < BTRC_MAX_APP_ATTR_SIZE; x++)
                 osi_free_and_reset((void **)&p_ext_attr->ext_attr_val[x].p_str);
             p_ext_attr->num_val = 0;
             osi_free_and_reset((void **)&p_app_settings->ext_attrs[xx].p_str);
