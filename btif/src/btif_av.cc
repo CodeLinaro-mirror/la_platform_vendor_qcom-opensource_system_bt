@@ -1856,6 +1856,15 @@ static bool btif_av_state_closing_handler(btif_sm_event_t event, void* p_data, i
       break;
 
     case BTA_AV_CLOSE_EVT:
+
+      if(bt_split_a2dp_sink_enabled) {
+        if(btif_av_cb[index].vsc_command_status == BTIF_AVK_VSC_STARTED) {
+          // VSC START was successful, send VSC_STOP
+          btif_av_cb[index].vsc_command_status = BTIF_AVK_VSC_STOP;
+          BTA_AvkOffloadStop(btif_av_cb[index].bta_handle);
+        }
+      }
+
       /* inform the application that we are disconnecting */
       btif_av_disconnect_queue_advance_by_uuid(&(btif_av_cb[index].peer_bda));
       btif_report_connection_state(BTAV_CONNECTION_STATE_DISCONNECTED,
