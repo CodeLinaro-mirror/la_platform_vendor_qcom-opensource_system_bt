@@ -17,16 +17,12 @@
  ******************************************************************************/
 
 #define LOG_TAG "bt_osi_future"
-
 #include "osi/include/future.h"
-
 #include <base/logging.h>
-
 #include "osi/include/allocator.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
 #include "osi/include/semaphore.h"
-
 struct future_t {
   bool ready_can_be_called;
   semaphore_t* semaphore;  // NULL semaphore means immediate future
@@ -55,6 +51,7 @@ error:;
 future_t* future_new_immediate(void* value) {
   future_t* ret = static_cast<future_t*>(osi_calloc(sizeof(future_t)));
 
+  ret->semaphore = NULL;
   ret->result = value;
   ret->ready_can_be_called = false;
   return ret;
@@ -66,14 +63,16 @@ void future_ready(future_t* future, void* value) {
 
   future->ready_can_be_called = false;
   future->result = value;
-  semaphore_post(future->semaphore);
+  if(future->semaphore != NULL)
+    semaphore_post(future->semaphore);
 }
 
 void* future_await(future_t* future) {
   CHECK(future != NULL);
 
   // If the future is immediate, it will not have a semaphore
-  if (future->semaphore) semaphore_wait(future->semaphore);
+  if (future->semaphore != NULL)
+    semaphore_wait(future->semaphore);
 
   void* result = future->result;
   future_free(future);
@@ -83,6 +82,8 @@ void* future_await(future_t* future) {
 static void future_free(future_t* future) {
   if (!future) return;
 
-  semaphore_free(future->semaphore);
+  if (future->semaphore != NULL) {
+    semaphore_free(future->semaphore);
+    }
   osi_free(future);
 }
