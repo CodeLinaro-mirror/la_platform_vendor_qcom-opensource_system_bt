@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/*
+/* Changes from Qualcomm Innovation Center are provided under the following license:
  * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
 
     * Redistribution and use in source and binary forms, with or without
@@ -576,9 +576,16 @@ void BluetoothAudioClientInterface::RenewAudioProviderAndSession() {
   // NOTE: must be invoked on the same thread where this
   // BluetoothAudioClientInterface is running
   LOG(INFO) << __func__ << ": session_started_: " << session_started_;
-  LOG(INFO) << __func__
-            << ": AIDL: sleep for 0.5sec for hal server to restart";
-  usleep(500000); //sleep for 0.5sec for hal server to restart
+  uint8_t retries = 0;
+  while(retries < 10) {
+    LOG(INFO) << __func__ << "AIDL: sleep for 50ms for hal server to restart";
+    auto service = AServiceManager_checkService(
+                          kDefaultAudioProviderFactoryInterface.c_str());
+    if(service != nullptr)
+      break;
+    usleep(50000);
+    retries++;
+  }
   FetchAudioProvider();
 
   if (session_started_) {

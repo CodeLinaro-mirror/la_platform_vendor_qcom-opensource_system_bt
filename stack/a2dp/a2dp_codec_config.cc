@@ -45,6 +45,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 /**
@@ -991,6 +995,7 @@ bool A2dpCodecs::getCodecConfigAndCapabilities(
     std::vector<btav_a2dp_codec_config_t>* p_codecs_local_capabilities,
     std::vector<btav_a2dp_codec_config_t>* p_codecs_selectable_capabilities) {
   std::lock_guard<std::recursive_mutex> lock(codec_mutex_);
+  LOG_DEBUG(LOG_TAG, "%s: Recursive mutex lock acquired", __func__);
 
   if (current_codec_config_ != nullptr) {
     LOG_DEBUG(LOG_TAG, "%s: current_codec_config_ not null, getCodecConfig()", __func__);
@@ -1021,6 +1026,8 @@ bool A2dpCodecs::getCodecConfigAndCapabilities(
     codecs_capabilities.push_back(codec_capability);
   }
   *p_codecs_selectable_capabilities = codecs_capabilities;
+
+  LOG_DEBUG(LOG_TAG, "%s: Recursive mutex lock released", __func__);
 
   return true;
 }

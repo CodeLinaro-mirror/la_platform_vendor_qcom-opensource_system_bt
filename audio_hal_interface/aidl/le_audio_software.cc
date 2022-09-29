@@ -15,6 +15,7 @@
  * limitations under the License.
  */
  /*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
  * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
 
     * Redistribution and use in source and binary forms, with or without
@@ -103,6 +104,7 @@ LeAudioTransport::LeAudioTransport(void (*flush)(void),
       total_bytes_processed_(0),
       data_position_({}),
       pcm_config_(std::move(pcm_config)),
+      lea_pending_cmd_(A2DP_CTRL_CMD_NONE),
       is_pending_start_request_(false),
       is_broadcast_session_(is_broadcast_session){};
 
