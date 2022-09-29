@@ -48,6 +48,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 
 /*******************************************************************************
@@ -892,8 +896,10 @@ static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
   if (btm_cb.pairing_state != BTM_PAIR_STATE_IDLE ) {
     BTIF_TRACE_DEBUG("%s: btm_cb.pairing_state = %d, one pairing in progress ",
                       __func__, btm_cb.pairing_state);
-    auto tmp = bd_addr;
-    HAL_CBACK(bt_hal_cbacks, bond_state_changed_cb, BT_STATUS_FAIL, &tmp, BT_BOND_STATE_NONE);
+    if (pairing_cb.bd_addr != bd_addr) {
+      auto tmp = bd_addr;
+      HAL_CBACK(bt_hal_cbacks, bond_state_changed_cb, BT_STATUS_FAIL, &tmp, BT_BOND_STATE_NONE);
+    }
     return;
   }
 
