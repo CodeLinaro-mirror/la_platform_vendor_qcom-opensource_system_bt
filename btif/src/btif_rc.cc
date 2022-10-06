@@ -644,7 +644,7 @@ void handle_rc_browse_connect(tBTA_AV_RC_BROWSE_OPEN* p_rc_br_open) {
   /* check that we are already connected to this address since being connected
    * to a browse when not connected to the control channel over AVRCP is
    * probably not preferred anyways. */
-  if (p_rc_br_open->status == BTA_AV_SUCCESS) {
+  if (p_rc_br_open->status == BTA_AV_SUCCESS && bt_rc_ctrl_callbacks != nullptr) {
     p_dev->br_connected = true;
     do_in_jni_thread(FROM_HERE,
                      base::Bind(bt_rc_ctrl_callbacks->connection_state_cb, true,
@@ -673,6 +673,7 @@ void handle_rc_connect(tBTA_AV_RC_OPEN* p_rc_open) {
     BTIF_TRACE_ERROR("%s: Connect failed with error code: %d", __func__,
                      p_rc_open->status);
     p_dev->rc_connected = false;
+    return;
   }
 
   // check if already some RC is connected
@@ -709,15 +710,15 @@ void handle_rc_connect(tBTA_AV_RC_OPEN* p_rc_open) {
 
   p_dev->rc_playing_uid = RC_INVALID_TRACK_ID;
   if (bt_rc_ctrl_callbacks != NULL) {
-    do_in_jni_thread(FROM_HERE,
+   do_in_jni_thread(FROM_HERE,
                      base::Bind(bt_rc_ctrl_callbacks->connection_state_cb, true,
                                 false, p_dev->rc_addr));
-  }
-  /* report connection state if remote device is AVRCP target */
-  handle_rc_ctrl_features(p_dev);
+    /* report connection state if remote device is AVRCP target */
+    handle_rc_ctrl_features(p_dev);
 
-  /* report psm if remote device is AVRCP target */
-  handle_rc_ctrl_psm(p_dev);
+    /* report psm if remote device is AVRCP target */
+    handle_rc_ctrl_psm(p_dev);
+  }
 }
 
 /***************************************************************************
@@ -765,6 +766,7 @@ void handle_rc_disconnect(tBTA_AV_RC_CLOSE* p_rc_close) {
   if (p_dev->rc_state == BTRC_CONNECTION_STATE_CONNECTED) {
     p_dev->rc_handle = 0;
     p_dev->rc_connected = false;
+    p_dev->br_connected = false;
     p_dev->rc_state = BTRC_CONNECTION_STATE_DISCONNECTED;
 
     memset(p_dev->rc_notif, 0, sizeof(p_dev->rc_notif));
@@ -1063,6 +1065,13 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV* p_data) {
 
     case BTA_AV_RC_BROWSE_CLOSE_EVT: {
       BTIF_TRACE_DEBUG("%s: BTA_AV_RC_BROWSE_CLOSE_EVT", __func__);
+      p_dev = btif_rc_get_device_by_handle(p_data->rc_feat.rc_handle);
+      if (p_dev == NULL) {
+        BTIF_TRACE_ERROR("%s: BTA_AV_RC_BROWSE_CLOSE_EVT for Invalid rc handle",
+                         __func__);
+        break;
+      }
+      p_dev->br_connected = false;
     } break;
 
     case BTA_AV_REMOTE_CMD_EVT: {
@@ -3455,7 +3464,9 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
        */
       p_dev->rc_app_settings.query_started = true;
       if (p_dev->rc_features & BTA_AV_FEAT_APP_SETTING) {
-        list_player_app_setting_attrib_cmd(p_dev);
+        if (!p_dev->br_connected) {
+          list_player_app_setting_attrib_cmd(p_dev);
+        }
       } else {
         BTIF_TRACE_DEBUG("%s: App setting not supported, complete procedure",
                          __func__);
@@ -3512,8 +3523,11 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
       case AVRC_EVT_TRACK_CHANGE:
         if (rc_is_track_id_valid(p_rsp->param.track) != true) {
           break;
+        } else {
+          uint8_t* p_data = p_rsp->param.track;
+          BE_STREAM_TO_UINT64(p_dev->rc_playing_uid, p_data);
+          get_metadata_attribute_cmd(p_dev->rc_addr, attr_list_size, attr_list);
         }
-        get_metadata_attribute_cmd(p_dev->rc_addr, attr_list_size, attr_list);
         break;
 
       case AVRC_EVT_APP_SETTING_CHANGE: {
@@ -5467,7 +5481,12 @@ static bt_status_t get_metadata_attribute_cmd(const RawAddress& bd_addr,
   }
 
   // If browsing is connected then send the command out that channel
-  if (p_dev->br_connected) {
+  // Call get_element_attribute_cmd when uid is 0.
+  // Avrcp spec v1.6, 6.10.3 UIDs:
+  // The value of UID=0x0 is a special value used only to request the metadata
+  // for the currently playing media using the GetElementAttributes command and
+  // shall not be used for any item in a folder.
+  if (p_dev->br_connected && p_dev->rc_playing_uid != 0) {
     return get_item_attribute_cmd(bd_addr, AVRC_SCOPE_NOW_PLAYING,
                                   p_dev->rc_playing_uid,
                                   p_dev->uid_counter,
