@@ -340,6 +340,8 @@ void bta_dm_co_ble_io_req(const RawAddress& bd_addr, tBTA_IO_CAP* p_io_cap,
                           tBTA_LE_AUTH_REQ* p_auth_req, uint8_t* p_max_key_size,
                           tBTA_LE_KEY_TYPE* p_init_key,
                           tBTA_LE_KEY_TYPE* p_resp_key) {
+  /* setting default auth req to non bondable as per customer request*/
+  bte_appl_cfg.ble_auth_req = BTA_LE_AUTH_REQ_SC_MITM;
   /* Retrieve the properties from file system if possible */
   tBTE_APPL_CFG nv_config;
   if (btif_dm_get_smp_config(&nv_config)) bte_appl_cfg = nv_config;
@@ -350,6 +352,7 @@ void bta_dm_co_ble_io_req(const RawAddress& bd_addr, tBTA_IO_CAP* p_io_cap,
   if (bte_appl_cfg.ble_auth_req)
     *p_auth_req = bte_appl_cfg.ble_auth_req |
                   (bte_appl_cfg.ble_auth_req & 0x04) | ((*p_auth_req) & 0x04);
+  BTIF_TRACE_DEBUG("p auth req = %d\n", *p_auth_req);
 
   /* if OOB is not supported, this call-out function does not need to do
    * anything
