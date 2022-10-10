@@ -15,6 +15,42 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+/******************************************************************************
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted (subject to the limitations in the
+ * disclaimer below) provided that the following conditions are met:
+ *
+ *      * Redistributions of source code must retain the above copyright
+ *        notice, this list of conditions and the following disclaimer.
+ *
+ *      * Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials provided
+ *        with the distribution.
+ *
+ *      * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+ *        contributors may be used to endorse or promote products derived
+ *        from this software without specific prior written permission.
+ *
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+ * GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+ * HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+ *
+ *****************************************************************************/
 
 /******************************************************************************
  *
@@ -95,6 +131,8 @@ tBTA_AV_RCB* bta_av_get_rcb_by_shdl(uint8_t shdl) {
  *
  ******************************************************************************/
 void bta_av_del_rc(tBTA_AV_RCB* p_rcb) {
+  tBTA_AV_CB* p_cb = &bta_av_cb;
+  tBTA_AV_LCB* p_lcb_rc;
   tBTA_AV_SCB* p_scb;
   uint8_t rc_handle; /* connected AVRCP handle */
 
@@ -130,8 +168,16 @@ void bta_av_del_rc(tBTA_AV_RCB* p_rcb) {
     }
     /* else ACP && connected. do not clear the handle yet */
     AVRC_Close(rc_handle);
-    if (rc_handle == bta_av_cb.rc_acp_handle)
+    if (rc_handle == bta_av_cb.rc_acp_handle) {
       bta_av_cb.rc_acp_handle = BTA_AV_RC_HANDLE_NONE;
+      p_lcb_rc = &p_cb->lcb[BTA_AV_NUM_LINKS];
+      APPL_TRACE_DEBUG("%s: p_lcb_rc: bda:%s, conn_msk:%d, lidx:%d", __func__,
+                       p_lcb_rc->addr.ToString().c_str(), p_lcb_rc->conn_msk,
+                       p_lcb_rc->lidx)
+      p_lcb_rc->conn_msk = 0;
+      p_lcb_rc->lidx = 0;
+      p_lcb_rc->addr = RawAddress::kEmpty;
+    }
     APPL_TRACE_EVENT(
         "%s: end del_rc handle: %d status=0x%x, rc_acp_handle:%d, lidx:%d",
         __func__, p_rcb->handle, p_rcb->status, bta_av_cb.rc_acp_handle,
@@ -223,7 +269,11 @@ static void bta_av_rc_ctrl_cback(uint8_t handle, uint8_t event,
         (tBTA_AV_RC_CONN_CHG*)osi_malloc(sizeof(tBTA_AV_RC_CONN_CHG));
     p_msg->hdr.event = msg_event;
     p_msg->handle = handle;
-    if (peer_addr) p_msg->peer_addr = *peer_addr;
+    if (peer_addr) {
+        p_msg->peer_addr = *peer_addr;
+    } else {
+        p_msg->peer_addr = RawAddress::kEmpty;
+    }
     bta_sys_sendmsg(p_msg);
   }
 }
@@ -1907,6 +1957,7 @@ uint16_t bta_avk_get_peer_version(uint16_t service_uuid) {
 void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
   tBTA_AV_CB* p_cb = &bta_av_cb;
   tBTA_AV_SCB* p_scb = NULL;
+  tBTA_AV_RC_OPEN rc_open;
   tBTA_AV_LCB* p_lcb;
   uint8_t rc_handle;
   tBTA_AV_FEAT peer_features = 0; /* peer features mask */
@@ -2004,8 +2055,18 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
         if (p_lcb) {
           rc_handle = bta_av_rc_create(p_cb, AVCT_INT,
                                        (uint8_t)(p_scb->hdi + 1), p_lcb->lidx);
-          p_cb->rcb[rc_handle].peer_features = peer_features;
-          p_cb->rcb[rc_handle].cover_art_psm = cover_art_psm;
+          if (rc_handle < BTA_AV_NUM_RCB) {
+            p_cb->rcb[rc_handle].peer_features = peer_features;
+            p_cb->rcb[rc_handle].cover_art_psm = cover_art_psm;
+          } else {
+            /* cannot create valid rc_handle for current device */
+            APPL_TRACE_ERROR("%s:  No link resources available", __func__);
+            p_scb->use_rc = FALSE;
+            rc_open.peer_addr = p_scb->PeerAddress();
+            rc_open.peer_features = 0;
+            rc_open.status = BTA_AV_FAIL_RESOURCES;
+            (*p_cb->p_cback)(BTA_AV_RC_OPEN_EVT, (tBTA_AV *) &rc_open);
+          }
         } else {
           APPL_TRACE_ERROR("%s: can not find LCB!!", __func__);
         }
@@ -2121,7 +2182,9 @@ void bta_av_rc_closed(tBTA_AV_DATA* p_data) {
           p_scb = bta_av_cb.p_scb[p_rcb->shdl - 1];
         }
         if (p_scb) {
-          rc_close.peer_addr = p_scb->PeerAddress();
+          rc_close.peer_addr = (p_scb->IsAssigned()) ?
+            p_scb->PeerAddress() : p_msg->peer_addr;
+
           if (p_scb->rc_handle == p_rcb->handle)
             p_scb->rc_handle = BTA_AV_RC_HANDLE_NONE;
           APPL_TRACE_DEBUG("%s: shdl:%d, srch:%d", __func__, p_rcb->shdl,
@@ -2136,6 +2199,13 @@ void bta_av_rc_closed(tBTA_AV_DATA* p_data) {
                  p_msg->peer_addr.ToString().c_str());
         p_lcb->conn_msk = 0;
         p_lcb->lidx = 0;
+      } else {
+        /* In case A2DP disconnection earlier than AVRCP disconnection,
+         * p_rcb->shdl = 0 and p_rcb->lidx != (BTA_AV_NUM_LINKS + 1).
+         * rc_close.peer_addr failed to set in above, so set as below */
+        rc_close.peer_addr = p_msg->peer_addr;
+        LOG_INFO("%s: av disconnected earlier, bd_addr: %s", __func__,
+                 rc_close.peer_addr.ToString().c_str());
       }
       p_rcb->lidx = 0;
 

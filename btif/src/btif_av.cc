@@ -15,6 +15,42 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+/******************************************************************************
+*  Changes from Qualcomm Innovation Center are provided under the following license:
+*
+* Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted (subject to the limitations in the
+* disclaimer below) provided that the following conditions are met:
+*
+*      * Redistributions of source code must retain the above copyright
+*        notice, this list of conditions and the following disclaimer.
+*
+*      * Redistributions in binary form must reproduce the above
+*        copyright notice, this list of conditions and the following
+*        disclaimer in the documentation and/or other materials provided
+*        with the distribution.
+*
+*      * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+*        contributors may be used to endorse or promote products derived
+*        from this software without specific prior written permission.
+*
+* NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+* GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+* HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+* IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+* GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+* IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+* OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+* IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+*
+*****************************************************************************/
 
 #define LOG_TAG "btif_av"
 
@@ -630,6 +666,15 @@ class BtifAvSink {
       return true;  // Nothing has changed
     }
     if (peer_address.IsEmpty()) {
+      if (btif_av_is_connected()) {
+        // No sound issue fix: AVRCP was disconnected earlier than A2DP.
+        // And set active peer as empty while A2DP opened/started,
+        // that blocks stopping decoder in following A2DP disconnection.
+        // Don't reset the active peer when not in Idle state.
+        peer_ready_promise.set_value();
+        return true;  // Nothing has changed
+      }
+      // Reset the active peer to empty only in Idle state.
       BTIF_TRACE_EVENT("%s: peer address is empty, shutdown the Audio sink",
                        __func__);
       if (!bta_av_co_set_active_peer(peer_address)) {
@@ -1518,13 +1563,17 @@ bool BtifAvStateMachine::StateIdle::ProcessEvent(uint32_t event, void* p_data) {
 
       bool can_connect = true;
       char pts_disable_a2dp_conn[PROPERTY_VALUE_MAX] = {0};
+      tBTA_AV* p_av = (tBTA_AV*)p_data;
       // Check whether connection is allowed
       if (peer_.IsSink()) {
         can_connect = btif_av_source.AllowedToConnect(peer_.PeerAddress());
         if (!can_connect) src_disconnect_sink(peer_.PeerAddress());
       } else if (peer_.IsSource()) {
         can_connect = btif_av_sink.AllowedToConnect(peer_.PeerAddress());
-        if (!can_connect) sink_disconnect_src(peer_.PeerAddress());
+        if (!can_connect) {
+            BTA_AvCloseRc(p_av->rc_open.rc_handle);
+            sink_disconnect_src(peer_.PeerAddress());
+        }
       }
       if (!can_connect) {
         BTIF_TRACE_ERROR(
@@ -1641,8 +1690,15 @@ bool BtifAvStateMachine::StateIdle::ProcessEvent(uint32_t event, void* p_data) {
 
       if (event == BTA_AV_RC_CLOSE_EVT) {
         btif_rc_handler(event, (tBTA_AV*)p_data);
+        // Re-enter Idle so the peer can be deleted
+        peer_.StateMachine().TransitionTo(BtifAvStateMachine::kStateIdle);
       }
     } break;
+
+    case BTA_AV_RC_BROWSE_CLOSE_EVT:
+      // Re-enter Idle so the peer can be deleted
+      peer_.StateMachine().TransitionTo(BtifAvStateMachine::kStateIdle);
+      break;
 
     case BTIF_AV_OFFLOAD_START_REQ_EVT:
       BTIF_TRACE_ERROR("%s: Peer %s : event=%s: stream is not Opened",
