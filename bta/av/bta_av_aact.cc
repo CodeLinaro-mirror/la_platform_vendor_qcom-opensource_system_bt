@@ -2410,6 +2410,8 @@ void bta_av_getcap_results(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     if ((uuid_int == UUID_SERVCLASS_AUDIO_SINK) &&
         (p_scb->seps[p_scb->sep_idx].p_app_sink_data_cback != NULL)) {
       APPL_TRACE_DEBUG("%s: configure decoder for Sink connection", __func__);
+
+      memcpy(cfg.codec_info, p_scb->p_cap->codec_info, AVDT_CODEC_SIZE);
       tBTA_AV_MEDIA av_sink_codec_info;
       av_sink_codec_info.avk_config.bd_addr = p_scb->peer_addr;
       av_sink_codec_info.avk_config.codec_info = p_scb->cfg.codec_info;
