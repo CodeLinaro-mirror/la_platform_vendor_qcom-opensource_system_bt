@@ -853,6 +853,7 @@ static void btif_a2dp_sink_set_focus_state_event(
     fixed_queue_flush(btif_a2dp_sink_cb.rx_audio_queue, osi_free);
     btif_a2dp_sink_cb.rx_flush = true;
   } else if (btif_a2dp_sink_cb.rx_focus_state == BTIF_A2DP_SINK_FOCUS_GRANTED) {
+    fixed_queue_flush(btif_a2dp_sink_cb.rx_audio_queue, osi_free);
     btif_a2dp_sink_cb.rx_flush = false;
   }
 }
