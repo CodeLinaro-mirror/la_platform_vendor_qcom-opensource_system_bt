@@ -634,6 +634,7 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
     }
 
     p_scb->suspend_sup = true;
+    p_scb->strm_close_in_progress = false;
     p_scb->recfg_sup = true;
     p_scb->skip_sdp = false;
 
