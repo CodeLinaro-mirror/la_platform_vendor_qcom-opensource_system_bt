@@ -15,6 +15,42 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+/******************************************************************************
+*  Changes from Qualcomm Innovation Center are provided under the following license:
+*
+* Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted (subject to the limitations in the
+* disclaimer below) provided that the following conditions are met:
+*
+*      * Redistributions of source code must retain the above copyright
+*        notice, this list of conditions and the following disclaimer.
+*
+*      * Redistributions in binary form must reproduce the above
+*        copyright notice, this list of conditions and the following
+*        disclaimer in the documentation and/or other materials provided
+*        with the distribution.
+*
+*      * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+*        contributors may be used to endorse or promote products derived
+*        from this software without specific prior written permission.
+*
+* NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+* GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+* HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+* IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+* GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+* IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+* OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+* IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+*
+*****************************************************************************/
 
 #define LOG_TAG "btif_av"
 
@@ -1522,13 +1558,17 @@ bool BtifAvStateMachine::StateIdle::ProcessEvent(uint32_t event, void* p_data) {
                          BtifAvEvent::EventName(event).c_str());
 
       bool can_connect = true;
+      tBTA_AV* p_av = (tBTA_AV*)p_data;
       // Check whether connection is allowed
       if (peer_.IsSink()) {
         can_connect = btif_av_source.AllowedToConnect(peer_.PeerAddress());
         if (!can_connect) src_disconnect_sink(peer_.PeerAddress());
       } else if (peer_.IsSource()) {
         can_connect = btif_av_sink.AllowedToConnect(peer_.PeerAddress());
-        if (!can_connect) sink_disconnect_src(peer_.PeerAddress());
+        if (!can_connect) {
+            BTA_AvCloseRc(p_av->rc_open.rc_handle);
+            sink_disconnect_src(peer_.PeerAddress());
+        }
       }
       if (!can_connect) {
         BTIF_TRACE_ERROR(
@@ -2117,6 +2157,14 @@ bool BtifAvStateMachine::StateStarted::ProcessEvent(uint32_t event,
     case BTIF_AV_ACL_DISCONNECTED:
       break;  // Ignore
 
+    case BTIF_AV_CONNECT_REQ_EVT: {
+      BTIF_TRACE_WARNING("%s: Peer %s : Ignore %s for same device",
+                         __PRETTY_FUNCTION__,
+                         peer_.PeerAddress().ToString().c_str(),
+                         BtifAvEvent::EventName(event).c_str());
+      btif_queue_advance();
+    } break;
+
     case BTIF_AV_START_STREAM_REQ_EVT:
       LOG_INFO(LOG_TAG, "%s: Peer %s : event=%s flags=%s", __PRETTY_FUNCTION__,
                peer_.PeerAddress().ToString().c_str(),
@@ -2320,6 +2368,14 @@ bool BtifAvStateMachine::StateClosing::ProcessEvent(uint32_t event,
     case BTIF_AV_SUSPEND_STREAM_REQ_EVT:
     case BTIF_AV_ACL_DISCONNECTED:
       break;  // Ignore
+
+    case BTIF_AV_CONNECT_REQ_EVT: {
+      BTIF_TRACE_WARNING("%s: Peer %s : Ignore %s for same device",
+                         __PRETTY_FUNCTION__,
+                         peer_.PeerAddress().ToString().c_str(),
+                         BtifAvEvent::EventName(event).c_str());
+      btif_queue_advance();
+    } break;
 
     case BTA_AV_STOP_EVT:
     case BTIF_AV_STOP_STREAM_REQ_EVT:

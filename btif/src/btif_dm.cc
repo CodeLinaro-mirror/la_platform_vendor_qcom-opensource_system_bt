@@ -16,6 +16,15 @@
  *
  ******************************************************************************/
 
+/******************************************************************************
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ ******************************************************************************/
+
 /*******************************************************************************
  *
  *  Filename:      btif_dm.c
@@ -1315,16 +1324,13 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
         break;
 
       case HCI_ERR_PAIRING_NOT_ALLOWED:
-        is_bonded_device_removed =
-            (btif_storage_remove_bonded_device(&bd_addr) == BT_STATUS_SUCCESS);
         status = BT_STATUS_AUTH_REJECTED;
         break;
 
       /* map the auth failure codes, so we can retry pairing if necessary */
       case HCI_ERR_AUTH_FAILURE:
       case HCI_ERR_KEY_MISSING:
-        is_bonded_device_removed =
-            (btif_storage_remove_bonded_device(&bd_addr) == BT_STATUS_SUCCESS);
+        is_bonded_device_removed = false;
         [[fallthrough]];
       case HCI_ERR_HOST_REJECT_SECURITY:
       case HCI_ERR_ENCRY_MODE_NOT_ACCEPTABLE:
@@ -1355,8 +1361,6 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
       /* Remove Device as bonded in nvram as authentication failed */
       BTIF_TRACE_DEBUG("%s(): removing hid pointing device from nvram",
                        __func__);
-      is_bonded_device_removed =
-          (btif_storage_remove_bonded_device(&bd_addr) == BT_STATUS_SUCCESS);
     }
     // Report bond state change to java only if we are bonding to a device or
     // a device is removed from the pairing list.
@@ -1740,6 +1744,8 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
   tBTA_SERVICE_MASK service_mask;
   uint32_t i;
   RawAddress bd_addr;
+  tBTA_TRANSPORT link_type = BT_TRANSPORT_INVALID;
+  uint8_t hci_reason = HCI_SUCCESS;
 
   BTIF_TRACE_EVENT("%s: ev: %s", __func__, dump_dm_event(event));
 
@@ -1859,32 +1865,30 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
 
     case BTA_DM_LINK_UP_EVT:
       bd_addr = p_data->link_up.bd_addr;
+      link_type = p_data->link_up.link_type;
+      hci_reason = (uint8_t)btm_get_acl_disc_reason_code();
       BTIF_TRACE_DEBUG("BTA_DM_LINK_UP_EVT. Sending BT_ACL_STATE_CONNECTED");
 
       btif_update_remote_version_property(&bd_addr);
 
       HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
-                &bd_addr, BT_ACL_STATE_CONNECTED);
+                &bd_addr, BT_ACL_STATE_CONNECTED, (uint8_t)link_type, hci_reason);
       break;
 
     case BTA_DM_LINK_DOWN_EVT:
       bd_addr = p_data->link_down.bd_addr;
+      link_type = p_data->link_down.link_type;
+      hci_reason = (uint8_t)btm_get_acl_disc_reason_code();
       btm_set_bond_type_dev(p_data->link_down.bd_addr, BOND_TYPE_UNKNOWN);
       BTIF_TRACE_DEBUG(
-          "BTA_DM_LINK_DOWN_EVT. transport = %d", p_data->link_down.link_type);
+          "BTA_DM_LINK_DOWN_EVT. transport = %d", link_type);
 
-      if (p_data->link_down.link_type == BT_TRANSPORT_BR_EDR) {
+      if (link_type == BT_TRANSPORT_BR_EDR) {
         btif_av_acl_disconnected(bd_addr);
-        BTIF_TRACE_DEBUG(
-            "BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
-        HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
-                  &bd_addr, BT_ACL_STATE_DISCONNECTED);
-      } else {
-        /* LE connection dropped, No need handle */
-        BTIF_TRACE_DEBUG(
-            "BTA_DM_LINK_DOWN_EVT. BLE transport is disconnected");
       }
 
+      HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
+                &bd_addr, BT_ACL_STATE_DISCONNECTED, (uint8_t)link_type, hci_reason);
       break;
 
     case BTA_DM_HW_ERROR_EVT:
@@ -2010,6 +2014,8 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
 
     case BTA_DM_BLE_AUTH_CMPL_EVT:
       BTIF_TRACE_DEBUG("BTA_DM_BLE_AUTH_CMPL_EVT. ");
+      BTIF_TRACE_DEBUG("Restore link policy");
+      BTM_SetLinkPolicy(p_data->auth_cmpl.bd_addr, &btm_cb.btm_def_link_policy);
       btif_dm_ble_auth_cmpl_evt(&p_data->auth_cmpl);
       break;
 
@@ -3113,7 +3119,15 @@ static void btif_dm_ble_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
       state = BT_BOND_STATE_NONE;
     } else {
       btif_dm_save_ble_bonding_keys(bdaddr);
-      btif_dm_get_remote_services_by_transport(&bd_addr, GATT_TRANSPORT_LE);
+      BTIF_TRACE_DEBUG("%s: smp_over_br %d", __func__, p_auth_cmpl->smp_over_br);
+      // Ensure inquiry is stopped before attempting service discovery
+      btif_dm_cancel_discovery();
+      // Discover service over BR transport if smp pair is over BR
+      if (p_auth_cmpl->smp_over_br) {
+        btif_dm_get_remote_services_by_transport(&bd_addr, BT_TRANSPORT_BR_EDR);
+      } else {
+        btif_dm_get_remote_services_by_transport(&bd_addr, GATT_TRANSPORT_LE);
+      }
     }
   } else {
     /*Map the HCI fail reason  to  bt status  */
