@@ -586,7 +586,7 @@ static uint8_t avdt_msg_prs_cfg(AvdtpSepConfig* p_cfg, uint8_t* p, uint16_t len,
     /* parse individual information elements with additional parameters */
     switch (elem) {
       case AVDT_CAT_RECOV:
-        if ((p_end - p) < 3) {
+        if ((p_end -p) < 3) {
           err = AVDT_ERR_PAYLOAD;
           break;
         }
