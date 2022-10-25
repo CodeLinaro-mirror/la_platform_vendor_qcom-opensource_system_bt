@@ -2295,7 +2295,7 @@ void btif_dm_get_rssi(const RawAddress bd_addr, int transport) {
   conn_handle = BTM_GetHCIConnHandle(bd_addr, transport);
 
   if (conn_handle == HCI_INVALID_HANDLE) {
-    BTIF_TRACE_ERROR("%s， conn_handle invalid");
+    BTIF_TRACE_ERROR("%s, conn_handle invalid", __func__);
     return;
   }
 
