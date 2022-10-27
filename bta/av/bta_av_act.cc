@@ -14,6 +14,11 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ *
+ *  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 
 /******************************************************************************
@@ -1554,8 +1559,10 @@ void bta_av_signalling_timer(UNUSED_ATTR tBTA_AV_DATA* p_data) {
         bta_sys_start_timer(p_scb->link_signalling_timer,
                             BTA_AV_SIGNALLING_TIMEOUT_MS,
                             BTA_AV_SIGNALLING_TIMER_EVT, hndl);
+        tBTA_AV_SCB* p_scb = p_cb->p_scb[xx];
         tBTA_AV_PEND pend;
         pend.bd_addr = p_lcb->addr;
+        pend.hndl = p_scb->hndl;
         tBTA_AV bta_av_data;
         bta_av_data.pend = pend;
         APPL_TRACE_DEBUG(

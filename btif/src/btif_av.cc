@@ -1294,6 +1294,22 @@ BtifAvPeer* BtifAvSink::FindOrCreatePeer(const RawAddress& peer_address,
   BtifAvPeer* peer = FindPeer(peer_address);
   if (peer != nullptr) return peer;
 
+  if (bta_handle != kBtaHandleUnknown) {
+    BtifAvPeer* peer_ = FindPeerByHandle(bta_handle);
+    // In some kind of situation, peer is created and in idle state. However, the associated
+    // p_scb in global variable bta_av_cb is cleaned. If there is a new incoming AV connection
+    // request, and passed a conflict bta_handle from ssm, it could result in mismatched
+    // bta_handle issue.
+    if (peer_ != nullptr) {
+      BTIF_TRACE_WARNING(
+        "%s: find dead peer peer_address=%s bta_handle=0x%x",
+        __PRETTY_FUNCTION__, peer_->PeerAddress().ToString().c_str(), bta_handle);
+      if (DeletePeer(peer_->PeerAddress())) {
+        BTIF_TRACE_ERROR("%s: Delete dead peer failed");
+      }
+    }
+  }
+
   // Find next availabie Peer ID to use
   uint8_t peer_id;
   for (peer_id = kPeerIdMin; peer_id < kPeerIdMax; peer_id++) {
@@ -2743,6 +2759,7 @@ static void btif_av_handle_bta_av_event(uint8_t peer_sep,
     case BTA_AV_PENDING_EVT: {
       const tBTA_AV_PEND& pend = p_data->pend;
       peer_address = pend.bd_addr;
+      bta_handle = pend.hndl;
       break;
     }
     case BTA_AV_REJECT_EVT: {

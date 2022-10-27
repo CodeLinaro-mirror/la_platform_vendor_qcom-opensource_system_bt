@@ -14,6 +14,11 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ *
+ *  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 
 /******************************************************************************
@@ -321,7 +326,10 @@ typedef struct {
 } tBTA_AV_META_MSG;
 
 /* data associated with BTA_AV_PENDING_EVT */
-typedef struct { RawAddress bd_addr; } tBTA_AV_PEND;
+typedef struct {
+  RawAddress bd_addr;
+  tBTA_AV_HNDL hndl; /* Handle associated with the stream */
+} tBTA_AV_PEND;
 
 /* data associated with BTA_AV_REJECT_EVT */
 typedef struct {
