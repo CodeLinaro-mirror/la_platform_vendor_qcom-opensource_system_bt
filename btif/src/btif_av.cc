@@ -2243,6 +2243,15 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
             //memcpy(&streaming_bda, &(btif_av_cb[index].peer_bda),
             //                      sizeof(bt_bdaddr_t));
             // refresh the sessions
+            // check if we already processing the start ind for one
+            // device , then reject the 2nd start ind
+            int start_index = btif_av_get_latest_start_pending_idx();
+            if(start_index != btif_max_av_clients && start_index != index) {
+              BTIF_TRACE_DEBUG("%s:Reject the start request as there is pending \
+                                  one ",__func__);
+              BTA_AvkSendPedingStartRej(btif_av_cb[index].bta_handle);
+              break;
+            }
             uint8_t* a2dp_codec_config =
                 bta_av_co_get_peer_codec_info(btif_av_cb[index].bta_handle);
             memcpy(active_codec_info, a2dp_codec_config, AVDT_CODEC_SIZE);
@@ -2606,6 +2615,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
   btif_sm_state_t state = BTIF_AV_STATE_IDLE;
   int i;
   bool hal_suspend_pending = false;
+  int start_pending_index = 0;
   tA2DP_CTRL_CMD pending_cmd = A2DP_CTRL_CMD_NONE;
   if (!btif_a2dp_source_is_hal_v2_supported()) {
     pending_cmd = btif_a2dp_control_get_pending_command();
@@ -3033,6 +3043,14 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
                       BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL);
             }
          }
+      } else if(p_av->suspend.initiator == true &&
+                bt_split_a2dp_sink_enabled) {
+         if(btif_av_cb[index].vsc_command_status == BTIF_AVK_VSC_STARTED) {
+             // VSC START was successful, send VSC_STOP
+             btif_av_cb[index].vsc_command_status = BTIF_AVK_VSC_STOPPING;
+             BTA_AvkOffloadStop(btif_av_cb[index].bta_handle);
+             break;
+         }
       }
 
       /* a2dp suspended, stop media task until resumed
@@ -3147,6 +3165,15 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
         // MM-Audio sessoin is stopped
         BTIF_TRACE_DEBUG(" %s vsc_command_status %d",__FUNCTION__,
                         btif_av_cb[index].vsc_command_status);
+        start_pending_index = btif_av_get_latest_start_pending_idx();
+        if(event == BTIF_AV_SINK_OFFLOAD_STOP_CFM_EVT &&
+           (start_pending_index != btif_max_av_clients &&
+          start_pending_index != index)) {
+          BTIF_TRACE_DEBUG(" %s send suspend for a2dp source ",__FUNCTION__);
+          btif_av_cb[index].flags |= BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING;
+          BTA_AvStop(true, btif_av_cb[index].bta_handle);
+          break;
+        }
         // check the last vsc_command status.
         switch (btif_av_cb[index].vsc_command_status) {
            case BTIF_AVK_VSC_STARTED:
@@ -3186,6 +3213,8 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
              if(btif_av_cb[index].suspend_cfm_pending == true) {
                BTA_AvkSendPedingSuspendCnf(btif_av_cb[index].bta_handle);
                btif_av_cb[index].suspend_cfm_pending = false;
+             } else if(btif_av_cb[index].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING){
+               btif_av_cb[index].flags &= ~BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING;
              } else {
                btif_av_cb[index].stream_stopped_internally = true;
              }
@@ -3197,6 +3226,20 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
         }
         btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_OPENED);
         break;
+
+    case BTA_AV_START_EVT: {
+      BTIF_TRACE_DEBUG("%s: BTA_AV_START_EVT status: %d, suspending: %d, init: %d,"
+            " role: %d", __func__, p_av->start.status, p_av->start.suspending,
+            p_av->start.initiator, p_av->start.role);
+      if (btif_av_cb[index].peer_sep == AVDT_TSEP_SRC &&
+          bt_split_a2dp_sink_enabled && !p_av->start.initiator &&
+          (btif_av_cb[index].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING)) {
+        BTIF_TRACE_DEBUG("%s:Reject the start request in streaming state \
+                          ",__func__);
+        BTA_AvkSendPedingStartRej(btif_av_cb[index].bta_handle);
+        break;
+      }
+    } break;
 
     case BTA_AV_STOP_EVT:
       btif_av_cb[index].flags |= BTIF_AV_FLAG_PENDING_STOP;
