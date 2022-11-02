@@ -692,6 +692,7 @@ bool A2DP_IsCodecEnabledInSoftware(btav_a2dp_codec_index_t codec_index);
 bool A2DP_Get_AAC_VBR_Status(const RawAddress *remote_bdaddr);
 bool A2DP_Get_Aptx_AdaptiveR2_1_Supported();
 bool A2DP_Get_Aptx_AdaptiveR2_2_Supported();
+bool A2DP_Get_Source_Aptx_Adaptive_SplitTx_Supported();
 
 bool A2DP_IsCodecEnabledInOffload(btav_a2dp_codec_index_t codec_index);
 // Decodes and displays A2DP codec info when using |LOG_DEBUG|.
@@ -701,6 +702,11 @@ bool A2DP_DumpCodecInfo(const uint8_t* p_codec_info);
 
 void print_codec_config(uint8_t codec_arry[]);
 void print_codec_parameters(btav_a2dp_codec_config_t config);
+
+tA2DP_STATUS A2dp_IsCodecConfigMatch(const uint8_t* p_codec_info);
+
+uint8_t A2dp_SendSetConfigRspErrorCodeForPTS();
+
 // Add enum-based flag operators to the btav_a2dp_codec_config_t fields
 #ifndef DEFINE_ENUM_FLAG_OPERATORS
 #define DEFINE_ENUM_FLAG_OPERATORS(bitmask)                                 \

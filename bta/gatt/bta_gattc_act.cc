@@ -76,6 +76,7 @@
 #include "device/include/interop.h"
 #include "stack/btm/btm_int_types.h"
 #include "btif/include/btif_storage.h"
+#include "btm_int.h"
 
 #if (BTA_HH_LE_INCLUDED == TRUE)
 #include "bta_hh_int.h"
@@ -896,7 +897,8 @@ void bta_gattc_disc_cmpl(tBTA_GATTC_CLCB* p_clcb,
                          UNUSED_ATTR tBTA_GATTC_DATA* p_data) {
   tBTA_GATTC_DATA* p_q_cmd = p_clcb->p_q_cmd;
 
-  VLOG(1) << __func__ << ": conn_id=" << loghex(p_clcb->bta_conn_id);
+  VLOG(1) << __func__ << ": conn_id=" << loghex(p_clcb->bta_conn_id)
+                      << ", status = " << +p_clcb->status;
 
   if (p_clcb->transport == BTA_TRANSPORT_LE) {
     if (p_clcb->p_srcb &&
@@ -917,6 +919,12 @@ void bta_gattc_disc_cmpl(tBTA_GATTC_CLCB* p_clcb,
       p_clcb->p_srcb->gatt_database.Clear();
       /* used to reset cache in application */
       bta_gattc_cache_reset(p_clcb->p_srcb->server_bda);
+    }
+    uint16_t p_conn_id;
+    if (!GATT_GetConnIdIfConnected((uint8_t)p_clcb->bta_conn_id, p_clcb->bda,
+                                  &p_conn_id, p_clcb->transport)) {
+      osi_free_and_reset((void**)&p_q_cmd);
+      p_clcb->p_q_cmd = NULL;
     }
   }
 

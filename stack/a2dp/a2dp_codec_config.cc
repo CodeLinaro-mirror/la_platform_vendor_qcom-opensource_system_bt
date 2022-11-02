@@ -108,6 +108,7 @@ bool aptxtws_sw = false;
 bool vbr_supported = false;
 bool aptxadaptiver2_1_supported = false;
 bool aptxadaptiver2_2_supported = false;
+bool a2dp_aptxadaptive_src_split_tx_supported = false;
 std::string offload_caps = "";
 static void init_btav_a2dp_codec_config(
     btav_a2dp_codec_config_t* codec_config, btav_a2dp_codec_index_t codec_index,
@@ -1110,8 +1111,11 @@ int A2DP_IotGetPeerSinkCodecType(const uint8_t* p_codec_info) {
 #endif
 
 tA2DP_CODEC_TYPE A2DP_GetCodecType(const uint8_t* p_codec_info) {
-  LOG_DEBUG(LOG_TAG, "%s: ", __func__);
-  return (tA2DP_CODEC_TYPE)(p_codec_info[AVDT_CODEC_TYPE_INDEX]);
+  tA2DP_CODEC_TYPE codec_type =
+        (tA2DP_CODEC_TYPE)(p_codec_info[AVDT_CODEC_TYPE_INDEX]);
+
+  LOG_DEBUG(LOG_TAG, "%s: codec_type: %d", __func__, codec_type);
+  return codec_type;
 }
 
 bool A2DP_IsSourceCodecValid(const uint8_t* p_codec_info) {
@@ -1653,6 +1657,7 @@ void A2DP_SetOffloadStatus(bool offload_status, const char *offload_cap,
   }
   if (add_on_features_size != 0 &&
       HCI_SPLIT_A2DP_SOURCE_Tx_Split_APTX_ADAPTIVE_SUPPORTED(add_on_features_list->as_array)) {
+    a2dp_aptxadaptive_src_split_tx_supported = true;
     BTIF_TRACE_DEBUG("%s: split TX is supported", __func__);
     property_get("persist.vendor.qcom.bluetooth.aptxadaptiver2_2_support", adaptive_value, "false");
     if (!(strcmp(adaptive_value,"true"))) {
@@ -1838,6 +1843,10 @@ bool A2DP_Get_Aptx_AdaptiveR2_2_Supported() {
     return aptxadaptiver2_2_supported;
 }
 
+bool A2DP_Get_Source_Aptx_Adaptive_SplitTx_Supported() {
+    return a2dp_aptxadaptive_src_split_tx_supported;
+}
+
 bool A2DP_Get_AAC_VBR_Status(const RawAddress *remote_bdaddr) {
    if (vbr_supported) {
      if (interop_match_addr_or_name(INTEROP_DISABLE_AAC_VBR_CODEC, remote_bdaddr)) {
@@ -1952,6 +1961,57 @@ bool A2DP_DumpCodecInfo(const uint8_t* p_codec_info) {
   LOG_ERROR(LOG_TAG, "%s: unsupported codec type 0x%x", __func__, codec_type);
   return false;
 }
+
+tA2DP_STATUS A2dp_IsCodecConfigMatch(const uint8_t* p_codec_info) {
+  tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
+
+  LOG_DEBUG(LOG_TAG, "%s: codec_type = 0x%x", __func__, codec_type);
+
+  switch (codec_type) {
+    case A2DP_MEDIA_CT_SBC:
+      return A2DP_IsCodecConfigMatchSbc(p_codec_info);
+
+    case A2DP_MEDIA_CT_AAC:
+      return A2DP_IsCodecConfigMatchAac(p_codec_info);
+
+    case A2DP_MEDIA_CT_NON_A2DP:
+      return A2DP_VendorIsCodecConfigMatch(p_codec_info);
+
+    default:
+      break;
+  }
+
+  LOG_ERROR(LOG_TAG, "%s: unsupported codec type 0x%x", __func__, codec_type);
+  return A2DP_SUCCESS;
+}
+
+uint8_t A2dp_SendSetConfigRspErrorCodeForPTS() {
+
+  LOG_DEBUG(LOG_TAG, "%s:", __func__);
+
+  char is_a2dp_pts_enable[PROPERTY_VALUE_MAX] = "false";
+  char value[PROPERTY_VALUE_MAX] = {'\0'};
+  uint8_t error_code = 0;
+
+  property_get("persist.vendor.bt.a2dp.pts_enable", is_a2dp_pts_enable, "false");
+  APPL_TRACE_DEBUG("%s: is_a2dp_pts_enable: %s", __func__, is_a2dp_pts_enable);
+
+  property_get("persist.vendor.bt.a2dp.set_config_error_code", value, "0");
+
+  int res = sscanf(value, "%hu", &error_code);
+
+  APPL_TRACE_DEBUG("%s: res: %d", __func__, res);
+  APPL_TRACE_DEBUG("%s: error_code: %d", __func__, error_code);
+
+  if (!strncmp("true", is_a2dp_pts_enable, 4) &&
+      (res == 1) && (error_code != 0)) {
+    APPL_TRACE_DEBUG("%s: error_code : %d", __func__, error_code);
+    return error_code;
+  }
+  return error_code;
+}
+
+
 void print_codec_config(uint8_t codec_arry[]) {
    for(int i = 0; i < AVDT_CODEC_SIZE; i++)
    {
