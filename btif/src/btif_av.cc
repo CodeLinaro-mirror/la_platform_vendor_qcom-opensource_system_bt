@@ -3015,11 +3015,13 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
            /* remote suspend request,manage flags, inform bt-app, move to suspend_pending state
             */
            if ((btif_av_cb[index].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING) == 0) {
-               btif_av_cb[index].flags |= BTIF_AV_FLAG_REMOTE_SUSPEND;
+             btif_av_cb[index].flags |= BTIF_AV_FLAG_REMOTE_SUSPEND;
+             btif_av_cb[index].flags &= ~BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING;
+             btif_av_cb[index].suspend_cfm_pending = true;
+             HAL_CBACK(bt_vendor_av_sink_callbacks, suspend_ind_cb, &btif_av_cb[index].peer_bda);
+           } else {
+             BTA_AvkSendPedingSuspendCnf(btif_av_cb[index].bta_handle);
            }
-           btif_av_cb[index].flags &= ~BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING;
-           btif_av_cb[index].suspend_cfm_pending = true;
-           HAL_CBACK(bt_vendor_av_sink_callbacks, suspend_ind_cb, &btif_av_cb[index].peer_bda);
            break;
          } else {
           /* remote suspend, notify HAL and await audioflinger to

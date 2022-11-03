@@ -748,6 +748,7 @@ typedef struct {
   bool browse_open;
   bool rc_opened;
   RawAddress peer_addr;
+  alarm_t* delay_rc_disc_timer;
 } tBTA_AV_RCB;
 #define BTA_AV_NUM_RCB (BTA_AV_NUM_STRS + 2)
 
