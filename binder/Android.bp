@@ -96,6 +96,7 @@ filegroup {
     name: "libbluetooth-binder-aidl",
     srcs: [
         "android/bluetooth/IBluetooth.aidl",
+        "android/bluetooth/IBluetoothExt.aidl",
         "android/bluetooth/IBluetoothA2dp.aidl",
         "android/bluetooth/IBluetoothA2dpSink.aidl",
         "android/bluetooth/IBluetoothAvrcpController.aidl",
@@ -109,6 +110,7 @@ filegroup {
         "android/bluetooth/IBluetoothLeAudio.aidl",
         "android/bluetooth/IBluetoothPan.aidl",
         "android/bluetooth/IBluetoothManager.aidl",
+        "android/bluetooth/IBluetoothManagerExt.aidl",
         "android/bluetooth/IBluetoothManagerCallback.aidl",
         "android/bluetooth/IBluetoothMap.aidl",
         "android/bluetooth/IBluetoothMapClient.aidl",
@@ -121,6 +123,7 @@ filegroup {
         "android/bluetooth/IBluetoothHidDevice.aidl",
         "android/bluetooth/IBluetoothHidDeviceCallback.aidl",
         "android/bluetooth/IBluetoothGatt.aidl",
+        "android/bluetooth/IBluetoothGattExt.aidl",
         "android/bluetooth/IBluetoothGattCallback.aidl",
         "android/bluetooth/IBluetoothMetadataListener.aidl",
         "android/bluetooth/IBluetoothGattServerCallback.aidl",
