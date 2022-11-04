@@ -3495,6 +3495,18 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
       }
       break;
 
+      case BTIF_AV_SINK_START_IND_RSP:
+      if (p_param != NULL) {
+        tBTA_AV_SINK_START_RSP *start_rsp = (tBTA_AV_SINK_START_RSP*)p_param;
+        bt_addr = &(start_rsp->peer_addr);
+        index = btif_av_idx_by_bdaddr(bt_addr);
+        if (index == btif_max_av_clients) {
+          index = 0;
+        }
+       BTIF_TRACE_DEBUG("%s: BTIF_AV_SINK_START_IND_RSP on idx = %d", __func__, index);
+     }
+      break;
+
     case BTIF_AV_SOURCE_CONFIG_REQ_EVT:
         BTIF_TRACE_DEBUG("BTIF_AV_SOURCE_CONFIG_REQ_EVT more than one device connected");
         index = btif_max_av_clients;
@@ -4024,7 +4036,6 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
         btif_a2dp_source_process_request((tA2DP_CTRL_CMD ) *p_param);
       }
       break;
-
     default:
       BTIF_TRACE_ERROR("Unhandled event = %d", event);
       break;
