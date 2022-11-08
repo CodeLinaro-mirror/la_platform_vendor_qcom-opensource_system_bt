@@ -1164,6 +1164,13 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
         reconfig_a2dp = FALSE;
         btif_media_send_reset_vendor_state();
       }
+
+      // close AIDL sessions in case of no device is connected
+      if(bt_split_a2dp_sink_enabled && (index < btif_max_av_clients)) {
+        if(!btif_av_get_num_connected_devices()) {
+          btif_a2dp_sink_end_session(ba_addr);
+        }
+      }
       break;
 
     case BTIF_SM_EXIT_EVT:
@@ -3812,6 +3819,9 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
       if(index == btif_max_av_clients) {
         index = btif_av_get_latest_stream_device_idx();
       }
+      if(index == btif_max_av_clients) {
+        btif_a2dp_on_suspended(nullptr);
+      }
       BTIF_TRACE_EVENT("index = %d, max connections = %d", index, btif_max_av_clients);
       break;
     case BTIF_AV_SINK_OFFLOAD_HAL_RESTART_EVT:
@@ -3827,6 +3837,9 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
       index = btif_av_get_latest_start_pending_idx();
       if(index == btif_max_av_clients) {
         index = btif_av_get_interally_stopped_idx();
+      }
+      if(index == btif_max_av_clients) {
+        btif_a2dp_on_started(nullptr, false, 0);
       }
       BTIF_TRACE_EVENT("index = %d, max connections = %d", index, btif_max_av_clients);
       break;
