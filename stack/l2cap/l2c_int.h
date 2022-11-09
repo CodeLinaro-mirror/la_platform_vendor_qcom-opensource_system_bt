@@ -215,6 +215,11 @@ typedef enum {
 #define L2CAP_MIN_MONITOR_TOUT 12000
 
 #define L2CAP_MAX_FCR_CFG_TRIES 2 /* Config attempts before disconnecting */
+//errata id = 14605
+#define CONNECTION_PENDING 1
+#define CONNECTION_PENDING_RESET 0
+#define L2CAP_AUTHORIZATION_PENDING 1
+#define L2CAP_AUTHORIZATION_PENDING_RESET 0
 
 typedef uint8_t tL2C_BLE_FIXED_CHNLS_MASK;
 
@@ -336,6 +341,9 @@ typedef struct {
   uint16_t peer_rsp_cids[L2C_MAX_ECFC_CHNLS_PER_CONN];
   uint64_t disc_pending;
   alarm_t* ecfc_conn_alarm;
+  //errata id = 14605
+  uint64_t connection_pending;
+  uint64_t authorization_pending;
 } tL2C_coc_cmd_info;
 
 /* This structure contains information needed to handle ECFC reconfig Request */

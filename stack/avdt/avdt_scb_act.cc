@@ -671,6 +671,12 @@ bool avdt_check_sep_state(tAVDT_SCB *p_scb) {
 void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   tAVDT_CFG* p_cfg;
   tA2DP_CODEC_TYPE codec_type;
+  char value[PROPERTY_VALUE_MAX] = {'\0'};
+  bool pts_status = false;
+  property_get("vendor.bt.pts.certification", value, "false");
+  if (!(strcmp(value,"true"))) {
+     pts_status = true;
+  }
   AVDT_TRACE_WARNING("avdt_scb_hdl_setconfig_cmd: SCB in use: %d, Conn in progress: %d, avdt_check_sep_state: %d",
        p_scb->in_use, avdt_cb.conn_in_progress, avdt_check_sep_state(p_scb));
 
@@ -705,26 +711,29 @@ void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
                               p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET],
                               p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET]);
         }
-        //minbitpool < 2, then set minbitpool = 2
-        if ((p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]) < A2DP_SBC_IE_MIN_BITPOOL) {
-          p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET] = A2DP_SBC_IE_MIN_BITPOOL;
-          AVDT_TRACE_DEBUG("%s: Incoming connection set min bitpool: %x", __func__,
-                              p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]);
-        }
-
-        if (p_scb->cs.tsep == AVDT_TSEP_SRC) {
-          //minbitpool > 250, then set minbitpool = 250
-          if ((p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]) > A2DP_SBC_IE_MAX_BITPOOL) {
-            p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET] = A2DP_SBC_IE_MAX_BITPOOL;
+        // If pts certification property is false then handle min/max bitpool.
+        if (!pts_status) {
+          //minbitpool < 2, then set minbitpool = 2
+          if ((p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]) < A2DP_SBC_IE_MIN_BITPOOL) {
+            p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET] = A2DP_SBC_IE_MIN_BITPOOL;
             AVDT_TRACE_DEBUG("%s: Incoming connection set min bitpool: %x", __func__,
                                 p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]);
           }
 
-          //maxbitpool > 250, then set maxbitpool = 250
-          if ((p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET]) > A2DP_SBC_IE_MAX_BITPOOL) {
-            p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET] = A2DP_SBC_IE_MAX_BITPOOL;
-            AVDT_TRACE_DEBUG("%s: Incoming connection set max bitpool: %x", __func__,
-                                p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET]);
+          if (p_scb->cs.tsep == AVDT_TSEP_SRC) {
+            //minbitpool > 250, then set minbitpool = 250
+            if ((p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]) > A2DP_SBC_IE_MAX_BITPOOL) {
+              p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET] = A2DP_SBC_IE_MAX_BITPOOL;
+              AVDT_TRACE_DEBUG("%s: Incoming connection set min bitpool: %x", __func__,
+                                  p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]);
+            }
+
+            //maxbitpool > 250, then set maxbitpool = 250
+            if ((p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET]) > A2DP_SBC_IE_MAX_BITPOOL) {
+              p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET] = A2DP_SBC_IE_MAX_BITPOOL;
+              AVDT_TRACE_DEBUG("%s: Incoming connection set max bitpool: %x", __func__,
+                                  p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET]);
+            }
           }
         }
 
@@ -747,7 +756,16 @@ void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
                                 AVDT_CONFIG_IND_EVT,
                                 (tAVDT_CTRL*)&p_data->msg.config_cmd);
     } else {
-      p_data->msg.hdr.err_code = AVDT_ERR_UNSUP_CFG;
+      if (!pts_status) {
+        p_data->msg.hdr.err_code = AVDT_ERR_UNSUP_CFG;
+      } else {
+        property_get("vendor.bt.pts.certification_ns_codec", value, "false");
+        if (!(strcmp(value,"true"))) {
+          p_data->msg.hdr.err_code = A2DP_NS_CODEC_TYPE;
+        } else {
+          p_data->msg.hdr.err_code = A2DP_BAD_CODEC_TYPE;
+        }
+      }
       p_data->msg.hdr.err_param = 0;
       AVDT_TRACE_DEBUG("%s: called avdt_msg_send_rej()", __func__);
       avdt_msg_send_rej(avdt_ccb_by_idx(p_data->msg.hdr.ccb_idx),

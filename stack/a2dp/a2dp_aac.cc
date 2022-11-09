@@ -256,7 +256,9 @@ static tA2DP_STATUS A2DP_ParseInfoAac(tA2DP_AAC_CIE* p_ie,
   uint8_t losc;
   uint8_t media_type;
   tA2DP_CODEC_TYPE codec_type;
-   LOG_DEBUG(LOG_TAG, "%s: ", __func__);
+  bool drc;
+  char value[PROPERTY_VALUE_MAX] = {'\0'};
+  LOG_DEBUG(LOG_TAG, "%s: ", __func__);
 
   if (p_ie == NULL || p_codec_info == NULL) return A2DP_INVALID_PARAMS;
 
@@ -271,7 +273,19 @@ static tA2DP_STATUS A2DP_ParseInfoAac(tA2DP_AAC_CIE* p_ie,
     return A2DP_WRONG_CODEC;
   }
 
-  p_ie->objectType = *p_codec_info++;
+  p_ie->objectType = *p_codec_info & A2DP_AAC_OBJECT_TYPE_MASK;
+  drc = *p_codec_info & A2DP_AAC_DRC_MASK;
+  if (drc) {
+     //if property set send error code as not supported otherwise invalid.
+     property_get("vendor.bt.pts.certification_ns_drc", value, "false");
+     if (!(strcmp(value,"true"))) {
+         return A2DP_NS_DRC;
+     } else {
+         return A2DP_BAD_DRC;
+     }
+  }
+
+  p_codec_info++;
   p_ie->sampleRate = (*p_codec_info & A2DP_AAC_SAMPLING_FREQ_MASK0) |
                      (*(p_codec_info + 1) << 8 & A2DP_AAC_SAMPLING_FREQ_MASK1);
   p_codec_info++;
@@ -294,9 +308,15 @@ static tA2DP_STATUS A2DP_ParseInfoAac(tA2DP_AAC_CIE* p_ie,
   if (A2DP_BitsSet(p_ie->sampleRate) != A2DP_SET_ONE_BIT)
     return A2DP_BAD_SAMP_FREQ;
   if (A2DP_BitsSet(p_ie->channelMode) != A2DP_SET_ONE_BIT)
-    return A2DP_BAD_CH_MODE;
+    return A2DP_BAD_CHANNEL;
 
   return A2DP_SUCCESS;
+}
+
+uint8_t A2DP_IsPeerCodecValidAac(const uint8_t* p_codec_info) {
+
+  return A2DP_CodecInfoMatchesCapabilityAac(&a2dp_aac_caps, p_codec_info,
+                                             false);
 }
 
 bool A2DP_IsSourceCodecValidAac(const uint8_t* p_codec_info) {
@@ -380,13 +400,18 @@ static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityAac(
               cfg_cie.bitRate, p_cap->bitRate);
 
   /* Object Type */
-  if ((cfg_cie.objectType & p_cap->objectType) == 0) return A2DP_BAD_OBJ_TYPE;
+  if ((cfg_cie.objectType & p_cap->objectType) == 0) return A2DP_NS_OBJ_TYPE;
 
   /* Sample Rate */
-  if ((cfg_cie.sampleRate & p_cap->sampleRate) == 0) return A2DP_BAD_SAMP_FREQ;
+  if ((cfg_cie.sampleRate & p_cap->sampleRate) == 0) return A2DP_NS_SAMP_FREQ;
 
   /* Channel Mode */
-  if ((cfg_cie.channelMode & p_cap->channelMode) == 0) return A2DP_NS_CH_MODE;
+  if ((cfg_cie.channelMode & p_cap->channelMode) == 0) return A2DP_NS_CHANNEL;
+
+  /* VariableBitRate Support */
+  if ((cfg_cie.variableBitRateSupport & p_cap->variableBitRateSupport) == 0) {
+     return A2DP_NS_VBR;
+  }
 
   return A2DP_SUCCESS;
 }

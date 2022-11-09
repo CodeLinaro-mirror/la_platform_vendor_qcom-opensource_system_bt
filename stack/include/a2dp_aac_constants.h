@@ -25,10 +25,13 @@
 #define A2DP_AAC_CODEC_LEN 8
 
 // [Octet 0] Object Type
+#define A2DP_AAC_OBJECT_TYPE_MASK 0xF0
 #define A2DP_AAC_OBJECT_TYPE_MPEG2_LC 0x80  /* MPEG-2 Low Complexity */
 #define A2DP_AAC_OBJECT_TYPE_MPEG4_LC 0x40  /* MPEG-4 Low Complexity */
 #define A2DP_AAC_OBJECT_TYPE_MPEG4_LTP 0x20 /* MPEG-4 Long Term Prediction */
 #define A2DP_AAC_OBJECT_TYPE_MPEG4_SCALABLE 0x10
+//AAC DRC mask
+#define A2DP_AAC_DRC_MASK 0x01;
 // [Octet 1] Sampling Frequency - 8000 to 44100
 #define A2DP_AAC_SAMPLING_FREQ_MASK0 0xFF
 #define A2DP_AAC_SAMPLING_FREQ_8000 0x80

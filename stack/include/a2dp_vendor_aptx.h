@@ -48,6 +48,13 @@ class A2dpCodecConfigAptx : public A2dpCodecConfig {
 // codec.
 // NOTE: only codecs that are implemented are considered valid.
 // Returns true if |p_codec_info| contains information about a valid aptX
+// codec, otherwise specific error code.
+uint8_t A2DP_IsPeerVendorCodecValidAptx(const uint8_t* p_codec_info);
+
+// Checks whether the codec capabilities contain a valid A2DP aptX Source
+// codec.
+// NOTE: only codecs that are implemented are considered valid.
+// Returns true if |p_codec_info| contains information about a valid aptX
 // codec, otherwise false.
 bool A2DP_IsVendorSourceCodecValidAptx(const uint8_t* p_codec_info);
 

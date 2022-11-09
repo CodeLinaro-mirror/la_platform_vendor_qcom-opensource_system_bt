@@ -415,15 +415,14 @@
 /* Default class of device
 * {SERVICE_CLASS, MAJOR_CLASS, MINOR_CLASS}
 *
-* SERVICE_CLASS:0x5A (Bit17 -Networking,Bit19 - Capturing,Bit20 -Object
-* Transfer,Bit22 -Telephony)
-* MAJOR_CLASS:0x02 - PHONE
-* MINOR_CLASS:0x0C - SMART_PHONE
+* SERVICE_CLASS: 0x08 - (Bit19 - Capturing)
+* MAJOR_CLASS  : 0x07 - BTM_COD_MAJOR_WEARABLE
+* MINOR_CLASS  : 0x04 - BTM_COD_MINOR_WRIST_WATCH
 *
 */
 #ifndef BTA_DM_COD
 #define BTA_DM_COD \
-  { 0x5A, 0x02, 0x0C }
+    { 0x08, BTM_COD_MAJOR_WEARABLE, BTM_COD_MINOR_WRIST_WATCH }
 #endif
 
 /* The number of SCO links. */

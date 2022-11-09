@@ -55,6 +55,13 @@ class A2dpCodecConfigAac : public A2dpCodecConfig {
   void debug_codec_dump(int fd) override;
 };
 
+// Checks whether the codec capabilities contain a valid A2DP AAC Source
+// codec.
+// NOTE: only codecs that are implemented are considered valid.
+// Returns true if |p_codec_info| contains information about a valid AAC
+// codec, otherwise error code.
+uint8_t A2DP_IsPeerCodecValidAac(const uint8_t* p_codec_info);
+
 // parses the given codec info and copies the needed info
 // to Codec Information Element and returns same CIE.
 bool A2DP_GetAacCIE(const uint8_t* p_codec_info,
