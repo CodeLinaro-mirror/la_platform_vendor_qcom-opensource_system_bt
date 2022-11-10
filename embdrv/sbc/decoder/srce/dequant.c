@@ -16,6 +16,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 
 /*******************************************************************************
@@ -117,8 +121,8 @@
 #define SBC_DEQUANT_SCALING_FACTOR 1.38019122262781f
 #endif
 
-const uint32_t dequant_long_scaled[17];
-const uint32_t dequant_long_unscaled[17];
+extern const uint32_t dequant_long_scaled[17];
+extern const uint32_t dequant_long_unscaled[17];
 
 /** Scales x by y bits to the right, adding a rounding factor.
  */
