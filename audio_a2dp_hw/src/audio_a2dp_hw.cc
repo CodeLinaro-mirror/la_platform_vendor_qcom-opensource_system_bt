@@ -82,6 +82,8 @@
           val);                                                           \
   }
 
+#define IS_AUDIO_DEVICE_OUT_BUS(dev) ((dev) == AUDIO_DEVICE_OUT_BUS)
+
 /*****************************************************************************
  *  Local type definitions
  *****************************************************************************/
@@ -1570,7 +1572,7 @@ static int in_remove_audio_effect(UNUSED_ATTR const struct audio_stream* stream,
 
 static int adev_open_output_stream(struct audio_hw_device* dev,
                                    UNUSED_ATTR audio_io_handle_t handle,
-                                   UNUSED_ATTR audio_devices_t devices,
+                                   audio_devices_t devices,
                                    UNUSED_ATTR audio_output_flags_t flags,
                                    struct audio_config* config,
                                    struct audio_stream_out** stream_out,
@@ -1612,14 +1614,16 @@ static int adev_open_output_stream(struct audio_hw_device* dev,
   // Make sure we always have the feeding parameters configured
   btav_a2dp_codec_config_t codec_config;
   btav_a2dp_codec_config_t codec_capability;
-  if (a2dp_read_output_audio_config(&out->common, &codec_config,
-                                    &codec_capability,
-                                    true /* update_stream_config */) < 0) {
-    ERROR("a2dp_read_output_audio_config failed");
-    ret = -1;
-    goto err_open;
+  if (!IS_AUDIO_DEVICE_OUT_BUS(devices)) {
+    if (a2dp_read_output_audio_config(&out->common, &codec_config,
+                                      &codec_capability,
+                                      true /* update_stream_config */) < 0) {
+      ERROR("a2dp_read_output_audio_config failed");
+      ret = -1;
+      goto err_open;
+    }
+    // a2dp_read_output_audio_config() opens the socket control path (or fails)
   }
-  // a2dp_read_output_audio_config() opens the socket control path (or fails)
 
   /* set output config values */
   if (config != nullptr) {
@@ -1631,18 +1635,20 @@ static int adev_open_output_stream(struct audio_hw_device* dev,
       out->common.cfg.channel_mask = config->channel_mask;
     if ((out->common.cfg.format != 0) || (out->common.cfg.rate != 0) ||
         (out->common.cfg.channel_mask != 0)) {
-      if (a2dp_write_output_audio_config(&out->common) < 0) {
-        ERROR("a2dp_write_output_audio_config failed");
-        ret = -1;
-        goto err_open;
-      }
-      // Read again and make sure we use the same parameters as the remote side
-      if (a2dp_read_output_audio_config(&out->common, &codec_config,
-                                        &codec_capability,
-                                        true /* update_stream_config */) < 0) {
-        ERROR("a2dp_read_output_audio_config failed");
-        ret = -1;
-        goto err_open;
+      if (!IS_AUDIO_DEVICE_OUT_BUS(devices)) {
+        if (a2dp_write_output_audio_config(&out->common) < 0) {
+          ERROR("a2dp_write_output_audio_config failed");
+          ret = -1;
+          goto err_open;
+        }
+        // Read again and make sure we use the same parameters as the remote side
+        if (a2dp_read_output_audio_config(&out->common, &codec_config,
+                                          &codec_capability,
+                                          true /* update_stream_config */) < 0) {
+          ERROR("a2dp_read_output_audio_config failed");
+          ret = -1;
+          goto err_open;
+        }
       }
     }
     config->format = out_get_format((const struct audio_stream*)&out->stream);
