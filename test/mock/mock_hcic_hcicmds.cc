@@ -178,6 +178,9 @@ void btsnd_hcic_read_lmp_handle(uint16_t handle) {
 void btsnd_hcic_read_local_oob_data(void) {
   mock_function_count_map[__func__]++;
 }
+void btsnd_hcic_read_local_oob_ext_data(void) {
+  mock_function_count_map[__func__]++;
+}
 void btsnd_hcic_read_name(void) { mock_function_count_map[__func__]++; }
 void btsnd_hcic_read_rmt_clk_offset(uint16_t handle) {
   mock_function_count_map[__func__]++;
@@ -201,6 +204,12 @@ void btsnd_hcic_rem_oob_reply(const RawAddress& bd_addr, const Octet16& c,
                               const Octet16& r) {
   mock_function_count_map[__func__]++;
 }
+
+void btsnd_hcic_rem_oob_ext_reply(const RawAddress& bd_addr, const Octet16& c192,
+                          const Octet16& r192, const Octet16& c256, const Octet16& r256) {
+  mock_function_count_map[__func__]++;
+}
+
 void btsnd_hcic_rmt_ext_features(uint16_t handle, uint8_t page_num) {
   mock_function_count_map[__func__]++;
 }

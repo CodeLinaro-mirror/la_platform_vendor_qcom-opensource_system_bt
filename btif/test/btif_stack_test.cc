@@ -92,7 +92,8 @@ void bond_state_changed(bt_status_t status, RawAddress* remote_bd_addr,
 
 /** Bluetooth ACL connection state changed callback */
 void acl_state_changed(bt_status_t status, RawAddress* remote_bd_addr,
-                       bt_acl_state_t state, bt_hci_error_code_t hci_reason) {
+                       bt_acl_state_t state, bt_hci_error_code_t hci_reason,
+                       tBT_TRANSPORT link_type) {
   LOG_INFO("status:%s device:%s state:%s", bt_status_text(status).c_str(),
            remote_bd_addr->ToString().c_str(),
            (state) ? "disconnected" : "connected");
@@ -169,6 +170,9 @@ hci_t mock_hci = {
 };
 
 bool is_bluetooth_uid() { return false; }
+#if (A2DP_SINK_DELAY_REPORT == TRUE)
+bool bta_avk_is_avdt_sync(uint16_t handle) { return false; }
+#endif
 const tBTA_AG_RES_DATA tBTA_AG_RES_DATA::kEmpty = {};
 
 namespace bluetooth {

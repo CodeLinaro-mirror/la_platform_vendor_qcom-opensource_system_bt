@@ -57,6 +57,7 @@ bt_interface_t fake_bt_iface = {
     nullptr, /* cancel_discovery */
     nullptr, /* create_bond */
     nullptr, /* create_bond_out_of_band */
+    nullptr, /* get_link_key */
     nullptr, /* remove_bond */
     nullptr, /* cancel_bond */
     nullptr, /* get_connection_state */
@@ -78,6 +79,8 @@ bt_interface_t fake_bt_iface = {
     nullptr, /* get_metric_id */
     nullptr, /* set_dynamic_audio_buffer_size */
     nullptr, /* generate_local_oob_data */
+    nullptr, /* load_remote_oob_data */
+    nullptr, /* get_rssi */
 };
 
 }  // namespace

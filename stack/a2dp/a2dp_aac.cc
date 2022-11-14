@@ -1504,7 +1504,8 @@ A2dpCodecConfigAacSink::A2dpCodecConfigAacSink(
 A2dpCodecConfigAacSink::~A2dpCodecConfigAacSink() {}
 
 bool A2dpCodecConfigAacSink::init() {
-  if (!isValid()) return false;
+  if (!(isValid() && A2DP_GetCodecSupported(BTAV_A2DP_CODEC_INDEX_SINK_AAC)))
+    return false;
 
   // Load the decoder
   if (!A2DP_LoadDecoderAac()) {

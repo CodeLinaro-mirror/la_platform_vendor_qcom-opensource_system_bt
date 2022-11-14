@@ -158,6 +158,7 @@ void btif_dm_update_ble_remote_properties(const RawAddress& bd_addr,
 }
 
 void btif_dm_proc_loc_oob(tBT_TRANSPORT transport, bool is_valid,
-                          const Octet16& c, const Octet16& r) {
+                           const Octet16& c, const Octet16& r,
+                           const Octet16& c_ext, const Octet16& r_ext) {
   mock_function_count_map[__func__]++;
 }

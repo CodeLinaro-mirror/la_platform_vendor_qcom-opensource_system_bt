@@ -1298,7 +1298,12 @@ void BTM_PasskeyReqReply(tBTM_STATUS res, const RawAddress& bd_addr,
  *                  LM
  *
  ******************************************************************************/
-void BTM_ReadLocalOobData(void) { btsnd_hcic_read_local_oob_data(); }
+void BTM_ReadLocalOobData(void) {
+  if (controller_get_interface()->supports_secure_connections())
+    btsnd_hcic_read_local_oob_ext_data();
+  else
+    btsnd_hcic_read_local_oob_data();
+}
 
 /*******************************************************************************
  *
@@ -1330,6 +1335,42 @@ void BTM_RemoteOobDataReply(tBTM_STATUS res, const RawAddress& bd_addr,
   } else {
     acl_set_disconnect_reason(HCI_SUCCESS);
     btsnd_hcic_rem_oob_reply(bd_addr, c, r);
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         BTM_RemoteOobExtendedDataReply
+ *
+ * Description      This function is called to provide the remote OOB data for
+ *                  Simple Pairing in response to BTM_SP_RMT_OOB_EVT
+ *
+ * Parameters:      bd_addr     - Address of the peer device
+ *                  c           - simple pairing Hash C192
+ *                  r           - simple pairing Randomizer R192
+ *                  c_ext       - simple pairing Hash C256
+ *                  r_ext       - simple pairing Randomizer R256
+ *
+ ******************************************************************************/
+void BTM_RemoteOobExtendedDataReply(tBTM_STATUS res, const RawAddress& bd_addr,
+                                    const Octet16& c, const Octet16& r,
+                                    const Octet16& c_ext, const Octet16& r_ext) {
+  BTM_TRACE_EVENT("%s() - State: %s res: %d", __func__,
+                  btm_pair_state_descr(btm_cb.pairing_state), res);
+
+  /* If timeout already expired or has been canceled, ignore the reply */
+  if (btm_cb.pairing_state != BTM_PAIR_STATE_WAIT_LOCAL_OOB_RSP) return;
+
+  btm_sec_change_pairing_state(BTM_PAIR_STATE_WAIT_AUTH_COMPLETE);
+
+  if (res != BTM_SUCCESS) {
+    /* use BTM_PAIR_STATE_WAIT_AUTH_COMPLETE to report authentication failed
+     * event */
+    acl_set_disconnect_reason(HCI_ERR_HOST_REJECT_SECURITY);
+    btsnd_hcic_rem_oob_neg_reply(bd_addr);
+  } else {
+    acl_set_disconnect_reason(HCI_ERR_HOST_REJECT_SECURITY);
+    btsnd_hcic_rem_oob_ext_reply(bd_addr, c, r, c_ext, r_ext);
   }
 }
 
@@ -1428,6 +1469,11 @@ static bool btm_sec_is_upgrade_possible(tBTM_SEC_DEV_REC* p_dev_rec,
                                         bool is_originator) {
   uint16_t mtm_check = is_originator ? BTM_SEC_OUT_MITM : BTM_SEC_IN_MITM;
   bool is_possible = true;
+
+  if (BTM_SecIsSecurityPending(p_dev_rec->bd_addr)) {
+    BTM_TRACE_DEBUG("%s() upgrade is on-going, return directly!", __func__);
+    return true;
+  }
 
   if (p_dev_rec->sec_flags & BTM_SEC_LINK_KEY_KNOWN) {
     is_possible = false;
@@ -2954,6 +3000,38 @@ void btm_read_local_oob_complete(uint8_t* p) {
     tBTM_SP_EVT_DATA btm_sp_evt_data;
     btm_sp_evt_data.loc_oob = evt_data;
     (*btm_cb.api.p_sp_callback)(BTM_SP_LOC_OOB_EVT, &btm_sp_evt_data);
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         btm_read_local_oob_ext_complete
+ *
+ * Description      This function is called when read local oob extended data is
+ *                  completed by the LM
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btm_read_local_oob_ext_complete(uint8_t* p) {
+  tBTM_SP_LOC_OOB evt_data;
+  uint8_t status = *p++;
+  memset(&evt_data, 0, sizeof(tBTM_SP_LOC_OOB));
+
+  BTM_TRACE_EVENT("btm_read_local_oob_ext_complete:%d", status);
+  if (status == HCI_SUCCESS) {
+    evt_data.status = BTM_SUCCESS;
+    STREAM_TO_ARRAY16(evt_data.c.data(), p);
+    STREAM_TO_ARRAY16(evt_data.r.data(), p);
+    STREAM_TO_ARRAY16(evt_data.c_ext.data(), p);
+    STREAM_TO_ARRAY16(evt_data.r_ext.data(), p);
+  } else
+    evt_data.status = BTM_ERR_PROCESSING;
+
+  if (btm_cb.api.p_sp_callback) {
+    tBTM_SP_EVT_DATA btm_sp_evt_data;
+    btm_sp_evt_data.loc_oob_ext = evt_data;
+    (*btm_cb.api.p_sp_callback)(BTM_SP_LOC_OOB_EXT_EVT, &btm_sp_evt_data);
   }
 }
 
