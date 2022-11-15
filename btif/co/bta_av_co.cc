@@ -684,8 +684,8 @@ void bta_av_co_audio_setconfig(tBTA_AV_HNDL hndl, const uint8_t* p_codec_info,
     } else {
       /* CP is not enabled, reject connection. */
       APPL_TRACE_ERROR("%s: wrong CP configuration", __func__);
-     if(property_get("vendor.bt.pts.certification_cp_format", pts_value, "false") &&
-	     (strcmp(pts_value, "true")==0)) {
+     if (property_get("vendor.bt.pts.certification_cp_format", pts_value, "false") &&
+      (strcmp(pts_value, "true") == 0)) {
              status = A2DP_BAD_CP_FORMAT;
         } else {
          status = A2DP_BAD_CP_TYPE;
