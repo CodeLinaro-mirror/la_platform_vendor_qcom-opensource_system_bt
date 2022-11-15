@@ -33,6 +33,7 @@
 #include <hardware/bluetooth.h>
 #include <stdlib.h>
 #include <string.h>
+#include <map>
 #include "device/include/controller.h"
 
 #include "btif_common.h"
@@ -59,6 +60,9 @@ using std::vector;
 extern bt_status_t btif_gattc_test_command_impl(
     int command, const btgatt_test_params_t* params);
 extern const btgatt_callbacks_t* bt_gatt_callbacks;
+
+#define BLUEPAY_VENDOR_TRANSPORT   0xf1
+std::map<RawAddress, int> client_if_map;
 
 /*******************************************************************************
  *  Constants & Macros
@@ -319,6 +323,12 @@ bt_status_t btif_gattc_open(int client_if, const RawAddress& bd_addr,
                             bool is_direct, int transport, bool opportunistic,
                             int initiating_phys) {
   CHECK_BTGATT_INIT();
+  if (transport == BLUEPAY_VENDOR_TRANSPORT) {
+    client_if_map[bd_addr] = client_if;
+    transport = GATT_TRANSPORT_LE;
+    BTIF_TRACE_DEBUG("%s Transport=%d, client_if=%d, bd_addr=%s", __func__,
+                   transport, client_if, bd_addr.ToString().c_str());
+  }
   // Closure will own this value and free it.
   return do_in_jni_thread(Bind(&btif_gattc_open_impl, client_if, bd_addr,
                                is_direct, transport, opportunistic,
