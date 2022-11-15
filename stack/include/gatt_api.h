@@ -132,7 +132,7 @@ typedef uint16_t tGATT_DISCONN_REASON;
 /* MAX GATT MTU size
 */
 #ifndef GATT_MAX_MTU_SIZE
-#define GATT_MAX_MTU_SIZE 517
+#define GATT_MAX_MTU_SIZE 500
 #endif
 
 /* max legth of an attribute value
