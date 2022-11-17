@@ -362,6 +362,31 @@ tBTA_AV_SCB* bta_av_addr_to_scb(const RawAddress& bd_addr) {
 
 /*******************************************************************************
  *
+ * Function         bta_av_is_any_stream_started
+ *
+ * Description      check if any a2dp sink offload stream is started
+ *
+ * Returns          bool
+ *
+ ******************************************************************************/
+
+bool bta_av_is_any_sink_stream_started() {
+  int xx;
+  bool is_streaming = false;
+
+  for (xx = 0; xx < BTA_AV_NUM_STRS; xx++) {
+    if ((bta_av_cb.p_scb[xx] != NULL) &&
+         bta_av_cb.p_scb[xx]->sink_offload_started == true) {
+      is_streaming = true;
+      break;
+    }
+  }
+  APPL_TRACE_DEBUG("bta_av_is_any_sink_stream_started %d",is_streaming);
+  return is_streaming;
+}
+
+/*******************************************************************************
+ *
  * Function         bta_av_hndl_to_scb
  *
  * Description      find the stream control block by the handle
