@@ -555,25 +555,32 @@ bool BTA_DmSetVisibility(bt_scan_mode_t mode) {
   return true;
 }
 
-static void bta_dm_process_remove_device_no_callback(
+static bool bta_dm_process_remove_device_no_callback(
     const RawAddress& bd_addr) {
+  bool ret = false;
   /* need to remove all pending background connection before unpair */
   BTA_GATTC_CancelOpen(0, bd_addr, false);
 
   if (bluetooth::shim::is_gd_security_enabled()) {
-    bluetooth::shim::BTM_SecDeleteDevice(bd_addr);
+    ret = bluetooth::shim::BTM_SecDeleteDevice(bd_addr);
   } else {
-    BTM_SecDeleteDevice(bd_addr);
+    ret = BTM_SecDeleteDevice(bd_addr);
   }
 
   /* remove all cached GATT information */
   BTA_GATTC_Refresh(bd_addr);
+  return ret;
 }
 
 void bta_dm_process_remove_device(const RawAddress& bd_addr) {
-  bta_dm_process_remove_device_no_callback(bd_addr);
+  bool ret = bta_dm_process_remove_device_no_callback(bd_addr);
 
-  if (bta_dm_cb.p_sec_cback) {
+  // If the return value is false, which indicates there is an incoming pairing
+  // request. In sucn scenario, host firstly receives HCI_IO_Capability_Response,
+  // then receives HCI_IO_Capability_Request, refer to core spec
+  // Version 5.3 | Vol 2, Part F Chapter4.2.7. Send BTA_DM_DEV_UNPAIRED_EVT will
+  // cause removing just stored authentication requirement from the peer.
+  if ((ret == true) && bta_dm_cb.p_sec_cback) {
     tBTA_DM_SEC sec_event;
     sec_event.link_down.bd_addr = bd_addr;
     bta_dm_cb.p_sec_cback(BTA_DM_DEV_UNPAIRED_EVT, &sec_event);
