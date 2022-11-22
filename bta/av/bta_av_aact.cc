@@ -3486,6 +3486,7 @@ void offload_vendor_callback(tBTM_VSC_CMPL *param)
           break;
       case VS_HCI_A2DP_OFFLOAD_STOP :
            APPL_TRACE_DEBUG("%s: VS_HCI_A2DP_OFFLOAD_STOP successful", __func__);
+          (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_STOP_RSP_EVT, (tBTA_AV*)&status);
            break;
       default:
       break;
