@@ -3170,14 +3170,20 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
         }
         FALLTHROUGH;
         // Fall through
-    case BTIF_AV_SINK_OFFLOAD_STOP_CFM_EVT:
+    case BTIF_AV_SINK_OFFLOAD_STOP_CFM_EVT: {
         // MM-Audio sessoin is stopped
+        bool is_suspend_needed = false;
+        if(bt_vendor_av_sink_callbacks &&
+             bt_vendor_av_sink_callbacks->is_suspend_needed_cb ){
+          is_suspend_needed = bt_vendor_av_sink_callbacks->
+                              is_suspend_needed_cb(&btif_av_cb[index].peer_bda);
+        }
         BTIF_TRACE_DEBUG(" %s vsc_command_status %d",__FUNCTION__,
                         btif_av_cb[index].vsc_command_status);
         start_pending_index = btif_av_get_latest_start_pending_idx();
         if(event == BTIF_AV_SINK_OFFLOAD_STOP_CFM_EVT &&
-           (start_pending_index != btif_max_av_clients &&
-          start_pending_index != index)) {
+           ((start_pending_index != btif_max_av_clients &&
+          start_pending_index != index) || is_suspend_needed)) {
           BTIF_TRACE_DEBUG(" %s send suspend for a2dp source ",__FUNCTION__);
           btif_av_cb[index].flags |= BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING;
           BTA_AvStop(true, btif_av_cb[index].bta_handle);
@@ -3202,7 +3208,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
               // this should not happen actually in this state.
               break;
         }
-        break;
+    }   break;
 
     case BTIF_AV_SINK_OFFLOAD_SINK_LATENCY_EVT:
         BTA_AvkUpdateDelayReport(btif_av_cb[index].bta_handle,
