@@ -1406,12 +1406,11 @@ static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer) {
            p_peer->addr.ToString().c_str(), p_peer->acp ? "acceptor" : "initiator");
     APPL_TRACE_DEBUG("%s: isIncoming: %d", __func__, p_peer->isIncoming);
 
-    if (p_peer->isIncoming &&
+    if (p_peer->isIncoming && p_peer->incoming_codec_name &&
         btif_av_peer_prefers_mandatory_codec(p_peer->addr)) {
       APPL_TRACE_DEBUG("%s: incoming_codec_name: %s", __func__,
                                               p_peer->incoming_codec_name);
-      if (p_peer->incoming_codec_name &&
-          !strcmp(iter->name().c_str(), p_peer->incoming_codec_name)) {
+      if (!strcmp(iter->name().c_str(), p_peer->incoming_codec_name)) {
         APPL_TRACE_DEBUG("%s: local codec, remote codec has been matched.", __func__);
         p_sink = bta_av_co_audio_set_p_sink(*iter, p_peer);
       }
