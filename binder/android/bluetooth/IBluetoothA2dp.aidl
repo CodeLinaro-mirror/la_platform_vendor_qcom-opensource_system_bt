@@ -90,4 +90,9 @@ interface IBluetoothA2dp {
     boolean setBufferLengthMillis(int codec, int size, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
     int getPriority(in BluetoothDevice device, in AttributionSource attributionSource);
+
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
+    String getMediaPlayer(in BluetoothDevice device, in AttributionSource attributionSource);
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
+    boolean setMediaPlayer(in BluetoothDevice device, in String mediaPlayer, in AttributionSource attributionSource);
 }
