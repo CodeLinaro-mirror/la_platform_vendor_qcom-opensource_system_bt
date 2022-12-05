@@ -402,12 +402,12 @@ typedef struct {
 } tBTA_AV_SINK_OFFLOAD_RSP;
 
 typedef struct {
-  uint8_t index;
+  RawAddress peer_addr;
   bool accepted;
 } tBTA_AV_SINK_START_RSP;
 
 typedef struct {
-  uint8_t index;
+  RawAddress peer_addr;
   bool accepted;
 } tBTA_AV_SINK_SUSPEND_RSP;
 
