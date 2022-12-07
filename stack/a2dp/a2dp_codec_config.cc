@@ -44,11 +44,14 @@
 
 #define PROPERTY_CODEC_LOCATION_LEN 100
 
-/* aptX-HD is not set by default due to no sound when use AAudioStream */
+// Default A2DP CODEC type for both Sink and Source
 #define DEFAULT_SUPPORTED_CODECS \
   ((1 << BTAV_A2DP_CODEC_INDEX_SINK_SBC) | \
    (1 << BTAV_A2DP_CODEC_INDEX_SINK_AAC) | \
-   (1 << BTAV_A2DP_CODEC_INDEX_SINK_APTX))
+   (1 << BTAV_A2DP_CODEC_INDEX_SINK_APTX) | \
+   (1 << BTAV_A2DP_CODEC_INDEX_SOURCE_SBC) | \
+   (1 << BTAV_A2DP_CODEC_INDEX_SOURCE_AAC) | \
+   (1 << BTAV_A2DP_CODEC_INDEX_SOURCE_APTX))
 
 /* A2DP Offload enabled in stack */
 static bool a2dp_offload_status;
@@ -1571,7 +1574,7 @@ bool A2DP_GetCodecSupported(btav_a2dp_codec_index_t codec_index) {
     codec_supported = default_codec_supported;
   }
 
-  LOG_DEBUG("%s: codec_supported %d", __func__, codec_supported);
+  LOG_DEBUG("%s: codec_supported 0x%x", __func__, codec_supported);
   return (codec_flag & codec_supported) == codec_flag ? true : false;
 }
 

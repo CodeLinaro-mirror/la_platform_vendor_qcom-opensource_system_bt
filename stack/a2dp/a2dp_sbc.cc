@@ -889,7 +889,9 @@ A2dpCodecConfigSbcSource::A2dpCodecConfigSbcSource(
 A2dpCodecConfigSbcSource::~A2dpCodecConfigSbcSource() {}
 
 bool A2dpCodecConfigSbcSource::init() {
-  if (!isValid()) return false;
+  if (!(isValid() && A2DP_GetCodecSupported(BTAV_A2DP_CODEC_INDEX_SOURCE_SBC))) {
+    return false;
+  }
 
   // Load the encoder
   if (!A2DP_LoadEncoderSbc()) {
