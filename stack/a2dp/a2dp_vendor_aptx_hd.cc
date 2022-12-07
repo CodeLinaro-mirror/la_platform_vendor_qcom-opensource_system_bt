@@ -601,7 +601,9 @@ A2dpCodecConfigAptxHdSource::A2dpCodecConfigAptxHdSource(
 A2dpCodecConfigAptxHdSource::~A2dpCodecConfigAptxHdSource() {}
 
 bool A2dpCodecConfigAptxHdSource::init() {
-  if (!isValid()) return false;
+  if (!(isValid() && A2DP_GetCodecSupported(BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD))) {
+    return false;
+  }
 
   // Load the encoder
   if (!A2DP_VendorLoadEncoderAptxHd()) {
