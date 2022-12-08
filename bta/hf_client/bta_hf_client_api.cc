@@ -102,14 +102,14 @@ void BTA_HfClientDisable(void) {
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HfClientOpen(const RawAddress& bd_addr, uint16_t* p_handle) {
+tBTA_STATUS BTA_HfClientOpen(const RawAddress& bd_addr, uint16_t* p_handle) {
   APPL_TRACE_DEBUG("%s", __func__);
   tBTA_HF_CLIENT_API_OPEN* p_buf =
       (tBTA_HF_CLIENT_API_OPEN*)osi_malloc(sizeof(tBTA_HF_CLIENT_API_OPEN));
 
   if (!bta_hf_client_allocate_handle(bd_addr, p_handle)) {
     APPL_TRACE_ERROR("%s: could not allocate handle", __func__);
-    return;
+    return BTA_FAILURE;
   }
 
   p_buf->hdr.event = BTA_HF_CLIENT_API_OPEN_EVT;
@@ -117,6 +117,7 @@ void BTA_HfClientOpen(const RawAddress& bd_addr, uint16_t* p_handle) {
   p_buf->bd_addr = bd_addr;
 
   bta_sys_sendmsg(p_buf);
+  return BTA_SUCCESS;
 }
 
 /*******************************************************************************
