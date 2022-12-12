@@ -699,7 +699,9 @@ A2dpCodecConfigLdacSource::A2dpCodecConfigLdacSource(
 A2dpCodecConfigLdacSource::~A2dpCodecConfigLdacSource() {}
 
 bool A2dpCodecConfigLdacSource::init() {
-  if (!isValid()) return false;
+  if (!(isValid() && A2DP_GetCodecSupported(BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC))) {
+    return false;
+  }
 
   // Load the encoder
   if (!A2DP_VendorLoadEncoderLdac()) {
