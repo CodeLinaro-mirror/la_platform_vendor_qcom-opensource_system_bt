@@ -1739,6 +1739,7 @@ void bta_av_disable(tBTA_AV_CB* p_cb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
 
   for (int i = 0; i < BTA_AV_NUM_RCB; i++) {
     alarm_free(bta_av_cb.rcb[i].delay_rc_disc_timer);
+    bta_av_cb.rcb[i].delay_rc_disc_timer = NULL;
   }
 
   bta_av_close_all_rc(p_cb);

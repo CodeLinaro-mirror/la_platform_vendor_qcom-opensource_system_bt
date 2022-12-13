@@ -862,7 +862,9 @@ static void btif_report_sink_codec_state(void* p_data,
         RawAddress bt_addr = btif_av_cb[index].peer_bda;
         uint8_t* a2dp_codec_config =
            bta_av_co_get_peer_codec_info(btif_av_cb[index].bta_handle);
-        memcpy(active_codec_info, a2dp_codec_config, AVDT_CODEC_SIZE);
+        if (a2dp_codec_config != NULL) {
+          memcpy(active_codec_info, a2dp_codec_config, AVDT_CODEC_SIZE);
+        }
         btif_a2dp_sink_restart_session(bt_addr, bt_addr);
         if (btif_av_cb[index].reconfig_pending) {
           BTIF_TRACE_DEBUG("%s:Set reconfig_a2dp true",__func__);
@@ -2015,10 +2017,12 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
         btif_av_sink_config_req_t req;
         uint8_t* a2dp_codec_config =
            bta_av_co_get_peer_codec_info(btif_av_cb[index].bta_handle);
-        req.channel_count = A2DP_GetTrackChannelCount(a2dp_codec_config);
-        req.peer_bd = btif_av_cb[index].peer_bda;
-        BTIF_TRACE_WARNING("btif_report_sink_codec_state %d %d", req.sample_rate,
+        if (a2dp_codec_config != NULL) {
+          req.channel_count = A2DP_GetTrackChannelCount(a2dp_codec_config);
+          req.peer_bd = btif_av_cb[index].peer_bda;
+          BTIF_TRACE_WARNING("btif_report_sink_codec_state %d %d", req.sample_rate,
                            req.channel_count);
+        }
         btif_report_sink_codec_state(&req, &btif_av_cb[index].peer_bda);
         if(btif_av_cb[index].flags & BTIF_AV_FLAG_HAL_RESTART_RECOVERY) {
           BTIF_TRACE_WARNING("HAL restart recovery ");
@@ -2261,7 +2265,9 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
             }
             uint8_t* a2dp_codec_config =
                 bta_av_co_get_peer_codec_info(btif_av_cb[index].bta_handle);
-            memcpy(active_codec_info, a2dp_codec_config, AVDT_CODEC_SIZE);
+            if (a2dp_codec_config != NULL) {
+              memcpy(active_codec_info, a2dp_codec_config, AVDT_CODEC_SIZE);
+            }
             btif_a2dp_sink_restart_session(btif_av_cb[index].peer_bda,
                                            btif_av_cb[index].peer_bda);
             btif_av_cb[index].start_cfm_pending = true;
