@@ -578,7 +578,9 @@ A2dpCodecConfigAptxSource::A2dpCodecConfigAptxSource(
 A2dpCodecConfigAptxSource::~A2dpCodecConfigAptxSource() {}
 
 bool A2dpCodecConfigAptxSource::init() {
-  if (!isValid()) return false;
+  if (!(isValid() && A2DP_GetCodecSupported(BTAV_A2DP_CODEC_INDEX_SOURCE_APTX))) {
+    return false;
+  }
 
   // Load the encoder
   if (!A2DP_VendorLoadEncoderAptx()) {
