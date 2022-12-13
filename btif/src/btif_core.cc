@@ -1256,18 +1256,28 @@ bt_status_t btif_enable_service(tBTA_SERVICE_ID service_id) {
    * Otherwise, we just set the flag. On BT_Enable, the DM will trigger
    * enable for the profiles that have been enabled */
 
+#ifndef PAYMENT_RECEIVER_ENABLED
   btif_enabled_services |= ((tBTA_SERVICE_MASK)1 << service_id);
+#endif
 
   BTIF_TRACE_DEBUG("%s: current services:0x%" PRIx64, __func__,
                    btif_enabled_services);
 
   if (btif_is_enabled()) {
+    uint16_t enable = BTIF_DM_ENABLE_SERVICE;
+#ifdef PAYMENT_RECEIVER_ENABLED
+    enable = BTIF_DM_DISABLE_SERVICE;
+#endif
     btif_transfer_context(btif_dm_execute_service_request,
-                          BTIF_DM_ENABLE_SERVICE, (char*)p_id,
+                          enable, (char*)p_id,
                           sizeof(tBTA_SERVICE_ID), NULL);
   }
 
+#ifdef PAYMENT_RECEIVER_ENABLED
+  return BT_STATUS_UNSUPPORTED;
+#else
   return BT_STATUS_SUCCESS;
+#endif
 }
 
 

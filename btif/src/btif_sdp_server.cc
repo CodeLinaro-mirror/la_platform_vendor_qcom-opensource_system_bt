@@ -276,6 +276,11 @@ bt_status_t create_sdp_record(bluetooth_sdp_record* record,
                               int* record_handle) {
   int handle;
 
+#ifdef PAYMENT_RECEIVER_ENABLED
+  BTIF_TRACE_WARNING("%s() Payment receiver don't support profiles : %s", __func__, record->hdr.service_name);
+  return BT_STATUS_UNSUPPORTED;
+#endif
+
   handle = alloc_sdp_slot(record);
   BTIF_TRACE_DEBUG("%s() handle = 0x%08x", __func__, handle);
 

@@ -2624,6 +2624,11 @@ bt_status_t btif_dm_start_discovery(void) {
 
   BTIF_TRACE_EVENT("%s : pairing_cb.state: 0x%x", __FUNCTION__, pairing_cb.state);
 
+#ifdef PAYMENT_RECEIVER_ENABLED
+  BTIF_TRACE_WARNING("%s : Scan not supported for payment receiver.", __FUNCTION__);
+  return BT_STATUS_UNSUPPORTED;
+#endif
+
   /* We should not go for inquiry in BONDING STATE. */
   if (pairing_cb.state == BT_BOND_STATE_BONDING)
       return BT_STATUS_BUSY;

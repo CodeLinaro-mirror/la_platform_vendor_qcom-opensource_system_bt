@@ -2178,6 +2178,11 @@ bool l2cu_create_conn(tL2C_LCB* p_lcb, tBT_TRANSPORT transport,
     return (l2cble_create_conn(p_lcb));
   }
 
+#ifdef PAYMENT_RECEIVER_ENABLED
+  L2CAP_TRACE_API("Forbiden the BR/EDR connection for Payment Receiver.")
+  return false;
+#endif
+
   /* If there is a connection where we perform as a slave, try to switch roles
      for this connection */
   for (xx = 0, p_lcb_cur = &l2cb.lcb_pool[0]; xx < MAX_L2CAP_LINKS;

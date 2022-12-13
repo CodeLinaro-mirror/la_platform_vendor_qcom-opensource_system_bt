@@ -153,6 +153,11 @@ tBTM_STATUS BTM_SetDiscoverability(uint16_t inq_mode, uint16_t window,
   bool cod_limited;
 
   BTM_TRACE_API("BTM_SetDiscoverability");
+#ifdef PAYMENT_RECEIVER_ENABLED
+  inq_mode = BTM_NON_DISCOVERABLE;
+  btm_cb.btm_inq_vars.connectable_mode &= ~BTM_CONNECTABLE_MASK;
+  BTM_TRACE_WARNING("Inquiry/Page Scan not supported for Payment Receiver");
+#endif
 
   /* Make sure the controller is active */
     if (!controller_get_interface()->get_is_ready()) return (BTM_DEV_RESET);

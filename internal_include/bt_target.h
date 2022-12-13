@@ -69,6 +69,8 @@
 
 #include "bt_types.h" /* This must be defined AFTER buildcfg.h */
 
+#define PAYMENT_RECEIVER_ENABLED TRUE
+
 //------------------Added from bdroid_buildcfg.h---------------------
 #ifndef L2CAP_EXTFEA_SUPPORTED_MASK
 #define L2CAP_EXTFEA_SUPPORTED_MASK                                            \
@@ -95,7 +97,11 @@
 #endif
 
 #ifndef BTA_PAN_INCLUDED
+#ifdef PAYMENT_RECEIVER_ENABLED
+#define BTA_PAN_INCLUDED FALSE
+#else
 #define BTA_PAN_INCLUDED TRUE
+#endif
 #endif
 
 #ifndef BTA_HD_INCLUDED
@@ -412,6 +418,17 @@
 #define BTM_DEFAULT_DISC_INTERVAL 0x0800
 #endif
 
+/* Default class of blepay PR device
+* {SERVICE_CLASS, MAJOR_CLASS, MINOR_CLASS}
+*
+* SERVICE_CLASS:0x80 (Information)
+* MAJOR_CLASS:0x05 - Peripheral
+* MINOR_CLASS:0x00 - Not Keyboard / Not Pointing Device, Uncategorized device
+*
+*/
+#define BTA_DM_COD_PAYMENT_RECEIVER \
+  { 0x80, 0x05, 0x00 }
+
 /* Default class of device
 * {SERVICE_CLASS, MAJOR_CLASS, MINOR_CLASS}
 *
@@ -422,8 +439,13 @@
 *
 */
 #ifndef BTA_DM_COD
+#ifdef PAYMENT_RECEIVER_ENABLED
+#define BTA_DM_COD \
+  BTA_DM_COD_PAYMENT_RECEIVER
+#else
 #define BTA_DM_COD \
   { 0x5A, 0x02, 0x0C }
+#endif
 #endif
 
 /* The number of SCO links. */
