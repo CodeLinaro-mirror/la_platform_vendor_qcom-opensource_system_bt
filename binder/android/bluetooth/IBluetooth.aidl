@@ -313,4 +313,13 @@ interface IBluetooth
     @UnsupportedAppUsage
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
     boolean isBroadcastActive(in AttributionSource attributionSource);
+
+    @UnsupportedAppUsage
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
+    int setLeHighPriorityMode(in BluetoothDevice device, in boolean enable,
+                                  in AttributionSource attributionSource);
+
+    @UnsupportedAppUsage
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
+    boolean isLeHighPriorityModeSet(in BluetoothDevice device, in AttributionSource attributionSource);
 }
