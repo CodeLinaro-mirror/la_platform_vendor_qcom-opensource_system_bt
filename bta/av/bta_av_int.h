@@ -481,6 +481,7 @@ typedef struct {
   tAVDT_CTRL msg;  /* AVDTP callback message parameters */
   RawAddress bd_addr; /* bd address */
   uint8_t handle;
+  uint8_t scb_index;
   uint8_t avdt_event;
   bool initiator; /* true, if local device initiates the SUSPEND */
 } tBTA_AV_STR_MSG;
@@ -719,10 +720,12 @@ struct tBTA_AV_SCB {
   uint8_t channel_mode; //L:0 R:1 S:2 M:3
   uint8_t start_pending;
   bool offload_started;
+  bool sink_offload_started;
 //#endif
   bool vendor_start;
   tBTA_AV_CI_SETCONFIG *cache_setconfig;
   int rc_ccb_alloc_handle;
+  bool strm_close_in_progress;
   bool sink_split_vsc_rsp_waiting; /* TRUE if we have sent VSC command and waiting for
  response*/
 };
@@ -746,6 +749,7 @@ typedef struct {
   bool browse_open;
   bool rc_opened;
   RawAddress peer_addr;
+  alarm_t* delay_rc_disc_timer;
 } tBTA_AV_RCB;
 #define BTA_AV_NUM_RCB (BTA_AV_NUM_STRS + 2)
 
