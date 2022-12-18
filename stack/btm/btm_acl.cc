@@ -769,6 +769,8 @@ tBTM_STATUS BTM_SetLinkPolicy(const RawAddress& remote_bda,
 
   p = btm_bda_to_acl(remote_bda, BT_TRANSPORT_BR_EDR);
   if (p != NULL) {
+    BTM_TRACE_DEBUG("BTM_SetLinkPolicy write settings: 0x%04x",
+                *settings);
     btsnd_hcic_write_policy_set(p->hci_handle, *settings);
     return BTM_CMD_STARTED;
   }

@@ -3582,6 +3582,11 @@ static void btm_sec_auth_collision(uint16_t handle) {
         p_dev_rec->sec_state = 0;
 
       btm_cb.p_collided_dev_rec = p_dev_rec;
+
+      if ((btm_cb.pairing_state != BTM_PAIR_STATE_IDLE) &&
+          (btm_cb.pairing_bda == p_dev_rec->bd_addr))
+        btm_sec_change_pairing_state(BTM_PAIR_STATE_WAIT_PIN_REQ);
+
       alarm_set_on_mloop(btm_cb.sec_collision_timer, BT_1SEC_TIMEOUT_MS,
                          btm_sec_collision_timeout, NULL);
     }
@@ -3901,15 +3906,11 @@ void btm_sec_encrypt_change(uint16_t handle, uint8_t status,
           BTM_TRACE_DEBUG("%s NO SM over BR/EDR", __func__);
         } else {
           BTM_TRACE_DEBUG("%s start SM over BR/EDR", __func__);
+          uint16_t link_policy = btm_cb.btm_def_link_policy & (~HCI_ENABLE_MASTER_SLAVE_SWITCH);
+          BTM_TRACE_DEBUG("%s, disable role switch", __func__);
+          BTM_SetLinkPolicy(p_dev_rec->bd_addr, &link_policy);
           SMP_BR_PairWith(p_dev_rec->bd_addr);
         }
-      }
-    } else {
-      if ((encr_enable == 1) && /* encryption is ON for SSP */
-          /* LK type is for BR/EDR SC */
-          (p_dev_rec->link_key_type == BTM_LKEY_TYPE_UNAUTH_COMB_P_256 ||
-           p_dev_rec->link_key_type == BTM_LKEY_TYPE_AUTH_COMB_P_256)) {
-        btm_send_link_key_notif(p_dev_rec);
       }
     }
   }

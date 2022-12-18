@@ -18,6 +18,15 @@
 
 /******************************************************************************
  *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ ******************************************************************************/
+
+/******************************************************************************
+ *
  *  This file contains the action functions for device manager state
  *  machine.
  *
@@ -2212,6 +2221,11 @@ static void bta_dm_remname_cback(void* p) {
   APPL_TRACE_DEBUG("bta_dm_remname_cback len = %d name=<%s>",
                    p_remote_name->length, p_remote_name->remote_bd_name);
 
+  if ((p_remote_name->bd_addr != bta_dm_search_cb.peer_bdaddr) &&
+      (p_remote_name->status == BTM_BAD_VALUE_RET)) {
+    return;
+  }
+
   /* remote name discovery is done but it could be failed */
   bta_dm_search_cb.name_discover_done = true;
   strlcpy((char*)bta_dm_search_cb.peer_name,
@@ -3971,6 +3985,8 @@ static uint8_t bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
       else
         sec_event.auth_cmpl.bd_name[0] = 0;
 
+      APPL_TRACE_EVENT("%s smp_over_br %d", __func__, p_data->complt.smp_over_br);
+      sec_event.auth_cmpl.smp_over_br = p_data->complt.smp_over_br;
       if (p_data->complt.reason != 0) {
         sec_event.auth_cmpl.fail_reason =
             BTA_DM_AUTH_CONVERT_SMP_CODE(((uint8_t)p_data->complt.reason));
