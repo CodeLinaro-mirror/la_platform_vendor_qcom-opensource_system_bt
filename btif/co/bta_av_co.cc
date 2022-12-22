@@ -2217,3 +2217,10 @@ btav_a2dp_scmst_info_t bta_av_co_get_scmst_info(
 }
 
 void btif_a2dp_codec_debug_dump(int fd) { bta_av_co_cb.DebugDump(fd); }
+
+uint8_t* bta_av_co_get_codec_config(const RawAddress& peer_address) {
+  APPL_TRACE_DEBUG("%s: peer %s", __func__, peer_address.ToString().c_str());
+  BtaAvCoPeer* p_peer = bta_av_co_cb.FindPeer(peer_address);
+  CHECK(p_peer != nullptr);
+  return p_peer->codec_config;
+}

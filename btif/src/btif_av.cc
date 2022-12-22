@@ -665,7 +665,11 @@ class BtifAvSink {
       // cannot set promise but need to be handled within restart_session
       return false;
     }
+    // Stop old active device decoding and remove audio track
+    if (!active_peer_.IsEmpty())
+      btif_a2dp_sink_on_idle();
     active_peer_ = peer_address;
+    btif_a2dp_sink_update_decoder(bta_av_co_get_codec_config(peer_address));
     return true;
   }
 
@@ -2798,7 +2802,12 @@ static void bta_av_sink_media_callback(const RawAddress& peer_address,
             (state == BtifAvStateMachine::kStateOpened)) {
           uint8_t queue_len = btif_a2dp_sink_enqueue_buf((BT_HDR*)p_data);
           BTIF_TRACE_DEBUG("%s: Packets in Sink queue %d", __func__, queue_len);
+        } else {
+          BTIF_TRACE_DEBUG("%s: state %d", __func__, state);
         }
+      } else {
+        BTIF_TRACE_DEBUG("%s: peer %s ", __func__, peer == nullptr ? "is null"
+            : "is not active");
       }
       break;
     }
