@@ -18,6 +18,15 @@
 
 /******************************************************************************
  *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ ******************************************************************************/
+
+/******************************************************************************
+ *
  *  This file contains the action functions for device manager state
  *  machine.
  *
@@ -546,25 +555,32 @@ bool BTA_DmSetVisibility(bt_scan_mode_t mode) {
   return true;
 }
 
-static void bta_dm_process_remove_device_no_callback(
+static bool bta_dm_process_remove_device_no_callback(
     const RawAddress& bd_addr) {
+  bool ret = false;
   /* need to remove all pending background connection before unpair */
   BTA_GATTC_CancelOpen(0, bd_addr, false);
 
   if (bluetooth::shim::is_gd_security_enabled()) {
-    bluetooth::shim::BTM_SecDeleteDevice(bd_addr);
+    ret = bluetooth::shim::BTM_SecDeleteDevice(bd_addr);
   } else {
-    BTM_SecDeleteDevice(bd_addr);
+    ret = BTM_SecDeleteDevice(bd_addr);
   }
 
   /* remove all cached GATT information */
   BTA_GATTC_Refresh(bd_addr);
+  return ret;
 }
 
 void bta_dm_process_remove_device(const RawAddress& bd_addr) {
-  bta_dm_process_remove_device_no_callback(bd_addr);
+  bool ret = bta_dm_process_remove_device_no_callback(bd_addr);
 
-  if (bta_dm_cb.p_sec_cback) {
+  // If the return value is false, which indicates there is an incoming pairing
+  // request. In sucn scenario, host firstly receives HCI_IO_Capability_Response,
+  // then receives HCI_IO_Capability_Request, refer to core spec
+  // Version 5.3 | Vol 2, Part F Chapter4.2.7. Send BTA_DM_DEV_UNPAIRED_EVT will
+  // cause removing just stored authentication requirement from the peer.
+  if ((ret == true) && bta_dm_cb.p_sec_cback) {
     tBTA_DM_SEC sec_event;
     sec_event.link_down.bd_addr = bd_addr;
     bta_dm_cb.p_sec_cback(BTA_DM_DEV_UNPAIRED_EVT, &sec_event);
@@ -3563,6 +3579,8 @@ static uint8_t bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
       else
         sec_event.auth_cmpl.bd_name[0] = 0;
 
+      APPL_TRACE_EVENT("%s smp_over_br %d", __func__, p_data->complt.smp_over_br);
+      sec_event.auth_cmpl.smp_over_br = p_data->complt.smp_over_br;
       if (p_data->complt.reason != HCI_SUCCESS) {
         // TODO This is not a proper use of this type
         sec_event.auth_cmpl.fail_reason =

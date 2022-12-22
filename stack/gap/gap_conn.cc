@@ -614,13 +614,7 @@ static void gap_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid,
     LOG(WARNING) << "WARNING: GAP Conn Indication for Unexpected Bd "
                     "Addr...Disconnecting";
     LOG(WARNING) << "*******";
-
-    /* Disconnect because it is an unexpected connection */
-    if (p_ccb->transport == BT_TRANSPORT_LE) {
-      L2CA_DisconnectLECocReq(l2cap_cid);
-    } else {
-      L2CA_DisconnectReq(l2cap_cid);
-    }
+    /* p_ccb has already been out of bound, don't use it here */
     return;
   }
 
