@@ -870,6 +870,26 @@ void avdt_scb_hdl_pending_start_rsp(tAVDT_SCB* p_scb,
 
 /*******************************************************************************
  *
+ * Function         avdt_scb_hdl_pending_start_rej
+ *
+ * Description      This function send a indication to ccb to send neg response
+ *                  for a pending start request.
+ *
+ * Returns          Nothing.
+ *
+ ******************************************************************************/
+void avdt_scb_hdl_pending_start_rej(tAVDT_SCB* p_scb,
+                            tAVDT_SCB_EVT* p_data) {
+  tAVDT_CCB           *p_ccb = p_scb->p_ccb;
+  tAVDT_CCB_EVT avdt_ccb_evt;
+  AVDT_TRACE_DEBUG(" %s send event to ccb error_code =%d", __func__,p_data->msg.hdr.err_code);
+  avdt_ccb_evt.msg.hdr.err_code = p_data->msg.hdr.err_code;
+
+  avdt_ccb_event(p_ccb, AVDT_CCB_API_PENDING_START_RSP_EVT, &avdt_ccb_evt);
+}
+
+/*******************************************************************************
+ *
  * Function         avdt_scb_hdl_pending_suspend_rsp
  *
  * Description      This function send a indication to ccb to send response

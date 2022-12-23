@@ -298,7 +298,7 @@ static void process_service_search_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
 
   orig = p_ccb->num_handles;
   p_ccb->num_handles += cur_handles;
-  if (p_ccb->num_handles == 0) {
+  if (p_ccb->num_handles == 0 || p_ccb->num_handles < orig) {
     SDP_TRACE_WARNING("SDP - Rcvd ServiceSearchRsp, no matches");
     sdp_disconnect(p_ccb, SDP_NO_RECS_MATCH);
     return;
@@ -438,6 +438,11 @@ static void process_service_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
     SDP_TRACE_WARNING("ID & len: 0x%02x-%02x-%02x-%02x", p_reply[0], p_reply[1],
                       p_reply[2], p_reply[3]);
 #endif
+    if (p_reply + 4 /* transaction ID and length */ + sizeof(list_byte_count) >
+        p_reply_end) {
+      sdp_disconnect(p_ccb, SDP_INVALID_PDU_SIZE);
+      return;
+    }
     /* Skip transaction ID and length */
     p_reply += 4;
 
