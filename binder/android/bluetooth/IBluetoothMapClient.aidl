@@ -13,6 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+*/
 
 package android.bluetooth;
 
@@ -51,4 +57,7 @@ interface IBluetoothMapClient {
     int getSupportedFeatures(in BluetoothDevice device, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf = { android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.READ_SMS })")
     boolean setMessageStatus(in BluetoothDevice device, in String handle, in int status, in AttributionSource attributionSource);
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf = { android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.SEND_SMS })")
+    boolean sendImage(in BluetoothDevice device, in Uri[] contacts, in  String ImagePath, in PendingIntent sentIntent, in PendingIntent deliveryIntent, in AttributionSource attributionSource);
+
 }
