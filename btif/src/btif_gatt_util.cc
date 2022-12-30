@@ -18,7 +18,7 @@
 /*******************************************************************************
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  *
  *******************************************************************************/
@@ -32,33 +32,33 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <hardware/bluetooth.h>
-#include <hardware/bt_gatt.h>
+//#include <hardware/bluetooth.h>
+//#include <hardware/bt_gatt.h>
 
-#include "bt_common.h"
-#include "bta_api.h"
-#include "bta_gatt_api.h"
-#include "bta_jv_api.h"
+#include "internal_include/bt_common.h"
+//#include "bta_api.h"
+//#include "bta_gatt_api.h"
+//#include "bta_jv_api.h"
 #include "btif_common.h"
 #include "btif_config.h"
 #include "btif_dm.h"
 #include "btif_gatt.h"
 #include "btif_storage.h"
 #include "btif_util.h"
-#include "osi/include/osi.h"
+//#include "osi/include/osi.h"
 
 using bluetooth::Uuid;
 
 /*******************************************************************************
  * BTIF -> BTA conversion functions
  ******************************************************************************/
-void btif_to_bta_response(tGATTS_RSP* p_dest, btgatt_response_t* p_src) {
+/*void btif_to_bta_response(tGATTS_RSP* p_dest, btgatt_response_t* p_src) {
   p_dest->attr_value.auth_req = p_src->attr_value.auth_req;
   p_dest->attr_value.handle = p_src->attr_value.handle;
   p_dest->attr_value.len = p_src->attr_value.len;
   p_dest->attr_value.offset = p_src->attr_value.offset;
   memcpy(p_dest->attr_value.value, p_src->attr_value.value, GATT_MAX_ATTR_LEN);
-}
+}*/
 
 /*******************************************************************************
  * Encrypted link map handling
@@ -68,7 +68,7 @@ void btif_to_bta_response(tGATTS_RSP* p_dest, btgatt_response_t* p_src) {
 static bool btif_gatt_is_link_encrypted(const RawAddress& bd_addr,
                                         tGATT_TRANSPORT transport_link) {
   BTIF_TRACE_DEBUG(" Starting  of %s: ", __func__);
-  return BTA_JvIsEncrypted(bd_addr, transport_link);
+  return true;//BTA_JvIsEncrypted(bd_addr, transport_link);
 }
 
 static void btif_gatt_set_encryption_cb(UNUSED_ATTR const RawAddress& bd_addr,
@@ -102,7 +102,7 @@ void btif_gatt_check_encrypted_link(UNUSED_ATTR RawAddress bd_addr,
                                     UNUSED_ATTR tGATT_TRANSPORT
                                         transport_link) {}
 #endif
-
+/*
 void btif_gatt_move_track_adv_data(btgatt_track_adv_info_t* p_dest,
                                    btgatt_track_adv_info_t* p_src) {
   memset(p_dest, 0, sizeof(btgatt_track_adv_info_t));
@@ -121,4 +121,4 @@ void btif_gatt_move_track_adv_data(btgatt_track_adv_info_t* p_dest,
            p_src->scan_rsp_len);
     osi_free_and_reset((void**)&p_src->p_scan_rsp_data);
   }
-}
+}*/

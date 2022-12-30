@@ -22,19 +22,20 @@
 
 #define LOG_TAG "bt_btif_ble_advertiser"
 
-#include <hardware/bluetooth.h>
-#include <hardware/bt_gatt.h>
+#include "internal_include/bt_common.h"
+//#include <hardware/bluetooth.h>
+//#include <hardware/bt_gatt.h>
 
-#include <base/bind.h>
-#include <base/callback.h>
+//#include <base/bind.h>
+//#include <base/callback.h>
 #include <vector>
 
-#include "ble_advertiser.h"
-#include "bta_closure_api.h"
+//#include "ble_advertiser.h"
+//#include "bta_closure_api.h"
 #include "btif_common.h"
 
-using base::Bind;
-using base::Owned;
+//using base::Bind;
+//using base::Owned;
 using std::vector;
 
 namespace {
@@ -64,7 +65,7 @@ static inline OwnedArrayWrapper<T> OwnedArray(T* o) {
   return OwnedArrayWrapper<T>(o);
 }
 
-void parseParams(tBTM_BLE_ADV_PARAMS* p_params,
+/*void parseParams(tBTM_BLE_ADV_PARAMS* p_params,
                  const AdvertiseParameters& params) {
   p_params->advertising_event_properties = params.advertising_event_properties;
   p_params->adv_int_min = params.min_interval;
@@ -104,9 +105,9 @@ void parseCreateBIGParams(tBLE_CREATE_BIG_PARAMS* p_create_big_params,
   p_create_big_params->encryption = create_big_params.encryption;
   p_create_big_params->broadcast_code = create_big_params.broadcast_code;
 }
-#endif /* BLE_ISO_IF_SUPPORTED == TRUE */
+#endif  BLE_ISO_IF_SUPPORTED == TRUE */
 
-class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
+/*class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
   ~BleAdvertiserInterfaceImpl(){};
 
   void RegisterAdvertiserCb(IdStatusCallback cb, uint8_t advertiser_id,
@@ -314,16 +315,26 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
                           big_handle, reason,
                           jni_thread_wrapper(FROM_HERE, cb)));
   }
-#endif /* BLE_ISO_IF_SUPPORTED == TRUE */
-};
+#endif  BLE_ISO_IF_SUPPORTED == TRUE */
 
-BleAdvertiserInterface* btLeAdvertiserInstance = nullptr;
+  /*void StopAdvertisements() override {
+    VLOG(1) << __func__ ;
+    if (!BleAdvertisingManager::IsInitialized()) return;
+    VLOG(1) << __func__ << " BleAdvertisingManager::IsInitialized";
+
+    do_in_bta_thread(FROM_HERE,
+                     Bind(&BleAdvertisingManager::unRegisterAdvertisements,
+                          BleAdvertisingManager::Get()));
+  }
+};*/
+
+//BleAdvertiserInterface* btLeAdvertiserInstance = nullptr;
 
 }  // namespace
 
-BleAdvertiserInterface* get_ble_advertiser_instance() {
+/*BleAdvertiserInterface* get_ble_advertiser_instance() {
   if (btLeAdvertiserInstance == nullptr)
     btLeAdvertiserInstance = new BleAdvertiserInterfaceImpl();
 
   return btLeAdvertiserInstance;
-}
+}*/

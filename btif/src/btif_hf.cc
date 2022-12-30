@@ -43,6 +43,10 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 /*******************************************************************************
@@ -67,7 +71,6 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <hardware/bt_hf.h>
 #include <log/log.h>
 #include "device/include/interop.h"
-
 #include "bta/include/bta_ag_api.h"
 #if (SWB_ENABLED == TRUE)
 #include "bta_ag_swb.h"
@@ -96,6 +99,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace bluetooth {
 namespace headset {
 
+#if 0
 /*******************************************************************************
  *  Constants & Macros
  ******************************************************************************/
@@ -2461,6 +2465,6 @@ Interface* GetInterface() {
   VLOG(0) << __func__;
   return HeadsetInterface::GetInstance();
 }
-
+#endif
 }  // namespace headset
 }  // n

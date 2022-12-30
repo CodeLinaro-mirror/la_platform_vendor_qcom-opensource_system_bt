@@ -14,30 +14,34 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 /* Hearing Aid Profile Interface */
 
-#include "bta_closure_api.h"
-#include "bta_hearing_aid_api.h"
+//#include "bta_closure_api.h"
+//#include "bta_hearing_aid_api.h"
 #include "btif_common.h"
 #include "btif_storage.h"
 
-#include <base/bind.h>
-#include <base/callback.h>
-#include <base/location.h>
-#include <base/logging.h>
-#include <hardware/bluetooth.h>
-#include <hardware/bt_hearing_aid.h>
+//#include <base/bind.h>
+//#include <base/callback.h>
+//#include <base/location.h>
+//#include <base/logging.h>
+//#include <hardware/bluetooth.h>
+//#include <hardware/bt_hearing_aid.h>
 
-using base::Bind;
-using base::Unretained;
-using bluetooth::hearing_aid::ConnectionState;
-using bluetooth::hearing_aid::HearingAidCallbacks;
-using bluetooth::hearing_aid::HearingAidInterface;
+//using base::Bind;
+//using base::Unretained;
+//using bluetooth::hearing_aid::ConnectionState;
+//using bluetooth::hearing_aid::HearingAidCallbacks;
+//using bluetooth::hearing_aid::HearingAidInterface;
 
 // template specialization
-template <>
+/*template <>
 base::Callback<void()> jni_thread_wrapper(const base::Location& from_here,
                                           base::Callback<void()> cb) {
   return base::Bind(
@@ -46,12 +50,12 @@ base::Callback<void()> jni_thread_wrapper(const base::Location& from_here,
       },
       from_here, std::move(cb));
 }
-
+*/
 
 namespace {
-class HearingAidInterfaceImpl;
-std::unique_ptr<HearingAidInterface> hearingAidInstance;
-
+//class HearingAidInterfaceImpl;
+//std::unique_ptr<HearingAidInterface> hearingAidInstance;
+#if 0
 class HearingAidInterfaceImpl
     : public bluetooth::hearing_aid::HearingAidInterface,
       public HearingAidCallbacks {
@@ -66,19 +70,19 @@ class HearingAidInterfaceImpl
     is_initialized = true;
     this->callbacks = callbacks;
 
-    do_in_bta_thread(
-        FROM_HERE,
-        Bind(&HearingAid::Initialize, this,
-             jni_thread_wrapper(FROM_HERE,
-                                Bind(&btif_storage_load_bonded_hearing_aids))));
+    //do_in_bta_thread(
+      //  FROM_HERE,
+        //Bind(&HearingAid::Initialize, this,
+          //   jni_thread_wrapper(FROM_HERE,
+            //                    Bind(&btif_storage_load_bonded_hearing_aids))));
   }
 
   void OnConnectionState(ConnectionState state,
                          const RawAddress& address) override {
     DVLOG(2) << __func__ << " address: " << address;
     if(!is_initialized) return;
-    do_in_jni_thread(FROM_HERE, Bind(&HearingAidCallbacks::OnConnectionState,
-                                     Unretained(callbacks), state, address));
+   // do_in_jni_thread(FROM_HERE, Bind(&HearingAidCallbacks::OnConnectionState,
+     //                                Unretained(callbacks), state, address));
   }
 
   void OnDeviceAvailable(uint8_t capabilities, uint64_t hiSyncId,
@@ -87,41 +91,41 @@ class HearingAidInterfaceImpl
              << ", hiSyncId: " << loghex(hiSyncId)
              << ", capabilities: " << loghex(capabilities);
     if(!is_initialized) return;
-    do_in_jni_thread(FROM_HERE, Bind(&HearingAidCallbacks::OnDeviceAvailable,
-                                     Unretained(callbacks), capabilities,
-                                     hiSyncId, address));
+    //do_in_jni_thread(FROM_HERE, Bind(&HearingAidCallbacks::OnDeviceAvailable,
+      //                               Unretained(callbacks), capabilities,
+        //                             hiSyncId, address));
   }
 
   void Connect(const RawAddress& address) override {
     DVLOG(2) << __func__ << " address: " << address;
     if(!is_initialized) return;
-    do_in_bta_thread(FROM_HERE, Bind(&HearingAid::Connect,
-                                      Unretained(HearingAid::Get()), address));
+    //do_in_bta_thread(FROM_HERE, Bind(&HearingAid::Connect,
+      //                                Unretained(HearingAid::Get()), address));
   }
 
   void Disconnect(const RawAddress& address) override {
     DVLOG(2) << __func__ << " address: " << address;
     if(!is_initialized) return;
-    do_in_bta_thread(FROM_HERE, Bind(&HearingAid::Disconnect,
-                                      Unretained(HearingAid::Get()), address));
-    do_in_jni_thread(FROM_HERE, Bind(&btif_storage_set_hearing_aid_acceptlist,
-                                     address, false));
+    //do_in_bta_thread(FROM_HERE, Bind(&HearingAid::Disconnect,
+      //                                Unretained(HearingAid::Get()), address));
+    //do_in_jni_thread(FROM_HERE, Bind(&btif_storage_set_hearing_aid_acceptlist,
+      //                               address, false));
   }
 
   void AddToAcceptlist(const RawAddress& address) override {
     VLOG(2) << __func__ << " address: " << address;
     if(!is_initialized) return;
-    do_in_bta_thread(FROM_HERE, Bind(&HearingAid::AddToAcceptlist,
-                                      Unretained(HearingAid::Get()), address));
-    do_in_jni_thread(FROM_HERE, Bind(&btif_storage_set_hearing_aid_acceptlist,
-                                     address, true));
+    //do_in_bta_thread(FROM_HERE, Bind(&HearingAid::AddToAcceptlist,
+       //                               Unretained(HearingAid::Get()), address));
+   // do_in_jni_thread(FROM_HERE, Bind(&btif_storage_set_hearing_aid_acceptlist,
+     //                                address, true));
   }
 
   void SetVolume(int8_t volume) override {
     DVLOG(2) << __func__ << " volume: " << +volume;
     if(!is_initialized) return;
-    do_in_bta_thread(FROM_HERE, Bind(&HearingAid::SetVolume,
-                                      Unretained(HearingAid::Get()), volume));
+    //do_in_bta_thread(FROM_HERE, Bind(&HearingAid::SetVolume,
+      //                                Unretained(HearingAid::Get()), volume));
   }
 
   void RemoveDevice(const RawAddress& address) override {
@@ -130,18 +134,18 @@ class HearingAidInterfaceImpl
     // RemoveDevice can be called on devices that don't have HA enabled
     if (HearingAid::IsHearingAidRunning()) {
       if(!is_initialized) return;
-      do_in_bta_thread(FROM_HERE,
-                        Bind(&HearingAid::Disconnect,
-                             Unretained(HearingAid::Get()), address));
+      //do_in_bta_thread(FROM_HERE,
+        //                Bind(&HearingAid::Disconnect,
+          //                   Unretained(HearingAid::Get()), address));
     }
 
-    do_in_jni_thread(FROM_HERE,
-                     Bind(&btif_storage_remove_hearing_aid, address));
+   // do_in_jni_thread(FROM_HERE,
+     //                Bind(&btif_storage_remove_hearing_aid, address));
   }
 
   void Cleanup(void) override {
     DVLOG(2) << __func__;
-    do_in_bta_thread(FROM_HERE, Bind(&HearingAid::CleanUp));
+    //do_in_bta_thread(FROM_HERE, Bind(&HearingAid::CleanUp));
     is_initialized = false;
   }
 
@@ -149,12 +153,13 @@ class HearingAidInterfaceImpl
   bool is_initialized = false;
   HearingAidCallbacks* callbacks;
 };
-
+#endif
 }  // namespace
-
+/*
 HearingAidInterface* btif_hearing_aid_get_interface() {
   if (!hearingAidInstance)
     hearingAidInstance.reset(new HearingAidInterfaceImpl());
 
   return hearingAidInstance.get();
 }
+*/

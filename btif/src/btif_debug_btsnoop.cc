@@ -14,9 +14,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 
-#include <mutex>
+//#include <mutex>
 
 #include <base/logging.h>
 #include <resolv.h>
@@ -25,6 +29,7 @@
 #include "btif/include/btif_debug.h"
 #include "btif/include/btif_debug_btsnoop.h"
 #include "hci/include/btsnoop_mem.h"
+//#include "internal_include/extra_include.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/ringbuffer.h"
 #include "osi/include/time.h"
@@ -42,15 +47,15 @@ static const size_t BLOCK_SIZE = 16384;
 // Maximum line length in bugreport (should be multiple of 4 for base64 output)
 static const uint8_t MAX_LINE_LENGTH = 128;
 
-static std::mutex buffer_mutex;
-static ringbuffer_t* buffer = NULL;
+//static std::mutex buffer_mutex;
+//static ringbuffer_t* buffer = NULL;
 static uint64_t last_timestamp_ms = 0;
 
-static size_t btsnoop_calculate_packet_length(uint16_t type,
-                                              const uint8_t* data,
-                                              size_t length);
+//static size_t btsnoop_calculate_packet_length(uint16_t type,
+  //                                            const uint8_t* data,
+    //                                          size_t length);
 
-__attribute__((no_sanitize("integer")))
+/*__attribute__((no_sanitize("integer")))
 static void btsnoop_cb(const uint16_t type, const uint8_t* data,
                        const size_t length, const uint64_t timestamp_us) {
   btsnooz_header_t header;
@@ -58,7 +63,7 @@ static void btsnoop_cb(const uint16_t type, const uint8_t* data,
   size_t included_length = btsnoop_calculate_packet_length(type, data, length);
   if (included_length == 0) return;
 
-  std::lock_guard<std::mutex> lock(buffer_mutex);
+  //std::lock_guard<std::mutex> lock(buffer_mutex);
 
   // Make room in the ring buffer
 
@@ -78,9 +83,9 @@ static void btsnoop_cb(const uint16_t type, const uint8_t* data,
 
   ringbuffer_insert(buffer, (uint8_t*)&header, sizeof(btsnooz_header_t));
   ringbuffer_insert(buffer, data, included_length);
-}
+}*/
 
-static size_t btsnoop_calculate_packet_length(uint16_t type,
+/*static size_t btsnoop_calculate_packet_length(uint16_t type,
                                               const uint8_t* data,
                                               size_t length) {
   static const size_t HCI_ACL_HEADER_SIZE = 4;
@@ -130,11 +135,11 @@ static size_t btsnoop_calculate_packet_length(uint16_t type,
     default:
       return 0;
   }
-}
-
+}*/
+#if 0
 static bool btsnoop_compress(ringbuffer_t* rb_dst, ringbuffer_t* rb_src) {
-  CHECK(rb_dst != NULL);
-  CHECK(rb_src != NULL);
+  //CHECK(rb_dst != NULL);
+  //CHECK(rb_src != NULL);
 
   z_stream zs;
   zs.zalloc = Z_NULL;
@@ -165,7 +170,7 @@ static bool btsnoop_compress(ringbuffer_t* rb_dst, ringbuffer_t* rb_src) {
       }
 
       const size_t length = BLOCK_SIZE - zs.avail_out;
-      ringbuffer_insert(rb_dst, block_dst, length);
+      //ringbuffer_insert(rb_dst, block_dst, length);
     } while (zs.avail_out == 0);
   }
 
@@ -174,24 +179,24 @@ static bool btsnoop_compress(ringbuffer_t* rb_dst, ringbuffer_t* rb_src) {
 }
 
 void btif_debug_btsnoop_init(void) {
-  if (buffer == NULL) buffer = ringbuffer_init(BTSNOOP_MEM_BUFFER_SIZE);
-  btsnoop_mem_set_callback(btsnoop_cb);
+  //if (buffer == NULL) buffer = ringbuffer_init(BTSNOOP_MEM_BUFFER_SIZE);
+  //btsnoop_mem_set_callback(btsnoop_cb);
 }
 
 void btif_debug_btsnoop_dump(int fd) {
-  ringbuffer_t* ringbuffer = ringbuffer_init(BTSNOOP_MEM_BUFFER_SIZE);
-  if (ringbuffer == NULL) {
+  //ringbuffer_t* ringbuffer = ringbuffer_init(BTSNOOP_MEM_BUFFER_SIZE);
+ // if (ringbuffer == NULL) {
     dprintf(fd, "%s Unable to allocate memory for compression", __func__);
-    return;
-  }
+  //  return;
+  //}
 
   // Prepend preamble
 
   btsnooz_preamble_t preamble;
   preamble.version = BTSNOOZ_CURRENT_VERSION;
   preamble.last_timestamp_ms = last_timestamp_ms;
-  ringbuffer_insert(ringbuffer, (uint8_t*)&preamble,
-                    sizeof(btsnooz_preamble_t));
+  //ringbuffer_insert(ringbuffer, (uint8_t*)&preamble,
+    //                sizeof(btsnooz_preamble_t));
 
   // Compress data
 
@@ -202,7 +207,7 @@ void btif_debug_btsnoop_dump(int fd) {
 
   bool rc;
   {
-    std::lock_guard<std::mutex> lock(buffer_mutex);
+    //std::lock_guard<std::mutex> lock(buffer_mutex);
     dprintf(fd, "--- BEGIN:BTSNOOP_LOG_SUMMARY (%zu bytes in) ---\n",
             ringbuffer_size(buffer));
     rc = btsnoop_compress(ringbuffer, buffer);
@@ -230,3 +235,4 @@ void btif_debug_btsnoop_dump(int fd) {
 error:
   ringbuffer_free(ringbuffer);
 }
+#endif

@@ -48,6 +48,10 @@
  *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 #define LOG_TAG "bt_btif_gatt"
@@ -86,7 +90,7 @@ typedef struct {
 /*******************************************************************************
  * Static variables
  ******************************************************************************/
-
+/*
 static const char* disc_name[GATT_DISC_MAX] = {"Unknown",
                                                "GATT_DISC_SRVC_ALL",
                                                "GATT_DISC_SRVC_BY_UUID",
@@ -95,11 +99,11 @@ static const char* disc_name[GATT_DISC_MAX] = {"Unknown",
                                                "GATT_DISC_CHAR_DSCPT"};
 
 static btif_test_cb_t test_cb;
-
+*/
 /*******************************************************************************
  * Callback functions
  ******************************************************************************/
-
+/*
 static void btif_test_connect_cback(tGATT_IF, const RawAddress&,
                                     uint16_t conn_id, bool connected,
                                     tGATT_DISCONN_REASON, tBT_TRANSPORT) {
@@ -204,15 +208,15 @@ static tGATT_CBACK btif_test_callbacks = {btif_test_connect_cback,
                                           NULL,
                                           NULL,
                                           NULL};
-
+*/
 /*******************************************************************************
  * Implementation
  ******************************************************************************/
-
+/*
 bt_status_t btif_gattc_test_command_impl(int command,
                                          const btgatt_test_params_t* params) {
   switch (command) {
-    case 0x01: /* Enable */
+    case 0x01: * Enable *
     {
       LOG_DEBUG(LOG_TAG, "%s: ENABLE - enable=%d", __func__, params->u1);
       if (params->u1) {
@@ -227,7 +231,7 @@ bt_status_t btif_gattc_test_command_impl(int command,
       break;
     }
 
-    case 0x02: /* Connect */
+    case 0x02: * Connect *
     {
       LOG_DEBUG(LOG_TAG, "%s: CONNECT - device=%s (dev_type=%d, addr_type=%d)",
                 __func__, params->bda1->ToString().c_str(), params->u1,
@@ -244,7 +248,7 @@ bt_status_t btif_gattc_test_command_impl(int command,
       break;
     }
 
-    case 0x03: /* Disconnect */
+    case 0x03: * Disconnect *
     {
       LOG_DEBUG(LOG_TAG, "%s: DISCONNECT - conn_id=%d", __func__,
                 test_cb.conn_id);
@@ -252,7 +256,7 @@ bt_status_t btif_gattc_test_command_impl(int command,
       break;
     }
 
-    case 0x04: /* Discover */
+    case 0x04: * Discover *
     {
       if (params->u1 >= GATT_DISC_MAX) {
         LOG_ERROR(LOG_TAG, "%s: DISCOVER - Invalid type (%d)!", __func__,
@@ -269,7 +273,7 @@ bt_status_t btif_gattc_test_command_impl(int command,
       break;
     }
 
-    case 0xF0: /* Pairing configuration */
+    case 0xF0: * Pairing configuration *
       LOG_DEBUG(LOG_TAG,
                 "%s: Setting pairing config auth=%d, iocaps=%d, keys=%d/%d/%d",
                 __func__, params->u1, params->u2, params->u3, params->u4,
@@ -288,3 +292,4 @@ bt_status_t btif_gattc_test_command_impl(int command,
   }
   return (bt_status_t)0;
 }
+*/

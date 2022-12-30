@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 #define LOG_TAG "bt_btif_sock_sdp"
@@ -25,26 +29,26 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include <hardware/bluetooth.h>
-#include <hardware/bt_sock.h>
+//#include <hardware/bluetooth.h>
+//#include <hardware/bt_sock.h>
 
-#include "../bta/pb/bta_pbs_int.h"
-#include "../include/bta_op_api.h"
-#include "bt_common.h"
-#include "bt_target.h"
-#include "bta_api.h"
-#include "bta_jv_api.h"
+//#include "../bta/pb/bta_pbs_int.h"
+//#include "../include/bta_op_api.h"
+#include "internal_include/bt_common.h"
+#include "internal_include/bt_target.h"
+//#include "bta_api.h"
+//#include "bta_jv_api.h"
 #include "btif_common.h"
 #include "btif_sock_util.h"
 #include "btif_util.h"
-#include "btm_api.h"
-#include "btm_int.h"
-#include "btu.h"
-#include "hcimsgs.h"
-#include "osi/include/properties.h"
-#include "sdp_api.h"
-#include "utl.h"
-
+//#include "btm_api.h"
+//#include "btm_int.h"
+//#include "btu.h"
+//#include "hcimsgs.h"
+//#include "osi/include/properties.h"
+///#include "sdp_api.h"
+//#include "utl.h"
+#if 0
 using bluetooth::Uuid;
 
 // This module provides an abstraction on top of the lower-level SDP database
@@ -548,3 +552,4 @@ void del_rfc_sdp_rec(int handle) {
 
   if ((handle != -1) && (handle != 0)) BTA_JvDeleteRecord(handle);
 }
+#endif

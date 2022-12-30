@@ -19,13 +19,17 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 #define LOG_TAG "bt_btif_a2dp_sink"
 
 #include <string.h>
 
-#include "bt_common.h"
+#include "internal_include/bt_common.h"
 #include "btif_a2dp.h"
 #include "btif_a2dp_sink.h"
 #include "btif_av.h"
@@ -41,11 +45,11 @@
 #include "oi_status.h"
 #if (OFF_TARGET_TEST_ENABLED == TRUE)
 #include "btif_a2dp_control.h"
-#include "bt_prop.h"
+#include "internal_include/bt_prop.h"
 #include "a2dp_hal_sim/audio_a2dp_hal.h"
 #include "a2dp_hal_sim/audio_a2dp_hal_stub.h"
 #endif
-
+#if 0
 /**
  * The receiving queue buffer size.
  */
@@ -96,11 +100,11 @@ extern bool btif_is_sink_delay_report_supported();
 
 /* BTIF A2DP Sink control block */
 typedef struct {
-  thread_t* worker_thread;
-  fixed_queue_t* cmd_msg_queue;
-  fixed_queue_t* rx_audio_queue;
+  //thread_t* worker_thread;
+  //fixed_queue_t* cmd_msg_queue;
+  //fixed_queue_t* rx_audio_queue;
   bool rx_flush; /* discards any incoming data when true */
-  alarm_t* decode_alarm;
+  //alarm_t* decode_alarm;
   uint8_t frames_to_process;
   tA2DP_SAMPLE_RATE sample_rate;
   tA2DP_CHANNEL_COUNT channel_count;
@@ -114,7 +118,7 @@ static tBTIF_A2DP_SINK_CB btif_a2dp_sink_cb;
 
 static int btif_a2dp_sink_state = BTIF_A2DP_SINK_STATE_OFF;
 
-static OI_CODEC_SBC_DECODER_CONTEXT btif_a2dp_sink_context;
+//static OI_CODEC_SBC_DECODER_CONTEXT btif_a2dp_sink_context;
 static uint32_t btif_a2dp_sink_context_data[CODEC_DATA_WORDS(
     2, SBC_CODEC_FAST_FILTER_BUFFERS)];
 static int16_t
@@ -124,12 +128,12 @@ static void btif_a2dp_sink_startup_delayed(void* context);
 static void btif_a2dp_sink_shutdown_delayed(void* context);
 static void btif_a2dp_sink_command_ready(fixed_queue_t* queue, void* context);
 static void btif_a2dp_sink_audio_handle_stop_decoding(void);
-static void btif_decode_alarm_cb(void* context);
+//static void btif_decode_alarm_cb(void* context);
 static void btif_a2dp_sink_audio_handle_start_decoding(void);
-static void btif_a2dp_sink_avk_handle_timer(UNUSED_ATTR void* context);
+//static void btif_a2dp_sink_avk_handle_timer(UNUSED_ATTR void* context);
 static void btif_a2dp_sink_audio_rx_flush_req(void);
 /* Handle incoming media packets A2DP SINK streaming */
-static void btif_a2dp_sink_handle_inc_media(tBT_SBC_HDR* p_msg);
+//static void btif_a2dp_sink_handle_inc_media(tBT_SBC_HDR* p_msg);
 static void btif_a2dp_sink_decoder_update_event(
     tBTIF_MEDIA_SINK_DECODER_UPDATE* p_buf);
 static void btif_a2dp_sink_clear_track_event(void);
@@ -182,7 +186,7 @@ bool btif_a2dp_sink_startup(void) {
 
   APPL_TRACE_EVENT("## A2DP SINK MEDIA THREAD STARTED ##");
 #if (OFF_TARGET_TEST_ENABLED == TRUE)
-  property_set("persist.vendor.service.bt.a2dp.sink", "true");
+  //property_set("persist.vendor.service.bt.a2dp.sink", "true");
 #endif
   /* Schedule the rest of the startup operations */
   thread_post(btif_a2dp_sink_cb.worker_thread, btif_a2dp_sink_startup_delayed,
@@ -192,7 +196,7 @@ bool btif_a2dp_sink_startup(void) {
 }
 
 static void btif_a2dp_sink_startup_delayed(UNUSED_ATTR void* context) {
-  raise_priority_a2dp(TASK_HIGH_MEDIA);
+  //raise_priority_a2dp(TASK_HIGH_MEDIA);
   btif_a2dp_sink_state = BTIF_A2DP_SINK_STATE_RUNNING;
 }
 
@@ -208,7 +212,7 @@ void btif_a2dp_sink_shutdown(void) {
   APPL_TRACE_EVENT("## A2DP SINK STOP MEDIA THREAD ##");
 
   // Stop the timer
-  alarm_free(btif_a2dp_sink_cb.decode_alarm);
+  //alarm_free(btif_a2dp_sink_cb.decode_alarm);
   btif_a2dp_sink_cb.decode_alarm = NULL;
 
   // Exit the thread
@@ -243,8 +247,8 @@ static void btif_a2dp_sink_command_ready(fixed_queue_t* queue,
                                          UNUSED_ATTR void* context) {
   BT_HDR* p_msg = (BT_HDR*)fixed_queue_dequeue(queue);
 
-  LOG_DEBUG(LOG_TAG, "%s: event %d %s", __func__, p_msg->event,
-              dump_media_event(p_msg->event));
+ // LOG_DEBUG(LOG_TAG, "%s: event %d %s", __func__, p_msg->event,
+         //     dump_media_event(p_msg->event));
 
   switch (p_msg->event) {
     case BTIF_MEDIA_SINK_DECODER_UPDATE:
@@ -322,19 +326,19 @@ static void btif_a2dp_sink_audio_handle_stop_decoding(void) {
   btif_a2dp_sink_cb.rx_flush = true;
   btif_a2dp_sink_audio_rx_flush_req();
 
-  alarm_free(btif_a2dp_sink_cb.decode_alarm);
+  //alarm_free(btif_a2dp_sink_cb.decode_alarm);
   btif_a2dp_sink_cb.decode_alarm = NULL;
 #ifndef OS_GENERIC
   BtifAvrcpAudioTrackPause(btif_a2dp_sink_cb.audio_track);
 #endif
 }
 
-static void btif_decode_alarm_cb(UNUSED_ATTR void* context) {
+/*static void btif_decode_alarm_cb(UNUSED_ATTR void* context) {
   if (btif_a2dp_sink_cb.worker_thread != NULL) {
     thread_post(btif_a2dp_sink_cb.worker_thread,
                 btif_a2dp_sink_avk_handle_timer, NULL);
   }
-}
+}*/
 
 static void btif_a2dp_sink_clear_track_event(void) {
   APPL_TRACE_DEBUG("%s", __func__);
@@ -355,23 +359,23 @@ static void btif_a2dp_sink_audio_handle_start_decoding(void) {
   BtifAvrcpAudioTrackStart(btif_a2dp_sink_cb.audio_track);
 #endif
 
-  btif_a2dp_sink_cb.decode_alarm = alarm_new_periodic("btif.a2dp_sink_decode");
+  //btif_a2dp_sink_cb.decode_alarm = alarm_new_periodic("btif.a2dp_sink_decode");
   if (btif_a2dp_sink_cb.decode_alarm == NULL) {
-    LOG_ERROR(LOG_TAG, "%s: unable to allocate decode alarm", __func__);
+    //LOG_ERROR(LOG_TAG, "%s: unable to allocate decode alarm", __func__);
     return;
   }
-  alarm_set(btif_a2dp_sink_cb.decode_alarm, BTIF_SINK_MEDIA_TIME_TICK_MS,
-            btif_decode_alarm_cb, NULL);
+ // alarm_set(btif_a2dp_sink_cb.decode_alarm, BTIF_SINK_MEDIA_TIME_TICK_MS,
+  //          btif_decode_alarm_cb, NULL);
   APPL_TRACE_DEBUG("Track Started and decode_alarm is set");
 }
 
-static void btif_a2dp_sink_handle_inc_media(tBT_SBC_HDR* p_msg) {
-  uint8_t* sbc_start_frame = ((uint8_t*)(p_msg + 1) + p_msg->offset + 1);
+/*static void btif_a2dp_sink_handle_inc_media(tBT_SBC_HDR* p_msg) {
+  //uint8_t* sbc_start_frame = ((uint8_t*)(p_msg + 1) + p_msg->offset + 1);
   int count;
   uint32_t pcmBytes, availPcmBytes;
   int16_t* pcmDataPointer =
-      btif_a2dp_sink_pcm_data; /* Will be overwritten on next packet receipt */
-  OI_STATUS status;
+      btif_a2dp_sink_pcm_data; * Will be overwritten on next packet receipt *
+  //OI_STATUS status;
   int num_sbc_frames = p_msg->num_frames_to_be_processed;
   uint32_t sbc_frame_len = p_msg->len - 1;
   availPcmBytes = sizeof(btif_a2dp_sink_pcm_data);
@@ -387,14 +391,14 @@ static void btif_a2dp_sink_handle_inc_media(tBT_SBC_HDR* p_msg) {
 
   for (count = 0; count < num_sbc_frames && sbc_frame_len != 0; count++) {
     pcmBytes = availPcmBytes;
-    status = OI_CODEC_SBC_DecodeFrame(
+    *status = OI_CODEC_SBC_DecodeFrame(
         &btif_a2dp_sink_context, (const OI_BYTE**)&sbc_start_frame,
         (uint32_t*)&sbc_frame_len, (int16_t*)pcmDataPointer,
-        (uint32_t*)&pcmBytes);
-    if (!OI_SUCCESS(status)) {
+        (uint32_t*)&pcmBytes);*
+    *if (!OI_SUCCESS(status)) {
       APPL_TRACE_ERROR("%s: Decoding failure: %d", __func__, status);
       break;
-    }
+    }*
     availPcmBytes -= pcmBytes;
     pcmDataPointer += pcmBytes / 2;
     p_msg->offset += (p_msg->len - 1) - sbc_frame_len;
@@ -406,27 +410,27 @@ static void btif_a2dp_sink_handle_inc_media(tBT_SBC_HDR* p_msg) {
       btif_a2dp_sink_cb.audio_track, (void*)btif_a2dp_sink_pcm_data,
       (sizeof(btif_a2dp_sink_pcm_data) - availPcmBytes));
 #endif
-}
+}*/
 
-static void btif_a2dp_sink_avk_handle_timer(UNUSED_ATTR void* context) {
+/*static void btif_a2dp_sink_avk_handle_timer(UNUSED_ATTR void* context) {
   tBT_SBC_HDR* p_msg;
   int num_sbc_frames;
   int num_frames_to_process;
-  uint64_t inst_delay = 0;       /* avg delay incurred per frame in 20 ms */
-  uint64_t inst_delay_total = 0; /* sum of delay for all frames processed till now */
+  uint64_t inst_delay = 0;       * avg delay incurred per frame in 20 ms *
+  uint64_t inst_delay_total = 0; * sum of delay for all frames processed till now *
 
   if (fixed_queue_is_empty(btif_a2dp_sink_cb.rx_audio_queue)) {
     APPL_TRACE_DEBUG("%s: empty queue", __func__);
     return;
   }
 
-  /* Don't do anything in case of focus not granted */
+  * Don't do anything in case of focus not granted *
   if (btif_a2dp_sink_cb.rx_focus_state == BTIF_A2DP_SINK_FOCUS_NOT_GRANTED) {
     APPL_TRACE_DEBUG("%s: skipping frames since focus is not present",
                      __func__);
     return;
   }
-  /* Play only in BTIF_A2DP_SINK_FOCUS_GRANTED case */
+  * Play only in BTIF_A2DP_SINK_FOCUS_GRANTED case *
   if (btif_a2dp_sink_cb.rx_flush) {
     fixed_queue_flush(btif_a2dp_sink_cb.rx_audio_queue, osi_free);
     return;
@@ -439,7 +443,7 @@ static void btif_a2dp_sink_avk_handle_timer(UNUSED_ATTR void* context) {
     p_msg = (tBT_SBC_HDR*)fixed_queue_try_peek_first(
         btif_a2dp_sink_cb.rx_audio_queue);
     if (p_msg == NULL) return;
-    /* Number of frames in queue packets */
+    * Number of frames in queue packets *
     num_sbc_frames = p_msg->num_frames_to_be_processed;
     APPL_TRACE_DEBUG("Frames left in topmost packet %d", num_sbc_frames);
     APPL_TRACE_DEBUG("Remaining frames to process in tick %d",
@@ -448,13 +452,13 @@ static void btif_a2dp_sink_avk_handle_timer(UNUSED_ATTR void* context) {
                      fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue));
 
     if (num_sbc_frames > num_frames_to_process) {
-      /* Queue packet has more frames */
+      * Queue packet has more frames *
       p_msg->num_frames_to_be_processed = num_frames_to_process;
       btif_a2dp_sink_handle_inc_media(p_msg);
       if (btif_is_sink_delay_report_supported()) {
         struct timespec ts_now;
         uint64_t curr_time;
-        clock_gettime(CLOCK_BOOTTIME, &ts_now);
+        //clock_gettime(CLOCK_BOOTTIME, &ts_now);
         curr_time = (uint64_t)ts_now.tv_sec * 1000000000 + ts_now.tv_nsec;
         if (curr_time > p_msg->enque_ns) {
           inst_delay_total += p_msg->num_frames_to_be_processed * (curr_time - p_msg->enque_ns);
@@ -465,7 +469,7 @@ static void btif_a2dp_sink_avk_handle_timer(UNUSED_ATTR void* context) {
       num_frames_to_process = 0;
       break;
     }
-    /* Queue packet has less frames */
+    * Queue packet has less frames *
     btif_a2dp_sink_handle_inc_media(p_msg);
     p_msg =
         (tBT_SBC_HDR*)fixed_queue_try_dequeue(btif_a2dp_sink_cb.rx_audio_queue);
@@ -484,7 +488,7 @@ static void btif_a2dp_sink_avk_handle_timer(UNUSED_ATTR void* context) {
   }
 
   APPL_TRACE_DEBUG("Process Frames - ");
-}
+}*/
 
 /* when true media task discards any rx frames */
 void btif_a2dp_sink_set_rx_flush(bool enable) {
@@ -501,7 +505,7 @@ static void btif_a2dp_sink_audio_rx_flush_event(void) {
 
 static void btif_a2dp_sink_decoder_update_event(
     tBTIF_MEDIA_SINK_DECODER_UPDATE* p_buf) {
-  OI_STATUS status;
+ // OI_STATUS status;
 
   APPL_TRACE_DEBUG("%s: p_codec_info[%x:%x:%x:%x:%x:%x]", __func__,
                    p_buf->codec_info[1], p_buf->codec_info[2],
@@ -509,30 +513,30 @@ static void btif_a2dp_sink_decoder_update_event(
                    p_buf->codec_info[5], p_buf->codec_info[6]);
 
   // clear earlier alarm (if any) and media packet queue
-  alarm_free(btif_a2dp_sink_cb.decode_alarm);
+  //alarm_free(btif_a2dp_sink_cb.decode_alarm);
   APPL_TRACE_DEBUG("%s: clear decode alarm.", __func__);
   btif_a2dp_sink_cb.decode_alarm = NULL;
   btif_a2dp_sink_audio_rx_flush_event();
 
-  int sample_rate = A2DP_GetTrackSampleRate(p_buf->codec_info);
+  int sample_rate = -1;//A2DP_GetTrackSampleRate(p_buf->codec_info);
   if (sample_rate == -1) {
     APPL_TRACE_ERROR("%s: cannot get the track frequency", __func__);
     return;
   }
 
-  int channel_count = A2DP_GetTrackChannelCount(p_buf->codec_info);
+  int channel_count = -1;//A2DP_GetTrackChannelCount(p_buf->codec_info);
   if (channel_count == -1) {
     APPL_TRACE_ERROR("%s: cannot get the channel count", __func__);
     return;
   }
 
-  int bits_per_sample = A2DP_GetTrackBitsPerSample(p_buf->codec_info);
+  int bits_per_sample = -1;//A2DP_GetTrackBitsPerSample(p_buf->codec_info);
   if (bits_per_sample == -1) {
     APPL_TRACE_ERROR(LOG_TAG, "%s: cannot get the bits per sample", __func__);
     return;
   }
 
-  int channel_type = A2DP_GetSinkTrackChannelType(p_buf->codec_info);
+  int channel_type = -1;//A2DP_GetSinkTrackChannelType(p_buf->codec_info);
   if (channel_type == -1) {
     APPL_TRACE_ERROR("%s: cannot get the Sink channel type", __func__);
     return;
@@ -543,13 +547,13 @@ static void btif_a2dp_sink_decoder_update_event(
 
   btif_a2dp_sink_cb.rx_flush = false;
   APPL_TRACE_DEBUG("%s: Reset to Sink role", __func__);
-  status = OI_CODEC_SBC_DecoderReset(
+  /*status = OI_CODEC_SBC_DecoderReset(
       &btif_a2dp_sink_context, btif_a2dp_sink_context_data,
-      sizeof(btif_a2dp_sink_context_data), 2, 2, false);
-  if (!OI_SUCCESS(status)) {
+      sizeof(btif_a2dp_sink_context_data), 2, 2, false);*/
+  /*if (!OI_SUCCESS(status)) {
     APPL_TRACE_ERROR("%s: OI_CODEC_SBC_DecoderReset failed with error code %d",
                      __func__, status);
-  }
+  }*/
 
   APPL_TRACE_DEBUG("%s: A2dpSink: SBC create track", __func__);
   btif_a2dp_sink_cb.audio_track =
@@ -566,8 +570,8 @@ static void btif_a2dp_sink_decoder_update_event(
     btif_a2dp_sink_cb.latency = BtifAvrcpAudioTrackLatency(btif_a2dp_sink_cb.audio_track);
   }
 
-  btif_a2dp_sink_cb.frames_to_process = A2DP_GetSinkFramesCountToProcess(
-      BTIF_SINK_MEDIA_TIME_TICK_MS, p_buf->codec_info);
+ /* btif_a2dp_sink_cb.frames_to_process = A2DP_GetSinkFramesCountToProcess(
+      BTIF_SINK_MEDIA_TIME_TICK_MS, p_buf->codec_info);*/
   APPL_TRACE_DEBUG("%s: Frames to be processed in 20 ms %d", __func__,
                    btif_a2dp_sink_cb.frames_to_process);
   if (btif_a2dp_sink_cb.frames_to_process == 0) {
@@ -607,7 +611,7 @@ uint8_t btif_a2dp_sink_enqueue_buf(BT_HDR* p_pkt) {
 
   if (btif_is_sink_delay_report_supported()) {
     struct timespec ts_now;
-    clock_gettime(CLOCK_BOOTTIME, &ts_now);
+    //clock_gettime(CLOCK_BOOTTIME, &ts_now);
     p_msg->enque_ns = (uint64_t)ts_now.tv_sec * 1000000000 + ts_now.tv_nsec;
   }
 
@@ -697,3 +701,4 @@ void btif_a2dp_sink_on_init(void) {
   btif_a2dp_control_init();
 #endif
 }
+#endif

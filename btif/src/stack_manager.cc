@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 #define LOG_TAG "bt_stack_manager"
@@ -111,15 +115,15 @@ static void event_init_stack(void* context) {
     LOG_INFO(LOG_TAG, "%s found the stack already in initialized state",
              __func__);
   } else {
-    module_management_start();
-    start_bt_logger();
+    //module_management_start();
+    //start_bt_logger();
 
-    module_init(get_module(OSI_MODULE));
-    module_init(get_module(BT_UTILS_MODULE));
+   // module_init(get_module(OSI_MODULE));
+    //module_init(get_module(BT_UTILS_MODULE));
 #if (BT_IOT_LOGGING_ENABLED == TRUE)
-    module_init(get_module(DEVICE_IOT_CONFIG_MODULE));
+   // module_init(get_module(DEVICE_IOT_CONFIG_MODULE));
 #endif
-    module_init(get_module(BTIF_CONFIG_MODULE));
+    //module_init(get_module(BTIF_CONFIG_MODULE));
 
     btif_stack_state(StackState::INITIALIZING);
 
@@ -155,20 +159,20 @@ static void event_start_up_stack(UNUSED_ATTR void* context) {
   }
 
   ensure_stack_is_initialized();
-  init_vnd_Logger();
+  //init_vnd_Logger();
 
   LOG_INFO(LOG_TAG, "%s is bringing up the stack", __func__);
   future_t* local_hack_future = future_new();
   hack_future = local_hack_future;
 
   // Include this for now to put btif config into a shutdown-able state
-  module_start_up(get_module(BTIF_CONFIG_MODULE));
+  //module_start_up(get_module(BTIF_CONFIG_MODULE));
 
   btif_stack_state(StackState::TURNING_ON);
 #if (BT_IOT_LOGGING_ENABLED == TRUE)
-  module_start_up(get_module(DEVICE_IOT_CONFIG_MODULE));
+  //module_start_up(get_module(DEVICE_IOT_CONFIG_MODULE));
 #endif
-  bte_main_enable();
+  //bte_main_enable();
 
   if (future_await(local_hack_future) != FUTURE_SUCCESS) {
     LOG_ERROR(LOG_TAG, "%s failed to start up the stack", __func__);
@@ -195,15 +199,15 @@ static void event_shut_down_stack(UNUSED_ATTR void* context) {
   stack_is_running = false;
 
   btif_disable_bluetooth();
-  module_shut_down(get_module(BTIF_CONFIG_MODULE));
+  //module_shut_down(get_module(BTIF_CONFIG_MODULE));
 
   btif_stack_state(StackState::TURNING_OFF);
 #if (BT_IOT_LOGGING_ENABLED == TRUE)
-  module_shut_down(get_module(DEVICE_IOT_CONFIG_MODULE));
+  //module_shut_down(get_module(DEVICE_IOT_CONFIG_MODULE));
 #endif
 
   future_await(local_hack_future);
-  module_shut_down(get_module(CONTROLLER_MODULE));  // Doesn't do any work, just
+  //module_shut_down(get_module(CONTROLLER_MODULE));  // Doesn't do any work, just
                                                     // puts it in a restartable
                                                     // state
 
@@ -235,24 +239,24 @@ static void event_clean_up_stack(void* context) {
   LOG_INFO(LOG_TAG, "%s is cleaning up the stack", __func__);
   stack_is_initialized = false;
 
-  btif_vendor_cleanup_iot_broadcast_timer();
+  //btif_vendor_cleanup_iot_broadcast_timer();
   btif_cleanup_bluetooth();
 
   // btm resource should be freed after stopping JNI workqueue thread.
   LOG_INFO(LOG_TAG, "%s freeing the btm resource", __func__);
-  btm_free();
+  //btm_free();
 
-  module_clean_up(get_module(BTIF_CONFIG_MODULE));
+  //module_clean_up(get_module(BTIF_CONFIG_MODULE));
 
   btif_stack_state(StackState::CLEAND_UP);
 #if (BT_IOT_LOGGING_ENABLED == TRUE)
-  module_clean_up(get_module(DEVICE_IOT_CONFIG_MODULE));
+  //module_clean_up(get_module(DEVICE_IOT_CONFIG_MODULE));
 #endif
-  module_clean_up(get_module(BT_UTILS_MODULE));
-  module_clean_up(get_module(OSI_MODULE));
-  module_management_stop();
+  //module_clean_up(get_module(BT_UTILS_MODULE));
+  //module_clean_up(get_module(OSI_MODULE));
+  //module_management_stop();
   LOG_INFO(LOG_TAG, "%s finished", __func__);
-  clean_vnd_logger();
+  //clean_vnd_logger();
 
 cleanup:;
   semaphore_t* semaphore = (semaphore_t*)context;
@@ -262,8 +266,8 @@ cleanup:;
 static void event_signal_stack_up(UNUSED_ATTR void* context) {
   // Notify BTIF connect queue that we've brought up the stack. It's
   // now time to dispatch all the pending profile connect requests.
-  btif_queue_connect_next();
-  btif_disconnect_queue_disconnect_next();
+  //btif_queue_connect_next();
+  //btif_disconnect_queue_disconnect_next();
   btif_stack_state(StackState::TURNED_ON);
   HAL_CBACK(bt_hal_cbacks, adapter_state_changed_cb, BT_STATE_ON);
 }

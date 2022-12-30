@@ -14,6 +14,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear.
  ******************************************************************************/
 
 /*******************************************************************************
@@ -27,12 +30,13 @@
 #define LOG_TAG "bt_btif"
 
 #include <base/bind.h>
+#include <base/location.h>
 #include <base/logging.h>
+#include <base/callback.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
 #include <hardware/avrcp/avrcp.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_av.h>
@@ -69,7 +73,11 @@
 #include "btif_api.h"
 #include "btif_bqr.h"
 #include "btif_config.h"
+#include "btif_common.h"
+#include "btif_sock.h"
+//#include "internal_include/extra_include.h"
 #include "device/include/controller.h"
+#include "btif_sdp.h"
 #include "btif_debug.h"
 #include "btif_keystore.h"
 #include "btif_storage.h"
@@ -88,14 +96,20 @@
 #include "stack/gatt/connection_manager.h"
 #include "stack_manager.h"
 #include "stack_interface.h"
-#include "stack/include/btm_api.h"
-
+#include <stdarg.h>
+#include "btif_uid.h"
 using base::Bind;
 using bluetooth::hearing_aid::HearingAidInterface;
 using bluetooth::has::HasClientInterface;
 #ifdef DIR_FINDING_FEATURE
 using bluetooth::atp_locator::AtpLocatorInterface;
 #endif
+#include "btif_ss_interface.h"
+#ifdef SS_STUB_ENABLED
+#include "btif_ss_stub_interface.h"
+#endif
+#include "protobuf/proto/dm.pb.h"
+#include "btif/protobuf/include/proto_message_ids.h"
 
 /*******************************************************************************
  *  Static variables
@@ -107,6 +121,32 @@ bool common_criteria_mode = false;
 const int CONFIG_COMPARE_ALL_PASS = 0b11;
 int common_criteria_config_compare_result = CONFIG_COMPARE_ALL_PASS;
 bool is_local_device_atv = false;
+//btif_trace_level = BT_TRACE_LEVEL_DEBUG;
+BluetoothSSInterface *btSSInterface;
+#ifdef SS_STUB_ENABLED
+BluetoothSSStubInterface *btSSStubInterface;
+#endif
+static uid_set_t* uid_set = NULL;
+
+using namespace bluetooth::synergy::SynergyProto;//::ss_bt_property_t;
+/*using bluetooth::synergy::SynergyProto::ss_set_adapter_property;
+using bluetooth::synergy::SynergyProto::ss_get_adapter_property;
+using bluetooth::synergy::SynergyProto::ss_get_remote_device_property;
+using bluetooth::synergy::SynergyProto::ss_get_remote_device_properties;
+using bluetooth::synergy::SynergyProto::ss_set_remote_device_property;
+using bluetooth::synergy::SynergyProto::ss_adapter_properties_callback;
+using bluetooth::synergy::SynergyProto::ss_remote_device_properties_callback;
+using bluetooth::synergy::SynergyProto::ss_bt_property_type_t;
+using bluetooth::synergy::SynergyProto::ss_adapter_state_changed_callback;
+using bluetooth::synergy::SynergyProto::ss_discovery_state_changed_callback;
+using bluetooth::synergy::SynergyProto::ss_bt_state_t;
+using bluetooth::synergy::SynergyProto::ss_device_found_callback;
+using bluetooth::synergy::SynergyProto::SS_BT_PROPERTY_BDADDR;
+using bluetooth::synergy::SynergyProto::SS_BT_PROPERTY_BDNAME;
+using bluetooth::synergy::SynergyProto::SS_BT_PROPERTY_UUIDS;
+using bluetooth::synergy::SynergyProto::SS_BT_PROPERTY_ADAPTER_SCAN_MODE;
+using bluetooth::synergy::SynergyProto::SS_BT_PROPERTY_ADAPTER_BONDED_DEVICES;
+using bluetooth::synergy::SynergyProto::SS_BT_PROPERTY_ADAPTER_DISCOVERY_TIMEOUT;*/
 
 /*******************************************************************************
  *  Externs
@@ -115,44 +155,44 @@ bool is_local_device_atv = false;
 /* list all extended interfaces here */
 
 /* handsfree profile - client */
-extern bthf_client_interface_t* btif_hf_client_get_interface();
+//extern bthf_client_interface_t* btif_hf_client_get_interface();
 /* advanced audio profile */
-extern btav_source_interface_t* btif_av_get_src_interface();
-extern btav_sink_interface_t* btif_av_get_sink_interface();
+//extern btav_source_interface_t* btif_av_get_src_interface();
+//extern btav_sink_interface_t* btif_av_get_sink_interface();
 /*rfc l2cap*/
 extern btsock_interface_t* btif_sock_get_interface();
 /* hid host profile */
-extern bthh_interface_t* btif_hh_get_interface();
+//extern bthh_interface_t* btif_hh_get_interface();
 /* hid device profile */
-extern bthd_interface_t* btif_hd_get_interface();
+//extern bthd_interface_t* btif_hd_get_interface();
 /*pan*/
-extern btpan_interface_t* btif_pan_get_interface();
+//extern btpan_interface_t* btif_pan_get_interface();
 /* gatt */
-extern const btgatt_interface_t* btif_gatt_get_interface();
+//extern const btgatt_interface_t* btif_gatt_get_interface();
 /* avrc target */
-extern btrc_interface_t* btif_rc_get_interface();
+//extern btrc_interface_t* btif_rc_get_interface();
 /* avrc controller */
-extern btrc_interface_t* btif_rc_ctrl_get_interface();
+//extern btrc_interface_t* btif_rc_ctrl_get_interface();
 /*SDP search client*/
-extern btsdp_interface_t* btif_sdp_get_interface();
+//extern btsdp_interface_t* btif_sdp_get_interface();
 
 /*Hearing Aid client*/
-extern HearingAidInterface* btif_hearing_aid_get_interface();
+//extern HearingAidInterface* btif_hearing_aid_get_interface();
 
 /* Hearing Access client */
 extern HasClientInterface* btif_has_client_get_interface();
 
 /* List all test interface here */
 /* vendor  */
-extern btvendor_interface_t *btif_vendor_get_interface();
+//extern btvendor_interface_t *btif_vendor_get_interface();
 /* vendor socket*/
-extern btvendor_interface_t *btif_vendor_socket_get_interface();
+//extern btvendor_interface_t *btif_vendor_socket_get_interface();
 #if (SWB_ENABLED == TRUE)
-extern btvendor_interface_t *btif_vendor_hf_get_interface();
+//extern btvendor_interface_t *btif_vendor_hf_get_interface();
 #endif
 /* broadcast transmitter */
-extern ba_transmitter_interface_t *btif_bat_get_interface();
-extern btrc_vendor_ctrl_interface_t *btif_rc_vendor_ctrl_get_interface();
+//extern ba_transmitter_interface_t *btif_bat_get_interface();
+//extern btrc_vendor_ctrl_interface_t *btif_rc_vendor_ctrl_get_interface();
 
 #ifdef DIR_FINDING_FEATURE
 extern AtpLocatorInterface* btif_atp_locator_get_interface();
@@ -165,10 +205,20 @@ extern AtpLocatorInterface* btif_atp_locator_get_interface();
 bool interface_ready(void) { return bt_hal_cbacks != NULL; }
 
 static bool is_profile(const char* p1, const char* p2) {
-  CHECK(p1);
-  CHECK(p2);
+  //CHECK(p1);
+  //CHECK(p2);
   return strlen(p1) == strlen(p2) && strncmp(p1, p2, strlen(p2)) == 0;
 }
+uint8_t appl_trace_level = 6;
+uint8_t btif_trace_level = 6;
+/*LOG Dummy functions added*/
+void LogMsg(uint32_t trace_set_mask, const char* fmt_str, ...) {
+  va_list args;
+  va_start(args, fmt_str);
+  vprintf(fmt_str, args);
+  va_end(args);
+}
+
 
 /*****************************************************************************
  *
@@ -178,29 +228,26 @@ static bool is_profile(const char* p1, const char* p2) {
 
 
 const std::vector<std::string> get_allowed_bt_package_name(void);
-void handle_migration(const std::string& dst,
-                      const std::vector<std::string>& allowed_bt_package_name);
+//void handle_migration(const std::string& dst, const std::vector<std::string>& allowed_bt_package_name);
 
 
 static int init(bt_callbacks_t* callbacks, bool start_restricted,
                 bool is_common_criteria_mode, int config_compare_result,
                 const char** init_flags, bool is_atv,
                 const char* user_data_directory) {
-  LOG_INFO(LOG_TAG, "QTI OMR1 stack: %s: start restricted = %d : common criteria mode = %d,"
+  ALOGI("QTI OMR1 stack: %s: start restricted = %d : common criteria mode = %d,"
            " config compare result = %d", __func__, start_restricted, is_common_criteria_mode,
            config_compare_result);
 
   if (user_data_directory != nullptr) {
-    handle_migration(std::string(user_data_directory),
-                     get_allowed_bt_package_name());
+    //handle_migration(std::string(user_data_directory),get_allowed_bt_package_name());
   }
 
 
   if (interface_ready()) return BT_STATUS_DONE;
 
-#ifdef BLUEDROID_DEBUG
-  allocation_tracker_init();
-#endif
+  //allocation_tracker_init();
+
 
   bt_hal_cbacks = callbacks;
   restricted_mode = start_restricted;
@@ -211,37 +258,87 @@ static int init(bt_callbacks_t* callbacks, bool start_restricted,
 
   stack_manager_get_interface()->init_stack();
   btif_debug_init();
+  btif_ss_interface_init();
+  if(btSSInterface != NULL) {
+    ALOGI("%s: registering DM profile callback with ss_interface", __func__);
+    btSSInterface->registerCallbacks(BT_PROFILE_DM_ID, btif_dm_ss_callback);
+  }
   return BT_STATUS_SUCCESS;
 }
 
-static int enable() {
-  LOG_INFO(LOG_TAG, "QTI OMR1 stack: %s", __func__);
+static int enable () {
+  ALOGI("%s", __func__);
+  BTIF_TRACE_DEBUG("QTI OMR1 stack: %s", __func__);
 
-
-  if (!interface_ready()) return BT_STATUS_NOT_READY;
-
-  stack_manager_get_interface()->start_up_stack_async();
+  // Do Encoding of Enable Proto
+  uint8_t enable_msg[MAX_LENGTH_WITH_PROTO_NONE];
+  //adding msg_id
+  uint16_t msg_id = BT_DM_ENABLE;
+  enable_msg[0] = msg_id & 0xff;
+  enable_msg[1] = (msg_id >> 8);
+  //adding length
+  uint16_t length = PAYLOAD_LENGTH_WITH_PROTO_NONE;
+  enable_msg[2] = length & 0xff;
+  enable_msg[3] = (length >> 8);
+  //adding proto_encode
+  uint16_t proto_encode = PROTO_NONE;
+  enable_msg[4] = proto_encode & 0xff;
+  enable_msg[5] = (proto_encode >> 8);
+  char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+  memcpy(resBuffer, (char *) enable_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+#ifndef SS_STUB_ENABLED
+  btSSInterface->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
   return BT_STATUS_SUCCESS;
 }
 
 static int disable(void) {
-  if (!interface_ready()) return BT_STATUS_NOT_READY;
-
-  stack_manager_get_interface()->shut_down_stack_async();
+  ALOGI("%s", __func__);
+  uint8_t disable_msg[MAX_LENGTH_WITH_PROTO_NONE];
+  //adding msg_id
+  uint16_t msg_id = BT_DM_DISABLE;
+  disable_msg[0] = msg_id & 0xff;
+  disable_msg[1] = (msg_id >> 8);
+  //adding length
+  uint16_t length = PAYLOAD_LENGTH_WITH_PROTO_NONE;
+  disable_msg[2] = length & 0xff;
+  disable_msg[3] = (length >> 8);
+  //adding proto_encode
+  uint16_t proto_encode = PROTO_NONE;
+  disable_msg[4] = proto_encode & 0xff;
+  disable_msg[5] = (proto_encode >> 8);
+  char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+  memcpy(resBuffer, (char *) disable_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+#ifndef SS_STUB_ENABLED
+  btSSInterface->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
   return BT_STATUS_SUCCESS;
 }
 
-static void cleanup(void) { stack_manager_get_interface()->clean_up_stack(); }
 static bool get_wbs_supported() {
   return false;
 }
 static bool get_swb_supported() {
   return false;
 }
+static void cleanup(void) {
+  ALOGI("%s", __func__);
+  stack_manager_get_interface()->clean_up_stack();
+  if (btSSInterface != NULL) {
+    btSSInterface->deregisterCallbacks(BT_PROFILE_DM_ID);
+  }
+  btif_ss_interface_cleanup();
+}
 
 bool is_restricted_mode() { return restricted_mode; }
 bool is_common_criteria_mode() {
-  return is_bluetooth_uid() && common_criteria_mode;
+  return common_criteria_mode;
 }
 // if common criteria mode disable, will always return
 // CONFIG_COMPARE_ALL_PASS(0b11) indicate don't check config checksum.
@@ -253,47 +350,204 @@ int get_common_criteria_config_compare_result() {
 bool is_atv_device() { return is_local_device_atv; }
 
 static int get_adapter_properties(void) {
-  /* sanity check */
-  if (interface_ready() == false) return BT_STATUS_NOT_READY;
-
-  return btif_get_adapter_properties();
+  ALOGI("%s", __func__);
+  uint8_t get_adap_msg[MAX_LENGTH_WITH_PROTO_NONE];
+  //adding msg_id
+  uint16_t msg_id = BT_DM_GET_ADAPTER_PROPERTIES;
+  get_adap_msg[0] = msg_id & 0xff;
+  get_adap_msg[1] = (msg_id >> 8);
+  //adding length
+  uint16_t length = PAYLOAD_LENGTH_WITH_PROTO_NONE;
+  get_adap_msg[2] = length & 0xff;
+  get_adap_msg[3] = (length >> 8);
+  //adding proto_encode
+  uint16_t proto_encode = PROTO_NONE;
+  get_adap_msg[4] = proto_encode & 0xff;
+  get_adap_msg[5] = (proto_encode >> 8);
+  char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+  memcpy(resBuffer, (char *) get_adap_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+#ifndef SS_STUB_ENABLED
+  btSSInterface->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
+  return BT_STATUS_SUCCESS;
 }
 
 static int get_adapter_property(bt_property_type_t type) {
-  /* sanity check */
-  if (interface_ready() == false) return BT_STATUS_NOT_READY;
+  ALOGI("%s", __func__);
+  uint8_t get_adaprop_msg[MAX_LENGTH_WITH_PROTO_NONE];
+  //adding msg_id
+  uint16_t msg_id = BT_DM_GET_ADAPTER_PROPERTY;
+  get_adaprop_msg[0] = msg_id & 0xff;
+  get_adaprop_msg[1] = (msg_id >> 8);
 
-  return btif_get_adapter_property(type);
+  std::string protoMsg;
+  ss_get_adapter_property _get_adapter_property;
+  _get_adapter_property.set_type((ss_bt_property_type_t)type);
+  _get_adapter_property.SerializeToString(&protoMsg);
+  ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
+  //adding length
+  uint16_t length = protoMsg.length();
+  get_adaprop_msg[2] = length & 0xff;
+  get_adaprop_msg[3] = (length >> 8);
+  //adding proto_encode
+  uint16_t proto_encode = PROTO_ENC_DEC;
+  get_adaprop_msg[4] = proto_encode & 0xff;
+  get_adaprop_msg[5] = (proto_encode >> 8);
+  char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+  memcpy(resBuffer, (char *) get_adaprop_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+  msgStr.append(protoMsg);
+#ifndef SS_STUB_ENABLED
+  btSSInterface->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
+  return BT_STATUS_SUCCESS;
 }
 
 static int set_adapter_property(const bt_property_t* property) {
-  /* sanity check */
-  if (interface_ready() == false) return BT_STATUS_NOT_READY;
+  ALOGI("%s", __func__);
+  uint8_t set_adaprop_msg[MAX_LENGTH_WITH_PROTO_NONE];
+  //adding msg_id
+  uint16_t msg_id = BT_DM_SET_ADAPTER_PROPERTY;
+  set_adaprop_msg[0] = msg_id & 0xff;
+  set_adaprop_msg[1] = (msg_id >> 8);
 
-  return btif_set_adapter_property(property);
+  std::string protoMsg;
+  ss_set_adapter_property _set_adapter_property;
+  ss_bt_property_t *btProperty = _set_adapter_property.mutable_property();
+  btProperty->set_type((ss_bt_property_type_t)property->type);
+  btProperty->set_len(property->len);
+  btProperty->set_val((char*)property->val);
+  _set_adapter_property.SerializeToString(&protoMsg);
+  ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
+  //adding length
+  uint16_t length = protoMsg.length();
+  set_adaprop_msg[2] = length & 0xff;
+  set_adaprop_msg[3] = (length >> 8);
+  //adding proto_encode
+  uint16_t proto_encode = PROTO_ENC_DEC;
+  set_adaprop_msg[4] = proto_encode & 0xff;
+  set_adaprop_msg[5] = (proto_encode >> 8);
+  char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+  memcpy(resBuffer, (char *) set_adaprop_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+  msgStr.append(protoMsg);
+#ifndef SS_STUB_ENABLED
+  btSSInterface->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
+  return BT_STATUS_SUCCESS;
 }
 
 int get_remote_device_properties(RawAddress* remote_addr) {
-  /* sanity check */
-  if (interface_ready() == false) return BT_STATUS_NOT_READY;
+  ALOGI("%s", __func__);
+  uint8_t get_remprop_msg[MAX_LENGTH_WITH_PROTO_NONE];
+  //adding msg_id
+  uint16_t msg_id = BT_DM_GET_REMOTE_DEVICE_PROPERTIES;
+  get_remprop_msg[0] = msg_id & 0xff;
+  get_remprop_msg[1] = (msg_id >> 8);
 
-  return btif_get_remote_device_properties(remote_addr);
+  std::string protoMsg;
+  ss_get_remote_device_properties _get_remote_device_properties;
+  _get_remote_device_properties.set_remote_addr(remote_addr->ToString().c_str());
+  _get_remote_device_properties.SerializeToString(&protoMsg);
+  ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
+  //adding length
+  uint16_t length = protoMsg.length();
+  get_remprop_msg[2] = length & 0xff;
+  get_remprop_msg[3] = (length >> 8);
+  //adding proto_encode
+  uint16_t proto_encode = PROTO_ENC_DEC;
+  get_remprop_msg[4] = proto_encode & 0xff;
+  get_remprop_msg[5] = (proto_encode >> 8);
+  char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+  memcpy(resBuffer, (char *) get_remprop_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+  msgStr.append(protoMsg);
+#ifndef SS_STUB_ENABLED
+  btSSInterface->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
+  return BT_STATUS_SUCCESS;
 }
 
 int get_remote_device_property(RawAddress* remote_addr,
                                bt_property_type_t type) {
-  /* sanity check */
-  if (interface_ready() == false) return BT_STATUS_NOT_READY;
+  ALOGI("%s", __func__);
+  uint8_t get_remprop_msg[MAX_LENGTH_WITH_PROTO_NONE];
+  //adding msg_id
+  uint16_t msg_id = BT_DM_GET_REMOTE_DEVICE_PROPERTY_BY_TYPE;
+  get_remprop_msg[0] = msg_id & 0xff;
+  get_remprop_msg[1] = (msg_id >> 8);
 
-  return btif_get_remote_device_property(remote_addr, type);
+  std::string protoMsg;
+  ss_get_remote_device_property _get_remote_device_property;
+  _get_remote_device_property.set_remote_addr(remote_addr->ToString().c_str());
+  _get_remote_device_property.set_type((ss_bt_property_type_t)type);
+  _get_remote_device_property.SerializeToString(&protoMsg);
+  ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
+  //adding length
+  uint16_t length = protoMsg.length();
+  get_remprop_msg[2] = length & 0xff;
+  get_remprop_msg[3] = (length >> 8);
+  //adding proto_encode
+  uint16_t proto_encode = PROTO_ENC_DEC;
+  get_remprop_msg[4] = proto_encode & 0xff;
+  get_remprop_msg[5] = (proto_encode >> 8);
+  char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+  memcpy(resBuffer, (char *) get_remprop_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+  msgStr.append(protoMsg);
+#ifndef SS_STUB_ENABLED
+  btSSInterface->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
+  return BT_STATUS_SUCCESS;
 }
 
 int set_remote_device_property(RawAddress* remote_addr,
                                const bt_property_t* property) {
-  /* sanity check */
-  if (interface_ready() == false) return BT_STATUS_NOT_READY;
+  ALOGI("%s", __func__);
+  uint8_t set_remprop_msg[MAX_LENGTH_WITH_PROTO_NONE];
+  //adding msg_id
+  uint16_t msg_id = BT_DM_SET_REMOTE_DEVICE_PROPERTIES;
+  set_remprop_msg[0] = msg_id & 0xff;
+  set_remprop_msg[1] = (msg_id >> 8);
 
-  return btif_set_remote_device_property(remote_addr, property);
+  std::string protoMsg;
+  ss_set_remote_device_property _set_remote_device_property;
+  _set_remote_device_property.set_remote_addr(remote_addr->ToString().c_str());
+  ss_bt_property_t *btProerty = _set_remote_device_property.mutable_property();
+  btProerty->set_type((ss_bt_property_type_t)property->type);
+  btProerty->set_len(property->len);
+  btProerty->set_val((char*)property->val);
+  _set_remote_device_property.SerializeToString(&protoMsg);
+  ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
+  //adding length
+  uint16_t length = protoMsg.length();
+  set_remprop_msg[2] = length & 0xff;
+  set_remprop_msg[3] = (length >> 8);
+  //adding proto_encode
+  uint16_t proto_encode = PROTO_ENC_DEC;
+  set_remprop_msg[4] = proto_encode & 0xff;
+  set_remprop_msg[5] = (proto_encode >> 8);
+  char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+  memcpy(resBuffer, (char *) set_remprop_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+  msgStr.append(protoMsg);
+#ifndef SS_STUB_ENABLED
+  btSSInterface->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
+  return BT_STATUS_SUCCESS;
 }
 
 int get_remote_service_record(const RawAddress& remote_addr,
@@ -312,24 +566,99 @@ int get_remote_services(RawAddress* remote_addr, int /*transport*/) {
 }
 
 static int start_discovery(void) {
-  /* sanity check */
-  if (interface_ready() == false) return BT_STATUS_NOT_READY;
-
-  return btif_dm_start_discovery();
+  ALOGI("%s", __func__);
+  uint8_t disc_msg[MAX_LENGTH_WITH_PROTO_NONE];
+  //adding msg_id
+  uint16_t msg_id = BT_DM_START_DISCOVERY;
+  disc_msg[0] = msg_id & 0xff;
+  disc_msg[1] = (msg_id >> 8);
+  //adding length
+  uint16_t length = PAYLOAD_LENGTH_WITH_PROTO_NONE;
+  disc_msg[2] = length & 0xff;
+  disc_msg[3] = (length >> 8);
+  //adding proto_encode
+  uint16_t proto_encode = PROTO_NONE;
+  disc_msg[4] = proto_encode & 0xff;
+  disc_msg[5] = (proto_encode >> 8);
+  char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+  memcpy(resBuffer, (char *) disc_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+#ifndef SS_STUB_ENABLED
+  btSSInterface->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
+  return BT_STATUS_SUCCESS;
 }
 
 static int cancel_discovery(void) {
-  /* sanity check */
-  if (interface_ready() == false) return BT_STATUS_NOT_READY;
-
-  return btif_dm_cancel_discovery();
+  ALOGI("%s", __func__);
+  uint8_t cancel_disc_msg[MAX_LENGTH_WITH_PROTO_NONE];
+  //adding msg_id
+  uint16_t msg_id = BT_DM_CANCEL_DISCOVERY;
+  cancel_disc_msg[0] = msg_id & 0xff;
+  cancel_disc_msg[1] = (msg_id >> 8);
+  //adding length
+  uint16_t length = PAYLOAD_LENGTH_WITH_PROTO_NONE;
+  cancel_disc_msg[2] = length & 0xff;
+  cancel_disc_msg[3] = (length >> 8);
+  //adding proto_encode
+  uint16_t proto_encode = PROTO_NONE;
+  cancel_disc_msg[4] = proto_encode & 0xff;
+  cancel_disc_msg[5] = (proto_encode >> 8);
+  char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+  memcpy(resBuffer, (char *) cancel_disc_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+#ifndef SS_STUB_ENABLED
+  btSSInterface->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
+  return BT_STATUS_SUCCESS;
 }
 
 static int create_bond(const RawAddress* bd_addr, int transport) {
+#if 0
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
 
   return btif_dm_create_bond(bd_addr, transport);
+#endif
+
+  ALOGI("%s ", __func__);
+  ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
+  uint8_t create_bond_msg[MAX_LENGTH_WITH_PROTO_NONE];
+
+  uint16_t msg_id = BT_DM_CREATE_BOND;
+  create_bond_msg[0] = msg_id & 0xFF;
+  create_bond_msg[1] = msg_id >> 8;
+
+  std::string protoMsg;
+  ss_create_bond _create_bond;
+  _create_bond.set_bd_addr(ToRawString(bd_addr).c_str());
+  _create_bond.set_transport(transport);
+  _create_bond.SerializeToString(&protoMsg);
+  ALOGI("%s : protomsg length : %d", __func__,  protoMsg.length());
+
+  uint16_t length = protoMsg.length();
+  create_bond_msg[2] = length & 0xFF;
+  create_bond_msg[3] = length >> 8;
+
+  uint16_t proto_encode = PROTO_ENC_DEC;
+  create_bond_msg[4] = proto_encode & 0xFF;
+  create_bond_msg[5] = proto_encode >> 8;
+
+  //char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+  //memcpy(resBuffer, (char *) create_bond_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  //std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr((char *)create_bond_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  msgStr.append(protoMsg);
+#ifndef SS_STUB_ENABLED
+  btSSInterface->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
+  return BT_STATUS_SUCCESS;
 }
 
 static int create_bond_le(const RawAddress* bd_addr, uint8_t addr_type) {
@@ -341,31 +670,107 @@ static int create_bond_le(const RawAddress* bd_addr, uint8_t addr_type) {
 static int create_bond_out_of_band(const RawAddress* bd_addr, int transport,
                                    const bt_oob_data_t* p192_data,
                                    const bt_oob_data_t* p256_data) {
+#if 0
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
 
-  do_in_bta_thread(FROM_HERE, base::Bind(&btif_dm_create_bond_out_of_band, bd_addr,
-                   transport, *p192_data, *p256_data));
+  /*do_in_bta_thread(FROM_HERE, base::Bind(&btif_dm_create_bond_out_of_band, bd_addr,
+                   transport, *p192_data, *p256_data));*/
+  return BT_STATUS_SUCCESS;
+#endif
+
+  ALOGI("%s", __func__);
+  uint8_t create_bond_out_of_bond_msg[MAX_LENGTH_WITH_PROTO_NONE];
+
+  uint16_t msg_id = BT_DM_CREATE_BOND_OOB;
+  create_bond_out_of_bond_msg[0] = msg_id & 0xFF;
+  create_bond_out_of_bond_msg[1] = msg_id >> 8;
+
+  std::string protoMsg;
+
+  ss_create_bond_out_of_band _create_bond_out_of_band;
+  _create_bond_out_of_band.set_bd_addr(ToRawString(bd_addr).c_str());
+  _create_bond_out_of_band.set_transport(transport);
+  ss_bt_out_of_band_data_t* _bt_out_of_band_data = _create_bond_out_of_band.mutable_oob_data();
+  _bt_out_of_band_data->set_le_bt_dev_addr(ToRawString(bd_addr).c_str());
+  _bt_out_of_band_data->set_c192((char *)p192_data->c);
+  _bt_out_of_band_data->set_r192((char *)p192_data->r);
+  _bt_out_of_band_data->set_c256((char *)p256_data->c);
+  _bt_out_of_band_data->set_r256((char *)p256_data->r);
+  _bt_out_of_band_data->set_sm_tk((char *)p192_data->sm_tk);
+//  _bt_out_of_band_data->set_le_sc_c((uint8_t)(p192_data->le_flags));
+//  _bt_out_of_band_data->set_le_sc_r((uint8_t)(p192_data->le_flags));
+  _create_bond_out_of_band.SerializeToString(&protoMsg);
+  ALOGI("%s : protomsg length : %d", __func__,  protoMsg.length());
+
+  uint16_t length = protoMsg.length();
+  create_bond_out_of_bond_msg[2] = length & 0xFF;
+  create_bond_out_of_bond_msg[3] = length >> 8;
+
+  uint16_t proto_encode = PROTO_ENC_DEC;
+  create_bond_out_of_bond_msg[4] = proto_encode & 0xFF;
+  create_bond_out_of_bond_msg[5] = proto_encode >> 8;
+
+  std::string msgStr((char *)create_bond_out_of_bond_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  msgStr.append(protoMsg);
+#ifndef SS_STUB_ENABLED
+  btSSInterface->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
   return BT_STATUS_SUCCESS;
 }
 
 static int generate_local_oob_data(tBT_TRANSPORT transport) {
-  LOG_INFO(LOG_TAG, "%s", __func__);
+  ALOGI("%s", __func__);
   if (!interface_ready()) return BT_STATUS_NOT_READY;
 
-  do_in_bta_thread(
-      FROM_HERE, Bind(&btif_dm_generate_local_oob_data, transport));
+  /*do_in_bta_thread(
+      FROM_HERE, Bind(&btif_dm_generate_local_oob_data, transport));*/
   return BT_STATUS_SUCCESS;
 }
 
 static int cancel_bond(const RawAddress* bd_addr) {
+#if 0
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
 
   return btif_dm_cancel_bond(bd_addr);
+#endif
+
+  ALOGI("%s", __func__);
+  uint8_t cancel_bond_msg[MAX_LENGTH_WITH_PROTO_NONE];
+
+  uint16_t msg_id = BT_DM_CANCEL_BOND;
+  cancel_bond_msg[0] = msg_id & 0xFF;
+  cancel_bond_msg[1] = msg_id >> 8;
+
+  std::string protoMsg;
+  ss_cancel_bond _cancel_bond;
+  _cancel_bond.set_bd_addr(ToRawString(bd_addr).c_str());
+  _cancel_bond.SerializeToString(&protoMsg);
+  ALOGI("%s : protomsg length : %d", __func__,  protoMsg.length());
+
+  uint16_t length = protoMsg.length();
+  cancel_bond_msg[2] = length & 0xFF;
+  cancel_bond_msg[3] = length >> 8;
+
+  uint16_t proto_encode = PROTO_ENC_DEC;
+  cancel_bond_msg[4] = proto_encode & 0xFF;
+  cancel_bond_msg[5] = proto_encode >> 8;
+
+  std::string msgStr((char *)cancel_bond_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  msgStr.append(protoMsg);
+#ifndef SS_STUB_ENABLED
+  btSSInterface->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
+  return BT_STATUS_SUCCESS;
 }
 
 static int remove_bond(const RawAddress* bd_addr) {
+#if 0
   if (is_restricted_mode() && !btif_storage_is_restricted_device(bd_addr))
     return BT_STATUS_SUCCESS;
 
@@ -373,6 +778,37 @@ static int remove_bond(const RawAddress* bd_addr) {
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
 
   return btif_dm_remove_bond(bd_addr);
+#endif
+
+  ALOGI("%s", __func__);
+  uint8_t remove_bond_msg[MAX_LENGTH_WITH_PROTO_NONE];
+
+  uint16_t msg_id = BT_DM_REMOVE_BOND;
+  remove_bond_msg[0] = msg_id & 0xFF;
+  remove_bond_msg[1] = msg_id >> 8;
+
+  std::string protoMsg;
+  ss_remove_bond _remove_bond;
+  _remove_bond.set_bd_addr(ToRawString(bd_addr).c_str());
+  _remove_bond.SerializeToString(&protoMsg);
+  ALOGI("%s : protomsg length : %d", __func__,  protoMsg.length());
+
+  uint16_t length = protoMsg.length();
+  remove_bond_msg[2] = length & 0xFF;
+  remove_bond_msg[3] = length >> 8;
+
+  uint16_t proto_encode = PROTO_ENC_DEC;
+  remove_bond_msg[4] = proto_encode & 0xFF;
+  remove_bond_msg[5] = proto_encode >> 8;
+
+  std::string msgStr((char *)remove_bond_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  msgStr.append(protoMsg);
+#ifndef SS_STUB_ENABLED
+  btSSInterface->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
+  return BT_STATUS_SUCCESS;
 }
 
 static int get_connection_state(const RawAddress* bd_addr) {
@@ -384,19 +820,90 @@ static int get_connection_state(const RawAddress* bd_addr) {
 
 static int pin_reply(const RawAddress* bd_addr, uint8_t accept, uint8_t pin_len,
                      bt_pin_code_t* pin_code) {
+#if 0
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
   if (pin_code == nullptr || pin_len > PIN_CODE_LEN) return BT_STATUS_FAIL;
 
   return btif_dm_pin_reply(bd_addr, accept, pin_len, pin_code);
+#endif
+
+  ALOGI("%s", __func__);
+  uint8_t pin_reply_msg[MAX_LENGTH_WITH_PROTO_NONE];
+
+  uint16_t msg_id = BT_DM_PIN_REPLY;
+  pin_reply_msg[0] = msg_id & 0xFF;
+  pin_reply_msg[1] = msg_id >> 8;
+
+  std::string protoMsg;
+  ss_pin_reply _pin_reply;
+  _pin_reply.set_bd_addr(ToRawString(bd_addr).c_str());
+  _pin_reply.set_accept(accept);
+  _pin_reply.set_pin_len(pin_len);
+  ss_bt_pin_code_t* _bt_pin_code = _pin_reply.mutable_pin_code();
+  _bt_pin_code->set_pin((char*)pin_code->pin);
+  _pin_reply.SerializeToString(&protoMsg);
+  ALOGI("%s : protomsg length : %d", __func__,  protoMsg.length());
+
+  uint16_t length = protoMsg.length();
+  pin_reply_msg[2] = length & 0xFF;
+  pin_reply_msg[3] = length >> 8;
+
+  uint16_t proto_encode = PROTO_ENC_DEC;
+  pin_reply_msg[4] = proto_encode & 0xFF;
+  pin_reply_msg[5] = proto_encode >> 8;
+
+  std::string msgStr((char *)pin_reply_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  msgStr.append(protoMsg);
+#ifndef SS_STUB_ENABLED
+  btSSInterface->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
+  return BT_STATUS_SUCCESS;
 }
 
 static int ssp_reply(const RawAddress* bd_addr, bt_ssp_variant_t variant,
                      uint8_t accept, uint32_t passkey) {
+#if 0
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
 
   return btif_dm_ssp_reply(bd_addr, variant, accept, passkey);
+#endif
+
+  ALOGI("%s", __func__);
+  uint8_t ssp_reply_msg[MAX_LENGTH_WITH_PROTO_NONE];
+
+  uint16_t msg_id = BT_DM_SSP_REPLY;
+  ssp_reply_msg[0] = msg_id & 0xFF;
+  ssp_reply_msg[1] = msg_id >> 8;
+
+  std::string protoMsg;
+  ss_ssp_reply _ss_ssp_reply;
+  _ss_ssp_reply.set_bd_addr(ToRawString(bd_addr).c_str());
+  _ss_ssp_reply.set_variant((ss_bt_ssp_variant_t)variant);
+  _ss_ssp_reply.set_accept(accept);
+  _ss_ssp_reply.set_passkey(passkey);
+  _ss_ssp_reply.SerializeToString(&protoMsg);
+  ALOGI("%s : protomsg length : %d", __func__,  protoMsg.length());
+
+  uint16_t length = protoMsg.length();
+  ssp_reply_msg[2] = length & 0xFF;
+  ssp_reply_msg[3] = length >> 8;
+
+  uint16_t proto_encode = PROTO_ENC_DEC;
+  ssp_reply_msg[4] = proto_encode & 0xFF;
+  ssp_reply_msg[5] = proto_encode >> 8;
+
+  std::string msgStr((char *)ssp_reply_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  msgStr.append(protoMsg);
+#ifndef SS_STUB_ENABLED
+  btSSInterface->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
+  return BT_STATUS_SUCCESS;
 }
 
 static int read_energy_info() {
@@ -412,28 +919,28 @@ static int clear_event_filter() {
 static void dump(int fd, const char** arguments) {
   if (arguments != NULL && arguments[0] != NULL) {
     if (strncmp(arguments[0], "--proto-bin", 11) == 0) {
-      system_bt_osi::BluetoothMetricsLogger::GetInstance()->WriteBase64(fd,
-                                                                        true);
+     // system_bt_osi::BluetoothMetricsLogger::GetInstance()->WriteBase64(fd,
+       //                                                                 true);
       return;
     }
   }
   btif_debug_conn_dump(fd);
   btif_debug_bond_event_dump(fd);
   btif_debug_a2dp_dump(fd);
-  btif_debug_config_dump(fd);
+  //btif_debug_config_dump(fd);
 #if (BT_IOT_LOGGING_ENABLED == TRUE)
-  device_debug_iot_config_dump(fd);
+  //device_debug_iot_config_dump(fd);
 #endif
-  BTA_HfClientDumpStatistics(fd);
-  wakelock_debug_dump(fd);
-  osi_allocator_debug_dump(fd);
-  alarm_debug_dump(fd);
-  HearingAid::DebugDump(fd);
-  le_audio::has::HasClient::DebugDump(fd);
-  connection_manager::dump(fd);
+  //BTA_HfClientDumpStatistics(fd);
+  //wakelock_debug_dump(fd);
+  //osi_allocator_debug_dump(fd);
+  //alarm_debug_dump(fd);
+  //HearingAid::DebugDump(fd);
+  //le_audio::has::HasClient::DebugDump(fd);
+  //connection_manager::dump(fd);
   bluetooth::bqr::DebugDump(fd);
 #if (BTSNOOP_MEM == TRUE)
-  btif_debug_btsnoop_dump(fd);
+  //btif_debug_btsnoop_dump(fd);
 #endif
 }
 
@@ -446,69 +953,69 @@ static bool pbap_pse_dynamic_version_upgrade_is_enabled() {
 }
 
 static const void* get_profile_interface(const char* profile_id) {
-  LOG_INFO(LOG_TAG, "%s: id = %s", __func__, profile_id);
+  ALOGI("%s: id = %s", __func__, profile_id);
 
   /* sanity check */
   if (interface_ready() == false) return NULL;
 
   /* check for supported profile interfaces */
   if (is_profile(profile_id, BT_PROFILE_HANDSFREE_ID))
-    return bluetooth::headset::GetInterface();
+    return NULL;//bluetooth::headset::GetInterface();
 
   if (is_profile(profile_id, BT_PROFILE_HANDSFREE_CLIENT_ID))
-    return btif_hf_client_get_interface();
+    return NULL;//btif_hf_client_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_SOCKETS_ID))
     return btif_sock_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_PAN_ID))
-    return btif_pan_get_interface();
+    return NULL;//btif_pan_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_ID))
-    return btif_av_get_src_interface();
+    return NULL;//btif_av_get_src_interface();
 
   if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_SINK_ID))
-    return btif_av_get_sink_interface();
+    return NULL;//btif_av_get_sink_interface();
 
   if (is_profile(profile_id, BT_PROFILE_HIDHOST_ID))
-    return btif_hh_get_interface();
+    return NULL;//btif_hh_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_HIDDEV_ID))
-    return btif_hd_get_interface();
+    return NULL;//btif_hd_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_SDP_CLIENT_ID))
     return btif_sdp_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_GATT_ID))
-    return btif_gatt_get_interface();
+    return NULL;//btif_gatt_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_AV_RC_ID))
-    return btif_rc_get_interface();
+    return NULL;//btif_rc_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_AV_RC_CTRL_ID))
-    return btif_rc_ctrl_get_interface();
+    return NULL;//btif_rc_ctrl_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_AV_RC_VENDOR_CTRL_ID))
-    return btif_rc_vendor_ctrl_get_interface();
+    return NULL;//btif_rc_vendor_ctrl_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_VENDOR_ID))
-    return btif_vendor_get_interface();
+    return NULL;//btif_vendor_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_VENDOR_SOCKET_ID))
-    return btif_vendor_socket_get_interface();
+    return NULL;//btif_vendor_socket_get_interface();
 #if (SWB_ENABLED == TRUE)
   if (is_profile(profile_id, BT_PROFILE_VENDOR_HF_ID))
-    return btif_vendor_hf_get_interface();
+    return NULL;//btif_vendor_hf_get_interface();
 #endif
 
   if (is_profile(profile_id, BT_PROFILE_BAT_ID))
-    return btif_bat_get_interface();
+    return NULL;//btif_bat_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_HEARING_AID_ID))
-    return btif_hearing_aid_get_interface();
+    return NULL;//btif_hearing_aid_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_HAP_CLIENT_ID))
-    return btif_has_client_get_interface();
+    return NULL;//btif_has_client_get_interface();
 
 #ifdef DIR_FINDING_FEATURE
   if (is_profile(profile_id, BT_PROFILE_ATP_LOCATOR_ID))
@@ -516,12 +1023,12 @@ static const void* get_profile_interface(const char* profile_id) {
 #endif
 
   if (is_profile(profile_id, BT_KEYSTORE_ID))
-    return bluetooth::bluetooth_keystore::getBluetoothKeystoreInterface();
-  return get_external_profile_interface(profile_id);
+    return NULL;//bluetooth::bluetooth_keystore::getBluetoothKeystoreInterface();
+  return NULL;//get_external_profile_interface(profile_id);
 }
 
 int le_test_mode(uint16_t opcode, uint8_t* buf, uint8_t len) {
-  LOG_INFO(LOG_TAG, "%s", __func__);
+  ALOGI("%s", __func__);
 
   /* sanity check */
   if (interface_ready() == false) return BT_STATUS_NOT_READY;
@@ -530,33 +1037,34 @@ int le_test_mode(uint16_t opcode, uint8_t* buf, uint8_t len) {
 }
 
 static int set_os_callouts(bt_os_callouts_t* callouts) {
-  wakelock_set_os_callouts(callouts);
+  //wakelock_set_os_callouts(callouts);
   return BT_STATUS_SUCCESS;
 }
 
 static void dumpMetrics(std::string* output) {
-  LOG_INFO(LOG_TAG, "%s", __func__);
+  ALOGI("%s", __func__);
 }
 
 static int config_clear(void) {
-  LOG_INFO(LOG_TAG, "%s", __func__);
+  ALOGI("%s", __func__);
   btif_stack_config_cleared();
-  return btif_config_clear() ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
+  //return btif_config_clear() ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
+  return BT_STATUS_SUCCESS;
 }
 
 static bluetooth::avrcp::ServiceInterface* get_avrcp_service(void) {
   //return bluetooth::avrcp::AvrcpService::GetServiceInterface();
-  LOG_ERROR(LOG_TAG, "%s: Avrcp Interface not available", __func__);
+  ALOGI("%s: Avrcp Interface not available", __func__);
   return NULL;
 }
 
 static std::string obfuscate_address(const RawAddress& address) {
-  return bluetooth::common::AddressObfuscator::GetInstance()->Obfuscate(
-      address);
+  return NULL;//bluetooth::common::AddressObfuscator::GetInstance()->Obfuscate(
+      //address);
 }
 
 static int get_metric_id(const RawAddress& address) {
-  LOG_ERROR(LOG_TAG, "%s: not implemented", __func__);
+  ALOGI("%s: not implemented", __func__);
   return 0;
 }
 
@@ -710,13 +1218,13 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
 void invoke_oob_data_request_cb(tBT_TRANSPORT t, bool valid, Octet16 c,
                                 Octet16 r, RawAddress raw_address,
                                 uint8_t address_type) {
-  LOG_INFO(LOG_TAG, "%s", __func__);
+  ALOGI("%s", __func__);
   bt_oob_data_t oob_data = {};
-  char* local_name;
-  BTM_ReadLocalDeviceName(&local_name);
+  /*char* local_name;
+ // BTM_ReadLocalDeviceName(&local_name);
   for (int i = 0; i < BTM_MAX_LOC_BD_NAME_LEN; i++) {
     oob_data.device_name[i] = local_name[i];
-  }
+  }*/
 
   // Set the local address
   int j = 5;
@@ -740,14 +1248,576 @@ void invoke_oob_data_request_cb(tBT_TRANSPORT t, bool valid, Octet16 c,
   // of itself. 16 + 16 + 2 = 34 Data 0x0022 Little Endian order 0x2200
   oob_data.oob_data_length[0] = 0;
   oob_data.oob_data_length[1] = 34;
-  bt_status_t status = do_in_jni_thread(
+  bt_status_t status = BT_STATUS_FAIL;
+ /* bt_status_t status = do_in_jni_thread(
       FROM_HERE, Bind(
                      [](tBT_TRANSPORT t, bt_oob_data_t oob_data) {
                        HAL_CBACK(bt_hal_cbacks, generate_local_oob_data_cb, t,
                                  oob_data);
                      },
-                     t, oob_data));
+                     t, oob_data));*/
   if (status != BT_STATUS_SUCCESS) {
-    LOG_ERROR(LOG_TAG, "%s: Failed to call callback!", __func__);
+    ALOGI("%s: Failed to call callback!", __func__);
+  }
+}
+
+void single_stack_enable_status(int status){
+  if(status == true){
+      ALOGI("bt enable is success...sending adapter_state_changed_callback from btif");
+      do_in_jni_thread(
+        FROM_HERE, Bind(
+                      [](bt_state_t BT_STATE_ON) {
+                        HAL_CBACK(bt_hal_cbacks, adapter_state_changed_cb, BT_STATE_ON);
+                      },
+                      BT_STATE_ON));
+  }else{
+      ALOGI("bt disable is success...sending adapter_state_changed_callback from btif");
+      do_in_jni_thread(
+        FROM_HERE, Bind(
+                      [](bt_state_t BT_STATE_OFF) {
+                        HAL_CBACK(bt_hal_cbacks, adapter_state_changed_cb, BT_STATE_OFF);
+                      },
+                      BT_STATE_OFF));
+  }
+}
+
+void btif_ss_interface_init(){
+  ALOGI("%s ",__func__);
+  if(btSSInterface == NULL){
+    btSSInterface = BluetoothSSInterface::getInstance();
+    if (btSSInterface == NULL) {
+      ALOGI("%s single stack interface Initialization failed",__func__);
+    }
+  }else{
+    ALOGI("single stack interface is already created");
+  }
+#ifdef SS_STUB_ENABLED
+  if(btSSStubInterface == NULL){
+    btSSStubInterface = BluetoothSSStubInterface::getInstance();
+    if (btSSStubInterface == NULL) {
+      ALOGI("%s single stack stub interface Initialization failed",__func__);
+    }
+  }else{
+    ALOGI("single stack stub interface is already created");
+  }
+#endif
+}
+
+void btif_ss_interface_cleanup(){
+  if(btSSInterface == NULL){
+    ALOGI("single stack interface is already null");
+  }else{
+    btSSInterface = NULL;
+  }
+#ifdef SS_STUB_ENABLED
+  if(btSSStubInterface == NULL){
+    ALOGI("single stack stub interface is already null");
+  }else{
+    btSSStubInterface = NULL;
+  }
+#endif
+}
+
+void btif_dm_ss_callback(uint16_t event, char* p_param) {
+  ALOGI("btif_dm_ss_callback :: event is :: %X",event);
+  std::string resBufferString;
+  tBTIF_SS_Cback* cb_data = (tBTIF_SS_Cback*)p_param;
+  uint16_t MSG_ID = cb_data->payload[0] + (((int)(cb_data->payload[1]))<<8);
+  uint16_t length = cb_data->payload[2] + (((int)(cb_data->payload[3]))<<8);
+  uint16_t proto_ec = 0;
+  if (length > 0) {
+      proto_ec = cb_data->payload[4] + (((int)(cb_data->payload[5]))<<8);
+      char resBuffer[length];
+      int j = 0;
+      for(int i=MSG_PROTO_OFFSET; i< (length + MSG_PROTO_OFFSET); i++){
+          resBuffer[j] = (char)cb_data->payload[i];
+          //ALOGI("resBuffer[%d] is :: %d",j,resBuffer[j]);
+           j++;
+      }
+      resBufferString.assign(resBuffer, length);
+      free (cb_data->payload);
+  }
+  ALOGI("MSG_ID is :: %X , Proto length: %d and Proto Encoded Value %d",MSG_ID, length, proto_ec);
+  switch (MSG_ID) {
+    case BT_DM_ADAPTER_STATE_CHANGE_CB: {
+        ALOGI("Has BT_DM_ADAPTER_STATE_CHANGE_CB");
+        ss_adapter_state_changed_callback adapterStateChangedCb;
+        adapterStateChangedCb.ParseFromString(resBufferString);
+        if(adapterStateChangedCb.has_state()) {
+            ALOGI("parseRxData has_state");
+            bt_state_t return_status;
+            ss_bt_state_t btStateSingleStack = adapterStateChangedCb.state();
+            ALOGI("parseRxData btStateSingleStack is :: %d",btStateSingleStack);
+            switch((int)btStateSingleStack) {
+                case BT_ENABLE_STATUS_SUCCESS:
+                    return_status = BT_STATE_ON;
+                    uid_set = uid_set_create();
+                    btif_sock_init(uid_set);
+                break;
+
+                case BT_ENABLE_STATUS_FAILURE:
+                    return_status = BT_STATE_OFF;
+                break;
+
+                default:
+                    return_status = BT_STATE_OFF;
+                break;
+            }
+            HAL_CBACK(bt_hal_cbacks, adapter_state_changed_cb, return_status);
+        }
+        break;
+    }
+    case BT_DM_ADAPTER_PROPERTIES_CB: {
+      ALOGI("Has BT_DM_ADAPTER_PROPERTIES_CB");
+      ss_adapter_properties_callback adapterPropCb;
+      adapterPropCb.ParseFromString(resBufferString);
+      bt_status_t status = BT_STATUS_FAIL;
+      if (adapterPropCb.has_status()) {
+        status = (bt_status_t)adapterPropCb.status();
+      }
+      if(adapterPropCb.has_num_properties()) {
+        RawAddress bd_addr;
+        bt_scan_mode_t mode;
+        bt_bdname_t bd_name;
+        uint32_t timeout;
+        uint8_t* le_features;
+        uint32_t cod;
+
+        int numProp = adapterPropCb.num_properties();
+        ALOGI("numProp is :: %d",numProp);
+        bt_property_t properties[numProp];
+        memset(properties, 0, sizeof(properties));
+        for(int i=0; i<numProp; i++) {
+          ss_bt_property_t prop = adapterPropCb.properties(i);
+          ss_bt_property_type_t prop_type = prop.type();
+          ALOGI("prop_type is :: %d",prop_type);
+          if(prop_type == BT_PROPERTY_BDADDR) {
+            uint8_t* addr = (uint8_t*)prop.val().c_str();
+            std::string bt_address = ((RawAddress*)addr)->ToString();
+            ALOGI("address is :: %s",bt_address.c_str());
+            RawAddress::FromString(bt_address.c_str(), bd_addr);
+            properties[i].len = RawAddress::kLength;
+            properties[i].val = (void*)bd_addr.address;
+            properties[i].type = BT_PROPERTY_BDADDR;
+          } else if(prop_type == BT_PROPERTY_BDNAME) {
+            std::string bt_name = prop.val();
+            ALOGI("Name is : %s",bt_name.c_str());
+            strlcpy((char*)bd_name.name, (char*)bt_name.c_str(), sizeof(bt_bdname_t));
+            properties[i].len = prop.len();
+            properties[i].val = &bd_name;
+            properties[i].type = BT_PROPERTY_BDNAME;
+          } else if(prop_type == BT_PROPERTY_UUIDS) {
+            std::string uuid_str = prop.val();
+            ALOGI("UUID's are : %s",uuid_str.c_str());
+            const char* uuids = uuid_str.c_str();
+            properties[i].len = prop.len();
+            properties[i].val = (void*)uuids;
+            properties[i].type = BT_PROPERTY_UUIDS;
+          } else if(prop_type == SS_BT_PROPERTY_ADAPTER_SCAN_MODE) {
+            std::string scan_mode = prop.val();
+            mode = (bt_scan_mode_t)(std::stoi(scan_mode));
+            ALOGI("Scan Mode : %d", mode);
+            properties[i].len = prop.len();
+            properties[i].val = (void*)&mode;
+            properties[i].type = BT_PROPERTY_ADAPTER_SCAN_MODE;
+          } else if(prop_type == SS_BT_PROPERTY_ADAPTER_BONDED_DEVICES) {
+            std::string bonded_dev = prop.val();
+            ALOGI("Bonded devices are : %s",bonded_dev.c_str());
+            const char* devices = bonded_dev.c_str();
+            properties[i].len = prop.len();
+            properties[i].val = (void*)devices;
+            properties[i].type = BT_PROPERTY_ADAPTER_BONDED_DEVICES;
+          } else if(prop_type == SS_BT_PROPERTY_ADAPTER_DISCOVERY_TIMEOUT) {
+            std::string discovery_timeout = prop.val();
+            timeout = (uint32_t)(std::stoi(discovery_timeout));
+            ALOGI("Discovery timeout : %d", timeout);
+            properties[i].len = prop.len();
+            properties[i].val = (void*)&timeout;
+            properties[i].type = BT_PROPERTY_ADAPTER_DISCOVERABLE_TIMEOUT;
+          } else if(prop_type == SS_BT_PROPERTY_LOCAL_LE_FEATURES) {
+            le_features = (uint8_t*)prop.val().c_str();
+            ALOGI("LE features length %d and bt_local_le_features_t struct size %d", prop.len(), sizeof(bt_local_le_features_t));
+            properties[i].len = sizeof(bt_local_le_features_t);
+            properties[i].val = (void*)le_features;
+            properties[i].type = BT_PROPERTY_LOCAL_LE_FEATURES;
+          } else if(prop_type == BT_PROPERTY_CLASS_OF_DEVICE) {
+            std::string cod_val = prop.val();
+            cod  = (uint32_t)(std::stoi(cod_val));
+            ALOGI("COD value : 0x%06x", cod);
+            properties[i].len = sizeof(uint32_t);
+            properties[i].val = (void*)&cod;
+            properties[i].type = BT_PROPERTY_CLASS_OF_DEVICE;
+          }
+        }
+        HAL_CBACK(bt_hal_cbacks, adapter_properties_cb, status, numProp, properties);
+      }
+      break;
+    }
+    case BT_DM_REMOTE_DEVICE_PROPERTIES_CB: {
+      ALOGI(" BT_DM_REMOTE_DEVICE_PROPERTIES_CB");
+      ss_remote_device_properties_callback remotePropCb;
+      remotePropCb.ParseFromString(resBufferString);
+      bt_status_t status = BT_STATUS_FAIL;
+      bt_bdname_t bd_name;
+      uint32_t cod;
+      if (remotePropCb.has_status()) {
+	      ALOGI("BT_DM_REMOTE_DEVICE_PROPERTIES_CB: parseRxData has_status");
+        status = (bt_status_t)remotePropCb.status();
+	ALOGI("BT_DM_REMOTE_DEVICE_PROPERTIES_CB: status : %d", status);
+      }
+      RawAddress bd_addr;
+      if (remotePropCb.has_bd_addr()) {
+	      ALOGI("BT_DM_REMOTE_DEVICE_PROPERTIES_CB: parseRxData has_bd_addr");
+        RawAddress::FromString(remotePropCb.bd_addr(), bd_addr);
+	 ALOGI("BT_DM_REMOTE_DEVICE_PROPERTIES_CB: bd_addr : %s", bd_addr.ToString().c_str());
+      }
+      if(remotePropCb.has_num_properties()) {
+        ALOGI("BT_DM_REMOTE_DEVICE_PROPERTIES_CB: parseRxData has_num_properties");
+        bt_scan_mode_t mode;
+        uint32_t timeout;
+
+        int numProp = remotePropCb.num_properties();
+        ALOGI("numProp is :: %d",numProp);
+        bt_property_t properties[numProp];
+        memset(properties, 0, sizeof(properties));
+        for(int i=0; i<numProp; i++) {
+          ss_bt_property_t prop = remotePropCb.properties(i);
+          ss_bt_property_type_t prop_type = prop.type();
+          ALOGI("prop_type is :: %d",prop_type);
+          if(prop_type == BT_PROPERTY_BDADDR) {
+            uint8_t* addr = (uint8_t*)prop.val().c_str();
+            std::string bt_address = ((RawAddress*)addr)->ToString();
+            ALOGI("address is :: %s",bt_address.c_str());
+            RawAddress::FromString(bt_address.c_str(), bd_addr);
+            properties[i].len = RawAddress::kLength;
+            properties[i].val = (void*)bd_addr.address;
+            properties[i].type = BT_PROPERTY_BDADDR;
+          } else if(prop_type == BT_PROPERTY_BDNAME) {
+            std::string bt_name = prop.val();
+            ALOGI("Name is :: %s",bt_name.c_str());
+            strlcpy((char*)bd_name.name, (char*)bt_name.c_str(), sizeof(bt_bdname_t));
+            properties[i].len = prop.len();
+            properties[i].val = &bd_name;
+            properties[i].type = BT_PROPERTY_BDNAME;
+          } else if(prop_type == BT_PROPERTY_UUIDS) {
+            std::string uuid_str = prop.val();
+            ALOGI("UUID's are : %s",uuid_str.c_str());
+            const char* uuids = uuid_str.c_str();
+            properties[i].len = prop.len();
+            properties[i].val = (void*)uuids;
+            properties[i].type = BT_PROPERTY_UUIDS;
+          } else if(prop_type == SS_BT_PROPERTY_ADAPTER_SCAN_MODE) {
+            std::string scan_mode = prop.val();
+            mode = (bt_scan_mode_t)(std::stoi(scan_mode));
+            ALOGI("Scan Mode : %d", mode);
+            properties[i].len = prop.len();
+            properties[i].val = (void*)&mode;
+            properties[i].type = BT_PROPERTY_ADAPTER_SCAN_MODE;
+          } else if(prop_type == SS_BT_PROPERTY_ADAPTER_BONDED_DEVICES) {
+            std::string bonded_dev = prop.val();
+            ALOGI("Bonded devices are : %s",bonded_dev.c_str());
+            const char* devices = bonded_dev.c_str();
+            properties[i].len = prop.len();
+            properties[i].val = (void*)devices;
+            properties[i].type = BT_PROPERTY_ADAPTER_BONDED_DEVICES;
+          } else if(prop_type == SS_BT_PROPERTY_ADAPTER_DISCOVERY_TIMEOUT) {
+            std::string discovery_timeout = prop.val();
+            timeout = (uint32_t)(std::stoi(discovery_timeout));
+            ALOGI("Discovery timeout : %d", timeout);
+            properties[i].len = prop.len();
+            properties[i].val = (void*)&timeout;
+            properties[i].type = BT_PROPERTY_ADAPTER_DISCOVERABLE_TIMEOUT;
+          } else if(prop_type == BT_PROPERTY_CLASS_OF_DEVICE) {
+            std::string cod_val = prop.val();
+            cod  = (uint32_t)(std::stoi(cod_val));
+            ALOGI("COD value : 0x%06x", cod);
+            properties[i].len = sizeof(uint32_t);
+            properties[i].val = (void*)&cod;
+            properties[i].type = BT_PROPERTY_CLASS_OF_DEVICE;
+          }
+        }
+        HAL_CBACK(bt_hal_cbacks, remote_device_properties_cb, status, &bd_addr, numProp, properties);
+      }
+      break;
+    }
+    case BT_DM_DISCOVERY_STATE_CHANGE_CB: {
+        ALOGI("Has BT_DM_DISCOVERY_STATE_CHANGE_CB");
+        ss_discovery_state_changed_callback discoveryStateChanged;
+        discoveryStateChanged.ParseFromString(resBufferString);
+        if(discoveryStateChanged.has_state()) {
+            bt_discovery_state_t discovery_state;
+            discovery_state = (bt_discovery_state_t)discoveryStateChanged.state();
+            HAL_CBACK(bt_hal_cbacks, discovery_state_changed_cb, discovery_state);
+        } else {
+            ALOGI("BT_DM_DISCOVERY_STATE_CHANGE_CB: Not have state info");
+        }
+        break;
+    }
+    case BT_DM_DEVICE_FOUND_CB: {
+        ALOGI("Has BT_DM_DEVICE_FOUND_CB");
+        ss_device_found_callback deviceFoundCb;
+        RawAddress bd_addr;
+        bt_device_type_t dev_type;
+        bt_bdname_t bd_name;
+        int8_t rssi;
+        uint32_t cod;
+        deviceFoundCb.ParseFromString(resBufferString);
+        if(deviceFoundCb.has_num_properties()) {
+            int numProp = deviceFoundCb.num_properties();
+            ALOGI("numProp is :: %d",numProp);
+            bt_property_t properties[numProp];
+            memset(properties, 0, sizeof(properties));
+            for(int i=0; i<numProp; i++) {
+                ss_bt_property_t prop = deviceFoundCb.properties(i);
+                ss_bt_property_type_t prop_type = prop.type();
+                ALOGI("prop_type is :: %d",prop_type);
+                if(prop_type == BT_PROPERTY_BDADDR) {
+                    uint8_t* addr = (uint8_t*)prop.val().c_str();
+                    std::string bt_address = ((RawAddress*)addr)->ToString();
+                    ALOGI("address is :: %s",bt_address.c_str());
+                    RawAddress::FromString(bt_address.c_str(), bd_addr);
+                    properties[i].len = RawAddress::kLength;
+                    properties[i].val = (void*)bd_addr.address;
+                    properties[i].type = BT_PROPERTY_BDADDR;
+                } else if(prop_type == BT_PROPERTY_BDNAME) {
+                    std::string bt_name = prop.val();
+                    std::string bt_name_substr = bt_name.substr(0, prop.len());
+                    ALOGI("Name is : %s",bt_name_substr.c_str());
+                    strlcpy((char*)bd_name.name, (char*)bt_name.c_str(), sizeof(bt_bdname_t));
+                    properties[i].len = prop.len();
+                    properties[i].val = &bd_name;
+                    properties[i].type = BT_PROPERTY_BDNAME;
+                } else if(prop_type == BT_PROPERTY_UUIDS) {
+                    properties[i].len = prop.len();
+                    properties[i].type = BT_PROPERTY_UUIDS;
+                } else if(prop_type == SS_BT_PROPERTY_ADAPTER_SCAN_MODE) {
+                    properties[i].len = prop.len();
+                    properties[i].type = BT_PROPERTY_ADAPTER_SCAN_MODE;
+                } else if(prop_type == SS_BT_PROPERTY_ADAPTER_BONDED_DEVICES) {
+                    properties[i].len = prop.len();
+                    properties[i].type = BT_PROPERTY_ADAPTER_BONDED_DEVICES;
+                } else if(prop_type == SS_BT_PROPERTY_ADAPTER_DISCOVERY_TIMEOUT) {
+                    properties[i].len = prop.len();
+                    properties[i].type = BT_PROPERTY_ADAPTER_DISCOVERABLE_TIMEOUT;
+                } else if(prop_type == BT_PROPERTY_TYPE_OF_DEVICE) {
+                    std::string dev_val = prop.val();
+                    dev_type = (bt_device_type_t)(std::stoi(dev_val));
+                    ALOGI("Dev Type : %d", dev_type);
+                    properties[i].len = sizeof(bt_device_type_t);
+                    properties[i].val = (void*)&dev_type;
+                    properties[i].type = BT_PROPERTY_TYPE_OF_DEVICE;
+                } else if(prop_type == BT_PROPERTY_REMOTE_RSSI) {
+                    std::string rssi_val = prop.val();
+                    rssi = (int8_t)(std::stoi(rssi_val));
+                    ALOGI("RSSI value : %d", rssi);
+                    properties[i].len = sizeof(int8_t);
+                    properties[i].val = (void*)&rssi;
+                    properties[i].type = BT_PROPERTY_REMOTE_RSSI;
+               } else if(prop_type == BT_PROPERTY_CLASS_OF_DEVICE) {
+                    std::string cod_val = prop.val();
+                    cod  = (uint32_t)(std::stoi(cod_val));
+                    ALOGI("COD value : 0x%06x", cod);
+                    properties[i].len = sizeof(uint32_t);
+                    properties[i].val = (void*)&cod;
+                    properties[i].type = BT_PROPERTY_CLASS_OF_DEVICE;
+               }
+            }
+            HAL_CBACK(bt_hal_cbacks, device_found_cb, numProp, properties);
+        }
+        break;
+    }
+    case BT_DM_PIN_REQUEST_CB: {
+      ALOGI("Has BT_DM_PIN_REQUEST_CB");
+      ss_pin_request_callback pinRequestCb;
+      RawAddress *bd_addr;
+      if (pinRequestCb.has_remote_bd_addr()) {
+        uint8_t* addr = (uint8_t*)pinRequestCb.remote_bd_addr().c_str();
+        bd_addr = (RawAddress*)addr;
+        ALOGI("BT_DM_PIN_REQUEST_CB:  address: %s", bd_addr->ToString().c_str());
+      }
+      bt_bdname_t bdname;
+      if (pinRequestCb.has_bd_name()) {
+        ALOGI("BT_DM_PIN_REQUEST_CB: parseRxData has_bd_name");
+        std::string bt_name = pinRequestCb.bd_name().name();
+        strlcpy((char*)bdname.name, (char*)bt_name.c_str(), bt_name.length()+1);
+	ALOGI("BT_DM_PIN_REQUEST_CB: name : %s", (char*)bdname.name);
+      }
+      uint32_t cod;
+      if(pinRequestCb.has_cod())
+      {
+	    ALOGI("BT_DM_PIN_REQUEST_CB: parseRxData has_cod");
+        cod = pinRequestCb.cod();
+	    ALOGI("BT_DM_PIN_REQUEST_CB: cod : %d", cod);
+      }
+      bool min_16_digit = false;
+      if(pinRequestCb.has_min_16_digit())
+      {
+	    ALOGI("BT_DM_PIN_REQUEST_CB: parseRxData has_min_16_digit");
+        min_16_digit = pinRequestCb.min_16_digit();
+	    ALOGI("BT_DM_PIN_REQUEST_CB: min_16_digit : %d", min_16_digit);
+      }
+      HAL_CBACK(bt_hal_cbacks, pin_request_cb, bd_addr, &bdname, cod, min_16_digit);
+        break;
+    }
+    case BT_DM_SSP_REQUEST_CB: {
+      ALOGI(" Pairing: BT_DM_SSP_REQUEST_CB");
+      ss_ssp_request_callback sspRequestCb;
+      sspRequestCb.ParseFromString(resBufferString);
+      uint32_t cod, passkey;
+      RawAddress *bd_addr;
+      if(sspRequestCb.has_remote_bd_addr()){
+	       ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_remote_bd_addr");
+      uint8_t* addr = (uint8_t*)sspRequestCb.remote_bd_addr().c_str();
+      bd_addr = (RawAddress*)addr;
+      ALOGI("BT_DM_SSP_REQUEST_CB: addr : %s", bd_addr->ToString().c_str());
+      ALOGI("BT_DM_SSP_REQUEST_CB: length: %d ", bd_addr->ToString().length());
+      }
+      bt_bdname_t bdname;
+      if (sspRequestCb.has_bdname()) {
+	    ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_bdname");
+        std::string bt_name = sspRequestCb.bdname().name();
+        strlcpy((char*)bdname.name, (char*)bt_name.c_str(), bt_name.length()+1);
+        ALOGI("BT_DM_SSP_REQUEST_CB: name: %s", (char*)bdname.name);
+      }
+      if(sspRequestCb.has_cod())
+      {
+	    ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_cod");
+        cod = sspRequestCb.cod();
+	    ALOGI("BT_DM_SSP_REQUEST_CB: cod : %d", cod);
+      }
+      if(sspRequestCb.has_pass_key())
+      {
+	    ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_pass_key");
+        passkey = sspRequestCb.pass_key();
+	    ALOGI("BT_DM_SSP_REQUEST_CB: pass_key : %d", passkey);
+      }
+      if(sspRequestCb.has_pairing_variant()) {
+        ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_pairing_ssp_variant");
+        bt_ssp_variant_t ssp_variant;
+        ssp_variant = (bt_ssp_variant_t)sspRequestCb.pairing_variant();
+        ALOGI("BT_DM_SSP_REQUEST_CB: Pairing: cod: %d bd_addr: %s bdname: %s, ssp_variant: %d, passkey: %d", cod, bd_addr->ToString().c_str(), (char*)bdname.name, ssp_variant, passkey);
+        HAL_CBACK(bt_hal_cbacks, ssp_request_cb, bd_addr, &bdname, cod, ssp_variant, passkey);
+        }
+        break;
+    }
+    case BT_DM_BOND_STATE_CHANGE_CB: {
+      ALOGI("BT_DM_BOND_STATE_CHANGE_CB");
+      ss_bond_state_changed_callback bondStateChangedCb;
+      ALOGI("BT_DM_BOND_STATE_CHANGE_CB : message str : %s ", resBufferString.c_str());
+      bondStateChangedCb.ParseFromString(resBufferString);
+      bt_status_t status = BT_STATUS_FAIL;
+      if (bondStateChangedCb.has_status()) {
+	    ALOGI("BT_DM_BOND_STATE_CHANGE_CB: parseRxData has_status");
+        status = (bt_status_t)bondStateChangedCb.status();
+	    ALOGI("BT_DM_Bond_STATE_CHANGE_CB: status : %d", status);
+      }
+      RawAddress *bd_addr;
+      if(bondStateChangedCb.has_remote_bd_addr()){
+	    ALOGI("BT_DM_BOND_STATE_CHANGE_CB: parseRxData has_remote_bd_addr");
+        uint8_t* addr = (uint8_t*)bondStateChangedCb.remote_bd_addr().c_str();
+        bd_addr = (RawAddress*)addr;
+        ALOGI("BT_DM_BOND_STATE_CHANGE_CB : %s", bd_addr->ToString().c_str());
+        ALOGI("BT_DM_BOND_STATE_CHANGE_CB : length: %d ", bd_addr->ToString().length());
+        ALOGI("BT_DM_Bond_STATE_CHANGE_CB: address : %s", bd_addr->ToString().c_str());
+      }
+      int fail_reason;
+      if(bondStateChangedCb.has_fail_reason()) {
+	      ALOGI("BT_DM_BOND_STATE_CHANGE_CB: parseRxData has_fail_reason");
+	      fail_reason = bondStateChangedCb.fail_reason();
+	      ALOGI("BT_DM_Bond_STATE_CHANGE_CB: fail_reason: %d", fail_reason);
+      }
+      if(bondStateChangedCb.has_state()) {
+            ALOGI("BT_DM_BOND_STATE_CHANGE_CB: parseRxData has_state");
+            bt_bond_state_t bond_state;
+            bond_state = (bt_bond_state_t)bondStateChangedCb.state();
+            ALOGI("BT_DM_Bond_STATE_CHANGE_CB: state : %d", bond_state);
+            HAL_CBACK(bt_hal_cbacks, bond_state_changed_cb, status, bd_addr, bond_state, fail_reason);
+        }
+        else {
+            ALOGI("BT_DM_BOND_STATE_CHANGE_CB: Not have state info");
+        }
+        break;
+    }
+    case BT_DM_ACL_STATE_CHANGE_CB: {
+      ALOGI("BT_DM_ACL_STATE_CHANGE_CB");
+      ss_acl_state_changed_callback aclStateChangedCb;
+      aclStateChangedCb.ParseFromString(resBufferString);
+      bt_status_t status = BT_STATUS_FAIL;
+      if (aclStateChangedCb.has_status()) {
+	    ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_status");
+        status = (bt_status_t)aclStateChangedCb.status();
+	    ALOGI("BT_DM_ACL_STATE_CHANGE_CB: status : %d", status);
+      }
+      RawAddress *bd_addr;
+      if (aclStateChangedCb.has_remote_bd_addr()) {
+	       ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_remote_bd_addr");
+        uint8_t* addr = (uint8_t*)aclStateChangedCb.remote_bd_addr().c_str();
+        bd_addr = (RawAddress*)addr;
+        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: bd_addr : %s", bd_addr->ToString().c_str());
+      }
+      uint32_t hci_reason;
+      if(aclStateChangedCb.has_hci_reason()) {
+	      ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_hci_reason");
+	      hci_reason = aclStateChangedCb.hci_reason();
+	      ALOGI("BT_DM_ACL_STATE_CHANGE_CB: hci_reason : %d", hci_reason);
+      }
+      if(aclStateChangedCb.has_state()) {
+            ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_state");
+            bt_acl_state_t acl_state;
+            acl_state = (bt_acl_state_t)aclStateChangedCb.state();
+            ALOGI("BT_DM_ACL_STATE_CHANGE_CB: state : %d", acl_state);
+            uint32_t hci_reason;
+            hci_reason = aclStateChangedCb.hci_reason();
+            ALOGI("BT_DM_ACL_STATE_CHANGE_CB: Pairing: status: %d bdaddr: %s, acl_state: %d, hci_reason: %d", status, bd_addr->ToString().c_str(), acl_state, hci_reason);
+    	    ALOGI("BT_DM_ACL_STATE_CHANGE_CB: Pairing: status: %d bdaddr: %s, acl_state: %d, hci_reason: %d", status, bd_addr->ToString().c_str(), acl_state, hci_reason);
+            HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS, bd_addr, acl_state, 0, uint8_t(hci_reason), bt_conn_direction_t::BT_CONN_DIRECTION_UNKNOWN, 0);
+        }
+
+        else {
+            ALOGI("BT_DM_ACL_STATE_CHANGE_CB: Not have state info");
+        }
+        break;
+    }
+    case BT_DM_LE_ADAPTER_PROPERTIES_CB: {
+      ALOGI("Has BT_DM_LE_ADAPTER_PROPERTIES_CB");
+
+      ss_bt_local_le_features_callback leAdapterPropCb;
+      leAdapterPropCb.ParseFromString(resBufferString);
+      bt_status_t status = BT_STATUS_SUCCESS;
+      bt_local_le_features_t le_features;
+      bt_property_t properties[1];
+      memset(properties, 0, sizeof(properties));
+      le_features.version_supported = leAdapterPropCb.version_supported();
+      le_features.local_privacy_enabled = leAdapterPropCb.local_privacy_enabled();
+      le_features.max_adv_instance = leAdapterPropCb.max_adv_instance();
+      le_features.rpa_offload_supported = leAdapterPropCb.rpa_offload_supported();
+      le_features.max_irk_list_size = leAdapterPropCb.max_irk_list_size();
+      le_features.max_adv_filter_supported = leAdapterPropCb.max_adv_filter_supported();
+      le_features.activity_energy_info_supported = leAdapterPropCb.activity_energy_info_supported();
+      le_features.scan_result_storage_size = leAdapterPropCb.scan_result_storage_size();
+      le_features.total_trackable_advertisers = leAdapterPropCb.total_trackable_advertisers();
+      le_features.extended_scan_support = leAdapterPropCb.extended_scan_support();
+      le_features.debug_logging_supported = leAdapterPropCb.debug_logging_supported();
+      le_features.le_2m_phy_supported = leAdapterPropCb.le_2m_phy_supported();
+      le_features.le_coded_phy_supported = leAdapterPropCb.le_coded_phy_supported();
+      le_features.le_extended_advertising_supported = leAdapterPropCb.le_extended_advertising_supported();
+      le_features.le_periodic_advertising_supported = leAdapterPropCb.le_periodic_advertising_supported();
+      le_features.le_maximum_advertising_data_length = leAdapterPropCb.le_maximum_advertising_data_length();
+      le_features.dynamic_audio_buffer_supported = leAdapterPropCb.dynamic_audio_buffer_supported();
+      le_features.le_periodic_advertising_sync_transfer_sender_supported = leAdapterPropCb.le_periodic_advertising_sync_transfer_sender_supported();
+      le_features.le_connected_isochronous_stream_central_supported = leAdapterPropCb.le_connected_isochronous_stream_central_supported();
+      le_features.le_isochronous_broadcast_supported = leAdapterPropCb.le_isochronous_broadcast_supported();
+      le_features.le_periodic_advertising_sync_transfer_recipient_supported = leAdapterPropCb.le_periodic_advertising_sync_transfer_recipient_supported();
+
+      properties[0].len = sizeof(bt_local_le_features_t);
+      properties[0].val = &le_features;
+      properties[0].type = BT_PROPERTY_LOCAL_LE_FEATURES;
+      HAL_CBACK(bt_hal_cbacks, adapter_properties_cb, status, 1, properties);
+      break;
+    }
+    default : {
+        ALOGI("btif_dm_ss_callback :: msg id %X :: unknow", MSG_ID);
+        break;
+    }
   }
 }

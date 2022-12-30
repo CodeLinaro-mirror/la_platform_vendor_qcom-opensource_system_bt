@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 
 #define LOG_TAG "bt_btif_scanner"
@@ -45,64 +49,65 @@
 #include "osi/include/log.h"
 #include "vendor_api.h"
 #include "stack_manager.h"
-
+//#include "internal_include/extra_include.h"
 using base::Bind;
 using base::Owned;
+#include <vector>
 using std::vector;
-using RegisterCallback = BleScannerInterface::RegisterCallback;
+//using RegisterCallback = BleScannerInterface::RegisterCallback;
 
-extern const btgatt_callbacks_t* bt_gatt_callbacks;
+//extern const btgatt_callbacks_t* bt_gatt_callbacks;
 
-#define SCAN_CBACK_IN_JNI(P_CBACK, ...)                              \
+/*#define SCAN_CBACK_IN_JNI(P_CBACK, ...)//                              \
   do {                                                               \
     if (bt_gatt_callbacks && bt_gatt_callbacks->scanner->P_CBACK) {  \
       BTIF_TRACE_API("HAL bt_gatt_callbacks->client->%s", #P_CBACK); \
       do_in_jni_thread(                                              \
           Bind(bt_gatt_callbacks->scanner->P_CBACK, __VA_ARGS__));   \
-    } else {                                                         \
+   // } else {                                                         \
       ASSERTC(0, "Callback is NULL", 0);                             \
     }                                                                \
-  } while (0)
+  } while (0)*/
 
 namespace {
 
 // all access to this variable should be done on the jni thread
-std::set<RawAddress> remote_bdaddr_cache;
-std::queue<RawAddress> remote_bdaddr_cache_ordered;
+//std::set<RawAddress> remote_bdaddr_cache;
+//std::queue<RawAddress> remote_bdaddr_cache_ordered;
 const size_t remote_bdaddr_cache_max_size = 1024;
 
-void btif_address_cache_add(const RawAddress& p_bda, uint8_t addr_type) {
+/*void btif_address_cache_add(const RawAddress& p_bda, uint8_t addr_type) {
   // Remove the oldest entries
-  while (remote_bdaddr_cache.size() >= remote_bdaddr_cache_max_size) {
+  *while (remote_bdaddr_cache.size() >= remote_bdaddr_cache_max_size) {
     const RawAddress& raw_address = remote_bdaddr_cache_ordered.front();
     remote_bdaddr_cache.erase(raw_address);
     remote_bdaddr_cache_ordered.pop();
   }
   remote_bdaddr_cache.insert(p_bda);
-  remote_bdaddr_cache_ordered.push(p_bda);
-}
+  remote_bdaddr_cache_ordered.push(p_bda);*
+}*/
 
-bool btif_address_cache_find(const RawAddress& p_bda) {
-  return (remote_bdaddr_cache.find(p_bda) != remote_bdaddr_cache.end());
-}
+/*bool btif_address_cache_find(const RawAddress& p_bda) {
+  return true;//(remote_bdaddr_cache.find(p_bda) != remote_bdaddr_cache.end());
+}*/
 
-void btif_address_cache_init(void) {
-  remote_bdaddr_cache.clear();
-  remote_bdaddr_cache_ordered = {};
-}
+/*void btif_address_cache_init(void) {
+  //remote_bdaddr_cache.clear();
+  //remote_bdaddr_cache_ordered = {};
+}*/
 
-void bta_batch_scan_threshold_cb(tBTM_BLE_REF_VALUE ref_value) {
-  SCAN_CBACK_IN_JNI(batchscan_threshold_cb, ref_value);
+/*void bta_batch_scan_threshold_cb(tBTM_BLE_REF_VALUE ref_value) {
+  //SCAN_CBACK_IN_JNI(batchscan_threshold_cb, ref_value);
 }
 
 void bta_batch_scan_reports_cb(int client_id, tBTA_STATUS status,
                                uint8_t report_format, uint8_t num_records,
                                std::vector<uint8_t> data) {
-  SCAN_CBACK_IN_JNI(batchscan_reports_cb, client_id, status, report_format,
-                    num_records, std::move(data));
-}
+  //SCAN_CBACK_IN_JNI(batchscan_reports_cb, client_id, status, report_format,
+    //                num_records, std::move(data));
+}*/
 
-void bta_scan_results_cb_impl(RawAddress bd_addr, tBT_DEVICE_TYPE device_type,
+/*void bta_scan_results_cb_impl(RawAddress bd_addr, tBT_DEVICE_TYPE device_type,
                               int8_t rssi, uint8_t addr_type,
                               uint16_t ble_evt_type, uint8_t ble_primary_phy,
                               uint8_t ble_secondary_phy,
@@ -111,12 +116,12 @@ void bta_scan_results_cb_impl(RawAddress bd_addr, tBT_DEVICE_TYPE device_type,
                               vector<uint8_t> value, RawAddress original_bda) {
   uint8_t remote_name_len;
   bt_device_type_t dev_type;
-  bt_property_t properties;
+  bt_property_t properties;*/
 
-  const uint8_t* p_eir_remote_name = AdvertiseDataParser::GetFieldByType(
-      value, BTM_EIR_COMPLETE_LOCAL_NAME_TYPE, &remote_name_len);
+  //const uint8_t* p_eir_remote_name = AdvertiseDataParser::GetFieldByType(
+    //  value, BTM_EIR_COMPLETE_LOCAL_NAME_TYPE, &remote_name_len);
 
-  if (p_eir_remote_name == NULL) {
+ /* if (p_eir_remote_name == NULL) {
     p_eir_remote_name = AdvertiseDataParser::GetFieldByType(
         value, BT_EIR_SHORTENED_LOCAL_NAME_TYPE, &remote_name_len);
   }
@@ -145,11 +150,11 @@ void bta_scan_results_cb_impl(RawAddress bd_addr, tBT_DEVICE_TYPE device_type,
         btif_dm_update_ble_remote_properties(bd_addr, bdname.name, device_type);
       }
     }
-  }
+  }*/
 
+
+  /*uint32_t remote_dev_type = 0;
   dev_type = (bt_device_type_t)device_type;
-
-  uint32_t remote_dev_type = 0;
   BTIF_STORAGE_FILL_PROPERTY(&properties, BT_PROPERTY_TYPE_OF_DEVICE,
     sizeof(remote_dev_type), &remote_dev_type);
   dev_type = (btif_storage_get_remote_device_property(&bd_addr, &properties) == BT_STATUS_SUCCESS) ?
@@ -163,13 +168,13 @@ void bta_scan_results_cb_impl(RawAddress bd_addr, tBT_DEVICE_TYPE device_type,
     btif_storage_set_remote_device_property(&(bd_addr), &properties);
   }
 
-  btif_storage_set_remote_addr_type(&bd_addr, addr_type);
-  HAL_CBACK(bt_gatt_callbacks, scanner->scan_result_cb, ble_evt_type, addr_type,
+  btif_storage_set_remote_addr_type(&bd_addr, addr_type);*/
+  /*HAL_CBACK(bt_gatt_callbacks, scanner->scan_result_cb, ble_evt_type, addr_type,
             &bd_addr, ble_primary_phy, ble_secondary_phy, ble_advertising_sid,
             ble_tx_power, rssi, ble_periodic_adv_int, std::move(value),
-            &original_bda);
-}
-
+            &original_bda);*/
+//}
+/*
 void bta_scan_results_cb(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH* p_data) {
   uint8_t len;
 
@@ -202,7 +207,8 @@ void bta_scan_results_cb(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH* p_data) {
                         r->ble_advertising_sid, r->ble_tx_power,
                         r->ble_periodic_adv_int, std::move(value), r->original_bda));
 }
-
+*/
+/*
 void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
   btgatt_track_adv_info_t* btif_scan_track_cb = new btgatt_track_adv_info_t;
 
@@ -210,12 +216,12 @@ void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
   btif_gatt_move_track_adv_data(btif_scan_track_cb,
                                 (btgatt_track_adv_info_t*)p_track_adv_data);
 
-  SCAN_CBACK_IN_JNI(track_adv_event_cb, Owned(btif_scan_track_cb));
-}
+  //SCAN_CBACK_IN_JNI(track_adv_event_cb, Owned(btif_scan_track_cb));
+}*/
 
-void bta_cback(tBTA_GATTC_EVT, tBTA_GATTC*) {}
+//void bta_cback(tBTA_GATTC_EVT, tBTA_GATTC*) {}
 
-class BleScannerInterfaceImpl : public BleScannerInterface {
+/*class BleScannerInterfaceImpl : public BleScannerInterface {
   ~BleScannerInterfaceImpl(){};
 
   void RegisterScanner(const bluetooth::Uuid& app_uuid, RegisterCallback cb) override {
@@ -289,7 +295,7 @@ class BleScannerInterfaceImpl : public BleScannerInterface {
             jni_thread_wrapper(
                 FROM_HERE,
                 Bind(std::move(cb),
-                     0 /*TODO: this used to be filter type, unused ?*/))));
+                     0 *TODO: this used to be filter type, unused ?*))));
   }
 
 
@@ -476,15 +482,15 @@ class BleScannerInterfaceImpl : public BleScannerInterface {
     BTIF_TRACE_DEBUG("%s:", __func__);
   }
 #endif
-};
+};*/
 
-BleScannerInterface* btLeScannerInstance = nullptr;
+//BleScannerInterface* btLeScannerInstance = nullptr;
 
 }  // namespace
 
-BleScannerInterface* get_ble_scanner_instance() {
+/*BleScannerInterface* get_ble_scanner_instance() {
   if (btLeScannerInstance == nullptr)
     btLeScannerInstance = new BleScannerInterfaceImpl();
 
   return btLeScannerInstance;
-}
+}*/

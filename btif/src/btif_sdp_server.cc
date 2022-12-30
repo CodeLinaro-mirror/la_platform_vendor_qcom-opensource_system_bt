@@ -14,6 +14,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear.
  ******************************************************************************/
 
 /*******************************************************************************
@@ -28,32 +31,33 @@
 
 #define LOG_TAG "bt_btif_sdp_server"
 
-#include <log/log.h>
+//#include <log/log.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <mutex>
+//#include <mutex>
 
 #include <hardware/bluetooth.h>
 #include <hardware/bt_sdp.h>
 
-#include "bta_sdp_api.h"
-#include "bta_sys.h"
+//#include "bta_sdp_api.h"
+//#include "bta_sys.h"
 #include "btif_common.h"
 #include "btif_sock_util.h"
 #include "btif_util.h"
-#include "osi/include/allocator.h"
-#include "utl.h"
-#include "stack_manager.h"
-#include "stack/sdp/sdpint.h"
+//#include "osi/include/allocator.h"
+//#include "utl.h"
+//#include "stack_manager.h"
+//#include "stack/sdp/sdpint.h"
 // Protects the sdp_slots array from concurrent access.
-static std::recursive_mutex sdp_lock;
+//static std::recursive_mutex sdp_lock;
 
 /**
  * The need for a state variable have been reduced to two states.
  * The remaining state control is handled by program flow
  */
+ #if 0
 typedef enum {
   SDP_RECORD_FREE = 0,
   SDP_RECORD_ALLOCED,
@@ -110,7 +114,7 @@ bt_status_t sdp_server_init() {
 
 void sdp_server_cleanup() {
   BTIF_TRACE_DEBUG("Sdp Server %s", __func__);
-  std::unique_lock<std::recursive_mutex> lock(sdp_lock);
+  //std::unique_lock<std::recursive_mutex> lock(sdp_lock);
   int i;
   for (i = 0; i < MAX_SDP_SLOTS; i++) {
     /*remove_sdp_record(i); we cannot send messages to the other threads, since
@@ -198,7 +202,7 @@ static int alloc_sdp_slot(bluetooth_sdp_record* in_record) {
 
   copy_sdp_records(in_record, record, 1);
   {
-    std::unique_lock<std::recursive_mutex> lock(sdp_lock);
+    //std::unique_lock<std::recursive_mutex> lock(sdp_lock);
     for (int i = 0; i < MAX_SDP_SLOTS; i++) {
       if (sdp_slots[i].state == SDP_RECORD_FREE) {
         sdp_slots[i].state = SDP_RECORD_ALLOCED;
@@ -223,7 +227,7 @@ static int free_sdp_slot(int id) {
   }
 
   {
-    std::unique_lock<std::recursive_mutex> lock(sdp_lock);
+    //std::unique_lock<std::recursive_mutex> lock(sdp_lock);
     handle = sdp_slots[id].sdp_handle;
     sdp_slots[id].sdp_handle = 0;
     if (sdp_slots[id].state != SDP_RECORD_FREE) {
@@ -271,10 +275,11 @@ static void set_sdp_handle(int id, int handle) {
   sdp_slots[id].sdp_handle = handle;
   BTIF_TRACE_DEBUG("%s() id=%d to handle=0x%08x", __func__, id, handle);
 }
+#endif
 
 bt_status_t create_sdp_record(bluetooth_sdp_record* record,
                               int* record_handle) {
-  int handle;
+  /*int handle;
 
   handle = alloc_sdp_slot(record);
   BTIF_TRACE_DEBUG("%s() handle = 0x%08x", __func__, handle);
@@ -283,12 +288,13 @@ bt_status_t create_sdp_record(bluetooth_sdp_record* record,
 
   BTA_SdpCreateRecordByUser(INT_TO_PTR(handle));
 
-  *record_handle = handle;
+  *record_handle = handle;*/
 
   return BT_STATUS_SUCCESS;
 }
 
 bt_status_t remove_sdp_record(int record_id) {
+#if 0
   int handle;
 
   if (!stack_manager_get_interface()->get_stack_is_running()) {
@@ -308,9 +314,10 @@ bt_status_t remove_sdp_record(int record_id) {
   }
   BTIF_TRACE_DEBUG("Sdp Server %s - record already removed - or never created",
                    __func__);
-  return BT_STATUS_FAIL;
+#endif
+  return BT_STATUS_SUCCESS;
 }
-
+#if 0
 /******************************************************************************
  * CALLBACK FUNCTIONS
  * Called in BTA context to create/remove SDP records.
@@ -324,7 +331,7 @@ void on_create_record_event(int id) {
    * 4) What to do at fail?
    * */
   BTIF_TRACE_DEBUG("Sdp Server %s", __func__);
-  std::unique_lock<std::recursive_mutex> lock(sdp_lock);
+  //std::unique_lock<std::recursive_mutex> lock(sdp_lock);
   const sdp_slot_t* sdp_slot = start_create_sdp(id);
   /* In the case we are shutting down, sdp_slot is NULL */
   if (sdp_slot != NULL) {
@@ -775,3 +782,4 @@ static int add_saps_sdp(const bluetooth_sdp_sap_record* rec) {
   }
   return sdp_handle;
 }
+#endif

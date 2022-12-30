@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 #include <sys/time.h>
@@ -25,6 +29,6 @@
 
 void btif_debug_init(void) {
 #if (BTSNOOP_MEM == TRUE)
-  btif_debug_btsnoop_init();
+  //btif_debug_btsnoop_init();
 #endif
 }

@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 /*******************************************************************************
@@ -34,8 +38,9 @@
 #include <map>
 #include <memory>
 #include <mutex>
-
-#include "bt_common.h"
+#include <stdint.h>
+#include "raw_address.h"
+#include "internal_include/bt_common.h"
 #include "btif_common.h"
 #include "osi/include/allocator.h"
 #include "osi/include/list.h"
@@ -62,7 +67,7 @@ typedef struct {
   bool busy;
   btif_connect_cb_t connect_cb;
 } connect_node_t;
-
+#if 0
 
 /*******************************************************************************
  *  Static variables
@@ -715,3 +720,4 @@ void btif_disconnect_queue_release() {
   disconnect_queue.clear();
 }
 
+#endif

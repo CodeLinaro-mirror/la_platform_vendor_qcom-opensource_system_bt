@@ -45,6 +45,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
  */
 
 /*****************************************************************************
@@ -72,7 +76,8 @@
 #include <hardware/bt_vendor_rc.h>
 #include "btif/include/btif_config.h"
 #include "avrc_defs.h"
-#include "bt_common.h"
+#include "internal_include/bt_common.h"
+#include "raw_address.h"
 #include "bta_api.h"
 #include "bta_av_api.h"
 #include "btif_av.h"
@@ -94,7 +99,7 @@
 /*****************************************************************************
  *  Constants & Macros
  *****************************************************************************/
-
+#if 0
 /* Default index*/
 #define BTIF_RC_DEFAULT_INDEX 0
 /* cod value for Headsets */
@@ -7157,3 +7162,4 @@ const btrc_vendor_ctrl_interface_t *btif_rc_vendor_ctrl_get_interface(void)
   BTIF_TRACE_IMP("%s", __FUNCTION__);
   return &btAvrcpCtrlVendorInterface;
 }
+#endif

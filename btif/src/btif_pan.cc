@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 /*******************************************************************************
@@ -51,7 +55,7 @@
 #include <hardware/bluetooth.h>
 #include <hardware/bt_pan.h>
 
-#include "bt_common.h"
+#include "internal_include/bt_common.h"
 #include "bta_api.h"
 #include "bta_pan_api.h"
 #include "btif_common.h"
@@ -63,7 +67,7 @@
 #include "device/include/controller.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
-
+#if 0
 #define FORWARD_IGNORE 1
 #define FORWARD_SUCCESS 0
 #define FORWARD_FAILURE (-1)
@@ -791,3 +795,4 @@ static void btpan_tap_fd_signaled(int fd, int type, int flags,
   } else if (flags & SOCK_THREAD_FD_RD)
     bta_dmexecutecallback(btu_exec_tap_fd_read, INT_TO_PTR(fd));
 }
+#endif

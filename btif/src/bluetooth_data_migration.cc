@@ -14,15 +14,19 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
-#include <base/logging.h>
+//#include <base/logging.h>
 
-#include <filesystem>
+//#include <filesystem>
 #include <string>
 #include <vector>
 
-namespace fs = std::filesystem;
+//namespace fs = std::filesystem;
 
 // The user data should be stored in the subdirectory of |USER_DE_PATH|
 static const std::string USER_DE_PATH = "/data/user_de/0";
@@ -55,17 +59,17 @@ static std::string parse_destination_package_name(
   const std::size_t found = dst.rfind("/");
   // |dst| must contain a '/'
   if (found == std::string::npos) {
-    LOG(ERROR) << "Destination format not valid " << dst;
+    //LOG(ERROR) << "Destination format not valid " << dst;
     return "";
   }
   // |dst| directory is supposed to be in |base_dir|
   if (found != base_dir.length()) {
-    LOG(ERROR) << "Destination location not allowed: " << dst;
+    //LOG(ERROR) << "Destination location not allowed: " << dst;
     return "";
   }
   // This check prevent a '/' to be at the end of |dst|
   if (found >= dst.length() - 1) {
-    LOG(ERROR) << "Destination format not valid " << dst;
+    //LOG(ERROR) << "Destination format not valid " << dst;
     return "";
   }
 
@@ -73,11 +77,11 @@ static std::string parse_destination_package_name(
 
   if (std::find(pkg_list.begin(), pkg_list.end(), dst_package_name) ==
       pkg_list.end()) {
-    LOG(ERROR) << "Destination package_name not valid: " << dst_package_name
-               << " Created from " << dst;
+    //LOG(ERROR) << "Destination package_name not valid: " << dst_package_name
+             //  << " Created from " << dst;
     return "";
   }
-  LOG(INFO) << "Current Bluetooth package name is: " << dst_package_name;
+  //LOG(INFO) << "Current Bluetooth package name is: " << dst_package_name;
   return dst_package_name;
 }
 
@@ -95,11 +99,11 @@ void handle_migration(const std::string& dst,
       dst, USER_DE_PATH, allowed_bt_package_name);
   if (dst_package_name.empty()) return;
 
-  for (const auto& pkg_name : allowed_bt_package_name) {
+  /*for (const auto& pkg_name : allowed_bt_package_name) {
     std::error_code error;
 
     if (dst_package_name == pkg_name) {
-      LOG(INFO) << "Same location skipped: " << dst_package_name;
+      //LOG(INFO) << "Same location skipped: " << dst_package_name;
       continue;
     }
     const fs::path dst_path = dst;
@@ -107,7 +111,7 @@ void handle_migration(const std::string& dst,
     const fs::path local_migration_file_checker =
         pkg_path.string() + "/" + MIGRATION_FILE_CHECKER;
     if (!fs::exists(local_migration_file_checker, error)) {
-      LOG(INFO) << "Not a valid candidate for migration: " << pkg_path;
+      //LOG(INFO) << "Not a valid candidate for migration: " << pkg_path;
       continue;
     }
 
@@ -116,11 +120,11 @@ void handle_migration(const std::string& dst,
     fs::copy(pkg_path, dst_path, copy_flag, error);
 
     if (error) {
-      LOG(ERROR) << "Migration failed: " << error.message();
+      //LOG(ERROR) << "Migration failed: " << error.message();
     } else {
       fs::remove(local_migration_file_checker);
-      LOG(INFO) << "Migration completed from " << pkg_path << " to " << dst;
+      //LOG(INFO) << "Migration completed from " << pkg_path << " to " << dst;
     }
     break;  // Copy from one and only one directory
-  }
+  }*/
 }

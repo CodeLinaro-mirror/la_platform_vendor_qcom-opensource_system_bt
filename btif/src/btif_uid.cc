@@ -12,6 +12,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear.
  */
 
 /*******************************************************************************
@@ -22,9 +26,9 @@
  *                 socket usage per app UID.
  *
  ******************************************************************************/
-#include <mutex>
+//#include <mutex>
 
-#include "bt_common.h"
+#include "internal_include/bt_common.h"
 #include "btif_uid.h"
 
 std::mutex set_lock;

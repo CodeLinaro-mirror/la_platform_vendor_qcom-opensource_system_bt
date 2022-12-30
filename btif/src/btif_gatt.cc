@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 /*******************************************************************************
@@ -27,8 +31,8 @@
 #define LOG_TAG "bt_btif_gatt"
 
 #include <errno.h>
-#include <hardware/bluetooth.h>
-#include <hardware/bt_gatt.h>
+//#include <hardware/bluetooth.h>
+//#include <hardware/bt_gatt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,13 +40,13 @@
 #include "btif_common.h"
 #include "btif_util.h"
 
-#include "bta_api.h"
-#include "bta_gatt_api.h"
+//#include "bta_api.h"
+//#include "bta_gatt_api.h"
 #include "btif_gatt.h"
 #include "btif_gatt_util.h"
 #include "btif_storage.h"
 
-const btgatt_callbacks_t* bt_gatt_callbacks = NULL;
+//const btgatt_callbacks_t* bt_gatt_callbacks = NULL;
 
 /*******************************************************************************
  *
@@ -53,10 +57,10 @@ const btgatt_callbacks_t* bt_gatt_callbacks = NULL;
  * Returns          bt_status_t
  *
  ******************************************************************************/
-static bt_status_t btif_gatt_init(const btgatt_callbacks_t* callbacks) {
+/*static bt_status_t btif_gatt_init(const btgatt_callbacks_t* callbacks) {
   bt_gatt_callbacks = callbacks;
   return BT_STATUS_SUCCESS;
-}
+}*/
 
 /*******************************************************************************
  *
@@ -67,14 +71,14 @@ static bt_status_t btif_gatt_init(const btgatt_callbacks_t* callbacks) {
  * Returns          void
  *
  ******************************************************************************/
-static void btif_gatt_cleanup(void) {
-  if (bt_gatt_callbacks) bt_gatt_callbacks = NULL;
+//static void btif_gatt_cleanup(void) {
+  /*if (bt_gatt_callbacks) bt_gatt_callbacks = NULL;
 
   BTA_GATTC_Disable();
-  BTA_GATTS_Disable();
-}
+  BTA_GATTS_Disable();*/
+//}
 
-static btgatt_interface_t btgattInterface = {
+/*static btgatt_interface_t btgattInterface = {
     sizeof(btgattInterface),
 
     btif_gatt_init,
@@ -85,7 +89,7 @@ static btgatt_interface_t btgattInterface = {
     nullptr,  // filled in btif_gatt_get_interface
     nullptr,  // filled in btif_gatt_get_interface
     nullptr   // place holder for distance measurement instance
-};
+};*/
 
 /*******************************************************************************
  *
@@ -96,11 +100,11 @@ static btgatt_interface_t btgattInterface = {
  * Returns          btgatt_interface_t
  *
  ******************************************************************************/
-const btgatt_interface_t* btif_gatt_get_interface() {
+/*const btgatt_interface_t* btif_gatt_get_interface() {
   // TODO(jpawlowski) right now initializing advertiser field in static
   // structure cause explosion of dependencies. It must be initialized here
   // until those dependencies are properly abstracted for tests.
   btgattInterface.scanner = get_ble_scanner_instance();
   btgattInterface.advertiser = get_ble_advertiser_instance();
   return &btgattInterface;
-}
+}*/

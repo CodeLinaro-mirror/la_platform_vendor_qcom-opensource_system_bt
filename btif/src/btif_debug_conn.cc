@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 #include <stdio.h>
@@ -21,7 +25,7 @@
 #include <time.h>
 
 #include "btif/include/btif_debug_conn.h"
-#include "osi/include/time.h"
+//#include "osi/include/time.h"
 
 #define NUM_CONNECTION_EVENTS 16
 #define TEMP_BUFFER_SIZE 30
@@ -37,16 +41,16 @@ static conn_event_t connection_events[NUM_CONNECTION_EVENTS];
 static uint8_t current_event = 0;
 
 static char* format_ts(const uint64_t ts, char* buffer, int len) {
-  const uint64_t ms = ts / 1000;
-  const time_t secs = ms / 1000;
-  struct tm* ptm = localtime(&secs);
+  //const uint64_t ms = ts / 1000;
+  //const time_t secs = ms / 1000;
+  /*struct tm* ptm = localtime(&secs);
 
   char tempbuff[20] = {0};
   if (ptm) {
     if (strftime(tempbuff, sizeof(tempbuff), "%m-%d %H:%M:%S", ptm)) {
       snprintf(buffer, len, "%s.%03u", tempbuff, (uint16_t)(ms % 1000));
     }
-  }
+  }*/
 
   return buffer;
 }
@@ -72,7 +76,7 @@ void btif_debug_conn_state(const RawAddress& bda,
   next_event();
 
   conn_event_t* evt = &connection_events[current_event];
-  evt->ts = time_gettimeofday_us();
+  //evt->ts = time_gettimeofday_us();
   evt->state = state;
   evt->disconnect_reason = disconnect_reason;
   evt->bda = bda;

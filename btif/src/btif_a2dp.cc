@@ -19,33 +19,38 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 #define LOG_TAG "bt_btif_a2dp"
 
 #include <stdbool.h>
 
-#include "bt_common.h"
-#include "bta_av_api.h"
+#include "internal_include/bt_common.h"
+//#include "bta_av_api.h"
 #include "btif_a2dp.h"
 #include "btif_a2dp_control.h"
 #include "btif_a2dp_sink.h"
 #include "btif_a2dp_source.h"
 #include "btif_av.h"
 #include "btif_util.h"
-#include "osi/include/log.h"
+//#include "osi/include/log.h"
+//#include "osi/include/properties.h"
 #include "btif_a2dp_audio_interface.h"
 #include "btif_hf.h"
 
 #if (OFF_TARGET_TEST_ENABLED == FALSE)
-#include "audio_hal_interface/a2dp_encoding.h"
-#include "audio_a2dp_hw/include/audio_a2dp_hw.h"
+//#include "audio_hal_interface/a2dp_encoding.h"
+//#include "audio_a2dp_hw/include/audio_a2dp_hw.h"
 #endif
 #include "btif_bat.h"
 
 #if (OFF_TARGET_TEST_ENABLED == TRUE)
-#include "a2dp_hal_sim/audio_a2dp_hal_stub.h"
-using ::bluetooth::audio::a2dp::SessionType;
+//#include "a2dp_hal_sim/audio_a2dp_hal_stub.h"
+//using ::bluetooth::audio::a2dp::SessionType;
 #endif
 
 #define BTIF_A2DP_START_BLOCK_SCO_CONNECTED 0x0D
@@ -74,7 +79,7 @@ bool btif_a2dp_on_started(tBTA_AV_START* p_av_start, bool pending_start,
 #if AHIM_ENABLED
     pending_cmd = btif_ahim_get_pending_command(A2DP);
 #else
-    pending_cmd = bluetooth::audio::a2dp::get_pending_command();
+    //pending_cmd = bluetooth::audio::a2dp::get_pending_command();
 #endif
   } else {
     pending_cmd = btif_a2dp_control_get_pending_command();
@@ -93,7 +98,7 @@ bool btif_a2dp_on_started(tBTA_AV_START* p_av_start, bool pending_start,
 #if AHIM_ENABLED
           btif_ahim_ack_stream_started(A2DP_CTRL_ACK_INCALL_FAILURE, A2DP);
 #else
-          bluetooth::audio::a2dp::ack_stream_started(A2DP_CTRL_ACK_INCALL_FAILURE);
+          //bluetooth::audio::a2dp::ack_stream_started(A2DP_CTRL_ACK_INCALL_FAILURE);
 #endif
         } else {
           btif_a2dp_audio_on_started(A2DP_CTRL_ACK_INCALL_FAILURE);
@@ -106,20 +111,20 @@ bool btif_a2dp_on_started(tBTA_AV_START* p_av_start, bool pending_start,
 #if AHIM_ENABLED
           btif_ahim_ack_stream_started(A2DP_CTRL_ACK_SUCCESS, A2DP);
 #else
-          bluetooth::audio::a2dp::ack_stream_started(A2DP_CTRL_ACK_SUCCESS);
+         // bluetooth::audio::a2dp::ack_stream_started(A2DP_CTRL_ACK_SUCCESS);
 #endif
           if (btif_av_get_peer_sep() == AVDT_TSEP_SNK) {
             /* Start the media task to encode the audio */
-#if AHIM_ENABLED
-             if(btif_ahim_get_session_type(A2DP) ==
-#else
-             if(bluetooth::audio::a2dp::get_session_type() ==
-#endif
-                  SessionType::A2DP_SOFTWARE_ENCODING_DATAPATH) {
+//#if AHIM_ENABLED
+             //if(btif_ahim_get_session_type(A2DP) ==
+
+             //if(bluetooth::audio::a2dp::get_session_type() ==
+//#endif
+                 // SessionType::A2DP_SOFTWARE_ENCODING_DATAPATH) {
                APPL_TRACE_IMP("%s: start audio as it is SW session", __func__);
                btif_av_reset_reconfig_flag();
                btif_a2dp_source_start_audio_req();
-             }
+             //}
           }
         } else {
           btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
@@ -146,19 +151,19 @@ bool btif_a2dp_on_started(tBTA_AV_START* p_av_start, bool pending_start,
 #if AHIM_ENABLED
                 btif_ahim_ack_stream_started(A2DP_CTRL_ACK_SUCCESS, A2DP);
 #else
-                bluetooth::audio::a2dp::ack_stream_started(A2DP_CTRL_ACK_SUCCESS);
+               // bluetooth::audio::a2dp::ack_stream_started(A2DP_CTRL_ACK_SUCCESS);
 #endif
                 if (btif_av_get_peer_sep() == AVDT_TSEP_SNK) {
                   /* Start the media task to encode the audio */
-#if AHIM_ENABLED
+/*#if AHIM_ENABLED
                   if(btif_ahim_get_session_type(A2DP) ==
 #else
                   if(bluetooth::audio::a2dp::get_session_type() ==
 #endif
-                       SessionType::A2DP_SOFTWARE_ENCODING_DATAPATH) {
+                       SessionType::A2DP_SOFTWARE_ENCODING_DATAPATH) {*/
                     APPL_TRACE_IMP("start audio as it is SW session");
                     btif_a2dp_source_start_audio_req();
-                  }
+                 // }
                 }
               } else {
                 btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
@@ -185,6 +190,7 @@ bool btif_a2dp_on_started(tBTA_AV_START* p_av_start, bool pending_start,
   } else if (pending_start) {
     APPL_TRACE_WARNING("%s: A2DP start request failed: status = %d", __func__,
                        p_av_start->status);
+#if 0
     if (property_get("persist.vendor.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
         !strcmp(a2dp_hal_imp, "true")) {
       int index = (hdl & BTA_AV_HNDL_MSK) - 1;
@@ -193,7 +199,7 @@ bool btif_a2dp_on_started(tBTA_AV_START* p_av_start, bool pending_start,
 #if AHIM_ENABLED
         btif_ahim_ack_stream_started(A2DP_CTRL_ACK_FAILURE, A2DP);
 #else
-        bluetooth::audio::a2dp::ack_stream_started(A2DP_CTRL_ACK_FAILURE);
+        //bluetooth::audio::a2dp::ack_stream_started(A2DP_CTRL_ACK_FAILURE);
 #endif
       } else if (btif_av_is_split_a2dp_enabled()) {
         btif_a2dp_audio_on_started(A2DP_CTRL_ACK_FAILURE);
@@ -213,7 +219,7 @@ bool btif_a2dp_on_started(tBTA_AV_START* p_av_start, bool pending_start,
 #if AHIM_ENABLED
           btif_ahim_ack_stream_started(A2DP_CTRL_ACK_LONG_WAIT_ERR, A2DP);
 #else
-          bluetooth::audio::a2dp::ack_stream_started(A2DP_CTRL_ACK_LONG_WAIT_ERR);
+          //bluetooth::audio::a2dp::ack_stream_started(A2DP_CTRL_ACK_LONG_WAIT_ERR);
 #endif
         } else {
           btif_a2dp_audio_on_started(A2DP_CTRL_ACK_FAILURE);
@@ -224,7 +230,7 @@ bool btif_a2dp_on_started(tBTA_AV_START* p_av_start, bool pending_start,
 #if AHIM_ENABLED
             btif_ahim_ack_stream_started(A2DP_CTRL_ACK_LONG_WAIT_ERR, A2DP);
 #else
-            bluetooth::audio::a2dp::ack_stream_started(A2DP_CTRL_ACK_LONG_WAIT_ERR);
+            //bluetooth::audio::a2dp::ack_stream_started(A2DP_CTRL_ACK_LONG_WAIT_ERR);
 #endif
           } else {
             btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
@@ -232,6 +238,7 @@ bool btif_a2dp_on_started(tBTA_AV_START* p_av_start, bool pending_start,
         }
       }
     }
+#endif
     ack = true;
   }
 #if (TWS_STATE_ENABLED)
@@ -262,19 +269,20 @@ void btif_a2dp_on_stopped(tBTA_AV_SUSPEND* p_av_suspend) {
 #if AHIM_ENABLED
               btif_ahim_ack_stream_suspended(A2DP_CTRL_ACK_FAILURE, A2DP);
 #else
-              bluetooth::audio::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_FAILURE);
+              //bluetooth::audio::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_FAILURE);
 #endif
             }
           } else {
 #if AHIM_ENABLED
             btif_ahim_ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS, A2DP);
 #else
-            bluetooth::audio::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS);
+            //bluetooth::audio::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS);
 #endif
           }
         } else {
           btif_a2dp_audio_on_stopped(p_av_suspend->status);
         }
+#if 0
         if (property_get("persist.vendor.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
             !strcmp(a2dp_hal_imp, "true") && (p_av_suspend->status != BTA_AV_SUCCESS)) {
           int index = ((p_av_suspend->hndl) & BTA_AV_HNDL_MSK) - 1;
@@ -283,7 +291,7 @@ void btif_a2dp_on_stopped(tBTA_AV_SUSPEND* p_av_suspend) {
 #if AHIM_ENABLED
             btif_ahim_reset_pending_command(A2DP);
 #else
-            bluetooth::audio::a2dp::reset_pending_command();
+            //bluetooth::audio::a2dp::reset_pending_command();
 #endif
           } else {
             btif_a2dp_audio_reset_pending_cmds();
@@ -294,6 +302,7 @@ void btif_a2dp_on_stopped(tBTA_AV_SUSPEND* p_av_suspend) {
             BTIF_TRACE_DEBUG("%s: Disconnect for peer device on Start fail by Remote", __func__);
           }
         }
+#endif
       }
     }
     else
@@ -323,19 +332,20 @@ void btif_a2dp_on_suspended(tBTA_AV_SUSPEND* p_av_suspend) {
 #if AHIM_ENABLED
             btif_ahim_ack_stream_suspended(A2DP_CTRL_ACK_FAILURE, A2DP);
 #else
-            bluetooth::audio::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_FAILURE);
+            //bluetooth::audio::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_FAILURE);
 #endif
           }
         } else {
 #if AHIM_ENABLED
           btif_ahim_ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS, A2DP);
 #else
-          bluetooth::audio::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS);
+          //bluetooth::audio::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS);
 #endif
         }
       } else {
         btif_a2dp_audio_on_suspended(p_av_suspend->status);
       }
+#if 0
       if (property_get("persist.vendor.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
           !strcmp(a2dp_hal_imp, "true") && (p_av_suspend->status != BTA_AV_SUCCESS)) {
         int index = ((p_av_suspend->hndl) & BTA_AV_HNDL_MSK) - 1;
@@ -344,7 +354,7 @@ void btif_a2dp_on_suspended(tBTA_AV_SUSPEND* p_av_suspend) {
 #if AHIM_ENABLED
           btif_ahim_reset_pending_command(A2DP);
 #else
-          bluetooth::audio::a2dp::reset_pending_command();
+          //bluetooth::audio::a2dp::reset_pending_command();
 #endif
         } else {
           btif_a2dp_audio_reset_pending_cmds();
@@ -356,6 +366,7 @@ void btif_a2dp_on_suspended(tBTA_AV_SUSPEND* p_av_suspend) {
           BTIF_TRACE_DEBUG("%s: Disconnect for peer device on Start fail by Remote", __func__);
         }
       }
+#endif
     }
   }
 
@@ -388,7 +399,7 @@ void btif_ba_audio_on_suspended(uint8_t result) {
 #if AHIM_ENABLED
     btif_ahim_ack_stream_suspended(ba_map_status_to_ack(result), A2DP);
 #else
-    bluetooth::audio::a2dp::ack_stream_suspended(ba_map_status_to_ack(result));
+    //bluetooth::audio::a2dp::ack_stream_suspended(ba_map_status_to_ack(result));
 #endif
   } else {
     btif_a2dp_audio_on_suspended(result);
@@ -401,7 +412,7 @@ void btif_ba_audio_on_stopped(uint8_t result) {
 #if AHIM_ENABLED
     btif_ahim_ack_stream_suspended(ba_map_status_to_ack(result), A2DP);
 #else
-    bluetooth::audio::a2dp::ack_stream_suspended(ba_map_status_to_ack(result));
+    //bluetooth::audio::a2dp::ack_stream_suspended(ba_map_status_to_ack(result));
 #endif
   } else {
     btif_a2dp_audio_on_stopped(result);
@@ -414,7 +425,7 @@ void btif_ba_audio_on_started(uint8_t result) {
 #if AHIM_ENABLED
     btif_ahim_ack_stream_started(ba_map_status_to_ack(result), A2DP);
 #else
-    bluetooth::audio::a2dp::ack_stream_started(ba_map_status_to_ack(result));
+    //bluetooth::audio::a2dp::ack_stream_started(ba_map_status_to_ack(result));
 #endif
   } else {
     btif_a2dp_audio_on_started(result);
@@ -470,7 +481,7 @@ void btif_a2dp_on_offload_started(tBTA_AV_STATUS status) {
 #if AHIM_ENABLED
     btif_ahim_ack_stream_started(ack, A2DP);
 #else
-    bluetooth::audio::a2dp::ack_stream_started(ack, A2DP);
+    //bluetooth::audio::a2dp::ack_stream_started(ack, A2DP);
 #endif
   } else {
     btif_a2dp_audio_on_started(status);
@@ -483,6 +494,6 @@ void btif_a2dp_honor_remote_start(struct alarm_t **remote_start_alarm, int index
 }
 
 void btif_debug_a2dp_dump(int fd) {
-  btif_a2dp_source_debug_dump(fd);
-  btif_a2dp_sink_debug_dump(fd);
+  //btif_a2dp_source_debug_dump(fd);
+  //btif_a2dp_sink_debug_dump(fd);
 }

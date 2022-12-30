@@ -15,6 +15,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear.
  ******************************************************************************/
 
 #ifndef BTIF_COMMON_H
@@ -25,23 +28,16 @@
 #include <base/bind.h>
 #include <base/location.h>
 #include <hardware/bluetooth.h>
-
 #include "bt_types.h"
 #include "bta_api.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+#include <base/strings/string_split.h>
+#include <base/strings/stringprintf.h>
 
 /*******************************************************************************
  *  Constants & Macros
  ******************************************************************************/
-
-#define ASSERTC(cond, msg, val)                                              \
-  do {                                                                       \
-    if (!(cond)) {                                                           \
-      LOG_ERROR(LOG_TAG, "### ASSERT : %s %s line %d %s (%d) ###", __FILE__, \
-                __func__, __LINE__, (msg), (val));                           \
-    }                                                                        \
-  } while (0)
 
 /* Calculate start of event enumeration; id is top 8 bits of event */
 #define BTIF_SIG_START(id) ((id) << 8)
@@ -76,11 +72,17 @@
 #define BTIF_HF_CLIENT 5
 
 extern bt_callbacks_t* bt_hal_cbacks;
-
+#define ASSERTC(cond, msg, val)                                              \
+   do {                                                                       \
+     if (!(cond)) {                                                           \
+       ALOGI("### ASSERT : %s %s line %d %s (%d) ###", __FILE__, \
+                 __func__, __LINE__, (msg), (val));                           \
+     }                                                                        \
+   } while (0)
 #define HAL_CBACK(P_CB, P_CBACK, ...)                              \
   do {                                                             \
     if ((P_CB) && (P_CB)->P_CBACK) {                               \
-      BTIF_TRACE_API("%s: HAL %s->%s", __func__, #P_CB, #P_CBACK); \
+      ALOGI("%s: HAL %s->%s", __func__, #P_CB, #P_CBACK);          \
       (P_CB)->P_CBACK(__VA_ARGS__);                                \
     } else {                                                       \
       ASSERTC(0, "Callback is NULL", 0);                           \
@@ -181,7 +183,7 @@ extern bt_status_t do_in_jni_thread(const base::Location& from_here,
  * This template wraps callback into callback that will be executed on jni
  * thread
  */
-template <typename R, typename... Args>
+/*template <typename R, typename... Args>
 base::Callback<R(Args...)> jni_thread_wrapper(
     const base::Location& from_here, base::Callback<R(Args...)> cb) {
   return base::Bind(
@@ -191,7 +193,7 @@ base::Callback<R(Args...)> jni_thread_wrapper(
                          base::Bind(cb, std::forward<Args>(args)...));
       },
       from_here, std::move(cb));
-}
+}*/
 
 tBTA_SERVICE_MASK btif_get_enabled_services_mask(void);
 bt_status_t btif_enable_service(tBTA_SERVICE_ID service_id);
@@ -215,6 +217,7 @@ void bte_main_disable(void);
 void bte_main_hci_close(void);
 void bte_main_cleanup(void);
 void bte_main_postload_cfg(void);
+std::string ToRawString(const RawAddress* bt_addr);
 
 bt_status_t btif_transfer_context(tBTIF_CBACK* p_cback, uint16_t event,
                                   char* p_params, int param_len,
@@ -227,5 +230,17 @@ bt_status_t btif_reset_service(tBTA_SERVICE_ID service_id);
 void invoke_oob_data_request_cb(tBT_TRANSPORT t, bool valid, Octet16 c,
                                 Octet16 r, RawAddress raw_address,
                                 uint8_t address_type);
+
+/*Single Stack Declarations*/
+#define BT_PROFILE_DM_ID "bluetooth_dm"//for DM
+void single_stack_enable_status(int status);
+
+void single_stack_device_found(int numProp, bt_property_t properties[]);
+
+void btif_ss_interface_init();
+void btif_ss_interface_cleanup();
+void btif_dm_ss_callback(uint16_t event, char* p_param);
+void btif_sdp_ss_callback(uint16_t event, char* p_param);
+typedef void (*ss_profile_callback)(uint16_t event, char* p_param);
 
 #endif /* BTIF_COMMON_H */

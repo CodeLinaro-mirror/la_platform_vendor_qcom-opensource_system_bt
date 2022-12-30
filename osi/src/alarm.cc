@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 #include "internal_include/bt_target.h"
@@ -47,11 +51,12 @@
 #include "osi/include/thread.h"
 #include "osi/include/wakelock.h"
 
+#include "btif_ss_interface.h"
+
 using base::Bind;
 using base::CancelableClosure;
 using base::MessageLoop;
-
-extern base::MessageLoop* get_message_loop();
+extern base::MessageLoop* get_ss_alarm_message_loop();
 
 // Callback and timer threads should run at RT priority in order to ensure they
 // meet audio deadlines.  Use this priority for all audio/timer related thread.
@@ -653,14 +658,14 @@ static void callback_dispatch(UNUSED_ATTR void* context) {
 
     // Enqueue the alarm for processing
     if (alarm->for_msg_loop) {
-      if (!get_message_loop()) {
+      if (!get_ss_alarm_message_loop()) {
         LOG_ERROR(LOG_TAG, "%s: message loop already NULL. Alarm: %s", __func__,
                   alarm->stats.name);
         continue;
       }
 
       alarm->closure.i.Reset(Bind(alarm_ready_mloop, alarm));
-      get_message_loop()->task_runner()->PostTask(FROM_HERE, alarm->closure.i.callback());
+      get_ss_alarm_message_loop()->task_runner()->PostTask(FROM_HERE, alarm->closure.i.callback());
     } else {
       fixed_queue_enqueue(alarm->queue, alarm);
     }

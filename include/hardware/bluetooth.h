@@ -12,6 +12,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear.
  */
 
 #ifndef ANDROID_INCLUDE_BLUETOOTH_H
@@ -58,6 +62,9 @@
 typedef struct {
     uint8_t name[249];
 } __attribute__((packed))bt_bdname_t;
+
+/** Bluetooth HCI Error Codes */
+typedef uint8_t bt_hci_error_code_t;
 
 /** Bluetooth Adapter Visibility Modes*/
 typedef enum {
@@ -696,14 +703,38 @@ typedef struct {
     */
     std::string (*obfuscate_address)(const RawAddress& address);
 
+    /**
+    * Get an incremental id for as primary key for Bluetooth metric and log
+    *
+    * @param address Bluetooth MAC address of Bluetooth device
+    * @return int incremental Bluetooth id
+    */
+    int (*get_metric_id)(const RawAddress& address);
+
+    /**
+    * Set the dynamic audio buffer size to the Controller
+    */
     int (*set_dynamic_audio_buffer_size)(int codec, int size);
 
     /**
      * Fetches the local Out of Band data.
      */
     int (*generate_local_oob_data)(tBT_TRANSPORT transport);
-} bt_interface_t;
 
+    /**
+    * Allow or disallow audio low latency
+    *
+    * @param allowed true if allowing audio low latency
+    * @param address Bluetooth MAC address of Bluetooth device
+    * @return true if audio low latency is successfully allowed or disallowed
+    */
+    bool (*allow_low_latency_audio)(bool allowed, const RawAddress& address);
+
+    /**
+    * Set the event filter for the controller
+    */
+    int (*clear_event_filter)();
+} bt_interface_t;
 #define BLUETOOTH_INTERFACE_STRING "bluetoothInterface"
 
 #endif /* ANDROID_INCLUDE_BLUETOOTH_H */

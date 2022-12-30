@@ -25,31 +25,36 @@
  *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  *  OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  *****************************************************************************/
 
 #define LOG_TAG "bt_stack_interface"
 
 #include "stack_interface.h"
 #include "btif_common.h"
-#include "osi/include/log.h"
-#include "osi/include/osi.h"
-#include "bt_features.h"
+//#include "osi/include/log.h"
+//#include "osi/include/osi.h"
+//#include "bt_features.h"
 #ifdef ADV_AUDIO_FEATURE
-#include "bluetooth_adv_audio.h"
+//#include "bluetooth_adv_audio.h"
 #endif
-
+//#if 0
 class StackInterfaceImpl;
 StackInterfaceImpl *instance = nullptr;
 
 void init_external_interfaces(void) {
 #ifdef ADV_AUDIO_FEATURE
-  init_adv_audio_interfaces();
+  //init_adv_audio_interfaces();
 #endif
 }
 
 const void* get_external_profile_interface(const char* profile_id) {
 #ifdef ADV_AUDIO_FEATURE
-  return get_adv_audio_profile_interface(profile_id);
+  return NULL;//get_adv_audio_profile_interface(profile_id);
 #endif
   return nullptr;
 }
@@ -84,29 +89,29 @@ class StackInterfaceImpl : public StackInterface {
 // Interface functions
 void btif_stack_dev_unpaired(const RawAddress& address) {
   if (instance) {
-    LOG(WARNING) << __func__ << " OnDevUnPaired";
+    //LOG(WARNING) << __func__ << " OnDevUnPaired";
     instance->OnDevUnPaired(address);
   }
 }
 
 void btif_stack_config_cleared(void) {
   if (instance) {
-    LOG(WARNING) << __func__ << " OnConfigCleared";
+   // LOG(WARNING) << __func__ << " OnConfigCleared";
     instance->OnConfigCleared();
   }
 }
 
 void btif_stack_state(StackState state) {
   if (instance) {
-    LOG(WARNING) << __func__ << " OnStackState "
-                 << loghex(static_cast<uint8_t> (state));
+    //LOG(WARNING) << __func__ << " OnStackState "
+      //           << loghex(static_cast<uint8_t> (state));
     instance->OnStackState(state);
   }
 }
 
 void StackInterface::Initialize(StackCallbacks* callbacks) {
   if (instance) {
-    LOG(ERROR) << __func__ << " Already initialized!";
+    //LOG(ERROR) << __func__ << " Already initialized!";
   } else {
     instance = new StackInterfaceImpl(callbacks);
   }
@@ -120,6 +125,7 @@ void StackInterface::CleanUp() {
 }
 
 StackInterface* StackInterface::Get() {
-  CHECK(instance);
+  //CHECK(instance);
   return instance;
 }
+//#endif

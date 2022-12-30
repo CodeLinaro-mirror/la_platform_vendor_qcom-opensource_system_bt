@@ -14,15 +14,11 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  ​​​​​Changes from Qualcomm Innovation Center are provided under the following license:
- *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
- *  SPDX-License-Identifier: BSD-3-Clause-Clear
- *
  ******************************************************************************/
 /*******************************************************************************
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) [2022-2023] Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  *
  *******************************************************************************/
@@ -33,7 +29,8 @@
 #include <bluetooth/uuid.h>
 #include <hardware/bluetooth.h>
 
-#include "bt_target.h"
+#include "internal_include/bt_target.h"
+//#include "bluetooth.h"
 #include "bt_types.h"
 
 /*******************************************************************************

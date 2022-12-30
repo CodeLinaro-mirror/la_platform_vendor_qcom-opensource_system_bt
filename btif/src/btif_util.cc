@@ -15,6 +15,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 /*******************************************************************************
@@ -38,9 +42,8 @@
 #include <string.h>
 
 #include <hardware/bt_av.h>
-
 #include "avrc_defs.h"
-#include "bt_common.h"
+#include "internal_include/bt_common.h"
 #include "bta_ag_api.h"
 #include "bta_api.h"
 #include "bta_av_api.h"
@@ -60,6 +63,7 @@
 #include "bta_dm_adv_audio.h"
 #endif
 
+#if 0
 /*******************************************************************************
  *  Constants & Macros
  ******************************************************************************/
@@ -434,3 +438,4 @@ const char* dump_rc_pdu(uint8_t pdu) {
       return "Unknown PDU";
   }
 }
+#endif

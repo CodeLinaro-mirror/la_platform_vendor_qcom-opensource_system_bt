@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 /*******************************************************************************
@@ -44,4 +48,6 @@ bt_status_t btsock_rfc_get_sockopt(int channel, btsock_option_type_t option_name
                                             void *option_value, int *option_len);
 bt_status_t btsock_rfc_set_sockopt(int channel, btsock_option_type_t option_name,
                                             void *option_value, int option_len);
+
+void btif_rfcomm_ss_callback(uint16_t event, char* p_param);
 #endif

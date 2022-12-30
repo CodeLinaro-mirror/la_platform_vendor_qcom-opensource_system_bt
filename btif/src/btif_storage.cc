@@ -16,17 +16,10 @@
  *  limitations under the License.
  *
  *  ​​​​​Changes from Qualcomm Innovation Center are provided under the following license:
- *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *  SPDX-License-Identifier: BSD-3-Clause-Clear
  *
  ******************************************************************************/
-/*******************************************************************************
- *
- * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *******************************************************************************/
 
 /*******************************************************************************
  *
@@ -44,34 +37,34 @@
 #include "btif_storage.h"
 
 #include <alloca.h>
-#include <base/logging.h>
+//#include <base/logging.h>
 #include <ctype.h>
-#include <log/log.h>
+//#include <log/log.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-#include "bt_common.h"
-#include "bta_closure_api.h"
-#include "bta_hd_api.h"
-#include "bta_hearing_aid_api.h"
-#include "bta_has_api.h"
-#include "bta_hh_api.h"
+//#include "bt_common.h"
+//#include "bta_closure_api.h"
+//#include "bta_hd_api.h"
+//#include "bta_hearing_aid_api.h"
+//#include "bta_has_api.h"
+//#include "bta_hh_api.h"
 #include "btif_api.h"
 #include "btif_config.h"
 #include "btif_hd.h"
 #include "btif_hh.h"
 #include "btif_util.h"
-#include "device/include/controller.h"
-#include "osi/include/allocator.h"
-#include "osi/include/compat.h"
-#include "osi/include/config.h"
-#include "osi/include/log.h"
-#include "osi/include/osi.h"
+//#include "device/include/controller.h"
+//#include "osi/include/allocator.h"
+//#include "osi/include/compat.h"
+//#include "osi/include/config.h"
+//#include "osi/include/log.h"
+//#include "osi/include/osi.h"
 #include <inttypes.h>
-#include "stack/gatt/gatt_int.h"
-#include "stack/gatt/eatt_int.h"
-
+//#include "stack/gatt/gatt_int.h"
+//#include "stack/gatt/eatt_int.h"
+#if 0
 using base::Bind;
 using bluetooth::Uuid;
 
@@ -2768,3 +2761,4 @@ bt_status_t btif_storage_remove_enc_key_material(const RawAddress* remote_bd_add
   return ret ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
 }
 
+#endif

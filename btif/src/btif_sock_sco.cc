@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 #define LOG_TAG "bt_btif_sock_sco"
@@ -30,7 +34,6 @@
 
 #include <hardware/bluetooth.h>
 #include <hardware/bt_sock.h>
-
 #include "btif_common.h"
 #include "device/include/esco_parameters.h"
 #include "osi/include/allocator.h"
@@ -69,11 +72,11 @@ static sco_socket_t* sco_socket_establish_locked(bool is_listening,
                                                  int* sock_fd);
 static sco_socket_t* sco_socket_new(void);
 static void sco_socket_free_locked(sco_socket_t* socket);
-static sco_socket_t* sco_socket_find_locked(uint16_t sco_handle);
-static void connection_request_cb(tBTM_ESCO_EVT event,
-                                  tBTM_ESCO_EVT_DATA* data);
-static void connect_completed_cb(uint16_t sco_handle);
-static void disconnect_completed_cb(uint16_t sco_handle);
+//static sco_socket_t* sco_socket_find_locked(uint16_t sco_handle);
+//static void connection_request_cb(tBTM_ESCO_EVT event,
+//                                  tBTM_ESCO_EVT_DATA* data);
+//static void connect_completed_cb(uint16_t sco_handle);
+//static void disconnect_completed_cb(uint16_t sco_handle);
 static void socket_read_ready_cb(socket_t* socket, void* context);
 
 // |sco_lock| protects all of the static variables below and
@@ -90,8 +93,8 @@ bt_status_t btsock_sco_init(thread_t* thread_) {
   if (!sco_sockets) return BT_STATUS_FAIL;
 
   thread = thread_;
-  enh_esco_params_t params = esco_parameters_for_codec(ESCO_CODEC_CVSD);
-  BTM_SetEScoMode(&params);
+  //enh_esco_params_t params = esco_parameters_for_codec(ESCO_CODEC_CVSD);
+  //BTM_SetEScoMode(&params);
 
   return BT_STATUS_SUCCESS;
 }
@@ -110,7 +113,7 @@ bt_status_t btsock_sco_listen(int* sock_fd, UNUSED_ATTR int flags) {
   sco_socket_t* sco_socket = sco_socket_establish_locked(true, NULL, sock_fd);
   if (!sco_socket) return BT_STATUS_FAIL;
 
-  BTM_RegForEScoEvts(sco_socket->sco_handle, connection_request_cb);
+  //BTM_RegForEScoEvts(sco_socket->sco_handle, connection_request_cb);
   listen_sco_socket = sco_socket;
 
   return BT_STATUS_SUCCESS;
@@ -135,8 +138,8 @@ static sco_socket_t* sco_socket_establish_locked(bool is_listening,
   int pair[2] = {INVALID_FD, INVALID_FD};
   sco_socket_t* sco_socket = NULL;
   socket_t* socket = NULL;
-  tBTM_STATUS status;
-  enh_esco_params_t params;
+  //tBTM_STATUS status;
+  //enh_esco_params_t params;
   if(sock_fd == NULL) {
     LOG_ERROR(LOG_TAG, "%s Invalid file descriptor. sock_fd is NULL",
               __func__);
@@ -153,7 +156,7 @@ static sco_socket_t* sco_socket_establish_locked(bool is_listening,
     LOG_ERROR(LOG_TAG, "%s unable to allocate new SCO socket.", __func__);
     goto error;
   }
-
+#if 0
   params = esco_parameters_for_codec(ESCO_CODEC_CVSD);
   status = BTM_CreateSco(bd_addr, !is_listening, params.packet_types,
                          &sco_socket->sco_handle, connect_completed_cb,
@@ -176,6 +179,7 @@ static sco_socket_t* sco_socket_establish_locked(bool is_listening,
 
   socket_register(socket, thread_get_reactor(thread), sco_socket,
                   socket_read_ready_cb, NULL);
+#endif
   return sco_socket;
 
 error:;
@@ -188,7 +192,7 @@ error:;
 
 static sco_socket_t* sco_socket_new(void) {
   sco_socket_t* sco_socket = (sco_socket_t*)osi_calloc(sizeof(sco_socket_t));
-  sco_socket->sco_handle = BTM_INVALID_SCO_INDEX;
+  sco_socket->sco_handle = -1;//BTM_INVALID_SCO_INDEX;
   return sco_socket;
 }
 
@@ -197,13 +201,15 @@ static sco_socket_t* sco_socket_new(void) {
 // is no longer alive.
 static void sco_socket_free_locked(sco_socket_t* sco_socket) {
   if (!sco_socket) return;
-
+#if 0
   if (sco_socket->sco_handle != BTM_INVALID_SCO_INDEX)
     BTM_RemoveSco(sco_socket->sco_handle);
-  socket_free(sco_socket->socket);
+#endif
+  //socket_free(sco_socket->socket);
   osi_free(sco_socket);
 }
 
+#if 0
 // Must be called with |lock| held.
 static sco_socket_t* sco_socket_find_locked(uint16_t sco_handle) {
   for (const list_node_t* node = list_begin(sco_sockets);
@@ -213,6 +219,7 @@ static sco_socket_t* sco_socket_find_locked(uint16_t sco_handle) {
   }
   return NULL;
 }
+
 
 static void connection_request_cb(tBTM_ESCO_EVT event,
                                   tBTM_ESCO_EVT_DATA* data) {
@@ -284,6 +291,7 @@ error:;
   BTM_EScoConnRsp(conn_data->sco_inx, HCI_ERR_HOST_REJECT_RESOURCES, NULL);
 }
 
+
 static void connect_completed_cb(uint16_t sco_handle) {
   std::unique_lock<std::mutex> lock(sco_lock);
 
@@ -298,7 +306,7 @@ static void connect_completed_cb(uint16_t sco_handle) {
   // app-level
   // interest in the SCO socket.
   if (!sco_socket->socket) {
-    BTM_RemoveSco(sco_socket->sco_handle);
+    //BTM_RemoveSco(sco_socket->sco_handle);
     list_remove(sco_sockets, sco_socket);
     return;
   }
@@ -318,7 +326,7 @@ static void disconnect_completed_cb(uint16_t sco_handle) {
 
   list_remove(sco_sockets, sco_socket);
 }
-
+#endif
 static void socket_read_ready_cb(UNUSED_ATTR socket_t* socket, void* context) {
   std::unique_lock<std::mutex> lock(sco_lock);
 
@@ -333,7 +341,7 @@ static void socket_read_ready_cb(UNUSED_ATTR socket_t* socket, void* context) {
   // routine that the socket is no longer desired and should be torn
   // down.
   if (sco_socket->connect_completed || sco_socket == listen_sco_socket) {
-    if (BTM_RemoveSco(sco_socket->sco_handle) == BTM_SUCCESS)
+    //if (BTM_RemoveSco(sco_socket->sco_handle) == BTM_SUCCESS)
       list_remove(sco_sockets, sco_socket);
     if (sco_socket == listen_sco_socket) listen_sco_socket = NULL;
   }

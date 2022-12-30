@@ -19,7 +19,7 @@
 /*******************************************************************************
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) [2022-2023] Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  *
  *******************************************************************************/
@@ -35,16 +35,16 @@
 #define LOG_TAG "BTIF_HD"
 
 #include <errno.h>
-#include <hardware/bluetooth.h>
-#include <hardware/bt_hd.h>
-#include <log/log.h>
+//#include <hardware/bluetooth.h>
+//#include <hardware/bt_hd.h>
+//#include <log/log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "bta_api.h"
-#include "bta_hd_api.h"
-#include "bta_hh_api.h"
+//#include "bta_api.h"
+//#include "bta_hd_api.h"
+//#include "bta_hh_api.h"
 
 #include "btif_common.h"
 #include "btif_hd.h"
@@ -60,7 +60,7 @@
 #define COD_HID_POINTING 0x0580
 #define COD_HID_COMBO 0x05C0
 #define COD_HID_MAJOR 0x0500
-
+#if 0
 extern bool bta_dm_check_if_only_hd_connected(const RawAddress& peer_addr);
 extern bool check_cod_hid(const RawAddress* remote_bdaddr);
 extern void btif_hh_service_registration(bool enable);
@@ -70,12 +70,13 @@ typedef enum { BTIF_HD_DUMMY_REQ_EVT = 0 } btif_hd_req_evt_t;
 
 btif_hd_cb_t btif_hd_cb;
 
-static bthd_callbacks_t* bt_hd_callbacks = NULL;
+//static bthd_callbacks_t* bt_hd_callbacks = NULL;
 static tBTA_HD_APP_INFO app_info;
 static tBTA_HD_QOS_INFO in_qos;
 static tBTA_HD_QOS_INFO out_qos;
 
 static void intr_data_copy_cb(uint16_t event, char* p_dst, char* p_src) {
+	#if 0
   tBTA_HD_INTR_DATA* p_dst_data = (tBTA_HD_INTR_DATA*)p_dst;
   tBTA_HD_INTR_DATA* p_src_data = (tBTA_HD_INTR_DATA*)p_src;
   uint8_t* p_data;
@@ -91,9 +92,11 @@ static void intr_data_copy_cb(uint16_t event, char* p_dst, char* p_src) {
   memcpy(p_data, p_src_data->p_data, p_src_data->len);
 
   p_dst_data->p_data = p_data;
+  #endif
 }
 
 static void set_report_copy_cb(uint16_t event, char* p_dst, char* p_src) {
+	#if 0
   tBTA_HD_SET_REPORT* p_dst_data = (tBTA_HD_SET_REPORT*)p_dst;
   tBTA_HD_SET_REPORT* p_src_data = (tBTA_HD_SET_REPORT*)p_src;
   uint8_t* p_data;
@@ -109,6 +112,7 @@ static void set_report_copy_cb(uint16_t event, char* p_dst, char* p_src) {
   memcpy(p_data, p_src_data->p_data, p_src_data->len);
 
   p_dst_data->p_data = p_data;
+  #endif
 }
 
 static void btif_hd_free_buf() {
@@ -146,6 +150,7 @@ void btif_hd_remove_device(RawAddress bd_addr) {
  *
  ******************************************************************************/
 static void btif_hd_upstreams_evt(uint16_t event, char* p_param) {
+	#if 0
   tBTA_HD* p_data = (tBTA_HD*)p_param;
 
   BTIF_TRACE_API("%s: event=%s", __func__, dump_hd_event(event));
@@ -286,6 +291,7 @@ static void btif_hd_upstreams_evt(uint16_t event, char* p_param) {
       BTIF_TRACE_WARNING("%s: unknown event (%d)", __func__, event);
       break;
   }
+  #endif
 }
 
 /*******************************************************************************
@@ -299,6 +305,7 @@ static void btif_hd_upstreams_evt(uint16_t event, char* p_param) {
  ******************************************************************************/
 
 static void bte_hd_evt(tBTA_HD_EVT event, tBTA_HD* p_data) {
+	#if 0
   bt_status_t status;
   int param_len = 0;
   tBTIF_COPY_CBACK* p_copy_cback = NULL;
@@ -346,6 +353,7 @@ static void bte_hd_evt(tBTA_HD_EVT event, tBTA_HD* p_data) {
                                  (char*)p_data, param_len, p_copy_cback);
 
   ASSERTC(status == BT_STATUS_SUCCESS, "context transfer failed", status);
+  #endif
 }
 
 /*******************************************************************************
@@ -359,12 +367,12 @@ static void bte_hd_evt(tBTA_HD_EVT event, tBTA_HD* p_data) {
  ******************************************************************************/
 static bt_status_t init(bthd_callbacks_t* callbacks) {
   BTIF_TRACE_API("%s", __func__);
-
+#if 0
   bt_hd_callbacks = callbacks;
   memset(&btif_hd_cb, 0, sizeof(btif_hd_cb));
 
   btif_enable_service(BTA_HIDD_SERVICE_ID);
-
+#endif
   return BT_STATUS_SUCCESS;
 }
 
@@ -379,13 +387,14 @@ static bt_status_t init(bthd_callbacks_t* callbacks) {
  ******************************************************************************/
 static void cleanup(void) {
   BTIF_TRACE_API("hd:%s", __func__);
-
+#if 0
   if (bt_hd_callbacks) {
     /* update flag, not to enable hid host service now as BT is switching off */
     btif_hd_cb.service_dereg_active = FALSE;
     btif_disable_service(BTA_HIDD_SERVICE_ID);
     bt_hd_callbacks = NULL;
   }
+#endif  
 }
 
 /*******************************************************************************
@@ -401,7 +410,7 @@ static bt_status_t register_app(bthd_app_param_t* p_app_param,
                                 bthd_qos_param_t* p_in_qos,
                                 bthd_qos_param_t* p_out_qos) {
   BTIF_TRACE_API("%s", __func__);
-
+#if 0
   if (btif_hd_cb.app_registered) {
     BTIF_TRACE_WARNING("%s: application already registered", __func__);
     return BT_STATUS_BUSY;
@@ -443,7 +452,7 @@ static bt_status_t register_app(bthd_app_param_t* p_app_param,
   /* register HID Device with L2CAP and unregister HID Host with L2CAP */
   /* Disable HH */
   btif_hh_service_registration(FALSE);
-
+#endif
   return BT_STATUS_SUCCESS;
 }
 
@@ -548,6 +557,7 @@ static bt_status_t disconnect(void) {
  ******************************************************************************/
 static bt_status_t send_report(bthd_report_type_t type, uint8_t id,
                                uint16_t len, uint8_t* p_data) {
+#if 0  
   tBTA_HD_REPORT report;
 
   APPL_TRACE_VERBOSE("%s: type=%d id=%d len=%d", __func__, type, id, len);
@@ -576,7 +586,7 @@ static bt_status_t send_report(bthd_report_type_t type, uint8_t id,
   report.p_data = p_data;
 
   BTA_HdSendReport(&report);
-
+#endif
   return BT_STATUS_SUCCESS;
 }
 
@@ -591,7 +601,7 @@ static bt_status_t send_report(bthd_report_type_t type, uint8_t id,
  ******************************************************************************/
 static bt_status_t report_error(uint8_t error) {
   BTIF_TRACE_API("%s", __func__);
-
+#if 0
   if (!btif_hd_cb.app_registered) {
     BTIF_TRACE_WARNING("%s: application not yet registered", __func__);
     return BT_STATUS_NOT_READY;
@@ -604,7 +614,7 @@ static bt_status_t report_error(uint8_t error) {
   }
 
   BTA_HdReportError(error);
-
+#endif
   return BT_STATUS_SUCCESS;
 }
 
@@ -619,7 +629,7 @@ static bt_status_t report_error(uint8_t error) {
  ******************************************************************************/
 static bt_status_t virtual_cable_unplug(void) {
   BTIF_TRACE_API("%s", __func__);
-
+#if 0
   if (!btif_hd_cb.app_registered) {
     BTIF_TRACE_WARNING("%s: application not yet registered", __func__);
     return BT_STATUS_NOT_READY;
@@ -632,10 +642,10 @@ static bt_status_t virtual_cable_unplug(void) {
   }
 
   BTA_HdVirtualCableUnplug();
-
+#endif
   return BT_STATUS_SUCCESS;
 }
-
+/*
 static const bthd_interface_t bthdInterface = {
     sizeof(bthdInterface),
     init,
@@ -647,7 +657,7 @@ static const bthd_interface_t bthdInterface = {
     send_report,
     report_error,
     virtual_cable_unplug,
-};
+};*/
 
 /*******************************************************************************
  *
@@ -661,7 +671,7 @@ static const bthd_interface_t bthdInterface = {
 bt_status_t btif_hd_execute_service(bool b_enable) {
   BTIF_TRACE_API("%s: b_enable=%d", __func__, b_enable);
 
-  if (!b_enable) BTA_HdDisable();
+ // if (!b_enable) BTA_HdDisable();
 
   return BT_STATUS_SUCCESS;
 }
@@ -692,7 +702,8 @@ const bthd_interface_t* btif_hd_get_interface() {
 void btif_hd_service_registration() {
   BTIF_TRACE_API("%s", __func__);
   /* enable HD */
-  if (bt_hd_callbacks != NULL) {
-    BTA_HdEnable(bte_hd_evt);
-  }
+  //if (bt_hd_callbacks != NULL) {
+   // BTA_HdEnable(bte_hd_evt);
+  //}
 }
+#endif

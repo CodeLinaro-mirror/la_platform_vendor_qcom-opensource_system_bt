@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 #ifndef BTIF_HH_H
@@ -27,6 +31,7 @@
 #include <stdint.h>
 #include "bta_hh_api.h"
 #include "btu.h"
+#include "osi/include/alarm.h"
 #if (OFF_TARGET_TEST_ENABLED == FALSE)
   #if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 18, 00))
     #include "osi/include/fixed_queue.h"
@@ -77,15 +82,15 @@ typedef struct {
   bool ready_for_data;
   pthread_t hh_poll_thread_id;
   uint8_t hh_keep_polling;
-  alarm_t* vup_timer;
+  //alarm_t* vup_timer;
 #if (OFF_TARGET_TEST_ENABLED == FALSE)
   #if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 18, 00))
-    fixed_queue_t* set_rpt_id_queue;
-    fixed_queue_t* get_rpt_id_queue;
+   // fixed_queue_t* set_rpt_id_queue;
+    //fixed_queue_t* get_rpt_id_queue;
   #endif             //  (LINUX_VERSION_CODE > KERNEL_VERSION(3,18,00))
 #else
-  fixed_queue_t* set_rpt_id_queue;
-  fixed_queue_t* get_rpt_id_queue;
+  //fixed_queue_t* set_rpt_id_queue;
+  //fixed_queue_t* get_rpt_id_queue;
 #endif               //OFF_TARGET_TEST_ENABLED
   bool local_vup;  // Indicated locally initiated VUP
   uint8_t last_output_rpt_data[UHID_DATA_MAX];

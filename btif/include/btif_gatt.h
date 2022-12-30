@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 /*****************************************************************************
@@ -27,11 +31,11 @@
 #ifndef BTIF_GATT_H
 #define BTIF_GATT_H
 
-#include "include/hardware/bt_gatt.h"
+//#include "include/hardware/bt_gatt.h"
 
-extern const btgatt_client_interface_t btgattClientInterface;
-extern const btgatt_server_interface_t btgattServerInterface;
+//extern const btgatt_client_interface_t btgattClientInterface;
+//extern const btgatt_server_interface_t btgattServerInterface;
 
-BleAdvertiserInterface* get_ble_advertiser_instance();
-BleScannerInterface* get_ble_scanner_instance();
+//BleAdvertiserInterface* get_ble_advertiser_instance();
+//BleScannerInterface* get_ble_scanner_instance();
 #endif

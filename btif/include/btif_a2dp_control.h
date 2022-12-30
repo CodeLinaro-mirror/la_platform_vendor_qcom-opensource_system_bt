@@ -15,12 +15,16 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 #ifndef BTIF_A2DP_CONTROL_H
 #define BTIF_A2DP_CONTROL_H
 
-#include "audio_a2dp_hw/include/audio_a2dp_hw.h"
+//#include "audio_a2dp_hw/include/audio_a2dp_hw.h"
 
 // Initialize the A2DP control module. It should be called during the
 // startup stage of A2DP streaming.

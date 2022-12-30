@@ -18,6 +18,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 /*****************************************************************************
@@ -32,9 +36,9 @@
 
 #include "btif_sm.h"
 
-#include "bt_common.h"
+#include "internal_include/bt_common.h"
 #include "btif_common.h"
-#include "osi/include/allocator.h"
+//#include "osi/include/allocator.h"
 
 /*****************************************************************************
  *  Local type definitions
@@ -69,7 +73,7 @@ btif_sm_handle_t btif_sm_init(const btif_sm_handler_t* p_handlers,
     return NULL;
   }
 
-  btif_sm_cb_t* p_cb = (btif_sm_cb_t*)osi_malloc(sizeof(btif_sm_cb_t));
+  btif_sm_cb_t* p_cb = (btif_sm_cb_t*)malloc(sizeof(btif_sm_cb_t));
   p_cb->state = initial_state;
   p_cb->p_handlers = (btif_sm_handler_t*)p_handlers;
   p_cb->index = index;
@@ -96,7 +100,7 @@ void btif_sm_shutdown(btif_sm_handle_t handle) {
     BTIF_TRACE_ERROR("%s : Invalid handle", __func__);
     return;
   }
-  osi_free(p_cb);
+  free(p_cb);
 }
 
 /*****************************************************************************

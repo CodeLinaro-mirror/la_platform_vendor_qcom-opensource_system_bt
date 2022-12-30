@@ -18,7 +18,7 @@
 /*******************************************************************************
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) [2022-2023] Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  *
  *******************************************************************************/
@@ -114,7 +114,7 @@ typedef struct hid_kb_list {
   uint16_t version_id;
   const char* kb_name;
 } tHID_KB_LIST;
-
+#if 0
 /*******************************************************************************
  *  Static variables
  ******************************************************************************/
@@ -1859,3 +1859,4 @@ const bthh_interface_t* btif_hh_get_interface() {
   BTIF_TRACE_EVENT("%s", __func__);
   return &bthhInterface;
 }
+#endif

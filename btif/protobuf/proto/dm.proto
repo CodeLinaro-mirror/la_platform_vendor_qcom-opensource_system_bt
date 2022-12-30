@@ -1,0 +1,385 @@
+/*
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear.
+ */
+// This defines protocol for Slate - Atherton interactions
+// Atherton calls into this via Glink
+
+syntax = "proto2";
+package bluetooth.synergy.SynergyProto;
+
+/** Bluetooth Adapter State */
+enum ss_bt_state_t {
+    SS_BT_STATE_OFF = 0;
+    SS_BT_STATE_ON = 1;
+}
+
+/** Bluetooth Enable/Disable Callback. */
+//typedef void (*adapter_state_changed_callback)(bt_state_t state);
+message ss_adapter_state_changed_callback {
+    required ss_bt_state_t state = 1;
+}
+
+/** Bluetooth SSP Bonding Variant */
+enum ss_bt_ssp_variant_t {
+	SS_BT_SSP_VARIANT_PASSKEY_CONFIRMATION = 0;
+	SS_BT_SSP_VARIANT_PASSKEY_ENTRY = 1;
+	SS_BT_SSP_VARIANT_CONSENT = 2;
+	SS_BT_SSP_VARIANT_PASSKEY_NOTIFICATION = 3;
+}
+
+/** Bluetooth Error Status */
+/** We need to build on this */
+enum ss_bt_status_t {
+	SS_BT_STATUS_SUCCESS = 0;
+	SS_BT_STATUS_FAIL = 1;
+	SS_BT_STATUS_NOT_READY = 2;
+	SS_BT_STATUS_NOMEM = 3;
+	SS_BT_STATUS_BUSY = 4;
+	SS_BT_STATUS_DONE = 5; /* request already completed */
+	SS_BT_STATUS_UNSUPPORTED = 6;
+	SS_BT_STATUS_PARM_INVALID = 7;
+	SS_BT_STATUS_UNHANDLED = 8;
+	SS_BT_STATUS_AUTH_FAILURE = 9;
+	SS_BT_STATUS_RMT_DEV_DOWN = 10;
+	SS_BT_STATUS_AUTH_REJECTED = 11;
+	SS_BT_STATUS_JNI_ENVIRONMENT_ERROR = 12;
+	SS_BT_STATUS_JNI_THREAD_ATTACH_ERROR = 13;
+	SS_BT_STATUS_WAKELOCK_ERROR =14;
+}
+
+/** Bluetooth Adapter Discovery state */
+enum ss_bt_discovery_state_t {
+	SS_BT_DISCOVERY_STOPPED = 0;
+	SS_BT_DISCOVERY_STARTED = 1;
+}
+
+/* Bluetooth Adapter and Remote Device property types */
+enum ss_bt_property_type_t {
+   
+  /* Properties common to both adapter and remote device */
+  /**
+   * Description - Bluetooth Device Name
+   * Access mode - Adapter name can be GET/SET. Remote device can be GET
+   * Data type   - bt_bdname_t
+   */
+  SS_BT_PROPERTY_BDNAME = 1;
+  /**
+   * Description - Bluetooth Device Address
+   * Access mode - Only GET.
+   * Data type   - RawAddress
+   */
+  SS_BT_PROPERTY_BDADDR = 2;
+  /**
+   * Description - Bluetooth Service 128-bit UUIDs
+   * Access mode - Only GET.
+   * Data type   - Array of bluetooth::Uuid (Array size inferred from property
+   *               length).
+   */
+  SS_BT_PROPERTY_UUIDS = 3;
+  /**
+   * Description - Bluetooth Class of Device as found in Assigned Numbers
+   * Access mode - Only GET.
+   * Data type   - uint32_t.
+   */
+  SS_BT_PROPERTY_CLASS_OF_DEVICE = 4;
+  /**
+   * Description - Device Type - BREDR, BLE or DUAL Mode
+   * Access mode - Only GET.
+   * Data type   - bt_device_type_t
+   */
+  SS_BT_PROPERTY_TYPE_OF_DEVICE = 5;
+  /**
+   * Description - Bluetooth Service Record
+   * Access mode - Only GET.
+   * Data type   - bt_service_record_t
+   */
+  SS_BT_PROPERTY_SERVICE_RECORD = 6;
+
+  /* Properties unique to adapter */
+  /**
+   * Description - Bluetooth Adapter scan mode
+   * Access mode - GET and SET
+   * Data type   - bt_scan_mode_t.
+   */
+  SS_BT_PROPERTY_ADAPTER_SCAN_MODE = 7;
+  /**
+   * Description - List of bonded devices
+   * Access mode - Only GET.
+   * Data type   - Array of RawAddress of the bonded remote devices
+   *               (Array size inferred from property length).
+   */
+  SS_BT_PROPERTY_ADAPTER_BONDED_DEVICES = 8;
+  /**
+   * Description - Bluetooth Adapter Discovery timeout (in seconds)
+   * Access mode - GET and SET
+   * Data type   - uint32_t
+   */
+  SS_BT_PROPERTY_ADAPTER_DISCOVERY_TIMEOUT = 9;
+
+  /* Properties unique to remote device */
+  /**
+   * Description - User defined friendly name of the remote device
+   * Access mode - GET and SET
+   * Data type   - bt_bdname_t.
+   */
+  SS_BT_PROPERTY_REMOTE_FRIENDLY_NAME = 10;
+  /**
+   * Description - RSSI value of the inquired remote device
+   * Access mode - Only GET.
+   * Data type   - int8_t.
+   */
+  SS_BT_PROPERTY_REMOTE_RSSI = 11;
+  /**
+   * Description - Remote version info
+   * Access mode - SET/GET.
+   * Data type   - bt_remote_version_t.
+   */
+  SS_BT_PROPERTY_REMOTE_VERSION_INFO = 12;
+  /**
+   * Description - Local LE features
+   * Access mode - GET.
+   * Data type   - bt_local_le_features_t.
+   */
+  SS_BT_PROPERTY_LOCAL_LE_FEATURES = 13;
+
+  SS_BT_PROPERTY_REMOTE_DEVICE_TIMESTAMP = 0xFF;
+}
+
+/** Bluetooth Bond state */
+enum  ss_bt_bond_state_t {
+  SS_BT_BOND_STATE_NONE_ = 0;
+  SS_BT_BOND_STATE_BONDING = 1;
+  SS_BT_BOND_STATE_BONDED = 2;
+}
+
+/** Bluetooth ACL connection state */
+enum ss_bt_acl_state_t {
+  SS_BT_ACL_STATE_CONNECTED = 0;
+  SS_BT_ACL_STATE_DISCONNECTED = 1;
+}
+
+/** Bluetooth Device Name */
+message  ss_bt_bdname_t {
+    optional bytes name = 1;
+}
+/** Bluetooth Adapter Property data structure */
+message ss_bt_property_t {
+  required ss_bt_property_type_t type = 1;
+  required int32 len = 2;
+  optional bytes val = 3;
+}
+
+/** Bluetooth Scan Mode */
+enum  ss_bt_scan_mode_t {
+  SS_BT_SCAN_MODE_NONE = 0;
+  SS_BT_SCAN_MODE_CONNECTABLE = 1;
+  SS_BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE = 2;
+}
+
+/** Bluetooth Out Of Band data for bonding */
+message ss_bt_out_of_band_data_t {
+	required bytes le_bt_dev_addr = 1; /* LE Bluetooth Device Address */
+	required bytes c192 = 2;          /* Simple Pairing Hash C-192 */
+	required bytes r192 = 3;          /* Simple Pairing Randomizer R-192 */
+	required bytes c256 = 4;          /* Simple Pairing Hash C-256 */
+	required bytes r256 = 5;          /* Simple Pairing Randomizer R-256 */
+	required bytes sm_tk = 6;         /* Security Manager TK Value */
+	required bytes le_sc_c = 7;       /* LE Secure Connections Confirmation Value */
+	required bytes le_sc_r = 8;       /* LE Secure Connections Random Value */
+}
+
+/** Bluetooth PinKey Code */
+message ss_bt_pin_code_t {
+	required bytes pin = 1;
+}
+
+/** Set Bluetooth Adapter property of 'type' */
+  /* Based on the type, val shall be one of
+   * RawAddress or bt_bdname_t or bt_scanmode_t etc
+   */
+message ss_set_adapter_property {
+  required ss_bt_property_t property = 1;  //TODO - need to check whether this is needed repeated or not
+}
+
+/** Get Bluetooth Adapter property of 'type' */
+message ss_get_adapter_property {
+    required ss_bt_property_type_t type = 1;
+}
+
+/** Get all Remote Device properties */
+message ss_get_remote_device_properties {
+	required bytes remote_addr = 1;
+}
+
+/** Get Remote Device property of 'type' */
+message ss_get_remote_device_property {
+	required bytes remote_addr = 1;
+	required ss_bt_property_type_t type = 2;
+}
+
+/** Set Remote Device property of 'type' */
+message ss_set_remote_device_property {
+	required bytes remote_addr = 1;
+	required ss_bt_property_t property = 2;
+}
+
+/** Get Remote Device's service record  for the given UUID */
+message ss_get_remote_service_record {
+	required bytes remote_addr = 1;
+	required bytes uuid = 2;
+}
+
+/** Start SDP to get remote services */
+message ss_get_remote_services {
+	required bytes remote_addr = 1;
+}
+
+/** Discovery state changed callback */
+message ss_discovery_state_changed_callback {
+    required ss_bt_discovery_state_t state = 1;
+}
+
+message ss_create_bond {
+	required bytes bd_addr = 1;
+	required int32 transport = 2;
+}
+
+/** Create Bluetooth Bond using out of band data */
+message ss_create_bond_out_of_band {
+	required bytes bd_addr = 1;
+	required int32 transport = 2;
+	required ss_bt_out_of_band_data_t oob_data = 3;
+}
+
+message ss_remove_bond {
+	required bytes bd_addr = 1;	
+}
+
+message ss_cancel_bond {
+	required bytes bd_addr = 1;
+}
+
+message ss_get_connection_state {
+	required bytes bd_addr = 1;
+}
+
+message ss_pin_reply {
+	required bytes bd_addr = 1;
+	required bool accept = 2;
+	required uint32 pin_len = 3;
+	required ss_bt_pin_code_t pin_code = 4;
+}
+
+/** BT SSP Reply - Just Works, Numeric Comparison and Passkey
+   * passkey shall be zero for BT_SSP_VARIANT_PASSKEY_COMPARISON &
+   * BT_SSP_VARIANT_CONSENT
+   * For BT_SSP_VARIANT_PASSKEY_ENTRY, if accept==FALSE, then passkey
+   * shall be zero */
+message ss_ssp_reply {
+	required bytes bd_addr = 1;
+	required ss_bt_ssp_variant_t variant = 2;
+	required bool accept = 3;
+	required uint32 passkey = 4;
+}
+
+/** Get Bluetooth profile interface */
+message ss_get_profile_interface {
+	required bytes profile_id = 1;
+}
+
+/** GET/SET Adapter Properties callback */
+/* TODO: For the GET/SET property APIs/callbacks, we may need a session
+* identifier to associate the call with the callback. This would be needed
+* whenever more than one simultaneous instance of the same adapter_type
+* is get/set.
+*
+* If this is going to be handled in the Java framework, then we do not need
+* to manage sessions here.
+*/
+message ss_adapter_properties_callback {
+	required ss_bt_status_t status = 1;
+	required int32 num_properties = 2;
+	repeated ss_bt_property_t properties = 3;
+}
+
+message ss_bt_local_le_features_callback {
+  required int32 version_supported = 1;
+  required int32 local_privacy_enabled = 2;
+  required int32 max_adv_instance = 3;
+  required int32 rpa_offload_supported = 4;
+  required int32 max_irk_list_size = 5;
+  required int32 max_adv_filter_supported = 6;
+  required int32 activity_energy_info_supported = 7;
+  required int32 scan_result_storage_size = 8;
+  required int32 total_trackable_advertisers = 9;
+  required bool extended_scan_support = 10;
+  required bool debug_logging_supported = 11;
+  required bool le_2m_phy_supported = 12;
+  required bool le_coded_phy_supported = 13;
+  required bool le_extended_advertising_supported = 14;
+  required bool le_periodic_advertising_supported = 15;
+  required int32 le_maximum_advertising_data_length = 16;
+  required uint32 dynamic_audio_buffer_supported = 17;
+  required bool le_periodic_advertising_sync_transfer_sender_supported = 18;
+  required bool le_connected_isochronous_stream_central_supported = 19;
+  required bool le_isochronous_broadcast_supported = 20;
+  required bool le_periodic_advertising_sync_transfer_recipient_supported = 21;
+}
+
+/** GET/SET Remote Device Properties callback */
+/** TODO: For remote device properties, do not see a need to get/set
+* multiple properties - num_properties shall be 1
+*/
+message ss_remote_device_properties_callback {
+	required ss_bt_status_t status = 1;
+	required bytes bd_addr = 2;
+	required int32 num_properties = 3;
+	repeated ss_bt_property_t properties = 4;
+}
+
+/** New device discovered callback */
+/** If EIR data is not present, then BD_NAME and RSSI shall be NULL and -1
+ * respectively */
+message ss_device_found_callback {
+	required int32 num_properties = 1;
+	repeated ss_bt_property_t properties = 2;
+}
+
+/** Bluetooth Legacy PinKey Request callback */
+message ss_pin_request_callback {
+    required bytes remote_bd_addr = 1;
+    optional ss_bt_bdname_t bd_name = 2;
+    required int32 cod = 3;
+    required bool min_16_digit = 4;
+}
+
+/** Bluetooth SSP Request callback - Just Works & Numeric Comparison*/
+/** pass_key - Shall be 0 for BT_SSP_PAIRING_VARIANT_CONSENT &
+ *  BT_SSP_PAIRING_PASSKEY_ENTRY */
+/* TODO: Passkey request callback shall not be needed for devices with display
+ * capability. We still need support this in the stack for completeness */
+message ss_ssp_request_callback {
+    required bytes remote_bd_addr = 1;
+    optional ss_bt_bdname_t bdname = 2;
+    required uint32 cod =3;
+    required ss_bt_ssp_variant_t pairing_variant = 4;
+    required uint32 pass_key = 5;
+}
+
+/** Bluetooth Bond state changed callback */
+/* Invoked in response to create_bond, cancel_bond or remove_bond */
+message ss_bond_state_changed_callback {
+    required ss_bt_status_t status = 1;
+    required bytes remote_bd_addr = 2;
+    required ss_bt_bond_state_t state = 3;
+    required int32 fail_reason = 4;
+}
+
+/** Bluetooth ACL connection state changed callback */
+message ss_acl_state_changed_callback {
+    required ss_bt_status_t status = 1;
+    required bytes remote_bd_addr = 2;
+    required ss_bt_acl_state_t state = 3;
+    required uint32 hci_reason = 4;
+}

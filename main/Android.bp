@@ -1,161 +1,162 @@
-soong_namespace {
-}
-
-soong_config_module_type_import {
-    from: "device/qcom/qssi/Android.bp",
-    module_types: [
-         "bredr_vs_btadva_cc_defaults",
-         "aosp_vs_qva_cc_defaults",
-    ],
-}
-
-bredr_vs_btadva_cc_defaults {
-    name: "btadva_main_cc-default",
-
-    soong_config_variables: {
-        bredr_or_btadva: {
-           btadva: {
-              include_dirs: [
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/system/bt/bta/include",
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/vhal/include",
-              ],
-              whole_static_libs: [
-                 "libbt-btif_qti_adva",
-                 "libbt-bta_qti_adva",
-              ],
-              cflags: [
-                 "-DADV_AUDIO_FEATURE=1",
-              ],
-              required: ["leaudio_configs.xml"],
-           }
-       }
-   }
-}
-
-aosp_vs_qva_cc_defaults {
-     name: "qva_cc_defaults",
-     soong_config_variables: {
-         aosp_or_qva: {
-           qva: {
-             static_libs: [
-                "libbt-sbc-encoder",
-                "libbt-sbc-decoder",
-             ],
-           }
-        }
-    }
-}
-
-
-// Bluetooth main HW module / shared library for target
-// ========================================================
-cc_library_shared {
-    name: "libbluetooth_qti",
-    defaults: ["fluoride_defaults_qti", "btadva_main_cc-default", "qva_cc_defaults"],
-    header_libs: ["libbluetooth_headers"],
-    export_header_lib_headers: ["libbluetooth_headers"],
-    system_ext_specific: true,
-    srcs: [
-        // platform specific
-        "bte_conf.cc",
-        "bte_init.cc",
-        "bte_init_cpp_logging.cc",
-        "bte_logmsg.cc",
-        "bte_main.cc",
-        "stack_config.cc",
-    ],
-    include_dirs: [
-        "vendor/qcom/opensource/commonsys/system/bt",
-        "vendor/qcom/opensource/commonsys/system/bt/bta/include",
-        "vendor/qcom/opensource/commonsys/system/bt/bta/sys",
-        "vendor/qcom/opensource/commonsys/system/bt/bta/dm",
-        "vendor/qcom/opensource/commonsys/system/bt/btcore/include",
-        "vendor/qcom/opensource/commonsys/system/bt/internal_include",
-        "vendor/qcom/opensource/commonsys/system/bt/stack/include",
-        "vendor/qcom/opensource/commonsys/system/bt/stack/l2cap",
-        "vendor/qcom/opensource/commonsys/system/bt/stack/a2dp",
-        "vendor/qcom/opensource/commonsys/system/bt/stack/btm",
-        "vendor/qcom/opensource/commonsys/system/bt/stack/avdt",
-        "vendor/qcom/opensource/commonsys/system/bt/udrv/include",
-        "vendor/qcom/opensource/commonsys/system/bt/btif/include",
-        "vendor/qcom/opensource/commonsys/system/bt/btif/co",
-        "vendor/qcom/opensource/commonsys/system/bt/hci/include",
-        "vendor/qcom/opensource/commonsys/system/bt/vnd/include",
-        "packages/modules/Bluetooth/system/embdrv/sbc/encoder/include",
-        "packages/modules/Bluetooth/system/embdrv/sbc/decoder/include",
-        "vendor/qcom/opensource/commonsys/system/bt/utils/include",
-        "vendor/qcom/opensource/commonsys/bluetooth_ext/vhal/include",
-        "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext",
-        "system/security/keystore/include",
-        "hardware/interfaces/keymaster/4.0/support/include",
-    ],
-    logtags: ["../EventLogTags.logtags"],
-    shared_libs: [
-        "android.hardware.bluetooth@1.0",
-        "android.hardware.bluetooth@1.1",
-        "com.qualcomm.qti.bluetooth_audio@1.0",
-        "vendor.qti.hardware.bluetooth_audio@2.0",
-        "vendor.qti.hardware.bluetooth_audio@2.1",
-        "android.hardware.bluetooth.audio-V3-ndk",
-        "libbinder_ndk",
-        "android.hardware.audio.common-V1-ndk",
-        "vendor.qti.hardware.bluetooth.audio-V1-ndk",
-        "libaaudio",
-        "libcutils",
-        "libdl",
-        "libfmq",
-        "libhidlbase",
-        "liblog",
-        "libprotobuf-cpp-lite",
-        "libprocessgroup",
-        "libutils",
-        "libtinyxml2",
-        "libz",
-        "libcrypto",
-        "libbtconfigstore",
-        "libxml2",
-    ],
-    static_libs: [
-        "libFraunhoferAAC",
-        "libudrv-uipc_qti",
-        "libg722codec_qti",
-    ],
-    whole_static_libs: [
-        "libbt-bta_qti",
-        "libbtdevice_qti",
-        "libbt-bta-ext",
-        "libbtdevice_ext",
-        "libbt-stack_ext",
-        "libbtif_qti",
-        "libbtif_ext",
-        "libbt-hci_qti",
-        "libbt-protos_qti",
-        "libbt-stack_qti",
-        "libbt-utils_qti",
-        "libbtcore_qti",
-        "libosi_qti",
-        "libbt-stack_ext",
-        "libosi_ext",
-    ],
-    // Shared library link options.
-    // References to global symbols and functions should bind to the library
-    // itself. This is to avoid issues with some of the unit/system tests
-    // that might link statically with some of the code in the library, and
-    // also dlopen(3) the shared library.
-    ldflags: ["-Wl,-Bsymbolic,-Bsymbolic-functions"],
-    required: [
-        "bt_did.conf",
-        "bt_stack.conf",
-        "interop_database.conf",
-        "bt_profile.conf",
-        "libbt-hci_qti",
-        "libldacBT_enc",
-        "libldacBT_abr",
-    ],
-    cflags: [
-        "-DBUILDCFG",
-    ],
-    sanitize: {
-        scs: true,
-    },
-}
+//soong_namespace {
+//}
+//
+//soong_config_module_type_import {
+//    from: "device/qcom/qssi/Android.bp",
+//    module_types: [
+//         "bredr_vs_btadva_cc_defaults",
+//         "aosp_vs_qva_cc_defaults",
+//    ],
+//}
+//
+//bredr_vs_btadva_cc_defaults {
+//    name: "btadva_main_cc-default",
+//
+//    soong_config_variables: {
+//        bredr_or_btadva: {
+//           btadva: {
+//              include_dirs: [
+//                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/system/bt/bta/include",
+//                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/vhal/include",
+//              ],
+//              whole_static_libs: [
+//                 "libbt-btif_qti_adva",
+//                 "libbt-bta_qti_adva",
+//              ],
+//              cflags: [
+//                 "-DADV_AUDIO_FEATURE=1",
+//              ],
+//              required: ["leaudio_configs.xml"],
+//           }
+//       }
+//   }
+//}
+//
+//aosp_vs_qva_cc_defaults {
+//     name: "qva_cc_defaults",
+//     soong_config_variables: {
+//         aosp_or_qva: {
+//           qva: {
+//             static_libs: [
+//                "libbt-sbc-encoder",
+//                "libbt-sbc-decoder",
+//             ],
+//           }
+//        }
+//    }
+//}
+//
+//
+//// Bluetooth main HW module / shared library for target
+//// ========================================================
+//<<<<<<< HEAD
+//cc_library_shared {
+//    name: "libbluetooth_qti",
+//    defaults: ["fluoride_defaults_qti", "btadva_main_cc-default", "qva_cc_defaults"],
+//    header_libs: ["libbluetooth_headers"],
+//    export_header_lib_headers: ["libbluetooth_headers"],
+//    system_ext_specific: true,
+//    srcs: [
+//        // platform specific
+//        "bte_conf.cc",
+//        "bte_init.cc",
+//        "bte_init_cpp_logging.cc",
+//        "bte_logmsg.cc",
+//        "bte_main.cc",
+//        "stack_config.cc",
+//    ],
+//    include_dirs: [
+//        "vendor/qcom/opensource/commonsys/system/bt",
+//        "vendor/qcom/opensource/commonsys/system/bt/bta/include",
+//        "vendor/qcom/opensource/commonsys/system/bt/bta/sys",
+//        "vendor/qcom/opensource/commonsys/system/bt/bta/dm",
+//        "vendor/qcom/opensource/commonsys/system/bt/btcore/include",
+//        "vendor/qcom/opensource/commonsys/system/bt/internal_include",
+//        "vendor/qcom/opensource/commonsys/system/bt/stack/include",
+//        "vendor/qcom/opensource/commonsys/system/bt/stack/l2cap",
+//        "vendor/qcom/opensource/commonsys/system/bt/stack/a2dp",
+//        "vendor/qcom/opensource/commonsys/system/bt/stack/btm",
+//        "vendor/qcom/opensource/commonsys/system/bt/stack/avdt",
+//        "vendor/qcom/opensource/commonsys/system/bt/udrv/include",
+//        "vendor/qcom/opensource/commonsys/system/bt/btif/include",
+//        "vendor/qcom/opensource/commonsys/system/bt/btif/co",
+//        "vendor/qcom/opensource/commonsys/system/bt/hci/include",
+//        "vendor/qcom/opensource/commonsys/system/bt/vnd/include",
+//        "packages/modules/Bluetooth/system/embdrv/sbc/encoder/include",
+//        "packages/modules/Bluetooth/system/embdrv/sbc/decoder/include",
+//        "vendor/qcom/opensource/commonsys/system/bt/utils/include",
+//        "vendor/qcom/opensource/commonsys/bluetooth_ext/vhal/include",
+//        "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext",
+//        "system/security/keystore/include",
+//        "hardware/interfaces/keymaster/4.0/support/include",
+//    ],
+//    logtags: ["../EventLogTags.logtags"],
+//    shared_libs: [
+//        "android.hardware.bluetooth@1.0",
+//        "android.hardware.bluetooth@1.1",
+//        "com.qualcomm.qti.bluetooth_audio@1.0",
+//        "vendor.qti.hardware.bluetooth_audio@2.0",
+//        "vendor.qti.hardware.bluetooth_audio@2.1",
+//        "android.hardware.bluetooth.audio-V3-ndk",
+//        "libbinder_ndk",
+//        "android.hardware.audio.common-V1-ndk",
+//        "vendor.qti.hardware.bluetooth.audio-V1-ndk",
+//        "libaaudio",
+//        "libcutils",
+//        "libdl",
+//        "libfmq",
+//        "libhidlbase",
+//        "liblog",
+//        "libprotobuf-cpp-lite",
+//        "libprocessgroup",
+//        "libutils",
+//        "libtinyxml2",
+//        "libz",
+//        "libcrypto",
+//        "libbtconfigstore",
+//        "libxml2",
+//    ],
+//    static_libs: [
+//        "libFraunhoferAAC",
+//        "libudrv-uipc_qti",
+//        "libg722codec_qti",
+//    ],
+//    whole_static_libs: [
+//        "libbt-bta_qti",
+//        "libbtdevice_qti",
+//        "libbt-bta-ext",
+//        "libbtdevice_ext",
+//        "libbt-stack_ext",
+//        "libbtif_qti",
+//        "libbtif_ext",
+//        "libbt-hci_qti",
+//        "libbt-protos_qti",
+//        "libbt-stack_qti",
+//        "libbt-utils_qti",
+//        "libbtcore_qti",
+//        "libosi_qti",
+//        "libbt-stack_ext",
+//        "libosi_ext",
+//    ],
+//    // Shared library link options.
+//    // References to global symbols and functions should bind to the library
+//    // itself. This is to avoid issues with some of the unit/system tests
+//    // that might link statically with some of the code in the library, and
+//    // also dlopen(3) the shared library.
+//    ldflags: ["-Wl,-Bsymbolic,-Bsymbolic-functions"],
+//    required: [
+//        "bt_did.conf",
+//        "bt_stack.conf",
+//        "interop_database.conf",
+//        "bt_profile.conf",
+//        "libbt-hci_qti",
+//        "libldacBT_enc",
+//        "libldacBT_abr",
+//    ],
+//    cflags: [
+//        "-DBUILDCFG",
+//    ],
+//    sanitize: {
+//        scs: true,
+//    },
+//}

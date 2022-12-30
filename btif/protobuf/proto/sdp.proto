@@ -1,0 +1,44 @@
+/*
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear.
+ */
+// This defines protocol for Slate - Atherton interactions
+// Atherton calls into this via Glink
+
+syntax = "proto2";
+package bluetooth.synergy.SynergyProto;
+
+/** Bluetooth Error Status */
+/** We need to build on this */
+enum ss_bt_status {
+	SS_BT_STATUS_SUCCESS = 0;
+	SS_BT_STATUS_FAIL = 1;
+	SS_BT_STATUS_NOT_READY = 2;
+	SS_BT_STATUS_NOMEM = 3;
+	SS_BT_STATUS_BUSY = 4;
+	SS_BT_STATUS_DONE = 5; /* request already completed */
+	SS_BT_STATUS_UNSUPPORTED = 6;
+	SS_BT_STATUS_PARM_INVALID = 7;
+	SS_BT_STATUS_UNHANDLED = 8;
+	SS_BT_STATUS_AUTH_FAILURE = 9;
+	SS_BT_STATUS_RMT_DEV_DOWN = 10;
+	SS_BT_STATUS_AUTH_REJECTED = 11;
+	SS_BT_STATUS_JNI_ENVIRONMENT_ERROR = 12;
+	SS_BT_STATUS_JNI_THREAD_ATTACH_ERROR = 13;
+	SS_BT_STATUS_WAKELOCK_ERROR =14;
+}
+
+/** SDP Record record event **/
+message ss_bt_sdp_search {
+     required bytes remote_addr = 1;
+     required bytes uuid = 2;
+}
+
+/** SDP Record search callback **/
+message ss_sdp_search_complete_callback {
+    required ss_bt_status status = 1;
+    required bytes remote_bd_addr = 2;
+    required bytes uuid = 3;
+    required int32 record_length = 4;
+    required bytes record_data = 5;
+}

@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 #ifndef BTIF_DM_H
@@ -33,7 +37,7 @@ void btif_dm_cleanup(void);
 /**
  * BTIF callback to switch context from bte to btif
  */
-void bte_dm_evt(tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data);
+//void bte_dm_evt(tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data);
 
 /**
  * Notify BT disable being initiated. DM may chose to abort
@@ -114,7 +118,7 @@ void btif_vendor_update_add_on_features();
 
 void btif_vendor_update_whitelisted_media_players();
 
-bool fetch_whitelisted_media_players(list_t** bl_devices);
+//bool fetch_whitelisted_media_players(list_t** bl_devices);
 
 void btif_get_pairing_cb_info(bt_bond_state_t* state, uint8_t* sdp_attempts,
                              RawAddress* bd_addr, RawAddress* static_bdaddr,

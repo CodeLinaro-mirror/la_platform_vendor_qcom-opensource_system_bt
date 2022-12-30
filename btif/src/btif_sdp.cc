@@ -14,6 +14,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear.
  ******************************************************************************/
 
 /*******************************************************************************
@@ -34,13 +37,23 @@
 #include <hardware/bluetooth.h>
 #include <hardware/bt_sdp.h>
 
-#include "bta_api.h"
-#include "bta_sdp_api.h"
+//#include "bta_api.h"
+//#include "bta_sdp_api.h"
 #include "btif_common.h"
 #include "btif_profile_queue.h"
 #include "btif_util.h"
 
+#include "btif_ss_interface.h"
+#ifdef SS_STUB_ENABLED
+#include "btif_ss_stub_interface.h"
+#endif
+
+#include "protobuf/proto/sdp.pb.h"
+#include "btif/protobuf/include/proto_message_ids.h"
+
 using bluetooth::Uuid;
+using bluetooth::synergy::SynergyProto::ss_bt_sdp_search;
+using bluetooth::synergy::SynergyProto::ss_sdp_search_complete_callback;
 
 /*****************************************************************************
  *  Functions implemented in sdp_server.c
@@ -63,7 +76,9 @@ void copy_sdp_records(bluetooth_sdp_record* in_records,
  *****************************************************************************/
 
 static btsdp_callbacks_t* bt_sdp_callbacks = NULL;
+BluetoothSSInterface *btSSInterface_t;
 
+#if 0
 static void btif_sdp_search_comp_evt(uint16_t event, char* p_param) {
   tBTA_SDP_SEARCH_COMP* evt_data = (tBTA_SDP_SEARCH_COMP*)p_param;
   BTIF_TRACE_DEBUG("%s:  event = %d", __func__, event);
@@ -115,30 +130,68 @@ static void sdp_dm_cback(tBTA_SDP_EVT event, tBTA_SDP* p_data,
       break;
   }
 }
+#endif
 
 static bt_status_t init(btsdp_callbacks_t* callbacks) {
-  BTIF_TRACE_DEBUG("Sdp Search %s", __func__);
-
+  ALOGI("Sdp init");
   bt_sdp_callbacks = callbacks;
-  sdp_server_init();
-
-  btif_enable_service(BTA_SDP_SERVICE_ID);
+  btSSInterface_t = BluetoothSSInterface::getInstance();
+  if(btSSInterface_t == NULL) {
+	  ALOGE("%s single stack interface Initialization failed",__func__);
+  } else {
+	  ALOGI("%s registering sdp profile callback",__func__);
+      btSSInterface_t->registerCallbacks(BT_PROFILE_SDP_CLIENT_ID, btif_sdp_ss_callback);
+  }
 
   return BT_STATUS_SUCCESS;
 }
 
 static bt_status_t deinit() {
-  BTIF_TRACE_DEBUG("Sdp Search %s", __func__);
-
+  ALOGI("Sdp deinit");
   bt_sdp_callbacks = NULL;
-  sdp_server_cleanup();
-  btif_disable_service(BTA_SDP_SERVICE_ID);
+  btSSInterface_t->deregisterCallbacks(BT_PROFILE_SDP_CLIENT_ID);
 
   return BT_STATUS_SUCCESS;
 }
 
 static bt_status_t search(RawAddress* bd_addr, const Uuid& uuid) {
-  BTA_SdpSearch(*bd_addr, uuid);
+  ALOGI("Sdp Search with bd_addr : %s and uuid : %s",
+		  bd_addr->ToString().c_str(), uuid.ToString().c_str());
+
+#ifdef SS_STUB_ENABLED
+  BluetoothSSStubInterface *btSSStubInterface;
+  btSSStubInterface = BluetoothSSStubInterface::getInstance();
+#endif
+
+  uint8_t sdp_search_msg[MAX_LENGTH_WITH_PROTO_NONE];
+  uint16_t msg_id = BT_SDP_SEARCH;
+  sdp_search_msg[0] = msg_id & 0xff;
+  sdp_search_msg[1] = (msg_id >> 8);
+
+  std::string protoMsg;
+  ss_bt_sdp_search sdp_search;
+  sdp_search.set_remote_addr(bd_addr->ToString().c_str());
+  sdp_search.set_uuid(uuid.ToString().c_str());
+  sdp_search.SerializeToString(&protoMsg);
+  ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
+
+  uint16_t length = protoMsg.length();
+  sdp_search_msg[2] = length & 0xff;
+  sdp_search_msg[3] = (length >> 8);
+  //adding proto_encode
+  uint16_t proto_encode = PROTO_ENC_DEC;
+  sdp_search_msg[4] = proto_encode & 0xff;
+  sdp_search_msg[5] = (proto_encode >> 8);
+  char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+  memcpy(resBuffer, (char *) sdp_search_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+  msgStr.append(protoMsg);
+#ifndef SS_STUB_ENABLED
+  btSSInterface_t->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
+
   return BT_STATUS_SUCCESS;
 }
 
@@ -147,10 +200,81 @@ static const btsdp_interface_t sdp_if = {
     remove_sdp_record};
 
 const btsdp_interface_t* btif_sdp_get_interface(void) {
-  BTIF_TRACE_DEBUG("%s", __func__);
+  ALOGI("%s", __func__);
   return &sdp_if;
 }
 
+void btif_sdp_ss_callback(uint16_t event, char* p_param) {
+   ALOGI("%s", __func__);
+   bt_status_t status = BT_STATUS_FAIL;
+   std::string resBufferString;
+   RawAddress bd_addr;
+   Uuid uuid_sdp;
+   int record_count = 1;
+   int record_length = 0;
+   uint8_t* rec_data = NULL;
+   bluetooth_sdp_record records[1];
+   std::string name = "BluetoothRfcommSdpRecord";
+   const char* srv_name = name.c_str();
+
+   tBTIF_SS_Cback* cb_data = (tBTIF_SS_Cback*)p_param;
+   uint16_t MSG_ID = cb_data->payload[0] + (((int)(cb_data->payload[1]))<<8);
+   uint16_t length = cb_data->payload[2] + (((int)(cb_data->payload[3]))<<8);
+   uint16_t proto_ec = 0;
+   if (length > 0) {
+      proto_ec = cb_data->payload[4] + (((int)(cb_data->payload[5]))<<8);
+      char resBuffer[length];
+      int j = 0;
+      for(int i=MSG_PROTO_OFFSET; i< (length + MSG_PROTO_OFFSET); i++){
+          resBuffer[j] = (char)cb_data->payload[i];
+           j++;
+      }
+      resBufferString.assign(resBuffer, length);
+      free (cb_data->payload);
+   }
+   ALOGI("MSG_ID is :: %X , Proto length: %d and Proto Encoded Value %d",MSG_ID, length, proto_ec);
+
+   if(MSG_ID == BT_SDP_SEARCH_COMPLETE_CB) {
+      ALOGI("BT_SDP_SEARCH_COMPLETE_CB");
+      ss_sdp_search_complete_callback sdp_cb;
+      sdp_cb.ParseFromString(resBufferString);
+      if(sdp_cb.has_status()) {
+         status = (bt_status_t)sdp_cb.status();
+      }
+
+      if (sdp_cb.has_remote_bd_addr()) {
+        RawAddress::FromString(sdp_cb.remote_bd_addr(), bd_addr);
+      }
+
+      if (sdp_cb.has_uuid()) {
+       uuid_sdp = Uuid::FromString(sdp_cb.uuid());
+      }
+
+      if (sdp_cb.has_record_length()) {
+       record_length = sdp_cb.record_length();
+      }
+
+      std::string data;
+      if (sdp_cb.has_record_data()) {
+       data = sdp_cb.record_data();
+      }
+      rec_data = reinterpret_cast<uint8_t*>((char*)(data.c_str()));
+
+      records[0].hdr.type = SDP_TYPE_RAW;
+      records[0].hdr.rfcomm_channel_number = -1;
+      records[0].hdr.l2cap_psm = -1;
+      records[0].hdr.profile_version = -1;
+      records[0].hdr.service_name_length = strlen(srv_name);
+      records[0].hdr.service_name = (char*)srv_name;
+      records[0].hdr.user1_ptr_len = record_length;
+      records[0].hdr.user1_ptr = rec_data;
+
+      ALOGI("%s: Send SDP Search complete callback status: %d, remote address : %s, uuid : %s, record length : %d, record data : %s "           , __func__,status, bd_addr.ToString().c_str(), uuid_sdp.ToString().c_str(), record_count, data.c_str());
+
+      HAL_CBACK(bt_sdp_callbacks, sdp_search_cb, status,
+             bd_addr, uuid_sdp, record_count, records);
+   }
+}
 /*******************************************************************************
  *
  * Function         btif_sdp_execute_service
@@ -160,6 +284,7 @@ const btsdp_interface_t* btif_sdp_get_interface(void) {
  * Returns          BT_STATUS_SUCCESS on success, BT_STATUS_FAIL otherwise
  *
  ******************************************************************************/
+#if 0
 bt_status_t btif_sdp_execute_service(bool b_enable) {
   BTIF_TRACE_DEBUG("%s enable:%d", __func__, b_enable);
 
@@ -170,3 +295,4 @@ bt_status_t btif_sdp_execute_service(bool b_enable) {
   }
   return BT_STATUS_SUCCESS;
 }
+#endif

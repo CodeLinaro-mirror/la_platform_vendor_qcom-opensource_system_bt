@@ -19,7 +19,7 @@
 /******************************************************************************
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  *
  *****************************************************************************/
@@ -28,7 +28,7 @@
 
 #include "btif_config.h"
 
-#include <base/logging.h>
+//#include <base/logging.h>
 #include <ctype.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
@@ -36,28 +36,29 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <mutex>
-#include <sstream>
+//#include <mutex>
+//#include <sstream>
 #include <string>
 
 #include <btif_keystore.h>
-#include "bt_types.h"
-#include "btcore/include/module.h"
+//#include "internal_include/bt_types.h"
+//#include "btcore/include/module.h"
 #include "btif_api.h"
 #include "btif_common.h"
 #include "btif_config_cache.h"
 #include "btif_config_transcode.h"
 #include "btif_util.h"
-#include "common/address_obfuscator.h"
-#include "common/os_utils.h"
-#include "osi/include/alarm.h"
-#include "osi/include/allocator.h"
-#include "osi/include/compat.h"
-#include "osi/include/config.h"
-#include "osi/include/log.h"
-#include "osi/include/osi.h"
-#include "osi/include/properties.h"
-
+//#include "common/address_obfuscator.h"
+//#include "common/os_utils.h"
+//#include "osi/include/alarm.h"
+//#include "osi/include/allocator.h"
+//#include "osi/include/compat.h"
+//#include "osi/include/config.h"
+//#include "osi/include/log.h"
+//#include "osi/include/osi.h"
+//#include "osi/include/future.h"
+//#include "osi/include/properties.h"
+#if 0
 #define BT_CONFIG_SOURCE_TAG_NUM 1010001
 #define TEMPORARY_SECTION_CAPACITY 10000
 
@@ -72,7 +73,7 @@ static const char* TIME_STRING_FORMAT = "%Y-%m-%d %H:%M:%S";
 #define BT_CONFIG_METRICS_SALT_256BIT "Salt256Bit"
 
 using bluetooth::bluetooth_keystore::BluetoothKeystoreInterface;
-using bluetooth::common::AddressObfuscator;
+//using bluetooth::common::AddressObfuscator;
 
 // TODO(armansito): Find a better way than searching by a hardcoded path.
 #if defined(OS_GENERIC)
@@ -92,15 +93,15 @@ static void btif_config_write(uint16_t event, char* p_param);
 static bool is_factory_reset(void);
 static void delete_config_files(void);
 static void btif_config_remove_unpaired(config_t* config);
-static void btif_config_remove_restricted(config_t* config);
+//static void btif_config_remove_restricted(config_t* config);
 
 static std::unique_ptr<config_t> btif_config_open(const char* filename);
 
 // Key attestation
-static bool config_checksum_pass(int check_bit) {
+/*static bool config_checksum_pass(int check_bit) {
   return ((get_common_criteria_config_compare_result() & check_bit) ==
           check_bit);
-}
+}*/
 static bool btif_in_encrypt_key_name_list(std::string key);
 
 static const int CONFIG_FILE_COMPARE_PASS = 1;
@@ -140,8 +141,8 @@ bool btif_get_device_type(const RawAddress& bda, int* p_device_type) {
 
   if (!btif_config_get_int(bd_addr_str, "DevType", p_device_type)) return false;
 
-  LOG_DEBUG(LOG_TAG, "%s: Device [%s] type %d", __func__, bd_addr_str,
-            *p_device_type);
+ // //LOG_DEBUG(//LOG_TAG, "%s: Device [%s] type %d", __func__, bd_addr_str,
+    //        *p_device_type);
   return true;
 }
 
@@ -153,8 +154,8 @@ bool btif_get_address_type(const RawAddress& bda, int* p_addr_type) {
 
   if (!btif_config_get_int(bd_addr_str, "AddrType", p_addr_type)) return false;
 
-  LOG_DEBUG(LOG_TAG, "%s: Device [%s] address type %d", __func__, bd_addr_str,
-            *p_addr_type);
+  ////LOG_DEBUG(//LOG_TAG, "%s: Device [%s] address type %d", __func__, bd_addr_str,
+  //          *p_addr_type);
   return true;
 }
 
@@ -163,8 +164,8 @@ bool btif_get_address_type(const RawAddress& bda, int* p_addr_type) {
  * Read metrics salt from config file, if salt is invalid or does not exist,
  * generate new one and save it to config
  */
-static void read_or_set_metrics_salt() {
-  AddressObfuscator::Octet32 metrics_salt = {};
+//static void read_or_set_metrics_salt() {
+  /*AddressObfuscator::Octet32 metrics_salt = {};
   size_t metrics_salt_length = metrics_salt.size();
   if (!btif_config_get_bin(BT_CONFIG_METRICS_SECTION,
                            BT_CONFIG_METRICS_SALT_256BIT, metrics_salt.data(),
@@ -193,10 +194,10 @@ static void read_or_set_metrics_salt() {
       LOG(FATAL) << __func__ << "Failed to write metrics salt to config";
     }
   }
-  AddressObfuscator::GetInstance()->Initialize(metrics_salt);
-}
+  AddressObfuscator::GetInstance()->Initialize(metrics_salt);*/
+//}
 
-static std::recursive_mutex config_lock;  // protects operations on |config|.
+//static std::recursive_mutex config_lock;  // protects operations on |config|.
 static alarm_t* config_timer;
 
 // limited btif config cache capacity
@@ -216,8 +217,8 @@ static future_t* init(void) {
     btif_config_source = ORIGINAL;
   }
   if (!config) {
-    LOG_WARN(LOG_TAG, "%s unable to load config file: %s; using backup.",
-             __func__, CONFIG_FILE_PATH);
+    ////LOG_WARN(//LOG_TAG, "%s unable to load config file: %s; using backup.",
+       //      __func__, CONFIG_FILE_PATH);
     if (config_checksum_pass(CONFIG_BACKUP_COMPARE_PASS)) {
       config = btif_config_open(CONFIG_BACKUP_PATH);
       btif_config_source = BACKUP;
@@ -225,17 +226,17 @@ static future_t* init(void) {
     }
   }
   if (!config) {
-    LOG_WARN(LOG_TAG,
-             "%s unable to load backup; attempting to transcode legacy file.",
-             __func__);
+    ////LOG_WARN(//LOG_TAG,
+            // "%s unable to load backup; attempting to transcode legacy file.",
+            // __func__);
     config = btif_config_transcode(CONFIG_LEGACY_FILE_PATH);
     btif_config_source = LEGACY;
     file_source = "Legacy";
   }
   if (!config) {
-    LOG_ERROR(LOG_TAG,
-              "%s unable to transcode legacy file; creating empty config.",
-              __func__);
+    ////LOG_ERROR(//LOG_TAG,
+            //  "%s unable to transcode legacy file; creating empty config.",
+            //  __func__);
     config = config_new_empty();
     btif_config_source = NEW_FILE;
     file_source = "Empty";
@@ -282,11 +283,11 @@ static future_t* init(void) {
   // write back to disk.
   config_timer = alarm_new("btif.config");
   if (!config_timer) {
-    LOG_ERROR(LOG_TAG, "%s unable to create alarm.", __func__);
+    ////LOG_ERROR(//LOG_TAG, "%s unable to create alarm.", __func__);
     goto error;
   }
 
-  LOG_EVENT_INT(BT_CONFIG_SOURCE_TAG_NUM, btif_config_source);
+  ////LOG_EVENT_INT(BT_CONFIG_SOURCE_TAG_NUM, btif_config_source);
 
   return future_new_immediate(FUTURE_SUCCESS);
 
@@ -312,8 +313,8 @@ static std::unique_ptr<config_t> btif_config_open(const char* filename) {
 
   return config;
 }
-
-static future_t* shut_down(void) {
+*/
+/*static future_t* shut_down(void) {
   btif_config_flush();
   return future_new_immediate(FUTURE_SUCCESS);
 }
@@ -328,13 +329,13 @@ static future_t* clean_up(void) {
   btif_config_cache.Clear();
   get_bluetooth_keystore_interface()->clear_map();
   return future_new_immediate(FUTURE_SUCCESS);
-}
+}*/
 
-EXPORT_SYMBOL module_t btif_config_module = {.name = BTIF_CONFIG_MODULE,
+/*EXPORT_SYMBOL module_t btif_config_module = {.name = BTIF_CONFIG_MODULE,
                                              .init = init,
                                              .start_up = NULL,
                                              .shut_down = shut_down,
-                                             .clean_up = clean_up};
+                                             .clean_up = clean_up};*/
 
 bool btif_config_has_section(const char* section) {
   CHECK(section != NULL);
@@ -485,14 +486,14 @@ bool btif_config_get_bin(const std::string& section, const std::string& key, uin
   CHECK(value != NULL);
   CHECK(length != NULL);
 
-  std::unique_lock<std::recursive_mutex> lock(config_lock);
+  //std::unique_lock<std::recursive_mutex> lock(config_lock);
 
   const std::string* value_str;
   auto value_str_from_config = btif_config_cache.GetString(section, key);
 
   if (!value_str_from_config) {
-    VLOG(1)  << __func__ << ": cannot find string for section " << section
-                 << ", key " << key;
+    //VLOG(1)  << __func__ << ": cannot find string for section " << section
+      //           << ", key " << key;
     return false;
   }
 
@@ -658,7 +659,7 @@ static void btif_config_write(UNUSED_ATTR uint16_t event,
                               UNUSED_ATTR char* p_param) {
   CHECK(config_timer != NULL);
 
-  std::unique_lock<std::recursive_mutex> lock(config_lock);
+  //std::unique_lock<std::recursive_mutex> lock(config_lock);
   rename(CONFIG_FILE_PATH, CONFIG_BACKUP_PATH);
 
     config_save(btif_config_cache.PersistentSectionCopy(), CONFIG_FILE_PATH);
@@ -715,4 +716,5 @@ static void delete_config_files(void) {
   remove(CONFIG_FILE_PATH);
   remove(CONFIG_BACKUP_PATH);
   osi_property_set("persist.bluetooth.factoryreset", "false");
-}
+}*/
+#endif

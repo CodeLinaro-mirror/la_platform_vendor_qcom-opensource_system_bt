@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 #ifndef BTIF_GATT_UTIL_H
@@ -24,11 +28,11 @@
 
 #include "bta/include/bta_gatt_api.h"
 
-void btif_to_bta_response(tGATTS_RSP* p_dest, btgatt_response_t* p_src);
+//void btif_to_bta_response(tGATTS_RSP* p_dest, btgatt_response_t* p_src);
 
 void btif_gatt_check_encrypted_link(RawAddress bd_addr,
                                     tGATT_TRANSPORT transport);
-extern void btif_gatt_move_track_adv_data(btgatt_track_adv_info_t* p_dest,
-                                          btgatt_track_adv_info_t* p_src);
+//extern void btif_gatt_move_track_adv_data(btgatt_track_adv_info_t* p_dest,
+                                      //    btgatt_track_adv_info_t* p_src);
 
 #endif

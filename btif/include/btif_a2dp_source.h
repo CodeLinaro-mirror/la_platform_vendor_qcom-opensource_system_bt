@@ -48,6 +48,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 #ifndef BTIF_A2DP_SOURCE_H
@@ -56,7 +60,6 @@
 #include <stdbool.h>
 
 #include "bta_av_api.h"
-
 typedef struct {
   bool vs_configs_exchanged;
   bool tx_started;
@@ -127,15 +130,15 @@ typedef struct {
 } btif_media_stats_t;
 
 typedef struct {
-  thread_t* worker_thread;
-  fixed_queue_t* cmd_msg_queue;
-  fixed_queue_t* tx_audio_queue;
+  //thread_t* worker_thread;
+  //fixed_queue_t* cmd_msg_queue;
+  //fixed_queue_t* tx_audio_queue;
   bool tx_flush; /* Discards any outgoing data when true */
-  alarm_t* unblock_audio_start_alarm;
-  alarm_t* media_alarm;
-  alarm_t *remote_start_alarm;
-  const tA2DP_ENCODER_INTERFACE* encoder_interface;
-  period_ms_t encoder_interval_ms; /* Local copy of the encoder interval */
+  //alarm_t* unblock_audio_start_alarm;
+  //alarm_t* media_alarm;
+  //alarm_t *remote_start_alarm;
+  //const tA2DP_ENCODER_INTERFACE* encoder_interface;
+  //period_ms_t encoder_interval_ms; /* Local copy of the encoder interval */
   btif_media_stats_t stats;
   btif_media_stats_t accumulated_stats;
   int last_remote_started_index;
@@ -187,7 +190,7 @@ void btif_a2dp_source_stop_audio_req(void);
 // Process a request to update the A2DP audio encoder with user preferred
 // codec configuration.
 // |codec_user_config| contains the preferred codec user configuration.
-void btif_a2dp_source_encoder_user_config_update_req(
+/*void btif_a2dp_source_encoder_user_config_update_req(
     const btav_a2dp_codec_config_t& codec_user_config, const RawAddress& bd_addr);
 
 // Process a request to update the A2DP audio encoding with new audio
@@ -195,7 +198,7 @@ void btif_a2dp_source_encoder_user_config_update_req(
 // The fields that are used are: |codec_audio_config.sample_rate|,
 // |codec_audio_config.bits_per_sample| and |codec_audio_config.channel_mode|.
 void btif_a2dp_source_feeding_update_req(
-    const btav_a2dp_codec_config_t& codec_audio_config);
+    const btav_a2dp_codec_config_t& codec_audio_config);*/
 
 // Process 'idle' request from the BTIF state machine during initialization.
 void btif_a2dp_source_on_idle(void);

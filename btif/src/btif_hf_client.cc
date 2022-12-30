@@ -15,6 +15,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 /*******************************************************************************
@@ -50,8 +54,7 @@
 #include <hardware/bluetooth.h>
 #include <hardware/bt_hf_client.h>
 
-#include "bt_target.h"
-#include "bt_utils.h"
+#include "internal_include/bt_target.h"
 #include "bta_hf_client_api.h"
 #include "btif_common.h"
 #include "btif_profile_queue.h"
@@ -78,7 +81,7 @@
    BTA_HF_CLIENT_FEAT_ECS | BTA_HF_CLIENT_FEAT_ECC | BTA_HF_CLIENT_FEAT_CODEC)
 #endif
 
-
+/*
 static const char* dump_hf_client_conn_state(uint16_t event) {
   switch (event) {
     CASE_RETURN_STR(BTHF_CLIENT_CONNECTION_STATE_DISCONNECTED)
@@ -90,7 +93,7 @@ static const char* dump_hf_client_conn_state(uint16_t event) {
       return "UNKNOWN MSG ID";
   }
 }
-
+*/
 /*******************************************************************************
  *  Local type definitions
  ******************************************************************************/
@@ -108,7 +111,7 @@ typedef struct {
 typedef struct {
   btif_hf_client_cb_t cb[HF_CLIENT_MAX_DEVICES];
 } btif_hf_client_cb_arr_t;
-
+#if 0
 /******************************************************************************
  * Local function declarations
  ******************************************************************************/
@@ -119,7 +122,7 @@ bool is_connected(const btif_hf_client_cb_t* cb);
 /*******************************************************************************
  *  Static variables
  ******************************************************************************/
-static bthf_client_callbacks_t* bt_hf_client_callbacks = NULL;
+//static bthf_client_callbacks_t* bt_hf_client_callbacks = NULL;
 
 char btif_hf_client_version[PROPERTY_VALUE_MAX];
 
@@ -1078,3 +1081,4 @@ const bthf_client_interface_t* btif_hf_client_get_interface(void) {
   BTIF_TRACE_EVENT("%s", __func__);
   return &bthfClientInterface;
 }
+#endif

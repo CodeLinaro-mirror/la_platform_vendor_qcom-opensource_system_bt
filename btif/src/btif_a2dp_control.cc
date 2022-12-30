@@ -19,6 +19,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 
 #define LOG_TAG "bt_btif_a2dp_control"
@@ -31,7 +35,7 @@
 #include "audio_a2dp_hw/include/audio_a2dp_hw.h"
 #endif
 
-#include "bt_common.h"
+#include "internal_include/bt_common.h"
 #include "btif_a2dp.h"
 #include "btif_a2dp_control.h"
 #include "btif_a2dp_sink.h"
@@ -39,12 +43,12 @@
 #include "btif_av.h"
 #include "btif_av_co.h"
 #include "btif_hf.h"
-#include "osi/include/osi.h"
+//#include "osi/include/osi.h"
+//#include "osi/include/properties.h"
 #include "uipc.h"
 #include "btif_a2dp_audio_interface.h"
-
 #if (OFF_TARGET_TEST_ENABLED == TRUE)
-#include "a2dp_hal_sim/audio_a2dp_hal.h"
+//#include "a2dp_hal_sim/audio_a2dp_hal.h"
 #define A2DP_CTRL_PATH "/tmp/.a2dp_ctrl"
 #define A2DP_SINK_CTRL_PATH "/tmp/.a2dp_sink_ctrl"
 #define A2DP_DATA_PATH "/tmp/.a2dp_data"
@@ -52,7 +56,7 @@
 
 #define A2DP_DATA_READ_POLL_MS 10
 #define A2DP_NUM_STRS 5
-
+#if 0
 struct {
   uint64_t total_bytes_read = 0;
   uint16_t audio_delay[A2DP_NUM_STRS] = {0, 0, 0, 0, 0};
@@ -66,9 +70,9 @@ extern bool btif_av_is_playing_on_other_idx(int current_index);
 extern bool btif_av_is_handoff_set();
 extern int btif_max_av_clients;
 extern bool btif_av_is_state_opened(int i);
-static void btif_a2dp_data_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
+//static void btif_a2dp_data_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
 static void btif_a2dp_ctrl_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
-static void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd);
+//static void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd);
 
 /* We can have max one command pending */
 static tA2DP_CTRL_CMD a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
@@ -112,9 +116,9 @@ static void btif_a2dp_recv_ctrl_data(void) {
     return;
   }
 
-  APPL_TRACE_DEBUG("btif_a2dp_recv_ctrl_data: %s", audio_a2dp_hw_dump_ctrl_event(cmd));
+  //APPL_TRACE_DEBUG("btif_a2dp_recv_ctrl_data: %s", audio_a2dp_hw_dump_ctrl_event(cmd));
 
-  if (property_get("persist.vendor.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
+ /* if (property_get("persist.vendor.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
           !strcmp(a2dp_hal_imp, "true")) {
     switch (cmd) {
       uint8_t local_ack;
@@ -124,8 +128,8 @@ static void btif_a2dp_recv_ctrl_data(void) {
                   __func__, audio_a2dp_hw_dump_ctrl_event(cmd));
           local_ack = A2DP_CTRL_ACK_FAILURE;
         } else if (btif_av_is_connected()) {
-          /* check for valid AV connection */
-          BTIF_TRACE_DEBUG("%s:Got valid connection",__func__);
+           check for valid AV connection */
+         /* BTIF_TRACE_DEBUG("%s:Got valid connection",__func__);
           local_ack = A2DP_CTRL_ACK_SUCCESS;
         } else {
           BTIF_TRACE_DEBUG("%s:A2dp command %s while valid AV connection",
@@ -267,8 +271,8 @@ static void btif_a2dp_recv_ctrl_data(void) {
         sink_latency = btif_av_get_sink_latency();
         local_ack = A2DP_CTRL_ACK_SUCCESS;
         UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, &local_ack, sizeof(local_ack));
-        /* Send sink latency */
-        UIPC_Send(UIPC_CH_ID_AV_CTRL, 0,
+         Send sink latency */
+        /*UIPC_Send(UIPC_CH_ID_AV_CTRL, 0,
                 reinterpret_cast<const uint8_t*>(&sink_latency),
                 sizeof(tA2DP_LATENCY));
         break;
@@ -337,8 +341,8 @@ static void btif_a2dp_recv_ctrl_data(void) {
           btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
           return;
         }
-        /* check for valid AV connection */
-        if (btif_av_is_connected()) {
+         check for valid AV connection */
+       /* if (btif_av_is_connected()) {
           BTIF_TRACE_DEBUG("%s:Got valid connection",__func__);
           btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
         } else {
@@ -356,12 +360,12 @@ static void btif_a2dp_recv_ctrl_data(void) {
         break;
 
       case A2DP_CTRL_CMD_START:
-        /*
+        *
          * Don't send START request to stack while we are in a call.
          * Some headsets such as "Sony MW600", don't allow AVDTP START
          * while in a call, and respond with BAD_STATE.
          */
-        if (!bluetooth::headset::btif_hf_is_call_vr_idle()) {
+        /*if (!bluetooth::headset::btif_hf_is_call_vr_idle()) {
           btif_a2dp_command_ack(A2DP_CTRL_ACK_INCALL_FAILURE);
           break;
         }
@@ -401,13 +405,13 @@ static void btif_a2dp_recv_ctrl_data(void) {
             }
         }
 
-        /* In Dual A2dp, first check for started state of stream
+        * In Dual A2dp, first check for started state of stream
          * as we dont want to START again as while doing Handoff
          * the stack state will be started, so it is not needed
          * to send START again, just open the media socket
          * and ACK the audio HAL.
          */
-        if (btif_av_stream_started_ready()) {
+        /*if (btif_av_stream_started_ready()) {
           if ((rs_idx != btif_max_av_clients) && (rs_idx == cur_idx)) {
             uint8_t hdl = btif_av_get_av_hdl_from_idx(rs_idx);
             APPL_TRACE_DEBUG("%s: setup codec idx %d hdl = %d",
@@ -424,17 +428,17 @@ static void btif_a2dp_recv_ctrl_data(void) {
                   __func__, audio_a2dp_hw_dump_ctrl_event(cmd));
           break;
         } else if (btif_av_stream_ready()) {
-          /* Setup audio data channel listener */
-#if (OFF_TARGET_TEST_ENABLED == TRUE)
+          * Setup audio data channel listener */
+/*#if (OFF_TARGET_TEST_ENABLED == TRUE)
         if (!btif_device_in_sink_role())
 #endif
           UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb, A2DP_DATA_PATH);
-          /*
+          *
            * Post start event and wait for audio path to open.
            * If we are the source, the ACK will be sent after the start
            * procedure is completed, othewise send it now.
            */
-          if (cur_idx <  btif_max_av_clients &&
+          /*if (cur_idx <  btif_max_av_clients &&
               btif_av_is_state_opened(cur_idx)) {
             btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
             if (btif_av_get_peer_sep() == AVDT_TSEP_SRC)
@@ -461,8 +465,8 @@ static void btif_a2dp_recv_ctrl_data(void) {
       case A2DP_CTRL_CMD_STOP: {
         if (btif_av_get_peer_sep() == AVDT_TSEP_SNK &&
                 !btif_a2dp_source_is_streaming()) {
-          /* We are already stopped, just ack back */
-          btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
+          * We are already stopped, just ack back */
+          /*btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
           break;
         }
 
@@ -472,8 +476,8 @@ static void btif_a2dp_recv_ctrl_data(void) {
       }
 
       case A2DP_CTRL_CMD_SUSPEND:
-        /* Local suspend */
-        rs_idx = btif_get_is_remote_started_idx();
+        * Local suspend */
+        /*rs_idx = btif_get_is_remote_started_idx();
         cur_idx = btif_av_get_latest_device_idx_to_start();
 
         APPL_TRACE_IMP("%s: RS Idx %d, Cur Idx %d, A2DP command %s",
@@ -498,11 +502,11 @@ static void btif_a2dp_recv_ctrl_data(void) {
             break;
           }
         }
-        /* If we are not in started state, just ack back ok and let
+        * If we are not in started state, just ack back ok and let
          * audioflinger close the channel. This can happen if we are
          * remotely suspended, clear REMOTE SUSPEND flag.
          */
-        btif_av_clear_remote_suspend_flag();
+        /*btif_av_clear_remote_suspend_flag();
         btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
         break;
 
@@ -624,8 +628,8 @@ static void btif_a2dp_recv_ctrl_data(void) {
 
         sink_latency = btif_av_get_sink_latency();
         btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
-        /* Send sink latency */
-        UIPC_Send(UIPC_CH_ID_AV_CTRL, 0,
+        * Send sink latency */
+        /*UIPC_Send(UIPC_CH_ID_AV_CTRL, 0,
                 reinterpret_cast<const uint8_t*>(&sink_latency),
                 sizeof(tA2DP_LATENCY));
         break;
@@ -664,20 +668,20 @@ static void btif_a2dp_recv_ctrl_data(void) {
         btif_a2dp_command_ack(A2DP_CTRL_ACK_FAILURE);
         break;
     }
-  }
+  }*/
 }
 
-void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd) {
-  int rs_idx, cur_idx;
-
+//void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd) {
+  //int rs_idx, cur_idx;
+/*
   switch (cmd) {
     case A2DP_CTRL_CMD_START:
-      /*
+      *
        * Don't send START request to stack while we are in a call.
        * Some headsets such as "Sony MW600", don't allow AVDTP START
        * while in a call, and respond with BAD_STATE.
        */
-      if (!bluetooth::headset::btif_hf_is_call_vr_idle()) {
+     /* if (!bluetooth::headset::btif_hf_is_call_vr_idle()) {
         btif_a2dp_command_ack(A2DP_CTRL_ACK_INCALL_FAILURE);
         break;
       }
@@ -716,13 +720,13 @@ void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd) {
         }
       }
 
-      /* In Dual A2dp, first check for started state of stream
+      * In Dual A2dp, first check for started state of stream
        * as we dont want to START again as while doing Handoff
        * the stack state will be started, so it is not needed
        * to send START again, just open the media socket
        * and ACK the audio HAL.
        */
-      if (btif_av_stream_started_ready()) {
+      /*if (btif_av_stream_started_ready()) {
         if ((rs_idx != btif_max_av_clients) && (rs_idx == cur_idx)) {
           uint8_t hdl = btif_av_get_av_hdl_from_idx(rs_idx);
           APPL_TRACE_DEBUG("%s: setup codec idx %d hdl = %d",
@@ -739,17 +743,17 @@ void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd) {
                 __func__, audio_a2dp_hw_dump_ctrl_event(cmd));
         break;
       } else if (btif_av_stream_ready()) {
-        /* Setup audio data channel listener */
-#if (OFF_TARGET_TEST_ENABLED == TRUE)
+        * Setup audio data channel listener */
+/*#if (OFF_TARGET_TEST_ENABLED == TRUE)
         if (!btif_device_in_sink_role())
 #endif
         UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb, A2DP_DATA_PATH);
-        /*
+        *
          * Post start event and wait for audio path to open.
          * If we are the source, the ACK will be sent after the start
          * procedure is completed, othewise send it now.
          */
-        if (cur_idx <  btif_max_av_clients &&
+        /*if (cur_idx <  btif_max_av_clients &&
                 btif_av_is_state_opened(cur_idx)) {
           btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
           if (btif_av_get_peer_sep() == AVDT_TSEP_SRC)
@@ -776,8 +780,8 @@ void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd) {
     case A2DP_CTRL_CMD_STOP: {
       if (btif_av_get_peer_sep() == AVDT_TSEP_SNK &&
               !btif_a2dp_source_is_streaming()) {
-        /* We are already stopped, just ack back */
-        btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
+       * We are already stopped, just ack back */
+       /* btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
         break;
       }
 
@@ -787,8 +791,8 @@ void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd) {
     }
 
     case A2DP_CTRL_CMD_SUSPEND:
-      /* Local suspend */
-      rs_idx = btif_get_is_remote_started_idx();
+      * Local suspend */
+      /*rs_idx = btif_get_is_remote_started_idx();
       cur_idx = btif_av_get_latest_device_idx_to_start();
 
       APPL_TRACE_IMP("%s: RS Idx %d, Cur Idx %d, A2DP command %s",
@@ -813,11 +817,11 @@ void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd) {
           break;
         }
       }
-      /* If we are not in started state, just ack back ok and let
+     * If we are not in started state, just ack back ok and let
        * audioflinger close the channel. This can happen if we are
        * remotely suspended, clear REMOTE SUSPEND flag.
        */
-      btif_av_clear_remote_suspend_flag();
+     /* btif_av_clear_remote_suspend_flag();
       btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
       break;
 
@@ -833,8 +837,8 @@ void btif_a2dp_snd_ctrl_cmd(tA2DP_CTRL_CMD cmd) {
       APPL_TRACE_DEBUG("btif_a2dp_snd_ctrl_cmd: %s DONE", audio_a2dp_hw_dump_ctrl_event(cmd));
     } else {
       APPL_TRACE_IMP("btif_a2dp_snd_ctrl_cmd: %s DONE", audio_a2dp_hw_dump_ctrl_event(cmd));
-    }
-}
+    }*/
+//}
 
 static void btif_a2dp_ctrl_cb(UNUSED_ATTR tUIPC_CH_ID ch_id,
                               tUIPC_EVENT event) {
@@ -876,27 +880,27 @@ static void btif_a2dp_ctrl_cb(UNUSED_ATTR tUIPC_CH_ID ch_id,
   }
 }
 
-static void btif_a2dp_data_cb(UNUSED_ATTR tUIPC_CH_ID ch_id,
+/*static void btif_a2dp_data_cb(UNUSED_ATTR tUIPC_CH_ID ch_id,
                               tUIPC_EVENT event) {
   APPL_TRACE_WARNING("%s: BTIF MEDIA (A2DP-DATA) EVENT %s", __func__,
                      dump_uipc_event(event));
 
   switch (event) {
     case UIPC_OPEN_EVT: {
-      /*
+      *
        * Read directly from media task from here on (keep callback for
        * connection events.
-       */
+       *
       UIPC_Ioctl(UIPC_CH_ID_AV_AUDIO, UIPC_REG_REMOVE_ACTIVE_READSET, NULL);
       UIPC_Ioctl(UIPC_CH_ID_AV_AUDIO, UIPC_SET_READ_POLL_TMO,
                  reinterpret_cast<void*>(A2DP_DATA_READ_POLL_MS));
 
       if (btif_av_get_peer_sep() == AVDT_TSEP_SNK) {
-        /* Start the media task to encode the audio */
+        * Start the media task to encode the audio *
         btif_a2dp_source_start_audio_req();
       }
 
-      /* ACK back when media task is fully started */
+      * ACK back when media task is fully started *
       break;
     }
 
@@ -905,31 +909,31 @@ static void btif_a2dp_data_cb(UNUSED_ATTR tUIPC_CH_ID ch_id,
 
       if (property_get("persist.vendor.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
             !strcmp(a2dp_hal_imp, "true")) {
-        APPL_TRACE_IMP("command %s pending", audio_a2dp_hw_dump_ctrl_event(a2dp_cmd_pending));
-        APPL_TRACE_IMP("command %s queued", audio_a2dp_hw_dump_ctrl_event(a2dp_cmd_queued));
-        /*
+        //APPL_TRACE_IMP("command %s pending", audio_a2dp_hw_dump_ctrl_event(a2dp_cmd_pending));
+        //APPL_TRACE_IMP("command %s queued", audio_a2dp_hw_dump_ctrl_event(a2dp_cmd_queued));
+        *
          * Send stop request only if we are actively streaming and haven't
          * received a stop/suspend request. Potentially, the audioflinger detached
          * abnormally or remote delayed the ACK.
-         */
+         *
         if (btif_a2dp_source_is_streaming() &&
                 (!((a2dp_cmd_pending == A2DP_CTRL_CMD_STOP) ||
                 (a2dp_cmd_pending == A2DP_CTRL_CMD_SUSPEND))) &&
                 (!((a2dp_cmd_queued == A2DP_CTRL_CMD_STOP) ||
                 (a2dp_cmd_queued == A2DP_CTRL_CMD_SUSPEND)))) {
           APPL_TRACE_IMP("Trigger Stop stream request as data channel got detached");
-          /* Post stop event and wait for audio path to stop */
+          * Post stop event and wait for audio path to stop *
           btif_dispatch_sm_event(BTIF_AV_STOP_STREAM_REQ_EVT, NULL, 0);
         }
       } else {
         btif_a2dp_command_ack(A2DP_CTRL_ACK_SUCCESS);
-        /*
+        *
          * Send stop request only if we are actively streaming and haven't
          * received a stop request. Potentially, the audioflinger detached
          * abnormally.
-         */
+         *
         if (btif_a2dp_source_is_streaming()) {
-          /* Post stop event and wait for audio path to stop */
+          * Post stop event and wait for audio path to stop *
           btif_dispatch_sm_event(BTIF_AV_STOP_STREAM_REQ_EVT, NULL, 0);
         }
       }
@@ -940,14 +944,14 @@ static void btif_a2dp_data_cb(UNUSED_ATTR tUIPC_CH_ID ch_id,
                        event);
       break;
   }
-}
+}*/
 
 void btif_a2dp_command_ack(tA2DP_CTRL_ACK status) {
   uint8_t ack = status;
 
   // Don't log A2DP_CTRL_GET_PRESENTATION_POSITION by default, because it
   // could be very chatty when audio is streaming.
-  if (a2dp_cmd_pending == A2DP_CTRL_GET_PRESENTATION_POSITION) {
+  /*if (a2dp_cmd_pending == A2DP_CTRL_GET_PRESENTATION_POSITION) {
     APPL_TRACE_DEBUG("%s: ## a2dp ack : %s, queued : %s,  status %d ##", __func__,
             audio_a2dp_hw_dump_ctrl_event(a2dp_cmd_pending),
             audio_a2dp_hw_dump_ctrl_event(a2dp_cmd_queued), status);
@@ -957,8 +961,8 @@ void btif_a2dp_command_ack(tA2DP_CTRL_ACK status) {
             audio_a2dp_hw_dump_ctrl_event(a2dp_cmd_queued), status);
   }
 
-  /* Sanity check */
-  if (property_get("persist.vendor.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
+  * Sanity check */
+  /*if (property_get("persist.vendor.bt.a2dp.hal.implementation", a2dp_hal_imp, "false") &&
           !strcmp(a2dp_hal_imp, "true")) {
     if (a2dp_cmd_pending == A2DP_CTRL_CMD_NONE) {
       APPL_TRACE_ERROR("btif_a2dp_command_ack: warning : no command pending, ignore ack");
@@ -982,31 +986,31 @@ void btif_a2dp_command_ack(tA2DP_CTRL_ACK status) {
       return;
     } else {
       // On current command ack failure, we do not process queued command, but flush it
-      /* clear pending and queued*/
-      a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
+      * clear pending and queued*/
+     /* a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
       if (a2dp_cmd_queued != A2DP_CTRL_CMD_NONE) {
         APPL_TRACE_IMP("btif_a2dp_command_ack: Not acking as ack is waited for queued command");
-        /* no need to ack as we alreday unblocked HAL with error
+        * no need to ack as we alreday unblocked HAL with error
             A2DP_CTRL_ACK_PREVIOUS_COMMAND_PENDING in case of queued command*/
-        a2dp_cmd_queued = A2DP_CTRL_CMD_NONE;
+      /*  a2dp_cmd_queued = A2DP_CTRL_CMD_NONE;
       } else {
-        /* acknowledge start request */
-        UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, &ack, sizeof(ack));
+        * acknowledge start request */
+        /*UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, &ack, sizeof(ack));
       }
     }
   } else {
-    /* Sanity check */
-    if (a2dp_cmd_pending == A2DP_CTRL_CMD_NONE) {
+    * Sanity check */
+    /*if (a2dp_cmd_pending == A2DP_CTRL_CMD_NONE) {
       APPL_TRACE_ERROR("%s: warning : no command pending, ignore ack", __func__);
       return;
     }
 
-    /* Clear pending */
-    a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
+    * Clear pending */
+    //a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
 
     /* Acknowledge start request */
-    UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, &ack, sizeof(ack));
-  }
+    //UIPC_Send(UIPC_CH_ID_AV_CTRL, 0, &ack, sizeof(ack));
+  //}
 }
 tA2DP_CTRL_CMD btif_a2dp_control_get_pending_command() {
   return a2dp_cmd_pending;
@@ -1014,7 +1018,7 @@ tA2DP_CTRL_CMD btif_a2dp_control_get_pending_command() {
 
 void btif_a2dp_control_log_bytes_read(uint32_t bytes_read) {
   delay_report_stats.total_bytes_read += bytes_read;
-  clock_gettime(CLOCK_MONOTONIC, &delay_report_stats.timestamp);
+  //clock_gettime(CLOCK_MONOTONIC, &delay_report_stats.timestamp);
 }
 
 void btif_a2dp_control_set_audio_delay(uint16_t delay, int index) {
@@ -1042,3 +1046,4 @@ void btif_a2dp_pending_cmds_reset() {
   a2dp_cmd_pending = A2DP_CTRL_CMD_NONE;
   a2dp_cmd_queued = A2DP_CTRL_CMD_NONE;
 }
+#endif

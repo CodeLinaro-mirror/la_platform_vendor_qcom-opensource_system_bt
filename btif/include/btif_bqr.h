@@ -12,6 +12,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear.
  */
 
 #ifndef BTIF_BQR_H_
@@ -19,7 +23,9 @@
 
 #include "btm_api_types.h"
 #include "osi/include/leaky_bonded_queue.h"
-
+#include <string.h>
+//#include "internal_include/extra_include.h"
+#include <iostream>   
 namespace bluetooth {
 namespace bqr {
 
@@ -188,11 +194,11 @@ class BqrVseSubEvt {
   // Get a string representation of the Bluetooth Quality event.
   //
   // @return a string representation of the Bluetooth Quality event.
-  std::string ToString() const;
+  //std::string ToString() const;
 
-  friend std::ostream& operator<<(std::ostream& os, const BqrVseSubEvt& a) {
+  /*friend std::ostream& operator<<(std::ostream& os, const BqrVseSubEvt& a) {
     return os << a.ToString();
-  }
+  }*/
 
   virtual ~BqrVseSubEvt() = default;
 
@@ -250,7 +256,7 @@ class BqrVseSubEvt {
   // The count of calibration failed items
   uint8_t cal_failed_item_count_;
   // Local wall clock timestamp of receiving BQR VSE sub-event
-  std::tm tm_timestamp_ = {};
+  //std::tm tm_timestamp_ = {};
 
  private:
   bool IsEvtToBeParsed(uint8_t quality_report_id);
@@ -260,13 +266,13 @@ class BqrVseSubEvt {
 //
 // @param quality_report_id The quality report ID to convert.
 // @return a string representation of the Quality Report ID.
-std::string QualityReportIdToString(uint8_t quality_report_id);
+//std::string QualityReportIdToString(uint8_t quality_report_id);
 
 // Get a string representation of the Packet Type.
 //
 // @param packet_type The packet type to convert.
 // @return a string representation of the Packet Type.
-std::string PacketTypeToString(uint8_t packet_type);
+//std::string PacketTypeToString(uint8_t packet_type);
 
 // Enable/Disable Bluetooth Quality Report mechanism.
 //
@@ -319,7 +325,7 @@ void AddBqrEventToQueue(uint8_t length, uint8_t* p_stream);
 //   the Bluetooth controller via Vendor Specific Event.
 //
 // @return a string representation of the parameter value
-std::string ParseVsBqrRieParams(BqrRieVsParamsId param_id, uint8_t** p_stream, int& pending_bytes);
+//std::string ParseVsBqrRieParams(BqrRieVsParamsId param_id, uint8_t** p_stream, int& pending_bytes);
 
 }  // namespace bqr
 }  // namespace bluetooth

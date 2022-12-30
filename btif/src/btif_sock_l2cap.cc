@@ -13,6 +13,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear.
  */
 
 #define LOG_TAG "bt_btif_sock"
@@ -26,33 +30,33 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <mutex>
+//#include <mutex>
 
-#include <hardware/bt_sock.h>
+//#include <hardware/bt_sock.h>
 
-#include "osi/include/allocator.h"
-#include "osi/include/log.h"
+//#include "osi/include/allocator.h"
+//#include "osi/include/log.h"
 
-#include "bt_common.h"
-#include "bt_target.h"
-#include "bta_api.h"
-#include "bta_jv_api.h"
-#include "bta_jv_co.h"
+#include "internal_include/bt_common.h"
+#include "internal_include/bt_target.h"
+//#include "bta_api.h"
+//#include "bta_jv_api.h"
+//#include "bta_jv_co.h"
 #include "btif_common.h"
 #include "btif_sock_sdp.h"
 #include "btif_sock_thread.h"
 #include "btif_sock_util.h"
 #include "btif_uid.h"
 #include "btif_util.h"
-#include "btm_api.h"
-#include "btm_int.h"
-#include "btu.h"
-#include "hcimsgs.h"
-#include "l2c_api.h"
-#include "l2c_int.h"
-#include "l2cdefs.h"
-#include "port_api.h"
-#include "sdp_api.h"
+//#include "btm_api.h"
+//#include "btm_int.h"
+//#include "btu.h"
+//#include "hcimsgs.h"
+//#include "l2c_api.h"
+//#include "l2c_int.h"
+///#include "l2cdefs.h"
+//#include "port_api.h"
+//#include "sdp_api.h"
 
 struct packet {
   struct packet *next, *prev;
@@ -85,7 +89,7 @@ typedef struct l2cap_socket {
   bool is_le_coc;                 // is le connection oriented channel?
   uint16_t mps;
 } l2cap_socket;
-
+#if 0
 static bt_status_t btSock_start_l2cap_server_l(l2cap_socket* sock);
 
 static std::mutex state_lock;
@@ -1124,3 +1128,4 @@ void btsock_l2cap_signaled(int fd, int flags, uint32_t user_id) {
       btsock_l2cap_free_l(sock);
   }
 }
+#endif

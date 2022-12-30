@@ -64,16 +64,16 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 #pragma once
 
-#include "audio_a2dp_hw/include/audio_a2dp_hw.h"
-#include <vendor/qti/hardware/bluetooth_audio/2.0/types.h>
-#include "osi/include/thread.h"
+//#include "audio_a2dp_hw/include/audio_a2dp_hw.h"
+//#include <vendor/qti/hardware/bluetooth_audio/2.0/types.h>
+//#include "osi/include/thread.h"
 #include "btif_av.h"
-#include <hardware/audio.h>
+//#include <hardware/audio.h>
 //#include <aidl/android/hardware/bluetooth/audio/SessionType.h>
 
 //using ::bluetooth::audio::aidl::SessionType;
-using vendor::qti::hardware::bluetooth_audio::V2_0::SessionType;
-using vendor::qti::hardware::bluetooth_audio::V2_0::SessionParamType;
+//using vendor::qti::hardware::bluetooth_audio::V2_0::SessionType;
+//using vendor::qti::hardware::bluetooth_audio::V2_0::SessionParamType;
 //using SessionTypeAOSP =
  //    ::aidl::android::hardware::bluetooth::audio::SessionType;
 #define AHIM_ENABLED 1
@@ -141,8 +141,8 @@ typedef uint8_t (* ahim_get_min_sup_frame_dur)(uint8_t direction);
 typedef uint8_t (* ahim_get_feature_map)(uint8_t direction);
 typedef uint8_t (* ahim_lc3_blocks_per_sdu)(uint8_t direction);
 typedef uint32_t (* ahim_get_audio_location)(uint32_t stream_id, uint8_t direction);
-typedef void (* ahim_update_src_metadata)(const source_metadata_t& source_metadata);
-typedef void (* ahim_update_snk_metadata)(const sink_metadata_t& sink_metadata);
+//typedef void (* ahim_update_src_metadata)(const source_metadata_t& source_metadata);
+//typedef void (* ahim_update_snk_metadata)(const sink_metadata_t& sink_metadata);
 typedef uint32_t (* ahim_get_mode_callback)();
 typedef uint16_t (* ahim_get_frame_duration)(uint8_t direction);
 typedef void (* ahim_update_params)(uint16_t delay, uint8_t mode);
@@ -167,8 +167,8 @@ typedef struct {
     ahim_get_feature_map get_feature_map;
     ahim_lc3_blocks_per_sdu get_lc3_blocks_per_sdu;
     ahim_get_audio_location get_audio_location;
-    ahim_update_src_metadata src_meta_update;
-    ahim_update_snk_metadata snk_meta_update;
+    //ahim_update_src_metadata src_meta_update;
+    //ahim_update_snk_metadata snk_meta_update;
     ahim_get_mode_callback get_mode_cb;
     ahim_get_frame_duration get_frame_duration;
     ahim_update_params params_update;
@@ -182,12 +182,12 @@ void reg_cb_with_ahim(uint8_t client_id, btif_ahim_client_callbacks_t* pclient_c
 void btif_ahim_process_request(tA2DP_CTRL_CMD cmd, uint8_t profile, uint8_t direction);
 void btif_ahim_update_current_profile(uint8_t profile);
 
-void btif_ahim_update_src_metadata(const source_metadata_t& source_metadata);
-void btif_ahim_update_sink_metadata(const sink_metadata_t& sink_metadata);
+//void btif_ahim_update_src_metadata(const source_metadata_t& source_metadata);
+//void btif_ahim_update_sink_metadata(const sink_metadata_t& sink_metadata);
 
 void btif_ahim_set_latency_mode(bool is_low_latency);
 
-bool btif_ahim_init_hal(thread_t *t, uint8_t profile);
+//bool btif_ahim_init_hal(thread_t *t, uint8_t profile);
 
 void btif_ahim_cleanup_hal(uint8_t profile);
 
@@ -203,7 +203,7 @@ bool btif_ahim_is_aosp_aidl_hal_enabled();
 
 bool btif_ahim_is_restart_session_needed(uint8_t profile);
 
-void btif_ahim_update_session_params(SessionParamType param_type);
+//`	void btif_ahim_update_session_params(SessionParamType param_type);
 
 void btif_ahim_update_audio_config();
 
@@ -248,7 +248,7 @@ void btif_ahim_signal_src_metadata_complete();
 
 void btif_ahim_signal_snk_metadata_complete();
 
-SessionType btif_ahim_get_session_type(uint8_t profile);
+//SessionType btif_ahim_get_session_type(uint8_t profile);
 
 bool btif_ahim_update_codec_offloading_capabilities(
     const std::vector<btav_a2dp_codec_config_t>& framework_preference);
