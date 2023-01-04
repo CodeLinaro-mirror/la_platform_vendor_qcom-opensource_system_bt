@@ -278,4 +278,8 @@ bool A2DP_InitCodecConfigAac(tAVDT_CFG* p_cfg);
 // configuration entry pointed by |p_cfg|.
 bool A2DP_InitCodecConfigAacSink(tAVDT_CFG* p_cfg);
 
+// Checks peer initiated setconfig with DUT supported config
+// and returns proper status.
+tA2DP_STATUS A2DP_IsCodecConfigMatchAac(const uint8_t* p_codec_info);
+
 #endif  // A2DP_AAC_H
