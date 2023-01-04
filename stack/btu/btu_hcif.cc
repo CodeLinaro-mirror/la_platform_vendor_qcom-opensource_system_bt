@@ -87,6 +87,9 @@
 #include "osi/include/osi.h"
 #include "device/include/device_iot_config.h"
 #include "stack_config.h"
+#ifdef DIR_FINDING_FEATURE
+#include "btm_ble_direction_finder_api.h"
+#endif
 
 using base::Location;
 
@@ -175,6 +178,10 @@ static void btu_ble_proc_enhanced_conn_cmpl(uint8_t* p, uint16_t evt_len);
 #endif
 
 static void btu_ble_subrate_change_evt(uint8_t* p, uint16_t evt_len);
+#ifdef DIR_FINDING_FEATURE
+static void btm_le_conn_iq_report_evt(uint8_t* p, uint16_t evt_len);
+static void btm_le_cte_req_failed_evt(uint8_t* p, uint16_t evt_len);
+#endif
 
 static void do_in_hci_thread(const base::Location& from_here,
                              const base::Closure& task) {
@@ -474,6 +481,17 @@ void btu_hcif_process_event(UNUSED_ATTR uint8_t controller_id, BT_HDR* p_msg) {
         case HCI_LE_SUBRATE_CHANGE_EVT:
           btu_ble_subrate_change_evt(p, hci_evt_len);
           break;
+
+#ifdef DIR_FINDING_FEATURE
+        case HCI_LE_CONN_IQ_REPORT_EVT:
+          btm_le_conn_iq_report_evt(p, hci_evt_len);
+          break;
+
+        case HCI_LE_CTE_REQ_FAILED_EVT:
+          btm_le_cte_req_failed_evt(p, hci_evt_len);
+          break;
+#endif //DIR_FINDING_FEATURE
+
 #ifdef VLOC_FEATURE
         default:
           LOG_DEBUG(LOG_TAG, "%s process vendor HCI events.", __func__);
@@ -1240,6 +1258,11 @@ static void btu_hcif_hdl_command_complete(uint16_t opcode, uint8_t* p,
     case HCI_BLE_SET_RAND_PRIV_ADDR_TIMOUT:
       break;
 #endif
+#ifdef DIR_FINDING_FEATURE
+    case HCI_BLE_READ_ANTENNA_INFO:
+      btm_ble_read_antenna_info_complete(p, evt_len);
+      break;
+#endif
     default:
       if ((opcode & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC)
         btm_vsc_complete(p, opcode, evt_len, (tBTM_VSC_CMPL_CB*)p_cplt_cback);
@@ -1458,6 +1481,10 @@ static void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status,
         if ((opcode & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC)
           btm_vsc_complete(&status, opcode, 1,
                            (tBTM_VSC_CMPL_CB*)p_vsc_status_cback);
+#ifdef VLOC_FEATURE
+          btu_vendor_hcif_hdl_command_status(opcode, status,
+                                        p_cmd);
+#endif
       }
   }
 }
@@ -2137,3 +2164,23 @@ void btm_ble_subrate_req_cmd_status(uint8_t status, uint16_t handle) {
   gatt_notify_subrate_change(handle & 0x0FFF, subrate_factor,
                              peripheral_latency, cont_num, timeout, status);
 }
+
+#ifdef DIR_FINDING_FEATURE
+static void btm_le_conn_iq_report_evt(uint8_t* p, uint16_t evt_len) {
+  uint16_t handle;
+  uint8_t* pp = p;
+  STREAM_TO_UINT16(handle, pp);
+
+  btm_ble_aoa_conn_iq_rpt_evt((handle & 0x0FFF), p, evt_len);
+}
+
+static void btm_le_cte_req_failed_evt(uint8_t* p, uint16_t evt_len) {
+  uint16_t handle;
+  uint8_t status;
+  LOG_DEBUG(LOG_TAG, "%s", __func__);
+
+  STREAM_TO_UINT8(status, p);
+  STREAM_TO_UINT16(handle, p);
+}
+#endif //DIR_FINDING_FEATURE
+

@@ -752,6 +752,8 @@ void bond_state_changed(bt_status_t status, const RawAddress& bd_addr,
     update_pce_entry_after_cancelling_bonding(bd_addr);
     // Update Map 1.4 entry, set rebonded to true
     update_mce_entry_after_cancelling_bonding(bd_addr);
+    // remove remote GATT database
+    BTA_GATTC_ResetGattDb(bd_addr);
   }
 }
 
@@ -951,6 +953,12 @@ static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
      __func__);
       btif_dm_cancel_discovery();
       pairing_cb.is_adv_audio = 1;
+    } else {
+      if ((addr_type == BLE_ADDR_RANDOM) &&
+          ((device_type & BT_DEVICE_TYPE_BLE) == BT_DEVICE_TYPE_BLE)) {
+        BTIF_TRACE_DEBUG("%s -- Go via LE Transport ", __func__);
+        transport = BT_TRANSPORT_LE;
+      }
     }
 #endif
     BTIF_TRACE_DEBUG("%s bonding through TRANPORT %d ",
