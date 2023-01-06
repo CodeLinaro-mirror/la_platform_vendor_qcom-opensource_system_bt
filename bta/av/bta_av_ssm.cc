@@ -248,6 +248,7 @@ static void bta_av_better_stream_state_machine(tBTA_AV_SCB* p_scb,
           break;
         case BTA_AV_API_RC_OPEN_EVT:
           event_handler1 = &bta_av_set_use_rc;
+          event_handler2 = &bta_av_open_rc;
           break;
         case BTA_AV_SRC_DATA_READY_EVT:
           event_handler1 = &bta_av_data_path;
