@@ -1340,6 +1340,7 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
         (p_auth_cmpl->key_type == HCI_LKEY_TYPE_AUTH_COMB) ||
         (p_auth_cmpl->key_type == HCI_LKEY_TYPE_CHANGED_COMB) ||
         (p_auth_cmpl->key_type == HCI_LKEY_TYPE_AUTH_COMB_P_256) ||
+        (p_auth_cmpl->key_type == HCI_LKEY_TYPE_UNAUTH_COMB_P_256) ||
         pairing_cb.bond_type == BOND_TYPE_PERSISTENT) {
       bt_status_t ret;
       bool status;
@@ -2009,6 +2010,11 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       /* clear control blocks */
       memset(&pairing_cb, 0, sizeof(btif_dm_pairing_cb_t));
       pairing_cb.bond_type = BOND_TYPE_PERSISTENT;
+
+      #if (BTM_LOCAL_IO_CAPS == BTM_IO_CAP_NONE)
+         BTIF_TRACE_DEBUG("%s Bond type is unknown-BTM_IO_CAP_NONE  ",__func__);
+         pairing_cb.bond_type = BOND_TYPE_UNKNOWN;
+      #endif
 
       /* This function will also trigger the adapter_properties_cb
       ** and bonded_devices_info_cb
