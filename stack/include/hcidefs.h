@@ -460,6 +460,7 @@
 #define HCI_BLE_SET_PATH_LOSS_RPT_ENABLE (0x0079 | HCI_GRP_BLE_CMDS)
 #define HCI_BLE_SET_TRANSMIT_POW_RPT_ENABLE (0x007A | HCI_GRP_BLE_CMDS)
 #define HCI_BLE_TRANSMITTER_TEST_V4 (0x007B | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_SET_AFH_CHANNELS (0x0014 | HCI_GRP_BLE_CMDS)
 
 /* Broadcast ISO commands */
 #define HCI_BLE_CREATE_BIG (0x0068 | HCI_GRP_BLE_CMDS)
@@ -1110,6 +1111,12 @@ constexpr uint8_t HCI_LE_STATES_INIT_MASTER_SLAVE_BIT = 41;
 
 /* Definitions for AFH Channel Map */
 #define HCI_AFH_CHANNEL_MAP_LEN 10
+
+/* Definations for BLE AFH Channel Map */
+#define HCI_BTLE_AFH_CHANNEL_MAP_LEN 5
+
+/* Definations for connection handle length */
+#define HCI_AFH_CONNECTION_HANDLE_LEN 2
 
 /* Definitions for Extended Inquiry Response */
 #define HCI_EXT_INQ_RESPONSE_LEN 240
