@@ -2218,9 +2218,13 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       }
 #endif
       btif_update_remote_version_property(&bd_addr);
-
-      HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
-                &bd_addr, BT_ACL_STATE_CONNECTED, HCI_SUCCESS);
+      if (p_data->link_down.link_type == BT_TRANSPORT_LE) {
+        HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
+                  &bd_addr, BT_ACL_STATE_CONNECTED, (HCI_SUCCESS | 0x80));
+      } else {
+        HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
+                  &bd_addr, BT_ACL_STATE_CONNECTED, HCI_SUCCESS);
+      }
       break;
 
     case BTA_DM_LINK_DOWN_EVT:
@@ -2263,12 +2267,19 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
       if (p_data->link_down.link_type == BT_TRANSPORT_LE) {
          btif_vendor_le_acl_disconnected(bd_addr);
       }
-
-      BTIF_TRACE_DEBUG(
-          "BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
-      HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
-                &bd_addr, BT_ACL_STATE_DISCONNECTED,
-                static_cast<bt_hci_error_code_t>(btm_get_acl_disc_reason_code()));
+      if (p_data->link_down.link_type == BT_TRANSPORT_LE) {
+        BTIF_TRACE_DEBUG(
+            "BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
+        HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
+                  &bd_addr, BT_ACL_STATE_DISCONNECTED,
+                  (btm_get_acl_disc_reason_code() | 0x80));
+      } else {
+        BTIF_TRACE_DEBUG(
+            "BTA_DM_LINK_DOWN_EVT. Sending BT_ACL_STATE_DISCONNECTED");
+        HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
+                  &bd_addr, BT_ACL_STATE_DISCONNECTED,
+                  static_cast<bt_hci_error_code_t>(btm_get_acl_disc_reason_code()));
+      }
       break;
 
     case BTA_DM_HW_ERROR_EVT:
