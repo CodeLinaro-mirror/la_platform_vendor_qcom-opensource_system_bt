@@ -194,9 +194,10 @@ std::string A2DP_VendorCodecInfoStringAptxHd(const uint8_t* p_codec_info);
 // |p_codec_info| contains the codec information.
 // Returns the A2DP aptX-HD encoder interface if the |p_codec_info| is valid
 // and supported, otherwise NULL.
+/*
 const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterfaceAptxHd(
     const uint8_t* p_codec_info);
-
+*/
 // Gets the A2DP aptX-HD decoder interface that can be used to decode and prepare
 // PCM packets for playing - see |tA2DP_DECODER_INTERFACE|.
 // |p_codec_info| contains the codec information.

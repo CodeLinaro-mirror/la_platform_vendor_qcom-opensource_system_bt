@@ -283,7 +283,7 @@ bool btif_a2dp_sink_restart_session(const RawAddress& old_peer_address,
     btif_a2dp_sink_end_session(old_peer_address);
   }
 
-  if (!bta_av_co_set_active_peer(new_peer_address)) {
+  if (!bta_av_co_set_active_peer(new_peer_address, true)) {
     LOG(ERROR) << __func__
                << ": Cannot stream audio: cannot set active peer to "
                << new_peer_address;
@@ -561,7 +561,7 @@ static void btif_a2dp_sink_handle_inc_media(tBTIF_MEDIA_SINK_HDR* p_msg) {
 #else
 static void btif_a2dp_sink_handle_inc_media(BT_HDR* p_msg) {
 #endif
-  if ((btif_av_get_peer_sep() == AVDT_TSEP_SNK) ||
+  if ((btif_av_sink_get_peer_sep() == AVDT_TSEP_SNK) ||
       (btif_a2dp_sink_cb.rx_flush)) {
     APPL_TRACE_DEBUG("%s: state changed happened in this tick", __func__);
     return;

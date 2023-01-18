@@ -20,11 +20,23 @@
 
 #include <mutex>
 
-#define UIPC_CH_ID_AV_CTRL 0
-#define UIPC_CH_ID_AV_AUDIO 1
-#define UIPC_CH_NUM 2
+#define UIPC_CTRL_CH true
+#define UIPC_DATA_CH false
 
-#define UIPC_CH_ID_ALL 3 /* used to address all the ch id at once */
+#define UIPC_CH_ID_AV_CTRL_0 0
+#define UIPC_CH_ID_AV_CTRL_1 1
+
+#define UIPC_CH_ID_AV_AUDIO_0 2
+#define UIPC_CH_ID_AV_AUDIO_1 3
+
+#define UIPC_CH_ID_AV_CTRL UIPC_CH_ID_AV_CTRL_0
+#define UIPC_CH_ID_AV_AUDIO UIPC_CH_ID_AV_AUDIO_0
+
+#define UIPC_CH_NUM 4
+
+#define UIPC_CH_ID_ALL UIPC_CH_NUM /* used to address all the ch id at once */
+
+#define UIPC_CH_INVALID_ID (255)
 
 #define DEFAULT_READ_POLL_TMO_MS 100
 
@@ -63,6 +75,7 @@ typedef struct {
   int read_poll_tmo_ms;
   int task_evt_flags; /* event flags pending to be processed in read task */
   tUIPC_RCV_CBACK* cback;
+  RawAddress peer_address;
 } tUIPC_CHAN;
 
 struct tUIPC_STATE {
@@ -93,7 +106,7 @@ std::unique_ptr<tUIPC_STATE> UIPC_Init();
  * @param socket_path Path to the socket
  * @return true on success, otherwise false
  */
-bool UIPC_Open(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, tUIPC_RCV_CBACK* p_cback,
+bool UIPC_Open(const RawAddress& peer_address, tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, tUIPC_RCV_CBACK* p_cback,
                const char* socket_path);
 
 /**
@@ -137,5 +150,29 @@ uint32_t UIPC_Read(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, uint16_t* p_msg_evt,
  */
 bool UIPC_Ioctl(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, uint32_t request,
                 void* param);
+/**
+ * Get a unused control channel
+ *
+ * @return UIPC_CH_ID_AV_CTRL_0 or UIPC_CH_ID_AV_CTRL_1 on success,
+ *  otherwise UIPC_CH_INVALID_ID
+ */
+int uipc_get_free_ctrl_ch();
+
+/**
+ * Get peer address by control or data channel
+ *
+ * @param ch_id Channel ID
+ * @return peer address on success, otherwise RawAddress::kEmpty
+ */
+const RawAddress& uipc_get_address_from_ch(int ch_id);
+
+/**
+ * Get control id by peer address
+ *
+ * @param peer_address Peer address
+ * @param ctrl For control channel on true; For data channel on false
+ * @return control or data channel on success, otherwise UIPC_CH_INVALID_ID
+ */
+int uipc_get_ch_from_address(const RawAddress& peer_address, bool ctrl);
 
 #endif /* UIPC_H */

@@ -695,11 +695,11 @@ static void a2dp_ldac_encode_frames(uint8_t nb_frame) {
 
       a2dp_ldac_encoder_cb.timestamp += p_buf->layer_specific * ldac_frame_size;
 
-      uint8_t done_nb_frame = remain_nb_frame - nb_frame;
+  //    uint8_t done_nb_frame = remain_nb_frame - nb_frame;
       remain_nb_frame = nb_frame;
-      if (!a2dp_ldac_encoder_cb.enqueue_callback(p_buf, done_nb_frame,
+  /*    if (!a2dp_ldac_encoder_cb.enqueue_callback(p_buf, done_nb_frame,
                                                  bytes_read))
-        return;
+        return;*/
     } else {
       // NOTE: Unlike the execution path for other codecs, it is normal for
       // LDAC to NOT write encoded data to the last buffer if there wasn't
@@ -720,8 +720,9 @@ static bool a2dp_ldac_read_feeding(uint8_t* read_buffer, uint32_t* bytes_read) {
   a2dp_ldac_encoder_cb.stats.media_read_total_expected_read_bytes += read_size;
 
   /* Read Data from UIPC channel */
+  #if 0
   uint32_t nb_byte_read =
-      a2dp_ldac_encoder_cb.read_callback(read_buffer, read_size);
+      a2dp_ldac_encoder_cb.read_callback(read_buffer, read_size);*/
   a2dp_ldac_encoder_cb.stats.media_read_total_actual_read_bytes += nb_byte_read;
 
   if (nb_byte_read < read_size) {
@@ -734,6 +735,7 @@ static bool a2dp_ldac_read_feeding(uint8_t* read_buffer, uint32_t* bytes_read) {
   a2dp_ldac_encoder_cb.stats.media_read_total_actual_reads_count++;
 
   *bytes_read = nb_byte_read;
+  #endif
   return true;
 }
 

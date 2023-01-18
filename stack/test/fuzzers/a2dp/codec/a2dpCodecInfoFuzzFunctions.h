@@ -173,7 +173,7 @@ std::vector<std::function<void(FuzzedDataProvider*, uint8_t*)>>
 
         // A2DP_GetEncoderInterface
         [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void {
-          A2DP_GetEncoderInterface(codec_info);
+          A2DP_GetEncoderInterface(RawAddress::kEmpty, codec_info);
         },
 
         // A2DP_GetDecoderInterface

@@ -40,7 +40,6 @@ cc_test {
         "libbt-hci",
         "libbt-protos-lite",
         "libbt-sbc-decoder",
-        "libbt-sbc-encoder",
         "libbt-stack",
         "libbt-utils",
         "libbtdevice",
@@ -75,6 +74,7 @@ cc_test {
         "liblog",  // __android_log_print
         "libprocessgroup",
         "libtinyxml2",
+        "libbt-sbc-encoder1",
         "libutils",
     ],
     ldflags: ["-rdynamic"],

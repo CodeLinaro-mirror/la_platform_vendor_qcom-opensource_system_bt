@@ -11,13 +11,17 @@ namespace avrcp {
 class FakeMediaInterface : public MediaInterface {
  public:
   virtual void SendKeyEvent(uint8_t key, KeyState state) {}
+  virtual void SendKeyEventExt(const RawAddress& address, uint8_t key, KeyState state) {}
   using SongInfoCallback = base::Callback<void(SongInfo)>;
   virtual void GetSongInfo(SongInfoCallback info_cb) {}
+  virtual void GetSongInfoExt(const RawAddress& address, SongInfoCallback info_cb) {}
   using PlayStatusCallback = base::Callback<void(PlayStatus)>;
   virtual void GetPlayStatus(PlayStatusCallback status_cb) {}
+  virtual void GetPlayStatusExt(const RawAddress& address, PlayStatusCallback status_cb) {}
   using NowPlayingCallback =
       base::Callback<void(std::string, std::vector<SongInfo>)>;
   virtual void GetNowPlayingList(NowPlayingCallback now_playing_cb) {}
+  virtual void GetNowPlayingListExt(const RawAddress& address, NowPlayingCallback now_playing_cb) {}
   using MediaListCallback =
       base::Callback<void(uint16_t curr_player, std::vector<MediaPlayerInfo>)>;
   virtual void GetMediaPlayerList(MediaListCallback list_cb) {}
@@ -41,11 +45,13 @@ class FakeVolumeInterface : public VolumeInterface {
   virtual void DeviceConnected(const RawAddress& bdaddr, VolumeChangedCb cb) {}
   virtual void DeviceDisconnected(const RawAddress& bdaddr) {}
   virtual void SetVolume(int8_t volume) {}
+  virtual void SetVolumeExt(const RawAddress& bdaddr, int8_t volume) {}
 };
 
 class FakeA2dpInterface : public A2dpInterface {
  public:
   virtual RawAddress active_peer() { return RawAddress(); }
+  virtual std::set<RawAddress> active_peers() {return std::set<RawAddress>();}
   virtual bool is_peer_in_silence_mode(const RawAddress& peer_address) {
     return false;
   }
