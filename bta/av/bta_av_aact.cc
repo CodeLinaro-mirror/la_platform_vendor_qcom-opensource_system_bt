@@ -1119,6 +1119,22 @@ void bta_av_delay_rpt(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_av_do_disc_a2dp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
+  //To Pass pTS TC A2DP/SRC/AVP/BI-10-C
+  /* After adding PTS dongle to the AAC whitelist,
+   * when PTS pops up a dialog to ask IUT to response a error code,
+   * (Please prepare the IUT to reject an AVDTP SET CONFIGURATION
+   * command with error code INVALID_OBJECT_TYPE, then press 'OK' to continue.)
+   * user needs to click the OK very quickly other wise the case will fail
+   * due to IUT will start discover and set config to PTS.*/
+
+  char is_pts_enable[PROPERTY_VALUE_MAX] = "false";
+  property_get("persist.vendor.bt.a2dp.pts_enable", is_pts_enable, "false");
+  APPL_TRACE_DEBUG("%s: is_pts_enable: %s", __func__, is_pts_enable);
+  if (!strncmp("true", is_pts_enable, 4)) {
+    APPL_TRACE_DEBUG("%s: Don't do a2dp discovery for PTS, return", __func__);
+    return;
+  }
+
   bool ok_continue = false;
   uint16_t avdtp_version = 0;
   tA2DP_SDP_DB_PARAMS db_params;
@@ -2437,7 +2453,6 @@ void bta_av_getcap_results(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
         (p_scb->seps[p_scb->sep_idx].p_app_sink_data_cback != NULL)) {
       APPL_TRACE_DEBUG("%s: configure decoder for Sink connection", __func__);
 
-      memcpy(cfg.codec_info, p_scb->p_cap->codec_info, AVDT_CODEC_SIZE);
       tBTA_AV_MEDIA av_sink_codec_info;
       av_sink_codec_info.avk_config.bd_addr = p_scb->peer_addr;
       av_sink_codec_info.avk_config.codec_info = p_scb->cfg.codec_info;
@@ -2475,12 +2490,24 @@ void bta_av_getcap_results(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   tBTA_AV_REJECT reject;
   uint8_t avdt_handle = p_data->ci_setconfig.avdt_handle;
+  uint8_t error_code = p_data->ci_setconfig.err_code;
+  char is_pts_enable[PROPERTY_VALUE_MAX] = "false";
+
+  property_get("persist.vendor.bt.a2dp.pts_enable", is_pts_enable, "false");
+  APPL_TRACE_DEBUG("%s: is_pts_enable: %s", __func__, is_pts_enable);
+  if (!strncmp("true", is_pts_enable, 4)) {
+    error_code = p_data->ci_setconfig.err_code;
+  } else {
+    error_code = AVDT_ERR_UNSUP_CFG;
+  }
 
   bta_av_adjust_seps_idx(p_scb, avdt_handle);
-  APPL_TRACE_DEBUG("%s: sep_idx: %d", __func__, p_scb->sep_idx);
-  AVDT_ConfigRsp(p_scb->avdt_handle, p_scb->avdt_label, AVDT_ERR_UNSUP_CFG, 0);
+  APPL_TRACE_DEBUG("%s: sep_idx: %d, error_code: %d",
+                    __func__, p_scb->sep_idx, error_code);
+  AVDT_ConfigRsp(p_scb->avdt_handle, p_scb->avdt_label, error_code, 0);
 
-  APPL_TRACE_DEBUG("%s peer_address: %s, handle: %d", __func__, p_scb->peer_addr.ToString().c_str(), p_scb->hndl);
+  APPL_TRACE_DEBUG("%s peer_address: %s, handle: %d",
+                   __func__, p_scb->peer_addr.ToString().c_str(), p_scb->hndl);
   //reject.bd_addr = p_data->str_msg.bd_addr;
   reject.bd_addr = p_scb->peer_addr;
   reject.hndl = p_scb->hndl;
