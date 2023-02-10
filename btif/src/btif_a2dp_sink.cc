@@ -858,11 +858,6 @@ static void btif_a2dp_sink_set_focus_state_event(
   } else if (btif_a2dp_sink_cb.rx_focus_state == BTIF_A2DP_SINK_FOCUS_GRANTED) {
     fixed_queue_flush(btif_a2dp_sink_cb.rx_audio_queue, osi_free);
     btif_a2dp_sink_cb.rx_flush = false;
-    if ((btif_a2dp_sink_cb.decoder_interface->decoder_init != nullptr) &&
-        (btif_a2dp_sink_cb.codec_type != A2DP_MEDIA_CT_NON_A2DP) ) {
-      btif_a2dp_sink_cb.decoder_interface->decoder_init(
-         btif_a2dp_sink_on_decode_complete);
-    }
   }
 }
 
