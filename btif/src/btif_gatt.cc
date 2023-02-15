@@ -59,6 +59,7 @@
  ******************************************************************************/
 /*static bt_status_t btif_gatt_init(const btgatt_callbacks_t* callbacks) {
   bt_gatt_callbacks = callbacks;
+  btif_ss_gatt_client_init();
   return BT_STATUS_SUCCESS;
 }*/
 
@@ -71,25 +72,23 @@
  * Returns          void
  *
  ******************************************************************************/
-//static void btif_gatt_cleanup(void) {
-  /*if (bt_gatt_callbacks) bt_gatt_callbacks = NULL;
+static void btif_gatt_cleanup(void) {
+  if (bt_gatt_callbacks) bt_gatt_callbacks = NULL;
+  btif_ss_gatt_client_deinit();
+  /*BTA_GATTS_Disable(); */
+}
 
-  BTA_GATTC_Disable();
-  BTA_GATTS_Disable();*/
-//}
-
-/*static btgatt_interface_t btgattInterface = {
+static btgatt_interface_t btgattInterface = {
     sizeof(btgattInterface),
 
     btif_gatt_init,
     btif_gatt_cleanup,
 
     &btgattClientInterface,
-    &btgattServerInterface,
-    nullptr,  // filled in btif_gatt_get_interface
-    nullptr,  // filled in btif_gatt_get_interface
+    nullptr,
+    nullptr,
     nullptr   // place holder for distance measurement instance
-};*/
+};
 
 /*******************************************************************************
  *

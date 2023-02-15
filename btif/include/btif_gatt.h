@@ -31,11 +31,20 @@
 #ifndef BTIF_GATT_H
 #define BTIF_GATT_H
 
-//#include "include/hardware/bt_gatt.h"
+#include "include/hardware/bt_gatt.h"
+#include "gatt_api.h"
 
-//extern const btgatt_client_interface_t btgattClientInterface;
+#define BT_PROFILE_ID_GATTC "gattc"
+
+#define BTGATT_MAX_ATTR_LEN 600
+
+extern const btgatt_client_interface_t btgattClientInterface;
 //extern const btgatt_server_interface_t btgattServerInterface;
 
 //BleAdvertiserInterface* get_ble_advertiser_instance();
 //BleScannerInterface* get_ble_scanner_instance();
+void btif_ss_gatt_client_init();
+void btif_ss_gatt_client_deinit();
+
+void btif_ss_gattc_cback(uint8_t event, char* p_param);
 #endif
