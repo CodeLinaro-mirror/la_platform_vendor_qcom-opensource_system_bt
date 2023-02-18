@@ -56,9 +56,10 @@ const char* dump_search_dm_msgID(uint16_t msgID) {
     CASE_RETURN_STR(BT_DM_SSP_REQUEST_CB)
     CASE_RETURN_STR(BT_DM_BOND_STATE_CHANGE_CB)
     CASE_RETURN_STR(BT_DM_ACL_STATE_CHANGE_CB)
+    CASE_RETURN_STR(BT_DM_LE_ADAPTER_PROPERTIES_CB)
     CASE_RETURN_STR(BT_DM_API_MAX)
     default:
-      return "UNKNOWN MSG ID";
+      return "DM_UNKNOWN_MSG_ID";
   }
 }
 
@@ -68,7 +69,7 @@ const char* dump_search_sdp_msgID(uint16_t msgID) {
     CASE_RETURN_STR(BT_SDP_SEARCH_COMPLETE_CB)
     CASE_RETURN_STR(BT_SDP_API_MAX)
     default:
-      return "UNKNOWN MSG ID";
+      return "SDP_UNKNOWN_MSG_ID";
   }
 }
 
@@ -83,7 +84,7 @@ const char* dump_search_rfcomm_msgID(uint16_t msgID) {
     CASE_RETURN_STR(BT_RFCOMM_SOCKET_DATA_CB)
     CASE_RETURN_STR(BT_RFCOMM_API_MAX)
     default:
-      return "UNKNOWN MSG ID";
+      return "RFCOMM_UNKNOWN_MSG_ID";
   }
 }
 

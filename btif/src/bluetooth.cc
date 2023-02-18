@@ -268,8 +268,8 @@ static int init(bt_callbacks_t* callbacks, bool start_restricted,
 
 static int enable () {
   ALOGI("%s", __func__);
-  BTIF_TRACE_DEBUG("QTI OMR1 stack: %s", __func__);
-
+  //BTIF_TRACE_DEBUG("QTI OMR1 stack: %s", __func__);
+  BTIF_TRACE_DEBUG("QTI single stack: %s", __func__);
   // Do Encoding of Enable Proto
   uint8_t enable_msg[MAX_LENGTH_WITH_PROTO_NONE];
   //adding msg_id
@@ -1373,6 +1373,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       adapterPropCb.ParseFromString(resBufferString);
       bt_status_t status = BT_STATUS_FAIL;
       if (adapterPropCb.has_status()) {
+        ALOGI("Has BT_DM_ADAPTER_PROPERTIES_CB: has_status");
         status = (bt_status_t)adapterPropCb.status();
       }
       if(adapterPropCb.has_num_properties()) {
@@ -1460,26 +1461,28 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       bt_status_t status = BT_STATUS_FAIL;
       bt_bdname_t bd_name;
       uint32_t cod;
+      RawAddress *bd_addr;
       if (remotePropCb.has_status()) {
-	      ALOGI("BT_DM_REMOTE_DEVICE_PROPERTIES_CB: parseRxData has_status");
+        ALOGI("BT_DM_REMOTE_DEVICE_PROPERTIES_CB: parseRxData has_status");
         status = (bt_status_t)remotePropCb.status();
-	ALOGI("BT_DM_REMOTE_DEVICE_PROPERTIES_CB: status : %d", status);
+        ALOGI("BT_DM_REMOTE_DEVICE_PROPERTIES_CB: status : %d", status);
       }
-      RawAddress bd_addr;
       if (remotePropCb.has_bd_addr()) {
-	      ALOGI("BT_DM_REMOTE_DEVICE_PROPERTIES_CB: parseRxData has_bd_addr");
-        RawAddress::FromString(remotePropCb.bd_addr(), bd_addr);
-	 ALOGI("BT_DM_REMOTE_DEVICE_PROPERTIES_CB: bd_addr : %s", bd_addr.ToString().c_str());
+        ALOGI("BT_DM_REMOTE_DEVICE_PROPERTIES_CB: parseRxData has_remote_bd_addr");
+        uint8_t* addr = (uint8_t*)remotePropCb.bd_addr().c_str();
+        bd_addr = (RawAddress*)addr;
+        ALOGI("BT_DM_REMOTE_DEVICE_PROPERTIES_CB : length: %d ", bd_addr->ToString().length());
+        ALOGI("BT_DM_REMOTE_DEVICE_PROPERTIES_CB : address : %s", bd_addr->ToString().c_str());
       }
       if(remotePropCb.has_num_properties()) {
-        ALOGI("BT_DM_REMOTE_DEVICE_PROPERTIES_CB: parseRxData has_num_properties");
+        RawAddress bd_addr_prop;
         bt_scan_mode_t mode;
         uint32_t timeout;
-
         int numProp = remotePropCb.num_properties();
-        ALOGI("numProp is :: %d",numProp);
         bt_property_t properties[numProp];
         memset(properties, 0, sizeof(properties));
+        ALOGI("BT_DM_REMOTE_DEVICE_PROPERTIES_CB: parseRxData has_num_properties");
+        ALOGI("numProp is :: %d",numProp);
         for(int i=0; i<numProp; i++) {
           ss_bt_property_t prop = remotePropCb.properties(i);
           ss_bt_property_type_t prop_type = prop.type();
@@ -1488,9 +1491,9 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
             uint8_t* addr = (uint8_t*)prop.val().c_str();
             std::string bt_address = ((RawAddress*)addr)->ToString();
             ALOGI("address is :: %s",bt_address.c_str());
-            RawAddress::FromString(bt_address.c_str(), bd_addr);
+            RawAddress::FromString(bt_address.c_str(), bd_addr_prop);
             properties[i].len = RawAddress::kLength;
-            properties[i].val = (void*)bd_addr.address;
+            properties[i].val = (void*)bd_addr_prop.address;
             properties[i].type = BT_PROPERTY_BDADDR;
           } else if(prop_type == BT_PROPERTY_BDNAME) {
             std::string bt_name = prop.val();
@@ -1536,95 +1539,97 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
             properties[i].type = BT_PROPERTY_CLASS_OF_DEVICE;
           }
         }
-        HAL_CBACK(bt_hal_cbacks, remote_device_properties_cb, status, &bd_addr, numProp, properties);
+        HAL_CBACK(bt_hal_cbacks, remote_device_properties_cb, status, bd_addr, numProp, properties);
       }
       break;
     }
     case BT_DM_DISCOVERY_STATE_CHANGE_CB: {
-        ALOGI("Has BT_DM_DISCOVERY_STATE_CHANGE_CB");
-        ss_discovery_state_changed_callback discoveryStateChanged;
-        discoveryStateChanged.ParseFromString(resBufferString);
-        if(discoveryStateChanged.has_state()) {
-            bt_discovery_state_t discovery_state;
-            discovery_state = (bt_discovery_state_t)discoveryStateChanged.state();
-            HAL_CBACK(bt_hal_cbacks, discovery_state_changed_cb, discovery_state);
-        } else {
-            ALOGI("BT_DM_DISCOVERY_STATE_CHANGE_CB: Not have state info");
-        }
-        break;
+      ALOGI("Has BT_DM_DISCOVERY_STATE_CHANGE_CB");
+      ss_discovery_state_changed_callback discoveryStateChanged;
+      discoveryStateChanged.ParseFromString(resBufferString);
+      if(discoveryStateChanged.has_state()) {
+        ALOGI("Has BT_DM_DISCOVERY_STATE_CHANGE_CB: has_state");
+        bt_discovery_state_t discovery_state;
+        discovery_state = (bt_discovery_state_t)discoveryStateChanged.state();
+        HAL_CBACK(bt_hal_cbacks, discovery_state_changed_cb, discovery_state);
+      } else {
+        ALOGI("BT_DM_DISCOVERY_STATE_CHANGE_CB: Not have state info");
+      }
+      break;
     }
     case BT_DM_DEVICE_FOUND_CB: {
-        ALOGI("Has BT_DM_DEVICE_FOUND_CB");
-        ss_device_found_callback deviceFoundCb;
-        RawAddress bd_addr;
-        bt_device_type_t dev_type;
-        bt_bdname_t bd_name;
-        int8_t rssi;
-        uint32_t cod;
-        deviceFoundCb.ParseFromString(resBufferString);
-        if(deviceFoundCb.has_num_properties()) {
-            int numProp = deviceFoundCb.num_properties();
-            ALOGI("numProp is :: %d",numProp);
-            bt_property_t properties[numProp];
-            memset(properties, 0, sizeof(properties));
-            for(int i=0; i<numProp; i++) {
-                ss_bt_property_t prop = deviceFoundCb.properties(i);
-                ss_bt_property_type_t prop_type = prop.type();
-                ALOGI("prop_type is :: %d",prop_type);
-                if(prop_type == BT_PROPERTY_BDADDR) {
-                    uint8_t* addr = (uint8_t*)prop.val().c_str();
-                    std::string bt_address = ((RawAddress*)addr)->ToString();
-                    ALOGI("address is :: %s",bt_address.c_str());
-                    RawAddress::FromString(bt_address.c_str(), bd_addr);
-                    properties[i].len = RawAddress::kLength;
-                    properties[i].val = (void*)bd_addr.address;
-                    properties[i].type = BT_PROPERTY_BDADDR;
-                } else if(prop_type == BT_PROPERTY_BDNAME) {
-                    std::string bt_name = prop.val();
-                    std::string bt_name_substr = bt_name.substr(0, prop.len());
-                    ALOGI("Name is : %s",bt_name_substr.c_str());
-                    strlcpy((char*)bd_name.name, (char*)bt_name.c_str(), sizeof(bt_bdname_t));
-                    properties[i].len = prop.len();
-                    properties[i].val = &bd_name;
-                    properties[i].type = BT_PROPERTY_BDNAME;
-                } else if(prop_type == BT_PROPERTY_UUIDS) {
-                    properties[i].len = prop.len();
-                    properties[i].type = BT_PROPERTY_UUIDS;
-                } else if(prop_type == SS_BT_PROPERTY_ADAPTER_SCAN_MODE) {
-                    properties[i].len = prop.len();
-                    properties[i].type = BT_PROPERTY_ADAPTER_SCAN_MODE;
-                } else if(prop_type == SS_BT_PROPERTY_ADAPTER_BONDED_DEVICES) {
-                    properties[i].len = prop.len();
-                    properties[i].type = BT_PROPERTY_ADAPTER_BONDED_DEVICES;
-                } else if(prop_type == SS_BT_PROPERTY_ADAPTER_DISCOVERY_TIMEOUT) {
-                    properties[i].len = prop.len();
-                    properties[i].type = BT_PROPERTY_ADAPTER_DISCOVERABLE_TIMEOUT;
-                } else if(prop_type == BT_PROPERTY_TYPE_OF_DEVICE) {
-                    std::string dev_val = prop.val();
-                    dev_type = (bt_device_type_t)(std::stoi(dev_val));
-                    ALOGI("Dev Type : %d", dev_type);
-                    properties[i].len = sizeof(bt_device_type_t);
-                    properties[i].val = (void*)&dev_type;
-                    properties[i].type = BT_PROPERTY_TYPE_OF_DEVICE;
-                } else if(prop_type == BT_PROPERTY_REMOTE_RSSI) {
-                    std::string rssi_val = prop.val();
-                    rssi = (int8_t)(std::stoi(rssi_val));
-                    ALOGI("RSSI value : %d", rssi);
-                    properties[i].len = sizeof(int8_t);
-                    properties[i].val = (void*)&rssi;
-                    properties[i].type = BT_PROPERTY_REMOTE_RSSI;
-               } else if(prop_type == BT_PROPERTY_CLASS_OF_DEVICE) {
-                    std::string cod_val = prop.val();
-                    cod  = (uint32_t)(std::stoi(cod_val));
-                    ALOGI("COD value : 0x%06x", cod);
-                    properties[i].len = sizeof(uint32_t);
-                    properties[i].val = (void*)&cod;
-                    properties[i].type = BT_PROPERTY_CLASS_OF_DEVICE;
-               }
-            }
-            HAL_CBACK(bt_hal_cbacks, device_found_cb, numProp, properties);
+      ALOGI("Has BT_DM_DEVICE_FOUND_CB");
+      ss_device_found_callback deviceFoundCb;
+      RawAddress bd_addr;
+      bt_device_type_t dev_type;
+      bt_bdname_t bd_name;
+      int8_t rssi;
+      uint32_t cod;
+      deviceFoundCb.ParseFromString(resBufferString);
+      if(deviceFoundCb.has_num_properties()) {
+        int numProp = deviceFoundCb.num_properties();
+        ALOGI("BT_DM_DEVICE_FOUND_CB: has_num_properties");
+        ALOGI("numProp is :: %d",numProp);
+        bt_property_t properties[numProp];
+        memset(properties, 0, sizeof(properties));
+        for(int i=0; i<numProp; i++) {
+          ss_bt_property_t prop = deviceFoundCb.properties(i);
+          ss_bt_property_type_t prop_type = prop.type();
+          ALOGI("prop_type is :: %d",prop_type);
+          if(prop_type == BT_PROPERTY_BDADDR) {
+            uint8_t* addr = (uint8_t*)prop.val().c_str();
+            std::string bt_address = ((RawAddress*)addr)->ToString();
+            ALOGI("address is :: %s",bt_address.c_str());
+            RawAddress::FromString(bt_address.c_str(), bd_addr);
+            properties[i].len = RawAddress::kLength;
+            properties[i].val = (void*)bd_addr.address;
+            properties[i].type = BT_PROPERTY_BDADDR;
+          } else if(prop_type == BT_PROPERTY_BDNAME) {
+            std::string bt_name = prop.val();
+            std::string bt_name_substr = bt_name.substr(0, prop.len());
+            ALOGI("Name is : %s",bt_name_substr.c_str());
+             strlcpy((char*)bd_name.name, (char*)bt_name.c_str(), sizeof(bt_bdname_t));
+            properties[i].len = prop.len();
+            properties[i].val = &bd_name;
+            properties[i].type = BT_PROPERTY_BDNAME;
+          } else if(prop_type == BT_PROPERTY_UUIDS) {
+            properties[i].len = prop.len();
+            properties[i].type = BT_PROPERTY_UUIDS;
+          } else if(prop_type == SS_BT_PROPERTY_ADAPTER_SCAN_MODE) {
+            properties[i].len = prop.len();
+            properties[i].type = BT_PROPERTY_ADAPTER_SCAN_MODE;
+          } else if(prop_type == SS_BT_PROPERTY_ADAPTER_BONDED_DEVICES) {
+            properties[i].len = prop.len();
+            properties[i].type = BT_PROPERTY_ADAPTER_BONDED_DEVICES;
+          } else if(prop_type == SS_BT_PROPERTY_ADAPTER_DISCOVERY_TIMEOUT) {
+            properties[i].len = prop.len();
+            properties[i].type = BT_PROPERTY_ADAPTER_DISCOVERABLE_TIMEOUT;
+          } else if(prop_type == BT_PROPERTY_TYPE_OF_DEVICE) {
+            std::string dev_val = prop.val();
+            dev_type = (bt_device_type_t)(std::stoi(dev_val));
+            ALOGI("Dev Type : %d", dev_type);
+            properties[i].len = sizeof(bt_device_type_t);
+            properties[i].val = (void*)&dev_type;
+            properties[i].type = BT_PROPERTY_TYPE_OF_DEVICE;
+          } else if(prop_type == BT_PROPERTY_REMOTE_RSSI) {
+            std::string rssi_val = prop.val();
+            rssi = (int8_t)(std::stoi(rssi_val));
+            ALOGI("RSSI value : %d", rssi);
+            properties[i].len = sizeof(int8_t);
+            properties[i].val = (void*)&rssi;
+            properties[i].type = BT_PROPERTY_REMOTE_RSSI;
+          } else if(prop_type == BT_PROPERTY_CLASS_OF_DEVICE) {
+            std::string cod_val = prop.val();
+            cod  = (uint32_t)(std::stoi(cod_val));
+            ALOGI("COD value : 0x%06x", cod);
+            properties[i].len = sizeof(uint32_t);
+            properties[i].val = (void*)&cod;
+            properties[i].type = BT_PROPERTY_CLASS_OF_DEVICE;
+          }
         }
-        break;
+        HAL_CBACK(bt_hal_cbacks, device_found_cb, numProp, properties);
+      }
+      break;
     }
     case BT_DM_PIN_REQUEST_CB: {
       ALOGI("Has BT_DM_PIN_REQUEST_CB");
@@ -1645,14 +1650,14 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       uint32_t cod;
       if(pinRequestCb.has_cod())
       {
-	    ALOGI("BT_DM_PIN_REQUEST_CB: parseRxData has_cod");
+        ALOGI("BT_DM_PIN_REQUEST_CB: parseRxData has_cod");
         cod = pinRequestCb.cod();
-	    ALOGI("BT_DM_PIN_REQUEST_CB: cod : %d", cod);
+        ALOGI("BT_DM_PIN_REQUEST_CB: cod : %d", cod);
       }
       bool min_16_digit = false;
       if(pinRequestCb.has_min_16_digit())
       {
-	    ALOGI("BT_DM_PIN_REQUEST_CB: parseRxData has_min_16_digit");
+        ALOGI("BT_DM_PIN_REQUEST_CB: parseRxData has_min_16_digit");
         min_16_digit = pinRequestCb.min_16_digit();
 	    ALOGI("BT_DM_PIN_REQUEST_CB: min_16_digit : %d", min_16_digit);
       }
@@ -1666,30 +1671,28 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       uint32_t cod, passkey;
       RawAddress *bd_addr;
       if(sspRequestCb.has_remote_bd_addr()){
-	       ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_remote_bd_addr");
-      uint8_t* addr = (uint8_t*)sspRequestCb.remote_bd_addr().c_str();
-      bd_addr = (RawAddress*)addr;
-      ALOGI("BT_DM_SSP_REQUEST_CB: addr : %s", bd_addr->ToString().c_str());
-      ALOGI("BT_DM_SSP_REQUEST_CB: length: %d ", bd_addr->ToString().length());
+        ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_remote_bd_addr");
+        uint8_t* addr = (uint8_t*)sspRequestCb.remote_bd_addr().c_str();
+        bd_addr = (RawAddress*)addr;
+        ALOGI("BT_DM_SSP_REQUEST_CB: addr : %s", bd_addr->ToString().c_str());
+        ALOGI("BT_DM_SSP_REQUEST_CB: length: %d ", bd_addr->ToString().length());
       }
       bt_bdname_t bdname;
       if (sspRequestCb.has_bdname()) {
-	    ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_bdname");
+        ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_bdname");
         std::string bt_name = sspRequestCb.bdname().name();
         strlcpy((char*)bdname.name, (char*)bt_name.c_str(), bt_name.length()+1);
         ALOGI("BT_DM_SSP_REQUEST_CB: name: %s", (char*)bdname.name);
       }
-      if(sspRequestCb.has_cod())
-      {
-	    ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_cod");
+      if(sspRequestCb.has_cod()) {
+        ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_cod");
         cod = sspRequestCb.cod();
-	    ALOGI("BT_DM_SSP_REQUEST_CB: cod : %d", cod);
+        ALOGI("BT_DM_SSP_REQUEST_CB: cod : %d", cod);
       }
-      if(sspRequestCb.has_pass_key())
-      {
-	    ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_pass_key");
+      if(sspRequestCb.has_pass_key()) {
+        ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_pass_key");
         passkey = sspRequestCb.pass_key();
-	    ALOGI("BT_DM_SSP_REQUEST_CB: pass_key : %d", passkey);
+        ALOGI("BT_DM_SSP_REQUEST_CB: pass_key : %d", passkey);
       }
       if(sspRequestCb.has_pairing_variant()) {
         ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_pairing_ssp_variant");
@@ -1697,8 +1700,8 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
         ssp_variant = (bt_ssp_variant_t)sspRequestCb.pairing_variant();
         ALOGI("BT_DM_SSP_REQUEST_CB: Pairing: cod: %d bd_addr: %s bdname: %s, ssp_variant: %d, passkey: %d", cod, bd_addr->ToString().c_str(), (char*)bdname.name, ssp_variant, passkey);
         HAL_CBACK(bt_hal_cbacks, ssp_request_cb, bd_addr, &bdname, cod, ssp_variant, passkey);
-        }
-        break;
+      }
+      break;
     }
     case BT_DM_BOND_STATE_CHANGE_CB: {
       ALOGI("BT_DM_BOND_STATE_CHANGE_CB");
@@ -1707,36 +1710,35 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       bondStateChangedCb.ParseFromString(resBufferString);
       bt_status_t status = BT_STATUS_FAIL;
       if (bondStateChangedCb.has_status()) {
-	    ALOGI("BT_DM_BOND_STATE_CHANGE_CB: parseRxData has_status");
+        ALOGI("BT_DM_BOND_STATE_CHANGE_CB: parseRxData has_status");
         status = (bt_status_t)bondStateChangedCb.status();
-	    ALOGI("BT_DM_Bond_STATE_CHANGE_CB: status : %d", status);
+        ALOGI("BT_DM_Bond_STATE_CHANGE_CB: status : %d", status);
       }
       RawAddress *bd_addr;
       if(bondStateChangedCb.has_remote_bd_addr()){
-	    ALOGI("BT_DM_BOND_STATE_CHANGE_CB: parseRxData has_remote_bd_addr");
+        ALOGI("BT_DM_BOND_STATE_CHANGE_CB: parseRxData has_remote_bd_addr");
         uint8_t* addr = (uint8_t*)bondStateChangedCb.remote_bd_addr().c_str();
         bd_addr = (RawAddress*)addr;
-        ALOGI("BT_DM_BOND_STATE_CHANGE_CB : %s", bd_addr->ToString().c_str());
         ALOGI("BT_DM_BOND_STATE_CHANGE_CB : length: %d ", bd_addr->ToString().length());
-        ALOGI("BT_DM_Bond_STATE_CHANGE_CB: address : %s", bd_addr->ToString().c_str());
+        ALOGI("BT_DM_Bond_STATE_CHANGE_CB : address : %s", bd_addr->ToString().c_str());
       }
       int fail_reason;
       if(bondStateChangedCb.has_fail_reason()) {
-	      ALOGI("BT_DM_BOND_STATE_CHANGE_CB: parseRxData has_fail_reason");
-	      fail_reason = bondStateChangedCb.fail_reason();
-	      ALOGI("BT_DM_Bond_STATE_CHANGE_CB: fail_reason: %d", fail_reason);
+        ALOGI("BT_DM_BOND_STATE_CHANGE_CB: parseRxData has_fail_reason");
+        fail_reason = bondStateChangedCb.fail_reason();
+        ALOGI("BT_DM_Bond_STATE_CHANGE_CB: fail_reason: %d", fail_reason);
       }
       if(bondStateChangedCb.has_state()) {
-            ALOGI("BT_DM_BOND_STATE_CHANGE_CB: parseRxData has_state");
-            bt_bond_state_t bond_state;
-            bond_state = (bt_bond_state_t)bondStateChangedCb.state();
-            ALOGI("BT_DM_Bond_STATE_CHANGE_CB: state : %d", bond_state);
-            HAL_CBACK(bt_hal_cbacks, bond_state_changed_cb, status, bd_addr, bond_state, fail_reason);
-        }
-        else {
-            ALOGI("BT_DM_BOND_STATE_CHANGE_CB: Not have state info");
-        }
-        break;
+        ALOGI("BT_DM_BOND_STATE_CHANGE_CB: parseRxData has_state");
+        bt_bond_state_t bond_state;
+        bond_state = (bt_bond_state_t)bondStateChangedCb.state();
+        ALOGI("BT_DM_Bond_STATE_CHANGE_CB: state : %d", bond_state);
+        HAL_CBACK(bt_hal_cbacks, bond_state_changed_cb, status, bd_addr, bond_state, fail_reason);
+      }
+      else {
+        ALOGI("BT_DM_BOND_STATE_CHANGE_CB: Not have state info");
+      }
+      break;
     }
     case BT_DM_ACL_STATE_CHANGE_CB: {
       ALOGI("BT_DM_ACL_STATE_CHANGE_CB");
@@ -1744,22 +1746,22 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       aclStateChangedCb.ParseFromString(resBufferString);
       bt_status_t status = BT_STATUS_FAIL;
       if (aclStateChangedCb.has_status()) {
-	    ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_status");
+        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_status");
         status = (bt_status_t)aclStateChangedCb.status();
-	    ALOGI("BT_DM_ACL_STATE_CHANGE_CB: status : %d", status);
+        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: status : %d", status);
       }
       RawAddress *bd_addr;
       if (aclStateChangedCb.has_remote_bd_addr()) {
-	       ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_remote_bd_addr");
+        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_remote_bd_addr");
         uint8_t* addr = (uint8_t*)aclStateChangedCb.remote_bd_addr().c_str();
         bd_addr = (RawAddress*)addr;
         ALOGI("BT_DM_ACL_STATE_CHANGE_CB: bd_addr : %s", bd_addr->ToString().c_str());
       }
       uint32_t hci_reason;
       if(aclStateChangedCb.has_hci_reason()) {
-	      ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_hci_reason");
-	      hci_reason = aclStateChangedCb.hci_reason();
-	      ALOGI("BT_DM_ACL_STATE_CHANGE_CB: hci_reason : %d", hci_reason);
+        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_hci_reason");
+        hci_reason = aclStateChangedCb.hci_reason();
+        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: hci_reason : %d", hci_reason);
       }
       if(aclStateChangedCb.has_state()) {
             ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_state");
@@ -1777,10 +1779,10 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
             ALOGI("BT_DM_ACL_STATE_CHANGE_CB: Not have state info");
         }
         break;
+
     }
     case BT_DM_LE_ADAPTER_PROPERTIES_CB: {
       ALOGI("Has BT_DM_LE_ADAPTER_PROPERTIES_CB");
-
       ss_bt_local_le_features_callback leAdapterPropCb;
       leAdapterPropCb.ParseFromString(resBufferString);
       bt_status_t status = BT_STATUS_SUCCESS;
