@@ -61,6 +61,7 @@
 #include <hardware/vendor_socket.h>
 #include <hardware/bt_ba.h>
 #include <hardware/bt_vendor_rc.h>
+#include <openssl/rand.h>
 #include "bt_utils.h"
 #include "bta_sys.h"
 #include "bta/include/bta_has_api.h"
@@ -85,6 +86,7 @@
 #include "btsnoop.h"
 #include "btsnoop_mem.h"
 #include "common/address_obfuscator.h"
+#include "common/address_obfuscator.cc"
 #include "common/os_utils.h"
 #include "device/include/interop.h"
 #include "osi/include/alarm.h"
@@ -1059,8 +1061,8 @@ static bluetooth::avrcp::ServiceInterface* get_avrcp_service(void) {
 }
 
 static std::string obfuscate_address(const RawAddress& address) {
-  return NULL;//bluetooth::common::AddressObfuscator::GetInstance()->Obfuscate(
-      //address);
+   ALOGI("%s: address : %s", __func__, address.ToString().c_str());
+   return bluetooth::common::AddressObfuscator::GetInstance()->Obfuscate(address);
 }
 
 static int get_metric_id(const RawAddress& address) {
@@ -1153,6 +1155,19 @@ static void interop_database_add_remove_name(bool do_add,
                                              const char* feature_name,
                                              const char* name) {
   return;
+}
+
+static void read_or_set_metrics_salt() {
+  ALOGI("%s", __func__);
+  bluetooth::common::AddressObfuscator::Octet32 metrics_salt = {};
+  size_t metrics_salt_length = metrics_salt.size();
+  if (!bluetooth::common::AddressObfuscator::IsSaltValid(metrics_salt)) {
+    LOG(INFO) << __func__ << ": Metrics salt is not invalid, creating new one";
+    if (RAND_bytes(metrics_salt.data(), metrics_salt.size()) != 1) {
+      LOG(FATAL) << __func__ << "Failed to generate salt for metrics";
+    }
+  }
+  bluetooth::common::AddressObfuscator::GetInstance()->Initialize(metrics_salt);
 }
 
 EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
@@ -1353,6 +1368,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
                     return_status = BT_STATE_ON;
                     uid_set = uid_set_create();
                     btif_sock_init(uid_set);
+                    read_or_set_metrics_salt();
                 break;
 
                 case BT_ENABLE_STATUS_FAILURE:
