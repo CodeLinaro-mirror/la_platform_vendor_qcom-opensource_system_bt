@@ -429,12 +429,14 @@ static tAVRC_STS avrc_pars_browse_rsp(tAVRC_MSG_BROWSE* p_msg,
     case AVRC_PDU_GET_ITEM_ATTRIBUTES: {
       tAVRC_GET_ATTRS_RSP* get_attr_rsp = &(p_rsp->get_attrs);
       get_attr_rsp->pdu = pdu;
+      BE_STREAM_TO_UINT8(get_attr_rsp->status, p)
+      if(get_attr_rsp->status == AVRC_STS_NOT_EXIST)
+        return AVRC_STS_NOT_EXIST;
       min_len += 2;
       if (pkt_len < min_len) {
         android_errorWriteLog(0x534e4554, "179162665");
         goto browse_length_error;
       }
-      BE_STREAM_TO_UINT8(get_attr_rsp->status, p)
       BE_STREAM_TO_UINT8(get_attr_rsp->num_attrs, p);
       get_attr_rsp->p_attrs = (tAVRC_ATTR_ENTRY*)osi_calloc(
           get_attr_rsp->num_attrs * sizeof(tAVRC_ATTR_ENTRY));
