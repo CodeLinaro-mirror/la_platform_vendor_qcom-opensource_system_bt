@@ -859,6 +859,8 @@ static void ss_srv_rfc_connect (int fd, const RawAddress* addr, int channel,
 static void ss_cli_rfc_connect (int fd, const RawAddress* addr, int channel,
                               int status, int mtu) {
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
+  rfc_slot_t* client_rs = find_rfc_slot_by_id(channel);
+  client_rs->mtu = mtu;
   /*if (status != PORT_OPEN_SUCCUESS) {
     LOG_ERROR(LOG_TAG, "%s slate returned failure Status : %d",__func__, status);
     return;
@@ -1240,7 +1242,7 @@ void btsock_rfc_signaled(UNUSED_ATTR int fd, int flags, uint32_t user_id) {
   int new_srv_fd = slot->new_srv_fd;
   ALOGI("new_srv_fd is :: %d",new_srv_fd);
   if (flags & SOCK_THREAD_FD_RD){
-    ALOGI("Data available from App on FD :: %d and channel :: %d and new_srv_fd is %d",fd,channel,new_srv_fd);
+    ALOGI("Data available from App on FD :: %d and channel :: %d and new_srv_fd is %d and slot->mtu is %d",fd,channel,new_srv_fd,slot->mtu);
     if (ss_rfc_data_outgoing_size(fd, &size)) {
         ALOGI("%s fd is :: %d size is :: %d",__func__,fd,size);
         uint8_t data[size];
@@ -1260,7 +1262,11 @@ void btsock_rfc_signaled(UNUSED_ATTR int fd, int flags, uint32_t user_id) {
             set_remprop_msg[1] = (msg_id >> 8);
             std::string protoMsg;
             ss_write_rfcomm_data rfcommData;
-            rfcommData.set_sock_fd(new_srv_fd);
+            if(slot->f.server){
+              rfcommData.set_sock_fd(new_srv_fd);
+            }else{
+              rfcommData.set_sock_fd(fd);
+            }
             rfcommData.set_channel(channel);
             rfcommData.set_data_len(data_string_sub.size());
             rfcommData.set_data(data_string_sub);
