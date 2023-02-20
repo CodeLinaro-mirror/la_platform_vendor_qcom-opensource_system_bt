@@ -438,7 +438,23 @@ void A2dpAacEncoder::feeding_reset(void) {
     if (this->a2dp_aac_encoder_interval_ms < A2DP_AAC_ENCODER_INTERVAL_MS)
       this->a2dp_aac_encoder_interval_ms = A2DP_AAC_ENCODER_INTERVAL_MS;
   }
+
+  /* By default, just clear the entire state */
+  memset(&a2dp_aac_encoder_cb.aac_feeding_state, 0,
+         sizeof(a2dp_aac_encoder_cb.aac_feeding_state));
+
+  a2dp_aac_encoder_cb.aac_feeding_state.bytes_per_tick =
+      (a2dp_aac_encoder_cb.feeding_params.sample_rate *
+       a2dp_aac_encoder_cb.feeding_params.bits_per_sample / 8 *
+       a2dp_aac_encoder_cb.feeding_params.channel_count *
+       a2dp_aac_encoder_interval_ms) /
+      1000;
+
+  LOG_INFO("%s: PCM bytes %u per tick %u ms", __func__,
+           a2dp_aac_encoder_cb.aac_feeding_state.bytes_per_tick,
+           a2dp_aac_encoder_interval_ms);
 }
+
 void A2dpAacEncoder::feeding_flush(void) {
   a2dp_aac_encoder_cb.aac_feeding_state.counter = 0.0f;
 }
