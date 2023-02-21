@@ -4134,8 +4134,8 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb)
   APPL_TRACE_DEBUG("%s: param size %ld", __func__, sizeof(param));
   APPL_TRACE_DEBUG("%s: enc_update_in_progress = %d", __func__, enc_update_in_progress);
   APPL_TRACE_DEBUG("%s: Last cached VSC command: 0x0%x", __func__, last_sent_vsc_cmd);
-  APPL_TRACE_IMP("bta_av_vendor_offload_start: vsc flags:-"
-    "vs_configs_exchanged:%u tx_started:%u tx_start_initiated:%u"
+  APPL_TRACE_IMP("bta_av_vendor_offload_start: vsc flags: "
+    "vs_configs_exchanged:%u tx_started:%u tx_start_initiated:%u "
     "tx_enc_update_initiated:%u tx_stop_initiated: %u", btif_a2dp_src_vsc.vs_configs_exchanged,
     btif_a2dp_src_vsc.tx_started, btif_a2dp_src_vsc.tx_start_initiated, tx_enc_update_initiated,
     btif_a2dp_src_vsc.tx_stop_initiated);
@@ -4143,8 +4143,8 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb)
   if (btif_a2dp_src_vsc.multi_vsc_support) {
     unsigned char status = 0;
     uint16_t bitrate = 0;
-    APPL_TRACE_IMP("bta_av_vendor_offload_start: vsc flags:-"
-      "vs_configs_exchanged:%u tx_started:%u tx_start_initiated:%u"
+    APPL_TRACE_IMP("bta_av_vendor_offload_start: vsc flags: "
+      "vs_configs_exchanged:%u tx_started:%u tx_start_initiated:%u "
       "tx_enc_update_initiated:%u", btif_a2dp_src_vsc.vs_configs_exchanged, btif_a2dp_src_vsc.tx_started,
       btif_a2dp_src_vsc.tx_start_initiated, tx_enc_update_initiated);
     if (!bluetooth::headset::btif_hf_is_call_vr_idle()) {
