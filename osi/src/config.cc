@@ -484,7 +484,8 @@ static bool config_parse(FILE* fp, config_t* config) {
         skip_entries = true;
         continue;
       }
-      strlcpy(section, line_ptr + 1, sizeof(section));
+      strlcpy(section, line_ptr + 1, len - 1);
+      section[len - 1] = '\0';
       skip_entries = false;
     } else {
       char *split = strchr(line_ptr, '=');
