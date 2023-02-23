@@ -138,6 +138,7 @@ typedef struct {
   int role;
   list_t* incoming_queue;
   int new_srv_fd;
+  bool is_server;
 } rfc_slot_t;
 
 struct PendingData
@@ -518,7 +519,7 @@ static rfc_slot_t* alloc_rfc_slot(const RawAddress* addr, const char* name,
   }
   if (addr) slot->addr = *addr;
 
-  slot->id = channel;
+  slot->id = rfc_slot_id;
   slot->f.server = server;
 
   return slot;
@@ -544,6 +545,7 @@ static rfc_slot_t* create_srv_accept_rfc_slot(rfc_slot_t* srv_rs,
   accept_rs->rfc_port_handle = -1;//BTA_JvRfcommGetPortHdl(open_handle);
   accept_rs->app_uid = srv_rs->app_uid;
   accept_rs->new_srv_fd = srv_rs->fd;
+  accept_rs->is_server = true;
 
   srv_rs->rfc_handle = new_listen_handle;
   srv_rs->rfc_port_handle = -1;//BTA_JvRfcommGetPortHdl(new_listen_handle);
@@ -835,7 +837,7 @@ static void ss_srv_rfc_connect (int fd, const RawAddress* addr, int channel,
                               int status, int mtu) {
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* accept_rs;
-  rfc_slot_t* srv_rs = find_rfc_slot_by_id(channel);
+  rfc_slot_t* srv_rs = find_rfc_slot_by_scn(channel);
   if (!srv_rs) return;
 
   srv_rs->mtu = mtu;
@@ -859,7 +861,7 @@ static void ss_srv_rfc_connect (int fd, const RawAddress* addr, int channel,
 static void ss_cli_rfc_connect (int fd, const RawAddress* addr, int channel,
                               int status, int mtu) {
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
-  rfc_slot_t* client_rs = find_rfc_slot_by_id(channel);
+  rfc_slot_t* client_rs = find_rfc_slot_by_scn(channel);
   client_rs->mtu = mtu;
   /*if (status != PORT_OPEN_SUCCUESS) {
     LOG_ERROR(LOG_TAG, "%s slate returned failure Status : %d",__func__, status);
@@ -1262,7 +1264,7 @@ void btsock_rfc_signaled(UNUSED_ATTR int fd, int flags, uint32_t user_id) {
             set_remprop_msg[1] = (msg_id >> 8);
             std::string protoMsg;
             ss_write_rfcomm_data rfcommData;
-            if(slot->f.server){
+            if(slot->is_server){
               rfcommData.set_sock_fd(new_srv_fd);
             }else{
               rfcommData.set_sock_fd(fd);
