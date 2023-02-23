@@ -186,9 +186,9 @@ extern HasClientInterface* btif_has_client_get_interface();
 
 /* List all test interface here */
 /* vendor  */
-//extern btvendor_interface_t *btif_vendor_get_interface();
+extern btvendor_interface_t *btif_vendor_get_interface();
 /* vendor socket*/
-//extern btvendor_interface_t *btif_vendor_socket_get_interface();
+extern btvendor_interface_t *btif_vendor_socket_get_interface();
 #if (SWB_ENABLED == TRUE)
 //extern btvendor_interface_t *btif_vendor_hf_get_interface();
 #endif
@@ -1001,10 +1001,10 @@ static const void* get_profile_interface(const char* profile_id) {
     return NULL;//btif_rc_vendor_ctrl_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_VENDOR_ID))
-    return NULL;//btif_vendor_get_interface();
+    return btif_vendor_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_VENDOR_SOCKET_ID))
-    return NULL;//btif_vendor_socket_get_interface();
+    return btif_vendor_socket_get_interface();
 #if (SWB_ENABLED == TRUE)
   if (is_profile(profile_id, BT_PROFILE_VENDOR_HF_ID))
     return NULL;//btif_vendor_hf_get_interface();

@@ -177,7 +177,7 @@ cc_library_shared {
 
     ],
     whole_static_libs: [
-        //"libbtif_ext",
+        "libbtif_ext",
         "libc++fs",
         "libosi_qti",
 		    "libbtdevice_ext",

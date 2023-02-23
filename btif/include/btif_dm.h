@@ -118,7 +118,7 @@ void btif_vendor_update_add_on_features();
 
 void btif_vendor_update_whitelisted_media_players();
 
-//bool fetch_whitelisted_media_players(list_t** bl_devices);
+bool fetch_whitelisted_media_players(list_t** bl_devices);
 
 void btif_get_pairing_cb_info(bt_bond_state_t* state, uint8_t* sdp_attempts,
                              RawAddress* bd_addr, RawAddress* static_bdaddr,
