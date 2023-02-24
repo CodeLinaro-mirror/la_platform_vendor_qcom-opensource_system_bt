@@ -100,6 +100,7 @@
 #include "stack_interface.h"
 #include <stdarg.h>
 #include "btif_uid.h"
+#include "btif_tws_plus.h"
 using base::Bind;
 using bluetooth::hearing_aid::HearingAidInterface;
 using bluetooth::has::HasClientInterface;
@@ -457,7 +458,7 @@ int get_remote_device_properties(RawAddress* remote_addr) {
 
   std::string protoMsg;
   ss_get_remote_device_properties _get_remote_device_properties;
-  _get_remote_device_properties.set_remote_addr(remote_addr->ToString().c_str());
+  _get_remote_device_properties.set_remote_addr(ToRawString(remote_addr).c_str());
   _get_remote_device_properties.SerializeToString(&protoMsg);
   ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
   //adding length
@@ -491,7 +492,7 @@ int get_remote_device_property(RawAddress* remote_addr,
 
   std::string protoMsg;
   ss_get_remote_device_property _get_remote_device_property;
-  _get_remote_device_property.set_remote_addr(remote_addr->ToString().c_str());
+  _get_remote_device_property.set_remote_addr(ToRawString(remote_addr).c_str());
   _get_remote_device_property.set_type((ss_bt_property_type_t)type);
   _get_remote_device_property.SerializeToString(&protoMsg);
   ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
@@ -526,7 +527,7 @@ int set_remote_device_property(RawAddress* remote_addr,
 
   std::string protoMsg;
   ss_set_remote_device_property _set_remote_device_property;
-  _set_remote_device_property.set_remote_addr(remote_addr->ToString().c_str());
+  _set_remote_device_property.set_remote_addr(ToRawString(remote_addr).c_str());
   ss_bt_property_t *btProerty = _set_remote_device_property.mutable_property();
   btProerty->set_type((ss_bt_property_type_t)property->type);
   btProerty->set_len(property->len);
@@ -1832,6 +1833,11 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       properties[0].val = &le_features;
       properties[0].type = BT_PROPERTY_LOCAL_LE_FEATURES;
       HAL_CBACK(bt_hal_cbacks, adapter_properties_cb, status, 1, properties);
+      break;
+    }
+    case BT_DM_SSR_CB: {
+      ALOGI("Has BT_DM_SSR_CB");
+      HAL_CBACK(bt_vendor_callbacks, ssr_vendor_cb);
       break;
     }
     default : {

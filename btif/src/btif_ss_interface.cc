@@ -421,6 +421,11 @@ void BluetoothSSInterface::processDataChRx() {
             ALOGE("Slate response is too short ::  %d",num);
         } else {
             uint16_t MSG_ID = readBuffer[0] + (((int)(readBuffer[1]))<<8);
+            uint16_t length = readBuffer[2] + (((int)(readBuffer[3]))<<8);
+            if (length > (num - MSG_PROTO_OFFSET)) {
+              ALOGE("Length is greater than the buffer received. Buffer Size: %d and length: %d",num, length);
+              continue;
+            }
             tBTIF_SS_Cback ss_cback;
             memset(&ss_cback, 0, sizeof(tBTIF_SS_Cback));
             ss_cback.payload = (uint8_t *)malloc(num*sizeof(uint8_t)); //This memory should be released from each profile after done with the processing
