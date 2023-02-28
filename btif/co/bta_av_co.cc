@@ -28,6 +28,7 @@
 
 #include "bt_target.h"  // Must be first to define build configuration
 
+#include "bt_utils.h"
 #include "bta/include/bta_av_api.h"
 #include "bta/include/bta_av_ci.h"
 #include "btif/include/btif_a2dp_source.h"
@@ -1256,6 +1257,12 @@ void BtaAvCo::ProcessSetConfig(tBTA_AV_HNDL bta_av_handle,
     if (!codec_config_supported) {
       category = AVDT_ASC_CODEC;
       status = A2DP_WRONG_CODEC;
+#if A2DP_SINK_PTS_TEST
+      if (is_pts_a2dpsink()) {
+        status = get_a2dp_error_code();
+        APPL_TRACE_DEBUG("%s: status %d", __func__, status);
+      }
+#endif
     }
   }
 
