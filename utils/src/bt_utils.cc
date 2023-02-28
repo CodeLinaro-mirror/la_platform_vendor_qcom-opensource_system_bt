@@ -15,6 +15,14 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+/******************************************************************************
+ *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ ******************************************************************************/
 
 /*******************************************************************************
  *
@@ -56,6 +64,11 @@ static bool g_DoSchedulingGroup[TASK_HIGH_MAX];
 static std::mutex gIdxLock;
 static int g_TaskIdx;
 static int g_TaskIDs[TASK_HIGH_MAX];
+
+#if A2DP_SINK_PTS_TEST
+static tA2DP_STATUS errr_code;
+#endif
+
 #define INVALID_TASK_ID (-1)
 
 static future_t* init(void) {
@@ -151,3 +164,20 @@ void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task) {
     }
   }
 }
+
+#if A2DP_SINK_PTS_TEST
+void set_a2dp_error_code(tA2DP_STATUS err) {
+  errr_code = err;
+}
+
+tA2DP_STATUS get_a2dp_error_code() {
+  return errr_code;
+}
+
+bool is_pts_a2dpsink() {
+    // PTS: A2DP/SNK/AVP: Set property "bluetooth.pts.a2dpsinkavp" to "true"
+    char pts_mode[PROPERTY_VALUE_MAX];
+    osi_property_get("bluetooth.pts.a2dpsinkavp", pts_mode, "false");
+    return strncmp(pts_mode, "true", PROPERTY_VALUE_MAX) == 0;
+}
+#endif

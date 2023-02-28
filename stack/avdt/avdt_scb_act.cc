@@ -15,6 +15,14 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+/******************************************************************************
+ *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ ******************************************************************************/
 
 /******************************************************************************
  *
@@ -635,7 +643,13 @@ void avdt_scb_hdl_setconfig_cmd(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
           AVDT_CONFIG_IND_EVT, (tAVDT_CTRL*)&p_data->msg.config_cmd,
           p_scb->stream_config.scb_index);
     } else {
-      p_data->msg.hdr.err_code = AVDT_ERR_UNSUP_CFG;
+#if A2DP_SINK_PTS_TEST
+      if (is_pts_a2dpsink() && !A2DP_IsPeerSourceCodecSupported(p_cfg->codec_info) &&
+          get_a2dp_error_code() != A2DP_SUCCESS) {
+        p_data->msg.hdr.err_code = get_a2dp_error_code();
+      } else
+#endif
+        p_data->msg.hdr.err_code = AVDT_ERR_UNSUP_CFG;
       p_data->msg.hdr.err_param = 0;
       avdt_msg_send_rej(avdt_ccb_by_idx(p_data->msg.hdr.ccb_idx),
                         p_data->msg.hdr.sig_id, &p_data->msg);
