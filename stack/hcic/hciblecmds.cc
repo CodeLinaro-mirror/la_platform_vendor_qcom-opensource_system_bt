@@ -882,3 +882,52 @@ void btsnd_hci_ble_cancel_period_sync(void) {
   UINT8_TO_STREAM(pp, param_len);
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
+
+void btsnd_hcic_ble_subrate_request(uint16_t conn_handle,
+                                    uint16_t subrate_min,
+                                    uint16_t subrate_max,
+                                    uint16_t max_latency,
+                                    uint16_t cont_num,
+                                    uint16_t sup_tout) {
+  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
+  uint8_t* pp = (uint8_t*)(p + 1);
+
+  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_BLE_SUBRATE_REQ;
+  p->offset = 0;
+
+  UINT16_TO_STREAM(pp, HCI_BLE_SUBRATE_REQ);
+  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_BLE_SUBRATE_REQ);
+
+  UINT16_TO_STREAM(pp, conn_handle);
+
+  UINT16_TO_STREAM(pp, subrate_min);
+  UINT16_TO_STREAM(pp, subrate_max);
+  UINT16_TO_STREAM(pp, max_latency);
+  UINT16_TO_STREAM(pp, cont_num);
+  UINT16_TO_STREAM(pp, sup_tout);
+
+  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
+}
+
+void btsnd_hcic_ble_set_default_subrate(uint16_t subrate_min,
+                                        uint16_t subrate_max,
+                                        uint16_t max_latency,
+                                        uint16_t cont_num,
+                                        uint16_t sup_tout) {
+  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
+  uint8_t* pp = (uint8_t*)(p + 1);
+
+  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_BLE_SET_DEFAULT_SUBRATE;
+  p->offset = 0;
+
+  UINT16_TO_STREAM(pp, HCI_BLE_SET_DEFAULT_SUBRATE);
+  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_BLE_SET_DEFAULT_SUBRATE);
+
+  UINT16_TO_STREAM(pp, subrate_min);
+  UINT16_TO_STREAM(pp, subrate_max);
+  UINT16_TO_STREAM(pp, max_latency);
+  UINT16_TO_STREAM(pp, cont_num);
+  UINT16_TO_STREAM(pp, sup_tout);
+
+  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
+}

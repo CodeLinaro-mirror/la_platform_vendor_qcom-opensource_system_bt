@@ -71,6 +71,9 @@ static void bta_gattc_phy_update_cback(tGATT_IF gatt_if, uint16_t conn_id,
 static void bta_gattc_conn_update_cback(tGATT_IF gatt_if, uint16_t conn_id,
                                         uint16_t interval, uint16_t latency,
                                         uint16_t timeout, uint8_t status);
+static void bta_gattc_subrate_chg_cback(tGATT_IF gatt_if, uint16_t conn_id,
+                                        uint16_t subrate_factor, uint16_t latency,
+                                        uint16_t cont_num, uint16_t timeout, uint8_t status);
 
 static tGATT_CBACK bta_gattc_cl_cback = {bta_gattc_conn_cback,
                                          bta_gattc_cmpl_cback,
@@ -80,7 +83,8 @@ static tGATT_CBACK bta_gattc_cl_cback = {bta_gattc_conn_cback,
                                          bta_gattc_enc_cmpl_cback,
                                          bta_gattc_cong_cback,
                                          bta_gattc_phy_update_cback,
-                                         bta_gattc_conn_update_cback};
+                                         bta_gattc_conn_update_cback,
+                                         bta_gattc_subrate_chg_cback};
 
 /* opcode(tGATTC_OPTYPE) order has to be comply with internal event order */
 static uint16_t bta_gattc_opcode_to_int_evt[] = {
@@ -1735,4 +1739,25 @@ static void bta_gattc_conn_update_cback(tGATT_IF gatt_if, uint16_t conn_id,
   cb_data.conn_update.timeout = timeout;
   cb_data.conn_update.status = status;
   (*p_clreg->p_cback)(BTA_GATTC_CONN_UPDATE_EVT, &cb_data);
+}
+
+static void bta_gattc_subrate_chg_cback(tGATT_IF gatt_if, uint16_t conn_id,
+                                        uint16_t subrate_factor, uint16_t latency,
+                                        uint16_t cont_num, uint16_t timeout,
+                                        uint8_t status) {
+  tBTA_GATTC_RCB* p_clreg = bta_gattc_cl_get_regcb(gatt_if);
+
+  if (!p_clreg || !p_clreg->p_cback) {
+    APPL_TRACE_ERROR("%s: client_if=%d not found", __func__, gatt_if);
+    return;
+  }
+
+  tBTA_GATTC cb_data;
+  cb_data.subrate_chg.conn_id = conn_id;
+  cb_data.subrate_chg.subrate_factor = subrate_factor;
+  cb_data.subrate_chg.latency = latency;
+  cb_data.subrate_chg.cont_num = cont_num;
+  cb_data.subrate_chg.timeout = timeout;
+  cb_data.subrate_chg.status = status;
+  (*p_clreg->p_cback)(BTA_GATTC_SUBRATE_CHG_EVT, &cb_data);
 }

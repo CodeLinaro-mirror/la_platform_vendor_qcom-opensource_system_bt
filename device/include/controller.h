@@ -93,6 +93,8 @@ typedef struct controller_t {
   uint8_t (*get_le_all_initiating_phys)(void);
   uint8_t* (*get_scrambling_supported_freqs)(uint8_t* number_of_freqs);
 
+  bool (*is_conn_subrating_supported)(void);
+  bool (*is_conn_subrating_host_supported)(void);
 } controller_t;
 
 const controller_t* controller_get_interface();

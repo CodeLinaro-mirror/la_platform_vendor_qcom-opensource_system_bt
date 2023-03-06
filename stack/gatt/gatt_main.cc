@@ -546,6 +546,26 @@ void gatt_notify_phy_updated(uint8_t status, uint16_t handle, uint8_t tx_phy,
   }
 }
 
+void gatt_notify_subrate_change(uint16_t handle, uint16_t subrate_factor,
+                                uint16_t latency, uint16_t cont_num,
+                                uint16_t timeout, uint8_t status) {
+  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev_by_handle(handle);
+  if (!p_dev_rec) return;
+
+  tGATT_TCB* p_tcb =
+      gatt_find_tcb_by_addr(p_dev_rec->ble.pseudo_addr, BT_TRANSPORT_LE);
+  if (!p_tcb) return;
+
+  for (int i = 0; i < GATT_MAX_APPS; i++) {
+    tGATT_REG* p_reg = &gatt_cb.cl_rcb[i];
+    if (p_reg->in_use && p_reg->app_cb.p_subrate_chg_cb) {
+      uint16_t conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
+      (*p_reg->app_cb.p_subrate_chg_cb)(p_reg->gatt_if, conn_id, subrate_factor,
+                                        latency, cont_num, timeout, status);
+    }
+  }
+}
+
 void gatt_notify_conn_update(uint16_t handle, uint16_t interval,
                              uint16_t latency, uint16_t timeout,
                              uint8_t status) {

@@ -121,6 +121,7 @@ typedef uint8_t tBTA_GATT_STATUS;
 #define BTA_GATTC_CONGEST_EVT 24     /* Congestion event */
 #define BTA_GATTC_PHY_UPDATE_EVT 25  /* PHY change event */
 #define BTA_GATTC_CONN_UPDATE_EVT 26 /* Connection parameters update event */
+#define BTA_GATTC_SUBRATE_CHG_EVT 27 /* Subrate Change event */
 
 typedef uint8_t tBTA_GATTC_EVT;
 
@@ -322,6 +323,16 @@ typedef struct {
   tBTA_GATT_STATUS status;
 } tBTA_GATTC_CONN_UPDATE;
 
+typedef struct {
+  tGATT_IF server_if;
+  uint16_t conn_id;
+  uint16_t subrate_factor;
+  uint16_t latency;
+  uint16_t cont_num;
+  uint16_t timeout;
+  tGATT_STATUS status;
+} tBTA_GATTC_SUBRATE_CHG;
+
 typedef union {
   tBTA_GATT_STATUS status;
 
@@ -340,6 +351,7 @@ typedef union {
   tBTA_GATTC_CONGEST congest;
   tBTA_GATTC_PHY_UPDATE phy_update;
   tBTA_GATTC_CONN_UPDATE conn_update;
+  tBTA_GATTC_SUBRATE_CHG subrate_chg;
 } tBTA_GATTC;
 
 /* GATTC enable callback function */
@@ -371,6 +383,7 @@ typedef void(tBTA_GATTC_CBACK)(tBTA_GATTC_EVT event, tBTA_GATTC* p_data);
 #define BTA_GATTS_CONGEST_EVT 20
 #define BTA_GATTS_PHY_UPDATE_EVT 21
 #define BTA_GATTS_CONN_UPDATE_EVT 22
+#define BTA_GATTS_SUBRATE_CHG_EVT 24
 
 typedef uint8_t tBTA_GATTS_EVT;
 typedef tGATT_IF tBTA_GATTS_IF;
@@ -526,6 +539,16 @@ typedef struct {
   tBTA_GATT_STATUS status;
 } tBTA_GATTS_CONN_UPDATE;
 
+typedef struct {
+  tGATT_IF server_if;
+  uint16_t conn_id;
+  uint16_t subrate_factor;
+  uint16_t latency;
+  uint16_t cont_num;
+  uint16_t timeout;
+  tGATT_STATUS status;
+} tBTA_GATTS_SUBRATE_CHG;
+
 /* GATTS callback data */
 typedef union {
   tBTA_GATTS_REG_OPER reg_oper;
@@ -539,6 +562,7 @@ typedef union {
   tBTA_GATTS_PHY_UPDATE phy_update; /* BTA_GATTS_PHY_UPDATE_EVT callback data */
   tBTA_GATTS_CONN_UPDATE
       conn_update; /* BTA_GATTS_CONN_UPDATE_EVT callback data */
+  tBTA_GATTS_SUBRATE_CHG subrate_chg;
 } tBTA_GATTS;
 
 /* GATTS enable callback function */

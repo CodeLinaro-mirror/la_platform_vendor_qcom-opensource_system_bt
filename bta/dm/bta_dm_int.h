@@ -99,6 +99,7 @@ enum {
   BTA_DM_API_HCI_RAW_COMMAND_EVT,
   BTA_DM_API_SET_WIFI_STATE_EVT,
   BTA_DM_API_IOT_REPORT_EVT,
+  BTA_DM_API_SUBRATE_REQ_EVT,
   BTA_DM_MAX_EVT
 };
 
@@ -475,6 +476,16 @@ typedef struct {
   uint16_t max_ce_len;
 } tBTA_DM_API_UPDATE_CONN_PARAM;
 
+typedef struct {
+  BT_HDR hdr;
+  RawAddress bd_addr;
+  uint16_t subrate_min;
+  uint16_t subrate_max;
+  uint16_t max_latency;
+  uint16_t cont_num;
+  uint16_t timeout;
+} tBTA_DM_API_SUBRATE_REQ;
+
 /* union of all data types */
 typedef union {
   /* GKI event buffer header */
@@ -535,6 +546,7 @@ typedef union {
   tBTA_DM_API_LOCAL_PRIVACY ble_local_privacy;
   tBTA_DM_API_UPDATE_CONN_PARAM ble_update_conn_params;
   tBTA_DM_API_BLE_SET_DATA_LENGTH ble_set_data_length;
+  tBTA_DM_API_SUBRATE_REQ ble_subrate_req;
 
   tBTA_DM_API_ENERGY_INFO ble_energy_info;
 
@@ -925,4 +937,7 @@ extern void bta_dm_execute_callback(tBTA_DM_MSG* p_data);
 
 extern void bta_dm_remove_all_acl(tBTA_DM_MSG* p_data);
 extern void bta_dm_hci_raw_command(tBTA_DM_MSG *p_data);
+
+extern void bta_dm_ble_subrate_request(tBTA_DM_MSG* p_data);
+
 #endif /* BTA_DM_INT_H */

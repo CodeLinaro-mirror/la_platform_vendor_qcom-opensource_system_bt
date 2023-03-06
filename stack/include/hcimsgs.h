@@ -730,6 +730,9 @@ extern void btsnd_hcic_vendor_spec_cmd(void* buffer, uint16_t opcode,
 #define HCIC_PARAM_SIZE_BLE_SET_DATA_LENGTH 6
 #define HCIC_PARAM_SIZE_BLE_WRITE_EXTENDED_SCAN_PARAM 11
 
+#define HCIC_PARAM_SIZE_BLE_SUBRATE_REQ 12
+#define HCIC_PARAM_SIZE_BLE_SET_DEFAULT_SUBRATE 10
+
 /* ULP HCI command */
 extern void btsnd_hcic_ble_set_evt_mask(BT_EVENT_MASK event_mask);
 
@@ -924,6 +927,14 @@ extern void btsnd_hcic_set_csb(uint8_t enable, uint8_t lt_addr, uint8_t lpo_allo
 extern void btsnd_hcic_start_synch_train();
 extern void btsnd_hcic_delete_reserved_lt_addr(uint8_t lt_addr);
 extern void btsnd_hcic_set_reserved_lt_addr(uint8_t lt_addr);
+
+extern void btsnd_hcic_ble_subrate_request(uint16_t conn_handle, uint16_t subrate_min,
+                                           uint16_t subrate_max, uint16_t max_latency,
+                                           uint16_t cont_num, uint16_t sup_tout);
+extern void btsnd_hcic_ble_set_default_subrate(uint16_t subrate_min, uint16_t subrate_max,
+                                               uint16_t max_latency, uint16_t cont_num,
+                                               uint16_t sup_tout);
+
 /*******PAST & PS **********************************/
 extern void btsnd_hcic_ble_create_periodic_sync(uint8_t options, uint8_t adv_sid,
                                                 uint8_t address_type, const RawAddress& bda_peer,
@@ -931,4 +942,5 @@ extern void btsnd_hcic_ble_create_periodic_sync(uint8_t options, uint8_t adv_sid
                                                 uint8_t sync_cte_type);
 extern void btsnd_hcic_ble_terminate_periodic_sync(uint16_t sync_handle);
 extern void btsnd_hci_ble_cancel_period_sync(void);
+
 #endif

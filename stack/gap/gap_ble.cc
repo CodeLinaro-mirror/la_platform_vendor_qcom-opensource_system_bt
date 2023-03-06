@@ -65,6 +65,7 @@ tGATT_CBACK gap_cback = {client_connect_cback,
                          NULL,
                          NULL,
                          NULL,
+                         NULL,
                          NULL};
 
 constexpr int GAP_CHAR_DEV_NAME_SIZE = BD_NAME_LEN;

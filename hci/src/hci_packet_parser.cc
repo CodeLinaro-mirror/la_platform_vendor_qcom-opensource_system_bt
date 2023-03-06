@@ -233,6 +233,12 @@ static void parse_ble_read_maximum_advertising_data_length(
   buffer_allocator->free(response);
 }
 
+static void parse_ble_set_host_feature_cmd(BT_HDR* response) {
+  read_command_complete_header(
+      response, HCI_BLE_SET_HOST_FEATURE, 0 /* bytes after */);
+  buffer_allocator->free(response);
+}
+
 static void parse_ble_read_number_of_supported_advertising_sets(
     BT_HDR* response, uint8_t* ble_number_of_supported_advertising_sets_ptr) {
   uint8_t* stream = read_command_complete_header(
@@ -309,6 +315,7 @@ static const hci_packet_parser_t interface = {
     parse_ble_read_offload_features_response,
     parse_read_scrambling_supported_freqs_response,
     parse_set_min_encryption_key_size_response,
+    parse_ble_set_host_feature_cmd,
 };
 
 const hci_packet_parser_t* hci_packet_parser_get_interface() {

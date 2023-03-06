@@ -41,6 +41,7 @@
 using base::StringPrintf;
 
 static void l2cble_start_conn_update(tL2C_LCB* p_lcb);
+static void l2cble_start_subrate_change(tL2C_LCB* p_lcb);
 
 /*******************************************************************************
  *
@@ -172,10 +173,14 @@ bool L2CA_EnableUpdateBleConnParams(const RawAddress& rem_bda, bool enable) {
     return false;
   }
 
-  if (enable)
+  if (enable) {
     p_lcb->conn_update_mask &= ~L2C_BLE_CONN_UPDATE_DISABLE;
-  else
+    p_lcb->subrate_req_mask &= ~L2C_BLE_SUBRATE_REQ_DISABLE;
+  }
+  else {
     p_lcb->conn_update_mask |= L2C_BLE_CONN_UPDATE_DISABLE;
+    p_lcb->subrate_req_mask |= L2C_BLE_SUBRATE_REQ_DISABLE;
+  }
 
   l2cble_start_conn_update(p_lcb);
 
@@ -322,6 +327,14 @@ void l2cble_scanner_conn_comp(uint16_t handle, const RawAddress& bda,
   p_lcb->latency = conn_latency;
   p_lcb->conn_update_mask = L2C_BLE_NOT_DEFAULT_PARAM;
 
+  p_lcb->subrate_req_mask = 0;
+  p_lcb->subrate_min = 1;
+  p_lcb->subrate_max = 1;
+  p_lcb->max_latency = 0;
+  p_lcb->cont_num = 0;
+  p_lcb->supervision_tout = 0;
+
+
   /* Tell BTM Acl management about the link */
   btm_acl_created(bda, NULL, p_dev_rec->sec_bd_name, handle, p_lcb->link_role,
                   BT_TRANSPORT_LE);
@@ -467,7 +480,8 @@ static void l2cble_start_conn_update(tL2C_LCB* p_lcb) {
   // verify if this call is needed at all and remove it otherwise.
   btm_find_or_alloc_dev(p_lcb->remote_bd_addr);
 
-  if (p_lcb->conn_update_mask & L2C_BLE_UPDATE_PENDING) return;
+  if ((p_lcb->conn_update_mask & L2C_BLE_UPDATE_PENDING) ||
+      (p_lcb->subrate_req_mask & L2C_BLE_SUBRATE_REQ_PENDING)) return;
 
   if (p_lcb->conn_update_mask & L2C_BLE_CONN_UPDATE_DISABLE) {
     /* application requests to disable parameters update.
@@ -556,9 +570,10 @@ void l2cble_process_conn_update_evt(uint16_t handle, uint8_t status,
   }
 
   l2cble_start_conn_update(p_lcb);
+  l2cble_start_subrate_change(p_lcb);
 
-  L2CAP_TRACE_DEBUG("%s: conn_update_mask=%d", __func__,
-                    p_lcb->conn_update_mask);
+  L2CAP_TRACE_DEBUG("%s: conn_update_mask=%d , subrate_req_mask=%d", __func__,
+                    p_lcb->conn_update_mask, p_lcb->subrate_req_mask);
 }
 
 /*******************************************************************************
@@ -1495,4 +1510,181 @@ bool l2ble_sec_access_req(const RawAddress& bd_addr, uint16_t psm,
                                    &l2cble_sec_comp, p_ref_data);
 
   return status;
+}
+
+/*******************************************************************************
+ *
+ *  Function        l2cble_start_subrate_change
+ *
+ *  Description     Start the BLE subrate change process based on
+ *                  status.
+ *
+ *  Parameters:     lcb : l2cap link control block
+ *
+ *  Return value:   none
+ *
+ ******************************************************************************/
+static void l2cble_start_subrate_change(tL2C_LCB* p_lcb) {
+  tACL_CONN* p_acl_cb = btm_bda_to_acl(p_lcb->remote_bd_addr, BT_TRANSPORT_LE);
+  if (!p_acl_cb) {
+    L2CAP_TRACE_ERROR("%s: No known connection ACL for %s", __func__,
+        p_lcb->remote_bd_addr.ToString().c_str());
+    return;
+  }
+
+  btm_find_or_alloc_dev(p_lcb->remote_bd_addr);
+
+  L2CAP_TRACE_DEBUG("%s: conn_update_mask=%d", __func__,
+                    p_lcb->conn_update_mask);
+
+  L2CAP_TRACE_DEBUG("%s: subrate_req_mask=%d", __func__,
+                    p_lcb->subrate_req_mask);
+
+  if (p_lcb->subrate_req_mask & L2C_BLE_SUBRATE_REQ_PENDING) {
+    L2CAP_TRACE_DEBUG("%s: returning L2C_BLE_SUBRATE_REQ_PENDING ", __func__);
+    return;
+  }
+
+  if ((p_lcb->subrate_req_mask & L2C_BLE_SUBRATE_REQ_DISABLE) == 0) {
+    L2CAP_TRACE_DEBUG("%s: L2C_BLE_SUBRATE_REQ_DISABLE is 0 ", __func__);
+    /* application allows to do update, if we were delaying one do it now */
+    if ((p_lcb->subrate_req_mask & L2C_BLE_NEW_SUBRATE_PARAM) &&
+        ((p_lcb->conn_update_mask & L2C_BLE_UPDATE_PENDING) == 0) &&
+        ((p_lcb->conn_update_mask & L2C_BLE_NEW_CONN_PARAM) == 0)) {
+      L2CAP_TRACE_DEBUG("%s: L2C_BLE_NEW_SUBRATE_PARAM ", __func__);
+      L2CAP_TRACE_DEBUG("%s: L2C_BLE_NEW_SUBRATE_PARAM local_host_sup=%d, "
+          "local_conn_subrarte_sup=%d, peer_subrate_sup=%d, peer_host_sup=%d",
+          __func__, controller_get_interface()->is_conn_subrating_host_supported(),
+          controller_get_interface()->is_conn_subrating_supported(),
+          HCI_LE_CONN_SUBRATING_SUPPORT(p_acl_cb->peer_le_features),
+          HCI_LE_CONN_SUBRATING_HOST_SUPPORT(p_acl_cb->peer_le_features));
+
+      if (controller_get_interface()->is_conn_subrating_host_supported()
+          && controller_get_interface()->is_conn_subrating_supported()
+          && HCI_LE_CONN_SUBRATING_SUPPORT(p_acl_cb->peer_le_features)
+          && HCI_LE_CONN_SUBRATING_HOST_SUPPORT(p_acl_cb->peer_le_features)) {
+        L2CAP_TRACE_DEBUG("%s: Sending HCI cmd for subrate req ", __func__);
+        btsnd_hcic_ble_subrate_request(p_lcb->handle, p_lcb->subrate_min,
+                                       p_lcb->subrate_max, p_lcb->max_latency,
+                                       p_lcb->cont_num, p_lcb->supervision_tout);
+
+        p_lcb->subrate_req_mask |= L2C_BLE_SUBRATE_REQ_PENDING;
+        p_lcb->subrate_req_mask &= ~L2C_BLE_NEW_SUBRATE_PARAM;
+        p_lcb->conn_update_mask |= L2C_BLE_NOT_DEFAULT_PARAM;
+      }
+    }
+  }
+}
+
+/*******************************************************************************
+ *
+ *  Function        L2CA_SetDefaultSubrate
+ *
+ *  Description     BLE Set Default Subrate
+ *
+ *  Parameters:     Subrate parameters
+ *
+ *  Return value:   void
+ *
+ ******************************************************************************/
+void L2CA_SetDefaultSubrate(uint16_t subrate_min, uint16_t subrate_max,
+                            uint16_t max_latency, uint16_t cont_num,
+                            uint16_t timeout) {
+  VLOG(1) << __func__ << " subrate_min=" << subrate_min
+          << ", subrate_max=" << subrate_max << ", max_latency=" << max_latency
+          << ", cont_num=" << cont_num << ", timeout=" << timeout;
+
+  btsnd_hcic_ble_set_default_subrate(subrate_min, subrate_max, max_latency,
+                                     cont_num, timeout);
+}
+
+/*******************************************************************************
+ *
+ *  Function        L2CA_SubrateRequest
+ *
+ *  Description     BLE Subrate request.
+ *
+ *  Parameters:     Subrate parameters
+ *
+ *  Return value:   true if update started
+ *
+ ******************************************************************************/
+bool L2CA_SubrateRequest(const RawAddress& rem_bda, uint16_t subrate_min,
+                         uint16_t subrate_max, uint16_t max_latency,
+                         uint16_t cont_num, uint16_t timeout) {
+  tL2C_LCB* p_lcb;
+  tACL_CONN* p_acl_cb = btm_bda_to_acl(rem_bda, BT_TRANSPORT_LE);
+
+  /* See if we have a link control block for the remote device */
+  p_lcb = l2cu_find_lcb_by_bd_addr(rem_bda, BT_TRANSPORT_LE);
+
+  /* If we don't have one, create one and accept the connection. */
+  if (!p_lcb || !p_acl_cb) {
+    L2CAP_TRACE_WARNING("%s - unknown BD_ADDR %s", __func__, rem_bda.ToString().c_str());
+    return (false);
+  }
+
+  if (p_lcb->transport != BT_TRANSPORT_LE) {
+    L2CAP_TRACE_WARNING("%s - BD_ADDR %s not LE", __func__, rem_bda.ToString().c_str());
+    return (false);
+  }
+
+  VLOG(1) << __func__ << ": BD_ADDR=" << rem_bda << ", subrate_min=" << subrate_min
+          << ", subrate_max=" << subrate_max << ", max_latency=" << max_latency
+          << ", cont_num=" << cont_num << ", timeout=" << timeout;
+
+  p_lcb->subrate_min = subrate_min;
+  p_lcb->subrate_max = subrate_max;
+  p_lcb->max_latency = max_latency;
+  p_lcb->cont_num = cont_num;
+  p_lcb->subrate_req_mask |= L2C_BLE_NEW_SUBRATE_PARAM;
+  p_lcb->supervision_tout = timeout;
+
+  l2cble_start_subrate_change(p_lcb);
+
+  return (true);
+}
+
+/*******************************************************************************
+ *
+ * Function         l2cble_process_subrate_change_evt
+ *
+ * Description      This function enables LE subrating
+ *                  after a successful subrate change process is
+ *                  done.
+ *
+ * Parameters:      LE connection handle
+ *                  status
+ *                  subrate factor
+ *                  peripheral latency
+ *                  continuation number
+ *                  supervision timeout
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void l2cble_process_subrate_change_evt(uint16_t handle, uint8_t status,
+                                       uint16_t subrate_factor, uint16_t peripheral_latency,
+                                       uint16_t cont_num, uint16_t timeout) {
+  L2CAP_TRACE_DEBUG("%s", __func__);
+
+  /* See if we have a link control block for the remote device */
+  tL2C_LCB* p_lcb = l2cu_find_lcb_by_handle(handle);
+  if (!p_lcb) {
+    L2CAP_TRACE_WARNING("%s: Invalid handle: %d", __func__, handle);
+    return;
+  }
+
+  p_lcb->subrate_req_mask &= ~L2C_BLE_SUBRATE_REQ_PENDING;
+
+  if (status != HCI_SUCCESS) {
+    L2CAP_TRACE_WARNING("%s: Error status: %d", __func__, status);
+  }
+
+  l2cble_start_conn_update(p_lcb);
+
+  l2cble_start_subrate_change(p_lcb);
+
+  L2CAP_TRACE_DEBUG("%s: conn_update_mask=%d , subrate_req_mask=%d", __func__,
+                     p_lcb->conn_update_mask, p_lcb->subrate_req_mask);
 }

@@ -132,6 +132,8 @@ static void btu_ble_rc_param_req_evt(uint8_t* p);
 static void btu_ble_proc_enhanced_conn_cmpl(uint8_t* p, uint16_t evt_len);
 #endif
 
+static void btu_ble_subrate_change_evt(uint8_t* p, uint16_t evt_len);
+
 static void do_in_hci_thread(const tracked_objects::Location& from_here,
                              const base::Closure& task) {
   base::MessageLoop* hci_message_loop = get_message_loop();
@@ -374,6 +376,9 @@ void btu_hcif_process_event(UNUSED_ATTR uint8_t controller_id, BT_HDR* p_msg) {
 
         case HCI_LE_ADVERTISING_SET_TERMINATED_EVT:
           btm_le_on_advertising_set_terminated(p, hci_evt_len);
+          break;
+        case HCI_LE_SUBRATE_CHANGE_EVT:
+          btu_ble_subrate_change_evt(p, hci_evt_len);
           break;
       }
       break;
@@ -1296,6 +1301,13 @@ static void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status,
             }
             l2cble_process_conn_update_failed(handle, status);
             break;
+          case HCI_BLE_SUBRATE_REQ:
+            if (p_cmd != NULL) {
+              p_cmd++; /* bypass length field */
+              STREAM_TO_UINT16(handle, p_cmd);
+              btm_ble_subrate_req_cmd_status(status, handle);
+            }
+            break;
 #if (BTM_SCO_INCLUDED == TRUE)
           case HCI_SETUP_ESCO_CONNECTION:
           case HCI_ENH_SETUP_ESCO_CONNECTION:
@@ -1894,6 +1906,10 @@ extern void gatt_notify_conn_update(uint16_t handle, uint16_t interval,
                                     uint16_t latency, uint16_t timeout,
                                     uint8_t status);
 
+extern void gatt_notify_subrate_change(uint16_t handle, uint16_t subrate_factor,
+                                       uint16_t latency, uint16_t cont_num,
+                                       uint16_t timeout, uint8_t status);
+
 static void btu_ble_ll_conn_param_upd_evt(uint8_t* p, uint16_t evt_len) {
   /* LE connection update has completed successfully as a master. */
   /* We can enable the update request if the result is a success. */
@@ -1966,3 +1982,41 @@ static void btu_ble_rc_param_req_evt(uint8_t* p) {
                                       timeout);
 }
 #endif /* BLE_LLT_INCLUDED */
+
+static void btu_ble_subrate_change_evt(uint8_t* p, uint16_t evt_len) {
+  uint8_t status;
+  uint16_t handle;
+  uint16_t subrate_factor;
+  uint16_t peripheral_latency;
+  uint16_t cont_num;
+  uint16_t timeout;
+
+  STREAM_TO_UINT8(status, p);
+  STREAM_TO_UINT16(handle, p);
+  STREAM_TO_UINT16(subrate_factor, p);
+  STREAM_TO_UINT16(peripheral_latency, p);
+  STREAM_TO_UINT16(cont_num, p);
+  STREAM_TO_UINT16(timeout, p);
+
+  l2cble_process_subrate_change_evt(handle, status, subrate_factor,
+                                    peripheral_latency, cont_num, timeout);
+
+  gatt_notify_subrate_change(handle & 0x0FFF, subrate_factor,
+                             peripheral_latency, cont_num, timeout, status);
+}
+
+void btm_ble_subrate_req_cmd_status(uint8_t status, uint16_t handle) {
+  uint16_t subrate_factor = 0;
+  uint16_t peripheral_latency = 0;
+  uint16_t cont_num = 0;
+  uint16_t timeout = 0;
+
+  if (status == HCI_SUCCESS) return;
+
+  HCI_TRACE_ERROR("LE Subrate request - cmd status error");
+  l2cble_process_subrate_change_evt(handle, status, subrate_factor,
+                                    peripheral_latency, cont_num, timeout);
+
+  gatt_notify_subrate_change(handle & 0x0FFF, subrate_factor,
+                             peripheral_latency, cont_num, timeout, status);
+}

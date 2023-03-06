@@ -1266,3 +1266,42 @@ void BTA_VendorCleanup(void) {
 
   if (cmn_ble_vsc_cb.adv_inst_max > 0) btm_ble_multi_adv_cleanup();
 }
+
+/*******************************************************************************
+ *
+ * Function         BTA_DmBleSubrateRequest
+ *
+ * Description      subrate request, can only be used when
+ *                  connection is up.
+ *
+ * Parameters:      bd_addr       - BD address of the peer
+ *                  subrate_min   - subrate factor minimum,
+ *                                  [0x0001 - 0x01F4]
+ *                  subrate_max   - subrate factor maximum,
+ *                                  [0x0001 - 0x01F4]
+ *                  max_latency   - max peripheral latency [0x0000 - 01F3]
+ *                  cont_num      - continuation number [0x0000 - 01F3]
+ *                  timeout       - supervision timeout [0x000a - 0xc80]
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_DmBleSubrateRequest(const RawAddress& bd_addr,
+                             uint16_t subrate_min, uint16_t subrate_max,
+                             uint16_t max_latency, uint16_t cont_num,
+                             uint16_t timeout) {
+  tBTA_DM_API_SUBRATE_REQ* p_msg =
+      (tBTA_DM_API_SUBRATE_REQ*)osi_calloc(
+       sizeof(tBTA_DM_API_SUBRATE_REQ));
+
+  APPL_TRACE_API("%s", __func__);
+  p_msg->hdr.event = BTA_DM_API_SUBRATE_REQ_EVT;
+  p_msg->bd_addr = bd_addr;
+  p_msg->subrate_min = subrate_min;
+  p_msg->subrate_max = subrate_max;
+  p_msg->max_latency = max_latency;
+  p_msg->cont_num = cont_num;
+  p_msg->timeout = timeout;
+
+  bta_sys_sendmsg(p_msg);
+}

@@ -69,6 +69,7 @@ static tGATT_CBACK gatt_profile_cback = {gatt_connect_cback,
                                          NULL,
                                          NULL,
                                          NULL,
+                                         NULL,
                                          NULL};
 
 /*******************************************************************************

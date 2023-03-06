@@ -87,6 +87,7 @@ typedef struct {
 
   void (*parse_set_min_encryption_key_size_response)(BT_HDR* response);
 
+  void (*parse_ble_set_host_feature_cmd)(BT_HDR* response);
 } hci_packet_parser_t;
 
 const hci_packet_parser_t* hci_packet_parser_get_interface();

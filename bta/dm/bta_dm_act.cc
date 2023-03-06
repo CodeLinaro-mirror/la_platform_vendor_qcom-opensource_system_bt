@@ -5062,3 +5062,25 @@ static void bta_dm_bond_retrail_cback(void* data) {
   }
   osi_free(data);
 }
+
+/*******************************************************************************
+ *
+ * Function         bta_dm_ble_subrate_request
+ *
+ * Description      This function requests BLE subrate procedure.
+ *
+ * Parameters:
+ *
+ ******************************************************************************/
+void bta_dm_ble_subrate_request(tBTA_DM_MSG* p_data) {
+  APPL_TRACE_ERROR("bta_dm_ble_subrate_request");
+  if (!L2CA_SubrateRequest(p_data->ble_subrate_req.bd_addr,
+                           p_data->ble_subrate_req.subrate_min,
+                           p_data->ble_subrate_req.subrate_max,
+                           p_data->ble_subrate_req.max_latency,
+                           p_data->ble_subrate_req.cont_num,
+                           p_data->ble_subrate_req.timeout)) {
+    APPL_TRACE_ERROR("Subrate request failed!");
+  }
+}
+

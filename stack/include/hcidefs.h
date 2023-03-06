@@ -386,6 +386,12 @@
 #define HCI_LE_PERIODIC_ADVERTISING_TERMINATE_SYNC (0x0046 | HCI_GRP_BLE_CMDS)
 #define HCI_BLE_SET_PRIVACY_MODE (0x004E | HCI_GRP_BLE_CMDS)
 
+/*Isochronous channel*/
+#define HCI_BLE_SET_HOST_FEATURE (0x0074 | HCI_GRP_BLE_CMDS)
+
+/* Broadcast ISO commands */
+#define HCI_BLE_SET_DEFAULT_SUBRATE (0x007D | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_SUBRATE_REQ (0x007E | HCI_GRP_BLE_CMDS)
 /* LE Get Vendor Capabilities Command OCF */
 #define HCI_BLE_VENDOR_CAP_OCF (0x0153 | HCI_GRP_VENDOR_SPECIFIC)
 
@@ -602,6 +608,8 @@ constexpr uint8_t HCI_LE_STATES_INIT_MASTER_SLAVE_BIT = 41;
 #define HCI_LE_PERIODIC_ADVERTISING_REPORT_EVT 0x0F
 #define HCI_LE_PERIODIC_ADV_SYNC_LOST_EVT 0x10
 #define HCI_LE_ADVERTISING_SET_TERMINATED_EVT 0x12
+
+#define HCI_LE_SUBRATE_CHANGE_EVT 0x23
 
 /* Definitions for LE Channel Map */
 #define HCI_BLE_CHNL_MAP_SIZE 5
@@ -1425,6 +1433,8 @@ typedef struct {
 #define HCI_LE_EXTENDED_ADVERTISING_SUPPORTED(x) ((x)[1] & 0x10)
 #define HCI_LE_PERIODIC_ADVERTISING_SUPPORTED(x) ((x)[1] & 0x20)
 #define HCI_LE_PERIODIC_ADVERTISING_ADI_SUPPORTED(x) ((x)[4] & 0x10)
+#define HCI_LE_CONN_SUBRATING_SUPPORT(x) ((x)[4] & 0x20)
+#define HCI_LE_CONN_SUBRATING_HOST_SUPPORT(x) ((x)[4] & 0x40)
 
 /* Supported Commands*/
 #define HCI_NUM_SUPP_COMMANDS_BYTES 64
@@ -1668,5 +1678,11 @@ typedef struct {
 #define HCI_LE_SET_PRIVACY_MODE_SUPPORTED(x) ((x)[39] & 0x04)
 
 #define HCI_SET_MIN_ENCRYPTION_KEY_SIZE_SUPPORTED(x) ((x)[45] & 0x80)
+
+// Set Host Support for Connection subrating bit in features_ble
+#define HCI_LE_SET_CONN_SUBRATING_HOST_SUPPORT(x)   \
+  {                                       \
+    (x)[4] = (x)[4] | 0x40;               \
+  }
 
 #endif
