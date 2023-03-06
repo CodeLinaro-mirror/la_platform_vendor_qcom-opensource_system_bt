@@ -31,6 +31,7 @@ const char* PTS_LE_CONN_UPDATED_DISABLED = "PTS_DisableConnUpdates";
 const char* PTS_DISABLE_SDP_LE_PAIR = "PTS_DisableSDPOnLEPair";
 const char* PTS_SMP_PAIRING_OPTIONS_KEY = "PTS_SmpOptions";
 const char* PTS_SMP_FAILURE_CASE_KEY = "PTS_SmpFailureCase";
+const char* PTS_BREDR_INVALID_ENCRYPTION_KEYSIZE = "PTS_BredrInvalidEncryKeysize";
 const char *PTS_LE_NONCONN_ADV_MODE = "PTS_EnableNonConnAdvMode";
 const char *PTS_LE_CONN_NONDISC_ADV_MODE = "PTS_EnableConnNonDiscAdvMode";
 const char* PTS_LE_SEC_REQUEST_DISABLED = "PTS_DisableSecRequest";
@@ -109,6 +110,11 @@ static int get_pts_smp_failure_case(void) {
                         PTS_SMP_FAILURE_CASE_KEY, 0);
 }
 
+static int get_pts_bredr_invalid_encryption_keysize(void) {
+  return config_get_int(config, CONFIG_DEFAULT_SECTION,
+                        PTS_BREDR_INVALID_ENCRYPTION_KEYSIZE, 0);
+}
+
 static bool get_pts_le_nonconn_adv_enabled(void) {
   return config_get_bool(config, CONFIG_DEFAULT_SECTION, PTS_LE_NONCONN_ADV_MODE, false);
 }
@@ -135,6 +141,7 @@ const stack_config_t interface = {get_trace_config_enabled,
                                   get_pts_crosskey_sdp_disable,
                                   get_pts_smp_options,
                                   get_pts_smp_failure_case,
+                                  get_pts_bredr_invalid_encryption_keysize,
                                   get_pts_le_nonconn_adv_enabled,
                                   get_pts_le_conn_nondisc_adv_enabled,
                                   get_pts_le_sec_request_disabled,

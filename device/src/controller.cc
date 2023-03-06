@@ -237,6 +237,14 @@ static future_t* start_up(void) {
   }
 #endif
 
+  // Set the min encryption key size
+  if (HCI_SET_MIN_ENCRYPTION_KEY_SIZE_SUPPORTED(supported_commands)) {
+    response = AWAIT_COMMAND(packet_factory->make_set_min_encryption_key_size(
+        MIN_ENCRYPTION_KEY_SIZE));
+    packet_parser->parse_set_min_encryption_key_size_response(
+        response);
+  }
+
   ble_supported = last_features_classic_page_index >= 1 &&
                   HCI_LE_HOST_SUPPORTED(features_classic[1].as_array);
   if (ble_supported) {
@@ -458,6 +466,11 @@ static bool supports_enhanced_accept_synchronous_connection(void) {
   return HCI_ENH_ACCEPT_SYNCH_CONN_SUPPORTED(supported_commands);
 }
 
+static bool supports_set_min_encryption_key_size(void) {
+  assert(readable);
+  return HCI_SET_MIN_ENCRYPTION_KEY_SIZE_SUPPORTED(supported_commands);
+}
+
 static bool supports_ble(void) {
   CHECK(readable);
   return ble_supported;
@@ -619,6 +632,7 @@ static const controller_t interface = {
     supports_master_slave_role_switch,
     supports_enhanced_setup_synchronous_connection,
     supports_enhanced_accept_synchronous_connection,
+    supports_set_min_encryption_key_size,
 
     supports_ble,
     supports_ble_packet_extension,
