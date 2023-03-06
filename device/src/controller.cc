@@ -530,6 +530,12 @@ static bool supports_ble_periodic_advertising(void) {
   return HCI_LE_PERIODIC_ADVERTISING_SUPPORTED(features_ble.as_array);
 }
 
+static bool supports_ble_periodic_advertising_adi(void) {
+    CHECK(readable);
+    CHECK(ble_supported);
+    return HCI_LE_PERIODIC_ADVERTISING_ADI_SUPPORTED(features_ble.as_array);
+}
+
 static uint16_t get_acl_data_size_classic(void) {
   CHECK(readable);
   return acl_data_size_classic;
@@ -643,6 +649,7 @@ static const controller_t interface = {
     supports_ble_coded_phy,
     supports_ble_extended_advertising,
     supports_ble_periodic_advertising,
+    supports_ble_periodic_advertising_adi,
 
     get_acl_data_size_classic,
     get_acl_data_size_ble,

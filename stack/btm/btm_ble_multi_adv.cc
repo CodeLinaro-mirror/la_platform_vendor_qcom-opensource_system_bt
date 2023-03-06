@@ -586,7 +586,7 @@ class BleAdvertisingManagerImpl
               return;
             }
 
-            c->self->SetPeriodicAdvertisingEnable(c->inst_id, true, Bind(
+            c->self->SetPeriodicAdvertisingEnable(c->inst_id, c->periodic_params.enable, Bind(
               [](c_type c, uint8_t status) {
                 if (!c->self) {
                   LOG(INFO) << "Stack was shut down";
@@ -910,6 +910,11 @@ class BleAdvertisingManagerImpl
         },
         p_inst, enable, std::move(cb));
 
+    if (enable != 0) {
+      if (!controller_get_interface()->supports_ble_periodic_advertising_adi()) {
+        enable = 1; // use value of 0x01 if ADI is not supported
+      }
+    }
     GetHciInterface()->SetPeriodicAdvertisingEnable(enable, inst_id,
                                                     std::move(enable_cb));
   }
