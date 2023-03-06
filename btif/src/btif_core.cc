@@ -72,6 +72,12 @@
 #include "osi/include/thread.h"
 #include "stack_manager.h"
 #include "device/include/device_iot_config.h"
+#include "btif_ss_interface.h"
+#ifdef SS_STUB_ENABLED
+#include "btif_ss_stub_interface.h"
+#endif
+#include "protobuf/proto/dm.pb.h"
+#include "btif/protobuf/include/proto_message_ids.h"
 
 #include "btif_ahim.h"
 using bluetooth::Uuid;
@@ -544,11 +550,34 @@ void btif_disable_bluetooth_evt(void) {
  ******************************************************************************/
 
 void btif_hci_close(void) {
-  BTIF_TRACE_DEBUG( "%s entered", __func__);
-
+  //BTIF_TRACE_DEBUG( "%s entered", __func__);
+  ALOGI("%s", __func__);
+  uint8_t disable_msg[MAX_LENGTH_WITH_PROTO_NONE];
+  //adding msg_id
+  uint16_t msg_id = BT_DM_DISABLE;
+  disable_msg[0] = msg_id & 0xff;
+  disable_msg[1] = (msg_id >> 8);
+  //adding length
+  uint16_t length = PAYLOAD_LENGTH_WITH_PROTO_NONE;
+  disable_msg[2] = length & 0xff;
+  disable_msg[3] = (length >> 8);
+  //adding proto_encode
+  uint16_t proto_encode = PROTO_NONE;
+  disable_msg[4] = proto_encode & 0xff;
+  disable_msg[5] = (proto_encode >> 8);
+  char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+  memcpy(resBuffer, (char *) disable_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+#ifndef SS_STUB_ENABLED
+if(BluetoothSSInterface::getInstance() != NULL)
+  BluetoothSSInterface::getInstance()->postTxMsg(msgStr);
+#else
+if(BluetoothSSStubInterface::getInstance() != NULL)
+  BluetoothSSStubInterface::getInstance()->postTxMsg(msgStr);
+#endif
  // bte_main_hci_close();
 
-  BTIF_TRACE_DEBUG( "%s finished", __func__);
+ //BTIF_TRACE_DEBUG( "%s finished", __func__);
 }
 
 
