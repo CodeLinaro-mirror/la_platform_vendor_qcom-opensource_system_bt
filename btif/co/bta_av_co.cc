@@ -712,6 +712,7 @@ void bta_av_co_audio_setconfig(tBTA_AV_HNDL hndl, const uint8_t* p_codec_info,
   uint8_t category = A2DP_SUCCESS;
   bool reconfig_needed = false;
   char value[PROPERTY_VALUE_MAX] = "false";
+  uint8_t error_code = 0;
 
   std::string addrstr = addr.ToString();
   const char* bd_addr_str = addrstr.c_str();
@@ -807,6 +808,18 @@ void bta_av_co_audio_setconfig(tBTA_AV_HNDL hndl, const uint8_t* p_codec_info,
       category = AVDT_ASC_CODEC;
       status = A2DP_WRONG_CODEC;
     }
+  }
+
+  status = A2dp_IsCodecConfigMatch(p_codec_info);
+  error_code = A2dp_SendSetConfigRspErrorCodeForPTS();
+
+  APPL_TRACE_DEBUG("%s: status : %d, error_code: %d",
+                                     __func__, status, error_code);
+
+  //error_code is valid for PTS only as of now.
+  if (error_code != 0) {
+    APPL_TRACE_DEBUG("%s: overwrite status for pts setconf rsp", __func__);
+    status = error_code;
   }
 
   if (status != A2DP_SUCCESS) {
@@ -1406,7 +1419,7 @@ static tBTA_AV_CO_SINK* bta_av_co_audio_set_codec(tBTA_AV_CO_PEER* p_peer) {
            p_peer->addr.ToString().c_str(), p_peer->acp ? "acceptor" : "initiator");
     APPL_TRACE_DEBUG("%s: isIncoming: %d", __func__, p_peer->isIncoming);
 
-    if (p_peer->isIncoming &&
+    if (p_peer->isIncoming && p_peer->incoming_codec_name &&
         btif_av_peer_prefers_mandatory_codec(p_peer->addr)) {
       APPL_TRACE_DEBUG("%s: incoming_codec_name: %s", __func__,
                                               p_peer->incoming_codec_name);

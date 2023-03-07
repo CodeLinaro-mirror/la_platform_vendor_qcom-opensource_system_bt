@@ -636,14 +636,10 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
           profile_version = AVRC_REV_1_4;
         }
 
-        if (strcmp(board_prop, "neo") == 0) {
-          APPL_TRACE_DEBUG("Dont add TG role in SDP records");
-        } else {
-          bta_ar_reg_avrc(
-              UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
-              p_bta_av_cfg->avrc_tg_cat, BTA_ID_AV,
-              (bta_av_cb.features & BTA_AV_FEAT_BROWSE), profile_version);
-        }
+        bta_ar_reg_avrc(
+            UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
+            p_bta_av_cfg->avrc_tg_cat, BTA_ID_AV,
+            (bta_av_cb.features & BTA_AV_FEAT_BROWSE), profile_version);
 #endif
       }
 
@@ -815,18 +811,10 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
            */
           if ((profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) ||
               (profile_initialized == UUID_SERVCLASS_AUDIO_SINK)) {
-            if (strcmp(board_prop, "neo") == 0) {
-              APPL_TRACE_DEBUG("Create SDP for neo with Avrcp 1.4");
-              bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL,
-                              p_bta_av_cfg->avrc_ct_cat, BTA_ID_AV,
-                              (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
-                              AVRC_REV_1_4);
-            } else {
-              bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL,
-                              p_bta_av_cfg->avrc_ct_cat, BTA_ID_AV,
-                              (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
-                              AVRC_REV_1_6);
-            }
+            bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL,
+                            p_bta_av_cfg->avrc_ct_cat, BTA_ID_AV,
+                            (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
+                            AVRC_REV_1_6);
           }
 #endif
         }
