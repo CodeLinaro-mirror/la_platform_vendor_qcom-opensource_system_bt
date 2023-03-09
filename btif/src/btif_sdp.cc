@@ -170,7 +170,7 @@ static bt_status_t search(RawAddress* bd_addr, const Uuid& uuid) {
 
   std::string protoMsg;
   ss_bt_sdp_search sdp_search;
-  sdp_search.set_remote_addr(bd_addr->ToString().c_str());
+  sdp_search.set_remote_addr(ToRawString(bd_addr).c_str());
   sdp_search.set_uuid(uuid.ToString().c_str());
   sdp_search.SerializeToString(&protoMsg);
   ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
