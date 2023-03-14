@@ -364,6 +364,8 @@ void EnableBtQualityReport(bool is_enable) {
   } else {
     bqr_config.report_action = REPORT_ACTION_DELETE;
     bqr_config.quality_event_mask = kQualityEventMaskAll;
+    bqr_config.vendor_quality_event_mask = kVendorQualityEventMaskAll;
+    bqr_config.is_qc_bqr5_supported = btif_vendor_is_qc_bqr5_supported();
 #ifdef BLUEDROID_DEBUG
     // Dont disable FW dumps in userdebug/eng. builds.
     bqr_config.quality_event_mask = bqr_config.quality_event_mask & ~kQualityEventMaskDebugInfo;
@@ -424,6 +426,13 @@ void ConfigureBqr(const BqrConfiguration& bqr_config) {
   LOG(INFO) << __func__ << ": Action: " << bqr_config.report_action
             << ", Mask: " << loghex(bqr_config.quality_event_mask)
             << ", Interval: " << bqr_config.minimum_report_interval_ms;
+
+  if(bqr_config.is_qc_bqr5_supported &&
+     (bqr_config.vendor_quality_event_mask > kVendorQualityEventMaskAll)) {
+    LOG(FATAL) << __func__ << ": Invalid Parameter"
+               << ", Vendor Mask: " << loghex(bqr_config.vendor_quality_event_mask);
+    return;
+  }
 
   if(bqr_config.is_qc_bqr5_supported == false) {
     uint8_t param[sizeof(BqrConfiguration)];
