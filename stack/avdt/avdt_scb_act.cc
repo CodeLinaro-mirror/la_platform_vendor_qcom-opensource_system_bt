@@ -758,8 +758,14 @@ void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
                                 AVDT_CONFIG_IND_EVT,
                                 (tAVDT_CTRL*)&p_data->msg.config_cmd);
     } else {
-      p_data->msg.hdr.err_code = AVDT_ERR_UNSUP_CFG;
-
+      if (codec_type != A2DP_MEDIA_CT_SBC && codec_type != A2DP_MEDIA_CT_AAC
+          && codec_type != A2DP_MEDIA_CT_NON_A2DP) {
+        AVDT_TRACE_DEBUG("%s: Bad Codec type %x : ", __func__ ,codec_type);
+        p_data->msg.hdr.err_code = A2DP_BAD_CODEC_TYPE;
+      } else {
+        AVDT_TRACE_DEBUG("%s: unsupported Codec type %x : ", __func__,codec_type);
+        p_data->msg.hdr.err_code = A2DP_NS_CODEC_TYPE;
+      }
       uint8_t error_code = 0;
       error_code = A2dp_SendSetConfigRspErrorCodeForPTS();
       APPL_TRACE_DEBUG("%s: error_code: %d", __func__, error_code);
