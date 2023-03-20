@@ -415,6 +415,25 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
       uid_set_add_rx(uid_set, app_uid, bytes_rx);
       break;
     }
+    case BT_RFCOMM_DISCONNECT_SOCKET_CB:{
+      ALOGI("%s: BT_RFCOMM_DISCONNECT_SOCKET_CB",__func__);
+      uint32_t channel = 0;
+      uint32_t sock_fd = 0;
+      ss_rfcomm_disconnect_callback rfcommDisconnectCb;
+      rfcommDisconnectCb.ParseFromString(resBufferString);
+      if (rfcommDisconnectCb.has_channel()) {
+        channel = rfcommDisconnectCb.channel();
+        ALOGI("%s: Recieved scn: %d",__func__, channel);
+      }
+
+      if(rfcommDisconnectCb.has_sock_fd()){
+        sock_fd = rfcommDisconnectCb.sock_fd();
+        ALOGI("%s: Recieved sock FD: %d",__func__, sock_fd);
+      }
+      rfc_slot_t* slot = find_rfc_slot_by_scn((int)channel);
+      cleanup_rfc_slot(slot);
+    }
+    break;
     default : {
       ALOGI("btif_rfcomm_ss_callback :: msg id %X :: unknow", MSG_ID);
       break;
@@ -556,6 +575,7 @@ static rfc_slot_t* create_srv_accept_rfc_slot(rfc_slot_t* srv_rs,
   uint32_t new_listen_id = accept_rs->id;
   accept_rs->id = srv_rs->id;
   srv_rs->id = new_listen_id;
+  srv_rs->scn = 0;
 
   return accept_rs;
 }
@@ -776,6 +796,47 @@ static void free_rfc_slot_scn(rfc_slot_t* slot) {
 }
 
 static void cleanup_rfc_slot(rfc_slot_t* slot) {
+  if(slot){
+    ALOGI("%s: slot->fd is :: %d , slot->scn is :: %d , slot->new_srv_fd is :: %d , slot->is_server is :: %d",__func__,
+    slot->fd, slot->scn,slot->new_srv_fd,slot->is_server);
+  }
+
+  if(((slot->new_srv_fd == 0 && !slot->is_server) ||
+    (slot->new_srv_fd != 0 && slot->is_server)) && slot->scn != 0){
+    /*Sending disconnect request*/
+    uint8_t disconnect_socket[MAX_LENGTH_WITH_PROTO_NONE];
+    //adding msg_id
+    uint16_t msg_id = BT_RFCOMM_DISCONNECT_SOCKET;
+    disconnect_socket[0] = msg_id & 0xff;
+    disconnect_socket[1] = (msg_id >> 8);
+
+    std::string protoMsg;
+    ss_disconnect_socket disconnSocketCh;
+    disconnSocketCh.set_channel(slot->scn);
+    disconnSocketCh.set_sock_fd(slot->fd);
+    disconnSocketCh.SerializeToString(&protoMsg);
+
+    ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
+    //adding length
+    uint16_t length = protoMsg.length();
+    disconnect_socket[2] = length & 0xff;
+    disconnect_socket[3] = (length >> 8);
+    //adding proto_encode
+    uint16_t proto_encode = PROTO_ENC_DEC;
+    disconnect_socket[4] = proto_encode & 0xff;
+    disconnect_socket[5] = (proto_encode >> 8);
+    char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+    memcpy(resBuffer, (char *) disconnect_socket, MAX_LENGTH_WITH_PROTO_NONE);
+    std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+    msgStr.append(protoMsg);
+    ALOGI("%s: BT_RFCOMM_DISCONNECT_SOCKET length: %d and data: %s",__func__, msgStr.length(),msgStr.c_str());
+  #ifndef SS_STUB_ENABLED
+    gBTSSInterface->postTxMsg(msgStr);
+  #else
+    gBTSSStubInterface->postTxMsg(msgStr);
+  #endif
+  }
+
   if (slot->fd != INVALID_FD) {
     shutdown(slot->fd, SHUT_RDWR);
     close(slot->fd);
@@ -870,6 +931,7 @@ static void ss_cli_rfc_connect (int fd, const RawAddress* addr, int channel,
 
   if (send_app_connect_signal(fd, addr, channel, 0, -1, mtu)) {
     LOG_DEBUG (LOG_TAG, "sent send_app_connect_signal");
+    client_rs->f.connected = true;
   } else {
     LOG_ERROR(LOG_TAG, "%s unable to send connect completion signal to caller.",
               __func__);
@@ -1235,6 +1297,7 @@ static bool flush_incoming_que_on_wr_signal(rfc_slot_t* slot) {
 }
 
 void btsock_rfc_signaled(UNUSED_ATTR int fd, int flags, uint32_t user_id) {
+  bool need_close = false;
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   int size = 0;
   int channel;
@@ -1244,6 +1307,7 @@ void btsock_rfc_signaled(UNUSED_ATTR int fd, int flags, uint32_t user_id) {
   int new_srv_fd = slot->new_srv_fd;
   ALOGI("new_srv_fd is :: %d",new_srv_fd);
   if (flags & SOCK_THREAD_FD_RD){
+    if(slot->f.connected){
     ALOGI("Data available from App on FD :: %d and channel :: %d and new_srv_fd is %d and slot->mtu is %d",fd,channel,new_srv_fd,slot->mtu);
     if (ss_rfc_data_outgoing_size(fd, &size)) {
         ALOGI("%s fd is :: %d size is :: %d",__func__,fd,size);
@@ -1301,11 +1365,27 @@ void btsock_rfc_signaled(UNUSED_ATTR int fd, int flags, uint32_t user_id) {
       }else {
         ALOGE("%s: ss_rfc_data_outgoing_size returned fail",__func__);
       }
+    }else{
+      ALOGI("socket signaled for read while disconnected fd %d",new_srv_fd);
+      need_close = true;
+    }
   }
 
   if (flags & SOCK_THREAD_FD_WR) {
+    if(slot->f.connected){
       ALOGI("App is ready to receive more data");
       ss_flush_incoming_que_on_wr_signal(slot);
+    }else{
+      ALOGI("socket signaled for write while disconnected fd %d",new_srv_fd);
+      need_close = true;
+    }
+  }
+
+  if (need_close || (flags & SOCK_THREAD_FD_EXCEPTION)) {
+    // Clean up if there's no data pending.
+    int size = 0;
+    if (need_close || ioctl(slot->fd, FIONREAD, &size) != 0 || !size)
+      cleanup_rfc_slot(slot);
   }
 }
 
