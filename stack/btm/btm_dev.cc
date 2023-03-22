@@ -222,9 +222,10 @@ bool BTM_SecDeleteDevice(const RawAddress& bd_addr) {
 
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
   if (p_dev_rec != NULL) {
+    RawAddress bd_addr = p_dev_rec->bd_addr;
     btm_sec_free_dev(p_dev_rec);
     /* Tell controller to get rid of the link key, if it has one stored */
-    BTM_DeleteStoredLinkKey(&p_dev_rec->bd_addr, NULL);
+    BTM_DeleteStoredLinkKey(&bd_addr, NULL);
   }
 
   return true;
@@ -355,6 +356,9 @@ void btm_sec_free_dev(tBTM_SEC_DEV_REC* p_dev_rec) {
   p_dev_rec->bond_type = BOND_TYPE_UNKNOWN;
   p_dev_rec->sec_flags = 0;
   p_dev_rec->sm4 = BTM_SM4_UNKNOWN;
+  p_dev_rec->p_cur_service = NULL;
+  p_dev_rec->p_callback = NULL;
+
   /* Clear out any saved BLE keys */
   btm_sec_clear_ble_keys(p_dev_rec);
   list_remove(btm_cb.sec_dev_rec, p_dev_rec);

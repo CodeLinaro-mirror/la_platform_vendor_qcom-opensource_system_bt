@@ -33,9 +33,9 @@ systemBt_include_HEADERS  +=  $(top_srcdir)/include/hardware/bt_pan.h
 systemBt_include_HEADERS  +=  $(top_srcdir)/include/hardware/bt_hf.h
 systemBt_include_HEADERS  +=  $(top_srcdir)/include/hardware/bt_gatt_client.h
 systemBt_include_HEADERS  +=  $(top_srcdir)/include/hardware/bt_gatt_server.h
-systemBt_include_HEADERS  +=  $(top_srcdir)/include/hardware/hardware.h
-systemBt_include_HEADERS  +=  $(top_srcdir)/include/hardware/audio.h
-systemBt_include_HEADERS  +=  $(top_srcdir)/include/hardware/audio_effect.h
+#systemBt_include_HEADERS  +=  $(top_srcdir)/include/hardware/hardware.h
+#systemBt_include_HEADERS  +=  $(top_srcdir)/include/hardware/audio.h
+#systemBt_include_HEADERS  +=  $(top_srcdir)/include/hardware/audio_effect.h
 
 #btservice headers
 btService_includedir      =  $(includedir)/bluetooth/
