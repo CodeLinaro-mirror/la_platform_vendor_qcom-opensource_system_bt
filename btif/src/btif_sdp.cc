@@ -243,7 +243,10 @@ void btif_sdp_ss_callback(uint16_t event, char* p_param) {
       }
 
       if (sdp_cb.has_remote_bd_addr()) {
-        RawAddress::FromString(sdp_cb.remote_bd_addr(), bd_addr);
+        uint8_t* addr = (uint8_t*)sdp_cb.remote_bd_addr().c_str();
+        std::string bt_address = ((RawAddress*)addr)->ToString();
+        ALOGI("address is :: %s",bt_address.c_str());
+        RawAddress::FromString(bt_address.c_str(), bd_addr);
       }
 
       if (sdp_cb.has_uuid()) {

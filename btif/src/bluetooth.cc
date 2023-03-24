@@ -412,6 +412,7 @@ static int get_adapter_property(bt_property_type_t type) {
 
 static int set_adapter_property(const bt_property_t* property) {
   ALOGI("%s", __func__);
+  ALOGI("Property type - %d, Property value - %s",property->type, (char*)property->val);
   uint8_t set_adaprop_msg[MAX_LENGTH_WITH_PROTO_NONE];
   //adding msg_id
   uint16_t msg_id = BT_DM_SET_ADAPTER_PROPERTY;
