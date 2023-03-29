@@ -376,6 +376,10 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
       if (rfcommDataCb.has_channel()) {
         ALOGI("%s: Recieved channel: %d",__func__, (int)rfcommDataCb.channel());
         rfc_slot_t* slot = find_rfc_slot_by_scn((int)rfcommDataCb.channel());
+        if (!slot){
+          ALOGI("%s: RFC Slot is unavailable/closed",__func__);
+          return;
+        }
         fd = slot->fd;
         if (fd != -1) {
           if (rfcommDataCb.has_data()) {
@@ -1244,6 +1248,11 @@ static sent_status_t send_data_to_app(int fd, BT_HDR* p_buf) {
 }
 
 static sent_status_t ss_send_data_to_app(int fd, PendingData* p_buf) {
+  rfc_slot_t* slot = find_rfc_slot_by_fd(fd);
+  if (!slot){
+    ALOGI("%s: RFC Slot is unavailable/closed",__func__);
+    return SENT_FAILED;
+  }
   if (p_buf->len == 0) return SENT_ALL;
   uint8_t* data = (uint8_t*)p_buf->data.c_str();
   ssize_t sent;
