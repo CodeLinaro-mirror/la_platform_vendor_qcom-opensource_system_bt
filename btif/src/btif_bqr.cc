@@ -413,16 +413,27 @@ void BqrVscCompleteCallback(tBTM_VSC_CMPL* p_vsc_cmpl_params) {
 }
 
 void ConfigureBqr(const BqrConfiguration& bqr_config) {
-  if (bqr_config.report_action > REPORT_ACTION_CLEAR ||
-      bqr_config.quality_event_mask > kQualityEventMaskAll ||
-      bqr_config.minimum_report_interval_ms > kMinReportIntervalMaxMs) {
-    LOG(FATAL) << __func__ << ": Invalid Parameter"
-               << ", Action: " << (int)bqr_config.report_action
-               << ", Mask: " << loghex(bqr_config.quality_event_mask)
-               << ", Interval: " << bqr_config.minimum_report_interval_ms;
-    return;
+  if(!(bqr_config.is_qc_bqr5_supported)) {
+    if (bqr_config.report_action > REPORT_ACTION_CLEAR ||
+        bqr_config.quality_event_mask > kQualityEventMaskAll ||
+        bqr_config.minimum_report_interval_ms > kMinReportIntervalMaxMs) {
+      LOG(FATAL) << __func__ << ": Invalid Parameter"
+                 << ", Action: " << (int)bqr_config.report_action
+                 << ", Mask: " << loghex(bqr_config.quality_event_mask)
+                 << ", Interval: " << bqr_config.minimum_report_interval_ms;
+      return;
+    }
+  } else {
+    if (bqr_config.report_action > REPORT_ACTION_CLEAR ||
+        bqr_config.quality_event_mask > kBqr5QualityEventMaskAll ||
+        bqr_config.minimum_report_interval_ms > kMinReportIntervalMaxMs) {
+      LOG(FATAL) << __func__ << ": Invalid Parameter"
+                 << ", Action: " << (int)bqr_config.report_action
+                 << ", Mask: " << loghex(bqr_config.quality_event_mask)
+                 << ", Interval: " << bqr_config.minimum_report_interval_ms;
+      return;
+    }
   }
-
   LOG(INFO) << __func__ << ": Action: " << bqr_config.report_action
             << ", Mask: " << loghex(bqr_config.quality_event_mask)
             << ", Interval: " << bqr_config.minimum_report_interval_ms;

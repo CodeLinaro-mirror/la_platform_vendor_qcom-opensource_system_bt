@@ -75,7 +75,21 @@ static constexpr uint32_t kQualityEventMaskAll =
     kQualityEventMaskMonitorMode | kQualityEventMaskApproachLsto |
     kQualityEventMaskA2dpAudioChoppy | kQualityEventMaskScoVoiceChoppy |
     kQualityEventMaskRootInflammation | kQualityEventMaskConnectFail |
-    kQualityEventMaskDebugInfo | kQualityEventMaskVendorSpecific;
+    kQualityEventMaskDebugInfo;
+
+static constexpr uint32_t kBqr5QualityEventMaskMonitorMode = 0x00000001;
+static constexpr uint32_t kBqr5QualityEventMaskApproachLsto = 0x00000002;
+static constexpr uint32_t kBqr5QualityEventMaskA2dpAudioChoppy = 0x00000004;
+static constexpr uint32_t kBqr5QualityEventMaskScoVoiceChoppy = 0x00000008;
+static constexpr uint32_t kBqr5QualityEventMaskRootInflammation = 0x00000010;
+static constexpr uint32_t kBqr5QualityEventMaskConnectFail = 0x00000080;
+static constexpr uint32_t kBqr5QualityEventMaskDebugInfo = 0x00040000;
+
+static constexpr uint32_t kBqr5QualityEventMaskAll =
+    kBqr5QualityEventMaskMonitorMode | kBqr5QualityEventMaskApproachLsto |
+    kBqr5QualityEventMaskA2dpAudioChoppy | kBqr5QualityEventMaskScoVoiceChoppy |
+    kBqr5QualityEventMaskRootInflammation | kBqr5QualityEventMaskConnectFail |
+    kBqr5QualityEventMaskDebugInfo | kQualityEventMaskVendorSpecific ;
 
 static constexpr uint32_t kVendorQualityEventMaskDiscMonitorMode = 0x00000001;
 static constexpr uint32_t kVendorQualityEventMaskMiscMonitorMode = 0x00000002;
