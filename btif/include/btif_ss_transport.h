@@ -10,6 +10,7 @@
 // TG: TODO: Needs to be added in device tree
 #define BT_SS_CTRL_CH "/dev/glink_pkt_ss_bt_ctrl"
 #define BT_SS_DATA_CH "/dev/glink_pkt_ss_bt_data"
+#define BT_SS_LE_DATA_CH "/dev/glink_pkt_ss_bt_le_data"
 
 #define BT_DATA_PATH "/data/misc/bluetooth/glink_data.txt"
 #define CASE_RETURN_STR(const) \

@@ -42,7 +42,7 @@ bt_status_t btsock_rfc_listen(const char* name, const bluetooth::Uuid* uuid,
 bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
                                const bluetooth::Uuid* uuid, int channel,
                                int* sock_fd, int flags, int app_uid);
-void btsock_rfc_signaled(int fd, int flags, uint32_t user_id);
+void btsock_rfc_signaled(int fd, int type, int flags, uint32_t user_id);
 
 bt_status_t btsock_rfc_get_sockopt(int channel, btsock_option_type_t option_name,
                                             void *option_value, int *option_len);

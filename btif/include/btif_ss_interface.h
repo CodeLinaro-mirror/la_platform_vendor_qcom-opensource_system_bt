@@ -54,6 +54,7 @@ public:
     void encodeCancelDiscoveryMsg(std::string& msgStr);
     void postTxMsg(std::string msgStr);
     int postDataChTxMsg(std::string msgStr);
+    int postLeDataChTxMsg(std::string msgStr);
     void registerCallbacks(const char* profile_id, ss_profile_callback profile_cb);
     void deregisterCallbacks(const char* profile_id);
 private:
@@ -70,6 +71,11 @@ private:
     std::unique_ptr<std::thread> data_ch_rx_thread;
     void processDataChRx();
     bool running_data_ch_;
+
+    //for le data channel
+    std::unique_ptr<std::thread> le_data_ch_rx_thread;
+    void processLeDataChRx();
+    bool running_le_data_ch_;
 
 };
 #endif //__BTIF_SS_INTERFCAE__

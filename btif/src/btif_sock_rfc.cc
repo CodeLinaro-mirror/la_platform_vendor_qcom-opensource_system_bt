@@ -648,10 +648,13 @@ bt_status_t btsock_rfc_listen(const char* service_name,
   uint16_t msg_id = BT_RFCOMM_CREATE_SOCKET;
   set_remprop_msg[0] = msg_id & 0xff;
   set_remprop_msg[1] = (msg_id >> 8);
-
   std::string protoMsg;
   ss_create_socket_channel createSocketCh;
-  createSocketCh.set_service_name(service_name);
+  if ((flags & BTSOCK_FLAG_LE_COC) == 0) {
+    createSocketCh.set_service_name(service_name);
+  } else {
+    createSocketCh.set_service_name("");
+  }
   createSocketCh.set_service_uuid(service_uuid->ToString());
   createSocketCh.set_channel(channel);
   createSocketCh.set_flags(flags);
@@ -1305,7 +1308,7 @@ static bool flush_incoming_que_on_wr_signal(rfc_slot_t* slot) {
   return true;
 }
 
-void btsock_rfc_signaled(UNUSED_ATTR int fd, int flags, uint32_t user_id) {
+void btsock_rfc_signaled(UNUSED_ATTR int fd, int type, int flags, uint32_t user_id) {
   bool need_close = false;
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   int size = 0;
@@ -1360,7 +1363,13 @@ void btsock_rfc_signaled(UNUSED_ATTR int fd, int flags, uint32_t user_id) {
             msgStr.append(protoMsg);
             ALOGI("%s: BT_RFCOMM_WRITE_SOCKET_DATA proto length: %d and payload length: %d",__func__, msgStr.size(), data_string_sub.size());
           #ifndef SS_STUB_ENABLED
-            int result = gBTSSInterface->postDataChTxMsg(msgStr);
+            if (type == BTSOCK_L2CAP || type ==  BTSOCK_L2CAP_LE) {
+              int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
+              ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
+            } else {
+              int result = gBTSSInterface->postDataChTxMsg(msgStr);
+              ALOGI("%s: result is :: %d",__func__,result);
+            }
           #else
             gBTSSStubInterface->postTxMsg(msgStr);
           #endif

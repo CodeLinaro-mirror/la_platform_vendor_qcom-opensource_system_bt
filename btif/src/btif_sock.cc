@@ -162,8 +162,8 @@ static bt_status_t btsock_listen(btsock_type_t type, const char* service_name,
                                  flags, app_uid);
       break;
     case BTSOCK_L2CAP:
-     // status =
-      //    btsock_l2cap_listen(service_name, channel, sock_fd, flags, app_uid);
+      status =
+          btsock_rfc_listen(service_name, service_uuid, channel, sock_fd, flags, app_uid);
       break;
     case BTSOCK_L2CAP_LE:
       if (flags & BTSOCK_FLAG_NO_SDP) {
@@ -178,8 +178,8 @@ static bt_status_t btsock_listen(btsock_type_t type, const char* service_name,
       BTIF_TRACE_DEBUG(
           "%s: type=BTSOCK_L2CAP_LE, channel=0x%x, original=0x%x, flags=0x%x",
           __func__, channel, original_channel, flags);
-     // status =
-         // btsock_l2cap_listen(service_name, channel, sock_fd, flags, app_uid);
+      status =
+          btsock_rfc_listen(service_name, service_uuid, channel, sock_fd, flags, app_uid);
       break;
     case BTSOCK_SCO:
       status = btsock_sco_listen(sock_fd, flags);
@@ -213,17 +213,17 @@ static bt_status_t btsock_connect(const RawAddress* bd_addr, btsock_type_t type,
       break;
 
     case BTSOCK_L2CAP:
-      //status = btsock_l2cap_connect(bd_addr, channel, sock_fd, flags, app_uid);
+      status = btsock_rfc_connect(bd_addr, uuid, channel, sock_fd, flags, app_uid);
       break;
 
     case BTSOCK_L2CAP_LE: {
       flags |= BTSOCK_FLAG_LE_COC;
 
       // Ensure device is in inquiry database
-      int addr_type = 0;
+      /*int addr_type = 0;
       int device_type = 0;
 
-      /*if (btif_get_address_type(*bd_addr, &addr_type) &&
+      if (btif_get_address_type(*bd_addr, &addr_type) &&
           btif_get_device_type(*bd_addr, &device_type) &&
           device_type != BT_DEVICE_TYPE_BREDR) {
         //BTA_DmAddBleDevice(*bd_addr, addr_type, device_type);
@@ -231,7 +231,7 @@ static bt_status_t btsock_connect(const RawAddress* bd_addr, btsock_type_t type,
 
       BTIF_TRACE_DEBUG( "%s: type=BTSOCK_L2CAP_LE, channel=0x%x, flags=0x%x",
                 __func__, channel, flags);
-      //status = btsock_l2cap_connect(bd_addr, channel, sock_fd, flags, app_uid);
+      status = btsock_rfc_connect(bd_addr, uuid, channel, sock_fd, flags, app_uid);
       break;
     }
 
@@ -255,13 +255,13 @@ static void btsock_request_max_tx_data_length(const RawAddress& remote_device) {
 static void btsock_signaled(int fd, int type, int flags, uint32_t user_id) {
   switch (type) {
     case BTSOCK_RFCOMM:
-      btsock_rfc_signaled(fd, flags, user_id);
+      btsock_rfc_signaled(fd, type, flags, user_id);
       break;
     case BTSOCK_L2CAP:
     case BTSOCK_L2CAP_LE:
       /* Note: The caller may not distinguish between BTSOCK_L2CAP and
        * BTSOCK_L2CAP_LE correctly */
-      //btsock_l2cap_signaled(fd, flags, user_id);
+      btsock_rfc_signaled(fd, type, flags, user_id);
       break;
     default:
       CHECK(false && "Invalid socket type");
