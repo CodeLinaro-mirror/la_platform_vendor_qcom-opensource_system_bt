@@ -694,7 +694,11 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
       if (bta_av_cb.features & BTA_AV_FEAT_DELAY_RPT) {
         cs.cfg.psc_mask |= AVDT_PSC_DELAY_RPT;
         a2dp_set_avdt_sdp_ver(AVDT_VERSION_SYNC);
-        a2dp_set_a2dp_sdp_ver(A2DP_VERSION_SYNC);
+        if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
+          a2dp_set_a2dp_sdp_ver(A2DP_VERSION_SYNC_1_4);
+        } else {
+          a2dp_set_a2dp_sdp_ver(A2DP_VERSION_SYNC);
+        }
       }
 
       if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
@@ -811,18 +815,10 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
            */
           if ((profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) ||
               (profile_initialized == UUID_SERVCLASS_AUDIO_SINK)) {
-            if (strcmp(board_prop, "neo") == 0) {
-              APPL_TRACE_DEBUG("Create SDP for neo with Avrcp 1.4");
-              bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL,
-                              p_bta_av_cfg->avrc_ct_cat, BTA_ID_AV,
-                              (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
-                              AVRC_REV_1_4);
-            } else {
-              bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL,
-                              p_bta_av_cfg->avrc_ct_cat, BTA_ID_AV,
-                              (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
-                              AVRC_REV_1_6);
-            }
+            bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL,
+                            p_bta_av_cfg->avrc_ct_cat, BTA_ID_AV,
+                            (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
+                            AVRC_REV_1_6);
           }
 #endif
         }
