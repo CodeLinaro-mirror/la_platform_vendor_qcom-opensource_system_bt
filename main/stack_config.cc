@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 
 #define LOG_TAG "bt_stack_config"
@@ -36,6 +40,9 @@ const char *PTS_LE_NONCONN_ADV_MODE = "PTS_EnableNonConnAdvMode";
 const char *PTS_LE_CONN_NONDISC_ADV_MODE = "PTS_EnableConnNonDiscAdvMode";
 const char* PTS_LE_SEC_REQUEST_DISABLED = "PTS_DisableSecRequest";
 const char* PTS_LE_FRESH_PAIRING_ENABLED = "PTS_EnableFreshPairing";
+const char* PTS_DISABLE_SERVICE_CHG_INDICATION = "PTS_DisableServiceChangeIndication";
+const char* PTS_CONFIGURE_SERVICE_CHG_INDICATION = "PTS_ConfigureServiceChangeIndication";
+const char* PTS_SAVE_DB_HASH = "PTS_SaveDbHash";
 
 static config_t* config;
 
@@ -133,6 +140,21 @@ static bool get_pts_le_fresh_pairing_enabled(void) {
                          PTS_LE_FRESH_PAIRING_ENABLED, false);
 }
 
+static bool get_pts_service_chg_indication_disable(void) {
+  return config_get_bool(config, CONFIG_DEFAULT_SECTION,
+                         PTS_DISABLE_SERVICE_CHG_INDICATION, false);
+}
+
+static bool get_pts_configure_svc_chg_indication(void) {
+  return config_get_bool(config, CONFIG_DEFAULT_SECTION,
+                         PTS_CONFIGURE_SERVICE_CHG_INDICATION, false);
+}
+
+static bool get_pts_save_db_hash(void) {
+  return config_get_bool(config, CONFIG_DEFAULT_SECTION,
+                         PTS_SAVE_DB_HASH, false);
+}
+
 static config_t* get_all(void) { return config; }
 
 const stack_config_t interface = {get_trace_config_enabled,
@@ -146,6 +168,9 @@ const stack_config_t interface = {get_trace_config_enabled,
                                   get_pts_le_conn_nondisc_adv_enabled,
                                   get_pts_le_sec_request_disabled,
                                   get_pts_le_fresh_pairing_enabled,
+                                  get_pts_service_chg_indication_disable,
+                                  get_pts_configure_svc_chg_indication,
+                                  get_pts_save_db_hash,
                                   get_all};
 
 const stack_config_t* stack_config_get_interface(void) { return &interface; }

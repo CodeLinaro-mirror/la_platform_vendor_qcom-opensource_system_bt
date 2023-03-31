@@ -12,6 +12,11 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  */
 
 #ifndef ANDROID_INCLUDE_BT_GATT_CLIENT_H
@@ -181,12 +186,14 @@ typedef void (*conn_updated_callback)(int conn_id, uint16_t interval,
                                       uint16_t latency, uint16_t timeout,
                                       uint8_t status);
 
+/** Callback when services are changed */
+typedef void (*service_changed_callback)(int conn_id);
+
 /** Callback invoked when the subrate change event for a given connection
  * is received */
 typedef void (*subrate_change_callback)(int conn_id, uint16_t subrate_factor,
                                         uint16_t latency, uint16_t cont_num,
                                         uint16_t timeout, uint8_t status);
-
 
 typedef struct {
   register_client_callback register_client_cb;
@@ -208,6 +215,7 @@ typedef struct {
   services_added_callback services_added_cb;
   phy_updated_callback phy_updated_cb;
   conn_updated_callback conn_updated_cb;
+  service_changed_callback service_changed_cb;
   subrate_change_callback subrate_chg_cb;
 } btgatt_client_callbacks_t;
 

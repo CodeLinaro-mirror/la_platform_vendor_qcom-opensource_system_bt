@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 
 /******************************************************************************
@@ -253,8 +257,10 @@ void BTA_GATTC_DiscoverServiceByUuid(uint16_t conn_id,
   param->e_handle = 0xFFFF;
   param->service = p_srvc_uuid;
   do_in_bta_thread(FROM_HERE,
-                   base::Bind(base::IgnoreResult(&GATTC_Discover), conn_id,
-                              GATT_DISC_SRVC_BY_UUID, base::Owned(param)));
+                   base::Bind(base::IgnoreResult<tGATT_STATUS (*)(uint16_t, tGATT_DISC_TYPE,
+                                                                    tGATT_DISC_PARAM*)>(
+                       &GATTC_Discover),
+                   conn_id, GATT_DISC_SRVC_BY_UUID, base::Owned(param)));
 }
 
 /*******************************************************************************
@@ -269,7 +275,7 @@ void BTA_GATTC_DiscoverServiceByUuid(uint16_t conn_id,
  * Returns          returns list_t of tBTA_GATTC_SERVICE or NULL.
  *
  ******************************************************************************/
-const list_t* BTA_GATTC_GetServices(uint16_t conn_id) {
+const std::vector<gatt::Service>* BTA_GATTC_GetServices(uint16_t conn_id) {
   return bta_gattc_get_services(conn_id);
 }
 
@@ -286,7 +292,7 @@ const list_t* BTA_GATTC_GetServices(uint16_t conn_id) {
  * Returns          returns pointer to tBTA_GATTC_CHARACTERISTIC or NULL.
  *
  ******************************************************************************/
-const tBTA_GATTC_CHARACTERISTIC* BTA_GATTC_GetCharacteristic(uint16_t conn_id,
+const gatt::Characteristic* BTA_GATTC_GetCharacteristic(uint16_t conn_id,
                                                              uint16_t handle) {
   return bta_gattc_get_characteristic(conn_id, handle);
 }
@@ -304,9 +310,23 @@ const tBTA_GATTC_CHARACTERISTIC* BTA_GATTC_GetCharacteristic(uint16_t conn_id,
  * Returns          returns pointer to tBTA_GATTC_DESCRIPTOR or NULL.
  *
  ******************************************************************************/
-const tBTA_GATTC_DESCRIPTOR* BTA_GATTC_GetDescriptor(uint16_t conn_id,
+const gatt::Descriptor* BTA_GATTC_GetDescriptor(uint16_t conn_id,
                                                      uint16_t handle) {
   return bta_gattc_get_descriptor(conn_id, handle);
+}
+
+/* Return characteristic that owns descriptor with handle equal to |handle|, or
+ * NULL */
+const gatt::Characteristic* BTA_GATTC_GetOwningCharacteristic(uint16_t conn_id,
+                                                              uint16_t handle) {
+  return bta_gattc_get_owning_characteristic(conn_id, handle);
+}
+
+/* Return service that owns descriptor or characteristic with handle equal to
+ * |handle|, or NULL */
+const gatt::Service* BTA_GATTC_GetOwningService(uint16_t conn_id,
+                                                uint16_t handle) {
+  return bta_gattc_get_service_for_handle(conn_id, handle);
 }
 
 /*******************************************************************************
@@ -723,4 +743,16 @@ tBTA_GATT_STATUS BTA_GATTC_DeregisterForNotifications(tBTA_GATTC_IF client_if,
 void BTA_GATTC_Refresh(const RawAddress& remote_bda) {
   do_in_bta_thread(FROM_HERE,
                    base::Bind(&bta_gattc_process_api_refresh, remote_bda));
+}
+
+/*******************************************************************************
+ *
+ * Function         BTA_GATTC_ResetGattDb
+ *
+ * Description      Resets GATT Database for the device.
+ *
+ ******************************************************************************/
+void BTA_GATTC_ResetGattDb(const RawAddress& remote_bda) {
+  do_in_bta_thread(FROM_HERE,
+                   base::Bind(&bta_gattc_cache_reset, remote_bda));
 }

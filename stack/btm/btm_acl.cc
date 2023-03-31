@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 
 /*****************************************************************************
@@ -1888,6 +1892,31 @@ tBTM_STATUS BTM_ReadRemoteVersion(const RawAddress& addr, uint8_t* lmp_version,
                                   uint16_t* lmp_sub_version) {
   tACL_CONN* p = btm_bda_to_acl(addr, BT_TRANSPORT_BR_EDR);
   BTM_TRACE_DEBUG("BTM_ReadRemoteVersion");
+  if (p == NULL) return (BTM_UNKNOWN_ADDR);
+
+  if (lmp_version) *lmp_version = p->lmp_version;
+
+  if (manufacturer) *manufacturer = p->manufacturer;
+
+  if (lmp_sub_version) *lmp_sub_version = p->lmp_subversion;
+
+  return (BTM_SUCCESS);
+}
+
+/*******************************************************************************
+ *
+ * Function         BTM_ReadRemoteVersionByTransport
+ *
+ * Returns          If connected report peer device info
+ *
+ ******************************************************************************/
+tBTM_STATUS BTM_ReadRemoteVersionByTransport(const RawAddress& addr,
+                                             uint8_t* lmp_version,
+                                             uint16_t* manufacturer,
+                                             uint16_t* lmp_sub_version,
+                                             uint8_t transport) {
+  tACL_CONN* p = btm_bda_to_acl(addr, transport);
+  VLOG(1) << ": BTM_ReadRemoteVersionByTransport, RemBdAddr: " << addr;
   if (p == NULL) return (BTM_UNKNOWN_ADDR);
 
   if (lmp_version) *lmp_version = p->lmp_version;

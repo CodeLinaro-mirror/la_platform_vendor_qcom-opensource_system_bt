@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 
 #pragma once
@@ -222,6 +226,15 @@ typedef enum {
   // to devices and might not have interface to unpair devices and then repair. So, SMP callback
   // with SMP confirm value error is triggered when there is a pin-key missing error.
   INTEROP_PINKEY_MISSING,
+
+  // Skip Robust Caching Read of client supported featuresc characteristic for specific devices
+  // Some remote devices do not respond to ATT_READ_BY_TYPE_REQ(for Client Supported Features
+  // characteristic) sent  by local device for Robust caching support and this results in
+  // GATT response timeout and LE link disconnection. This interop arrangement will make local
+  // device to skip reading of Client supported features characteristic with devices in the
+  // interop list.
+  INTEROP_SKIP_ROBUST_CACHING_READ,
+
   END_OF_INTEROP_LIST
 } interop_feature_t;
 
