@@ -35,7 +35,7 @@
  ****************************************************************************/
 #define A2DP_VERSION 0x0102
 #define A2DP_VERSION_SYNC 0x0103
-#define A2DP_VERSION_SYNC_1_4 0x0104
+
 /* Number of attributes in A2DP SDP record. */
 #define A2DP_NUM_ATTR 6
 
