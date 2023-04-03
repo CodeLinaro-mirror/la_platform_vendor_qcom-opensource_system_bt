@@ -298,6 +298,9 @@ typedef enum {
   // local device to be only master as role switch would be restricted during connection.
   INTEROP_DISABLE_ROLE_SWITCH_DURING_CONNECTION,
 
+  //Add remote device into L2CAP_DISCONNECT_ACL_DIRECTLY blacklist
+  INTEROP_L2CAP_DISCONNECT_ACL_DIRECTLY,
+
   END_OF_INTEROP_LIST
 } interop_feature_t;
 
