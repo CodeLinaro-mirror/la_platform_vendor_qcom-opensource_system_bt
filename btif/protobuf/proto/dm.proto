@@ -14,6 +14,10 @@ enum ss_bt_state_t {
     SS_BT_STATE_ON = 1;
 }
 
+message ss_enable {
+    optional bytes bd_addr = 1;
+}
+
 /** Bluetooth Enable/Disable Callback. */
 //typedef void (*adapter_state_changed_callback)(bt_state_t state);
 message ss_adapter_state_changed_callback {

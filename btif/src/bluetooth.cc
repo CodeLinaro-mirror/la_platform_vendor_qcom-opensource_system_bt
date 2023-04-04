@@ -113,6 +113,7 @@ using bluetooth::atp_locator::AtpLocatorInterface;
 #endif
 #include "protobuf/proto/dm.pb.h"
 #include "btif/protobuf/include/proto_message_ids.h"
+#include <fcntl.h>
 
 /*******************************************************************************
  *  Static variables
@@ -130,26 +131,16 @@ BluetoothSSInterface *btSSInterface;
 BluetoothSSStubInterface *btSSStubInterface;
 #endif
 static uid_set_t* uid_set = NULL;
+#define MAX_BUFF_SIZE (64)
 
-using namespace bluetooth::synergy::SynergyProto;//::ss_bt_property_t;
-/*using bluetooth::synergy::SynergyProto::ss_set_adapter_property;
-using bluetooth::synergy::SynergyProto::ss_get_adapter_property;
-using bluetooth::synergy::SynergyProto::ss_get_remote_device_property;
-using bluetooth::synergy::SynergyProto::ss_get_remote_device_properties;
-using bluetooth::synergy::SynergyProto::ss_set_remote_device_property;
-using bluetooth::synergy::SynergyProto::ss_adapter_properties_callback;
-using bluetooth::synergy::SynergyProto::ss_remote_device_properties_callback;
-using bluetooth::synergy::SynergyProto::ss_bt_property_type_t;
-using bluetooth::synergy::SynergyProto::ss_adapter_state_changed_callback;
-using bluetooth::synergy::SynergyProto::ss_discovery_state_changed_callback;
-using bluetooth::synergy::SynergyProto::ss_bt_state_t;
-using bluetooth::synergy::SynergyProto::ss_device_found_callback;
-using bluetooth::synergy::SynergyProto::SS_BT_PROPERTY_BDADDR;
-using bluetooth::synergy::SynergyProto::SS_BT_PROPERTY_BDNAME;
-using bluetooth::synergy::SynergyProto::SS_BT_PROPERTY_UUIDS;
-using bluetooth::synergy::SynergyProto::SS_BT_PROPERTY_ADAPTER_SCAN_MODE;
-using bluetooth::synergy::SynergyProto::SS_BT_PROPERTY_ADAPTER_BONDED_DEVICES;
-using bluetooth::synergy::SynergyProto::SS_BT_PROPERTY_ADAPTER_DISCOVERY_TIMEOUT;*/
+// Check for a legacy address stored as a property.
+static constexpr char PERSIST_BDADDR_PROPERTY[] =
+    "persist.vendor.service.bt.ss.bdaddr";
+
+static constexpr size_t kStringLength = sizeof("XX:XX:XX:XX:XX:XX") - 1;
+static constexpr size_t kBytes = (kStringLength + 1) / 3;
+
+using namespace bluetooth::synergy::SynergyProto;
 
 /*******************************************************************************
  *  Externs
@@ -233,12 +224,89 @@ void LogMsg(uint32_t trace_set_mask, const char* fmt_str, ...) {
 const std::vector<std::string> get_allowed_bt_package_name(void);
 //void handle_migration(const std::string& dst, const std::vector<std::string>& allowed_bt_package_name);
 
+void bytes_to_string (const uint8_t* addr, char* addr_str) {
+  snprintf(addr_str, kStringLength+1, "%02x:%02x:%02x:%02x:%02x:%02x", addr[0], addr[1], addr[2],
+          addr[3], addr[4], addr[5]);
+}
+
+bool string_to_bytes (const char* addr_str, uint8_t* addr) {
+  if (addr_str == NULL) return false;
+  if (strnlen(addr_str, kStringLength) != kStringLength) return false;
+  unsigned char trailing_char = '\0';
+
+  return (sscanf(addr_str, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx%1c",
+                 &addr[0], &addr[1], &addr[2], &addr[3], &addr[4], &addr[5],
+                 &trailing_char) == kBytes);
+}
+
+//to make address to reverse order to match NAP
+void letobd(uint8_t localAddr[6]) {
+  int i;
+  uint8_t temp;
+
+  for (i = 0; i < 3; i++) {
+    temp = localAddr[i];
+    localAddr[i] = localAddr[5-i];
+    localAddr[5-i] = temp;
+  }
+}
+
+bool get_local_address (uint8_t *local_addr) {
+  char property[PROPERTY_VALUE_MAX] = { 0 };
+  bool valid_bda = false;
+
+  ALOGD("%s", __func__);
+
+  //Look for a previously stored BDA in property "persist.vendor.service.bt.ss.bdaddr".
+  if (!valid_bda && property_get(PERSIST_BDADDR_PROPERTY, property, NULL) &&
+      string_to_bytes(property, local_addr)) {
+    ALOGD("%s: BD address already present in property: Address: %s", __func__, property);
+    valid_bda = false;
+    return valid_bda;
+  }
+
+  /* Generate new BDA if necessary */
+  if (!valid_bda) {
+    char bdstr[kStringLength + 1];
+    struct timespec cur_time;
+
+    if (-1 == clock_gettime (CLOCK_MONOTONIC, &cur_time))
+    {
+      ALOGE("%s: clock_gettime failed\n", __func__);
+    }
+
+    srand((unsigned int)cur_time.tv_nsec);
+
+    /* No autogen BDA. Generate one now. */
+    local_addr[0] = 0x22;
+    local_addr[1] = 0x22;
+    local_addr[2] = (uint8_t)rand();
+    local_addr[3] = (uint8_t)rand();
+    local_addr[4] = (uint8_t)rand();
+    local_addr[5] = (uint8_t)rand();
+
+    /* Convert to ascii, and store as a persistent property */
+    bytes_to_string(local_addr, bdstr);
+    ALOGD("%s: No preset BDA! Generating BDA: %s for prop %s", __func__,
+          (char*)bdstr, PERSIST_BDADDR_PROPERTY);
+    if (property_set(PERSIST_BDADDR_PROPERTY, (char*)bdstr) < 0) {
+      ALOGE("%s: Failed to set random BDA in prop %s", __func__,
+            PERSIST_BDADDR_PROPERTY);
+      valid_bda = false;
+    } else {
+      valid_bda = true;
+      letobd(local_addr);
+    }
+  }
+  return valid_bda;
+}
+
 
 static int init(bt_callbacks_t* callbacks, bool start_restricted,
                 bool is_common_criteria_mode, int config_compare_result,
                 const char** init_flags, bool is_atv,
                 const char* user_data_directory) {
-  ALOGI("QTI OMR1 stack: %s: start restricted = %d : common criteria mode = %d,"
+  ALOGI("QTI Single stack: %s: start restricted = %d : common criteria mode = %d,"
            " config compare result = %d", __func__, start_restricted, is_common_criteria_mode,
            config_compare_result);
 
@@ -271,25 +339,39 @@ static int init(bt_callbacks_t* callbacks, bool start_restricted,
 
 static int enable () {
   ALOGI("%s", __func__);
-  //BTIF_TRACE_DEBUG("QTI OMR1 stack: %s", __func__);
   BTIF_TRACE_DEBUG("QTI single stack: %s", __func__);
   // Do Encoding of Enable Proto
   uint8_t enable_msg[MAX_LENGTH_WITH_PROTO_NONE];
+  uint8_t addr[6];
+  RawAddress *bd_addr;
+  std::string protoMsg;
+  uint16_t proto_encode = PROTO_NONE;
+
   //adding msg_id
   uint16_t msg_id = BT_DM_ENABLE;
   enable_msg[0] = msg_id & 0xff;
   enable_msg[1] = (msg_id >> 8);
+
+  if (get_local_address(addr)) {
+    bd_addr = (RawAddress*)addr;
+    ALOGI("%s: Setting BT Address to %s", __func__, bd_addr->ToString().c_str());
+    ss_enable _bt_enable;
+    _bt_enable.set_bd_addr(ToRawString(bd_addr).c_str());
+    _bt_enable.SerializeToString(&protoMsg);
+    proto_encode = PROTO_ENC_DEC;
+  }
+  ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
   //adding length
-  uint16_t length = PAYLOAD_LENGTH_WITH_PROTO_NONE;
+  uint16_t length = protoMsg.length();
   enable_msg[2] = length & 0xff;
   enable_msg[3] = (length >> 8);
   //adding proto_encode
-  uint16_t proto_encode = PROTO_NONE;
   enable_msg[4] = proto_encode & 0xff;
   enable_msg[5] = (proto_encode >> 8);
   char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
   memcpy(resBuffer, (char *) enable_msg, MAX_LENGTH_WITH_PROTO_NONE);
   std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+  msgStr.append(protoMsg);
 #ifndef SS_STUB_ENABLED
   btSSInterface->postTxMsg(msgStr);
 #else
