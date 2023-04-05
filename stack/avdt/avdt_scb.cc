@@ -786,10 +786,10 @@ void avdt_scb_event(AvdtpScb* p_scb, uint8_t event, tAVDT_SCB_EVT* p_data) {
       }
     }
   }
-
-  if (num_st_streams == 1) {
+  // To support dual A2DP streams
+  if (num_st_streams > 0 && num_st_streams < 3) {
     avdtp_cb.ccb[ccb_index].scb[scb_index].curr_stream = true;
-  } else if (num_st_streams > 1 && !p_scb->curr_stream &&
+  } else if (num_st_streams > 2 && !p_scb->curr_stream &&
              event == AVDT_SCB_API_WRITE_REQ_EVT) {
     AVDT_TRACE_ERROR("%s: ignore AVDT_SCB_API_WRITE_REQ_EVT", __func__);
     avdt_scb_free_pkt(p_scb, p_data);

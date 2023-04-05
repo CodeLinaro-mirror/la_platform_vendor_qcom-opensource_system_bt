@@ -2167,14 +2167,12 @@ void bta_hf_client_send_at_vendor_specific_cmd(tBTA_HF_CLIENT_CB* client_cb,
 
   APPL_TRACE_DEBUG("%s", __func__);
 
-  int at_len = snprintf(buf, sizeof(buf), "AT%s", str);
+  int at_len = snprintf(buf, sizeof(buf), "AT%s\r", str);
 
-  if (at_len < 1) {
+  if ((at_len < (int)strlen("AT\r") ) || (at_len > BTA_HF_CLIENT_AT_MAX_LEN)) {
     APPL_TRACE_ERROR("%s: AT command Framing error", __func__);
     return;
   }
-
-  buf[at_len - 1] = '\r';
 
   bta_hf_client_send_at(client_cb, BTA_HF_CLIENT_AT_VENDOR_SPECIFIC, buf,
                         at_len);

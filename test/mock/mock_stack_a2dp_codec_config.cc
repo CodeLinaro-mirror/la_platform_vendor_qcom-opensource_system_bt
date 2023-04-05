@@ -181,7 +181,8 @@ bool A2dpCodecs::setCodecAudioConfig(
   mock_function_count_map[__func__]++;
   return false;
 }
-bool A2dpCodecs::setCodecConfig(const uint8_t* p_peer_codec_info,
+bool A2dpCodecs::setCodecConfig(const RawAddress& peer_address,
+                                const uint8_t* p_peer_codec_info,
                                 bool is_capability,
                                 uint8_t* p_result_codec_config,
                                 bool select_current_codec) {
@@ -197,6 +198,7 @@ bool A2dpCodecs::setCodecOtaConfig(
   return false;
 }
 bool A2dpCodecs::setCodecUserConfig(
+    const RawAddress& peer_address,
     const btav_a2dp_codec_config_t& codec_user_config,
     const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
     const uint8_t* p_peer_sink_capabilities, uint8_t* p_result_codec_config,
@@ -276,7 +278,8 @@ const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterface(
   mock_function_count_map[__func__]++;
   return nullptr;
 }
-const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterface(
+A2dpEncoderInterface* A2DP_GetEncoderInterface(
+    const RawAddress& peer_address,
     const uint8_t* p_codec_info) {
   mock_function_count_map[__func__]++;
   return nullptr;
@@ -297,7 +300,7 @@ int A2DP_GetTrackSampleRate(const uint8_t* p_codec_info) {
   mock_function_count_map[__func__]++;
   return 0;
 }
-int A2dpCodecConfig::getTrackBitRate() const {
+int A2dpCodecConfig::getTrackBitRate()      {
   mock_function_count_map[__func__]++;
   return 0;
 }

@@ -387,8 +387,8 @@ void a2dp_vendor_aptx_hd_send_frames(uint64_t timestamp_us) {
       expected_read_bytes;
 
   LOG_VERBOSE("%s: PCM read of size %u", __func__, expected_read_bytes);
-  bytes_read = a2dp_aptx_hd_encoder_cb.read_callback((uint8_t*)read_buffer32,
-                                                     expected_read_bytes);
+/*  bytes_read = a2dp_aptx_hd_encoder_cb.read_callback((uint8_t*)read_buffer32,
+                                                     expected_read_bytes);*/
   a2dp_aptx_hd_encoder_cb.stats.media_read_total_actual_read_bytes +=
       bytes_read;
   if (bytes_read < expected_read_bytes) {
@@ -425,7 +425,7 @@ void a2dp_vendor_aptx_hd_send_frames(uint64_t timestamp_us) {
   a2dp_aptx_hd_encoder_cb.timestamp += rtp_timestamp;
 
   if (p_buf->len > 0) {
-    a2dp_aptx_hd_encoder_cb.enqueue_callback(p_buf, 1, bytes_read);
+//    a2dp_aptx_hd_encoder_cb.enqueue_callback(p_buf, 1, bytes_read);
   } else {
     a2dp_aptx_hd_encoder_cb.stats.media_read_total_dropped_packets++;
     osi_free(p_buf);

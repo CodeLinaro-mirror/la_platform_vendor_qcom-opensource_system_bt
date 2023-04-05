@@ -100,6 +100,8 @@ cc_library_shared {
         "android.hardware.bluetooth@1.0",
         "android.hardware.bluetooth@1.1",
         "libbinder_ndk",
+        "libbt-sbc-encoder1",
+        "libbt-sbc-encoder2",
         "libcrypto",
         "libcutils",
         "libflatbuffers-cpp",
@@ -114,7 +116,6 @@ cc_library_shared {
     static_libs: [
         "libbte",
         "libbt-sbc-decoder",
-        "libbt-sbc-encoder",
         "libFraunhoferAAC",
         "libg722codec",
         "libudrv-uipc",

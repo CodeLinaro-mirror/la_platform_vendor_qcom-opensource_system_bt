@@ -40,11 +40,12 @@
  * Returns          void
  *
  ******************************************************************************/
-void bta_av_ci_src_data_ready(tBTA_AV_CHNL chnl) {
-  BT_HDR_RIGID* p_buf = (BT_HDR_RIGID*)osi_malloc(sizeof(BT_HDR_RIGID));
+void bta_av_ci_src_data_ready(const RawAddress& peer_address, tBTA_AV_CHNL chnl) {
+  tBTA_AV_CI_SRC_DATA* p_buf = (tBTA_AV_CI_SRC_DATA*)osi_malloc(sizeof(tBTA_AV_CI_SRC_DATA));
 
-  p_buf->layer_specific = chnl;
-  p_buf->event = BTA_AV_CI_SRC_DATA_READY_EVT;
+  p_buf->hdr.layer_specific = chnl;
+  p_buf->hdr.event = BTA_AV_CI_SRC_DATA_READY_EVT;
+  p_buf->peer_address = peer_address;
 
   bta_sys_sendmsg(p_buf);
 }

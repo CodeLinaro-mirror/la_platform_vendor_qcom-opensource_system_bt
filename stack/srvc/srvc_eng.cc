@@ -205,6 +205,11 @@ uint8_t srvc_eng_process_read_req(uint8_t clcb_idx, tGATT_READ_REQ* p_data,
   tGATT_STATUS status = GATT_NOT_FOUND;
   uint8_t act = SRVC_ACT_RSP;
 
+  if (clcb_idx >= SRVC_MAX_APPS) {
+    *p_status = GATT_BUSY;
+    return act;
+  }
+
   if (p_data->is_long) p_rsp->attr_value.offset = p_data->offset;
 
   p_rsp->attr_value.handle = p_data->handle;
@@ -223,6 +228,11 @@ uint8_t srvc_eng_process_write_req(uint8_t clcb_idx, tGATT_WRITE_REQ* p_data,
                                    UNUSED_ATTR tGATTS_RSP* p_rsp,
                                    tGATT_STATUS* p_status) {
   uint8_t act = SRVC_ACT_RSP;
+
+  if (clcb_idx >= SRVC_MAX_APPS) {
+    *p_status = GATT_BUSY;
+    return act;
+  }
 
   if (dis_valid_handle_range(p_data->handle)) {
     act = dis_write_attr_value(p_data, p_status);
@@ -254,7 +264,9 @@ static void srvc_eng_s_request_cback(uint16_t conn_id, uint32_t trans_id,
 
   memset(&rsp_msg, 0, sizeof(tGATTS_RSP));
 
-  srvc_eng_cb.clcb[clcb_idx].trans_id = trans_id;
+  if (clcb_idx < SRVC_MAX_APPS) {
+    srvc_eng_cb.clcb[clcb_idx].trans_id = trans_id;
+  }
 
   switch (type) {
     case GATTS_REQ_TYPE_READ_CHARACTERISTIC:
@@ -284,7 +296,9 @@ static void srvc_eng_s_request_cback(uint16_t conn_id, uint32_t trans_id,
       break;
   }
 
-  srvc_eng_cb.clcb[clcb_idx].trans_id = 0;
+  if (clcb_idx < SRVC_MAX_APPS) {
+    srvc_eng_cb.clcb[clcb_idx].trans_id = 0;
+  }
 
   if (act == SRVC_ACT_RSP) GATTS_SendRsp(conn_id, trans_id, status, &rsp_msg);
 }

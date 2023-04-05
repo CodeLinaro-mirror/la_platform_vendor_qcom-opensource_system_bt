@@ -167,8 +167,8 @@ void hearing_aid_data_cb(tUIPC_CH_ID, tUIPC_EVENT event) {
 void hearing_aid_recv_ctrl_data() {
   tHEARING_AID_CTRL_CMD cmd = HEARING_AID_CTRL_CMD_NONE;
   int n;
-
   uint8_t read_cmd = 0; /* The read command size is one octet */
+  RawAddress peer_address = RawAddress::kEmpty;
   n = UIPC_Read(*uipc_hearing_aid, UIPC_CH_ID_AV_CTRL, NULL, &read_cmd, 1);
   cmd = static_cast<tHEARING_AID_CTRL_CMD>(read_cmd);
 
@@ -195,7 +195,7 @@ void hearing_aid_recv_ctrl_data() {
       if (!hearing_aid_on_resume_req(false)) {
         ctrl_ack_status = HEARING_AID_CTRL_ACK_FAILURE;
       } else {
-        UIPC_Open(*uipc_hearing_aid, UIPC_CH_ID_AV_AUDIO, hearing_aid_data_cb,
+        UIPC_Open(peer_address, *uipc_hearing_aid, UIPC_CH_ID_AV_AUDIO, hearing_aid_data_cb,
                   HEARING_AID_DATA_PATH);
       }
       hearing_aid_send_ack(ctrl_ack_status);
@@ -312,6 +312,8 @@ void hearing_aid_recv_ctrl_data() {
 }
 
 void hearing_aid_ctrl_cb(tUIPC_CH_ID, tUIPC_EVENT event) {
+  RawAddress peer_address = RawAddress::kEmpty;
+
   VLOG(2) << "Hearing Aid audio ctrl event: " << event;
   switch (event) {
     case UIPC_OPEN_EVT:
@@ -319,7 +321,7 @@ void hearing_aid_ctrl_cb(tUIPC_CH_ID, tUIPC_EVENT event) {
     case UIPC_CLOSE_EVT:
       /* restart ctrl server unless we are shutting down */
       if (HearingAid::IsHearingAidRunning()) {
-        UIPC_Open(*uipc_hearing_aid, UIPC_CH_ID_AV_CTRL, hearing_aid_ctrl_cb,
+        UIPC_Open(peer_address, *uipc_hearing_aid, UIPC_CH_ID_AV_CTRL, hearing_aid_ctrl_cb,
                   HEARING_AID_CTRL_PATH);
       }
       break;
@@ -415,10 +417,12 @@ void HearingAidAudioSource::Initialize() {
       .on_resume_ = hearing_aid_on_resume_req,
       .on_suspend_ = hearing_aid_on_suspend_req,
   };
+
+  RawAddress peer_address = RawAddress::kEmpty;
   if (!bluetooth::audio::hearing_aid::init(stream_cb, get_main_thread())) {
     LOG(WARNING) << __func__ << ": Using legacy HAL";
     uipc_hearing_aid = UIPC_Init();
-    UIPC_Open(*uipc_hearing_aid, UIPC_CH_ID_AV_CTRL, hearing_aid_ctrl_cb, HEARING_AID_CTRL_PATH);
+    UIPC_Open(peer_address, *uipc_hearing_aid, UIPC_CH_ID_AV_CTRL, hearing_aid_ctrl_cb, HEARING_AID_CTRL_PATH);
   }
 }
 

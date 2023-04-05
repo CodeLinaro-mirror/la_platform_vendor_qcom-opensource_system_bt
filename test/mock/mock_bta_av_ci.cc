@@ -37,6 +37,6 @@ void bta_av_ci_setconfig(tBTA_AV_HNDL bta_av_handle, uint8_t err_code,
                          bool recfg_needed, uint8_t avdt_handle) {
   mock_function_count_map[__func__]++;
 }
-void bta_av_ci_src_data_ready(tBTA_AV_CHNL chnl) {
+void bta_av_ci_src_data_ready(const RawAddress& peer_address, tBTA_AV_CHNL chnl) {
   mock_function_count_map[__func__]++;
 }

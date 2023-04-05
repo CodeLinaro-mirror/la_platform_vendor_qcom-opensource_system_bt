@@ -36,6 +36,7 @@
 #include "bta/av/bta_av_int.h"
 #include "bta/include/bta_ar_api.h"
 #include "bta/include/bta_av_co.h"
+#include "bt_utils.h"
 #include "btif/avrcp/avrcp_service.h"
 #include "btif/include/btif_av_co.h"
 #include "btif/include/btif_config.h"
@@ -565,9 +566,16 @@ static void bta_av_adjust_seps_idx(tBTA_AV_SCB* p_scb, uint8_t avdt_handle) {
     APPL_TRACE_DEBUG("%s: avdt_handle: %d codec: %s", __func__,
                      p_scb->seps[i].av_handle,
                      A2DP_CodecName(p_scb->seps[i].codec_info));
+#if A2DP_SINK_PTS_TEST
+    // PTS: A2DP/SNK/AVP/BI-07-C
     if (p_scb->seps[i].av_handle && (p_scb->seps[i].av_handle == avdt_handle) &&
-        A2DP_CodecTypeEquals(p_scb->seps[i].codec_info,
-                             p_scb->cfg.codec_info)) {
+        (is_pts_a2dpsink() || A2DP_CodecTypeEquals(p_scb->seps[i].codec_info,
+                                                   p_scb->cfg.codec_info))) {
+#else
+      if (p_scb->seps[i].av_handle && (p_scb->seps[i].av_handle == avdt_handle) &&
+          A2DP_CodecTypeEquals(p_scb->seps[i].codec_info,
+                               p_scb->cfg.codec_info)) {
+#endif
       p_scb->sep_idx = i;
       p_scb->avdt_handle = p_scb->seps[i].av_handle;
       break;
@@ -1749,11 +1757,18 @@ void bta_av_getcap_results(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   tBTA_AV_REJECT reject;
   uint8_t avdt_handle = p_data->ci_setconfig.avdt_handle;
+  uint8_t error_code = AVDT_ERR_UNSUP_CFG;
 
   bta_av_adjust_seps_idx(p_scb, avdt_handle);
   LOG_INFO("%s: sep_idx=%d avdt_handle=%d bta_handle=0x%x", __func__,
            p_scb->sep_idx, p_scb->avdt_handle, p_scb->hndl);
-  AVDT_ConfigRsp(p_scb->avdt_handle, p_scb->avdt_label, AVDT_ERR_UNSUP_CFG, 0);
+#if A2DP_SINK_PTS_TEST
+  if (is_pts_a2dpsink()) {
+    LOG_INFO("%s: pts: get_a2dp_error_code 0x%X", __func__, get_a2dp_error_code());
+    error_code = get_a2dp_error_code();
+  }
+#endif
+  AVDT_ConfigRsp(p_scb->avdt_handle, p_scb->avdt_label, error_code, 0);
 
   reject.bd_addr = p_data->str_msg.bd_addr;
   reject.hndl = p_scb->hndl;
@@ -2095,14 +2110,14 @@ void bta_av_data_path(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
   } else {
     new_buf = true;
     /* A2DP_list empty, call co_data, dup data to other channels */
-    p_buf = p_scb->p_cos->data(p_scb->cfg.codec_info, &timestamp);
+    p_buf = p_scb->p_cos->data(p_scb->PeerAddress(), p_scb->cfg.codec_info, &timestamp);
 
     if (p_buf) {
       /* use the offset area for the time stamp */
       *(uint32_t*)(p_buf + 1) = timestamp;
 
       /* dup the data to other channels */
-      bta_av_dup_audio_buf(p_scb, p_buf);
+      //bta_av_dup_audio_buf(p_scb, p_buf);
     }
   }
 

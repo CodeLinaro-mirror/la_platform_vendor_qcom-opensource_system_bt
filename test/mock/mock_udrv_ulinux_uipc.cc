@@ -52,7 +52,7 @@ extern std::map<std::string, int> mock_function_count_map;
 #define UNUSED_ATTR
 #endif
 
-bool UIPC_Open(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, tUIPC_RCV_CBACK* p_cback,
+bool UIPC_Open(const RawAddress& peer_address, tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, tUIPC_RCV_CBACK* p_cback,
                const char* socket_path) {
   mock_function_count_map[__func__]++;
   return false;
@@ -97,4 +97,16 @@ void uipc_main_cleanup(tUIPC_STATE& uipc) {
 }
 void uipc_stop_main_server_thread(tUIPC_STATE& uipc) {
   mock_function_count_map[__func__]++;
+}
+int uipc_get_free_ctrl_ch() {
+  mock_function_count_map[__func__]++;
+  return 0;
+}
+const RawAddress& uipc_get_address_from_ch(int ch_id) {
+  mock_function_count_map[__func__]++;
+  return RawAddress::kEmpty;
+}
+int uipc_get_ch_from_address(const RawAddress& peer_address, bool ctrl) {
+  mock_function_count_map[__func__]++;
+  return 0;
 }
