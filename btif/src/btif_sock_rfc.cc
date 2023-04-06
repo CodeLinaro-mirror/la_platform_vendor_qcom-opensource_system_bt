@@ -1361,7 +1361,6 @@ void btsock_rfc_signaled(UNUSED_ATTR int fd, int flags, uint32_t user_id) {
             ALOGI("%s: BT_RFCOMM_WRITE_SOCKET_DATA proto length: %d and payload length: %d",__func__, msgStr.size(), data_string_sub.size());
           #ifndef SS_STUB_ENABLED
             int result = gBTSSInterface->postDataChTxMsg(msgStr);
-            ALOGI("%s: result is :: %d",__func__,result);
           #else
             gBTSSStubInterface->postTxMsg(msgStr);
           #endif

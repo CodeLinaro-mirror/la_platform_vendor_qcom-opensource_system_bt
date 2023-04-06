@@ -304,10 +304,8 @@ void processTx(std::string msgStr) {
 
 int processDataTx(std::string msgStr) {
   ALOGI("%s: msg : %s and length: %d", __func__, msgStr.c_str(), msgStr.length());
-  const  char *msgType="Tx";
   uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
   size_t bytes_written = 0;
-  do_in_data_logging_thread(base::Bind(processDataLogging, tmpBuf,msgStr.length(),msgType));
   int result = -1;
   int retry_count = 0;
   do {
@@ -327,7 +325,6 @@ int processDataTx(std::string msgStr) {
           break;
         }
   }while(true);
-  ALOGI("%s: DATA_CH: write payload bytes_written=%d", __func__, (int)bytes_written);
   return bytes_written;
 }
 

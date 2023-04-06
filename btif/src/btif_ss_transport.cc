@@ -12,6 +12,7 @@
 #include <sys/ioctl.h>
 #include <sys/poll.h>
 #include <unistd.h>
+#include "internal_include/bt_target.h"
 
 #include <iostream>
 #include <sstream>
@@ -232,6 +233,7 @@ int BluetoothSSTransport::read(uint8_t *data, size_t size) {
     ALOGE("read: Zero length packet received or hardware connection went off");
   }
   // For debugging. Comment out later
+#if (SS_GLINK_LOGGING == TRUE)
   {
     std::ostringstream hstr;
     for (int i=0; i< rc; ++i)
@@ -247,6 +249,7 @@ int BluetoothSSTransport::read(uint8_t *data, size_t size) {
     }
   }
   ALOGI("read: read %d of %d bytes", (int)rc, (int)size);
+#endif
   return rc;
 }
 
@@ -278,6 +281,7 @@ int BluetoothSSTransport::write(uint8_t *buf, size_t buflen, size_t *bytes_writt
     }
 
     // For debugging. Comment out later
+#if (SS_GLINK_LOGGING == TRUE)
     {
       int offset = bytes_written_out;
       std::ostringstream hstr;
@@ -289,9 +293,11 @@ int BluetoothSSTransport::write(uint8_t *buf, size_t buflen, size_t *bytes_writt
       ALOGI("write: wrote [%s]", hstr.str().c_str());
     }
 
-
+#endif
     bytes_written_out += rc;
+#if (SS_GLINK_LOGGING == TRUE)
     ALOGI("write: total written %d bytes", bytes_written_out);
+#endif
   };
 
   if (bytes_written) {

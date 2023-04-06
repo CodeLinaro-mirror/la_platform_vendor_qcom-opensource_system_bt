@@ -1536,4 +1536,9 @@ incoming connection
 #define EATT_IF_SUPPORTED TRUE
 #endif
 
+/* Glink Logging */
+#ifndef SS_GLINK_LOGGING
+#define SS_GLINK_LOGGING FALSE
+#endif
+
 #endif /* BT_TARGET_H */
