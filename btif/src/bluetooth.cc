@@ -1518,7 +1518,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
             std::string scan_mode = prop.val();
             mode = (bt_scan_mode_t)(std::stoi(scan_mode));
             ALOGI("Scan Mode : %d", mode);
-            properties[i].len = prop.len();
+            properties[i].len = sizeof(bt_scan_mode_t);
             properties[i].val = (void*)&mode;
             properties[i].type = BT_PROPERTY_ADAPTER_SCAN_MODE;
           } else if(prop_type == SS_BT_PROPERTY_ADAPTER_BONDED_DEVICES) {
@@ -1532,7 +1532,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
             std::string discovery_timeout = prop.val();
             timeout = (uint32_t)(std::stoi(discovery_timeout));
             ALOGI("Discovery timeout : %d", timeout);
-            properties[i].len = prop.len();
+            properties[i].len = sizeof(uint32_t);
             properties[i].val = (void*)&timeout;
             properties[i].type = BT_PROPERTY_ADAPTER_DISCOVERABLE_TIMEOUT;
           } else if(prop_type == SS_BT_PROPERTY_LOCAL_LE_FEATURES) {
