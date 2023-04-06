@@ -125,6 +125,7 @@ bool common_criteria_mode = false;
 const int CONFIG_COMPARE_ALL_PASS = 0b11;
 int common_criteria_config_compare_result = CONFIG_COMPARE_ALL_PASS;
 bool is_local_device_atv = false;
+bt_bond_state_t bond_state = BT_BOND_STATE_NONE;
 //btif_trace_level = BT_TRACE_LEVEL_DEBUG;
 BluetoothSSInterface *btSSInterface;
 #ifdef SS_STUB_ENABLED
@@ -653,6 +654,10 @@ int get_remote_services(RawAddress* remote_addr, int /*transport*/) {
 
 static int start_discovery(void) {
   ALOGI("%s", __func__);
+  if(bond_state ==  BT_BOND_STATE_BONDING) {
+    ALOGI("%s, Device in bonding state, cannot do inquiry", __func__);
+    return BT_STATUS_BUSY;
+  }
   uint8_t disc_msg[MAX_LENGTH_WITH_PROTO_NONE];
   //adding msg_id
   uint16_t msg_id = BT_DM_START_DISCOVERY;
@@ -1838,7 +1843,6 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       }
       if(bondStateChangedCb.has_state()) {
         ALOGI("BT_DM_BOND_STATE_CHANGE_CB: parseRxData has_state");
-        bt_bond_state_t bond_state;
         bond_state = (bt_bond_state_t)bondStateChangedCb.state();
         ALOGI("BT_DM_Bond_STATE_CHANGE_CB: state : %d", bond_state);
         HAL_CBACK(bt_hal_cbacks, bond_state_changed_cb, status, bd_addr, bond_state, fail_reason);
