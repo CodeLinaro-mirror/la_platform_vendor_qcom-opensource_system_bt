@@ -363,9 +363,13 @@ void EnableBtQualityReport(bool is_enable) {
         static_cast<uint16_t>(atoi(bqr_prop_interval_ms));
   } else {
     bqr_config.report_action = REPORT_ACTION_DELETE;
-    bqr_config.quality_event_mask = kQualityEventMaskAll;
-    bqr_config.vendor_quality_event_mask = kVendorQualityEventMaskAll;
     bqr_config.is_qc_bqr5_supported = btif_vendor_is_qc_bqr5_supported();
+    if(bqr_config.is_qc_bqr5_supported) {
+      bqr_config.quality_event_mask = kBqr5QualityEventMaskAll;
+    } else {
+      bqr_config.quality_event_mask = kQualityEventMaskAll;
+    }
+    bqr_config.vendor_quality_event_mask = kVendorQualityEventMaskAll;
 #ifdef BLUEDROID_DEBUG
     // Dont disable FW dumps in userdebug/eng. builds.
     bqr_config.quality_event_mask = bqr_config.quality_event_mask & ~kQualityEventMaskDebugInfo;
