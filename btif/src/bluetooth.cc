@@ -1494,6 +1494,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       }
       if(remotePropCb.has_num_properties()) {
         RawAddress bd_addr_prop;
+        bt_device_type_t dev_type;
         bt_scan_mode_t mode;
         uint32_t timeout;
         int numProp = remotePropCb.num_properties();
@@ -1555,6 +1556,13 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
             properties[i].len = sizeof(uint32_t);
             properties[i].val = (void*)&cod;
             properties[i].type = BT_PROPERTY_CLASS_OF_DEVICE;
+          }else if(prop_type == BT_PROPERTY_TYPE_OF_DEVICE) {
+            std::string dev_val = prop.val();
+            dev_type = (bt_device_type_t)(std::stoi(dev_val));
+            ALOGI("Dev Type : %d", dev_type);
+            properties[i].len = sizeof(bt_device_type_t);
+            properties[i].val = (void*)&dev_type;
+            properties[i].type = BT_PROPERTY_TYPE_OF_DEVICE;
           }
         }
         HAL_CBACK(bt_hal_cbacks, remote_device_properties_cb, status, bd_addr, numProp, properties);
