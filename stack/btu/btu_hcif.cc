@@ -18,6 +18,15 @@
 
 /******************************************************************************
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ ******************************************************************************/
+
+/******************************************************************************
+ *
  *  This file contains functions that interface with the HCI transport. On
  *  the receive side, it routes events to the appropriate handler, e.g.
  *  L2CAP, ScoMgr. On the transmit side, it manages the command
@@ -1294,6 +1303,7 @@ static void btu_hcif_hdl_command_complete(uint16_t opcode, uint8_t* p,
       break;
 
     case HCI_READ_INQ_TX_POWER_LEVEL:
+      btm_read_inq_tx_power_complete(p);
       break;
 
     /* BLE Commands sComplete*/
