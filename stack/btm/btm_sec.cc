@@ -18,6 +18,15 @@
 
 /******************************************************************************
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ ******************************************************************************/
+
+/******************************************************************************
+ *
  *  This file contains functions for the Bluetooth Security Manager
  *
  ******************************************************************************/
@@ -80,6 +89,7 @@ extern void bta_dm_remove_device(const RawAddress& bd_addr);
 extern void bta_dm_process_remove_device(const RawAddress& bd_addr);
 extern void btm_inq_clear_ssp(void);
 extern void HACK_acl_check_sm4(tBTM_SEC_DEV_REC& p_dev_rec);
+extern void bta_read_inq_tx_power_complete(int8_t power);
 
 /*******************************************************************************
  *             L O C A L    F U N C T I O N     P R O T O T Y P E S            *
@@ -2972,6 +2982,29 @@ void btm_rem_oob_req(uint8_t* p) {
   /* something bad. we can only fail this connection */
   acl_set_disconnect_reason(HCI_ERR_HOST_REJECT_SECURITY);
   btsnd_hcic_rem_oob_neg_reply(p_bda);
+}
+
+/*******************************************************************************
+ *
+ * Function         btm_read_inq_tx_power_complete
+ *
+ * Description      This function is called when read tx power level is
+ *                  completed by the LM
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btm_read_inq_tx_power_complete(uint8_t* p) {
+  uint8_t status = *p++;
+  int8_t power;
+
+  BTM_TRACE_EVENT("btm_read_inq_tx_power_complete: status %d", status);
+  if (status == HCI_SUCCESS) {
+    STREAM_TO_INT8(power, p);
+    bta_read_inq_tx_power_complete(power);
+  } else {
+    BTM_TRACE_ERROR("btm_read_inq_tx_power_complete: failed %d", status);
+  }
 }
 
 /*******************************************************************************
