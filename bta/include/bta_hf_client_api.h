@@ -321,10 +321,10 @@ void BTA_HfClientDisable(void);
  *                  calls to do any AT operations
  *
  *
- * Returns          void
+ * Returns          BTA_SUCCESS if OK, BTA_FAILURE otherwise.
  *
  ******************************************************************************/
-void BTA_HfClientOpen(const RawAddress& bd_addr, uint16_t* p_handle);
+tBTA_STATUS BTA_HfClientOpen(const RawAddress& bd_addr, uint16_t* p_handle);
 
 /*******************************************************************************
  *
