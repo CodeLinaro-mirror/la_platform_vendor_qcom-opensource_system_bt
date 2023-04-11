@@ -166,6 +166,9 @@ constexpr uint64_t kDisableDelayTimerInMs =
     static_cast<uint64_t>(BTA_DISABLE_DELAY);
 #endif
 
+/* Inquiry Tx Power Level occupies 3 bytes in EIR */
+#define INQ_TX_POWER_IN_EIR_SIZE 3
+
 struct WaitForAllAclConnectionsToDrain {
   uint64_t time_to_wait_in_ms;
   unsigned long TimeToWaitInMs() const {
@@ -347,6 +350,7 @@ void BTA_dm_on_hw_on() {
   /* and retrieve the callback */
   bta_dm_cb.p_sec_cback = temp_cback;
   bta_dm_cb.is_bta_dm_active = true;
+  bta_dm_cb.inq_tx_power = BTM_INVALID_EIR_TX_POWER_LEVEL;
 
   /* hw is ready, go on with BTA DM initialization */
   alarm_free(bta_dm_search_cb.search_timer);
@@ -3141,12 +3145,21 @@ static void bta_dm_set_eir(char* local_name) {
     p_length = NULL;
   }
 
-  /* if Inquiry Tx Resp Power compiled */
-  if ((p_bta_dm_eir_cfg->bta_dm_eir_inq_tx_power) && (free_eir_length >= 3)) {
-    UINT8_TO_STREAM(p, 2); /* Length field */
-    UINT8_TO_STREAM(p, BTM_EIR_TX_POWER_LEVEL_TYPE);
-    UINT8_TO_STREAM(p, *(p_bta_dm_eir_cfg->bta_dm_eir_inq_tx_power));
-    free_eir_length -= 3;
+  if (free_eir_length >= INQ_TX_POWER_IN_EIR_SIZE) {
+    if (bta_dm_cb.inq_tx_power != BTM_INVALID_EIR_TX_POWER_LEVEL) {
+      /* if Inquiry Tx Resp Power has been fetched from controller */
+      APPL_TRACE_DEBUG("inq_tx_power %d", bta_dm_cb.inq_tx_power);
+      UINT8_TO_STREAM(p, 2); /* Length field */
+      UINT8_TO_STREAM(p, BTM_EIR_TX_POWER_LEVEL_TYPE);
+      UINT8_TO_STREAM(p, bta_dm_cb.inq_tx_power);
+      free_eir_length -= INQ_TX_POWER_IN_EIR_SIZE;
+    } else if (p_bta_dm_eir_cfg->bta_dm_eir_inq_tx_power) {
+      /* if Inquiry Tx Resp Power compiled */
+      UINT8_TO_STREAM(p, 2); /* Length field */
+      UINT8_TO_STREAM(p, BTM_EIR_TX_POWER_LEVEL_TYPE);
+      UINT8_TO_STREAM(p, *(p_bta_dm_eir_cfg->bta_dm_eir_inq_tx_power));
+      free_eir_length -= INQ_TX_POWER_IN_EIR_SIZE;
+    }
   }
 
   if (free_eir_length)
@@ -3242,6 +3255,11 @@ void bta_dm_eir_update_cust_uuid(const tBTA_CUSTOM_UUID& curr, bool adding) {
  *
  ******************************************************************************/
 void bta_dm_eir_update_uuid(uint16_t uuid16, bool adding) {
+  if (bta_dm_cb.inq_tx_power == BTM_INVALID_EIR_TX_POWER_LEVEL) {
+    LOG_INFO("Read inquiry tx power level");
+    // Read inquiry power and set the value to EIR
+    btsnd_hcic_read_inq_tx_power();
+  }
   /* if this UUID is not advertised in EIR */
   if (!BTM_HasEirService(p_bta_dm_eir_cfg->uuid_mask, uuid16)) return;
 
@@ -4032,3 +4050,20 @@ static void bta_dm_ctrl_features_rd_cmpl_cback(tHCI_STATUS result) {
   }
 }
 #endif /* BLE_VND_INCLUDED */
+
+/*******************************************************************************
+ *
+ * Function         bta_read_inq_tx_power_complete
+ *
+ * Description      This function is called when read tx power level is
+ *                  completed by the LM
+ *
+ * Parameters       power - Inquiry tx power level
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void bta_read_inq_tx_power_complete(int8_t power) {
+  APPL_TRACE_DEBUG("bta_read_inq_tx_power_complete: power %d", power);
+  bta_dm_cb.inq_tx_power = power;
+}
