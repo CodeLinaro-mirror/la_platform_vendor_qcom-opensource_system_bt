@@ -268,6 +268,7 @@ bt_status_t btif_gattc_set_preferred_phy(const RawAddress& bd_addr,
   status = gattClientSingleStackProto.setPhy(bd_addr, tx_phy, rx_phy, phy_options);
   return status;
 }
+
 bt_status_t btif_gattc_read_phy(const RawAddress& bd_addr,
      base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb) {
   ALOGD("%s ", __func__);
@@ -278,10 +279,8 @@ bt_status_t btif_gattc_read_phy(const RawAddress& bd_addr,
 
 int btif_gattc_get_device_type(const RawAddress& bd_addr) {
   int device_type = 0;
-
-  /* ToDo: get device type from cache,
-    currently not storing the device type as part of properties*/
-    return device_type;
+  /* dummy function */
+  return device_type;
 }
 
 }  // namespace
