@@ -10,6 +10,7 @@
 #include "btif_api.h"
 #include <base/bind.h>
 #include <utils/Log.h>
+#include <limits.h>
 
 using namespace std;
 
@@ -316,10 +317,20 @@ int processDataTx(std::string msgStr) {
         }else if(result == -1){
           retry_count++;
           ALOGI("%s: Glink write failure...retrying...retry count is :: %d",__func__,retry_count);
-          if(retry_count > 3){
-            usleep(50000);
-          }
-          continue;
+          switch (retry_count) {
+            case 1 ... 4: {
+              break;
+            }
+            case 5 ... 7: {
+              usleep(10000);
+              break;
+            }
+            case 8 ... INT_MAX:{
+              usleep(25000);
+              break;
+            }
+         }
+         continue;
         }else{
           ALOGI("%s: Glink write failure status unknown",__func__);
           break;
