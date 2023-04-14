@@ -1144,7 +1144,7 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
       btif_av_cb[index].is_retry_reconfig = false;
       for (int i = 0; i < btif_max_av_clients; i++)
         btif_av_cb[i].dual_handoff = false;
-      osi_property_get("persist.vendor.service.bt.a2dp.sink", a2dp_role, "false");
+      osi_property_get("persist.vendor.service.bt.a2dp.sink", a2dp_role, "true");
       if (!strncmp("false", a2dp_role, 5)) {
         btif_av_cb[index].peer_sep = AVDT_TSEP_SNK;
         isPeerA2dpSink = true;
@@ -5798,7 +5798,7 @@ bt_status_t btif_av_execute_service(bool b_enable) {
   tBTA_AV_FEAT feat_delay_rpt = 0;
   char a2dp_role[255] = "false";
   tA2DP_CTRL_CMD pending_cmd = A2DP_CTRL_CMD_NONE;
-  osi_property_get("persist.vendor.service.bt.a2dp.sink", a2dp_role, "false");
+  osi_property_get("persist.vendor.service.bt.a2dp.sink", a2dp_role, "true");
   BTIF_TRACE_DEBUG("%s(): enable: %d", __func__, b_enable);
   if (b_enable) {
     osi_property_get("persist.bluetooth.disabledelayreports", value, "false");
@@ -6454,7 +6454,7 @@ void btif_av_clear_remote_suspend_flag(void) {
 void btif_av_move_idle(RawAddress bd_addr) {
   int index =0;
   char a2dp_role[255] = "false";
-  osi_property_get("persist.vendor.service.bt.a2dp.sink", a2dp_role, "false");
+  osi_property_get("persist.vendor.service.bt.a2dp.sink", a2dp_role, "true");
   /* inform the application that ACL is disconnected and move to idle state */
   index = btif_av_idx_by_bdaddr(&bd_addr);
   if (index == btif_max_av_clients) {
@@ -7288,7 +7288,7 @@ int64_t btif_get_average_delay() {
 *******************************************************************************/
 bool btif_device_in_sink_role() {
     char a2dp_role[6] = "false";
-    osi_property_get("persist.vendor.service.bt.a2dp.sink", a2dp_role, "false");
+    osi_property_get("persist.vendor.service.bt.a2dp.sink", a2dp_role, "true");
     if (strncmp("true", a2dp_role, 4) == 0){
         BTIF_TRACE_EVENT("%s: SINK role true ",__func__);
         return true;

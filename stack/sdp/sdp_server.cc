@@ -824,7 +824,7 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
              (p_attr->len >= SDP_PROFILE_DESC_LENGTH)) {
         if (((p_attr->value_ptr[3] << 8) | (p_attr->value_ptr[4])) ==
                 UUID_SERVCLASS_AV_REMOTE_CONTROL) {
-          property_get("persist.vendor.service.bt.a2dp.sink", a2dp_role, "false");
+          property_get("persist.vendor.service.bt.a2dp.sink", a2dp_role, "true");
           if (!strncmp("false", a2dp_role, 5)) {
             profile_version = sdp_get_stored_avrc_tg_version(p_ccb->device_address);
             uint16_t ver = (AVRCP_VERSION_BIT_MASK & profile_version);
@@ -1150,7 +1150,7 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
                (p_attr->len >= SDP_PROFILE_DESC_LENGTH)) {
           if (((p_attr->value_ptr[3] << 8) | (p_attr->value_ptr[4])) ==
                   UUID_SERVCLASS_AV_REMOTE_CONTROL) {
-            property_get("persist.vendor.service.bt.a2dp.sink", a2dp_role, "false");
+            property_get("persist.vendor.service.bt.a2dp.sink", a2dp_role, "true");
             if (!strncmp("false", a2dp_role, 5)) {
               profile_version = sdp_get_stored_avrc_tg_version(p_ccb->device_address);
               uint16_t ver = (AVRCP_VERSION_BIT_MASK & profile_version);
