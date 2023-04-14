@@ -1516,9 +1516,11 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
             std::string uuid_str = prop.val();
             ALOGI("UUID's are : %s",uuid_str.c_str());
             const char* uuids = uuid_str.c_str();
-            properties[i].len = prop.len();
-            properties[i].val = (void*)uuids;
-            properties[i].type = BT_PROPERTY_UUIDS;
+            if(strlen(uuid_str.c_str()) != 0){
+              properties[i].len = prop.len();
+              properties[i].val = (void*)uuids;
+              properties[i].type = BT_PROPERTY_UUIDS;
+            }
           } else if(prop_type == SS_BT_PROPERTY_ADAPTER_SCAN_MODE) {
             std::string scan_mode = prop.val();
             mode = (bt_scan_mode_t)(std::stoi(scan_mode));
