@@ -101,6 +101,7 @@
 #include <stdarg.h>
 #include "btif_uid.h"
 #include "btif_tws_plus.h"
+#include <string.h>
 using base::Bind;
 using bluetooth::hearing_aid::HearingAidInterface;
 using bluetooth::has::HasClientInterface;
@@ -963,7 +964,7 @@ static int ssp_reply(const RawAddress* bd_addr, bt_ssp_variant_t variant,
   return btif_dm_ssp_reply(bd_addr, variant, accept, passkey);
 #endif
 
-  ALOGI("%s", __func__);
+  ALOGI("%s accept = %d", __func__, accept);
   uint8_t ssp_reply_msg[MAX_LENGTH_WITH_PROTO_NONE];
 
   uint16_t msg_id = BT_DM_SSP_REPLY;
@@ -1488,6 +1489,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
         uint32_t timeout;
         uint8_t* le_features;
         uint32_t cod;
+        RawAddress bonded_devices[100];
 
         int numProp = adapterPropCb.num_properties();
         ALOGI("numProp is :: %d",numProp);
@@ -1531,9 +1533,34 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
           } else if(prop_type == SS_BT_PROPERTY_ADAPTER_BONDED_DEVICES) {
             std::string bonded_dev = prop.val();
             ALOGI("Bonded devices are : %s",bonded_dev.c_str());
-            const char* devices = bonded_dev.c_str();
-            properties[i].len = prop.len();
-            properties[i].val = (void*)devices;
+            if(prop.len() == 0 || strlen(bonded_dev.c_str()) == 0) {
+              ALOGI("No bonded devices present");
+              continue;
+            }
+            char* devices = const_cast<char*>(bonded_dev.c_str());
+            char* temp;
+            char* rest = devices;
+            int count = 0;
+            temp = strtok_r(devices," ",&rest);
+            while(temp != NULL) {
+               if(strlen(temp)!=12) {
+                 ALOGI("Received wrong bddress size - %d", strlen(temp));
+                 temp = strtok_r(NULL, " ",&rest);
+                 continue;
+               }
+               RawAddress bd_addr_temp;
+               for(int i=0,j=0;i<6;i++,j=j+2)
+               {
+                 std::string substring = (std::string(temp)).substr(j,2);
+                 bd_addr_temp.address[i] = strtol(substring.c_str(), NULL, 16);
+               }
+               ALOGI("address is :: %s",bd_addr_temp.ToString().c_str());
+               memcpy(&bonded_devices[count], &bd_addr_temp, RawAddress::kLength);
+               temp = strtok_r(NULL, " ",&rest);
+               count++;
+            }
+            properties[i].len = count* sizeof(RawAddress);
+            properties[i].val = &bonded_devices;
             properties[i].type = BT_PROPERTY_ADAPTER_BONDED_DEVICES;
           } else if(prop_type == SS_BT_PROPERTY_ADAPTER_DISCOVERY_TIMEOUT) {
             std::string discovery_timeout = prop.val();
