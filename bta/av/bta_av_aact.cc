@@ -2497,6 +2497,7 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   APPL_TRACE_DEBUG("%s: is_pts_enable: %s", __func__, is_pts_enable);
   if (!strncmp("true", is_pts_enable, 4)) {
     error_code = p_data->ci_setconfig.err_code;
+    APPL_TRACE_DEBUG("%s set config rejected error : 0x%x",__func__,error_code);
   } else {
     error_code = AVDT_ERR_UNSUP_CFG;
   }
