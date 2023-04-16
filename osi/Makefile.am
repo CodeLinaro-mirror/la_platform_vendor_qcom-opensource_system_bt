@@ -45,7 +45,7 @@ cpp_sources = \
         src/wakelock.cc \
         ${external_bt_path}/system_bt_ext/osi/src/vnd_log.cc
 
-common_LDFLAGS = -lpthread
+common_LDFLAGS = -lpthread -Wl,--unresolved-symbols=ignore-in-shared-libs
 common_CFLAGS =  $(AM_CFLAGS) -fPIC -D_GNU_SOURCE
 
 library_includedir = $(pkgincludedir)\

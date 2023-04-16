@@ -63,6 +63,10 @@ if MDM_CHEROKEE
 AM_CFLAGS += -DBT_SOC_TYPE_CHEROKEE
 AM_CPPFLAGS += -DBT_SOC_TYPE_CHEROKEE
 endif
+if MDM_HASTINGS
+AM_CFLAGS += -DBT_SOC_TYPE_HASTINGS
+AM_CPPFLAGS += -DBT_SOC_TYPE_HASTINGS
+endif
 # platform specific
 cpp_sources = \
         bte_main.cc \

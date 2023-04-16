@@ -42,6 +42,11 @@ AM_CFLAGS += -DBT_SOC_TYPE_CHEROKEE
 AM_CPPFLAGS += -DBT_SOC_TYPE_CHEROKEE
 endif
 
+if MDM_HASTINGS
+AM_CFLAGS += -DBT_SOC_TYPE_HASTINGS
+AM_CPPFLAGS += -DBT_SOC_TYPE_HASTINGS
+endif
+
 if ACL_TIMING_CALC_SUPPORT
 AM_CFLAGS += -DBT_ACL_TIMIMG_ENABLED=TRUE
 AM_CPPFLAGS += -DBT_ACL_TIMIMG_ENABLED=TRUE
@@ -56,7 +61,7 @@ cpp_sources = \
         src/bt_utils.cc
 endif
 
-common_LDFLAGS = -lpthread
+common_LDFLAGS = -lpthread -llog -lcutils -Wl,--unresolved-symbols=ignore-in-shared-libs
 common_CFLAGS =  $(AM_CFLAGS) -fPIC -DHAS_NO_BDROID_BUILDCFG
 
 library_includedir = $(pkgincludedir)
