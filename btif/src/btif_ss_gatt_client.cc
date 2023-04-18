@@ -42,7 +42,7 @@ void btif_ss_gatt_client_init() {
   if (ss_gatt_client_interface == NULL) {
     ss_gatt_client_interface = BluetoothSSInterface::getInstance();
     if (ss_gatt_client_interface == NULL) {
-      ALOGI("%s single stack interface Initialization failed", __func__);
+      ALOGE("%s single stack interface Initialization failed", __func__);
     }
   } else {
     ALOGI("single stack interface is already created");
@@ -55,25 +55,19 @@ void btif_ss_gatt_client_init() {
 }
 
 void btif_ss_gatt_client_deinit() {
+  ALOGI("%s ", __func__);
   if (ss_gatt_client_interface != NULL) {
     ss_gatt_client_interface->deregisterCallbacks(BT_PROFILE_ID_GATTC);
   }
   if (ss_gatt_client_interface == NULL) {
-    ALOGI("single stack interface is already null");
+    ALOGE("single stack interface is already null");
   } else {
     ss_gatt_client_interface = NULL;
   }
 }
 
-void gatt_client_single_stack_proto::PrintMessage(std::string msgStr) {
-  const char* encodeChars = msgStr.c_str();
-  uint8_t encoded_len = msgStr.length();
-
-  ALOGD("gatt_client_single_stack_proto - print message Size: %d\n", encoded_len);
-  for (uint8_t i = 0; i < encoded_len; i++) ALOGD("0x%x ", encodeChars[i]);
-}
-
 bt_status_t gatt_client_single_stack_proto::postTxMessage(std::string msgStr) {
+  ALOGD("%s ", __func__);
   /* Write to glink */
   if (ss_gatt_client_interface != NULL) {
     ss_gatt_client_interface->postTxMsg(msgStr);
@@ -88,13 +82,13 @@ bt_status_t gatt_client_single_stack_proto::registerClient(const bluetooth::Uuid
                                     bool eatt_supported) {
     std::string msgStr;
 
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     ss_gatt_client_register ss_gatt_client_register_;
     ss_gatt_client_register_.set_appuuid(bt_uuid.ToString());
     ss_gatt_client_register_.set_eattsupported(eatt_supported);
 
     if(!ss_gatt_client_register_.SerializeToString(&msgStr)) {
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_REGISTER, PROTO_ENC_DEC,
@@ -108,8 +102,8 @@ bt_status_t gatt_client_single_stack_proto::connect(uint32_t client_if, const Ra
                                     bool opportunistic, int phy) {
     std::string msgStr;
 
-    ALOGI(" %s ", __func__);
-    ALOGI("client if %lu ", (unsigned long)client_if);
+    ALOGD(" %s ", __func__);
+    ALOGV("client if %lu ", (unsigned long)client_if);
     ss_gatt_client_connect ss_gatt_client_connect_;
     ss_gatt_client_connect_.set_clientif(client_if);
     ss_gatt_client_connect_.set_address(ToRawString(&bd_addr).c_str());
@@ -119,7 +113,7 @@ bt_status_t gatt_client_single_stack_proto::connect(uint32_t client_if, const Ra
     ss_gatt_client_connect_.set_initphy(phy);
 
     if(!ss_gatt_client_connect_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_CONNECT, PROTO_ENC_DEC,
@@ -131,14 +125,14 @@ bt_status_t gatt_client_single_stack_proto::connect(uint32_t client_if, const Ra
 bt_status_t gatt_client_single_stack_proto::disconnect(uint32_t client_if, const RawAddress& bd_addr,
                                     uint32_t conn_id) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     ss_gatt_client_disconnect ss_gatt_client_disconnect_;
     ss_gatt_client_disconnect_.set_clientif(client_if);
     ss_gatt_client_disconnect_.set_address(ToRawString(&bd_addr).c_str());
     ss_gatt_client_disconnect_.set_connid(conn_id);
 
     if(!ss_gatt_client_disconnect_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_DISCONNECT, PROTO_ENC_DEC,
@@ -149,12 +143,12 @@ bt_status_t gatt_client_single_stack_proto::disconnect(uint32_t client_if, const
 
 bt_status_t gatt_client_single_stack_proto::deregisterClient(uint32_t client_if) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     ss_gatt_client_deregister ss_gatt_client_deregister_;
     ss_gatt_client_deregister_.set_clientif(client_if);
 
     if(!ss_gatt_client_deregister_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_DEREGISTER, PROTO_ENC_DEC,
@@ -166,13 +160,13 @@ bt_status_t gatt_client_single_stack_proto::deregisterClient(uint32_t client_if)
 bt_status_t gatt_client_single_stack_proto::searchServices(uint32_t conn_id,
                                     const bluetooth::Uuid& filter_uuid) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     ss_gatt_client_search_services ss_gatt_client_search_services_;
     ss_gatt_client_search_services_.set_connid(conn_id);
     ss_gatt_client_search_services_.set_filteruuid(bluetooth::Uuid::kEmpty.ToString());
 
     if(!ss_gatt_client_search_services_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_SEARCH_SERVICES, PROTO_ENC_DEC,
@@ -184,13 +178,13 @@ bt_status_t gatt_client_single_stack_proto::searchServices(uint32_t conn_id,
 bt_status_t gatt_client_single_stack_proto::discoverServicesByUuid(uint32_t conn_id,
                                     const bluetooth::Uuid uuid) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     ss_gatt_client_search_services ss_gatt_client_search_services_;
     ss_gatt_client_search_services_.set_connid(conn_id);
     ss_gatt_client_search_services_.set_filteruuid(uuid.ToString());
 
     if(!ss_gatt_client_search_services_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_SEARCH_SERVICES_BY_UUID, PROTO_ENC_DEC,
@@ -202,13 +196,13 @@ bt_status_t gatt_client_single_stack_proto::discoverServicesByUuid(uint32_t conn
 bt_status_t gatt_client_single_stack_proto::refreshServices(uint32_t client_if,
                                             const RawAddress& bd_addr) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     ss_gatt_client_refresh_services ss_gatt_client_refresh_services_;
     ss_gatt_client_refresh_services_.set_clientif(client_if);
     ss_gatt_client_refresh_services_.set_address(ToRawString(&bd_addr).c_str());
 
     if(!ss_gatt_client_refresh_services_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_REFRESH, PROTO_ENC_DEC,
@@ -220,14 +214,14 @@ bt_status_t gatt_client_single_stack_proto::refreshServices(uint32_t client_if,
 bt_status_t gatt_client_single_stack_proto::readCharacteristicValue(uint32_t conn_id, uint32_t handle,
                                     int auth_req) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     ss_gatt_client_read_char_desc ss_gatt_client_read_char_desc_;
     ss_gatt_client_read_char_desc_.set_connid(conn_id);
     ss_gatt_client_read_char_desc_.set_attrhdl(handle);
     ss_gatt_client_read_char_desc_.set_authreq(auth_req);
 
     if(!ss_gatt_client_read_char_desc_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_READ_CHAR, PROTO_ENC_DEC,
@@ -240,7 +234,7 @@ bt_status_t gatt_client_single_stack_proto::readCharacteristicValueUsingUuid(uin
                                     const bluetooth::Uuid& attr_uuid, uint32_t start_handle,
                                     uint32_t end_handle, int auth_req) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     ss_gatt_client_read_char_by_uuid ss_gatt_client_read_char_by_uuid_;
     ss_gatt_client_read_char_by_uuid_.set_connid(conn_id);
     ss_gatt_client_read_char_by_uuid_.set_attruuid(attr_uuid.ToString());
@@ -249,7 +243,7 @@ bt_status_t gatt_client_single_stack_proto::readCharacteristicValueUsingUuid(uin
     ss_gatt_client_read_char_by_uuid_.set_authreq(auth_req);
 
     if(!ss_gatt_client_read_char_by_uuid_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_READ_CHAR_BY_UUID, PROTO_ENC_DEC,
@@ -261,14 +255,14 @@ bt_status_t gatt_client_single_stack_proto::readCharacteristicValueUsingUuid(uin
 bt_status_t gatt_client_single_stack_proto::readDescriptorValue(uint32_t conn_id, uint32_t handle,
                                             int auth_req) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     ss_gatt_client_read_char_desc ss_gatt_client_read_char_desc_;
     ss_gatt_client_read_char_desc_.set_connid(conn_id);
     ss_gatt_client_read_char_desc_.set_attrhdl(handle);
     ss_gatt_client_read_char_desc_.set_authreq(auth_req);
 
     if(!ss_gatt_client_read_char_desc_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_READ_DESC, PROTO_ENC_DEC,
@@ -279,12 +273,12 @@ bt_status_t gatt_client_single_stack_proto::readDescriptorValue(uint32_t conn_id
 
 bt_status_t gatt_client_single_stack_proto::getGattDb(uint32_t conn_id) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     ss_gatt_client_get_gatt_db ss_gatt_client_get_gatt_db_;
     ss_gatt_client_get_gatt_db_.set_connid(conn_id);
 
     if(!ss_gatt_client_get_gatt_db_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_GET_GATT_DB, PROTO_ENC_DEC,
@@ -297,7 +291,7 @@ bt_status_t gatt_client_single_stack_proto::writeCharacteristicValue(uint32_t co
                                     int write_type, int auth_req,
                                     const std::vector<uint8_t>& value) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     std::string strValue(value.begin(), value.end());
     ss_gatt_client_write_char_desc ss_gatt_client_write_char_desc_;
     ss_gatt_client_write_char_desc_.set_connid(conn_id);
@@ -308,7 +302,7 @@ bt_status_t gatt_client_single_stack_proto::writeCharacteristicValue(uint32_t co
     ss_gatt_client_write_char_desc_.set_valuelen(strValue.length());
 
     if(!ss_gatt_client_write_char_desc_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_WRITE_CHAR, PROTO_ENC_DEC,
@@ -320,7 +314,7 @@ bt_status_t gatt_client_single_stack_proto::writeCharacteristicValue(uint32_t co
 bt_status_t gatt_client_single_stack_proto::writeDescriptorValue(uint32_t conn_id, uint32_t handle,
                                     int auth_req, const std::vector<uint8_t>& value) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     std::string strValue(value.begin(), value.end());
     ss_gatt_client_write_char_desc ss_gatt_client_write_char_desc_;
     ss_gatt_client_write_char_desc_.set_connid(conn_id);
@@ -331,7 +325,7 @@ bt_status_t gatt_client_single_stack_proto::writeDescriptorValue(uint32_t conn_i
     ss_gatt_client_write_char_desc_.set_valuelen(strValue.length());
 
     if(!ss_gatt_client_write_char_desc_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_WRITE_DESC, PROTO_ENC_DEC,
@@ -342,13 +336,13 @@ bt_status_t gatt_client_single_stack_proto::writeDescriptorValue(uint32_t conn_i
 
 bt_status_t gatt_client_single_stack_proto::executeWrite(uint32_t conn_id, int execute) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     ss_gatt_client_execute_write ss_gatt_client_execute_write_;
     ss_gatt_client_execute_write_.set_connid(conn_id);
     ss_gatt_client_execute_write_.set_execute(execute);
 
     if(!ss_gatt_client_execute_write_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_EXEC_WRITE, PROTO_ENC_DEC,
@@ -360,14 +354,14 @@ bt_status_t gatt_client_single_stack_proto::executeWrite(uint32_t conn_id, int e
 bt_status_t gatt_client_single_stack_proto::registerNotifications(uint32_t client_if,
                                     const RawAddress& bd_addr, uint32_t handle) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     ss_gatt_client_reg_dereg_notifications ss_gatt_client_reg_dereg_notifications_;
     ss_gatt_client_reg_dereg_notifications_.set_clientif(client_if);
     ss_gatt_client_reg_dereg_notifications_.set_address(ToRawString(&bd_addr).c_str());
     ss_gatt_client_reg_dereg_notifications_.set_attrhdl(handle);
 
     if(!ss_gatt_client_reg_dereg_notifications_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_REGISTER_NOTIFICATIONS, PROTO_ENC_DEC,
@@ -379,14 +373,14 @@ bt_status_t gatt_client_single_stack_proto::registerNotifications(uint32_t clien
 bt_status_t gatt_client_single_stack_proto::deregisterNotifications(uint32_t client_if,
                                     const RawAddress& bd_addr, uint32_t handle) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     ss_gatt_client_reg_dereg_notifications ss_gatt_client_reg_dereg_notifications_;
     ss_gatt_client_reg_dereg_notifications_.set_clientif(client_if);
     ss_gatt_client_reg_dereg_notifications_.set_address(ToRawString(&bd_addr).c_str());
     ss_gatt_client_reg_dereg_notifications_.set_attrhdl(handle);
 
     if(!ss_gatt_client_reg_dereg_notifications_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_DEREGISTER_NOTIFICATIONS, PROTO_ENC_DEC,
@@ -397,13 +391,13 @@ bt_status_t gatt_client_single_stack_proto::deregisterNotifications(uint32_t cli
 bt_status_t gatt_client_single_stack_proto::readRemoteRssi(uint32_t client_if,
                                             const RawAddress& bd_addr) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     ss_gatt_client_read_remote_rssi ss_gatt_client_read_remote_rssi_;
     ss_gatt_client_read_remote_rssi_.set_clientif(client_if);
     ss_gatt_client_read_remote_rssi_.set_address(ToRawString(&bd_addr).c_str());
 
     if(!ss_gatt_client_read_remote_rssi_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_READ_RSSI, PROTO_ENC_DEC,
@@ -414,13 +408,13 @@ bt_status_t gatt_client_single_stack_proto::readRemoteRssi(uint32_t client_if,
 
 bt_status_t gatt_client_single_stack_proto::configureMtu(uint32_t conn_id, uint32_t mtu) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     ss_gatt_client_mtu_update ss_gatt_client_mtu_update_;
     ss_gatt_client_mtu_update_.set_connid(conn_id);
     ss_gatt_client_mtu_update_.set_mtu(mtu);
 
     if(!ss_gatt_client_mtu_update_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_CONFIGURE_MTU, PROTO_ENC_DEC,
@@ -434,7 +428,7 @@ bt_status_t gatt_client_single_stack_proto::connParamUpdate(const RawAddress& bd
                                     uint32_t latency, uint32_t timeout,
                                     uint32_t min_ce_len, uint32_t max_ce_len) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     ss_gatt_client_conn_param_update ss_gatt_client_conn_param_update_;
     ss_gatt_client_conn_param_update_.set_address(ToRawString(&bd_addr).c_str());
     ss_gatt_client_conn_param_update_.set_mininterval(min_interval);
@@ -445,7 +439,7 @@ bt_status_t gatt_client_single_stack_proto::connParamUpdate(const RawAddress& bd
     ss_gatt_client_conn_param_update_.set_maxcelen(max_ce_len);
 
     if(!ss_gatt_client_conn_param_update_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_CONN_PARAM_UPDATE, PROTO_ENC_DEC,
@@ -457,7 +451,7 @@ bt_status_t gatt_client_single_stack_proto::connParamUpdate(const RawAddress& bd
 bt_status_t gatt_client_single_stack_proto::setPhy(const RawAddress& bd_addr, int tx_phy,
                                    int rx_phy, int phy_options) {
     std::string msgStr;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     ss_gatt_client_set_phy ss_gatt_client_set_phy_;
     ss_gatt_client_set_phy_.set_address(ToRawString(&bd_addr).c_str());
     ss_gatt_client_set_phy_.set_txphy(tx_phy);
@@ -465,7 +459,7 @@ bt_status_t gatt_client_single_stack_proto::setPhy(const RawAddress& bd_addr, in
     ss_gatt_client_set_phy_.set_phyoptions(phy_options);
 
     if(!ss_gatt_client_set_phy_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_SET_PHY, PROTO_ENC_DEC,
@@ -478,7 +472,7 @@ bt_status_t gatt_client_single_stack_proto::readPhy(const RawAddress& bd_addr,
     base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb) {
     std::string msgStr;
     uint32_t client_if;
-    ALOGI(" %s ", __func__);
+    ALOGD(" %s ", __func__);
     for (auto conn : connectedDevices) {
         if (bd_addr == conn.first) {
           client_if = conn.second;
@@ -490,7 +484,7 @@ bt_status_t gatt_client_single_stack_proto::readPhy(const RawAddress& bd_addr,
     ss_gatt_client_read_phy_.set_clientif(client_if);
 
     if(!ss_gatt_client_read_phy_.SerializeToString(&msgStr)){
-        ALOGD(" %s: failed to serialize ", __func__);
+        ALOGE(" %s: failed to serialize ", __func__);
     }
     uint16_t encoded_len = msgStr.length();
     std::string packet = FormTxPacket(BT_LE_GATT_CLIENT_READ_PHY, PROTO_ENC_DEC,
@@ -699,8 +693,8 @@ void process_gatt_client_notify_event(std::string resBufferString) {
     if (on_ss_gatt_client_on_notify_event.has_address()) {
         uint8_t* addr = (uint8_t*)on_ss_gatt_client_on_notify_event.address().c_str();
         address = (RawAddress*)addr;
-       memcpy(&(data.bda), address, RawAddress::kLength);
-       ALOGD("\n address: %s ", data.bda.ToString().c_str());
+        memcpy(&(data.bda), address, RawAddress::kLength);
+        ALOGD("\n address: %s ", data.bda.ToString().c_str());
     }
     if (on_ss_gatt_client_on_notify_event.has_connid()) {
       conn_id = on_ss_gatt_client_on_notify_event.connid();
@@ -721,8 +715,6 @@ void process_gatt_client_notify_event(std::string resBufferString) {
     if (on_ss_gatt_client_on_notify_event.has_value()) {
         if(data.len > 0 && data.len <= BTGATT_MAX_ATTR_LEN) {
             memcpy(data.value, on_ss_gatt_client_on_notify_event.value().c_str(), data.len);
-            ALOGD("\n data.value: %s ", data.value);
-            ALOGD("\n value: %s ", on_ss_gatt_client_on_notify_event.value().c_str());
         }
     }
     HAL_CBACK(bt_gatt_callbacks, client->notify_cb, conn_id, data);
@@ -756,12 +748,12 @@ void process_gatt_client_read_char_event(std::string resBufferString) {
       ALOGD("\n valuetype: %d ", data.value_type);
     }
     if (on_ss_gatt_client_read_char_desc_event.has_value()) {
-		if(data.value.len > 0 && data.value.len <= BTGATT_MAX_ATTR_LEN) {
+        if(data.value.len > 0 && data.value.len <= BTGATT_MAX_ATTR_LEN) {
             memcpy(data.value.value, on_ss_gatt_client_read_char_desc_event.value().c_str(),
                     data.value.len);
             ALOGD("\n data.value: %s ", data.value.value);
-			ALOGD("\n value: %s ", on_ss_gatt_client_read_char_desc_event.value().c_str());
-		}
+            ALOGD("\n value: %s ", on_ss_gatt_client_read_char_desc_event.value().c_str());
+        }
     }
     HAL_CBACK(bt_gatt_callbacks, client->read_characteristic_cb,
                 conn_id, data.status, &data);
@@ -854,7 +846,7 @@ void process_gatt_client_read_desc_event(std::string resBufferString) {
                     data.value.len);
             ALOGD("\n data.value: %s ", data.value.value);
             ALOGD("\n value: %s ", on_ss_gatt_client_read_char_desc_event.value().c_str());
-		}
+       }
     }
     HAL_CBACK(bt_gatt_callbacks, client->read_descriptor_cb,
                 conn_id, data.status, data);
@@ -1110,7 +1102,6 @@ void btif_ss_gatt_client_callback(uint16_t event, char* p_param) {
     int j = 0;
     for (int i = MSG_PROTO_OFFSET; i < (length + MSG_PROTO_OFFSET); i++) {
       resBuffer[j] = (char)cb_data->payload[i];
-      ALOGD("resBuffer[%d] is :: %d",j,resBuffer[j]);
       j++;
     }
 
@@ -1121,97 +1112,97 @@ void btif_ss_gatt_client_callback(uint16_t event, char* p_param) {
         length, proto_ec);
   switch (event) {
     case BT_LE_GATT_CLIENT_REGISTERED_EVENT: {
-      ALOGD("BT_LE_GATT_CLIENT_REGISTERED_EVENT");
+      ALOGV("BT_LE_GATT_CLIENT_REGISTERED_EVENT");
       process_gatt_client_registered_event(resBufferString);
       break;
     }
     case BT_LE_GATT_CLIENT_CONNECTED_EVENT: {
-      ALOGD("BT_LE_GATT_CLIENT_CONNECTED_EVENT");
+      ALOGV("BT_LE_GATT_CLIENT_CONNECTED_EVENT");
       process_gatt_client_connected_event(resBufferString);
       break;
     }
     case BT_LE_GATT_CLIENT_READ_PHY_EVENT: {
-      ALOGD("BT_LE_GATT_CLIENT_READ_PHY_EVENT");
+      ALOGV("BT_LE_GATT_CLIENT_READ_PHY_EVENT");
       process_gatt_client_read_phy_event(resBufferString);
       break;
     }
     case BT_LE_GATT_CLIENT_DISCONNECTED_EVENT: {
-       ALOGD("BT_LE_GATT_CLIENT_DISCONNECTED_EVENT");
+       ALOGV("BT_LE_GATT_CLIENT_DISCONNECTED_EVENT");
        process_gatt_client_disconnected_event(resBufferString);
        break;
     }
     case BT_LE_GATT_CLIENT_SEARCH_COMPLETED_EVENT: {
-       ALOGD("BT_LE_GATT_CLIENT_SEARCH_COMPLETED_EVENT");
+       ALOGV("BT_LE_GATT_CLIENT_SEARCH_COMPLETED_EVENT");
        process_gatt_client_search_completed_event(resBufferString);
        break;
     }
     case BT_LE_GATT_CLIENT_REG_DEREG_NOTIFICATIONS_EVENT: {
-       ALOGD("BT_LE_GATT_CLIENT_REG_DEREG_NOTIFICATIONS_EVENT");
+       ALOGV("BT_LE_GATT_CLIENT_REG_DEREG_NOTIFICATIONS_EVENT");
        process_gatt_client_reg_dereg_notif_event(resBufferString);
        break;
     }
     case BT_LE_GATT_CLIENT_NOTIFY_EVENT: {
-       ALOGD("BT_LE_GATT_CLIENT_NOTIFY_EVENT");
+       ALOGV("BT_LE_GATT_CLIENT_NOTIFY_EVENT");
        process_gatt_client_notify_event(resBufferString);
        break;
     }
     case BT_LE_GATT_CLIENT_READ_CHAR_EVENT: {
-       ALOGD("BT_LE_GATT_CLIENT_READ_CHAR_EVENT");
+       ALOGV("BT_LE_GATT_CLIENT_READ_CHAR_EVENT");
        process_gatt_client_read_char_event(resBufferString);
        break;
     }
     case BT_LE_GATT_CLIENT_WRITE_CHAR_EVENT: {
-       ALOGD("BT_LE_GATT_CLIENT_WRITE_CHAR_EVENT");
+       ALOGV("BT_LE_GATT_CLIENT_WRITE_CHAR_EVENT");
        process_gatt_client_write_char_event(resBufferString);
        break;
     }
     case BT_LE_GATT_CLIENT_EXEC_WRITE_EVENT: {
-       ALOGD("BT_LE_GATT_CLIENT_EXEC_WRITE_EVENT");
+       ALOGV("BT_LE_GATT_CLIENT_EXEC_WRITE_EVENT");
        process_gatt_client_exec_write_event(resBufferString);
        break;
     }
     case BT_LE_GATT_CLIENT_READ_DESC_EVENT: {
-       ALOGD("BT_LE_GATT_CLIENT_READ_DESC_EVENT");
+       ALOGV("BT_LE_GATT_CLIENT_READ_DESC_EVENT");
        process_gatt_client_read_desc_event(resBufferString);
        break;
     }
     case BT_LE_GATT_CLIENT_WRITE_DESC_EVENT: {
-       ALOGD("BT_LE_GATT_CLIENT_WRITE_DESC_EVENT");
+       ALOGV("BT_LE_GATT_CLIENT_WRITE_DESC_EVENT");
        process_gatt_client_write_desc_event(resBufferString);
        break;
     }
     case BT_LE_GATT_CLIENT_READ_RSSI_EVENT: {
-       ALOGD("BT_LE_GATT_CLIENT_READ_RSSI_EVENT");
+       ALOGV("BT_LE_GATT_CLIENT_READ_RSSI_EVENT");
        process_gatt_client_read_rssi_event(resBufferString);
        break;
     }
     case BT_LE_GATT_CLIENT_MTU_UPDATED_EVENT: {
-       ALOGD("BT_LE_GATT_CLIENT_MTU_UPDATED_EVENT");
+       ALOGV("BT_LE_GATT_CLIENT_MTU_UPDATED_EVENT");
        process_gatt_client_mtu_updated_event(resBufferString);
        break;
     }
     case BT_LE_GATT_CLIENT_CONGESTION_EVENT: {
-       ALOGD("BT_LE_GATT_CLIENT_CONGESTION_EVENT");
+       ALOGV("BT_LE_GATT_CLIENT_CONGESTION_EVENT");
        process_gatt_client_congestion_event(resBufferString);
        break;
     }
     case BT_LE_GATT_CLIENT_GET_GATT_DB_EVENT: {
-       ALOGD("BT_LE_GATT_CLIENT_GET_GATT_DB_EVENT");
+       ALOGV("BT_LE_GATT_CLIENT_GET_GATT_DB_EVENT");
        process_gatt_client_get_gatt_db_event(resBufferString);
        break;
     }
     case BT_LE_GATT_CLIENT_PHY_UPDATED_EVENT: {
-       ALOGD("BT_LE_GATT_CLIENT_PHY_UPDATED_EVENT");
+       ALOGV("BT_LE_GATT_CLIENT_PHY_UPDATED_EVENT");
        process_gatt_client_phy_updated_event(resBufferString);
        break;
     }
     case BT_LE_GATT_CLIENT_CONN_PARAM_UPDATED_EVENT: {
-       ALOGD("BT_LE_GATT_CLIENT_CONN_PARAM_UPDATED_EVENT");
+       ALOGV("BT_LE_GATT_CLIENT_CONN_PARAM_UPDATED_EVENT");
        process_gatt_client_conn_updated_event(resBufferString);
        break;
     }
     case BT_LE_GATT_CLIENT_SERVICE_CHANGED_EVENT: {
-       ALOGD("BT_LE_GATT_CLIENT_SERVICE_CHANGED_EVENT");
+       ALOGV("BT_LE_GATT_CLIENT_SERVICE_CHANGED_EVENT");
        process_gatt_client_srvc_changed_event(resBufferString);
        break;
     }

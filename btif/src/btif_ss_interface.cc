@@ -480,13 +480,13 @@ void processDataLogging(uint8_t *msgStr, size_t buflen, const char *msgtyp) {
     gSSTransportCtrl->file_write(msgStr,buflen,msgtyp);
 }
 void processTx(std::string msgStr) {
-  ALOGI("%s: msg : %s and length: %d", __func__, msgStr.c_str(), msgStr.length());
+  ALOGD("%s: msg : %s and length: %d", __func__, msgStr.c_str(), msgStr.length());
   const  char *msgType="Tx";
   uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
   size_t bytes_written = 0;
   pthread_mutex_lock(&tx_threads_mutex);
   if (alarm_is_scheduled(tx_thread_timeout)) {
-    ALOGI("%s(): tx_thread_timeout() scheduled", __func__);
+    ALOGD("%s(): tx_thread_timeout() scheduled", __func__);
     alarm_cancel(tx_thread_timeout);
   }
   isTxTimeout = false;
@@ -498,7 +498,7 @@ void processTx(std::string msgStr) {
     do_in_data_logging_thread(base::Bind(processDataLogging, tmpBuf,msgStr.length(),msgType));
   }
   gSSTransportCtrl->write(tmpBuf,msgStr.length(),&bytes_written);
-  ALOGI("%s: CTRL_CH: write payload bytes_written=%d", __func__, (int)bytes_written);
+  ALOGD("%s: CTRL_CH: write payload bytes_written=%d", __func__, (int)bytes_written);
 }
 
 int processDataTx(std::string msgStr) {
@@ -701,7 +701,7 @@ void BluetoothSSInterface::processRx() {
         }
         pthread_mutex_lock(&rx_threads_mutex);
         if (alarm_is_scheduled(rx_thread_timeout)) {
-          ALOGI("%s(): rx_thread_timeout() scheduled", __func__);
+          ALOGD("%s(): rx_thread_timeout() scheduled", __func__);
           alarm_cancel(rx_thread_timeout);
         }
         isRxTimeout = false;
@@ -892,7 +892,7 @@ void BluetoothSSInterface::processSsrDataChRx() {
 }
 
 void BluetoothSSInterface::parseRxData(int msg_id, tBTIF_SS_Cback ss_cback) {
-    ALOGI("parseRxData msg_id is :: %X",msg_id);
+    ALOGD("parseRxData msg_id is :: %X",msg_id);
     switch (msg_id) {
         case BT_DM_EVT_START ... BT_DM_EVT_MAX: {
           auto it = gProfileCallbackMap.find(BT_PROFILE_DM_ID);
@@ -947,7 +947,7 @@ void BluetoothSSInterface::parseRxData(int msg_id, tBTIF_SS_Cback ss_cback) {
         case BT_LE_GATT_CLIENT_EVT_START ... BT_LE_GATT_CLIENT_EVT_MAX: {
           auto it = gProfileCallbackMap.find(BT_PROFILE_ID_GATTC);
           if (it != gProfileCallbackMap.end()) {
-            ALOGI("%s: Sending callback to GATT", __func__);
+            ALOGD("%s: Sending callback to GATT", __func__);
             btif_transfer_context(it->second, msg_id, (char*)&ss_cback, sizeof(ss_cback),NULL);
           } else {
             ALOGE("%s: callback not registered for GATT", __func__);
