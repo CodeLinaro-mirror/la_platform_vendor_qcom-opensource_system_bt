@@ -138,6 +138,8 @@ static uid_set_t* uid_set = NULL;
 // Check for a legacy address stored as a property.
 static constexpr char PERSIST_BDADDR_PROPERTY[] =
     "persist.vendor.service.bt.ss.bdaddr";
+static constexpr char PERSIST_LOGLEVEL_PROPERTY[] =
+    "persist.vendor.service.bt.ss.loglevel";
 
 static constexpr size_t kStringLength = sizeof("XX:XX:XX:XX:XX:XX") - 1;
 static constexpr size_t kBytes = (kStringLength + 1) / 3;
@@ -205,6 +207,7 @@ static bool is_profile(const char* p1, const char* p2) {
   //CHECK(p2);
   return strlen(p1) == strlen(p2) && strncmp(p1, p2, strlen(p2)) == 0;
 }
+uint8_t log_level = SS_BT_TRACE_LEVEL_WARNING;
 uint8_t appl_trace_level = 6;
 uint8_t btif_trace_level = 6;
 /*LOG Dummy functions added*/
@@ -308,9 +311,20 @@ static int init(bt_callbacks_t* callbacks, bool start_restricted,
                 bool is_common_criteria_mode, int config_compare_result,
                 const char** init_flags, bool is_atv,
                 const char* user_data_directory) {
+  char value[PROPERTY_VALUE_MAX] = { 0 };
+  property_get(PERSIST_LOGLEVEL_PROPERTY, value, "2");
+  if (!strcmp(value, "0")) log_level = 0;
+  else if (!strcmp(value, "1")) log_level = 1;
+  else if (!strcmp(value, "2")) log_level = 2;
+  else if (!strcmp(value, "3")) log_level = 3;
+  else if (!strcmp(value, "4")) log_level = 4;
+  else if (!strcmp(value, "5")) log_level = 5;
+  else if (!strcmp(value, "6")) log_level = 6;
+  else if (!strcmp(value, "7")) log_level = 7;
+  else log_level = 2;
   ALOGI("QTI Single stack: %s: start restricted = %d : common criteria mode = %d,"
-           " config compare result = %d", __func__, start_restricted, is_common_criteria_mode,
-           config_compare_result);
+           " config compare result = %d, log_level %d", __func__, start_restricted, is_common_criteria_mode,
+           config_compare_result, log_level);
 
   if (user_data_directory != nullptr) {
     //handle_migration(std::string(user_data_directory),get_allowed_bt_package_name());

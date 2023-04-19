@@ -367,7 +367,9 @@ void processTx(std::string msgStr) {
   }
   alarm_set_on_mloop(tx_thread_timeout, GLINK_TX_RX_ALARM_TIMEOUT,
       txThreadTimeout, NULL);
-  do_in_data_logging_thread(base::Bind(processDataLogging, tmpBuf,msgStr.length(),msgType));
+  if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
+    do_in_data_logging_thread(base::Bind(processDataLogging, tmpBuf,msgStr.length(),msgType));
+  }
   gSSTransportCtrl->write(tmpBuf,msgStr.length(),&bytes_written);
   ALOGI("%s: CTRL_CH: write payload bytes_written=%d", __func__, (int)bytes_written);
 }
@@ -413,7 +415,9 @@ int processLeDataTx(std::string msgStr) {
   const  char *msgType="Tx";
   uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
   size_t bytes_written = 0;
-  do_in_data_logging_thread(base::Bind(processDataLogging, tmpBuf,msgStr.length(),msgType));
+  if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
+    do_in_data_logging_thread(base::Bind(processDataLogging, tmpBuf,msgStr.length(),msgType));
+  }
   int result = -1;
   int retry_count = 0;
   do {
@@ -499,7 +503,9 @@ void BluetoothSSInterface::processRx() {
         alarm_set_on_mloop(rx_thread_timeout, GLINK_TX_RX_ALARM_TIMEOUT,
             rxThreadTimeout, NULL);
         int num = gSSTransportCtrl->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
-        do_in_data_logging_thread(base::Bind(processDataLogging, readBuffer, num, msgType));
+        if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
+          do_in_data_logging_thread(base::Bind(processDataLogging, readBuffer, num, msgType));
+        }
         ALOGI("num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
             ALOGE("Slate response is too short ::  %d",num);
