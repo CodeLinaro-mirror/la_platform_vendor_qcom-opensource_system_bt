@@ -15,6 +15,14 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+/******************************************************************************
+ *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ ******************************************************************************/
 
 /******************************************************************************
  *
@@ -322,8 +330,12 @@ bool A2DP_IsPeerSinkCodecValidSbc(const uint8_t* p_codec_info) {
 }
 
 bool A2DP_IsSinkCodecSupportedSbc(const uint8_t* p_codec_info) {
-  return (A2DP_CodecInfoMatchesCapabilitySbc(&a2dp_sbc_sink_caps, p_codec_info,
-                                             false) == A2DP_SUCCESS);
+  tA2DP_STATUS err_code = A2DP_CodecInfoMatchesCapabilitySbc(&a2dp_sbc_sink_caps,
+                                                             p_codec_info, false);
+#if A2DP_SINK_PTS_TEST
+  set_a2dp_error_code(err_code);
+#endif
+  return (err_code == A2DP_SUCCESS);
 }
 
 bool A2DP_IsPeerSourceCodecSupportedSbc(const uint8_t* p_codec_info) {
@@ -693,6 +705,11 @@ bool A2DP_BuildCodecHeaderSbc(UNUSED_ATTR const uint8_t* p_codec_info,
                               BT_HDR* p_buf, uint16_t frames_per_packet) {
   // this doesn't happen in real life, but keeps fuzzer happy
   if (p_buf->len - p_buf->offset < A2DP_SBC_MPL_HDR_LEN) {
+    return false;
+  }
+
+  // there is a timestamp right following p_buf
+  if (p_buf->offset < 4 + A2DP_SBC_MPL_HDR_LEN) {
     return false;
   }
 

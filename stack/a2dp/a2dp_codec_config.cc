@@ -13,6 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/******************************************************************************
+ *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ ******************************************************************************/
 
 /**
  * A2DP Codecs Configuration
@@ -36,6 +44,7 @@
 #endif
 
 #include "bta/av/bta_av_int.h"
+#include "bt_utils.h"
 #include "osi/include/log.h"
 #include "osi/include/properties.h"
 
@@ -1165,7 +1174,12 @@ bool A2DP_IsPeerSourceCodecSupported(const uint8_t* p_codec_info) {
     default:
       break;
   }
-
+#if A2DP_SINK_PTS_TEST
+  if (codec_type == 0xaa) // PTS: A2DP/SNK/AVP/BI-10-C
+    set_a2dp_error_code(A2DP_BAD_CODEC_TYPE);
+  else // PTS: A2DP/SNK/AVP/BI-20-C
+    set_a2dp_error_code(A2DP_NS_CODEC_TYPE);
+#endif
   LOG_ERROR("%s: unsupported codec type 0x%x", __func__, codec_type);
   return false;
 }

@@ -15,9 +15,21 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+/******************************************************************************
+ *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ ******************************************************************************/
 
 #ifndef BT_UTILS_H
 #define BT_UTILS_H
+
+#include "a2dp_error_codes.h"
+
+#define A2DP_SINK_PTS_TEST 1
 
 static const char BT_UTILS_MODULE[] = "bt_utils_module";
 
@@ -36,5 +48,11 @@ typedef enum {
  ******************************************************************************/
 
 void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task);
+
+#if A2DP_SINK_PTS_TEST
+void set_a2dp_error_code(tA2DP_STATUS err);
+tA2DP_STATUS get_a2dp_error_code();
+bool is_pts_a2dpsink();
+#endif
 
 #endif /* BT_UTILS_H */

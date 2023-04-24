@@ -13,6 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/******************************************************************************
+ *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ ******************************************************************************/
 
 /******************************************************************************
  *
@@ -195,6 +203,7 @@ static tA2DP_STATUS A2DP_ParseInfoAac(tA2DP_AAC_CIE* p_ie,
 
   media_type = (*p_codec_info++) >> 4;
   codec_type = *p_codec_info++;
+
   /* Check the Media Type and Media Codec Type */
   if (media_type != AVDT_MEDIA_TYPE_AUDIO || codec_type != A2DP_MEDIA_CT_AAC) {
     return A2DP_WRONG_CODEC;
@@ -227,6 +236,35 @@ static tA2DP_STATUS A2DP_ParseInfoAac(tA2DP_AAC_CIE* p_ie,
 
     return A2DP_SUCCESS;
   }
+
+#if A2DP_SINK_PTS_TEST
+  if (is_pts_a2dpsink()) {
+    tA2DP_STATUS ret = A2DP_SUCCESS;
+    if (A2DP_BitsSet(p_ie->objectType) != A2DP_SET_ONE_BIT) {
+      // A2DP/SNK/AVP/BI-01-C
+      return A2DP_BAD_OBJ_TYPE;
+    } else if ((p_ie->objectType & 0x0F) != 0) {
+      // A2DP/SNK/AVP/BI-06-C
+      ret = A2DP_NS_OBJ_TYPE;
+    } else if ((p_ie->sampleRate & A2DP_AAC_SAMPLING_FREQ_44100) == 0 &&
+        (p_ie->sampleRate & A2DP_AAC_SAMPLING_FREQ_48000) == 0) {
+      //  A2DP/SNK/AVP/BI-08-C
+      ret =  A2DP_NS_SAMP_FREQ;
+    } else if (p_ie->channelMode == 0) {
+      // A2DP/SNK/AVP/BI-07-C
+      ret = A2DP_NS_CHANNEL;
+    } else if (A2DP_BitsSet(p_ie->channelMode) != A2DP_SET_ONE_BIT) {
+      // A2DP/SNK/AVP/BI-02-C
+      ret =  A2DP_BAD_CHANNEL;
+    }
+
+    if (ret != A2DP_SUCCESS) {
+      LOG_ERROR("%s: parsing failed %x", __func__, ret);
+      set_a2dp_error_code(ret);
+      return ret;
+    }
+  }
+#endif
 
   if (A2DP_BitsSet(p_ie->objectType) != A2DP_SET_ONE_BIT)
     return A2DP_BAD_OBJ_TYPE;
@@ -271,8 +309,12 @@ bool A2DP_IsPeerSinkCodecValidAac(const uint8_t* p_codec_info) {
 }
 
 bool A2DP_IsSinkCodecSupportedAac(const uint8_t* p_codec_info) {
-  return A2DP_CodecInfoMatchesCapabilityAac(&a2dp_aac_sink_caps, p_codec_info,
-                                            false) == A2DP_SUCCESS;
+  tA2DP_STATUS err_code = A2DP_CodecInfoMatchesCapabilityAac(&a2dp_aac_sink_caps,
+                                            p_codec_info, false);
+#if A2DP_SINK_PTS_TEST
+  set_a2dp_error_code(err_code);
+#endif
+  return  err_code== A2DP_SUCCESS;
 }
 
 bool A2DP_IsPeerSourceCodecSupportedAac(const uint8_t* p_codec_info) {
