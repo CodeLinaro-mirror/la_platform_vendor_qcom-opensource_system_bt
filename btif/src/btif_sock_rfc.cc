@@ -140,6 +140,7 @@ typedef struct {
   int new_srv_fd;
   bool is_server;
   int type;
+  bool is_fd_pending_for_cleanup;
 } rfc_slot_t;
 
 struct PendingData
@@ -316,6 +317,14 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
           channel = rfcommSrvOpenCb.channel();
           ALOGI("%s: Recieved scn: %d",__func__, channel);
         }
+        std::unique_lock<std::recursive_mutex> lock(slot_lock);
+        rfc_slot_t* slot = find_rfc_slot_by_fd(sock_fd);
+        if(slot){
+          if(slot->scn != (int)channel){
+            ALOGI("Received Connect Cb on a different SCN. Ignore Connection CB");
+            break;
+          }
+        }
       }
       if (rfcommSrvOpenCb.has_addr()) {
         uint8_t* addr = (uint8_t*)rfcommSrvOpenCb.addr().c_str();
@@ -348,6 +357,14 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
           channel = rfcommCliConnCb.channel();
           ALOGI("%s: Recieved scn: %d",__func__, channel);
         }
+        std::unique_lock<std::recursive_mutex> lock(slot_lock);
+        rfc_slot_t* slot = find_rfc_slot_by_fd(sock_fd);
+        if(slot){
+          if(slot->scn != (int)channel){
+            ALOGI("Received Connect Cb on a different SCN. Ignore Connection CB");
+            break;
+          }
+        }
       }
       if (rfcommCliConnCb.has_addr()) {
         std::string bt_address = rfcommCliConnCb.addr();
@@ -376,6 +393,7 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
       rfcommDataCb.ParseFromString(resBufferString);
       if (rfcommDataCb.has_channel()) {
         ALOGI("%s: Recieved channel: %d",__func__, (int)rfcommDataCb.channel());
+        std::unique_lock<std::recursive_mutex> lock(slot_lock);
         rfc_slot_t* slot = find_rfc_slot_by_scn((int)rfcommDataCb.channel());
         if (!slot){
           ALOGI("%s: RFC Slot is unavailable/closed",__func__);
@@ -435,6 +453,7 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
         sock_fd = rfcommDisconnectCb.sock_fd();
         ALOGI("%s: Recieved sock FD: %d",__func__, sock_fd);
       }
+      std::unique_lock<std::recursive_mutex> lock(slot_lock);
       rfc_slot_t* slot = find_rfc_slot_by_scn((int)channel);
       cleanup_rfc_slot(slot);
     }
@@ -582,6 +601,7 @@ static rfc_slot_t* create_srv_accept_rfc_slot(rfc_slot_t* srv_rs,
   accept_rs->id = srv_rs->id;
   srv_rs->id = new_listen_id;
   srv_rs->scn = 0;
+  srv_rs->is_fd_pending_for_cleanup = true;
 
   return accept_rs;
 }
@@ -806,8 +826,8 @@ static void free_rfc_slot_scn(rfc_slot_t* slot) {
 
 static void cleanup_rfc_slot(rfc_slot_t* slot) {
   if(slot){
-    ALOGI("%s: slot->fd is :: %d , slot->scn is :: %d , slot->new_srv_fd is :: %d , slot->is_server is :: %d",__func__,
-    slot->fd, slot->scn,slot->new_srv_fd,slot->is_server);
+    ALOGI("%s: slot->fd is :: %d , slot->scn is :: %d , slot->new_srv_fd is :: %d , slot->is_server is :: %d, slot->is_fd_pending_for_cleanup is :: %d",__func__,
+    slot->fd, slot->scn,slot->new_srv_fd,slot->is_server,slot->is_fd_pending_for_cleanup);
   }
 
   if(((slot->new_srv_fd == 0 && !slot->is_server) ||
@@ -847,9 +867,19 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
   }
 
   if (slot->fd != INVALID_FD) {
-    shutdown(slot->fd, SHUT_RDWR);
-    close(slot->fd);
-    slot->fd = INVALID_FD;
+    if(slot->is_fd_pending_for_cleanup){
+        ALOGI("%s: fd is pending for cleanup",__func__);
+    }else{
+        shutdown(slot->fd, SHUT_RDWR);
+        close(slot->fd);
+        slot->fd = INVALID_FD;
+        if(slot->new_srv_fd != 0){
+            ALOGI("%s: cleaning pending fd",__func__);
+            shutdown(slot->new_srv_fd, SHUT_RDWR);
+            close(slot->new_srv_fd);
+            slot->new_srv_fd = INVALID_FD;
+        }
+    }
   }
 
   if (slot->app_fd != INVALID_FD) {
@@ -926,7 +956,7 @@ static void ss_srv_rfc_connect (int fd, const RawAddress* addr, int channel,
   btsock_thread_add_fd(pth, accept_rs->fd, accept_rs->type, SOCK_THREAD_FD_RD,
                        accept_rs->id);
 
-  send_app_connect_signal(srv_rs->fd, &accept_rs->addr, srv_rs->scn, 0,
+  send_app_connect_signal(srv_rs->fd, &accept_rs->addr, srv_rs->scn, status,
                           accept_rs->app_fd, mtu);
 
   accept_rs->app_fd =
@@ -943,7 +973,7 @@ static void ss_cli_rfc_connect (int fd, const RawAddress* addr, int channel,
     return;
   }*/
 
-  if (send_app_connect_signal(fd, addr, channel, 0, -1, mtu)) {
+  if (send_app_connect_signal(fd, addr, channel, status, -1, mtu)) {
     LOG_DEBUG (LOG_TAG, "sent send_app_connect_signal");
     client_rs->f.connected = true;
   } else {
