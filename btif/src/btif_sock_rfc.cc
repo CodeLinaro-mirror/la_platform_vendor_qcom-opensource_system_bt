@@ -338,6 +338,9 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
         ALOGI("status is :: %d",status);
       }
       ss_srv_rfc_connect(sock_fd, bd_addr, channel, status, mtu);
+      std::unique_lock<std::recursive_mutex> lock(slot_lock);
+      rfc_slot_t* slot = find_rfc_slot_by_fd(sock_fd);
+      ss_flush_incoming_que_on_wr_signal(slot);
       break;
     }
     case BT_RFCOMM_CLIENT_CONNECT_CB: {
@@ -379,6 +382,9 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
         ALOGI("status is :: %d",status);
       }
       ss_cli_rfc_connect(sock_fd, &bd_addr, channel, status, mtu);
+      std::unique_lock<std::recursive_mutex> lock(slot_lock);
+      rfc_slot_t* slot = find_rfc_slot_by_fd(sock_fd);
+      ss_flush_incoming_que_on_wr_signal(slot);
       break;
     }
     case BT_RFCOMM_SOCKET_DATA_CB: {
@@ -408,27 +414,32 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
             bytes_rx = data_string.length();
             app_uid = slot->app_uid;
             PendingData *p_data = new PendingData(data_string,data_string.length(),0);
-            if (list_is_empty(slot->incoming_queue)) {
-              switch(ss_send_data_to_app(fd, p_data)){
-                case SENT_NONE:
-                case SENT_PARTIAL:
-                ALOGI("%s: SENT_NONE or SENT_PARTIAL",__func__);
-                // monitor the fd to get callback when app is ready to receive data
-                list_append(slot->incoming_queue, p_data);
-                btsock_thread_add_fd(pth, slot->fd, slot->type, SOCK_THREAD_FD_WR,
+            if(slot->f.connected){
+              if (list_is_empty(slot->incoming_queue)) {
+                switch(ss_send_data_to_app(fd, p_data)){
+                  case SENT_NONE:
+                  case SENT_PARTIAL:
+                  ALOGI("%s: SENT_NONE or SENT_PARTIAL",__func__);
+                  // monitor the fd to get callback when app is ready to receive data
+                  list_append(slot->incoming_queue, p_data);
+                  btsock_thread_add_fd(pth, slot->fd, slot->type, SOCK_THREAD_FD_WR,
                               slot->id);
-                break;
+                  break;
 
-                case SENT_ALL:
-                  ALOGI("%s: SENT_ALL",__func__);
-                break;
+                  case SENT_ALL:
+                    ALOGI("%s: SENT_ALL",__func__);
+                  break;
 
-                case SENT_FAILED:
-                  ALOGI("%s: SENT_FAILED",__func__);
-                break;
+                  case SENT_FAILED:
+                    ALOGI("%s: SENT_FAILED",__func__);
+                  break;
+                }
+              }else{
+                  list_append(slot->incoming_queue, p_data);
               }
             }else{
-                list_append(slot->incoming_queue, p_data);
+              ALOGI("Data received before Connected CB. Push to Incoming Queue");
+              list_append(slot->incoming_queue, p_data);
             }
           }
         } else {
@@ -455,7 +466,11 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
       }
       std::unique_lock<std::recursive_mutex> lock(slot_lock);
       rfc_slot_t* slot = find_rfc_slot_by_scn((int)channel);
-      cleanup_rfc_slot(slot);
+      if(slot){
+        // Don't trigger DISCONNECT_SOCKET API if we get DISCONNECT_SOCKET_CB
+        slot->scn = 0;
+        cleanup_rfc_slot(slot);
+      }
     }
     break;
     default : {
@@ -825,6 +840,9 @@ static void free_rfc_slot_scn(rfc_slot_t* slot) {
 }
 
 static void cleanup_rfc_slot(rfc_slot_t* slot) {
+  if(!slot){
+    return;
+  }
   if(slot){
     ALOGI("%s: slot->fd is :: %d , slot->scn is :: %d , slot->new_srv_fd is :: %d , slot->is_server is :: %d, slot->is_fd_pending_for_cleanup is :: %d",__func__,
     slot->fd, slot->scn,slot->new_srv_fd,slot->is_server,slot->is_fd_pending_for_cleanup);
