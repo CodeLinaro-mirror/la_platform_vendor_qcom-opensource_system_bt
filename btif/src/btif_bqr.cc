@@ -111,6 +111,7 @@ std::string BqrVseSubEvt::ToString() const {
   std::stringstream ss_return_string;
   ss_return_string << QualityReportIdToString(quality_report_id_)
                    << ", Handle: " << loghex(connection_handle_) << ", "
+                   << "Transport: " << loghex(BTM_GetTransport(connection_handle_)) << " ,"
                    << PacketTypeToString(packet_types_) << ", "
                    << ((connection_role_ == 0) ? "Master" : "Slave ")
                    << ", PwLv: " << loghex(tx_power_level_)
