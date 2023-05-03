@@ -75,6 +75,8 @@
 #include "btif_storage.h"
 #include "stack_config.h"
 
+#include "device/include/interop_config.h"
+
 using base::StringPrintf;
 
 /* Configuration flags. */
@@ -717,10 +719,6 @@ static void gatt_le_connect_cback(uint16_t chan, const RawAddress& bd_addr,
       VLOG(2) << __func__ << ": Apps have requested EATT";
       GATT_Config(bd_addr, BT_TRANSPORT_LE);
     }
-  }
-
-  if (gatt_is_robust_caching_enabled()) {
-    GATT_EnableRobustCaching(bd_addr, BT_TRANSPORT_LE);
   }
 
 }

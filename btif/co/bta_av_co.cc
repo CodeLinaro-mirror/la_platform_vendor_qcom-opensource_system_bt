@@ -798,10 +798,13 @@ void bta_av_co_audio_setconfig(tBTA_AV_HNDL hndl, const uint8_t* p_codec_info,
     if (!codec_config_supported) {
       category = AVDT_ASC_CODEC;
       status = A2DP_WRONG_CODEC;
+    } else {
+      status = A2dp_IsCodecConfigMatch(p_codec_info);
+      APPL_TRACE_DEBUG("%s: after setotaconfig call cfg match for codec %s", __func__,
+                         A2DP_CodecName(p_codec_info));
     }
   }
 
-  status = A2dp_IsCodecConfigMatch(p_codec_info);
   error_code = A2dp_SendSetConfigRspErrorCodeForPTS();
 
   APPL_TRACE_DEBUG("%s: status : %d, error_code: %d",
@@ -991,6 +994,11 @@ void* bta_av_co_audio_src_data_path(const uint8_t* p_codec_info,
     return NULL;
   }
 
+  if (p_buf->offset < 4) {
+    APPL_TRACE_ERROR("%s: No space for timestamp in packet, dropped", __func__);
+    return NULL;
+  }
+
   /*
    * Retrieve the timestamp information from the media packet,
    * and set up the packet header.
@@ -1004,6 +1012,7 @@ void* bta_av_co_audio_src_data_path(const uint8_t* p_codec_info,
       !A2DP_BuildCodecHeader(p_codec_info, p_buf, p_buf->layer_specific)) {
     APPL_TRACE_ERROR("%s: unsupported codec type (%d)", __func__,
                      A2DP_GetCodecType(p_codec_info));
+    return NULL;
   }
 
 #if (BTA_AV_CO_CP_SCMS_T == TRUE)
@@ -1259,9 +1268,21 @@ static bool bta_av_co_check_peer_eligible_for_aac_codec(
     vndr_prdt_ver_present = true;
   }
   if (vndr_prdt_ver_present && (vendor == A2DP_AAC_BOSE_VENDOR_ID)) {
-    APPL_TRACE_DEBUG("%s: vendor id info matches ", __func__);
+    APPL_TRACE_DEBUG("%s: vendor id info matches to BOSE vendor ", __func__);
     vndr_prdt_ver_present = false;
     aac_support = true;
+    if (bta_av_co_audio_device_addr_check_is_enabled(&p_peer->addr)) {
+      if (interop_match_addr_or_name(INTEROP_DISABLE_AAC_CODEC, &p_peer->addr)) {
+        APPL_TRACE_DEBUG("AAC is not supported for this BL BOSE remote device");
+        aac_support = false;
+      }
+    } else {
+      if (btif_storage_get_stored_remote_name(p_peer->addr, remote_name) &&
+          interop_match_name(INTEROP_DISABLE_AAC_CODEC, remote_name)) {
+        APPL_TRACE_DEBUG("AAC is not supported for this BL BOSE remote device");
+        aac_support = false;
+      }
+    }
   } else if (vndr_prdt_ver_present && interop_database_match_version(INTEROP_ENABLE_AAC_CODEC, version) &&
       interop_match_vendor_product_ids(INTEROP_ENABLE_AAC_CODEC, vendor, product)) {
     APPL_TRACE_DEBUG("%s: vendor id, product id and version info matching with conf file", __func__);

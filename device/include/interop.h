@@ -301,6 +301,18 @@ typedef enum {
   //Add remote device into L2CAP_DISCONNECT_ACL_DIRECTLY blacklist
   INTEROP_L2CAP_DISCONNECT_ACL_DIRECTLY,
 
+  // Skip Robust Caching Read of client supported featuresc characteristic for specific devices
+  // Some remote devices do not respond to ATT_READ_BY_TYPE_REQ(for Client Supported Features
+  // characteristic) sent  by local device for Robust caching support and this results in
+  // GATT response timeout and LE link disconnection. This interop arrangement will make local
+  // device to skip reading of Client supported features characteristic with devices in the
+  // interop list.
+  INTEROP_SKIP_ROBUST_CACHING_READ,
+
+  // Some dual-mode remote devices always failed to respond to sdp request.
+  // Send out the bonded intent after 3s timeout if sdp is still not finished.
+  INTEROP_SEND_BONDED_INTENT_AFTER_SDP_TIMEOUT,
+
   END_OF_INTEROP_LIST
 } interop_feature_t;
 
