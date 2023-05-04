@@ -16,6 +16,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #ifndef HCIDEFS_H
 #define HCIDEFS_H
 
@@ -1578,6 +1584,8 @@ typedef struct {
 #define HCI_BROADCAST_AUDIO_TX_WITH_EC_3_9(x) ((x)[4] & 0x02)
 #define HCI_BROADCAST_AUDIO_RX_WITH_EC_2_5(x) ((x)[4] & 0x04)
 #define HCI_BROADCAST_AUDIO_RX_WITH_EC_3_9(x) ((x)[4] & 0x08)
+
+#define HCI_VENDOR_BQR5_SUPPORTED(x) ((x)[4] & 0x20)
 
 /* Simple Pairing Options */
 #define HCI_REMOTE_PUBLIC_KEY_VALIDATION_SUPPORTED(x) ((x) & 0x01)
