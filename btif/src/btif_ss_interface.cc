@@ -1220,6 +1220,16 @@ void BluetoothSSInterface::parseRxData(int msg_id, tBTIF_SS_Cback ss_cback) {
           }
           break;
         }
+        case BT_AVRCP_CTRL_START ... BT_AVRCP_CTRL_MAX: {
+          auto it = gProfileCallbackMap.find(BT_PROFILE_AV_RC_CTRL_ID);
+          if (it != gProfileCallbackMap.end()) {
+            ALOGI("%s: Sending callback to AVRCP CTRL", __func__);
+            btif_transfer_context(it->second, msg_id, (char*)&ss_cback, sizeof(ss_cback),NULL);
+          } else {
+            ALOGE("%s: callback not registered for AVRCP CTRL", __func__);
+          }
+          break;
+        }
         default:
             ALOGE("msg_id : %d Not matching with any group",msg_id);
             if (ss_cback.payload != NULL) {
