@@ -350,6 +350,13 @@ void EnableBtQualityReport(bool is_enable) {
         static_cast<uint32_t>(atoi(bqr_vendor_prop_evtmask));
     bqr_config.is_qc_bqr5_supported = btif_vendor_is_qc_bqr5_supported();
 
+    if(bqr_config.is_qc_bqr5_supported) {
+      bqr_config.quality_event_mask &= kBqr5QualityEventMaskAll;
+      bqr_config.vendor_quality_event_mask &= kVendorQualityEventMaskAll;
+    } else {
+      bqr_config.quality_event_mask &= kQualityEventMaskAll;
+    }
+
     if (!(bqr_config.quality_event_mask & kQualityEventMaskRootInflammation)) {
       LOG(WARNING) << __func__ << "Enabling Bluetooth Quality Report - Root inflammation event";
       // Enable BQR RIE by default.
