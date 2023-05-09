@@ -398,6 +398,7 @@ static int enable () {
 
 static int disable(void) {
   ALOGI("%s", __func__);
+  btif_sock_cleanup();
   uint8_t disable_msg[MAX_LENGTH_WITH_PROTO_NONE];
   //adding msg_id
   uint16_t msg_id = BT_DM_DISABLE;

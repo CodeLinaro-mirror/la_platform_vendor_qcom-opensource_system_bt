@@ -270,7 +270,6 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
 
           if (rs && (new_scn != 0)) {
             rs->scn = new_scn;
-            rs->id = new_scn;
             // Send channel ID to java layer
             if (!send_app_scn(rs)) {
               // closed
@@ -400,6 +399,7 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
           return;
         }
         fd = slot->fd;
+        ALOGI("%s: Received fd: %d and Internal fd: %d",__func__, (int)rfcommDataCb.sock_fd(),fd);
         if (fd != -1) {
           if (rfcommDataCb.has_data()) {
             std::string data_string = rfcommDataCb.data();
@@ -833,6 +833,7 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
   if(((slot->new_srv_fd == 0 && !slot->is_server) ||
     (slot->new_srv_fd != 0 && slot->is_server)) && slot->scn != 0){
     /*Sending disconnect request*/
+    ALOGI("%s: sending disconnect for channel : %d and fd : %d",__func__,slot->scn, slot->is_server?slot->new_srv_fd : slot->fd);
     uint8_t disconnect_socket[MAX_LENGTH_WITH_PROTO_NONE];
     //adding msg_id
     uint16_t msg_id = BT_RFCOMM_DISCONNECT_SOCKET;
@@ -842,10 +843,13 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
     std::string protoMsg;
     ss_disconnect_socket disconnSocketCh;
     disconnSocketCh.set_channel(slot->scn);
-    disconnSocketCh.set_sock_fd(slot->fd);
+    if(slot->is_server){
+        disconnSocketCh.set_sock_fd(slot->new_srv_fd);
+    }else{
+        disconnSocketCh.set_sock_fd(slot->fd);
+    }
     disconnSocketCh.SerializeToString(&protoMsg);
 
-    ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
     //adding length
     uint16_t length = protoMsg.length();
     disconnect_socket[2] = length & 0xff;
@@ -868,13 +872,14 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
 
   if (slot->fd != INVALID_FD) {
     if(slot->is_fd_pending_for_cleanup){
-        ALOGI("%s: fd is pending for cleanup",__func__);
+        ALOGI("%s: fd %d is pending for cleanup",__func__, slot->new_srv_fd);
     }else{
+        ALOGI("%s: cleaning fd :: %d ",__func__, slot->fd);
         shutdown(slot->fd, SHUT_RDWR);
         close(slot->fd);
         slot->fd = INVALID_FD;
         if(slot->new_srv_fd != 0){
-            ALOGI("%s: cleaning pending fd",__func__);
+            ALOGI("%s: cleaning pending fd :: %d ",__func__, slot->new_srv_fd);
             shutdown(slot->new_srv_fd, SHUT_RDWR);
             close(slot->new_srv_fd);
             slot->new_srv_fd = INVALID_FD;
