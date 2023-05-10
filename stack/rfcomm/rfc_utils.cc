@@ -142,7 +142,7 @@ tRFC_MCB* rfc_alloc_multiplexer_channel(const RawAddress& bd_addr,
     RFCOMM_TRACE_DEBUG(
         "rfc_alloc_multiplexer_channel rfc_cb.port.rfc_mcb[%d].state:%d", i,
         rfc_cb.port.rfc_mcb[i].state);
-    VLOG(1) << "(rfc_cb.port.rfc_mcb[i].bd_addr:"
+    VLOG(1) << "(rfc_cb.port.rfc_mcb[" << i << "].bd_addr:"
             << rfc_cb.port.rfc_mcb[i].bd_addr;
 
     if ((rfc_cb.port.rfc_mcb[i].state != RFC_MX_STATE_IDLE) &&
