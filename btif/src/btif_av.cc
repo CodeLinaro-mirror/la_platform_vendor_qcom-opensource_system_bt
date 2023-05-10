@@ -1449,8 +1449,8 @@ void BtifAvStateMachine::StateIdle::OnEnter() {
   // Stop A2DP if this is the active peer
   if (peer_.IsActivePeer()) {
     btif_a2dp_on_idle(peer_.PeerAddress());
-  } else if((peer_.IsSink() && btif_av_sink.ActivePeer().IsEmpty()) ||
-        (peer_.IsSource() && btif_av_source.ActivePeers().empty())) {
+  } else if((peer_.IsSource() && btif_av_sink.ActivePeer().IsEmpty()) ||
+        (peer_.IsSink() && btif_av_source.ActivePeers().empty())) {
     btif_a2dp_on_idle(peer_.PeerAddress());
   }
 
