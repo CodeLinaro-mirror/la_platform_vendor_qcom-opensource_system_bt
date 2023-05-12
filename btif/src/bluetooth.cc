@@ -734,6 +734,10 @@ static int create_bond(const RawAddress* bd_addr, int transport) {
 
   ALOGI("%s ", __func__);
   ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
+  if(bond_state !=  BT_BOND_STATE_NONE) {
+    ALOGI("%s, Device busy, one pairing in progress", __func__);
+    return BT_STATUS_BUSY;
+  }
   uint8_t create_bond_msg[MAX_LENGTH_WITH_PROTO_NONE];
 
   uint16_t msg_id = BT_DM_CREATE_BOND;
@@ -1655,6 +1659,9 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
           } else if(prop_type == BT_PROPERTY_UUIDS) {
             std::string uuid_str = prop.val();
             ALOGI("UUID's are : %s",uuid_str.c_str());
+            if(bond_state == BT_BOND_STATE_BONDED) {
+               bond_state =  BT_BOND_STATE_NONE;
+            }
             const char* uuids = uuid_str.c_str();
             properties[i].len = prop.len();
             properties[i].val = (void*)uuids;
