@@ -1712,9 +1712,14 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       ss_discovery_state_changed_callback discoveryStateChanged;
       discoveryStateChanged.ParseFromString(resBufferString);
       if(discoveryStateChanged.has_state()) {
-        ALOGI("Has BT_DM_DISCOVERY_STATE_CHANGE_CB: has_state");
         bt_discovery_state_t discovery_state;
         discovery_state = (bt_discovery_state_t)discoveryStateChanged.state();
+        ALOGI("Has BT_DM_DISCOVERY_STATE_CHANGE_CB: has_state -> %d", discovery_state);
+        if(discovery_state == BT_DISCOVERY_STARTED) {
+           ALOGI("Discovery Started callback");
+        } else if(discovery_state == BT_DISCOVERY_STOPPED) {
+           ALOGI("Discovery Stopped callback");
+        }
         HAL_CBACK(bt_hal_cbacks, discovery_state_changed_cb, discovery_state);
       } else {
         ALOGI("BT_DM_DISCOVERY_STATE_CHANGE_CB: Not have state info");
