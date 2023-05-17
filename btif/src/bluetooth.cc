@@ -1803,11 +1803,13 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
     case BT_DM_PIN_REQUEST_CB: {
       ALOGI("Has BT_DM_PIN_REQUEST_CB");
       ss_pin_request_callback pinRequestCb;
+      pinRequestCb.ParseFromString(resBufferString);
       RawAddress *bd_addr;
       if (pinRequestCb.has_remote_bd_addr()) {
         uint8_t* addr = (uint8_t*)pinRequestCb.remote_bd_addr().c_str();
         bd_addr = (RawAddress*)addr;
         ALOGI("BT_DM_PIN_REQUEST_CB:  address: %s", bd_addr->ToString().c_str());
+        ALOGI("BT_DM_PIN_REQUEST_CB: length: %d ", bd_addr->ToString().length());
       }
       bt_bdname_t bdname;
       if (pinRequestCb.has_bd_name()) {
