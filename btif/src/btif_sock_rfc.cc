@@ -273,7 +273,7 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
             // Send channel ID to java layer
             if (!send_app_scn(rs)) {
               // closed
-              APPL_TRACE_DEBUG("send_app_scn() failed, close rs->id:%d", rs->id);
+              ALOGI("send_app_scn() failed, close rs->id:%d", rs->id);
               cleanup_rfc_slot(rs);
             }else {
               if (rs->is_service_uuid_valid == true) {
@@ -281,7 +281,7 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
                 // profiles)
                 //BTA_JvCreateRecordByUser(rs->id);
               } else {
-                APPL_TRACE_DEBUG(
+                ALOGI(
                 "is_service_uuid_valid==false - don't set SDP-record, "
                 "just start the RFCOMM server",
                 rs->id);
@@ -291,7 +291,7 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
               }
             }
           }else if (rs) {
-              APPL_TRACE_ERROR(
+              ALOGE(
               "jv_dm_cback: Error: allocate channel %d, slot found:%p", rs->scn,
               rs);
               cleanup_rfc_slot(rs);
@@ -302,7 +302,7 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
     }
     case BT_RFCOMM_SRV_OPEN_CB: {
       ALOGI("%s: BT_RFCOMM_SRV_OPEN_CB",__func__);
-	    RawAddress *bd_addr;
+      RawAddress bd_addr;
       uint32_t channel = 0;
       uint32_t sock_fd = 0;
       uint32_t mtu = 0;
@@ -327,7 +327,9 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
       }
       if (rfcommSrvOpenCb.has_addr()) {
         uint8_t* addr = (uint8_t*)rfcommSrvOpenCb.addr().c_str();
-        bd_addr = (RawAddress*)addr;
+        std::string bt_address = ((RawAddress*)addr)->ToString();
+        ALOGI("address is :: %s",bt_address.c_str());
+        RawAddress::FromString(bt_address.c_str(), bd_addr);
       }
       if (rfcommSrvOpenCb.has_tx_mtu()) {
         mtu = rfcommSrvOpenCb.tx_mtu();
@@ -337,15 +339,16 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
         status = rfcommSrvOpenCb.status();
         ALOGI("status is :: %d",status);
       }
-      ss_srv_rfc_connect(sock_fd, bd_addr, channel, status, mtu);
+      ss_srv_rfc_connect(sock_fd, &bd_addr, channel, status, mtu);
       std::unique_lock<std::recursive_mutex> lock(slot_lock);
       rfc_slot_t* slot = find_rfc_slot_by_fd(sock_fd);
+      if (!slot) return;
       ss_flush_incoming_que_on_wr_signal(slot);
       break;
     }
     case BT_RFCOMM_CLIENT_CONNECT_CB: {
       ALOGI("%s: BT_RFCOMM_CLIENT_CONNECT_CB",__func__);
-	  RawAddress bd_addr;
+      RawAddress bd_addr;
       uint32_t channel = 0;
       uint32_t sock_fd = 0;
       uint32_t mtu = 0;
@@ -369,7 +372,8 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
         }
       }
       if (rfcommCliConnCb.has_addr()) {
-        std::string bt_address = rfcommCliConnCb.addr();
+        uint8_t* addr = (uint8_t*)rfcommCliConnCb.addr().c_str();
+        std::string bt_address = ((RawAddress*)addr)->ToString();
         ALOGI("address is :: %s",bt_address.c_str());
         RawAddress::FromString(bt_address.c_str(), bd_addr);
       }
@@ -384,12 +388,13 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
       ss_cli_rfc_connect(sock_fd, &bd_addr, channel, status, mtu);
       std::unique_lock<std::recursive_mutex> lock(slot_lock);
       rfc_slot_t* slot = find_rfc_slot_by_fd(sock_fd);
+      if (!slot) return;
       ss_flush_incoming_que_on_wr_signal(slot);
       break;
     }
     case BT_RFCOMM_SOCKET_DATA_CB: {
       ALOGI("%s: BT_RFCOMM_SOCKET_DATA_CB",__func__);
-	    int fd = -1;
+      int fd = -1;
       int len = 0;
       int app_uid = -1;
       uint64_t bytes_rx = 0;
@@ -471,8 +476,8 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
         slot->scn = 0;
         cleanup_rfc_slot(slot);
       }
+      break;
     }
-    break;
     default : {
       ALOGI("btif_rfcomm_ss_callback :: msg id %X :: unknow", MSG_ID);
       break;
@@ -553,13 +558,13 @@ static rfc_slot_t* alloc_rfc_slot(const RawAddress* addr, const char* name,
     return NULL;
   }
 
-  ALOGI("alloc_rfc_slot fds[0] is :: %d fds[1] is :: %d",fds[0],fds[1]);
   // Increment slot id and make sure we don't use id=0.
   if (UINT32_MAX == rfc_slot_id) {
     rfc_slot_id = 1;
   } else {
     ++rfc_slot_id;
   }
+  ALOGI("alloc_rfc_slot fds[0] is :: %d fds[1] is :: %d rfc_slot_id is :: %d",fds[0],fds[1],rfc_slot_id);
 
   slot->fd = fds[0];
   slot->app_fd = fds[1];
@@ -844,8 +849,8 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
     return;
   }
   if(slot){
-    ALOGI("%s: slot->fd is :: %d , slot->scn is :: %d , slot->new_srv_fd is :: %d , slot->is_server is :: %d, slot->is_fd_pending_for_cleanup is :: %d",__func__,
-    slot->fd, slot->scn,slot->new_srv_fd,slot->is_server,slot->is_fd_pending_for_cleanup);
+    ALOGI("%s: slot->fd is :: %d , slot->scn is :: %d , slot->new_srv_fd is :: %d , slot->is_server is :: %d, slot->is_fd_pending_for_cleanup is :: %d, slot->id is :: %d",__func__,
+    slot->fd, slot->scn,slot->new_srv_fd,slot->is_server,slot->is_fd_pending_for_cleanup,slot->id);
   }
 
   if(((slot->new_srv_fd == 0 && !slot->is_server) ||
@@ -891,6 +896,7 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
   if (slot->fd != INVALID_FD) {
     if(slot->is_fd_pending_for_cleanup){
         ALOGI("%s: fd %d is pending for cleanup",__func__, slot->new_srv_fd);
+        slot->fd = INVALID_FD;
     }else{
         ALOGI("%s: cleaning fd :: %d ",__func__, slot->fd);
         shutdown(slot->fd, SHUT_RDWR);
@@ -900,7 +906,9 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
             ALOGI("%s: cleaning pending fd :: %d ",__func__, slot->new_srv_fd);
             shutdown(slot->new_srv_fd, SHUT_RDWR);
             close(slot->new_srv_fd);
-            slot->new_srv_fd = INVALID_FD;
+            slot->new_srv_fd = 0;
+            slot->is_server = false;
+            slot->is_fd_pending_for_cleanup = false;
         }
     }
   }
@@ -990,6 +998,7 @@ static void ss_cli_rfc_connect (int fd, const RawAddress* addr, int channel,
                               int status, int mtu) {
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* client_rs = find_rfc_slot_by_scn(channel);
+  if (!client_rs) return;
   client_rs->mtu = mtu;
   /*if (status != PORT_OPEN_SUCCUESS) {
     LOG_ERROR(LOG_TAG, "%s slate returned failure Status : %d",__func__, status);
@@ -1632,6 +1641,7 @@ static rfc_slot_t* find_rfc_slot_by_scn(int scn)
             }
         }
     }
+    ALOGI("%s returning null slot",__func__);
     return NULL;
 }
 
