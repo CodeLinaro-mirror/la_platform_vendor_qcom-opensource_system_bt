@@ -1821,7 +1821,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       {
         ALOGI("BT_DM_PIN_REQUEST_CB: parseRxData has_cod");
         cod = pinRequestCb.cod();
-        ALOGI("BT_DM_PIN_REQUEST_CB: cod : %d", cod);
+        ALOGI("BT_DM_PIN_REQUEST_CB: cod : 0x%06x", cod);
       }
       bool min_16_digit = false;
       if(pinRequestCb.has_min_16_digit())
@@ -1856,7 +1856,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       if(sspRequestCb.has_cod()) {
         ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_cod");
         cod = sspRequestCb.cod();
-        ALOGI("BT_DM_SSP_REQUEST_CB: cod : %d", cod);
+        ALOGI("BT_DM_SSP_REQUEST_CB: cod : 0x%06x", cod);
       }
       if(sspRequestCb.has_pass_key()) {
         ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_pass_key");
@@ -1867,7 +1867,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
         ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_pairing_ssp_variant");
         bt_ssp_variant_t ssp_variant;
         ssp_variant = (bt_ssp_variant_t)sspRequestCb.pairing_variant();
-        ALOGI("BT_DM_SSP_REQUEST_CB: Pairing: cod: %d bd_addr: %s bdname: %s, ssp_variant: %d, passkey: %d", cod, bd_addr->ToString().c_str(), (char*)bdname.name, ssp_variant, passkey);
+        ALOGI("BT_DM_SSP_REQUEST_CB: Pairing: cod: 0x%06x bd_addr: %s bdname: %s, ssp_variant: %d, passkey: %d", cod, bd_addr->ToString().c_str(), (char*)bdname.name, ssp_variant, passkey);
         HAL_CBACK(bt_hal_cbacks, ssp_request_cb, bd_addr, &bdname, cod, ssp_variant, passkey);
       }
       break;
