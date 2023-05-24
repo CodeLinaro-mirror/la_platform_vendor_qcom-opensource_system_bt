@@ -532,8 +532,8 @@ static void bta_dm_sys_hw_cback(tBTA_SYS_HW_EVT status) {
       dev_class[0] = 0x14; // minor dev class as Glass
       dev_class[1] = 0x07; // major dev class as Wearable
       dev_class[1] = 0x20; // Service class as Audio
-      BTM_SetDeviceClass(dev_class);
     }
+    BTM_SetDeviceClass(dev_class);
 
     /* load BLE local information: ID keys, ER if available */
     Octet16 er;
