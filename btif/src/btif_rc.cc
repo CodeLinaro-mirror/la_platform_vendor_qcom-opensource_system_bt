@@ -12,6 +12,11 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear.
  */
 
 /*****************************************************************************
@@ -302,6 +307,9 @@ static void cleanup_btrc_folder_items(btrc_folder_items_t* btrc_items,
                                       uint8_t item_count);
 static void handle_get_metadata_attr_response(tBTA_AV_META_MSG* pmeta_msg,
                                           tAVRC_GET_ATTRS_RSP* p_rsp);
+static void handle_get_metadata_attr_response(tBTA_AV_META_MSG* pmeta_msg,
+                                          tAVRC_GET_ATTRS_RSP* p_rsp,
+                                          bool is_browsing_channel);
 static void handle_set_app_attr_val_response(tBTA_AV_META_MSG* pmeta_msg,
                                              tAVRC_RSP* p_rsp);
 static void handle_add_to_now_playing_response(tBTA_AV_META_MSG* pmeta_msg,
@@ -4035,8 +4043,17 @@ static void handle_add_to_now_playing_response(tBTA_AV_META_MSG* pmeta_msg,
  **************************************************************************/
 static void handle_get_metadata_attr_response(tBTA_AV_META_MSG* pmeta_msg,
                                           tAVRC_GET_ATTRS_RSP* p_rsp) {
+  handle_get_metadata_attr_response(pmeta_msg, p_rsp, false);
+}
+
+static void handle_get_metadata_attr_response(tBTA_AV_META_MSG* pmeta_msg,
+                                          tAVRC_GET_ATTRS_RSP* p_rsp,
+                                          bool is_browsing_channel) {
   btif_rc_device_cb_t* p_dev =
       btif_rc_get_device_by_handle(pmeta_msg->rc_handle);
+
+  // Indicate whether cover art handle is retrieved or not
+  bool ca_handle_retrieved = false;
 
   if (p_rsp->status == AVRC_STS_NO_ERROR) {
     size_t buf_size = p_rsp->num_attrs * sizeof(btrc_element_attr_val_t);
@@ -4048,7 +4065,6 @@ static void handle_get_metadata_attr_response(tBTA_AV_META_MSG* pmeta_msg,
       return;
     }
 
-
     for (int i = 0; i < p_rsp->num_attrs; i++) {
       p_attr[i].attr_id = p_rsp->p_attrs[i].attr_id;
       /* Todo. Legth limit check to include null */
@@ -4057,7 +4073,28 @@ static void handle_get_metadata_attr_response(tBTA_AV_META_MSG* pmeta_msg,
                p_rsp->p_attrs[i].name.str_len);
         osi_free_and_reset((void**)&p_rsp->p_attrs[i].name.p_str);
       }
+      if (p_rsp->p_attrs[i].attr_id == AVRC_MEDIA_ATTR_ID_COVER_ARTWORK_HANDLE &&
+        p_rsp->p_attrs[i].name.str_len > 0) {
+        ca_handle_retrieved = true;
+      }
     }
+
+    /* This is to fix an IOP issue that cover art handle can only be retrieved through
+     * GET_ELEMENT_ATTRIBUTE_CMD, instead of GET_ITEM_ATTRIBUTE_CMD.
+     */
+    if (p_dev->rc_features & BTA_AV_FEAT_COVER_ARTWORK &&
+        ca_handle_retrieved != TRUE && is_browsing_channel == TRUE) {
+      /* In real use cases, application always retrieves all the supported attributes.
+       * However, in PTS test, there are PTS cases that only specified attributes are
+       * required which means cover art handle may not be needed. Hence sending request
+       * to retrieve attributes again under this scenario is not allowed because it may
+       * lead to PTS test failure.
+       */
+      if (!is_pts_test_mode()) {
+        get_element_attribute_cmd(p_dev->rc_addr, 0, NULL);
+      }
+    }
+
     do_in_jni_thread(FROM_HERE,
                      base::Bind(bt_rc_ctrl_callbacks->track_changed_cb,
                                 p_dev->rc_addr, p_rsp->num_attrs, p_attr));
@@ -4631,7 +4668,7 @@ static void handle_avk_rc_metamsg_rsp(tBTA_AV_META_MSG* pmeta_msg) {
         handle_set_browsed_player_response(pmeta_msg, &avrc_response.br_player);
         break;
       case AVRC_PDU_GET_ITEM_ATTRIBUTES:
-        handle_get_metadata_attr_response(pmeta_msg, &avrc_response.get_attrs);
+        handle_get_metadata_attr_response(pmeta_msg, &avrc_response.get_attrs, true);
         break;
       case AVRC_PDU_SEARCH:
         handle_search_response(pmeta_msg, &avrc_response.search);

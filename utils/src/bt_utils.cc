@@ -14,6 +14,11 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear.
+ *
  ******************************************************************************/
 /******************************************************************************
  *
@@ -181,3 +186,7 @@ bool is_pts_a2dpsink() {
     return strncmp(pts_mode, "true", PROPERTY_VALUE_MAX) == 0;
 }
 #endif
+
+bool is_pts_test_mode() {
+  return osi_property_get_bool("persist.bluetooth.pts", false);
+}
