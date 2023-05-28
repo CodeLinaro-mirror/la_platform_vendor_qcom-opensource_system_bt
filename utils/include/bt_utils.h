@@ -26,7 +26,15 @@
 
 #include "a2dp_error_codes.h"
 
-#define A2DP_SINK_PTS_TEST 1
+#define A2DP_PTS_TEST 1
+
+#ifndef PROPERTY_A2DP_AVP
+#define PROPERTY_A2DP_AVP "bluetooth.pts.a2dpavp"
+#endif
+
+#ifndef PROPERTY_A2DP_AVP_ERROR_CODE
+#define PROPERTY_A2DP_AVP_ERROR_CODE "bluetooth.pts.a2dpavp.error_code"
+#endif
 
 static const char BT_UTILS_MODULE[] = "bt_utils_module";
 
@@ -47,10 +55,10 @@ typedef enum {
 void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task);
 bool is_ble_supported();
 
-#if A2DP_SINK_PTS_TEST
+#if A2DP_PTS_TEST
 void set_a2dp_error_code(tA2DP_STATUS err);
-tA2DP_STATUS get_a2dp_error_code();
-bool is_pts_a2dpsink();
+tA2DP_STATUS  get_a2dp_error_code();
+bool is_pts_a2dpavp();
 #endif
 
 bool is_pts_test_mode();

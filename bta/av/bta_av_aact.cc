@@ -566,10 +566,10 @@ static void bta_av_adjust_seps_idx(tBTA_AV_SCB* p_scb, uint8_t avdt_handle) {
     APPL_TRACE_DEBUG("%s: avdt_handle: %d codec: %s", __func__,
                      p_scb->seps[i].av_handle,
                      A2DP_CodecName(p_scb->seps[i].codec_info));
-#if A2DP_SINK_PTS_TEST
-    // PTS: A2DP/SNK/AVP/BI-07-C
+#if A2DP_PTS_TEST
+    // PTS: A2DP/SINK/AVP/  A2DP/SRC/AVP
     if (p_scb->seps[i].av_handle && (p_scb->seps[i].av_handle == avdt_handle) &&
-        (is_pts_a2dpsink() || A2DP_CodecTypeEquals(p_scb->seps[i].codec_info,
+        (is_pts_a2dpavp() || A2DP_CodecTypeEquals(p_scb->seps[i].codec_info,
                                                    p_scb->cfg.codec_info))) {
 #else
       if (p_scb->seps[i].av_handle && (p_scb->seps[i].av_handle == avdt_handle) &&
@@ -737,6 +737,11 @@ void bta_av_delay_co(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_av_do_disc_a2dp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
+#if A2DP_PTS_TEST
+  if (is_pts_a2dpavp()) {
+    return;
+  }
+#endif
   bool ok_continue = false;
   tA2DP_SDP_DB_PARAMS db_params;
   uint16_t attr_list[] = {ATTR_ID_SERVICE_CLASS_ID_LIST,
@@ -1762,8 +1767,8 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   bta_av_adjust_seps_idx(p_scb, avdt_handle);
   LOG_INFO("%s: sep_idx=%d avdt_handle=%d bta_handle=0x%x", __func__,
            p_scb->sep_idx, p_scb->avdt_handle, p_scb->hndl);
-#if A2DP_SINK_PTS_TEST
-  if (is_pts_a2dpsink()) {
+#if A2DP_PTS_TEST
+  if (is_pts_a2dpavp()) {
     LOG_INFO("%s: pts: get_a2dp_error_code 0x%X", __func__, get_a2dp_error_code());
     error_code = get_a2dp_error_code();
   }

@@ -1260,8 +1260,8 @@ void BtaAvCo::ProcessSetConfig(tBTA_AV_HNDL bta_av_handle,
     if (!codec_config_supported) {
       category = AVDT_ASC_CODEC;
       status = A2DP_WRONG_CODEC;
-#if A2DP_SINK_PTS_TEST
-      if (is_pts_a2dpsink()) {
+#if A2DP_PTS_TEST
+      if (is_pts_a2dpavp()) {
         status = get_a2dp_error_code();
         APPL_TRACE_DEBUG("%s: status %d", __func__, status);
       }

@@ -635,8 +635,8 @@ void avdt_scb_hdl_setconfig_cmd(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
           AVDT_CONFIG_IND_EVT, (tAVDT_CTRL*)&p_data->msg.config_cmd,
           p_scb->stream_config.scb_index);
     } else {
-#if A2DP_SINK_PTS_TEST
-      if (is_pts_a2dpsink() && !A2DP_IsPeerSourceCodecSupported(p_cfg->codec_info) &&
+#if A2DP_PTS_TEST
+      if (is_pts_a2dpavp() && !A2DP_IsPeerSourceCodecSupported(p_cfg->codec_info) &&
           get_a2dp_error_code() != A2DP_SUCCESS) {
         p_data->msg.hdr.err_code = get_a2dp_error_code();
       } else

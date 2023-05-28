@@ -322,7 +322,7 @@ bool A2DP_IsPeerSinkCodecValidSbc(const uint8_t* p_codec_info) {
 bool A2DP_IsSinkCodecSupportedSbc(const uint8_t* p_codec_info) {
   tA2DP_STATUS err_code = A2DP_CodecInfoMatchesCapabilitySbc(&a2dp_sbc_sink_caps,
                                                              p_codec_info, false);
-#if A2DP_SINK_PTS_TEST
+#if A2DP_PTS_TEST
   set_a2dp_error_code(err_code);
 #endif
   return (err_code == A2DP_SUCCESS);
