@@ -613,7 +613,31 @@ static int get_adapter_property(bt_property_type_t type) {
 
 static int set_adapter_property(const bt_property_t* property) {
   ALOGI("%s", __func__);
-  ALOGI("Property type - %d, Property value - %s",property->type, (char*)property->val);
+  ALOGI("Property type - %d, Property length - %d",property->type, property->len);
+  switch (property->type) {
+    case BT_PROPERTY_BDNAME: {
+      ALOGI("set property name : %s", (char*)property->val);
+    } break;
+    case BT_PROPERTY_ADAPTER_SCAN_MODE: {
+      bt_scan_mode_t mode = *(bt_scan_mode_t*)property->val;
+      ALOGI("set property scan mode : %x", mode);
+    } break;
+    case SS_BT_PROPERTY_ADAPTER_DISCOVERY_TIMEOUT: {
+      uint32_t timeout;
+      std::memcpy(&timeout, property->val, sizeof(uint32_t));
+      ALOGI("set property discoverable timeout : %d", timeout);
+    } break;
+    case BT_PROPERTY_BDADDR:
+    case BT_PROPERTY_UUIDS:
+    case BT_PROPERTY_ADAPTER_BONDED_DEVICES:
+    case BT_PROPERTY_REMOTE_FRIENDLY_NAME:
+    case BT_PROPERTY_LOCAL_IO_CAPS:
+      break;
+    default:
+      ALOGI("set_adapter_property : invalid property type - %d",property->type);
+      break;
+  }
+
   uint8_t set_adaprop_msg[MAX_LENGTH_WITH_PROTO_NONE];
   //adding msg_id
   uint16_t msg_id = BT_DM_SET_ADAPTER_PROPERTY;
