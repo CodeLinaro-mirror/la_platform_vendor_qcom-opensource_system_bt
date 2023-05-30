@@ -958,5 +958,17 @@ extern void BTM_BleStopPeriodicSync(uint16_t handle);
  *
  ******************************************************************************/
 extern void BTM_BleCancelPeriodicSync(uint8_t adv_sid, RawAddress address);
+/*******************************************************************************
+ *
+ * Function        BTM_BleEnablePaScanReport
+ *
+ * Description     set PA scan report enable
+ *
+ * Parameters      sync handle, enable(bit1: Duplicate filtering, bit0 : Report)
+ *
+ * Returns         void
+ *
+ ******************************************************************************/
+extern void BTM_BleEnablePaScanReport(uint16_t handle, uint8_t enable);
 
 #endif

@@ -883,6 +883,21 @@ void btsnd_hci_ble_cancel_period_sync(void) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
+void btsnd_hcic_ble_enable_pa_scan_report(uint16_t sync_handle,
+                                            uint8_t enable) {
+  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
+  uint8_t* pp = (uint8_t*)(p + 1);
+  const uint16_t param_len = 3;
+  p->len = HCIC_PREAMBLE_SIZE + param_len;
+  p->offset = 0;
+
+  UINT16_TO_STREAM(pp, HCI_LE_SET_PERIODIC_ADVERTISING_RECEIVE_ENABLE);
+  UINT8_TO_STREAM(pp, param_len);
+  UINT16_TO_STREAM(pp, sync_handle);
+  UINT8_TO_STREAM(pp, enable);
+  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
+}
+
 void btsnd_hcic_ble_subrate_request(uint16_t conn_handle,
                                     uint16_t subrate_min,
                                     uint16_t subrate_max,

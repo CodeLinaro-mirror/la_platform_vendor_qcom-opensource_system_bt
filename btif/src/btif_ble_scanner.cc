@@ -479,6 +479,12 @@ class BleScannerInterfaceImpl : public BleScannerInterface {
                      base::Bind(&BTM_BleStopPeriodicSync, handle));
   }
 
+  void EnablePaScanResult(uint16_t handle, uint8_t enable) override {
+    BTIF_TRACE_DEBUG("%s: handle: %d enable: %d", __func__, handle, enable);
+    do_in_bta_thread(FROM_HERE,
+                     base::Bind(&BTM_BleEnablePaScanReport, handle, enable));
+  }
+
 };
 
 BleScannerInterface* btLeScannerInstance = nullptr;
