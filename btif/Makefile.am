@@ -47,6 +47,8 @@ AM_CPPFLAGS = \
         -I${external_bt_path}/vhal/include \
         -I$(external_bt_path)/system_bt_ext \
         -I$(external_bt_path)/system_bt_ext/btif/include \
+	-I$(external_bt_path)/system_bt_ext/bta/include \
+	-I$(external_bt_path)/system_bt_ext/stack/include \
         -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/hal/include \
         -I$(WORKSPACE)/frameworks/av/include \
         -I$(WORKSPACE)/system/media/audio/include \
@@ -115,8 +117,7 @@ cpp_sources = \
         co/bta_hh_co.cc \
         co/bta_hl_co.cc \
         co/bta_pan_co.cc \
-        co/bta_gatts_co.cc \
-        src/btif_obex_sock.cc
+        co/bta_gatts_co.cc
 
 common_LDFLAGS = -lpthread  -lrt -lresolv ../bta/libbtbta.la ../osi/libbtosi.la \
                   ../device/libbtdevice.la ../audio_a2dp_hw/libaudioa2dpdefault.la
@@ -128,6 +129,6 @@ library_include_HEADERS = $(h_sources)
 lib_LTLIBRARIES = libbtif.la
 libbtif_la_CC = @CC@
 libbtif_la_SOURCES = $(cpp_sources)
-libbtif_la_CPPFLAGS = $(AM_CPPFLAGS) -std=c++14 -Wall -DHAS_NO_BDROID_BUILDCFG -DOBEX_SUPPORTED
+libbtif_la_CPPFLAGS = $(AM_CPPFLAGS) -std=c++14 -Wall -DHAS_NO_BDROID_BUILDCFG
 libbtif_la_CFLAGS = $(common_CFLAGS)
 libbtif_la_LDFLAGS = $(common_LDFLAGS) -static -lbttypes

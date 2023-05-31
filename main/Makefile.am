@@ -44,9 +44,9 @@ AM_CPPFLAGS= \
         -I${WORKSPACE}/external/tinyxml2 \
         -I${WORKSPACE}/external/zlib \
         -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/hal/include \
-        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/stack/include \
-        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/bthost_ipc \
-        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/udrv/include \
+        -I${WORKSPACE}/../vendor/qcom/opensource/bluetooth_ext/system_bt_ext/stack/include \
+        -I${WORKSPACE}/../vendor/qcom/opensource/bluetooth/bthost_ipc \
+        -I${WORKSPACE}/../vendor/qcom/opensource/bluetooth_ext/system_bt_ext/udrv/include \
         -I$(external_bt_path)/vhal/include
 
 if MDM_ROME
@@ -156,7 +156,7 @@ AM_CFLAGS += -DUSING_STATIC_LINK
 AM_CPPFLAGS += -DUSING_STATIC_LINK
 endif
 
-common_LDFLAGS = -ldl -lrt -lresolv -lz -ldiag -lqmi_cci \
+common_LDFLAGS = -ldl -lrt -lresolv -lz \
                  -Wl,--whole-archive,--no-whole-archive \
                  -Wl,--whole-archive,../bta/.libs/libbtbta.a,--no-whole-archive -Wl,--whole-archive,../btif/.libs/libbtif.a,--no-whole-archive \
                  -Wl,--whole-archive,../stack/.libs/libbtstack.a,--no-whole-archive \
