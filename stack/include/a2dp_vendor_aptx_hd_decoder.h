@@ -27,6 +27,12 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 //
 // Interface to the A2DP aptX HD Decoder
 //
@@ -35,6 +41,9 @@
 #define A2DP_VENDOR_APTX_DECODER_H
 
 #include "a2dp_codec_api.h"
+
+// Length of data transmitted to aptxhddecStereoDecode() per calling
+#define TWO_24BIT_CODE_WORDS_SIZE 6
 
 // Loads the A2DP aptX HD decoder.
 // Return true on success, otherwise false.
