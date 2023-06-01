@@ -27,6 +27,13 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #define LOG_TAG "a2dp_aptx_hd_decoder"
 
 #include "a2dp_vendor_aptx_hd_decoder.h"
@@ -43,6 +50,7 @@
 #include "bt_common.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+#include "osi/include/ringbuffer.h"
 #include "a2dp_vendor_aptx_decoder_auth.h"
 
 #define APTX_COMPRSN_RATIO 4
@@ -124,6 +132,7 @@ typedef struct {
   void* aptx_hd_xc;
   int32_t* encoded_buffer;
   uint8_t* decode_buf;
+  ringbuffer_t* ring_buf;
   decoded_data_callback_t decode_callback;
   bool initialized;
 } tA2DP_APTX_HD_DECODER_CB;
@@ -285,6 +294,7 @@ bool a2dp_vendor_aptx_hd_decoder_init(decoded_data_callback_t decode_callback) {
 
   a2dp_aptx_hd_decoder_cb.encoded_buffer = reinterpret_cast<int32_t*>(osi_malloc(sizeof(int32_t) * 2));
   a2dp_aptx_hd_decoder_cb.decode_buf = reinterpret_cast<uint8_t*>(osi_malloc(BT_DEFAULT_BUFFER_SIZE));
+  a2dp_aptx_hd_decoder_cb.ring_buf = ringbuffer_init(BT_DEFAULT_BUFFER_SIZE);
 
   a2dp_aptx_hd_decoder_cb.decode_callback = decode_callback;
 
@@ -298,6 +308,7 @@ void a2dp_vendor_aptx_hd_decoder_cleanup(void) {
 
   osi_free(a2dp_aptx_hd_decoder_cb.encoded_buffer);
   osi_free(a2dp_aptx_hd_decoder_cb.decode_buf);
+  ringbuffer_free(a2dp_aptx_hd_decoder_cb.ring_buf);
 
   memset(&a2dp_aptx_hd_decoder_cb, 0, sizeof(a2dp_aptx_hd_decoder_cb));
 
@@ -306,24 +317,27 @@ void a2dp_vendor_aptx_hd_decoder_cleanup(void) {
 
 bool a2dp_vendor_aptx_hd_decoder_decode_packet(BT_HDR* p_buf) {
   uint8_t* p_buffer = p_buf->data + p_buf->offset;
-  int32_t bytes_valid = static_cast<int32_t>(p_buf->len);
+  ringbuffer_t* ringbuffer = a2dp_aptx_hd_decoder_cb.ring_buf;
+  uint8_t temp[TWO_24BIT_CODE_WORDS_SIZE] = {0};
 
   uint16_t buf_idx   = 0;
   uint16_t pcm_idx   = 0;
   size_t   frame_len = 0;
 
+  ringbuffer_insert(ringbuffer, p_buffer, static_cast<size_t>(p_buf->len));
   memset(a2dp_aptx_hd_decoder_cb.decode_buf, 0, BT_DEFAULT_BUFFER_SIZE);
   memset(a2dp_aptx_hd_decoder_cb.encoded_buffer, 0, sizeof(int32_t) * 2);
 
-  while (bytes_valid >= 6 ) {
+  while (ringbuffer_size(ringbuffer) >= TWO_24BIT_CODE_WORDS_SIZE ) {
+    ringbuffer_pop(ringbuffer, temp, TWO_24BIT_CODE_WORDS_SIZE);
     // Get encoded buffer
     uint8_t* encoded_ptr = reinterpret_cast<uint8_t*>(a2dp_aptx_hd_decoder_cb.encoded_buffer);
-    *(encoded_ptr)     = *(p_buffer + 2);
-    *(encoded_ptr + 1) = *(p_buffer + 1);
-    *(encoded_ptr + 2) = *(p_buffer);
-    *(encoded_ptr + 4) = *(p_buffer + 5);
-    *(encoded_ptr + 5) = *(p_buffer + 4);
-    *(encoded_ptr + 6) = *(p_buffer + 3);
+    *(encoded_ptr)     = *(temp + 2);
+    *(encoded_ptr + 1) = *(temp + 1);
+    *(encoded_ptr + 2) = *(temp);
+    *(encoded_ptr + 4) = *(temp + 5);
+    *(encoded_ptr + 5) = *(temp + 4);
+    *(encoded_ptr + 6) = *(temp + 3);
 
     aptx_hd_decoder_decode_stereo_func(a2dp_aptx_hd_decoder_cb.encoded_buffer, a2dp_aptx_hd_decoder_cb.aptx_hd_xc);
 
@@ -342,8 +356,6 @@ bool a2dp_vendor_aptx_hd_decoder_decode_packet(BT_HDR* p_buf) {
     }
 
     frame_len += 24 * sizeof(int8_t);
-    p_buffer += 6;
-    bytes_valid -= 6;
   }
 
   a2dp_aptx_hd_decoder_cb.decode_callback(a2dp_aptx_hd_decoder_cb.decode_buf, frame_len);
