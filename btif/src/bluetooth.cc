@@ -148,6 +148,8 @@ static constexpr char PERSIST_BDADDR_PROPERTY[] =
     "persist.vendor.service.bt.ss.bdaddr";
 static constexpr char PERSIST_LOGLEVEL_PROPERTY[] =
     "persist.vendor.service.bt.ss.loglevel";
+static constexpr char PERSIST_BDNAME_PROPERTY[] =
+    "persist.vendor.service.bt.ss.bdname";
 
 #define BTSS_STATE_NODE "/sys/kernel/slate_bt_state/slate_bt_state"
 SS_BTSS_State btssCurrentState = SS_BTSS_DOWN;
@@ -616,6 +618,12 @@ static int set_adapter_property(const bt_property_t* property) {
   ALOGI("Property type - %d, Property length - %d",property->type, property->len);
   switch (property->type) {
     case BT_PROPERTY_BDNAME: {
+      uint16_t name_len = 0;
+      char name[PROPERTY_VALUE_MAX];
+      name_len = (property->len > PROPERTY_VALUE_MAX) ? PROPERTY_VALUE_MAX : property->len;
+      memcpy(name, property->val, name_len);
+      name[name_len] = '\0';
+      property_set(PERSIST_BDNAME_PROPERTY, (char*)name);
       ALOGI("set property name : %s", (char*)property->val);
     } break;
     case BT_PROPERTY_ADAPTER_SCAN_MODE: {
@@ -1735,6 +1743,9 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
         ALOGI("Has BT_DM_ADAPTER_STATE_CHANGE_CB");
         ss_adapter_state_changed_callback adapterStateChangedCb;
         adapterStateChangedCb.ParseFromString(resBufferString);
+        char property[PROPERTY_VALUE_MAX];
+        bt_property_t prop;
+        bt_bdname_t bd_name;
         if(adapterStateChangedCb.has_state()) {
             ALOGI("parseRxData has_state");
             bt_state_t return_status;
@@ -1742,10 +1753,20 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
             ALOGI("parseRxData btStateSingleStack is :: %d",btStateSingleStack);
             switch((int)btStateSingleStack) {
                 case BT_ENABLE_STATUS_SUCCESS:
+                    property_get(PERSIST_BDNAME_PROPERTY, property, NULL);
+                    property[strlen(property)] = '\0';
                     return_status = BT_STATE_ON;
                     uid_set = uid_set_create();
                     btif_sock_init(uid_set);
                     read_or_set_metrics_salt();
+                    if(strlen(property) != 0 ){
+                      ALOGI("%s: Setting BT Name to %s", __func__, property);
+                      strlcpy((char*)bd_name.name, property, sizeof(bt_bdname_t));
+                      prop.val = &bd_name;
+                      prop.type = BT_PROPERTY_BDNAME;;
+                      prop.len = strlen(property);
+                      set_adapter_property(&prop);
+                    }
                 break;
 
                 case BT_ENABLE_STATUS_FAILURE:
