@@ -118,6 +118,19 @@ static BT_HDR* make_ble_write_host_support(uint8_t supported_host,
   return packet;
 }
 
+static BT_HDR* make_ble_set_host_feature_cmd(uint8_t bit_num,
+                                             uint8_t bit_val) {
+  uint8_t* stream;
+  const uint8_t parameter_size = 2; /* bit number and bit value*/
+
+  BT_HDR* packet =
+      make_command(HCI_BLE_SET_HOST_FEATURE, parameter_size, &stream);
+
+  UINT8_TO_STREAM(stream, bit_num);
+  UINT8_TO_STREAM(stream, bit_val);
+  return packet;
+}
+
 static BT_HDR* make_ble_read_white_list_size(void) {
   return make_command_no_params(HCI_BLE_READ_WHITE_LIST_SIZE);
 }
@@ -180,6 +193,16 @@ static BT_HDR* make_ble_set_event_mask(const bt_event_mask_t* event_mask) {
   return packet;
 }
 
+static BT_HDR* make_set_min_encryption_key_size(uint8_t size) {
+  uint8_t* stream;
+  const uint8_t parameter_size = 1;
+  BT_HDR* packet =
+    make_command(HCI_SET_MIN_ENCRYPTION_KEY_SIZE, parameter_size, &stream);
+
+  UINT8_TO_STREAM(stream, size);
+  return packet;
+}
+
 // Internal functions
 
 static BT_HDR* make_command_no_params(uint16_t opcode) {
@@ -232,7 +255,10 @@ static const hci_packet_factory_t interface = {
     make_ble_set_event_mask,
     make_read_local_supported_codecs,
     make_ble_read_offload_features_support,
-    make_read_scrambling_supported_freqs};
+    make_read_scrambling_supported_freqs,
+    make_set_min_encryption_key_size,
+    make_ble_set_host_feature_cmd,
+};
 
 const hci_packet_factory_t* hci_packet_factory_get_interface() {
   buffer_allocator = buffer_allocator_get_interface();

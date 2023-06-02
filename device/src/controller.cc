@@ -37,7 +37,7 @@
 #define BTSNOOP_ENABLE_PROPERTY "persist.bluetooth.btsnoopenable"
 
 const bt_event_mask_t BLE_EVENT_MASK = {
-    {0x00, 0x00, 0x00, 0x00, 0x00, 0x0B, 0xFE, 0x7f}};
+    {0x00, 0x00, 0x00, 0x06, 0x4F, 0x0B, 0xFE, 0x7f}};
 
 const bt_event_mask_t CLASSIC_EVENT_MASK = {HCI_DUMO_EVENT_MASK_EXT};
 
@@ -51,6 +51,7 @@ const uint8_t SCO_HOST_BUFFER_SIZE = 0xff;
 #define MAX_LOCAL_SUPPORTED_CODECS_SIZE 8
 #define MAX_SUPPORTED_SCRAMBLING_FREQ_SIZE 8
 #define MAX_SCRAMBLING_FREQS_SIZE 64
+#define CONN_SUBRATING_HOST_SUPPORT_BIT 38
 #define UNUSED(x) (void)(x)
 
 static const hci_t* hci;
@@ -237,6 +238,14 @@ static future_t* start_up(void) {
   }
 #endif
 
+  // Set the min encryption key size
+  if (HCI_SET_MIN_ENCRYPTION_KEY_SIZE_SUPPORTED(supported_commands)) {
+    response = AWAIT_COMMAND(packet_factory->make_set_min_encryption_key_size(
+        MIN_ENCRYPTION_KEY_SIZE));
+    packet_parser->parse_set_min_encryption_key_size_response(
+        response);
+  }
+
   ble_supported = last_features_classic_page_index >= 1 &&
                   HCI_LE_HOST_SUPPORTED(features_classic[1].as_array);
   if (ble_supported) {
@@ -263,6 +272,14 @@ static future_t* start_up(void) {
         AWAIT_COMMAND(packet_factory->make_ble_read_local_supported_features());
     packet_parser->parse_ble_read_local_supported_features_response(
         response, &features_ble);
+
+    // Set Host support for LE connection subrating
+    if (HCI_LE_CONN_SUBRATING_SUPPORT(features_ble.as_array)) {
+      response = AWAIT_COMMAND(
+          packet_factory->make_ble_set_host_feature_cmd(CONN_SUBRATING_HOST_SUPPORT_BIT, 1));
+      packet_parser->parse_ble_set_host_feature_cmd(response);
+      HCI_LE_SET_CONN_SUBRATING_HOST_SUPPORT(features_ble.as_array);
+    }
 
     if (HCI_LE_ENHANCED_PRIVACY_SUPPORTED(features_ble.as_array)) {
       response =
@@ -458,6 +475,11 @@ static bool supports_enhanced_accept_synchronous_connection(void) {
   return HCI_ENH_ACCEPT_SYNCH_CONN_SUPPORTED(supported_commands);
 }
 
+static bool supports_set_min_encryption_key_size(void) {
+  assert(readable);
+  return HCI_SET_MIN_ENCRYPTION_KEY_SIZE_SUPPORTED(supported_commands);
+}
+
 static bool supports_ble(void) {
   CHECK(readable);
   return ble_supported;
@@ -515,6 +537,12 @@ static bool supports_ble_periodic_advertising(void) {
   CHECK(readable);
   CHECK(ble_supported);
   return HCI_LE_PERIODIC_ADVERTISING_SUPPORTED(features_ble.as_array);
+}
+
+static bool supports_ble_periodic_advertising_adi(void) {
+    CHECK(readable);
+    CHECK(ble_supported);
+    return HCI_LE_PERIODIC_ADVERTISING_ADI_SUPPORTED(features_ble.as_array);
 }
 
 static uint16_t get_acl_data_size_classic(void) {
@@ -597,6 +625,21 @@ static uint8_t get_le_all_initiating_phys() {
   return phy;
 }
 
+
+/* to check if support for conn subrating is set in LL Feature Mask*/
+static bool is_conn_subrating_supported(void) {
+  CHECK(readable);
+  CHECK(ble_supported);
+  return HCI_LE_CONN_SUBRATING_SUPPORT(features_ble.as_array);
+}
+
+/* to check if host support for conn subrating is set in LL Feature Mask*/
+static bool is_conn_subrating_host_supported(void) {
+  CHECK(readable);
+  CHECK(ble_supported);
+  return HCI_LE_CONN_SUBRATING_HOST_SUPPORT(features_ble.as_array);
+}
+
 static const controller_t interface = {
     get_is_ready,
 
@@ -619,6 +662,7 @@ static const controller_t interface = {
     supports_master_slave_role_switch,
     supports_enhanced_setup_synchronous_connection,
     supports_enhanced_accept_synchronous_connection,
+    supports_set_min_encryption_key_size,
 
     supports_ble,
     supports_ble_packet_extension,
@@ -629,6 +673,7 @@ static const controller_t interface = {
     supports_ble_coded_phy,
     supports_ble_extended_advertising,
     supports_ble_periodic_advertising,
+    supports_ble_periodic_advertising_adi,
 
     get_acl_data_size_classic,
     get_acl_data_size_ble,
@@ -649,7 +694,10 @@ static const controller_t interface = {
     get_local_supported_codecs,
     supports_ble_offload_features,
     get_le_all_initiating_phys,
-    get_scrambling_supported_freqs};
+    get_scrambling_supported_freqs,
+    is_conn_subrating_supported,
+    is_conn_subrating_host_supported,
+};
 
 const controller_t* controller_get_interface() {
   static bool loaded = false;

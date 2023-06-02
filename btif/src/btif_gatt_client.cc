@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 
 /*******************************************************************************
@@ -168,6 +172,11 @@ void btif_gattc_upstreams_evt(uint16_t event, char* p_param) {
     case BTA_GATTC_CANCEL_OPEN_EVT:
       break;
 
+    case BTA_GATTC_SRVC_CHG_EVT:
+      HAL_CBACK(bt_gatt_callbacks, client->service_changed_cb,
+                p_data->service_changed.conn_id);
+      break;
+
     case BTA_GATTC_CFG_MTU_EVT: {
       HAL_CBACK(bt_gatt_callbacks, client->configure_mtu_cb,
                 p_data->cfg_mtu.conn_id, p_data->cfg_mtu.status,
@@ -191,6 +200,13 @@ void btif_gattc_upstreams_evt(uint16_t event, char* p_param) {
                 p_data->conn_update.conn_id, p_data->conn_update.interval,
                 p_data->conn_update.latency, p_data->conn_update.timeout,
                 p_data->conn_update.status);
+      break;
+
+    case BTA_GATTC_SUBRATE_CHG_EVT:
+      HAL_CBACK(bt_gatt_callbacks, client->subrate_chg_cb,
+                p_data->subrate_chg.conn_id, p_data->subrate_chg.subrate_factor,
+                p_data->subrate_chg.latency, p_data->subrate_chg.cont_num,
+                p_data->subrate_chg.timeout, p_data->subrate_chg.status);
       break;
 
     default:
@@ -602,6 +618,26 @@ bt_status_t btif_gattc_test_command(int command,
   return btif_gattc_test_command_impl(command, &params);
 }
 
+void btif_gattc_subrate_request_impl(RawAddress addr, int subrate_min,
+                                     int subrate_max, int max_latency,
+                                     int cont_num, int sup_timeout) {
+  if (BTA_DmGetConnectionState(addr)) {
+    BTA_DmBleSubrateRequest(addr, subrate_min, subrate_max, max_latency,
+                            cont_num, sup_timeout);
+  }
+}
+
+bt_status_t btif_gattc_subrate_request(const RawAddress& bd_addr,
+                                       int subrate_min, int subrate_max,
+                                       int max_latency, int cont_num,
+                                       int sup_timeout) {
+  CHECK_BTGATT_INIT();
+  return do_in_jni_thread(Bind(
+      base::IgnoreResult(&btif_gattc_subrate_request_impl), bd_addr,
+      subrate_min, subrate_max, max_latency, cont_num, sup_timeout));
+}
+
+
 }  // namespace
 
 const btgatt_client_interface_t btgattClientInterface = {
@@ -627,4 +663,5 @@ const btgatt_client_interface_t btgattClientInterface = {
     btif_gattc_set_preferred_phy,
     btif_gattc_read_phy,
     btif_gattc_test_command,
-    btif_gattc_get_gatt_db};
+    btif_gattc_get_gatt_db,
+    btif_gattc_subrate_request};

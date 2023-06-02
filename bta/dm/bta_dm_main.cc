@@ -94,6 +94,7 @@ const tBTA_DM_ACTION bta_dm_action[] = {
     bta_dm_hci_raw_command, /* BTA_DM_API_HCI_RAW_COMMAND_EVT */
     bta_dm_set_wifi_state, /* BTA_DM_API_SET_WIFI_STATE_EVT */
     bta_dm_process_iot_report, /*BTA_DM_API_IOT_REPORT_EVT*/
+    bta_dm_ble_subrate_request, /* BTA_DM_API_SUBRATE_REQ_EVT */
 };
 
 /* state machine action enumeration list */

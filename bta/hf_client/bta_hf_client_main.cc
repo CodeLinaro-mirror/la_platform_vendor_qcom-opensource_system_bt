@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <mutex>
 
 #include "bt_utils.h"
 #include "bta_api.h"
@@ -34,6 +35,7 @@
 static const char* bta_hf_client_evt_str(uint16_t event);
 static const char* bta_hf_client_state_str(uint8_t state);
 void bta_hf_client_cb_init(tBTA_HF_CLIENT_CB* client_cb, uint16_t handle);
+static std::mutex bta_hf_mutex;
 
 /* state machine states */
 enum {
@@ -639,6 +641,11 @@ void bta_hf_client_app_callback(uint16_t event, tBTA_HF_CLIENT* data) {
  *
  ******************************************************************************/
 void bta_hf_client_api_disable() {
+  /* Disable bta_hf_client_reg and bthfClientInterface cleanup will
+   * call this function, in LE platform, there are run in different
+   * threads, it will cause the double cleanup and crash, add a mutex
+   * here to avoid the race condition */
+  const std::lock_guard<std::mutex> lock(bta_hf_mutex);
   if (!bta_sys_is_register(BTA_ID_HS)) {
     APPL_TRACE_WARNING("BTA HF Client is already disabled, ignoring ...");
     return;

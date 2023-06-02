@@ -49,6 +49,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 
 #ifndef BT_TARGET_H
@@ -1645,5 +1649,15 @@ single PDU.
 #endif
 
 #include "bt_trace.h"
+
+/******************************************************************************
+ *
+ * Off target test
+ *
+ *****************************************************************************/
+/* Enable off target test */
+#ifndef OFF_TARGET_TEST_ENABLED
+#define OFF_TARGET_TEST_ENABLED FALSE
+#endif
 
 #endif /* BT_TARGET_H */

@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 
 /******************************************************************************
@@ -30,6 +34,7 @@
 #include "btm_ble_int.h"
 #include "btm_int.h"
 #include "device/include/interop.h"
+#include "device/include/interop_config.h"
 #include "gatt_int.h"
 #include "l2c_api.h"
 #include "l2c_int.h"
@@ -174,8 +179,17 @@ void gatt_free(void) {
     gatt_cb.tcb[i].sr_cmd.multi_rsp_q = NULL;
   }
 
-  gatt_cb.hdl_list_info->clear();
-  gatt_cb.srv_list_info->clear();
+  if (gatt_cb.hdl_list_info != nullptr) {
+    gatt_cb.hdl_list_info->clear();
+    delete(gatt_cb.hdl_list_info);
+    gatt_cb.hdl_list_info = nullptr;
+  }
+
+  if (gatt_cb.srv_list_info != nullptr) {
+    gatt_cb.srv_list_info->clear();
+    delete(gatt_cb.srv_list_info);
+    gatt_cb.srv_list_info = nullptr;
+  }
 }
 
 /*******************************************************************************
@@ -488,6 +502,23 @@ static void gatt_le_connect_cback(uint16_t chan, const RawAddress& bd_addr,
         LOG(ERROR) << "CCB max out, no rsources";
       }
     }
+
+    if (gatt_is_robust_caching_enabled()) {
+      bool skip_caching_enable = false;
+      BD_NAME bd_name;
+      VLOG(1) << StringPrintf("[%s] BTM_GetRemoteDeviceName: %s", __func__, bd_addr.ToString().c_str());
+      if (BTM_GetRemoteDeviceName(bd_addr, bd_name)) {
+        VLOG(1) << StringPrintf("[%s] FileDB Device name: %s", __func__, bd_name);
+        if (interop_database_match_name(INTEROP_SKIP_ROBUST_CACHING_READ, (char*) bd_name)) {
+          VLOG(1) << StringPrintf("[%s] Skip GATT_EnableRobustCaching", __func__);
+          skip_caching_enable = true;
+        }
+      }
+      VLOG(1) << StringPrintf("[%s] skip_caching_enable: %d", __func__, skip_caching_enable);
+      if (!skip_caching_enable) {
+        GATT_EnableRobustCaching(bd_addr, BT_TRANSPORT_LE);
+      }
+    }
   } else {
     gatt_cleanup_upon_disc(bd_addr, reason, transport);
     VLOG(1) << "ATT disconnected";
@@ -516,7 +547,7 @@ static void gatt_channel_congestion(tGATT_TCB* p_tcb, bool congested) {
   /* notifying all applications for the connection up event */
   for (i = 0, p_reg = gatt_cb.cl_rcb; i < GATT_MAX_APPS; i++, p_reg++) {
     if (p_reg->in_use) {
-      if (p_reg->app_cb.p_congestion_cb) {
+      if (p_reg->app_cb.p_congestion_cb && p_tcb) {
         conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
         (*p_reg->app_cb.p_congestion_cb)(conn_id, congested);
       }
@@ -542,6 +573,26 @@ void gatt_notify_phy_updated(uint8_t status, uint16_t handle, uint8_t tx_phy,
       uint16_t conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
       (*p_reg->app_cb.p_phy_update_cb)(p_reg->gatt_if, conn_id, tx_phy, rx_phy,
                                        status);
+    }
+  }
+}
+
+void gatt_notify_subrate_change(uint16_t handle, uint16_t subrate_factor,
+                                uint16_t latency, uint16_t cont_num,
+                                uint16_t timeout, uint8_t status) {
+  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev_by_handle(handle);
+  if (!p_dev_rec) return;
+
+  tGATT_TCB* p_tcb =
+      gatt_find_tcb_by_addr(p_dev_rec->ble.pseudo_addr, BT_TRANSPORT_LE);
+  if (!p_tcb) return;
+
+  for (int i = 0; i < GATT_MAX_APPS; i++) {
+    tGATT_REG* p_reg = &gatt_cb.cl_rcb[i];
+    if (p_reg->in_use && p_reg->app_cb.p_subrate_chg_cb) {
+      uint16_t conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
+      (*p_reg->app_cb.p_subrate_chg_cb)(p_reg->gatt_if, conn_id, subrate_factor,
+                                        latency, cont_num, timeout, status);
     }
   }
 }

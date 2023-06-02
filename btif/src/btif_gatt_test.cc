@@ -168,6 +168,7 @@ static tGATT_CBACK btif_test_callbacks = {btif_test_connect_cback,
                                           NULL,
                                           NULL,
                                           NULL,
+                                          NULL,
                                           NULL};
 
 /*******************************************************************************

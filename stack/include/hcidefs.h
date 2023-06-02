@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 
 #ifndef HCIDEFS_H
@@ -28,6 +32,7 @@
 #define HCI_PROTO_VERSION_4_1 0x07 /* Version for BT spec 4.1          */
 #define HCI_PROTO_VERSION_4_2 0x08 /* Version for BT spec 4.2          */
 #define HCI_PROTO_VERSION_5_0 0x09 /* Version for BT spec 5.0          */
+#define HCI_PROTO_VERSION_5_1 0x0A /* Version for BT spec 5.1          */
 
 /*
  *  Definitions for HCI groups
@@ -255,6 +260,8 @@
 #define HCI_READ_SECURE_CONNS_SUPPORT (0x0079 | HCI_GRP_HOST_CONT_BASEBAND_CMDS)
 #define HCI_WRITE_SECURE_CONNS_SUPPORT \
   (0x007A | HCI_GRP_HOST_CONT_BASEBAND_CMDS)
+#define HCI_SET_MIN_ENCRYPTION_KEY_SIZE (0x0084 | HCI_GRP_HOST_CONT_BASEBAND_CMDS)
+
 #define HCI_CONT_BASEBAND_CMDS_FIRST HCI_SET_EVENT_MASK
 #define HCI_CONT_BASEBAND_CMDS_LAST HCI_READ_SYNC_TRAIN_PARAM
 
@@ -379,8 +386,17 @@
 #define HCI_LE_SET_EXTENDED_SCAN_PARAMETERS (0x0041 | HCI_GRP_BLE_CMDS)
 #define HCI_LE_SET_EXTENDED_SCAN_ENABLE (0x0042 | HCI_GRP_BLE_CMDS)
 #define HCI_LE_EXTENDED_CREATE_CONNECTION (0x0043 | HCI_GRP_BLE_CMDS)
+#define HCI_LE_PERIODIC_ADVERTISING_CREATE_SYNC (0x0044 | HCI_GRP_BLE_CMDS)
+#define HCI_LE_PERIODIC_ADVERTISING_CREATE_SYNC_CANCEL (0x0045 | HCI_GRP_BLE_CMDS)
+#define HCI_LE_PERIODIC_ADVERTISING_TERMINATE_SYNC (0x0046 | HCI_GRP_BLE_CMDS)
 #define HCI_BLE_SET_PRIVACY_MODE (0x004E | HCI_GRP_BLE_CMDS)
 
+/*Isochronous channel*/
+#define HCI_BLE_SET_HOST_FEATURE (0x0074 | HCI_GRP_BLE_CMDS)
+
+/* Broadcast ISO commands */
+#define HCI_BLE_SET_DEFAULT_SUBRATE (0x007D | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_SUBRATE_REQ (0x007E | HCI_GRP_BLE_CMDS)
 /* LE Get Vendor Capabilities Command OCF */
 #define HCI_BLE_VENDOR_CAP_OCF (0x0153 | HCI_GRP_VENDOR_SPECIFIC)
 
@@ -593,7 +609,12 @@ constexpr uint8_t HCI_LE_STATES_INIT_MASTER_SLAVE_BIT = 41;
 #define HCI_BLE_DIRECT_ADV_EVT 0x0b
 #define HCI_BLE_PHY_UPDATE_COMPLETE_EVT 0x0c
 #define HCI_LE_EXTENDED_ADVERTISING_REPORT_EVT 0x0D
+#define HCI_LE_PERIODIC_ADV_SYNC_ESTABLISHED_EVT 0x0E
+#define HCI_LE_PERIODIC_ADVERTISING_REPORT_EVT 0x0F
+#define HCI_LE_PERIODIC_ADV_SYNC_LOST_EVT 0x10
 #define HCI_LE_ADVERTISING_SET_TERMINATED_EVT 0x12
+
+#define HCI_LE_SUBRATE_CHANGE_EVT 0x23
 
 /* Definitions for LE Channel Map */
 #define HCI_BLE_CHNL_MAP_SIZE 5
@@ -1416,6 +1437,9 @@ typedef struct {
 #define HCI_LE_CODED_PHY_SUPPORTED(x) ((x)[1] & 0x08)
 #define HCI_LE_EXTENDED_ADVERTISING_SUPPORTED(x) ((x)[1] & 0x10)
 #define HCI_LE_PERIODIC_ADVERTISING_SUPPORTED(x) ((x)[1] & 0x20)
+#define HCI_LE_PERIODIC_ADVERTISING_ADI_SUPPORTED(x) ((x)[4] & 0x10)
+#define HCI_LE_CONN_SUBRATING_SUPPORT(x) ((x)[4] & 0x20)
+#define HCI_LE_CONN_SUBRATING_HOST_SUPPORT(x) ((x)[4] & 0x40)
 
 /* Supported Commands*/
 #define HCI_NUM_SUPP_COMMANDS_BYTES 64
@@ -1657,5 +1681,13 @@ typedef struct {
 #define HCI_LE_ENH_TX_TEST_SUPPORTED(x) ((x)[36] & 0x01)
 
 #define HCI_LE_SET_PRIVACY_MODE_SUPPORTED(x) ((x)[39] & 0x04)
+
+#define HCI_SET_MIN_ENCRYPTION_KEY_SIZE_SUPPORTED(x) ((x)[45] & 0x80)
+
+// Set Host Support for Connection subrating bit in features_ble
+#define HCI_LE_SET_CONN_SUBRATING_HOST_SUPPORT(x)   \
+  {                                       \
+    (x)[4] = (x)[4] | 0x40;               \
+  }
 
 #endif

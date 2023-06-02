@@ -473,6 +473,22 @@ typedef struct t_l2c_linkcb {
   uint16_t latency;
   uint16_t timeout;
 
+#define L2C_BLE_SUBRATE_REQ_DISABLE \
+  0x1                              /* disable subrate req */
+#define L2C_BLE_NEW_SUBRATE_PARAM 0x2 /* new subrate req parameter to be set */
+#define L2C_BLE_SUBRATE_REQ_PENDING                  \
+  0x4 /* waiting for subrate change to be completed \
+         */
+
+  /* subrate req params */
+  uint16_t subrate_min;
+  uint16_t subrate_max;
+  uint16_t max_latency;
+  uint16_t cont_num;
+  uint16_t supervision_tout;
+
+  uint8_t subrate_req_mask;
+
 #if (L2CAP_ROUND_ROBIN_CHANNEL_SERVICE == TRUE)
   /* each priority group is limited burst transmission */
   /* round robin service for the same priority channels */
@@ -872,5 +888,9 @@ extern void l2cble_process_data_length_change_event(uint16_t handle,
                                                     uint16_t rx_data_len);
 
 extern void l2cu_process_fixed_disc_cback(tL2C_LCB* p_lcb);
+
+extern void l2cble_process_subrate_change_evt(uint16_t handle, uint8_t status,
+                                              uint16_t subrate_factor, uint16_t peripheral_latency,
+                                              uint16_t cont_num, uint16_t timeout);
 
 #endif

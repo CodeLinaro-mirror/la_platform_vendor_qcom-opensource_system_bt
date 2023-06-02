@@ -28,6 +28,7 @@
 #include "osi/include/log.h"
 #include "utils/include/bt_utils.h"
 
+#define MIN_ENCRYPTION_KEY_SIZE 8
 static const char CONTROLLER_MODULE[] = "controller_module";
 
 typedef struct controller_t {
@@ -52,6 +53,7 @@ typedef struct controller_t {
   bool (*supports_master_slave_role_switch)(void);
   bool (*supports_enhanced_setup_synchronous_connection)(void);
   bool (*supports_enhanced_accept_synchronous_connection)(void);
+  bool (*supports_set_min_encryption_key_size)(void);
 
   bool (*supports_ble)(void);
   bool (*supports_ble_packet_extension)(void);
@@ -62,6 +64,7 @@ typedef struct controller_t {
   bool (*supports_ble_coded_phy)(void);
   bool (*supports_ble_extended_advertising)(void);
   bool (*supports_ble_periodic_advertising)(void);
+  bool (*supports_ble_periodic_advertising_adi)(void);
 
   // Get the cached acl data sizes for the controller.
   uint16_t (*get_acl_data_size_classic)(void);
@@ -90,6 +93,8 @@ typedef struct controller_t {
   uint8_t (*get_le_all_initiating_phys)(void);
   uint8_t* (*get_scrambling_supported_freqs)(uint8_t* number_of_freqs);
 
+  bool (*is_conn_subrating_supported)(void);
+  bool (*is_conn_subrating_host_supported)(void);
 } controller_t;
 
 const controller_t* controller_get_interface();

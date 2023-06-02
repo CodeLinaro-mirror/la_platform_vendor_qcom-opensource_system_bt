@@ -49,12 +49,14 @@
 #include "l2c_int.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
+#include "stack_config.h"
 
 using tracked_objects::Location;
 
 extern void bte_main_disable(void);
 extern void btm_process_cancel_complete(uint8_t status, uint8_t mode);
 extern void btm_ble_test_command_complete(uint8_t* p);
+extern void smp_cancel_start_encryption_attempt();
 
 /******************************************************************************/
 /*            L O C A L    F U N C T I O N     P R O T O T Y P E S            */
@@ -129,6 +131,8 @@ static void btu_ble_rc_param_req_evt(uint8_t* p);
 #if (BLE_PRIVACY_SPT == TRUE)
 static void btu_ble_proc_enhanced_conn_cmpl(uint8_t* p, uint16_t evt_len);
 #endif
+
+static void btu_ble_subrate_change_evt(uint8_t* p, uint16_t evt_len);
 
 static void do_in_hci_thread(const tracked_objects::Location& from_here,
                              const base::Closure& task) {
@@ -358,8 +362,23 @@ void btu_hcif_process_event(UNUSED_ATTR uint8_t controller_id, BT_HDR* p_msg) {
           btm_ble_process_ext_adv_pkt(hci_evt_len, p);
           break;
 
+        case HCI_LE_PERIODIC_ADV_SYNC_ESTABLISHED_EVT:
+          btm_ble_periodic_adv_sync_established(p, hci_evt_len);
+          break;
+
+        case HCI_LE_PERIODIC_ADVERTISING_REPORT_EVT:
+          btm_ble_periodic_adv_report(p, hci_evt_len);
+          break;
+
+        case HCI_LE_PERIODIC_ADV_SYNC_LOST_EVT:
+          btm_ble_periodic_adv_sync_lost(p, hci_evt_len);
+          break;
+
         case HCI_LE_ADVERTISING_SET_TERMINATED_EVT:
           btm_le_on_advertising_set_terminated(p, hci_evt_len);
+          break;
+        case HCI_LE_SUBRATE_CHANGE_EVT:
+          btu_ble_subrate_change_evt(p, hci_evt_len);
           break;
       }
       break;
@@ -727,6 +746,46 @@ static void btu_hcif_rmt_name_request_comp_evt(uint8_t* p, uint16_t evt_len) {
   btm_sec_rmt_name_request_complete(&bd_addr, p, status);
 }
 
+static void read_encryption_key_size_complete_after_encryption_change(
+    uint8_t status, uint16_t handle, uint8_t key_size) {
+  if (status == HCI_ERR_INSUFFCIENT_SECURITY) {
+    /* If remote device stop the encryption before we call "Read Encryption Key
+     * Size", we might receive Insufficient Security, which means that link is
+     * no longer encrypted. */
+    HCI_TRACE_WARNING("%s encryption stopped on link: 0x%02x", __func__,
+                      handle);
+    return;
+  }
+
+  if (status != HCI_SUCCESS) {
+    HCI_TRACE_WARNING("%s: disconnecting, status: 0x%02x", __func__, status);
+    btsnd_hcic_disconnect(handle, HCI_ERR_PEER_USER);
+    return;
+  }
+
+  if (stack_config_get_interface()->get_pts_bredr_invalid_encryption_keysize() > 0) {
+    key_size = stack_config_get_interface()->get_pts_bredr_invalid_encryption_keysize();
+    HCI_TRACE_ERROR(
+        "%s key_size set for pts test, handle: 0x%02x, key_size: "
+        "%d",
+        __func__, handle, key_size);
+  }
+
+  if (key_size < MIN_ENCRYPTION_KEY_SIZE) {
+    HCI_TRACE_ERROR(
+        "%s encryption key too short, disconnecting. handle: 0x%02x, key_size: "
+        "%d",
+        __func__, handle, key_size);
+
+    btsnd_hcic_disconnect(handle, HCI_ERR_HOST_REJECT_SECURITY);
+    return;
+  }
+
+  // good key size - succeed
+  btm_acl_encrypt_change(handle, status, 1 /* enable */);
+  btm_sec_encrypt_change(handle, status, 1 /* enable */);
+}
+
 /*******************************************************************************
  *
  * Function         btu_hcif_encryption_change_evt
@@ -745,8 +804,25 @@ static void btu_hcif_encryption_change_evt(uint8_t* p) {
   STREAM_TO_UINT16(handle, p);
   STREAM_TO_UINT8(encr_enable, p);
 
-  btm_acl_encrypt_change(handle, status, encr_enable);
-  btm_sec_encrypt_change(handle, status, encr_enable);
+  if (status == HCI_ERR_CONNECTION_TOUT) {
+    smp_cancel_start_encryption_attempt();
+    return;
+  }
+
+  if (status != HCI_SUCCESS || encr_enable == 0 ||
+      BTM_IsBleConnection(handle)) {
+    btm_acl_encrypt_change(handle, status, encr_enable);
+    btm_sec_encrypt_change(handle, status, encr_enable);
+  } else {
+    // Skip encryption key size check when using set_min_encryption_key_size
+    if (!controller_get_interface()->supports_set_min_encryption_key_size()) {
+      btsnd_hcic_read_encryption_key_size(handle, base::Bind(
+          &read_encryption_key_size_complete_after_encryption_change));
+    } else {
+      btm_acl_encrypt_change(handle, status, encr_enable);
+      btm_sec_encrypt_change(handle, status, encr_enable);
+    }
+  }
 }
 
 /*******************************************************************************
@@ -1199,6 +1275,15 @@ static void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status,
             btm_sec_auth_complete(BTM_INVALID_HCI_HANDLE, status);
             break;
 
+          case HCI_BLE_START_ENC:
+            // Race condition: disconnection happened right before we send
+            // "LE Encrypt", controller responds with no connection, we should
+            // cancel the encryption attempt, rather than unpair the device.
+            if (status == HCI_ERR_NO_CONNECTION) {
+              smp_cancel_start_encryption_attempt();
+            }
+            break;
+
           case HCI_SET_CONN_ENCRYPTION:
             /* Device refused to start encryption.  That should be treated as
              * encryption failure. */
@@ -1215,6 +1300,13 @@ static void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status,
               STREAM_TO_UINT16(handle, p_cmd);
             }
             l2cble_process_conn_update_failed(handle, status);
+            break;
+          case HCI_BLE_SUBRATE_REQ:
+            if (p_cmd != NULL) {
+              p_cmd++; /* bypass length field */
+              STREAM_TO_UINT16(handle, p_cmd);
+              btm_ble_subrate_req_cmd_status(status, handle);
+            }
             break;
 #if (BTM_SCO_INCLUDED == TRUE)
           case HCI_SETUP_ESCO_CONNECTION:
@@ -1738,9 +1830,44 @@ static void btu_hcif_enhanced_flush_complete_evt(void) {
  * End of Simple Pairing Events
  **********************************************/
 
-/**********************************************
- * BLE Events
- **********************************************/
+static void read_encryption_key_size_complete_after_key_refresh(
+    uint8_t status, uint16_t handle, uint8_t key_size) {
+  if (status == HCI_ERR_INSUFFCIENT_SECURITY) {
+    /* If remote device stop the encryption before we call "Read Encryption Key
+     * Size", we might receive Insufficient Security, which means that link is
+     * no longer encrypted. */
+    HCI_TRACE_WARNING("%s encryption stopped on link: 0x%02x", __func__,
+                      handle);
+    return;
+  }
+
+  if (status != HCI_SUCCESS) {
+    HCI_TRACE_WARNING("%s: disconnecting, status: 0x%02x", __func__, status);
+    btsnd_hcic_disconnect(handle, HCI_ERR_PEER_USER);
+    return;
+  }
+
+  if (stack_config_get_interface()->get_pts_bredr_invalid_encryption_keysize() > 0) {
+    key_size = stack_config_get_interface()->get_pts_bredr_invalid_encryption_keysize();
+    HCI_TRACE_ERROR(
+        "%s key_size set for pts test, handle: 0x%02x, key_size: "
+        "%d",
+        __func__, handle, key_size);
+  }
+
+  if (key_size < MIN_ENCRYPTION_KEY_SIZE) {
+    HCI_TRACE_WARNING(
+        "%s encryption key too short, disconnecting. handle: 0x%02x, key_size: "
+        "%d",
+        __func__, handle, key_size);
+
+    btsnd_hcic_disconnect(handle, HCI_ERR_HOST_REJECT_SECURITY);
+    return;
+  }
+
+  btm_sec_encrypt_change(handle, status, 1 /* enc_enable */);
+}
+
 static void btu_hcif_encryption_key_refresh_cmpl_evt(uint8_t* p) {
   uint8_t status;
   uint8_t enc_enable = 0;
@@ -1749,11 +1876,23 @@ static void btu_hcif_encryption_key_refresh_cmpl_evt(uint8_t* p) {
   STREAM_TO_UINT8(status, p);
   STREAM_TO_UINT16(handle, p);
 
-  if (status == HCI_SUCCESS) enc_enable = 1;
-
-  btm_sec_encrypt_change(handle, status, enc_enable);
+  if (status != HCI_SUCCESS || BTM_IsBleConnection(handle)) {
+    btm_sec_encrypt_change(handle, status, (status == HCI_SUCCESS) ? 1 : 0);
+  } else {
+    // Skip encryption key size check when using set_min_encryption_key_size
+    if (!controller_get_interface()->supports_set_min_encryption_key_size()) {
+      btsnd_hcic_read_encryption_key_size(
+          handle,
+          base::Bind(&read_encryption_key_size_complete_after_key_refresh));
+    } else {
+      btm_sec_encrypt_change(handle, status, (status == HCI_SUCCESS) ? 1 : 0);
+    }
+  }
 }
 
+/**********************************************
+ * BLE Events
+ **********************************************/
 static void btu_ble_ll_conn_complete_evt(uint8_t* p, uint16_t evt_len) {
   btm_ble_conn_complete(p, evt_len, false);
 }
@@ -1766,6 +1905,10 @@ static void btu_ble_proc_enhanced_conn_cmpl(uint8_t* p, uint16_t evt_len) {
 extern void gatt_notify_conn_update(uint16_t handle, uint16_t interval,
                                     uint16_t latency, uint16_t timeout,
                                     uint8_t status);
+
+extern void gatt_notify_subrate_change(uint16_t handle, uint16_t subrate_factor,
+                                       uint16_t latency, uint16_t cont_num,
+                                       uint16_t timeout, uint8_t status);
 
 static void btu_ble_ll_conn_param_upd_evt(uint8_t* p, uint16_t evt_len) {
   /* LE connection update has completed successfully as a master. */
@@ -1839,3 +1982,41 @@ static void btu_ble_rc_param_req_evt(uint8_t* p) {
                                       timeout);
 }
 #endif /* BLE_LLT_INCLUDED */
+
+static void btu_ble_subrate_change_evt(uint8_t* p, uint16_t evt_len) {
+  uint8_t status;
+  uint16_t handle;
+  uint16_t subrate_factor;
+  uint16_t peripheral_latency;
+  uint16_t cont_num;
+  uint16_t timeout;
+
+  STREAM_TO_UINT8(status, p);
+  STREAM_TO_UINT16(handle, p);
+  STREAM_TO_UINT16(subrate_factor, p);
+  STREAM_TO_UINT16(peripheral_latency, p);
+  STREAM_TO_UINT16(cont_num, p);
+  STREAM_TO_UINT16(timeout, p);
+
+  l2cble_process_subrate_change_evt(handle, status, subrate_factor,
+                                    peripheral_latency, cont_num, timeout);
+
+  gatt_notify_subrate_change(handle & 0x0FFF, subrate_factor,
+                             peripheral_latency, cont_num, timeout, status);
+}
+
+void btm_ble_subrate_req_cmd_status(uint8_t status, uint16_t handle) {
+  uint16_t subrate_factor = 0;
+  uint16_t peripheral_latency = 0;
+  uint16_t cont_num = 0;
+  uint16_t timeout = 0;
+
+  if (status == HCI_SUCCESS) return;
+
+  HCI_TRACE_ERROR("LE Subrate request - cmd status error");
+  l2cble_process_subrate_change_evt(handle, status, subrate_factor,
+                                    peripheral_latency, cont_num, timeout);
+
+  gatt_notify_subrate_change(handle & 0x0FFF, subrate_factor,
+                             peripheral_latency, cont_num, timeout, status);
+}

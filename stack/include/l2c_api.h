@@ -1321,4 +1321,37 @@ extern void L2CA_SetMediaStreamChannel(uint16_t local_media_cid, bool status);
 *******************************************************************************/
 extern bool L2CA_isMediaChannel(uint16_t handle, uint16_t channel_id, bool is_local_cid);
 
+
+/*******************************************************************************
+ *
+ *  Function        L2CA_SetDefaultSubrate
+ *
+ *  Description     BLE Set Default Subrate.
+ *
+ *  Parameters:     Subrate parameters
+ *
+ *  Return value:   void
+ *
+ ******************************************************************************/
+extern void L2CA_SetDefaultSubrate(uint16_t subrate_min, uint16_t subrate_max,
+                                   uint16_t max_latency, uint16_t cont_num,
+                                   uint16_t timeout);
+
+
+/*******************************************************************************
+ *
+ *  Function        L2CA_SubrateRequest
+ *
+ *  Description     BLE Subrate request.
+ *
+ *  Parameters:     Subrate parameters
+ *
+ *  Return value:   true if update started
+ *
+ ******************************************************************************/
+extern bool L2CA_SubrateRequest(const RawAddress& rem_bda,
+                                uint16_t subrate_min, uint16_t subrate_max,
+                                uint16_t max_latency, uint16_t cont_num,
+                                uint16_t timeout);
+
 #endif /* L2C_API_H */
