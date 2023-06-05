@@ -317,6 +317,7 @@ BluetoothSSInterface::BluetoothSSInterface() {
         rx_thread = std::unique_ptr<std::thread>(new std::thread(&BluetoothSSInterface::processRx, this));
         alarm_set_on_mloop(rx_thread_timeout, GLINK_IDLE_TIMEOUT,
                     rxThreadTimeout, NULL);
+        rx_thread->detach();
     }
     ctrl_tx_thread = thread_new_sized("ctrl_tx_thread", 1024);
     thread_post(ctrl_tx_thread, run_message_loop_for_ctrl_tx, nullptr);
@@ -326,11 +327,13 @@ BluetoothSSInterface::BluetoothSSInterface() {
     //threads for data channel
     if(!data_ch_rx_thread){
         data_ch_rx_thread = std::unique_ptr<std::thread>(new std::thread(&BluetoothSSInterface::processDataChRx, this));
+        data_ch_rx_thread->detach();
     }
 
     //thread for ssr dump
     if(!ssr_data_ch_rx_thread){
         ssr_data_ch_rx_thread = std::unique_ptr<std::thread>(new std::thread(&BluetoothSSInterface::processSsrDataChRx, this));
+        ssr_data_ch_rx_thread->detach();
     }
 
     data_tx_thread = thread_new_sized("data_tx_thread", 1024);
@@ -339,6 +342,7 @@ BluetoothSSInterface::BluetoothSSInterface() {
     //threads for le data channel
     if(!le_data_ch_rx_thread){
         le_data_ch_rx_thread = std::unique_ptr<std::thread>(new std::thread(&BluetoothSSInterface::processLeDataChRx, this));
+        le_data_ch_rx_thread->detach();
     }
     le_data_tx_thread = thread_new_sized("le_data_tx_thread", 1024);
     thread_post(le_data_tx_thread, run_message_loop_for_le_data_tx, nullptr);
@@ -349,55 +353,15 @@ BluetoothSSInterface::BluetoothSSInterface() {
     thread_post(data_logging_thread, run_message_loop_for_data_logging, nullptr);
 }
 
-BluetoothSSInterface::~BluetoothSSInterface() {
-    ALOGI("BluetoothSSInterface destructor");
-    isTxTimeout = false;
-    isRxTimeout = false;
-    isWakelockAcquired = false;
-    pthread_mutex_destroy(&tx_threads_mutex);
-    pthread_mutex_destroy(&rx_threads_mutex);
-    pthread_mutex_destroy(&wakelock_mutex);
-    //for ctrl ch
-    if (run_loop_ctrl_tx_ && message_loop_ctrl_tx_) {
-      message_loop_ctrl_tx_->task_runner()->PostTask(FROM_HERE,
-          run_loop_ctrl_tx_->QuitClosure());
-    }
-    gSSTransportCtrl->close();
-    running_ctrl_ch_ = false;
-    delete gSSTransportCtrl;
-    gSSTransportCtrl = NULL;
-    //for data ch
-    if (run_loop_data_tx_ && message_loop_data_tx_) {
-      message_loop_data_tx_->task_runner()->PostTask(FROM_HERE,
-          run_loop_data_tx_->QuitClosure());
-    }
-    gSSTransportData->close();
-    running_data_ch_ = false;
-    delete gSSTransportData;
-    gSSTransportData = NULL;
-    //for le data ch
-    if (run_loop_le_data_tx_ && message_loop_le_data_tx_) {
-      message_loop_le_data_tx_->task_runner()->PostTask(FROM_HERE,
-          run_loop_le_data_tx_->QuitClosure());
-    }
-    gSSTransportLeData->close();
-    running_le_data_ch_ = false;
-    delete gSSTransportLeData;
-    gSSTransportLeData = NULL;
+BluetoothSSInterface::~BluetoothSSInterface(){
+  ALOGI("BluetoothSSInterface destructor");
+}
 
-    /* For SSR Dump data channel */
-    if (gSSTransportSsrData != NULL) {
-      gSSTransportSsrData->close();
-      running_ssr_data_ch_ = false;
-      delete gSSTransportSsrData;
-      gSSTransportSsrData = NULL;
-    }
+void BluetoothSSInterface::cleanup() {
+    ALOGI("BluetoothSSInterface cleanup start");
+    BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false);
 
-    if (run_loop_alarm_ && message_loop_alarm_) {
-      message_loop_alarm_->task_runner()->PostTask(FROM_HERE,
-          run_loop_alarm_->QuitClosure());
-    }
-    gProfileCallbackMap.clear();//Clearing profile callback map
+    // Stop Alarms
     if (alarm_is_scheduled(rx_thread_timeout)) {
       ALOGI("%s(): rx_thread_timeout() scheduled", __func__);
       alarm_cancel(rx_thread_timeout);
@@ -405,7 +369,7 @@ BluetoothSSInterface::~BluetoothSSInterface() {
     } else {
       ALOGI("%s(): rx_thread_timeout() is not scheduled", __func__);
     }
-    // stop ssrdump alarm
+
     if (alarm_is_scheduled(rx_ssr_dump_thread_timeout)) {
       ALOGI("%s(): rx_ssr_dump_thread_timeout() scheduled", __func__);
       alarm_cancel(rx_ssr_dump_thread_timeout);
@@ -422,10 +386,96 @@ BluetoothSSInterface::~BluetoothSSInterface() {
     } else {
       ALOGI("%s(): tx_thread_timeout() is not scheduled", __func__);
     }
+
+    //Cleanup Ctrl Ch
+    if (run_loop_ctrl_tx_ && message_loop_ctrl_tx_) {
+      message_loop_ctrl_tx_->task_runner()->PostTask(FROM_HERE,
+          run_loop_ctrl_tx_->QuitClosure());
+    }
+
+    thread_free(ctrl_tx_thread);
+    ctrl_tx_thread = NULL;
+    if (gSSTransportCtrl != NULL) {
+      gSSTransportCtrl->close();
+      running_ctrl_ch_ = false;
+      delete gSSTransportCtrl;
+      gSSTransportCtrl = NULL;
+    }
+
+    //Cleanup Data Tx Ch
+    if (run_loop_data_tx_ && message_loop_data_tx_) {
+      message_loop_data_tx_->task_runner()->PostTask(FROM_HERE,
+          run_loop_data_tx_->QuitClosure());
+    }
+
+    thread_free(data_tx_thread);
+    data_tx_thread = NULL;
+
+    if (gSSTransportData != NULL) {
+      gSSTransportData->close();
+      running_data_ch_ = false;
+      delete gSSTransportData;
+      gSSTransportData = NULL;
+    }
+
+    //Cleanup Le Data Tx Ch
+    if (run_loop_le_data_tx_ && message_loop_le_data_tx_) {
+      message_loop_le_data_tx_->task_runner()->PostTask(FROM_HERE,
+          run_loop_le_data_tx_->QuitClosure());
+    }
+
+    thread_free(le_data_tx_thread);
+    le_data_tx_thread = NULL;
+
+    if(gSSTransportLeData != NULL) {
+      gSSTransportLeData->close();
+      running_le_data_ch_ = false;
+      delete gSSTransportLeData;
+      gSSTransportLeData = NULL;
+    }
+
+    //Cleanup SSR Data Ch
+    if (run_loop_alarm_ && message_loop_alarm_) {
+      message_loop_alarm_->task_runner()->PostTask(FROM_HERE,
+          run_loop_alarm_->QuitClosure());
+    }
+
+    if (gSSTransportSsrData != NULL) {
+      gSSTransportSsrData->close();
+      running_ssr_data_ch_ = false;
+      delete gSSTransportSsrData;
+      gSSTransportSsrData = NULL;
+    }
+
+    //Cleanup Data Logging Thread
     if (run_loop_data_logging_ && message_loop_data_logging_) {
       message_loop_data_logging_->task_runner()->PostTask(FROM_HERE,
           run_loop_data_logging_->QuitClosure());
     }
+
+    thread_free(data_logging_thread);
+    data_logging_thread = NULL;
+
+    //Cleanup profile callback map
+    gProfileCallbackMap.clear();
+
+    //Cleanup Alarm Loop
+    if (run_loop_alarm_ && message_loop_alarm_) {
+      message_loop_alarm_->task_runner()->PostTask(FROM_HERE,
+          run_loop_alarm_->QuitClosure());
+    }
+    thread_free(alarm_thread);
+    alarm_thread = NULL;
+
+    //Cleanup wakelock mutex
+    isTxTimeout = false;
+    isRxTimeout = false;
+    isWakelockAcquired = false;
+    pthread_mutex_destroy(&tx_threads_mutex);
+    pthread_mutex_destroy(&rx_threads_mutex);
+    pthread_mutex_destroy(&wakelock_mutex);
+
+    ALOGI("BluetoothSSInterface cleanup end");
 }
 
 void processDataLogging(uint8_t *msgStr, size_t buflen, const char *msgtyp) {
@@ -645,6 +695,7 @@ void BluetoothSSInterface::processRx() {
         int rcPoll = gSSTransportCtrl->poll(-1);
         if (-1 == rcPoll) {
             ALOGE("Poll Failure");
+            break;
         }
         pthread_mutex_lock(&rx_threads_mutex);
         if (alarm_is_scheduled(rx_thread_timeout)) {
@@ -690,6 +741,7 @@ void BluetoothSSInterface::processDataChRx() {
         int rcPoll = gSSTransportData->poll(-1);
         if (-1 == rcPoll) {
             ALOGE("Poll Failure");
+            break;
         }
         pthread_mutex_lock(&rx_threads_mutex);
         if (alarm_is_scheduled(rx_thread_timeout)) {
@@ -737,6 +789,7 @@ void BluetoothSSInterface::processLeDataChRx() {
         int rcPoll = gSSTransportLeData->poll(-1);
         if (-1 == rcPoll) {
             ALOGE("Poll Failure");
+            break;
         }
         pthread_mutex_lock(&rx_threads_mutex);
         if (alarm_is_scheduled(rx_thread_timeout)) {
@@ -785,6 +838,7 @@ void BluetoothSSInterface::processSsrDataChRx() {
         int rcPoll = gSSTransportLeData->poll(-1);
         if (-1 == rcPoll) {
             ALOGI("Poll Failure");
+            break;
         }
         pthread_mutex_lock(&rx_threads_mutex);
         if (alarm_is_scheduled(rx_thread_timeout)) {

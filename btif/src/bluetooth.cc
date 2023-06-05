@@ -1707,6 +1707,7 @@ void btif_ss_interface_cleanup(){
   if(btSSInterface == NULL){
     ALOGI("single stack interface is already null");
   }else{
+    btSSInterface->cleanup();
     btSSInterface = NULL;
   }
 #ifdef SS_STUB_ENABLED

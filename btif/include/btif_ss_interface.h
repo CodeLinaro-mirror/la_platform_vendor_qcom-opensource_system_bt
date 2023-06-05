@@ -69,9 +69,9 @@ public:
     void deregisterCallbacks(const char* profile_id);
     //api to acquire or release glink wakelock
     static void ssGlinkWakeLockAcquireOrRelease(bool lockRequest);
+    void cleanup();
 private:
     BluetoothSSInterface();
-    ~BluetoothSSInterface();
     void parseRxData(int msg_id, tBTIF_SS_Cback ssCback);
 
     //for ctrl channel
@@ -93,6 +93,7 @@ private:
     std::unique_ptr<std::thread> ssr_data_ch_rx_thread;
     void processSsrDataChRx();
     bool running_ssr_data_ch_;
-
+protected:
+    ~BluetoothSSInterface();
 };
 #endif //__BTIF_SS_INTERFCAE__
