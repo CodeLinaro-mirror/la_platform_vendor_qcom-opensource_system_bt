@@ -383,6 +383,11 @@ static uint32_t media_attr_list_no_cover_art[] = {
 static const uint8_t media_attr_list_no_cover_art_size =
     sizeof(media_attr_list_no_cover_art)/sizeof(uint32_t);
 
+#define DUMMY_ATTR_NUM 1
+//dummy data for when GetItemmAttributeRes status is Does not Exist(0x09)
+//0x04 = Track number -1 = dummy data
+static btrc_element_attr_val_t dummy_p_attr[DUMMY_ATTR_NUM] = {{0x04, "-1"}};
+
 /*****************************************************************************
  *  Static functions
  *****************************************************************************/
@@ -1983,6 +1988,11 @@ static bt_status_t register_notification_rsp(
   BTIF_TRACE_EVENT("%s: event_id: %s", __func__,
                    dump_rc_notification_event_id(event_id));
   std::unique_lock<std::mutex> lock(btif_rc_cb.lock);
+
+  if (event_id > MAX_RC_NOTIFICATIONS) {
+    BTIF_TRACE_ERROR("Invalid event id");
+    return BT_STATUS_PARM_INVALID;
+  }
 
   memset(&(avrc_rsp.reg_notif), 0, sizeof(tAVRC_REG_NOTIF_RSP));
 
@@ -4033,16 +4043,15 @@ static void handle_get_metadata_attr_response(tBTA_AV_META_MSG* pmeta_msg,
   btif_rc_device_cb_t* p_dev =
       btif_rc_get_device_by_handle(pmeta_msg->rc_handle);
 
+  if (p_dev == NULL) {
+    BTIF_TRACE_ERROR("%s: p_dev NULL", __func__);
+    return;
+  }
+
   if (p_rsp->status == AVRC_STS_NO_ERROR) {
     size_t buf_size = p_rsp->num_attrs * sizeof(btrc_element_attr_val_t);
     btrc_element_attr_val_t* p_attr =
         (btrc_element_attr_val_t*)osi_calloc(buf_size);
-
-    if (p_dev == NULL) {
-      BTIF_TRACE_ERROR("%s: p_dev NULL", __func__);
-      return;
-    }
-
 
     for (int i = 0; i < p_rsp->num_attrs; i++) {
       p_attr[i].attr_id = p_rsp->p_attrs[i].attr_id;
@@ -4064,6 +4073,11 @@ static void handle_get_metadata_attr_response(tBTA_AV_META_MSG* pmeta_msg,
     uint32_t* attr_list = get_requested_attributes_list(p_dev);
     const uint8_t attr_list_size = get_requested_attributes_list_size(p_dev);
     get_metadata_attribute_cmd(p_dev->rc_addr, attr_list_size, attr_list);
+  } else if (p_rsp->status == AVRC_STS_NOT_EXIST) {
+    BTIF_TRACE_WARNING("%s: Notify track changed callback with dummy data", __func__);
+    do_in_jni_thread(FROM_HERE,
+                     base::Bind(bt_rc_ctrl_callbacks->track_changed_cb,
+                                p_dev->rc_addr, DUMMY_ATTR_NUM, dummy_p_attr));
   } else {
     BTIF_TRACE_ERROR("%s: Error in get element attr procedure: %d", __func__,
                      p_rsp->status);

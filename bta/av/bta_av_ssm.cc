@@ -25,6 +25,7 @@
 #include "bt_target.h"  // Must be first to define build configuration
 
 #include "bta/av/bta_av_int.h"
+#include "bt_utils.h"
 #include "osi/include/log.h"
 
 /*****************************************************************************
@@ -204,6 +205,10 @@ static void bta_av_better_stream_state_machine(tBTA_AV_SCB* p_scb,
           event_handler1 = &bta_av_switch_role;
           break;
         case BTA_AV_AVDT_CONNECT_EVT:
+#if A2DP_SINK_PTS_TEST
+          // PTS: A2DP/SNK/AVP
+          if (is_pts_a2dpsink()) break;
+#endif
           event_handler1 = &bta_av_discover_req;
           break;
         case BTA_AV_AVDT_DISCONNECT_EVT:

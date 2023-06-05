@@ -16,6 +16,15 @@
  *
  ******************************************************************************/
 
+/******************************************************************************
+ *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ ******************************************************************************/
+
 #ifndef BTM_API_TYPES_H
 #define BTM_API_TYPES_H
 
@@ -269,6 +278,8 @@ typedef uint8_t tBTM_EIR_SEARCH_RESULT;
 #define BTM_EIR_COMPLETE_LOCAL_NAME_TYPE HCI_EIR_COMPLETE_LOCAL_NAME_TYPE
 /* 0x0A */
 #define BTM_EIR_TX_POWER_LEVEL_TYPE HCI_EIR_TX_POWER_LEVEL_TYPE
+
+#define BTM_INVALID_EIR_TX_POWER_LEVEL 0x7f
 
 typedef enum : uint8_t {
   BTM_BLE_SEC_NONE = 0,

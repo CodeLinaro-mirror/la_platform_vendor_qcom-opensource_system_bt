@@ -283,8 +283,8 @@ void avdt_scb_hdl_pkt_no_frag(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
     p += ex_len * 4;
   }
 
-  if ((p - p_start) > len) {
-    android_errorWriteLog(0x534e4554, "142546355");
+  if ((p - p_start) >= len) {
+    AVDT_TRACE_WARNING("%s: handling malformatted packet: ex_len too large", __func__);
     osi_free_and_reset((void**)&p_data->p_pkt);
     return;
   }
@@ -293,11 +293,11 @@ void avdt_scb_hdl_pkt_no_frag(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
   /* adjust length for any padding at end of packet */
   if (o_p) {
     /* padding length in last byte of packet */
-    pad_len = *(p_start + len);
+    pad_len = *(p_start + len - 1);
   }
 
   /* do sanity check */
-  if (pad_len > (len - offset)) {
+  if (pad_len >= (len - offset)) {
     AVDT_TRACE_WARNING("Got bad media packet");
     osi_free_and_reset((void**)&p_data->p_pkt);
   }
@@ -635,7 +635,13 @@ void avdt_scb_hdl_setconfig_cmd(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
           AVDT_CONFIG_IND_EVT, (tAVDT_CTRL*)&p_data->msg.config_cmd,
           p_scb->stream_config.scb_index);
     } else {
-      p_data->msg.hdr.err_code = AVDT_ERR_UNSUP_CFG;
+#if A2DP_SINK_PTS_TEST
+      if (is_pts_a2dpsink() && !A2DP_IsPeerSourceCodecSupported(p_cfg->codec_info) &&
+          get_a2dp_error_code() != A2DP_SUCCESS) {
+        p_data->msg.hdr.err_code = get_a2dp_error_code();
+      } else
+#endif
+        p_data->msg.hdr.err_code = AVDT_ERR_UNSUP_CFG;
       p_data->msg.hdr.err_param = 0;
       avdt_msg_send_rej(avdt_ccb_by_idx(p_data->msg.hdr.ccb_idx),
                         p_data->msg.hdr.sig_id, &p_data->msg);
@@ -1100,6 +1106,11 @@ void avdt_scb_hdl_write_req(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
 
   /* Build a media packet, and add an RTP header if required. */
   if (add_rtp_header) {
+    if (p_data->apiwrite.p_buf->offset < AVDT_MEDIA_HDR_SIZE) {
+      android_errorWriteWithInfoLog(0x534e4554, "242535997", -1, NULL, 0);
+      return;
+    }
+
     ssrc = avdt_scb_gen_ssrc(p_scb);
 
     p_data->apiwrite.p_buf->len += AVDT_MEDIA_HDR_SIZE;
