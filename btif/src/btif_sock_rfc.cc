@@ -142,6 +142,7 @@ typedef struct {
   int type;
   bool is_fd_pending_for_cleanup;
 } rfc_slot_t;
+static list_t* slots_list;
 
 struct PendingData
 {
@@ -154,12 +155,13 @@ struct PendingData
 bool ss_flush_incoming_que_on_wr_signal(rfc_slot_t* slot);
 static sent_status_t ss_send_data_to_app(int fd, PendingData* p_data);
 
-static rfc_slot_t rfc_slots[MAX_RFC_CHANNEL];
 static uint32_t rfc_slot_id;
+static uint32_t num_of_conn_rfc_slots =0;
 static volatile int pth = -1;  // poll thread handle
 static std::recursive_mutex slot_lock;
 static uid_set_t* uid_set = NULL;
 
+static rfc_slot_t* rfcomm_alloc_slot();
 static rfc_slot_t* find_free_slot(void);
 static rfc_slot_t* find_rfc_slot_by_fd(int fd);
 static rfc_slot_t* find_rfc_slot_by_scn(int scn);
@@ -171,20 +173,51 @@ static bool send_app_scn(rfc_slot_t* rs);
 
 static bool is_init_done(void) { return pth != -1; }
 
-bt_status_t btsock_rfc_init(int poll_thread_handle, uid_set_t* set) {
+static rfc_slot_t* rfcomm_alloc_slot()
+{
+    rfc_slot_t* slot =  static_cast<rfc_slot_t*>(osi_calloc(sizeof(rfc_slot_t)));
+    CHECK(slot != NULL);
+    memset(slot, 0, sizeof(slot));
 
+    slot->scn = -1;
+    slot->sdp_handle = 0;
+    slot->fd = INVALID_FD;
+    slot->app_fd = INVALID_FD;
+    slot->incoming_queue = list_new(osi_free);
+    CHECK(slot->incoming_queue != NULL);
+
+    list_append(slots_list, slot);
+    return slot;
+}
+
+
+void btsock_rfc_cleanup(void) {
+  BTIF_TRACE_DEBUG("%s", __func__);
+  if (gBTSSInterface != NULL) {
+    gBTSSInterface->deregisterCallbacks(BT_PROFILE_SOCKETS_ID);
+  }
+  gBTSSInterface = NULL;
+
+  pth = -1;
+  std::unique_lock<std::recursive_mutex> lock(slot_lock);
+  for (list_node_t* node = list_begin(slots_list); node != list_end(slots_list); node = list_next(node))
+  {
+    rfc_slot_t* slot = static_cast<rfc_slot_t*>(list_node(node));
+    if(slot->id)
+    {
+      cleanup_rfc_slot(slot);
+    }
+  }
+  uid_set = NULL;
+  list_free(slots_list);
+}
+
+bt_status_t btsock_rfc_init(int poll_thread_handle, uid_set_t* set) {
   pth = poll_thread_handle;
   uid_set = set;
+  slots_list = list_new(osi_free);
+  CHECK(slots_list != NULL);
 
-  memset(rfc_slots, 0, sizeof(rfc_slots));
-  for (size_t i = 0; i < ARRAY_SIZE(rfc_slots); ++i) {
-    rfc_slots[i].scn = -1;
-    rfc_slots[i].sdp_handle = 0;
-    rfc_slots[i].fd = INVALID_FD;
-    rfc_slots[i].app_fd = INVALID_FD;
-    rfc_slots[i].incoming_queue = list_new(osi_free);
-    CHECK(rfc_slots[i].incoming_queue != NULL);
-  }
 #if 0
   BTA_JvEnable(jv_dm_cback);
 #endif
@@ -207,31 +240,10 @@ bt_status_t btsock_rfc_init(int poll_thread_handle, uid_set_t* set) {
         ALOGI("%s single stack stub interface Initialization failed",__func__);
     }
   }else{
-	  ALOGI("%s: single stack stub interface is already created",__func__);
+      ALOGI("%s: single stack stub interface is already created",__func__);
   }
 #endif
   return BT_STATUS_SUCCESS;
-}
-
-void btsock_rfc_cleanup(void) {
-  BTIF_TRACE_DEBUG("%s", __func__);
-  if (gBTSSInterface != NULL) {
-    gBTSSInterface->deregisterCallbacks(BT_PROFILE_SOCKETS_ID);
-  }
-  gBTSSInterface = NULL;
-
-  pth = -1;
-#if 0
-  BTA_JvDisable();
-#endif
-  std::unique_lock<std::recursive_mutex> lock(slot_lock);
-  for (size_t i = 0; i < ARRAY_SIZE(rfc_slots); ++i) {
-    if (rfc_slots[i].id) cleanup_rfc_slot(&rfc_slots[i]);
-    list_free(rfc_slots[i].incoming_queue);
-    rfc_slots[i].incoming_queue = NULL;
-  }
-  uid_set = NULL;
-
 }
 
 void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
@@ -486,27 +498,32 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
 }
 
 static rfc_slot_t* find_free_slot(void) {
-  for (size_t i = 0; i < ARRAY_SIZE(rfc_slots); ++i)
-    if (rfc_slots[i].fd == INVALID_FD) return &rfc_slots[i];
-  return NULL;
+   for (list_node_t* node = list_begin(slots_list); node != list_end(slots_list); node = list_next(node))
+   {
+       rfc_slot_t* slot = static_cast<rfc_slot_t*>(list_node(node));
+       if (slot->fd == INVALID_FD) return slot;
+   }
+   return NULL;
 }
 
 static rfc_slot_t* find_rfc_slot_by_id(uint32_t id) {
   CHECK(id != 0);
-
-  for (size_t i = 0; i < ARRAY_SIZE(rfc_slots); ++i)
-    if (rfc_slots[i].id == id) return &rfc_slots[i];
-
+  for(list_node_t* node = list_begin(slots_list); node != list_end(slots_list); node = list_next(node))
+  {
+      rfc_slot_t* slot = static_cast<rfc_slot_t*>(list_node(node));
+      if(slot->id == id) return slot;
+  }
   LOG_ERROR(LOG_TAG, "%s unable to find RFCOMM slot id: %u", __func__, id);
   return NULL;
 }
 
 static rfc_slot_t* find_rfc_slot_by_fd(int fd){
   CHECK(fd != 0);
-
-  for (size_t i = 0; i < ARRAY_SIZE(rfc_slots); ++i)
-    if (rfc_slots[i].fd == fd) return &rfc_slots[i];
-
+  for(list_node_t* node = list_begin(slots_list); node != list_end(slots_list); node = list_next(node))
+  {
+     rfc_slot_t* slot = static_cast<rfc_slot_t*>(list_node(node));
+     if(slot->fd == fd) return slot;
+  }
   LOG_ERROR(LOG_TAG, "%s unable to find RFCOMM slot fd: %u", __func__, fd);
   return NULL;
 }
@@ -527,8 +544,11 @@ static rfc_slot_t* find_rfc_slot_by_pending_sdp(void) {
 #endif
 
 static bool is_requesting_sdp(void) {
-  for (size_t i = 0; i < ARRAY_SIZE(rfc_slots); ++i)
-    if (rfc_slots[i].id && rfc_slots[i].f.doing_sdp_request) return true;
+  for(list_node_t* node = list_begin(slots_list); node != list_end(slots_list); node = list_next(node))
+  {
+    rfc_slot_t* slot = static_cast<rfc_slot_t*>(list_node(node));
+    if(slot->id && slot->f.doing_sdp_request) return true;
+  }
   return false;
 }
 
@@ -545,9 +565,20 @@ static rfc_slot_t* alloc_rfc_slot(const RawAddress* addr, const char* name,
   if (flags & BTSOCK_FLAG_AUTH_16_DIGIT)
     security |= BTM_SEC_IN_MIN_16_DIGIT_PIN;
 
-  rfc_slot_t* slot = find_free_slot();
+  if(type == BTSOCK_RFCOMM)
+  {
+    num_of_conn_rfc_slots++;
+  }
+
+  if((num_of_conn_rfc_slots > MAX_RFC_CHANNEL) && (type == BTSOCK_RFCOMM))
+  {
+    LOG_ERROR(LOG_TAG, "%s Reached the maximum limit for RFCOMM slots.", __func__);
+    return NULL;
+  }
+
+  rfc_slot_t* slot = rfcomm_alloc_slot();
   if (!slot) {
-    LOG_ERROR(LOG_TAG, "%s unable to find free RFCOMM slot.", __func__);
+    LOG_ERROR(LOG_TAG, "%s unable to allocate the RFCOMM slot.", __func__);
     return NULL;
   }
 
@@ -727,7 +758,6 @@ bt_status_t btsock_rfc_listen(const char* service_name,
 bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
                                const Uuid* service_uuid, int channel,
                                int* sock_fd, int flags, int app_uid, int type) {
-
   CHECK(sock_fd != NULL);
   CHECK((service_uuid != NULL) || (channel >= 1 && channel <= MAX_RFC_CHANNEL));
   BTIF_TRACE_DEBUG("%s", __func__);
@@ -929,14 +959,19 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
   }
 
   free_rfc_slot_scn(slot);
-  list_clear(slot->incoming_queue);
+  if(slot->type == BTSOCK_RFCOMM)
+  {
+    num_of_conn_rfc_slots--;
+  }
 
   slot->rfc_port_handle = 0;
   memset(&slot->f, 0, sizeof(slot->f));
   slot->id = 0;
   slot->scn_notified = false;
-}
 
+  list_free(slot->incoming_queue);
+  list_remove(slots_list, slot);
+}
 
 static bool send_app_scn(rfc_slot_t* slot) {
   if (slot->scn_notified == true) {
@@ -1625,19 +1660,18 @@ int bta_co_rfc_data_outgoing(uint32_t id, uint8_t* buf, uint16_t size) {
 
 static rfc_slot_t* find_rfc_slot_by_scn(int scn)
 {
-    int i;
     if(scn > 0)
     {
-        /* traverse it from the last entry, as incase of
-         * server two entries will exist with the same scn
-         * and the later entry is valid
-         */
-        for(i = MAX_RFC_CHANNEL-1; i >= 0; i--)
+        /*traverse it from the last entry, as incase of
+          server two entries will exist with the same scn
+          and the later entry is valid
+        */
+        for(list_node_t* node = list_begin(slots_list); node != list_end(slots_list); node = list_next(node))
         {
-            if(rfc_slots[i].scn == scn)
+            rfc_slot_t* slot = static_cast<rfc_slot_t*>(list_node(node));
+            if(slot->scn == scn && slot->id)
             {
-                if(rfc_slots[i].id)
-                    return &rfc_slots[i];
+               return slot;
             }
         }
     }
