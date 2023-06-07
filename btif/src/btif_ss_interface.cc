@@ -91,7 +91,7 @@ static void txThreadTimeout(void* data) {
   isTxTimeout = true;
   if (isRxTimeout) {
     ALOGI("%s() RX Threads are already timedout, so releasing wakelock for GLINK", __func__);
-    BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false);
+    BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false, false);
   }
 }
 
@@ -100,7 +100,7 @@ static void rxThreadTimeout(void* data) {
   isRxTimeout = true;
   if (isTxTimeout) {
     ALOGI("%s() TX Threads are already timedout, so releasing wakelock for GLINK", __func__);
-    BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false);
+    BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false, false);
   }
 }
 
@@ -302,6 +302,7 @@ BluetoothSSInterface::BluetoothSSInterface() {
     isTxTimeout = false;
     isRxTimeout = false;
     isWakelockAcquired = false;
+    isScanlockAcquired = false;
     pthread_mutex_init(&tx_threads_mutex, NULL);
     pthread_mutex_init(&rx_threads_mutex, NULL);
     pthread_mutex_init(&wakelock_mutex, NULL);
@@ -361,7 +362,7 @@ BluetoothSSInterface::~BluetoothSSInterface(){
 
 void BluetoothSSInterface::cleanup() {
     ALOGI("BluetoothSSInterface cleanup start");
-    BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false);
+    BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false, false);
 
     // Stop Alarms
     if (alarm_is_scheduled(rx_thread_timeout)) {
@@ -469,6 +470,7 @@ void BluetoothSSInterface::cleanup() {
     isTxTimeout = false;
     isRxTimeout = false;
     isWakelockAcquired = false;
+    isScanlockAcquired = false;
     pthread_mutex_destroy(&tx_threads_mutex);
     pthread_mutex_destroy(&rx_threads_mutex);
     pthread_mutex_destroy(&wakelock_mutex);
@@ -493,7 +495,7 @@ void processTx(std::string msgStr) {
   alarm_set_on_mloop(tx_thread_timeout, GLINK_IDLE_TIMEOUT,
       txThreadTimeout, NULL);
   pthread_mutex_unlock(&tx_threads_mutex);
-  BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(true);
+  BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false, true);
   if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
     do_in_data_logging_thread(base::Bind(processDataLogging, tmpBuf,msgStr.length(),msgType));
   }
@@ -516,7 +518,7 @@ int processDataTx(std::string msgStr) {
         isTxTimeout = false;
         alarm_set_on_mloop(tx_thread_timeout, GLINK_IDLE_TIMEOUT, txThreadTimeout, NULL);
         pthread_mutex_unlock(&tx_threads_mutex);
-        BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(true);
+        BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false, true);
         result = gSSTransportData->write(tmpBuf,msgStr.length(),&bytes_written);
         if(result == 0){
           ALOGI("%s: Glink write success",__func__);
@@ -569,7 +571,7 @@ int processLeDataTx(std::string msgStr) {
         isTxTimeout = false;
         alarm_set_on_mloop(tx_thread_timeout, GLINK_IDLE_TIMEOUT, txThreadTimeout, NULL);
         pthread_mutex_unlock(&tx_threads_mutex);
-        BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(true);
+        BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false, true);
         result = gSSTransportLeData->write(tmpBuf,msgStr.length(),&bytes_written);
         if(result == 0){
           ALOGI("%s: Glink write success",__func__);
@@ -632,9 +634,23 @@ void BluetoothSSInterface::deregisterCallbacks(const char* profile_id) {
     }
 }
 
-void BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(bool lockRequest) {
-  ALOGD("ssGlinkWakeLockAcquireOrRelease lockRequest %d",lockRequest);
+void BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(bool isScanOrInquiry, bool lockRequest) {
+  ALOGD("ssGlinkWakeLockAcquireOrRelease ScanOrInquiry %d, lockRequest %d",isScanOrInquiry, lockRequest);
   pthread_mutex_lock(&wakelock_mutex);
+  if (isScanOrInquiry && lockRequest) {
+    isScanlockAcquired = true;
+  } else if (isScanOrInquiry && !lockRequest) {
+    isScanlockAcquired = false;
+    pthread_mutex_unlock(&wakelock_mutex);
+    return;
+  } else {
+    //do nothing
+  }
+  if (isScanlockAcquired && !isScanOrInquiry) {
+    ALOGI("%s Wakelock acquired from Scan or Inquiry, Ignoring other request untill they release",__func__);
+    pthread_mutex_unlock(&wakelock_mutex);
+    return;
+  }
   int result = -1;
   int fd = -1;
   if (isWakelockAcquired && lockRequest) {
@@ -708,7 +724,7 @@ void BluetoothSSInterface::processRx() {
         alarm_set_on_mloop(rx_thread_timeout, GLINK_IDLE_TIMEOUT,
             rxThreadTimeout, NULL);
         pthread_mutex_unlock(&rx_threads_mutex);
-        ssGlinkWakeLockAcquireOrRelease(true);
+        ssGlinkWakeLockAcquireOrRelease(false, true);
         int num = gSSTransportCtrl->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
         if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
           do_in_data_logging_thread(base::Bind(processDataLogging, readBuffer, num, msgType));
@@ -754,7 +770,7 @@ void BluetoothSSInterface::processDataChRx() {
         alarm_set_on_mloop(rx_thread_timeout, GLINK_IDLE_TIMEOUT,
             rxThreadTimeout, NULL);
         pthread_mutex_unlock(&rx_threads_mutex);
-        ssGlinkWakeLockAcquireOrRelease(true);
+        ssGlinkWakeLockAcquireOrRelease(false, true);
         int num = gSSTransportData->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
         ALOGI("num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
@@ -802,7 +818,7 @@ void BluetoothSSInterface::processLeDataChRx() {
         alarm_set_on_mloop(rx_thread_timeout, GLINK_IDLE_TIMEOUT,
             rxThreadTimeout, NULL);
         pthread_mutex_unlock(&rx_threads_mutex);
-        ssGlinkWakeLockAcquireOrRelease(true);
+        ssGlinkWakeLockAcquireOrRelease(false, true);
         int num = gSSTransportLeData->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
         ALOGI("num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
@@ -850,7 +866,7 @@ void BluetoothSSInterface::processSsrDataChRx() {
         isRxTimeout = false;
         alarm_set_on_mloop(rx_thread_timeout, GLINK_IDLE_TIMEOUT, rxThreadTimeout, NULL);
         pthread_mutex_unlock(&rx_threads_mutex);
-        ssGlinkWakeLockAcquireOrRelease(true);
+        ssGlinkWakeLockAcquireOrRelease(false, true);
         int num = gSSTransportSsrData->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
         ALOGI("num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {

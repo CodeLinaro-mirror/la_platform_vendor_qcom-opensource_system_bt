@@ -272,6 +272,13 @@ bool ScannerSingleStackProto::StartScanning(bool start) {
   uint16_t encoded_len = encoded_bytes.length();
   std::string packet = FormTxPacket(BT_LE_SCAN_START_SCANNING, PROTO_ENC_DEC,
                                     encoded_len, encoded_bytes);
+  if (mScanSSInterface != NULL) {
+    if (start) {
+      mScanSSInterface->ssGlinkWakeLockAcquireOrRelease(true, true);
+    } else {
+      mScanSSInterface->ssGlinkWakeLockAcquireOrRelease(true, false);
+    }
+  }
   uint16_t status = postTxMessage(packet);
   if (status != BT_STATUS_SUCCESS) {
     return false;

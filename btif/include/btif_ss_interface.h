@@ -39,6 +39,7 @@
 static bool isTxTimeout;
 static bool isRxTimeout;
 static bool isWakelockAcquired;
+static bool isScanlockAcquired;
 
 struct TxData
 {
@@ -68,7 +69,7 @@ public:
     void registerCallbacks(const char* profile_id, ss_profile_callback profile_cb);
     void deregisterCallbacks(const char* profile_id);
     //api to acquire or release glink wakelock
-    static void ssGlinkWakeLockAcquireOrRelease(bool lockRequest);
+    static void ssGlinkWakeLockAcquireOrRelease(bool isScanOrInquiry, bool lockRequest);
     void cleanup();
 private:
     BluetoothSSInterface();

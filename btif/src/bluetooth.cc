@@ -823,6 +823,9 @@ static int start_discovery(void) {
   char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
   memcpy(resBuffer, (char *) disc_msg, MAX_LENGTH_WITH_PROTO_NONE);
   std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+  if (btSSInterface != NULL) {
+    btSSInterface->ssGlinkWakeLockAcquireOrRelease(true, true);
+  }
 #ifndef SS_STUB_ENABLED
   btSSInterface->postTxMsg(msgStr);
 #else
@@ -849,6 +852,9 @@ static int cancel_discovery(void) {
   char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
   memcpy(resBuffer, (char *) cancel_disc_msg, MAX_LENGTH_WITH_PROTO_NONE);
   std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+  if (btSSInterface != NULL) {
+    btSSInterface->ssGlinkWakeLockAcquireOrRelease(true, false);
+  }
 #ifndef SS_STUB_ENABLED
   btSSInterface->postTxMsg(msgStr);
 #else
@@ -2010,9 +2016,15 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
         discovery_state = (bt_discovery_state_t)discoveryStateChanged.state();
         ALOGI("Has BT_DM_DISCOVERY_STATE_CHANGE_CB: has_state -> %d", discovery_state);
         if(discovery_state == BT_DISCOVERY_STARTED) {
-           ALOGI("Discovery Started callback");
+          ALOGI("Discovery Started callback");
+          if (btSSInterface != NULL) {
+            btSSInterface->ssGlinkWakeLockAcquireOrRelease(true, true);
+          }
         } else if(discovery_state == BT_DISCOVERY_STOPPED) {
-           ALOGI("Discovery Stopped callback");
+          ALOGI("Discovery Stopped callback");
+          if (btSSInterface != NULL) {
+            btSSInterface->ssGlinkWakeLockAcquireOrRelease(true, false);
+          }
         }
         HAL_CBACK(bt_hal_cbacks, discovery_state_changed_cb, discovery_state);
       } else {
