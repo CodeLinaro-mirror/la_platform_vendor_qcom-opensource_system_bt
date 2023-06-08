@@ -505,6 +505,13 @@ class BtaAvCo {
   BtaAvCoSep* FindPeerSource(BtaAvCoPeer* p_peer,
                              btav_a2dp_codec_index_t codec_index);
 
+ /**
+  * Check whether current codec configuration empty
+  *
+  * @return true if empty, otherwise false
+  */
+ bool isCurrentCodecConfigEmpty();
+
  private:
   /**
    * Reset the state.
@@ -2224,3 +2231,25 @@ btav_a2dp_scmst_info_t bta_av_co_get_scmst_info(
 }
 
 void btif_a2dp_codec_debug_dump(int fd) { bta_av_co_cb.DebugDump(fd); }
+
+uint8_t* bta_av_co_get_codec_config(const RawAddress& peer_address) {
+  APPL_TRACE_DEBUG("%s: peer %s", __func__, peer_address.ToString().c_str());
+  BtaAvCoPeer* p_peer = bta_av_co_cb.FindPeer(peer_address);
+  if (p_peer == nullptr)
+    return nullptr;
+  return p_peer->codec_config;
+}
+
+bool BtaAvCo::isCurrentCodecConfigEmpty() {
+  for (int i = 0; i < AVDT_CODEC_SIZE; i++) {
+    if (codec_config_[i] != 0)
+      return false;
+  }
+  return true;
+}
+
+bool bta_av_co_is_current_codec_config_empty() {
+  bool is_empty = bta_av_co_cb.isCurrentCodecConfigEmpty();
+  APPL_TRACE_DEBUG("%s: %s", __func__, is_empty ? "true" : "false");
+  return is_empty;
+}

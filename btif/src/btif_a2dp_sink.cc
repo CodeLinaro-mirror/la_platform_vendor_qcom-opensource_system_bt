@@ -725,6 +725,14 @@ static void btif_a2dp_sink_decoder_update_event(
     btif_a2dp_sink_cb.decoder_interface->decoder_configure(p_buf->codec_info);
   }
 
+  if (btif_a2dp_sink_cb.audio_track != nullptr) {
+#ifndef OS_GENERIC
+    APPL_TRACE_DEBUG("%s: Stop and delete audio track", __func__);
+    BtifAvrcpAudioTrackStop(btif_a2dp_sink_cb.audio_track);
+    BtifAvrcpAudioTrackDelete(btif_a2dp_sink_cb.audio_track);
+#endif
+  }
+
   APPL_TRACE_DEBUG("%s: create audio track", __func__);
   btif_a2dp_sink_cb.audio_track =
 #ifndef OS_GENERIC
