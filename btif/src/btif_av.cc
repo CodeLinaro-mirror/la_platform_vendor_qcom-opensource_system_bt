@@ -1737,7 +1737,11 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
          }
        }
        BTA_AvClose(btif_av_cb[index].bta_handle);
-       btif_queue_advance();
+       if (bt_av_sink_callbacks != NULL) {
+         btif_queue_advance_by_uuid(UUID_SERVCLASS_AUDIO_SINK, &(btif_av_cb[index].peer_bda));
+       } else {
+         btif_queue_advance();
+       }
        btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_IDLE);
        btif_report_connection_state_to_ba(BTAV_CONNECTION_STATE_DISCONNECTED);
        } break;
