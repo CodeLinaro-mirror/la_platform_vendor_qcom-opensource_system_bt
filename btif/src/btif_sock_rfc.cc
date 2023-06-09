@@ -192,7 +192,7 @@ static rfc_slot_t* rfcomm_alloc_slot()
 
 
 void btsock_rfc_cleanup(void) {
-  BTIF_TRACE_DEBUG("%s", __func__);
+  ALOGI("%s", __func__);
   if (gBTSSInterface != NULL) {
     gBTSSInterface->deregisterCallbacks(BT_PROFILE_SOCKETS_ID);
   }
@@ -213,6 +213,7 @@ void btsock_rfc_cleanup(void) {
 }
 
 bt_status_t btsock_rfc_init(int poll_thread_handle, uid_set_t* set) {
+  ALOGI("%s", __func__);
   pth = poll_thread_handle;
   uid_set = set;
   slots_list = list_new(osi_free);
@@ -221,7 +222,6 @@ bt_status_t btsock_rfc_init(int poll_thread_handle, uid_set_t* set) {
 #if 0
   BTA_JvEnable(jv_dm_cback);
 #endif
-  BTIF_TRACE_DEBUG("%s", __func__);
   if(gBTSSInterface == NULL){
     gBTSSInterface = BluetoothSSInterface::getInstance();
     if (gBTSSInterface == NULL) {
@@ -427,7 +427,8 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
           if (rfcommDataCb.has_data()) {
             std::string data_string = rfcommDataCb.data();
             ALOGI("%s: Length received from slate :: %d",__func__,rfcommDataCb.data_len());
-            ALOGI("%s: Recieved length: %d and data: %s",__func__, data_string.length(),data_string.c_str());
+            ALOGI("%s: Recieved length: %d ",__func__, data_string.length());
+
             bytes_rx = data_string.length();
             app_uid = slot->app_uid;
             PendingData *p_data = new PendingData(data_string,data_string.length(),0);
@@ -665,7 +666,7 @@ bt_status_t btsock_rfc_listen(const char* service_name,
         (channel >= 1 && channel <= MAX_RFC_CHANNEL) ||
         ((flags & BTSOCK_FLAG_NO_SDP) != 0));
 
-  BTIF_TRACE_DEBUG("%s", __func__);
+  ALOGI("%s", __func__);
 
   *sock_fd = INVALID_FD;
 
@@ -746,7 +747,7 @@ bt_status_t btsock_rfc_listen(const char* service_name,
   memcpy(resBuffer, (char *) set_remprop_msg, MAX_LENGTH_WITH_PROTO_NONE);
   std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
   msgStr.append(protoMsg);
-  ALOGI("%s: BT_RFCOMM_CREATE_SOCKET length: %d and data: %s",__func__, msgStr.length(),msgStr.c_str());
+  ALOGI("%s: BT_RFCOMM_CREATE_SOCKET length: %d",__func__, msgStr.length());
 #ifndef SS_STUB_ENABLED
   gBTSSInterface->postTxMsg(msgStr);
 #else
@@ -828,7 +829,6 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
   connSocketCh.set_sock_fd(slot->fd);
   connSocketCh.SerializeToString(&protoMsg);
 
-  ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
   //adding length
   uint16_t length = protoMsg.length();
   set_remprop_msg[2] = length & 0xff;
@@ -841,7 +841,7 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
   memcpy(resBuffer, (char *) set_remprop_msg, MAX_LENGTH_WITH_PROTO_NONE);
   std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
   msgStr.append(protoMsg);
-  ALOGI("%s: BT_RFCOMM_CONNECT_SOCKET length: %d and data: %s",__func__, msgStr.length(),msgStr.c_str());
+  ALOGI("%s: BT_RFCOMM_CONNECT_SOCKET length: %d",__func__, msgStr.length());
 #ifndef SS_STUB_ENABLED
   gBTSSInterface->postTxMsg(msgStr);
 #else
@@ -875,6 +875,7 @@ static void free_rfc_slot_scn(rfc_slot_t* slot) {
 }
 
 static void cleanup_rfc_slot(rfc_slot_t* slot) {
+  ALOGI("%s", __func__);
   if(!slot){
     return;
   }
@@ -915,7 +916,7 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
     memcpy(resBuffer, (char *) disconnect_socket, MAX_LENGTH_WITH_PROTO_NONE);
     std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
     msgStr.append(protoMsg);
-    ALOGI("%s: BT_RFCOMM_DISCONNECT_SOCKET length: %d and data: %s",__func__, msgStr.length(),msgStr.c_str());
+    ALOGI("%s: BT_RFCOMM_DISCONNECT_SOCKET length: %d",__func__, msgStr.length());
   #ifndef SS_STUB_ENABLED
     gBTSSInterface->postTxMsg(msgStr);
   #else
@@ -1412,7 +1413,7 @@ static bool flush_incoming_que_on_wr_signal(rfc_slot_t* slot) {
   return true;
 }
 
-void btsock_rfc_signaled(UNUSED_ATTR int fd, int type, int flags, uint32_t user_id) {
+void btsock_rfc_signaled(int fd, int type, int flags, uint32_t user_id) {
   bool need_close = false;
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   int size = 0;
@@ -1466,6 +1467,7 @@ void btsock_rfc_signaled(UNUSED_ATTR int fd, int type, int flags, uint32_t user_
             std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
             msgStr.append(protoMsg);
             ALOGI("%s: BT_RFCOMM_WRITE_SOCKET_DATA proto length: %d and payload length: %d",__func__, msgStr.size(), data_string_sub.size());
+
           #ifndef SS_STUB_ENABLED
             if (type == BTSOCK_L2CAP || type ==  BTSOCK_L2CAP_LE) {
               int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
