@@ -238,7 +238,7 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
                           std::move(data), jni_thread_wrapper(FROM_HERE, cb)));
   }
 
-  void SetPeriodicAdvertisingEnable(int advertiser_id, bool enable,
+  void SetPeriodicAdvertisingEnable(int advertiser_id, uint8_t enable,
                                     StatusCallback cb) override {
     VLOG(1) << __func__ << " advertiser_id: " << +advertiser_id
             << " ,enable: " << enable;

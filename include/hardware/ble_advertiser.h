@@ -103,7 +103,7 @@ class BleAdvertiserInterface {
                                           std::vector<uint8_t> data,
                                           StatusCallback cb) = 0;
 
-  virtual void SetPeriodicAdvertisingEnable(int advertiser_id, bool enable,
+  virtual void SetPeriodicAdvertisingEnable(int advertiser_id, uint8_t enable,
                                             StatusCallback cb) = 0;
 };
 
