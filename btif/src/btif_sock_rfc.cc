@@ -319,6 +319,7 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
       uint32_t sock_fd = 0;
       uint32_t mtu = 0;
       uint32_t status = 0;
+      rfc_slot_t* slot = NULL;
       ss_rfcomm_srv_open_callback rfcommSrvOpenCb;
       rfcommSrvOpenCb.ParseFromString(resBufferString);
       if (rfcommSrvOpenCb.has_sock_fd()) {
@@ -329,14 +330,20 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
           ALOGI("%s: Recieved scn: %d",__func__, channel);
         }
         std::unique_lock<std::recursive_mutex> lock(slot_lock);
-        rfc_slot_t* slot = find_rfc_slot_by_fd(sock_fd);
+        slot = find_rfc_slot_by_fd(sock_fd);
         if(slot){
           if(slot->scn != (int)channel){
             ALOGI("Received Connect Cb on a different SCN. Ignore Connection CB");
             break;
           }
         }
+        else
+        {
+          ALOGE("%s Not able to find the slot for sock FD %d", __func__, sock_fd);
+          return;
+        }
       }
+
       if (rfcommSrvOpenCb.has_addr()) {
         uint8_t* addr = (uint8_t*)rfcommSrvOpenCb.addr().c_str();
         std::string bt_address = ((RawAddress*)addr)->ToString();
@@ -353,8 +360,6 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
       }
       ss_srv_rfc_connect(sock_fd, &bd_addr, channel, status, mtu);
       std::unique_lock<std::recursive_mutex> lock(slot_lock);
-      rfc_slot_t* slot = find_rfc_slot_by_fd(sock_fd);
-      if (!slot) return;
       ss_flush_incoming_que_on_wr_signal(slot);
       break;
     }
@@ -365,6 +370,7 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
       uint32_t sock_fd = 0;
       uint32_t mtu = 0;
       uint32_t status = 0;
+      rfc_slot_t* slot = NULL;
       ss_rfcomm_cli_connect_callback rfcommCliConnCb;
       rfcommCliConnCb.ParseFromString(resBufferString);
       if (rfcommCliConnCb.has_sock_fd()) {
@@ -375,14 +381,20 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
           ALOGI("%s: Recieved scn: %d",__func__, channel);
         }
         std::unique_lock<std::recursive_mutex> lock(slot_lock);
-        rfc_slot_t* slot = find_rfc_slot_by_fd(sock_fd);
+        slot = find_rfc_slot_by_fd(sock_fd);
         if(slot){
           if(slot->scn != (int)channel){
             ALOGI("Received Connect Cb on a different SCN. Ignore Connection CB");
             break;
           }
         }
+        else
+        {
+          ALOGE("%s Not able to find the slot for sock FD %d", __func__, sock_fd);
+          return;
+        }
       }
+
       if (rfcommCliConnCb.has_addr()) {
         uint8_t* addr = (uint8_t*)rfcommCliConnCb.addr().c_str();
         std::string bt_address = ((RawAddress*)addr)->ToString();
@@ -399,8 +411,6 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
       }
       ss_cli_rfc_connect(sock_fd, &bd_addr, channel, status, mtu);
       std::unique_lock<std::recursive_mutex> lock(slot_lock);
-      rfc_slot_t* slot = find_rfc_slot_by_fd(sock_fd);
-      if (!slot) return;
       ss_flush_incoming_que_on_wr_signal(slot);
       break;
     }
