@@ -662,8 +662,14 @@ class BtifAvSink {
     LOG(INFO) << __PRETTY_FUNCTION__ << ": peer: " << peer_address;
 
     if (active_peer_ == peer_address) {
-      peer_ready_promise.set_value();
-      return true;  // Nothing has changed
+      // Fix switch codec issue
+      // When the phone switches A2DP CODEC (e.g. from AAC to SBC), the codec config
+      // of active peer may be cleared and led to update decoder failure. So update
+      // decoder here if cannot find BtaAvCo active peer
+      if (peer_address.IsEmpty() || !bta_av_co_is_current_codec_config_empty()) {
+        peer_ready_promise.set_value();
+        return true;  // Nothing has changed
+      }
     }
     if (peer_address.IsEmpty()) {
       if (btif_av_is_connected()) {
@@ -702,6 +708,10 @@ class BtifAvSink {
       return false;
     }
     active_peer_ = peer_address;
+    uint8_t* config = bta_av_co_get_codec_config(peer_address);
+    if (config != nullptr) {
+      btif_a2dp_sink_update_decoder(config);
+    }
     return true;
   }
 
@@ -1354,6 +1364,10 @@ BtifAvPeer* BtifAvSink::FindOrCreatePeer(const RawAddress& peer_address,
   peer->Init();
   if (active_peer_.IsEmpty()) {
     active_peer_ = peer_address;
+    uint8_t* config = bta_av_co_get_codec_config(peer_address);
+    if (config != nullptr) {
+      btif_a2dp_sink_update_decoder(config);
+    }
   }
   return peer;
 }
