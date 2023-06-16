@@ -18,6 +18,7 @@
  ******************************************************************************/
 
 #include "bt_target.h"
+#include "bt_utils.h"
 #include "device/include/controller.h"
 #include "osi/include/alarm.h"
 
@@ -1041,6 +1042,8 @@ void BleAdvertisingManager::CleanUp() {
  * This function initialize the advertising manager.
  **/
 void btm_ble_adv_init() {
+  if (!is_ble_supported()) return;
+
   BleAdvertiserHciInterface::Initialize();
   BleAdvertisingManager::Initialize(BleAdvertiserHciInterface::Get());
   BleAdvertiserHciInterface::Get()->SetAdvertisingEventObserver(

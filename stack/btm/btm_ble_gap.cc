@@ -31,6 +31,7 @@
 #include <memory>
 #include <vector>
 
+#include "bt_utils.h"
 #include "common/time_util.h"
 #include "device/include/controller.h"
 #include "main/shim/acl_api.h"
@@ -651,6 +652,8 @@ void BTM_BleGetDynamicAudioBuffer(
  ******************************************************************************/
 #if (BLE_VND_INCLUDED == TRUE)
 void BTM_BleReadControllerFeatures(tBTM_BLE_CTRL_FEATURES_CBACK* p_vsc_cback) {
+  if (!is_ble_supported()) return;
+
   if (btm_cb.cmn_ble_vsc_cb.values_read) return;
 
   BTM_TRACE_DEBUG("BTM_BleReadControllerFeatures");

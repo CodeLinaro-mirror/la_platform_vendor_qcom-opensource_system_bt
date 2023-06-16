@@ -29,7 +29,7 @@
 #include <vector>
 
 #include "bt_target.h"  // Must be first to define build configuration
-
+#include "bt_utils.h"
 #include "bta/gatt/bta_gatts_int.h"
 #include "osi/include/allocator.h"
 #include "stack/include/btu.h"  // do_in_main_thread
@@ -82,6 +82,9 @@ void BTA_GATTS_Disable(void) {
  ******************************************************************************/
 void BTA_GATTS_AppRegister(const bluetooth::Uuid& app_uuid,
                            tBTA_GATTS_CBACK* p_cback, bool eatt_support) {
+  if (!is_ble_supported())
+    return;
+
   tBTA_GATTS_API_REG* p_buf =
       (tBTA_GATTS_API_REG*)osi_malloc(sizeof(tBTA_GATTS_API_REG));
 

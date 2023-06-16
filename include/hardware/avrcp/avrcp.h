@@ -158,6 +158,7 @@ class VolumeInterface {
   // is a value from 0-127 because thats what AVRCP uses.
   using VolumeChangedCb = base::Callback<void(int8_t volume)>;
 
+  using AdjustVolumeCb= base::Callback<void(int32_t cmd)>;
   // Indicate that a device has been connected that does not support absolute
   // volume.
   virtual void DeviceConnected(const RawAddress& bdaddr) = 0;
@@ -167,6 +168,9 @@ class VolumeInterface {
   // which will be sent to the device.
   virtual void DeviceConnected(const RawAddress& bdaddr,
                                VolumeChangedCb cb) = 0;
+
+  virtual void DeviceConnectedExt(const RawAddress& bdaddr,
+                               AdjustVolumeCb cb) = 0;
 
   // Indicate that a device has been disconnected from AVRCP. Will unregister
   // any callbacks if absolute volume is supported.

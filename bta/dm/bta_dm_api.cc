@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "bt_target.h"  // Must be first to define build configuration
+#include "bt_utils.h"
 
 #include "bta/dm/bta_dm_int.h"
 #include "osi/include/allocator.h"
@@ -556,6 +557,8 @@ void BTA_DmBleUpdateConnectionParams(const RawAddress& bd_addr,
  ******************************************************************************/
 void BTA_DmBleConfigLocalPrivacy(bool privacy_enable) {
 #if (BLE_PRIVACY_SPT == TRUE)
+  if (!is_ble_supported()) return;
+
   do_in_main_thread(
       FROM_HERE, base::Bind(bta_dm_ble_config_local_privacy, privacy_enable));
 #else

@@ -271,9 +271,12 @@ static void event_start_up_stack(UNUSED_ATTR void* context) {
   get_btm_client_interface().lifecycle.btm_init();
   l2c_init();
   sdp_init();
-  gatt_init();
-  SMP_Init();
-  get_btm_client_interface().lifecycle.btm_ble_init();
+
+  if (is_ble_supported()) {
+    gatt_init();
+    SMP_Init();
+    get_btm_client_interface().lifecycle.btm_ble_init();
+  }
 
   RFCOMM_Init();
 #if (BNEP_INCLUDED == TRUE)
@@ -358,10 +361,17 @@ static void event_shut_down_stack(UNUSED_ATTR void* context) {
 
   module_clean_up(get_local_module(BTE_LOGMSG_MODULE));
 
-  gatt_free();
+  if (is_ble_supported()) {
+    gatt_free();
+  }
+
   l2c_free();
   sdp_free();
-  get_btm_client_interface().lifecycle.btm_ble_free();
+
+  if (is_ble_supported()) {
+    get_btm_client_interface().lifecycle.btm_ble_free();
+  }
+
   get_btm_client_interface().lifecycle.btm_free();
 
   if (bluetooth::shim::is_any_gd_enabled()) {

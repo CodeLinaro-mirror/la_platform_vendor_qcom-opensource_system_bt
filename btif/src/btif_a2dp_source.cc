@@ -1186,7 +1186,10 @@ static void btif_a2dp_source_audio_handle_timer(const RawAddress& peer_address) 
     LOG_ERROR("%s: ERROR Media task Scheduled after Suspend", __func__);
     return;
   }
-  CHECK(a2dp_source_cb->encoder_interface != nullptr);
+  if (a2dp_source_cb->encoder_interface == nullptr) {
+    LOG_ERROR("%s: Encoder interface is null", __func__);
+    return;
+  }
   size_t transmit_queue_length =
       fixed_queue_length(a2dp_source_cb->tx_audio_queue);
 #ifndef OS_GENERIC

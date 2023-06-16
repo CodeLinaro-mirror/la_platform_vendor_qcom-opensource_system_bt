@@ -39,6 +39,7 @@
 #include "bta/sys/bta_sys.h"
 #include "btif/include/btif_acl.h"
 #include "common/metrics.h"
+#include "common/os_utils.h"
 #include "device/include/controller.h"
 #include "device/include/interop.h"
 #include "include/l2cap_hci_link_interface.h"
@@ -48,6 +49,7 @@
 #include "main/shim/l2c_api.h"
 #include "main/shim/shim.h"
 #include "osi/include/log.h"
+#include "osi/include/properties.h"
 #include "stack/acl/acl.h"
 #include "stack/acl/peer_packet_types.h"
 #include "stack/btm/btm_dev.h"
@@ -178,6 +180,11 @@ void NotifyAclFeaturesReadComplete(tACL_CONN& p_acl,
 }
 
 }  // namespace
+
+static bool btm_is_set_link_super_tout_supported() {
+  return is_default_bluetooth() ? true :
+      osi_property_get_bool("vendor.bt.set_link_super_tout", true);
+}
 
 static void hci_btsnd_hcic_disconnect(tACL_CONN& p_acl, tHCI_STATUS reason) {
   LOG_INFO("Disconnecting peer:%s reason:%s",
@@ -1164,6 +1171,11 @@ tBTM_STATUS BTM_GetLinkSuperTout(const RawAddress& remote_bda,
  ******************************************************************************/
 tBTM_STATUS BTM_SetLinkSuperTout(const RawAddress& remote_bda,
                                  uint16_t timeout) {
+  if (!btm_is_set_link_super_tout_supported()) {
+    LOG_WARN("HCI 'Write Link Supervision Timeout' command is not supported");
+    return BTM_ERR_PROCESSING;
+  }
+
   tACL_CONN* p_acl = internal_.btm_bda_to_acl(remote_bda, BT_TRANSPORT_BR_EDR);
   if (p_acl == nullptr) {
     LOG_WARN("Unable to find active acl");
