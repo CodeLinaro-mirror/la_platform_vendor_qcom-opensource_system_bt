@@ -5533,10 +5533,15 @@ static bt_status_t get_metadata_attribute_cmd(const RawAddress& bd_addr,
   }
 
   // If browsing is connected then send the command out that channel
+  // Call get_element_attribute_cmd when uid is 0.
+  // Avrcp spec v1.6, 6.10.3 UIDs:
+  // The value of UID=0x0 is a special value used only to request the metadata
+  // for the currently playing media using the GetElementAttributes command and
+  // shall not be used for any item in a folder.
   uint8_t uid[AVRC_UID_SIZE] = {0};
   uint8_t* uid_p = uid;
   UINT64_TO_BE_STREAM(uid_p, p_dev->rc_playing_uid);
-  if (p_dev->br_connected) {
+  if (p_dev->br_connected && p_dev->rc_playing_uid != 0) {
     // Should not use uid_p as the input parameter since after executing the
     // macro UINT64_TO_BE_STREAM, pointer uid_p has moved forward 8 steps, it
     // does not point to the first element of matrix uid[] any longer.
