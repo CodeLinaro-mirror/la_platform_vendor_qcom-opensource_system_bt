@@ -1602,6 +1602,7 @@ void btss_uevent_handler() {
                       PERSIST_BDADDR_PROPERTY);
                   }
                 }
+                btif_ss_interface_cleanup();
                 ALOGE(" %s : Triggering SSR ", __func__);
                 do_in_jni_thread(
                   FROM_HERE, Bind(
@@ -2285,6 +2286,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
     }
     case BT_DM_SSR_CB: {
       ALOGI("Has BT_DM_SSR_CB");
+      btif_ss_interface_cleanup();
       HAL_CBACK(bt_vendor_callbacks, ssr_vendor_cb);
       break;
     }
