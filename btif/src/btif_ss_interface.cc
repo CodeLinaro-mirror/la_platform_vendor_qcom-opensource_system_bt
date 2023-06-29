@@ -283,10 +283,10 @@ BluetoothSSInterface::BluetoothSSInterface() {
         running_le_data_ch_ = true;
     }
 
+#if 0
     gSSTransportSsrData = new BluetoothSSTransport();
     ALOGI("BluetoothSSInterface calling open for ssr data channel");
     //TBD: Need to enable once slate changes are ready
-#if 0
     rsltfd = gSSTransportSsrData->open(BT_SS_SSR_DATA_CH);
     ALOGI("BluetoothSSInterface finish open for ssr data rstlfd is :: %d",rsltfd);
     if (rsltfd <= 0) {
@@ -297,6 +297,7 @@ BluetoothSSInterface::BluetoothSSInterface() {
       running_ssr_data_ch_ = true;
     }
 #endif
+
     isTxTimeout = false;
     isRxTimeout = false;
     isWakelockAcquired = false;
@@ -435,11 +436,6 @@ void BluetoothSSInterface::cleanup() {
     }
 
     //Cleanup SSR Data Ch
-    if (run_loop_alarm_ && message_loop_alarm_) {
-      message_loop_alarm_->task_runner()->PostTask(FROM_HERE,
-          run_loop_alarm_->QuitClosure());
-    }
-
     if (gSSTransportSsrData != NULL) {
       gSSTransportSsrData->close();
       running_ssr_data_ch_ = false;
@@ -464,6 +460,7 @@ void BluetoothSSInterface::cleanup() {
       message_loop_alarm_->task_runner()->PostTask(FROM_HERE,
           run_loop_alarm_->QuitClosure());
     }
+
     thread_free(alarm_thread);
     alarm_thread = NULL;
 
