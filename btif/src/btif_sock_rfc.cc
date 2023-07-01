@@ -140,7 +140,6 @@ typedef struct {
   int new_srv_fd;
   bool is_server;
   int type;
-  bool is_fd_pending_for_cleanup;
 } rfc_slot_t;
 static list_t* slots_list;
 
@@ -606,7 +605,7 @@ static rfc_slot_t* alloc_rfc_slot(const RawAddress* addr, const char* name,
   } else {
     ++rfc_slot_id;
   }
-  ALOGI("alloc_rfc_slot fds[0] is :: %d fds[1] is :: %d rfc_slot_id is :: %d",fds[0],fds[1],rfc_slot_id);
+  ALOGI("alloc_rfc_slot fds[0] is :: %d fds[1] is :: %d rfc_slot_id is :: %d channel is :: %d server is :: %d",fds[0],fds[1],rfc_slot_id,channel,server);
 
   slot->fd = fds[0];
   slot->app_fd = fds[1];
@@ -662,8 +661,6 @@ static rfc_slot_t* create_srv_accept_rfc_slot(rfc_slot_t* srv_rs,
   uint32_t new_listen_id = accept_rs->id;
   accept_rs->id = srv_rs->id;
   srv_rs->id = new_listen_id;
-  srv_rs->scn = 0;
-  srv_rs->is_fd_pending_for_cleanup = true;
 
   return accept_rs;
 }
@@ -875,12 +872,45 @@ static int create_server_sdp_record(rfc_slot_t* slot) {
 static void free_rfc_slot_scn(rfc_slot_t* slot) {
   if (slot->scn <= 0) return;
 
-  if (slot->f.server && !slot->f.closing && slot->rfc_handle) {
-    //BTA_JvRfcommStopServer(slot->rfc_handle, slot->id);
-    slot->rfc_handle = 0;
+  if (slot->f.server && !slot->f.closing) {
+    ALOGI("can send rfcomm_server_close :: id is :: %d",slot->id);
+    /*Sending rfcomm server close request*/
+        ALOGI("%s: sending rfcomm server close for channel : %d and fd : %d",__func__,slot->scn,slot->fd);
+        uint8_t rfcomm_server_close[MAX_LENGTH_WITH_PROTO_NONE];
+        //adding msg_id
+        uint16_t msg_id = BT_RFCOMM_CLOSE_SERVER;
+        rfcomm_server_close[0] = msg_id & 0xff;
+        rfcomm_server_close[1] = (msg_id >> 8);
+
+        std::string protoMsg;
+        ss_rfcomm_server_close rfcommServerClose;
+        rfcommServerClose.set_channel(slot->scn);
+        rfcommServerClose.set_sock_fd(slot->fd);
+        rfcommServerClose.SerializeToString(&protoMsg);
+        //adding length
+        uint16_t length = protoMsg.length();
+        rfcomm_server_close[2] = length & 0xff;
+        rfcomm_server_close[3] = (length >> 8);
+        //adding proto_encode
+        uint16_t proto_encode = PROTO_ENC_DEC;
+        rfcomm_server_close[4] = proto_encode & 0xff;
+        rfcomm_server_close[5] = (proto_encode >> 8);
+        char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+        memcpy(resBuffer, (char *) rfcomm_server_close, MAX_LENGTH_WITH_PROTO_NONE);
+        std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+        msgStr.append(protoMsg);
+        ALOGI("%s: BT_RFCOMM_CLOSE_SERVER length: %d and data: %s",__func__, msgStr.length(),msgStr.c_str());
+      #ifndef SS_STUB_ENABLED
+        gBTSSInterface->postTxMsg(msgStr);
+      #else
+        gBTSSStubInterface->postTxMsg(msgStr);
+      #endif
+      //BTA_JvRfcommStopServer(slot->rfc_handle, slot->id);
+      slot->rfc_handle = 0;
+      slot->fd = INVALID_FD;
   }
 
- // if (slot->f.server) BTM_FreeSCN(slot->scn);
+  // if (slot->f.server) BTM_FreeSCN(slot->scn);
   slot->scn = 0;
 }
 
@@ -890,67 +920,21 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
     return;
   }
   if(slot){
-    ALOGI("%s: slot->fd is :: %d , slot->scn is :: %d , slot->new_srv_fd is :: %d , slot->is_server is :: %d, slot->is_fd_pending_for_cleanup is :: %d, slot->id is :: %d",__func__,
-    slot->fd, slot->scn,slot->new_srv_fd,slot->is_server,slot->is_fd_pending_for_cleanup,slot->id);
+    ALOGI("%s: slot->fd is :: %d , slot->scn is :: %d , slot->new_srv_fd is :: %d , slot->is_server is :: %d, slot->id is :: %d slot->f.server is :: %d",__func__,
+    slot->fd, slot->scn,slot->new_srv_fd,slot->is_server,slot->id,slot->f.server);
   }
 
-  if(((slot->new_srv_fd == 0 && !slot->is_server) ||
-    (slot->new_srv_fd != 0 && slot->is_server)) && slot->scn != 0){
-    /*Sending disconnect request*/
-    ALOGI("%s: sending disconnect for channel : %d and fd : %d",__func__,slot->scn, slot->is_server?slot->new_srv_fd : slot->fd);
-    uint8_t disconnect_socket[MAX_LENGTH_WITH_PROTO_NONE];
-    //adding msg_id
-    uint16_t msg_id = BT_RFCOMM_DISCONNECT_SOCKET;
-    disconnect_socket[0] = msg_id & 0xff;
-    disconnect_socket[1] = (msg_id >> 8);
-
-    std::string protoMsg;
-    ss_disconnect_socket disconnSocketCh;
-    disconnSocketCh.set_channel(slot->scn);
-    if(slot->is_server){
-        disconnSocketCh.set_sock_fd(slot->new_srv_fd);
-    }else{
-        disconnSocketCh.set_sock_fd(slot->fd);
+  if(slot->f.server){
+    if (slot->new_srv_fd != 0) {
+      shutdown(slot->new_srv_fd, SHUT_RDWR);
+      close(slot->new_srv_fd);
+      slot->new_srv_fd = 0;
+      slot->is_server = false;
     }
-    disconnSocketCh.SerializeToString(&protoMsg);
-
-    //adding length
-    uint16_t length = protoMsg.length();
-    disconnect_socket[2] = length & 0xff;
-    disconnect_socket[3] = (length >> 8);
-    //adding proto_encode
-    uint16_t proto_encode = PROTO_ENC_DEC;
-    disconnect_socket[4] = proto_encode & 0xff;
-    disconnect_socket[5] = (proto_encode >> 8);
-    char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
-    memcpy(resBuffer, (char *) disconnect_socket, MAX_LENGTH_WITH_PROTO_NONE);
-    std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
-    msgStr.append(protoMsg);
-    ALOGI("%s: BT_RFCOMM_DISCONNECT_SOCKET length: %d",__func__, msgStr.length());
-  #ifndef SS_STUB_ENABLED
-    gBTSSInterface->postTxMsg(msgStr);
-  #else
-    gBTSSStubInterface->postTxMsg(msgStr);
-  #endif
-  }
-
-  if (slot->fd != INVALID_FD) {
-    if(slot->is_fd_pending_for_cleanup){
-        ALOGI("%s: fd %d is pending for cleanup",__func__, slot->new_srv_fd);
-        slot->fd = INVALID_FD;
-    }else{
-        ALOGI("%s: cleaning fd :: %d ",__func__, slot->fd);
-        shutdown(slot->fd, SHUT_RDWR);
-        close(slot->fd);
-        slot->fd = INVALID_FD;
-        if(slot->new_srv_fd != 0){
-            ALOGI("%s: cleaning pending fd :: %d ",__func__, slot->new_srv_fd);
-            shutdown(slot->new_srv_fd, SHUT_RDWR);
-            close(slot->new_srv_fd);
-            slot->new_srv_fd = 0;
-            slot->is_server = false;
-            slot->is_fd_pending_for_cleanup = false;
-        }
+  }else{
+    if (slot->fd != INVALID_FD) {
+      shutdown(slot->fd, SHUT_RDWR);
+      close(slot->fd);
     }
   }
 
@@ -966,7 +950,46 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
 
   if (slot->rfc_handle && !slot->f.closing && !slot->f.server) {
    // BTA_JvRfcommClose(slot->rfc_handle, slot->id);
-    slot->rfc_handle = 0;
+    ALOGI("can close rfcomm connection");
+    if(slot->scn != 0){
+        /*Sending disconnect request*/
+        ALOGI("%s: sending disconnect for channel : %d and fd : %d",__func__,slot->scn, slot->is_server?slot->new_srv_fd : slot->fd);
+        uint8_t disconnect_socket[MAX_LENGTH_WITH_PROTO_NONE];
+        //adding msg_id
+        uint16_t msg_id = BT_RFCOMM_DISCONNECT_SOCKET;
+        disconnect_socket[0] = msg_id & 0xff;
+        disconnect_socket[1] = (msg_id >> 8);
+
+        std::string protoMsg;
+        ss_disconnect_socket disconnSocketCh;
+        disconnSocketCh.set_channel(slot->scn);
+        if(slot->is_server){
+            disconnSocketCh.set_sock_fd(slot->new_srv_fd);
+        }else{
+            disconnSocketCh.set_sock_fd(slot->fd);
+        }
+        disconnSocketCh.SerializeToString(&protoMsg);
+
+        //adding length
+        uint16_t length = protoMsg.length();
+        disconnect_socket[2] = length & 0xff;
+        disconnect_socket[3] = (length >> 8);
+        //adding proto_encode
+        uint16_t proto_encode = PROTO_ENC_DEC;
+        disconnect_socket[4] = proto_encode & 0xff;
+        disconnect_socket[5] = (proto_encode >> 8);
+        char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+        memcpy(resBuffer, (char *) disconnect_socket, MAX_LENGTH_WITH_PROTO_NONE);
+        std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+        msgStr.append(protoMsg);
+        ALOGI("%s: BT_RFCOMM_DISCONNECT_SOCKET length: %d and data: %s",__func__, msgStr.length(),msgStr.c_str());
+      #ifndef SS_STUB_ENABLED
+        gBTSSInterface->postTxMsg(msgStr);
+      #else
+        gBTSSStubInterface->postTxMsg(msgStr);
+      #endif
+        slot->rfc_handle = 0;
+    }
   }
 
   free_rfc_slot_scn(slot);
@@ -1014,7 +1037,7 @@ static void ss_srv_rfc_connect (int fd, const RawAddress* addr, int channel,
                               int status, int mtu) {
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* accept_rs;
-  rfc_slot_t* srv_rs = find_rfc_slot_by_scn(channel);
+  rfc_slot_t* srv_rs = find_rfc_slot_by_fd(fd);
   if (!srv_rs) return;
 
   srv_rs->mtu = mtu;
@@ -1424,6 +1447,7 @@ static bool flush_incoming_que_on_wr_signal(rfc_slot_t* slot) {
 }
 
 void btsock_rfc_signaled(int fd, int type, int flags, uint32_t user_id) {
+  ALOGI("btsock_rfc_signaled :: fd is :: %d , user_id is :: %d",fd,user_id);
   bool need_close = false;
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   int size = 0;
@@ -1433,7 +1457,7 @@ void btsock_rfc_signaled(int fd, int type, int flags, uint32_t user_id) {
   channel = slot->scn;
   int new_srv_fd = slot->new_srv_fd;
   ALOGI("new_srv_fd is :: %d",new_srv_fd);
-  if (flags & SOCK_THREAD_FD_RD){
+  if (flags & SOCK_THREAD_FD_RD && !slot->f.server){
     if(slot->f.connected){
     ALOGI("Data available from App on FD :: %d and channel :: %d and new_srv_fd is %d and slot->mtu is %d",fd,channel,new_srv_fd,slot->mtu);
     if (ss_rfc_data_outgoing_size(fd, &size)) {
@@ -1477,7 +1501,6 @@ void btsock_rfc_signaled(int fd, int type, int flags, uint32_t user_id) {
             std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
             msgStr.append(protoMsg);
             ALOGI("%s: BT_RFCOMM_WRITE_SOCKET_DATA proto length: %d and payload length: %d",__func__, msgStr.size(), data_string_sub.size());
-
           #ifndef SS_STUB_ENABLED
             if (type == BTSOCK_L2CAP || type ==  BTSOCK_L2CAP_LE) {
               int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
@@ -1672,6 +1695,7 @@ int bta_co_rfc_data_outgoing(uint32_t id, uint8_t* buf, uint16_t size) {
 
 static rfc_slot_t* find_rfc_slot_by_scn(int scn)
 {
+  rfc_slot_t* scn_match_slot = NULL;
     if(scn > 0)
     {
         /*traverse it from the last entry, as incase of
@@ -1683,8 +1707,11 @@ static rfc_slot_t* find_rfc_slot_by_scn(int scn)
             rfc_slot_t* slot = static_cast<rfc_slot_t*>(list_node(node));
             if(slot->scn == scn && slot->id)
             {
-               return slot;
+               scn_match_slot = slot;
             }
+        }
+        if(scn_match_slot != NULL){
+          return scn_match_slot;
         }
     }
     ALOGI("%s returning null slot",__func__);

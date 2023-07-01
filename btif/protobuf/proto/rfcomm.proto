@@ -87,3 +87,9 @@ message ss_rfcomm_disconnect_callback{
 	required uint32 sock_fd = 1;
 	required uint32 channel = 2;
 }
+
+/** rfcomm server close */
+message ss_rfcomm_server_close{
+	required uint32 sock_fd = 1;
+	required uint32 channel = 2;
+}
