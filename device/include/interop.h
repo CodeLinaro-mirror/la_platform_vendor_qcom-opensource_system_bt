@@ -228,6 +228,7 @@ typedef enum {
   // send the AVDTP START or send the AVDTP START before media transport channel opned
   // due to this we are rejecting AVDTP START.
   INTEROP_DISABLE_AVDTP_DISCOVER_COMMAND,
+  INTEROP_DISABLE_AVDTP_DISCOVER_COMMAND_LIMITED_CODEC_RESPONSE,
   END_OF_INTEROP_LIST
 } interop_feature_t;
 

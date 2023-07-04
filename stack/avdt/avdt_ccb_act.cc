@@ -189,7 +189,8 @@ void avdt_ccb_hdl_discover_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
 
   AVDT_TRACE_WARNING("%s: total connections: %d, total codecs: %d",
       __func__, num_conn, num_codecs);
-
+  bool interop_check = interop_match_addr(INTEROP_DISABLE_AVDTP_DISCOVER_COMMAND_LIMITED_CODEC_RESPONSE,  &p_ccb->peer_addr);
+  if(!interop_check) {
     /* If this ccb, has done setconf and is doing discover again
      * we should show SEP for which setconfig was done earlier
      * This is done for IOP with some remotes */
@@ -206,13 +207,14 @@ void avdt_ccb_hdl_discover_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
       avdt_ccb_event(p_ccb, AVDT_CCB_API_DISCOVER_RSP_EVT, p_data);
       return;
     }
+   }
   }
   p_scb = &avdt_cb.scb[0];
   /* for all allocated scbs */
   for (i = 0; i < AVDT_NUM_SEPS; i++, p_scb++) {
     if (effective_num_seps == num_codecs)
       break;
-    if ((p_scb->allocated) && (!p_scb->in_use) && (p_scb->is_required)) {
+    if ((p_scb->allocated) && (interop_check || (!p_scb->in_use)) && (p_scb->is_required)) {
         AVDT_TRACE_DEBUG("%s: SCB[%d] sep_type[%d] in_use[%d] is_required[%d] codec_type[%d]",
             __func__, i, p_scb->cs.tsep, p_scb->in_use, p_scb->is_required,
             p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX]);
