@@ -2627,6 +2627,7 @@ static void btm_ble_process_adv_pkt_cont(
   if (!AdvertiseDataParser::IsValid(adv_data)) {
     DVLOG(1) << __func__ << "Dropping bad advertisement packet: "
              << base::HexEncode(adv_data.data(), adv_data.size());
+    cache.Clear(addr_type, bda);
     return;
   }
 
@@ -2653,6 +2654,7 @@ static void btm_ble_process_adv_pkt_cont(
       update = false;
     } else {
       /* if yes, skip it */
+      cache.Clear(addr_type, bda);
       return; /* assumption: one result per event */
     }
   }
