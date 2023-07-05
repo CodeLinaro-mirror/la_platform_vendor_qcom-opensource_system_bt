@@ -691,7 +691,7 @@ static void process_l2cap_cmd (tL2C_LCB *p_lcb, UINT8 *p, UINT16 pkt_len)
             if (p_lcb->w4_info_rsp)
             {
                 alarm_cancel(p_lcb->info_resp_timer);
-                p_lcb->w4_info_rsp = FALSE;
+                L2CAP_TRACE_WARNING ("L2CAP - Stop the link connect timer if sent before L2CAP connection is up");
             }
 
             STREAM_TO_UINT16 (info_type, p);
@@ -737,13 +737,17 @@ static void process_l2cap_cmd (tL2C_LCB *p_lcb, UINT8 *p, UINT16 pkt_len)
                 }
             }
 #endif
-
-            ci.status = HCI_SUCCESS;
-            memcpy (ci.bd_addr, p_lcb->remote_bd_addr, sizeof(BD_ADDR));
-            for (p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb; p_ccb = p_ccb->p_next_ccb)
-            {
-                l2c_csm_execute (p_ccb, L2CEVT_L2CAP_INFO_RSP, &ci);
+            if(p_lcb->w4_info_rsp) {
+               p_lcb->w4_info_rsp = FALSE;
+               ci.status = HCI_SUCCESS;
+               memcpy (ci.bd_addr, p_lcb->remote_bd_addr, sizeof(BD_ADDR));
+               for (p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb; p_ccb = p_ccb->p_next_ccb)
+               {
+                   l2c_csm_execute (p_ccb, L2CEVT_L2CAP_INFO_RSP, &ci);
+               }
             }
+            else
+               L2CAP_TRACE_WARNING ("L2CAP - p_lcb->w4_info_rsp == FALSE, do not pass the L2CEVT_L2CAP_INFO_RSP event");
             break;
 
         default:
