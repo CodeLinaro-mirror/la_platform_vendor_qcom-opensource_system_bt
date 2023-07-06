@@ -3582,6 +3582,11 @@ static void btm_sec_auth_collision(uint16_t handle) {
         p_dev_rec->sec_state = 0;
 
       btm_cb.p_collided_dev_rec = p_dev_rec;
+
+      if ((btm_cb.pairing_state != BTM_PAIR_STATE_IDLE) &&
+          (btm_cb.pairing_bda == p_dev_rec->bd_addr))
+        btm_sec_change_pairing_state(BTM_PAIR_STATE_WAIT_PIN_REQ);
+
       alarm_set_on_mloop(btm_cb.sec_collision_timer, BT_1SEC_TIMEOUT_MS,
                          btm_sec_collision_timeout, NULL);
     }
