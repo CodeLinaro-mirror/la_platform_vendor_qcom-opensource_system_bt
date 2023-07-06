@@ -46,6 +46,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 
 /**
  * A2DP Codecs Configuration
@@ -1629,7 +1635,9 @@ uint8_t A2DP_IsCodecLicensed (uint16_t codec_id)
             APPL_TRACE_DEBUG(" %s Error, retrying ",__func__);
             usleep(50*1000);
             ret = verify_haven_license(codec_id);
-        }
+        } else {
+           break;
+	}
     }
 
     dlclose(alm_handle);
