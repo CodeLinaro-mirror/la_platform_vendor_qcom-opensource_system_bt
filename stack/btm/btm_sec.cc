@@ -2846,17 +2846,24 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr,
       }
       return;
     } else {
-      BTM_TRACE_WARNING("%s: wrong BDA, retry with pairing BDA", __func__);
-      if (BTM_ReadRemoteDeviceName(btm_cb.pairing_bda, NULL,
+      /* Add a scenario that 2 devices are getting remote name.
+       * Device A initiates bonding, Device B initiates HF (not authenticated).
+       * It leads to read remote name conflict.
+       * Add a statement to check if there is device on connecting.
+       * If not, retry with pairing BDA */
+      if (old_sec_state != BTM_SEC_STATE_GETTING_NAME) {
+        BTM_TRACE_WARNING("%s: wrong BDA, retry with pairing BDA", __func__);
+        if (BTM_ReadRemoteDeviceName(btm_cb.pairing_bda, NULL,
                                    BT_TRANSPORT_BR_EDR) != BTM_CMD_STARTED) {
-        BTM_TRACE_ERROR("%s: failed to start remote name request", __func__);
-        if (btm_cb.api.p_auth_complete_callback) {
-          (*btm_cb.api.p_auth_complete_callback)(
-              p_dev_rec->bd_addr, p_dev_rec->dev_class, p_dev_rec->sec_bd_name,
-              HCI_ERR_MEMORY_FULL);
-        }
-      };
-      return;
+          BTM_TRACE_ERROR("%s: failed to start remote name request", __func__);
+          if (btm_cb.api.p_auth_complete_callback) {
+            (*btm_cb.api.p_auth_complete_callback)(
+                p_dev_rec->bd_addr, p_dev_rec->dev_class, p_dev_rec->sec_bd_name,
+                HCI_ERR_MEMORY_FULL);
+          }
+        };
+        return;
+      }
     }
   }
 
