@@ -531,9 +531,13 @@ int processDataTx(std::string msgStr) {
               usleep(10000);
               break;
             }
-            case 8 ... INT_MAX:{
+            case 8 ... 500:{
               usleep(25000);
               break;
+            }
+            case 501 ... INT_MAX:{
+              ALOGI("%s: retried 500 times, unblocking the tx loop",__func__);
+              return result;
             }
          }
          continue;

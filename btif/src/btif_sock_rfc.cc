@@ -199,6 +199,9 @@ void btsock_rfc_cleanup(void) {
 
   pth = -1;
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
+  if (slots_list == NULL || list_length(slots_list) == 0){
+     return;
+  }
   for (list_node_t* node = list_begin(slots_list); node != list_end(slots_list); node = list_next(node))
   {
     rfc_slot_t* slot = static_cast<rfc_slot_t*>(list_node(node));
@@ -209,6 +212,7 @@ void btsock_rfc_cleanup(void) {
   }
   uid_set = NULL;
   list_free(slots_list);
+  slots_list = NULL;
 }
 
 bt_status_t btsock_rfc_init(int poll_thread_handle, uid_set_t* set) {
@@ -275,7 +279,6 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
         if(rfcommScnCb.has_scn()){
           uint32_t scn = rfcommScnCb.scn();
           ALOGI("%s: Recieved scn: %d",__func__, scn);
-          std::unique_lock<std::recursive_mutex> lock(slot_lock);
           rfc_slot_t* rs = find_rfc_slot_by_fd((int)sock_fd);
           int new_scn = scn;
 
@@ -328,7 +331,6 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
           channel = rfcommSrvOpenCb.channel();
           ALOGI("%s: Recieved scn: %d",__func__, channel);
         }
-        std::unique_lock<std::recursive_mutex> lock(slot_lock);
         slot = find_rfc_slot_by_fd(sock_fd);
         if(slot){
           if(slot->scn != (int)channel){
@@ -358,7 +360,6 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
         ALOGI("status is :: %d",status);
       }
       ss_srv_rfc_connect(sock_fd, &bd_addr, channel, status, mtu);
-      std::unique_lock<std::recursive_mutex> lock(slot_lock);
       ss_flush_incoming_que_on_wr_signal(slot);
       break;
     }
@@ -379,7 +380,6 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
           channel = rfcommCliConnCb.channel();
           ALOGI("%s: Recieved scn: %d",__func__, channel);
         }
-        std::unique_lock<std::recursive_mutex> lock(slot_lock);
         slot = find_rfc_slot_by_fd(sock_fd);
         if(slot){
           if(slot->scn != (int)channel){
@@ -409,7 +409,6 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
         ALOGI("status is :: %d",status);
       }
       ss_cli_rfc_connect(sock_fd, &bd_addr, channel, status, mtu);
-      std::unique_lock<std::recursive_mutex> lock(slot_lock);
       ss_flush_incoming_que_on_wr_signal(slot);
       break;
     }
@@ -424,7 +423,6 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
       rfcommDataCb.ParseFromString(resBufferString);
       if (rfcommDataCb.has_channel()) {
         ALOGI("%s: Recieved channel: %d",__func__, (int)rfcommDataCb.channel());
-        std::unique_lock<std::recursive_mutex> lock(slot_lock);
         rfc_slot_t* slot = find_rfc_slot_by_scn((int)rfcommDataCb.channel());
         if (!slot){
           ALOGI("%s: RFC Slot is unavailable/closed",__func__);
@@ -491,7 +489,6 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
         sock_fd = rfcommDisconnectCb.sock_fd();
         ALOGI("%s: Recieved sock FD: %d",__func__, sock_fd);
       }
-      std::unique_lock<std::recursive_mutex> lock(slot_lock);
       rfc_slot_t* slot = find_rfc_slot_by_scn((int)channel);
       if(slot){
         // Don't trigger DISCONNECT_SOCKET API if we get DISCONNECT_SOCKET_CB
@@ -508,6 +505,11 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
 }
 
 static rfc_slot_t* find_free_slot(void) {
+  std::unique_lock<std::recursive_mutex> lock(slot_lock);
+   if (slots_list == NULL || list_length(slots_list) == 0){
+     ALOGI("%s List is Empty or Null. So, returning null slot",__func__);
+     return NULL;
+   }
    for (list_node_t* node = list_begin(slots_list); node != list_end(slots_list); node = list_next(node))
    {
        rfc_slot_t* slot = static_cast<rfc_slot_t*>(list_node(node));
@@ -517,7 +519,12 @@ static rfc_slot_t* find_free_slot(void) {
 }
 
 static rfc_slot_t* find_rfc_slot_by_id(uint32_t id) {
+  std::unique_lock<std::recursive_mutex> lock(slot_lock);
   CHECK(id != 0);
+  if (slots_list == NULL || list_length(slots_list) == 0){
+    ALOGI("%s List is Empty or Null. So, returning null slot",__func__);
+    return NULL;
+  }
   for(list_node_t* node = list_begin(slots_list); node != list_end(slots_list); node = list_next(node))
   {
       rfc_slot_t* slot = static_cast<rfc_slot_t*>(list_node(node));
@@ -528,7 +535,12 @@ static rfc_slot_t* find_rfc_slot_by_id(uint32_t id) {
 }
 
 static rfc_slot_t* find_rfc_slot_by_fd(int fd){
+  std::unique_lock<std::recursive_mutex> lock(slot_lock);
   CHECK(fd != 0);
+  if (slots_list == NULL || list_length(slots_list) == 0){
+    ALOGI("%s List is Empty or Null. So, returning null slot",__func__);
+    return NULL;
+  }
   for(list_node_t* node = list_begin(slots_list); node != list_end(slots_list); node = list_next(node))
   {
      rfc_slot_t* slot = static_cast<rfc_slot_t*>(list_node(node));
@@ -554,6 +566,9 @@ static rfc_slot_t* find_rfc_slot_by_pending_sdp(void) {
 #endif
 
 static bool is_requesting_sdp(void) {
+  if (slots_list == NULL || list_length(slots_list) == 0){
+    return false;
+  }
   for(list_node_t* node = list_begin(slots_list); node != list_end(slots_list); node = list_next(node))
   {
     rfc_slot_t* slot = static_cast<rfc_slot_t*>(list_node(node));
@@ -1449,7 +1464,6 @@ static bool flush_incoming_que_on_wr_signal(rfc_slot_t* slot) {
 void btsock_rfc_signaled(int fd, int type, int flags, uint32_t user_id) {
   ALOGI("btsock_rfc_signaled :: fd is :: %d , user_id is :: %d",fd,user_id);
   bool need_close = false;
-  std::unique_lock<std::recursive_mutex> lock(slot_lock);
   int size = 0;
   int channel;
   rfc_slot_t* slot = find_rfc_slot_by_fd(fd);
@@ -1574,7 +1588,6 @@ bool ss_flush_incoming_que_on_wr_signal(rfc_slot_t* slot){
 
 int ss_rfc_data_outgoing_size(int fd, int* size) {
   *size = 0;
-  std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* slot = find_rfc_slot_by_fd(fd);
   if (!slot) return false;
 
@@ -1589,7 +1602,6 @@ int ss_rfc_data_outgoing_size(int fd, int* size) {
 }
 
 int ss_rfc_data_outgoing(int fd, uint8_t* buf, int size) {
-  std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* slot = find_rfc_slot_by_fd(fd);
   if (!slot) return false;
 
@@ -1607,7 +1619,6 @@ int ss_rfc_data_outgoing(int fd, uint8_t* buf, int size) {
 
 void ss_rfc_data_write_done(int fd, uint64_t length){
   int app_uid = -1;
-  std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* slot = find_rfc_slot_by_fd(fd);
   if (slot) {
     app_uid = slot->app_uid;
@@ -1695,6 +1706,7 @@ int bta_co_rfc_data_outgoing(uint32_t id, uint8_t* buf, uint16_t size) {
 
 static rfc_slot_t* find_rfc_slot_by_scn(int scn)
 {
+  std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* scn_match_slot = NULL;
     if(scn > 0)
     {
@@ -1702,6 +1714,11 @@ static rfc_slot_t* find_rfc_slot_by_scn(int scn)
           server two entries will exist with the same scn
           and the later entry is valid
         */
+        if (slots_list == NULL || list_length(slots_list) == 0){
+          ALOGI("%s List is Empty or Null. So, returning null slot",__func__);
+          return NULL;
+        }
+
         for(list_node_t* node = list_begin(slots_list); node != list_end(slots_list); node = list_next(node))
         {
             rfc_slot_t* slot = static_cast<rfc_slot_t*>(list_node(node));
@@ -1714,7 +1731,7 @@ static rfc_slot_t* find_rfc_slot_by_scn(int scn)
           return scn_match_slot;
         }
     }
-    ALOGI("%s returning null slot",__func__);
+    ALOGI("%s Matching slot not found. So, returning null slot",__func__);
     return NULL;
 }
 
