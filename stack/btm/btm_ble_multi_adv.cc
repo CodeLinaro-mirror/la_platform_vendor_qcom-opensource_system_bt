@@ -268,7 +268,7 @@ class BleAdvertisingManagerImpl
 
   std::vector<uint8_t> EncryptedAdvertising(AdvertisingInstance* p_inst,
                                             std::vector<uint8_t> data) {
-    std::vector<uint8_t> ED_AD_Data = {}; /*Randomizer + Payload + Out_Tag(MIC)*/
+    std::vector<uint8_t> ED_AD_Data; /*Randomizer + Payload + Out_Tag(MIC)*/
     std::vector<uint8_t> key;
     std::vector<uint8_t> iv;
     if (p_inst->enc_key_value.empty()) { /* Check to see if we have a user provided Key & IV*/
@@ -308,11 +308,16 @@ class BleAdvertisingManagerImpl
     const EVP_AEAD *ccm_instance = EVP_aead_aes_128_ccm_bluetooth();
     const EVP_AEAD_CTX *aeadCTX = EVP_AEAD_CTX_new(ccm_instance, key.data(), key.size(),
                                                   EVP_AEAD_DEFAULT_TAG_LENGTH);
+    if (aeadCTX == nullptr) return ED_AD_Data;
     size_t out_tag_len;
     std::vector<uint8_t> out_tag(EVP_AEAD_max_overhead(ccm_instance));
     if (btm_cb.enc_adv_data_log_enabled) {
-      VLOG(1) << "Encr Data Key Material (Key): " << base::HexEncode(key.data(),key.size());
-      VLOG(1) << "Encr Data Key Material (IV): " << base::HexEncode(iv.data(),iv.size());
+      if (!key.empty()) {
+        VLOG(1) << "Encr Data Key Material (Key): " << base::HexEncode(key.data(),key.size());
+      }
+      if (!iv.empty()) {
+        VLOG(1) << "Encr Data Key Material (IV): " << base::HexEncode(iv.data(),iv.size());
+      }
       VLOG(1) << "Randomizer: " << base::HexEncode(p_inst->randomizer.data(),
                                                     p_inst->randomizer.size());
       VLOG(1) << "Input: " << base::HexEncode(in.data(), in.size());
@@ -406,6 +411,7 @@ class BleAdvertisingManagerImpl
           if (!instance_weakptr.get()) return;
           auto hci_interface = instance_weakptr.get()->GetHciInterface();
           BleAdvertisingManagerImpl *ptr = instance_weakptr.get();
+          if (ptr == nullptr) return;
 
           ptr->AdvertiseRestart(restart, false, p_inst, hci_interface);
 
@@ -1315,6 +1321,7 @@ class BleAdvertisingManagerImpl
     VLOG(1) << __func__ << " inst_id: " << +inst_id;
 
     BleAdvertisingManagerImpl *ptr = instance_weakptr.get();
+    if (ptr == nullptr) return;
     AdvertisingInstance* p_inst = &adv_inst[inst_id];
     p_inst->periodic_data = data;
     p_inst->periodic_adv_data_enc = encr_data;

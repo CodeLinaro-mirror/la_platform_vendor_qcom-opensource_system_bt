@@ -1856,8 +1856,13 @@ void btm_ble_link_encrypted(const RawAddress& bd_addr, uint8_t encr_enable) {
   gatt_notify_enc_cmpl(p_dev_rec->ble.pseudo_addr);
 
   /* Update EATT support */
-  if (encr_enable)
+  if (encr_enable) {
     gatt_update_eatt_support(p_dev_rec->ble.pseudo_addr);
+    tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(p_dev_rec->ble.pseudo_addr, BT_TRANSPORT_LE);
+    if (p_tcb && p_tcb->is_eatt_supported && !p_tcb->apps_needing_eatt.empty()) {
+      gatt_establish_eatt_connect(p_tcb, 1);
+    }
+  }
 
   if (encr_enable && btm_sec_is_a_bonded_dev(p_dev_rec->ble.pseudo_addr)
       && btm_cb.enc_adv_data_enabled) {
@@ -2187,14 +2192,12 @@ uint8_t btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr,
 #else
           if (res != BTM_SUCCESS && p_data->cmplt.reason != SMP_CONN_TOUT) {
             BTM_TRACE_WARNING("Pairing failed - prepare to remove ACL");
-#ifdef ADV_AUDIO_FEATURE
-            if (is_remote_support_adv_audio(p_dev_rec->bd_addr)) {
+            if (gatt_num_app_hold_links(p_dev_rec->bd_addr, BT_TRANSPORT_LE) == 0) {
               int status = L2CA_SetFixedChannelTout(p_dev_rec->bd_addr, L2CAP_ATT_CID,
-                      L2CAP_BONDING_TIMEOUT * 1000);
+                      L2CAP_BONDING_TIMEOUT);
               BTM_TRACE_WARNING("%s Setting BONDING timeout for ATT CID status=0x%x",
                   __func__, status);
             }
-#endif
             l2cu_start_post_bond_timer(p_dev_rec->ble_hci_handle);
           }
 #endif

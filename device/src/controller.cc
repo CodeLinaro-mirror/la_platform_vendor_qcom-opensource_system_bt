@@ -790,7 +790,9 @@ static future_t* start_up(void) {
 
     /* This property is for test/debug purpose only */
     osi_property_get("persist.vendor.btstack.qhs_support", qhs_value, "255");
+    LOG_INFO(LOG_TAG,"%s: qhs property value= %s", __func__, qhs_value);
     qhs_support_mask = (uint8_t)atoi(qhs_value);
+    LOG_INFO(LOG_TAG,"%s: qhs support mask=%d", __func__, qhs_support_mask);
     if (qhs_support_mask != 0xFF) {
         response = qhs_support_mask & QHS_BREDR_MASK?
                    AWAIT_COMMAND(packet_factory->make_qbce_set_qhs_host_mode(

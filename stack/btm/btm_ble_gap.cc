@@ -1008,8 +1008,10 @@ std::vector<uint8_t> btm_ble_process_encrypted_adv(const RawAddress& bda,
       for (size_t i=0; i<strlen(p_vec); i++) {
         enc_key_vec.push_back(p_vec[i]);
       }
-      LOG(INFO) << " Enc Data Key vector: "
-                << base::HexEncode(enc_key_vec.data(), enc_key_vec.size());
+      if (!enc_key_vec.empty()) {
+        LOG(INFO) << " Enc Data Key vector: "
+                  << base::HexEncode(enc_key_vec.data(), enc_key_vec.size());
+      }
     }
   }
 
@@ -1029,12 +1031,17 @@ std::vector<uint8_t> btm_ble_process_encrypted_adv(const RawAddress& bda,
     }
 
     if (btm_cb.enc_adv_data_log_enabled) {
-      LOG(INFO) << " Session Key: " << base::HexEncode(key.data(), key.size());
-      LOG(INFO) << " IV: " << base::HexEncode(iv.data(), iv.size());
+      if (!key.empty()) {
+        LOG(INFO) << " Session Key: " << base::HexEncode(key.data(), key.size());
+      }
+      if (!iv.empty()) {
+        LOG(INFO) << " IV: " << base::HexEncode(iv.data(), iv.size());
+      }
     }
 
     const EVP_AEAD_CTX *aeadCTX = EVP_AEAD_CTX_new(EVP_aead_aes_128_ccm_bluetooth(), key.data(),
         key.size(), EVP_AEAD_DEFAULT_TAG_LENGTH);
+    if (aeadCTX == nullptr) return empty_vec;
     int pos_index = 0;
     int enc_data_part_len = 0;
 
@@ -1079,10 +1086,18 @@ std::vector<uint8_t> btm_ble_process_encrypted_adv(const RawAddress& bda,
 
       std::vector<uint8_t> out(payload.size());
       if (btm_cb.enc_adv_data_log_enabled) {
-        LOG(INFO) << " Randomizer: " << base::HexEncode(randomizer.data(), randomizer.size());
-        LOG(INFO) << " Nonce: " << base::HexEncode(nonce.data(), nonce.size());
-        LOG(INFO) << " Payload: " << base::HexEncode(payload.data(), payload.size());
-        LOG(INFO) << " MIC: " << base::HexEncode(MIC.data(), MIC.size());
+        if (!randomizer.empty()) {
+          LOG(INFO) << " Randomizer: " << base::HexEncode(randomizer.data(), randomizer.size());
+        }
+        if (!nonce.empty()) {
+          LOG(INFO) << " Nonce: " << base::HexEncode(nonce.data(), nonce.size());
+        }
+        if (!payload.empty()) {
+          LOG(INFO) << " Payload: " << base::HexEncode(payload.data(), payload.size());
+        }
+        if (!MIC.empty()) {
+          LOG(INFO) << " MIC: " << base::HexEncode(MIC.data(), MIC.size());
+        }
       }
 
       EVP_AEAD_CTX_open_gather(aeadCTX, out.data(), nonce.data(), nonce.size(), payload.data(),
@@ -1227,6 +1242,10 @@ void btm_ble_start_sync_request(uint8_t sid, RawAddress addr, uint16_t skip, uin
   uint8_t options = 0;
   uint8_t cte_type = 7;
   int index = btm_ble_get_psync_index(sid, addr);
+  if (index == MAX_SYNC_TRANSACTION) {
+      BTM_TRACE_ERROR("[PSync]%s: index not found", __func__);
+      return;
+  }
   tBTM_BLE_PERIODIC_SYNC *p = &btm_ble_pa_sync_cb.p_sync[index];
   p->sync_state = PERIODIC_SYNC_PENDING;
   btsnd_hcic_ble_create_periodic_sync(options, sid, address_type, addr, skip, timeout,cte_type);
@@ -1292,6 +1311,10 @@ static void btm_ble_start_sync_timeout(void *data) {
   RawAddress address = p_head->address;
 
   int index = btm_ble_get_psync_index(adv_sid, address);
+  if (index == MAX_SYNC_TRANSACTION) {
+      BTM_TRACE_ERROR("[PSync]%s: index not found", __func__);
+      return;
+  }
 
   tBTM_BLE_PERIODIC_SYNC *p = &btm_ble_pa_sync_cb.p_sync[index];
 
@@ -1540,11 +1563,19 @@ void btm_ble_periodic_adv_sync_lost(uint8_t *param, uint16_t param_len) {
   uint16_t sync_handle;
   if (param_len != SYNC_LOST_EVT_LEN) {
     BTM_TRACE_ERROR("[PSync]%s: Invalid event length",__func__);
+    return;
   }
   STREAM_TO_UINT16(sync_handle, param);
+  BTM_TRACE_DEBUG("[PSync]%s: sync_handle = %d", __func__, sync_handle);
   int index = btm_ble_get_psync_index_from_handle(sync_handle);
+  if (index == MAX_SYNC_TRANSACTION) {
+      BTM_TRACE_ERROR("[PSync]%s: index not found", __func__);
+      return;
+  }
   tBTM_BLE_PERIODIC_SYNC *ps = &btm_ble_pa_sync_cb.p_sync[index];
-  ps->sync_lost_cb.Run(sync_handle);
+  if (ps->sync_lost_cb) {
+      ps->sync_lost_cb.Run(sync_handle);
+  }
 
   ps->in_use = false;
   ps->sid = 0;
@@ -1702,6 +1733,11 @@ void BTM_BlePeriodicSyncTransfer(RawAddress addr, uint16_t service_data,
   }
 
   int index = btm_ble_get_free_sync_transfer_index();
+  if (index == MAX_SYNC_TRANSACTION) {
+      BTM_TRACE_ERROR("[PSync]%s: index is unavailable", __func__);
+      cb.Run(BTM_NO_RESOURCES, addr);
+      return;
+  }
   tBTM_BLE_PERIODIC_SYNC_TRANSFER *p_sync_transfer = &btm_ble_pa_sync_cb.sync_transfer[index];
   p_sync_transfer->in_use = true;
   p_sync_transfer->conn_handle = conn_handle;
@@ -1736,6 +1772,11 @@ void BTM_BlePeriodicSyncSetInfo(RawAddress addr, uint16_t service_data,
   }
 
   int index = btm_ble_get_free_sync_transfer_index();
+  if (index == MAX_SYNC_TRANSACTION) {
+      BTM_TRACE_ERROR("[PSync]%s: index is unavailable", __func__);
+      cb.Run(BTM_NO_RESOURCES, addr);
+      return;
+  }
   tBTM_BLE_PERIODIC_SYNC_TRANSFER *p_sync_transfer = &btm_ble_pa_sync_cb.sync_transfer[index];
   p_sync_transfer->in_use = true;
   p_sync_transfer->conn_handle = conn_handle;

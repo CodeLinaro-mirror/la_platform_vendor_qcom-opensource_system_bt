@@ -472,6 +472,6 @@ extern void GAP_BleGetAdapterEncKeyMaterial(uint8_t* enc_key_value);
  * Returns          returns 16 byte Key and 8 byte IV
  *
  ******************************************************************************/
-extern void GenerateKeyIV(tGAP_BLE_ATTR_VALUE *attr_cb);
+extern void GenerateKeyIV();
 
 #endif /* GAP_API_H */

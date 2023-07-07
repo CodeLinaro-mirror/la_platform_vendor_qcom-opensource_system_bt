@@ -45,6 +45,11 @@ static bt_status_t btsock_listen(btsock_type_t type, const char* service_name,
 static bt_status_t btsock_connect(const RawAddress* bd_addr, btsock_type_t type,
                                   const Uuid* uuid, int channel, int* sock_fd,
                                   int flags, int app_uid);
+static bt_status_t btsock_control_req(uint8_t dlci, const RawAddress& bd_addr,
+                                      uint8_t modem_signal,
+                                      uint8_t break_signal,
+                                      uint8_t discard_buffers,
+                                      uint8_t break_signal_seq, bool fc);
 
 static void btsock_request_max_tx_data_length(const RawAddress& bd_addr);
 
@@ -55,9 +60,10 @@ static thread_t* thread;
 
 btsock_interface_t* btif_sock_get_interface(void) {
   static btsock_interface_t interface = {
-      sizeof(interface), btsock_listen, /* listen */
-      btsock_connect,                   /* connect */
-      btsock_request_max_tx_data_length /* request_max_tx_data_length */
+      sizeof(interface), btsock_listen,  /* listen */
+      btsock_connect,                    /* connect */
+      btsock_request_max_tx_data_length, /* request_max_tx_data_length */
+      btsock_control_req                 /* send_control_req */
   };
 
   return &interface;
@@ -125,6 +131,13 @@ void btif_sock_cleanup(void) {
   btsock_l2cap_cleanup();
   thread_free(thread);
   thread = NULL;
+}
+static bt_status_t btsock_control_req(uint8_t dlci, const RawAddress& bd_addr,
+                                      uint8_t modem_signal,
+                                      uint8_t break_signal,
+                                      uint8_t discard_buffers,
+                                      uint8_t break_signal_seq, bool fc) {
+  return BT_STATUS_FAIL;
 }
 
 static bt_status_t btsock_listen(btsock_type_t type, const char* service_name,
@@ -255,4 +268,3 @@ static void btsock_signaled(int fd, int type, int flags, uint32_t user_id) {
       break;
   }
 }
-

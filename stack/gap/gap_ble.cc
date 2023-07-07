@@ -235,8 +235,9 @@ tGATT_STATUS read_attr_value(uint16_t handle, tGATT_VALUE* p_value,
           if (stack_config_get_interface()->get_pts_enable_authorization_encr_data_key()) {
             return GATT_INSUF_AUTHORIZATION;
           }
-          ARRAY_TO_STREAM(p_encr_material, attr_value.encr_material.session_key,ENC_KEY_LEN);
-          ARRAY_TO_STREAM(p_encr_material, attr_value.encr_material.init_vector,ENC_IV_LEN);
+          /* Sending the Encrypted Data Key Material in Little Endian */
+          REVERSE_ARRAY_TO_STREAM(p_encr_material, attr_value.encr_material.session_key,ENC_KEY_LEN);
+          REVERSE_ARRAY_TO_STREAM(p_encr_material, attr_value.encr_material.init_vector,ENC_IV_LEN);
           p_value->len = ENCR_KEY_MATERIAL_LEN;
           for(unsigned int i = 0; i < ENCR_KEY_MATERIAL_LEN; i++) {
             uint8_t temp = (*(p_temp+i));
@@ -1026,6 +1027,18 @@ void btm_ble_read_enc_key_cmpl(bool status, const RawAddress& bda,
 
   conn_id = p_clcb->conn_id;
   VLOG(1) << __func__ << ": curr_enc_key_char_handle: " << p_clcb->curr_enc_key_char_handle;
+  /* Begin Parsing the Encrypted Data Key Material for the Key & IV
+     The Scanner Receives the Encrypted Data Material in Little Endian.
+     Meaning first 16 bytes is the Key and the last 8 are the IV. */
+  char reversekeyiv[ENC_KEY_MATERIAL_LEN];
+  for (int i = ENC_KEY_MATERIAL_LEN-1; i >= 0; i--) {
+    if (i >= ENC_KEY_LEN) { /* Last 8 bytes is IV storing in Big Endian */
+      reversekeyiv[((ENC_KEY_MATERIAL_LEN-1) - i)+ENC_KEY_LEN] = p_data[i];
+    } else { /* First 16 bytes is Key. Storing in Big Endian */
+      reversekeyiv[(ENC_KEY_LEN-1) - i] = p_data[i];
+    }
+  }
+  p_data = reversekeyiv;
   size_t len = btif_config_get_bin_length(bda.ToString().c_str(), "ENC_KEY_MATERIAL");
   if (len > 0) {
     if (btif_storage_get_enc_key_material((RawAddress*)&bda, (uint8_t*)&prev_data[0], (int*)&len)

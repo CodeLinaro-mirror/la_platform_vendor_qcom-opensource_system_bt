@@ -168,20 +168,47 @@ bool A2dpTransport::GetPresentationPosition(uint64_t* remote_delay_report_ns,
 }
 
 void A2dpTransport::SourceMetadataChanged(
-    const source_metadata_t& source_metadata) {
+  const source_metadata_t& source_metadata) {
+
   auto track_count = source_metadata.track_count;
   auto tracks = source_metadata.tracks;
+
   LOG(INFO) << __func__ << "AIDL: " << track_count << " track(s) received";
-  while (track_count) {
-     LOG(INFO) << __func__ << "AIDL: usage=" << tracks->usage
-               << ", content_type=" << tracks->content_type
-               << ", gain=" << tracks->gain;
-    --track_count;
-    ++tracks;
+  if (track_count == 0) {
+    LOG(WARNING) << __func__ << ": Invalid number of metadata changed tracks";
+    return;
   }
+
+  auto usage = source_metadata.tracks->usage;
+
+  LOG(INFO) << __func__ << ", content_type=" << tracks->content_type
+                        << ", track_count: " << track_count
+                        << ", usage: " << usage;
+
+  btif_ahim_update_src_metadata(source_metadata);
+
 }
 
-void A2dpTransport::SinkMetadataChanged(const sink_metadata_t&) {}
+void A2dpTransport::SinkMetadataChanged(
+  const sink_metadata_t& sink_metadata) {
+
+  auto track_count = sink_metadata.track_count;
+  auto tracks = sink_metadata.tracks;
+
+  LOG(INFO) << __func__ << "AIDL: " << track_count << " track(s) received";
+  if (track_count == 0) {
+    LOG(WARNING) << __func__ << ": Invalid number of metadata changed tracks";
+    return;
+  }
+
+  auto source = sink_metadata.tracks->source;
+
+  LOG(INFO) << __func__ << ", track_count: " << track_count
+                        << ", source: " << source;
+
+  btif_ahim_update_sink_metadata(sink_metadata);
+
+}
 
 tA2DP_CTRL_CMD A2dpTransport::GetPendingCmd() const {
 LOG(ERROR) << ": AIDL Is this function called";

@@ -1220,7 +1220,8 @@ extern void gap_attr_db_init(void);
  * Returns          void
  *
  ******************************************************************************/
-void GenerateKeyIV(tGAP_BLE_ATTR_VALUE *attr_cb) {
+void GenerateKeyIV() {
+  tGAP_BLE_ATTR_VALUE *attr_cb = new tGAP_BLE_ATTR_VALUE;
   btsnd_hcic_ble_rand(base::Bind([](tGAP_BLE_ATTR_VALUE *attr_cb, BT_OCTET8 rand) {
       BT_OCTET8 temp;
       for (int i = BT_OCTET8_LEN-1; i >= 0; i--) {
@@ -1255,6 +1256,7 @@ void GenerateKeyIV(tGAP_BLE_ATTR_VALUE *attr_cb) {
               btif_storage_set_enc_key_material(NULL, value, sizeof(value));
               btif_config_save();
               GAP_BleAttrDBUpdate(GATT_UUID_GAP_ENC_KEY_MATERIAL, attr_cb);
+              delete attr_cb;
             },
             attr_cb));
         },
@@ -1271,8 +1273,8 @@ void EncryptedAdvSetup() {
     if (btm_cb.enc_adv_data_log_enabled) {
       LOG(INFO) << __func__ << " KEY & IV not found in bt_config";
     }
-    tGAP_BLE_ATTR_VALUE attr_cb;
-    GenerateKeyIV(&attr_cb); /* If value not found we generate a Key & IV*/
+    /* If value not found we generate a Key & IV*/
+    GenerateKeyIV();
   } else {
     if (btm_cb.enc_adv_data_log_enabled) {
       LOG(INFO) << __func__ << " Found KEY & IV in bt_config";

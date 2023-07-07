@@ -25,10 +25,12 @@ namespace has {
 std::ostream& operator<<(std::ostream& os, const HasJournalRecord& r) {
   os << "{";
 
-  char eventtime[20];
-  char temptime[20];
+  char eventtime[20] = "";
+  char temptime[20] = "";
   struct tm* tstamp = localtime(&r.timestamp.tv_sec);
-  strftime(temptime, sizeof(temptime), "%H:%M:%S", tstamp);
+  if (tstamp != NULL) {
+    strftime(temptime, sizeof(temptime), "%H:%M:%S", tstamp);
+  }
   snprintf(eventtime, sizeof(eventtime), "%s.%03ld", temptime,
            r.timestamp.tv_nsec / 1000000);
   os << "\"time\": \"" << eventtime << "\", ";

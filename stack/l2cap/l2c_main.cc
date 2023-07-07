@@ -313,7 +313,7 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
 
   /* if l2cap command received in CID 1 on top of an LE link, ignore this
    * command */
-  if (p_lcb->transport == BT_TRANSPORT_LE) return;
+  if ((p_lcb == NULL) || (p_lcb->transport == BT_TRANSPORT_LE)) return;
 
   /* Reject the packet if it exceeds the default Signalling Channel MTU */
   if (pkt_len > L2CAP_DEFAULT_MTU) {
@@ -394,8 +394,8 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
             android_errorWriteLog(0x534e4554, "74202041");
             return;
           }
-          STREAM_TO_UINT16(rcid, p);
           STREAM_TO_UINT16(lcid, p);
+          STREAM_TO_UINT16(rcid, p);
 
           L2CAP_TRACE_WARNING(
               "L2CAP - rej with CID invalid, LCID: 0x%04x RCID: 0x%04x", lcid,

@@ -762,7 +762,7 @@ static bt_status_t btif_in_get_adapter_properties(void) {
   num_props++;
 
   BTIF_STORAGE_FILL_PROPERTY(&properties[num_props],
-                             BT_PROPERTY_LOCAL_IO_CAPS_BLE, sizeof(bt_io_cap_t),
+                             BT_PROPERTY_RESERVED_0F, sizeof(bt_io_cap_t),
                              &local_bt_io_cap_ble);
   btif_storage_get_adapter_property(&properties[num_props]);
   num_props++;
@@ -1156,7 +1156,7 @@ bt_status_t btif_set_adapter_property(const bt_property_t* property) {
       status = BT_STATUS_FAIL;
       break;
     case BT_PROPERTY_LOCAL_IO_CAPS:
-    case BT_PROPERTY_LOCAL_IO_CAPS_BLE: {
+    case BT_PROPERTY_RESERVED_0F: {
       // Changing IO Capability of stack at run-time is not currently supported.
       // This call changes the stored value which will affect the stack next
       // time it starts up.

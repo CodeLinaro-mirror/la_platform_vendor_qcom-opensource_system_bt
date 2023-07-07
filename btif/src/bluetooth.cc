@@ -235,6 +235,9 @@ static void cleanup(void) { stack_manager_get_interface()->clean_up_stack(); }
 static bool get_wbs_supported() {
   return false;
 }
+static bool get_swb_supported() {
+  return false;
+}
 
 bool is_restricted_mode() { return restricted_mode; }
 bool is_common_criteria_mode() {
@@ -615,17 +618,18 @@ static int set_event_filter_connection_setup_all_devices() {
   return BT_STATUS_SUCCESS;
 }
 
-static bool interop_match_addr(const char* feature_name,
-                               const RawAddress* addr) {
+bool interop_match_addr(const char * feature_name,
+                        const RawAddress* addr) {
   return false;
 }
 
-static bool interop_match_name(const char* feature_name, const char* name) {
+bool interop_match_name(const char * feature_name,
+                        const char* name) {
   return false;
 }
 
-static bool interop_match_addr_or_name(const char* feature_name,
-                                       const RawAddress* addr) {
+bool interop_match_addr_or_name(const char * feature_name,
+                                const RawAddress* addr) {
   return false;
 }
 
@@ -685,12 +689,13 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
     clear_filter_accept_list,
     disconnect_all_acls,
     le_rand,
-    set_event_filter_connection_setup_all_devices,
+    set_event_filter_inquiry_result_all_devices,
     set_default_event_mask_except,
     restore_filter_accept_list,
     allow_wake_by_hid,
-    set_event_filter_inquiry_result_all_devices,
+    set_event_filter_connection_setup_all_devices,
     get_wbs_supported,
+    get_swb_supported,
     metadata_changed,
     interop_match_addr,
     interop_match_name,

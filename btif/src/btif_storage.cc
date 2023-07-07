@@ -253,7 +253,7 @@ static bool prop_upd(const RawAddress* remote_bd_addr, bt_property_t *prop)
       btif_config_set_int("Adapter", BTIF_STORAGE_KEY_LOCAL_IO_CAPS,
                           *(int*)prop->val);
       break;
-    case BT_PROPERTY_LOCAL_IO_CAPS_BLE:
+    case BT_PROPERTY_RESERVED_0F:
       btif_config_set_int("Adapter", BTIF_STORAGE_KEY_LOCAL_IO_CAPS_BLE,
                           *(int*)prop->val);
       break;
@@ -471,7 +471,7 @@ static int cfg2prop(const RawAddress* remote_bd_addr, bt_property_t* prop) {
         ret = btif_config_get_int("Adapter", BTIF_STORAGE_KEY_LOCAL_IO_CAPS,
                                   (int*)prop->val);
       break;
-    case BT_PROPERTY_LOCAL_IO_CAPS_BLE:
+    case BT_PROPERTY_RESERVED_0F:
       if (prop->len >= (int)sizeof(int))
         ret = btif_config_get_int("Adapter", BTIF_STORAGE_KEY_LOCAL_IO_CAPS_BLE,
                                   (int*)prop->val);
@@ -796,7 +796,7 @@ uint8_t btif_storage_get_local_io_caps() {
  *
  ******************************************************************************/
 uint8_t btif_storage_get_local_io_caps_ble() {
-  return btif_storage_get_io_cap_property(BT_PROPERTY_LOCAL_IO_CAPS_BLE,
+  return btif_storage_get_io_cap_property(BT_PROPERTY_RESERVED_0F,
                                           BTM_LOCAL_IO_CAPS_BLE);
 }
 

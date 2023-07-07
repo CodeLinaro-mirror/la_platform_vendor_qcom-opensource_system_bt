@@ -710,6 +710,7 @@ void bond_state_changed(bt_status_t status, const RawAddress& bd_addr,
       btif_store_adv_audio_pair_info(bd_addr);
     }else if(state == BT_BOND_STATE_NONE) {
      bta_dm_reset_adv_audio_pairing_info(bd_addr);
+     btif_storage_remove_bonded_device(&bd_addr);
    }
   }
 
@@ -1802,6 +1803,12 @@ static void btif_dm_search_devices_evt(uint16_t event, char* p_param) {
                   BT_DISCOVERY_STOPPED);
       }
     } break;
+#ifdef ADV_AUDIO_FEATURE
+    case BTA_DM_LE_AUDIO_SEARCH_CMPL_EVT: {
+      btif_dm_lea_search_services_evt(event, p_param);
+      break;
+    }
+#endif
   }
 }
 
@@ -1859,11 +1866,14 @@ static void btif_dm_search_services_evt(uint16_t event, char* p_param) {
           /* When SDP failed, deleting bonded device from the database and sending
           * disconnect before moving bond state to BOND NONE.
           */
-          BTIF_TRACE_WARNING("%s: deleting bonded device from database", __func__);
-          btif_storage_remove_bonded_device(&bd_addr);
-          BTA_DmRemoveDevice(bd_addr);
-          pairing_cb.sdp_attempts = 0;
-          bond_state_changed(BT_STATUS_FAIL, pairing_cb.bd_addr, BT_BOND_STATE_NONE);
+          if (!interop_match_addr_or_name(
+              INTEROP_SEND_BONDED_INTENT_AFTER_SDP_TIMEOUT, &bd_addr)) {
+            BTIF_TRACE_WARNING("%s: deleting bonded device from database", __func__);
+            btif_storage_remove_bonded_device(&bd_addr);
+            BTA_DmRemoveDevice(bd_addr);
+            pairing_cb.sdp_attempts = 0;
+            bond_state_changed(BT_STATUS_FAIL, pairing_cb.bd_addr, BT_BOND_STATE_NONE);
+          }
           return;
         }
       }
@@ -3267,7 +3277,7 @@ bt_status_t btif_dm_get_adapter_property(bt_property_t* prop) {
       prop->len = sizeof(bt_io_cap_t);
     } break;
 
-    case BT_PROPERTY_LOCAL_IO_CAPS_BLE: {
+    case BT_PROPERTY_RESERVED_0F: {
       *(bt_io_cap_t*)prop->val = (bt_io_cap_t)BTM_LOCAL_IO_CAPS_BLE;
       prop->len = sizeof(bt_io_cap_t);
     } break;

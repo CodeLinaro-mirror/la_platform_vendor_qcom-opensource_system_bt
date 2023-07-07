@@ -944,7 +944,7 @@ static void bte_hf_evt(tBTA_AG_EVT event, tBTA_AG* p_data) {
   else if (BTA_AG_CONN_EVT == event)
     param_len = sizeof(tBTA_AG_CONN);
   else if ((BTA_AG_CLOSE_EVT == event) || (BTA_AG_AUDIO_OPEN_EVT == event) ||
-           (BTA_AG_AUDIO_CLOSE_EVT == event))
+           (BTA_AG_AUDIO_CLOSE_EVT == event) || (BTA_AG_AT_CKPD_EVT == event))
     param_len = sizeof(tBTA_AG_HDR);
   else if (p_data)
     param_len = sizeof(tBTA_AG_VAL);
