@@ -1737,7 +1737,11 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
          }
        }
        BTA_AvClose(btif_av_cb[index].bta_handle);
-       btif_queue_advance();
+       if (bt_av_sink_callbacks != NULL) {
+         btif_queue_advance_by_uuid(UUID_SERVCLASS_AUDIO_SINK, &(btif_av_cb[index].peer_bda));
+       } else {
+         btif_queue_advance();
+       }
        btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_IDLE);
        btif_report_connection_state_to_ba(BTAV_CONNECTION_STATE_DISCONNECTED);
        } break;
@@ -4957,7 +4961,7 @@ static bt_status_t init_sink(btav_sink_callbacks_t* callbacks,
                              int /*max_connected_audio_devices*/) {
   BTIF_TRACE_EVENT("%s", __func__);
   property_set("persist.vendor.service.bt.a2dp.sink", "true");
-  char split_a2dp_sink[6] = "false";
+  char split_a2dp_sink[PROPERTY_VALUE_MAX] = "false";
   osi_property_get("persist.vendor.bluetooth.split_a2dp_sink", split_a2dp_sink, "false");
   if (strncmp("true", split_a2dp_sink, 4) == 0){
       BTIF_TRACE_EVENT("%s: split a2dp is enabled ",__func__);
@@ -7400,7 +7404,7 @@ void btif_av_set_remote_playing_state(int index, bool playing_state) {
 *******************************************************************************/
 int btif_get_max_allowable_sink_connections() {
     int def_no_of_conn = 1;
-    char number_of_conn[2];
+    char number_of_conn[PROPERTY_VALUE_MAX];
     osi_property_get("persist.vendor.bt.a2dp.sink_conn", number_of_conn, "1");
     BTIF_TRACE_DEBUG("%s, number_of_conn = %s", __func__, number_of_conn);
     if (!strncmp(number_of_conn, "2", 1)) {

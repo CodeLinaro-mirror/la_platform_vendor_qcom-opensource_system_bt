@@ -1687,11 +1687,13 @@ static bt_status_t btif_in_get_bonded_ble_device(
     // Fill in the bonded devices
     if (device_added) {
         RawAddress *remote_addr =  (RawAddress*)osi_malloc(sizeof(RawAddress));
-        memcpy(remote_addr, &bd_addr, RawAddress::kLength);
-        BTIF_TRACE_DEBUG("%s Added Remote_addr %s key_found %d",
-            __func__, bd_addr.ToString().c_str(), key_found);
-        list_append(*p_bonded_devices, remote_addr);
-        btif_gatts_add_bonded_dev_from_nv(bd_addr);
+        if(remote_addr){
+          memcpy(remote_addr, &bd_addr, RawAddress::kLength);
+          BTIF_TRACE_DEBUG("%s Added Remote_addr %s key_found %d",
+              __func__, bd_addr.ToString().c_str(), key_found);
+          list_append(*p_bonded_devices, remote_addr);
+          btif_gatts_add_bonded_dev_from_nv(bd_addr);
+        }
     }
 
     if (key_found) return BT_STATUS_SUCCESS;
