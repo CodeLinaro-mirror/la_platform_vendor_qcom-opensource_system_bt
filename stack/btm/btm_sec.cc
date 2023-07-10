@@ -5898,11 +5898,21 @@ void btm_sec_dev_rec_cback_event(tBTM_SEC_DEV_REC* p_dev_rec, uint8_t res,
   if (p_dev_rec->p_callback || p_dev_rec->p_ble_callback) {
 
     if (is_le_transport) {
+      if (p_dev_rec->p_ble_callback == NULL) {
+        BTM_TRACE_WARNING("%s() p_ble_callback is NULL", __func__);
+        return;
+      }
+
       tBTM_SEC_CALLBACK* p_callback = p_dev_rec->p_ble_callback;
       p_dev_rec->p_ble_callback = NULL;
       (*p_callback)(&p_dev_rec->ble.pseudo_addr, BT_TRANSPORT_LE,
                     p_dev_rec->p_ref_data, res);
     } else {
+      if (p_dev_rec->p_callback == NULL) {
+        BTM_TRACE_WARNING("%s() p_callback is NULL", __func__);
+        return;
+      }
+
       tBTM_SEC_CALLBACK* p_callback = p_dev_rec->p_callback;
       p_dev_rec->p_callback = NULL;
       (*p_callback)(&p_dev_rec->bd_addr, BT_TRANSPORT_BR_EDR,
