@@ -684,7 +684,18 @@ bool bta_ag_create_sco(tBTA_AG_SCB* p_scb, bool is_orig) {
       params.max_latency_ms = 10;
       params.retransmission_effort = ESCO_RETRANSMISSION_POWER;
     }
-  }
+
+    char value[PROPERTY_VALUE_MAX] = {0};
+    if ((property_get("vendor.bt.pts.S2_parameter", value,"false") &&
+                    !(strcmp(value, "true"))) ||
+                    (property_get("vendor.bt.pts.S1_parameter", value,"false") &&
+                    !(strcmp(value, "true")))) {
+        params.max_latency_ms = 7;
+        params.retransmission_effort = ESCO_RETRANSMISSION_POWER;
+        APPL_TRACE_WARNING("%s: PTS: MaxLatency: %d ",__func__,params.max_latency_ms);
+    }
+
+   }
 
 #if (TWS_AG_ENABLED == TRUE)
   if (is_twsp_device(p_scb->peer_addr)) {
@@ -827,6 +838,20 @@ static void bta_ag_create_pending_sco(tBTA_AG_SCB* p_scb, bool is_local) {
           (!(p_scb->peer_features & BTA_AG_PEER_FEAT_ESCO))) {
         params.max_latency_ms = 10;
         params.retransmission_effort = ESCO_RETRANSMISSION_POWER;
+      }
+
+      char value[PROPERTY_VALUE_MAX] = {0};
+      if (property_get("vendor.bt.pts.S2_parameter", value,"false") &&
+                      !(strcmp(value, "true"))) {
+        params.packet_types = ESCO_PKT_TYPES_MASK_NO_3_EV3;
+        APPL_TRACE_WARNING("%s: PTS:S2:packet_types: %x ",__func__,params.packet_types);
+      }
+
+      if (property_get("vendor.bt.pts.S1_parameter", value,"false") &&
+                     !(strcmp(value, "true"))) {
+        params.packet_types = ESCO_PKT_TYPES_MASK_EV3|ESCO_PKT_TYPES_MASK_NO_2_EV3|
+                              ESCO_PKT_TYPES_MASK_NO_3_EV3;
+        APPL_TRACE_WARNING("%s: PTS:S1:packet_types: %x ",__func__,params.packet_types);
       }
     }
     /* Bypass voice settings if enhanced SCO setup command is supported */
