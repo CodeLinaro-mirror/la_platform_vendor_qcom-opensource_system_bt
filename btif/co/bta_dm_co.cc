@@ -341,7 +341,9 @@ void bta_dm_co_ble_io_req(const RawAddress& bd_addr, tBTA_IO_CAP* p_io_cap,
                           tBTA_LE_KEY_TYPE* p_init_key,
                           tBTA_LE_KEY_TYPE* p_resp_key) {
   /* setting default auth req to non bondable as per customer request*/
-  bte_appl_cfg.ble_auth_req = BTA_LE_AUTH_REQ_SC_MITM;
+  /* LE device bonding is required */
+  //bte_appl_cfg.ble_auth_req = BTA_LE_AUTH_REQ_SC_MITM;
+
   /* Retrieve the properties from file system if possible */
   tBTE_APPL_CFG nv_config;
   if (btif_dm_get_smp_config(&nv_config)) bte_appl_cfg = nv_config;
