@@ -8,6 +8,7 @@
 #include "protobuf/proto/dm.pb.h"
 #include "protobuf/include/proto_message_ids.h"
 #include "osi/include/log.h"
+#include "btif_gatt.h"
 #include "btif_api.h"
 #include "btif_gatt.h"
 #include "btif_ss_logger.h"

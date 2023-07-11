@@ -31,8 +31,8 @@
 #define LOG_TAG "bt_btif_gatt"
 
 #include <errno.h>
-//#include <hardware/bluetooth.h>
-//#include <hardware/bt_gatt.h>
+#include <hardware/bluetooth.h>
+#include <hardware/bt_gatt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,7 +46,7 @@
 #include "btif_gatt_util.h"
 #include "btif_storage.h"
 
-//const btgatt_callbacks_t* bt_gatt_callbacks = NULL;
+const btgatt_callbacks_t* bt_gatt_callbacks = NULL;
 
 /*******************************************************************************
  *
@@ -57,11 +57,11 @@
  * Returns          bt_status_t
  *
  ******************************************************************************/
-/*static bt_status_t btif_gatt_init(const btgatt_callbacks_t* callbacks) {
+static bt_status_t btif_gatt_init(const btgatt_callbacks_t* callbacks) {
   bt_gatt_callbacks = callbacks;
   btif_ss_gatt_client_init();
   return BT_STATUS_SUCCESS;
-}*/
+}
 
 /*******************************************************************************
  *
@@ -85,6 +85,7 @@ static btgatt_interface_t btgattInterface = {
     btif_gatt_cleanup,
 
     &btgattClientInterface,
+    nullptr,
     nullptr,
     nullptr,
     nullptr   // place holder for distance measurement instance

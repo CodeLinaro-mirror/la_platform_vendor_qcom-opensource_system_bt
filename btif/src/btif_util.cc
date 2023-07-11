@@ -55,6 +55,8 @@
 #include "btif_dm.h"
 #include "btu.h"
 #include "btif_av.h"
+#include "btif_ss_interface.h"
+#include "btif/protobuf/include/proto_message_ids.h"
 #include "btif_twsp_hf.h"
 #if (SWB_ENABLED == TRUE)
 #include "bta_ag_swb.h"
@@ -439,3 +441,50 @@ const char* dump_rc_pdu(uint8_t pdu) {
   }
 }
 #endif
+std::string FormTxPacket(uint16_t msg_id, uint16_t proto_enc,uint16_t encode_len,
+                 std::string& encoded_bytes) {
+  uint8_t form_payload[MAX_LENGTH_WITH_PROTO_NONE];
+  char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+  form_payload[0] = msg_id & 0xff;
+  form_payload[1] = (msg_id >> 8);
+  form_payload[2] = encode_len & 0xff;
+  form_payload[3] = (encode_len >> 8);
+  form_payload[4] = proto_enc & 0xff;
+  form_payload[5] = (proto_enc >> 8);
+  memcpy(resBuffer, (char*)form_payload, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+  msgStr.append(encoded_bytes);
+  const char* encodeChars = msgStr.c_str();	
+  PrintEncodedBytes(encodeChars, encode_len);
+  return msgStr;	
+}	
+
+void PrintEncodedBytes(const char* en_char,	uint8_t len) {
+  ALOGD("Size: %d\n", len);
+  for (uint8_t i = 0; i < len; i++) ALOGD("0x%x ", en_char[i]);
+}
+
+std::string Rxdatapacket(uint16_t event, char *p_param) {
+  ALOGD("btif_advertiser_ss_callback :: event is :: %d", event);
+  std::string resBufferString;
+  tBTIF_SS_Cback* cb_data = (tBTIF_SS_Cback*)p_param;
+  uint16_t MSG_ID = cb_data->payload[0] + (((int)(cb_data->payload[1])) << 8);
+  uint16_t length = cb_data->payload[2] + (((int)(cb_data->payload[3])) << 8);
+  uint16_t proto_ec = 0;
+  if (length > 0) {
+    proto_ec = cb_data->payload[4] + (((int)(cb_data->payload[5])) << 8);
+    char resBuffer[length];
+    int j = 0;
+    for (int i = MSG_PROTO_OFFSET; i < (length + MSG_PROTO_OFFSET); i++) {
+      resBuffer[j] = (char)cb_data->payload[i];
+      // ALOGD("resBuffer[%d] is :: %d",j,resBuffer[j]); 
+      j++;
+    }
+    resBufferString.assign(resBuffer, length);
+    free(cb_data->payload);
+    ALOGD("MSG_ID is :: %X , Proto length: %d and Proto Encoded Value %d", MSG_ID,
+        length, proto_ec);
+    return resBufferString;
+  }
+  return NULL;
+} 
