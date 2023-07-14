@@ -469,15 +469,6 @@ static int enable () {
     _bt_enable.set_bd_addr(ToRawString(bd_addr).c_str());
     _bt_enable.SerializeToString(&protoMsg);
     proto_encode = PROTO_ENC_DEC;
-    std::string prop;
-    prop.append("false ");
-    letobd(addr);
-    bytes_to_string(addr, bdstr);
-    prop.append(bdstr);
-    if (property_set(PERSIST_BDADDR_PROPERTY, prop.c_str()) < 0) {
-      ALOGE("%s: Failed to set random BDA in prop %s", __func__,
-        PERSIST_BDADDR_PROPERTY);
-    }
   }
   ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
   //adding length
@@ -1752,6 +1743,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
         ss_adapter_state_changed_callback adapterStateChangedCb;
         adapterStateChangedCb.ParseFromString(resBufferString);
         char property[PROPERTY_VALUE_MAX];
+        char addr_property[PROPERTY_VALUE_MAX];
         bt_property_t prop;
         bt_bdname_t bd_name;
         if(adapterStateChangedCb.has_state()) {
@@ -1761,6 +1753,22 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
             ALOGI("parseRxData btStateSingleStack is :: %d",btStateSingleStack);
             switch((int)btStateSingleStack) {
                 case BT_ENABLE_STATUS_SUCCESS:
+                    if (property_get(PERSIST_BDADDR_PROPERTY, addr_property, NULL)) {
+                      ALOGD(" %s : Got addr_property %s ", __func__, addr_property);
+                      char addr_prop[kStringLength + 1];
+                      bool isWrite;
+                      split_address(addr_property, &isWrite, addr_prop);
+                      if (isWrite) {
+                        ALOGD(" %s :Adapter State received for first boot", __func__);
+                        std::string prop;
+                        prop.append("false ");
+                        prop.append(addr_prop);
+                        if (property_set(PERSIST_BDADDR_PROPERTY, prop.c_str()) < 0) {
+                          ALOGE("%s: Failed to set random BDA in prop %s", __func__,
+                              PERSIST_BDADDR_PROPERTY);
+                        }
+                      }
+                    }
                     property_get(PERSIST_BDNAME_PROPERTY, property, NULL);
                     property[strlen(property)] = '\0';
                     return_status = BT_STATE_ON;
