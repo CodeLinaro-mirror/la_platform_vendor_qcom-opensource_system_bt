@@ -56,7 +56,7 @@ typedef struct {
 
 /* SBC Source codec capabilities */
 static const tA2DP_SBC_CIE a2dp_sbc_source_caps = {
-    (A2DP_SBC_IE_SAMP_FREQ_44),                         /* samp_freq */
+    (A2DP_SBC_IE_SAMP_FREQ_48),                         /* samp_freq */
     (A2DP_SBC_IE_CH_MD_MONO | A2DP_SBC_IE_CH_MD_JOINT), /* ch_mode */
     (A2DP_SBC_IE_BLOCKS_16 | A2DP_SBC_IE_BLOCKS_12 | A2DP_SBC_IE_BLOCKS_8 |
      A2DP_SBC_IE_BLOCKS_4),            /* block_len */
@@ -1208,16 +1208,16 @@ bool A2dpCodecConfigSbcBase::setCodecConfig(const uint8_t* p_peer_codec_info,
       break;
     }
 
+    // No user preference - use the best match
+    if (select_best_sample_rate(samp_freq, &result_config_cie,
+                                &codec_config_)) {
+      break;
+    }
+
     // No user preference - try the default config
     if (select_best_sample_rate(
             a2dp_sbc_default_config.samp_freq & peer_info_cie.samp_freq,
             &result_config_cie, &codec_config_)) {
-      break;
-    }
-
-    // No user preference - use the best match
-    if (select_best_sample_rate(samp_freq, &result_config_cie,
-                                &codec_config_)) {
       break;
     }
   } while (false);

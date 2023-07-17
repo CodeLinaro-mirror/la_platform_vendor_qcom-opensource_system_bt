@@ -61,7 +61,7 @@ static const tA2DP_AAC_CIE a2dp_aac_cbr_source_caps = {
     A2DP_AAC_OBJECT_TYPE_MPEG2_LC,
     // sampleRate
     // TODO: AAC 48.0kHz sampling rate should be added back - see b/62301376
-    A2DP_AAC_SAMPLING_FREQ_44100,
+    A2DP_AAC_SAMPLING_FREQ_48000,
     // channelMode
     A2DP_AAC_CHANNEL_MODE_STEREO,
     // variableBitRateSupport
@@ -77,7 +77,7 @@ static const tA2DP_AAC_CIE a2dp_aac_vbr_source_caps = {
     A2DP_AAC_OBJECT_TYPE_MPEG2_LC,
     // sampleRate
     // TODO: AAC 48.0kHz sampling rate should be added back - see b/62301376
-    A2DP_AAC_SAMPLING_FREQ_44100,
+    A2DP_AAC_SAMPLING_FREQ_48000,
     // channelMode
     A2DP_AAC_CHANNEL_MODE_STEREO,
     // variableBitRateSupport
@@ -1198,16 +1198,16 @@ bool A2dpCodecConfigAacBase::setCodecConfig(const uint8_t* p_peer_codec_info,
       break;
     }
 
+    // No user preference - use the best match
+    if (select_best_sample_rate(sampleRate, &result_config_cie,
+                                &codec_config_)) {
+      break;
+    }
+
     // No user preference - try the default config
     if (select_best_sample_rate(
             a2dp_aac_default_config.sampleRate & peer_info_cie.sampleRate,
             &result_config_cie, &codec_config_)) {
-      break;
-    }
-
-    // No user preference - use the best match
-    if (select_best_sample_rate(sampleRate, &result_config_cie,
-                                &codec_config_)) {
       break;
     }
   } while (false);
