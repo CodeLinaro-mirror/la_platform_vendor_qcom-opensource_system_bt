@@ -931,7 +931,10 @@ static void free_rfc_slot_scn(rfc_slot_t* slot) {
 
 static void cleanup_rfc_slot(rfc_slot_t* slot) {
   ALOGI("%s", __func__);
+  std::unique_lock<std::recursive_mutex> lock(slot_lock);
+  slot = find_rfc_slot_by_fd(slot->fd);
   if(!slot){
+    ALOGI("%s slot already cleaned up", __func__);
     return;
   }
   if(slot){
@@ -1483,6 +1486,12 @@ void btsock_rfc_signaled(int fd, int type, int flags, uint32_t user_id) {
           ALOGI("%s num_of_iterations expected is :: %d",__func__,data_string.size()/max_data_size_glink + 1);
           int iterations = 0;
           for(unsigned i=0; i<data_string.size(); i+=max_data_size_glink){
+            // Safe Check to Stop Pumping Data if Disconnected is received during Tx retry
+            rfc_slot_t* slot = find_rfc_slot_by_scn(channel);
+            if (!slot) {
+              ALOGI("Slot disconnected. Stop Sending Data");
+              return;
+            }
             iterations++;
             std::string data_string_sub = data_string.substr(i,max_data_size_glink);
             /*Sending data write to SS*/
