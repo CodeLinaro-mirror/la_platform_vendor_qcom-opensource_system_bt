@@ -767,6 +767,12 @@ void bta_dm_bond(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
     sec_event.auth_cmpl.fail_reason = HCI_ERR_ILLEGAL_COMMAND;
     if (status == BTM_SUCCESS) {
       sec_event.auth_cmpl.success = true;
+    } else if (status == BTM_COLLISION_ACTION) {
+      /* bonding collision occurs with the same peer device,
+         let the peer device to complete the procedure and
+         we do nothing but just return.
+      */
+      return;
     } else {
       /* delete this device entry from Sec Dev DB */
       bta_dm_remove_sec_dev_entry(bd_addr);

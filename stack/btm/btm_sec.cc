@@ -15,6 +15,13 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+/***********************************************************************************
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ **********************************************************************************/
 
 /******************************************************************************
  *
@@ -742,9 +749,15 @@ tBTM_STATUS btm_sec_bond_by_transport(const RawAddress& bd_addr,
 
   /* Other security process is in progress */
   if (btm_cb.pairing_state != BTM_PAIR_STATE_IDLE) {
-    BTM_TRACE_ERROR("BTM_SecBond: already busy in state: %s",
-                    btm_pair_state_descr(btm_cb.pairing_state));
-    return (BTM_WRONG_MODE);
+    if (btm_cb.pairing_bda == bd_addr) {
+      BTM_TRACE_ERROR("BTM_SecBond: bonding with the same bd_addr=%s is ongoing",
+                      bd_addr.ToString().c_str());
+      return (BTM_COLLISION_ACTION);
+    } else {
+      BTM_TRACE_ERROR("BTM_SecBond: already busy in state: %s",
+                      btm_pair_state_descr(btm_cb.pairing_state));
+      return (BTM_WRONG_MODE);
+    }
   }
 
   p_dev_rec = btm_find_or_alloc_dev(bd_addr);
