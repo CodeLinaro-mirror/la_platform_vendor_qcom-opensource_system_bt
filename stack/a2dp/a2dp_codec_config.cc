@@ -1176,7 +1176,7 @@ bool A2DP_IsPeerSourceCodecSupported(const uint8_t* p_codec_info) {
     default:
       break;
   }
-#if A2DP_SINK_PTS_TEST
+#if A2DP_PTS_TEST
   if (codec_type == 0xaa) // PTS: A2DP/SNK/AVP/BI-10-C
     set_a2dp_error_code(A2DP_BAD_CODEC_TYPE);
   else // PTS: A2DP/SNK/AVP/BI-20-C
