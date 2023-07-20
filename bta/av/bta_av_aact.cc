@@ -1132,6 +1132,8 @@ void bta_av_do_disc_a2dp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   APPL_TRACE_DEBUG("%s: is_pts_enable: %s", __func__, is_pts_enable);
   if (!strncmp("true", is_pts_enable, 4)) {
     APPL_TRACE_DEBUG("%s: Don't do a2dp discovery for PTS, return", __func__);
+    /* store peer addr to scb */
+    bta_av_save_addr(p_scb, p_data->api_open.bd_addr);
     return;
   }
 
