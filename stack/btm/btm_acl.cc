@@ -57,6 +57,7 @@
 #include "btif_av_co.h"
 #include "btif_av.h"
 #include <hardware/bt_av.h>
+#include "stack/gatt/gatt_int.h"
 
 static void btm_read_remote_features(uint16_t handle);
 static void btm_read_remote_ext_features(uint16_t handle, uint8_t page_number);
@@ -1012,6 +1013,20 @@ void btm_read_remote_version_complete(uint8_t* p) {
       if (p_acl_cb->transport == BT_TRANSPORT_LE) {
         l2cble_notify_le_connection(p_acl_cb->remote_addr);
         btm_use_preferred_conn_params(p_acl_cb->remote_addr);
+        if ((p_acl_cb->lmp_version >= HCI_PROTO_VERSION_5_1)
+            && gatt_is_robust_caching_enabled()) {
+          bool skip_caching_enable = false;
+          BD_NAME bd_name;
+          if (BTM_GetRemoteDeviceName(p_acl_cb->remote_addr, bd_name)) {
+            if (interop_database_match_name(INTEROP_SKIP_ROBUST_CACHING_READ, (char*) bd_name)) {
+              skip_caching_enable = true;
+            }
+          }
+          VLOG(1) << __func__ << " skip_caching_enable:" << +skip_caching_enable;
+          if (!skip_caching_enable) {
+            GATT_EnableRobustCaching(p_acl_cb->remote_addr, BT_TRANSPORT_LE);
+          }
+        }
       }
         VLOG(2) << __func__ << " btm_read_remote_version_complete: BDA: " << p_acl_cb->remote_addr;
         BTM_TRACE_WARNING ("btm_read_remote_version_complete lmp_version %d manufacturer %d lmp_subversion %d",
@@ -1584,15 +1599,15 @@ void btm_blacklist_role_change_device(const RawAddress& bd_addr,
                                       uint8_t hci_status) {
   tACL_CONN  *p = btm_bda_to_acl(bd_addr, BT_TRANSPORT_BR_EDR);
   tBTM_SEC_DEV_REC  *p_dev_rec = btm_find_dev (bd_addr);
-  
+
   if(!p || !p_dev_rec) {
       return;
   }
-    
+
   if (hci_status == HCI_SUCCESS) {
 #if (defined(BTM_SAFE_REATTEMPT_ROLE_SWITCH) && BTM_SAFE_REATTEMPT_ROLE_SWITCH == TRUE)
     interop_database_remove_addr(INTEROP_DYNAMIC_ROLE_SWITCH, &bd_addr);
-#endif      
+#endif
     p->switch_role_failed_attempts = 0;
     return;
   }

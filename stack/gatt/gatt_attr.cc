@@ -823,9 +823,9 @@ void GATT_EnableRobustCaching(const RawAddress& remote_bda,
   if (GATT_GetConnIdIfConnected(gatt_cb.gatt_if, remote_bda, &p_clcb->conn_id,
                                 transport)) {
     p_clcb->connected = true;
-  } else {
-    GATT_Connect(gatt_cb.gatt_if, remote_bda, true, transport, true);
   }
+
+  GATT_Connect(gatt_cb.gatt_if, remote_bda, true, transport, true);
   p_clcb->robust_caching_stage = GATT_ROBUST_CACHING_CL_SUPP_FEAT_CONNECTING;
 
   if (!p_clcb->connected) {
@@ -1107,6 +1107,7 @@ void gatt_save_cl_db_hash(tGATT_TCB tcb) {
 
   if (gatt_sr_is_cl_robust_caching_supported(tcb)) {
     VLOG(1) << __func__ << " saving DB Hash";
+    LOG(INFO) << __func__ << " saving DB Hash";
     btif_storage_set_gatt_cl_db_hash(tcb.peer_bda, gatt_cb.database_hash);
   }
 }

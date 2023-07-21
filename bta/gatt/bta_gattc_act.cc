@@ -889,6 +889,7 @@ void bta_gattc_start_discover(tBTA_GATTC_CLCB* p_clcb,
         return;
       }
 
+      APPL_TRACE_DEBUG("%s: is_svc_chg=%d", __func__, is_svc_chg);
       bta_gattc_start_discover_internal(p_clcb);
     } else {
       APPL_TRACE_ERROR("unknown device, can not start discovery");
@@ -1486,8 +1487,12 @@ void bta_gattc_process_api_refresh(const RawAddress& remote_bda) {
         }
       }
       if (found) {
-        if (p_clcb->p_srcb->state == BTA_GATTC_SERV_IDLE)
+        if (p_clcb->p_srcb->state == BTA_GATTC_SERV_IDLE) {
+          if (bta_gattc_is_robust_caching_enabled()) {
+            p_clcb->p_srcb->srvc_hdl_db_hash = true;
+          }
           bta_gattc_sm_execute(p_clcb, BTA_GATTC_INT_DISCOVER_EVT, NULL);
+        }
         else
           APPL_TRACE_DEBUG(
           "%s: Discovery is in progress , ignore refresh.  state = %d",
