@@ -71,7 +71,7 @@ int sock_send_all(int sock_fd, const uint8_t* buf, int len) {
     ssize_t ret;
     OSI_NO_INTR(ret = send(sock_fd, buf, s, 0));
     if (ret <= 0) {
-      BTIF_TRACE_ERROR("sock fd:%d send errno:%d, ret:%d", sock_fd, errno, ret);
+      ALOGE("sock fd:%d send errno:%d, ret:%d", sock_fd, errno, ret);
       return -1;
     }
     buf += ret;
@@ -86,7 +86,7 @@ int sock_recv_all(int sock_fd, uint8_t* buf, int len) {
     ssize_t ret;
     OSI_NO_INTR(ret = recv(sock_fd, buf, r, MSG_WAITALL));
     if (ret <= 0) {
-      BTIF_TRACE_ERROR("sock fd:%d recv errno:%d, ret:%d", sock_fd, errno, ret);
+      ALOGE("sock fd:%d recv errno:%d, ret:%d", sock_fd, errno, ret);
       return -1;
     }
     buf += ret;
@@ -129,7 +129,7 @@ int sock_send_fd(int sock_fd, const uint8_t* buf, int len, int send_fd) {
     ssize_t ret;
     OSI_NO_INTR(ret = sendmsg(sock_fd, &msg, MSG_NOSIGNAL));
     if (ret < 0) {
-      BTIF_TRACE_ERROR("fd:%d, send_fd:%d, sendmsg ret:%d, errno:%d, %s",
+      ALOGE("fd:%d, send_fd:%d, sendmsg ret:%d, errno:%d, %s",
                        sock_fd, send_fd, (int)ret, errno, strerror(errno));
       ret_len = -1;
       break;
@@ -141,7 +141,7 @@ int sock_send_fd(int sock_fd, const uint8_t* buf, int len, int send_fd) {
     // Wipes out any msg_control too
     memset(&msg, 0, sizeof(msg));
   }
-  BTIF_TRACE_DEBUG("close fd:%d after sent", send_fd);
+  ALOGD("close fd:%d after sent", send_fd);
   // TODO: This seems wrong - if the FD is not opened in JAVA before this is
   // called
   //       we get a "socket closed" exception in java, when reading from the

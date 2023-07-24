@@ -783,7 +783,7 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
                                int* sock_fd, int flags, int app_uid, int type) {
   CHECK(sock_fd != NULL);
   CHECK((service_uuid != NULL) || (channel >= 1 && channel <= MAX_RFC_CHANNEL));
-  BTIF_TRACE_DEBUG("%s", __func__);
+  ALOGD("%s", __func__);
 
   *sock_fd = INVALID_FD;
 
@@ -1457,7 +1457,7 @@ static bool flush_incoming_que_on_wr_signal(rfc_slot_t* slot) {
 
   // app is ready to receive data, tell stack to start the data flow
   // fix me: need a jv flow control api to serialize the call in stack
-  APPL_TRACE_DEBUG(
+  ALOGD(
       "enable data flow, rfc_handle:0x%x, rfc_port_handle:0x%x, user_id:%d",
       slot->rfc_handle, slot->rfc_port_handle, slot->id);
   //PORT_FlowControl_MaxCredit(slot->rfc_port_handle, true);

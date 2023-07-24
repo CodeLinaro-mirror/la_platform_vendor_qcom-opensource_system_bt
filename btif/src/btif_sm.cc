@@ -69,7 +69,7 @@ typedef struct {
 btif_sm_handle_t btif_sm_init(const btif_sm_handler_t* p_handlers,
                               btif_sm_state_t initial_state, int index) {
   if (p_handlers == NULL) {
-    BTIF_TRACE_ERROR("%s : p_handlers is NULL", __func__);
+    ALOGE("%s : p_handlers is NULL", __func__);
     return NULL;
   }
 
@@ -97,7 +97,7 @@ void btif_sm_shutdown(btif_sm_handle_t handle) {
   btif_sm_cb_t* p_cb = (btif_sm_cb_t*)handle;
 
   if (p_cb == NULL) {
-    BTIF_TRACE_ERROR("%s : Invalid handle", __func__);
+    ALOGE("%s : Invalid handle", __func__);
     return;
   }
   free(p_cb);
@@ -116,7 +116,7 @@ btif_sm_state_t btif_sm_get_state(btif_sm_handle_t handle) {
   btif_sm_cb_t* p_cb = (btif_sm_cb_t*)handle;
 
   if (p_cb == NULL) {
-    BTIF_TRACE_ERROR("%s : Invalid handle", __func__);
+    ALOGE("%s : Invalid handle", __func__);
     return 0;
   }
 
@@ -142,7 +142,7 @@ bt_status_t btif_sm_dispatch(btif_sm_handle_t handle, btif_sm_event_t event,
   btif_sm_cb_t* p_cb = (btif_sm_cb_t*)handle;
 
   if (p_cb == NULL) {
-    BTIF_TRACE_ERROR("%s : Invalid handle", __func__);
+    ALOGE("%s : Invalid handle", __func__);
     return BT_STATUS_FAIL;
   }
 
@@ -172,7 +172,7 @@ bt_status_t btif_sm_change_state(btif_sm_handle_t handle,
   btif_sm_cb_t* p_cb = (btif_sm_cb_t*)handle;
 
   if (p_cb == NULL) {
-    BTIF_TRACE_ERROR("%s : Invalid handle", __func__);
+    ALOGE("%s : Invalid handle", __func__);
     return BT_STATUS_FAIL;
   }
 

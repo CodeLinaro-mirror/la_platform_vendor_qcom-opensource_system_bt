@@ -115,7 +115,7 @@ static inline int create_thread(void* (*start_routine)(void*), void* arg,
 
   ret = pthread_create(thread_id, &thread_attr, start_routine, arg);
   if (ret != 0) {
-    APPL_TRACE_ERROR("pthread_create : %s", strerror(errno));
+    ALOGE("pthread_create : %s", strerror(errno));
     return ret;
   }
   /* We need to lower the priority of this thread to ensure the stack gets
@@ -134,13 +134,13 @@ static int alloc_thread_slot() {
   int i;
   // reversed order to save guard uninitialized access to 0 index
   for (i = MAX_THREAD - 1; i >= 0; i--) {
-    APPL_TRACE_DEBUG("ts[%d].used:%d", i, ts[i].used);
+    ALOGD("ts[%d].used:%d", i, ts[i].used);
     if (!ts[i].used) {
       ts[i].used = 1;
       return i;
     }
   }
-  APPL_TRACE_ERROR("execeeded max thread count");
+  ALOGE("execeeded max thread count");
   return -1;
 }
 static void free_thread_slot(int h) {
@@ -148,11 +148,11 @@ static void free_thread_slot(int h) {
     close_cmd_fd(h);
     ts[h].used = 0;
   } else
-    APPL_TRACE_ERROR("invalid thread handle:%d", h);
+    ALOGE("invalid thread handle:%d", h);
 }
 int btsock_thread_init() {
   static int initialized;
-  APPL_TRACE_DEBUG("in initialized:%d", initialized);
+  ALOGD("in initialized:%d", initialized);
   if (!initialized) {
     initialized = 1;
     int h;
@@ -171,19 +171,19 @@ int btsock_thread_create(btsock_signaled_cb callback,
                          btsock_cmd_cb cmd_callback) {
   asrt(callback || cmd_callback);
   int h = alloc_thread_slot();
-  APPL_TRACE_DEBUG("alloc_thread_slot ret:%d", h);
+  ALOGD("alloc_thread_slot ret:%d", h);
   if (h >= 0) {
     init_poll(h);
     pthread_t thread;
     int status = create_thread(sock_poll_thread, (void*)(uintptr_t)h, &thread);
     if (status) {
-      APPL_TRACE_ERROR("create_thread failed: %s", strerror(status));
+      ALOGE("create_thread failed: %s", strerror(status));
       free_thread_slot(h);
       return -1;
     }
 
     ts[h].thread_id = thread;
-    APPL_TRACE_DEBUG("h:%d, thread id:%d", h, ts[h].thread_id);
+    ALOGD("h:%d, thread id:%d", h, ts[h].thread_id);
     ts[h].callback = callback;
     ts[h].cmd_callback = cmd_callback;
   }
@@ -194,10 +194,10 @@ int btsock_thread_create(btsock_signaled_cb callback,
 static inline void init_cmd_fd(int h) {
   asrt(ts[h].cmd_fdr == -1 && ts[h].cmd_fdw == -1);
   if (socketpair(AF_UNIX, SOCK_STREAM, 0, &ts[h].cmd_fdr) < 0) {
-    APPL_TRACE_ERROR("socketpair failed: %s", strerror(errno));
+    ALOGE("socketpair failed: %s", strerror(errno));
     return;
   }
-  APPL_TRACE_DEBUG("h:%d, cmd_fdr:%d, cmd_fdw:%d", h, ts[h].cmd_fdr,
+  ALOGD("h:%d, cmd_fdr:%d, cmd_fdw:%d", h, ts[h].cmd_fdr,
                    ts[h].cmd_fdw);
   // add the cmd fd for read & write
   add_poll(h, ts[h].cmd_fdr, 0, SOCK_THREAD_FD_RD, 0);
@@ -221,11 +221,11 @@ typedef struct {
 } sock_cmd_t;
 int btsock_thread_add_fd(int h, int fd, int type, int flags, uint32_t user_id) {
   if (h < 0 || h >= MAX_THREAD) {
-    APPL_TRACE_ERROR("invalid bt thread handle:%d", h);
+    ALOGE("invalid bt thread handle:%d", h);
     return false;
   }
   if (ts[h].cmd_fdw == -1) {
-    APPL_TRACE_ERROR(
+    ALOGE(
         "cmd socket is not created. socket thread may not initialized");
     return false;
   }
@@ -237,11 +237,11 @@ int btsock_thread_add_fd(int h, int fd, int type, int flags, uint32_t user_id) {
       add_poll(h, fd, type, flags, user_id);
       return true;
     }
-    APPL_TRACE_DEBUG(
+    ALOGD(
         "THREAD_ADD_FD_SYNC is not called in poll thread, fallback to async");
   }
   sock_cmd_t cmd = {CMD_ADD_FD, fd, type, flags, user_id};
-  APPL_TRACE_DEBUG("adding fd:%d, flags:0x%x", fd, flags);
+  ALOGD("adding fd:%d, flags:0x%x", fd, flags);
 
   ssize_t ret;
   OSI_NO_INTR(ret = send(ts[h].cmd_fdw, &cmd, sizeof(cmd), 0));
@@ -251,11 +251,11 @@ int btsock_thread_add_fd(int h, int fd, int type, int flags, uint32_t user_id) {
 
 bool btsock_thread_remove_fd_and_close(int thread_handle, int fd) {
   if (thread_handle < 0 || thread_handle >= MAX_THREAD) {
-    APPL_TRACE_ERROR("%s invalid thread handle: %d", __func__, thread_handle);
+    ALOGE("%s invalid thread handle: %d", __func__, thread_handle);
     return false;
   }
   if (fd == -1) {
-    APPL_TRACE_ERROR("%s invalid file descriptor.", __func__);
+    ALOGE("%s invalid file descriptor.", __func__);
     return false;
   }
 
@@ -270,16 +270,16 @@ bool btsock_thread_remove_fd_and_close(int thread_handle, int fd) {
 int btsock_thread_post_cmd(int h, int type, const unsigned char* data, int size,
                            uint32_t user_id) {
   if (h < 0 || h >= MAX_THREAD) {
-    APPL_TRACE_ERROR("invalid bt thread handle:%d", h);
+    ALOGE("invalid bt thread handle:%d", h);
     return false;
   }
   if (ts[h].cmd_fdw == -1) {
-    APPL_TRACE_ERROR(
+    ALOGE(
         "cmd socket is not created. socket thread may not initialized");
     return false;
   }
   sock_cmd_t cmd = {CMD_USER_PRIVATE, 0, type, size, user_id};
-  APPL_TRACE_DEBUG("post cmd type:%d, size:%d, h:%d, ", type, size, h);
+  ALOGD("post cmd type:%d, size:%d, h:%d, ", type, size, h);
   sock_cmd_t* cmd_send = &cmd;
   int size_send = sizeof(cmd);
   if (data && size) {
@@ -289,7 +289,7 @@ int btsock_thread_post_cmd(int h, int type, const unsigned char* data, int size,
       *cmd_send = cmd;
       memcpy(cmd_send + 1, data, size);
     } else {
-      APPL_TRACE_ERROR("alloca failed at h:%d, cmd type:%d, size:%d", h, type,
+      ALOGE("alloca failed at h:%d, cmd type:%d, size:%d", h, type,
                        size_send);
       return false;
     }
@@ -302,11 +302,11 @@ int btsock_thread_post_cmd(int h, int type, const unsigned char* data, int size,
 }
 int btsock_thread_wakeup(int h) {
   if (h < 0 || h >= MAX_THREAD) {
-    APPL_TRACE_ERROR("invalid bt thread handle:%d", h);
+    ALOGE("invalid bt thread handle:%d", h);
     return false;
   }
   if (ts[h].cmd_fdw == -1) {
-    APPL_TRACE_ERROR("thread handle:%d, cmd socket is not created", h);
+    ALOGE("thread handle:%d, cmd socket is not created", h);
     return false;
   }
   sock_cmd_t cmd = {CMD_WAKEUP, 0, 0, 0, 0};
@@ -318,11 +318,11 @@ int btsock_thread_wakeup(int h) {
 }
 int btsock_thread_exit(int h) {
   if (h < 0 || h >= MAX_THREAD) {
-    APPL_TRACE_ERROR("invalid bt thread slot:%d", h);
+    ALOGE("invalid bt thread slot:%d", h);
     return false;
   }
   if (ts[h].cmd_fdw == -1) {
-    APPL_TRACE_ERROR("cmd socket is not created");
+    ALOGE("cmd socket is not created");
     return false;
   }
   sock_cmd_t cmd = {CMD_EXIT, 0, 0, 0, 0};
@@ -365,7 +365,7 @@ static inline void set_poll(poll_slot_t* ps, int fd, int type, int flags,
   ps->pfd.fd = fd;
   ps->user_id = user_id;
   if (ps->type != 0 && ps->type != type)
-    APPL_TRACE_ERROR(
+    ALOGE(
         "poll socket type should not changed! type was:%d, type now:%d",
         ps->type, type);
   ps->type = type;
@@ -395,7 +395,7 @@ static inline void add_poll(int h, int fd, int type, int flags,
     ++ts[h].poll_count;
     return;
   }
-  APPL_TRACE_ERROR("exceeded max poll slot:%d!", MAX_POLL);
+  ALOGE("exceeded max poll slot:%d!", MAX_POLL);
 }
 static inline void remove_poll(int h, poll_slot_t* ps, int flags) {
   if (flags == ps->flags) {
@@ -418,10 +418,10 @@ static int process_cmd_sock(int h) {
   OSI_NO_INTR(ret = recv(fd, &cmd, sizeof(cmd), MSG_WAITALL));
 
   if (ret != sizeof(cmd)) {
-    APPL_TRACE_ERROR("recv cmd errno:%d", errno);
+    ALOGE("recv cmd errno:%d", errno);
     return false;
   }
-  APPL_TRACE_DEBUG("cmd.id:%d", cmd.id);
+  ALOGD("cmd.id:%d", cmd.id);
   switch (cmd.id) {
     case CMD_ADD_FD:
       add_poll(h, cmd.fd, cmd.type, cmd.flags, cmd.user_id);
@@ -446,7 +446,7 @@ static int process_cmd_sock(int h) {
     case CMD_EXIT:
       return false;
     default:
-      APPL_TRACE_DEBUG("unknown cmd: %d", cmd.id);
+      ALOGD("unknown cmd: %d", cmd.id);
       break;
   }
   return true;
@@ -461,7 +461,7 @@ static void print_events(short events) {
   if ((events)&POLLHUP) flags += " POLLHUP ";
   if ((events)&POLLNVAL) flags += " POLLNVAL";
   if ((events)&POLLRDHUP) flags += " POLLRDHUP";
-  APPL_TRACE_DEBUG("print poll event:%x = %s", (events), flags.c_str());
+  ALOGD("print poll event:%x = %s", (events), flags.c_str());
 }
 
 static void process_data_sock(int h, struct pollfd* pfds, int count) {
@@ -471,7 +471,7 @@ static void process_data_sock(int h, struct pollfd* pfds, int count) {
     if (pfds[i].revents) {
       int ps_i = ts[h].psi[i];
       if(ts[h].ps[ps_i].pfd.fd <= 0) {
-        APPL_TRACE_ERROR("%s: Socket fd is not open", __FUNCTION__);
+        ALOGE("%s: Socket fd is not open", __FUNCTION__);
         return;
       }
       asrt(pfds[i].fd == ts[h].ps[ps_i].pfd.fd);
@@ -505,7 +505,7 @@ static void prepare_poll_fds(int h, struct pollfd* pfds) {
   memset(pfds, 0, sizeof(pfds[0]) * ts[h].poll_count);
   while (count < ts[h].poll_count) {
     if (ps_i >= MAX_POLL) {
-      APPL_TRACE_ERROR(
+      ALOGE(
           "exceed max poll range, ps_i:%d, MAX_POLL:%d, count:%d, "
           "ts[h].poll_count:%d",
           ps_i, MAX_POLL, count, ts[h].poll_count);
@@ -531,7 +531,7 @@ static void* sock_poll_thread(void* arg) {
     int ret;
     OSI_NO_INTR(ret = poll(pfds, ts[h].poll_count, -1));
     if (ret == -1) {
-      APPL_TRACE_ERROR("poll ret -1, exit the thread, errno:%d, err:%s", errno,
+      ALOGE("poll ret -1, exit the thread, errno:%d, err:%s", errno,
                        strerror(errno));
       break;
     }
@@ -541,7 +541,7 @@ static void* sock_poll_thread(void* arg) {
       {
         asrt(pfds[0].fd == ts[h].cmd_fdr);
         if (!process_cmd_sock(h)) {
-          APPL_TRACE_DEBUG("h:%d, process_cmd_sock return false, exit...", h);
+          ALOGD("h:%d, process_cmd_sock return false, exit...", h);
           break;
         }
         if (ret == 1)
@@ -551,9 +551,9 @@ static void* sock_poll_thread(void* arg) {
       }
       if (need_process_data_fd) process_data_sock(h, pfds, ret);
     } else {
-      APPL_TRACE_DEBUG("no data, select ret: %d", ret)
+      ALOGD("no data, select ret: %d", ret)
     };
   }
-  APPL_TRACE_DEBUG("socket poll thread exiting, h:%d", h);
+  ALOGD("socket poll thread exiting, h:%d", h);
   return 0;
 }

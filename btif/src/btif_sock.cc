@@ -72,40 +72,40 @@ btsock_interface_t* btif_sock_get_interface(void) {
 }
 
 bt_status_t btif_sock_init(uid_set_t* uid_set) {
-  BTIF_TRACE_DEBUG("%s", __func__);
+  ALOGD("%s", __func__);
   CHECK(thread_handle == -1);
   CHECK(thread == NULL);
-  BTIF_TRACE_DEBUG("%s: after check", __func__);
+  ALOGD("%s: after check", __func__);
   bt_status_t status;
   btsock_thread_init();
   thread_handle = btsock_thread_create(btsock_signaled, NULL);
   if (thread_handle == -1) {
-    BTIF_TRACE_DEBUG("%s unable to create btsock_thread.", __func__);
+    ALOGD("%s unable to create btsock_thread.", __func__);
     goto error;
   }
   status = btsock_rfc_init(thread_handle, uid_set);
   if (status != BT_STATUS_SUCCESS) {
-    BTIF_TRACE_DEBUG( "%s error initializing RFCOMM sockets: %d", __func__,
+    ALOGD( "%s error initializing RFCOMM sockets: %d", __func__,
               status);
     goto error;
   }
 #if 0
   status = btsock_l2cap_init(thread_handle, uid_set);
   if (status != BT_STATUS_SUCCESS) {
-    BTIF_TRACE_DEBUG( "%s error initializing L2CAP sockets: %d", __func__,
+    ALOGD( "%s error initializing L2CAP sockets: %d", __func__,
               status);
     goto error;
   }
 #endif
   thread = thread_new("btif_sock");
   if (!thread) {
-    BTIF_TRACE_DEBUG( "%s error creating new thread.", __func__);
+    ALOGD( "%s error creating new thread.", __func__);
     btsock_rfc_cleanup();
     goto error;
   }
   status = btsock_sco_init(thread);
   if (status != BT_STATUS_SUCCESS) {
-    BTIF_TRACE_DEBUG( "%s error initializing SCO sockets: %d", __func__,
+    ALOGD( "%s error initializing SCO sockets: %d", __func__,
               status);
     btsock_rfc_cleanup();
     goto error;
@@ -170,12 +170,12 @@ static bt_status_t btsock_listen(btsock_type_t type, const char* service_name,
         /* Set channel to zero so that it will be assigned */
         channel = 0;
       } else if (channel <= 0) {
-        BTIF_TRACE_DEBUG( "%s: type BTSOCK_L2CAP_LE: invalid channel=%d",
+        ALOGD( "%s: type BTSOCK_L2CAP_LE: invalid channel=%d",
                   __func__, channel);
         break;
       }
       flags |= BTSOCK_FLAG_LE_COC;
-      BTIF_TRACE_DEBUG(
+      ALOGD(
           "%s: type=BTSOCK_L2CAP_LE, channel=0x%x, original=0x%x, flags=0x%x",
           __func__, channel, original_channel, flags);
       status =
@@ -186,8 +186,7 @@ static bt_status_t btsock_listen(btsock_type_t type, const char* service_name,
       break;
 
     default:
-      BTIF_TRACE_DEBUG( "%s unknown/unsupported socket type: %d", __func__,
-                type);
+      ALOGD( "%s unknown/unsupported socket type: %d", __func__, type);
       status = BT_STATUS_UNSUPPORTED;
       break;
   }
@@ -229,7 +228,7 @@ static bt_status_t btsock_connect(const RawAddress* bd_addr, btsock_type_t type,
         //BTA_DmAddBleDevice(*bd_addr, addr_type, device_type);
       }*/
 
-      BTIF_TRACE_DEBUG( "%s: type=BTSOCK_L2CAP_LE, channel=0x%x, flags=0x%x",
+      ALOGD( "%s: type=BTSOCK_L2CAP_LE, channel=0x%x, flags=0x%x",
                 __func__, channel, flags);
       status = btsock_rfc_connect(bd_addr, uuid, channel, sock_fd, flags, app_uid, BTSOCK_L2CAP_LE);
       break;
@@ -240,7 +239,7 @@ static bt_status_t btsock_connect(const RawAddress* bd_addr, btsock_type_t type,
       break;
 
     default:
-      BTIF_TRACE_DEBUG( "%s unknown/unsupported socket type: %d", __func__,
+      ALOGD( "%s unknown/unsupported socket type: %d", __func__,
                 type);
       status = BT_STATUS_UNSUPPORTED;
       break;
@@ -249,7 +248,7 @@ static bt_status_t btsock_connect(const RawAddress* bd_addr, btsock_type_t type,
 }
 
 static void btsock_request_max_tx_data_length(const RawAddress& remote_device) {
-  BTIF_TRACE_DEBUG( "%s", __func__);
+  ALOGD( "%s", __func__);
 }
 
 static void btsock_signaled(int fd, int type, int flags, uint32_t user_id) {

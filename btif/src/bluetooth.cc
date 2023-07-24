@@ -447,7 +447,7 @@ restart:
 
 static int enable () {
   ALOGI("%s", __func__);
-  BTIF_TRACE_DEBUG("QTI single stack: %s", __func__);
+  ALOGD("QTI single stack: %s", __func__);
   // Do Encoding of Enable Proto
   uint8_t enable_msg[MAX_LENGTH_WITH_PROTO_NONE];
   uint8_t addr[6];
