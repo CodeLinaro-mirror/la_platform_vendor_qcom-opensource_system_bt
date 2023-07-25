@@ -3147,6 +3147,15 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr,
         /* If it is set, there may be a race condition */
         BTM_TRACE_DEBUG("%s IS_SM4_UNKNOWN Flags:0x%04x", __func__,
                         btm_cb.pairing_flags);
+
+        if ((p_dev_rec->num_read_pages == 0) &&
+            (btm_cb.pairing_flags & BTM_PAIR_FLAGS_WE_STARTED_DD) &&
+            (p_dev_rec->hci_handle != BTM_SEC_INVALID_HANDLE)) {
+          BTM_TRACE_WARNING("%s:RNR done after connection, wait for remote features complete",
+                              __func__);
+          btm_sec_change_pairing_state(BTM_PAIR_STATE_WAIT_PIN_REQ);
+          return;
+        }
         if ((btm_cb.pairing_flags & BTM_PAIR_FLAGS_REJECTED_CONNECT) == 0)
           p_dev_rec->sm4 |= BTM_SM4_KNOWN;
       }
@@ -4080,6 +4089,14 @@ void btm_sec_auth_complete(uint16_t handle, uint8_t status) {
                                              p_dev_rec->sec_bd_name, status);
   }
 
+  /*as p_auth_complete_callback may remove p_dev_rec from list, so we
+   * need find it again */
+  p_dev_rec = btm_find_dev_by_handle(handle);
+  if (p_dev_rec == NULL) {
+     BTM_TRACE_ERROR("%s p_dev_rec have been removed, return", __func__);
+     return;
+  }
+
   p_dev_rec->sec_state = BTM_SEC_STATE_IDLE;
 
   /* If this is a bonding procedure can disconnect the link now */
@@ -4546,6 +4563,14 @@ void btm_sec_connected(const RawAddress& bda, uint16_t handle, uint8_t status,
                                                p_dev_rec->dev_class,
                                                p_dev_rec->sec_bd_name, status);
       }
+    }
+
+   /*as p_auth_complete_callback may remove p_dev_rec from list, so we
+    *    * need find it again */
+    p_dev_rec = btm_find_dev_by_handle(handle);
+      if (p_dev_rec == NULL) {
+        BTM_TRACE_ERROR("%s p_dev_rec have been removed, return", __func__);
+        return;
     }
 
     if (status == HCI_ERR_CONNECTION_TOUT ||
@@ -5873,11 +5898,21 @@ void btm_sec_dev_rec_cback_event(tBTM_SEC_DEV_REC* p_dev_rec, uint8_t res,
   if (p_dev_rec->p_callback || p_dev_rec->p_ble_callback) {
 
     if (is_le_transport) {
+      if (p_dev_rec->p_ble_callback == NULL) {
+        BTM_TRACE_WARNING("%s() p_ble_callback is NULL", __func__);
+        return;
+      }
+
       tBTM_SEC_CALLBACK* p_callback = p_dev_rec->p_ble_callback;
       p_dev_rec->p_ble_callback = NULL;
       (*p_callback)(&p_dev_rec->ble.pseudo_addr, BT_TRANSPORT_LE,
                     p_dev_rec->p_ref_data, res);
     } else {
+      if (p_dev_rec->p_callback == NULL) {
+        BTM_TRACE_WARNING("%s() p_callback is NULL", __func__);
+        return;
+      }
+
       tBTM_SEC_CALLBACK* p_callback = p_dev_rec->p_callback;
       p_dev_rec->p_callback = NULL;
       (*p_callback)(&p_dev_rec->bd_addr, BT_TRANSPORT_BR_EDR,

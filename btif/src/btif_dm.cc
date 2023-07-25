@@ -3524,9 +3524,10 @@ void btif_dm_get_ble_local_keys(tBTA_DM_BLE_LOCAL_KEY_MASK* p_key_mask,
 
 void btif_dm_save_ble_bonding_keys(void) {
   BTIF_TRACE_DEBUG("%s", __func__);
-  if( (pairing_cb.auth_req & BTM_LE_AUTH_REQ_BOND) == 0) {
-      return;
-  }
+  // saving ble bonding devices
+  // if( (pairing_cb.auth_req & BTM_LE_AUTH_REQ_BOND) == 0) {
+  //     return;
+  // }
 
   RawAddress bd_addr = pairing_cb.bd_addr;
 
