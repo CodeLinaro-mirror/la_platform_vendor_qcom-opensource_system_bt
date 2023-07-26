@@ -36,6 +36,7 @@
 #include "osi/include/properties.h"
 
 #include "btif_storage.h"
+#include "bta_gatt_api.h"
 #include "stack/btm/btm_int.h"
 #include "stack_config.h"
 
@@ -654,6 +655,12 @@ static void gatt_cl_op_cmpl_cback(uint16_t conn_id,
     return;
   }
 
+  if (status == GATT_DATABASE_OUT_OF_SYNC) {
+    // trigger discovery
+    LOG(INFO) << __func__ << ": GATT_DATABASE_OUT_OF_SYNC";
+    BTA_GATTC_Refresh(p_clcb->bda);
+    return;
+  }
   if ((op == GATTC_OPTYPE_WRITE) &&
       (p_clcb->ccc_stage == GATT_SVC_CHANGED_CONFIGURE_CCCD)) {
     VLOG(1) << __func__ << "Configure CCC is done";

@@ -1008,7 +1008,7 @@ void btm_read_remote_version_complete(uint8_t* p) {
           BTM_TRACE_DEBUG("Calling btm_read_remote_features");
           btm_read_remote_features (p_acl_cb->hci_handle);
         }
-    }
+      }
 
       if (p_acl_cb->transport == BT_TRANSPORT_LE) {
         l2cble_notify_le_connection(p_acl_cb->remote_addr);
@@ -1028,9 +1028,9 @@ void btm_read_remote_version_complete(uint8_t* p) {
           }
         }
       }
-        VLOG(2) << __func__ << " btm_read_remote_version_complete: BDA: " << p_acl_cb->remote_addr;
-        BTM_TRACE_WARNING ("btm_read_remote_version_complete lmp_version %d manufacturer %d lmp_subversion %d",
-                                       p_acl_cb->lmp_version,p_acl_cb->manufacturer, p_acl_cb->lmp_subversion);
+      VLOG(2) << __func__ << " btm_read_remote_version_complete: BDA: " << p_acl_cb->remote_addr;
+      BTM_TRACE_WARNING ("btm_read_remote_version_complete lmp_version %d manufacturer %d lmp_subversion %d",
+                                     p_acl_cb->lmp_version,p_acl_cb->manufacturer, p_acl_cb->lmp_subversion);
       break;
     }
   }

@@ -865,6 +865,7 @@ void bta_gattc_start_discover(tBTA_GATTC_CLCB* p_clcb,
       // 1. true, invoked by service changed indication
       // 2. false, invoked by connect API
       bool is_svc_chg = p_clcb->p_srcb->srvc_hdl_chg;
+      APPL_TRACE_DEBUG("%s: is_svc_chg=%d", __func__, is_svc_chg);
 
       /* clear the service change mask */
       p_clcb->p_srcb->srvc_hdl_chg = false;
