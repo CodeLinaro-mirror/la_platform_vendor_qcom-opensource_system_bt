@@ -461,6 +461,8 @@ static void gatt_le_connect_cback(uint16_t chan, const RawAddress& bd_addr,
 
   VLOG(1) << "GATT   ATT protocol channel with BDA: " << bd_addr << " is "
           << ((connected) ? "connected" : "disconnected");
+  LOG(INFO) << "GATT   ATT protocol channel with BDA: " << bd_addr
+            << " is " << ((connected) ? "connected" : "disconnected");
 
   p_srv_chg_clt = gatt_is_bda_in_the_srv_chg_clt_list(bd_addr);
   if (p_srv_chg_clt != NULL) {
@@ -480,8 +482,8 @@ static void gatt_le_connect_cback(uint16_t chan, const RawAddress& bd_addr,
         p_tcb->payload_size = GATT_DEF_BLE_MTU_SIZE;
 
         gatt_send_conn_cback(p_tcb);
+        if (check_srv_chg) gatt_chk_srv_chg(p_srv_chg_clt);
       }
-      if (check_srv_chg) gatt_chk_srv_chg(p_srv_chg_clt);
     }
     /* this is incoming connection or background connection callback */
 
@@ -1120,6 +1122,7 @@ void gatt_send_srv_chg_ind(const RawAddress& peer_bda) {
  ******************************************************************************/
 void gatt_chk_srv_chg(tGATTS_SRV_CHG* p_srv_chg_clt) {
   VLOG(1) << __func__ << " srv_changed=" << +p_srv_chg_clt->srv_changed;
+  LOG(ERROR) << __func__ << " srv_changed=" << +p_srv_chg_clt->srv_changed;
 
   if (p_srv_chg_clt->srv_changed) {
     gatt_send_srv_chg_ind(p_srv_chg_clt->bda);
