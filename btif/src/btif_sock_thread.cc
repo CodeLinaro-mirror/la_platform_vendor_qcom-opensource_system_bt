@@ -183,7 +183,7 @@ int btsock_thread_create(btsock_signaled_cb callback,
     }
 
     ts[h].thread_id = thread;
-    ALOGD("h:%d, thread id:%d", h, ts[h].thread_id);
+    ALOGD("h:%d, thread id:%ld", h, ts[h].thread_id);
     ts[h].callback = callback;
     ts[h].cmd_callback = cmd_callback;
   }
