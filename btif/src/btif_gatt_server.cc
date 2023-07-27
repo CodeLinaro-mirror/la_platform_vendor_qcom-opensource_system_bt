@@ -112,13 +112,13 @@ btif_ss_gatt_server gatt_server_single_stack_proto;
  ******************************************************************************/
 #if (EATT_IF_SUPPORTED == TRUE)
   static bt_status_t btif_gatts_register_app(const Uuid& bt_uuid, bool eatt_support) {
-    return gatt_server_single_stack_proto.registerServer(bt_uuid,eatt_support);
+    return gatt_server_single_stack_proto.registerServer(bt_uuid, eatt_support);
   }
 #else
   static bt_status_t btif_gatts_register_app(const Uuid& bt_uuid) {
 
     bool eatt_support = false;
-    return gatt_server_single_stack_proto.registerServer(bt_uuid,eatt_support);
+    return gatt_server_single_stack_proto.registerServer(bt_uuid, eatt_support);
   }
 #endif
 
@@ -139,16 +139,16 @@ static bt_status_t btif_gatts_close(int server_if, const RawAddress& bd_addr,
 static bt_status_t btif_gatts_add_service(int server_if,
                                           const btgatt_db_element_t* service,
                                           size_t service_count) {
-  return gatt_server_single_stack_proto. AddService(server_if,std::vector(service, service + service_count));
+  return gatt_server_single_stack_proto. AddService(server_if, std::vector(service, service + service_count));
 }
 
 static bt_status_t btif_gatts_stop_service(int server_if, int service_handle) {
-  return gatt_server_single_stack_proto.stopService(server_if,service_handle);
+  return gatt_server_single_stack_proto.stopService(server_if, service_handle);
 }
 
 static bt_status_t btif_gatts_delete_service(int server_if,
                                              int service_handle) {
-  return gatt_server_single_stack_proto.clearService(server_if,service_handle);
+  return gatt_server_single_stack_proto.clearService(server_if, service_handle);
 }
 
 static bt_status_t btif_gatts_send_indication(int server_if,
@@ -158,19 +158,19 @@ static bt_status_t btif_gatts_send_indication(int server_if,
 
   if (length > BTGATT_MAX_ATTR_LEN) length = BTGATT_MAX_ATTR_LEN;
   return gatt_server_single_stack_proto.sendIndicationNotification(attribute_handle,
-                         conn_id,confirm,std::vector(value, value + length),server_if);
+                         conn_id,confirm,std::vector(value, value + length), server_if);
 }
 
 static bt_status_t btif_gatts_send_response(int conn_id, int trans_id,
                                             int status,
                                             const btgatt_response_t& response) {
-  return gatt_server_single_stack_proto.sendResponse(conn_id, trans_id,status,response);
+  return gatt_server_single_stack_proto.sendResponse(conn_id, trans_id, status, response);
 }
 
 static bt_status_t btif_gatts_set_preferred_phy(const RawAddress& bd_addr,
                                                 uint8_t tx_phy, uint8_t rx_phy,
                                                 uint16_t phy_options) {
-  return gatt_server_single_stack_proto.setPhy(bd_addr,tx_phy,rx_phy,phy_options);
+  return gatt_server_single_stack_proto.setPhy(bd_addr, tx_phy, rx_phy, phy_options);
 }
 
 static bt_status_t btif_gatts_read_phy(

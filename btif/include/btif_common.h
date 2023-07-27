@@ -176,7 +176,7 @@ typedef struct {
     int randId;
     int serverIf;
     int connId;
-}tBTIF_CONNECTION_INFO;
+} tBTIF_CONNECTION_INFO;
 
 enum SS_BTSS_State {
     SS_BTSS_DOWN = 0,

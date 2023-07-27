@@ -60,7 +60,7 @@ const btgatt_callbacks_t* bt_gatt_callbacks = NULL;
 static bt_status_t btif_gatt_init(const btgatt_callbacks_t* callbacks) {
   bt_gatt_callbacks = callbacks;
   btif_ss_gatt_client_init();
-  btif_gatts_ss_init();
+  btif_ss_gatt_server_init();
   return BT_STATUS_SUCCESS;
 }
 
@@ -76,7 +76,7 @@ static bt_status_t btif_gatt_init(const btgatt_callbacks_t* callbacks) {
 static void btif_gatt_cleanup(void) {
   if (bt_gatt_callbacks) bt_gatt_callbacks = NULL;
   btif_ss_gatt_client_deinit();
-  btif_gatts_ss_deinit();
+  btif_ss_gatt_server_deinit();
 }
 
 static btgatt_interface_t btgattInterface = {

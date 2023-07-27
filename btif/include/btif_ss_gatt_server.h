@@ -14,11 +14,15 @@ public :
     bt_status_t connect(int server_if, const RawAddress& bd_addr,bool is_direct, int transport);
     bt_status_t disconnect(int server_if, const RawAddress& bd_addr,int conn_id);
     bt_status_t unregisterServer(int server_if);
-    bt_status_t readPhy(const RawAddress& bd_addr, base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb);
-    bt_status_t setPhy(const RawAddress& bd_addr,uint8_t tx_phy, uint8_t rx_phy,uint16_t phy_options);
+    bt_status_t readPhy(const RawAddress& bd_addr, base::Callback<void(uint8_t tx_phy,
+    uint8_t rx_phy, uint8_t status)> cb);
+    bt_status_t setPhy(const RawAddress& bd_addr,uint8_t tx_phy, uint8_t rx_phy,
+    uint16_t phy_options);
     bt_status_t clearService(int server_if,int srvcHandle);
-    bt_status_t sendIndicationNotification(int attribute_handle,int conn_id,int confirm, const std::vector<uint8_t> value,int server_if);
-    bt_status_t sendResponse(int conn_id, int trans_id,int status,const btgatt_response_t& response);
+    bt_status_t sendIndicationNotification(int attribute_handle,int conn_id,int confirm,
+    const std::vector<uint8_t> value,int server_if);
+    bt_status_t sendResponse(int conn_id, int trans_id,int status,
+    const btgatt_response_t& response);
     bt_status_t AddService(int server_if,std::vector<btgatt_db_element_t> service);
     bt_status_t stopService(int server_if,int srvcHandle);
 };
