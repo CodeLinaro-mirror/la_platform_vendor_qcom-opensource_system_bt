@@ -42,6 +42,9 @@ using base::StringPrintf;
 
 static void l2cble_start_conn_update(tL2C_LCB* p_lcb);
 static void l2cble_start_subrate_change(tL2C_LCB* p_lcb);
+extern void gatt_notify_subrate_change(uint16_t handle, uint16_t subrate_factor,
+                                       uint16_t latency, uint16_t cont_num,
+                                       uint16_t timeout, uint8_t status);
 
 /*******************************************************************************
  *
@@ -1571,6 +1574,15 @@ static void l2cble_start_subrate_change(tL2C_LCB* p_lcb) {
         p_lcb->subrate_req_mask |= L2C_BLE_SUBRATE_REQ_PENDING;
         p_lcb->subrate_req_mask &= ~L2C_BLE_NEW_SUBRATE_PARAM;
         p_lcb->conn_update_mask |= L2C_BLE_NOT_DEFAULT_PARAM;
+      } else if (!controller_get_interface()->is_conn_subrating_host_supported()
+                 || !controller_get_interface()->is_conn_subrating_supported()) {
+        gatt_notify_subrate_change(p_lcb->handle, p_lcb->subrate_min,
+                                   p_lcb->max_latency, p_lcb->cont_num,
+                                   p_lcb->supervision_tout, HCI_ERR_UNSUPPORTED_VALUE);
+      } else {
+        gatt_notify_subrate_change(p_lcb->handle, p_lcb->subrate_min,
+                                   p_lcb->max_latency, p_lcb->cont_num,
+                                   p_lcb->supervision_tout, HCI_ERR_UNSUPPORTED_REM_FEATURE);
       }
     }
   }
