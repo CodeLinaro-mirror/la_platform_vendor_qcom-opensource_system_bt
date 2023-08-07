@@ -351,7 +351,7 @@ extern bt_status_t btif_hf_execute_service(bool b_enable);
 extern bt_status_t btif_av_execute_service(bool b_enable);
 extern bt_status_t btif_av_sink_execute_service(bool b_enable);
 extern bt_status_t btif_hh_execute_service(bool b_enable);
-extern bt_status_t btif_hf_client_execute_service(bool b_enable);
+// extern bt_status_t btif_hf_client_execute_service(bool b_enable);
 extern bt_status_t btif_sdp_execute_service(bool b_enable);
 extern int btif_hh_connect(const RawAddress* bd_addr);
 extern void btif_av_move_idle(RawAddress bd_addr);
@@ -471,9 +471,9 @@ bt_status_t btif_in_execute_service_request(tBTA_SERVICE_ID service_id,
     case BTA_HID_SERVICE_ID: {
       btif_hh_execute_service(b_enable);
     } break;
-    case BTA_HFP_HS_SERVICE_ID: {
+    /* case BTA_HFP_HS_SERVICE_ID: {
       btif_hf_client_execute_service(b_enable);
-    } break;
+    } break; */
     case BTA_SDP_SERVICE_ID: {
       btif_sdp_execute_service(b_enable);
     } break;

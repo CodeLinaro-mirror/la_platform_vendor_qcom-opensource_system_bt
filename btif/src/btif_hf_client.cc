@@ -52,15 +52,17 @@
 #include <string.h>
 
 #include <hardware/bluetooth.h>
-#include <hardware/bt_hf_client.h>
+#include <include/hardware/bt_hf_client.h>
 
-#include "internal_include/bt_target.h"
-#include "bta_hf_client_api.h"
+#include "bt_target.h"
+#include "log/log.h"
+
+#include "btif_ss_interface.h"
+#include "btif/protobuf/include/proto_message_ids.h"
+#include "protobuf/proto/hf_client.pb.h"
+
 #include "btif_common.h"
-#include "btif_profile_queue.h"
-#include "btif_util.h"
-#include "osi/include/osi.h"
-#include "osi/include/properties.h"
+namespace hf_client_proto = headsetClient::synergy::SynergyProto;
 
 /*******************************************************************************
  *  Constants & Macros
@@ -70,211 +72,83 @@
 #define BTIF_HF_CLIENT_SERVICE_NAME ("Handsfree")
 #endif
 
-#ifndef BTIF_HF_CLIENT_SECURITY
-#define BTIF_HF_CLIENT_SECURITY (BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT)
-#endif
-
-#ifndef BTIF_HF_CLIENT_FEATURES
-#define BTIF_HF_CLIENT_FEATURES                                                \
-  (BTA_HF_CLIENT_FEAT_ECNR | BTA_HF_CLIENT_FEAT_3WAY |                         \
-   BTA_HF_CLIENT_FEAT_CLI | BTA_HF_CLIENT_FEAT_VREC | BTA_HF_CLIENT_FEAT_VOL | \
-   BTA_HF_CLIENT_FEAT_ECS | BTA_HF_CLIENT_FEAT_ECC | BTA_HF_CLIENT_FEAT_CODEC)
-#endif
-
-/*
-static const char* dump_hf_client_conn_state(uint16_t event) {
-  switch (event) {
-    CASE_RETURN_STR(BTHF_CLIENT_CONNECTION_STATE_DISCONNECTED)
-    CASE_RETURN_STR(BTHF_CLIENT_CONNECTION_STATE_CONNECTING)
-    CASE_RETURN_STR(BTHF_CLIENT_CONNECTION_STATE_CONNECTED)
-    CASE_RETURN_STR(BTHF_CLIENT_CONNECTION_STATE_SLC_CONNECTED)
-    CASE_RETURN_STR(BTHF_CLIENT_CONNECTION_STATE_DISCONNECTING)
-    default:
-      return "UNKNOWN MSG ID";
-  }
-}
-*/
-/*******************************************************************************
- *  Local type definitions
- ******************************************************************************/
-/* BTIF-HF control block to map bdaddr to BTA handle */
-typedef struct {
-  uint16_t handle;                       // Handle obtained frm the BTA
-  RawAddress peer_bda;                   // Device corresponding to handle
-  bthf_client_connection_state_t state;  // State of current connection
-  tBTA_HF_CLIENT_PEER_FEAT peer_feat;    // HF features
-  tBTA_HF_CLIENT_CHLD_FEAT chld_feat;    // AT+CHLD=<> command features
-} btif_hf_client_cb_t;
-
-/* Max devices supported by BTIF (useful to match the value in BTA) */
-#define HF_CLIENT_MAX_DEVICES 10
-typedef struct {
-  btif_hf_client_cb_t cb[HF_CLIENT_MAX_DEVICES];
-} btif_hf_client_cb_arr_t;
-#if 0
-/******************************************************************************
- * Local function declarations
- ******************************************************************************/
-btif_hf_client_cb_t* btif_hf_client_get_cb_by_handle(uint16_t handle);
-btif_hf_client_cb_t* btif_hf_client_get_cb_by_bda(const RawAddress& addr);
-bool is_connected(const btif_hf_client_cb_t* cb);
+#define BTIF_HF_CLIENT_PEER_INBAND 0x00000008    /* In-band ring tone */
 
 /*******************************************************************************
  *  Static variables
  ******************************************************************************/
-//static bthf_client_callbacks_t* bt_hf_client_callbacks = NULL;
+/* HF features supported at runtime */
+static uint32_t btif_hf_client_features = BTIF_HF_CLIENT_FEATURES;
+static bthf_client_callbacks_t* bt_hf_client_callbacks = NULL;
+BluetoothSSInterface *hfBTSSInterface = NULL;
 
-char btif_hf_client_version[PROPERTY_VALUE_MAX];
-
-#define CHECK_BTHF_CLIENT_INIT()                                        \
-  do {                                                                  \
-    if (bt_hf_client_callbacks == NULL) {                               \
-      BTIF_TRACE_WARNING("BTHF CLIENT: %s: not initialized", __func__); \
-      return BT_STATUS_NOT_READY;                                       \
-    } else {                                                            \
-      BTIF_TRACE_EVENT("BTHF CLIENT: %s", __func__);                    \
-    }                                                                   \
-  } while (0)
-
-#define CHECK_BTHF_CLIENT_SLC_CONNECTED(cb)                                  \
-  do {                                                                       \
-    if (bt_hf_client_callbacks == NULL) {                                    \
-      BTIF_TRACE_WARNING("BTHF CLIENT: %s: not initialized", __func__);      \
-      return BT_STATUS_NOT_READY;                                            \
-    } else if ((cb)->state != BTHF_CLIENT_CONNECTION_STATE_SLC_CONNECTED) {  \
-      BTIF_TRACE_WARNING("BTHF CLIENT: %s: SLC connection not up. state=%s", \
-                         __func__, dump_hf_client_conn_state((cb)->state));         \
-      return BT_STATUS_NOT_READY;                                            \
-    } else {                                                                 \
-      BTIF_TRACE_EVENT("BTHF CLIENT: %s", __func__);                         \
-    }                                                                        \
-  } while (0)
-
-static btif_hf_client_cb_arr_t btif_hf_client_cb_arr;
+#define HAL_CL_CBACK(P_CB, P_CBACK, ...)    \
+  do {                                      \
+    if ((P_CB) && (P_CB)->P_CBACK) {        \
+      ALOGI("HAL %s->%s", #P_CB, #P_CBACK); \
+      (P_CB)->P_CBACK(__VA_ARGS__);         \
+    }                                       \
+  } while(0)
 
 /*******************************************************************************
  *  Static functions
  ******************************************************************************/
-
-/*******************************************************************************
- *
- * Function        btif_in_hf_client_generic_evt
- *
- * Description     Processes generic events to be sent to JNI that are not
- *                 triggered from the BTA.
- *                 Always runs in BTIF context
- *
- * Returns          void
- *
- ******************************************************************************/
-static void btif_in_hf_client_generic_evt(uint16_t event, char* p_param) {
-  BTIF_TRACE_DEBUG("%s", __func__);
-  RawAddress* bd_addr = (RawAddress*)p_param;
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
-  if (cb == NULL || !is_connected(cb)) {
-    BTIF_TRACE_ERROR("%s: failed to find block for bda", __func__);
+static inline void bthf_client_Build_Post_Msg(uint16_t msgid, uint16_t len,
+                uint16_t mode, std::string payload) {
+  ALOGI("%s", __func__);
+  uint8_t bld_msg[MAX_LENGTH_WITH_PROTO_NONE];
+  char ss_hdr[MAX_LENGTH_WITH_PROTO_NONE];
+  bld_msg[0] = msgid & 0xff;
+  bld_msg[1] = (msgid >> 8);
+  bld_msg[2] = len & 0xff;
+  bld_msg[3] = (len >> 8);
+  bld_msg[4] = mode & 0xff;
+  bld_msg[5] = (mode >> 8);
+  memcpy(ss_hdr, (char *) bld_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr( ss_hdr, MAX_LENGTH_WITH_PROTO_NONE);
+  if (len) {
+    msgStr.append(payload);
   }
-
-  BTIF_TRACE_EVENT("%s: event=%d", __func__, event);
-  switch (event) {
-    case BTIF_HF_CLIENT_CB_AUDIO_CONNECTING: {
-      HAL_CBACK(bt_hf_client_callbacks, audio_state_cb, &cb->peer_bda,
-                (bthf_client_audio_state_t)BTHF_CLIENT_AUDIO_STATE_CONNECTING);
-    } break;
-    default: {
-      BTIF_TRACE_WARNING("%s: : Unknown event 0x%x", __func__, event);
-    } break;
-  }
-}
-
-/*******************************************************************************
- *  Functions
- ******************************************************************************/
-bool is_connected(const btif_hf_client_cb_t* cb) {
-  if ((cb->state == BTHF_CLIENT_CONNECTION_STATE_CONNECTED) ||
-      (cb->state == BTHF_CLIENT_CONNECTION_STATE_SLC_CONNECTED))
-    return true;
-
-  BTIF_TRACE_ERROR("%s: not connected!", __func__);
-  return false;
+  hfBTSSInterface->postTxMsg(msgStr);
 }
 
 /*******************************************************************************
  *
- * Function        btif_hf_client_get_cb_by_handle
+ * Function         send_at_cmd
  *
- * Description     Get control block by handle
+ * Description      Send requested AT command to rempte device.
  *
- * Returns         btif_hf_client_cb_t pointer if available NULL otherwise
+ * Returns          bt_status_t
  *
  ******************************************************************************/
-btif_hf_client_cb_t* btif_hf_client_get_cb_by_handle(uint16_t handle) {
-  BTIF_TRACE_DEBUG("%s: cb by handle %d", __func__, handle);
-  for (int i = 0; i < HF_CLIENT_MAX_DEVICES; i++) {
-    // Block is valid only if it is allocated i.e. state is not DISCONNECTED
-    if (btif_hf_client_cb_arr.cb[i].state !=
-            BTHF_CLIENT_CONNECTION_STATE_DISCONNECTED &&
-        btif_hf_client_cb_arr.cb[i].handle == handle) {
-      return &btif_hf_client_cb_arr.cb[i];
-    }
+static bt_status_t send_at_cmd(const RawAddress* bd_addr, int cmd, int val1,
+                               int val2, const char* arg) {
+  ALOGI("%s", __func__);
+  if (bd_addr == NULL) return BT_STATUS_FAIL;
+  std::string payload;
+  hf_client_proto::ss_send_at_cmd _send_at_cmd;
+  _send_at_cmd.set_bd_addr(ToRawString(bd_addr));
+  _send_at_cmd.set_cmd(cmd);
+  _send_at_cmd.set_val1(val1);
+  _send_at_cmd.set_val2(val2);
+
+  if (arg == NULL) {
+    _send_at_cmd.set_arg("");
+  } else {
+    _send_at_cmd.set_arg(arg);
   }
-  BTIF_TRACE_ERROR("%s: could not find block for handle %d", __func__, handle);
-  return NULL;
+
+  _send_at_cmd.SerializeToString(&payload);
+
+  bthf_client_Build_Post_Msg(BT_HF_CLIENT_SEND_AT_CMD, payload.length(), PROTO_ENC_DEC,
+                  payload);
+
+  return BT_STATUS_SUCCESS;
 }
 
 /*******************************************************************************
  *
- * Function        btif_hf_client_get_cb_by_bda
- *
- * Description     Get control block by bda
- *
- * Returns         btif_hf_client_cb_t pointer if available NULL otherwise
- *
- ******************************************************************************/
-btif_hf_client_cb_t* btif_hf_client_get_cb_by_bda(const RawAddress& bd_addr) {
-  VLOG(1) << __func__ << " incoming addr " << bd_addr;
-
-  for (int i = 0; i < HF_CLIENT_MAX_DEVICES; i++) {
-    // Block is valid only if it is allocated i.e. state is not DISCONNECTED
-    if (btif_hf_client_cb_arr.cb[i].state !=
-            BTHF_CLIENT_CONNECTION_STATE_DISCONNECTED &&
-        btif_hf_client_cb_arr.cb[i].peer_bda == bd_addr) {
-      return &btif_hf_client_cb_arr.cb[i];
-    }
-  }
-  BTIF_TRACE_ERROR("%s: could not find block for bdaddr", __func__);
-  return NULL;
-}
-
-/*******************************************************************************
- *
- * Function        btif_hf_client_allocate_cb
- *
- * Description     Get control block by bda
- *
- * Returns         btif_hf_client_cb_t pointer if available NULL otherwise
- *
- ******************************************************************************/
-btif_hf_client_cb_t* btif_hf_client_allocate_cb() {
-  for (int i = 0; i < HF_CLIENT_MAX_DEVICES; i++) {
-    btif_hf_client_cb_t* cb = &btif_hf_client_cb_arr.cb[i];
-    if (cb->state == BTHF_CLIENT_CONNECTION_STATE_DISCONNECTED) {
-      return cb;
-    }
-  }
-  BTIF_TRACE_ERROR("%s: unable to allocate control block", __func__);
-  return NULL;
-}
-
-/*****************************************************************************
- *
- *   btif hf api functions (no context switch)
- *
- ****************************************************************************/
-
-/*******************************************************************************
- *
- * Function         btif_hf_client_init
+ * Function        init
  *
  * Description     initializes the hf interface
  *
@@ -282,13 +156,31 @@ btif_hf_client_cb_t* btif_hf_client_allocate_cb() {
  *
  ******************************************************************************/
 static bt_status_t init(bthf_client_callbacks_t* callbacks) {
-  BTIF_TRACE_EVENT("%s", __func__);
-
+  ALOGI("%s", __func__);
   bt_hf_client_callbacks = callbacks;
+  std::string payload;
+  hf_client_proto::ss_init _init;
+  _init.set_features(btif_hf_client_features);
+  _init.SerializeToString(&payload);
 
-  btif_enable_service(BTA_HFP_HS_SERVICE_ID);
+  if (hfBTSSInterface == NULL){
+    hfBTSSInterface = BluetoothSSInterface::getInstance();
+    if (hfBTSSInterface == NULL) {
+      ALOGI("%s single stack interface Initialization failed",__func__);
+    } else {
+      ALOGI("%s single stack interface Initialization success",__func__);
+    }
+  } else {
+    ALOGI("%s: single stack interface is already created",__func__);
+  }
 
-  memset(&btif_hf_client_cb_arr, 0, sizeof(btif_hf_client_cb_arr_t));
+  if (hfBTSSInterface != NULL) {
+    ALOGI("%s: registering Headset client profile callback with ss_interface", __func__);
+    hfBTSSInterface->registerCallbacks(BT_PROFILE_HANDSFREE_CLIENT_ID, btif_hf_client_ss_callback);
+  }
+
+  bthf_client_Build_Post_Msg(BT_HF_CLIENT_INIT, payload.length(),
+                  PROTO_ENC_DEC, payload);
 
   return BT_STATUS_SUCCESS;
 }
@@ -302,32 +194,19 @@ static bt_status_t init(bthf_client_callbacks_t* callbacks) {
  * Returns         bt_status_t
  *
  ******************************************************************************/
-static bt_status_t connect_int(RawAddress* bd_addr, uint16_t uuid) {
-  btif_hf_client_cb_t* cb = btif_hf_client_allocate_cb();
-  if (cb == NULL) {
-    BTIF_TRACE_ERROR("%s: could not allocate block!", __func__);
-    return BT_STATUS_BUSY;
-  }
+static bt_status_t connect(RawAddress* bd_addr) {
+  ALOGI("%s", __func__);
+  if (bd_addr == NULL) return BT_STATUS_FAIL;
+  std::string payload;
+  hf_client_proto::ss_Connect _connect;
 
-  cb->peer_bda = *bd_addr;
-  if (is_connected(cb)) return BT_STATUS_BUSY;
+  _connect.set_bd_addr(ToRawString(bd_addr));
+  _connect.SerializeToString(&payload);
 
-  cb->state = BTHF_CLIENT_CONNECTION_STATE_CONNECTING;
-  cb->peer_bda = *bd_addr;
-
-  /* Open HF connection to remote device and get the relevant handle.
-   * The handle is valid until we have called BTA_HfClientClose or the LL
-   * has notified us of channel close due to remote closing, error etc.
-   */
-  BTA_HfClientOpen(cb->peer_bda, BTIF_HF_CLIENT_SECURITY, &cb->handle);
+  bthf_client_Build_Post_Msg(BT_HF_CLIENT_CONNECT, payload.length(),
+                  PROTO_ENC_DEC, payload);
 
   return BT_STATUS_SUCCESS;
-}
-
-static bt_status_t connect(const RawAddress* bd_addr) {
-  BTIF_TRACE_EVENT("HFP Client version is  %s", btif_hf_client_version);
-  CHECK_BTHF_CLIENT_INIT();
-  return btif_queue_connect(UUID_SERVCLASS_HF_HANDSFREE, *bd_addr, connect_int,1);
 }
 
 /*******************************************************************************
@@ -340,15 +219,18 @@ static bt_status_t connect(const RawAddress* bd_addr) {
  *
  ******************************************************************************/
 static bt_status_t disconnect(const RawAddress* bd_addr) {
-  CHECK_BTHF_CLIENT_INIT();
+  ALOGI("%s", __func__);
+  if (bd_addr == NULL) return BT_STATUS_FAIL;
+  std::string payload;
+  hf_client_proto::ss_Disconnect _disconnect;
 
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
-  if (cb != NULL) {
-    BTA_HfClientClose(cb->handle);
-    return BT_STATUS_SUCCESS;
-  } else {
-    return BT_STATUS_BUSY;
-  }
+  _disconnect.set_bd_addr(ToRawString(bd_addr));
+  _disconnect.SerializeToString(&payload);
+
+  bthf_client_Build_Post_Msg(BT_HF_CLIENT_DISCONNECT, payload.length(),
+                  PROTO_ENC_DEC, payload);
+
+  return BT_STATUS_SUCCESS;
 }
 
 /*******************************************************************************
@@ -361,23 +243,21 @@ static bt_status_t disconnect(const RawAddress* bd_addr) {
  *
  ******************************************************************************/
 static bt_status_t connect_audio(const RawAddress* bd_addr) {
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
-  if (cb == NULL || !is_connected(cb)) return BT_STATUS_FAIL;
+  ALOGI("%s", __func__);
+  if (bd_addr == NULL) return BT_STATUS_FAIL;
 
-  CHECK_BTHF_CLIENT_SLC_CONNECTED(cb);
+  std::string payload;
+  hf_client_proto::ss_Connect_audio _connect_audio;
 
-  if ((BTIF_HF_CLIENT_FEATURES & BTA_HF_CLIENT_FEAT_CODEC) &&
-      (cb->peer_feat & BTA_HF_CLIENT_PEER_CODEC)) {
-    BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_BCC, 0, 0, NULL);
-  } else {
-    BTA_HfClientAudioOpen(cb->handle);
-  }
+  _connect_audio.set_bd_addr(ToRawString(bd_addr));
+  _connect_audio.SerializeToString(&payload);
 
-  /* Inform the application that the audio connection has been initiated
-   * successfully */
-  btif_transfer_context(btif_in_hf_client_generic_evt,
-                        BTIF_HF_CLIENT_CB_AUDIO_CONNECTING, (char*)bd_addr,
-                        sizeof(RawAddress), NULL);
+  bthf_client_Build_Post_Msg(BT_HF_CLIENT_CONNECT_AUDIO, payload.length(),
+                  PROTO_ENC_DEC, payload);
+
+  HAL_CL_CBACK(bt_hf_client_callbacks, audio_state_cb, bd_addr,
+                (bthf_client_audio_state_t)BTHF_CLIENT_AUDIO_STATE_CONNECTING);
+
   return BT_STATUS_SUCCESS;
 }
 
@@ -391,12 +271,17 @@ static bt_status_t connect_audio(const RawAddress* bd_addr) {
  *
  ******************************************************************************/
 static bt_status_t disconnect_audio(const RawAddress* bd_addr) {
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
-  if (cb == NULL || !is_connected(cb)) return BT_STATUS_FAIL;
+  ALOGI("%s", __func__);
+  if (bd_addr == NULL) return BT_STATUS_FAIL;
 
-  CHECK_BTHF_CLIENT_SLC_CONNECTED(cb);
+  std::string payload;
+  hf_client_proto::ss_Disconnect_audio _disconnect_audio;
+  _disconnect_audio.set_bd_addr(ToRawString(bd_addr));
+  _disconnect_audio.SerializeToString(&payload);
 
-  BTA_HfClientAudioClose(cb->handle);
+  bthf_client_Build_Post_Msg(BT_HF_CLIENT_DISCONNECT_AUDIO,
+                  payload.length(), PROTO_ENC_DEC, payload);
+
   return BT_STATUS_SUCCESS;
 }
 
@@ -410,15 +295,17 @@ static bt_status_t disconnect_audio(const RawAddress* bd_addr) {
  *
  ******************************************************************************/
 static bt_status_t start_voice_recognition(const RawAddress* bd_addr) {
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
-  if (cb == NULL || !is_connected(cb)) return BT_STATUS_FAIL;
+  ALOGI("%s", __func__);
+  if (bd_addr == NULL ) return BT_STATUS_FAIL;
 
-  CHECK_BTHF_CLIENT_SLC_CONNECTED(cb);
+  std::string payload;
+  hf_client_proto::ss_start_voice_recognition _start_vr;
 
-  if (cb->peer_feat & BTA_HF_CLIENT_PEER_FEAT_VREC) {
-    BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_BVRA, 1, 0, NULL);
-    return BT_STATUS_SUCCESS;
-  }
+  _start_vr.set_bd_addr(ToRawString(bd_addr));
+  _start_vr.SerializeToString(&payload);
+
+  bthf_client_Build_Post_Msg(BT_HF_CLIENT_START_VOICE_RECOGNITION, payload.length(),
+                  PROTO_ENC_DEC, payload);
   return BT_STATUS_UNSUPPORTED;
 }
 
@@ -432,15 +319,18 @@ static bt_status_t start_voice_recognition(const RawAddress* bd_addr) {
  *
  ******************************************************************************/
 static bt_status_t stop_voice_recognition(const RawAddress* bd_addr) {
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
-  if (cb == NULL || !is_connected(cb)) return BT_STATUS_FAIL;
+  ALOGI("%s", __func__);
+  if (bd_addr == NULL ) return BT_STATUS_FAIL;
 
-  CHECK_BTHF_CLIENT_SLC_CONNECTED(cb);
+  std::string payload;
+  hf_client_proto::ss_stop_voice_recognition _stop_vr;
 
-  if (cb->peer_feat & BTA_HF_CLIENT_PEER_FEAT_VREC) {
-    BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_BVRA, 0, 0, NULL);
-    return BT_STATUS_SUCCESS;
-  }
+  _stop_vr.set_bd_addr(ToRawString(bd_addr));
+  _stop_vr.SerializeToString(&payload);
+
+  bthf_client_Build_Post_Msg(BT_HF_CLIENT_STOP_VOICE_RECOGNITION, payload.length(),
+                  PROTO_ENC_DEC, payload);
+
   return BT_STATUS_UNSUPPORTED;
 }
 
@@ -455,22 +345,19 @@ static bt_status_t stop_voice_recognition(const RawAddress* bd_addr) {
  ******************************************************************************/
 static bt_status_t volume_control(const RawAddress* bd_addr,
                                   bthf_client_volume_type_t type, int volume) {
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
-  if (cb == NULL || !is_connected(cb)) return BT_STATUS_FAIL;
+  ALOGI("%s", __func__);
+  if (bd_addr == NULL ) return BT_STATUS_FAIL;
 
-  CHECK_BTHF_CLIENT_SLC_CONNECTED(cb);
+  std::string payload;
+  hf_client_proto::ss_volume_control _volume_control;
 
-  switch (type) {
-    case BTHF_CLIENT_VOLUME_TYPE_SPK:
-      BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_VGS, volume, 0, NULL);
-      break;
-    case BTHF_CLIENT_VOLUME_TYPE_MIC:
-      BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_VGM, volume, 0, NULL);
-      break;
-    default:
-      return BT_STATUS_UNSUPPORTED;
-  }
+  _volume_control.set_bd_addr(ToRawString(bd_addr));
+  _volume_control.set_type((hf_client_proto::ss_bthf_client_volume_type_t)type);
+  _volume_control.set_volume(volume);
+  _volume_control.SerializeToString(&payload);
 
+  bthf_client_Build_Post_Msg(BT_HF_CLIENT_VOLUME_CONTROL, payload.length(),
+                  PROTO_ENC_DEC, payload);
   return BT_STATUS_SUCCESS;
 }
 
@@ -483,18 +370,20 @@ static bt_status_t volume_control(const RawAddress* bd_addr,
  * Returns          bt_status_t
  *
  ******************************************************************************/
-static bt_status_t dial(UNUSED_ATTR const RawAddress* bd_addr,
+static bt_status_t dial(const RawAddress* bd_addr,
                         const char* number) {
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
-  if (cb == NULL || !is_connected(cb)) return BT_STATUS_FAIL;
+  ALOGI("%s", __func__);
+  if (bd_addr == NULL ) return BT_STATUS_FAIL;
 
-  CHECK_BTHF_CLIENT_SLC_CONNECTED(cb);
+  std::string payload;
+  hf_client_proto::ss_dial _dial;
 
-  if (number) {
-    BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_ATD, 0, 0, number);
-  } else {
-    BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_BLDN, 0, 0, NULL);
-  }
+  _dial.set_bd_addr(ToRawString(bd_addr));
+  _dial.set_number(number);
+  _dial.SerializeToString(&payload);
+
+  bthf_client_Build_Post_Msg(BT_HF_CLIENT_DIAL_NUM, payload.length(),
+                  PROTO_ENC_DEC, payload);
   return BT_STATUS_SUCCESS;
 }
 
@@ -508,12 +397,18 @@ static bt_status_t dial(UNUSED_ATTR const RawAddress* bd_addr,
  *
  ******************************************************************************/
 static bt_status_t dial_memory(const RawAddress* bd_addr, int location) {
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
-  if (cb == NULL || !is_connected(cb)) return BT_STATUS_FAIL;
+  ALOGI("%s", __func__);
+  if (bd_addr == NULL ) return BT_STATUS_FAIL;
+  std::string payload;
+  hf_client_proto::ss_dial_memory _dial_memory;
 
-  CHECK_BTHF_CLIENT_SLC_CONNECTED(cb);
+  _dial_memory.set_bd_addr(ToRawString(bd_addr));
+  _dial_memory.set_location(location);
+  _dial_memory.SerializeToString(&payload);
 
-  BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_ATD, location, 0, NULL);
+  bthf_client_Build_Post_Msg(BT_HF_CLIENT_DIAL_MEMORY, payload.length(),
+                  PROTO_ENC_DEC, payload);
+
   return BT_STATUS_SUCCESS;
 }
 
@@ -529,80 +424,19 @@ static bt_status_t dial_memory(const RawAddress* bd_addr, int location) {
 static bt_status_t handle_call_action(const RawAddress* bd_addr,
                                       bthf_client_call_action_t action,
                                       int idx) {
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
-  if (cb == NULL || !is_connected(cb)) return BT_STATUS_FAIL;
+  ALOGI("%s", __func__);
+  if (bd_addr == NULL) return BT_STATUS_FAIL;
 
-  CHECK_BTHF_CLIENT_SLC_CONNECTED(cb);
+  std::string payload;
+  hf_client_proto::ss_handle_call_action _handle_call_action;
 
-  switch (action) {
-    case BTHF_CLIENT_CALL_ACTION_CHLD_0:
-      if (cb->chld_feat & BTA_HF_CLIENT_CHLD_REL) {
-        BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_CHLD, 0, 0, NULL);
-        break;
-      }
-      return BT_STATUS_UNSUPPORTED;
-    case BTHF_CLIENT_CALL_ACTION_CHLD_1:
-      // CHLD 1 is mandatory for 3 way calling
-      if (cb->peer_feat & BTA_HF_CLIENT_PEER_FEAT_3WAY) {
-        BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_CHLD, 1, 0, NULL);
-        break;
-      }
-      return BT_STATUS_UNSUPPORTED;
-    case BTHF_CLIENT_CALL_ACTION_CHLD_2:
-      // CHLD 2 is mandatory for 3 way calling
-      if (cb->peer_feat & BTA_HF_CLIENT_PEER_FEAT_3WAY) {
-        BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_CHLD, 2, 0, NULL);
-        break;
-      }
-      return BT_STATUS_UNSUPPORTED;
-    case BTHF_CLIENT_CALL_ACTION_CHLD_3:
-      if (cb->chld_feat & BTA_HF_CLIENT_CHLD_MERGE) {
-        BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_CHLD, 3, 0, NULL);
-        break;
-      }
-      return BT_STATUS_UNSUPPORTED;
-    case BTHF_CLIENT_CALL_ACTION_CHLD_4:
-      if (cb->chld_feat & BTA_HF_CLIENT_CHLD_MERGE_DETACH) {
-        BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_CHLD, 4, 0, NULL);
-        break;
-      }
-      return BT_STATUS_UNSUPPORTED;
-    case BTHF_CLIENT_CALL_ACTION_CHLD_1x:
-      if (cb->peer_feat & BTA_HF_CLIENT_PEER_ECC) {
-        if (idx < 1) {
-          return BT_STATUS_FAIL;
-        }
-        BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_CHLD, 1, idx, NULL);
-        break;
-      }
-      return BT_STATUS_UNSUPPORTED;
-    case BTHF_CLIENT_CALL_ACTION_CHLD_2x:
-      if (cb->peer_feat & BTA_HF_CLIENT_PEER_ECC) {
-        if (idx < 1) {
-          return BT_STATUS_FAIL;
-        }
-        BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_CHLD, 2, idx, NULL);
-        break;
-      }
-      return BT_STATUS_UNSUPPORTED;
-    case BTHF_CLIENT_CALL_ACTION_ATA:
-      BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_ATA, 0, 0, NULL);
-      break;
-    case BTHF_CLIENT_CALL_ACTION_CHUP:
-      BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_CHUP, 0, 0, NULL);
-      break;
-    case BTHF_CLIENT_CALL_ACTION_BTRH_0:
-      BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_BTRH, 0, 0, NULL);
-      break;
-    case BTHF_CLIENT_CALL_ACTION_BTRH_1:
-      BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_BTRH, 1, 0, NULL);
-      break;
-    case BTHF_CLIENT_CALL_ACTION_BTRH_2:
-      BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_BTRH, 2, 0, NULL);
-      break;
-    default:
-      return BT_STATUS_FAIL;
-  }
+  _handle_call_action.set_bd_addr(ToRawString(bd_addr));
+  _handle_call_action.set_action((hf_client_proto::ss_bthf_client_call_action_t)action);
+  _handle_call_action.set_idx(idx);
+  _handle_call_action.SerializeToString(&payload);
+
+  bthf_client_Build_Post_Msg(BT_HF_CLIENT_CALL_HANDLE, payload.length(),
+                  PROTO_ENC_DEC, payload);
 
   return BT_STATUS_SUCCESS;
 }
@@ -616,18 +450,20 @@ static bt_status_t handle_call_action(const RawAddress* bd_addr,
  * Returns          bt_status_t
  *
  ******************************************************************************/
-static bt_status_t query_current_calls(UNUSED_ATTR const RawAddress* bd_addr) {
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
-  if (cb == NULL || !is_connected(cb)) return BT_STATUS_FAIL;
+static bt_status_t query_current_calls(const RawAddress* bd_addr) {
+  ALOGI("%s", __func__);
+  if (bd_addr == NULL) return BT_STATUS_FAIL;
 
-  CHECK_BTHF_CLIENT_SLC_CONNECTED(cb);
+  std::string payload;
+  hf_client_proto::ss_query_current_calls _query_calls;
 
-  if (cb->peer_feat & BTA_HF_CLIENT_PEER_ECS) {
-    BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_CLCC, 0, 0, NULL);
-    return BT_STATUS_SUCCESS;
-  }
+  _query_calls.set_bd_addr(ToRawString(bd_addr));
+  _query_calls.SerializeToString(&payload);
 
-  return BT_STATUS_UNSUPPORTED;
+  bthf_client_Build_Post_Msg(BT_HF_CLIENT_QUERY_CURRENT_CALLS, payload.length(),
+                  PROTO_ENC_DEC, payload);
+
+  return BT_STATUS_SUCCESS;
 }
 
 /*******************************************************************************
@@ -640,12 +476,18 @@ static bt_status_t query_current_calls(UNUSED_ATTR const RawAddress* bd_addr) {
  *
  ******************************************************************************/
 static bt_status_t query_current_operator_name(const RawAddress* bd_addr) {
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
-  if (cb == NULL || !is_connected(cb)) return BT_STATUS_FAIL;
+  ALOGI("%s", __func__);
+  if (bd_addr == NULL) return BT_STATUS_FAIL;
 
-  CHECK_BTHF_CLIENT_SLC_CONNECTED(cb);
+  std::string payload;
+  hf_client_proto::ss_query_current_operator_name _query_con;
 
-  BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_COPS, 0, 0, NULL);
+  _query_con.set_bd_addr(ToRawString(bd_addr));
+  _query_con.SerializeToString(&payload);
+
+  bthf_client_Build_Post_Msg(BT_HF_CLIENT_QUERY_CURRENT_OPERATOR, payload.length(),
+                  PROTO_ENC_DEC, payload);
+
   return BT_STATUS_SUCCESS;
 }
 
@@ -659,12 +501,18 @@ static bt_status_t query_current_operator_name(const RawAddress* bd_addr) {
  *
  ******************************************************************************/
 static bt_status_t retrieve_subscriber_info(const RawAddress* bd_addr) {
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
-  if (cb == NULL || !is_connected(cb)) return BT_STATUS_FAIL;
+  ALOGI("%s", __func__);
+  if (bd_addr == NULL) return BT_STATUS_FAIL;
 
-  CHECK_BTHF_CLIENT_SLC_CONNECTED(cb);
+  std::string payload;
+  hf_client_proto::ss_retrieve_subscriber_info _retrive_sinfo;
 
-  BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_CNUM, 0, 0, NULL);
+  _retrive_sinfo.set_bd_addr(ToRawString(bd_addr));
+  _retrive_sinfo.SerializeToString(&payload);
+
+  bthf_client_Build_Post_Msg(BT_HF_CLIENT_RETRIVE_SUBSCRIBER_INFO, payload.length(),
+                  PROTO_ENC_DEC, payload);
+
   return BT_STATUS_SUCCESS;
 }
 
@@ -678,12 +526,19 @@ static bt_status_t retrieve_subscriber_info(const RawAddress* bd_addr) {
  *
  ******************************************************************************/
 static bt_status_t send_dtmf(const RawAddress* bd_addr, char code) {
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
-  if (cb == NULL || !is_connected(cb)) return BT_STATUS_FAIL;
+  ALOGI("%s", __func__);
+  if (bd_addr == NULL) return BT_STATUS_FAIL;
 
-  CHECK_BTHF_CLIENT_SLC_CONNECTED(cb);
+  std::string payload;
+  hf_client_proto::ss_send_dtmf _send_dtmf;
 
-  BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_VTS, code, 0, NULL);
+  _send_dtmf.set_bd_addr(ToRawString(bd_addr));
+  _send_dtmf.set_code(&code);
+  _send_dtmf.SerializeToString(&payload);
+
+  bthf_client_Build_Post_Msg(BT_HF_CLIENT_SEND_DTMF_CODE, payload.length(),
+                  PROTO_ENC_DEC, payload);
+
   return BT_STATUS_SUCCESS;
 }
 
@@ -697,17 +552,21 @@ static bt_status_t send_dtmf(const RawAddress* bd_addr, char code) {
  *
  ******************************************************************************/
 static bt_status_t request_last_voice_tag_number(const RawAddress* bd_addr) {
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
-  if (cb == NULL || !is_connected(cb)) return BT_STATUS_FAIL;
+  ALOGI("%s", __func__);
+  if (bd_addr == NULL) return BT_STATUS_FAIL;
 
-  CHECK_BTHF_CLIENT_SLC_CONNECTED(cb);
+  std::string payload;
+  hf_client_proto::ss_request_last_voice_tag_number _request_lvtn;
 
-  if (cb->peer_feat & BTA_HF_CLIENT_PEER_VTAG) {
-    BTA_HfClientSendAT(cb->handle, BTA_HF_CLIENT_AT_CMD_BINP, 1, 0, NULL);
-    return BT_STATUS_SUCCESS;
-  }
-  return BT_STATUS_UNSUPPORTED;
+  _request_lvtn.set_bd_addr(ToRawString(bd_addr));
+  _request_lvtn.SerializeToString(&payload);
+
+  bthf_client_Build_Post_Msg(BT_HF_CLIENT_GET_VOICETAG_NUM, payload.length(),
+                  PROTO_ENC_DEC, payload);
+ 
+  return BT_STATUS_SUCCESS;
 }
+
 
 /*******************************************************************************
  *
@@ -719,34 +578,22 @@ static bt_status_t request_last_voice_tag_number(const RawAddress* bd_addr) {
  *
  ******************************************************************************/
 static void cleanup(void) {
-  BTIF_TRACE_EVENT("%s", __func__);
+  ALOGI("%s", __func__);
+  std::string payload;
 
+  if (hfBTSSInterface != NULL) {
+    bthf_client_Build_Post_Msg(BT_HF_CLIENT_DEINIT,
+                    payload.length(), PROTO_NONE, payload);
 
-  btif_queue_cleanup(UUID_SERVCLASS_HF_HANDSFREE);
-  btif_disable_service(BTA_HFP_HS_SERVICE_ID);
-}
+    ALOGI("%s: deregistering Headset client profile callback", __func__);
+    hfBTSSInterface->deregisterCallbacks(BT_PROFILE_HANDSFREE_CLIENT_ID);
+    hfBTSSInterface = NULL;
+  }
 
-/*******************************************************************************
- *
- * Function         send_at_cmd
- *
- * Description      Send requested AT command to rempte device.
- *
- * Returns          bt_status_t
- *
- ******************************************************************************/
-static bt_status_t send_at_cmd(const RawAddress* bd_addr, int cmd, int val1,
-                               int val2, const char* arg) {
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(*bd_addr);
-  if (cb == NULL || !is_connected(cb)) return BT_STATUS_FAIL;
-
-  CHECK_BTHF_CLIENT_SLC_CONNECTED(cb);
-
-  BTIF_TRACE_EVENT("%s: Cmd %d val1 %d val2 %d arg %s", __func__, cmd, val1,
-                   val2, (arg != NULL) ? arg : "<null>");
-  BTA_HfClientSendAT(cb->handle, cmd, val1, val2, arg);
-
-  return BT_STATUS_SUCCESS;
+  if (bt_hf_client_callbacks) {
+    ALOGI("%s: setting call backs to NULL", __func__);
+    bt_hf_client_callbacks = NULL;
+  }
 }
 
 static const bthf_client_interface_t bthfClientInterface = {
@@ -771,314 +618,313 @@ static const bthf_client_interface_t bthfClientInterface = {
     .send_at_cmd = send_at_cmd,
 };
 
-static void process_ind_evt(tBTA_HF_CLIENT_IND* ind) {
-  BTIF_TRACE_DEBUG("%s", __func__);
-
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(ind->bd_addr);
-  if (cb == NULL || !is_connected(cb)) return;
-
-  switch (ind->type) {
-    case BTA_HF_CLIENT_IND_CALL:
-      HAL_CBACK(bt_hf_client_callbacks, call_cb, &cb->peer_bda,
-                (bthf_client_call_t)ind->value);
-      break;
-
-    case BTA_HF_CLIENT_IND_CALLSETUP:
-      HAL_CBACK(bt_hf_client_callbacks, callsetup_cb, &cb->peer_bda,
-                (bthf_client_callsetup_t)ind->value);
-      break;
-    case BTA_HF_CLIENT_IND_CALLHELD:
-      HAL_CBACK(bt_hf_client_callbacks, callheld_cb, &cb->peer_bda,
-                (bthf_client_callheld_t)ind->value);
-      break;
-
-    case BTA_HF_CLIENT_IND_SERVICE:
-      HAL_CBACK(bt_hf_client_callbacks, network_state_cb, &cb->peer_bda,
-                (bthf_client_network_state_t)ind->value);
-      break;
-
-    case BTA_HF_CLIENT_IND_SIGNAL:
-      HAL_CBACK(bt_hf_client_callbacks, network_signal_cb, &cb->peer_bda,
-                ind->value);
-      break;
-
-    case BTA_HF_CLIENT_IND_ROAM:
-      HAL_CBACK(bt_hf_client_callbacks, network_roaming_cb, &cb->peer_bda,
-                (bthf_client_service_type_t)ind->value);
-      break;
-
-    case BTA_HF_CLIENT_IND_BATTCH:
-      HAL_CBACK(bt_hf_client_callbacks, battery_level_cb, &cb->peer_bda,
-                ind->value);
-      break;
-
-    default:
-      break;
-  }
-}
-
 /*******************************************************************************
  *
- * Function         btif_hf_client_upstreams_evt
+ * Function         btif_hf_client_ss_callback
  *
- * Description      Executes HF CLIENT UPSTREAMS events in btif context
+ * Description      Executes HF CLIENT CALLBACKS in btif context
  *
  * Returns          void
  *
  ******************************************************************************/
-static void btif_hf_client_upstreams_evt(uint16_t event, char* p_param) {
-  tBTA_HF_CLIENT* p_data = (tBTA_HF_CLIENT*)p_param;
+void btif_hf_client_ss_callback(uint16_t event, char* payload) {
+  ALOGI("%s", __func__);
+  std::string resBufferString;
+  tBTIF_SS_Cback* cb_data = (tBTIF_SS_Cback*)payload;
+  uint16_t msg_id = cb_data->payload[0] + (((int)(cb_data->payload[1]))<<8);
+  uint16_t length = cb_data->payload[2] + (((int)(cb_data->payload[3]))<<8);
+  uint16_t proto_enc = 0;
 
-  btif_hf_client_cb_t* cb = btif_hf_client_get_cb_by_bda(p_data->bd_addr);
-  if (cb == NULL && event == BTA_HF_CLIENT_OPEN_EVT) {
-    BTIF_TRACE_DEBUG("%s: event BTA_HF_CLIENT_OPEN_EVT allocating block",
-                     __func__);
-    cb = btif_hf_client_allocate_cb();
-    if (cb != NULL) {
-      cb->handle = p_data->open.handle;
-      cb->peer_bda = p_data->open.bd_addr;
-    }
-  } else if (cb == NULL) {
-    BTIF_TRACE_ERROR("%s: event %d but not allocating block: cb not found",
-                     __func__, event);
-    return;
+  if( length > 0) {
+    proto_enc = cb_data->payload[4] + (((int)(cb_data->payload[5]))<<8);
+    char resBuffer[length];
+    memcpy(resBuffer, (char *) ((cb_data->payload)+ MSG_PROTO_OFFSET) , length);
+    resBufferString.assign(resBuffer, length);
   }
-
-
-  BTIF_TRACE_DEBUG("%s: event=%s (%u)", __func__, dump_hf_client_event(event),
-                   event);
+  free(cb_data->payload);
 
   switch (event) {
-    case BTA_HF_CLIENT_OPEN_EVT:
-      if (p_data->open.status == BTA_HF_CLIENT_SUCCESS) {
-        cb->state = BTHF_CLIENT_CONNECTION_STATE_CONNECTED;
-        cb->peer_feat = 0;
-        cb->chld_feat = 0;
-      } else if (cb->state == BTHF_CLIENT_CONNECTION_STATE_CONNECTING) {
-        cb->state = BTHF_CLIENT_CONNECTION_STATE_DISCONNECTED;
-      } else {
-        BTIF_TRACE_WARNING(
-            "%s: HF CLient open failed, but another device connected. "
-            "status=%d state=%d connected device=%s",
-            __func__, p_data->open.status, cb->state,
-            cb->peer_bda.ToString().c_str());
-        break;
+    case BT_HF_CLIENT_CONN_STATE_CB: {
+      ALOGI("%s BT_HF_CLIENT_CONN_STATE_CB ", __func__);
+      hf_client_proto :: ss_bthf_client_connection_state_callback connectionStateCB;
+      connectionStateCB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)connectionStateCB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+
+      HAL_CL_CBACK(bt_hf_client_callbacks, connection_state_cb, bd_addr,
+                      (bthf_client_connection_state_t)connectionStateCB.state(),
+                      (int)connectionStateCB.peer_feat(), (int)connectionStateCB.chld_feat());
+
+      if ((int)connectionStateCB.peer_feat() & BTIF_HF_CLIENT_PEER_INBAND) {
+          HAL_CL_CBACK(bt_hf_client_callbacks, in_band_ring_tone_cb,
+          bd_addr, BTHF_CLIENT_IN_BAND_RINGTONE_PROVIDED);
       }
-
-      HAL_CBACK(bt_hf_client_callbacks, connection_state_cb, &cb->peer_bda,
-                cb->state, 0, /* peer feat */
-                0 /* AT+CHLD feat */);
-
-      if (cb->state == BTHF_CLIENT_CONNECTION_STATE_DISCONNECTED)
-        cb->peer_bda = RawAddress::kAny;
-
-      if (p_data->open.status != BTA_HF_CLIENT_SUCCESS) btif_queue_advance();
       break;
+    }
 
-    case BTA_HF_CLIENT_CONN_EVT:
-      cb->peer_feat = p_data->conn.peer_feat;
-      cb->chld_feat = p_data->conn.chld_feat;
-      cb->state = BTHF_CLIENT_CONNECTION_STATE_SLC_CONNECTED;
-
-      HAL_CBACK(bt_hf_client_callbacks, connection_state_cb, &cb->peer_bda,
-                cb->state, cb->peer_feat, cb->chld_feat);
-
-      /* Inform the application about in-band ringtone */
-      if (cb->peer_feat & BTA_HF_CLIENT_PEER_INBAND) {
-        HAL_CBACK(bt_hf_client_callbacks, in_band_ring_tone_cb, &cb->peer_bda,
-                  BTHF_CLIENT_IN_BAND_RINGTONE_PROVIDED);
-      }
-
-      btif_queue_advance();
+    case BT_HF_CLIENT_CALL_CB: {
+      ALOGI("%s BT_HF_CLIENT_CALL_CB ", __func__);
+      hf_client_proto :: ss_bthf_client_call_callback callCB;
+      callCB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)callCB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, call_cb, bd_addr,
+                (bthf_client_call_t)callCB.call());
       break;
+    }
 
-    case BTA_HF_CLIENT_CLOSE_EVT:
-      cb->state = BTHF_CLIENT_CONNECTION_STATE_DISCONNECTED;
-      HAL_CBACK(bt_hf_client_callbacks, connection_state_cb, &cb->peer_bda,
-                cb->state, 0, 0);
-      cb->peer_bda = RawAddress::kAny;
-      cb->peer_feat = 0;
-      cb->chld_feat = 0;
-      btif_queue_advance();
+    case BT_HF_CLIENT_CALLSETUP_CB: {
+      ALOGI("%s BT_HF_CLIENT_CALLSETUP_CB ", __func__);
+      hf_client_proto :: ss_bthf_client_callsetup_callback callSetupCB;
+      callSetupCB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)callSetupCB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, callsetup_cb, bd_addr,
+                (bthf_client_callsetup_t)callSetupCB.callsetup());
       break;
+    }
 
-    case BTA_HF_CLIENT_IND_EVT:
-      process_ind_evt(&p_data->ind);
+    case BT_HF_CLIENT_CALLHELD_CB : {
+      ALOGI("%s BT_HF_CLIENT_CALLHELD_CB", __func__);
+      hf_client_proto :: ss_bthf_client_callheld_callback callHeldCB;
+      callHeldCB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)callHeldCB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, callheld_cb, bd_addr,
+                (bthf_client_callheld_t)callHeldCB.callheld());
       break;
+    }
 
-    case BTA_HF_CLIENT_MIC_EVT:
-      HAL_CBACK(bt_hf_client_callbacks, volume_change_cb, &cb->peer_bda,
-                BTHF_CLIENT_VOLUME_TYPE_MIC, p_data->val.value);
+    case BT_HF_CLIENT_NETWORK_STATE_CB: {
+      ALOGI("%s BT_HF_CLIENT_NETWORK_STATE_CB", __func__);
+      hf_client_proto :: ss_bthf_client_network_state_callback networkStateCB;
+      networkStateCB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)networkStateCB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, network_state_cb, bd_addr,
+                (bthf_client_network_state_t)networkStateCB.state());
       break;
+    }
 
-    case BTA_HF_CLIENT_SPK_EVT:
-      HAL_CBACK(bt_hf_client_callbacks, volume_change_cb, &cb->peer_bda,
-                BTHF_CLIENT_VOLUME_TYPE_SPK, p_data->val.value);
+    case BT_HF_CLIENT_NETWORK_SIGNAL_CB: {
+      ALOGI("%s BT_HF_CLIENT_NETWORK_SIGNAL_CB", __func__);
+      hf_client_proto :: ss_bthf_client_network_signal_callback networkSignalCB;
+      networkSignalCB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)networkSignalCB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, network_signal_cb, bd_addr,
+                      networkSignalCB.signal_strength());
       break;
+    }
 
-    case BTA_HF_CLIENT_VOICE_REC_EVT:
-      HAL_CBACK(bt_hf_client_callbacks, vr_cmd_cb, &cb->peer_bda,
-                (bthf_client_vr_state_t)p_data->val.value);
+    case BT_HF_CLIENT_NETWORK_ROAM_CB: {
+      ALOGI("%s BT_HF_CLIENT_NETWORK_ROAM_CB", __func__);
+      hf_client_proto :: ss_bthf_client_network_roaming_callback networkRoamCB;
+      networkRoamCB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)networkRoamCB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, network_roaming_cb, bd_addr,
+                (bthf_client_service_type_t)networkRoamCB.type());
       break;
+    }
 
-    case BTA_HF_CLIENT_OPERATOR_NAME_EVT:
-      HAL_CBACK(bt_hf_client_callbacks, current_operator_cb, &cb->peer_bda,
-                p_data->operator_name.name);
+    case BT_HF_CLIENT_BATTERY_LEVEL_CB: {
+      ALOGI("%s BT_HF_CLIENT_BATTERY_LEVEL_CB", __func__);
+      hf_client_proto :: ss_bthf_client_battery_level_callback batteryLevelCB;
+      batteryLevelCB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)batteryLevelCB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, battery_level_cb, bd_addr,
+                      batteryLevelCB.battery_level());
       break;
+    }
 
-    case BTA_HF_CLIENT_CLIP_EVT:
-      HAL_CBACK(bt_hf_client_callbacks, clip_cb, &cb->peer_bda,
-                p_data->number.number);
+    case BT_HF_CLIENT_VOLUME_CHANGE_CB: {
+      ALOGI("%s BT_HF_CLIENT_VOLUME_CHANGE_CB", __func__);
+      hf_client_proto :: ss_bthf_client_volume_change_callback volumeChangeCB;
+      volumeChangeCB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)volumeChangeCB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+
+      HAL_CL_CBACK(bt_hf_client_callbacks, volume_change_cb, bd_addr,
+                      (bthf_client_volume_type_t)volumeChangeCB.type(),
+                      volumeChangeCB.volume());
       break;
+    }
 
-    case BTA_HF_CLIENT_BINP_EVT:
-      HAL_CBACK(bt_hf_client_callbacks, last_voice_tag_number_callback,
-                &cb->peer_bda, p_data->number.number);
+    case BT_HF_CLIENT_VOICE_RECOGNITION_CB: {
+      ALOGI("%s BT_HF_CLIENT_VOICE_RECOGNITION_CB", __func__);
+      hf_client_proto :: ss_bthf_client_vr_cmd_callback vrCB;
+      vrCB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)vrCB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, vr_cmd_cb, bd_addr,
+                (bthf_client_vr_state_t)vrCB.state());
       break;
+    }
 
-    case BTA_HF_CLIENT_CCWA_EVT:
-      HAL_CBACK(bt_hf_client_callbacks, call_waiting_cb, &cb->peer_bda,
-                p_data->number.number);
+    case BT_HF_CLIENT_CURRENT_OPERATOR_CB: {
+      ALOGI("%s BT_HF_CLIENT_CURRENT_OPERATOR_CB", __func__);
+      hf_client_proto :: ss_bthf_client_current_operator_callback  curOperatorCB;
+      curOperatorCB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)curOperatorCB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, current_operator_cb, bd_addr,
+                curOperatorCB.name().c_str());
       break;
+    }
 
-    case BTA_HF_CLIENT_AT_RESULT_EVT:
-      HAL_CBACK(bt_hf_client_callbacks, cmd_complete_cb, &cb->peer_bda,
-                (bthf_client_cmd_complete_t)p_data->result.type,
-                p_data->result.cme);
+    case BT_HF_CLIENT_CLIP_CB : {
+      ALOGI("%s BT_HF_CLIENT_CLIP_CB", __func__);
+      hf_client_proto :: ss_bthf_client_clip_callback clipCB;
+      clipCB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)clipCB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, clip_cb, bd_addr,
+                clipCB.number().c_str());
       break;
+    }
 
-    case BTA_HF_CLIENT_CLCC_EVT:
-      HAL_CBACK(bt_hf_client_callbacks, current_calls_cb, &cb->peer_bda,
-                p_data->clcc.idx,
-                p_data->clcc.inc ? BTHF_CLIENT_CALL_DIRECTION_INCOMING
+    case BT_HF_CLIENT_LAST_VOICE_TAG_NUM_CB: {
+      ALOGI("%s BT_HF_CLIENT_LAST_VOICE_TAG_NUM_CB", __func__);
+      hf_client_proto :: ss_bthf_client_last_voice_tag_number_callback lvtnCB;
+      lvtnCB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)lvtnCB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, last_voice_tag_number_callback,
+                bd_addr, lvtnCB.number().c_str());
+      break;
+    }
+
+    case BT_HF_CLIENT_CALL_WAITING_CB: {
+      ALOGI("%s BT_HF_CLIENT_CALL_WAITING_CB", __func__);
+      hf_client_proto :: ss_bthf_client_call_waiting_callback cwCB;
+      cwCB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)cwCB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, call_waiting_cb, bd_addr,
+                cwCB.number().c_str());
+      break;
+    }
+
+    case BT_HF_CLIENT_CMD_COMPLETE_CB : {
+      ALOGI("%s BT_HF_CLIENT_CMD_COMPLETE_CB", __func__);
+      hf_client_proto :: ss_bthf_client_cmd_complete_callback ccCB;
+      ccCB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)ccCB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, cmd_complete_cb, bd_addr,
+                (bthf_client_cmd_complete_t)ccCB.type(),
+                ccCB.cme());
+      break;
+    }
+
+    case BT_HF_CLIENT_CURRENT_CALLS_CB: {
+      ALOGI("%s BT_HF_CLIENT_CURRENT_CALLS_CB", __func__);
+      hf_client_proto :: ss_bthf_client_current_calls  clcc_CB;
+      clcc_CB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)clcc_CB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, current_calls_cb, bd_addr,
+                clcc_CB.index(),
+                clcc_CB.dir() ? BTHF_CLIENT_CALL_DIRECTION_INCOMING
                                  : BTHF_CLIENT_CALL_DIRECTION_OUTGOING,
-                (bthf_client_call_state_t)p_data->clcc.status,
-                p_data->clcc.mpty ? BTHF_CLIENT_CALL_MPTY_TYPE_MULTI
+                (bthf_client_call_state_t)clcc_CB.state(),
+                clcc_CB.mpty() ? BTHF_CLIENT_CALL_MPTY_TYPE_MULTI
                                   : BTHF_CLIENT_CALL_MPTY_TYPE_SINGLE,
-                p_data->clcc.number_present ? p_data->clcc.number : "");
+                clcc_CB.number().c_str() ? clcc_CB.number().c_str() : NULL);
       break;
+    }
 
-    case BTA_HF_CLIENT_CNUM_EVT:
-      if (p_data->cnum.service == 4) {
-        HAL_CBACK(bt_hf_client_callbacks, subscriber_info_cb, &cb->peer_bda,
-                  p_data->cnum.number, BTHF_CLIENT_SERVICE_VOICE);
-      } else if (p_data->cnum.service == 5) {
-        HAL_CBACK(bt_hf_client_callbacks, subscriber_info_cb, &cb->peer_bda,
-                  p_data->cnum.number, BTHF_CLIENT_SERVICE_FAX);
-      } else {
-        HAL_CBACK(bt_hf_client_callbacks, subscriber_info_cb, &cb->peer_bda,
-                  p_data->cnum.number, BTHF_CLIENT_SERVICE_UNKNOWN);
+    case BT_HF_CLIENT_SUBSCRIBER_INFO_CB: {
+      ALOGI("%s BT_HF_CLIENT_SUBSCRIBER_INFO_CB", __func__);
+      hf_client_proto :: ss_bthf_client_subscriber_info_callback subInfo_CB;
+      subInfo_CB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)subInfo_CB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, subscriber_info_cb, bd_addr,
+                   subInfo_CB.name().c_str(),(bthf_client_subscriber_service_type_t)subInfo_CB.type());
+      break;
+    }
+
+    case BT_HF_CLIENT_RESP_HOLD_CB: {
+      ALOGI("%s BT_HF_CLIENT_RESP_HOLD_CB", __func__);
+      hf_client_proto :: ss_bthf_client_resp_and_hold_callback respHold_CB;
+      respHold_CB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)respHold_CB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      if ((bthf_client_resp_and_hold_t)respHold_CB.resp_and_hold() <=
+                      BTRH_CLIENT_RESP_AND_HOLD_REJECT) {
+        HAL_CL_CBACK(bt_hf_client_callbacks, resp_and_hold_cb, bd_addr,
+                  (bthf_client_resp_and_hold_t)respHold_CB.resp_and_hold());
       }
       break;
+    }
 
-    case BTA_HF_CLIENT_BTRH_EVT:
-      if (p_data->val.value <= BTRH_CLIENT_RESP_AND_HOLD_REJECT) {
-        HAL_CBACK(bt_hf_client_callbacks, resp_and_hold_cb, &cb->peer_bda,
-                  (bthf_client_resp_and_hold_t)p_data->val.value);
-      }
-      break;
-
-    case BTA_HF_CLIENT_BSIR_EVT:
-      if (p_data->val.value != 0) {
-        HAL_CBACK(bt_hf_client_callbacks, in_band_ring_tone_cb, &cb->peer_bda,
+    case BT_HF_CLIENT_INBAND_RINGTONE_CB: {
+      ALOGI("%s BT_HF_CLIENT_INBAND_RINGTONE_CB", __func__);
+      hf_client_proto :: ss_bthf_client_in_band_ring_tone_callback  inbandRing_CB;
+      inbandRing_CB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)inbandRing_CB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      if ((bthf_client_in_band_ring_state_t )inbandRing_CB.state() != 0) {
+        HAL_CL_CBACK(bt_hf_client_callbacks, in_band_ring_tone_cb, bd_addr,
                   BTHF_CLIENT_IN_BAND_RINGTONE_PROVIDED);
       } else {
-        HAL_CBACK(bt_hf_client_callbacks, in_band_ring_tone_cb, &cb->peer_bda,
+        HAL_CL_CBACK(bt_hf_client_callbacks, in_band_ring_tone_cb, bd_addr,
                   BTHF_CLIENT_IN_BAND_RINGTONE_NOT_PROVIDED);
       }
       break;
-
-    case BTA_HF_CLIENT_AUDIO_OPEN_EVT:
-      HAL_CBACK(bt_hf_client_callbacks, audio_state_cb, &cb->peer_bda,
-                BTHF_CLIENT_AUDIO_STATE_CONNECTED);
-      break;
-
-    case BTA_HF_CLIENT_AUDIO_MSBC_OPEN_EVT:
-      HAL_CBACK(bt_hf_client_callbacks, audio_state_cb, &cb->peer_bda,
-                BTHF_CLIENT_AUDIO_STATE_CONNECTED_MSBC);
-      break;
-
-    case BTA_HF_CLIENT_AUDIO_CLOSE_EVT:
-      HAL_CBACK(bt_hf_client_callbacks, audio_state_cb, &cb->peer_bda,
-                BTHF_CLIENT_AUDIO_STATE_DISCONNECTED);
-      break;
-    case BTA_HF_CLIENT_RING_INDICATION:
-      HAL_CBACK(bt_hf_client_callbacks, ring_indication_cb, &cb->peer_bda);
-      break;
-    case BTA_HF_CLIENT_UNKNOWN_EVT:
-      HAL_CBACK(bt_hf_client_callbacks, unknown_event_cb, &cb->peer_bda,
-                p_data->unknown.event_string);
-      break;
-    default:
-      BTIF_TRACE_WARNING("%s: Unhandled event: %d", __func__, event);
-      break;
-  }
-}
-
-/*******************************************************************************
- *
- * Function         bta_hf_client_evt
- *
- * Description      Switches context from BTA to BTIF for all HF Client events
- *
- * Returns          void
- *
- ******************************************************************************/
-
-static void bta_hf_client_evt(tBTA_HF_CLIENT_EVT event,
-                              tBTA_HF_CLIENT* p_data) {
-  bt_status_t status;
-
-  /* switch context to btif task context (copy full union size for convenience)
-   */
-  status = btif_transfer_context(btif_hf_client_upstreams_evt, (uint16_t)event,
-                                 (char*)p_data, sizeof(*p_data), NULL);
-
-  /* catch any failed context transfers */
-  ASSERTC(status == BT_STATUS_SUCCESS, "context transfer failed", status);
-}
-
-/*******************************************************************************
- *
- * Function         btif_hf_client_execute_service
- *
- * Description      Initializes/Shuts down the service
- *
- * Returns          BT_STATUS_SUCCESS on success, BT_STATUS_FAIL otherwise
- *
- ******************************************************************************/
-bt_status_t btif_hf_client_execute_service(bool b_enable) {
-  BTIF_TRACE_EVENT("%s: enable: %d", __func__, b_enable);
-
-  if (b_enable) {
-    /* Enable and register with BTA-HFClient */
-    BTIF_TRACE_EVENT("%s: support codec negotiation %d ", __func__,
-                     BTIF_HF_CLIENT_FEATURES);
-    BTA_HfClientEnable(bta_hf_client_evt, BTIF_HF_CLIENT_SECURITY,
-                       BTIF_HF_CLIENT_FEATURES, BTIF_HF_CLIENT_SERVICE_NAME);
-  } else {
-    if (bt_hf_client_callbacks)
-    {
-        BTIF_TRACE_EVENT("%s: setting call backs to NULL", __FUNCTION__);
-        bt_hf_client_callbacks = NULL;
     }
-    BTA_HfClientDisable();
+
+    case BT_HF_CLIENT_AUDIO_STATE_CB: {
+      ALOGI("%s BT_HF_CLIENT_AUDIO_STATE_CB", __func__);
+      hf_client_proto :: ss_bthf_client_audio_state_callback  audioState_CB;
+      audioState_CB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)audioState_CB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, audio_state_cb, bd_addr,
+                (bthf_client_audio_state_t)audioState_CB.state());
+      break;
+    }
+
+    case BT_HF_CLIENT_RING_IND_CB: {
+      ALOGI("%s BT_HF_CLIENT_RING_IND_CB", __func__);
+      hf_client_proto :: ss_bthf_client_ring_indication_callback  ring_CB;
+      ring_CB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)ring_CB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, ring_indication_cb, bd_addr);
+      break;
+    }
+
+    case BT_HF_CLIENT_UNKNOWN_EVT_CB: {
+      ALOGI("%s BT_HF_CLIENT_UNKNOWN_EVT_CB", __func__);
+      hf_client_proto :: ss_bthf_client_unknown_event_callback unknown_CB;
+      unknown_CB.ParseFromString(resBufferString);
+      uint8_t* addr = (uint8_t*)unknown_CB.bd_addr().c_str();
+      RawAddress *bd_addr = (RawAddress*)addr;
+      HAL_CL_CBACK(bt_hf_client_callbacks, unknown_event_cb, bd_addr,
+                unknown_CB.unknow_event().c_str());
+      break;
+    }
+    default: {
+      ALOGI("%s: Unhandled event: %d", __func__, event);
+      break;
+    }
   }
-  BTIF_TRACE_EVENT("%s: enable: %d completed", __FUNCTION__, b_enable);
-  return BT_STATUS_SUCCESS;
 }
 
 /*******************************************************************************
  *
- * Function         btif_hf_get_interface
+ * Function         btif_hf_client_get_interface
  *
  * Description      Get the hf callback interface
  *
- * Returns          bthf_interface_t
+ * Returns          bthf_client_interface_t
  *
  ******************************************************************************/
 const bthf_client_interface_t* btif_hf_client_get_interface(void) {
-  BTIF_TRACE_EVENT("%s", __func__);
+  ALOGI("%s", __func__);
   return &bthfClientInterface;
 }
-#endif

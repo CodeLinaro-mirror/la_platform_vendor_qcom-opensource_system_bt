@@ -89,6 +89,7 @@ cc_library_static{
         "protobuf/proto/gatt_server.proto",
         "protobuf/proto/advertiser.proto",
         "protobuf/proto/scan.proto",
+        "protobuf/proto/hf_client.proto",
     ]
 }
 // libbtif static library for target

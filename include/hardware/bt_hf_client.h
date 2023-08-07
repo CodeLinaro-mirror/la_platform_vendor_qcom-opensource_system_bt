@@ -163,6 +163,17 @@ typedef enum {
 #define BTHF_CLIENT_CHLD_FEAT_MERGE_DETACH  0x00000040  /* 4  Connect two calls and leave
                                                               (disconnect from) multiparty */
 
+/* HFP HF features */
+#define BTHF_CLIENT_FEAT_ECNR  0x00000001 /* Echo cancellation and/or noise reduction */
+#define BTHF_CLIENT_FEAT_3WAY  0x00000002 /* Call waiting and three-way calling */
+#define BTHF_CLIENT_FEAT_CLI   0x00000004 /* Caller ID presentation capability */
+#define BTHF_CLIENT_FEAT_VREC  0x00000008 /* Voice recognition activation */
+#define BTHF_CLIENT_FEAT_VOL   0x00000010 /* Remote volume control */
+#define BTHF_CLIENT_FEAT_ECS   0x00000020 /* Enhanced Call Status */
+#define BTHF_CLIENT_FEAT_ECC   0x00000040 /* Enhanced Call Control */
+#define BTHF_CLIENT_FEAT_CODEC 0x00000080 /* Codec Negotiation */
+#define BTHF_CLIENT_FEAT_S4    0x00000200 /* ESCO S4 link setting */
+
 /** Callback for connection state change.
  *  state will have one of the values from BtHfConnectionState
  *  peer/chld_features are valid only for BTHF_CLIENT_CONNECTION_STATE_SLC_CONNECTED state
@@ -287,6 +298,11 @@ typedef void (* bthf_client_ring_indication_callback) (const RawAddress *bd_addr
  */
 typedef void (*bthf_client_unknown_event_callback)(const RawAddress* bd_addr,
                                                    const char* unknow_event);
+
+/**
+ * Executes HF CLIENT CALLBACKS in btif context
+ */
+void btif_hf_client_ss_callback(uint16_t event, char* payload);
 
 /** BT-HF callback structure. */
 typedef struct {
