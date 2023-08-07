@@ -58,8 +58,55 @@
 
 #include <stdbool.h>
 #include <hardware/bluetooth_headset_interface.h>
-#include "osi/include/alarm.h"
-#include <bta/include/bta_ag_api.h>
+/* AG feature masks */
+#define BT_AG_FEAT_3WAY 0x00000001   /* Three-way calling */
+#define BT_AG_FEAT_ECNR 0x00000002   /* Echo cancellation/noise reduction */
+#define BT_AG_FEAT_VREC 0x00000004   /* Voice recognition */
+#define BT_AG_FEAT_INBAND 0x00000008 /* In-band ring tone */
+#define BT_AG_FEAT_VTAG 0x00000010   /* Attach a phone number to a voice tag */
+#define BT_AG_FEAT_REJECT 0x00000020 /* Ability to reject incoming call */
+#define BT_AG_FEAT_ECS 0x00000040    /* Enhanced Call Status */
+#define BT_AG_FEAT_ECC 0x00000080    /* Enhanced Call Control */
+#define BT_AG_FEAT_EXTERR 0x00000100 /* Extended error codes */
+#define BT_AG_FEAT_CODEC 0x00000200  /* Codec Negotiation */
+
+/* Valid feature bit mask for HFP 1.6 (and below) */
+#define HFP_1_6_FEAT_MASK 0x000003FF
+
+/* HFP 1.7+ */
+#define BT_AG_FEAT_HF_IND 0x00000400 /* HF Indicators */
+#define BT_AG_FEAT_ESCO 0x00000800   /* eSCO S4 (and T2) setting supported */
+
+/* HFP 1.8+ */
+#define BT_AG_FEAT_ENHC_VREC 0x00001000 /* Voice enhanced recognition status*/
+#define BT_AG_FEAT_VREC_TEXT 0x00002000 /* Voice recognition text*/
+
+/* HFP 1.8+ for SDP supported features*/
+#define BT_AG_SDP_FEAT_ENHC_VREC 0x00000040 /* Voice enhanced recognition status*/
+#define BT_AG_SDP_FEAT_VREC_TEXT 0x00000080 /* Voice recognition text*/
+
+#define BT_AG_FEAT_BTRH 0x00010000    /* CCAP incoming call hold */
+#define BT_AG_FEAT_UNAT 0x00020000    /* Pass unknown AT commands to app */
+#define BT_AG_FEAT_NOSCO 0x00040000   /* No SCO control performed by BTA AG */
+#define BT_AG_FEAT_NO_ESCO 0x00080000 /* Do not allow or use eSCO */
+#define BT_AG_FEAT_VOIP 0x00100000    /* VoIP call */
+
+/* HFP peer features */
+#define BT_AG_PEER_FEAT_ECNR 0x0001   /* Echo cancellation/noise reduction */
+#define BT_AG_PEER_FEAT_3WAY 0x0002   /* Call waiting and three-way calling */
+#define BT_AG_PEER_FEAT_CLI 0x0004    /* Caller ID presentation capability */
+#define BT_AG_PEER_FEAT_VREC 0x0008   /* Voice recognition activation */
+#define BT_AG_PEER_FEAT_VOL 0x0010    /* Remote volume control */
+#define BT_AG_PEER_FEAT_ECS 0x0020    /* Enhanced Call Status */
+#define BT_AG_PEER_FEAT_ECC 0x0040    /* Enhanced Call Control */
+#define BT_AG_PEER_FEAT_CODEC 0x0080  /* Codec Negotiation */
+#define BT_AG_PEER_FEAT_HF_IND 0x0100 /* HF Indicators */
+#define BT_AG_PEER_FEAT_ESCO 0x0200   /* eSCO S4 (and T2) setting supported */
+#define BT_AG_PEER_FEAT_ENHC_VREC 0x0400 /* Voice enhanced recognition */
+#define BT_AG_PEER_FEAT_VREC_TEXT 0x0800 /* Voice recognition text */
+/* Pass unknown AT command responses to application */
+#define BT_AG_PEER_FEAT_UNAT 0x1000
+#define BT_AG_PEER_FEAT_VOIP 0x2000 /* VoIP call */
 
 namespace bluetooth {
 namespace headset {
@@ -92,8 +139,6 @@ typedef struct _btif_hf_cb {
 #endif
 } btif_hf_cb_t;
 
-extern btif_hf_cb_t btif_hf_cb[BTA_AG_MAX_NUM_CLIENTS];
-
 // Check whether there is a Hands-Free call in progress.
 // Returns true if no call is in progress.
 bool btif_hf_is_call_idle(void);
@@ -106,6 +151,7 @@ void btif_in_hf_generic_evt(uint16_t event, char* p_param);
 void btif_ag_result(uint16_t enum_value, char* param);
 #endif
 
+void btif_hf_ss_callback(uint16_t event, char* p_param);
 
 }  // namespace headset
 }  // na

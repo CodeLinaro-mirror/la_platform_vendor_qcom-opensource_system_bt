@@ -347,7 +347,7 @@ static void btif_stats_add_bond_event(const RawAddress& bd_addr,
 /******************************************************************************
  *  Externs
  *****************************************************************************/
-extern bt_status_t btif_hf_execute_service(bool b_enable);
+// extern bt_status_t btif_hf_execute_service(bool b_enable);
 extern bt_status_t btif_av_execute_service(bool b_enable);
 extern bt_status_t btif_av_sink_execute_service(bool b_enable);
 extern bt_status_t btif_hh_execute_service(bool b_enable);
@@ -458,10 +458,10 @@ bt_status_t btif_in_execute_service_request(tBTA_SERVICE_ID service_id,
   BTIF_TRACE_DEBUG("%s service_id: %d", __func__, service_id);
   /* Check the service_ID and invoke the profile's BT state changed API */
   switch (service_id) {
-    case BTA_HFP_SERVICE_ID:
+    /* case BTA_HFP_SERVICE_ID:
     case BTA_HSP_SERVICE_ID: {
       bluetooth::headset::btif_hf_execute_service(b_enable);
-    } break;
+    } break; */
     case BTA_A2DP_SOURCE_SERVICE_ID: {
       btif_av_execute_service(b_enable);
     } break;
