@@ -3383,6 +3383,8 @@ void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status,
         p_dev_rec->new_encryption_key_is_p256 = false;
 
         BTM_TRACE_DEBUG("%s start SM over BR/EDR", __func__);
+        BTM_TRACE_DEBUG("%s, disable role switch", __func__);
+        BTM_block_role_switch_for(p_dev_rec->bd_addr);
         SMP_BR_PairWith(p_dev_rec->bd_addr);
       }
     }
