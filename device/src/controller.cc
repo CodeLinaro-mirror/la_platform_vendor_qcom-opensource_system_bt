@@ -116,7 +116,7 @@ const uint8_t SCO_HOST_BUFFER_SIZE = 0xff;
 #define QHS_LE_MASK 0x02
 #define QHS_LE_ISO_MASK 0x04
 
-#define QBCE_QLL_CIS_PARAMETER_UPDATE_HOST_BIT 60
+#define QBCE_QLL_MULTI_CONFIG_CIS_PARAMETER_UPDATE_HOST_BIT 58
 
 const bt_event_mask_t QBCE_QLM_AND_QLL_EVENT_MASK = {
   {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x4A}};
@@ -832,10 +832,11 @@ static future_t* start_up(void) {
     packet_parser->parse_qll_read_local_supported_features_response(response, &qll_features);
   }
 
-  if (HCI_QBCE_QLL_CIS_PARAMETER_UPDATE_CONTROLLER(qll_features.as_array) &&
+  if (HCI_QBCE_QLL_MULTI_CONFIG_CIS_PARAMETER_UPDATE_CONTROLLER(qll_features.as_array) &&
       BTM_BleIsCisParamUpdateLocalHostSupported()) {
     response = AWAIT_COMMAND(
-        packet_factory->make_qbce_qle_set_host_feature(QBCE_QLL_CIS_PARAMETER_UPDATE_HOST_BIT, 1));
+        packet_factory->make_qbce_qle_set_host_feature(
+            QBCE_QLL_MULTI_CONFIG_CIS_PARAMETER_UPDATE_HOST_BIT, 1));
     packet_parser->parse_generic_command_complete(response);
   }
 

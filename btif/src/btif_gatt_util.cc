@@ -15,6 +15,13 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+/*******************************************************************************
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ *******************************************************************************/
 
 #define LOG_TAG "bt_btif_gatt"
 
@@ -80,7 +87,7 @@ void btif_gatt_check_encrypted_link(RawAddress bd_addr,
   BTIF_TRACE_DEBUG(" Starting  of %s: transport = %d", __func__,
                    transport_link);
   if ((btif_storage_get_ble_bonding_key(
-           &bd_addr, BTIF_DM_LE_KEY_PENC, (uint8_t*)&key,
+           bd_addr, BTIF_DM_LE_KEY_PENC, (uint8_t*)&key,
            sizeof(tBTM_LE_PENC_KEYS)) == BT_STATUS_SUCCESS) &&
       !btif_gatt_is_link_encrypted(bd_addr, transport_link)) {
     BTIF_TRACE_DEBUG(

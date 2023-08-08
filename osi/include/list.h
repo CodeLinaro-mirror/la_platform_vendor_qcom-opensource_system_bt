@@ -16,10 +16,19 @@
  *
  ******************************************************************************/
 
+/******************************************************************************
+*
+* Changes from Qualcomm Innovation Center are provided under the following license:
+* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
+*
+*****************************************************************************/
+
 #pragma once
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include "osi/include/config.h"
 
 struct list_node_t;
 typedef struct list_node_t list_node_t;
@@ -137,3 +146,32 @@ list_node_t* list_next(const list_node_t* node);
 // Returns the value stored at the location pointed to by the iterator |node|.
 // |node| must not equal the value returned by |list_end|.
 void* list_node(const list_node_t* node);
+
+list_node_t* list_begin(std::list<section_t> *section);
+list_node_t* list_end(std::list<section_t> *section);
+
+list_node_t* list_begin(std::list<section_t> section);
+list_node_t* list_end(std::list<section_t> section);
+
+list_node_t* list_begin(std::list<entry_t> entry);
+list_node_t* list_end(std::list<entry_t> entry);
+
+list_node_t* list_begin(std::list<entry_t> *entry);
+list_node_t* list_end(std::list<entry_t> *entry);
+
+void list_free(std::list<section_t> *section);
+void list_free(std::list<entry_t> *entry);
+
+void list_free(std::list<section_t> section);
+void list_free(std::list<entry_t> entry);
+
+bool list_remove(std::list<section_t> *section, void* data);
+bool list_remove(std::list<section_t> section, void* data);
+
+size_t list_length(std::list<entry_t> entry);
+
+size_t list_length(std::list<entry_t> *entry);
+
+bool list_append(std::list<section_t> *section, void* data);
+bool list_append(std::list<section_t> section, void* data);
+bool list_append(std::list<entry_t> entry, void* data);

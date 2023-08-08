@@ -15,6 +15,13 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+/*******************************************************************************
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ *******************************************************************************/
 
 #define LOG_TAG "bt_bte"
 
@@ -269,7 +276,7 @@ static void load_levels_from_config(const config_t* config) {
   for (tBTTRC_FUNC_MAP* functions = &bttrc_set_level_map[0];
        functions->trc_name; ++functions) {
     int value =
-        config_get_int(config, CONFIG_DEFAULT_SECTION, functions->trc_name, -1);
+        config_get_int(*config, CONFIG_DEFAULT_SECTION, functions->trc_name, -1);
     if (value != -1) functions->trace_level = value;
 
     if (functions->p_f) functions->p_f(functions->trace_level);

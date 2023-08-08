@@ -16,6 +16,13 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+/*******************************************************************************
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ *******************************************************************************/
 
 /************************************************************************************
  *
@@ -213,7 +220,7 @@ static void btif_hd_upstreams_evt(uint16_t event, char* p_param) {
         BTA_HdDisconnect();
         break;
       }
-      btif_storage_set_hidd((RawAddress*)&p_data->conn.bda);
+      btif_storage_set_hidd(p_data->conn.bda);
 
       HAL_CBACK(bt_hd_callbacks, connection_state_cb,
                 (RawAddress*)&p_data->conn.bda, BTHD_CONN_STATE_CONNECTED);

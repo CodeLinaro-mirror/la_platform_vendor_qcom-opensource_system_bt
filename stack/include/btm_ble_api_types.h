@@ -597,12 +597,12 @@ typedef struct {
     uint16_t *conn_handle;
 } tBTM_BLE_SET_CIG_RET_PARAM;
 
-/* Return parameters of HCI_VS_LE_Add_CIG_Configuration command complete*/
+/* Return parameters of HCI_VS_LE_Add_CIG_Multi_Configurations command complete*/
 typedef struct {
     uint8_t status;
     uint8_t cig_id;
-    uint8_t config_id;
-} tBTM_BLE_ADD_CIG_CONFIG_RET_PARAM;
+    std::vector<uint8_t> config_ids_added;
+} tBTM_BLE_ADD_CIG_MULTI_CONFIGS_RET_PARAM;
 
 /* Return parameters of HCI_LE_CIS_Established Event*/
 typedef struct {
@@ -728,8 +728,8 @@ typedef struct {
 /* HCI_LE_Set_CIG_Parameters command complete callback*/
 typedef void (tBTM_BLE_SET_CIG_PARAM_CMPL_CB) (tBTM_BLE_SET_CIG_RET_PARAM* param);
 
-/* HCI_VS_LE_Add_CIG_Configuration command complete callback*/
-typedef void (tBTM_BLE_ADD_CIG_CONFIG_CMPL_CB) (tBTM_BLE_ADD_CIG_CONFIG_RET_PARAM* param);
+/* HCI_VS_LE_Add_CIG_Multi_Configurations command complete callback*/
+typedef void (tBTM_BLE_ADD_CIG_MULTI_CONFIGS_CMPL_CB) (tBTM_BLE_ADD_CIG_MULTI_CONFIGS_RET_PARAM* param);
 
 /* HCI_LE_CIS_Established command status event */
 typedef void (tBTM_BLE_CREATE_CIS_CB) (uint8_t status);
@@ -811,7 +811,7 @@ typedef void (tBTM_BLE_TRANSMITTER_TEST_V4_CB) (uint8_t status);
 // Callabck function pointers of HCI Commands after receiving Command Complete or HCI Event
 typedef struct {
   tBTM_BLE_SET_CIG_PARAM_CMPL_CB* set_cig_param = NULL;
-  tBTM_BLE_ADD_CIG_CONFIG_CMPL_CB* add_cig_config_cb = NULL;
+  tBTM_BLE_ADD_CIG_MULTI_CONFIGS_CMPL_CB* add_cig_multi_configs_cb = NULL;
   tBTM_BLE_CREATE_CIS_CB* create_cis_status_cb = NULL;
   tBTM_BLE_CIS_ESTABLISHED_CB* cis_established_evt_cb = NULL;
   tBTM_BLE_CIS_REQ_EVT_CB* cis_request_evt_cb = NULL;
@@ -864,9 +864,8 @@ typedef struct {
   tBTM_BLE_SET_CIG_PARAM_CMPL_CB* p_cb;
 } tBTM_BLE_ISO_SET_CIG_CMD_PARAM;
 
-/* command parameters of HCI_VS_LE_Add_CIG_Configuration */
+/* command parameters of HCI_VS_LE_Add_CIG_Multi_Configurations */
 typedef struct {
-  uint8_t cig_id;
   uint8_t config_id;
   uint8_t mode_id;
   SDU_INTERVAL sdu_int_m_to_s;
@@ -876,10 +875,16 @@ typedef struct {
   uint8_t framing;
   uint16_t max_transport_latency_m_to_s;
   uint16_t max_transport_latency_s_to_m;
-  uint8_t cis_count;
-  std::vector<tBTM_BLE_CIS_CONFIG> cis_config;
-  tBTM_BLE_ADD_CIG_CONFIG_CMPL_CB* p_cb;
-} tBTM_BLE_ISO_ADD_CIG_CONFIG_CMD_PARAM;
+  uint8_t low_latency;
+  uint8_t max_bandwidth;
+  std::vector<tBTM_BLE_CIS_CONFIG> cis_configs;
+} tBTM_BLE_ALT_CIG_CONFIG;
+
+typedef struct {
+  uint8_t cig_id;
+  std::vector<tBTM_BLE_ALT_CIG_CONFIG> alt_cig_configs;
+  tBTM_BLE_ADD_CIG_MULTI_CONFIGS_CMPL_CB* p_cb;
+} tBTM_BLE_ISO_ADD_CIG_MULTI_CONFIGS_CMD_PARAM;
 
 /* Associated connection handles of ACL and ISO link*/
 typedef struct {

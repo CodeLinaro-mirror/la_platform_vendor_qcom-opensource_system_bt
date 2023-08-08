@@ -19,6 +19,13 @@
  *  SPDX-License-Identifier: BSD-3-Clause-Clear
  *
  ******************************************************************************/
+/*******************************************************************************
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ *******************************************************************************/
 
 #pragma once
 
@@ -34,7 +41,7 @@ typedef struct {
   bool (*get_pts_secure_only_mode)(void);
   bool (*get_pts_conn_updates_disabled)(void);
   bool (*get_pts_crosskey_sdp_disable)(void);
-  const char* (*get_pts_smp_options)(void);
+  const std::string* (*get_pts_smp_options)(void);
   int (*get_pts_smp_failure_case)(void);
   bool (*get_pts_le_nonconn_adv_enabled)(void);
   bool (*get_pts_le_conn_nondisc_adv_enabled)(void);

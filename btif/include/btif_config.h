@@ -16,12 +16,24 @@
  *
  ******************************************************************************/
 
+/*******************************************************************************
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ *******************************************************************************/
+
 #pragma once
 
 #include <stdbool.h>
 #include <stddef.h>
 
 #include "bt_types.h"
+
+#include <list>
+#include <string>
+#include "osi/include/config.h"
 
 #define A2DP_VERSION_CONFIG_KEY "A2dpVersion"
 #define AVDTP_VERSION_CONFIG_KEY "AvdtpVersion"
@@ -39,34 +51,34 @@ static const char BTIF_CONFIG_MODULE[] = "btif_config_module";
 
 typedef struct btif_config_section_iter_t btif_config_section_iter_t;
 
+bool btif_config_has_section(const std::string& section);
 bool btif_config_has_section(const char* section);
-bool btif_config_exist(const char* section, const char* key);
-bool btif_config_get_int(const char* section, const char* key, int* value);
-bool btif_config_set_int(const char* section, const char* key, int value);
+bool btif_config_exist(const std::string& section, const std::string& key);
+bool btif_config_get_int(const std::string& section, const std::string& key, int* value);
+bool btif_config_set_int(const std::string& section, const std::string& key, int value);
 bool btif_config_get_uint16(const char* section, const char* key, uint16_t* value);
-bool btif_config_set_uint16(const char* section, const char* key, uint16_t value);
-bool btif_config_get_uint64(const char* section, const char* key,
-                            uint64_t* value);
-bool btif_config_set_uint64(const char* section, const char* key,
+bool btif_config_set_uint16(const std::string& section, const std::string& key, uint16_t value);
+bool btif_config_get_uint64(const char* section, const char* key, uint64_t* value);
+bool btif_config_set_uint64(const std::string& section, const std::string& key,
                             uint64_t value);
-bool btif_config_get_str(const char* section, const char* key, char* value,
+bool btif_config_get_str(const std::string& section, const std::string& key, char* value,
                          int* size_bytes);
-bool btif_config_set_str(const char* section, const char* key,
+bool btif_config_set_str(const std::string& section, const std::string& key,
                          const char* value);
-bool btif_config_get_bin(const char* section, const char* key, uint8_t* value,
+bool btif_config_set_str(const char* section, const char* key,const char* value);
+bool btif_config_get_bin(const std::string& section, const std::string& key, uint8_t* value,
                          size_t* length);
 bool btif_config_get_key_from_bin(const char* section, const char* key);
-bool btif_config_set_bin(const char* section, const char* key,
+bool btif_config_get_key_from_bin(const std::string& section, const std::string& key);
+bool btif_config_set_uint64(const char* section, const char* key,
+                            uint64_t value);
+bool btif_config_set_bin(const std::string& section, const std::string& key,
                          const uint8_t* value, size_t length);
-bool btif_config_remove(const char* section, const char* key);
+bool btif_config_remove(const std::string& section, const std::string& key);
 
-size_t btif_config_get_bin_length(const char* section, const char* key);
+size_t btif_config_get_bin_length(const std::string& section, const std::string& key);
 
-const btif_config_section_iter_t* btif_config_section_begin(void);
-const btif_config_section_iter_t* btif_config_section_end(void);
-const btif_config_section_iter_t* btif_config_section_next(
-    const btif_config_section_iter_t* section);
-const char* btif_config_section_name(const btif_config_section_iter_t* section);
+std::vector<RawAddress> btif_config_get_paired_devices();
 
 void btif_config_save(void);
 void btif_config_flush(void);

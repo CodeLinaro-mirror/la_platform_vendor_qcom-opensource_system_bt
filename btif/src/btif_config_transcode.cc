@@ -15,6 +15,13 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+/*******************************************************************************
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ *******************************************************************************/
 
 #define LOG_TAG "bt_btif_config_transcode"
 
@@ -25,7 +32,7 @@
 
 using namespace tinyxml2;
 
-config_t* btif_config_transcode(const char* xml_filename) {
+std::unique_ptr<config_t> btif_config_transcode(const char* xml_filename) {
   XMLDocument document;
   int error = document.LoadFile(xml_filename);
   if (error != XML_SUCCESS) {
@@ -42,11 +49,7 @@ config_t* btif_config_transcode(const char* xml_filename) {
     return NULL;
   }
 
-  config_t* config = config_new_empty();
-  if (!config) {
-    LOG_ERROR(LOG_TAG, "%s unable to allocate config object.", __func__);
-    return NULL;
-  }
+  std::unique_ptr<config_t> config = config_new_empty();
 
   for (XMLElement* i = rootElement->FirstChildElement(); i != NULL;
        i = i->NextSiblingElement())
@@ -58,7 +61,7 @@ config_t* btif_config_transcode(const char* xml_filename) {
         const char* key = k->Attribute("Tag");
         const char* value = k->GetText();
         if (section && key && value)
-          config_set_string(config, section, key, value);
+          config_set_string(config.get(), section, key, value);
       }
     }
 

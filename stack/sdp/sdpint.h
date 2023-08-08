@@ -199,7 +199,7 @@ typedef struct {
 #define SDP_DISC_WAIT_CANCEL 5
 
   uint8_t disc_state;
-  uint8_t is_attr_search;
+  bool is_attr_search;
 
 #if (SDP_SERVER_ENABLED == TRUE)
   uint16_t cont_offset;     /* Continuation state data in the server response */

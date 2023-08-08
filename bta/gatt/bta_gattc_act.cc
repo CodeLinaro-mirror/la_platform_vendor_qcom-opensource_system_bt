@@ -293,7 +293,7 @@ void bta_gattc_deregister(tBTA_GATTC_RCB* p_clreg) {
   for (uint8_t i = 0; i < BTM_GetWhiteListSize(); i++) {
     if (!bta_gattc_cb.bg_track[i].in_use) continue;
 
-    if (bta_gattc_cb.bg_track[i].cif_mask & (1 << (p_clreg->client_if - 1))) {
+    if (bta_gattc_cb.bg_track[i].cif_mask & ((tBTA_GATTC_CIF_MASK)1 << (p_clreg->client_if - 1))) {
       bta_gattc_mark_bg_conn(p_clreg->client_if,
                              bta_gattc_cb.bg_track[i].remote_bda, false);
       GATT_CancelConnect(p_clreg->client_if,
@@ -486,6 +486,16 @@ void bta_gattc_open(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
     return;
   }
 
+  tBTA_GATTC_RCB* p_clreg = p_clcb->p_rcb;
+  /* Re-enable notification registration for closed connection */
+  for (int i = 0; i < BTA_GATTC_NOTIF_REG_MAX; i++) {
+    if (p_clreg->notif_reg[i].in_use &&
+        p_clreg->notif_reg[i].remote_bda == p_clcb->bda &&
+        p_clreg->notif_reg[i].app_disconnected) {
+      p_clreg->notif_reg[i].app_disconnected = false;
+    }
+  }
+
   /* a connected remote device */
   if (GATT_GetConnIdIfConnected(
           p_clcb->p_rcb->client_if, p_data->api_conn.remote_bda,
@@ -615,6 +625,16 @@ void bta_gattc_conn(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
 
   p_clcb->p_srcb->mtu = GATT_GetMtuSize(p_clcb->bta_conn_id, p_clcb->bda, p_clcb->transport);
 
+  tBTA_GATTC_RCB* p_clreg = p_clcb->p_rcb;
+  /* Re-enable notification registration for closed connection */
+  for (int i = 0; i < BTA_GATTC_NOTIF_REG_MAX; i++) {
+    if (p_clreg->notif_reg[i].in_use &&
+        p_clreg->notif_reg[i].remote_bda == p_clcb->bda &&
+        p_clreg->notif_reg[i].app_disconnected) {
+      p_clreg->notif_reg[i].app_disconnected = false;
+    }
+  }
+
   /* start database cache if needed */
   if (p_clcb->p_srcb->gatt_database.IsEmpty() ||
       p_clcb->p_srcb->state != BTA_GATTC_SERV_IDLE) {
@@ -721,17 +741,37 @@ void bta_gattc_close(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
   if (p_clcb->transport == BTA_TRANSPORT_BR_EDR)
     bta_sys_conn_close(BTA_ID_GATTC, BTA_ALL_APP_ID, p_clcb->bda);
 
+  /* Disable notification registration for closed connection */
+  for (int i = 0; i < BTA_GATTC_NOTIF_REG_MAX; i++) {
+    if (p_clreg->notif_reg[i].in_use &&
+        p_clreg->notif_reg[i].remote_bda == p_clcb->bda) {
+      p_clreg->notif_reg[i].app_disconnected = true;
+    }
+  }
+
+  if (p_data->hdr.event == BTA_GATTC_INT_DISCONN_EVT) {
+    /* Since link has been disconnected by and it is possible that here are
+     * already some new p_clcb created for the background connect, the number of
+     * p_srcb->num_clcb is NOT 0. This will prevent p_srcb to be cleared inside
+     * the bta_gattc_clcb_dealloc.
+     *
+     * In this point of time, we know that link does not exist, so let's make
+     * sure the connection state, mtu and database is cleared.
+     */
+    bta_gattc_server_disconnected(p_clcb->p_srcb);
+  }
+
   bta_gattc_clcb_dealloc(p_clcb);
 
   if (p_data->hdr.event == BTA_GATTC_API_CLOSE_EVT) {
-    GATT_Disconnect(p_data->hdr.layer_specific);
+    cb_data.close.status = GATT_Disconnect(p_data->hdr.layer_specific);
     LOG(INFO) << __func__
               << "Local close event client_if: "
               << loghex(cb_data.close.client_if)
               << ", conn_id: " << cb_data.close.conn_id
               << ", reason: " << cb_data.close.reason;
   } else if (p_data->hdr.event == BTA_GATTC_INT_DISCONN_EVT) {
-    cb_data.close.status = p_data->int_conn.reason;
+    cb_data.close.status = static_cast<tGATT_STATUS>(p_data->int_conn.reason);
     cb_data.close.reason = p_data->int_conn.reason;
     LOG(INFO) << __func__
               << "Peer close disconnect event client_if: "
@@ -886,6 +926,20 @@ void bta_gattc_start_discover(tBTA_GATTC_CLCB* p_clcb,
           &manufacturer, &lmp_sub_version, BTA_TRANSPORT_LE);
       VLOG(1) << __func__ << ": lmp_version" << +lmp_version
               << ": lmp_sub_version" << +lmp_sub_version;
+
+      // Some LMP 5.2 devices also don't support robust caching. This workaround
+      // conditionally disables the feature based on a combination of LMP
+      // version and OUI prefix.
+      if (bta_gattc_is_robust_caching_enabled() &&
+          (((lmp_version > HCI_PROTO_VERSION_5_1) &&
+          interop_match_addr(INTEROP_DISABLE_ROBUST_CACHING, &p_clcb->bda)) ||
+          (lmp_version < HCI_PROTO_VERSION_5_1))) {
+        LOG(INFO) << __func__
+            << "Device LMP version > Bluetooth 5.1 and MAC addr on "
+            "interop list OR LMP version less than BT 5.1,"
+            "skipping robust caching" << +lmp_version;
+        p_clcb->p_srcb->srvc_hdl_db_hash = false;
+      }
 
       /* read db hash if db hash characteristic exists */
       if (bta_gattc_is_robust_caching_enabled() &&
@@ -1076,11 +1130,16 @@ void bta_gattc_write(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
   attr.len = p_data->api_write.len;
   attr.auth_req = p_data->api_write.auth_req;
 
-  if (p_data->api_write.p_value)
-    memcpy(attr.value, p_data->api_write.p_value, p_data->api_write.len);
+  /* Before coping to the fixed array, make sure it fits. */
+  if (attr.len > GATT_MAX_ATTR_LEN) {
+    status = GATT_INVALID_ATTR_LEN;
+  } else {
+    if (p_data->api_write.p_value)
+      memcpy(attr.value, p_data->api_write.p_value, p_data->api_write.len);
 
-  status =
-      GATTC_Write(p_clcb->bta_conn_id, p_data->api_write.write_type, &attr);
+    status =
+        GATTC_Write(p_clcb->bta_conn_id, p_data->api_write.write_type, &attr);
+  }
 
   /* write fail */
   if (status != GATT_SUCCESS) {
@@ -1336,7 +1395,9 @@ void bta_gattc_op_cmpl(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
     }
 
     bta_gattc_sm_execute(p_clcb, BTA_GATTC_INT_DISCOVER_EVT, NULL);
+    return;
   }
+  bta_gattc_continue(p_clcb);
 }
 
 /** start a search in the local server cache */

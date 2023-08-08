@@ -899,7 +899,24 @@ extern bool BTM_GetRemoteDeviceName(const RawAddress& bd_addr, BD_NAME bdname);
  ******************************************************************************/
 extern uint8_t BTM_BleSetCigParam(tBTM_BLE_ISO_SET_CIG_CMD_PARAM* p_data);
 
-extern uint8_t BTM_BleAddCigConfig(tBTM_BLE_ISO_ADD_CIG_CONFIG_CMD_PARAM* p_data);
+/*******************************************************************************
+ *
+ * Function         BTM_BleAddCigMultiConfigs
+ *
+ * Description      This function is called to invoke HCI Command
+ *                  HCI_VS_LE_Add_CIG_Multi_Configurations for adding multiple new configurations
+ *                  for a CIG in the controller.
+ *
+ * Parameters       tBTM_BLE_ISO_ADD_CIG_MULTI_CONFIGS_CMD_PARAM includes all parameters of the
+ *                  HCI command.
+ *                  Note: free memory allocated to this structure after returning.
+ *
+ * Returns          0x00 : HCI_SUCCESS if command/feature is supported in host
+ *                        and controller.
+ *                  0x11 : Unsupported Feature (HCI Error)
+ *
+ ******************************************************************************/
+extern uint8_t BTM_BleAddCigMultiConfigs(tBTM_BLE_ISO_ADD_CIG_MULTI_CONFIGS_CMD_PARAM* p_data);
 
 /*******************************************************************************
  *
@@ -1322,7 +1339,7 @@ extern void btm_ble_peer_sca_cmpl_evt(uint8_t *param, uint16_t param_len);
 extern void btm_ble_path_loss_threshold_evt(uint8_t *param, uint16_t param_len);
 extern void btm_ble_transmit_power_reporting_event(uint8_t *param, uint16_t param_len);
 extern void btm_ble_cis_disconnected(uint8_t status, uint16_t cis_handle, uint8_t reason);
-extern void btm_ble_qle_cis_configuration_state_event(const uint8_t *p);
+extern void btm_ble_qle_cis_multi_configuration_state_event(const uint8_t *p);
 extern void btm_ble_qle_cis_updated_event(const uint8_t *p);
 extern bool btm_ble_is_cis_handle(uint16_t cis_handle);
 using StartSyncCb =

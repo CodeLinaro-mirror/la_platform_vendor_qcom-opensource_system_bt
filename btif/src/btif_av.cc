@@ -3351,6 +3351,7 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
             BTIF_TRACE_IMP("Null -> Device, btif_a2dp_source_restart_session failed");
           }
         }
+        btif_av_signal_session_ready();
         break;
       }
 
@@ -4919,7 +4920,12 @@ static bt_status_t set_active_device(const RawAddress& bd_addr) {
     if (!bd_addr.IsEmpty())
       btif_transfer_context(btif_av_handle_event, BTIF_AV_CHECK_PENDING_PLAY_EVT,
                                     (char *)&bd_addr, sizeof(RawAddress), NULL);
-    return BT_STATUS_SUCCESS;
+    BTIF_TRACE_EVENT("%s: session_wait: %d",__func__, session_wait);
+    if (session_wait) {
+      return BT_STATUS_SUCCESS;
+    } else {
+      return BT_STATUS_FAIL;
+    }
   } else {
     /* Initiate handoff for the device with address in the argument*/
     return btif_transfer_context(btif_av_handle_event,

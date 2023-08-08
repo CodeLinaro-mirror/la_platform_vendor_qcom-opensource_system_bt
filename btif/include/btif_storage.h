@@ -19,6 +19,13 @@
  *  SPDX-License-Identifier: BSD-3-Clause-Clear
  *
  ******************************************************************************/
+/*******************************************************************************
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ *******************************************************************************/
 
 #ifndef BTIF_STORAGE_H
 #define BTIF_STORAGE_H
@@ -255,7 +262,7 @@ bt_status_t btif_storage_load_bonded_hid_info(void);
  *                  BT_STATUS_FAIL otherwise
  *
  ******************************************************************************/
-bt_status_t btif_storage_remove_hid_info(RawAddress* remote_bd_addr);
+bt_status_t btif_storage_remove_hid_info(const RawAddress& remote_bd_addr);
 
 /** Loads information about bonded hearing aid devices */
 void btif_storage_load_bonded_hearing_aids();
@@ -342,7 +349,7 @@ bt_status_t btif_storage_add_ble_bonding_key(RawAddress* remote_bd_addr,
                                              const uint8_t* key,
                                              uint8_t key_type,
                                              uint8_t key_length);
-bt_status_t btif_storage_get_ble_bonding_key(RawAddress* remote_bd_addr,
+bt_status_t btif_storage_get_ble_bonding_key(const RawAddress& remote_bd_addr,
                                              uint8_t key_type,
                                              uint8_t* key_value,
                                              int key_length);
@@ -381,7 +388,7 @@ bt_status_t btif_storage_load_hidd(void);
  *
  ******************************************************************************/
 
-bt_status_t btif_storage_set_hidd(RawAddress* remote_bd_addr);
+bt_status_t btif_storage_set_hidd(const RawAddress& remote_bd_addr);
 
 /*******************************************************************************
  *

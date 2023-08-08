@@ -108,6 +108,7 @@ static gatt::Database bta_gattc_load_db(const char* fname) {
       goto done;
     }
 
+    fclose(fd);
     bool success = false;
     gatt::Database result = gatt::Database::Deserialize(attr, &success);
     return success ? result : EMPTY_DB;

@@ -2837,6 +2837,8 @@ static void bta_dm_inq_results_cb(tBTM_INQ_RESULTS* p_inq, uint8_t* p_eir,
   result.inq_res.p_eir = p_eir;
   result.inq_res.eir_len = eir_len;
 
+  result.inq_res.ble_evt_type = p_inq->ble_evt_type;
+
   p_inq_info = BTM_InqDbRead(p_inq->remote_bd_addr);
   if (p_inq_info != NULL) {
     /* initialize remt_name_not_required to false so that we get the name by
@@ -5739,20 +5741,8 @@ void btm_dm_start_gatt_discovery(const RawAddress& bd_addr) {
     btm_dm_start_disc_gatt_services(bta_dm_search_cb.conn_id);
   } else {
     if (BTM_IsAclConnectionUp(bd_addr, BT_TRANSPORT_LE)) {
-#ifdef ADV_AUDIO_FEATURE
-      if (is_remote_support_adv_audio(bd_addr)) {
-        APPL_TRACE_DEBUG("%s ADV_AUDIO_DEVICE ", __func__);
-        BTA_GATTC_Open(bta_dm_search_cb.client_if, bd_addr, true,
-            GATT_TRANSPORT_LE, true);
-      } else {
-        APPL_TRACE_DEBUG("%s LEGACY LE DEVICE ", __func__);
-        BTA_GATTC_Open(bta_dm_search_cb.client_if, bd_addr, true,
-            GATT_TRANSPORT_LE, false);
-      }
-#else
       BTA_GATTC_Open(bta_dm_search_cb.client_if, bd_addr, true,
-                     GATT_TRANSPORT_LE, false);
-#endif
+                     GATT_TRANSPORT_LE, true);
     } else {
       //TODO review. Kept qcom Specific change only.
       APPL_TRACE_DEBUG("btm_dm_start_gatt_discovery: ACL is disconnected");
@@ -5850,6 +5840,7 @@ static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
 #ifdef ADV_AUDIO_FEATURE
         if (p_data->search_cmpl.status == 0) {
           if (is_remote_support_adv_audio(bta_dm_search_cb.peer_bdaddr)) {
+            bta_dm_reset_adv_audio_gatt_disc_prog(bta_dm_search_cb.peer_bdaddr);
             bta_get_adv_audio_role(bta_dm_search_cb.peer_bdaddr,
                 p_data->search_cmpl.conn_id,
                 p_data->search_cmpl.status);
@@ -5862,6 +5853,7 @@ static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
         } else {
           APPL_TRACE_DEBUG("%s Discovery Failure ", __func__);
           if (is_remote_support_adv_audio(bta_dm_search_cb.peer_bdaddr))
+            bta_dm_reset_adv_audio_gatt_disc_prog(bta_dm_search_cb.peer_bdaddr);
             bta_le_audio_service_search_failed(&bta_dm_search_cb.peer_bdaddr);
         }
 #endif
@@ -5877,7 +5869,11 @@ static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
           bta_dm_search_cb.conn_id = GATT_INVALID_CONN_ID;
 #ifdef ADV_AUDIO_FEATURE
       if (is_remote_support_adv_audio(p_data->close.remote_bda)) {
-        bta_dm_reset_adv_audio_dev_info(p_data->close.remote_bda);
+        if (is_gatt_srvc_disc_pending(p_data->close.remote_bda)) {
+          bta_le_audio_service_search_failed(&p_data->close.remote_bda);
+        } else {
+          bta_dm_reset_adv_audio_dev_info(p_data->close.remote_bda);
+        }
       }
 #endif
       /* in case of disconnect before search is completed */

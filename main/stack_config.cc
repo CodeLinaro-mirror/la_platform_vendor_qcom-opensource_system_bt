@@ -19,6 +19,13 @@
  *  SPDX-License-Identifier: BSD-3-Clause-Clear
  *
  ******************************************************************************/
+/*******************************************************************************
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ *******************************************************************************/
 
 #define LOG_TAG "bt_stack_config"
 
@@ -29,6 +36,7 @@
 #include "osi/include/future.h"
 #include "osi/include/log.h"
 
+namespace {
 const char* TRACE_CONFIG_ENABLED_KEY = "TraceConf";
 const char* PTS_SECURE_ONLY_MODE = "PTS_SecurePairOnly";
 const char* PTS_LE_CONN_UPDATED_DISABLED = "PTS_DisableConnUpdates";
@@ -51,7 +59,8 @@ const char* PTS_CONFIGURE_SERVICE_CHG_INDICATION = "PTS_ConfigureServiceChangeIn
 const char* PTS_SAVE_DB_HASH = "PTS_SaveDbHash";
 const char* PTS_ENABLE_AUTHORIZATION_ENCR_DATA_KEY = "PTS_EnableAuthorizationEncrDataKey";
 
-static config_t* config;
+static std::unique_ptr<config_t> config;
+}  // namespace
 
 // Module lifecycle functions
 
@@ -76,8 +85,7 @@ static future_t* init() {
 }
 
 static future_t* clean_up() {
-  config_free(config);
-  config = NULL;
+  config.reset();
   return future_new_immediate(FUTURE_SUCCESS);
 }
 
@@ -91,109 +99,109 @@ EXPORT_SYMBOL extern const module_t stack_config_module = {
 
 // Interface functions
 static bool get_trace_config_enabled(void) {
-  return config_get_bool(config, CONFIG_DEFAULT_SECTION,
+  return config_get_bool(*config, CONFIG_DEFAULT_SECTION,
                          TRACE_CONFIG_ENABLED_KEY, false);
 }
 
 static bool get_pts_secure_only_mode(void) {
-  return config_get_bool(config, CONFIG_DEFAULT_SECTION, PTS_SECURE_ONLY_MODE,
+  return config_get_bool(*config, CONFIG_DEFAULT_SECTION, PTS_SECURE_ONLY_MODE,
                          false);
 }
 
 static bool get_pts_conn_updates_disabled(void) {
-  return config_get_bool(config, CONFIG_DEFAULT_SECTION,
+  return config_get_bool(*config, CONFIG_DEFAULT_SECTION,
                          PTS_LE_CONN_UPDATED_DISABLED, false);
 }
 
 static bool get_pts_crosskey_sdp_disable(void) {
-  return config_get_bool(config, CONFIG_DEFAULT_SECTION,
+  return config_get_bool(*config, CONFIG_DEFAULT_SECTION,
                          PTS_DISABLE_SDP_LE_PAIR, false);
 }
 
-static const char* get_pts_smp_options(void) {
-  return config_get_string(config, CONFIG_DEFAULT_SECTION,
+static const std::string* get_pts_smp_options(void) {
+  return config_get_string(*config, CONFIG_DEFAULT_SECTION,
                            PTS_SMP_PAIRING_OPTIONS_KEY, NULL);
 }
 
 static int get_pts_smp_failure_case(void) {
-  return config_get_int(config, CONFIG_DEFAULT_SECTION,
+  return config_get_int(*config, CONFIG_DEFAULT_SECTION,
                         PTS_SMP_FAILURE_CASE_KEY, 0);
 }
 
 static bool get_pts_le_nonconn_adv_enabled(void) {
-  return config_get_bool(config, CONFIG_DEFAULT_SECTION, PTS_LE_NONCONN_ADV_MODE, false);
+  return config_get_bool(*config, CONFIG_DEFAULT_SECTION, PTS_LE_NONCONN_ADV_MODE, false);
 }
 
 static bool get_pts_le_conn_nondisc_adv_enabled(void) {
-  return config_get_bool(config, CONFIG_DEFAULT_SECTION, PTS_LE_CONN_NONDISC_ADV_MODE, false);
+  return config_get_bool(*config, CONFIG_DEFAULT_SECTION, PTS_LE_CONN_NONDISC_ADV_MODE, false);
 }
 
 static bool get_pts_le_sec_request_disabled(void) {
-  return config_get_bool(config, CONFIG_DEFAULT_SECTION,
+  return config_get_bool(*config, CONFIG_DEFAULT_SECTION,
                          PTS_LE_SEC_REQUEST_DISABLED, false);
 }
 
 static bool get_pts_le_fresh_pairing_enabled(void) {
-  return config_get_bool(config, CONFIG_DEFAULT_SECTION,
+  return config_get_bool(*config, CONFIG_DEFAULT_SECTION,
                          PTS_LE_FRESH_PAIRING_ENABLED, false);
 }
 
 static int get_pts_l2cap_le_insuff_enc_result(void) {
-  return config_get_int(config, CONFIG_DEFAULT_SECTION,
+  return config_get_int(*config, CONFIG_DEFAULT_SECTION,
                         PTS_L2CAP_LE_INSUFF_ENCRYP, 0);
 }
 
 static int get_pts_le_enc_disable(void) {
-  return config_get_int(config, CONFIG_DEFAULT_SECTION,
+  return config_get_int(*config, CONFIG_DEFAULT_SECTION,
                         PTS_LE_DISABLE_ENCRYP, 0);
 }
 
 static int get_pts_smp_disable_h7_support(void) {
-  return config_get_int(config, CONFIG_DEFAULT_SECTION,
+  return config_get_int(*config, CONFIG_DEFAULT_SECTION,
                         PTS_SMP_DISABLE_H7_SUPPORT, 0);
 }
 
 static int get_pts_smp_generate_invalid_public_key(void) {
-  return config_get_int(config, CONFIG_DEFAULT_SECTION,
+  return config_get_int(*config, CONFIG_DEFAULT_SECTION,
                            PTS_SMP_GENERATE_INVALID_PUBLIC_KEY, 0);
 }
 
 static int get_pts_bredr_auth_req(void) {
-  return config_get_int(config, CONFIG_DEFAULT_SECTION,
+  return config_get_int(*config, CONFIG_DEFAULT_SECTION,
                         PTS_BREDR_AUTH_REQ, -1);
 }
 
 static bool get_pts_bredr_secureconnection_host_support_disabled(void) {
-  return config_get_bool(config, CONFIG_DEFAULT_SECTION,
+  return config_get_bool(*config, CONFIG_DEFAULT_SECTION,
                          PTS_BREDR_SECURECONNECTION_HOSTSUPPORT_DISABLE, false);
 }
 
 static int get_pts_bredr_invalid_encryption_keysize(void) {
-  return config_get_int(config, CONFIG_DEFAULT_SECTION,
+  return config_get_int(*config, CONFIG_DEFAULT_SECTION,
                         PTS_BREDR_INVALID_ENCRYPTION_KEYSIZE, 0);
 }
 
 static bool get_pts_service_chg_indication_disable(void) {
-  return config_get_bool(config, CONFIG_DEFAULT_SECTION,
+  return config_get_bool(*config, CONFIG_DEFAULT_SECTION,
                          PTS_DISABLE_SERVICE_CHG_INDICATION, false);
 }
 
 static bool get_pts_configure_svc_chg_indication(void) {
-  return config_get_bool(config, CONFIG_DEFAULT_SECTION,
+  return config_get_bool(*config, CONFIG_DEFAULT_SECTION,
                          PTS_CONFIGURE_SERVICE_CHG_INDICATION, false);
 }
 
 static bool get_pts_save_db_hash(void) {
-  return config_get_bool(config, CONFIG_DEFAULT_SECTION,
+  return config_get_bool(*config, CONFIG_DEFAULT_SECTION,
                          PTS_SAVE_DB_HASH, false);
 }
 
 static bool get_pts_enable_authorization_encr_data_key(void) {
-  return config_get_bool(config, CONFIG_DEFAULT_SECTION,
+  return config_get_bool(*config, CONFIG_DEFAULT_SECTION,
                          PTS_ENABLE_AUTHORIZATION_ENCR_DATA_KEY, false);
 }
 
-static config_t* get_all(void) { return config; }
+static config_t* get_all(void) { return config.get(); }
 
 const stack_config_t interface = {get_trace_config_enabled,
                                   get_pts_secure_only_mode,

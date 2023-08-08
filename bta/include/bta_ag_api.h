@@ -386,6 +386,10 @@ typedef struct {
   uint16_t lidx; /* long index, ex, HF indicator */
 } tBTA_AG_VAL;
 
+typedef struct {
+  tBTA_AG_HDR hdr;
+  uint8_t num;
+} tBTA_AG_VOL;
 /* union of data associated with AG callback */
 typedef union {
   tBTA_AG_HDR hdr;
@@ -394,6 +398,7 @@ typedef union {
   tBTA_AG_CLOSE close;
   tBTA_AG_CONN conn;
   tBTA_AG_VAL val;
+  tBTA_AG_VOL vol;
 } tBTA_AG;
 
 /* AG callback */

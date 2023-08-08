@@ -24,8 +24,6 @@
  *
 *****************************************************************************/
 
-#define LOG_TAG "bt_osi_config"
-
 #include "osi/include/config.h"
 
 #include <base/files/file_util.h>
@@ -39,6 +37,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <type_traits>
 
 #include "osi/include/allocator.h"
 #include "osi/include/list.h"
@@ -48,56 +47,86 @@
 #include "bt_target.h"
 #include <inttypes.h>
 
-struct config_t {
-  list_t* sections;
-};
+static section_t* section_new(const char* name);
+static void entry_free(void* ptr);
+
 
 // Empty definition; this type is aliased to list_node_t.
-struct config_section_iter_t {};
+void section_t::Set(std::string key, std::string value) {
+  for (entry_t& entry : entries) {
+    if (entry.key == key) {
+      entry.value = value;
+      return;
+    }
+  }
+  // add a new key to the section
+  entries.emplace_back(
+      entry_t{.key = std::move(key), .value = std::move(value)});
+}
+
+std::list<entry_t>::iterator section_t::Find(const std::string& key) {
+  return std::find_if(
+      entries.begin(), entries.end(),
+      [&key](const entry_t& entry) { return entry.key == key; });
+}
+
+bool section_t::Has(const std::string& key) {
+  return Find(key) != entries.end();
+}
+
+std::list<section_t>::iterator config_t::Find(const std::string& section) {
+  return std::find_if(
+      sections.begin(), sections.end(),
+      [&section](const section_t& sec) { return sec.name == section; });
+}
+
+bool config_t::Has(const std::string& key) {
+  return Find(key) != sections.end();
+}
 
 static bool config_parse(FILE* fp, config_t* config);
 
-static section_t* section_new(const char* name);
-static void section_free(void* ptr);
-static section_t* section_find(const config_t* config, const char* section);
+template <typename T,
+          class = typename std::enable_if<std::is_same<
+              config_t, typename std::remove_const<T>::type>::value>>
 
-static entry_t* entry_new(const char* key, const char* value);
-static void entry_free(void* ptr);
-static entry_t* entry_find(const config_t* config, const char* section,
-                           const char* key);
-
-config_t* config_new_empty(void) {
-  config_t* config = static_cast<config_t*>(osi_calloc(sizeof(config_t)));
-
-  config->sections = list_new(section_free);
-  if (!config->sections) {
-    LOG_ERROR(LOG_TAG, "%s unable to allocate list for sections.", __func__);
-    goto error;
-  }
-
-  return config;
-
-error:;
-  config_free(config);
-  return NULL;
+static auto section_find(T& config, const std::string& section) {
+  return std::find_if(
+      config.sections.begin(), config.sections.end(),
+      [&section](const section_t& sec) { return sec.name == section; });
 }
 
-config_t* config_new(const char* filename) {
-  CHECK(filename != NULL);
+static const entry_t* entry_find(const config_t& config,
+                                 const std::string& section,
+                                 const std::string& key) {
+  auto sec = section_find(config, section);
+  if (sec == config.sections.end()) return nullptr;
+  for (const entry_t& entry : sec->entries) {
+    if (entry.key == key) return &entry;
+  }
+  return nullptr;
+}
 
-  config_t* config = config_new_empty();
-  if (!config) return NULL;
+std::unique_ptr<config_t> config_new_empty(void) {
+  return std::make_unique<config_t>();
+}
+
+
+std::unique_ptr<config_t> config_new(const char* filename) {
+  CHECK(filename != nullptr);
+
+  std::unique_ptr<config_t> config = config_new_empty();
 
   FILE* fp = fopen(filename, "rt");
   if (!fp) {
-    LOG_ERROR(LOG_TAG, "%s unable to open file '%s': %s", __func__, filename,
-              strerror(errno));
-    config_free(config);
-    return NULL;
+    LOG(ERROR) << LOG_TAG <<   ": unable to open file '" << filename
+               << "': " << strerror(errno);
+   // config_free(config.get());
+    return nullptr;
   }
 
-  if (!config_parse(fp, config)) {
-    config_free(config);
+  if (!config_parse(fp, config.get())) {
+    config.reset();
     config = NULL;
   }
 
@@ -118,175 +147,120 @@ std::string checksum_read(const char* filename) {
   return encrypted_hash;
 }
 
-config_t* config_new_clone(const config_t* src) {
-  CHECK(src != NULL);
 
-  config_t* ret = config_new_empty();
+std::unique_ptr<config_t> config_new_clone(const config_t& src) {
+  std::unique_ptr<config_t> ret = config_new_empty();
 
-  CHECK(ret != NULL);
+  for (const section_t& sec : src.sections) {
+    for (const entry_t& entry : sec.entries) {
+      config_set_string(ret.get(), sec.name, entry.key, entry.value);
 
-  for (const list_node_t* node = list_begin(src->sections);
-       node != list_end(src->sections); node = list_next(node)) {
-    section_t* sec = static_cast<section_t*>(list_node(node));
-
-    if (sec) {
-      for (const list_node_t* node_entry = list_begin(sec->entries);
-           node_entry != list_end(sec->entries);
-           node_entry = list_next(node_entry)) {
-        entry_t* entry = static_cast<entry_t*>(list_node(node_entry));
-
-        config_set_string(ret, sec->name, entry->key, entry->value);
-      }
     }
   }
 
   return ret;
 }
 
-void config_free(config_t* config) {
-  if (!config) return;
 
-  list_free(config->sections);
-  osi_free(config);
+bool config_has_section(const config_t& config, const std::string& section) {
+  return (section_find(config, section) != config.sections.end());
 }
 
-bool config_has_section(const config_t* config, const char* section) {
-  CHECK(config != NULL);
-  CHECK(section != NULL);
-
-  return (section_find(config, section) != NULL);
+bool config_has_key(const config_t& config, const std::string& section,
+                    const std::string& key) {
+  return (entry_find(config, section, key) != nullptr);
 }
 
-bool config_has_key(const config_t* config, const char* section,
-                    const char* key) {
-  CHECK(config != NULL);
-  CHECK(section != NULL);
-  CHECK(key != NULL);
+int config_get_int(const config_t& config, const std::string& section,
+                   const std::string& key, int def_value) {
+  const entry_t* entry = entry_find(config, section, key);
 
-  return (entry_find(config, section, key) != NULL);
-}
-
-int config_get_int(const config_t* config, const char* section, const char* key,
-                   int def_value) {
-  CHECK(config != NULL);
-  CHECK(section != NULL);
-  CHECK(key != NULL);
-
-  entry_t* entry = entry_find(config, section, key);
   if (!entry) return def_value;
 
-  char* endptr;
-  int ret = strtol(entry->value, &endptr, 0);
-  return (*endptr == '\0') ? ret : def_value;
+  size_t endptr;
+  int ret = stoi(entry->value, &endptr);
+  return (endptr == entry->value.size()) ? ret : def_value;
 }
 
-unsigned short int config_get_uint16(const config_t* config, const char* section, const char* key,
+unsigned short int config_get_uint16(const config_t& config, const std::string& section, const std::string& key,
                    uint16_t def_value) {
-  CHECK(config != NULL);
-  CHECK(section != NULL);
-  CHECK(key != NULL);
 
-  entry_t* entry = entry_find(config, section, key);
+  const entry_t* entry = entry_find(config, section, key);
   if (!entry) return def_value;
 
   char* endptr;
-  uint16_t ret = (uint16_t)strtoumax(entry->value, &endptr, 0);
+  uint16_t ret = (uint16_t)strtoumax(entry->value.c_str(), &endptr, 0);
   return (*endptr == '\0') ? ret : def_value;
 }
 
-uint64_t config_get_uint64(const config_t* config, const char* section, const char* key,
+uint64_t config_get_uint64(const config_t& config, const std::string& section, const std::string& key,
                    uint64_t def_value) {
-  CHECK(config != NULL);
-  CHECK(section != NULL);
-  CHECK(key != NULL);
 
-  entry_t* entry = entry_find(config, section, key);
+  const entry_t* entry = entry_find(config, section, key);
   if (!entry) return def_value;
 
   char* endptr;
-  uint64_t ret = (uint64_t)strtoull(entry->value, &endptr, 0);
+  uint64_t ret = (uint64_t)strtoull(entry->value.c_str(), &endptr, 0);
   return (*endptr == '\0') ? ret : def_value;
 }
 
-bool config_get_bool(const config_t* config, const char* section,
-                     const char* key, bool def_value) {
-  CHECK(config != NULL);
-  CHECK(section != NULL);
-  CHECK(key != NULL);
+bool config_get_bool(const config_t& config, const std::string& section,
+                     const std::string& key, bool def_value) {
 
-  entry_t* entry = entry_find(config, section, key);
+  const entry_t* entry = entry_find(config, section, key);
   if (!entry) return def_value;
 
-  if (!strcmp(entry->value, "true")) return true;
-  if (!strcmp(entry->value, "false")) return false;
+  if (!strcmp(entry->value.c_str(), "true")) return true;
+  if (!strcmp(entry->value.c_str(), "false")) return false;
 
   return def_value;
 }
 
-const char* config_get_string(const config_t* config, const char* section,
-                              const char* key, const char* def_value) {
-  CHECK(config != NULL);
-  CHECK(section != NULL);
-  CHECK(key != NULL);
+const std::string* config_get_string(const config_t& config, const std::string& section,
+                              const std::string& key, const std::string* def_value) {
 
-  entry_t* entry = entry_find(config, section, key);
+
+  const entry_t* entry = entry_find(config, section, key);
   if (!entry) return def_value;
 
-  return entry->value;
+  return &entry->value;
 }
 
-void config_set_int(config_t* config, const char* section, const char* key,
+void config_set_int(config_t* config, const std::string& section, const std::string& key,
                     int value) {
-  CHECK(config != NULL);
-  CHECK(section != NULL);
-  CHECK(key != NULL);
-
-  char value_str[32] = {0};
-  snprintf(value_str, sizeof(value_str), "%d", value);
-  config_set_string(config, section, key, value_str);
+  config_set_string(config, section, key, std::to_string(value));
 }
 
-void config_set_uint16(config_t* config, const char* section, const char* key,
+void config_set_uint16(config_t* config, const std::string& section, const std::string& key,
                     uint16_t value) {
-  CHECK(config != NULL);
-  CHECK(section != NULL);
-  CHECK(key != NULL);
 
   char value_str[16] = {0};
   snprintf(value_str, sizeof(value_str), "%u", value);
   config_set_string(config, section, key, value_str);
 }
 
-void config_set_uint64(config_t* config, const char* section, const char* key,
+void config_set_uint64(config_t* config, const std::string& section, const std::string& key,
                     uint64_t value) {
-  CHECK(config != NULL);
-  CHECK(section != NULL);
-  CHECK(key != NULL);
 
   char value_str[64] = {0};
   snprintf(value_str, sizeof(value_str), "%" PRIu64, value);
   config_set_string(config, section, key, value_str);
 }
 
-void config_set_bool(config_t* config, const char* section, const char* key,
-                     bool value) {
-  CHECK(config != NULL);
-  CHECK(section != NULL);
-  CHECK(key != NULL);
+void config_set_bool(config_t* config, const std::string& section,
+                     const std::string& key, bool value) {
 
   config_set_string(config, section, key, value ? "true" : "false");
 }
 
-void config_set_string(config_t* config, const char* section, const char* key,
-                       const char* value) {
-  section_t* sec = section_find(config, section);
-  if (!sec) {
-    sec = section_new(section);
-    if (sec)
-      list_append(config->sections, sec);
-    else {
-      LOG_ERROR(LOG_TAG,"%s: Unable to allocate memory for section", __func__);
-    }
+void config_set_string(config_t* config, const std::string& section, const std::string& key,
+                       const std::string& value) {
+  CHECK(config);
+
+  auto sec = section_find(*config, section);
+  if (sec == config->sections.end()) {
+    config->sections.emplace_back(section_t{.name = section});
+    sec = std::prev(config->sections.end());
   }
 
   std::string value_string = value;
@@ -299,43 +273,45 @@ void config_set_string(config_t* config, const char* section, const char* key,
     value_no_newline = value_string;
   }
 
-  if (sec) {
-    for (const list_node_t* node = list_begin(sec->entries);
-         node != list_end(sec->entries); node = list_next(node)) {
-      entry_t* entry = static_cast<entry_t*>(list_node(node));
-      if (!strcmp(entry->key, key)) {
-        osi_free(entry->value);
-        entry->value = osi_strdup(value_no_newline.c_str());
+  for (entry_t& entry : sec->entries) {
+    if (entry.key == key) {
+      entry.value = value;
         return;
-      }
     }
-
-    entry_t* entry = entry_new(key, value_no_newline.c_str());
-    list_append(sec->entries, entry);
   }
+
+  sec->entries.emplace_back(entry_t{.key = key, .value = value});
 }
 
-bool config_remove_section(config_t* config, const char* section) {
-  CHECK(config != NULL);
-  CHECK(section != NULL);
 
-  section_t* sec = section_find(config, section);
-  if (!sec) return false;
 
-  return list_remove(config->sections, sec);
+bool config_remove_section(config_t* config, const std::string& section) {
+  CHECK(config);
+
+  auto sec = section_find(*config, section);
+  if (sec == config->sections.end()) return false;
+
+  config->sections.erase(sec);
+  return true;
 }
 
 bool config_remove_key(config_t* config, const char* section, const char* key) {
-  CHECK(config != NULL);
-  CHECK(section != NULL);
-  CHECK(key != NULL);
+  CHECK(config);
 
-  section_t* sec = section_find(config, section);
-  entry_t* entry = entry_find(config, section, key);
-  if (!sec || !entry) return false;
+  auto sec = section_find(*config, section);
+  if (sec == config->sections.end()) return false;
 
-  return list_remove(sec->entries, entry);
+
+  for (auto entry = sec->entries.begin(); entry != sec->entries.end();
+       ++entry) {
+    if (entry->key == key) {
+      sec->entries.erase(entry);
+      return true;
+    }
+  }
+  return false;
 }
+
 
 const config_section_node_t* config_section_begin(const config_t* config) {
   CHECK(config != NULL);
@@ -357,7 +333,7 @@ const char* config_section_name(const config_section_node_t* node) {
   CHECK(node != NULL);
   const list_node_t* lnode = (const list_node_t*)node;
   const section_t* section = (const section_t*)list_node(lnode);
-  return section->name;
+  return section->name.c_str();
 }
 
 section_t* config_section(const config_section_node_t* node) {
@@ -382,7 +358,7 @@ bool section_has_key(const section_t* section,
   for (const list_node_t* node = list_begin(section->entries);
        node != list_end(section->entries); node = list_next(node)) {
     entry_t* entry = static_cast<entry_t*>(list_node(node));
-    if (!strcmp(entry->key, key)) return true;
+    if (!strcmp(entry->key.c_str(), key)) return true;
   }
 
   return false;
@@ -390,6 +366,7 @@ bool section_has_key(const section_t* section,
 
 #if (BT_IOT_LOGGING_ENABLED == TRUE)
 void config_sections_sort_by_entry_key(config_t* config, compare_func comp) {
+  LOG(INFO) << __func__;
   CHECK(config != NULL);
 
   for (list_node_t* node = list_begin(config->sections);
@@ -408,9 +385,9 @@ void config_sections_sort_by_entry_key(config_t* config, compare_func comp) {
       for (;list_next(q) && list_next(q) != p; q = list_next(q)) {
         entry_t* first = (entry_t*)list_node(q);
         entry_t* second = (entry_t*)list_node(list_next(q));
-        char* tmp_key;
-        char* tmp_value;
-        if (comp(first->key, second->key) > 0) {
+        std::string tmp_key;
+        std::string tmp_value;
+        if (comp(first->key.c_str(), second->key.c_str()) > 0) {
           tmp_key = first->key;
           tmp_value = first->value;
           first->key = second->key;
@@ -427,11 +404,11 @@ void config_sections_sort_by_entry_key(config_t* config, compare_func comp) {
 }
 #endif
 
-bool config_save(const config_t* config, const char* filename) {
-  CHECK(config != NULL);
-  CHECK(filename != NULL);
-  CHECK(*filename != '\0');
-
+bool config_save(const config_t& config, const char* filename) {
+  //CHECK(config != NULL);
+ // CHECK(filename != NULL);
+ // CHECK(*filename != '\0');
+  CHECK(filename != nullptr);
   // Steps to ensure content of config file gets to disk:
   //
   // 1) Open and write to temp file (e.g. bt_config.conf.new).
@@ -441,7 +418,7 @@ bool config_save(const config_t* config, const char* filename) {
   // 4) Sync directory that has the conf file with fsync().
   //    This ensures directory entries are up-to-date.
   int dir_fd = -1;
-  FILE* fp = NULL;
+  FILE* fp = nullptr;
 
   // Build temp config file based on config file (e.g. bt_config.conf.new).
   static const char* temp_file_ext = ".new";
@@ -473,37 +450,31 @@ bool config_save(const config_t* config, const char* filename) {
     goto error;
   }
 
-  for (const list_node_t* node = list_begin(config->sections);
-       node != list_end(config->sections); node = list_next(node)) {
-    const section_t* section = (const section_t*)list_node(node);
-    if (section->name[0] == '#') {
-        if (fprintf(fp, "%s", section->name) < 0) {
-            LOG_ERROR(LOG_TAG, "%s unable to write to file '%s': %s", __func__, temp_filename, strerror(errno));
-            goto error;
-        }
-    } else if (fprintf(fp, "[%s]\n", section->name) < 0) {
-      LOG_ERROR(LOG_TAG, "%s unable to write to file '%s': %s", __func__, temp_filename, strerror(errno));
+
+
+  for (const section_t& section : config.sections) {
+    if (fprintf(fp, "[%s]\n", section.name.c_str()) < 0) {
+      LOG(ERROR) << __func__ << ": unable to write to file '" << temp_filename
+                 << "': " << strerror(errno);
       goto error;
     }
 
-    for (const list_node_t* enode = list_begin(section->entries);
-         enode != list_end(section->entries); enode = list_next(enode)) {
-      const entry_t* entry = (const entry_t*)list_node(enode);
-      if (fprintf(fp, "%s = %s\n", entry->key, entry->value) < 0) {
-        LOG_ERROR(LOG_TAG, "%s unable to write to file '%s': %s", __func__,
-                  temp_filename, strerror(errno));
+    for (const entry_t& entry : section.entries) {
+      if (fprintf(fp, "%s = %s\n", entry.key.c_str(), entry.value.c_str()) <
+          0) {
+        LOG(ERROR) << __func__ << ": unable to write to file '" << temp_filename
+                   << "': " << strerror(errno);
         goto error;
       }
     }
 
-    // Only add a separating newline if there are more sections.
-    if (list_next(node) != list_end(config->sections)) {
-      if (fputc('\n', fp) == EOF) {
-        LOG_ERROR(LOG_TAG, "%s unable to write to file '%s': %s", __func__,
-                  temp_filename, strerror(errno));
-        goto error;
-      }
+
+    if (fputc('\n', fp) == EOF) {
+      LOG(ERROR) << __func__ << ": unable to write to file '" << temp_filename
+                 << "': " << strerror(errno);
+      goto error;
     }
+
   }
 
   // Sync written temp file out to disk. fsync() is blocking until data makes it
@@ -679,8 +650,8 @@ static char* trim(char* str) {
 }
 
 static bool config_parse(FILE* fp, config_t* config) {
-  CHECK(fp != NULL);
-  CHECK(config != NULL);
+  CHECK(fp != nullptr);
+  CHECK(config != nullptr);
 
   int line_num = 0;
   char line[1024] = { '\0' };
@@ -722,13 +693,17 @@ static bool config_parse(FILE* fp, config_t* config) {
       continue;
 
     if (*line_ptr == '#') {
+        continue;
+    /*
         strlcpy(comment, line_ptr, 1024);
 
-        if(!section_find(config, comment)) {
-            section_t *sec = section_new(comment);
-            if (sec)
-                list_append(config->sections, sec);
+        auto sec = section_find(*config, section);
+        if (sec == config->sections.end()) {
+            section_t *sec_t = section_new(comment);
+            if (sec_t)
+                list_append(config->sections, sec_t);
         }
+*/
     } else if (*line_ptr == '[') {
       size_t len = strlen(line_ptr);
       if (line_ptr[len - 1] != ']') {
@@ -757,33 +732,7 @@ static bool config_parse(FILE* fp, config_t* config) {
   return true;
 }
 
-static section_t* section_new(const char* name) {
-  section_t* section = static_cast<section_t*>(osi_calloc(sizeof(section_t)));
-
-  section->name = osi_strdup(name);
-  section->entries = list_new(entry_free);
-  return section;
-}
-
-static void section_free(void* ptr) {
-  if (!ptr) return;
-
-  section_t* section = static_cast<section_t*>(ptr);
-  osi_free(section->name);
-  list_free(section->entries);
-  osi_free(section);
-}
-
-static section_t* section_find(const config_t* config, const char* section) {
-  for (const list_node_t* node = list_begin(config->sections);
-       node != list_end(config->sections); node = list_next(node)) {
-    section_t* sec = static_cast<section_t*>(list_node(node));
-    if (sec && !strcmp(sec->name, section)) return sec;
-}
-
-  return NULL;
-}
-
+/*
 static entry_t* entry_new(const char* key, const char* value) {
   entry_t* entry = static_cast<entry_t*>(osi_calloc(sizeof(entry_t)));
 
@@ -791,26 +740,6 @@ static entry_t* entry_new(const char* key, const char* value) {
   entry->value = osi_strdup(value);
   return entry;
 }
+*/
 
-static void entry_free(void* ptr) {
-  if (!ptr) return;
 
-  entry_t* entry = static_cast<entry_t*>(ptr);
-  osi_free(entry->key);
-  osi_free(entry->value);
-  osi_free(entry);
-}
-
-static entry_t* entry_find(const config_t* config, const char* section,
-                           const char* key) {
-  section_t* sec = section_find(config, section);
-  if (!sec) return NULL;
-
-  for (const list_node_t* node = list_begin(sec->entries);
-       node != list_end(sec->entries); node = list_next(node)) {
-    entry_t* entry = static_cast<entry_t*>(list_node(node));
-    if (!strcmp(entry->key, key)) return entry;
-  }
-
-  return NULL;
-}

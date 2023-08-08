@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 /* Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
 
     * Redistribution and use in source and binary forms, with or without
       modification, are permitted (subject to the limitations in the
@@ -108,6 +108,12 @@ bool BluetoothAudioClientInterface::is_aidl_available() {
                << ": updating aidl_available: " << aidl_available;
 
   return aidl_available;
+}
+
+void BluetoothAudioClientInterface::set_low_latency_allowed(
+    bool is_low_latency_allowed) {
+  LOG(INFO) << __func__ << ": is_low_latency_allowed: " << is_low_latency_allowed;
+  is_low_latency_allowed_ = is_low_latency_allowed;
 }
 
 std::vector<AudioCapabilities>
@@ -207,11 +213,6 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
   }
   CHECK(provider_ != nullptr);
 
-  binder_status_t binder_status = AIBinder_linkToDeath(
-     provider_factory->asBinder().get(), death_recipient_.get(), this);
-  if (binder_status != STATUS_OK) {
-    LOG(ERROR) << ": Failed to linkToDeath " << static_cast<int>(binder_status);
-  }
   provider_factory_ = std::move(provider_factory);
 
   LOG(INFO) << ": AIDL: IBluetoothAudioProvidersFactory::openProvider() returned "
@@ -383,6 +384,16 @@ int BluetoothAudioClientInterface::StartSession() {
   DataMQDesc mq_desc;
 
   std::vector<LatencyMode> latency_modes = {LatencyMode::FREE};
+  if (is_low_latency_allowed_) {
+    LOG(INFO) << __func__ << ": Adding Low latency to latency modes: ";
+    latency_modes.push_back(LatencyMode::LOW_LATENCY);
+  }
+
+  binder_status_t binder_status = AIBinder_linkToDeath(
+     provider_factory_->asBinder().get(), death_recipient_.get(), this);
+  if (binder_status != STATUS_OK) {
+    LOG(ERROR) << ": Failed to linkToDeath " << static_cast<int>(binder_status);
+  }
 
   auto aidl_retval = provider_->startSession(
       stack_if, transport_->GetAudioConfiguration(), latency_modes, &mq_desc);
@@ -493,6 +504,15 @@ int BluetoothAudioClientInterface::EndSession() {
                << aidl_retval.getDescription();
     return -EPROTO;
   }
+
+  if (provider_factory_ != nullptr) {
+    binder_status_t binder_status = AIBinder_unlinkToDeath(provider_factory_->asBinder().get(),
+                                                           death_recipient_.get(), this);
+    if (binder_status == STATUS_OK) {
+       LOG(ERROR) << __func__ << ": AIBinder_unlinkToDeath success";
+    }
+  }
+
   return 0;
 }
 

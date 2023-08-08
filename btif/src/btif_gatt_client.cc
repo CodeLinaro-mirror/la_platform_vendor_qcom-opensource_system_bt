@@ -351,6 +351,10 @@ void btif_gattc_open_impl(int client_if, RawAddress address, tBLE_ADDR_TYPE type
       btif_get_device_type(address, &device_type) &&
       device_type != BT_DEVICE_TYPE_BREDR) {
     BTA_DmAddBleDevice(address, addr_type, device_type);
+  } else if (type == BLE_ADDR_RANDOM) {
+    addr_type = BLE_ADDR_RANDOM;
+    device_type = BT_DEVICE_TYPE_BLE;
+    BTA_DmAddBleDevice(address, addr_type, device_type);
   }
 
   // Check for background connections
@@ -393,8 +397,9 @@ void btif_gattc_open_impl(int client_if, RawAddress address, tBLE_ADDR_TYPE type
   }
 
   // Connect!
-  BTIF_TRACE_DEBUG("%s Transport=%d, device type=%d, phy=%d", __func__,
-                   transport, device_type, initiating_phys);
+  BTIF_TRACE_DEBUG("%s Transport=%d, device type=%d, addr=%s, addr_type=%d, addr_type_p=%d, phy=%d",
+                    __func__, transport, device_type, address.ToString().c_str(), addr_type, type,
+                    initiating_phys);
   BTA_GATTC_Open(client_if, address, is_direct, transport, opportunistic,
                  initiating_phys);
 }

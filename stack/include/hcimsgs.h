@@ -1001,18 +1001,8 @@ extern void btsnd_hcic_ble_set_cig_param_test(uint8_t cig_id,
                                     std::vector<tBTM_BLE_CIS_TEST_CONFIG> cis_configs,
                                     base::Callback<void(uint8_t*, uint16_t)> cb);
 
-void btsnd_hcic_ble_add_cig_config(uint8_t cig_id,
-                                    uint8_t config_id,
-                                    uint8_t mode_id,
-                                    const SDU_INTERVAL sdu_int_m_to_s,
-                                    const SDU_INTERVAL sdu_int_s_to_m,
-                                    uint8_t slave_clock_accuracy,
-                                    uint8_t packing,
-                                    uint8_t framing,
-                                    uint16_t max_transport_latency_m_to_s,
-                                    uint16_t max_transport_latency_s_to_m,
-                                    uint8_t cis_count,
-                                    std::vector<tBTM_BLE_CIS_CONFIG> cis_config,
+extern void btsnd_hcic_ble_add_cig_multi_configs(uint8_t cig_id,
+                                    const std::vector<tBTM_BLE_ALT_CIG_CONFIG>& alt_cig_configs,
                                     base::Callback<void(uint8_t*, uint16_t)> cb);
 
 extern void btsnd_hcic_ble_create_cis(uint8_t cis_count,

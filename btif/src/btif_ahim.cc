@@ -28,7 +28,8 @@
  *
  ******************************************************************************/
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
 
     * Redistribution and use in source and binary forms, with or without
       modification, are permitted (subject to the limitations in the
@@ -115,6 +116,7 @@ bool snk_metadata_wait;
 
 uint8_t cur_active_profile = A2DP;
 std::mutex active_profile_mtx;
+std::mutex session_mtx;
 
 #define BAP        0x01
 #define GCP        0x02
@@ -226,6 +228,11 @@ void btif_ahim_process_request(tA2DP_CTRL_CMD cmd, uint8_t profile,
   }
 }
 
+void btif_ahim_set_latency_mode(bool is_low_latency) {
+  LOG(INFO) << __func__ << ", is_low_latency: " << is_low_latency;
+  btif_apm_set_latency_mode(is_low_latency);
+}
+
 void btif_ahim_update_src_metadata (const source_metadata_t& source_metadata) {
   auto track_count = source_metadata.track_count;
   auto usage = source_metadata.tracks->usage;
@@ -289,8 +296,21 @@ void btif_ahim_update_sink_metadata (const sink_metadata_t& sink_metadata) {
 
 bool btif_ahim_init_hal(thread_t *t, uint8_t profile) {
   if(btif_ahim_is_aosp_aidl_hal_enabled()) {
+    std::lock_guard<std::mutex>lock(session_mtx);
     BTIF_TRACE_IMP("%s: AIDL", __func__);
     if (profile == A2DP) {
+      if (unicastSinkClientInterface != nullptr) {
+        leAudioClientInterface->ReleaseSink(unicastSinkClientInterface);
+        unicastSinkClientInterface = nullptr;
+      }
+      if (unicastSourceClientInterface != nullptr) {
+        leAudioClientInterface->ReleaseSource(unicastSourceClientInterface);
+        unicastSourceClientInterface = nullptr;
+      }
+      if (broadcastSinkClientInterface != nullptr) {
+        leAudioClientInterface->ReleaseSink(broadcastSinkClientInterface);
+        broadcastSinkClientInterface = nullptr;
+      }
       return bluetooth::audio::aidl::a2dp::init(t);
     } else {
       if(leAudioClientInterface == nullptr) {
@@ -566,6 +586,10 @@ LeAudioConfiguration fetch_offload_audio_config(int profile, int direction) {
       le_vendor_config.codecSpecificData[5] = 0x11; // Aptx Adaptive Type
       le_vendor_config.codecSpecificData[8] = frame_duration;
       le_vendor_config.codecSpecificData[9] = pclient_cbs[profile - 1]->get_feature_map(direction);
+      if(codec_type == CodecIndex::CODEC_INDEX_SOURCE_APTX_ADAPTIVE_LE) {
+        le_vendor_config.codecSpecificData[6] = 0;
+        le_vendor_config.codecSpecificData[7] = pclient_cbs[profile - 1]->get_codec_version_aptx(direction);
+      }
       if (codec_type == CodecIndex::CODEC_INDEX_SOURCE_APTX_ADAPTIVE_R4) {
         le_vendor_config.vendorCodecType = VendorCodecType::APTX_ADAPTIVE_R4;
         LOG(ERROR) << __func__ << ": AptX R4 metadata params are updated";
@@ -823,6 +847,7 @@ void btif_ahim_start_session(uint8_t profile) {
 
 void btif_ahim_end_session(uint8_t profile) {
   if (btif_ahim_is_aosp_aidl_hal_enabled()) {
+    std::lock_guard<std::mutex>lock(session_mtx);
     BTIF_TRACE_IMP("%s: AIDL, profile: %d", __func__, profile);
     if (profile == A2DP) {
        return bluetooth::audio::aidl::a2dp::end_session();

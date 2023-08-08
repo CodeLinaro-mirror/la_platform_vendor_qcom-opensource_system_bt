@@ -171,6 +171,7 @@ tBTA_GATTC_CLCB* bta_gattc_clcb_alloc(tGATT_IF client_if,
       p_clcb->status = GATT_SUCCESS;
       p_clcb->transport = transport;
       p_clcb->bda = remote_bda;
+      p_clcb->p_q_cmd = NULL;
 
       p_clcb->p_rcb = bta_gattc_cl_get_regcb(client_if);
 
@@ -214,6 +215,26 @@ tBTA_GATTC_CLCB* bta_gattc_find_alloc_clcb(tGATT_IF client_if,
 
 /*******************************************************************************
  *
+ * Function         bta_gattc_server_disconnected
+ *
+ * Description      Set server cache disconnected
+ *
+ * Returns          pointer to the srcb
+ *
+ ******************************************************************************/
+void bta_gattc_server_disconnected(tBTA_GATTC_SERV* p_srcb) {
+  if (p_srcb && p_srcb->connected) {
+    p_srcb->connected = false;
+    p_srcb->state = BTA_GATTC_SERV_IDLE;
+    p_srcb->mtu = 0;
+
+    // clear reallocating
+    p_srcb->gatt_database.Clear();
+  }
+}
+
+/*******************************************************************************
+ *
  * Function         bta_gattc_clcb_dealloc
  *
  * Description      Deallocte a clcb
@@ -248,7 +269,9 @@ void bta_gattc_clcb_dealloc(tBTA_GATTC_CLCB* p_clcb) {
     osi_free_and_reset((void**)&p_q_cmd);
   }
 
-  osi_free_and_reset((void**)&p_clcb->p_q_cmd);
+  if (p_clcb->p_q_cmd != NULL) {
+    osi_free_and_reset((void**)&p_clcb->p_q_cmd);
+  }
 
   /* Clear p_clcb. Some of the fields are already reset e.g. p_q_cmd_queue and
    * p_q_cmd. */
@@ -428,7 +451,8 @@ bool bta_gattc_check_notif_registry(tBTA_GATTC_RCB* p_clreg,
   for (i = 0; i < BTA_GATTC_NOTIF_REG_MAX; i++) {
     if (p_clreg->notif_reg[i].in_use &&
         p_clreg->notif_reg[i].remote_bda == p_srcb->server_bda &&
-        p_clreg->notif_reg[i].handle == p_notify->handle) {
+        p_clreg->notif_reg[i].handle == p_notify->handle &&
+        !p_clreg->notif_reg[i].app_disconnected) {
       VLOG(1) << "Notification registered!";
       return true;
     }

@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
 
     * Redistribution and use in source and binary forms, with or without
       modification, are permitted (subject to the limitations in the
@@ -172,6 +173,7 @@ ndk::ScopedAStatus BluetoothAudioPortImpl::updateSinkMetadata(
 ndk::ScopedAStatus BluetoothAudioPortImpl::setLatencyMode(
     LatencyMode latency_mode) {
   bool is_low_latency = latency_mode == LatencyMode::LOW_LATENCY ? true : false;
+  transport_instance_->SetLatencyMode(is_low_latency);
   return ndk::ScopedAStatus::ok();
 }
 

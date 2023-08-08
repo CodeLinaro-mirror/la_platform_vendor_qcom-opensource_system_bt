@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
 
     * Redistribution and use in source and binary forms, with or without
       modification, are permitted (subject to the limitations in the
@@ -142,6 +143,8 @@ class HearingAidTransport
   }
 
   void SinkMetadataChanged(const sink_metadata_t&) override {}
+
+  void SetLatencyMode(bool is_low_latency) override {}
 
   void ResetPresentationPosition() override {
     VLOG(2) << __func__ << ": called.";

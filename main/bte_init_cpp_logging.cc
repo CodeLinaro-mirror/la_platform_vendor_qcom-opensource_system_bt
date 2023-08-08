@@ -15,6 +15,13 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+/*******************************************************************************
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ *******************************************************************************/
 #include <base/command_line.h>
 #include "main_int.h"
 
@@ -24,21 +31,21 @@ void init_cpp_logging(config_t* config) {
   // configuring.
   if (base::CommandLine::InitializedForCurrentProcess()) return;
 
-  const char* loggingV =
-      config_get_string(config, CONFIG_DEFAULT_SECTION, "LoggingV", NULL);
-  const char* loggingVModule =
-      config_get_string(config, CONFIG_DEFAULT_SECTION, "LoggingVModule", NULL);
+  const std::string* loggingV =
+      config_get_string(*config, CONFIG_DEFAULT_SECTION, "LoggingV", NULL);
+  const std::string* loggingVModule =
+      config_get_string(*config, CONFIG_DEFAULT_SECTION, "LoggingVModule", NULL);
 
   int argc = 1;
   const char* argv[] = {"bt_stack", NULL, NULL};
 
   if (loggingV != NULL) {
-    argv[argc] = loggingV;
+    argv[argc] = loggingV->c_str();
     argc++;
   }
 
   if (loggingVModule != NULL) {
-    argv[argc] = loggingVModule;
+    argv[argc] = loggingVModule->c_str();
     argc++;
   }
 

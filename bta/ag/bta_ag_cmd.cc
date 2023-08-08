@@ -779,6 +779,12 @@ void bta_ag_at_hsp_cback(tBTA_AG_SCB* p_scb, uint16_t command_id,
       val.app_id = p_scb->app_id;
       (*bta_ag_cb.p_cback)(command_id, (tBTA_AG*)&val);
 
+    } else if(command_id == BTA_AG_SPK_EVT || command_id == BTA_AG_MIC_EVT){
+      tBTA_AG_VOL val;
+      val.hdr.handle = bta_ag_scb_to_idx(p_scb);
+      val.hdr.app_id = p_scb->app_id;
+      val.num = (uint8_t)int_arg;
+      (*bta_ag_cb.p_cback)(command_id, (tBTA_AG*)&val);
     } else {
       strlcpy(val.str, p_arg, sizeof(val.str));
       (*bta_ag_cb.p_cback)(command_id, (tBTA_AG*)&val);
@@ -1064,14 +1070,22 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type,
     case BTA_AG_AT_A_EVT:
       alarm_cancel(p_scb->ring_timer);
       FALLTHROUGH;
-    case BTA_AG_SPK_EVT:
-      FALLTHROUGH;
-    case BTA_AG_MIC_EVT:
-      FALLTHROUGH;
     case BTA_AG_AT_CBC_EVT:
       /* send OK */
       bta_ag_send_ok(p_scb);
       break;
+    case BTA_AG_SPK_EVT:
+      FALLTHROUGH;
+    case BTA_AG_MIC_EVT: {
+      tBTA_AG_VOL val;
+      val.hdr.handle = bta_ag_scb_to_idx(p_scb);
+      val.hdr.app_id = p_scb->app_id;
+      val.num = (uint8_t)int_arg;
+      bta_ag_send_ok(p_scb);
+      (*bta_ag_cb.p_cback)(event, (tBTA_AG*)&val);
+      event = 0;
+      break;
+    }
 
     case BTA_AG_AT_CHUP_EVT:
       if (!bta_ag_sco_is_active_device(p_scb->peer_addr)) {

@@ -1,12 +1,3 @@
-
-/*******************************************************************************
- *
- * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *******************************************************************************/
-
 #pragma once
 
 // This module implements a configuration parser. Clients can query the
@@ -26,35 +17,28 @@
 // - All strings are case sensitive.
 
 #include <stdbool.h>
-#include <list>
-#include <memory>
-#include <string>
+#include "stack/include/bt_types.h"
+#include "bt_target.h"
+#include "osi/include/list.h"
 
-// The default section name to use if a key/value pair is not defined within
-// a section.
-#define CONFIG_DEFAULT_SECTION "Global"
-
-//typedef struct config_t config_t;
-typedef struct config_section_node_t config_section_node_t;
-
-typedef struct {
-  std::string key;
-  std::string value;
-} entry_t;
-
-typedef struct {
-  std::string name;
-  std::list<entry_t> entries;
-  void Set(std::string key, std::string value);
-  std::list<entry_t>::iterator Find(const std::string& key);
-  bool Has(const std::string& key);
-} section_t;
-
-struct config_t {
-  std::list<section_t> sections;
-  std::list<section_t>::iterator Find(const std::string& section);
-  bool Has(const std::string& section);
+struct config_legacy_t {
+   list_t* sections;
 };
+
+//typedef struct config_section_node_t config_section_node_t;
+
+typedef struct {
+  char* name;
+  list_t* entries;
+} section_legacy_t;
+
+typedef struct {
+  char* key;
+  char* value;
+} entry_legacy_t;
+
+
+typedef struct config_legacy_t config_legacy_t;
 
 #if (BT_IOT_LOGGING_ENABLED == TRUE)
 typedef int (*compare_func)(const char* first, const char* second);
@@ -63,17 +47,15 @@ typedef int (*compare_func)(const char* first, const char* second);
 // Creates a new config object with no entries (i.e. not backed by a file).
 // This function returns a config object or NULL on error. Clients must call
 // |config_free| on the returned handle when it is no longer required.
-std::unique_ptr<config_t> config_new_empty(void);
+config_legacy_t* config_legacy_new_empty(void);
 
 // Loads the specified file and returns a handle to the config file. If there
 // was a problem loading the file or allocating memory, this function returns
 // NULL. Clients must call |config_free| on the returned handle when it is no
 // longer required. |filename| must not be NULL and must point to a readable
 // file on the filesystem.
-std::unique_ptr<config_t> config_new(const char* filename);
+config_legacy_t* config_legacy_new(const char* filename);
 
-// Read the checksum from the |filename|
-std::string checksum_read(const char* filename);
 
 // Clones |src|, including all of it's sections, keys, and values.
 // Returns a new config which is a copy and separated from the original;
@@ -82,95 +64,94 @@ std::string checksum_read(const char* filename);
 // |src| must not be NULL
 // This function will not return NULL.
 // Clients must call config_free on the returned object.
-std::unique_ptr<config_t> config_new_clone(const config_t& src);
+config_legacy_t* config_legacy_new_clone(const config_legacy_t* src);
 
 // Frees resources associated with the config file. No further operations may
 // be performed on the |config| object after calling this function. |config|
 // may be NULL.
-void config_free(config_t* config);
-void config_free(std::unique_ptr<config_t> config);
+void config_legacy_free(config_legacy_t* config);
 
 // Returns true if the config file contains a section named |section|. If
 // the section has no key/value pairs in it, this function will return false.
 // |config| and |section| must not be NULL.
-bool config_has_section(const config_t& config, const std::string& section);
+bool config_legacy_has_section(const config_legacy_t* config, const char* section);
 
 // Returns true if the config file has a key named |key| under |section|.
 // Returns false otherwise. |config|, |section|, and |key| must not be NULL.
-bool config_has_key(const config_t& config, const std::string& section,
-                    const std::string& key);
+bool config_legacy_has_key(const config_legacy_t* config, const char* section,
+                    const char* key);
 
 // Returns the integral value for a given |key| in |section|. If |section|
 // or |key| do not exist, or the value cannot be fully converted to an integer,
 // this function returns |def_value|. |config|, |section|, and |key| must not
 // be NULL.
-int config_get_int(const config_t& config, const std::string& section, const std::string& key,
+int config_legacy_get_int(const config_legacy_t* config, const char* section, const char* key,
                    int def_value);
 
 // Returns the unsigned short integer value for a given |key| in |section|. If |section|
 // or |key| do not exist, or the value cannot be fully converted to an unsigned short
 // integer, this function returns |def_value|. |config|, |section|, and |key| must not
 // be NULL.
-unsigned short int config_get_uint16(const config_t& config, const std::string& section,
-                   const std::string& key,unsigned short int def_value);
+unsigned short int config_legacy_get_uint16(const config_legacy_t* config, const char* section,
+                   const char* key,unsigned short int def_value);
 
-uint64_t config_get_uint64(const config_t& config, const std::string& section, const std::string& key,
+uint64_t config_legacy_get_uint64(const config_legacy_t* config, const char* section, const char* key,
                    uint64_t def_value);
 
 // Returns the boolean value for a given |key| in |section|. If |section|
 // or |key| do not exist, or the value cannot be converted to a boolean, this
 // function returns |def_value|. |config|, |section|, and |key| must not be
 // NULL.
-bool config_get_bool(const config_t& config, const std::string& section,
-                     const std::string& key, bool def_value);
+bool config_legacy_get_bool(const config_legacy_t* config, const char* section,
+                     const char* key, bool def_value);
 
 // Returns the string value for a given |key| in |section|. If |section| or
 // |key| do not exist, this function returns |def_value|. The returned string
 // is owned by the config module and must not be freed. |config|, |section|,
 // and |key| must not be NULL. |def_value| may be NULL.
-const std::string* config_get_string(const config_t& config, const std::string& section,
-                              const std::string& key, const std::string* def_value);
+const char* config_legacy_get_string(const config_legacy_t* config, const char* section,
+                              const char* key, const char* def_value);
 
 // Sets an integral value for the |key| in |section|. If |key| or |section| do
 // not already exist, this function creates them. |config|, |section|, and |key|
 // must not be NULL.
-void config_set_int(config_t* config, const std::string& section, const std::string& key,
+void config_legacy_set_int(config_legacy_t* config, const char* section, const char* key,
                     int value);
 
 // Sets an unsigned short integer value for the |key| in |section|. If |key| or
 // |section| do not already exist, this function creates them. |config|, |section|,
 // and |key| must not be NULL.
-void config_set_uint16(config_t* config, const std::string& section, const std::string& key,
-                    uint16_t value);
+void config_legacy_set_uint16(config_legacy_t* config, const char* section, const char* key,
+                    unsigned short int value);
 
-void config_set_uint64(config_t* config, const std::string& section, const std::string& key,
+void config_legacy_set_uint64(config_legacy_t* config, const char* section, const char* key,
                     uint64_t value);
 
 // Sets a boolean value for the |key| in |section|. If |key| or |section| do
 // not already exist, this function creates them. |config|, |section|, and |key|
 // must not be NULL.
-void config_set_bool(config_t* config, const std::string& section, const std::string& key,
+void config_legacy_set_bool(config_legacy_t* config, const char* section, const char* key,
                      bool value);
 
 // Sets a string value for the |key| in |section|. If |key| or |section| do
 // not already exist, this function creates them. |config|, |section|, |key|,
 // and
 // |value| must not be NULL.
-void config_set_string(config_t* config, const std::string& section, const std::string& key,
-                       const std::string& value);
+void config_legacy_set_string(config_legacy_t* config, const char* section, const char* key,
+                       const char* value);
 
 // Removes |section| from the |config| (and, as a result, all keys in the
 // section).
 // Returns true if |section| was found and removed from |config|, false
 // otherwise.
 // Neither |config| nor |section| may be NULL.
-bool config_remove_section(config_t* config, const std::string& section);
+bool config_legacy_remove_section(config_legacy_t* config, const char* section);
 
 // Removes one specific |key| residing in |section| of the |config|. Returns
 // true
 // if the section and key were found and the key was removed, false otherwise.
 // None of |config|, |section|, or |key| may be NULL.
-bool config_remove_key(config_t* config, const char* section, const char* key);
+bool config_legacy_remove_key(config_legacy_t* config, const char* section, const char* key);
 
 // Returns an iterator to the first section in the config file. If there are no
 // sections, the iterator will equal the return value of |config_section_end|.
@@ -178,35 +159,35 @@ bool config_remove_key(config_t* config, const char* section, const char* key);
 // freed.
 // The iterator is invalidated on any config mutating operation. |config| may
 // not be NULL.
-const config_section_node_t* config_section_begin(const config_t* config);
+const config_section_node_t* config_legacy_section_begin(const config_legacy_t* config);
 
 // Returns an iterator to one past the last section in the config file. It does
 // not represent a valid section, but can be used to determine if all sections
 // have been iterated over. The returned pointer must be treated as an opaque
 // handle and must not be freed and must not be iterated on (must not call
 // |config_section_next| on it). |config| may not be NULL.
-const config_section_node_t* config_section_end(const config_t* config);
+const config_section_node_t* config_legacy_section_end(const config_legacy_t* config);
 
 // Moves |iter| to the next section. If there are no more sections, |iter| will
 // equal the value of |config_section_end|. |iter| may not be NULL and must be
 // a pointer returned by either |config_section_begin| or |config_section_next|.
-const config_section_node_t* config_section_next(
+const config_section_node_t* config_legacy_section_next(
     const config_section_node_t* iter);
 
 // Returns the name of the section referred to by |iter|. The returned pointer
 // is owned by the config module and must not be freed by the caller. The
 // pointer will remain valid until |config_free| is called. |iter| may not be
 // NULL and must not equal the value returned by |config_section_end|.
-const char* config_section_name(const config_section_node_t* iter);
+const char* config_legacy_section_name(const config_section_node_t* iter);
 
 //Below APIs are used to improve config search operations for sections.
-section_t* config_section(const config_section_node_t* node);
-bool config_remove_section_optimal(config_t* config, section_t* section);
-bool section_has_key(const section_t* section, const char* key);
+section_legacy_t* config_legacy_section(const config_section_node_t* node);
+bool config_legacy_remove_section_optimal(config_legacy_t* config, section_legacy_t* section);
+bool section_has_key(const section_legacy_t* section, const char* key);
 
 #if (BT_IOT_LOGGING_ENABLED == TRUE)
 // Sorts the entries in each section of config by entry key.
-void config_sections_sort_by_entry_key(config_t* config, compare_func comp);
+void config_legacy_sections_sort_by_entry_key(config_legacy_t* config, compare_func comp);
 #endif
 
 // Saves |config| to a file given by |filename|. Note that this could be a
@@ -215,9 +196,4 @@ void config_sections_sort_by_entry_key(config_t* config, compare_func comp);
 // file was opened with |config_new| and subsequently overwritten with
 // |config_save|, all comments and special formatting in the original file will
 // be lost. Neither |config| nor |filename| may be NULL.
-bool config_save(const config_t& config, const char* filename);
-
-// Saves the encrypted |checksum| of config file to a given |filename| Note
-// that this could be a destructive operation: if |filename| already exists,
-// it will be overwritten.
-bool checksum_save(const std::string& checksum, const std::string& filename);
+bool config_legacy_save(const config_legacy_t* config, const char* filename);

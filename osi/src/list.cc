@@ -1,8 +1,20 @@
+
+
+/******************************************************************************
+*
+* Changes from Qualcomm Innovation Center are provided under the following license:
+* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
+*
+*****************************************************************************/
+
+
 #include <base/logging.h>
 
 #include "osi/include/allocator.h"
 #include "osi/include/list.h"
 #include "osi/include/osi.h"
+#include "osi/include/config.h"
 
 struct list_node_t {
   struct list_node_t* next;
@@ -212,4 +224,86 @@ static list_node_t* list_free_node_(list_t* list, list_node_t* node) {
   --list->length;
 
   return next;
+}
+
+list_node_t* list_begin(std::list<section_t> section) {
+  return (list_node_t *)&section.front();
+}
+
+list_node_t* list_end(std::list<section_t> section) {
+  return (list_node_t *)&section.back();
+}
+
+list_node_t* list_begin(std::list<section_t> *section) {
+  return (list_node_t *)&section->front();
+}
+
+list_node_t* list_end(std::list<section_t> *section) {
+  return (list_node_t *)&section->back();
+}
+
+list_node_t* list_begin(std::list<entry_t> entry) {
+
+  return (list_node_t *)&entry.front();
+}
+
+list_node_t* list_begin(std::list<entry_t> *entry) {
+
+  return (list_node_t *)&entry->front();
+}
+
+list_node_t* list_end(std::list<entry_t> entry) {
+  return (list_node_t *)&entry.back();
+}
+
+list_node_t* list_end(std::list<entry_t> *entry) {
+  return (list_node_t *)&entry->back();
+}
+
+void list_free(std::list<section_t> *section) {
+   section->clear();
+}
+void list_free(std::list<entry_t> *entry) {
+   entry->clear();
+ }
+
+void list_free(std::list<section_t> section) {
+   section.clear();
+}
+void list_free(std::list<entry_t> entry) {
+   entry.clear();
+ }
+
+bool list_remove(std::list<section_t> *section, void* data) {
+    list_t* list = (list_t*)&section->front();
+    list_remove(list, data);
+    return true;
+}
+bool list_remove(std::list<section_t> section, void* data) {
+    list_t* list = (list_t*)&section.front();
+    list_remove(list, data);
+    return true;
+}
+
+size_t list_length(std::list<entry_t> *entry) {
+  return entry->size();
+}
+
+size_t list_length(std::list<entry_t> entry) {
+  return entry.size();
+}
+
+bool list_append(std::list<section_t> *section, void* data){
+    list_t* list = (list_t*)&section->front();
+    return list_append(list, data);
+}
+
+bool list_append(std::list<section_t> section, void* data){
+    list_t* list = (list_t*)&section.front();
+    return list_append(list, data);
+}
+
+bool list_append(std::list<entry_t> entry, void* data){
+    list_t* list = (list_t*)&entry.front();
+    return list_append(list, data);
 }

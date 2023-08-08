@@ -1276,7 +1276,7 @@ void btm_read_remote_ext_features_complete(uint8_t* p, uint8_t evt_len) {
   tACL_CONN* p_acl_cb;
   uint8_t page_num, max_page;
   uint16_t handle;
-  uint8_t acl_idx;
+  uint8_t acl_idx, status;
 
   BTM_TRACE_DEBUG("btm_read_remote_ext_features_complete");
 
@@ -1288,7 +1288,7 @@ void btm_read_remote_ext_features_complete(uint8_t* p, uint8_t evt_len) {
     return;
   }
 
-  ++p;
+  STREAM_TO_UINT8(status, p);
   STREAM_TO_UINT16(handle, p);
   STREAM_TO_UINT8(page_num, p);
   STREAM_TO_UINT8(max_page, p);
@@ -1322,9 +1322,11 @@ void btm_read_remote_ext_features_complete(uint8_t* p, uint8_t evt_len) {
 
   p_acl_cb = &btm_cb.acl_db[acl_idx];
 
-  /* Copy the received features page */
-  STREAM_TO_ARRAY(p_acl_cb->peer_lmp_feature_pages[page_num], p,
-                  HCI_FEATURE_BYTES_PER_PAGE);
+  if (status == HCI_SUCCESS) {
+    /* Copy the received features page */
+    STREAM_TO_ARRAY(p_acl_cb->peer_lmp_feature_pages[page_num], p,
+                    HCI_FEATURE_BYTES_PER_PAGE);
+  }
 
 #if (BT_IOT_LOGGING_ENABLED == TRUE)
   /* save remote extended features to iot conf file */

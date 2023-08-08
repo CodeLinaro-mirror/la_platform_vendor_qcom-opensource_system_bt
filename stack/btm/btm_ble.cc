@@ -62,6 +62,10 @@ extern void btm_send_link_key_notif(tBTM_SEC_DEV_REC* p_dev_rec);
 extern bool is_remote_support_adv_audio(const RawAddress remote_bdaddr);
 #endif
 
+static uint8_t btm_ble_add_cig_multi_configs_internal(
+    uint8_t cig_id, const std::vector<tBTM_BLE_ALT_CIG_CONFIG>& alt_cig_configs,
+    std::vector<uint8_t> config_ids_added);
+
 //HCI Command or Event callbacks
 tBTM_BLE_HCI_CMD_CB hci_cmd_cmpl;
 // Key: cis_handle, Value: cig_id
@@ -2588,7 +2592,8 @@ bool BTM_BleIsCisParamUpdateRemoteControllerSupported(const RawAddress& bda) {
   BD_FEATURES features;
 
   ret = BTM_GetRemoteQLLFeatures(p->hci_handle, (uint8_t *)&features);
-  if (ret && HCI_QBCE_QLL_CIS_PARAMETER_UPDATE_CONTROLLER(features))
+  if (ret && (HCI_QBCE_QLL_CIS_PARAMETER_UPDATE_CONTROLLER(features) ||
+      HCI_QBCE_QLL_MULTI_CONFIG_CIS_PARAMETER_UPDATE_CONTROLLER(features)))
     supported = true;
 
   BTM_TRACE_DEBUG("%s: device=%s, supported=%d",
@@ -2612,7 +2617,7 @@ bool BTM_BleIsCisParamUpdateLocalControllerSupported() {
 
   const bt_device_qll_local_supported_features_t *qll_feature_list =
       controller_get_interface()->get_qll_features();
-  if (HCI_QBCE_QLL_CIS_PARAMETER_UPDATE_CONTROLLER(qll_feature_list->as_array))
+  if (HCI_QBCE_QLL_MULTI_CONFIG_CIS_PARAMETER_UPDATE_CONTROLLER(qll_feature_list->as_array))
     supported = true;
 
   BTM_TRACE_DEBUG("%s: supported=%d", __func__, supported);
@@ -2941,10 +2946,13 @@ void btm_ble_set_cig_param_cmd_cmpl(uint8_t *param, uint16_t param_len) {
   osi_free(ret_param.conn_handle);
 }
 
-void btm_ble_add_cig_config_cmd_cmpl(
-    uint8_t cig_id, uint8_t config_id, uint8_t *param, uint16_t param_len) {
-  tBTM_BLE_ADD_CIG_CONFIG_RET_PARAM ret_param = {};
-  BTM_TRACE_API("%s: cig_id=%d, config_id=%d, param_len = %d", __func__, cig_id, config_id, param_len);
+void btm_ble_add_cig_multi_configs_cmd_cmpl(uint8_t cig_id,
+    const std::vector<tBTM_BLE_ALT_CIG_CONFIG>& configs_to_add,
+    std::vector<uint8_t> config_ids_added,
+    uint8_t *param, uint16_t param_len) {
+  tBTM_BLE_ADD_CIG_MULTI_CONFIGS_RET_PARAM ret_param = {};
+  BTM_TRACE_API("%s: cig_id=%d, left_num=%d, param_len=%d", __func__,
+      cig_id, configs_to_add.size(), param_len);
 
   if (param_len <= 0) {
     BTM_TRACE_WARNING("%s Insufficient return parameters.", __func__);
@@ -2952,11 +2960,39 @@ void btm_ble_add_cig_config_cmd_cmpl(
   }
 
   STREAM_TO_UINT8(ret_param.status, param);
-  ret_param.cig_id = cig_id;
-  ret_param.config_id = config_id;
+  if (ret_param.status == HCI_SUCCESS) {
+    bool config_error = false;
+    uint8_t num_configs;
+    uint8_t config_id;
+    uint8_t config_status;
+    STREAM_SKIP_UINT8(param); // subOpcode
+    STREAM_TO_UINT8(num_configs, param);
 
-  if (hci_cmd_cmpl.add_cig_config_cb) {
-    (*hci_cmd_cmpl.add_cig_config_cb) (&ret_param);
+    for (uint8_t i = 0; i < num_configs; i++) {
+      STREAM_TO_UINT8(config_id, param);
+      STREAM_TO_UINT8(config_status, param);
+      if (config_status != HCI_SUCCESS) {
+        BTM_TRACE_ERROR("%s: config status error, cig_id=%d, config_id=%d, config_status=%d",
+            __func__, cig_id, config_id, config_status);
+        config_error = true;
+      } else {
+        config_ids_added.push_back(config_id);
+      }
+    }
+
+    if (!config_error && !configs_to_add.empty()) {
+      btm_ble_add_cig_multi_configs_internal(cig_id, configs_to_add, std::move(config_ids_added));
+      return;
+    }
+  } else {
+    BTM_TRACE_ERROR("%s: status error, cig_id=%d, status=%d", __func__, cig_id, ret_param.status);
+  }
+
+  ret_param.cig_id = cig_id;
+  ret_param.config_ids_added = std::move(config_ids_added);
+
+  if (hci_cmd_cmpl.add_cig_multi_configs_cb) {
+    (*hci_cmd_cmpl.add_cig_multi_configs_cb) (&ret_param);
   }
 }
 
@@ -3584,7 +3620,53 @@ uint8_t BTM_BleSetCigParam(tBTM_BLE_ISO_SET_CIG_CMD_PARAM* p_data) {
   return HCI_SUCCESS;
 }
 
-uint8_t BTM_BleAddCigConfig(tBTM_BLE_ISO_ADD_CIG_CONFIG_CMD_PARAM* p_data) {
+static int btm_ble_get_the_num_of_alt_cig_configs_in_one_hci_cmd(
+    const std::vector<tBTM_BLE_ALT_CIG_CONFIG>& alt_cig_configs) {
+  constexpr uint8_t HCI_PARAM_SIZE_ALT_CIG_CONFIG_FIXED = 24;
+  uint8_t left_size = 255;
+
+  // subOpcode, cig_id, num_configs
+  left_size -= 3;
+  int total_config_num = alt_cig_configs.size();
+  int i;
+  for (i = 0; i < total_config_num; i++) {
+    uint8_t cis_count = alt_cig_configs[i].cis_configs.size();
+    uint8_t config_param_len = HCI_PARAM_SIZE_ALT_CIG_CONFIG_FIXED
+        + (cis_count * sizeof(uint16_t) * 2)   /* size of arrays which has 2 octet size elements*/
+        + (cis_count * sizeof(uint8_t) * 5);   /* size of arrays which has 1 octet size elements*/
+
+    if (left_size > config_param_len)
+      left_size -= config_param_len;
+    else if (left_size == config_param_len)
+      return i + 1;
+    else
+      return i;
+  }
+  return i;
+}
+
+static uint8_t btm_ble_add_cig_multi_configs_internal(
+    uint8_t cig_id, const std::vector<tBTM_BLE_ALT_CIG_CONFIG>& alt_cig_configs,
+    std::vector<uint8_t> config_ids_added) {
+  int to_add_num =
+      btm_ble_get_the_num_of_alt_cig_configs_in_one_hci_cmd(alt_cig_configs);
+  BTM_TRACE_API("%s: cig_id=%d, num=%d, to_add_num=%d, added_num=%d", __func__,
+      cig_id, alt_cig_configs.size(), to_add_num, config_ids_added.size());
+
+  std::vector<tBTM_BLE_ALT_CIG_CONFIG> alt_cig_configs_to_add =
+      {alt_cig_configs.cbegin(), alt_cig_configs.cbegin() + to_add_num};
+  std::vector<tBTM_BLE_ALT_CIG_CONFIG> alt_cig_configs_unadded =
+      {alt_cig_configs.cbegin() + to_add_num, alt_cig_configs.cend()};
+
+  btsnd_hcic_ble_add_cig_multi_configs(cig_id,
+                               alt_cig_configs_to_add,
+                               base::Bind(&btm_ble_add_cig_multi_configs_cmd_cmpl,
+                                          cig_id, std::move(alt_cig_configs_unadded),
+                                          std::move(config_ids_added)));
+  return HCI_SUCCESS;
+}
+
+uint8_t BTM_BleAddCigMultiConfigs(tBTM_BLE_ISO_ADD_CIG_MULTI_CONFIGS_CMD_PARAM* p_data) {
   BTM_TRACE_API("%s", __func__);
 
   if (!controller_get_interface()->is_host_iso_channel_supported()
@@ -3594,21 +3676,9 @@ uint8_t BTM_BleAddCigConfig(tBTM_BLE_ISO_ADD_CIG_CONFIG_CMD_PARAM* p_data) {
     return HCI_ERR_UNSUPPORTED_VALUE;
   }
 
-  hci_cmd_cmpl.add_cig_config_cb = p_data->p_cb;
-  btsnd_hcic_ble_add_cig_config(p_data->cig_id,
-                               p_data->config_id,
-                               p_data->mode_id,
-                               p_data->sdu_int_m_to_s,
-                               p_data->sdu_int_s_to_m,
-                               p_data->slave_clock_accuracy,
-                               p_data->packing,
-                               p_data->framing,
-                               p_data->max_transport_latency_m_to_s,
-                               p_data->max_transport_latency_s_to_m,
-                               p_data->cis_count,
-                               p_data->cis_config,
-                               base::Bind(&btm_ble_add_cig_config_cmd_cmpl, p_data->cig_id, p_data->config_id));
-  return HCI_SUCCESS;
+  hci_cmd_cmpl.add_cig_multi_configs_cb = p_data->p_cb;
+
+  return btm_ble_add_cig_multi_configs_internal(p_data->cig_id, p_data->alt_cig_configs, {});
 }
 
 uint8_t BTM_BleCreateCis(tBTM_BLE_ISO_CREATE_CIS_CMD_PARAM* p_data,
@@ -3996,17 +4066,21 @@ void btm_ble_cis_disconnected(uint8_t status, uint16_t cis_handle, uint8_t reaso
   }
 }
 
-void btm_ble_qle_cis_configuration_state_event(const uint8_t *p) {
-  uint8_t cig_id, cis_id, config_id;
+void btm_ble_qle_cis_multi_configuration_state_event(const uint8_t *p) {
+  uint8_t cig_id, cis_id, num_configs, config_id;
   uint8_t status;
 
   STREAM_TO_UINT8(cig_id, p);
   STREAM_TO_UINT8(cis_id, p);
-  STREAM_TO_UINT8(config_id, p);
-  STREAM_TO_UINT8(status, p);
+  STREAM_TO_UINT8(num_configs, p);
+  BTM_TRACE_DEBUG("%s: cig_id=%d, cis_id=%d, num_configs=%d",
+      __func__, cig_id, cis_id, num_configs);
 
-  BTM_TRACE_DEBUG("%s: cig_id=%d, cis_id=%d, config_id=%d, status=%d",
-      __func__, cig_id, cis_id, config_id, status);
+  for (int i = 0; i < num_configs; i++) {
+    STREAM_TO_UINT8(config_id, p);
+    STREAM_TO_UINT8(status, p);
+    BTM_TRACE_DEBUG("%s: config_id=%d, status=%d", __func__, config_id, status);
+  }
 }
 
 void btm_ble_qle_cis_updated_event(const uint8_t *p) {

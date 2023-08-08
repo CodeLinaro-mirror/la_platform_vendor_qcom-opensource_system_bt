@@ -28,7 +28,8 @@
  *
  ******************************************************************************/
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
 
     * Redistribution and use in source and binary forms, with or without
       modification, are permitted (subject to the limitations in the
@@ -145,6 +146,7 @@ typedef void (* ahim_update_snk_metadata)(const sink_metadata_t& sink_metadata);
 typedef uint32_t (* ahim_get_mode_callback)();
 typedef uint16_t (* ahim_get_frame_duration)(uint8_t direction);
 typedef void (* ahim_update_params)(uint16_t delay, uint8_t mode);
+typedef uint8_t (* ahim_get_codec_version_aptx)(uint8_t direction);
 
 typedef struct {
     uint8_t mode;
@@ -170,6 +172,7 @@ typedef struct {
     ahim_get_mode_callback get_mode_cb;
     ahim_get_frame_duration get_frame_duration;
     ahim_update_params params_update;
+    ahim_get_codec_version_aptx get_codec_version_aptx;
 }btif_ahim_client_callbacks_t;
 
 extern btif_ahim_client_callbacks_t* pclient_cbs[MAX_CLIENT];
@@ -181,6 +184,8 @@ void btif_ahim_update_current_profile(uint8_t profile);
 
 void btif_ahim_update_src_metadata(const source_metadata_t& source_metadata);
 void btif_ahim_update_sink_metadata(const sink_metadata_t& sink_metadata);
+
+void btif_ahim_set_latency_mode(bool is_low_latency);
 
 bool btif_ahim_init_hal(thread_t *t, uint8_t profile);
 

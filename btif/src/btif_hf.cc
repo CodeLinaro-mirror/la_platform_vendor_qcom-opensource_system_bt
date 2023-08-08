@@ -723,7 +723,7 @@ static void btif_hf_upstreams_evt(uint16_t event, char* p_param) {
       HAL_HF_CBACK(bt_hf_callbacks, VolumeControlCallback,
                 (event == BTA_AG_SPK_EVT) ? BTHF_VOLUME_TYPE_SPK
                                           : BTHF_VOLUME_TYPE_MIC,
-                p_data->val.num, &btif_hf_cb[idx].connected_bda);
+                p_data->vol.num, &btif_hf_cb[idx].connected_bda);
       break;
 
     case BTA_AG_AT_A_EVT:
@@ -946,6 +946,8 @@ static void bte_hf_evt(tBTA_AG_EVT event, tBTA_AG* p_data) {
   else if ((BTA_AG_CLOSE_EVT == event) || (BTA_AG_AUDIO_OPEN_EVT == event) ||
            (BTA_AG_AUDIO_CLOSE_EVT == event) || (BTA_AG_AT_CKPD_EVT == event))
     param_len = sizeof(tBTA_AG_HDR);
+  else if ((BTA_AG_SPK_EVT == event) || ( BTA_AG_MIC_EVT == event))
+    param_len = sizeof(tBTA_AG_VOL);
   else if (p_data)
     param_len = sizeof(tBTA_AG_VAL);
 
@@ -1968,9 +1970,16 @@ bt_status_t HeadsetInterface::PhoneStateChange(
                     BTIF_TRACE_DEBUG("%s: Not create SCO since earbud is not in ear",__FUNCTION__);
                   } else {
 #endif
-                    ag_res.audio_handle = control_block.handle;
-                    btif_transfer_context(btif_in_hf_generic_evt, BTIF_HFP_CB_AUDIO_CONNECTING,
+                    char value[PROPERTY_VALUE_MAX];
+                    if (property_get("vendor.bt.pts.certification", value,"false") &&
+                       !(strcmp(value, "true"))) {
+                       ag_res.audio_handle = BTA_AG_HANDLE_SCO_NO_CHANGE;
+                       BTIF_TRACE_WARNING("%s: PTS: not intiating SCO",__func__);
+                    } else{
+                         ag_res.audio_handle = control_block.handle;
+                         btif_transfer_context(btif_in_hf_generic_evt, BTIF_HFP_CB_AUDIO_CONNECTING,
                                  (char*)(&btif_hf_cb[idx].connected_bda), sizeof(RawAddress), NULL);
+                    }
 #if (TWS_AG_ENABLED == TRUE)
                   }
 #endif

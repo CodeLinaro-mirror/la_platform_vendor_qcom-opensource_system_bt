@@ -15,6 +15,13 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+/*******************************************************************************
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ *******************************************************************************/
 
 /*******************************************************************************
  *
@@ -475,7 +482,7 @@ void btif_hh_remove_device(RawAddress bd_addr) {
     p_added_dev = &btif_hh_cb.added_devices[i];
     if (p_added_dev->bd_addr == bd_addr) {
       BTA_HhRemoveDev(p_added_dev->dev_handle);
-      btif_storage_remove_hid_info(&(p_added_dev->bd_addr));
+      btif_storage_remove_hid_info(p_added_dev->bd_addr);
       memset(&(p_added_dev->bd_addr), 0, 6);
       p_added_dev->dev_handle = BTA_HH_INVALID_HANDLE;
       break;
@@ -612,7 +619,7 @@ bt_status_t btif_hh_connect(const RawAddress* bd_addr) {
     BTIF_TRACE_WARNING(
         "%s: Error, exceeded the maximum supported HID device number %d",
         __func__, BTIF_HH_MAX_HID);
-    return BT_STATUS_FAIL;
+    return BT_STATUS_NOMEM;
   }
 
   for (int i = 0; i < BTIF_HH_MAX_ADDED_DEV; i++) {
@@ -631,7 +638,7 @@ bt_status_t btif_hh_connect(const RawAddress* bd_addr) {
                  << " added but addition failed";
       added_dev->bd_addr = RawAddress::kEmpty;
       added_dev->dev_handle = BTA_HH_INVALID_HANDLE;
-      return BT_STATUS_FAIL;
+      return BT_STATUS_NOMEM;
     }
   }
 
@@ -795,6 +802,9 @@ static void btif_hh_upstreams_evt(uint16_t event, char* p_param) {
       break;
 
     case BTA_HH_DISABLE_EVT:
+      if (btif_hh_cb.status == BTIF_HH_DISABLING) {
+        bt_hh_callbacks = NULL;
+      }
       btif_hh_cb.status = BTIF_HH_DISABLED;
       if (btif_hh_cb.service_dereg_active) {
         BTIF_TRACE_DEBUG("BTA_HH_DISABLE_EVT: enabling HID Device service");
@@ -1754,7 +1764,8 @@ static void cleanup(void) {
   BTIF_TRACE_EVENT("%s", __func__);
   btif_hh_device_t* p_dev;
   int i;
-  if (btif_hh_cb.status == BTIF_HH_DISABLED) {
+  if (btif_hh_cb.status == BTIF_HH_DISABLED ||
+      btif_hh_cb.status == BTIF_HH_DISABLING) {
     BTIF_TRACE_WARNING("%s: HH disabling or disabled already, status = %d",
                        __func__, btif_hh_cb.status);
     return;
@@ -1765,7 +1776,6 @@ static void cleanup(void) {
      */
     btif_hh_cb.service_dereg_active = FALSE;
     btif_disable_service(BTA_HID_SERVICE_ID);
-    bt_hh_callbacks = NULL;
   }
   for (i = 0; i < BTIF_HH_MAX_HID; i++) {
     p_dev = &btif_hh_cb.devices[i];
