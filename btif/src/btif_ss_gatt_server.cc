@@ -427,6 +427,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
                     for(auto it : ConnInfos) {
                         if( it.connId == connId && it.serverIf == serverif) {
                             is_present = true;
+                            randId = it.randId;
                             break;
                         }
                     }
