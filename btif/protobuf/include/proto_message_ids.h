@@ -99,6 +99,8 @@ enum bluetooth_rfcomm {
 enum bluetooth_sdp {
         BT_SDP_SEARCH = BT_SDP_EVT_START,
         BT_SDP_SEARCH_COMPLETE_CB,
+        BT_SDP_CREATE_RECORD,
+        BT_SDP_REMOVE_RECORD,
 
         BT_SDP_API_MAX = BT_SDP_EVT_MAX,
 };
