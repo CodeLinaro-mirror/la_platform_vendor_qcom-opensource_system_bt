@@ -20,7 +20,7 @@
 
 #include <stdint.h>
 #include "ble_advertiser.h"
-#include "ble_scanner.h"
+#include <hardware/ble_scanner.h>
 #include "bt_gatt_client.h"
 #include "bt_gatt_server.h"
 

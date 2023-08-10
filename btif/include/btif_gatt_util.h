@@ -32,7 +32,7 @@
 
 void btif_gatt_check_encrypted_link(RawAddress bd_addr,
                                     tGATT_TRANSPORT transport);
-//extern void btif_gatt_move_track_adv_data(btgatt_track_adv_info_t* p_dest,
-                                      //    btgatt_track_adv_info_t* p_src);
+extern void btif_gatt_move_track_adv_data(btgatt_track_adv_info_t* p_dest,
+                                          btgatt_track_adv_info_t* p_src);
 
 #endif

@@ -12,6 +12,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #ifndef ANDROID_INCLUDE_BLE_SCANNER_H
@@ -71,7 +75,7 @@ class BleScannerInterface {
                           uint8_t /* action */, uint8_t /* status */)>;
 
   /** Registers a scanner with the stack */
-  virtual void RegisterScanner(RegisterCallback) = 0;
+  virtual void RegisterScanner(const bluetooth::Uuid& app_uuid, RegisterCallback) = 0;
 
   /** Unregister a scanner from the stack */
   virtual void Unregister(int scanner_id) = 0;
@@ -86,17 +90,17 @@ class BleScannerInterface {
       FilterParamSetupCallback cb) = 0;
 
   /** Configure a scan filter condition  */
-  virtual void ScanFilterAdd(int filter_index, std::vector<ApcfCommand> filters,
+  virtual void ScanFilterAdd(int client_if, int filter_index, std::vector<ApcfCommand> filters,
                              FilterConfigCallback cb) = 0;
 
   /** Clear all scan filter conditions for specific filter index*/
-  virtual void ScanFilterClear(int filt_index, FilterConfigCallback cb) = 0;
+  virtual void ScanFilterClear(int client_if, int filt_index, FilterConfigCallback cb) = 0;
 
   /** Enable / disable scan filter feature*/
-  virtual void ScanFilterEnable(bool enable, EnableCallback cb) = 0;
+  virtual void ScanFilterEnable(int client_if, bool enable, EnableCallback cb) = 0;
 
   /** Sets the LE scan interval and window in units of N*0.625 msec */
-  virtual void SetScanParameters(int scan_phy, std::vector<uint32_t> scan_interval,
+  virtual void SetScanParameters(int scanner_id, int scan_phy, std::vector<uint32_t> scan_interval,
                                  std::vector<uint32_t> scan_window,
                                  Callback cb) = 0;
 
@@ -107,12 +111,12 @@ class BleScannerInterface {
                                       Callback cb) = 0;
 
   /* Enable batchscan */
-  virtual void BatchscanEnable(int scan_mode, int scan_interval,
+  virtual void BatchscanEnable(int client_if, int scan_mode, int scan_interval,
                                int scan_window, int addr_type, int discard_rule,
                                Callback cb) = 0;
 
   /* Disable batchscan */
-  virtual void BatchscanDisable(Callback cb) = 0;
+  virtual void BatchscanDisable(int client_if, Callback cb) = 0;
 
   /* Read out batchscan reports */
   virtual void BatchscanReadReports(int client_if, int scan_mode) = 0;

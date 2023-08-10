@@ -67,6 +67,6 @@ void uint2devclass(uint32_t dev, DEV_CLASS dev_class);
 int ascii_2_hex(const char* p_ascii, int len, uint8_t* p_hex);
 std::string FormTxPacket(uint16_t msg_id, uint16_t proto_enc,uint16_t encode_len,
                   std::string& encoded_bytes);
-void PrintEncodedBytes(const char* en_char, uint8_t len);
+void PrintEncodedBytes(const char* en_char, uint16_t len);
 std::string Rxdatapacket(uint16_t event,char *p_param);
 #endif /* BTIF_UTIL_H */

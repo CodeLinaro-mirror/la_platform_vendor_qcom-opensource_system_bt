@@ -461,14 +461,13 @@ std::string FormTxPacket(uint16_t msg_id, uint16_t proto_enc,uint16_t encode_len
   return msgStr;	
 }	
 
-void PrintEncodedBytes(const char* en_char,
-                                                   uint8_t len) {
+void PrintEncodedBytes(const char* en_char, uint16_t len) {
   ALOGD("Size: %d\n", len);
-  for (uint8_t i = 0; i < len; i++) ALOGD("0x%x ", en_char[i]);
+  for (uint16_t i = 0; i < len; i++) ALOGD("0x%x ", en_char[i]);
 }
 
 std::string Rxdatapacket(uint16_t event, char *p_param) {
-  ALOGD("btif_advertiser_ss_callback :: event is :: %d", event);
+  ALOGD("Rxdatapacket :: event is :: %d", event);
   std::string resBufferString;
   tBTIF_SS_Cback* cb_data = (tBTIF_SS_Cback*)p_param;
   uint16_t MSG_ID = cb_data->payload[0] + (((int)(cb_data->payload[1])) << 8);

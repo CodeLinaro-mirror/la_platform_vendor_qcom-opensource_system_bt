@@ -14,6 +14,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
  ******************************************************************************/
 /*******************************************************************************
  *
@@ -102,7 +105,7 @@ void btif_gatt_check_encrypted_link(UNUSED_ATTR RawAddress bd_addr,
                                     UNUSED_ATTR tGATT_TRANSPORT
                                         transport_link) {}
 #endif
-/*
+
 void btif_gatt_move_track_adv_data(btgatt_track_adv_info_t* p_dest,
                                    btgatt_track_adv_info_t* p_src) {
   memset(p_dest, 0, sizeof(btgatt_track_adv_info_t));
@@ -121,4 +124,4 @@ void btif_gatt_move_track_adv_data(btgatt_track_adv_info_t* p_dest,
            p_src->scan_rsp_len);
     osi_free_and_reset((void**)&p_src->p_scan_rsp_data);
   }
-}*/
+}

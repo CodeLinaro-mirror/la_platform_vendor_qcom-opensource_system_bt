@@ -1,0 +1,208 @@
+/*
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+syntax = "proto2";
+
+message ss_ble_apcfcommand {
+  required uint32 type = 1;
+  optional bytes address = 2;
+  required uint32 addr_type = 3;
+  optional string uuid = 4;
+  optional string uuid_mask = 5;
+  optional bytes name = 6;
+  required uint32 company = 7;
+  required uint32 company_mask = 8;
+  optional bytes data = 9;
+  optional bytes data_mask = 10;
+  required uint32 org_id = 11;
+  required uint32 tds_flags = 12;
+  required uint32 tds_flags_mask = 13;
+  required bool group_filter_enabled = 14;
+  optional bytes irk=15;
+}
+
+
+message ss_btgatt_filt_param_setup {
+  required uint32 feat_seln = 1;
+  required uint32 list_logic_type = 2;
+  required uint32 filt_logic_type = 3;
+  required uint32 rssi_high_thres = 4;
+  required uint32 rssi_low_thres = 5;
+  required uint32 dely_mode = 6;
+  required uint32 found_timeout = 7;
+  required uint32 lost_timeout = 8;
+  required uint32 found_timeout_cnt = 9;
+  required uint32 num_of_tracking_entries = 10;
+}
+
+message ss_btgatt_track_adv_info {
+  required uint32 client_if = 1;
+  required uint32 filt_index = 2;
+  required uint32 advertiser_state = 3;
+  required uint32 advertiser_info_present = 4;
+  required uint32 addr_type = 5;
+  required uint32 tx_power = 6;
+  required sint32 rssi_value = 7;
+  required uint32 time_stamp = 8;
+  required bytes bd_addr = 9;
+  required uint32 adv_pkt_len = 10;
+  required bytes p_adv_pkt_data = 11;
+  required uint32 scan_rsp_len = 12;
+  required bytes p_scan_rsp_data = 13;
+}
+
+message ss_ble_register_scanner {
+  required string uuid = 1;
+}
+
+message ss_ble_scan_filter_enable {
+  required uint32 clientIf = 1;
+  required bool enable = 2;
+}
+
+message ss_ble_scan_filter_add {
+  required uint32 clientIf = 1;
+  required uint32 filterIndex = 2;
+  repeated ss_ble_apcfcommand apcfcommand = 3;
+}
+
+message ss_ble_scan_filter_clear {
+  required uint32 clientIf = 1;
+  required uint32 filterIndex = 2;
+}
+
+message ss_ble_scan_filter_param_setup {
+  required uint32 clientIf = 1;
+  required uint32 action = 2;
+  required uint32 filterIndex = 3;
+  optional ss_btgatt_filt_param_setup btgatt_filt_param_setup = 4;
+}
+
+message ss_ble_set_scan_param {
+  required uint32 clientIf = 1;
+  required uint32 scanPhy = 2;
+  repeated uint32 scanInterval = 3;
+  repeated uint32 scanWindow = 4;
+}
+
+message ss_ble_start_scan {
+  required bool start = 1;
+}
+
+message ss_ble_batch_config_storage {
+  required uint32 clientIf = 1;
+  required uint32 batch_scan_full_max = 2;
+  required uint32 batch_scan_trunc_max = 3;
+  required uint32 batch_scan_notify_threshold = 4;
+}
+
+message ss_ble_batch_scan_enable {
+  required uint32 clientIf = 1;
+  required uint32 scan_mode = 2;
+  required uint32 scan_interval = 3;
+  required uint32 scan_window = 4;
+  required uint32 addr_type = 5;
+  required uint32 discard_rule = 6;
+}
+
+message ss_ble_batch_scan_disable {
+  required uint32 clientIf = 1;
+}
+
+message ss_ble_batch_scan_read_reports {
+  required uint32 clientIf = 1;
+  required uint32 scan_mode = 2;
+}
+
+message ss_ble_unregister_scanner {
+  required uint32 ScannerId = 1;
+}
+
+message ss_ble_scanner_register_event {
+  required string uuid = 1;
+  required uint32 scannerId = 2;
+  required uint32 status = 3;
+}
+
+message ss_ble_scan_filter_enable_event {
+  required uint32 clientIf = 1;
+  required uint32 action = 2;
+  required uint32 status = 3;
+}
+
+message ss_ble_scan_filter_add_event {
+  required uint32 clientIf = 1;
+  required uint32 filt_type = 2;
+  required uint32 avbl_space = 3;
+  required uint32 action = 4;
+  required uint32 status = 5;
+}
+
+message ss_ble_scan_filter_clear_event {
+  required uint32 clientIf = 1;
+  required uint32 filt_type = 2;
+  required uint32 avbl_space = 3;
+  required uint32 action = 4;
+  required uint32 status = 5;
+}
+
+message ss_ble_scan_filter_param_setup_event {
+  required uint32 clientIf = 1;
+  required uint32 avbl_space = 2;
+  required uint32 action = 3;
+  required uint32 status = 4;
+}
+
+message ss_ble_set_scan_param_event {
+  required uint32 clientIf = 1;
+  required uint32 status = 2;
+}
+
+message ss_ble_scan_result_event {
+  required uint32 clientIf = 1;
+  required uint32 device_type = 2;
+  required uint32 event_type = 3;
+  required uint32 addr_type = 4;
+  required bytes bda = 5;
+  required uint32 primary_phy = 6;
+  required uint32 secondary_phy = 7;
+  required uint32 advertising_sl = 8;
+  required sint32 tx_power = 9;
+  required sint32 rssi = 10;
+  required uint32 periodic = 11;
+  required bytes adv_data = 12;
+  required bytes original_bda = 13;
+}
+
+message ss_batch_config_storage_event {
+  required uint32 clientIf = 1;
+  required uint32 status = 2;
+}
+
+message ss_batch_scan_enable_event {
+  required uint32 clientIf = 1;
+  required uint32 status = 2;
+}
+
+message ss_batch_scan_disable_event {
+  required uint32 clientIf = 1;
+  required uint32 status = 2;
+}
+
+message ss_ble_batch_scan_report_event {
+  required uint32 clientIf = 1;
+  required uint32 status = 2;
+  required uint32 report_format = 3;
+  required uint32 num_records = 4;
+  required bytes data = 5;
+}
+
+message ss_ble_track_adv_event {
+  required ss_btgatt_track_adv_info track_adv_info = 1;
+}
+
+message ss_ble_batch_scan_threshold_event {
+  required uint32 clientIf = 1;
+}

@@ -35,8 +35,7 @@
 #include "btif_common.h"
 #include "btif_util.h"
 
-#include <hardware/bt_gatt.h>
-
+#include "btif_gatt.h"
 #include "advertise_data_parser.h"
 #include "bta_api.h"
 #include "bta_closure_api.h"
@@ -49,12 +48,14 @@
 #include "osi/include/log.h"
 #include "vendor_api.h"
 #include "stack_manager.h"
+#include "btif_ss_scanner.h"
+#include <hardware/ble_scanner.h>
 //#include "internal_include/extra_include.h"
 using base::Bind;
 using base::Owned;
 #include <vector>
 using std::vector;
-//using RegisterCallback = BleScannerInterface::RegisterCallback;
+using RegisterCallback = BleScannerInterface::RegisterCallback;
 
 //extern const btgatt_callbacks_t* bt_gatt_callbacks;
 
@@ -219,14 +220,16 @@ void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
   //SCAN_CBACK_IN_JNI(track_adv_event_cb, Owned(btif_scan_track_cb));
 }*/
 
-//void bta_cback(tBTA_GATTC_EVT, tBTA_GATTC*) {}
+void bta_cback(tBTA_GATTC_EVT, tBTA_GATTC*) {}
 
-/*class BleScannerInterfaceImpl : public BleScannerInterface {
+class BleScannerInterfaceImpl : public BleScannerInterface {
   ~BleScannerInterfaceImpl(){};
 
   void RegisterScanner(const bluetooth::Uuid& app_uuid, RegisterCallback cb) override {
-    if (!stack_manager_get_interface()->get_stack_is_running()) return;
+ //   if (!stack_manager_get_interface()->get_stack_is_running()) return;
 
+    mScanSingleStackProto.RegisterScanner(app_uuid, cb);
+#if 0
     do_in_bta_thread(FROM_HERE,
                      Bind(
                          [](RegisterCallback cb) {
@@ -236,19 +239,25 @@ void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
                                false);
                          },
                          std::move(cb)));
+#endif
   }
 
   void Unregister(int scanner_id) override {
-    if (!stack_manager_get_interface()->get_stack_is_running()) return;
+  //  if (!stack_manager_get_interface()->get_stack_is_running()) return;
+    mScanSingleStackProto.UnRegisterScanner(scanner_id);
+#if 0
     do_in_bta_thread(FROM_HERE, Bind(&BTA_GATTC_AppDeregister, scanner_id));
+#endif
   }
 
-  void RegisterCallbacks(ScanningCallbacks* callbacks) {
+ // void RegisterCallbacks(ScanningCallbacks* callbacks) {
     // For GD only
-  }
+  //}
 
   void Scan(bool start) override {
-    if (!stack_manager_get_interface()->get_stack_is_running()) return;
+    // (!stack_manager_get_interface()->get_stack_is_running()) return;
+    mScanSingleStackProto.StartScanning(start);
+#if 0
     do_in_jni_thread(Bind(
         [](bool start) {
           if (!start) {
@@ -262,6 +271,7 @@ void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
               FROM_HERE, Bind(&BTA_DmBleObserve, true, 0, bta_scan_results_cb));
         },
         start));
+#endif
   }
 
   void ScanFilterParamSetup(
@@ -270,8 +280,10 @@ void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
       FilterParamSetupCallback cb) override {
     BTIF_TRACE_DEBUG("%s", __func__);
 
-    if (!stack_manager_get_interface()->get_stack_is_running()) return;
+    //if (!stack_manager_get_interface()->get_stack_is_running()) return;
+    mScanSingleStackProto.ScanFilterParamSetup(client_if, action, filt_index, std::move(filt_param), cb);
 
+#if 0
     if (filt_param && filt_param->dely_mode == 1) {
       do_in_bta_thread(
           FROM_HERE, base::Bind(BTM_BleTrackAdvertiser, bta_track_adv_event_cb,
@@ -282,12 +294,15 @@ void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
                      base::Bind(&BTM_BleAdvFilterParamSetup, action, filt_index,
                                 base::Passed(&filt_param),
                                 jni_thread_wrapper(FROM_HERE, std::move(cb))));
+#endif
   }
 
-  void ScanFilterAdd(int filter_index, std::vector<ApcfCommand> filters,
+  void ScanFilterAdd(int client_if, int filter_index, std::vector<ApcfCommand> filters,
                      FilterConfigCallback cb) override {
     BTIF_TRACE_DEBUG("%s: %d", __func__, filter_index);
+    mScanSingleStackProto.ScanFilterAdd(client_if, filter_index, filters, cb);
 
+#if 0
     do_in_bta_thread(
         FROM_HERE,
         base::Bind(
@@ -296,36 +311,46 @@ void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
                 FROM_HERE,
                 Bind(std::move(cb),
                      0 *TODO: this used to be filter type, unused ?*))));
+#endif
   }
 
 
-  void ScanFilterClear(int filter_index, FilterConfigCallback cb) override {
+  void ScanFilterClear(int client_if, int filter_index, FilterConfigCallback cb)  override {
     BTIF_TRACE_DEBUG("%s: filter_index: %d", __func__, filter_index);
-    if (!stack_manager_get_interface()->get_stack_is_running()) return;
+   //f (!stack_manager_get_interface()->get_stack_is_running()) return;
+    mScanSingleStackProto.ScanFilterClear(client_if, filter_index, cb);
+#if 0
     do_in_bta_thread(FROM_HERE,
                      base::Bind(&BTM_LE_PF_clear, filter_index,
                                 jni_thread_wrapper(
                                     FROM_HERE, Bind(cb, BTM_BLE_PF_TYPE_ALL))));
+#endif
   }
 
-  void ScanFilterEnable(bool enable, EnableCallback cb) override {
+  void ScanFilterEnable(int client_if, bool enable, EnableCallback cb) override {
     BTIF_TRACE_DEBUG("%s: enable: %d", __func__, enable);
 
-    if (!stack_manager_get_interface()->get_stack_is_running()) return;
+   // if (!stack_manager_get_interface()->get_stack_is_running()) return;
+    mScanSingleStackProto.ScanFilterEnable(client_if, enable, cb);
+#if 0
     uint8_t action = enable ? 1 : 0;
     do_in_bta_thread(FROM_HERE,
                      base::Bind(&BTM_BleEnableDisableFilterFeature, action,
                                 jni_thread_wrapper(FROM_HERE, std::move(cb))));
+#endif
   }
 
-  void SetScanParameters(int scan_phy, std::vector<uint32_t> scan_interval,
+  void SetScanParameters(int scanner_id, int scan_phy, std::vector<uint32_t> scan_interval,
                          std::vector<uint32_t> scan_window,
                          Callback cb) override {
     if (!stack_manager_get_interface()->get_stack_is_running()) return;
+    mScanSingleStackProto.SetScanParameters(scanner_id, scan_phy, scan_interval, scan_window, cb);
+#if 0
     do_in_bta_thread(
         FROM_HERE, base::Bind(&BTM_BleSetScanParams, scan_phy, scan_interval,
                               scan_window, BTM_BLE_SCAN_MODE_ACTI,
                               jni_thread_wrapper(FROM_HERE, std::move(cb))));
+#endif
   }
 
   bool IsMsftSupported() override {
@@ -351,7 +376,9 @@ void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
                               int batch_scan_trunc_max,
                               int batch_scan_notify_threshold,
                               Callback cb) override {
-    if (!stack_manager_get_interface()->get_stack_is_running()) return;
+    //if (!stack_manager_get_interface()->get_stack_is_running()) return;
+    mScanSingleStackProto.BatchscanConfigStorage(client_if, batch_scan_full_max, batch_scan_trunc_max, batch_scan_notify_threshold, cb);
+#if 0
     do_in_bta_thread(
         FROM_HERE,
         base::Bind(&BTM_BleSetStorageConfig, (uint8_t)batch_scan_full_max,
@@ -359,33 +386,44 @@ void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
                    (uint8_t)batch_scan_notify_threshold,
                    jni_thread_wrapper(FROM_HERE, cb),
                    bta_batch_scan_threshold_cb, (tBTM_BLE_REF_VALUE)client_if));
+#endif
   }
 
-  void BatchscanEnable(int scan_mode, int scan_interval, int scan_window,
+  void BatchscanEnable(int client_if, int scan_mode, int scan_interval, int scan_window,
                        int addr_type, int discard_rule, Callback cb) override {
-    if (!stack_manager_get_interface()->get_stack_is_running()) return;
+    // (!stack_manager_get_interface()->get_stack_is_running()) return;
+    mScanSingleStackProto.BatchscanEnable(client_if, scan_mode, scan_interval, scan_window, addr_type, discard_rule, cb);
+#if 0
     do_in_bta_thread(
         FROM_HERE, base::Bind(&BTM_BleEnableBatchScan, scan_mode, scan_interval,
                               scan_window, discard_rule, addr_type,
                               jni_thread_wrapper(FROM_HERE, cb)));
+#endif
   }
 
-  void BatchscanDisable(Callback cb) override {
-    if (!stack_manager_get_interface()->get_stack_is_running()) return;
+  void BatchscanDisable(int client_if, Callback cb) override {
+    mScanSingleStackProto.BatchscanDisable(client_if, cb);
+    //if (!stack_manager_get_interface()->get_stack_is_running()) return;
+#if 0
     do_in_bta_thread(FROM_HERE, base::Bind(&BTM_BleDisableBatchScan,
                                            jni_thread_wrapper(FROM_HERE, cb)));
+#endif
   }
 
   void BatchscanReadReports(int client_if, int scan_mode) override {
-    if (!stack_manager_get_interface()->get_stack_is_running()) return;
+   // if (!stack_manager_get_interface()->get_stack_is_running()) return;
+    mScanSingleStackProto.BatchscanReadReports(client_if, scan_mode);
+#if 0
     do_in_bta_thread(FROM_HERE,
                      base::Bind(&BTM_BleReadScanReports, (uint8_t)scan_mode,
                                 Bind(bta_batch_scan_reports_cb, client_if)));
+#endif
   }
 
   void StartSync(uint8_t sid, RawAddress address, uint16_t skip,
                  uint16_t timeout, StartSyncCb start_cb, SyncReportCb report_cb,
                  SyncLostCb lost_cb, BigInfoReportCb biginfo_report_cb) override {
+#if 0
     const controller_t* controller = controller_get_interface();
     if (!controller->supports_ble_periodic_sync_transfer()) {
       uint8_t status_no_resource = 2;
@@ -399,12 +437,11 @@ void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
                      jni_thread_wrapper(FROM_HERE, std::move(biginfo_report_cb))));
   }
 
-  void StartSync(uint8_t sid, RawAddress address, uint16_t skip,
-                 uint16_t timeout, int reg_id) override {
-    BTIF_TRACE_DEBUG("%s:", __func__);
+#endif
   }
 
   void StopSync(uint16_t handle) override {
+#if 0
     BTIF_TRACE_DEBUG("%s: handle: %d", __func__, handle);
     const controller_t* controller = controller_get_interface();
     if (!controller->supports_ble_periodic_sync_transfer()) {
@@ -412,19 +449,23 @@ void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
     }
     do_in_bta_thread(FROM_HERE,
                      base::Bind(&BTM_BleStopPeriodicSync, handle));
+#endif
   }
 
 #if (BLE_PS_PAST_IF_SUPPORTED == TRUE)
   void CancelCreateSync(uint8_t sid, RawAddress address) override {
+#if 0
    const controller_t* controller = controller_get_interface();
    if (!controller->supports_ble_periodic_sync_transfer()) {
      BTIF_TRACE_ERROR("%s: PAST not supported by controller",__func__);
    }
     do_in_bta_thread(FROM_HERE, base::Bind(&BTM_BleCancelPeriodicSync, sid, address));
+#endif
   }
 
   void TransferSync(RawAddress address, uint16_t service_data,
                          uint16_t sync_handle, SyncTransferCb cb) override {
+#if 0
     BTIF_TRACE_DEBUG("%s: to %s", __func__, address.ToString().c_str());
     const controller_t* controller = controller_get_interface();
     if (!controller->supports_ble_periodic_sync_transfer()) {
@@ -436,6 +477,7 @@ void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
     do_in_bta_thread(FROM_HERE,
                      base::Bind(&BTM_BlePeriodicSyncTransfer, address, service_data,
                      sync_handle, jni_thread_wrapper(FROM_HERE, std::move(cb))));
+#endif
   }
 
   void TransferSync(RawAddress address, uint16_t service_data,
@@ -445,6 +487,7 @@ void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
 
   void TransferSetInfo(RawAddress address, uint16_t service_data,
                          uint8_t adv_handle, SyncTransferCb cb) override {
+#if 0
     BTIF_TRACE_DEBUG("%s: to %s", __func__, address.ToString().c_str());
     const controller_t* controller = controller_get_interface();
     if (!controller->supports_ble_periodic_sync_transfer()) {
@@ -456,6 +499,7 @@ void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
     do_in_bta_thread(FROM_HERE,
                      base::Bind(&BTM_BlePeriodicSyncSetInfo, address, service_data,
                      adv_handle, jni_thread_wrapper(FROM_HERE, std::move(cb))));
+#endif
   }
 
   void TransferSetInfo(RawAddress address, uint16_t service_data,
@@ -465,6 +509,7 @@ void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
 
   void SyncTxParameters(RawAddress addr, uint8_t mode,
                                        uint16_t skip, uint16_t timeout,StartSyncCb cb) {
+#if 0
     BTIF_TRACE_DEBUG("%s",__func__);
     const controller_t* controller = controller_get_interface();
     if (!controller->supports_ble_periodic_sync_transfer()) {
@@ -475,6 +520,7 @@ void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
     do_in_bta_thread(FROM_HERE,
                      base::Bind(&BTM_BlePeriodicSyncTxParameters, addr, mode, skip, timeout,
                      jni_thread_wrapper(FROM_HERE, std::move(cb))));
+#endif
   }
 
   void SyncTxParameters(RawAddress addr, uint8_t mode, uint16_t skip,
@@ -482,15 +528,22 @@ void bta_track_adv_event_cb(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data) {
     BTIF_TRACE_DEBUG("%s:", __func__);
   }
 #endif
-};*/
 
-//BleScannerInterface* btLeScannerInstance = nullptr;
+ private:
+   ScannerSingleStackProto mScanSingleStackProto;
+};
+
+BleScannerInterface* btLeScannerInstance = nullptr;
 
 }  // namespace
 
-/*BleScannerInterface* get_ble_scanner_instance() {
-  if (btLeScannerInstance == nullptr)
+BleScannerInterface* get_ble_scanner_instance() {
+   ALOGD("get_ble_scanner_instance");
+  if (btLeScannerInstance == nullptr) {
     btLeScannerInstance = new BleScannerInterfaceImpl();
-
+    ALOGD(
+        "btLeScannerInstance nullptr , allocate new  BleScannerInterfaceImpl");
+   }
+   btif_scan_ss_init();
   return btLeScannerInstance;
-}*/
+}

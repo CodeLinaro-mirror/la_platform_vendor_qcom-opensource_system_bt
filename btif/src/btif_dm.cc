@@ -809,33 +809,34 @@ static void btif_update_remote_properties(const RawAddress& bdaddr,
                                           tBT_DEVICE_TYPE device_type) {
   int num_properties = 0;
   bt_property_t properties[3];
-  bt_status_t status;
-  uint32_t cod;
+  bt_status_t status = BT_STATUS_SUCCESS;
+  uint32_t cod = 0;
   bt_device_type_t dev_type;
 
+  ALOGI("%s : bd_name : %s , device_type : %d , BD_ADDR : %s ", __func__, bd_name, device_type, bdaddr.ToString().c_str());
   memset(properties, 0, sizeof(properties));
 
   /* remote name */
   if (strlen((const char*)bd_name)) {
     BTIF_STORAGE_FILL_PROPERTY(&properties[num_properties], BT_PROPERTY_BDNAME,
                                strlen((char*)bd_name), bd_name);
-    status = btif_storage_set_remote_device_property(
-        &bdaddr, &properties[num_properties]);
+   // status = btif_storage_set_remote_device_property(
+     //   &bdaddr, &properties[num_properties]);
    // ASSERTC(status == BT_STATUS_SUCCESS, "failed to save remote device name",
      //       status);
     num_properties++;
   }
 
   /* class of device */
-  cod = devclass2uint(dev_class);
+  //cod = devclass2uint(dev_class);
   BTIF_TRACE_DEBUG("%s cod is 0x%06x", __func__, cod);
   if ((cod == 0) || (cod == COD_UNCLASSIFIED)) {
     /* Try to retrieve cod from storage */
     BTIF_TRACE_DEBUG("%s cod is 0, checking cod from storage", __func__);
     BTIF_STORAGE_FILL_PROPERTY(&properties[num_properties],
                                BT_PROPERTY_CLASS_OF_DEVICE, sizeof(cod), &cod);
-    status = btif_storage_get_remote_device_property(
-        &bdaddr, &properties[num_properties]);
+ //   status = btif_storage_get_remote_device_property(
+   //     &bdaddr, &properties[num_properties]);
     BTIF_TRACE_DEBUG("%s cod retrieved from storage is 0x%06x", __func__, cod);
     if (cod == 0) {
       BTIF_TRACE_DEBUG("%s cod is again 0, set as unclassified", __func__);
@@ -845,8 +846,8 @@ static void btif_update_remote_properties(const RawAddress& bdaddr,
 
   BTIF_STORAGE_FILL_PROPERTY(&properties[num_properties],
                              BT_PROPERTY_CLASS_OF_DEVICE, sizeof(cod), &cod);
-  status = btif_storage_set_remote_device_property(&bdaddr,
-                                                   &properties[num_properties]);
+  //status = btif_storage_set_remote_device_property(&bdaddr,
+    //                                               &properties[num_properties]);
   //ASSERTC(status == BT_STATUS_SUCCESS, "failed to save remote device class",
     //      status);
   num_properties++;
@@ -856,24 +857,24 @@ static void btif_update_remote_properties(const RawAddress& bdaddr,
   uint8_t remote_dev_type;
   BTIF_STORAGE_FILL_PROPERTY(&prop_name, BT_PROPERTY_TYPE_OF_DEVICE,
                              sizeof(uint8_t), &remote_dev_type);
-  if (btif_storage_get_remote_device_property(&bdaddr, &prop_name) ==
-      BT_STATUS_SUCCESS)
-    dev_type = (bt_device_type_t)(remote_dev_type | device_type);
-  else
-    dev_type = (bt_device_type_t)device_type;
+ // if (btif_storage_get_remote_device_property(&bdaddr, &prop_name) ==
+   //   BT_STATUS_SUCCESS)
+   // dev_type = (bt_device_type_t)(remote_dev_type | device_type);
+  //else
+  dev_type = (bt_device_type_t)device_type;
 
   BTIF_STORAGE_FILL_PROPERTY(&properties[num_properties],
                              BT_PROPERTY_TYPE_OF_DEVICE, sizeof(dev_type),
                              &dev_type);
-  status = btif_storage_set_remote_device_property(&bdaddr,
-                                                   &properties[num_properties]);
+  //status = btif_storage_set_remote_device_property(&bdaddr,
+    //                                               &properties[num_properties]);
   //ASSERTC(status == BT_STATUS_SUCCESS, "failed to save remote device type",
     //      status);
   num_properties++;
 
   auto tmp = bdaddr;
-  //HAL_CBACK(bt_hal_cbacks, remote_device_properties_cb, status, &tmp,
-    //        num_properties, properties);
+  HAL_CBACK(bt_hal_cbacks, remote_device_properties_cb, status, &tmp,
+           num_properties, properties);
 }
 
 /*******************************************************************************
@@ -4411,6 +4412,8 @@ static void btif_dm_ble_oob_req_evt(tBTA_DM_SP_RMT_OOB* req_oob_type) {
 void btif_dm_update_ble_remote_properties(const RawAddress& bd_addr,
                                           BD_NAME bd_name,
                                           tBT_DEVICE_TYPE dev_type) {
+  ALOGD("\n btif_dm_update_ble_remote_properties: bdname: %s ",
+        bd_name);
   btif_update_remote_properties(bd_addr, bd_name, NULL, dev_type);
 }
 #if 0
