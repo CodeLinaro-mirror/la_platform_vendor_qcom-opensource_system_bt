@@ -159,6 +159,7 @@ message ss_gatt_server_notification_sent_event {
 
     required uint32 connId = 1;
     required uint32 status = 2;
+    required uint32 serverif = 3;
 }
 
 message ss_gatt_server_response_sent_event {
@@ -196,6 +197,7 @@ message ss_gatt_server_execute_write_event {
     required uint32 transId = 2;
     required bool execWrite = 3;
     required uint32 connID = 4;
+    required uint32 serverif = 5;
 }
 
 message ss_gatt_server_congestion_event {

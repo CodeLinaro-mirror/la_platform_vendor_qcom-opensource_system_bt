@@ -18,10 +18,12 @@
 #include <regex>
 #include "btif_gatt.h"
 #include "btif_util.h"
+#include <time.h>
 using namespace singlestack::proto::server;
 extern const btgatt_callbacks_t* bt_gatt_callbacks;
 std::map<RawAddress, base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)>> GattSReadPhyCbMap;
 std::map<RawAddress, int> GattSconnectedDevices;
+std::vector<tBTIF_CONNECTION_INFO>ConnInfos;
 BluetoothSSInterface* mgattsSSInterface = NULL;
 std::regex pattern("..(?!$)");
 #ifdef SS_STUB_ENABLED
@@ -30,6 +32,7 @@ BluetoothSSStubInterface* mserverSSStubInterface = NULL;
 
 void btif_gatts_ss_init() {
   ALOGI("%s ", __func__);
+  srand(time(NULL));
   if (mgattsSSInterface == NULL) {
     mgattsSSInterface = BluetoothSSInterface::getInstance();
     if (mgattsSSInterface == NULL) {
@@ -94,6 +97,50 @@ bt_status_t btif_ss_gatt_server::postTxMessage(std::string msgStr) {
   return BT_STATUS_SUCCESS;
 }
 
+int btif_delete_connection_info_disconnect(int serverif,int connid) {
+
+    std::vector<tBTIF_CONNECTION_INFO>::iterator it;
+    int randId;
+    for(it =  ConnInfos.begin() ; it != ConnInfos.end();it++) {
+        if(it->serverIf == serverif && it->connId == connid) {
+            randId = it->randId;
+            ConnInfos.erase(it);
+            return randId;
+        }
+    }
+    return -1;
+}
+
+void btif_delete_connection_info(int serverif) {
+
+    std::vector<tBTIF_CONNECTION_INFO>::iterator it;
+    for(it =  ConnInfos.begin() ; it != ConnInfos.end();it++) {
+        if(it->serverIf == serverif) {
+            ConnInfos.erase(it);
+        }
+    }
+}
+
+tBTIF_CONNECTION_INFO* btif_find_conn_info(int randId) {
+
+    for(unsigned int i = 0 ; i < ConnInfos.size();i++) {
+        if(ConnInfos[i].randId == randId) {
+            return &ConnInfos[i];
+        }
+    }
+    return NULL;
+}
+
+int btif_find_conn_id(int connid) {
+
+    for (auto it : ConnInfos) {
+        if(it.connId == connid) {
+            return it.randId;
+        }
+    }
+    return -1;
+}
+
 bt_status_t btif_ss_gatt_server::registerServer(const bluetooth::Uuid& bt_uuid, bool eatt_support) {
 
     std::string msgStr;
@@ -128,10 +175,16 @@ bt_status_t btif_ss_gatt_server::disconnect(int server_if, const RawAddress& bd_
                                     int conn_id) {
     std::string msgStr;
     ss_gatt_server_disconnect ss_gatt_server_disconnect_;
+    tBTIF_CONNECTION_INFO *connection_info = btif_find_conn_info(conn_id);
 
     ss_gatt_server_disconnect_.set_serverif(server_if);
     ss_gatt_server_disconnect_.set_address(ToRawString(&bd_addr).c_str());
-    ss_gatt_server_disconnect_.set_connid(conn_id);
+    if(connection_info != NULL && connection_info->serverIf == server_if)
+        ss_gatt_server_disconnect_.set_connid(connection_info->connId);
+    else {
+        ALOGE("Invalid conn_id");
+        return false;
+    }
     ss_gatt_server_disconnect_.SerializeToString(&msgStr);
     std::string packet = FormTxPacket(BT_LE_SERVER_DISCONNECT_SERVER , PROTO_ENC_DEC,
                                  msgStr.length(), msgStr);
@@ -147,6 +200,7 @@ bt_status_t btif_ss_gatt_server::unregisterServer(int server_if) {
     ss_gatt_unregister_server_.SerializeToString(&msgStr);
     std::string packet = FormTxPacket(BT_LE_SERVER_UNREG_SERVER, PROTO_ENC_DEC,
                                  msgStr.length(), msgStr);
+    btif_delete_connection_info(server_if);
     return postTxMessage(packet);
 }
 
@@ -207,14 +261,20 @@ bt_status_t btif_ss_gatt_server::sendIndicationNotification(int attribute_handle
 
     std::string msgStr;
     ss_gatt_send_indication_notification ss_gatt_send_indication_notification_;
+    tBTIF_CONNECTION_INFO *connection_info = btif_find_conn_info(conn_id);
 
     std::string Value(value.begin(), value.end());
-    ss_gatt_send_indication_notification_.set_connid(conn_id);
     ss_gatt_send_indication_notification_.set_attrhandle(attribute_handle);
     ss_gatt_send_indication_notification_.set_value(Value);
     ss_gatt_send_indication_notification_.set_confirm(confirm);
     ss_gatt_send_indication_notification_.set_serverif(server_if);
     ss_gatt_send_indication_notification_.SerializeToString(&msgStr);
+    if(connection_info != NULL && connection_info->serverIf == server_if)
+        ss_gatt_send_indication_notification_.set_connid(connection_info->connId);
+    else {
+        ALOGE("Invalid conn_id");
+        return false;
+    }
     //PrintEncodedBytes(msgStr);
     std::string packet = FormTxPacket(BT_LE_SERVER_SEND_INDICATION, PROTO_ENC_DEC,
                                  msgStr.length(), msgStr);
@@ -228,20 +288,22 @@ bt_status_t btif_ss_gatt_server::sendResponse(int conn_id, int trans_id,int stat
     ss_bt_gatt_response *ss_bt_gatt_response_ = ss_gatt_server_send_response_.mutable_btgatt_response();
     ss_bt_gatt_value *ss_bt_gatt_value_ = (*ss_bt_gatt_response_).mutable_attrvalue();
 
-    char str[(sizeof(response.attr_value.value)) + 1];
-    memcpy(str, response.attr_value.value, sizeof(response.attr_value.value));
-    str[sizeof(response.attr_value.value)] = 0;
-
-    ss_bt_gatt_value_->set_value(str);
+    tBTIF_CONNECTION_INFO *connection_info = btif_find_conn_info(conn_id);
+    ss_bt_gatt_value_->set_value(response.attr_value.value,response.attr_value.len);
     ss_bt_gatt_value_->set_handle(response.attr_value.handle);
     ss_bt_gatt_value_->set_offset(response.attr_value.offset);
     ss_bt_gatt_value_->set_len(response.attr_value.len);
     ss_bt_gatt_value_->set_auth_req(response.attr_value.auth_req);
 
     ss_bt_gatt_response_->set_handle(response.handle);
-    ss_gatt_server_send_response_.set_connid(conn_id);
     ss_gatt_server_send_response_.set_transid(trans_id);
     ss_gatt_server_send_response_.set_status(status);
+    if(connection_info != NULL)
+        ss_gatt_server_send_response_.set_connid(connection_info->connId);
+    else {
+        ALOGE("Invalid conn_id");
+        return false;
+    }
 
     ss_gatt_server_send_response_.SerializeToString(&msgStr);
     //PrintEncodedBytes(msgStr);
@@ -335,6 +397,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             int connId = 0;
             int serverif = 0;
             bool connected = 0;
+            int randId = 0;
             RawAddress* address = nullptr;
             onConnectionChange.ParseFromString(resBufferString);
             if(onConnectionChange.has_connid()) {
@@ -355,12 +418,27 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
                 connected = onConnectionChange.connected();
                 if(connected) {
                     GattSconnectedDevices.insert(std::pair<RawAddress, int>(*address, serverif));
+                    tBTIF_CONNECTION_INFO connection_info;
+                    randId = connection_info.randId = rand();
+                    ALOGD("\nassign serverif = %d and randID = %d ",serverif,randId);
+                    connection_info.serverIf = serverif;
+                    connection_info.connId = connId;
+                    bool is_present = false;
+                    for(auto it : ConnInfos) {
+                        if( it.connId == connId && it.serverIf == serverif) {
+                            is_present = true;
+                            break;
+                        }
+                    }
+                    if(!is_present)
+                        ConnInfos.push_back(connection_info);
                 } else {
+                    randId = btif_delete_connection_info_disconnect(serverif,connId);
                     GattSconnectedDevices.erase(*address);
                 }
                 ALOGD("\nconnected: %d ", connected);
             }
-            HAL_CBACK(bt_gatt_callbacks, server->connection_cb, connId,
+            HAL_CBACK(bt_gatt_callbacks, server->connection_cb, randId,
                  serverif, connected, *address);
             break;
         }
@@ -378,7 +456,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             }
             if(onServiceAdd.has_serverif()) {
                 serverif = onServiceAdd.serverif();
-                ALOGD("\nstatus: %d ", serverif);
+                ALOGD("\nserverif: %d ", serverif);
             }
             for (int i = 0 ; i < onServiceAdd.gatt_db_element().size(); i++) {
                     btgatt_db_element_t service;
@@ -421,8 +499,13 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
                 status = onPhyUpdated.status();
                 ALOGD("\nstatus: %d ", status);
             }
-            HAL_CBACK(bt_gatt_callbacks, server->phy_updated_cb,
-                 connId, txphy,rxphy, status);
+            for (auto it : ConnInfos) {
+                if(it.connId == connId) {
+                    ALOGD("\fetching randId: %d and serverif: %d and connId : %d", it.randId, it.serverIf, it.connId);
+                    HAL_CBACK(bt_gatt_callbacks, server->phy_updated_cb,
+                    it.randId, txphy,rxphy, status);
+                }
+            }
             break;
         }
         case BT_LE_SERVER_READ_PHY_EVENT: {
@@ -488,6 +571,8 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             ss_gatt_server_notification_sent_event onNotificationSend;
             int connId = 0;
             int status = 0;
+            int randId = 0;
+            int serverIf = 0;
             onNotificationSend.ParseFromString(resBufferString);
             if(onNotificationSend.has_connid()) {
                 connId = onNotificationSend.connid();
@@ -497,8 +582,17 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
                 status = onNotificationSend.status();
                 ALOGD("\nstatus: %d ", status);
             }
+            if(onNotificationSend.has_serverif()) {
+                serverIf = onNotificationSend.serverif();
+                for (auto it : ConnInfos) {
+                    if(it.connId == connId && it.serverIf == serverIf) {
+                        randId = it.randId;
+                        break;
+                    }
+                }
+            }
             HAL_CBACK(bt_gatt_callbacks, server->indication_sent_cb,
-                 connId,status);
+                 randId,status);
             break;
         }
         case BT_LE_SERVER_READ_CHAR_EVENT: {
@@ -536,12 +630,13 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
                 islong = onReadChar.islong();
                 ALOGD("\nislong: %d ", islong);
             }
+            int randId = btif_find_conn_id(connId);
             HAL_CBACK(bt_gatt_callbacks, server->request_read_characteristic_cb,
-                 connId, transId,*address,attrhandle,offset,islong);
+                 randId, transId,*address,attrhandle,offset,islong);
             break;
         }
         case BT_LE_SERVER_RSP_SENT_EVENT: {
-            ALOGD("BT_LE_SERVER_READ_CHAR_EVENT");
+            ALOGD("BT_LE_SERVER_RSP_SENT_EVENT");
             ss_gatt_server_response_sent_event onRespSend;
             int status = 0;
             int handle = 0;
@@ -592,8 +687,9 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
                 islong = onReadDesc.islong();
                 ALOGD("\nislong: %d ", islong);
             }
+            int randId = btif_find_conn_id(connId);
             HAL_CBACK(bt_gatt_callbacks, server->request_read_descriptor_cb,
-                 connId, transId,*address,attrhandle,offset,islong);
+                 randId, transId,*address,attrhandle,offset,islong);
             break;
         }
         case BT_LE_SERVER_WRITE_CHAR_EVENT: {
@@ -651,11 +747,12 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
                 int size = dataVector.size();
                 ALOGD("size = %d", size);
                 for (auto i = 0 ; i < size; i++) {
-                    printf("\n data  = %d", data[i]);
+                    ALOGD("\n data  = %d", data[i]);
                 }
             }
+            int randId = btif_find_conn_id(connId);
             HAL_CBACK(bt_gatt_callbacks, server->request_write_characteristic_cb,
-                  connId, transId,*address, attrHandle, offset,
+                  randId, transId,*address, attrHandle, offset,
                   needRsp, isprep, data, length);
             break;
         }
@@ -714,11 +811,12 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
                 int size = dataVector.size();
                 ALOGD("size = %d", size);
                 for (auto i = 0 ; i < size; i++) {
-                     printf("\n data  = %d", data[i]);
+                    ALOGD("\n data  = %d", data[i]);
                 }
             }
+            int randId = btif_find_conn_id(connId);
             HAL_CBACK(bt_gatt_callbacks, server->request_write_descriptor_cb,
-                  connId, transId,*address, attrHandle, offset,
+                  randId, transId,*address, attrHandle, offset,
                   needRsp, isprep, data, length);
             break;
         }
@@ -728,7 +826,9 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             RawAddress* address = nullptr;
             int transId = 0;
             bool execWrite = 0;
-            int connID = 0;
+            int connId = 0;
+            int randId = 0;
+            int serverIf = 0;
             onExecWrite.ParseFromString(resBufferString);
             if(onExecWrite.has_address()) {
                 uint8_t* addr = (uint8_t*)onExecWrite.address().c_str();
@@ -744,11 +844,20 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
                 ALOGD("\ndata: %d ", execWrite );
             }
             if(onExecWrite.has_connid()) {
-                connID = onExecWrite.connid();
-                ALOGD("\ndata: %d ", connID );
+                connId = onExecWrite.connid();
+                ALOGD("\ndata: %d ", connId );
+            }
+            if(onExecWrite.has_serverif()) {
+                serverIf = onExecWrite.serverif();
+                for (auto it : ConnInfos) {
+                    if(it.connId == connId && it.serverIf == serverIf) {
+                        randId = it.randId;
+                        break;
+                    }
+                }
             }
             HAL_CBACK(bt_gatt_callbacks, server->request_exec_write_cb,
-                   connID, transId,*address,execWrite);
+                   randId, transId,*address,execWrite);
             break;
         }
         case BT_LE_SERVER_SRV_CONG_EVENT: {
@@ -765,8 +874,12 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
                 congested = onServerCongestion.congested();
                 ALOGD("\ncongested: %d ", congested );
             }
-            HAL_CBACK(bt_gatt_callbacks, server->congestion_cb,
-                 connId,congested);
+            for (auto it : ConnInfos) {
+                if(it.connId == connId) {
+                    HAL_CBACK(bt_gatt_callbacks, server->congestion_cb,
+                    it.randId,congested);
+                }
+            }
             break;
         }
         case BT_LE_SERVER_MTU_UPDATE_EVENT:{
@@ -783,22 +896,26 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
                 mtu = onServerMtuUpdate.mtu();
                 ALOGD("\nmtu: %d ", mtu );
             }
-            HAL_CBACK(bt_gatt_callbacks, server->mtu_changed_cb,
-                 connId,mtu);
+            for (auto it : ConnInfos) {
+                if(it.connId == connId) {
+                    HAL_CBACK(bt_gatt_callbacks, server->mtu_changed_cb,
+                    it.randId,mtu);
+                }
+            }
             break;
         }
         case BT_LE_SERVER_CONN_UPDATE_EVENT: {
             ALOGD("BT_LE_SERVER_CONN_UPDATE_EVENT");
             ss_gatt_server_conn_update_event onServerConnUpdate;
-            int connID = 0;
+            int connId = 0;
             int interval = 0;
             int latency = 0;
             int timeout = 0;
             int status = 0;
             onServerConnUpdate.ParseFromString(resBufferString);
             if(onServerConnUpdate.has_connid()) {
-                connID = onServerConnUpdate.connid();
-                ALOGD("\nconnID: %d ", connID );
+                connId = onServerConnUpdate.connid();
+                ALOGD("\nconnID: %d ", connId );
             }
             if(onServerConnUpdate.has_interval()) {
                 interval = onServerConnUpdate.interval();
@@ -816,8 +933,12 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
                 status  = onServerConnUpdate.status ();
                 ALOGD("\nstatus : %d ", status  );
             }
-            HAL_CBACK(bt_gatt_callbacks, server->conn_updated_cb,
-                  connID, interval,latency, timeout,status);
+            for (auto it : ConnInfos) {
+                if(it.connId == connId) {
+                    HAL_CBACK(bt_gatt_callbacks, server->conn_updated_cb,
+                    it.randId, interval,latency, timeout,status);
+                }
+            }
             break;
         }
     }
