@@ -314,6 +314,12 @@ bt_status_t btif_ss_gatt_server::sendResponse(int conn_id, int trans_id,int stat
 
 bt_status_t btif_ss_gatt_server::AddService(int server_if,std::vector<btgatt_db_element_t> service){
     std::string msgStr;
+    if (service[0].uuid == bluetooth::Uuid::From16Bit(UUID_SERVCLASS_GATT_SERVER) ||
+      service[0].uuid == bluetooth::Uuid::From16Bit(UUID_SERVCLASS_GAP_SERVER)) {
+        HAL_CBACK(bt_gatt_callbacks, server->service_added_cb, BT_STATUS_FAIL,
+              server_if, service.data(),service.size());
+        return BT_STATUS_FAIL;
+    }
     ss_gatt_server_add_service ss_gatt_server_add_service_;
     ss_gatt_server_add_service_.set_serverif(server_if);
     ss_gatt_server_add_service_.set_count(service.size());
