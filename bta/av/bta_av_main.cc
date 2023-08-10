@@ -631,6 +631,9 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
 
         if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
           profile_version = AVRC_REV_1_6;
+        } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK &&
+              strcmp(board_prop, "neo") == 0) {
+          profile_version = AVRC_REV_1_6;
         } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
           // Initialize AVRCP1.4 to provide Absolute Volume control.
           profile_version = AVRC_REV_1_4;
