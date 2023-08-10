@@ -53,6 +53,29 @@
 // Protects the sdp_slots array from concurrent access.
 //static std::recursive_mutex sdp_lock;
 
+#include "btif_ss_interface.h"
+#ifdef SS_STUB_ENABLED
+#include "btif_ss_stub_interface.h"
+#endif
+
+#include "protobuf/proto/sdp.pb.h"
+#include "btif/protobuf/include/proto_message_ids.h"
+
+using bluetooth::Uuid;
+using bluetooth::synergy::SynergyProto::ss_bt_create_sdp_record;
+using bluetooth::synergy::SynergyProto::ss_bt_remove_sdp_record;
+using bluetooth::synergy::SynergyProto::ss_bt_sdp_record;
+using bluetooth::synergy::SynergyProto::ss_bt_sdp_hdr_overlay;
+using bluetooth::synergy::SynergyProto::ss_bt_sdp_type;
+using  bluetooth::synergy::SynergyProto::ss_bt_service_name;
+using bluetooth::synergy::SynergyProto::ss_bt_sdp_pse_record;
+using bluetooth::synergy::SynergyProto::ss_bt_sdp_pce_record;
+using bluetooth::synergy::SynergyProto::SS_BT_SDP_TYPE_PBAP_PSE;
+using bluetooth::synergy::SynergyProto::SS_BT_SDP_TYPE_PBAP_PCE;
+using bluetooth::synergy::SynergyProto::SS_BT_SDP_TYPE_RAW;
+
+BluetoothSSInterface *btSSInnerface_s;
+
 /**
  * The need for a state variable have been reduced to two states.
  * The remaining state control is handled by program flow
@@ -277,44 +300,138 @@ static void set_sdp_handle(int id, int handle) {
 }
 #endif
 
-bt_status_t create_sdp_record(bluetooth_sdp_record* record,
-                              int* record_handle) {
-  /*int handle;
+bt_status_t create_sdp_record(bluetooth_sdp_record* record, int* record_handle) {
 
-  handle = alloc_sdp_slot(record);
-  BTIF_TRACE_DEBUG("%s() handle = 0x%08x", __func__, handle);
+  int handle = 1;
 
-  if (handle < 0) return BT_STATUS_FAIL;
+  *record_handle = handle;
 
-  BTA_SdpCreateRecordByUser(INT_TO_PTR(handle));
+#ifdef SS_STUB_ENABLED
+  BluetoothSSStubInterface *btSSStubInterface;
+  btSSStubInterface = BluetoothSSStubInterface::getInstance();
+#else
+  btSSInnerface_s = BluetoothSSInterface::getInstance();
+#endif
 
-  *record_handle = handle;*/
+  uint8_t create_sdp_record_msg[MAX_LENGTH_WITH_PROTO_NONE];
+  uint16_t msg_id = BT_SDP_CREATE_RECORD;
+  create_sdp_record_msg[0] = msg_id & 0xff;
+  create_sdp_record_msg[1] = (msg_id >> 8);
+
+  std::string protoMsg;
+  ss_bt_create_sdp_record create_sdp_record;
+  ss_bt_sdp_record* record_ = create_sdp_record.mutable_record();
+  ss_bt_sdp_hdr_overlay* record_hdr = record_->mutable_hdr();
+  uint32_t record_type = record->hdr.type;
+
+  record_hdr->set_type(SS_BT_SDP_TYPE_RAW);
+  //ALOGI("%s: Record type received : %d", __func__, record_type);
+  //Uuid uuid_sdp;
+  //uint16_t service_uuid;
+  switch(record_type){
+    case SDP_TYPE_PBAP_PSE:
+    {
+      handle = 2;
+      ss_bt_sdp_pse_record* pse_record = record_->mutable_pse();
+      ss_bt_sdp_hdr_overlay pse_hdr = pse_record->hdr();
+      pse_hdr.set_type(SS_BT_SDP_TYPE_PBAP_PSE);
+
+    }
+    break;
+
+    case SDP_TYPE_PBAP_PCE:
+    {
+
+      handle = 3;
+      ss_bt_service_name s_name;
+      ss_bt_sdp_pce_record* pce_record = record_->mutable_pce();
+      ss_bt_sdp_hdr_overlay pce_hdr = pce_record->hdr();
+      pce_hdr.set_type(SS_BT_SDP_TYPE_PBAP_PCE);
+      std::string name = (char*)pce_hdr.mutable_service_name();
+      s_name.set_name(name);
+      ALOGI("%s: Record has sdp service name : %s", __func__, name.c_str());
+      pce_hdr.set_service_name_length(pce_hdr.service_name_length());
+      ALOGI("%s: Record has sdp service name length : %d", __func__, pce_hdr.service_name_length());
+      pce_hdr.set_rfcomm_channel_number(-1);
+      pce_hdr.set_l2cap_psm(-1);
+      pce_hdr.set_profile_version(pce_hdr.profile_version());
+      ALOGI("%s: Record has sdp service profile_version : %d", __func__, pce_hdr.profile_version());
+
+    }
+    break;
+
+    case SDP_TYPE_MAP_MAS:
+    case SDP_TYPE_MAP_MNS:
+    case SDP_TYPE_OPP_SERVER:
+    case SDP_TYPE_SAP_SERVER:
+    //not yet ssupported
+    default:
+    ALOGI("Record type %d is not supported", record_type);
+    break;
+  }
+  ALOGI("%s() create_sdp_record : handle = 0x%08x", __func__, handle);
+  create_sdp_record.set_handle(handle);
+  create_sdp_record.SerializeToString(&protoMsg);
+  ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
+
+  uint16_t length = protoMsg.length();
+  create_sdp_record_msg[2] = length & 0xff;
+  create_sdp_record_msg[3] = (length >> 8);
+  //adding proto_encode
+  uint16_t proto_encode = PROTO_ENC_DEC;
+  create_sdp_record_msg[4] = proto_encode & 0xff;
+  create_sdp_record_msg[5] = (proto_encode >> 8);
+  char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+  memcpy(resBuffer, (char *) create_sdp_record_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+  msgStr.append(protoMsg);
+#ifndef SS_STUB_ENABLED
+  btSSInnerface_s->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
 
   return BT_STATUS_SUCCESS;
 }
 
 bt_status_t remove_sdp_record(int record_id) {
-#if 0
-  int handle;
+  ALOGI("%s() remove_sdp_record : handle = 0x%08x", __func__, record_id);
 
-  if (!stack_manager_get_interface()->get_stack_is_running()) {
-    BTIF_TRACE_DEBUG("Sdp Server %s - Stack closed", __FUNCTION__);
-    return BT_STATUS_FAIL;
-  }
-
-  /* Get the Record handle, and free the slot */
-  handle = free_sdp_slot(record_id);
-  BTIF_TRACE_DEBUG("Sdp Server %s id=%d to handle=0x%08x", __func__, record_id,
-                   handle);
-
-  /* Pass the actual record handle */
-  if (handle > 0) {
-    BTA_SdpRemoveRecordByUser(INT_TO_PTR(handle));
-    return BT_STATUS_SUCCESS;
-  }
-  BTIF_TRACE_DEBUG("Sdp Server %s - record already removed - or never created",
-                   __func__);
+#ifdef SS_STUB_ENABLED
+  BluetoothSSStubInterface *btSSStubInterface;
+  btSSStubInterface = BluetoothSSStubInterface::getInstance();
+#else
+   btSSInnerface_s = BluetoothSSInterface::getInstance();
 #endif
+
+  uint8_t remove_sdp_record_msg[MAX_LENGTH_WITH_PROTO_NONE];
+  uint16_t msg_id = BT_SDP_CREATE_RECORD;
+  remove_sdp_record_msg[0] = msg_id & 0xff;
+  remove_sdp_record_msg[1] = (msg_id >> 8);
+
+  std::string protoMsg;
+  ss_bt_remove_sdp_record remove_sdp_record;
+  remove_sdp_record.set_handle(record_id);
+  remove_sdp_record.SerializeToString(&protoMsg);
+  ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
+
+  uint16_t length = protoMsg.length();
+  remove_sdp_record_msg[2] = length & 0xff;
+  remove_sdp_record_msg[3] = (length >> 8);
+  //adding proto_encode
+  uint16_t proto_encode = PROTO_ENC_DEC;
+  remove_sdp_record_msg[4] = proto_encode & 0xff;
+  remove_sdp_record_msg[5] = (proto_encode >> 8);
+  char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+  memcpy(resBuffer, (char *) remove_sdp_record_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+  msgStr.append(protoMsg);
+#ifndef SS_STUB_ENABLED
+  btSSInnerface_s->postTxMsg(msgStr);
+#else
+  btSSStubInterface->postTxMsg(msgStr);
+#endif
+
   return BT_STATUS_SUCCESS;
 }
 #if 0
