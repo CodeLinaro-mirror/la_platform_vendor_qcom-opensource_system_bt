@@ -22,8 +22,8 @@
 const char* dump_search_dm_msgID(uint16_t msgID);
 const char* dump_search_sdp_msgID(uint16_t msgID);
 const char* dump_search_rfcomm_msgID(uint16_t msgID);
-//const char* dump_search_advertiser_msgID(uint16_t msgID);
 const char* dump_search_gattc_msgID(uint16_t msgID);
+const char* dump_search_advertiser_msgID(uint16_t msgID);
 
 class BluetoothSSTransport {
 public:

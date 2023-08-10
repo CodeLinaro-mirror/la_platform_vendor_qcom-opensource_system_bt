@@ -169,6 +169,35 @@ const char* dump_search_gatts_msgID(uint16_t msgID) {
       return "LE_GATTS_UNKNOWN_MSG_ID";
     }
 }
+const char* dump_search_advertiser_msgID(uint16_t msgID) {
+  switch (msgID) {
+    CASE_RETURN_STR(BT_LE_ADV_REG_ADVERTISER)
+    CASE_RETURN_STR(BT_LE_ADV_SET_PARAM)
+    CASE_RETURN_STR(BT_LE_ADV_SET_DATA)
+    CASE_RETURN_STR(BT_LE_ADV_ENABLE)
+    CASE_RETURN_STR(BT_LE_ADV_UNREG)
+    CASE_RETURN_STR(BT_LE_ADV_START_ADV)
+    CASE_RETURN_STR(BT_LE_ADV_START_ADV_SET)
+    CASE_RETURN_STR(BT_LE_ADV_SET_PERIODIC_ADV_PARAM)
+    CASE_RETURN_STR(BT_LE_ADV_SET_PERIODIC_ADV_DATA)
+    CASE_RETURN_STR(BT_LE_ADV_SET_PERIODIC_ADV_ENABLE)
+    CASE_RETURN_STR(BT_LE_ADV_STOP_ALL_ADVERTISEMENTS)
+    CASE_RETURN_STR(BT_LE_GET_OWN_ADDRESS)
+    CASE_RETURN_STR(BT_LE_ADVERTISING_EVENT_START)
+    CASE_RETURN_STR(BT_LE_ADVERTISING_SET_STARTED_EVENT)
+    CASE_RETURN_STR(BT_LE_ADVERTISING_ENABLED_EVENT)
+    CASE_RETURN_STR(BT_LE_ADVERTISING_DATA_SET_EVENT)
+    CASE_RETURN_STR(BT_LE_SCAN_RESP_DATA_SET_EVENT)
+    CASE_RETURN_STR(BT_LE_ADV_PARAM_UPDATED_EVENT)
+    CASE_RETURN_STR(BT_LE_PERIODIC_ADV_PARAM_UPDATED_EVENT)
+    CASE_RETURN_STR(BT_LE_PERIODIC_ADVERTISING_DATA_SET_EVENT)
+    CASE_RETURN_STR(BT_LE_PERIODIC_ADVERTISING_ENABLED_EVENT)
+    CASE_RETURN_STR(BT_LE_OWN_ADDRESS_READ_EVENT)
+    CASE_RETURN_STR(BT_ADV_API_MAX)
+    default:
+      return "LE_ADV_UNKNOWN_MSG_ID";
+  }
+}
 BluetoothSSTransport::BluetoothSSTransport() : mFd(-1) {
     ALOGI("BluetoothSSTransport ctor");
 }
@@ -276,6 +305,8 @@ int BluetoothSSTransport::file_write(uint8_t *buf, size_t buflen, const char *ms
         tmpBuf = dump_search_gattc_msgID(MSG_ID);
     else if(MSG_ID >= BT_LE_SERVER_SERVER_START && MSG_ID <= BT_LE_GATT_SERVER_EVT_MAX)
         tmpBuf = dump_search_gatts_msgID(MSG_ID);
+    else if(MSG_ID >= BT_LE_ADV_API_START && MSG_ID <= BT_ADV_EVT_MAX)
+        tmpBuf = dump_search_advertiser_msgID(MSG_ID);
 
     if (fptr == NULL)
     {
@@ -290,7 +321,7 @@ int BluetoothSSTransport::file_write(uint8_t *buf, size_t buflen, const char *ms
         }
         gettimeofday(&now, NULL);
         localTime = localtime(&now.tv_sec);
-        fprintf(fptr,"%.4d-%.2d-%.2d %.2d:%.2d:%.2d.%.3ld %s %40s ",1900 + localTime->tm_year,1 + localTime->tm_mon,localTime->tm_mday,localTime->tm_hour, localTime->tm_min, localTime->tm_sec,now.tv_usec / 1000, msgtyp , tmpBuf );
+        fprintf(fptr,"%.4d-%.2d-%.2d %.2d:%.2d:%.2d.%.3ld %s %44s ",1900 + localTime->tm_year,1 + localTime->tm_mon,localTime->tm_mday,localTime->tm_hour, localTime->tm_min, localTime->tm_sec,now.tv_usec / 1000, msgtyp , tmpBuf );
         for (int i=0; i< (int)buflen; ++i){
             int ret1=fprintf(fptr,"%.2x",(int)buf[i]);
         }
