@@ -199,6 +199,7 @@ cc_library_shared {
         "-Wno-unused-function",
         "-DBUILDCFG",
         //"-DSS_STUB_ENABLED",
+        // "-DADV_MODULE_SS_LOGS_ENABLED",
         "-Wno-unused-parameter",
         "-Wno-unused-variable",
         "-Wno-unused-function",

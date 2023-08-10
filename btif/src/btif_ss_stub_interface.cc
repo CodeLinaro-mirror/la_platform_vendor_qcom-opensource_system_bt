@@ -8,18 +8,22 @@
 #include "btif_ss_stub_interface.h"
 #include "protobuf/proto/dm.pb.h"
 #include "protobuf/proto/rfcomm.pb.h"
+#include "protobuf/proto/advertiser.pb.h"
 #include "protobuf/include/proto_message_ids.h"
 //#include "osi/include/log.h"
 #include "btif_api.h"
 #include "btif_sock_rfc.h"
 #include "btif_storage.h"
+#include "btif_ss_advertiser.h"
 #include <utils/Log.h>
+#include<vector>
 
 using namespace std;
 
 #define MSG_EXIT_THREAD	1
 #define MSG_WRITE_STUB 2
 bool outgoing = false;
+uint8_t adv_inst_id = 0;
 
 BluetoothSSStubInterface* BluetoothSSStubInterface::instance = NULL;
 using namespace bluetooth::synergy::SynergyProto;
@@ -221,6 +225,47 @@ void BluetoothSSStubInterface::processRx()
   }
 }
 
+void BluetoothSSStubInterface::PrintEnBytes(const char* en_char, uint8_t len) {
+  ALOGD("Size: %d\n", len);
+  for (uint8_t i = 0; i < len; i++) ALOGD("0x%x ", en_char[i]);
+}
+
+int BluetoothSSStubInterface::FormRxPacket(uint16_t msg_id, uint16_t proto_enc,
+                                            uint16_t encode_len,
+                                            std::string& encoded_bytes) {
+  ALOGD("\n FormRxPacket msg_id : %d , encode_len : %d", msg_id, encode_len);
+  uint8_t form_rx_msg[MAX_LENGTH_WITH_PROTO_NONE];
+  char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+  form_rx_msg[0] = msg_id & 0xff;
+  form_rx_msg[1] = (msg_id >> 8);
+  form_rx_msg[2] = encode_len & 0xff;
+  form_rx_msg[3] = (encode_len >> 8);
+  form_rx_msg[4] = proto_enc & 0xff;
+  form_rx_msg[5] = (proto_enc >> 8);
+
+  memcpy(resBuffer, (char*)form_rx_msg, MAX_LENGTH_WITH_PROTO_NONE);
+  std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+  msgStr.append(encoded_bytes);
+  const char* encodeChars = msgStr.c_str();
+  PrintEnBytes(encodeChars, encode_len);
+
+  tBTIF_SS_Cback ss_cback;
+  memset(&ss_cback, 0, sizeof(tBTIF_SS_Cback));
+  ss_cback.payload = (uint8_t*)malloc((MAX_LENGTH_WITH_PROTO_NONE + encode_len) * sizeof(uint8_t));  // This memory should be released from each profile after done with the processing
+  if (ss_cback.payload == NULL) {
+  return BT_STATUS_FAIL;
+  }
+
+  std::vector<uint8_t> protoVector(msgStr.begin(), msgStr.end());
+
+  uint8_t* proto_msg = &protoVector[0];
+  memcpy(ss_cback.payload, proto_msg,
+         ((MAX_LENGTH_WITH_PROTO_NONE + encode_len) * sizeof(uint8_t)));
+
+  btif_transfer_context(btif_advertiser_ss_callback, msg_id, (char*)&ss_cback,
+                        sizeof(ss_cback), NULL);
+  return BT_STATUS_SUCCESS;
+}
 void BluetoothSSStubInterface::sendDummyCallback(int msg_id, std::string res_buffer) {
   ALOGI("sendDummyCallback msg_id is :: %02x",msg_id);
   ALOGI("sendDummyCallback res_buffer length is :: %d",res_buffer.length());
@@ -922,8 +967,402 @@ void BluetoothSSStubInterface::sendDummyCallback(int msg_id, std::string res_buf
         btif_transfer_context(btif_dm_ss_callback, MSG_ID, (char*)&ss_cback, sizeof(ss_cback),NULL);
         break;
       }
+      case BT_LE_ADV_START_ADV_SET: {
+        ALOGD("\n In BT_LE_ADV_START_ADV_SET case ");
+        ss_ble_start_advertising_set startAdvSet;
+        startAdvSet.ParseFromString(res_buffer);
+        int32_t reg_id = -1;
+        int32_t tx_power = 0;
+        std::vector<uint8_t> data;
+        if (startAdvSet.has_regid()) {
+          reg_id = startAdvSet.regid();
+          ALOGD("\n reg_id: %d ", reg_id);
+        }
+        if (startAdvSet.has_parameters()) {
+          ss_advertising_parameters adv_params = startAdvSet.parameters();
+          tx_power = adv_params.txpower();
+          ALOGD("\n advertisingeventproperties : %d ", adv_params.advertisingeventproperties());
+          ALOGD("\n mininterval : %d ", adv_params.mininterval());
+          ALOGD("\n maxinterval : %d ", adv_params.maxinterval());
+          ALOGD("\n channelmap : %d ", adv_params.channelmap());
+          ALOGD("\n txpower : %d ", tx_power);
+          ALOGD("\n primaryadvertisingphy : %d ", adv_params.primaryadvertisingphy());
+          ALOGD("\n secondaryadvertisingphy : %d ", adv_params.secondaryadvertisingphy());
+          ALOGD("\n scanrequestnotificationenable : %d ", adv_params.scanrequestnotificationenable());
+        }
+        if (startAdvSet.has_periodicparameters()) {
+          ss_periodic_advertising_parameters perioadv_params = startAdvSet.periodicparameters();
+          ALOGD("\n periodicadvertisingproperties : %d ", perioadv_params.periodicadvertisingproperties());
+          ALOGD("\n mininterval : %d ", perioadv_params.mininterval());
+          ALOGD("\n maxinterval : %d ", perioadv_params.maxinterval());
+          ALOGD("\n enable : %d ", perioadv_params.enable());
+        }
+        if (startAdvSet.has_duration()) {
+          ALOGD("\n duration: %d ", startAdvSet.duration());
+        }
+        if (startAdvSet.has_maxextadvevents()) {
+          ALOGD("\n maxextadvevents: %d ", startAdvSet.maxextadvevents());
+        }
+        if (startAdvSet.advertisedata_size() != 0) {
+          for (uint16_t i = 0; i < startAdvSet.advertisedata_size(); i++)
+            data.push_back(startAdvSet.advertisedata(i));
+          for (uint16_t i = 0; i < data.size(); i++)
+            ALOGD(" advdata[%d]:%d ", i, data[i]);
+        }
+        if (startAdvSet.periodicdata_size() != 0) {
+          for (uint16_t i = 0; i < startAdvSet.periodicdata_size(); i++)
+            data.push_back(startAdvSet.periodicdata(i));
+          for (uint16_t i = 0; i < data.size(); i++)
+            ALOGD(" periodicdata[%d]:%d ", i, data[i]);
+        }
+        if (startAdvSet.scanresponse_size() != 0) {
+          for (uint16_t i = 0; i < startAdvSet.scanresponse_size(); i++)
+            data.push_back(startAdvSet.scanresponse(i));
+          for (uint16_t i = 0; i < data.size(); i++)
+            ALOGD(" scanresponse[%d]:%d ", i, data[i]);
+        }
 
-    default:
+        adv_inst_id++;
+        ALOGD("\n adv_inst_id: %d ", adv_inst_id);
+        std::string encoded_bytes;
+        ss_ble_on_advertising_set_started_event startAdvSetCb;
+        startAdvSetCb.set_regid(reg_id);
+        startAdvSetCb.set_advertiserid(adv_inst_id);
+        startAdvSetCb.set_txpower(tx_power);
+        startAdvSetCb.set_status(0);
+
+        startAdvSetCb.SerializeToString(&encoded_bytes);
+        uint16_t encoded_len = encoded_bytes.length();
+        uint16_t status = FormRxPacket(BT_LE_ADVERTISING_SET_STARTED_EVENT,
+                              PROTO_ENC_DEC, encoded_len, encoded_bytes);
+        if (status != BT_STATUS_SUCCESS) {
+          ALOGD(
+              "\n FormRxPacket - BT_LE_ADVERTISING_SET_STARTED_EVENT failed "
+              "with status :%d ",
+              status);
+        } else {
+          ALOGD(
+              "\n FormRxPacket - BT_LE_ADVERTISING_SET_STARTED_EVENT Success "
+              "status :%d ",
+              status);
+        }
+        break;
+      }
+      case BT_LE_ADV_UNREG: {
+        ALOGD("\n In BT_LE_ADV_UNREG case ");
+        ss_ble_stop_advertising_set stopAdvSet;
+        stopAdvSet.ParseFromString(res_buffer);
+        uint32_t advertiser_id = 0;
+        if (stopAdvSet.has_advertiserid()) {
+          advertiser_id = stopAdvSet.advertiserid();
+          ALOGD("\n Removed Advertising Set id: %d ", advertiser_id);
+        }
+        adv_inst_id--;
+        ALOGD("\n adv_inst_id : %d", adv_inst_id);
+        break;
+      }
+      case BT_LE_ADV_ENABLE: {
+        ALOGD("\n In BT_LE_ADV_ENABLE case ");
+        ss_ble_enable_advertising_set enableAdvSet;
+        enableAdvSet.ParseFromString(res_buffer);
+        uint32_t advertiser_id = 0;
+        uint32_t duration = 0;
+        uint32_t maxextadvevents = 0;
+        bool enabled = false;
+        if (enableAdvSet.has_advertiserid()) {
+          advertiser_id = enableAdvSet.advertiserid();
+          ALOGD("\n advertiser id: %d ", advertiser_id);
+        }
+        if (enableAdvSet.has_enable()) {
+          enabled = enableAdvSet.enable();
+          ALOGD("\n enabled : %d ", enabled);
+        }
+        if (enableAdvSet.has_duration()) {
+          duration = enableAdvSet.duration();
+          ALOGD("\n duration : %d ", duration);
+        }
+        if (enableAdvSet.has_maxextadvevents()) {
+          maxextadvevents = enableAdvSet.maxextadvevents();
+          ALOGD("\n maxextadvevents : %d ", maxextadvevents);
+        }
+        std::string encoded_bytes;
+        ss_ble_on_advertising_enabled_event onAdvEn;
+        onAdvEn.set_advertiserid(advertiser_id);
+        onAdvEn.set_enable(enabled);
+        onAdvEn.set_status(0);
+
+        onAdvEn.SerializeToString(&encoded_bytes);
+        uint16_t encoded_len = encoded_bytes.length();
+        uint16_t status = FormRxPacket(BT_LE_ADVERTISING_ENABLED_EVENT,
+                              PROTO_ENC_DEC, encoded_len, encoded_bytes);
+        if (status != BT_STATUS_SUCCESS) {
+          ALOGD(
+              "\n FormRxPacket - BT_LE_ADVERTISING_ENABLED_EVENT failed "
+              "with status :%d ",
+              status);
+        } else {
+          ALOGD(
+              "\n FormRxPacket - BT_LE_ADVERTISING_ENABLED_EVENT Success "
+              "status :%d ",
+              status);
+        }
+        break;
+      }
+      case BT_LE_ADV_SET_DATA: {
+        ALOGD("\n In BT_LE_ADV_SET_DATA case ");
+        ss_ble_set_data setData;
+        setData.ParseFromString(res_buffer);
+        uint32_t advertiser_id = 0;
+        bool scan_resp = false;
+        std::vector<uint8_t> data;
+        if (setData.has_advertiserid()) {
+          advertiser_id = setData.advertiserid();
+          ALOGD("\n advertiser id: %d ", advertiser_id);
+        }
+        if (setData.has_scanrespdata()) {
+          scan_resp = setData.scanrespdata();
+          ALOGD("\n scan_resp : %d ", scan_resp);
+        }
+        if (setData.advdata_size() != 0) {
+          for (uint16_t i = 0; i < setData.advdata_size(); i++)
+          data.push_back(setData.advdata(i));
+          for (uint16_t i = 0; i < data.size(); i++)
+           ALOGD(" advdata[%d]:%d " , i , data[i]);
+        } 
+        std::string encoded_bytes;
+        ss_ble_on_advertising_data_set_event onAdvDataSet;
+        onAdvDataSet.set_advertiserid(advertiser_id);
+        onAdvDataSet.set_status(0);
+
+        onAdvDataSet.SerializeToString(&encoded_bytes);
+        uint16_t encoded_len = encoded_bytes.length();
+        uint16_t status = BT_STATUS_SUCCESS;
+        if (scan_resp != true) {
+          status = FormRxPacket(BT_LE_ADVERTISING_DATA_SET_EVENT, PROTO_ENC_DEC,
+                                encoded_len, encoded_bytes);
+        } else {
+          status = FormRxPacket(BT_LE_SCAN_RESP_DATA_SET_EVENT, PROTO_ENC_DEC,
+                                encoded_len, encoded_bytes);
+        }
+        if (status != BT_STATUS_SUCCESS) {
+          ALOGD(
+              "\n FormRxPacket - "
+              "ADVERTISING_DATA_SET_EVENT/SCAN_RESP_DATA_SET_EVENT failed "
+              "with status :%d ",
+              status);
+        } else {
+          ALOGD(
+              "\n FormRxPacket - "
+              "ADVERTISING_DATA_SET_EVENT/SCAN_RESP_DATA_SET_EVENT Success "
+              "status :%d ",
+              status);
+        }
+        break;
+      }
+      case BT_LE_ADV_SET_PARAM: {
+        ALOGD("\n In BT_LE_ADV_SET_PARAM case ");
+        ss_ble_set_advertising_parameters advSet;
+        advSet.ParseFromString(res_buffer);
+        uint32_t advertiser_id = 0;
+        int32_t tx_power = 0;
+        if (advSet.has_advertiserid()) {
+          advertiser_id = advSet.advertiserid();
+          ALOGD("\n advertiser id: %d ", advertiser_id);
+        }
+        if (advSet.has_parameters()) {
+          ss_advertising_parameters adv_params = advSet.parameters();
+          tx_power = adv_params.txpower();
+          ALOGD("\n advertisingeventproperties : %d ", adv_params.advertisingeventproperties());
+          ALOGD("\n mininterval : %d ", adv_params.mininterval());
+          ALOGD("\n maxinterval : %d ", adv_params.maxinterval());
+          ALOGD("\n channelmap : %d ", adv_params.channelmap());
+          ALOGD("\n txpower : %d ", tx_power);
+          ALOGD("\n primaryadvertisingphy : %d ", adv_params.primaryadvertisingphy());
+          ALOGD("\n secondaryadvertisingphy : %d ", adv_params.secondaryadvertisingphy());
+          ALOGD("\n scanrequestnotificationenable : %d ", adv_params.scanrequestnotificationenable());
+        }
+        std::string encoded_bytes;
+        ss_ble_on_advertising_parameters_updated_event onAdvParam;
+        onAdvParam.set_advertiserid(advertiser_id);
+        onAdvParam.set_status(0);
+        onAdvParam.set_txpower(tx_power);
+
+        onAdvParam.SerializeToString(&encoded_bytes);
+        uint16_t encoded_len = encoded_bytes.length();
+        uint16_t status = FormRxPacket(BT_LE_ADV_PARAM_UPDATED_EVENT,
+                              PROTO_ENC_DEC, encoded_len, encoded_bytes);
+        if (status != BT_STATUS_SUCCESS) {
+          ALOGD(
+              "\n FormRxPacket - BT_LE_ADV_PARAM_UPDATED_EVENT failed "
+              "with status :%d ",
+              status);
+        } else {
+          ALOGD(
+              "\n FormRxPacket - BT_LE_ADV_PARAM_UPDATED_EVENT Success "
+              "status :%d ",
+              status);
+        }
+        break;
+      }
+      case BT_LE_ADV_SET_PERIODIC_ADV_PARAM: {
+        ALOGD("\n In BT_LE_ADV_SET_PERIODIC_ADV_PARAM case ");
+        ss_ble_set_periodic_advertising_parameters setPeriodicAdvParam;
+        setPeriodicAdvParam.ParseFromString(res_buffer);
+        uint32_t advertiser_id = 0;
+        int32_t tx_power = 0;
+        if (setPeriodicAdvParam.has_advertiserid()) {
+          advertiser_id = setPeriodicAdvParam.advertiserid();
+          ALOGD("\n advertiser id: %d ", advertiser_id);
+        }
+        if (setPeriodicAdvParam.has_parameters()) {
+          ss_periodic_advertising_parameters perioadv_params = setPeriodicAdvParam.parameters();
+          ALOGD("\n periodicadvertisingproperties : %d ", perioadv_params.periodicadvertisingproperties());
+          ALOGD("\n mininterval : %d ", perioadv_params.mininterval());
+          ALOGD("\n maxinterval : %d ", perioadv_params.maxinterval());
+          ALOGD("\n enable : %d ", perioadv_params.enable());
+        }
+
+        std::string encoded_bytes;
+        ss_ble_on_periodic_advertising_parameters_updated_event
+            onPeriodicAdvParam;
+        onPeriodicAdvParam.set_advertiserid(advertiser_id);
+        onPeriodicAdvParam.set_status(0);
+
+        onPeriodicAdvParam.SerializeToString(&encoded_bytes);
+        uint16_t encoded_len = encoded_bytes.length();
+        uint16_t status = FormRxPacket(BT_LE_PERIODIC_ADV_PARAM_UPDATED_EVENT,
+                              PROTO_ENC_DEC, encoded_len, encoded_bytes);
+        if (status != BT_STATUS_SUCCESS) {
+          ALOGD(
+              "\n FormRxPacket - BT_LE_PERIODIC_ADV_PARAM_UPDATED_EVENT failed "
+              "with status :%d ",
+              status);
+        } else {
+          ALOGD(
+              "\n FormRxPacket - BT_LE_PERIODIC_ADV_PARAM_UPDATED_EVENT Success "
+              "status :%d ",
+              status);
+        }
+        break;
+      }
+      case BT_LE_ADV_SET_PERIODIC_ADV_DATA: {
+        ALOGD("\n In BT_LE_ADV_SET_PERIODIC_ADV_DATA case ");
+        ss_ble_set_periodic_advertising_data setPeriodicAdvData;
+        setPeriodicAdvData.ParseFromString(res_buffer);
+        uint32_t advertiser_id = 0;
+        std::vector<uint8_t> data;
+        if (setPeriodicAdvData.has_advertiserid()) {
+          advertiser_id = setPeriodicAdvData.advertiserid();
+          ALOGD("\n advertiser id: %d ", advertiser_id);
+        }
+        if (setPeriodicAdvData.data_size() != 0) {
+          for (uint16_t i = 0; i < setPeriodicAdvData.data_size(); i++)
+           data.push_back(setPeriodicAdvData.data(i));
+          for (uint16_t i = 0; i < data.size(); i++)
+           ALOGD(" advdata[%d]:%d ", i, data[i]);
+        }
+
+        std::string encoded_bytes;
+        ss_ble_on_periodic_advertising_data_set_event onPeriodicAdvDataSet;
+        onPeriodicAdvDataSet.set_advertiserid(advertiser_id);
+        onPeriodicAdvDataSet.set_status(0);
+
+        onPeriodicAdvDataSet.SerializeToString(&encoded_bytes);
+        uint16_t encoded_len = encoded_bytes.length();
+        uint16_t status =
+            FormRxPacket(BT_LE_PERIODIC_ADV_PARAM_UPDATED_EVENT, PROTO_ENC_DEC,
+                         encoded_len, encoded_bytes);
+        if (status != BT_STATUS_SUCCESS) {
+          ALOGD(
+              "\n FormRxPacket - BT_LE_PERIODIC_ADVERTISING_DATA_SET_EVENT "
+              "failed "
+              "with status :%d ",
+              status);
+        } else {
+          ALOGD(
+              "\n FormRxPacket - BT_LE_PERIODIC_ADVERTISING_DATA_SET_EVENT "
+              "Success "
+              "status :%d ",
+              status);
+        }
+        break;
+      }
+      case BT_LE_ADV_SET_PERIODIC_ADV_ENABLE: {
+        ALOGD("\n In BT_LE_ADV_SET_PERIODIC_ADV_ENABLE case ");
+        ss_ble_set_periodic_advertising_enable setPeriodicAdvEn;
+        setPeriodicAdvEn.ParseFromString(res_buffer);
+        uint32_t advertiser_id = 0;
+        bool enabled = false;
+        if (setPeriodicAdvEn.has_advertiserid()) {
+          advertiser_id = setPeriodicAdvEn.advertiserid();
+          ALOGD("\n advertiser id: %d ", advertiser_id);
+        }
+        if (setPeriodicAdvEn.has_enable()) {
+          enabled = setPeriodicAdvEn.enable();
+          ALOGD("\n enabled : %d ", enabled);
+        } 
+        std::string encoded_bytes;
+        ss_ble_on_periodic_advertising_enabled_event onPeriodicAdvEn;
+        onPeriodicAdvEn.set_advertiserid(advertiser_id);
+        onPeriodicAdvEn.set_enable(enabled);
+        onPeriodicAdvEn.set_status(0);
+
+        onPeriodicAdvEn.SerializeToString(&encoded_bytes);
+        uint16_t encoded_len = encoded_bytes.length();
+        uint16_t status = FormRxPacket(BT_LE_PERIODIC_ADVERTISING_ENABLED_EVENT,
+                              PROTO_ENC_DEC, encoded_len, encoded_bytes);
+        if (status != BT_STATUS_SUCCESS) {
+          ALOGD(
+              "\n FormRxPacket - BT_LE_PERIODIC_ADVERTISING_ENABLED_EVENT failed "
+              "with status :%d ",
+              status);
+        } else {
+          ALOGD(
+              "\n FormRxPacket - BT_LE_PERIODIC_ADVERTISING_ENABLED_EVENT Success "
+              "status :%d ",
+              status);
+        }
+        break;
+      }
+      case BT_LE_GET_OWN_ADDRESS: {
+        ALOGD("\n In BT_LE_GET_OWN_ADDRESS case ");
+        ss_ble_get_own_address getOwnAdd;
+        getOwnAdd.ParseFromString(res_buffer);
+        ss_advertising_parameters* adv_params = NULL;  // advSet.parameters();
+        uint32_t advertiser_id = 0;
+        uint32_t addr_type = 0;
+
+        if (getOwnAdd.has_advertiserid()) {
+          advertiser_id = getOwnAdd.advertiserid();
+          ALOGD("\n advertiser id: %d ", advertiser_id);
+        }
+
+        std::string encoded_bytes;
+        ss_ble_on_own_address_read_event onOwnAddRead;
+        onOwnAddRead.set_advertiserid(advertiser_id);
+        onOwnAddRead.set_addresstype(0);
+        onOwnAddRead.set_address(local_bd_addr.c_str());
+
+        onOwnAddRead.SerializeToString(&encoded_bytes);
+        uint16_t encoded_len = encoded_bytes.length();
+        uint16_t status =
+            FormRxPacket(BT_LE_OWN_ADDRESS_READ_EVENT, PROTO_ENC_DEC,
+                         encoded_len, encoded_bytes);
+        if (status != BT_STATUS_SUCCESS) {
+          ALOGD(
+              "\n FormRxPacket - BT_LE_OWN_ADDRESS_READ_EVENT failed "
+              "with status :%d ",
+              status);
+        } else {
+          ALOGD(
+              "\n FormRxPacket - BT_LE_OWN_ADDRESS_READ_EVENT Success "
+              "status :%d ",
+              status);
+        }
+        break;
+      }
+
+      default:
       ALOGI("msg_id : %d Not matching with any DM event",msg_id);
       break;
   }

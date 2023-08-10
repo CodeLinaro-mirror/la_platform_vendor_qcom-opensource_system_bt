@@ -43,6 +43,8 @@ private:
     void sendDummyCallback(int msg_id,std::string res_buffer);
     void sendDummydeviceCallback();
     void sendDummyAdapterPropCallback();
+    void PrintEnBytes(const char* en_char, uint8_t len);
+    int FormRxPacket(uint16_t msg_id, uint16_t proto_enc, uint16_t encode_len, std::string& encoded_bytes);
 
 };
 #endif //SS_STUB_ENABLED
