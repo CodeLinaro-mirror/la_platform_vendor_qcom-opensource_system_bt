@@ -17,6 +17,7 @@
 #include "btif_ss_interface.h"
 #include "protobuf/proto/advertiser.pb.h"
 #include "btif_util.h"
+#include "btif_gatt.h"
 #ifdef SS_STUB_ENABLED
 #include "btif_ss_stub_interface.h"
 #endif
@@ -52,7 +53,7 @@ void btif_adv_ss_init() {
   }
   if (madvSSInterface != NULL) {
     ALOGI("%s: registering DM profile callback with ss_interface", __func__);
-    madvSSInterface->registerCallbacks(BT_PROFILE_GATT_ID,
+    madvSSInterface->registerCallbacks(BT_PROFILE_ID_ADV,
                                        btif_advertiser_ss_callback);
   }
 #ifdef SS_STUB_ENABLED
