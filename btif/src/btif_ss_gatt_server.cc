@@ -183,7 +183,7 @@ bt_status_t btif_ss_gatt_server::disconnect(int server_if, const RawAddress& bd_
         ss_gatt_server_disconnect_.set_connid(connection_info->connId);
     else {
         ALOGE("Invalid conn_id");
-        return false;
+        return BT_STATUS_FAIL;
     }
     ss_gatt_server_disconnect_.SerializeToString(&msgStr);
     std::string packet = FormTxPacket(BT_LE_SERVER_DISCONNECT_SERVER , PROTO_ENC_DEC,
@@ -272,7 +272,7 @@ bt_status_t btif_ss_gatt_server::sendIndicationNotification(int attribute_handle
         ss_gatt_send_indication_notification_.set_connid(connection_info->connId);
     else {
         ALOGE("Invalid conn_id");
-        return false;
+        return BT_STATUS_FAIL;
     }
     ss_gatt_send_indication_notification_.SerializeToString(&msgStr);
     //PrintEncodedBytes(msgStr);
@@ -302,7 +302,7 @@ bt_status_t btif_ss_gatt_server::sendResponse(int conn_id, int trans_id,int stat
         ss_gatt_server_send_response_.set_connid(connection_info->connId);
     else {
         ALOGE("Invalid conn_id");
-        return false;
+        return BT_STATUS_FAIL;
     }
 
     ss_gatt_server_send_response_.SerializeToString(&msgStr);
