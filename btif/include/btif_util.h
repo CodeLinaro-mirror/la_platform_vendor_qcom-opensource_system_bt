@@ -69,5 +69,4 @@ std::string FormTxPacket(uint16_t msg_id, uint16_t proto_enc,uint16_t encode_len
                   std::string& encoded_bytes);
 void PrintEncodedBytes(const char* en_char, uint8_t len);
 std::string Rxdatapacket(uint16_t event,char *p_param);
-
 #endif /* BTIF_UTIL_H */

@@ -58,6 +58,8 @@
 #include "btif_ss_interface.h"
 #include "btif/protobuf/include/proto_message_ids.h"
 #include "btif_twsp_hf.h"
+#include "btif_ss_interface.h"
+#include "btif/protobuf/include/proto_message_ids.h"
 #if (SWB_ENABLED == TRUE)
 #include "bta_ag_swb.h"
 #endif
@@ -459,7 +461,8 @@ std::string FormTxPacket(uint16_t msg_id, uint16_t proto_enc,uint16_t encode_len
   return msgStr;	
 }	
 
-void PrintEncodedBytes(const char* en_char,	uint8_t len) {
+void PrintEncodedBytes(const char* en_char,
+                                                   uint8_t len) {
   ALOGD("Size: %d\n", len);
   for (uint8_t i = 0; i < len; i++) ALOGD("0x%x ", en_char[i]);
 }

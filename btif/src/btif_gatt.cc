@@ -82,13 +82,13 @@ static void btif_gatt_cleanup(void) {
 static btgatt_interface_t btgattInterface = {
     sizeof(btgattInterface),
 
-    btif_gatt_init,
-    btif_gatt_cleanup,
+   btif_gatt_init,// btif_gatt_init,
+   btif_gatt_cleanup, // btif_gatt_cleanup,
 
     &btgattClientInterface,
     &btgattServerInterface,
     nullptr,  // filled in btif_gatt_get_interface
-    nullptr   // filled in btif_gatt_get_interface
+    nullptr,   // filled in btif_gatt_get_interface
     nullptr   // place holder for distance measurement instance
 };
 
@@ -101,11 +101,11 @@ static btgatt_interface_t btgattInterface = {
  * Returns          btgatt_interface_t
  *
  ******************************************************************************/
-/*const btgatt_interface_t* btif_gatt_get_interface() {
+const btgatt_interface_t* btif_gatt_get_interface() {
   // TODO(jpawlowski) right now initializing advertiser field in static
   // structure cause explosion of dependencies. It must be initialized here
   // until those dependencies are properly abstracted for tests.
-  btgattInterface.scanner = get_ble_scanner_instance();
+ // btgattInterface.scanner = get_ble_scanner_instance();
   btgattInterface.advertiser = get_ble_advertiser_instance();
   return &btgattInterface;
-}*/
+}

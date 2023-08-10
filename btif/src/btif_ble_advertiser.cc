@@ -14,28 +14,31 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  ​​​​​Changes from Qualcomm Innovation Center are provided under the following license:
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
  *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *  SPDX-License-Identifier: BSD-3-Clause-Clear
- *
  ******************************************************************************/
 
 #define LOG_TAG "bt_btif_ble_advertiser"
 
 #include "internal_include/bt_common.h"
-//#include <hardware/bluetooth.h>
-//#include <hardware/bt_gatt.h>
+#include <hardware/bluetooth.h>
+#include <hardware/bt_gatt.h>
 
-//#include <base/bind.h>
-//#include <base/callback.h>
+#include <base/bind.h>
+#include <base/callback.h>
+#include <utils/Log.h>
 #include <vector>
 
-//#include "ble_advertiser.h"
-//#include "bta_closure_api.h"
-#include "btif_common.h"
 
-//using base::Bind;
-//using base::Owned;
+#include "ble_advertiser.h"
+//#include "bta_closure_api.h"
+#include <hardware/ble_advertiser.h>
+#include "btif_common.h"
+#include "btif_ss_advertiser.h"
+
+using base::Bind;
+using base::Owned;
 using std::vector;
 
 namespace {
@@ -89,7 +92,7 @@ void parsePeriodicParams(tBLE_PERIODIC_ADV_PARAMS* p_periodic_params,
   p_periodic_params->periodic_advertising_properties =
       periodic_params.periodic_advertising_properties;
 }
-
+ */
 #if (BLE_ISO_IF_SUPPORTED == TRUE)
 void parseCreateBIGParams(tBLE_CREATE_BIG_PARAMS* p_create_big_params,
                           CreateBIGParameters create_big_params) {
@@ -105,27 +108,33 @@ void parseCreateBIGParams(tBLE_CREATE_BIG_PARAMS* p_create_big_params,
   p_create_big_params->encryption = create_big_params.encryption;
   p_create_big_params->broadcast_code = create_big_params.broadcast_code;
 }
-#endif  BLE_ISO_IF_SUPPORTED == TRUE */
+#endif  //BLE_ISO_IF_SUPPORTED == TRUE
 
-/*class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
+class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
   ~BleAdvertiserInterfaceImpl(){};
 
   void RegisterAdvertiserCb(IdStatusCallback cb, uint8_t advertiser_id,
                             uint8_t status) {
+   #if 0
     LOG(INFO) << __func__ << " status: " << +status
               << " , adveriser_id: " << +advertiser_id;
     do_in_jni_thread(Bind(cb, advertiser_id, status));
+      #endif
   }
 
   void RegisterAdvertiser(IdStatusCallback cb) override {
-    do_in_bta_thread(
+   #if 0
+      do_in_bta_thread(
         FROM_HERE, Bind(&BleAdvertisingManager::RegisterAdvertiser,
                         BleAdvertisingManager::Get(),
                         Bind(&BleAdvertiserInterfaceImpl::RegisterAdvertiserCb,
                              base::Unretained(this), cb)));
+      #endif
   }
 
   void Unregister(uint8_t advertiser_id) override {
+    mAdvSingleStackProto.BleStopAdvertisingSet(advertiser_id);
+   #if 0
     do_in_bta_thread(
         FROM_HERE,
         Bind(
@@ -137,20 +146,27 @@ void parseCreateBIGParams(tBLE_CREATE_BIG_PARAMS* p_create_big_params,
               BleAdvertisingManager::Get()->Unregister(advertiser_id);
             },
             advertiser_id));
+      #endif
   }
 
   void GetOwnAddress(uint8_t advertiser_id, GetAddressCallback cb) override {
+    mAdvSingleStackProto.BleGetOwnAddress(cb, advertiser_id);
+   #if 0
     if (!BleAdvertisingManager::IsInitialized()) return;
     do_in_bta_thread(FROM_HERE,
                      Bind(&BleAdvertisingManager::GetOwnAddress,
                           BleAdvertisingManager::Get(), advertiser_id,
                           jni_thread_wrapper(FROM_HERE, cb)));
+      #endif
   }
 
   void SetParameters(uint8_t advertiser_id, AdvertiseParameters params,
                      ParametersCallback cb) override {
-    VLOG(1) << __func__;
+   // VLOG(1) << __func__;
+  ALOGI("%s", __func__);
+    mAdvSingleStackProto.BleSetAdvertisingParameters(cb, advertiser_id, params);
 
+   #if 0
     if (!BleAdvertisingManager::IsInitialized()) return;
     tBTM_BLE_ADV_PARAMS* p_params = new tBTM_BLE_ADV_PARAMS;
     parseParams(p_params, params);
@@ -159,30 +175,38 @@ void parseCreateBIGParams(tBLE_CREATE_BIG_PARAMS* p_create_big_params,
                                      BleAdvertisingManager::Get(),
                                      advertiser_id, base::Owned(p_params),
                                      jni_thread_wrapper(FROM_HERE, cb)));
+      #endif
   }
 
-  void SetData(int advertiser_id, bool set_scan_rsp, std::vector<uint8_t> data,
-               std::vector<uint8_t> data_enc, StatusCallback cb) override {
+  void SetData(int advertiser_id, bool set_scan_rsp, vector<uint8_t> data,
+               StatusCallback cb) override {
+    mAdvSingleStackProto.BleSetData(cb, advertiser_id, set_scan_rsp, data);
+   #if 0
     if (!BleAdvertisingManager::IsInitialized()) return;
     do_in_bta_thread(
         FROM_HERE,
         Bind(&BleAdvertisingManager::SetData, BleAdvertisingManager::Get(),
              advertiser_id, set_scan_rsp, std::move(data), std::move(data_enc),
              jni_thread_wrapper(FROM_HERE, cb)));
+      #endif
   }
 
   void Enable(uint8_t advertiser_id, bool enable, StatusCallback cb,
               uint16_t duration, uint8_t maxExtAdvEvents,
               StatusCallback timeout_cb) override {
-    VLOG(1) << __func__ << " advertiser_id: " << +advertiser_id
-            << " ,enable: " << enable;
+  ALOGI("%s", __func__);
+    mAdvSingleStackProto.BleEnableAdvertisingSet(cb, advertiser_id, enable, duration, maxExtAdvEvents, timeout_cb);
+   // VLOG(1) << __func__ << " advertiser_id: " << +advertiser_id
+      //      << " ,enable: " << enable;
 
+   #if 0
     if (!BleAdvertisingManager::IsInitialized()) return;
     do_in_bta_thread(
         FROM_HERE,
         Bind(&BleAdvertisingManager::Enable, BleAdvertisingManager::Get(),
              advertiser_id, enable, jni_thread_wrapper(FROM_HERE, cb), duration,
              maxExtAdvEvents, jni_thread_wrapper(FROM_HERE, timeout_cb)));
+      #endif
   }
 
   void StartAdvertising(uint8_t advertiser_id, StatusCallback cb,
@@ -192,6 +216,7 @@ void parseCreateBIGParams(tBLE_CREATE_BIG_PARAMS* p_create_big_params,
                         MultiAdvCb timeout_cb) override {
     VLOG(1) << __func__;
 
+   #if 0
     if (!BleAdvertisingManager::IsInitialized()) return;
     tBTM_BLE_ADV_PARAMS* p_params = new tBTM_BLE_ADV_PARAMS;
     parseParams(p_params, params);
@@ -203,8 +228,9 @@ void parseCreateBIGParams(tBLE_CREATE_BIG_PARAMS* p_create_big_params,
              jni_thread_wrapper(FROM_HERE, cb), base::Owned(p_params),
              std::move(advertise_data), std::move(scan_response_data),
              timeout_s * 100, jni_thread_wrapper(FROM_HERE, timeout_cb)));
+#endif
   }
-  
+
   void StartAdvertisingSet(int reg_id, IdTxPowerStatusCallback cb,
                            AdvertiseParameters params,
                            std::vector<uint8_t> advertise_data,
@@ -217,7 +243,12 @@ void parseCreateBIGParams(tBLE_CREATE_BIG_PARAMS* p_create_big_params,
                            uint16_t duration, uint8_t maxExtAdvEvents,
                            std::vector<uint8_t> enc_key_value,
                            IdStatusCallback timeout_cb) override {
-    VLOG(1) << __func__;
+    //VLOG(1) << __func__;
+  ALOGI("%s", __func__);
+    mAdvSingleStackProto.BleStartAdvertingSet(cb, params, advertise_data, scan_response_data, periodic_params,
+                                              periodic_data, duration, maxExtAdvEvents, reg_id, timeout_cb);
+   // mAdvSingleStackProto.mAdvStatusCallback = cb;
+   #if 0
 
     if (!BleAdvertisingManager::IsInitialized()) return;
     tBTM_BLE_ADV_PARAMS* p_params = new tBTM_BLE_ADV_PARAMS;
@@ -236,15 +267,17 @@ void parseCreateBIGParams(tBLE_CREATE_BIG_PARAMS* p_create_big_params,
              std::move(periodic_data), std::move(periodic_data_enc),
              duration, maxExtAdvEvents, std::move(enc_key_value),
              jni_thread_wrapper(FROM_HERE, timeout_cb)));
-
-    return;
+      #endif
   }
 
   void SetPeriodicAdvertisingParameters(
       int advertiser_id, PeriodicAdvertisingParameters periodic_params,
       StatusCallback cb) override {
-    VLOG(1) << __func__ << " advertiser_id: " << +advertiser_id;
+   // VLOG(1) << __func__ << " advertiser_id: " << +advertiser_id;
+  ALOGI("%s", __func__);
+    mAdvSingleStackProto.BleSetPeriodicAdvertisingParameters(cb, advertiser_id, periodic_params);
 
+   #if 0
     if (!BleAdvertisingManager::IsInitialized()) return;
     tBLE_PERIODIC_ADV_PARAMS* p_periodic_params = new tBLE_PERIODIC_ADV_PARAMS;
     parsePeriodicParams(p_periodic_params, periodic_params);
@@ -255,43 +288,50 @@ void parseCreateBIGParams(tBLE_CREATE_BIG_PARAMS* p_create_big_params,
              BleAdvertisingManager::Get(), advertiser_id,
              base::Owned(p_periodic_params),
              jni_thread_wrapper(FROM_HERE, cb)));
+      #endif
   }
 
   void SetPeriodicAdvertisingData(int advertiser_id, std::vector<uint8_t> data,
                                   std::vector<uint8_t> data_enc,
                                   StatusCallback cb) override {
-    VLOG(1) << __func__ << " advertiser_id: " << +advertiser_id;
+  //  VLOG(1) << __func__ << " advertiser_id: " << +advertiser_id;
+  ALOGI("%s", __func__);
 
+    mAdvSingleStackProto.BlesetPeriodicAdvertisingData(cb, advertiser_id, data);
+   #if 0
     if (!BleAdvertisingManager::IsInitialized()) return;
     do_in_bta_thread(FROM_HERE,
                      Bind(&BleAdvertisingManager::SetPeriodicAdvertisingData,
                           BleAdvertisingManager::Get(), advertiser_id,
-                          std::move(data), std::move(data_enc),
-                          jni_thread_wrapper(FROM_HERE, cb)));
+      #endif
   }
 
   void SetPeriodicAdvertisingEnable(int advertiser_id, bool enable,
                                     bool include_adi,
                                     StatusCallback cb) override {
-    VLOG(1) << __func__ << " advertiser_id: " << +advertiser_id
-            << " ,enable: " << enable;
+  //  VLOG(1) << __func__ << " advertiser_id: " << +advertiser_id
+     //       << " ,enable: " << enable;
+  ALOGI("%s", __func__);
+    mAdvSingleStackProto.BleSetPeriodicAdvertisingEnable(cb, advertiser_id, enable);
 
+   #if 0
     if (!BleAdvertisingManager::IsInitialized()) return;
     do_in_bta_thread(FROM_HERE,
                      Bind(&BleAdvertisingManager::SetPeriodicAdvertisingEnable,
                           BleAdvertisingManager::Get(), advertiser_id, enable,
                           jni_thread_wrapper(FROM_HERE, cb)));
+ #endif
   }
 
   void RegisterCallbacks(AdvertisingCallbacks* callbacks) {
     // For GD only
   }
-
 #if (BLE_ISO_IF_SUPPORTED == TRUE)
   void CreateBIG(int advertiser_id, CreateBIGParameters create_big_params,
                  CreateBIGCallback cb) override {
     VLOG(1) << __func__ << " advertiser_id: " << +advertiser_id;
 
+   #if 0
     if (!BleAdvertisingManager::IsInitialized()) return;
     tBLE_CREATE_BIG_PARAMS* p_create_big_params = new tBLE_CREATE_BIG_PARAMS;
     parseCreateBIGParams(p_create_big_params, create_big_params);
@@ -301,12 +341,14 @@ void parseCreateBIGParams(tBLE_CREATE_BIG_PARAMS* p_create_big_params,
                           BleAdvertisingManager::Get(), advertiser_id,
                           base::Owned(p_create_big_params),
                           jni_thread_wrapper(FROM_HERE, cb)));
+ #endif
   }
 
   void TerminateBIG(int advertiser_id, int big_handle, int reason,
                     TerminateBIGCallback cb) override {
     VLOG(1) << __func__ << "big_handle: " << +big_handle;
 
+   #if 0
     if (!BleAdvertisingManager::IsInitialized()) return;
 
     do_in_bta_thread(FROM_HERE,
@@ -314,27 +356,31 @@ void parseCreateBIGParams(tBLE_CREATE_BIG_PARAMS* p_create_big_params,
                           BleAdvertisingManager::Get(), advertiser_id,
                           big_handle, reason,
                           jni_thread_wrapper(FROM_HERE, cb)));
+ #endif
   }
-#endif  BLE_ISO_IF_SUPPORTED == TRUE */
+#endif  //BLE_ISO_IF_SUPPORTED == TRUE
 
-  /*void StopAdvertisements() override {
+  void StopAdvertisements() override {
     VLOG(1) << __func__ ;
+   #if 0
     if (!BleAdvertisingManager::IsInitialized()) return;
     VLOG(1) << __func__ << " BleAdvertisingManager::IsInitialized";
 
     do_in_bta_thread(FROM_HERE,
                      Bind(&BleAdvertisingManager::unRegisterAdvertisements,
                           BleAdvertisingManager::Get()));
+ #endif
   }
-};*/
+ private:
+   AdvertiserSingleStackProto mAdvSingleStackProto;
+};
 
-//BleAdvertiserInterface* btLeAdvertiserInstance = nullptr;
+BleAdvertiserInterface* btLeAdvertiserInstance = nullptr;
 
 }  // namespace
-
-/*BleAdvertiserInterface* get_ble_advertiser_instance() {
+BleAdvertiserInterface* get_ble_advertiser_instance() {
   if (btLeAdvertiserInstance == nullptr)
     btLeAdvertiserInstance = new BleAdvertiserInterfaceImpl();
-
+   btif_adv_ss_init();
   return btLeAdvertiserInstance;
-}*/
+}

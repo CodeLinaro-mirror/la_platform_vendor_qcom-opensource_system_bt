@@ -87,9 +87,9 @@ cc_library_static{
         "protobuf/proto/sdp.proto",
         "protobuf/proto/gatt_client.proto",
         "protobuf/proto/gatt_server.proto",
+        "protobuf/proto/advertiser.proto",
     ]
 }
-
 // libbtif static library for target
 // ========================================================
 cc_library_shared {
@@ -156,6 +156,7 @@ cc_library_shared {
         "src/btif_ss_transport.cc",
         "src/btif_ss_gatt_server.cc",
         "src/btif_ss_gatt_client.cc",
+        "src/btif_ss_advertiser.cc",
         "src/btif_ss_stub_interface.cc",
         "src/btif_ss_logger.cc",
     ],
@@ -195,6 +196,7 @@ cc_library_shared {
         "libmediametrics_headers",
     ],
     cflags: [
+        "-Wno-unused-function",
         "-DBUILDCFG",
         //"-DSS_STUB_ENABLED",
         "-Wno-unused-parameter",

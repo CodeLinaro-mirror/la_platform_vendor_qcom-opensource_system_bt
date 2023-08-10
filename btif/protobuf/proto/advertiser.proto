@@ -1,0 +1,132 @@
+/*
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+syntax = "proto2";
+
+/****** Structure Parameters *****/
+message ss_advertising_parameters {
+  required uint32 advertisingeventproperties = 1;
+  required uint32 mininterval = 2;
+  required uint32 maxinterval = 3;
+  required uint32 channelmap = 4;
+  required sint32 txpower = 5;
+  required uint32 primaryadvertisingphy = 6;
+  required uint32 secondaryadvertisingphy = 7;
+  required uint32 scanrequestnotificationenable = 8;
+}
+
+message ss_periodic_advertising_parameters {
+  required uint32 enable = 1;
+  required uint32 mininterval = 2;
+  required uint32 maxinterval = 3;
+  required uint32 periodicadvertisingproperties = 4;
+}
+
+/****** Advertiser API's *****/
+
+message ss_ble_start_advertising_set {
+  required ss_advertising_parameters parameters = 1;
+  repeated uint32 advertiseData = 2;
+  repeated uint32 scanResponse = 3;
+  required ss_periodic_advertising_parameters periodicparameters = 4;
+  repeated uint32 periodicData = 5;
+  required uint32 duration = 6;
+  required uint32 maxextadvevents = 7;
+  required sint32 regId = 8;
+}
+
+message ss_ble_get_own_address {
+  required uint32 advertiserId = 1;
+}
+
+message ss_ble_stop_advertising_set {
+  required uint32 advertiserId = 1;
+}
+
+message ss_ble_enable_advertising_set {
+  required uint32 advertiserId = 1;
+  required bool enable = 2;
+  required uint32 duration = 3;
+  required uint32 maxextadvevents = 4;
+}
+
+message ss_ble_set_data {
+  required uint32 advertiserId = 1;
+  required bool scanrespdata = 2;
+  repeated uint32 advdata = 3;
+}
+
+message ss_ble_set_advertising_parameters {
+  required uint32 advertiserId = 1;
+  required ss_advertising_parameters parameters = 2;
+}
+
+message ss_ble_set_periodic_advertising_parameters {
+  required uint32 advertiserId = 1;
+  required ss_periodic_advertising_parameters parameters = 2;
+}
+
+message ss_ble_set_periodic_advertising_data {
+  required uint32 advertiserId = 1;
+  repeated uint32 data = 2;
+}
+
+message ss_ble_set_periodic_advertising_enable {
+  required uint32 advertiserId = 1;
+  required bool enable = 2;
+}
+
+/****** Advertiser Call backs *****/
+
+message ss_ble_on_advertising_set_started_event {
+  required sint32 regId = 1;
+  required uint32 advertiserId = 2;
+  required sint32 txPower = 3;
+  required uint32 status = 4;
+}
+
+message ss_ble_on_own_address_read_event {
+  required uint32 advertiserId = 1;
+  required uint32 addressType = 2;
+  required bytes address = 3;
+}
+
+message ss_ble_on_advertising_enabled_event {
+  required uint32 advertiserId = 1;
+  required bool enable = 2;
+  required uint32 status = 3;
+}
+
+message ss_ble_on_advertising_data_set_event {
+  required uint32 advertiserId = 1;
+  required uint32 status = 2;
+}
+
+message ss_ble_on_scan_resp_data_event {
+  required uint32 advertiserId = 1;
+  required uint32 status = 2;
+}
+
+message ss_ble_on_advertising_parameters_updated_event {
+  required uint32 advertiserId = 1;
+  required sint32 txPower = 2;
+  required uint32 status = 3;
+}
+
+message ss_ble_on_periodic_advertising_parameters_updated_event {
+  required uint32 advertiserId = 1;
+  required uint32 status = 2;
+}
+
+message ss_ble_on_periodic_advertising_data_set_event {
+  required uint32 advertiserId = 1;
+  required uint32 status = 2;
+}
+
+message ss_ble_on_periodic_advertising_enabled_event {
+  required uint32 advertiserId = 1;
+  required bool enable = 2;
+  required uint32 status = 3;
+}
