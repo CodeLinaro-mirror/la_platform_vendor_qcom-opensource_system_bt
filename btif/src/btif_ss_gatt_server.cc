@@ -268,13 +268,13 @@ bt_status_t btif_ss_gatt_server::sendIndicationNotification(int attribute_handle
     ss_gatt_send_indication_notification_.set_value(Value);
     ss_gatt_send_indication_notification_.set_confirm(confirm);
     ss_gatt_send_indication_notification_.set_serverif(server_if);
-    ss_gatt_send_indication_notification_.SerializeToString(&msgStr);
     if(connection_info != NULL && connection_info->serverIf == server_if)
         ss_gatt_send_indication_notification_.set_connid(connection_info->connId);
     else {
         ALOGE("Invalid conn_id");
         return false;
     }
+    ss_gatt_send_indication_notification_.SerializeToString(&msgStr);
     //PrintEncodedBytes(msgStr);
     std::string packet = FormTxPacket(BT_LE_SERVER_SEND_INDICATION, PROTO_ENC_DEC,
                                  msgStr.length(), msgStr);
