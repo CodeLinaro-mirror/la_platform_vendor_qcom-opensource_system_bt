@@ -944,6 +944,16 @@ void BluetoothSSInterface::parseRxData(int msg_id, tBTIF_SS_Cback ss_cback) {
           }
           break;
         }
+        case BT_LE_GATT_SERVER_EVT_START ... BT_LE_GATT_SERVER_EVT_MAX: {
+          auto it = gProfileCallbackMap.find(BT_PROFILE_ID_GATTs);
+          if (it != gProfileCallbackMap.end()) {
+            ALOGI("%s: Sending callback to GATT", __func__);
+            btif_transfer_context(it->second, msg_id, (char*)&ss_cback, sizeof(ss_cback),NULL);
+          } else {
+            ALOGE("%s: callback not registered for GATT", __func__);
+          }
+          break;
+        }
         case BT_AV_EVT_START ... BT_AV_EVT_MAX: {
           auto it = gProfileCallbackMap.find(BT_PROFILE_ADVANCED_AUDIO_ID);
           if (it != gProfileCallbackMap.end()) {

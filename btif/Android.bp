@@ -86,6 +86,7 @@ cc_library_static{
         "protobuf/proto/rfcomm.proto",
         "protobuf/proto/sdp.proto",
         "protobuf/proto/gatt_client.proto",
+        "protobuf/proto/gatt_server.proto",
     ]
 }
 
@@ -153,6 +154,7 @@ cc_library_shared {
         "src/stack_interface.cc",
         "src/btif_ss_interface.cc",
         "src/btif_ss_transport.cc",
+        "src/btif_ss_gatt_server.cc",
         "src/btif_ss_gatt_client.cc",
         "src/btif_ss_stub_interface.cc",
         "src/btif_ss_logger.cc",

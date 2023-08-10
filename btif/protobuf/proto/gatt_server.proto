@@ -1,0 +1,227 @@
+/*
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+syntax = "proto2";
+
+package singlestack.proto.server;
+
+message ss_gatt_db_element {
+
+    required string uuid = 1;
+    required uint32 type = 2;
+    required uint32 id = 3;
+    required uint32 attributeHandle = 4;
+    required uint32 properties = 5;
+    required uint32 permissions = 6;
+    required uint32 startHandle = 7;
+    required uint32 endHandle = 8;
+    required uint32 extended_properties = 9;
+}
+
+message ss_bt_gatt_value {
+
+    required bytes value = 1;
+    required uint32 handle = 2;
+    required uint32 offset = 3;
+    required uint32 len = 4;
+    required uint32 auth_req = 5;
+}
+
+message ss_bt_gatt_response {
+
+    required ss_bt_gatt_value attrValue = 1;
+    required uint32 handle = 2;
+}
+message ss_gatt_register_server {
+
+    required string uuid = 1;
+    required bool eatt_support = 2;
+}
+
+message ss_gatt_server_connect {
+
+    required uint32 serverIf = 1;
+    required bytes address = 2;
+    required bool isDirect = 3;
+    required uint32 transport = 4;
+}
+
+message ss_gatt_server_add_service {
+
+    required uint32 serverIf = 1;
+    repeated ss_gatt_db_element gatt_db_element = 2;
+    required uint32 count = 3;
+}
+
+message ss_gatt_unregister_server {
+
+    required uint32 serverIf = 1;
+}
+
+message ss_gatt_server_disconnect {
+
+    required uint32 serverIf = 1;
+    required bytes address = 2;
+    required uint32 connId = 3;
+}
+
+message ss_gatt_server_set_phy {
+
+    required bytes address = 1;
+    required uint32 txPhy = 2;
+    required uint32 rxPhy = 3;
+    required uint32 phyOptions = 4;
+}
+
+message ss_gatt_server_read_phy {
+
+    required uint32 serverIf = 1;
+    required bytes address = 2;
+}
+
+message ss_gatt_clear_service {
+
+    required uint32 serverIf = 1;
+    required uint32 srvcHandle = 2;
+}
+
+message ss_gatt_send_indication_notification {
+
+    required uint32 serverIf = 1;
+    required uint32 connId = 2;
+    required uint32 attrHandle = 3;
+    required bytes value = 4;
+    required uint32 confirm = 5;
+}
+
+message ss_gatt_server_send_response {
+
+    required uint32 connId = 1;
+    required uint32 transId = 2;
+    required uint32 status = 3;
+    required ss_bt_gatt_response btgatt_response = 4;
+}
+
+message ss_gatt_server_stop_service {
+
+    required uint32 serverIf = 1;
+    required uint32 svcHandle = 2;
+}
+
+message ss_gatt_server_registered_event {
+
+    required uint32 status = 1;
+    required uint32 serverIf = 2;
+    required string uuid = 3;
+}
+
+message ss_gatt_server_connection_change_event {
+
+    required uint32 connID = 1;
+    required uint32 serverIf = 2;
+    required bool connected = 3;
+    required bytes address = 4;
+}
+
+message ss_gatt_server_service_added_event {
+
+    required uint32 status = 1;
+    required uint32 serverif = 2;
+    repeated ss_gatt_db_element gatt_db_element = 3;
+}
+
+message ss_gatt_server_phy_updated_event {
+
+    required uint32 connID = 1;
+    required uint32 txPhy = 2;
+    required uint32 rxPhy = 3;
+    required uint32 status = 4;
+}
+
+message ss_gatt_server_read_phy_event {
+
+    required uint32 serverIf = 1;
+    required bytes address = 2;
+    required uint32 txPhy = 3;
+    required uint32 rxPhy = 4;
+    required uint32 status = 5;
+}
+
+message ss_gatt_server_service_deleted_event {
+
+    required uint32 status = 1;
+    required uint32 serverIf = 2;
+    required uint32 srvcHandle = 3;
+}
+
+message ss_gatt_server_notification_sent_event {
+
+    required uint32 connId = 1;
+    required uint32 status = 2;
+}
+
+message ss_gatt_server_response_sent_event {
+
+    required uint32 status = 1;
+    required uint32 handle = 2;
+}
+
+message ss_gatt_server_read_char_desc_event {
+
+    required bytes address = 1;
+    required uint32 connId = 2;
+    required uint32 transId = 3;
+    required uint32 attrHandle = 4;
+    required uint32 offset = 5;
+    required bool islong = 6;
+}
+
+message ss_gatt_server_write_char_desc_event {
+
+    required bytes address = 1;
+    required uint32 connId = 2;
+    required uint32 transId = 3;
+    required uint32 attrHandle = 4;
+    required uint32 offset = 5;
+    required uint32 length = 6;
+    required bool needRsp = 7;
+    required bool isprep = 8;
+    required bytes data = 9;
+}
+
+message ss_gatt_server_execute_write_event {
+
+    required bytes address = 1;
+    required uint32 transId = 2;
+    required bool execWrite = 3;
+    required uint32 connID = 4;
+}
+
+message ss_gatt_server_congestion_event {
+
+    required uint32 connId = 1;
+    required bool congested = 2;
+}
+
+message ss_gatt_server_service_stop_event {
+
+    required uint32 status = 1;
+    required uint32 serverIf = 2;
+    required uint32 srvcHandle = 3;
+}
+
+message ss_gatt_server_mtu_update_event {
+
+    required uint32 connId = 1;
+    required uint32 mtu = 2;
+}
+
+message ss_gatt_server_conn_update_event {
+
+    required uint32 connID = 1;
+    required uint32 interval = 2;
+    required uint32 latency = 3;
+    required uint32 timeout = 4;
+    required uint32 status = 5;
+}
