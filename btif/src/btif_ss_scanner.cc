@@ -512,10 +512,12 @@ bool ScannerSingleStackProto::BatchscanConfigStorage(
   uint16_t encoded_len = encoded_bytes.length();
   std::string packet = FormTxPacket(BT_LE_SCAN_BATCH_SCAN_CONFIG, PROTO_ENC_DEC,
                                     encoded_len, encoded_bytes);
+/*
   uint16_t status = postTxMessage(packet);
   if (status != BT_STATUS_SUCCESS) {
     return false;
   }
+*/
   return true;
 }
 
@@ -545,10 +547,12 @@ bool ScannerSingleStackProto::BatchscanEnable(
   uint16_t encoded_len = encoded_bytes.length();
   std::string packet = FormTxPacket(BT_LE_SCAN_BATCH_SCAN_ENABLE, PROTO_ENC_DEC,
                                     encoded_len, encoded_bytes);
+/*
   uint16_t status = postTxMessage(packet);
   if (status != BT_STATUS_SUCCESS) {
     return false;
   }
+*/
   return true;
 }
 
@@ -567,10 +571,12 @@ bool ScannerSingleStackProto::BatchscanDisable(
   uint16_t encoded_len = encoded_bytes.length();
   std::string packet = FormTxPacket(BT_LE_SCAN_BATCH_SCAN_DISABLE,
                                     PROTO_ENC_DEC, encoded_len, encoded_bytes);
+/*
   uint16_t status = postTxMessage(packet);
   if (status != BT_STATUS_SUCCESS) {
     return false;
   }
+*/
   return true;
 }
 
@@ -589,10 +595,12 @@ bool ScannerSingleStackProto::BatchscanReadReports(int client_if,
   uint16_t encoded_len = encoded_bytes.length();
   std::string packet = FormTxPacket(BT_LE_SCAN_BATCH_SCAN_READ_REPORT,
                                     PROTO_ENC_DEC, encoded_len, encoded_bytes);
+/*
   uint16_t status = postTxMessage(packet);
   if (status != BT_STATUS_SUCCESS) {
     return false;
   }
+*/
   return true;
 }
 
