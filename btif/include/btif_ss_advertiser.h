@@ -17,13 +17,13 @@ class AdvertiserSingleStackProto {
       BleAdvertiserInterface::IdTxPowerStatusCallback Cb,
       const AdvertiseParameters& adv_param,
       const std::vector<uint8_t>& advertise_data,
-      const std::vector<uint8_t>& advertise_data_enc,
+      /* const std::vector<uint8_t>& advertise_data_enc, */
       const std::vector<uint8_t>& scan_response_data,
-      const std::vector<uint8_t>& scan_response_data_enc,
+      /* const std::vector<uint8_t>& scan_response_data_enc, */
       const PeriodicAdvertisingParameters& periodic_params,
       const std::vector<uint8_t>& periodic_data,
-      const std::vector<uint8_t>& periodic_data_enc, int duration,
-      int max_ext_adv_events, const std::vector<uint8_t>& enc_key_value,
+      /* const std::vector<uint8_t>& periodic_data_enc, */ int duration,
+      int max_ext_adv_events, /* const std::vector<uint8_t>& enc_key_value, */
       int reg_id, BleAdvertiserInterface::IdStatusCallback TimeoutCb);
   bool BleStopAdvertisingSet(int advertiser_id);
   int postTxMessage(std::string msgStr);
@@ -46,7 +46,7 @@ class AdvertiserSingleStackProto {
                                      const std::vector<uint8_t>& data);
   bool BleSetPeriodicAdvertisingEnable(
       BleAdvertiserInterface::StatusCallback Cb, int advertiser_id,
-      bool enable, bool include_adi);
+      bool enable/* , bool include_adi */);
 };
 void btif_adv_ss_init();
 void btif_advertiser_ss_callback(uint16_t event, char* p_param);

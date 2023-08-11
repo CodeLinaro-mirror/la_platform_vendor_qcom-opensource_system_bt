@@ -38,7 +38,6 @@ struct AdvertiseParameters {
 
 struct PeriodicAdvertisingParameters {
   bool enable;
-  bool include_adi;
   uint16_t min_interval;
   uint16_t max_interval;
   uint16_t periodic_advertising_properties;
@@ -95,7 +94,7 @@ class BleAdvertiserInterface {
 
   /* Setup the data */
   virtual void SetData(int advertiser_id, bool set_scan_rsp,
-                       std::vector<uint8_t> data, std::vector<uint8_t> data_enc,
+                       std::vector<uint8_t> data,
                        StatusCallback cb) = 0;
 
   /* Enable the advertising instance */
@@ -120,14 +119,10 @@ class BleAdvertiserInterface {
   virtual void StartAdvertisingSet(
       int reg_id, IdTxPowerStatusCallback register_cb,
       AdvertiseParameters params, std::vector<uint8_t> advertise_data,
-      std::vector<uint8_t> advertise_data_enc,
       std::vector<uint8_t> scan_response_data,
-      std::vector<uint8_t> scan_response_data_enc,
       PeriodicAdvertisingParameters periodic_params,
       std::vector<uint8_t> periodic_data,
-      std::vector<uint8_t> periodic_data_enc,
       uint16_t duration, uint8_t maxExtAdvEvents,
-      std::vector<uint8_t> enc_key_value,
       IdStatusCallback timeout_cb) = 0;
 
   virtual void SetPeriodicAdvertisingParameters(
@@ -136,11 +131,9 @@ class BleAdvertiserInterface {
 
   virtual void SetPeriodicAdvertisingData(int advertiser_id,
                                           std::vector<uint8_t> data,
-                                          std::vector<uint8_t> data_enc,
                                           StatusCallback cb) = 0;
 
   virtual void SetPeriodicAdvertisingEnable(int advertiser_id, bool enable,
-                                            bool include_adi,
                                             StatusCallback cb) = 0;
   virtual void RegisterCallbacks(AdvertisingCallbacks* callbacks) = 0;
 };
