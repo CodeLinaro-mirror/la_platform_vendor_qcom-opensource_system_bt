@@ -139,6 +139,7 @@ typedef struct {
   list_t* incoming_queue;
   int new_srv_fd;
   bool is_server;
+  int type;
 } rfc_slot_t;
 
 struct PendingData
@@ -396,7 +397,7 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
                 ALOGI("%s: SENT_NONE or SENT_PARTIAL",__func__);
                 // monitor the fd to get callback when app is ready to receive data
                 list_append(slot->incoming_queue, p_data);
-                btsock_thread_add_fd(pth, slot->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_WR,
+                btsock_thread_add_fd(pth, slot->fd, slot->type, SOCK_THREAD_FD_WR,
                               slot->id);
                 break;
 
@@ -494,7 +495,7 @@ static bool is_requesting_sdp(void) {
 
 static rfc_slot_t* alloc_rfc_slot(const RawAddress* addr, const char* name,
                                   const Uuid& uuid, int channel, int flags,
-                                  bool server) {
+                                  bool server, int type) {
   int security = 0;
   if (flags & BTSOCK_FLAG_ENCRYPT)
     security |= server ? BTM_SEC_IN_ENCRYPT : BTM_SEC_OUT_ENCRYPT;
@@ -544,6 +545,7 @@ static rfc_slot_t* alloc_rfc_slot(const RawAddress* addr, const char* name,
 
   slot->id = rfc_slot_id;
   slot->f.server = server;
+  slot->type = type;
 
   return slot;
 }
@@ -553,7 +555,7 @@ static rfc_slot_t* create_srv_accept_rfc_slot(rfc_slot_t* srv_rs,
                                               int open_handle,
                                               int new_listen_handle) {
   rfc_slot_t* accept_rs = alloc_rfc_slot(
-      addr, srv_rs->service_name, srv_rs->service_uuid, srv_rs->scn, 0, false);
+      addr, srv_rs->service_name, srv_rs->service_uuid, srv_rs->scn, 0, false, srv_rs->type);
   if (!accept_rs) {
     LOG_ERROR(LOG_TAG, "%s unable to allocate RFCOMM slot.", __func__);
     return NULL;
@@ -586,7 +588,7 @@ static rfc_slot_t* create_srv_accept_rfc_slot(rfc_slot_t* srv_rs,
 
 bt_status_t btsock_rfc_listen(const char* service_name,
                               const Uuid* service_uuid, int channel,
-                              int* sock_fd, int flags, int app_uid) {
+                              int* sock_fd, int flags, int app_uid, int type) {
   CHECK(sock_fd != NULL);
   CHECK((service_uuid != NULL) ||
         (channel >= 1 && channel <= MAX_RFC_CHANNEL) ||
@@ -629,7 +631,7 @@ bt_status_t btsock_rfc_listen(const char* service_name,
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   
   rfc_slot_t* slot =
-      alloc_rfc_slot(NULL, service_name, *service_uuid, channel, flags, true);
+      alloc_rfc_slot(NULL, service_name, *service_uuid, channel, flags, true, type);
 
   if(!slot){
     LOG_ERROR(LOG_TAG, "%s unable to allocate RFCOMM slot.", __func__);
@@ -639,7 +641,7 @@ bt_status_t btsock_rfc_listen(const char* service_name,
   *sock_fd = slot->app_fd;
   slot->app_fd = INVALID_FD;  // Drop our reference to the fd.
   slot->app_uid = app_uid;
-  btsock_thread_add_fd(pth, slot->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_EXCEPTION,
+  btsock_thread_add_fd(pth, slot->fd, type, SOCK_THREAD_FD_EXCEPTION,
                        slot->id);
 
   /*Sending to SS*/
@@ -684,7 +686,7 @@ bt_status_t btsock_rfc_listen(const char* service_name,
 
 bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
                                const Uuid* service_uuid, int channel,
-                               int* sock_fd, int flags, int app_uid) {
+                               int* sock_fd, int flags, int app_uid, int type) {
 
   CHECK(sock_fd != NULL);
   CHECK((service_uuid != NULL) || (channel >= 1 && channel <= MAX_RFC_CHANNEL));
@@ -701,7 +703,7 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
 
   rfc_slot_t* slot =
-      alloc_rfc_slot(bd_addr, NULL, *service_uuid, channel, flags, false);
+      alloc_rfc_slot(bd_addr, NULL, *service_uuid, channel, flags, false, type);
   if (!slot) {
     LOG_ERROR(LOG_TAG, "%s unable to allocate RFCOMM slot.", __func__);
     return BT_STATUS_FAIL;
@@ -737,7 +739,7 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
   *sock_fd = slot->app_fd;    // Transfer ownership of fd to caller.
   slot->app_fd = INVALID_FD;  // Drop our reference to the fd.
   slot->app_uid = app_uid;
-  btsock_thread_add_fd(pth, slot->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_RD,
+  btsock_thread_add_fd(pth, slot->fd, type, SOCK_THREAD_FD_RD,
                        slot->id);
 
   /*Sending connect request to SS*/
@@ -909,14 +911,19 @@ static void ss_srv_rfc_connect (int fd, const RawAddress* addr, int channel,
   if (!srv_rs) return;
 
   srv_rs->mtu = mtu;
+  if (channel >= 0x80 && channel <= 0xff) {
+    srv_rs->type = BTSOCK_L2CAP_LE;
+  } else {
+    srv_rs->type = BTSOCK_RFCOMM;
+  }
   accept_rs = create_srv_accept_rfc_slot(
     srv_rs, addr, channel, -1);
   if (!accept_rs) return;
 
   // Start monitoring the socket.
-  btsock_thread_add_fd(pth, srv_rs->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_EXCEPTION,
+  btsock_thread_add_fd(pth, srv_rs->fd, srv_rs->type, SOCK_THREAD_FD_EXCEPTION,
                        srv_rs->id);
-  btsock_thread_add_fd(pth, accept_rs->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_RD,
+  btsock_thread_add_fd(pth, accept_rs->fd, accept_rs->type, SOCK_THREAD_FD_RD,
                        accept_rs->id);
 
   send_app_connect_signal(srv_rs->fd, &accept_rs->addr, srv_rs->scn, 0,
@@ -1415,7 +1422,7 @@ bool ss_flush_incoming_que_on_wr_signal(rfc_slot_t* slot){
       case SENT_PARTIAL:
         ALOGI("%s: SENT_NONE or SENT_PARTIAL",__func__);
         // monitor the fd to get callback when app is ready to receive data
-        btsock_thread_add_fd(pth, slot->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_WR,
+        btsock_thread_add_fd(pth, slot->fd, slot->type, SOCK_THREAD_FD_WR,
                              slot->id);
         return true;
 
@@ -1473,7 +1480,7 @@ void ss_rfc_data_write_done(int fd, uint64_t length){
   if (slot) {
     app_uid = slot->app_uid;
     if (!slot->f.outgoing_congest) {
-      btsock_thread_add_fd(pth, slot->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_RD,
+      btsock_thread_add_fd(pth, slot->fd, slot->type, SOCK_THREAD_FD_RD,
                            slot->id);
     }
   }

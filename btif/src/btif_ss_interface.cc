@@ -289,7 +289,7 @@ BluetoothSSInterface::BluetoothSSInterface() {
     if(!le_data_ch_rx_thread){
         le_data_ch_rx_thread = std::unique_ptr<std::thread>(new std::thread(&BluetoothSSInterface::processLeDataChRx, this));
     }
-    le_data_tx_thread = thread_new_sized("data_tx_thread", 1024);
+    le_data_tx_thread = thread_new_sized("le_data_tx_thread", 1024);
     thread_post(le_data_tx_thread, run_message_loop_for_le_data_tx, nullptr);
 
     gProfileCallbackMap.clear();//Clearing profile callback map
