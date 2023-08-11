@@ -250,9 +250,9 @@ class BleScannerInterfaceImpl : public BleScannerInterface {
 #endif
   }
 
- // void RegisterCallbacks(ScanningCallbacks* callbacks) {
+  void RegisterCallbacks(ScanningCallbacks* callbacks) {
     // For GD only
-  //}
+  }
 
   void Scan(bool start) override {
     // (!stack_manager_get_interface()->get_stack_is_running()) return;
@@ -343,7 +343,7 @@ class BleScannerInterfaceImpl : public BleScannerInterface {
   void SetScanParameters(int scanner_id, int scan_phy, std::vector<uint32_t> scan_interval,
                          std::vector<uint32_t> scan_window,
                          Callback cb) override {
-    if (!stack_manager_get_interface()->get_stack_is_running()) return;
+    //if (!stack_manager_get_interface()->get_stack_is_running()) return;
     mScanSingleStackProto.SetScanParameters(scanner_id, scan_phy, scan_interval, scan_window, cb);
 #if 0
     do_in_bta_thread(

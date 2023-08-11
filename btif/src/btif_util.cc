@@ -58,8 +58,6 @@
 #include "btif_ss_interface.h"
 #include "btif/protobuf/include/proto_message_ids.h"
 #include "btif_twsp_hf.h"
-#include "btif_ss_interface.h"
-#include "btif/protobuf/include/proto_message_ids.h"
 #if (SWB_ENABLED == TRUE)
 #include "bta_ag_swb.h"
 #endif

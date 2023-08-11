@@ -978,7 +978,7 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
         batch_scan_data = std::move(batch_scan_data1);
       }
       bta_batch_scan_reports_cb(client_if, status, report_format, num_records,
-                                batch_scan_data);
+                                std::move(batch_scan_data));
       break;
     }
     case BT_LE_SCAN_BATCH_TRACK_ADV_EVENT: {
@@ -988,6 +988,7 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
       std::vector<uint8_t> adv_pkt_data;
       std::vector<uint8_t> scan_rsp_data;
 
+      onTrackAdv.ParseFromString(resBufferString);
       if (onTrackAdv.has_track_adv_info()) {
         ss_btgatt_track_adv_info track_adv_info = onTrackAdv.track_adv_info();
         p_track_adv_data->client_if = track_adv_info.client_if();
@@ -1009,9 +1010,12 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
         p_track_adv_data->time_stamp = track_adv_info.time_stamp();
         ALOGD("\n time_stamp: %d ", p_track_adv_data->time_stamp);
 
+        uint8_t* addr = (uint8_t*)track_adv_info.bd_addr().c_str();
+        /*
         RawAddress::FromString(track_adv_info.bd_addr(),
-                               p_track_adv_data->bd_addr);
-        ALOGD("\n address is :: %s",
+                               p_track_adv_data->bd_addr);*/
+        p_track_adv_data->bd_addr = *(RawAddress *)addr;
+        ALOGD("\n track_adv address is :: %s",
               p_track_adv_data->bd_addr.ToString().c_str());
 
         p_track_adv_data->adv_pkt_len = track_adv_info.adv_pkt_len();
@@ -1026,8 +1030,8 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
 
         p_track_adv_data->scan_rsp_len = track_adv_info.scan_rsp_len();
         ALOGD("\n scan_rsp_len: %d ", p_track_adv_data->scan_rsp_len);
-        s = track_adv_info.p_scan_rsp_data();
-        std::vector<uint8_t> scan_rsp_data(s.begin(), s.end());
+        std::string s1 = track_adv_info.p_scan_rsp_data();
+        std::vector<uint8_t> scan_rsp_data(s1.begin(), s1.end());
         for (uint16_t i = 0; i < scan_rsp_data.size(); i++)
           ALOGD(" scan_rsp_data[%d]:%d ", i, scan_rsp_data[i]);
 

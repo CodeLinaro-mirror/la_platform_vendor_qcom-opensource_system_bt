@@ -82,8 +82,8 @@ static void btif_gatt_cleanup(void) {
 static btgatt_interface_t btgattInterface = {
     sizeof(btgattInterface),
 
-   btif_gatt_init,// btif_gatt_init,
-   btif_gatt_cleanup, // btif_gatt_cleanup,
+   btif_gatt_init,
+   btif_gatt_cleanup,
 
     &btgattClientInterface,
     &btgattServerInterface,

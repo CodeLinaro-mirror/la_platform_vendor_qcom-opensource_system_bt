@@ -37,7 +37,8 @@ struct AdvertiseParameters {
 };
 
 struct PeriodicAdvertisingParameters {
-  uint8_t enable;
+  bool enable;
+  bool include_adi;
   uint16_t min_interval;
   uint16_t max_interval;
   uint16_t periodic_advertising_properties;
@@ -94,7 +95,8 @@ class BleAdvertiserInterface {
 
   /* Setup the data */
   virtual void SetData(int advertiser_id, bool set_scan_rsp,
-                       std::vector<uint8_t> data, StatusCallback cb) = 0;
+                       std::vector<uint8_t> data, std::vector<uint8_t> data_enc,
+                       StatusCallback cb) = 0;
 
   /* Enable the advertising instance */
   virtual void Enable(uint8_t advertiser_id, bool enable, StatusCallback cb,
@@ -113,14 +115,20 @@ class BleAdvertiserInterface {
   /** Start the advertising set. This include registering, setting all
    * parameters and data, and enabling it. |register_cb| is called when the set
    * is advertising. |timeout_cb| is called when the timeout_s have passed.
-   * |reg_id| is the callback id assigned from upper layer */
-  virtual uint8_t StartAdvertisingSet(
+   * |reg_id| is the callback id assigned from upper layer
+   */
+  virtual void StartAdvertisingSet(
       int reg_id, IdTxPowerStatusCallback register_cb,
       AdvertiseParameters params, std::vector<uint8_t> advertise_data,
+      std::vector<uint8_t> advertise_data_enc,
       std::vector<uint8_t> scan_response_data,
+      std::vector<uint8_t> scan_response_data_enc,
       PeriodicAdvertisingParameters periodic_params,
-      std::vector<uint8_t> periodic_data, uint16_t duration,
-      uint8_t maxExtAdvEvents, IdStatusCallback timeout_cb) = 0;
+      std::vector<uint8_t> periodic_data,
+      std::vector<uint8_t> periodic_data_enc,
+      uint16_t duration, uint8_t maxExtAdvEvents,
+      std::vector<uint8_t> enc_key_value,
+      IdStatusCallback timeout_cb) = 0;
 
   virtual void SetPeriodicAdvertisingParameters(
       int advertiser_id, PeriodicAdvertisingParameters parameters,
@@ -128,9 +136,11 @@ class BleAdvertiserInterface {
 
   virtual void SetPeriodicAdvertisingData(int advertiser_id,
                                           std::vector<uint8_t> data,
+                                          std::vector<uint8_t> data_enc,
                                           StatusCallback cb) = 0;
 
   virtual void SetPeriodicAdvertisingEnable(int advertiser_id, bool enable,
+                                            bool include_adi,
                                             StatusCallback cb) = 0;
   virtual void RegisterCallbacks(AdvertisingCallbacks* callbacks) = 0;
 };

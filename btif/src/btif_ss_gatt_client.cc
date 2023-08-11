@@ -14,12 +14,9 @@
 #include <hardware/bluetooth.h>
 #include <hardware/bt_gatt.h>
 #include <base/bind.h>
-//#include <base/callback.h>
-//#include <string.h>
 #include "btif_util.h"
 #include "raw_address.h"
 #include "btif_ss_interface.h"
-//#include <regex>
 
 using namespace singlestack::proto::gattclient;
 
@@ -31,8 +28,6 @@ BluetoothSSInterface* ss_gatt_client_interface = NULL;
 std::map<RawAddress,
         base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)>> ReadPhyCbMap;
 std::map<RawAddress, uint32_t> connectedDevices;
-
-//std::regex r("..(?!$)");
 
 /*******************************************************************************
   *  Externs

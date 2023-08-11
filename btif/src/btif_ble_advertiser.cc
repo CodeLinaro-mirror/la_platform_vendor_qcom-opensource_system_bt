@@ -179,7 +179,7 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
   }
 
   void SetData(int advertiser_id, bool set_scan_rsp, vector<uint8_t> data,
-               StatusCallback cb) override {
+               std::vector<uint8_t> data_enc, StatusCallback cb) override {
     mAdvSingleStackProto.BleSetData(cb, advertiser_id, set_scan_rsp, data);
    #if 0
     if (!BleAdvertisingManager::IsInitialized()) return;
@@ -245,8 +245,10 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
                            IdStatusCallback timeout_cb) override {
     //VLOG(1) << __func__;
   ALOGI("%s", __func__);
-    mAdvSingleStackProto.BleStartAdvertingSet(cb, params, advertise_data, scan_response_data, periodic_params,
-                                              periodic_data, duration, maxExtAdvEvents, reg_id, timeout_cb);
+    mAdvSingleStackProto.BleStartAdvertingSet(cb, params, advertise_data, advertise_data_enc,
+                                              scan_response_data, scan_response_data_enc, periodic_params,
+                                              periodic_data, periodic_data_enc, duration,
+                                              maxExtAdvEvents, enc_key_value, reg_id, timeout_cb);
    // mAdvSingleStackProto.mAdvStatusCallback = cb;
    #if 0
 
@@ -312,7 +314,7 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
   //  VLOG(1) << __func__ << " advertiser_id: " << +advertiser_id
      //       << " ,enable: " << enable;
   ALOGI("%s", __func__);
-    mAdvSingleStackProto.BleSetPeriodicAdvertisingEnable(cb, advertiser_id, enable);
+    mAdvSingleStackProto.BleSetPeriodicAdvertisingEnable(cb, advertiser_id, enable, include_adi);
 
    #if 0
     if (!BleAdvertisingManager::IsInitialized()) return;
@@ -360,7 +362,7 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
   }
 #endif  //BLE_ISO_IF_SUPPORTED == TRUE
 
-  void StopAdvertisements() override {
+  /* void StopAdvertisements() override {
     VLOG(1) << __func__ ;
    #if 0
     if (!BleAdvertisingManager::IsInitialized()) return;
@@ -370,7 +372,7 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
                      Bind(&BleAdvertisingManager::unRegisterAdvertisements,
                           BleAdvertisingManager::Get()));
  #endif
-  }
+  } */
  private:
    AdvertiserSingleStackProto mAdvSingleStackProto;
 };
