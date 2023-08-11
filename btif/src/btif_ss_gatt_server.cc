@@ -145,6 +145,7 @@ int btif_find_conn_id(int connid) {
 
 bt_status_t btif_ss_gatt_server::registerServer(const bluetooth::Uuid& bt_uuid, bool eatt_support) {
 
+    ALOGI("\nRegister Server uuid = %s, eatt_support = %d",bt_uuid.ToString().c_str(),eatt_support);
     std::string msgStr;
     ss_gatt_register_server ss_gatt_register_server_;
 
@@ -159,6 +160,9 @@ bt_status_t btif_ss_gatt_server::registerServer(const bluetooth::Uuid& bt_uuid, 
 
 bt_status_t btif_ss_gatt_server::connect(int server_if, const RawAddress& bd_addr,
                                    bool is_direct, int transport) {
+
+    ALOGI("\nConnect server_if = %d, bd_addr = %s, is_direct = %d, transport = %d"
+                                   ,server_if,bd_addr.ToString().c_str(),is_direct,transport);
     std::string msgStr;
     ss_gatt_server_connect ss_gatt_server_connect_;
 
@@ -175,6 +179,9 @@ bt_status_t btif_ss_gatt_server::connect(int server_if, const RawAddress& bd_add
 
 bt_status_t btif_ss_gatt_server::disconnect(int server_if, const RawAddress& bd_addr,
                                     int conn_id) {
+
+    ALOGI("\nDisconnect server_if = %d, bd_addr = %s, conn_id = %d"
+                                   ,server_if,bd_addr.ToString().c_str(),conn_id);
     std::string msgStr;
     ss_gatt_server_disconnect ss_gatt_server_disconnect_;
     tBTIF_CONNECTION_INFO *connection_info = btif_find_conn_info(conn_id);
@@ -195,6 +202,7 @@ bt_status_t btif_ss_gatt_server::disconnect(int server_if, const RawAddress& bd_
 
 bt_status_t btif_ss_gatt_server::unregisterServer(int server_if) {
 
+    ALOGI("\nUnRegisterServer server_if = %d",server_if);
     std::string msgStr;
     ss_gatt_unregister_server ss_gatt_unregister_server_;
 
@@ -209,6 +217,7 @@ bt_status_t btif_ss_gatt_server::unregisterServer(int server_if) {
 bt_status_t btif_ss_gatt_server::readPhy(const RawAddress& bd_addr,
      base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb) {
 
+    ALOGI("\nReadPhy bd_addr = %s",bd_addr.ToString().c_str());
     std::string msgStr;
     int server_if;
     for (auto conn : GattSconnectedDevices) {
@@ -231,6 +240,8 @@ bt_status_t btif_ss_gatt_server::readPhy(const RawAddress& bd_addr,
 bt_status_t btif_ss_gatt_server::setPhy(const RawAddress& bd_addr,
                         uint8_t tx_phy, uint8_t rx_phy,uint16_t phy_options) {
 
+    ALOGI("\nsetPhy bd_addr = %s, tx_phy = %d, rx_phy = %d, phy_options = %d"
+                                   ,bd_addr.ToString().c_str(),tx_phy,rx_phy,phy_options);
     std::string msgStr;
     ss_gatt_server_set_phy ss_gatt_server_set_phy_;
 
@@ -247,6 +258,7 @@ bt_status_t btif_ss_gatt_server::setPhy(const RawAddress& bd_addr,
 
 bt_status_t btif_ss_gatt_server::clearService(int server_if,int srvcHandle) {
 
+    ALOGI("\nclearService server_if = %d, srvcHandle = %d",server_if,srvcHandle);
     std::string msgStr;
     ss_gatt_clear_service ss_gatt_clear_service_;
     ss_gatt_clear_service_.set_serverif(server_if);
@@ -261,11 +273,14 @@ bt_status_t btif_ss_gatt_server::clearService(int server_if,int srvcHandle) {
 bt_status_t btif_ss_gatt_server::sendIndicationNotification(int attribute_handle,
                          int conn_id,int confirm,const std::vector<uint8_t> value,int server_if) {
 
+    ALOGI("\nsendIndNotification server_if= %d, attribute_handle = %d, conn_id = %d, confirm = %d"
+                   ,server_if,attribute_handle,conn_id,confirm);
     std::string msgStr;
     ss_gatt_send_indication_notification ss_gatt_send_indication_notification_;
     tBTIF_CONNECTION_INFO *connection_info = btif_find_conn_info(conn_id);
 
     std::string Value(value.begin(), value.end());
+    ALOGD(" value = %s",Value.c_str());
     ss_gatt_send_indication_notification_.set_attrhandle(attribute_handle);
     ss_gatt_send_indication_notification_.set_value(Value);
     ss_gatt_send_indication_notification_.set_confirm(confirm);
@@ -286,6 +301,8 @@ bt_status_t btif_ss_gatt_server::sendIndicationNotification(int attribute_handle
 bt_status_t btif_ss_gatt_server::sendResponse(int conn_id, int trans_id,int status,const btgatt_response_t& response) {
     std::string msgStr;
 
+     ALOGI("\nsendResponse conn_id= %d, trans_id = %d, status = %d"
+                   ,conn_id,trans_id,status);
     ss_gatt_server_send_response ss_gatt_server_send_response_;
     ss_bt_gatt_response *ss_bt_gatt_response_ = ss_gatt_server_send_response_.mutable_btgatt_response();
     ss_bt_gatt_value *ss_bt_gatt_value_ = (*ss_bt_gatt_response_).mutable_attrvalue();
@@ -308,6 +325,9 @@ bt_status_t btif_ss_gatt_server::sendResponse(int conn_id, int trans_id,int stat
     }
 
     ss_gatt_server_send_response_.SerializeToString(&msgStr);
+    for (int i = 0 ; i < response.attr_value.len; i++ ) {
+       ALOGD("\nvalue at index %d is %d",i, response.attr_value.value[i]);
+    }
     //PrintEncodedBytes(msgStr);
     std::string packet = FormTxPacket(BT_LE_SERVER_SEND_RESPONSE, PROTO_ENC_DEC,
                                  msgStr.length(), msgStr);
@@ -315,6 +335,8 @@ bt_status_t btif_ss_gatt_server::sendResponse(int conn_id, int trans_id,int stat
 }
 
 bt_status_t btif_ss_gatt_server::AddService(int server_if,std::vector<btgatt_db_element_t> service){
+
+    ALOGI("\nAddService server_if= %d",server_if);
     std::string msgStr;
     if (service[0].uuid == bluetooth::Uuid::From16Bit(UUID_SERVCLASS_GATT_SERVER) ||
       service[0].uuid == bluetooth::Uuid::From16Bit(UUID_SERVCLASS_GAP_SERVER)) {
@@ -336,6 +358,10 @@ bt_status_t btif_ss_gatt_server::AddService(int server_if,std::vector<btgatt_db_
         ss_gatt_db_element_->set_starthandle(it.start_handle);
         ss_gatt_db_element_->set_endhandle(it.end_handle);
         ss_gatt_db_element_->set_extended_properties(it.extended_properties);
+        ALOGD("\nuuid = %s, type = %d, id = %d, attribute_handle= %d, properties = %d",
+             it.uuid.ToString().c_str(),it.type,it.id,it.attribute_handle,it.properties);
+        ALOGD("permissions = %d,start_handle = %d, end_handle = %d, extended_prop = %d",
+             it.permissions,it.start_handle,it.end_handle,it.extended_properties);
     }
     ss_gatt_server_add_service_.SerializeToString(&msgStr);
     std::string packet = FormTxPacket(BT_LE_SERVER_ADD_SERVICE, PROTO_ENC_DEC,
@@ -344,6 +370,8 @@ bt_status_t btif_ss_gatt_server::AddService(int server_if,std::vector<btgatt_db_
 }
 
 bt_status_t btif_ss_gatt_server::stopService(int server_if,int srvcHandle) {
+
+    ALOGD("\nstopService server_if = %d, srvcHandle = %d",server_if,srvcHandle);
     std::string msgStr;
     ss_gatt_server_stop_service ss_gatt_server_stop_service_;
     ss_gatt_server_stop_service_.set_serverif(server_if);
@@ -378,7 +406,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
         length, proto_ec);
     switch (event) {
         case BT_LE_SERVER_REG_SERVER_EVENT: {
-            ALOGD("BT_LE_SERVER_REG_SERVER_EVENT");
+            ALOGI("BT_LE_SERVER_REG_SERVER_EVENT");
             ss_gatt_server_registered_event onServerRegistered;
             int status = 0;
             int serverif = 0;
@@ -400,7 +428,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             break;
         }
         case BT_LE_SERVER_CONN_CHNG_EVENT: {
-            ALOGD("BT_LE_SERVER_CONN_CHNG_EVENT");
+            ALOGI("BT_LE_SERVER_CONN_CHNG_EVENT");
             ss_gatt_server_connection_change_event  onConnectionChange;
             int connId = 0;
             int serverif = 0;
@@ -452,7 +480,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             break;
         }
         case BT_LE_SERVER_SRV_ADD_EVENT: {
-            ALOGD("BT_LE_SERVER_SRV_ADD_EVENT");
+            ALOGI("BT_LE_SERVER_SRV_ADD_EVENT");
             ss_gatt_server_service_added_event onServiceAdd;
             int status = 0;
             int serverif = 0;
@@ -485,7 +513,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             break;
         }
         case BT_LE_SERVER_PHY_UPDATE_EVENT: {
-            ALOGD("BT_LE_SERVER_PHY_UPDATE_EVENT");
+            ALOGI("BT_LE_SERVER_PHY_UPDATE_EVENT");
             ss_gatt_server_phy_updated_event onPhyUpdated;
             int connId = 0;
             int txphy = 0;
@@ -518,7 +546,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             break;
         }
         case BT_LE_SERVER_READ_PHY_EVENT: {
-            ALOGD("BT_LE_SERVER_READ_PHY_EVENT");
+            ALOGI("BT_LE_SERVER_READ_PHY_EVENT");
             ss_gatt_server_read_phy_event onPhyRead;
             int serverIf = 0;
             RawAddress* address = nullptr;
@@ -553,7 +581,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             break;
         }
         case BT_LE_SERVER_SRV_DEL_EVENT: {
-            ALOGD("BT_LE_SERVER_SRV_DEL_EVENT");
+            ALOGI("BT_LE_SERVER_SRV_DEL_EVENT");
             int status = 0;
             int serverIf = 0;
             int srvcHandle = 0;
@@ -576,7 +604,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             break;
         }
         case BT_LE_SERVER_IND_SENT_EVENT: {
-            ALOGD("BT_LE_SERVER_IND_SENT_EVENT");
+            ALOGI("BT_LE_SERVER_IND_SENT_EVENT");
             ss_gatt_server_notification_sent_event onNotificationSend;
             int connId = 0;
             int status = 0;
@@ -605,7 +633,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             break;
         }
         case BT_LE_SERVER_READ_CHAR_EVENT: {
-            ALOGD("BT_LE_SERVER_READ_CHAR_EVENT");
+            ALOGI("BT_LE_SERVER_READ_CHAR_EVENT");
             ss_gatt_server_read_char_desc_event onReadChar;
             RawAddress* address = nullptr;
             int connId = 0;
@@ -651,7 +679,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             break;
         }
         case BT_LE_SERVER_RSP_SENT_EVENT: {
-            ALOGD("BT_LE_SERVER_RSP_SENT_EVENT");
+            ALOGI("BT_LE_SERVER_RSP_SENT_EVENT");
             ss_gatt_server_response_sent_event onRespSend;
             int status = 0;
             int handle = 0;
@@ -668,7 +696,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             break;
         }
         case BT_LE_SERVER_READ_DESC_EVENT: {
-            ALOGD("BT_LE_SERVER_READ_DESC_EVENT");
+            ALOGI("BT_LE_SERVER_READ_DESC_EVENT");
             ss_gatt_server_read_char_desc_event onReadDesc;
             RawAddress* address = nullptr;
             int connId = 0;
@@ -714,7 +742,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             break;
         }
         case BT_LE_SERVER_WRITE_CHAR_EVENT: {
-            ALOGD("BT_LE_SERVER_WRITE_CHAR_EVENT");
+            ALOGI("BT_LE_SERVER_WRITE_CHAR_EVENT");
             ss_gatt_server_write_char_desc_event onWriteChar;
             RawAddress* address = nullptr;
             int connId = 0;
@@ -784,7 +812,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             break;
         }
         case BT_LE_SERVER_WRITE_DESC_EVENT: {
-            ALOGD("BT_LE_SERVER_WRITE_DESC_EVENT");
+            ALOGI("BT_LE_SERVER_WRITE_DESC_EVENT");
             ss_gatt_server_write_char_desc_event onWriteDesc;
             RawAddress* address = nullptr;
             int connId = 0;
@@ -854,7 +882,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             break;
         }
         case BT_LE_SERVER_EXEC_WRITE_EVENT: {
-            ALOGD("BT_LE_SERVER_EXEC_WRITE_EVENT");
+            ALOGI("BT_LE_SERVER_EXEC_WRITE_EVENT");
             ss_gatt_server_execute_write_event onExecWrite;
             RawAddress* address = nullptr;
             int transId = 0;
@@ -894,7 +922,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             break;
         }
         case BT_LE_SERVER_SRV_CONG_EVENT: {
-            ALOGD("BT_LE_SERVER_SRV_CONG_EVENT");
+            ALOGI("BT_LE_SERVER_SRV_CONG_EVENT");
             ss_gatt_server_congestion_event onServerCongestion;
             int connId = 0;
             bool congested = 0;
@@ -916,7 +944,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             break;
         }
         case BT_LE_SERVER_MTU_UPDATE_EVENT:{
-            ALOGD("BT_LE_SERVER_MTU_UPDATE_EVENT");
+            ALOGI("BT_LE_SERVER_MTU_UPDATE_EVENT");
             ss_gatt_server_mtu_update_event onServerMtuUpdate;
             int connId = 0;
             int mtu = 0;
@@ -938,7 +966,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
             break;
         }
         case BT_LE_SERVER_CONN_UPDATE_EVENT: {
-            ALOGD("BT_LE_SERVER_CONN_UPDATE_EVENT");
+            ALOGI("BT_LE_SERVER_CONN_UPDATE_EVENT");
             ss_gatt_server_conn_update_event onServerConnUpdate;
             int connId = 0;
             int interval = 0;

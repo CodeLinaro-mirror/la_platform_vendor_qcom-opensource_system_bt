@@ -607,7 +607,9 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
       bluetooth::Uuid scan_uuid;
       uint32_t scanner_id = 0;
       uint32_t status = 0;
-      onScannerReg.ParseFromString(resBufferString);
+      if (!onScannerReg.ParseFromString(resBufferString)) {
+         ALOGE("Invalid string, parsing failed !!!");
+      }
       if (onScannerReg.has_uuid()) {
         scan_uuid = bluetooth::Uuid::FromString(onScannerReg.uuid());
         ALOGD("\n scan_uuid: %s ", scan_uuid.ToString().c_str());
@@ -635,7 +637,9 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
       uint32_t client_if = 0;
       uint32_t action = 0;
       uint32_t status = 0;
-      onScanFltEn.ParseFromString(resBufferString);
+      if (!onScanFltEn.ParseFromString(resBufferString)) {
+        ALOGE("Invalid string, parsing failed !!!");
+      }
       if (onScanFltEn.has_clientif()) {
         client_if = onScanFltEn.clientif();
         ALOGD("\n client_if: %d ", client_if);
@@ -665,7 +669,9 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
       uint32_t available_space = 0;
       uint32_t action = 0;
       uint32_t status = 0;
-      onScanFltAdd.ParseFromString(resBufferString);
+      if (!onScanFltAdd.ParseFromString(resBufferString)) {
+        ALOGE("Invalid string, parsing failed !!!");
+      }
       if (onScanFltAdd.has_clientif()) {
         client_if = onScanFltAdd.clientif();
         ALOGD("\n client_if: %d ", client_if);
@@ -704,7 +710,9 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
       uint32_t available_space = 0;
       uint32_t action = 0;
       uint32_t status = 0;
-      onScanFltClear.ParseFromString(resBufferString);
+      if (!onScanFltClear.ParseFromString(resBufferString)) {
+        ALOGE("Invalid string, parsing failed !!!");
+      }
       if (onScanFltClear.has_clientif()) {
         client_if = onScanFltClear.clientif();
         ALOGD("\n client_if: %d ", client_if);
@@ -742,7 +750,9 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
       uint32_t available_space = 0;
       uint32_t action = 0;
       uint32_t status = 0;
-      onScanFltParamSetup.ParseFromString(resBufferString);
+      if (!onScanFltParamSetup.ParseFromString(resBufferString)) {
+        ALOGE("Invalid string, parsing failed !!!");
+      }
       if (onScanFltParamSetup.has_clientif()) {
         client_if = onScanFltParamSetup.clientif();
         ALOGD("\n client_if: %d ", client_if);
@@ -773,7 +783,9 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
       ss_ble_set_scan_param_event onSetScanParam;
       uint32_t client_if = 0;
       uint32_t status = 0;
-      onSetScanParam.ParseFromString(resBufferString);
+      if (!onSetScanParam.ParseFromString(resBufferString)) {
+        ALOGE("Invalid string, parsing failed !!!");
+      }
       if (onSetScanParam.has_clientif()) {
         client_if = onSetScanParam.clientif();
         ALOGD("\n client_if: %d ", client_if);
@@ -807,7 +819,9 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
       uint16_t periodic_adv_int = 0;
       std::vector<uint8_t> adv_data;
       RawAddress *original_bda = nullptr;
-      onScanResult.ParseFromString(resBufferString);
+      if (!onScanResult.ParseFromString(resBufferString)) {
+        ALOGE("Invalid string, parsing failed !!!");
+      }
       if (onScanResult.has_clientif()) {
         client_if = onScanResult.clientif();
         ALOGD("\n client_if: %d ", client_if);
@@ -880,7 +894,9 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
       ss_batch_config_storage_event onBatchConfig;
       uint32_t client_if = 0;
       uint32_t status = 0;
-      onBatchConfig.ParseFromString(resBufferString);
+      if (!onBatchConfig.ParseFromString(resBufferString)) {
+        ALOGE("Invalid string, parsing failed !!!");
+      }
       if (onBatchConfig.has_clientif()) {
         client_if = onBatchConfig.clientif();
         ALOGD("\n client_if: %d ", client_if);
@@ -903,7 +919,9 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
       ss_batch_scan_enable_event onBatchScanEn;
       uint32_t client_if = 0;
       uint32_t status = 0;
-      onBatchScanEn.ParseFromString(resBufferString);
+      if (!onBatchScanEn.ParseFromString(resBufferString)) {
+        ALOGE("Invalid string, parsing failed !!!");
+      }
       if (onBatchScanEn.has_clientif()) {
         client_if = onBatchScanEn.clientif();
         ALOGD("\n client_if: %d ", client_if);
@@ -926,7 +944,9 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
       ss_batch_scan_disable_event onBatchScanDisable;
       uint32_t client_if = 0;
       uint32_t status = 0;
-      onBatchScanDisable.ParseFromString(resBufferString);
+      if (!onBatchScanDisable.ParseFromString(resBufferString)) {
+        ALOGE("Invalid string, parsing failed !!!");
+      }
       if (onBatchScanDisable.has_clientif()) {
         client_if = onBatchScanDisable.clientif();
         ALOGD("\n client_if: %d ", client_if);
@@ -952,7 +972,9 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
       uint32_t report_format = 0;
       uint32_t num_records = 0;
       std::vector<uint8_t> batch_scan_data;
-      onBatchScanReport.ParseFromString(resBufferString);
+      if (!onBatchScanReport.ParseFromString(resBufferString)) {
+        ALOGE("Invalid string, parsing failed !!!");
+      }
       if (onBatchScanReport.has_clientif()) {
         client_if = onBatchScanReport.clientif();
         ALOGD("\n client_if: %d ", client_if);
@@ -987,8 +1009,9 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
       btgatt_track_adv_info_t* p_track_adv_data = new btgatt_track_adv_info_t;
       std::vector<uint8_t> adv_pkt_data;
       std::vector<uint8_t> scan_rsp_data;
-
-      onTrackAdv.ParseFromString(resBufferString);
+      if (!onTrackAdv.ParseFromString(resBufferString)) {
+        ALOGE("Invalid string, parsing failed !!!");
+      }
       if (onTrackAdv.has_track_adv_info()) {
         ss_btgatt_track_adv_info track_adv_info = onTrackAdv.track_adv_info();
         p_track_adv_data->client_if = track_adv_info.client_if();
@@ -1047,7 +1070,9 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
       ss_ble_batch_scan_threshold_event onBatchScanThres;
       uint32_t client_if = 0;
       uint32_t status = 0;
-      onBatchScanThres.ParseFromString(resBufferString);
+      if (!onBatchScanThres.ParseFromString(resBufferString)) {
+        ALOGE("Invalid string, parsing failed !!!");
+      }
       if (onBatchScanThres.has_clientif()) {
         client_if = onBatchScanThres.clientif();
         ALOGD("\n client_if: %d ", client_if);
