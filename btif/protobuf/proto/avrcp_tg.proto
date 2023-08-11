@@ -1,0 +1,705 @@
+/*
+ Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
+syntax = "proto2";
+
+enum ss_btrc_remote_features_t{
+
+    SS_BTRC_FEAT_NONE = 0x00;    /* AVRCP 1.0 */
+    SS_BTRC_FEAT_METADATA = 0x01;    /* AVRCP 1.3 */
+    SS_BTRC_FEAT_ABSOLUTE_VOLUME = 0x02;    /* Supports TG role and volume sync */
+    SS_BTRC_FEAT_BROWSE = 0x04;    /* AVRCP 1.4 and up, with Browsing support */
+}
+
+enum ss_btrc_player_attr_t{
+
+    SS_BTRC_PLAYER_ATTR_EQUALIZER = 0x01;
+    SS_BTRC_PLAYER_ATTR_REPEAT = 0x02;
+    SS_BTRC_PLAYER_ATTR_SHUFFLE = 0x03;
+    SS_BTRC_PLAYER_ATTR_SCAN = 0x04;
+}
+
+enum ss_btrc_media_attr_t {
+
+    SS_BTRC_MEDIA_ATTR_TITLE = 0x01;
+    SS_BTRC_MEDIA_ATTR_ARTIST = 0x02;
+    SS_BTRC_MEDIA_ATTR_ALBUM = 0x03;
+    SS_BTRC_MEDIA_ATTR_TRACK_NUM = 0x04;
+    SS_BTRC_MEDIA_ATTR_NUM_TRACKS = 0x05;
+    SS_BTRC_MEDIA_ATTR_GENRE = 0x06;
+    SS_BTRC_MEDIA_ATTR_PLAYING_TIME = 0x07;
+    SS_BTRC_MEDIA_ATTR_COVER_ART = 0x08;
+}
+
+enum ss_btrc_event_id_t {
+
+    SS_BTRC_EVT_PLAY_STATUS_CHANGED = 1;
+    SS_BTRC_EVT_TRACK_CHANGE = 2;
+    SS_BTRC_EVT_TRACK_REACHED_END = 4;
+    SS_BTRC_EVT_TRACK_REACHED_START = 8;
+    SS_BTRC_EVT_PLAY_POS_CHANGED = 16;
+    SS_BTRC_EVT_APP_SETTINGS_CHANGED = 32;
+    SS_BTRC_EVT_NOW_PLAYING_CONTENT_CHANGED = 64;
+    SS_BTRC_EVT_AVAL_PLAYER_CHANGE = 128;
+    SS_BTRC_EVT_ADDR_PLAYER_CHANGE = 256;
+    SS_BTRC_EVT_UIDS_CHANGED = 512;
+    SS_BTRC_EVT_VOL_CHANGED = 1024;
+}
+
+enum ss_btrc_play_status_t {
+
+    SS_BTRC_PLAYSTATE_STOPPED = 0x00;    /* Stopped */
+    SS_BTRC_PLAYSTATE_PLAYING = 0x01;    /* Playing */
+    SS_BTRC_PLAYSTATE_PAUSED = 0x02;    /* Paused  */
+    SS_BTRC_PLAYSTATE_FWD_SEEK = 0x03;    /* Fwd Seek*/
+    SS_BTRC_PLAYSTATE_REV_SEEK = 0x04;    /* Rev Seek*/
+    SS_BTRC_PLAYSTATE_ERROR = 0xFF;    /* Error   */
+}
+
+enum ss_btrc_notification_type_t {
+
+    SS_BTRC_NOTIFICATION_TYPE_INTERIM = 0;
+    SS_BTRC_NOTIFICATION_TYPE_CHANGED = 1;
+    SS_BTRC_NOTIFICATION_TYPE_NOTIFY = 2;
+}
+
+enum ss_btrc_status_t {
+
+    SS_BTRC_STS_BAD_CMD        = 0x00; /* Invalid command */
+    SS_BTRC_STS_BAD_PARAM      = 0x01; /* Invalid parameter */
+    SS_BTRC_STS_NOT_FOUND      = 0x02; /* Specified parameter is wrong or not found */
+    SS_BTRC_STS_INTERNAL_ERR   = 0x03; /* Internal Error */
+    SS_BTRC_STS_NO_ERROR       = 0x04; /* Operation Success */
+    SS_BTRC_STS_UID_CHANGED    = 0x05; /* UIDs changed */
+    SS_BTRC_STS_RESERVED       = 0x06; /* Reserved */
+    SS_BTRC_STS_INV_DIRN       = 0x07; /* Invalid direction */
+    SS_BTRC_STS_INV_DIRECTORY  = 0x08; /* Invalid directory */
+    SS_BTRC_STS_INV_ITEM       = 0x09; /* Invalid Item */
+    SS_BTRC_STS_INV_SCOPE      = 0x0a; /* Invalid scope */
+    SS_BTRC_STS_INV_RANGE      = 0x0b; /* Invalid range */
+    SS_BTRC_STS_DIRECTORY      = 0x0c; /* UID is a directory */
+    SS_BTRC_STS_MEDIA_IN_USE   = 0x0d; /* Media in use */
+    SS_BTRC_STS_PLAY_LIST_FULL = 0x0e; /* Playing list full */
+    SS_BTRC_STS_SRCH_NOT_SPRTD = 0x0f; /* Search not supported */
+    SS_BTRC_STS_SRCH_IN_PROG   = 0x10; /* Search in progress */
+    SS_BTRC_STS_INV_PLAYER     = 0x11; /* Invalid player */
+    SS_BTRC_STS_PLAY_NOT_BROW  = 0x12; /* Player not browsable */
+    SS_BTRC_STS_PLAY_NOT_ADDR  = 0x13; /* Player not addressed */
+    SS_BTRC_STS_INV_RESULTS    = 0x14; /* Invalid results */
+    SS_BTRC_STS_NO_AVBL_PLAY   = 0x15; /* No available players */
+    SS_BTRC_STS_ADDR_PLAY_CHGD = 0x16; /* Addressed player changed */
+}
+
+message ss_btrc_uids_changed_t {
+    required uint32 type = 1;
+    required uint32 uid_counter = 2;
+}
+
+message ss_btrc_now_playing_changed_t {
+    required uint32 type = 1;
+}
+
+message ss_btrc_player_settings_t {
+    required uint32 num_attr = 1;
+    required bytes attr_ids = 2; //uint8_t attr_ids[8];
+    required bytes attr_values = 3; //uint8_t attr_values[8];
+}
+
+message ss_btrc_addr_player_changed_t {
+    required uint32 player_id = 1;
+    required uint32 uid_counter = 2;
+}
+
+message ss_btrc_player_setting_text_t {
+    required uint32 id = 1; /* can be attr_id or value_id */
+    required bytes text = 2; //uint8_t text[BTRC_MAX_ATTR_STR_LEN]; /*1<<16*/
+}
+
+message ss_btrc_element_attr_val_t {
+    required uint32 attr_id = 1;
+    required bytes text = 2; //uint8_t text[BTRC_MAX_ATTR_STR_LEN]; /*1<<16*/
+}
+
+message ss_btrc_br_folder_name_t {
+    required uint32  str_len = 1;
+    required bytes p_str = 2; //uint8_t  p_str[BTRC_MAX_ATTR_STR_LEN]; /*1<<16*/
+}
+
+message ss_btrc_register_notification_t {
+    optional ss_btrc_play_status_t play_status = 1;
+    optional bytes track = 2; //uint8_t track[8]; /* queue position in NowPlaying */
+    optional uint32 song_pos = 3;
+    optional uint32 uid_counter = 4;
+    optional ss_btrc_player_settings_t player_setting = 5;
+    optional ss_btrc_addr_player_changed_t addr_player_changed = 6;
+    optional ss_btrc_uids_changed_t uids_changed = 7;
+    optional ss_btrc_now_playing_changed_t now_playing_changed = 8;
+}
+
+message ss_btrc_item_player_t {
+    required uint32  player_id = 1;
+    required uint32  major_type = 2;
+    required uint32  sub_type = 3;
+    required uint32  play_status = 4;
+    required bytes features = 5; //uint8_t   features[16];
+    required uint32  charset_id = 6;
+    required bytes name= 7; //uint8_t   name[BTRC_MAX_ATTR_STR_LEN]; /*1<<16*/
+}
+
+message ss_btrc_item_folder_t {
+    required bytes uid= 1; //uint8_t   uid[8]; //bytes uid = 1 [(nanopb).max_size = 8, (nanopb).fixed_length = true];
+    required uint32 type = 2;
+    required uint32 playable = 3;
+    required uint32  charset_id = 4;
+    required bytes name = 5; //uint8_t   name[BTRC_MAX_ATTR_STR_LEN]; /*1<<16*/
+}
+
+message ss_btrc_item_media_t {
+    required bytes uid = 1; //uint8_t  uid[8];
+    required uint32  type = 2;
+    required uint32 charset_id = 3;
+    required bytes name = 4; //uint8_t  name[BTRC_MAX_ATTR_STR_LEN]; /*1<<16*/
+    required int32 num_attrs = 5;
+    repeated ss_btrc_element_attr_val_t p_attrs = 6;
+}
+
+message ss_btrc_folder_items_t {
+    required uint32 item_type = 1;
+    optional ss_btrc_item_player_t player = 2;
+    optional ss_btrc_item_folder_t folder= 3;
+    optional ss_btrc_item_media_t  media = 4;
+}
+
+
+/** BT-RC Target callbacks */
+/** Callback for the controller's supported feautres */
+ message ss_btrc_remote_features_callback {
+    required bytes bd_addr = 1;
+    required int32 features = 2;
+}
+
+/** Callback for play status request */
+ message ss_btrc_get_play_status_callback{
+    required bytes bd_addr = 1;
+}
+
+/** Callback for list player application attributes {Shuffle, Repeat,...} */
+ message ss_btrc_list_player_app_attr_callback {
+    required bytes bd_addr = 1;
+}
+
+/** Callback for list player application attributes {Shuffle, Repeat,...} */
+ message ss_btrc_list_player_app_values_callback {
+    required ss_btrc_player_attr_t attr_id = 1;
+    required bytes bd_addr= 2;
+}
+
+/** Callback for getting the current player application settings value
+**  num_attr: specifies the number of attribute ids contained in p_attrs
+*/
+ message ss_btrc_get_player_app_value_callback {
+    required int32 num_attr = 1;
+    repeated ss_btrc_player_attr_t p_attrs = 2;
+    required bytes bd_addr = 3;
+}
+
+/** Callback for getting the player application settings attributes' text
+**  num_attr: specifies the number of attribute ids contained in p_attrs
+*/
+ message ss_btrc_get_player_app_attrs_text_callback {
+    required int32 num_attr = 1;
+    repeated ss_btrc_player_attr_t p_attrs = 2;
+    required bytes bd_addr= 3;
+}
+
+/** Callback for getting the player application settings values' text
+**  num_attr: specifies the number of value ids contained in p_vals
+*/
+ message ss_btrc_get_player_app_values_text_callback {
+    required int32 attr_id = 1;
+    required int32 num_val = 2;
+    required bytes p_vals = 3;
+    required bytes bd_addr = 4;
+}
+
+/** Callback for setting the player application settings values */
+ message ss_btrc_set_player_app_value_callback {
+    repeated ss_btrc_player_settings_t p_vals = 1;
+    required bytes bd_addr = 2;
+}
+
+
+message ss_btrc_media_attr_t_msg {
+    required ss_btrc_media_attr_t attr = 1;
+}
+
+/** Callback to fetch the get element attributes of the current song
+**  num_attr: specifies the number of attributes requested in p_attrs
+*/
+ message ss_btrc_get_element_attr_callback {
+    required int32 num_attr= 1;
+    repeated ss_btrc_media_attr_t_msg p_attrs = 2;
+    required bytes bd_addr =3;
+}
+
+/** Callback for register notification {Play state change/track change/...}
+**  param: Is only valid if event_id is BTRC_EVT_PLAY_POS_CHANGED
+*/
+ message ss_btrc_register_notification_callback {
+    required ss_btrc_event_id_t event_id = 1;
+    required uint32 param = 2;
+    required bytes bd_addr = 3;
+}
+
+/* AVRCP 1.4 Enhancements */
+/** Callback for volume change on CT
+**  volume: Current volume setting on the CT {0-127}
+*/
+ message ss_btrc_volume_change_callback {
+    required int32 volume =1;
+    required int32 ctype = 2;
+    required bytes bd_addr = 3;
+}
+
+/** Callback for passthrough commands */
+ message ss_btrc_passthrough_cmd_callback {
+    required int32 id = 1;
+    required int32 key_state = 2;
+    required bytes bd_addr = 3;
+}
+
+/** Callback for set addressed player response on TG **/
+ message ss_btrc_set_addressed_player_callback {
+    required uint32 player_id = 1;
+    required bytes bd_addr = 2;
+}
+
+/** Callback for set browsed player response on TG **/
+ message ss_btrc_set_browsed_player_callback {
+    required uint32 player_id = 1;
+    required bytes bd_addr =2;
+}
+
+/** Callback for get folder items on TG
+**  num_attr: specifies the number of attributes requested in p_attr_ids
+*/
+ message ss_btrc_get_folder_items_callback {
+    required int32 scope = 1;
+    required uint32 start_item = 2;
+    required uint32 end_item = 3;
+    required int32 num_attr = 4;
+    repeated uint32 p_attr_ids = 5;
+    required bytes bd_addr = 6;
+}
+
+/** Callback for changing browsed path on TG **/
+ message ss_btrc_change_path_callback {
+    required int32 direction = 1;
+    required bytes folder_uid = 2;
+    required bytes bd_addr = 3;
+}
+
+/** Callback to fetch the get item attributes of the media item
+**  num_attr: specifies the number of attributes requested in p_attrs
+*/
+ message ss_btrc_get_item_attr_callback {
+    required int32 scope = 1;
+    required bytes uid = 2;
+    required uint32 uid_counter= 3;
+    required int32 num_attr = 4;
+    repeated ss_btrc_media_attr_t p_attrs = 5;
+    required bytes bd_addr = 6;
+}
+
+/** Callback for play request for the media item indicated by an identifier */
+ message ss_btrc_play_item_callback {
+    required int32 scope = 1;
+    required uint32 uid_counter = 2;
+    required bytes uid = 3;
+    required bytes bd_addr = 4;
+}
+
+/** Callback to fetch total number of items from a folder **/
+ message ss_btrc_get_total_num_of_items_callback {
+    required int32 scope = 1;
+    required bytes bd_addr = 2;
+}
+
+/** Callback for conducting recursive search on a current browsed path for a specified string */
+ message ss_btrc_search_callback {
+    required uint32 charset_id = 1;
+    required uint32 str_len = 2;
+    required bytes p_str = 3;
+    required bytes bd_addr = 4;
+}
+
+/** Callback to add a specified media item indicated by an identifier to now playing queue. */
+ message ss_btrc_add_to_now_playing_callback {
+    required int32 scope = 1;
+    required bytes uid = 2;
+    required uint32 uid_counter = 3;
+    required bytes bd_addr = 4;
+}
+
+ message ss_btrc_connection_state_callback {
+    required bool rc_connect = 1;
+    required bool bt_connect = 2;
+    required bytes bd_addr = 3;
+}
+
+/**Represents the standard BT-RC AVRCP Target interface. */
+/**
+ * Register the BtRc callbacks
+ */
+message ss_avrcp_tg_init {
+    required int32 max_connections = 1;
+    required int32 supported_features = 2;
+    required int32 supported_events = 3;
+}
+/** Respose to GetPlayStatus request. Contains the current
+**  1. Play status
+**  2. Song duration/length
+**  3. Song position
+*/
+message ss_get_play_status_rsp {
+    required bytes bd_addr = 1;
+    required ss_btrc_play_status_t play_status = 2;
+    required uint32 song_len = 3;
+    required uint32 song_pos = 4;
+}
+/** Lists the support player application attributes {Shuffle/Repeat/...}
+**  num_attr: Specifies the number of attributes contained in the pointer p_attrs
+*/
+message ss_list_player_app_attr_rsp {
+    required bytes bd_addr = 1;
+    required int32 num_attr = 2;
+    repeated ss_btrc_player_attr_t p_attrs = 3;
+}
+/** Lists the support player application attributes {Shuffle Off/On/Group}
+**  num_val: Specifies the number of values contained in the pointer p_vals
+*/
+message ss_list_player_app_value_rsp {
+    required bytes bd_addr = 1;
+    required int32 num_val = 2;
+    required bytes p_vals = 3;
+}
+/** Returns the current application attribute values for each of the specified attr_id */
+message ss_get_player_app_value_rsp {
+    required bytes bd_addr = 1;
+    repeated ss_btrc_player_settings_t p_vals = 2;
+}
+/** Returns the application attributes text {"Shuffle"/"Repeat"/...}
+**  num_attr: Specifies the number of attributes' text contained in the pointer p_attrs
+*/
+message ss_get_player_app_attr_text_rsp {
+    required bytes bd_addr = 1;
+    required int32 num_attr = 2;
+    repeated ss_btrc_player_setting_text_t p_attrs = 3;
+}
+/** Returns the application attributes text {"Shuffle"/"Repeat"/...}
+**  num_attr: Specifies the number of attribute values' text contained in the pointer p_vals
+*/
+message ss_get_player_app_value_text_rsp {
+    required bytes bd_addr = 1;
+    required int32 num_val = 2;
+    repeated ss_btrc_player_setting_text_t p_vals = 3;
+}
+/** Returns the current songs' element attributes text {"Title"/"Album"/"Artist"}
+**  num_attr: Specifies the number of attributes' text contained in the pointer p_attrs
+*/
+message ss_get_element_attr_rsp {
+    required bytes bd_addr = 1;
+    required int32 num_attr = 2;
+    repeated ss_btrc_element_attr_val_t p_attrs = 3;
+}
+/** Response to set player attribute request {"Shuffle"/"Repeat"}
+**  rsp_status: Status of setting the player attributes for the current media player
+*/
+message ss_set_player_app_value_rsp {
+    required bytes bd_addr = 1;
+    required ss_btrc_status_t rsp_status = 2;
+}
+/* Response to the register notification request {Play state change/track change/...}.
+** event_id: Refers to the event_id this notification change corresponds too
+** type: Response type - interim/changed
+** p_params: Based on the event_id, this parameter should be populated
+*/
+message ss_register_notification_rsp {
+    required ss_btrc_event_id_t event_id = 1;
+    required ss_btrc_notification_type_t type = 2;
+    required ss_btrc_register_notification_t p_param = 3;
+    required bytes bd_addr = 4;
+}
+/* AVRCP 1.4 enhancements */
+/**Send current volume setting to remote side. Support limited to SetAbsoluteVolume
+** This can be enhanced to support Relative Volume {AVRCP 1.0}.
+** With RelateVolume, we will send VOLUME_UP/VOLUME_DOWN opposed to absolute volume level
+** volume: Should be in the range 0-127. bit7 is reseved and cannot be set
+*/
+message ss_set_volume {
+    required int32 volume = 1;
+    required bytes bd_addr = 2;
+}
+/* Set addressed player response from TG to CT */
+message ss_set_addressed_player_rsp {
+    required bytes bd_addr = 1;
+    required ss_btrc_status_t rsp_status = 2;
+}
+/* Set browsed player response from TG to CT */
+message ss_set_browsed_player_rsp {
+    required bytes bd_addr = 1;
+    required ss_btrc_status_t rsp_status = 2;
+    required uint32 num_items = 3;
+    required uint32 charset_id = 4;
+    required int32 folder_depth = 5;
+    repeated ss_btrc_br_folder_name_t p_folders =6;
+}
+/* Get folder item list response from TG to CT */
+ message ss_get_folder_items_list_rsp {
+    required bytes bd_addr = 1;
+    required ss_btrc_status_t rsp_status = 2;
+    required uint32 uid_counter = 3;
+    required uint32 num_items = 4;
+    repeated ss_btrc_folder_items_t p_items = 5;
+}
+/* Change path response from TG to CT */
+message ss_change_path_rsp {
+    required bytes bd_addr = 1;
+    required ss_btrc_status_t rsp_status = 2;
+    required uint32 num_items = 3;
+}
+/** Returns the element's attributes num_attr: Specifies the number of attributes' text
+ * contained in the pointer p_attrs
+ */
+message ss_get_item_attr_rsp {
+    required bytes bd_addr = 1;
+    required ss_btrc_status_t rsp_status = 2;
+    required int32 num_attr = 3;
+    repeated ss_btrc_element_attr_val_t p_attrs = 4;
+}
+/* play media item response from TG to CT */
+message ss_play_item_rsp {
+    required bytes bd_addr = 1;
+    required ss_btrc_status_t rsp_status = 2;
+}
+/* get total number of items response from TG to CT*/
+message ss_get_total_num_of_items_rsp {
+    required bytes bd_addr = 1;
+    required ss_btrc_status_t rsp_status = 2;
+    required uint32 uid_counter = 3;
+    required  uint32 num_items = 4;
+}
+/* Search VFS response from TG to CT */
+message ss_search_rsp {
+    required bytes bd_addr = 1;
+    required ss_btrc_status_t rsp_status = 2;
+    required uint32 uid_counter = 3;
+    required uint32 num_items = 4;
+}
+/* add_to_now playing list response from TG to CT */
+message ss_add_to_now_playing_rsp {
+    required bytes bd_addr = 1;
+    required ss_btrc_status_t rsp_status = 2;
+}
+message ss_is_device_active_in_handoff {
+    required bytes bd_addr = 1;
+}
+message ss_update_play_status_to_stack {
+    required ss_btrc_play_status_t play_status = 1;
+}
+/** Closes the interface. */
+message ss_avrcp_tg_cleanup {
+}
+message ss_btrc_player_app_attr_t {
+    required uint32 attr_id = 1;
+    required uint32 num_val = 2;
+    required bytes attr_val = 3;
+}
+message ss_btrc_player_app_ext_attr_t {
+    required uint32 attr_id = 1;
+    required uint32 charset_id = 2;
+    required uint32 str_len = 3;
+    required bytes p_str = 4;
+    required uint32   num_val = 5;
+    repeated ss_btrc_player_app_ext_attr_val_t ext_attr_val = 6;
+}
+message ss_btrc_player_app_ext_attr_val_t {
+    required uint32 val = 1;
+    required uint32 charset_id = 2;
+    required uint32 str_len = 3;
+    required bytes p_str = 4;
+}
+/**   Represents the standard BT-RC AVRCP Controller interface. */
+message ss_ctrl_init {
+}
+/** send pass through command to target */
+message ss_send_pass_through_cmd {
+    required bytes bd_addr = 1;
+    required uint32 key_code = 2;
+    required uint32 key_state = 3;
+}
+/** send group navigation command to target */
+message ss_send_group_navigation_cmd {
+    required bytes bd_addr = 1;
+    required uint32 key_code = 2;
+    required uint32 key_state = 3;
+}
+/** send command to set player applicaiton setting attributes to target */
+message ss_set_player_app_setting_cmd {
+    required bytes bd_addr = 1;
+    required uint32 num_attrib = 2;
+    required bytes attrib_ids = 3;
+    required bytes attrib_vals = 4;
+}
+/** send command to play a particular item */
+message ss_play_item_cmd {
+    required bytes bd_addr = 1;
+    required uint32 scope = 2;
+    required bytes uid = 3;
+    required uint32  uid_counter = 4;
+}
+/** get the playback state */
+message ss_get_playback_state_cmd {
+    required bytes bd_addr = 1;
+}
+/** get the now playing list */
+message ss_get_now_playing_list_cmd {
+    required bytes bd_addr = 1;
+    required uint32 start = 2;
+    required uint32 items = 3;
+}
+/** get the folder list */
+message ss_get_folder_list_cmd {
+    required bytes bd_addr = 1;
+    required uint32 start = 2;
+    required uint32 items = 3;
+}
+/** get the folder list */
+message ss_get_player_list_cmd {
+    required bytes bd_addr = 1;
+    required uint32 start = 2;
+    required uint32 items = 3;
+}
+/** get the folder list */
+message ss_change_folder_path_cmd {
+    required bytes bd_addr = 1;
+    required uint32 direction = 2;
+    required bytes uid = 3;
+}
+/** set browsed player */
+message ss_set_browsed_player_cmd {
+    required bytes bd_addr = 1;
+    required uint32  player_id = 2;
+}
+/** set addressed player */
+message ss_set_addressed_player_cmd {
+    required bytes bd_addr = 1;
+    required uint32  player_id = 2;
+}
+/** send rsp to set_abs_vol received from target */
+message ss_set_volume_rsp {
+    required bytes bd_addr = 1;
+    required uint32 abs_vol = 2;
+    required uint32 label = 3;
+}
+/** send notificaiton rsp for abs vol to target */
+message ss_register_abs_vol_rsp {
+    required bytes bd_addr = 1;
+    required ss_btrc_notification_type_t rsp_type = 2;
+    required uint32 abs_vol = 3;
+    required uint32 label = 4;
+}
+/** Closes the interface. */
+message ss_ctrl_cleanup {
+}
+
+/** BT-RC Controller callback structure. */
+message ss_btrc_passthrough_rsp_callback {
+    required bytes bd_addr = 1;
+    required int32 id = 2;
+    required int32 key_state = 3;
+}
+
+message ss_btrc_groupnavigation_rsp_callback {
+    required int32 id = 1;
+    required int32 key_state = 2;
+}
+
+message ss_btrc_ctrl_getrcfeatures_callback {
+    required bytes bd_addr = 1;
+    required int32 features = 2;
+}
+
+message ss_btrc_ctrl_setabsvol_cmd_callback {
+    required bytes bd_addr = 1;
+    required uint32 abs_vol = 2;
+    required uint32 label = 3;
+}
+
+message ss_btrc_ctrl_registernotification_abs_vol_callback {
+    required bytes bd_addr = 1;
+    required uint32 label = 2;
+}
+
+message ss_btrc_ctrl_setplayerapplicationsetting_rsp_callback {
+    required bytes bd_addr = 1;
+    required uint32 accepted = 2;
+}
+
+message ss_btrc_ctrl_playerapplicationsetting_callback {
+    required bytes bd_addr = 1;
+    required uint32 num_attr = 2;
+    repeated ss_btrc_player_app_attr_t app_attrs = 3;
+    required uint32 num_ext_attr = 4;
+    repeated ss_btrc_player_app_ext_attr_t ext_attrs = 5;
+}
+
+message ss_btrc_ctrl_playerapplicationsetting_changed_callback {
+    required bytes bd_addr = 1;
+    repeated ss_btrc_player_settings_t p_vals = 2;
+}
+
+message ss_btrc_ctrl_track_changed_callback {
+    required bytes bd_addr = 1;
+    required uint32 num_attr = 2;
+    repeated ss_btrc_element_attr_val_t p_attrs = 3;
+}
+
+message ss_btrc_ctrl_play_position_changed_callback {
+    required bytes bd_addr = 1;
+    required uint32 song_len = 2;
+    required uint32 song_pos = 3;
+}
+
+message ss_btrc_ctrl_play_status_changed_callback {
+    required bytes bd_addr = 1;
+    required ss_btrc_play_status_t play_status = 2;
+}
+
+message ss_btrc_ctrl_get_folder_items_callback {
+    required bytes bd_addr = 1;
+    required ss_btrc_status_t status = 2;
+    repeated ss_btrc_folder_items_t folder_items = 3;
+    required uint32 count = 4;
+}
+
+message ss_btrc_ctrl_change_path_callback {
+    required bytes bd_addr = 1;
+    required uint32 count = 2;
+}
+
+message ss_btrc_ctrl_set_browsed_player_callback {
+    required bytes bd_addr = 1;
+    required uint32 num_items = 2;
+    required uint32 depth = 3;
+}
+
+message ss_btrc_ctrl_set_addressed_player_callback {
+    required bytes bd_addr = 1;
+    required uint32 status = 2;
+}
+
+message ss_btrc_ctrl_available_player_changed_callback {
+    required bytes bd_addr = 1;
+}
