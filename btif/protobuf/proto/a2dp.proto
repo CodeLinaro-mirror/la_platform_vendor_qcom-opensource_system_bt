@@ -1,0 +1,219 @@
+/*
+ * copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear.
+ */
+
+syntax = "proto2";
+package a2dp.synergy.SynergyProto;
+
+enum ss_btav_audio_state_t {
+    SS_BTAV_AUDIO_STATE_REMOTE_SUSPEND = 0;
+    SS_BTAV_AUDIO_STATE_STOPPED = 1;
+    SS_BTAV_AUDIO_STATE_STARTED = 2;
+}
+
+enum ss_btav_connection_state_t {
+    SS_BTAV_CONNECTION_STATE_DISCONNECTED = 0;
+    SS_BTAV_CONNECTION_STATE_CONNECTING = 1;
+    SS_BTAV_CONNECTION_STATE_CONNECTED = 2;
+    SS_BTAV_CONNECTION_STATE_DISCONNECTING = 3;
+}
+
+enum ss_btav_a2dp_codec_index_t {
+    SS_BTAV_A2DP_CODEC_INDEX_SOURCE_SBC = 0;
+    SS_BTAV_A2DP_CODEC_INDEX_SOURCE_AAC = 1;
+    SS_BTAV_A2DP_CODEC_INDEX_SOURCE_APTX = 2;
+    SS_BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD = 3;
+    SS_BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC = 4;
+    SS_BTAV_A2DP_CODEC_INDEX_SOURCE_LC3 = 5;
+    SS_BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_ADAPTIVE = 6;
+}
+
+enum ss_btav_a2dp_codec_priority_t {
+    SS_BTAV_A2DP_CODEC_PRIORITY_DEFAULT = 0;
+    SS_BTAV_A2DP_CODEC_PRIORITY_SBC = 1001;
+    SS_BTAV_A2DP_CODEC_PRIORITY_AAC = 2001;
+}
+
+enum ss_btav_a2dp_codec_sample_rate_t {
+    SS_BTAV_A2DP_CODEC_SAMPLE_RATE_NONE   = 0;
+    SS_BTAV_A2DP_CODEC_SAMPLE_RATE_44100  = 1;
+    SS_BTAV_A2DP_CODEC_SAMPLE_RATE_48000  = 2;
+    SS_BTAV_A2DP_CODEC_SAMPLE_RATE_88200  = 3;
+    SS_BTAV_A2DP_CODEC_SAMPLE_RATE_96000  = 4;
+    SS_BTAV_A2DP_CODEC_SAMPLE_RATE_176400 = 5;
+    SS_BTAV_A2DP_CODEC_SAMPLE_RATE_192000 = 6;
+}
+
+enum ss_btav_a2dp_codec_bits_per_sample_t {
+    SS_BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE = 0;
+    SS_BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16   = 1;
+    SS_BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24   = 2;
+    SS_BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32   = 3;
+}
+
+enum ss_btav_a2dp_codec_channel_mode_t {
+    SS_BTAV_A2DP_CODEC_CHANNEL_MODE_NONE   = 0;
+    SS_BTAV_A2DP_CODEC_CHANNEL_MODE_MONO   = 1;
+    SS_BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO = 2;
+    SS_BTAV_A2DP_CODEC_CHANNEL_MODE_JOINT_STEREO = 3;
+    SS_BTAV_A2DP_CODEC_CHANNEL_MODE_DUAL = 4;
+}
+
+enum ss_samp_freq_msk {
+    samp_freq_16 = 0x80;  /* b7:16  khz */
+    samp_freq_32 = 0x40;  /* b6:32  khz */
+    samp_freq_44 = 0x20;  /* b5:44.1khz */
+    samp_freq_48 = 0x10;  /* b4:48  khz */
+}
+
+enum ss_ch_md_msk {
+    ch_md_mono = 0x08;   /* b3: mono */
+    ch_md_dual = 0x04;  /* b2: dual */
+    ch_md_stereo = 0x02; /* b1: stereo */
+    ch_md_joint = 0x01;  /* b0: joint stereo */
+}
+
+enum ss_sub_band_msk {
+    subband_4 = 0x08;   /* b3: 4 */
+    subband_8 = 0x04;   /* b2: 8 */
+}
+
+enum ss_alloc_md_msk {
+    alloc_md_s = 0x02;   /* b1: snr */
+    alloc_md_l = 0x01;   /* b0: loundess */
+}
+
+enum ss_block_length_msk {
+    blocks_4 = 0x80;   /* 4 blocks */
+    blocks_8 = 0x40;   /* 8 blocks */
+    blocks_12 = 0x20;  /* 12blocks */
+    blocks_16 = 0x10;  /* 16blocks */
+}
+
+enum ss_aac_obj_type_msk {
+    object_type_mpeg2_lc = 0x80;  /* mpeg-2 low complexity */
+    object_type_mpeg4_lc = 0x40;  /* mpeg-4 low complexity */
+    object_type_mpeg4_ltp = 0x20; /* mpeg-4 long term prediction */
+    object_type_mpeg4_scalable = 0x10;
+}
+
+message ss_btav_a2dp_codec_config_t {
+    required ss_btav_a2dp_codec_index_t codec_type = 1;
+    required ss_btav_a2dp_codec_priority_t codec_priority = 2; // Codec selection priority
+    // relative to other codecs: larger value
+    // means higher priority. If 0, reset to
+    // default.
+    required ss_btav_a2dp_codec_sample_rate_t sample_rate = 3;
+    required ss_btav_a2dp_codec_bits_per_sample_t bits_per_sample = 4;
+    required ss_btav_a2dp_codec_channel_mode_t channel_mode = 5;
+    required uint32 codec_specific_1 = 6;     // Codec-specific value 1
+    required uint32 codec_specific_2 = 7;     // Codec-specific value 2
+    required uint32 codec_specific_3 = 8;     // Codec-specific value 3
+    required uint32 codec_specific_4 = 9;     // Codec-specific value 4
+}
+
+message ss_btav_a2dp_codec_config_callback_t {
+    required ss_btav_a2dp_codec_config_t CodecConfig = 1;
+    required int32 peer_mtu = 2;
+    required bool is_peer_edr = 3;
+    required int32 min_bitpool = 4;
+    required int32 max_bitpool = 5;
+    required int32 num_subbands = 6;
+    required int32 alloc_method = 7;
+    required int32 block_length = 8;
+}
+
+enum ss_bt_status_t {
+    SS_BT_STATUS_SUCCESS = 0;
+    SS_BT_STATUS_FAILURE = 1;
+}
+
+message ss_init {
+    required int32 maxDevice = 1;
+    required int32 config_count = 2;
+    repeated ss_btav_a2dp_codec_config_t DefaultCodecConfig = 3;
+    required ss_btav_a2dp_supported_codec_config_t AllSupportedOffloadCap = 4;
+}
+
+message ss_btav_a2dp_supported_codec_config_t {
+    optional ss_btav_a2dp_supported_sbc_config OffloadSbcCapability = 1;
+    optional ss_btav_a2dp_supported_aac_config OffloadAacCapability = 2;
+}
+
+message ss_btav_a2dp_supported_sbc_config {
+    required int32 sample_rate = 1;
+    required ss_btav_a2dp_codec_bits_per_sample_t bits_per_sample = 2;
+    required int32 channel_mode = 3;
+    required int32 num_subbands = 4;
+    required int32 alloc_method = 5;
+    required int32 block_length = 6;
+    required int32 min_bitpool = 7;
+    required int32 max_bitpool = 8;
+}
+
+message ss_btav_a2dp_supported_aac_config {
+    required int32 object_type = 1;
+    required int32 sample_rate = 2;
+    required int32 channel_mode = 3;
+    required int32 vbr_supported = 4;
+    required uint32 bit_rate = 5;
+    required ss_btav_a2dp_codec_bits_per_sample_t bits_per_sample = 6;
+}
+
+message ss_startStream {
+    required bytes address = 1;
+}
+
+message ss_stopStream {
+
+}
+
+message ss_connect {
+    required bytes address = 1;
+    required bool isMandatoryCodecPreferred = 2;
+}
+
+message ss_disconnect {
+    required bytes address = 1;
+}
+
+message ss_set_active_device {
+    required bytes address = 1;
+}
+
+message ss_config_codec {
+    required bytes address = 1;
+    required int32 config_count = 2;
+    repeated ss_btav_a2dp_codec_config_t codec_preference = 3;
+}
+
+message ss_set_silence_device {
+    required bytes address = 1;
+    required bool silence  = 2;
+}
+
+message ss_cleanup {
+
+}
+
+message ss_btav_connection_state_callback {
+    required bytes address = 1;
+    required ss_btav_connection_state_t state = 2;
+}
+
+message ss_btav_audio_source_config_callback {
+    required bytes address = 1;
+    required ss_btav_a2dp_codec_config_callback_t codec_config = 2;
+    repeated ss_btav_a2dp_codec_config_t codecs_local_capabilities = 3;
+    repeated ss_btav_a2dp_codec_config_t codecs_selectable_capabilities = 4;
+}
+
+message ss_btav_audio_state_callback {
+    required bytes address = 1;
+    required ss_btav_audio_state_t state = 2;
+}
+
+message ss_bt_delay_report_callback {
+    required int32 delay = 1;
+}
