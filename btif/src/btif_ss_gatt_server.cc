@@ -114,9 +114,11 @@ int btif_delete_connection_info_disconnect(int serverif,int connid) {
 void btif_delete_connection_info(int serverif) {
 
     std::vector<tBTIF_CONNECTION_INFO>::iterator it;
-    for(it =  ConnInfos.begin() ; it != ConnInfos.end();it++) {
+    for(it =  ConnInfos.begin() ; it != ConnInfos.end();) {
         if(it->serverIf == serverif) {
-            ConnInfos.erase(it);
+            it = ConnInfos.erase(it);
+        } else {
+            it++;
         }
     }
 }
@@ -605,7 +607,7 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
         case BT_LE_SERVER_READ_CHAR_EVENT: {
             ALOGD("BT_LE_SERVER_READ_CHAR_EVENT");
             ss_gatt_server_read_char_desc_event onReadChar;
-            RawAddress* address;
+            RawAddress* address = nullptr;
             int connId = 0;
             int transId = 0;
             int attrhandle = 0;
@@ -638,8 +640,14 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
                 ALOGD("\nislong: %d ", islong);
             }
             int randId = btif_find_conn_id(connId);
-            HAL_CBACK(bt_gatt_callbacks, server->request_read_characteristic_cb,
-                 randId, transId,*address,attrhandle,offset,islong);
+
+            if (address != nullptr) {
+                HAL_CBACK(bt_gatt_callbacks, server->request_read_characteristic_cb,
+                     randId, transId,*address,attrhandle,offset,islong);
+            } else {
+                ALOGE("address is null");
+            }
+
             break;
         }
         case BT_LE_SERVER_RSP_SENT_EVENT: {
@@ -695,8 +703,14 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
                 ALOGD("\nislong: %d ", islong);
             }
             int randId = btif_find_conn_id(connId);
-            HAL_CBACK(bt_gatt_callbacks, server->request_read_descriptor_cb,
-                 randId, transId,*address,attrhandle,offset,islong);
+
+            if (address != nullptr) {
+                HAL_CBACK(bt_gatt_callbacks, server->request_read_descriptor_cb,
+                     randId, transId,*address,attrhandle,offset,islong);
+            } else {
+                ALOGE("address is null");
+            }
+
             break;
         }
         case BT_LE_SERVER_WRITE_CHAR_EVENT: {
@@ -758,9 +772,15 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
                 }
             }
             int randId = btif_find_conn_id(connId);
-            HAL_CBACK(bt_gatt_callbacks, server->request_write_characteristic_cb,
-                  randId, transId,*address, attrHandle, offset,
-                  needRsp, isprep, data, length);
+
+            if (address != nullptr) {
+                HAL_CBACK(bt_gatt_callbacks, server->request_write_characteristic_cb,
+                      randId, transId,*address, attrHandle, offset,
+                      needRsp, isprep, data, length);
+            } else {
+                ALOGE("bd_address is null");
+            }
+
             break;
         }
         case BT_LE_SERVER_WRITE_DESC_EVENT: {
@@ -822,9 +842,15 @@ void btif_server_ss_callback(uint16_t event, char* p_param) {
                 }
             }
             int randId = btif_find_conn_id(connId);
-            HAL_CBACK(bt_gatt_callbacks, server->request_write_descriptor_cb,
-                  randId, transId,*address, attrHandle, offset,
-                  needRsp, isprep, data, length);
+
+            if (address != nullptr) {
+                HAL_CBACK(bt_gatt_callbacks, server->request_write_descriptor_cb,
+                      randId, transId,*address, attrHandle, offset,
+                      needRsp, isprep, data, length);
+            } else {
+                ALOGE("bd_address is null");
+            }
+
             break;
         }
         case BT_LE_SERVER_EXEC_WRITE_EVENT: {

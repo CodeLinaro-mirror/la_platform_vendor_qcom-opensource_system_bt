@@ -541,25 +541,33 @@ void process_gatt_client_connected_event(std::string resBufferString) {
     on_ss_gatt_client_conn_state_change.ParseFromString(resBufferString);
 
     if (on_ss_gatt_client_conn_state_change.has_status()) {
-      status = on_ss_gatt_client_conn_state_change.status();
-      ALOGD("\n status: 0x%d ", status);
+        status = on_ss_gatt_client_conn_state_change.status();
+        ALOGD("\n status: 0x%d ", status);
     }
+
     if (on_ss_gatt_client_conn_state_change.has_clientif()) {
-      client_if = on_ss_gatt_client_conn_state_change.clientif();
-      ALOGD("\n client_if: %lu ", (unsigned long)client_if);
+        client_if = on_ss_gatt_client_conn_state_change.clientif();
+        ALOGD("\n client_if: %lu ", (unsigned long)client_if);
     }
+
     if (on_ss_gatt_client_conn_state_change.has_connid()) {
-      conn_id = on_ss_gatt_client_conn_state_change.connid();
-      ALOGD("\n conn_id: %d ", conn_id);
+        conn_id = on_ss_gatt_client_conn_state_change.connid();
+        ALOGD("\n conn_id: %d ", conn_id);
     }
+
     if (on_ss_gatt_client_conn_state_change.has_address()) {
-       uint8_t* addr = (uint8_t*)on_ss_gatt_client_conn_state_change.address().c_str();
-       bd_address = (RawAddress*)addr;
-       ALOGD("\n address: %s ", bd_address->ToString().c_str());
+        uint8_t* addr = (uint8_t*)on_ss_gatt_client_conn_state_change.address().c_str();
+        bd_address = (RawAddress*)addr;
+        ALOGD("\n address: %s ", bd_address->ToString().c_str());
     }
-    connectedDevices.insert(std::pair<RawAddress, uint32_t>(*bd_address, client_if));
-    HAL_CBACK(bt_gatt_callbacks, client->open_cb, conn_id, status,
+
+    if (bd_address != nullptr) {
+        connectedDevices.insert(std::pair<RawAddress, uint32_t>(*bd_address, client_if));
+        HAL_CBACK(bt_gatt_callbacks, client->open_cb, conn_id, status,
                 client_if, *bd_address);
+    } else {
+        ALOGE("bd_address is null");
+    }
 }
 
 void process_gatt_client_disconnected_event(std::string resBufferString) {
