@@ -1,0 +1,597 @@
+/*
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear.
+ */
+
+syntax = "proto2";
+
+/* AT response code - OK/Error */
+enum ss_bthf_at_response_t{
+
+  SS_BTHF_AT_RESPONSE_ERROR = 0;
+  SS_BTHF_AT_RESPONSE_OK = 1;
+}
+
+enum ss_bthf_connection_state_t{
+
+  SS_BTHF_CONNECTION_STATE_DISCONNECTED = 0;
+  SS_BTHF_CONNECTION_STATE_CONNECTING = 1;
+  SS_BTHF_CONNECTION_STATE_CONNECTED = 2;
+  SS_BTHF_CONNECTION_STATE_SLC_CONNECTED = 3;
+  SS_BTHF_CONNECTION_STATE_DISCONNECTING = 4;
+}
+
+enum ss_bthf_audio_state_t{
+
+  SS_BTHF_AUDIO_STATE_DISCONNECTED = 0;
+  SS_BTHF_AUDIO_STATE_CONNECTING = 1;
+  SS_BTHF_AUDIO_STATE_CONNECTED = 2;
+  SS_BTHF_AUDIO_STATE_DISCONNECTING = 3;
+}
+
+enum ss_bthf_vr_state_t{
+
+  SS_BTHF_VR_STATE_STOPPED = 0;
+  SS_BTHF_VR_STATE_STARTED = 1;
+}
+
+enum ss_bthf_volume_type_t{
+
+  SS_BTHF_VOLUME_TYPE_SPK = 0;
+  SS_BTHF_VOLUME_TYPE_MIC = 1;
+}
+
+/* Noise Reduction and Echo Cancellation */
+enum ss_bthf_nrec_t{
+
+ SS_BTHF_NREC_STOP = 0;
+ SS_BTHF_NREC_START = 1;
+}
+
+/* WBS codec setting */
+enum ss_bthf_wbs_config_t{
+
+ SS_BTHF_WBS_NONE = 0;
+ SS_BTHF_WBS_NO = 1;
+ SS_BTHF_WBS_YES = 2;
+}
+
+/* CHLD - Call held handling */
+enum ss_bthf_chld_type_t{
+
+  SS_BTHF_CHLD_TYPE_RELEASEHELD = 0;  // Terminate all held or set UDUB("busy") to a
+                               // waiting call
+  SS_BTHF_CHLD_TYPE_RELEASEACTIVE_ACCEPTHELD = 1;  // Terminate all active calls and
+                                            // accepts a waiting/held call
+  SS_BTHF_CHLD_TYPE_HOLDACTIVE_ACCEPTHELD = 2;  // Hold all active calls and accepts a
+                                         // waiting/held call
+  SS_BTHF_CHLD_TYPE_ADDHELDTOCONF = 3;          // Add all held calls to a conference
+}
+
+/* HF Indicators HFP 1.7 */
+enum ss_bthf_hf_ind_type_t{
+
+  SS_BTHF_HF_IND_ENHANCED_DRIVER_SAFETY = 1;
+  SS_BTHF_HF_IND_BATTERY_LEVEL_STATUS = 2;
+}
+
+enum ss_bthf_hf_ind_status_t{
+
+  SS_BTHF_HF_IND_DISABLED = 0;
+  SS_BTHF_HF_IND_ENABLED = 1;
+}
+
+/** Network Status */
+enum ss_bthf_network_state_t{
+
+  SS_BTHF_NETWORK_STATE_NOT_AVAILABLE = 0;
+  SS_BTHF_NETWORK_STATE_AVAILABLE = 1;
+}
+
+/** Service type */
+enum ss_bthf_service_type_t{
+
+  SS_BTHF_SERVICE_TYPE_HOME = 0;
+  SS_BTHF_SERVICE_TYPE_ROAMING = 1;
+}
+
+enum ss_bthf_call_state_t{
+
+  SS_BTHF_CALL_STATE_ACTIVE = 0;
+  SS_BTHF_CALL_STATE_HELD = 1;
+  SS_BTHF_CALL_STATE_DIALING = 2;
+  SS_BTHF_CALL_STATE_ALERTING = 3;
+  SS_BTHF_CALL_STATE_INCOMING = 4;
+  SS_BTHF_CALL_STATE_WAITING = 5;
+  SS_BTHF_CALL_STATE_IDLE = 6;
+  SS_BTHF_CALL_STATE_DISCONNECTED = 7;
+}
+
+enum ss_bthf_call_direction_t{
+
+  SS_BTHF_CALL_DIRECTION_OUTGOING = 0;
+  SS_BTHF_CALL_DIRECTION_INCOMING = 1;
+}
+
+enum ss_bthf_call_mode_t{
+
+  SS_BTHF_CALL_TYPE_VOICE = 0;
+  SS_BTHF_CALL_TYPE_DATA = 1;
+  SS_BTHF_CALL_TYPE_FAX = 2;
+}
+
+enum ss_bthf_call_mpty_type_t{
+
+  SS_BTHF_CALL_MPTY_TYPE_SINGLE = 0;
+  SS_BTHF_CALL_MPTY_TYPE_MULTI = 1;
+}
+
+enum ss_bthf_call_addrtype_t{
+
+  SS_BTHF_CALL_ADDRTYPE_UNKNOWN = 0x81;
+  SS_BTHF_CALL_ADDRTYPE_INTERNATIONAL = 0x91;
+}
+
+  /**
+   * Callback for connection state change.
+   *
+   * @param state one of the values from bthf_connection_state_t
+   * @param bd_addr remote device address
+   */
+  message ss_ConnectionStateCallback {
+    required ss_bthf_connection_state_t state = 1;
+    required bytes bd_addr = 2;
+  }
+  /**
+   * Callback for audio connection state change.
+   *
+   * @param state one of the values from bthf_audio_state_t
+   * @param bd_addr remote device address
+   */
+   message ss_AudioStateCallback {
+     required ss_bthf_audio_state_t state = 1;
+     required bytes bd_addr = 2;
+  }
+  /**
+   * Callback for VR connection state change.
+   *
+   * @param state one of the values from bthf_vr_state_t
+   * @param bd_addr
+   */
+  message ss_VoiceRecognitionCallback {
+    required ss_bthf_vr_state_t state = 1;
+    required bytes bd_addr = 2;
+   }
+  /**
+   * Callback for answer incoming call (ATA)
+   *
+   * @param bd_addr remote device address
+   */
+  message ss_AnswerCallCallback {
+   required bytes bd_addr = 1;
+   }
+  /**
+   * Callback for disconnect call (AT+CHUP)
+   *
+   * @param bd_addr remote device address
+   */
+  message ss_HangupCallCallback {
+  required bytes bd_addr = 1;
+  }
+  /**
+   * Callback for disconnect call (AT+CHUP)
+   *
+   * @param type denote Speaker/Mic gain bthf_volume_type_t
+   * @param volume volume value 0 to 15, p69, HFP 1.7.1 spec
+   * @param bd_addr remote device address
+   */
+  message ss_VolumeControlCallback {
+    required ss_bthf_volume_type_t type = 1;
+    required int32 volume = 2;
+    required bytes bd_addr = 3;
+  }
+  /**
+   * Callback for dialing an outgoing call
+   *
+   * @param number intended phone number, if number is NULL, redial
+   * @param bd_addr remote device address
+   */
+  message ss_DialCallCallback {
+   required bytes number = 1;
+   required bytes bd_addr =2;
+   }
+  /**
+   * Callback for sending DTMF tones
+   *
+   * @param tone contains the dtmf character to be sent
+   * @param bd_addr remote device address
+   */
+  message ss_DtmfCmdCallback {
+    required int32 tone = 1;
+    required bytes bd_addr = 2;
+  }
+  /**
+   * Callback for enabling/disabling noise reduction/echo cancellation
+   *
+   * @param nrec 1 to enable, 0 to disable
+   * @param bd_addr remote device address
+   */
+  message ss_NoiseReductionCallback {
+    required ss_bthf_nrec_t nrec = 1;
+    required bytes bd_addr = 2;
+  }
+  /**
+   * Callback for AT+BCS and event from BAC
+   *
+   * @param wbs WBS enable, WBS disable
+   * @param bd_addr remote device address
+   */
+  message ss_WbsCallback {
+   required ss_bthf_wbs_config_t wbs = 1;
+   required bytes bd_addr = 2;
+   }
+  /**
+   * Callback for call hold handling (AT+CHLD)
+   *
+   * @param chld the call hold command (0, 1, 2, 3)
+   * @param bd_addr remote device address
+   */
+  message ss_AtChldCallback {
+   required ss_bthf_chld_type_t chld = 1;
+   required bytes bd_addr = 2;
+   }
+  /**
+   * Callback for CNUM (subscriber number)
+   *
+   * @param bd_addr remote device address
+   */
+  message ss_AtCnumCallback {
+   required bytes bd_addr = 1;
+   }
+  /**
+   * Callback for indicators (CIND)
+   *
+   * @param bd_addr remote device address
+   */
+  message ss_AtCindCallback {
+   required bytes bd_addr = 1;
+   }
+  /**
+   * Callback for operator selection (COPS)
+   *
+   * @param bd_addr remote device address
+   */
+  message ss_AtCopsCallback {
+   required bytes bd_addr = 1;
+   }
+  /**
+   * Callback for call list (AT+CLCC)
+   *
+   * @param bd_addr remote device address
+   */
+  message ss_AtClccCallback {
+   required bytes bd_addr = 1;
+   }
+  /**
+   * Callback for unknown AT command recd from HF
+   *
+   * @param at_string he unparsed AT string
+   * @param bd_addr remote device address
+   */
+  message ss_UnknownAtCallback {
+   required bytes at_string = 1;
+   required bytes bd_addr = 2;
+   }
+  /**
+   * Callback for keypressed (HSP) event.
+   *
+   * @param bd_addr remote device address
+   */
+  message ss_KeyPressedCallback {
+    required bytes bd_addr = 1;
+   }
+  /**
+   * Callback for BIND. Pass the remote HF Indicators supported.
+   *
+   * @param at_string unparsed AT command string
+   * @param bd_addr remote device address
+   */
+  message ss_AtBindCallback {
+    required bytes at_string = 1;
+    required bytes bd_addr = 2;
+   }
+
+  /**
+   * Callback for BIEV. Pass the change in the Remote HF indicator values
+   *
+   * @param ind_id HF indicator id
+   * @param ind_value HF indicator value
+   * @param bd_addr remote device address
+   */
+  message ss_AtBievCallback {
+    required ss_bthf_hf_ind_type_t ind_id = 1;
+    required int32 ind_value = 2;
+    required bytes bd_addr = 3;
+  }
+
+  /**
+   * Callback for BIA. Pass the change in AG indicator activation.
+   * NOTE: Call, Call Setup and Call Held indicators are mandatory and cannot
+   *       be disabled. Thus, they are not included here.
+   *
+   * @param service whether HF should receive network service state update
+   * @param roam whether HF should receive roaming state update
+   * @param signal whether HF should receive signal strength update
+   * @param battery whether HF should receive AG battery level update
+   * @param bd_addr remote HF device address
+   */
+  message ss_AtBiaCallback {
+    required bool service = 1;
+    required bool roam = 2;
+    required bool signal = 3;
+    required bool battery = 4;
+    required bytes bd_addr = 5;
+  }
+
+  message ss_PeerFeatCallback {
+    required bytes bd_addr = 1;
+    required uint32 peer_feat = 2;
+  }
+
+  /**
+   * Register the BtHf callbacks
+   *
+   * @param max_hf_clients maximum number of headset clients
+   * @param features supporting BRSF features
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_Init {
+    required int32 max_hf_clients = 1;
+    required uint32 features = 2;
+  }
+  /**
+   * Connect to headset
+   *
+   * @param bd_addr remote device address
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_Connect {
+   required bytes bd_addr = 1;
+   }
+  /**
+   * Disconnect from headset
+   *
+   * @param bd_addr remote device address
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_Disconnect {
+   required bytes bd_addr = 1;
+   }
+  /**
+   * Create an audio connection
+   *
+   * @param bd_addr remote device address
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_ConnectAudio {
+   required bytes bd_addr = 1;
+   }
+  /**
+   * Close the audio connection
+   *
+   * @param bd_addr remote device address
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_DisconnectAudio {
+   required bytes bd_addr = 1;
+   }
+  /**
+   * Checks whether the device support echo cancellation and/or noise reduction
+   * via the AT+BRSF bitmask
+   *
+   * @param bd_addr remote device address
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_isNoiseReductionSupported {
+   required bytes bd_addr = 1;
+  }
+   /**
+   * Checks whether the device supports voice recognition via the AT+BRSF
+   * bitmask
+   *
+   * @param bd_addr remote device address
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_isVoiceRecognitionSupported {
+   required bytes bd_addr = 1;
+  }
+  /** start voice recognition */
+  /**
+   * Start voice recognition
+   * @param bd_addr remote device address
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_StartVoiceRecognition {
+    required bytes bd_addr = 1;
+   }
+  /**
+   * Stop voice recognition
+   *
+   * @param bd_addr remote device address
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_StopVoiceRecognition {
+    required bytes bd_addr = 1;
+   }
+  /**
+   * Change HFP related volume on remote headset
+   *
+   * @param type Speaker (+VGS) or Mic (+VGM)
+   * @param volume volume level on scale from 0 to 15, p69, HFP 1.7.1 spec
+   * @param bd_addr remote device address
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_VolumeControl {
+    required ss_bthf_volume_type_t type = 1;
+    required int32 volume = 2;
+    required bytes bd_addr = 3;
+   }
+  /**
+   * Combined device status change notification
+   *
+   * @param ntk_state Network state, available or not available
+   * @param svc_type Service type, roaming or home
+   * @param signal Signal strength, 0 to 5, p86, HFP 1.7.1 spec
+   * @param batt_chg Battery level of the phone, 0 to 5, p87, HFP 1.7.1 spec
+   * @param bd_addr remote device address
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_DeviceStatusNotification {
+    required ss_bthf_network_state_t ntk_state = 1;
+    required ss_bthf_service_type_t svc_type = 2;
+    required int32 signal = 3;
+    required int32 batt_chg = 4;
+    required bytes bd_addr = 5;
+   }
+  /**
+   * Response for COPS (Query Operator Selection) command
+   *
+   * @param cops Operator Name, max length 16 char, p32 HFP 1.7.1 spec
+   * @param bd_addr remote device address
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_CopsResponse {
+    required bytes cops = 1;
+    required bytes bd_addr = 2;
+   }
+  /**
+   * Response for CIND (Stanford Indicator Update) command
+   *
+   * @param svc service availability, available or not available
+   * @param num_active number of active calls
+   * @param num_held number of held calls
+   * @param call_setup_state call setup state
+   * @param signal signal strength, 0 to 5, p86 HFP 1.7.1 spec
+   * @param roam roaming state, 1 for roaming, 0 for home, p86 HFP 1.7.1 spec
+   * @param batt_chg AG battery charge, 0 to 5, p87 HFP 1.7.1 spec
+   * @param bd_addr remote device address
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_CindResponse {
+    required int32 svc = 1;
+    required int32 num_active = 2;
+    required int32 num_held = 3;
+    required ss_bthf_call_state_t call_setup_state = 4;
+    required int32 signal = 5;
+    required int32 roam = 6;
+    required int32 batt_chg = 7;
+    required bytes bd_addr = 8;
+   }
+  /**
+   * Pre-formatted AT response, typically in response to unknown AT cmd
+   *
+   * @param rsp formatted AT response
+   * @param bd_addr remote device address
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_FormattedAtResponse {
+    required bytes rsp = 1;
+    required bytes bd_addr = 2;
+   }
+  /**
+   * ok/error response to AT commands
+   *
+   * @param response_code OK or ERROR
+   * @param error_code actual error code depend on use case
+   * @param bd_addr remote device address
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_AtResponse {
+    required ss_bthf_at_response_t response_code = 1;
+    required int32 error_code = 2;
+    required bytes bd_addr = 3;
+   }
+  /**
+   * Response for CLCC (Current List of Calls) command.
+   * Can be iteratively called for each call index
+   * Call index of 0 will be treated as NULL termination (Completes response)
+   *
+   * @param index index of the call
+   * @param dir direction of the call
+   * @param state state of the call
+   * @param mode mode of the call
+   * @param mpty whether the call is multi party
+   * @param number phone number of the call
+   * @param type type of the call
+   * @param bd_addr remote device address
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_ClccResponse {
+    required int32 index = 1;
+    required ss_bthf_call_direction_t dir = 2;
+    required ss_bthf_call_state_t state = 3;
+    required ss_bthf_call_mode_t mode = 4;
+    required ss_bthf_call_mpty_type_t mpty = 5;
+    required bytes number = 6;
+    required ss_bthf_call_addrtype_t type = 7;
+    required bytes bd_addr = 8;
+   }
+  /**
+   * Notify of a call state change
+   *  Each update notifies
+   *    1. Number of active/held/ringing calls
+   *    2. call_state: This denotes the state change that triggered this msg
+   *                   This will take one of the values from BtHfCallState
+   *    3. number & type: valid only for incoming & waiting call
+   *
+   * @param num_active number of active calls
+   * @param num_held number of held calls
+   * @param call_setup_state current call setup state
+   * @param number phone number of the call
+   * @param type type of the call
+   * @param name caller display name
+   * @param bd_addr remote device address
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_PhoneStateChange {
+    required int32 num_active = 1;
+    required int32 num_held = 2;
+    required ss_bthf_call_state_t call_setup_state = 3;
+    required bytes number = 4;
+    required ss_bthf_call_addrtype_t type = 5;
+    required bytes name = 6;
+    required bytes bd_addr = 7;
+   }
+  /**
+   * Closes the interface.
+   */
+  message ss_Cleanup{
+  }
+  /**
+   * Whether we are allowed to initiate SCO
+   *
+   * @param value true to allow, false to disallow
+   * @return BT_STATUS_SUCCESS on success
+   */
+  message ss_SetScoAllowed {
+    required bool value = 1;
+  }
+  /**
+   * Send +BSIR response code to enable/disable in-band ringtone in an active
+   * HFP service level connection
+   *
+   * @param value true for enabled, false for disable
+   * @param bd_addr remote device address
+   */
+  message ss_SendBsir {
+    required bool value = 1;
+    required bytes bd_addr = 2;
+   }
+  /**
+   * Set the current active headset device for SCO audio
+   *
+   * @param active_device_addr remote device address
+   */
+  message ss_SetActiveDevice {
+    required bytes active_device_addr = 1;
+  }
