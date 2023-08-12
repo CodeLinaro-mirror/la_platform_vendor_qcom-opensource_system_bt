@@ -180,7 +180,9 @@ typedef struct {
 
 enum SS_BTSS_State {
     SS_BTSS_DOWN = 0,
-    SS_BTSS_UP
+    SS_BTSS_UP,
+    SS_SLATE_UP,
+    SS_SLATE_DOWN
 };
 
 enum ss_slate_event_type {

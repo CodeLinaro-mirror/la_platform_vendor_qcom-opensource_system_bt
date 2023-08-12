@@ -117,6 +117,13 @@ using bluetooth::atp_locator::AtpLocatorInterface;
 #include "btif/protobuf/include/proto_message_ids.h"
 #include <fcntl.h>
 
+
+#define UEVENT_MSG_LEN 1024
+#define BTSS_EVENT "SLATE_EVENT="
+#define BTSS_EVENT_STRING_LEN 11
+#define MAX_BUFF_SIZE (64)
+#define BTSS_INIT_TIMEOUT  (6000)
+
 /*******************************************************************************
  *  Static variables
  ******************************************************************************/
@@ -134,7 +141,7 @@ BluetoothSSInterface *btSSInterface;
 BluetoothSSStubInterface *btSSStubInterface;
 #endif
 static uid_set_t* uid_set = NULL;
-#define MAX_BUFF_SIZE (64)
+
 
 // Check for a legacy address stored as a property.
 static constexpr char PERSIST_BDADDR_PROPERTY[] =
@@ -145,14 +152,17 @@ static constexpr char PERSIST_LOGLEVEL_PROPERTY[] =
 #define BTSS_STATE_NODE "/sys/kernel/slate_bt_state/slate_bt_state"
 SS_BTSS_State btssCurrentState = SS_BTSS_DOWN;
 SS_BTSS_State btssPrevousState = SS_BTSS_DOWN;
-std::unique_ptr<std::thread> btss_event_handler_thread;
-#define UEVENT_MSG_LEN 1024
-#define BTSS_EVENT "SLATE_EVENT="
-#define BTSS_EVENT_STRING_LEN 11
-int btss_event;
+
+// Declaration of thread condition variable
+static pthread_cond_t btssEventCond;
+// declaring mutex
+static pthread_mutex_t btssEventLock;
 
 static constexpr size_t kStringLength = sizeof("XX:XX:XX:XX:XX:XX") - 1;
 static constexpr size_t kBytes = (kStringLength + 1) / 3;
+
+std::unique_ptr<std::thread> btss_event_handler_thread;
+int btss_event;
 
 using namespace bluetooth::synergy::SynergyProto;
 
@@ -340,12 +350,9 @@ static int init(bt_callbacks_t* callbacks, bool start_restricted,
     //handle_migration(std::string(user_data_directory),get_allowed_bt_package_name());
   }
 
-
   if (interface_ready()) return BT_STATUS_DONE;
 
   //allocation_tracker_init();
-
-
   bt_hal_cbacks = callbacks;
   restricted_mode = start_restricted;
   common_criteria_mode = is_common_criteria_mode;
@@ -355,13 +362,51 @@ static int init(bt_callbacks_t* callbacks, bool start_restricted,
 
   stack_manager_get_interface()->init_stack();
   btif_debug_init();
+
+  read_btss_state();
+  init_btss_event_handler();
+  pthread_mutex_init(&btssEventLock, NULL);
+  pthread_cond_init(&btssEventCond, NULL);
+
+restart:
+  if(btssCurrentState != SS_BTSS_UP) {
+    int ret = 0;
+    struct timespec timeout;
+    clock_gettime(CLOCK_REALTIME, &timeout);
+    long ns = timeout.tv_nsec + 1000000 * (BTSS_INIT_TIMEOUT%1000);
+    timeout.tv_nsec = ns%1000000000;
+    timeout.tv_sec += ns/1000000000 + BTSS_INIT_TIMEOUT/1000;
+    // acquire a lock
+    pthread_mutex_lock(&btssEventLock);
+    ALOGW("Waiting for GetBtssState..!!!");
+    ret = pthread_cond_timedwait(&btssEventCond, &btssEventLock, &timeout);
+
+    if(ret == ETIMEDOUT) {
+      // BTSS INIT Timed out
+      ALOGE("BTSS Init timedout--btss state is::%d", btssCurrentState);
+      //TODO: Need to do cleanup :timers and threads
+      pthread_mutex_unlock(&btssEventLock);
+      goto restart;
+    }
+    else if(ret == 0) {
+      // BTSS INIT Successful
+      ALOGW("BTSS Ready... Continue to Init");
+    }
+    else {
+      // pthread_cond_timedwait error
+      ALOGW("pthread_cond_timedwait error");
+      pthread_mutex_unlock(&btssEventLock);
+      goto restart;
+    }
+    // release lock
+    pthread_mutex_unlock(&btssEventLock);
+  }
+
   btif_ss_interface_init();
   if(btSSInterface != NULL) {
     ALOGI("%s: registering DM profile callback with ss_interface", __func__);
     btSSInterface->registerCallbacks(BT_PROFILE_DM_ID, btif_dm_ss_callback);
   }
-  read_btss_state();
-  init_btss_event_handler();
   return BT_STATUS_SUCCESS;
 }
 
@@ -377,6 +422,7 @@ static int enable () {
 
   //adding msg_id
   uint16_t msg_id = BT_DM_ENABLE;
+
   enable_msg[0] = msg_id & 0xff;
   enable_msg[1] = (msg_id >> 8);
 
@@ -1459,15 +1505,14 @@ void btss_uevent_handler() {
               {
                 ALOGD(" %s : event received - SLATE_AFTER_POWER_UP", __func__);
                 btssPrevousState = btssCurrentState;
-                btssCurrentState = SS_BTSS_UP;
-                ALOGD("%s :: Sending signal on Conditional variable",__func__);
+                btssCurrentState = SS_SLATE_UP;
               }
               break;
             case SS_SLATE_BEFORE_POWER_DOWN:
               {
                 ALOGE(" %s : event received -SLATE_BEFORE_POWER_DOWN", __func__);
                 btssPrevousState = btssCurrentState;
-                btssCurrentState = SS_BTSS_DOWN;
+                btssCurrentState = SS_SLATE_DOWN;
                 ALOGE(" %s : Triggering SSR ", __func__);
                 do_in_jni_thread(
                   FROM_HERE, Bind(
@@ -1480,14 +1525,7 @@ void btss_uevent_handler() {
               {
                 ALOGE(" %s : event received - SLATE_AFTER_POWER_DOWN ", __func__);
                 btssPrevousState = btssCurrentState;
-                btssCurrentState = SS_BTSS_DOWN;
-                // Need to add logic for calling ReportSocFailure()
-                ALOGE(" %s : Triggering SSR ", __func__);
-                do_in_jni_thread(
-                  FROM_HERE, Bind(
-                    []() {
-                      HAL_CBACK(bt_vendor_callbacks, ssr_vendor_cb);
-                    }));
+                btssCurrentState = SS_SLATE_DOWN;
               }
               break;
             case SS_SLATE_BT_READY:
@@ -1495,7 +1533,7 @@ void btss_uevent_handler() {
                 ALOGD(" %s : event received - SLATE_BT_READY", __func__);
                 btssPrevousState = btssCurrentState;
                 btssCurrentState = SS_BTSS_UP;
-                ALOGD("%s :: Sending signal on Conditional variable",__func__);
+                pthread_cond_signal(&btssEventCond);
               }
               break;
             case SS_SLATE_BT_ERROR:
@@ -1503,12 +1541,6 @@ void btss_uevent_handler() {
                 ALOGE(" %s : event received - SLATE_BT_ERROR", __func__);
                 btssPrevousState = btssCurrentState;
                 btssCurrentState = SS_BTSS_DOWN;
-                ALOGE(" %s : Triggering SSR ", __func__);
-                do_in_jni_thread(
-                  FROM_HERE, Bind(
-                    []() {
-                      HAL_CBACK(bt_vendor_callbacks, ssr_vendor_cb);
-                    }));
               }
               break;
             default:
