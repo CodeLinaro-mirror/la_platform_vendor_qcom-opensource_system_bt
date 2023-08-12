@@ -172,6 +172,35 @@ typedef struct {
   char __attribute__((aligned)) p_param[]; /* parameter area needs to be last */
 } tBTIF_CONTEXT_SWITCH_CBACK;
 
+typedef struct {
+    int randId;
+    int serverIf;
+    int connId;
+}tBTIF_CONNECTION_INFO;
+
+enum SS_BTSS_State {
+    SS_BTSS_DOWN = 0,
+    SS_BTSS_UP
+};
+
+enum ss_slate_event_type {
+  SS_SLATE_BEFORE_POWER_DOWN = 1,
+  SS_SLATE_AFTER_POWER_DOWN,
+  SS_SLATE_BEFORE_POWER_UP,
+  SS_SLATE_AFTER_POWER_UP,
+  SS_MODEM_BEFORE_POWER_DOWN,
+  SS_MODEM_AFTER_POWER_UP,
+  SS_ADSP_BEFORE_POWER_DOWN,
+  SS_ADSP_AFTER_POWER_UP,
+  SS_TWM_SLATE_AFTER_POWER_UP,
+  SS_SLATE_DSP_ERROR,
+  SS_SLATE_DSP_READY,
+  SS_SLATE_BT_ERROR,
+  SS_SLATE_BT_READY,
+  SS_SLATE_SNS_ERROR,
+  SS_SLATE_SNS_READY,
+};
+
 /*******************************************************************************
  *  Functions
  ******************************************************************************/
@@ -242,5 +271,7 @@ void btif_ss_interface_cleanup();
 void btif_dm_ss_callback(uint16_t event, char* p_param);
 void btif_sdp_ss_callback(uint16_t event, char* p_param);
 typedef void (*ss_profile_callback)(uint16_t event, char* p_param);
+void read_btss_state();
+void init_btss_event_handler();
 
 #endif /* BTIF_COMMON_H */

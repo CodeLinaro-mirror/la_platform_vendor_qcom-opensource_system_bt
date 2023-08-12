@@ -33,6 +33,7 @@
 #include <base/location.h>
 #include <base/logging.h>
 #include <base/callback.h>
+#include <cutils/uevent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -140,6 +141,15 @@ static constexpr char PERSIST_BDADDR_PROPERTY[] =
     "persist.vendor.service.bt.ss.bdaddr";
 static constexpr char PERSIST_LOGLEVEL_PROPERTY[] =
     "persist.vendor.service.bt.ss.loglevel";
+
+#define BTSS_STATE_NODE "/sys/kernel/slate_bt_state/slate_bt_state"
+SS_BTSS_State btssCurrentState = SS_BTSS_DOWN;
+SS_BTSS_State btssPrevousState = SS_BTSS_DOWN;
+std::unique_ptr<std::thread> btss_event_handler_thread;
+#define UEVENT_MSG_LEN 1024
+#define BTSS_EVENT "SLATE_EVENT="
+#define BTSS_EVENT_STRING_LEN 11
+int btss_event;
 
 static constexpr size_t kStringLength = sizeof("XX:XX:XX:XX:XX:XX") - 1;
 static constexpr size_t kBytes = (kStringLength + 1) / 3;
@@ -350,6 +360,8 @@ static int init(bt_callbacks_t* callbacks, bool start_restricted,
     ALOGI("%s: registering DM profile callback with ss_interface", __func__);
     btSSInterface->registerCallbacks(BT_PROFILE_DM_ID, btif_dm_ss_callback);
   }
+  read_btss_state();
+  init_btss_event_handler();
   return BT_STATUS_SUCCESS;
 }
 
@@ -1403,6 +1415,149 @@ void single_stack_enable_status(int status){
                       },
                       BT_STATE_OFF));
   }
+}
+
+void btss_uevent_handler() {
+  ALOGI("%s ",__func__);
+  //Start Thread for monitoring BTSS state UEvents
+  int dev_fd;
+  char msg[UEVENT_MSG_LEN + 2];
+  int n;
+
+  ALOGD(" :%s starting BTSS uevent handler thread", __func__);
+  dev_fd = uevent_open_socket(64*1024, true);
+  if (dev_fd < 0) {
+    ALOGE(" %s: UEvent socket open FAILED returning error: %d", __func__, dev_fd);
+    return;
+  }
+  ALOGD(" %s: UEvent socket open SUCCESS dev_fd:%d", __func__,dev_fd);
+  while((n = uevent_kernel_multicast_recv(dev_fd, msg, UEVENT_MSG_LEN)) > 0) {
+    if (n < 0 || n > UEVENT_MSG_LEN) {
+      ALOGE("%s : Error in message length", __func__);
+      continue;
+    }
+    msg[n] = '\0';
+    msg[n+1] = '\0';
+    char *msg_ptr=(char *)msg;
+
+    if (strstr(msg, "slate_com_dev")) {
+      char *ptr = msg_ptr;
+      do {
+        ptr = ptr + strlen(ptr) + 1;
+      } while (*ptr);
+
+      while (*msg_ptr) {
+        if (!strncmp(msg_ptr, BTSS_EVENT, BTSS_EVENT_STRING_LEN)) {
+          msg_ptr += BTSS_EVENT_STRING_LEN + 1;
+          btss_event = static_cast<ss_slate_event_type>(atoi(msg_ptr));
+          ALOGD(" %s : event received - btssevent(%d)", __func__,btss_event);
+          switch((int)btss_event) {
+            case SS_SLATE_BEFORE_POWER_UP:
+              ALOGD(" %s : event received - SLATE_BEFORE_POWER_UP", __func__);
+              break;
+            case SS_SLATE_AFTER_POWER_UP:
+              {
+                ALOGD(" %s : event received - SLATE_AFTER_POWER_UP", __func__);
+                btssPrevousState = btssCurrentState;
+                btssCurrentState = SS_BTSS_UP;
+                ALOGD("%s :: Sending signal on Conditional variable",__func__);
+              }
+              break;
+            case SS_SLATE_BEFORE_POWER_DOWN:
+              {
+                ALOGE(" %s : event received -SLATE_BEFORE_POWER_DOWN", __func__);
+                btssPrevousState = btssCurrentState;
+                btssCurrentState = SS_BTSS_DOWN;
+                ALOGE(" %s : Triggering SSR ", __func__);
+                do_in_jni_thread(
+                  FROM_HERE, Bind(
+                    []() {
+                      HAL_CBACK(bt_vendor_callbacks, ssr_vendor_cb);
+                    }));
+              }
+              break;
+            case SS_SLATE_AFTER_POWER_DOWN:
+              {
+                ALOGE(" %s : event received - SLATE_AFTER_POWER_DOWN ", __func__);
+                btssPrevousState = btssCurrentState;
+                btssCurrentState = SS_BTSS_DOWN;
+                // Need to add logic for calling ReportSocFailure()
+                ALOGE(" %s : Triggering SSR ", __func__);
+                do_in_jni_thread(
+                  FROM_HERE, Bind(
+                    []() {
+                      HAL_CBACK(bt_vendor_callbacks, ssr_vendor_cb);
+                    }));
+              }
+              break;
+            case SS_SLATE_BT_READY:
+              {
+                ALOGD(" %s : event received - SLATE_BT_READY", __func__);
+                btssPrevousState = btssCurrentState;
+                btssCurrentState = SS_BTSS_UP;
+                ALOGD("%s :: Sending signal on Conditional variable",__func__);
+              }
+              break;
+            case SS_SLATE_BT_ERROR:
+              {
+                ALOGE(" %s : event received - SLATE_BT_ERROR", __func__);
+                btssPrevousState = btssCurrentState;
+                btssCurrentState = SS_BTSS_DOWN;
+                ALOGE(" %s : Triggering SSR ", __func__);
+                do_in_jni_thread(
+                  FROM_HERE, Bind(
+                    []() {
+                      HAL_CBACK(bt_vendor_callbacks, ssr_vendor_cb);
+                    }));
+              }
+              break;
+            default:
+              ALOGE(" %s : event received - not Handled uevent in BT(%d) ", __func__,btss_event);
+              break;
+          }
+        }
+        while(*msg_ptr++);
+      }
+    }
+  }
+}
+
+void init_btss_event_handler() {
+  ALOGI("%s ",__func__);
+  if(!btss_event_handler_thread) {
+    btss_event_handler_thread = std::unique_ptr<std::thread>(new std::thread(&btss_uevent_handler));
+  }
+}
+
+void read_btss_state() {
+  ALOGI("%s ",__func__);
+  char btss_state[10];
+  int fd_state;
+  fd_state = open(BTSS_STATE_NODE, O_RDONLY);
+  if (fd_state < 0) {
+    ALOGE("Reading BTSS state from sys class failed fd state %d", fd_state);
+    return;
+  }
+  int nofby = read(fd_state,btss_state, sizeof(btss_state) );
+  ALOGD("%s:Read BTSS state from sys class: %d ",__func__,nofby);
+  if( nofby > 0) {
+    ALOGD(" %s BTSS state read from %s : %s ",__func__,  BTSS_STATE_NODE,
+    btss_state);
+    if(!strcmp(btss_state,  "ready")) {
+      //Update current state read from node
+      //std::unique_lock<std::mutex> guard(state_update_mtx);
+      btssPrevousState = SS_BTSS_DOWN;
+      btssCurrentState = SS_BTSS_UP;
+      ALOGD("BTSS state : ready ");
+    } else {
+      //Update current state read from node
+      //std::unique_lock<std::mutex> guard(state_update_mtx);
+      btssPrevousState = SS_BTSS_UP;
+      btssCurrentState = SS_BTSS_DOWN;
+      ALOGE("BTSS state : eror BTSS not ready at");
+    }
+  }
+  close(fd_state);
 }
 
 void btif_ss_interface_init(){
