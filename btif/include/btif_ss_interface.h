@@ -13,6 +13,8 @@
 #include <map>
 #include <mutex>
 #include <memory>
+#include <errno.h>
+#include <pthread.h>
 #include <condition_variable>
 #include <hardware/bluetooth.h>
 #include "btif_common.h"
@@ -27,11 +29,16 @@
 #define MSG_SIZE_MIN 8
 #define MSG_SIZE_MAX 4096
 #define MSG_PROTO_OFFSET 6
-#define GLINK_TX_RX_ALARM_TIMEOUT 1000
+#define GLINK_IDLE_TIMEOUT 1000
 #define GLINK_SSR_DUMP_RX_ALARM_TIMEOUT 1000
+
+#define WAKE_LOCK_FILE    "/sys/power/wake_lock"
+#define WAKE_UNLOCK_FILE  "/sys/power/wake_unlock"
+#define SS_GLINK_LOCK_STR "ss_glink_lock"
 
 static bool isTxTimeout;
 static bool isRxTimeout;
+static bool isWakelockAcquired;
 
 struct TxData
 {
@@ -60,6 +67,8 @@ public:
     int postLeDataChTxMsg(std::string msgStr);
     void registerCallbacks(const char* profile_id, ss_profile_callback profile_cb);
     void deregisterCallbacks(const char* profile_id);
+    //api to acquire or release glink wakelock
+    static void ssGlinkWakeLockAcquireOrRelease(bool lockRequest);
 private:
     BluetoothSSInterface();
     ~BluetoothSSInterface();
@@ -68,7 +77,7 @@ private:
     //for ctrl channel
     std::unique_ptr<std::thread> rx_thread;
     void processRx();
-    bool running_;
+    bool running_ctrl_ch_;
 
     //for data channel
     std::unique_ptr<std::thread> data_ch_rx_thread;

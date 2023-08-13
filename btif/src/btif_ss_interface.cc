@@ -14,6 +14,10 @@
 #include <base/bind.h>
 #include <utils/Log.h>
 #include <limits.h>
+#include <errno.h>
+#include <pthread.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
 
 using namespace std;
 
@@ -50,6 +54,10 @@ alarm_t *tx_thread_timeout;
 alarm_t *rx_thread_timeout;
 alarm_t *rx_ssr_dump_thread_timeout;
 
+pthread_mutex_t tx_threads_mutex;
+pthread_mutex_t rx_threads_mutex;
+pthread_mutex_t wakelock_mutex;
+
 BluetoothSSInterface* BluetoothSSInterface::getInstance() {
     static BluetoothSSInterface instance;
     return &instance;
@@ -80,11 +88,19 @@ static bt_status_t do_in_ctrl_tx_thread(const base::Closure& task) {
 static void txThreadTimeout(void* data) {
   ALOGI("%s()", __func__);
   isTxTimeout = true;
+  if (isRxTimeout) {
+    ALOGI("%s() RX Threads are already timedout, so releasing wakelock for GLINK", __func__);
+    BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false);
+  }
 }
 
 static void rxThreadTimeout(void* data) {
   ALOGI("%s()", __func__);
   isRxTimeout = true;
+  if (isTxTimeout) {
+    ALOGI("%s() TX Threads are already timedout, so releasing wakelock for GLINK", __func__);
+    BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false);
+  }
 }
 
 static void run_message_loop_for_ctrl_tx(UNUSED_ATTR void* context) {
@@ -242,8 +258,9 @@ BluetoothSSInterface::BluetoothSSInterface() {
     ALOGI("BluetoothSSInterface finish open for ctrl rstlfd is :: %d",rsltfd);
     if (rsltfd <= 0) {
         ALOGE("open failed");
+        running_ctrl_ch_ = false;
     } else {
-        running_ = true;
+        running_ctrl_ch_ = true;
     }
     gSSTransportData = new BluetoothSSTransport();
     ALOGI("BluetoothSSInterface calling open for data channel");
@@ -251,6 +268,7 @@ BluetoothSSInterface::BluetoothSSInterface() {
     ALOGI("BluetoothSSInterface finish open for data rstlfd is :: %d",rsltfd);
     if (rsltfd <= 0) {
         ALOGE("open failed");
+        running_data_ch_ = false;
     } else {
         running_data_ch_ = true;
     }
@@ -260,6 +278,7 @@ BluetoothSSInterface::BluetoothSSInterface() {
     ALOGI("BluetoothSSInterface finish open for le data rstlfd is :: %d",rsltfd);
     if (rsltfd <= 0) {
         ALOGE("open failed");
+        running_le_data_ch_ = false;
     } else {
         running_le_data_ch_ = true;
     }
@@ -272,6 +291,7 @@ BluetoothSSInterface::BluetoothSSInterface() {
     ALOGI("BluetoothSSInterface finish open for ssr data rstlfd is :: %d",rsltfd);
     if (rsltfd <= 0) {
       ALOGI("open failed");
+      running_ssr_data_ch_ = false;
     }
     else {
       running_ssr_data_ch_ = true;
@@ -279,6 +299,11 @@ BluetoothSSInterface::BluetoothSSInterface() {
 #endif
     isTxTimeout = false;
     isRxTimeout = false;
+    isWakelockAcquired = false;
+    pthread_mutex_init(&tx_threads_mutex, NULL);
+    pthread_mutex_init(&rx_threads_mutex, NULL);
+    pthread_mutex_init(&wakelock_mutex, NULL);
+
     //message loop for alarm
     alarm_thread = thread_new_sized("alarm_thread", 1024);
     thread_post(alarm_thread, run_message_loop_for_alarm, nullptr);
@@ -290,12 +315,12 @@ BluetoothSSInterface::BluetoothSSInterface() {
     //threads for ctrl channel
     if(!rx_thread){
         rx_thread = std::unique_ptr<std::thread>(new std::thread(&BluetoothSSInterface::processRx, this));
-        alarm_set_on_mloop(rx_thread_timeout, GLINK_TX_RX_ALARM_TIMEOUT,
+        alarm_set_on_mloop(rx_thread_timeout, GLINK_IDLE_TIMEOUT,
                     rxThreadTimeout, NULL);
     }
     ctrl_tx_thread = thread_new_sized("ctrl_tx_thread", 1024);
     thread_post(ctrl_tx_thread, run_message_loop_for_ctrl_tx, nullptr);
-    alarm_set_on_mloop(tx_thread_timeout, GLINK_TX_RX_ALARM_TIMEOUT,
+    alarm_set_on_mloop(tx_thread_timeout, GLINK_IDLE_TIMEOUT,
                     txThreadTimeout, NULL);
 
     //threads for data channel
@@ -326,13 +351,19 @@ BluetoothSSInterface::BluetoothSSInterface() {
 
 BluetoothSSInterface::~BluetoothSSInterface() {
     ALOGI("BluetoothSSInterface destructor");
+    isTxTimeout = false;
+    isRxTimeout = false;
+    isWakelockAcquired = false;
+    pthread_mutex_destroy(&tx_threads_mutex);
+    pthread_mutex_destroy(&rx_threads_mutex);
+    pthread_mutex_destroy(&wakelock_mutex);
     //for ctrl ch
     if (run_loop_ctrl_tx_ && message_loop_ctrl_tx_) {
       message_loop_ctrl_tx_->task_runner()->PostTask(FROM_HERE,
           run_loop_ctrl_tx_->QuitClosure());
     }
     gSSTransportCtrl->close();
-    running_ = false;
+    running_ctrl_ch_ = false;
     delete gSSTransportCtrl;
     gSSTransportCtrl = NULL;
     //for data ch
@@ -405,12 +436,16 @@ void processTx(std::string msgStr) {
   const  char *msgType="Tx";
   uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
   size_t bytes_written = 0;
+  pthread_mutex_lock(&tx_threads_mutex);
   if (alarm_is_scheduled(tx_thread_timeout)) {
     ALOGI("%s(): tx_thread_timeout() scheduled", __func__);
     alarm_cancel(tx_thread_timeout);
   }
-  alarm_set_on_mloop(tx_thread_timeout, GLINK_TX_RX_ALARM_TIMEOUT,
+  isTxTimeout = false;
+  alarm_set_on_mloop(tx_thread_timeout, GLINK_IDLE_TIMEOUT,
       txThreadTimeout, NULL);
+  pthread_mutex_unlock(&tx_threads_mutex);
+  BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(true);
   if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
     do_in_data_logging_thread(base::Bind(processDataLogging, tmpBuf,msgStr.length(),msgType));
   }
@@ -425,6 +460,15 @@ int processDataTx(std::string msgStr) {
   int result = -1;
   int retry_count = 0;
   do {
+        pthread_mutex_lock(&tx_threads_mutex);
+        if (alarm_is_scheduled(tx_thread_timeout)) {
+          ALOGI("%s(): tx_thread_timeout() scheduled", __func__);
+          alarm_cancel(tx_thread_timeout);
+        }
+        isTxTimeout = false;
+        alarm_set_on_mloop(tx_thread_timeout, GLINK_IDLE_TIMEOUT, txThreadTimeout, NULL);
+        pthread_mutex_unlock(&tx_threads_mutex);
+        BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(true);
         result = gSSTransportData->write(tmpBuf,msgStr.length(),&bytes_written);
         if(result == 0){
           ALOGI("%s: Glink write success",__func__);
@@ -465,6 +509,15 @@ int processLeDataTx(std::string msgStr) {
   int result = -1;
   int retry_count = 0;
   do {
+        pthread_mutex_lock(&tx_threads_mutex);
+        if (alarm_is_scheduled(tx_thread_timeout)) {
+          ALOGI("%s(): tx_thread_timeout() scheduled", __func__);
+          alarm_cancel(tx_thread_timeout);
+        }
+        isTxTimeout = false;
+        alarm_set_on_mloop(tx_thread_timeout, GLINK_IDLE_TIMEOUT, txThreadTimeout, NULL);
+        pthread_mutex_unlock(&tx_threads_mutex);
+        BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(true);
         result = gSSTransportLeData->write(tmpBuf,msgStr.length(),&bytes_written);
         if(result == 0){
           ALOGI("%s: Glink write success",__func__);
@@ -527,25 +580,82 @@ void BluetoothSSInterface::deregisterCallbacks(const char* profile_id) {
     }
 }
 
+void BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(bool lockRequest) {
+  ALOGD("ssGlinkWakeLockAcquireOrRelease lockRequest %d",lockRequest);
+  pthread_mutex_lock(&wakelock_mutex);
+  int result = -1;
+  int fd = -1;
+  if (isWakelockAcquired && lockRequest) {
+    ALOGI("%s Wakelock already acquired",__func__);
+    pthread_mutex_unlock(&wakelock_mutex);
+    return;
+  } else if (!isWakelockAcquired && !lockRequest) {
+    ALOGI("%s Wakelock already released",__func__);
+    pthread_mutex_unlock(&wakelock_mutex);
+    return;
+  } else {
+    do
+    {
+      if (lockRequest == true) {
+        isWakelockAcquired = true;
+        fd = ::open(WAKE_LOCK_FILE, O_WRONLY|O_APPEND);
+      } else {
+        isWakelockAcquired = false;
+        fd = ::open(WAKE_UNLOCK_FILE, O_WRONLY|O_APPEND);
+      }
+      if (fd < 0) {
+        ALOGE("wakeLockAcquireOrRelease: open error: %d, %s \n",errno, strerror (errno));
+        result = -2;
+        break;
+      }
+      result = ::write(fd, SS_GLINK_LOCK_STR, strlen(SS_GLINK_LOCK_STR));
+      if (result != (int) strlen (SS_GLINK_LOCK_STR)) {
+        ALOGE("wakeLockAcquireOrRelease: write error: %d, %s \n", errno, strerror (errno));
+        result = -4;
+        break;
+      }
+      result = 0;
+    } while (0);
+    if (fd >= 0) {
+      ::close (fd);
+      fd = -1;
+    }
+    if (result != 0) {
+      ALOGE("wakeLockAcquireOrRelease: failed for lock/unlock %d, result = %d \n", lockRequest, result);
+    } else {
+      if (lockRequest) {
+        ALOGI("%s Wakelock acquired",__func__);
+      } else {
+        ALOGI("%s Wakelock released",__func__);
+      }
+    }
+  }
+  pthread_mutex_unlock(&wakelock_mutex);
+}
+
 void BluetoothSSInterface::processRx() {
-    ALOGD("BluetoothSSInterface processRx :: running_ is :: %d",running_);
+    ALOGD("BluetoothSSInterface processRx :: running_ctrl_ch_ is :: %d",running_ctrl_ch_);
     uint8_t *readBuffer = (uint8_t *)malloc(MSG_SIZE_MAX*sizeof(uint8_t));
     const char *msgType="Rx";
     if (readBuffer == NULL) {
       ALOGE("%s: readBuffer malloc failed",__func__);
       return;
     }
-    while (running_) {
+    while (running_ctrl_ch_) {
         int rcPoll = gSSTransportCtrl->poll(-1);
         if (-1 == rcPoll) {
             ALOGE("Poll Failure");
         }
+        pthread_mutex_lock(&rx_threads_mutex);
         if (alarm_is_scheduled(rx_thread_timeout)) {
           ALOGI("%s(): rx_thread_timeout() scheduled", __func__);
           alarm_cancel(rx_thread_timeout);
         }
-        alarm_set_on_mloop(rx_thread_timeout, GLINK_TX_RX_ALARM_TIMEOUT,
+        isRxTimeout = false;
+        alarm_set_on_mloop(rx_thread_timeout, GLINK_IDLE_TIMEOUT,
             rxThreadTimeout, NULL);
+        pthread_mutex_unlock(&rx_threads_mutex);
+        ssGlinkWakeLockAcquireOrRelease(true);
         int num = gSSTransportCtrl->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
         if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
           do_in_data_logging_thread(base::Bind(processDataLogging, readBuffer, num, msgType));
@@ -581,6 +691,16 @@ void BluetoothSSInterface::processDataChRx() {
         if (-1 == rcPoll) {
             ALOGE("Poll Failure");
         }
+        pthread_mutex_lock(&rx_threads_mutex);
+        if (alarm_is_scheduled(rx_thread_timeout)) {
+          ALOGI("%s(): rx_thread_timeout() scheduled", __func__);
+          alarm_cancel(rx_thread_timeout);
+        }
+        isRxTimeout = false;
+        alarm_set_on_mloop(rx_thread_timeout, GLINK_IDLE_TIMEOUT,
+            rxThreadTimeout, NULL);
+        pthread_mutex_unlock(&rx_threads_mutex);
+        ssGlinkWakeLockAcquireOrRelease(true);
         int num = gSSTransportData->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
         ALOGI("num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
@@ -618,6 +738,16 @@ void BluetoothSSInterface::processLeDataChRx() {
         if (-1 == rcPoll) {
             ALOGE("Poll Failure");
         }
+        pthread_mutex_lock(&rx_threads_mutex);
+        if (alarm_is_scheduled(rx_thread_timeout)) {
+          ALOGI("%s(): rx_thread_timeout() scheduled", __func__);
+          alarm_cancel(rx_thread_timeout);
+        }
+        isRxTimeout = false;
+        alarm_set_on_mloop(rx_thread_timeout, GLINK_IDLE_TIMEOUT,
+            rxThreadTimeout, NULL);
+        pthread_mutex_unlock(&rx_threads_mutex);
+        ssGlinkWakeLockAcquireOrRelease(true);
         int num = gSSTransportLeData->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
         ALOGI("num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
@@ -656,6 +786,15 @@ void BluetoothSSInterface::processSsrDataChRx() {
         if (-1 == rcPoll) {
             ALOGI("Poll Failure");
         }
+        pthread_mutex_lock(&rx_threads_mutex);
+        if (alarm_is_scheduled(rx_thread_timeout)) {
+          ALOGI("%s(): rx_thread_timeout() scheduled", __func__);
+          alarm_cancel(rx_thread_timeout);
+        }
+        isRxTimeout = false;
+        alarm_set_on_mloop(rx_thread_timeout, GLINK_IDLE_TIMEOUT, rxThreadTimeout, NULL);
+        pthread_mutex_unlock(&rx_threads_mutex);
+        ssGlinkWakeLockAcquireOrRelease(true);
         int num = gSSTransportSsrData->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
         ALOGI("num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
@@ -672,7 +811,7 @@ void BluetoothSSInterface::processSsrDataChRx() {
             }
             switch(MSG_ID) {
               case BT_SSR_EVT_SEQ_START: {
-                 alarm_set_on_mloop(rx_ssr_dump_thread_timeout, GLINK_TX_RX_ALARM_TIMEOUT,rxThreadTimeout, NULL);
+                 alarm_set_on_mloop(rx_ssr_dump_thread_timeout, GLINK_IDLE_TIMEOUT,rxThreadTimeout, NULL);
                 break;
               }
               case BT_SSR_EVT_SEQ_STOP: {
