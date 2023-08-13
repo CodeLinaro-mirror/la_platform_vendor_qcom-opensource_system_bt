@@ -283,7 +283,7 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
               } else {
                 ALOGI(
                 "is_service_uuid_valid==false - don't set SDP-record, "
-                "just start the RFCOMM server",
+                "just start the RFCOMM server rs->id:%d",
                 rs->id);
                 // now start the rfcomm server after sdp & channel # assigned
                 //BTA_JvRfcommStartServer(rs->security, rs->role, rs->scn,
