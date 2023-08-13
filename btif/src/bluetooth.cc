@@ -276,20 +276,49 @@ void letobd(uint8_t localAddr[6]) {
   }
 }
 
+void  split_address (const char* property, bool* need_write, char* address) {
+  std::string prop = property;
+  ALOGI("%s: property %s",__func__, prop.c_str());
+  std::size_t delimeter = prop.find(" ");
+  if (delimeter == std::string::npos) {
+    ALOGI("%s: delimeter not found returning",__func__);
+    return;
+  }
+  std::string bool_val = prop.substr(0, delimeter);
+  std::string address_val = prop.substr(delimeter + 1);
+  std::copy(address_val.begin(), address_val.end(), address);
+  if (bool_val.compare("true") == 0) {
+    *need_write = true;
+  } else {
+    *need_write = false;
+  }
+  return;
+}
+
 bool get_local_address (uint8_t *local_addr) {
   char property[PROPERTY_VALUE_MAX] = { 0 };
+  char addr_prop[kStringLength + 1];
   bool valid_bda = false;
+  bool isWrite = false;
 
   ALOGD("%s", __func__);
-
   //Look for a previously stored BDA in property "persist.vendor.service.bt.ss.bdaddr".
-  if (!valid_bda && property_get(PERSIST_BDADDR_PROPERTY, property, NULL) &&
-      string_to_bytes(property, local_addr)) {
+  if (!valid_bda && property_get(PERSIST_BDADDR_PROPERTY, property, NULL)) {
+    split_address(property, &isWrite, addr_prop);
+    if (isWrite && string_to_bytes(addr_prop, local_addr)) {
+      valid_bda = true;
+      letobd(local_addr);
+      goto exit;
+    }
+    if (!(string_to_bytes(addr_prop, local_addr))) {
+      goto generate_address;
+    }
     ALOGD("%s: BD address already present in property: Address: %s", __func__, property);
     valid_bda = false;
-    return valid_bda;
+    goto exit;
   }
 
+generate_address:
   /* Generate new BDA if necessary */
   if (!valid_bda) {
     char bdstr[kStringLength + 1];
@@ -312,9 +341,12 @@ bool get_local_address (uint8_t *local_addr) {
 
     /* Convert to ascii, and store as a persistent property */
     bytes_to_string(local_addr, bdstr);
-    ALOGD("%s: No preset BDA! Generating BDA: %s for prop %s", __func__,
-          (char*)bdstr, PERSIST_BDADDR_PROPERTY);
-    if (property_set(PERSIST_BDADDR_PROPERTY, (char*)bdstr) < 0) {
+    std::string prop;
+    prop.append("true ");
+    prop.append(bdstr);
+    ALOGD("%s: No preset BDA! Generating BDA: %s for prop %s:%s", __func__,
+          (char*)bdstr, PERSIST_BDADDR_PROPERTY, prop.c_str());
+    if (property_set(PERSIST_BDADDR_PROPERTY, prop.c_str()) < 0) {
       ALOGE("%s: Failed to set random BDA in prop %s", __func__,
             PERSIST_BDADDR_PROPERTY);
       valid_bda = false;
@@ -323,6 +355,7 @@ bool get_local_address (uint8_t *local_addr) {
       letobd(local_addr);
     }
   }
+exit:
   return valid_bda;
 }
 
@@ -427,12 +460,22 @@ static int enable () {
   enable_msg[1] = (msg_id >> 8);
 
   if (get_local_address(addr)) {
+    char bdstr[kStringLength + 1];
     bd_addr = (RawAddress*)addr;
     ALOGI("%s: Setting BT Address to %s", __func__, bd_addr->ToString().c_str());
     ss_enable _bt_enable;
     _bt_enable.set_bd_addr(ToRawString(bd_addr).c_str());
     _bt_enable.SerializeToString(&protoMsg);
     proto_encode = PROTO_ENC_DEC;
+    std::string prop;
+    prop.append("false ");
+    letobd(addr);
+    bytes_to_string(addr, bdstr);
+    prop.append(bdstr);
+    if (property_set(PERSIST_BDADDR_PROPERTY, prop.c_str()) < 0) {
+      ALOGE("%s: Failed to set random BDA in prop %s", __func__,
+        PERSIST_BDADDR_PROPERTY);
+    }
   }
   ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
   //adding length
@@ -1510,9 +1553,23 @@ void btss_uevent_handler() {
               break;
             case SS_SLATE_BEFORE_POWER_DOWN:
               {
+                char property[PROPERTY_VALUE_MAX] = { 0 };
                 ALOGE(" %s : event received -SLATE_BEFORE_POWER_DOWN", __func__);
                 btssPrevousState = btssCurrentState;
                 btssCurrentState = SS_SLATE_DOWN;
+                if (property_get(PERSIST_BDADDR_PROPERTY, property, NULL)) {
+                  ALOGD(" %s : Got property %s ", __func__, property);
+                  char addr_prop[kStringLength + 1];
+                  bool isWrite;
+                  split_address(property, &isWrite, addr_prop);
+                  std::string prop;
+                  prop.append("true ");
+                  prop.append(addr_prop);
+                  if (property_set(PERSIST_BDADDR_PROPERTY, prop.c_str()) < 0) {
+                    ALOGE("%s: Failed to set random BDA in prop %s", __func__,
+                      PERSIST_BDADDR_PROPERTY);
+                  }
+                }
                 ALOGE(" %s : Triggering SSR ", __func__);
                 do_in_jni_thread(
                   FROM_HERE, Bind(
