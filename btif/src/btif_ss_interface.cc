@@ -55,7 +55,7 @@ base::MessageLoop* get_ss_alarm_message_loop() { return message_loop_alarm_; }
 static bt_status_t do_in_ctrl_tx_thread(const base::Location& from_here,
     const base::Closure& task) {
   if (!message_loop_ctrl_tx_ || !message_loop_ctrl_tx_->task_runner().get()) {
-    ALOGI("%s: Dropped message, message_loop not initialized yet",__func__);
+    ALOGE("%s: Dropped message, message_loop not initialized yet",__func__);
     return BT_STATUS_FAIL;
   }
 
@@ -63,7 +63,7 @@ static bt_status_t do_in_ctrl_tx_thread(const base::Location& from_here,
     return BT_STATUS_SUCCESS;
   }
 
-  ALOGI("%s: Post task to task runner failed!",__func__);
+  ALOGE("%s: Post task to task runner failed!",__func__);
   return BT_STATUS_FAIL;
 }
 
@@ -102,7 +102,7 @@ static void run_message_loop_for_ctrl_tx(UNUSED_ATTR void* context) {
 static bt_status_t do_in_data_tx_thread(const base::Location& from_here,
     const base::Closure& task) {
   if (!message_loop_data_tx_ || !message_loop_data_tx_->task_runner().get()) {
-    ALOGI("%s: Dropped message, message_loop not initialized yet",__func__);
+    ALOGE("%s: Dropped message, message_loop not initialized yet",__func__);
     return BT_STATUS_FAIL;
   }
 
@@ -110,7 +110,7 @@ static bt_status_t do_in_data_tx_thread(const base::Location& from_here,
     return BT_STATUS_SUCCESS;
   }
 
-  ALOGI("%s: Post task to task runner failed!",__func__);
+  ALOGE("%s: Post task to task runner failed!",__func__);
   return BT_STATUS_FAIL;
 }
 
@@ -140,7 +140,7 @@ static void run_message_loop_for_data_tx(UNUSED_ATTR void* context) {
 static bt_status_t do_in_le_data_tx_thread(const base::Location& from_here,
     const base::Closure& task) {
   if (!message_loop_le_data_tx_ || !message_loop_le_data_tx_->task_runner().get()) {
-    ALOGI("%s: Dropped message, message_loop not initialized yet",__func__);
+    ALOGE("%s: Dropped message, message_loop not initialized yet",__func__);
     return BT_STATUS_FAIL;
   }
 
@@ -148,7 +148,7 @@ static bt_status_t do_in_le_data_tx_thread(const base::Location& from_here,
     return BT_STATUS_SUCCESS;
   }
 
-  ALOGI("%s: Post task to task runner failed!",__func__);
+  ALOGE("%s: Post task to task runner failed!",__func__);
   return BT_STATUS_FAIL;
 }
 
@@ -213,7 +213,7 @@ static void run_message_loop_for_data_logging(UNUSED_ATTR void* context) {
 static bt_status_t do_in_data_logging_thread(const base::Location& from_here,
     const base::Closure& task) {
   if (!message_loop_data_logging_ || !message_loop_data_logging_->task_runner().get()) {
-    ALOGI("%s: Dropped message, message_loop not initialized yet",__func__);
+    ALOGE("%s: Dropped message, message_loop not initialized yet",__func__);
     return BT_STATUS_FAIL;
   }
 
@@ -221,7 +221,7 @@ static bt_status_t do_in_data_logging_thread(const base::Location& from_here,
     return BT_STATUS_SUCCESS;
   }
 
-  ALOGI("%s: Post task to task runner failed!",__func__);
+  ALOGE("%s: Post task to task runner failed!",__func__);
   return BT_STATUS_FAIL;
 }
 
@@ -236,7 +236,7 @@ BluetoothSSInterface::BluetoothSSInterface() {
     int rsltfd = gSSTransportCtrl->open(BT_SS_CTRL_CH);
     ALOGI("BluetoothSSInterface finish open for ctrl rstlfd is :: %d",rsltfd);
     if (rsltfd <= 0) {
-        ALOGI("open failed");
+        ALOGE("open failed");
     } else {
         running_ = true;
     }
@@ -245,7 +245,7 @@ BluetoothSSInterface::BluetoothSSInterface() {
     rsltfd = gSSTransportData->open(BT_SS_DATA_CH);
     ALOGI("BluetoothSSInterface finish open for data rstlfd is :: %d",rsltfd);
     if (rsltfd <= 0) {
-        ALOGI("open failed");
+        ALOGE("open failed");
     } else {
         running_data_ch_ = true;
     }
@@ -254,7 +254,7 @@ BluetoothSSInterface::BluetoothSSInterface() {
     rsltfd = gSSTransportLeData->open(BT_SS_LE_DATA_CH);
     ALOGI("BluetoothSSInterface finish open for le data rstlfd is :: %d",rsltfd);
     if (rsltfd <= 0) {
-        ALOGI("open failed");
+        ALOGE("open failed");
     } else {
         running_le_data_ch_ = true;
     }
@@ -387,7 +387,7 @@ int processDataTx(std::string msgStr) {
           break;
         }else if(result == -1){
           retry_count++;
-          ALOGI("%s: Glink write failure...retrying...retry count is :: %d",__func__,retry_count);
+          ALOGE("%s: Glink write failure...retrying...retry count is :: %d",__func__,retry_count);
           switch (retry_count) {
             case 1 ... 4: {
               break;
@@ -403,7 +403,7 @@ int processDataTx(std::string msgStr) {
          }
          continue;
         }else{
-          ALOGI("%s: Glink write failure status unknown",__func__);
+          ALOGE("%s: Glink write failure status unknown",__func__);
           break;
         }
   }while(true);
@@ -427,13 +427,13 @@ int processLeDataTx(std::string msgStr) {
           break;
         }else if(result == -1){
           retry_count++;
-          ALOGI("%s: Glink write failure...retrying...retry count is :: %d",__func__,retry_count);
+          ALOGE("%s: Glink write failure...retrying...retry count is :: %d",__func__,retry_count);
           if(retry_count > 3){
             usleep(50000);
           }
           continue;
         }else{
-          ALOGI("%s: Glink write failure status unknown",__func__);
+          ALOGE("%s: Glink write failure status unknown",__func__);
           break;
         }
   }while(true);
@@ -494,7 +494,7 @@ void BluetoothSSInterface::processRx() {
     while (running_) {
         int rcPoll = gSSTransportCtrl->poll(-1);
         if (-1 == rcPoll) {
-            ALOGI("Poll Failure");
+            ALOGE("Poll Failure");
         }
         if (alarm_is_scheduled(rx_thread_timeout)) {
           ALOGI("%s(): rx_thread_timeout() scheduled", __func__);
@@ -535,7 +535,7 @@ void BluetoothSSInterface::processDataChRx() {
     while (running_data_ch_) {
         int rcPoll = gSSTransportData->poll(-1);
         if (-1 == rcPoll) {
-            ALOGI("Poll Failure");
+            ALOGE("Poll Failure");
         }
         int num = gSSTransportData->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
         ALOGI("num of bytes read from stream is :: %d",num);
@@ -572,7 +572,7 @@ void BluetoothSSInterface::processLeDataChRx() {
     while (running_le_data_ch_) {
         int rcPoll = gSSTransportLeData->poll(-1);
         if (-1 == rcPoll) {
-            ALOGI("Poll Failure");
+            ALOGE("Poll Failure");
         }
         int num = gSSTransportLeData->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
         ALOGI("num of bytes read from stream is :: %d",num);
@@ -683,7 +683,7 @@ void BluetoothSSInterface::parseRxData(int msg_id, tBTIF_SS_Cback ss_cback) {
           break;
         }
         default:
-            ALOGI("msg_id : %d Not matching with any group",msg_id);
+            ALOGE("msg_id : %d Not matching with any group",msg_id);
             if (ss_cback.payload != NULL) {
               free(ss_cback.payload);
               ss_cback.payload = NULL;
