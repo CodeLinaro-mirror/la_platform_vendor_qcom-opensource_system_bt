@@ -237,7 +237,10 @@ void btif_sdp_ss_callback(uint16_t event, char* p_param) {
    if(MSG_ID == BT_SDP_SEARCH_COMPLETE_CB) {
       ALOGI("BT_SDP_SEARCH_COMPLETE_CB");
       ss_sdp_search_complete_callback sdp_cb;
-      sdp_cb.ParseFromString(resBufferString);
+      bool ret = sdp_cb.ParseFromString(resBufferString);
+      if(!ret) {
+        ALOGE("Unable to parse string");
+      }
       if(sdp_cb.has_status()) {
          status = (bt_status_t)sdp_cb.status();
       }
