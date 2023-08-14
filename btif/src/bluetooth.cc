@@ -2238,7 +2238,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
             hci_reason = aclStateChangedCb.hci_reason();
             ALOGI("BT_DM_ACL_STATE_CHANGE_CB: Pairing: status: %d bdaddr: %s, acl_state: %d, hci_reason: %d", status, bd_addr->ToString().c_str(), acl_state, hci_reason);
     	    ALOGI("BT_DM_ACL_STATE_CHANGE_CB: Pairing: status: %d bdaddr: %s, acl_state: %d, hci_reason: %d", status, bd_addr->ToString().c_str(), acl_state, hci_reason);
-            HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS, bd_addr, acl_state, 0, uint8_t(hci_reason), bt_conn_direction_t::BT_CONN_DIRECTION_UNKNOWN, 0);
+            HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS, bd_addr, acl_state, BT_TRANSPORT_BR_EDR, uint8_t(hci_reason), bt_conn_direction_t::BT_CONN_DIRECTION_UNKNOWN, 0);
         }
 
         else {
