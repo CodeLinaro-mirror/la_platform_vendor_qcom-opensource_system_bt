@@ -2000,7 +2000,10 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
     case BT_DM_DISCOVERY_STATE_CHANGE_CB: {
       ALOGI("Has BT_DM_DISCOVERY_STATE_CHANGE_CB");
       ss_discovery_state_changed_callback discoveryStateChanged;
-      discoveryStateChanged.ParseFromString(resBufferString);
+      bool ret = discoveryStateChanged.ParseFromString(resBufferString);
+      if(!ret) {
+        ALOGE("Unable to parse string");
+      }
       if(discoveryStateChanged.has_state()) {
         bt_discovery_state_t discovery_state;
         discovery_state = (bt_discovery_state_t)discoveryStateChanged.state();
@@ -2024,7 +2027,10 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       bt_bdname_t bd_name;
       int8_t rssi;
       uint32_t cod;
-      deviceFoundCb.ParseFromString(resBufferString);
+      bool ret = deviceFoundCb.ParseFromString(resBufferString);
+      if(!ret) {
+        ALOGE("Unable to parse string");
+      }
       if(deviceFoundCb.has_num_properties()) {
         int numProp = deviceFoundCb.num_properties();
         ALOGI("BT_DM_DEVICE_FOUND_CB: has_num_properties");
