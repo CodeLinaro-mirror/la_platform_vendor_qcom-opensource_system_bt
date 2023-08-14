@@ -153,6 +153,7 @@ cc_library_shared {
         "src/btif_ss_interface.cc",
         "src/btif_ss_transport.cc",
         "src/btif_ss_stub_interface.cc",
+        "src/btif_ss_logger.cc",
     ],
     shared_libs: [
         "libaaudio",

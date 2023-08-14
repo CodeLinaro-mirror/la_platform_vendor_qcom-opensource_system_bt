@@ -1,9 +1,11 @@
-#ifndef __BTIF_SS_INTERFCAE__
-#define __BTIF_SS_INTERFCAE__
 /*
  * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear.
  */
+
+#ifndef __BTIF_SS_INTERFCAE__
+#define __BTIF_SS_INTERFCAE__
+
 #include<string>
 #include "btif_ss_transport.h"
 #include <thread>
@@ -26,6 +28,7 @@
 #define MSG_SIZE_MAX 4096
 #define MSG_PROTO_OFFSET 6
 #define GLINK_TX_RX_ALARM_TIMEOUT 1000
+#define GLINK_SSR_DUMP_RX_ALARM_TIMEOUT 1000
 
 static bool isTxTimeout;
 static bool isRxTimeout;
@@ -76,6 +79,11 @@ private:
     std::unique_ptr<std::thread> le_data_ch_rx_thread;
     void processLeDataChRx();
     bool running_le_data_ch_;
+
+    //for ssr data channel
+    std::unique_ptr<std::thread> ssr_data_ch_rx_thread;
+    void processSsrDataChRx();
+    bool running_ssr_data_ch_;
 
 };
 #endif //__BTIF_SS_INTERFCAE__

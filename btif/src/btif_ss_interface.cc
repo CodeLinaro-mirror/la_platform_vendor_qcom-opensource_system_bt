@@ -2,12 +2,15 @@
  * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear.
  */
+
 #define LOG_TAG "btif_ss_interface"
 #include "btif_ss_interface.h"
 #include "protobuf/proto/dm.pb.h"
 #include "protobuf/include/proto_message_ids.h"
 #include "osi/include/log.h"
 #include "btif_api.h"
+#include "btif_gatt.h"
+#include "btif_ss_logger.h"
 #include <base/bind.h>
 #include <utils/Log.h>
 #include <limits.h>
@@ -21,6 +24,7 @@ using namespace std;
 BluetoothSSTransport* gSSTransportCtrl = NULL;
 BluetoothSSTransport* gSSTransportData = NULL;
 BluetoothSSTransport* gSSTransportLeData = NULL;
+BluetoothSSTransport* gSSTransportSsrData = NULL;
 
 thread_t* ctrl_tx_thread;
 static base::MessageLoop* message_loop_ctrl_tx_ = NULL;
@@ -44,6 +48,7 @@ static base::RunLoop* run_loop_data_logging_ = NULL;
 
 alarm_t *tx_thread_timeout;
 alarm_t *rx_thread_timeout;
+alarm_t *rx_ssr_dump_thread_timeout;
 
 BluetoothSSInterface* BluetoothSSInterface::getInstance() {
     static BluetoothSSInterface instance;
@@ -258,6 +263,20 @@ BluetoothSSInterface::BluetoothSSInterface() {
     } else {
         running_le_data_ch_ = true;
     }
+
+    gSSTransportSsrData = new BluetoothSSTransport();
+    ALOGI("BluetoothSSInterface calling open for ssr data channel");
+    //TBD: Need to enable once slate changes are ready
+#if 0
+    rsltfd = gSSTransportSsrData->open(BT_SS_SSR_DATA_CH);
+    ALOGI("BluetoothSSInterface finish open for ssr data rstlfd is :: %d",rsltfd);
+    if (rsltfd <= 0) {
+      ALOGI("open failed");
+    }
+    else {
+      running_ssr_data_ch_ = true;
+    }
+#endif
     isTxTimeout = false;
     isRxTimeout = false;
     //message loop for alarm
@@ -266,6 +285,7 @@ BluetoothSSInterface::BluetoothSSInterface() {
 
     tx_thread_timeout = alarm_new("glink_ctrl_tx_timeout_alarm");
     rx_thread_timeout = alarm_new("glink_ctrl_rx_timeout_alarm");
+    rx_ssr_dump_thread_timeout = alarm_new("glink_ctrl_rx_ssr_dump_timeout_alarm");
 
     //threads for ctrl channel
     if(!rx_thread){
@@ -282,6 +302,12 @@ BluetoothSSInterface::BluetoothSSInterface() {
     if(!data_ch_rx_thread){
         data_ch_rx_thread = std::unique_ptr<std::thread>(new std::thread(&BluetoothSSInterface::processDataChRx, this));
     }
+
+    //thread for ssr dump
+    if(!ssr_data_ch_rx_thread){
+        ssr_data_ch_rx_thread = std::unique_ptr<std::thread>(new std::thread(&BluetoothSSInterface::processSsrDataChRx, this));
+    }
+
     data_tx_thread = thread_new_sized("data_tx_thread", 1024);
     thread_post(data_tx_thread, run_message_loop_for_data_tx, nullptr);
 
@@ -328,6 +354,14 @@ BluetoothSSInterface::~BluetoothSSInterface() {
     delete gSSTransportLeData;
     gSSTransportLeData = NULL;
 
+    /* For SSR Dump data channel */
+    if (gSSTransportSsrData != NULL) {
+      gSSTransportSsrData->close();
+      running_ssr_data_ch_ = false;
+      delete gSSTransportSsrData;
+      gSSTransportSsrData = NULL;
+    }
+
     if (run_loop_alarm_ && message_loop_alarm_) {
       message_loop_alarm_->task_runner()->PostTask(FROM_HERE,
           run_loop_alarm_->QuitClosure());
@@ -340,6 +374,16 @@ BluetoothSSInterface::~BluetoothSSInterface() {
     } else {
       ALOGI("%s(): rx_thread_timeout() is not scheduled", __func__);
     }
+    // stop ssrdump alarm
+    if (alarm_is_scheduled(rx_ssr_dump_thread_timeout)) {
+      ALOGI("%s(): rx_ssr_dump_thread_timeout() scheduled", __func__);
+      alarm_cancel(rx_ssr_dump_thread_timeout);
+      alarm_free(rx_ssr_dump_thread_timeout);
+    }
+    else {
+      ALOGI("%s(): rx_ssr_dump_thread_timeout() is not scheduled", __func__);
+    }
+
     if (alarm_is_scheduled(tx_thread_timeout)) {
       ALOGI("%s(): tx_thread_timeout() scheduled", __func__);
       alarm_cancel(tx_thread_timeout);
@@ -594,6 +638,59 @@ void BluetoothSSInterface::processLeDataChRx() {
             }
             memcpy(ss_cback.payload, readBuffer, (num * sizeof(uint8_t)) );
             parseRxData(MSG_ID, ss_cback);
+        }
+    }
+    free(readBuffer);
+}
+
+void BluetoothSSInterface::processSsrDataChRx() {
+    ALOGE("BluetoothSSInterface processRx :: running_ssr_data_ch_ is :: %d",running_ssr_data_ch_);
+    //btif_ss_logger btif_ss_logger;
+    uint8_t *readBuffer = (uint8_t *)malloc(MSG_SIZE_MAX*sizeof(uint8_t));
+    if (readBuffer == NULL) {
+      ALOGE("%s: readBuffer malloc failed",__func__);
+      return;
+    }
+    while (running_ssr_data_ch_) {
+        int rcPoll = gSSTransportLeData->poll(-1);
+        if (-1 == rcPoll) {
+            ALOGI("Poll Failure");
+        }
+        int num = gSSTransportSsrData->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
+        ALOGI("num of bytes read from stream is :: %d",num);
+        if(num < MSG_SIZE_MIN) {
+            ALOGE("Slate response is too short ::  %d",num);
+        }
+        else {
+            uint16_t MSG_ID = readBuffer[0] + (((int)(readBuffer[1])) << 8);
+            uint16_t length = readBuffer[2] + (((int)(readBuffer[3])) << 8);
+            PrimaryReasonCode reason = (PrimaryReasonCode)readBuffer[4];// + ((readBuffer[5]) << 8);
+
+            if (length > (num - MSG_PROTO_OFFSET)) {
+              ALOGE("Length is greater than the buffer received. Buffer Size: %d and length: %d",num, length);
+              continue;
+            }
+            switch(MSG_ID) {
+              case BT_SSR_EVT_SEQ_START: {
+                 alarm_set_on_mloop(rx_ssr_dump_thread_timeout, GLINK_TX_RX_ALARM_TIMEOUT,rxThreadTimeout, NULL);
+                break;
+              }
+              case BT_SSR_EVT_SEQ_STOP: {
+                if (alarm_is_scheduled(rx_ssr_dump_thread_timeout)) {
+                  ALOGI("%s(): rx_ssr_dump_thread_timeout() scheduled", __func__);
+                  alarm_cancel(rx_ssr_dump_thread_timeout);
+                }
+                break;
+              }
+              case BT_SSR_EVT_SEQ_START_NEXT ... BT_SSR_EVT_SEQ_BEFORE_STOP: {
+                //btif_ss_logger.SS_SaveSlateMemDump(&readBuffer[5],length, reason)
+                break;
+              }
+
+              default:
+                ALOGI("msg_id : %d Not matching with ssr dump message ID",MSG_ID);
+                break;
+            }
         }
     }
     free(readBuffer);

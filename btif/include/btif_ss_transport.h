@@ -1,9 +1,10 @@
-#ifndef __BTIF_SS_TRANSPORT__
-#define __BTIF_SS_TRANSPORT__
 /*
  * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear.
  */
+
+#ifndef __BTIF_SS_TRANSPORT__
+#define __BTIF_SS_TRANSPORT__
 
 #include <string>
 
@@ -11,6 +12,7 @@
 #define BT_SS_CTRL_CH "/dev/glink_pkt_ss_bt_ctrl"
 #define BT_SS_DATA_CH "/dev/glink_pkt_ss_bt_data"
 #define BT_SS_LE_DATA_CH "/dev/glink_pkt_ss_bt_le_data"
+#define BT_SS_SSR_DATA_CH "/dev/glink_pkt_ss_bt_ssr_data"
 
 #define BT_DATA_PATH "/data/misc/bluetooth/glink_data.txt"
 #define CASE_RETURN_STR(const) \
