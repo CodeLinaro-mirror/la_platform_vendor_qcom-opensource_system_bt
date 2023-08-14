@@ -5,7 +5,7 @@
 
 #define LOG_TAG "BluetoothSSTransport"
 #include "btif_ss_transport.h"
-#include <utils/Log.h>
+#include "osi/include/log.h"
 
 #include <errno.h>
 #include <fcntl.h>
