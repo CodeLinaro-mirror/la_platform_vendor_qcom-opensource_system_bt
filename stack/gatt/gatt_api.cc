@@ -1369,7 +1369,7 @@ bool GATT_GetConnIdIfConnected(tGATT_IF gatt_if, const RawAddress& bd_addr,
     status = true;
   }
 
-  LOG(INFO) << __func__ << " status=" << +status;
+  LOG(INFO) << __func__ << " status=" << +status << " conn_id=" << *p_conn_id;
   VLOG(1) << __func__ << " status= " << +status;
   return status;
 }

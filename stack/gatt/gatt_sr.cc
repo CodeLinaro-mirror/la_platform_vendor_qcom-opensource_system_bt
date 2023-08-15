@@ -1090,6 +1090,7 @@ void gatts_proc_srv_chg_ind_ack(tGATT_TCB tcb) {
   p_buf = gatt_is_bda_in_the_srv_chg_clt_list(tcb.peer_bda);
   if (p_buf != NULL) {
     VLOG(1) << "NV update set srv chg = false";
+    LOG(INFO) << __func__ << ": NV update set srv chg = false";
     p_buf->srv_changed = false;
     memcpy(&req.srv_chg, p_buf, sizeof(tGATTS_SRV_CHG));
     if (gatt_cb.cb_info.p_srv_chg_callback)

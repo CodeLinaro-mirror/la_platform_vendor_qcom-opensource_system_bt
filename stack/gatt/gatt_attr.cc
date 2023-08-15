@@ -36,6 +36,7 @@
 #include "osi/include/properties.h"
 
 #include "btif_storage.h"
+#include "bta_gatt_api.h"
 #include "stack/btm/btm_int.h"
 #include "stack_config.h"
 
@@ -654,6 +655,12 @@ static void gatt_cl_op_cmpl_cback(uint16_t conn_id,
     return;
   }
 
+  if (status == GATT_DATABASE_OUT_OF_SYNC) {
+    // trigger discovery
+    LOG(INFO) << __func__ << ": GATT_DATABASE_OUT_OF_SYNC";
+    BTA_GATTC_Refresh(p_clcb->bda);
+    return;
+  }
   if ((op == GATTC_OPTYPE_WRITE) &&
       (p_clcb->ccc_stage == GATT_SVC_CHANGED_CONFIGURE_CCCD)) {
     VLOG(1) << __func__ << "Configure CCC is done";
@@ -823,9 +830,9 @@ void GATT_EnableRobustCaching(const RawAddress& remote_bda,
   if (GATT_GetConnIdIfConnected(gatt_cb.gatt_if, remote_bda, &p_clcb->conn_id,
                                 transport)) {
     p_clcb->connected = true;
-  } else {
-    GATT_Connect(gatt_cb.gatt_if, remote_bda, true, transport, true);
   }
+
+  GATT_Connect(gatt_cb.gatt_if, remote_bda, true, transport, true);
   p_clcb->robust_caching_stage = GATT_ROBUST_CACHING_CL_SUPP_FEAT_CONNECTING;
 
   if (!p_clcb->connected) {
@@ -1054,9 +1061,9 @@ static tGATT_STATUS gatt_sr_write_cl_supp_feat(uint16_t conn_id,
               << ", conn_id=" << loghex(conn_id);
   }
 
-  if (stack_config_get_interface()->get_pts_save_db_hash()) {
+//  if (stack_config_get_interface()->get_pts_save_db_hash()) {
     gatt_save_cl_db_hash(tcb);
-  }
+//  }
 
   return GATT_SUCCESS;
 }
@@ -1107,6 +1114,7 @@ void gatt_save_cl_db_hash(tGATT_TCB tcb) {
 
   if (gatt_sr_is_cl_robust_caching_supported(tcb)) {
     VLOG(1) << __func__ << " saving DB Hash";
+    LOG(INFO) << __func__ << " saving DB Hash";
     btif_storage_set_gatt_cl_db_hash(tcb.peer_bda, gatt_cb.database_hash);
   }
 }

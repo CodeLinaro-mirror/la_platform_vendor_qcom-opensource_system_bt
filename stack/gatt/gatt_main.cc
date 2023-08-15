@@ -461,6 +461,8 @@ static void gatt_le_connect_cback(uint16_t chan, const RawAddress& bd_addr,
 
   VLOG(1) << "GATT   ATT protocol channel with BDA: " << bd_addr << " is "
           << ((connected) ? "connected" : "disconnected");
+  LOG(INFO) << "GATT   ATT protocol channel with BDA: " << bd_addr
+            << " is " << ((connected) ? "connected" : "disconnected");
 
   p_srv_chg_clt = gatt_is_bda_in_the_srv_chg_clt_list(bd_addr);
   if (p_srv_chg_clt != NULL) {
@@ -480,8 +482,8 @@ static void gatt_le_connect_cback(uint16_t chan, const RawAddress& bd_addr,
         p_tcb->payload_size = GATT_DEF_BLE_MTU_SIZE;
 
         gatt_send_conn_cback(p_tcb);
+        if (check_srv_chg) gatt_chk_srv_chg(p_srv_chg_clt);
       }
-      if (check_srv_chg) gatt_chk_srv_chg(p_srv_chg_clt);
     }
     /* this is incoming connection or background connection callback */
 
@@ -500,23 +502,6 @@ static void gatt_le_connect_cback(uint16_t chan, const RawAddress& bd_addr,
         }
       } else {
         LOG(ERROR) << "CCB max out, no rsources";
-      }
-    }
-
-    if (gatt_is_robust_caching_enabled()) {
-      bool skip_caching_enable = false;
-      BD_NAME bd_name;
-      VLOG(1) << StringPrintf("[%s] BTM_GetRemoteDeviceName: %s", __func__, bd_addr.ToString().c_str());
-      if (BTM_GetRemoteDeviceName(bd_addr, bd_name)) {
-        VLOG(1) << StringPrintf("[%s] FileDB Device name: %s", __func__, bd_name);
-        if (interop_database_match_name(INTEROP_SKIP_ROBUST_CACHING_READ, (char*) bd_name)) {
-          VLOG(1) << StringPrintf("[%s] Skip GATT_EnableRobustCaching", __func__);
-          skip_caching_enable = true;
-        }
-      }
-      VLOG(1) << StringPrintf("[%s] skip_caching_enable: %d", __func__, skip_caching_enable);
-      if (!skip_caching_enable) {
-        GATT_EnableRobustCaching(bd_addr, BT_TRANSPORT_LE);
       }
     }
   } else {
@@ -1137,6 +1122,7 @@ void gatt_send_srv_chg_ind(const RawAddress& peer_bda) {
  ******************************************************************************/
 void gatt_chk_srv_chg(tGATTS_SRV_CHG* p_srv_chg_clt) {
   VLOG(1) << __func__ << " srv_changed=" << +p_srv_chg_clt->srv_changed;
+  LOG(ERROR) << __func__ << " srv_changed=" << +p_srv_chg_clt->srv_changed;
 
   if (p_srv_chg_clt->srv_changed) {
     gatt_send_srv_chg_ind(p_srv_chg_clt->bda);

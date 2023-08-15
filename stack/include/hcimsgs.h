@@ -942,5 +942,6 @@ extern void btsnd_hcic_ble_create_periodic_sync(uint8_t options, uint8_t adv_sid
                                                 uint8_t sync_cte_type);
 extern void btsnd_hcic_ble_terminate_periodic_sync(uint16_t sync_handle);
 extern void btsnd_hci_ble_cancel_period_sync(void);
+extern void btsnd_hcic_ble_enable_pa_scan_report(uint16_t sync_handle, uint8_t enable);
 
 #endif

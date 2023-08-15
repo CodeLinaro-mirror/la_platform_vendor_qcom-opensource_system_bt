@@ -1253,6 +1253,23 @@ void BTM_BleCancelPeriodicSync(uint8_t adv_sid, RawAddress address) {
 
 /*******************************************************************************
  *
+ * Function        BTM_BleEnablePaScanReport
+ *
+ * Description     set PA scan report enable
+ *
+ ******************************************************************************/
+void BTM_BleEnablePaScanReport(uint16_t handle, uint8_t enable) {
+  BTM_TRACE_DEBUG("[PSync]%s: handle = %d",__func__, handle);
+  int index = btm_ble_get_psync_index_from_handle(handle);
+  if (index == MAX_SYNC_TRANSACTION) {
+    BTM_TRACE_ERROR("[PSync]%s: invalid index",__func__);
+    return;
+  }
+  btsnd_hcic_ble_enable_pa_scan_report(handle, enable);
+}
+
+/*******************************************************************************
+ *
  * Function         btm_set_conn_mode_adv_init_addr
  *
  * Description      set initator address type and local address type based on
@@ -2610,6 +2627,7 @@ static void btm_ble_process_adv_pkt_cont(
   if (!AdvertiseDataParser::IsValid(adv_data)) {
     DVLOG(1) << __func__ << "Dropping bad advertisement packet: "
              << base::HexEncode(adv_data.data(), adv_data.size());
+    cache.Clear(addr_type, bda);
     return;
   }
 
@@ -2636,6 +2654,7 @@ static void btm_ble_process_adv_pkt_cont(
       update = false;
     } else {
       /* if yes, skip it */
+      cache.Clear(addr_type, bda);
       return; /* assumption: one result per event */
     }
   }

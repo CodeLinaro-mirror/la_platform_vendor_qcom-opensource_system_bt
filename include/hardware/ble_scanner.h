@@ -130,6 +130,7 @@ class BleScannerInterface {
                          uint16_t timeout, StartSyncCb start_cb,
                          SyncReportCb report_cb, SyncLostCb lost_cb) = 0;
   virtual void StopSync(uint16_t handle) = 0;
+  virtual void EnablePaScanResult(uint16_t handle, uint8_t enable) = 0;
 };
 
 #endif /* ANDROID_INCLUDE_BLE_SCANNER_H */
