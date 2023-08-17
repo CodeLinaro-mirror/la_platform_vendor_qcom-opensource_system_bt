@@ -92,7 +92,7 @@ bool is_hal_offloading();
 /***
  * Initialize BluetoothAudio HAL: openProvider
  ***/
-bool init(thread_t* message_loop);
+bool init(void/*thread_t* message_loop*/);
 
 /***
  * Clean up BluetoothAudio HAL

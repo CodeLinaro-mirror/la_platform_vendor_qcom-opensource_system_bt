@@ -89,6 +89,7 @@ cc_library_static{
         "protobuf/proto/gatt_server.proto",
         "protobuf/proto/advertiser.proto",
         "protobuf/proto/scan.proto",
+        "protobuf/proto/a2dp.proto",
         "protobuf/proto/hf_client.proto",
         "protobuf/proto/hf.proto",
     ]
