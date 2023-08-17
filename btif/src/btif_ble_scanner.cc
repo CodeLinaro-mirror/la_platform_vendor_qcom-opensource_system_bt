@@ -440,6 +440,11 @@ class BleScannerInterfaceImpl : public BleScannerInterface {
 #endif
   }
 
+  void StartSync(uint8_t sid, RawAddress address, uint16_t skip,
+                uint16_t timeout, int reg_id) override {
+    BTIF_TRACE_DEBUG("%s:", __func__);
+  }
+
   void StopSync(uint16_t handle) override {
 #if 0
     BTIF_TRACE_DEBUG("%s: handle: %d", __func__, handle);

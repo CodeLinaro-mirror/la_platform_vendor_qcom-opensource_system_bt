@@ -90,17 +90,17 @@ class BleScannerInterface {
       FilterParamSetupCallback cb) = 0;
 
   /** Configure a scan filter condition  */
-  virtual void ScanFilterAdd(int client_if, int filter_index, std::vector<ApcfCommand> filters,
+  virtual void ScanFilterAdd(int filter_index, std::vector<ApcfCommand> filters,
                              FilterConfigCallback cb) = 0;
 
   /** Clear all scan filter conditions for specific filter index*/
-  virtual void ScanFilterClear(int client_if, int filt_index, FilterConfigCallback cb) = 0;
+  virtual void ScanFilterClear(int filt_index, FilterConfigCallback cb) = 0;
 
   /** Enable / disable scan filter feature*/
-  virtual void ScanFilterEnable(int client_if, bool enable, EnableCallback cb) = 0;
+  virtual void ScanFilterEnable(bool enable, EnableCallback cb) = 0;
 
   /** Sets the LE scan interval and window in units of N*0.625 msec */
-  virtual void SetScanParameters(int scanner_id, int scan_phy, std::vector<uint32_t> scan_interval,
+  virtual void SetScanParameters(int scan_phy, std::vector<uint32_t> scan_interval,
                                  std::vector<uint32_t> scan_window,
                                  Callback cb) = 0;
 
@@ -111,12 +111,12 @@ class BleScannerInterface {
                                       Callback cb) = 0;
 
   /* Enable batchscan */
-  virtual void BatchscanEnable(int client_if, int scan_mode, int scan_interval,
+  virtual void BatchscanEnable(int scan_mode, int scan_interval,
                                int scan_window, int addr_type, int discard_rule,
                                Callback cb) = 0;
 
   /* Disable batchscan */
-  virtual void BatchscanDisable(int client_if, Callback cb) = 0;
+  virtual void BatchscanDisable(Callback cb) = 0;
 
   /* Read out batchscan reports */
   virtual void BatchscanReadReports(int client_if, int scan_mode) = 0;
