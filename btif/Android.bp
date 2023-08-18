@@ -92,6 +92,7 @@ cc_library_static{
         "protobuf/proto/a2dp.proto",
         "protobuf/proto/hf_client.proto",
         "protobuf/proto/hf.proto",
+        "protobuf/proto/avrcp_tg.proto",
     ]
 }
 // libbtif static library for target
@@ -139,6 +140,7 @@ cc_library_shared {
         "src/btif_pan.cc",
         "src/btif_profile_queue.cc",
         "src/btif_rc.cc",
+        "src/btif_rc_ctl.cc",
         "src/btif_sdp.cc",
         "src/btif_sdp_server.cc",
         "src/btif_sm.cc",

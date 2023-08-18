@@ -190,9 +190,9 @@ extern btsock_interface_t* btif_sock_get_interface();
 /* gatt */
 extern const btgatt_interface_t* btif_gatt_get_interface();
 /* avrc target */
-//extern btrc_interface_t* btif_rc_get_interface();
+extern btrc_interface_t* btif_rc_get_interface();
 /* avrc controller */
-//extern btrc_interface_t* btif_rc_ctrl_get_interface();
+extern btrc_interface_t* btif_rc_ctrl_get_interface();
 /*SDP search client*/
 //extern btsdp_interface_t* btif_sdp_get_interface();
 
@@ -1234,10 +1234,10 @@ static const void* get_profile_interface(const char* profile_id) {
     return btif_gatt_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_AV_RC_ID))
-    return NULL;//btif_rc_get_interface();
+    return btif_rc_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_AV_RC_CTRL_ID))
-    return NULL;//btif_rc_ctrl_get_interface();
+    return btif_rc_ctrl_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_AV_RC_VENDOR_CTRL_ID))
     return NULL;//btif_rc_vendor_ctrl_get_interface();
