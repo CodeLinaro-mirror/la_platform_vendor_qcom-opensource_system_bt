@@ -482,9 +482,10 @@ void processDataLogging(uint8_t *msgStr, size_t buflen, const char *msgtyp) {
     gSSTransportCtrl->file_write(msgStr,buflen,msgtyp);
 }
 void processTx(std::string msgStr) {
-  ALOGD("%s: msg : %s and length: %d", __func__, msgStr.c_str(), msgStr.length());
   const  char *msgType="Tx";
   uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
+  uint16_t MSG_ID = tmpBuf [0] + (((int)(tmpBuf [1]))<<8);
+  ALOGD("%s: msg id : %d and length %d", __func__, MSG_ID, msgStr.length());
   size_t bytes_written = 0;
   pthread_mutex_lock(&tx_threads_mutex);
   if (alarm_is_scheduled(tx_thread_timeout)) {
@@ -504,8 +505,9 @@ void processTx(std::string msgStr) {
 }
 
 int processDataTx(std::string msgStr) {
-  ALOGI("%s: msg : %s and length: %d", __func__, msgStr.c_str(), msgStr.length());
   uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
+  uint16_t MSG_ID = tmpBuf [0] + (((int)(tmpBuf [1]))<<8);
+  ALOGD("%s: msg id : %d and length %d", __func__, MSG_ID, msgStr.length());
   size_t bytes_written = 0;
   int result = -1;
   int retry_count = 0;
@@ -553,9 +555,11 @@ int processDataTx(std::string msgStr) {
 }
 
 int processLeDataTx(std::string msgStr) {
-  ALOGI("%s: msg : %s and length: %d", __func__, msgStr.c_str(), msgStr.length());
   const  char *msgType="Tx";
   uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
+  uint16_t MSG_ID = tmpBuf [0] + (((int)(tmpBuf [1]))<<8);
+  ALOGD("%s: msg id : %d and length %d", __func__, MSG_ID, msgStr.length());
+
   size_t bytes_written = 0;
   if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
     do_in_data_logging_thread(base::Bind(processDataLogging, tmpBuf,msgStr.length(),msgType));
@@ -593,7 +597,9 @@ int processLeDataTx(std::string msgStr) {
 }
 
 void BluetoothSSInterface::postTxMsg(std::string msgStr) {
-  ALOGI("postTxMsg with msg : %s and length %d", msgStr.c_str(), msgStr.length());
+  uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
+  uint16_t MSG_ID = tmpBuf [0] + (((int)(tmpBuf [1]))<<8);
+  ALOGD("postTxMsg with msg id : %d and length %d", MSG_ID, msgStr.length());
   if (msgStr.length() > MSG_SIZE_MAX) {
     ALOGE("ERROR:: Application trying to write the data more than the size configured for GLINK. PROTO SIZE: %d", msgStr.length());
     return;
@@ -602,13 +608,17 @@ void BluetoothSSInterface::postTxMsg(std::string msgStr) {
 }
 
 int BluetoothSSInterface::postDataChTxMsg(std::string msgStr) {
-  ALOGI("postDataChTxMsg with msg : %s and length %d", msgStr.c_str(), msgStr.length());
+  uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
+  uint16_t MSG_ID = tmpBuf [0] + (((int)(tmpBuf [1]))<<8);
+  ALOGI("postDataChTxMsg with msg id : %d and length %d", MSG_ID, msgStr.length());
   //do_in_data_tx_thread(base::Bind(processDataTx, msgStr));
   return processDataTx(msgStr);
 }
 
 int BluetoothSSInterface::postLeDataChTxMsg(std::string msgStr) {
-  ALOGI("postLeDataChTxMsg with msg : %s and length %d", msgStr.c_str(), msgStr.length());
+  uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
+  uint16_t MSG_ID = tmpBuf [0] + (((int)(tmpBuf [1]))<<8);
+  ALOGI("postLeDataChTxMsg with msg id : %d and length %d", MSG_ID, msgStr.length());
   //do_in_data_tx_thread(base::Bind(processLeDataTx, msgStr));
   return processLeDataTx(msgStr);
 }
