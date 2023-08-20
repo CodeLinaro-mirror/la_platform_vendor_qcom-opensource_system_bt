@@ -33,12 +33,12 @@ AM_CPPFLAGS = -Iinclude \
         -I../internal_include \
         -I$(external_bt_path)/system_bt_ext \
         -I$(external_bt_path)/vhal/include \
-        -I$(WORKSPACE)/../vendor/qcom/opensource/bluetooth/hal/include \
-        -I$(WORKSPACE)/../vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/ar \
-        -I$(WORKSPACE)/../vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/avk \
-        -I$(WORKSPACE)/../vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/include \
-        -I$(WORKSPACE)/../vendor/qcom/opensource/bluetooth_ext/system_bt_ext/stack/include \
-        -I$(WORKSPACE)/../vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/tws_plus
+        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth/hal/include \
+        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/ar \
+        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/avk \
+        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/include \
+        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/stack/include \
+        -I$(WORKSPACE)/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/bta/tws_plus
 
 if MDM_CHEROKEE
 AM_CPPFLAGS += -DBTA_AV_SPLIT_A2DP_ENABLED

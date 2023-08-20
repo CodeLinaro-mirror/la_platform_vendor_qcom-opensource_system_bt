@@ -44,9 +44,9 @@ AM_CPPFLAGS= \
         -I${WORKSPACE}/external/tinyxml2 \
         -I${WORKSPACE}/external/zlib \
         -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/hal/include \
-        -I${WORKSPACE}/../vendor/qcom/opensource/bluetooth_ext/system_bt_ext/stack/include \
-        -I${WORKSPACE}/../vendor/qcom/opensource/bluetooth/bthost_ipc \
-        -I${WORKSPACE}/../vendor/qcom/opensource/bluetooth_ext/system_bt_ext/udrv/include \
+        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/stack/include \
+        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth/bthost_ipc \
+        -I${WORKSPACE}/vendor/qcom/opensource/bluetooth_ext/system_bt_ext/udrv/include \
         -I$(external_bt_path)/vhal/include
 
 if MDM_ROME
