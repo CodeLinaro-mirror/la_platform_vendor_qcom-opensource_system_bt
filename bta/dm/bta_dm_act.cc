@@ -573,7 +573,8 @@ void bta_dm_disable(UNUSED_ATTR tBTA_DM_MSG* p_data) {
   if (soc_type == BT_SOC_SMD) {
     uint8_t param[5] = {0x10,0x02,0x00,0x00,0x01};
     BTM_VendorSpecificCommand(HCI_VS_HOST_LOG_OPCODE,5,param,NULL);
-  } else if (soc_type == BT_SOC_CHEROKEE || soc_type == BT_SOC_HASTINGS) {
+  } else if (soc_type == BT_SOC_CHEROKEE || soc_type == BT_SOC_HASTINGS
+                    || soc_type == BT_SOC_MOSELLE) {
     uint8_t param_cherokee[2] = {0x14, 0x00};
     BTM_VendorSpecificCommand(HCI_VS_HOST_LOG_OPCODE, 2, param_cherokee, NULL);
   }
@@ -3320,7 +3321,7 @@ void bta_dm_acl_change(tBTA_DM_MSG* p_data) {
     bta_dm_cb.device_list.peer_device[i].conn_state = BTA_DM_CONNECTED;
     bta_dm_cb.device_list.peer_device[i].pref_role = BTA_ANY_ROLE;
     conn.link_up.bd_addr = p_bda;
-    memcpy(conn.link_up.dc, p_data->acl_change.dc, sizeof(DEV_CLASS));    
+    memcpy(conn.link_up.dc, p_data->acl_change.dc, sizeof(DEV_CLASS));
     bta_dm_cb.device_list.peer_device[i].info = BTA_DM_DI_NONE;
     conn.link_up.link_type = p_data->acl_change.transport;
     bta_dm_cb.device_list.peer_device[i].transport =

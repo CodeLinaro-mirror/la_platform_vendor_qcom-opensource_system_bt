@@ -186,7 +186,8 @@ static void btm_esco_conn_rsp(uint16_t sco_inx, uint8_t hci_status,
     if ((controller_get_interface()
        ->supports_enhanced_setup_synchronous_connection()) &&
        ((osi_property_get("vendor.qcom.bluetooth.soc", value, "qcombtsoc")) &&
-       (strncasecmp(value, "cherokee", sizeof("cherokee")) == 0 || strncasecmp(value, "hastings", sizeof("hastings")) == 0))) {
+       (strncasecmp(value, "cherokee", sizeof("cherokee")) == 0 || strncasecmp(value, "hastings", sizeof("hastings")) == 0
+                                                                || strncasecmp(value, "moselle", sizeof("moselle")) == 0))) {
       /* Use the saved SCO routing */
       p_setup->input_data_path = p_setup->output_data_path =
           btm_cb.sco_cb.sco_route;
@@ -439,7 +440,8 @@ static tBTM_STATUS btm_send_connect_request(uint16_t acl_handle,
     if ((controller_get_interface()
        ->supports_enhanced_setup_synchronous_connection()) &&
        ((osi_property_get("vendor.qcom.bluetooth.soc", value, "qcombtsoc")) &&
-       (strncasecmp(value, "cherokee", sizeof("cherokee")) == 0 || strncasecmp(value, "hastings", sizeof("hastings")) == 0))) {
+       (strncasecmp(value, "cherokee", sizeof("cherokee")) == 0 || strncasecmp(value, "hastings", sizeof("hastings")) == 0
+                                                                || strncasecmp(value, "moselle", sizeof("moselle")) == 0))) {
       /* Use the saved SCO routing */
       p_setup->input_data_path = p_setup->output_data_path =
           btm_cb.sco_cb.sco_route;
@@ -1538,7 +1540,8 @@ tBTM_STATUS BTM_ChangeEScoLinkParms(uint16_t sco_inx,
     if ((controller_get_interface()
        ->supports_enhanced_setup_synchronous_connection()) &&
        ((osi_property_get("vendor.qcom.bluetooth.soc", value, "qcombtsoc")) &&
-       (strncasecmp(value, "cherokee", sizeof("cherokee")) == 0 || strncasecmp(value, "hastings", sizeof("hastings")) == 0))) {
+       (strncasecmp(value, "cherokee", sizeof("cherokee")) == 0 || strncasecmp(value, "hastings", sizeof("hastings")) == 0
+                                                                || strncasecmp(value, "moselle", sizeof("moselle")) == 0))) {
       /* Use the saved SCO routing */
       p_setup->input_data_path = p_setup->output_data_path =
           btm_cb.sco_cb.sco_route;

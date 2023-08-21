@@ -70,6 +70,7 @@ static soc_type_node soc_type_entries[] = {
                            { BT_SOC_ROME , (char *)"rome" },
                            { BT_SOC_CHEROKEE , (char *)"cherokee" },
                            { BT_SOC_HASTINGS , (char *)"hastings" },
+                           { BT_SOC_MOSELLE , (char *)"moselle" },
                            { BT_SOC_RESERVED , (char *)"" }
                                        };
 
@@ -159,7 +160,7 @@ static intmax_t property_get_bt_imax(const char *key, intmax_t lower_bound,
             ALOGE("%s(%s,%" PRIdMAX ") - overflow", __FUNCTION__, key,
                 default_value);
         } else if (result < lower_bound || result > upper_bound) {
-            // Out of range of requested bounds 
+            // Out of range of requested bounds
             result = default_value;
             ALOGE("%s(%s,%" PRIdMAX ") - out of range", __FUNCTION__, key,
                 default_value);
@@ -266,7 +267,7 @@ static void init_soc_type() {
   }
   if (ret != 0) {
     int i;
-    ALOGI("vendor.qcom.bluetooth.soc set to %s\n", bt_soc_type);
+    ALOGI("vendor.bluetooth.soc set to %s\n", bt_soc_type);
     for ( i = BT_SOC_AR3K ; i < BT_SOC_RESERVED ; i++ ) {
       char* soc_name = soc_type_entries[i].soc_name;
       if (!strcmp(bt_soc_type, soc_name)) {
@@ -275,13 +276,10 @@ static void init_soc_type() {
       }
     }
   }
-#elif defined(BT_SOC_TYPE_ROME)
-    soc_type = BT_SOC_ROME;
-#elif defined(BT_SOC_TYPE_CHEROKEE)
-    soc_type = BT_SOC_CHEROKEE;
-#elif defined(BT_SOC_TYPE_HASTINGS)
-    soc_type = BT_SOC_HASTINGS;
 #endif
+  // soc_type related to other macros is moved to be set in get_soc_type
+  // function to avoid confusion caused by more than one macro defined
+  // due to same porject target
 }
 
 /*****************************************************************************
@@ -294,5 +292,32 @@ static void init_soc_type() {
 **
 *******************************************************************************/
 bt_soc_type get_soc_type() {
-  return soc_type;
+  int ret = 0;
+  char bt_soc_type[PROPERTY_VALUE_MAX];
+  if (soc_type != BT_SOC_DEFAULT)
+    // if soc_type has been set, just return it
+    return soc_type;
+  else {
+    // soc_type is invalid yet, try to get soc type from property
+    // which is set in hidl transport
+    ret = property_get("persist.vendor.qcom.bluetooth.soc", bt_soc_type, NULL);
+    if (ret == 0) {
+      ALOGI("persist.vendor.qcom.bluetooth.soc prop not set");
+      ret = property_get("vendor.qcom.bluetooth.soc", bt_soc_type, NULL);
+    }
+    if (ret != 0) {
+      int i;
+      ALOGI("vendor.qcom.bluetooth.soc set to %s\n", bt_soc_type);
+      for ( i = BT_SOC_AR3K ; i < BT_SOC_RESERVED ; i++ ) {
+        char* soc_name = soc_type_entries[i].soc_name;
+        if (!strcmp(bt_soc_type, soc_name)) {
+          soc_type = soc_type_entries[i].soc_type;
+          break;
+        }
+      }
+    } else {
+      ALOGE("%s: Failed to get soc type, so using default", __func__);
+    }
+    return soc_type;
+  }
 }

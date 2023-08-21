@@ -95,6 +95,7 @@ AM_CONDITIONAL([MDM_ROME], [test "x$TARGET" = "xmdm9607" -o "x$TARGET" = "xmdm96
 AM_CONDITIONAL([MDM_PRONTO], [test "x$TARGET" = "xapq8009" -o "x$TARGET" = "xapq8017" -o "x$TARGET" = "xapq8053" -o "x$TARGET" = "xapq8016"])
 AM_CONDITIONAL([MDM_CHEROKEE], [test "x$TARGET" = "xapq8098" -o "x$TARGET" = "xsdmsteppe"])
 AM_CONDITIONAL([MDM_HASTINGS], [test "x$TARGET" = "xqcs6490"])
+AM_CONDITIONAL([MDM_MOSELLE], [test "x$TARGET" = "xqcs6490"])
 AM_CONDITIONAL([BT_AUDIO_HAL_INTEGRATION], [test "x$TARGET" = "xapq8009" -o "x$TARGET" = "xapq8017" -o "x$TARGET" = "xapq8053" -o "x$TARGET" = "xapq8098" -o "x$TARGET" = "xsdmsteppe" -o "x$TARGET" = "xqcs6490"])
 # BTC support
 # make below flag to true to enable the BTC
