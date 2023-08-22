@@ -16,6 +16,7 @@ enum ss_rfcomm_security_flags {
 	SS_RFCOMM_SEC_FLAG_AUTH_MITM = 8;
 	SS_RFCOMM_SEC_FLAG_AUTH_16_DIGIT = 16;
 	SS_SEC_FLAG_LE_COC = 32;
+	SS_SEC_FLAG_L2CAP = 64;
 }
 
 /** Create Socket Channel */
