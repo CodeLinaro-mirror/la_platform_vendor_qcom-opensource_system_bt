@@ -2238,10 +2238,26 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       }
       uint32_t hci_reason;
       if(aclStateChangedCb.has_hci_reason()) {
-        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_hci_reason");
+        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_hci_reason")uint32_t;
         hci_reason = aclStateChangedCb.hci_reason();
         ALOGI("BT_DM_ACL_STATE_CHANGE_CB: hci_reason : %d", hci_reason);
       }
+      uint32_t link_type;
+      if(aclStateChangedCb.has_transport_link_type()) {
+        link_type = aclStateChangedCb.transport_link_type();
+        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: transport_link_type : %d", link_type);
+      }
+      bt_conn_direction_t direction;
+      if(aclStateChangedCb.has_direction()) {
+        direction = (bt_conn_direction_t)aclStateChangedCb.direction();
+        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: direction : %d", direction);
+      }
+      uint16_t acl_handle;
+      if(aclStateChangedCb.has_acl_handle()) {
+        acl_handle = aclStateChangedCb.acl_handle();
+        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: acl_handle : %d", acl_handle);
+      }
+
       if(aclStateChangedCb.has_state()) {
             ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_state");
             bt_acl_state_t acl_state;
@@ -2249,9 +2265,8 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
             ALOGI("BT_DM_ACL_STATE_CHANGE_CB: state : %d", acl_state);
             uint32_t hci_reason;
             hci_reason = aclStateChangedCb.hci_reason();
-            ALOGI("BT_DM_ACL_STATE_CHANGE_CB: Pairing: status: %d bdaddr: %s, acl_state: %d, hci_reason: %d", status, bd_addr->ToString().c_str(), acl_state, hci_reason);
-    	    ALOGI("BT_DM_ACL_STATE_CHANGE_CB: Pairing: status: %d bdaddr: %s, acl_state: %d, hci_reason: %d", status, bd_addr->ToString().c_str(), acl_state, hci_reason);
-            HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS, bd_addr, acl_state, BT_TRANSPORT_BR_EDR, uint8_t(hci_reason), bt_conn_direction_t::BT_CONN_DIRECTION_UNKNOWN, 0);
+            ALOGI("BT_DM_ACL_STATE_CHANGE_CB: Pairing: status: %d bdaddr: %s, acl_state: %d, hci_reason: %d, link_type: %d, direction: %d, acl_handle: %d ", status, bd_addr->ToString().c_str(), acl_state, hci_reason, link_type, direction, acl_handle);
+            HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS, bd_addr, acl_state, link_type, uint8_t(hci_reason), direction, acl_handle);
         }
 
         else {

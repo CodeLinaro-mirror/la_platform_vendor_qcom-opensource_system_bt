@@ -163,6 +163,65 @@ enum ss_bt_acl_state_t {
   SS_BT_ACL_STATE_DISCONNECTED = 1;
 }
 
+/** Bluetooth ACL transport link type */
+enum ss_bt_transport_linktype_t {
+  SS_BT_TRANSPORT_AUTO = 0;
+  SS_BT_TRANSPORT_BREDR = 1;
+  SS_BT_TRANSPORT_LE = 2;
+}
+
+/** Bluetooth ACL connection direction */
+enum ss_bt_conn_direction_t {
+  SS_BT_CONN_DIRECTION_UNKNOWN = 0;
+  SS_BT_CONN_DIRECTION_OUTGOING = 1;
+  SS_BT_CONN_DIRECTION_INCOMING = 2;
+}
+
+/** Bluetooth ACL HCI reason */
+enum ss_bt_hci_error_code_t {
+  SS_BT_HCI_SUCCESS = 0x00;
+  SS_BT_HCI_ERR_ILLEGAL_COMMAND = 0x01;
+  SS_BT_HCI_ERR_NO_CONNECTION = 0x02;
+  SS_BT_HCI_ERR_HW_FAILURE = 0x03;
+  SS_BT_HCI_ERR_PAGE_TIMEOUT = 0x04;
+  SS_BT_HCI_ERR_AUTH_FAILURE = 0x05;
+  SS_BT_HCI_ERR_KEY_MISSING = 0x06;
+  SS_BT_HCI_ERR_MEMORY_FULL = 0x07;
+  SS_BT_HCI_ERR_CONNECTION_TOUT = 0x08;
+  SS_BT_HCI_ERR_MAX_NUM_OF_CONNECTIONS = 0x09;
+  SS_BT_HCI_ERR_MAX_NUM_OF_SCOS = 0x0A;
+  SS_BT_HCI_ERR_CONNECTION_EXISTS = 0x0B;
+  SS_BT_HCI_ERR_COMMAND_DISALLOWED = 0x0C;
+  SS_BT_HCI_ERR_HOST_REJECT_RESOURCES = 0x0D;
+  SS_BT_HCI_ERR_HOST_REJECT_SECURITY = 0x0E;
+  SS_BT_HCI_ERR_HOST_REJECT_DEVICE = 0x0F;
+  SS_BT_HCI_ERR_HOST_TIMEOUT = 0x10;
+  SS_BT_HCI_ERR_ILLEGAL_PARAMETER_FMT = 0x12;
+  SS_BT_HCI_ERR_PEER_USER = 0x13;
+  SS_BT_HCI_ERR_REMOTE_LOW_RESOURCE = 0x14;
+  SS_BT_HCI_ERR_REMOTE_POWER_OFF = 0x15;
+  SS_BT_HCI_ERR_CONN_CAUSE_LOCAL_HOST = 0x16;
+  SS_BT_HCI_ERR_REPEATED_ATTEMPTS = 0x17;
+  SS_BT_HCI_ERR_PAIRING_NOT_ALLOWED = 0x18;
+  SS_BT_HCI_ERR_UNSUPPORTED_REM_FEATURE = 0x1A;
+  SS_BT_HCI_ERR_UNSPECIFIED = 0x1F;
+  SS_BT_HCI_ERR_LMP_RESPONSE_TIMEOUT = 0x22;
+  SS_BT_HCI_ERR_LMP_ERR_TRANS_COLLISION = 0x23;
+  SS_BT_HCI_ERR_ENCRY_MODE_NOT_ACCEPTABLE = 0x25;
+  SS_BT_HCI_ERR_UNIT_KEY_USED = 0x26;
+  SS_BT_HCI_ERR_PAIRING_WITH_UNIT_KEY_NOT_SUPPORTED = 0x29;
+  SS_BT_HCI_ERR_DIFF_TRANSACTION_COLLISION = 0x2A;
+  SS_BT_HCI_ERR_INSUFFCIENT_SECURITY = 0x2F;
+  SS_BT_HCI_ERR_ROLE_SWITCH_PENDING = 0x32;
+  SS_BT_HCI_ERR_ROLE_SWITCH_FAILED = 0x35;
+  SS_BT_HCI_ERR_HOST_BUSY_PAIRING = 0x38;
+  SS_BT_HCI_ERR_UNACCEPT_CONN_INTERVAL = 0x3B;
+  SS_BT_HCI_ERR_ADVERTISING_TIMEOUT = 0x3C;
+  SS_BT_HCI_ERR_CONN_FAILED_ESTABLISHMENT = 0x3E;
+  SS_BT_HCI_ERR_LIMIT_REACHED = 0x43;
+  SS_BT_HCI_ERR_UNDEFINED = 0xff;
+}
+
 /** Bluetooth Device Name */
 message  ss_bt_bdname_t {
     optional bytes name = 1;
@@ -385,5 +444,8 @@ message ss_acl_state_changed_callback {
     required ss_bt_status_t status = 1;
     required bytes remote_bd_addr = 2;
     required ss_bt_acl_state_t state = 3;
-    required uint32 hci_reason = 4;
+    required ss_bt_transport_linktype_t transport_link_type = 4;
+    required ss_bt_hci_error_code_t hci_reason = 5;
+    required ss_bt_conn_direction_t direction = 6;
+    required uint32 acl_handle = 7;
 }
