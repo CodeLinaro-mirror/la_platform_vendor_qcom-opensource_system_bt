@@ -36,13 +36,7 @@ cc_library_static {
     export_include_dirs: ["include"],
     header_libs: [
         "libbluetooth_headers",
-    ],
-    include_dirs: [
-        "vendor/qcom/opensource/commonsys/system/bt",
-        "vendor/qcom/opensource/commonsys/system/bt/utils/include",
-        "vendor/qcom/opensource/commonsys/system/bt/hci/include",
-        "vendor/qcom/opensource/commonsys/system/bt/internal_include",
-        "vendor/qcom/opensource/commonsys/system/bt/stack/include",
+		"opensource_commonsys_system_bt_all_inc",
     ],
     shared_libs: [
         "libbase",
@@ -76,12 +70,7 @@ cc_test_host {
     local_include_dirs: [
         "include",
     ],
-    include_dirs: [
-        "vendor/qcom/opensource/commonsys/system/bt",
-        "vendor/qcom/opensource/commonsys/system/bt/utils/include",
-        "vendor/qcom/opensource/commonsys/system/bt/hci/include",
-        "vendor/qcom/opensource/commonsys/system/bt/stack/include",
-    ],
+	header_libs: ["opensource_commonsys_system_bt_all_inc"],
     shared_libs: [
         "liblog",
         "libchrome",
