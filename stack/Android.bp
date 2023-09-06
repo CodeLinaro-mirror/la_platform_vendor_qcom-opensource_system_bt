@@ -42,9 +42,7 @@ crypto_toolbox_srcs = [
 cc_test_library {
     name: "crypto_toolbox_for_tests_qti",
     defaults: ["fluoride_defaults_qti"],
-    include_dirs: [
-        "vendor/qcom/opensource/commonsys/system/bt",
-    ],
+    header_libs: ["opensource_commonsys_system_bt_all_inc"],
     srcs: crypto_toolbox_srcs
 }
 
@@ -70,30 +68,13 @@ cc_library_static {
         "srvc",
     ],
     header_libs: [
-        "libbluetooth_headers",
+        "libbluetooth_headers", "opensource_btext_vhal_inc", "opensource_commonsys_system_bt_all_inc", "opensource_commonsys_intf_bluetooth_inc",
     ],
     include_dirs: [
         "external/aac/libAACenc/include",
         "external/aac/libSYS/include",
         "external/libldac/inc",
         "external/libldac/abr/inc",
-        "vendor/qcom/opensource/commonsys/system/bt",
-        "vendor/qcom/opensource/commonsys/system/bt/btcore/include",
-        "vendor/qcom/opensource/commonsys/system/bt/vnd/include",
-        "vendor/qcom/opensource/commonsys/system/bt/vnd/ble",
-        "vendor/qcom/opensource/commonsys/system/bt/btif/include",
-        "vendor/qcom/opensource/commonsys/system/bt/hci/include",
-        "vendor/qcom/opensource/commonsys/system/bt/internal_include",
-        "vendor/qcom/opensource/commonsys/system/bt/udrv/include",
-        "vendor/qcom/opensource/commonsys/system/bt/bta/include",
-        "vendor/qcom/opensource/commonsys/system/bt/bta/sys",
-        "vendor/qcom/opensource/commonsys/system/bt/utils/include",
-        "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext",
-        "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/stack/include",
-        "vendor/qcom/opensource/commonsys/bluetooth_ext/vhal/include",
-        "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/stack/btm",
-        "vendor/qcom/opensource/commonsys-intf/bluetooth/include",
-        "vendor/qcom/opensource/commonsys/system/bt/device/include",
         "packages/modules/Bluetooth/system/embdrv/sbc/encoder/include",
         "packages/modules/Bluetooth/system/embdrv/sbc/decoder/include",
     ],
@@ -250,11 +231,8 @@ cc_test {
     local_include_dirs: [
         "include",
     ],
-    include_dirs: [
-        "vendor/qcom/opensource/commonsys/system/bt",
-        "vendor/qcom/opensource/commonsys/system/bt/internal_include",
-        "vendor/qcom/opensource/commonsys/bluetooth_ext/vhal/include",
-    ],
+    header_libs: ["opensource_commonsys_system_bt_all_inc", "opensource_btext_vhal_inc", ],
+
     srcs: ["test/stack_a2dp_test.cc"],
     shared_libs: [
         "liblog",
@@ -279,14 +257,7 @@ cc_test {
         "l2cap",
         "smp",
     ],
-    include_dirs: [
-        "vendor/qcom/opensource/commonsys/system/bt",
-        "vendor/qcom/opensource/commonsys/system/bt/internal_include",
-        "vendor/qcom/opensource/commonsys/system/bt/btcore/include",
-        "vendor/qcom/opensource/commonsys/system/bt/hci/include",
-        "vendor/qcom/opensource/commonsys/system/bt/utils/include",
-        "vendor/qcom/opensource/commonsys-intf/bluetooth/include",
-    ],
+    header_libs: ["opensource_commonsys_system_bt_all_inc", "opensource_commonsys_intf_bluetooth_inc",],
     srcs: crypto_toolbox_srcs + [
         "smp/smp_keys.cc",
         "smp/p_256_curvepara.cc",
@@ -319,15 +290,7 @@ cc_test {
         "include",
         "btm",
     ],
-    include_dirs: [
-        "vendor/qcom/opensource/commonsys/system/bt",
-        "vendor/qcom/opensource/commonsys/system/bt/internal_include",
-        "vendor/qcom/opensource/commonsys/system/bt/btcore/include",
-        "vendor/qcom/opensource/commonsys/system/bt/hci/include",
-        "vendor/qcom/opensource/commonsys/system/bt/internal_include",
-        "vendor/qcom/opensource/commonsys/system/bt/utils/include",
-        "vendor/qcom/opensource/commonsys-intf/bluetooth/include",
-    ],
+    header_libs: ["opensource_commonsys_intf_bluetooth_inc", "opensource_commonsys_system_bt_all_inc",],
     srcs: [
         "btm/btm_ble_multi_adv.cc",
         "test/ble_advertiser_test.cc",
@@ -370,12 +333,7 @@ cc_test {
         "include",
         "btm",
     ],
-    include_dirs: [
-        "vendor/qcom/opensource/commonsys/system/bt/",
-        "vendor/qcom/opensource/commonsys/system/bt/internal_include",
-        "vendor/qcom/opensource/commonsys/system/bt/btcore/include",
-        "vendor/qcom/opensource/commonsys/system/bt/bta/include",
-    ],
+    header_libs: ["opensource_commonsys_system_bt_all_inc",],
     srcs: [
         "btu/btu_task.cc",
         "test/stack_btu_test.cc",

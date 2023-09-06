@@ -7,3 +7,13 @@ subdirs = [
     "udrv",
     "vnd",
 ]
+
+cc_library_headers {
+   name: "opensource_commonsys_system_bt_all_inc",
+   vendor_available: true,
+   export_include_dirs: [".", "types/", "bta/include/", "internal_include/", "bta/sys/",
+   "btif/include/", "stack/include/", "btcore/include/", "stack/avdt/",
+   "hci/include", "device/include/", "vnd/include/", "stack/btm/",
+   "utils/include", "bta/dm/", "stack/l2cap/", "stack/a2dp/",
+   "vnd/ble/", "udrv/include/",],
+}
