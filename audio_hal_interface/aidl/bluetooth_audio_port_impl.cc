@@ -50,7 +50,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 #include "bluetooth_audio_port_impl.h"
 
-#include "common/stop_watch_legacy.h"
+#include "stop_watch_legacy.h"
 
 namespace bluetooth {
 namespace audio {

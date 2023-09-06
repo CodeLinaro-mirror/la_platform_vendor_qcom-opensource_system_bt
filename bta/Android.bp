@@ -29,6 +29,7 @@ cc_defaults {
         "dm",
         "hd",
         "hh",
+		"ag",
     ],
     shared_libs: [
         "libcutils",
