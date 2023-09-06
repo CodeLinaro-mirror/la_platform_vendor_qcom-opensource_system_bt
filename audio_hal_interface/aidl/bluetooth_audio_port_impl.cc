@@ -172,8 +172,7 @@ ndk::ScopedAStatus BluetoothAudioPortImpl::updateSinkMetadata(
 
 ndk::ScopedAStatus BluetoothAudioPortImpl::setLatencyMode(
     LatencyMode latency_mode) {
-  bool is_low_latency = latency_mode == LatencyMode::LOW_LATENCY ? true : false;
-  transport_instance_->SetLatencyMode(is_low_latency);
+  //bool is_low_latency = latency_mode == LatencyMode::LOW_LATENCY ? true : false;
   return ndk::ScopedAStatus::ok();
 }
 
