@@ -1,8 +1,7 @@
 soong_config_module_type_import {
-    from: "device/qcom/qssi/Android.bp",
+    from: "frameworks/base/Android.bp",
     module_types: [
          "bredr_vs_btadva_cc_defaults",
-         "aosp_vs_qva_cc_defaults",
     ],
 }
 
@@ -22,19 +21,6 @@ bredr_vs_btadva_cc_defaults {
            }
        }
    }
-}
-
-aosp_vs_qva_cc_defaults {
-     name: "qva_bta_defaults",
-     soong_config_variables: {
-         aosp_or_qva: {
-           qva: {
-             static_libs: [
-                "crypto_toolbox_for_tests",
-             ],
-           }
-        }
-    }
 }
 
 cc_defaults {
@@ -195,6 +181,7 @@ cc_test {
     static_libs: [
         "libbtcore_qti",
         "libbt-bta_qti",
+       // "crypto_toolbox_for_tests",
         "libbluetooth-types",
         "libosi_qti",
         "libbt-protos_qti",
