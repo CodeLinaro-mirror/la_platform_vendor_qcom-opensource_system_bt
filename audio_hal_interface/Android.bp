@@ -11,12 +11,7 @@ bluetooth_ext_bredr_vs_btadva_cc_defaults {
     soong_config_variables: {
         bredr_or_btadva: {
            btadva: {
-              include_dirs: [
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/system/bt",
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/system/bt/bta/include",
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/system/bt/btif/include",
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/vhal/include",
-              ],
+	      header_libs: ["bt_adv_audio_all_inc", "bt_adv_audio_vhal_inc",],
            }
        }
    }
@@ -27,23 +22,8 @@ bluetooth_ext_bredr_vs_btadva_cc_defaults {
 cc_library_static {
     name: "libbt-audio-hal-interface-qti",
     defaults: ["fluoride_defaults_qti", "btadva_audio_hal_int_cc-default"],
-    include_dirs: [
-        "vendor/qcom/opensource/commonsys/system/bt",
-        "vendor/qcom/opensource/commonsys/system/bt/types",
-        "vendor/qcom/opensource/commonsys/system/bt/internal_include",
-        "vendor/qcom/opensource/commonsys/system/bt/bta/include",
-        "vendor/qcom/opensource/commonsys/system/bt/bta/sys",
-        "vendor/qcom/opensource/commonsys/bluetooth_ext/vhal/include/",
-        "vendor/qcom/opensource/commonsys/system/bt/btif/include",
-        "vendor/qcom/opensource/commonsys/system/bt/stack/include",
-        "packages/modules/Bluetooth/system",
-        "packages/modules/Bluetooth/system/audio_hearing_aid_hw/include",
-        "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/btif/include",
-        "vendor/qcom/opensource/commonsys/system/bt/btcore/include",
-        "vendor/qcom/opensource/commonsys/system/bt/hci/include",
-        "vendor/qcom/opensource/commonsys-intf/bluetooth/include",
-        "vendor/qcom/opensource/commonsys/system/bt/device/include",
-    ],
+    header_libs: ["opensource_commonsys_bt_ext_all_inc", "opensource_commonsys_system_bt_all_inc", "opensource_btext_vhal_inc", "opensource_commonsys_intf_bluetooth_inc"],
+    include_dirs: ["packages/modules/Bluetooth/system/common/"],
     srcs: [
         "a2dp_encoding.cc",
         "client_interface.cc",
