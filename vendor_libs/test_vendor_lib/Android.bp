@@ -35,7 +35,7 @@ cc_library_static {
     ],
     export_include_dirs: ["include"],
     header_libs: [
-        "libbluetooth_headers",
+        "libbluetooth_headers_qti",
 		"opensource_commonsys_system_bt_all_inc",
     ],
     shared_libs: [
