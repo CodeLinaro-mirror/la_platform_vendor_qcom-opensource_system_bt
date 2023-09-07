@@ -180,7 +180,7 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
 
   void SetData(int advertiser_id, bool set_scan_rsp, vector<uint8_t> data,
                std::vector<uint8_t> data_enc, StatusCallback cb) override {
-    mAdvSingleStackProto.BleSetData(cb, advertiser_id, set_scan_rsp, data);
+    mAdvSingleStackProto.BleSetData(cb, advertiser_id, set_scan_rsp, data, data_enc);
    #if 0
     if (!BleAdvertisingManager::IsInitialized()) return;
     do_in_bta_thread(
@@ -245,10 +245,10 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
                            IdStatusCallback timeout_cb) override {
     //VLOG(1) << __func__;
   ALOGI("%s", __func__);
-    mAdvSingleStackProto.BleStartAdvertingSet(cb, params, advertise_data,
-                                              scan_response_data, periodic_params,
-                                              periodic_data, duration,
-                                              maxExtAdvEvents, reg_id, timeout_cb);
+    mAdvSingleStackProto.BleStartAdvertingSet(cb, params, advertise_data, advertise_data_enc,
+                                              scan_response_data, scan_response_data_enc, periodic_params,
+                                              periodic_data, periodic_data_enc, duration,
+                                              maxExtAdvEvents, enc_key_value, reg_id, timeout_cb);
    // mAdvSingleStackProto.mAdvStatusCallback = cb;
    #if 0
 
@@ -299,7 +299,7 @@ class BleAdvertiserInterfaceImpl : public BleAdvertiserInterface {
   //  VLOG(1) << __func__ << " advertiser_id: " << +advertiser_id;
   ALOGI("%s", __func__);
 
-    mAdvSingleStackProto.BlesetPeriodicAdvertisingData(cb, advertiser_id, data);
+    mAdvSingleStackProto.BlesetPeriodicAdvertisingData(cb, advertiser_id, data, data_enc);
    #if 0
     if (!BleAdvertisingManager::IsInitialized()) return;
     do_in_bta_thread(FROM_HERE,
