@@ -221,9 +221,7 @@ bool ScannerSingleStackProto::RegisterScanner(
     const bluetooth::Uuid& scan_uuid,
     BleScannerInterface::RegisterCallback Cb) {
   ALOGD("\n BLE RegisterScanner ");
-#ifdef SCAN_MODULE_SS_LOGS_ENABLED
   ALOGD("\n scan_uuid : %s", scan_uuid.ToString().c_str());
-#endif
   std::string encoded_bytes;
   ss_ble_register_scanner regScan;
   RegisterScannerCbMap.insert(
@@ -243,9 +241,7 @@ bool ScannerSingleStackProto::RegisterScanner(
 
 bool ScannerSingleStackProto::UnRegisterScanner(int scanner_id) {
   ALOGD("\n BLE UnRegisterScanner ");
-#ifdef SCAN_MODULE_SS_LOGS_ENABLED
   ALOGD("\n scanner_id : %d", scanner_id);
-#endif
   std::string encoded_bytes;
   ss_ble_unregister_scanner unregScan;
   unregScan.set_scannerid(scanner_id);
@@ -262,9 +258,7 @@ bool ScannerSingleStackProto::UnRegisterScanner(int scanner_id) {
 
 bool ScannerSingleStackProto::StartScanning(bool start) {
   ALOGD("\n BLE StartScanning ");
-#ifdef SCAN_MODULE_SS_LOGS_ENABLED
   ALOGD("\n start : %d", start);
-#endif
   std::string encoded_bytes;
   ss_ble_start_scan startScan;
   startScan.set_start(start);
@@ -290,10 +284,8 @@ bool ScannerSingleStackProto::ScanFilterClear(
     int client_if, int filter_index,
     BleScannerInterface::FilterConfigCallback Cb) {
   ALOGD("\n BLE Scan Filter Clear");
-#ifdef SCAN_MODULE_SS_LOGS_ENABLED
   ALOGD("\n client_if : %d", client_if);
   ALOGD("\n filter_index : %d", filter_index);
-#endif
   std::string encoded_bytes;
   ss_ble_scan_filter_clear scanFilterClear;
   ScanFiltrClearCbMap.insert(
@@ -314,10 +306,8 @@ bool ScannerSingleStackProto::ScanFilterClear(
 bool ScannerSingleStackProto::ScanFilterEnable(
     int client_if, bool enable, BleScannerInterface::EnableCallback Cb) {
   ALOGD("\n BLE Scan Filter Enable");
-#ifdef SCAN_MODULE_SS_LOGS_ENABLED
   ALOGD("\n client_if : %d", client_if);
   ALOGD("\n enable : %d", enable);
-#endif
   std::string encoded_bytes;
   ss_ble_scan_filter_enable scanFilterEn;
   ScanFiltrEnCbMap.insert(
@@ -339,11 +329,9 @@ bool ScannerSingleStackProto::ScanFilterAdd(
     int client_if, int filter_index, std::vector<ApcfCommand> filters,
     BleScannerInterface::FilterConfigCallback Cb) {
   ALOGD("\n BLE Scan Filter Add");
-#ifdef SCAN_MODULE_SS_LOGS_ENABLED
   ALOGD("\n client_if : %d", client_if);
   ALOGD("\n filter_index : %d", filter_index);
   ALOGD("\n APCF command parameters");
-#endif
   std::string encoded_bytes;
   ss_ble_scan_filter_add scanFltAdd;
   ScanFiltrAddCbMap.insert(
@@ -372,7 +360,6 @@ bool ScannerSingleStackProto::ScanFilterAdd(
     params->set_group_filter_enabled(flts.group_filter_enabled);
     std::string strirk(flts.irk.begin(), flts.irk.end());
     params->set_irk(strirk);
-#ifdef SCAN_MODULE_SS_LOGS_ENABLED
     ALOGD("\n type : %d", flts.type);
     ALOGD("\n address : %s", ToRawString(&(flts.address)).c_str());
     ALOGD("\n addr_type : %d", flts.addr_type);
@@ -388,7 +375,6 @@ bool ScannerSingleStackProto::ScanFilterAdd(
     ALOGD("\n tds_flags_mask : %d", flts.tds_flags_mask);
     ALOGD("\n group_filter_enabled : %d", flts.group_filter_enabled);
     ALOGD("\n irk : %s", &strirk[0]);
-#endif
   }
   scanFltAdd.SerializeToString(&encoded_bytes);
   uint16_t encoded_len = encoded_bytes.length();
@@ -406,7 +392,6 @@ bool ScannerSingleStackProto::ScanFilterParamSetup(
     std::unique_ptr<btgatt_filt_param_setup_t> filt_param,
     BleScannerInterface::FilterParamSetupCallback Cb) {
   ALOGD("\n BLE Scan Filter ParamSetup");
-#ifdef SCAN_MODULE_SS_LOGS_ENABLED
   ALOGD("\n client_if : %d", client_if);
   ALOGD("\n action : %d", action);
   ALOGD("\n filt_index : %d", filt_index);
@@ -424,7 +409,6 @@ bool ScannerSingleStackProto::ScanFilterParamSetup(
   ALOGD("\n found_timeout_cnt : %d", filt_param->found_timeout_cnt);
   ALOGD("\n num_of_tracking_entries : %d", filt_param->num_of_tracking_entries);
   }
-#endif
   std::string encoded_bytes;
   ss_ble_scan_filter_param_setup scanFltrParam;
   ScanFiltrParamSetCbMap.insert(
@@ -464,7 +448,6 @@ bool ScannerSingleStackProto::SetScanParameters(
     int client_if, int scan_phy, std::vector<uint32_t> scan_interval,
     std::vector<uint32_t> scan_window, BleScannerInterface::Callback Cb) {
   ALOGD("\n BLE Set Scan Parameters");
-#ifdef SCAN_MODULE_SS_LOGS_ENABLED
   ALOGD("\n client_if : %d", client_if);
   ALOGD("\n scan_phy : %d", scan_phy);
   for (uint8_t i = 0; i < scan_interval.size(); i++) {
@@ -473,7 +456,6 @@ bool ScannerSingleStackProto::SetScanParameters(
   for (uint8_t i = 0; i < scan_window.size(); i++) {
     ALOGD("\n scan_window[%d] : %d", i, scan_window[i]);
   }
-#endif
   std::string encoded_bytes;
   ss_ble_set_scan_param setScanParam;
   SetScanParamCbMap.insert(
@@ -501,12 +483,10 @@ bool ScannerSingleStackProto::BatchscanConfigStorage(
     int client_if, int batch_scan_full_max, int batch_scan_trunc_max,
     int batch_scan_notify_threshold, BleScannerInterface::Callback Cb) {
   ALOGD("\n BLE Batch Scan Config Storage");
-#ifdef SCAN_MODULE_SS_LOGS_ENABLED
   ALOGD("\n client_if : %d", client_if);
   ALOGD("\n batch_scan_full_max : %d", batch_scan_full_max);
   ALOGD("\n batch_scan_trunc_max : %d", batch_scan_trunc_max);
   ALOGD("\n batch_scan_notify_threshold : %d", batch_scan_notify_threshold);
-#endif
   std::string encoded_bytes;
   ss_ble_batch_config_storage batchScanConfig;
   BatchScanCfgStorageCbMap.insert(
@@ -530,14 +510,12 @@ bool ScannerSingleStackProto::BatchscanEnable(
     int client_if, int scan_mode, int scan_interval, int scan_window,
     int addr_type, int discard_rule, BleScannerInterface::Callback Cb) {
   ALOGD("\n BLE Batch Scan Enable");
-#ifdef SCAN_MODULE_SS_LOGS_ENABLED
   ALOGD("\n client_if : %d", client_if);
   ALOGD("\n scan_mode : %d", scan_mode);
   ALOGD("\n scan_interval : %d", scan_interval);
   ALOGD("\n scan_window : %d", scan_window);
   ALOGD("\n addr_type : %d", addr_type);
   ALOGD("\n discard_rule : %d", discard_rule);
-#endif
   std::string encoded_bytes;
   ss_ble_batch_scan_enable batchScanEn;
   BatchScanEnCbMap.insert(
@@ -562,9 +540,7 @@ bool ScannerSingleStackProto::BatchscanEnable(
 bool ScannerSingleStackProto::BatchscanDisable(
     int client_if, BleScannerInterface::Callback Cb) {
   ALOGD("\n BLE Batch Scan Disable");
-#ifdef SCAN_MODULE_SS_LOGS_ENABLED
   ALOGD("\n client_if : %d", client_if);
-#endif
   std::string encoded_bytes;
   ss_ble_batch_scan_disable batchScanDisable;
   BatchScanDisCbMap.insert(
@@ -584,10 +560,8 @@ bool ScannerSingleStackProto::BatchscanDisable(
 bool ScannerSingleStackProto::BatchscanReadReports(int client_if,
                                                    int scan_mode) {
   ALOGD("\n BLE Batch Scan ReadReports");
-#ifdef SCAN_MODULE_SS_LOGS_ENABLED
   ALOGD("\n client_if : %d", client_if);
   ALOGD("\n scan_mode : %d", scan_mode);
-#endif
   std::string encoded_bytes;
   ss_ble_batch_scan_read_reports batchScanRd;
   batchScanRd.set_clientif(client_if);

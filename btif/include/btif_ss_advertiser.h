@@ -17,13 +17,13 @@ class AdvertiserSingleStackProto {
       BleAdvertiserInterface::IdTxPowerStatusCallback Cb,
       const AdvertiseParameters& adv_param,
       const std::vector<uint8_t>& advertise_data,
-      /* const std::vector<uint8_t>& advertise_data_enc, */
+      const std::vector<uint8_t>& advertise_data_enc,
       const std::vector<uint8_t>& scan_response_data,
-      /* const std::vector<uint8_t>& scan_response_data_enc, */
+      const std::vector<uint8_t>& scan_response_data_enc,
       const PeriodicAdvertisingParameters& periodic_params,
       const std::vector<uint8_t>& periodic_data,
-      /* const std::vector<uint8_t>& periodic_data_enc, */ int duration,
-      int max_ext_adv_events, /* const std::vector<uint8_t>& enc_key_value, */
+      const std::vector<uint8_t>& periodic_data_enc, int duration,
+      int max_ext_adv_events, const std::vector<uint8_t>& enc_key_value,
       int reg_id, BleAdvertiserInterface::IdStatusCallback TimeoutCb);
   bool BleStopAdvertisingSet(int advertiser_id);
   int postTxMessage(std::string msgStr);
@@ -37,13 +37,13 @@ class AdvertiserSingleStackProto {
       int duration, int max_ext_adv_events,
       BleAdvertiserInterface::StatusCallback TimeoutCb);
   bool BleSetData(BleAdvertiserInterface::StatusCallback Cb, int advertiser_id,
-                  bool scan_resp_data, const std::vector<uint8_t>& data);
+                  bool scan_resp_data, const std::vector<uint8_t>& data, const std::vector<uint8_t>& data_enc);
   bool BleSetPeriodicAdvertisingParameters(
       BleAdvertiserInterface::StatusCallback Cb, int advertiser_id,
       const PeriodicAdvertisingParameters& periodic_params);
   bool BlesetPeriodicAdvertisingData(BleAdvertiserInterface::StatusCallback Cb,
                                      int advertiser_id,
-                                     const std::vector<uint8_t>& data);
+                                     const std::vector<uint8_t>& data, const std::vector<uint8_t>& data_enc);
   bool BleSetPeriodicAdvertisingEnable(
       BleAdvertiserInterface::StatusCallback Cb, int advertiser_id,
       bool enable/* , bool include_adi */);
