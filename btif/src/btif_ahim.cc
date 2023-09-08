@@ -697,7 +697,7 @@ bool leAudio_get_selected_hal_codec_config(AudioConfigurationAIDL *lea_config,
                                            int profile, int direction) {
   LOG(INFO) << __func__ << ": profile: " << profile
                         << ": direction: " << direction;
-  int cis_count = 2;
+  //int cis_count = 2;
   if (profile == BROADCAST) {
     lea_config->set<AudioConfigurationAIDL::leAudioBroadcastConfig>
                        (fetch_offload_broadcast_audio_config());

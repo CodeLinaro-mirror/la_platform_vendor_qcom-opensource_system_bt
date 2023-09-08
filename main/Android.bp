@@ -1,55 +1,50 @@
-//soong_namespace {
-//}
-//
-//soong_config_module_type_import {
-//    from: "device/qcom/qssi/Android.bp",
-//    module_types: [
-//         "bredr_vs_btadva_cc_defaults",
-//         "aosp_vs_qva_cc_defaults",
-//    ],
-//}
-//
-//bredr_vs_btadva_cc_defaults {
-//    name: "btadva_main_cc-default",
-//
-//    soong_config_variables: {
-//        bredr_or_btadva: {
-//           btadva: {
-//              include_dirs: [
-//                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/system/bt/bta/include",
-//                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/vhal/include",
-//              ],
-//              whole_static_libs: [
-//                 "libbt-btif_qti_adva",
-//                 "libbt-bta_qti_adva",
-//              ],
-//              cflags: [
-//                 "-DADV_AUDIO_FEATURE=1",
-//              ],
-//              required: ["leaudio_configs.xml"],
-//           }
-//       }
-//   }
-//}
-//
-//aosp_vs_qva_cc_defaults {
-//     name: "qva_cc_defaults",
-//     soong_config_variables: {
-//         aosp_or_qva: {
-//           qva: {
-//             static_libs: [
-//                "libbt-sbc-encoder",
-//                "libbt-sbc-decoder",
-//             ],
-//           }
-//        }
-//    }
-//}
-//
-//
-//// Bluetooth main HW module / shared library for target
-//// ========================================================
-//<<<<<<< HEAD
+soong_namespace {
+}
+
+soong_config_module_type_import {
+    from: "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/Android.bp",
+    module_types: [
+         "bluetooth_ext_bredr_vs_btadva_cc_defaults",
+         "bluetooth_ext_aosp_vs_qva_cc_defaults",
+    ],
+}
+
+bluetooth_ext_bredr_vs_btadva_cc_defaults {
+    name: "btadva_main_cc-default",
+
+    soong_config_variables: {
+        bredr_or_btadva: {
+           btadva: {
+              header_libs: ["bt_adv_auido_bta_inc", "bt_adv_audio_vhal_inc"],
+              whole_static_libs: [
+                 "libbt-btif_qti_adva",
+                 "libbt-bta_qti_adva",
+              ],
+              cflags: [
+                 "-DADV_AUDIO_FEATURE=1",
+              ],
+              //required: ["leaudio_configs.xml"],
+           }
+       }
+   }
+}
+
+bluetooth_ext_aosp_vs_qva_cc_defaults {
+     name: "qva_cc_defaults",
+     soong_config_variables: {
+         aosp_or_qva: {
+           qva: {
+             static_libs: [
+                "libbt-sbc-encoder",
+                "libbt-sbc-decoder",
+             ],
+           }
+        }
+    }
+}
+
+// Bluetooth main HW module / shared library for target
+// ========================================================
 //cc_library_shared {
 //    name: "libbluetooth_qti",
 //    defaults: ["fluoride_defaults_qti", "btadva_main_cc-default", "qva_cc_defaults"],
