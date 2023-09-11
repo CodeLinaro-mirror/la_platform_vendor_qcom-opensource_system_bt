@@ -37,35 +37,8 @@ bluetooth_ext_bredr_vs_btadva_cc_defaults {
 // Common variables
 // ========================================================
 btifCommonIncludes = [
-    "vendor/qcom/opensource/commonsys/system/bt",
-    "vendor/qcom/opensource/commonsys/system/bt/bta/include",
-    "vendor/qcom/opensource/commonsys/system/bt/bta/ag",
-    "vendor/qcom/opensource/commonsys/system/bt/bta/sys",
-    "vendor/qcom/opensource/commonsys/system/bt/bta/ag",
-    "vendor/qcom/opensource/commonsys/system/bt/bta/dm",
-    "vendor/qcom/opensource/commonsys/system/bt/btcore/include",
-    "vendor/qcom/opensource/commonsys/system/bt/device/include",
-    "vendor/qcom/opensource/commonsys/system/bt/internal_include",
-    "vendor/qcom/opensource/commonsys/system/bt/stack/include",
-    "vendor/qcom/opensource/commonsys/system/bt/stack/l2cap",
-    "vendor/qcom/opensource/commonsys/system/bt/stack/a2dp",
-    "vendor/qcom/opensource/commonsys/system/bt/stack/btm",
-    "vendor/qcom/opensource/commonsys/system/bt/stack/avdt",
-    "vendor/qcom/opensource/commonsys/system/bt/udrv/include",
-    "vendor/qcom/opensource/commonsys/system/bt/btif/include",
-    "vendor/qcom/opensource/commonsys/system/bt/btif/co",
-    "vendor/qcom/opensource/commonsys/system/bt/hci/include",
-    "vendor/qcom/opensource/commonsys/system/bt/vnd/include",
-    "vendor/qcom/opensource/commonsys/system/bt/bta/direction_finder",
     "packages/modules/Bluetooth/system/embdrv/sbc/encoder/include",
     "packages/modules/Bluetooth/system/embdrv/sbc/decoder/include",
-    "vendor/qcom/opensource/commonsys/system/bt/utils/include",
-    "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/btif/include",
-    "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext",
-    "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/bta/include",
-    "vendor/qcom/opensource/commonsys/bluetooth_ext/vhal/include",
-    "vendor/qcom/opensource/commonsys-intf/bluetooth/include",
-    "packages/modules/Bluetooth/system/include",
 ]
 
 cc_library_static{
@@ -198,6 +171,10 @@ cc_library_shared {
     header_libs: [
         "libmedia_headers",
         "libmediametrics_headers",
+		"opensource_btext_vhal_inc",
+		"opensource_commonsys_system_bt_all_inc",
+		"opensource_commonsys_intf_bluetooth_inc",
+		"opensource_commonsys_bt_ext_all_inc",
     ],
     cflags: [
         "-Wno-unused-function",

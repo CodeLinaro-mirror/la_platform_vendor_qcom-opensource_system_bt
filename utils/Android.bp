@@ -6,11 +6,7 @@ cc_library_static {
     local_include_dirs: [
         "include",
     ],
-    include_dirs: [
-        "vendor/qcom/opensource/commonsys/system/bt",
-        "vendor/qcom/opensource/commonsys/system/bt/btcore/include",
-        "vendor/qcom/opensource/commonsys/system/bt/stack/include",
-    ],
+    header_libs: ["opensource_commonsys_system_bt_all_inc"],
     srcs: ["src/bt_utils.cc"],
     static_libs: [
         "libprocessgroup",
