@@ -14,7 +14,7 @@ cc_library_static {
     shared_libs: [
         "liblog",
     ],
-    header_libs: ["libbluetooth_headers", "opensource_commonsys_system_bt_all_inc",],
+    header_libs: ["libbluetooth_headers_qti", "opensource_commonsys_system_bt_all_inc",],
     host_supported: true,
     target: {
         darwin: {

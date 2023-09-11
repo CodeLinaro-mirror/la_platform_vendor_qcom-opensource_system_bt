@@ -23,7 +23,7 @@ cc_library_headers {
 		"btif/include",
 		"device/include",
 		"hci/include",
-		"include",
+		"include/",
 		"internal_include",
 		"stack/include",
 		"stack/avct",
