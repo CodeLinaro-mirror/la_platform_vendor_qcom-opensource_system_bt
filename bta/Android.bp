@@ -154,7 +154,7 @@ cc_test {
         "liblog",
         "libprotobuf-cpp-lite",
         "android.hardware.bluetooth.audio-V3-ndk",
-        "android.hardware.audio.common-V1-ndk",
+        "android.hardware.audio.common-V2-ndk",
     ],
     static_libs: [
         "libbtcore_qti",
