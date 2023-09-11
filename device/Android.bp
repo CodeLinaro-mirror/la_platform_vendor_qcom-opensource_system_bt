@@ -61,3 +61,9 @@ cc_test {
         "libbluetooth-types",
     ],
 }
+
+cc_library_headers {
+   name: "commonsys_system_bt_device_inc",
+   vendor_available: true,
+   export_include_dirs: ["include/"],
+}
