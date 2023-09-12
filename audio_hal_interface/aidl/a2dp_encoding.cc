@@ -51,26 +51,15 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 #define LOG_TAG "a2dp_encoding"
 #include "a2dp_transport.h"
 #include "transport_instance.h"
-
 #include "a2dp_encoding.h"
-
-#include "a2dp_sbc_constants.h"
-#include "btif_a2dp_source.h"
 #include "btif_av.h"
-#include "btif_av_co.h"
-#include "btif_hf.h"
 #include "client_interface.h"
 #include "codec_status.h"
 #include "osi/include/log.h"
-#include "osi/include/properties.h"
-#include "raw_address.h"
 #include "a2dp_sbc.h"
-#include <a2dp_vendor.h>
 #include "controller.h"
-#include "a2dp_vendor_ldac_constants.h"
-//#include "a2dp_vendor_aptx_adaptive.h"
 #include "a2dp_aac.h"
-#include "btif_ahim.h"
+#include "protobuf/proto/a2dp.pb.h"
 #define AAC_SAMPLE_SIZE  1024
 #define AAC_LATM_HEADER  12
 /*
@@ -145,11 +134,8 @@ using ::bluetooth::audio::aidl::codec::A2dpAptxAdaptiveToHalConfig;
 tA2DP_CTRL_CMD A2dpTransport::a2dp_pending_cmd_ = A2DP_CTRL_CMD_NONE;
 uint16_t A2dpTransport::remote_delay_report_ = 0;
 CodecConfiguration codec_config_global;
-PcmConfiguration pcm_config_global;
 static bool is_aidl_checked = false;
 static bool is_aidl_available = false;
-
-
 
 A2dpTransport::A2dpTransport(SessionType sessionType)
     : IBluetoothSinkTransportInstance(sessionType, (AudioConfiguration){}),
@@ -196,10 +182,10 @@ void A2dpTransport::StopRequest() {
 bool A2dpTransport::GetPresentationPosition(uint64_t* remote_delay_report_ns,
                                             uint64_t* total_bytes_read,
                                             timespec* data_position) {
-  *remote_delay_report_ns = remote_delay_report_ * 100000ULL;
+  *remote_delay_report_ns = remote_delay_report_ * 100000u;
   *total_bytes_read = total_bytes_read_;
   *data_position = data_position_;
-  LOG(INFO) << __func__ << "AIDL: delay=" << remote_delay_report_
+  VLOG(2) << __func__ << "AIDL: delay=" << remote_delay_report_
             << "/10ms, data=" << total_bytes_read_
             << " byte(s), timestamp=" << data_position_.tv_sec << "."
             << data_position_.tv_nsec << "s";
@@ -212,50 +198,28 @@ void A2dpTransport::SourceMetadataChanged(
   auto track_count = source_metadata.track_count;
   auto tracks = source_metadata.tracks;
 
-  LOG(INFO) << __func__ << "AIDL: " << track_count << " track(s) received";
-  if (track_count == 0) {
-    LOG(WARNING) << __func__ << ": Invalid number of metadata changed tracks";
-    return;
-  }
+  VLOG(1) << __func__ << "AIDL: " << track_count << " track(s) received";
+  while (track_count) {
+    VLOG(2) << __func__ << "AIDL: usage=" << tracks->usage
 
-  auto usage = source_metadata.tracks->usage;
-
-  LOG(INFO) << __func__ << ", content_type=" << tracks->content_type
-                        << ", track_count: " << track_count
-                        << ", usage: " << usage;
-
-  btif_ahim_update_src_metadata(source_metadata);
-
-}
-
-void A2dpTransport::SinkMetadataChanged(
-  const sink_metadata_t& sink_metadata) {
-
-  auto track_count = sink_metadata.track_count;
-  auto tracks = sink_metadata.tracks;
-
-  LOG(INFO) << __func__ << "AIDL: " << track_count << " track(s) received";
-  if (track_count == 0) {
-    LOG(WARNING) << __func__ << ": Invalid number of metadata changed tracks";
-    return;
-  }
-
-  auto source = sink_metadata.tracks->source;
-
-  LOG(INFO) << __func__ << ", track_count: " << track_count
-                        << ", source: " << source;
-
-  btif_ahim_update_sink_metadata(sink_metadata);
+            << ", content_type=" << tracks->content_type
+            << ", gain=" << tracks->gain;
+    --track_count;
+    ++tracks;
+   }
 
 }
 
 void A2dpTransport::SetLatencyMode(bool is_low_latency) {
   LOG(INFO) << __func__ << " is_low_latency: " << is_low_latency;
-  btif_ahim_set_latency_mode(is_low_latency);
+ // btif_ahim_set_latency_mode(is_low_latency);
 }
 
+void A2dpTransport::SinkMetadataChanged(const sink_metadata_t&) {}
+
+
 tA2DP_CTRL_CMD A2dpTransport::GetPendingCmd() const {
-LOG(ERROR) << ": AIDL Is this function called";
+LOG(ERROR) << "AIDL Is this function called";
   return a2dp_pending_cmd_;
 }
 
@@ -309,7 +273,7 @@ BluetoothAudioCtrlAck a2dp_ack_to_bt_audio_ctrl_ack(tA2DP_CTRL_ACK ack) {
     case A2DP_CTRL_ACK_INCALL_FAILURE:
       return BluetoothAudioCtrlAck::FAILURE_BUSY;
     case A2DP_CTRL_ACK_DISCONNECT_IN_PROGRESS:
-      return BluetoothAudioCtrlAck::FAILURE_UNSUPPORTED;
+      return BluetoothAudioCtrlAck::FAILURE_DISCONNECTING;
     case A2DP_CTRL_ACK_UNSUPPORTED: /* Offloading but resource failure */
       return BluetoothAudioCtrlAck::FAILURE_UNSUPPORTED;
     case A2DP_CTRL_ACK_FAILURE:
@@ -673,7 +637,7 @@ void cleanup() {
   }
 
   if (offloading_hal_interface != nullptr) {
-    a2dp_sink = offloading_hal_interface->GetTransportInstance();
+    auto a2dp_sink = offloading_hal_interface->GetTransportInstance();
     delete offloading_hal_interface;
     offloading_hal_interface = nullptr;
     delete a2dp_sink;
@@ -708,7 +672,7 @@ bool is_restart_session_needed() {
     LOG(ERROR) << __func__ << "aidl: BluetoothAudio HAL is not enabled";
     return false;
   }
-  A2dpCodecConfig* a2dp_config = bta_av_get_a2dp_current_codec();
+  A2dpCodecConfig* a2dp_config = btif_av_get_a2dp_current_codec();
   if (active_hal_interface->GetTransportInstance()->GetSessionType() ==
       SessionType::A2DP_HARDWARE_OFFLOAD_ENCODING_DATAPATH) {
       return codec::a2dp_is_audio_codec_config_params_changed_aidl(&codec_config_global, a2dp_config);
@@ -772,7 +736,7 @@ void start_session() {
 
 void end_session() {
   if (!is_hal_enabled()) {
-    LOG(ERROR) << __func__ << "aidl: BluetoothAudio HAL is not enabled";
+    LOG(ERROR) << __func__ << " aidl: BluetoothAudio HAL is not enabled";
     return;
   }
   active_hal_interface->EndSession();
@@ -784,7 +748,7 @@ void end_session() {
 
 void ack_stream_started(const tA2DP_CTRL_ACK& ack) {
   auto ctrl_ack = a2dp_ack_to_bt_audio_ctrl_ack(ack);
-  LOG(INFO) << __func__ << "aidl: result=" << ctrl_ack;
+  LOG(INFO) << __func__ << " aidl: result=" << ctrl_ack;
 
   if (active_hal_interface == nullptr) return;
 
@@ -805,7 +769,7 @@ void ack_stream_started(const tA2DP_CTRL_ACK& ack) {
 
 void ack_stream_suspended(const tA2DP_CTRL_ACK& ack) {
   auto ctrl_ack = a2dp_ack_to_bt_audio_ctrl_ack(ack);
-  LOG(INFO) << __func__ << "aidl: result=" << ctrl_ack;
+  LOG(INFO) << __func__ << " aidl: result=" << ctrl_ack;
 
   if (active_hal_interface == nullptr) return;
 
@@ -815,7 +779,7 @@ void ack_stream_suspended(const tA2DP_CTRL_ACK& ack) {
   if (pending_cmd == A2DP_CTRL_CMD_SUSPEND) {
     active_hal_interface->StreamSuspended(ctrl_ack);
   } else if (pending_cmd == A2DP_CTRL_CMD_STOP) {
-    LOG(INFO) << __func__ << "aidl: A2DP_CTRL_CMD_STOP result=" << ctrl_ack;
+    LOG(INFO) << __func__ << " aidl: A2DP_CTRL_CMD_STOP result=" << ctrl_ack;
   } else {
     LOG(WARNING) << __func__ << "aidl: pending=" << pending_cmd
                  << " ignore result=" << ctrl_ack;
@@ -827,7 +791,7 @@ void ack_stream_suspended(const tA2DP_CTRL_ACK& ack) {
 }
 
 tA2DP_CTRL_CMD GetPendingCmd() {
-  LOG(ERROR) << "aidl: Is this function called";
+  LOG(ERROR) << " aidl: Is this function called";
   if(!active_hal_interface) return A2DP_CTRL_CMD_NONE;
   auto a2dp_sink =
     static_cast<A2dpTransport*>(active_hal_interface->GetTransportInstance());
@@ -865,12 +829,12 @@ size_t read(uint8_t* p_buf, uint32_t len) {
 // Update A2DP delay report to BluetoothAudio HAL
 void set_remote_delay(uint16_t delay_report) {
   if (!is_hal_enabled()) {
-    LOG(INFO) << __func__ << "aidl: :  not ready for DelayReport "
+    LOG(INFO) << __func__ << " aidl: :  not ready for DelayReport "
               << static_cast<float>(delay_report / 10.0) << " ms";
     remote_delay = delay_report;
     return;
   }
-  VLOG(1) << __func__ << "aidl: DELAY " << static_cast<float>(delay_report / 10.0)
+  VLOG(1) << __func__ << " aidl: DELAY " << static_cast<float>(delay_report / 10.0)
           << " ms";
   static_cast<A2dpTransport*>(active_hal_interface->GetTransportInstance())
       ->SetRemoteDelay(delay_report);
