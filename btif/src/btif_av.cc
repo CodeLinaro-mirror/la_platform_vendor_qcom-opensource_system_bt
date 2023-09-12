@@ -93,7 +93,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 #include <string.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_av.h>
-#include "a2dp_codec_api.h"
+#include "bt_common.h"
 #include "btif_a2dp_audio_interface.h"
 #include "audio_hal_interface/aidl/a2dp_encoding.h"
 #include "a2dp_codec_api.h"
@@ -104,6 +104,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 #endif
 
 #include "btif_ss_interface.h"
+#include "bt_av_common.h"
 // proto specific
 #include "btif/protobuf/include/proto_message_ids.h"
 #include "protobuf/proto/a2dp.pb.h"
@@ -133,21 +134,6 @@ struct btif_a2dp_codec_config_callback_t {
      int alloc_method;
      int block_length;
 };
-
-
-typedef  struct {
-    int peer_mtu ;
-    bool is_peer_edr ;
-    int min_bitpool ;
-    int max_bitpool ;
-    int num_subbands ;
-    int alloc_method ;
-    int block_length ;
-}tA2DP_PEER_PARAMS;
-
-btav_a2dp_codec_config_t* btif_av_get_a2dp_current_codec(void);
-void btif_av_handle_hidl_req(tA2DP_CTRL_CMD cmd);
-void btif_av_co_get_peer_params(tA2DP_PEER_PARAMS*);
 
 tA2DP_PEER_PARAMS* peer_params = nullptr;
 btif_a2dp_codec_config_callback_t codec_config;
@@ -217,12 +203,17 @@ static bt_status_t init_src(
   a2dp_proto::ss_init msg_init;
   int codec_cnt = 0;
 
+  int aac_offload_set = 0;
   bt_av_src_callbacks = callbacks;
   for(uint8_t i=0; i < codec_priorities.size(); i++) {
     if(codec_priorities[i].codec_priority != BTAV_A2DP_CODEC_PRIORITY_DISABLED) {
       ALOGI("%s: %s",__func__,codec_priorities[i].ToString().c_str());
       a2dp_proto::ss_btav_a2dp_codec_config_t* a =
                                           msg_init.add_defaultcodecconfig();
+      if((a2dp_proto::ss_btav_a2dp_codec_index_t) codec_priorities[i].codec_type == a2dp_proto::SS_BTAV_A2DP_CODEC_INDEX_SOURCE_AAC) {
+        aac_offload_set = 1;
+        ALOGI("%s: %s aac_offload_set %d", LOG_TAG, __func__, aac_offload_set);
+      }
       a->set_codec_type((a2dp_proto::ss_btav_a2dp_codec_index_t) codec_priorities[i].codec_type);
       a->set_codec_priority((a2dp_proto::ss_btav_a2dp_codec_priority_t) codec_priorities[i].codec_priority);
       a->set_sample_rate((a2dp_proto::ss_btav_a2dp_codec_sample_rate_t) codec_priorities[i].sample_rate);
@@ -243,7 +234,6 @@ static bt_status_t init_src(
   a2dp_proto::ss_btav_a2dp_supported_codec_config_t* supported_config = new a2dp_proto::ss_btav_a2dp_supported_codec_config_t();
 
   a2dp_proto::ss_btav_a2dp_supported_sbc_config *msg_sbc_config = new a2dp_proto::ss_btav_a2dp_supported_sbc_config();
-  a2dp_proto::ss_btav_a2dp_supported_aac_config *msg_aac_config = new a2dp_proto::ss_btav_a2dp_supported_aac_config();
 
   msg_sbc_config->set_sample_rate(a2dp_proto::samp_freq_44);
   msg_sbc_config->set_bits_per_sample(a2dp_proto::SS_BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16);
@@ -258,7 +248,9 @@ static bt_status_t init_src(
 
   supported_config->set_allocated_offloadsbccapability(msg_sbc_config);
 
-  msg_aac_config->set_object_type(a2dp_proto::object_type_mpeg2_lc);
+  if(aac_offload_set) {
+    a2dp_proto::ss_btav_a2dp_supported_aac_config *msg_aac_config = new a2dp_proto::ss_btav_a2dp_supported_aac_config();
+   msg_aac_config->set_object_type(a2dp_proto::object_type_mpeg2_lc);
   msg_aac_config->set_sample_rate(a2dp_proto::samp_freq_44);
   msg_aac_config->set_channel_mode(a2dp_proto::ch_md_stereo);
   bool vbr_enabled = false;
@@ -272,15 +264,13 @@ static bt_status_t init_src(
   msg_aac_config->set_bit_rate(A2DP_AAC_DEFAULT_OFFLOAD_BITRATE);
   msg_aac_config->set_bits_per_sample(a2dp_proto::SS_BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16);
   supported_config->set_allocated_offloadaaccapability(msg_aac_config);
-  ALOGI("%d, %d, %d", msg_init.has_allsupportedoffloadcap(), supported_config->has_offloadaaccapability(),
-    supported_config->has_offloadsbccapability());
-
+  }
   msg_init.set_maxdevice(max_connected_audio_devices);
   msg_init.set_config_count(codec_cnt);
   msg_init.set_allocated_allsupportedoffloadcap(supported_config);
   msg_init.SerializeToString(&str_msg);
-  ALOGI("%d, %d, %d", msg_init.has_allsupportedoffloadcap(), supported_config->has_offloadaaccapability(),
-    supported_config->has_offloadsbccapability());
+  ALOGI("has_allsupportedoffloadcap %d, has_offloadaaccapability %d,has_offloadsbccapability %d",
+             msg_init.has_allsupportedoffloadcap(), supported_config->has_offloadaaccapability(),
   // register callback with stack
   btSSInterface = BluetoothSSInterface::getInstance();
   if(btSSInterface != NULL){

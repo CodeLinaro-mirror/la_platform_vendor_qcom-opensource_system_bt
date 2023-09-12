@@ -1,6 +1,7 @@
 subdirs = [
     "build",
     "btif",
+    "audio_hal_interface",
     "osi",
     "include",
     "internal_include",
