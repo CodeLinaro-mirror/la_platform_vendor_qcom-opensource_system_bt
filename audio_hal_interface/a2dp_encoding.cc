@@ -2273,7 +2273,7 @@ void get_hal_version() {
   }
 }
 
-static bool is_qti_hal_enabled = false;
+//static bool is_qti_hal_enabled = false;
 
 bool is_qc_hal_enabled() {
   LOG(WARNING) << __func__;

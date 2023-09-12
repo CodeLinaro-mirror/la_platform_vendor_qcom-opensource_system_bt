@@ -291,7 +291,7 @@ void A2dpTransport::SetRemoteDelay(uint16_t delay_report) {
 BluetoothAudioSinkClientInterface* software_hal_interface = nullptr;
 BluetoothAudioSinkClientInterface* offloading_hal_interface = nullptr;
 BluetoothAudioSinkClientInterface* active_hal_interface = nullptr;
-auto session_type = SessionType::UNKNOWN;
+//auto session_type = SessionType::UNKNOWN;
 
 // Save the value if the remote reports its delay before this interface is
 // initialized
