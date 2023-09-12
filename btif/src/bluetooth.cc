@@ -177,7 +177,7 @@ using namespace bluetooth::synergy::SynergyProto;
 /* handsfree profile - client */
 extern bthf_client_interface_t* btif_hf_client_get_interface();
 /* advanced audio profile */
-//extern btav_source_interface_t* btif_av_get_src_interface();
+extern btav_source_interface_t* btif_av_get_src_interface();
 //extern btav_sink_interface_t* btif_av_get_sink_interface();
 /*rfc l2cap*/
 extern btsock_interface_t* btif_sock_get_interface();
@@ -1222,7 +1222,7 @@ static const void* get_profile_interface(const char* profile_id) {
     return NULL;//btif_pan_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_ID))
-    return NULL;//btif_av_get_src_interface();
+    return btif_av_get_src_interface();
 
   if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_SINK_ID))
     return NULL;//btif_av_get_sink_interface();
