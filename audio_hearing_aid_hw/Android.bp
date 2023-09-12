@@ -1,11 +1,7 @@
 cc_defaults {
     name: "audio_hearing_aid_hw_defaults_qti",
     defaults: ["fluoride_defaults_qti"],
-    include_dirs: [
-        "vendor/qcom/opensource/commonsys/system/bt",
-        "packages/modules/Bluetooth/system/include",
-        "vendor/qcom/opensource/commonsys/system/bt/audio_hearing_aid_hw/include",
-    ]
+    header_libs: ["opensource_commonsys_system_bt_all_inc"],
 }
 
 // Audio A2DP shared library for target
