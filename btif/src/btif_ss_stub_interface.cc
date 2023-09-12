@@ -8,6 +8,7 @@
 #include "btif_ss_stub_interface.h"
 #include "protobuf/proto/dm.pb.h"
 #include "protobuf/proto/rfcomm.pb.h"
+#include "protobuf/proto/sdp.pb.h"
 #include "protobuf/proto/advertiser.pb.h"
 #include "protobuf/include/proto_message_ids.h"
 //#include "osi/include/log.h"
@@ -1359,6 +1360,198 @@ void BluetoothSSStubInterface::sendDummyCallback(int msg_id, std::string res_buf
               "status :%d ",
               status);
         }
+        break;
+      }
+
+      case BT_SDP_SEARCH:
+      {
+        ALOGI("Stub BT_SDP_SEARCH");
+        std::string bd_addr = "22:22:8a:25:a8:9a";
+        std::string uuid = "0000112f-0000-1000-8000-00805f9b34fb";
+        uint8_t arr[5] = {3,4,56,7,8};
+        int rec_length = 5;
+        std::string rec_data;
+        rec_data = (char*)arr;
+        std::string name = "OBEX Phonebook Access Server";
+
+        uint8_t sdp_msg[MAX_LENGTH_WITH_PROTO_NONE];
+        //adding msg_id
+        uint16_t MSG_ID = BT_SDP_SEARCH_COMPLETE_CB;
+        sdp_msg[0] = MSG_ID & 0xff;
+        sdp_msg[1] = (MSG_ID >> 8);
+
+        std::string protoMsg;
+        ss_sdp_search_complete_callback sdpSearchCb;
+        sdpSearchCb.set_status(bluetooth::synergy::SynergyProto::SS_BT_STATUS_SUCCESS_t);
+        sdpSearchCb.set_remote_bd_addr(bd_addr.c_str());
+        sdpSearchCb.set_uuid(uuid.c_str());
+        //sdpSearchCb.set_record_length(rec_length);
+        //sdpSearchCb.set_record_data(rec_data.c_str());
+        sdpSearchCb.set_record_count(1);
+        ss_bt_sdp_record* raw_record = sdpSearchCb.mutable_record();
+        ss_bt_sdp_pse_record* pse_record = raw_record->mutable_pse();
+        ss_bt_sdp_hdr_overlay* record = pse_record->mutable_hdr();
+        record->set_type(SS_BT_SDP_TYPE_PBAP_PSE);
+        record->set_uuid(uuid.c_str());
+        record->set_service_name_length(strlen(name.c_str()));
+        ss_bt_service_name* s_name = record->mutable_service_name();
+        s_name->set_name(name.c_str());
+        record->set_rfcomm_channel_number(19);
+        record->set_l2cap_psm(-1);
+        record->set_profile_version(257);
+        pse_record->set_supported_features(3);
+        pse_record->set_supported_repositories(3);
+        //record->set_record_length(rec_length);
+        //record->set_record_data(rec_data.c_str());
+        //sdpSearchCb.set_record(record);
+        ALOGI("Send sdp search complete callback");
+        sdpSearchCb.SerializeToString(&protoMsg);
+        ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
+        //adding length
+        uint16_t length = protoMsg.length();
+        sdp_msg[2] = length & 0xff;
+        sdp_msg[3] = (length >> 8);
+        //adding proto_encode
+        uint16_t proto_encode = PROTO_ENC_DEC;
+        sdp_msg[4] = proto_encode & 0xff;
+        sdp_msg[5] = (proto_encode >> 8);
+        char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+        memcpy(resBuffer, (char *) sdp_msg, MAX_LENGTH_WITH_PROTO_NONE);
+        std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+        msgStr.append(protoMsg);
+        tBTIF_SS_Cback ss_cback;
+        memset(&ss_cback, 0, sizeof(tBTIF_SS_Cback));
+        ss_cback.payload = (uint8_t *)malloc((MAX_LENGTH_WITH_PROTO_NONE + length)*sizeof(uint8_t));
+        //This memory should be released from each profile after done with the processing
+        std::vector<uint8_t> protoVector(msgStr.begin(), msgStr.end());
+        uint8_t *proto_msg = &protoVector[0];
+        memcpy(ss_cback.payload, proto_msg, ((MAX_LENGTH_WITH_PROTO_NONE + length) * sizeof(uint8_t)));
+        btif_transfer_context(btif_sdp_ss_callback, MSG_ID, (char*)&ss_cback, sizeof(ss_cback),NULL);
+        break;
+      }
+
+      case BT_SDP_CREATE_RECORD:
+      {
+        ALOGI("Stub BT_SDP_SEARCH");
+        uint32_t handle = 1;
+
+        uint8_t sdp_msg[MAX_LENGTH_WITH_PROTO_NONE];
+        //adding msg_id
+        uint16_t MSG_ID = BT_SDP_SEARCH_COMPLETE_CB;
+        sdp_msg[0] = MSG_ID & 0xff;
+        sdp_msg[1] = (MSG_ID >> 8);
+
+        std::string protoMsg;
+        ss_bt_create_sdp_record createSdpRecord;
+        createSdpRecord.ParseFromString(res_buffer);
+        if (createSdpRecord.has_handle()) {
+          handle = createSdpRecord.handle();
+          ALOGD("has record handle : %d", handle);
+        }
+        if (createSdpRecord.has_record()) {
+
+          int record_length = 0;
+          uint8_t* rec_data = NULL;
+          std::string data;
+          ss_bt_sdp_type record_type;
+          ss_bt_service_name* s_name;
+          int serv_name_len;
+          int rfcomm_chnl_no;
+          int l2cap_psm;
+          int profile_version;
+
+          //ss_bt_sdp_record rec = createSdpRecord.record();
+          ss_bt_sdp_record* rec = createSdpRecord.mutable_record();
+
+          switch(handle){
+            case 2:
+            case 3:
+              ALOGD("Create PCE record");
+              std::string uuid = "0000112f-0000-1000-8000-00805f9b34fb";
+              ss_bt_sdp_pce_record* pce_record = rec->mutable_pce();
+              ss_bt_sdp_hdr_overlay* pce_hdr = pce_record->mutable_hdr();
+              //ss_bt_sdp_pce_record pce_rec = rec.mutable_pce();
+              //ss_bt_sdp_hdr_overlay pce_hdr = pce_rec.mutable_hdr();
+              pce_hdr->set_uuid(uuid.c_str());
+              ALOGD("uuid set to : %s", uuid.c_str());
+
+              if(pce_hdr->has_type()){
+              record_type  = pce_hdr->type();
+              ALOGD("type : %d", record_type);
+              }
+              if(pce_hdr->has_service_name_length()){
+              serv_name_len  = pce_hdr->service_name_length();
+              ALOGD("service name length : %d", serv_name_len);
+              }
+              if(pce_hdr->has_service_name()){
+              s_name  = pce_hdr->mutable_service_name();
+              ALOGD("service name : %s", (char*)s_name);
+              }
+              if(pce_hdr->has_rfcomm_channel_number()){
+              rfcomm_chnl_no = pce_hdr->rfcomm_channel_number();
+              ALOGD("rfcomm_channel_number : %d", handle);
+              }
+              if(pce_hdr->has_l2cap_psm()){
+              l2cap_psm = pce_hdr->l2cap_psm();
+              ALOGD("has l2cap_psm : %d", l2cap_psm);
+              }
+              if(pce_hdr->has_profile_version()){
+              profile_version = pce_hdr->profile_version();
+              ALOGD("has profile version : %d", profile_version);
+              }
+          }
+
+
+        }
+        ALOGI("Stub: BT_SDP_CREATE_RECORD: Record created");
+        //adding length
+        uint16_t length = protoMsg.length();
+        sdp_msg[2] = length & 0xff;
+        sdp_msg[3] = (length >> 8);
+        //adding proto_encode
+        uint16_t proto_encode = PROTO_ENC_DEC;
+        sdp_msg[4] = proto_encode & 0xff;
+        sdp_msg[5] = (proto_encode >> 8);
+        char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+        memcpy(resBuffer, (char *) sdp_msg, MAX_LENGTH_WITH_PROTO_NONE);
+        std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+        msgStr.append(protoMsg);
+        break;
+      }
+
+      case BT_SDP_REMOVE_RECORD:
+      {
+        ALOGI("Stub: BT_REMOVE_RECORD");
+        ALOGI("sTUB: RECORD_REMOVED");
+        std::string bd_addr = "22:22:8a:25:a8:9a";
+        std::string uuid = "0000112f-0000-1000-8000-00805f9b34fb";
+        uint8_t arr[5] = {3,4,56,7,8};
+        int rec_length = 5;
+        std::string rec_data;
+        rec_data = (char*)arr;
+
+        uint8_t sdp_msg[MAX_LENGTH_WITH_PROTO_NONE];
+        //adding msg_id
+        uint16_t MSG_ID = BT_SDP_SEARCH_COMPLETE_CB;
+        sdp_msg[0] = MSG_ID & 0xff;
+        sdp_msg[1] = (MSG_ID >> 8);
+
+        std::string protoMsg;
+
+
+        ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
+        //adding length
+        uint16_t length = protoMsg.length();
+        sdp_msg[2] = length & 0xff;
+        sdp_msg[3] = (length >> 8);
+        //adding proto_encode
+        uint16_t proto_encode = PROTO_ENC_DEC;
+        sdp_msg[4] = proto_encode & 0xff;
+        sdp_msg[5] = (proto_encode >> 8);
+        char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+        memcpy(resBuffer, (char *) sdp_msg, MAX_LENGTH_WITH_PROTO_NONE);
+        std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+        msgStr.append(protoMsg);
         break;
       }
 
