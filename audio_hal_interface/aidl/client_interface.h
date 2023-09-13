@@ -179,7 +179,8 @@ class BluetoothAudioSinkClientInterface : public BluetoothAudioClientInterface {
    * |message_loop| is the thread where callbacks are invoked.
    ***/
   BluetoothAudioSinkClientInterface(
-      IBluetoothSinkTransportInstance* sink);
+      IBluetoothSinkTransportInstance* sink,
+     thread_t* message_loop);
   virtual ~BluetoothAudioSinkClientInterface();
 
   IBluetoothSinkTransportInstance* GetTransportInstance() const {

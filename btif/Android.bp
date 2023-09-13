@@ -156,12 +156,11 @@ cc_library_shared {
         "libutils",
 //        "libdl",
         "libcrypto",
-        "libprotobuf-cpp-lite",
-        "libbinder_ndk",
+		"libprotobuf-cpp-lite",
+
     ],
     whole_static_libs: [
         "libbtif_ext",
-        "libbt-audio-hal-interface-qti",
         "libc++fs",
         "libosi_qti",
         "libbtdevice_ext",

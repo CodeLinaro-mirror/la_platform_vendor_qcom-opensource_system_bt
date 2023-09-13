@@ -25,15 +25,15 @@ cc_library_static {
     header_libs: ["opensource_commonsys_bt_ext_all_inc", "opensource_commonsys_system_bt_all_inc", "opensource_btext_vhal_inc", "opensource_commonsys_intf_bluetooth_inc"],
     include_dirs: ["packages/modules/Bluetooth/system/common/"],
     srcs: [
-        //"a2dp_encoding.cc",
-        //"client_interface.cc",
-        //"hearing_aid_software_encoding.cc",
+        "a2dp_encoding.cc",
+        "client_interface.cc",
+        "hearing_aid_software_encoding.cc",
         "aidl/a2dp_encoding.cc",
         "aidl/bluetooth_audio_port_impl.cc",
         "aidl/client_interface.cc",
         "aidl/codec_status.cc",
-        //"aidl/hearing_aid_software_encoding.cc",
-        //"aidl/le_audio_software.cc",
+        "aidl/hearing_aid_software_encoding.cc",
+        "aidl/le_audio_software.cc",
     ],
     shared_libs: [
         "vendor.qti.hardware.bluetooth_audio@2.1",
@@ -47,7 +47,6 @@ cc_library_static {
     ],
     static_libs: [
         "libosi_qti",
-		"bluetooth-protos-singlestack",
     ],
     cflags: [
         "-DBUILDCFG",

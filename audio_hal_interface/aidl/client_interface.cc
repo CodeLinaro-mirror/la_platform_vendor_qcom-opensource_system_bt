@@ -221,7 +221,8 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
 }
 
 BluetoothAudioSinkClientInterface::BluetoothAudioSinkClientInterface(
-    IBluetoothSinkTransportInstance* sink)
+    IBluetoothSinkTransportInstance* sink,
+    thread_t* message_loop)
     : BluetoothAudioClientInterface{sink}, sink_(sink) {
   LOG(INFO) << __func__ << ": AIDL";
   FetchAudioProvider();
