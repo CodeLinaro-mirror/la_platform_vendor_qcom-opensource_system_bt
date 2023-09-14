@@ -93,7 +93,7 @@ namespace audio {
 namespace aidl {
 namespace a2dp {
 
-uint16_t sbc_calulate_offload_bitrate(btav_a2dp_codec_config_t* codec, tA2DP_PEER_PARAMS* peer);
+uint16_t sbc_calulate_offload_bitrate(btav_a2dp_codec_config_t* codec, btif_a2dp_codec_config_callback_t* peer);
 uint16_t GetChannelMode(a2dp_proto::ss_btav_a2dp_codec_channel_mode_t ch_mode);
 int GetSamplingFeq(btav_a2dp_codec_sample_rate_t samp_freq);
 uint16_t GetNumOfChannels(a2dp_proto::ss_btav_a2dp_codec_channel_mode_t ch_mode);
@@ -286,23 +286,21 @@ BluetoothAudioCtrlAck a2dp_ack_to_bt_audio_ctrl_ack(tA2DP_CTRL_ACK ack) {
 bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
   //A2dpCodecConfig* a2dp_config = btif_av_get_a2dp_current_codec();
   //uint8_t p_codec_info[AVDT_CODEC_SIZE];
-  tA2DP_PEER_PARAMS peer_param;
 
-  btif_av_co_get_peer_params(&peer_param);
-  ALOGI("%s: peer_params mtu=%d , is_peer_edr = %d, "
-  "min_bitpool=%d, max_bitpool=%d, num_subbands=%d, alloc_method = %d, "
-  "block_length=%d ", __func__, peer_param.peer_mtu, peer_param.is_peer_edr,
-  peer_param.min_bitpool,  peer_param.max_bitpool, peer_param.num_subbands,
-  peer_param.alloc_method, peer_param.block_length);
-  btav_a2dp_codec_config_t* current_codec = btif_av_get_a2dp_current_codec();
+  btif_a2dp_codec_config_callback_t* current_codec = btif_av_get_a2dp_current_codec();
+  if (current_codec == NULL) {
+      ALOGI("Current codec is null");
+      return false;
+  }
+  btav_a2dp_codec_config_t* codec_conf = &current_codec->codec_config_;
 
-  switch (current_codec->codec_type) {
+  switch (codec_conf->codec_type) {
     case BTAV_A2DP_CODEC_INDEX_SOURCE_SBC:
     {
         codec_config->codecType = CodecType::SBC;
         SbcConfiguration sbc_config = {};
-        sbc_config.sampleRateHz = A2dpCodecToHalSampleRate(*current_codec);
-          uint8_t channel_mode = current_codec->channel_mode;
+        sbc_config.sampleRateHz = A2dpCodecToHalSampleRate(*codec_conf);
+          uint8_t channel_mode = codec_conf->channel_mode;
           switch (channel_mode) {
             case a2dp_proto::SS_BTAV_A2DP_CODEC_CHANNEL_MODE_JOINT_STEREO:
               sbc_config.channelMode = SbcChannelMode::JOINT_STEREO;
@@ -323,13 +321,13 @@ bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
               return false;
         }
 
-        sbc_config.blockLength = GetNumberOfBlocks(peer_param.block_length);
+        sbc_config.blockLength = GetNumberOfBlocks(current_codec->block_length);
         ALOGI("block length: %d", sbc_config.blockLength);
         if(sbc_config.blockLength == -1) {
           LOG(ERROR) << __func__ << ": Unknown SBC block_length=" << sbc_config.blockLength;
           return false;
         }
-        uint8_t sub_bands = peer_param.num_subbands;
+        uint8_t sub_bands = current_codec->num_subbands;
         switch (sub_bands) {
             case A2DP_SBC_IE_SUBBAND_4:
               sbc_config.numSubbands = SUBBAND_4;
@@ -342,7 +340,7 @@ bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
               return false;
         }
         ALOGI("numSubbands:%d sub_bands:%d", sbc_config.numSubbands,sub_bands);
-          uint8_t alloc_method = peer_param.alloc_method;
+          uint8_t alloc_method = current_codec->alloc_method;
           switch (alloc_method) {
             case A2DP_SBC_IE_ALLOC_MD_S:
               sbc_config.allocMethod = SbcAllocMethod::ALLOC_MD_S;
@@ -354,9 +352,9 @@ bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
               LOG(ERROR) << __func__ << ": Unknown SBC alloc_method=" << alloc_method;
               return false;
           }
-        sbc_config.minBitpool = peer_param.min_bitpool;
-        sbc_config.maxBitpool = peer_param.max_bitpool;
-        sbc_config.bitsPerSample = A2dpCodecToHalBitsPerSample(*current_codec);
+        sbc_config.minBitpool = current_codec->min_bitpool;
+        sbc_config.maxBitpool = current_codec->max_bitpool;
+        sbc_config.bitsPerSample = A2dpCodecToHalBitsPerSample(*codec_conf);
         codec_config->config.set<CodecConfiguration::CodecSpecific::sbcConfig>(
         sbc_config);
       /*if (!A2dpSbcToHalConfig(codec_config, a2dp_config)) {
@@ -372,7 +370,7 @@ bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
       AacConfiguration aac_config = {};
       codec_config->codecType = CodecType::AAC;
 
-      switch (current_codec->codec_specific_1) {
+      switch (codec_conf->codec_specific_1) {
         case A2DP_AAC_OBJECT_TYPE_MPEG2_LC:
           aac_config.objectType = AacObjectType::MPEG2_LC;
           break;
@@ -387,21 +385,21 @@ bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
           break;
         default:
           LOG(ERROR) << __func__ << ": Unknown AAC object_type=" <<
-            current_codec->codec_specific_1;
+            codec_conf->codec_specific_1;
           return false;
       }
-      ALOGI("AacObjectType::MPEG2_LC= %hhd, %lld", AacObjectType::MPEG2_LC, current_codec->codec_specific_1);
+      ALOGI("AacObjectType::MPEG2_LC= %hhd, %lld", AacObjectType::MPEG2_LC, codec_conf->codec_specific_1);
       //aac_config.objectType = AacObjectType::MPEG2_LC;
-      aac_config.sampleRateHz = A2dpCodecToHalSampleRate(*current_codec);
-      aac_config.channelMode = A2dpCodecToHalChannelMode(*current_codec);
-      uint8_t vbr_enabled = current_codec->codec_specific_2;
+      aac_config.sampleRateHz = A2dpCodecToHalSampleRate(*codec_conf);
+      aac_config.channelMode = A2dpCodecToHalChannelMode(*codec_conf);
+      uint8_t vbr_enabled = codec_conf->codec_specific_2;
       // valid values vbr_enabled: [0,1]
       if (vbr_enabled == 1 ) {
           aac_config.variableBitRateEnabled = true;
       } else {
           aac_config.variableBitRateEnabled = false;
       }
-      aac_config.bitsPerSample = A2dpCodecToHalBitsPerSample(*current_codec);
+      aac_config.bitsPerSample = A2dpCodecToHalBitsPerSample(*codec_conf);
       ALOGI("AAC obj_type: %hhd, sample rate: %d, channel mode: %hhd,"
         "vbr_enabled: %d, aac_config.bitsPerSample: %d, ", aac_config.objectType,
         aac_config.sampleRateHz,aac_config.channelMode, vbr_enabled,
@@ -436,7 +434,7 @@ bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
       [[fallthrough]];
     default:
       LOG(ERROR) << __func__
-                 << "aidl: Unknown codec_type=" << current_codec->codec_type;
+                 << "aidl: Unknown codec_type=" << codec_conf->codec_type;
       return false;
   }
 #if 0
@@ -446,12 +444,12 @@ bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
   tA2DP_ENCODER_INIT_PEER_PARAMS peer_param;
   bta_av_co_get_peer_params(peer_addr, &peer_param);
   int effectiveMtu = bta_av_co_get_encoder_effective_frame_size();
-  if (effectiveMtu > 0 && effectiveMtu < peer_param.peer_mtu) {
+  if (effectiveMtu > 0 && effectiveMtu < current_codec.peer_mtu) {
     codec_config->peerMtu = effectiveMtu;
   } else {
-    codec_config->peerMtu = peer_param.peer_mtu;
+    codec_config->peerMtu = current_codec.peer_mtu;
   }
-  if (current_codec.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_SBC &&
+  if (current_codec.codec_config_.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_SBC &&
       codec_config->config.get<CodecConfiguration::CodecSpecific::sbcConfig>()
               .maxBitpool <= A2DP_SBC_BITPOOL_MIDDLE_QUALITY) {
     codec_config->peerMtu = MAX_2MBPS_AVDTP_MTU;
@@ -469,10 +467,10 @@ bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
   }
 #endif
   uint32_t bitrate = 0;
-  codec_config->peerMtu = peer_param.peer_mtu - A2DP_HEADER_SIZE;
-  if (BTAV_A2DP_CODEC_INDEX_SOURCE_SBC == current_codec->codec_type) {
+  codec_config->peerMtu = current_codec->peer_mtu - A2DP_HEADER_SIZE;
+  if (BTAV_A2DP_CODEC_INDEX_SOURCE_SBC == codec_conf->codec_type) {
     // to-do: set bit rate here
-    bitrate = sbc_calulate_offload_bitrate(current_codec, &peer_param);
+    bitrate = sbc_calulate_offload_bitrate(codec_conf, current_codec);
     LOG(INFO) << __func__ << " AIDL SBC bitrate:" << bitrate;
     codec_config->encodedAudioBitrate = bitrate * 1000;
   }
@@ -491,7 +489,7 @@ bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
     }
   }
 #endif
-  else if (BTAV_A2DP_CODEC_INDEX_SOURCE_AAC == current_codec->codec_type) {
+  else if (BTAV_A2DP_CODEC_INDEX_SOURCE_AAC == codec_conf->codec_type) {
     /*bool is_AAC_frame_ctrl_stack_enable =
                     controller_get_interface()->supports_aac_frame_ctl();
     uint32_t codec_based_bit_rate = 0;
@@ -517,8 +515,8 @@ bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
     } else {
       codec_config->encodedAudioBitrate = codec_based_bit_rate;
     }*/
-    ALOGI("bitrate from stack: %lld", current_codec->codec_specific_3);
-    codec_config->encodedAudioBitrate = current_codec->codec_specific_3;
+    ALOGI("bitrate from stack: %lld", codec_conf->codec_specific_3);
+    codec_config->encodedAudioBitrate = codec_conf->codec_specific_3;
   } else {
     ALOGE("Unsupported codec type");
   }
@@ -840,7 +838,7 @@ void set_remote_delay(uint16_t delay_report) {
       ->SetRemoteDelay(delay_report);
 }
 
-uint16_t sbc_calulate_offload_bitrate(btav_a2dp_codec_config_t *codec, tA2DP_PEER_PARAMS* peer) {
+uint16_t sbc_calulate_offload_bitrate(btav_a2dp_codec_config_t *codec, btif_a2dp_codec_config_callback_t* peer) {
   uint16_t s16SamplingFreq,sample_rate;
   int16_t s16BitPool = 0;
   int16_t s16BitRate;
