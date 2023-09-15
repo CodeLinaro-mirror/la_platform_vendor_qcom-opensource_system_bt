@@ -52,7 +52,7 @@
 #include <string.h>
 
 #include <hardware/bluetooth.h>
-#include <include/hardware/bt_hf_client.h>
+#include <hardware/bt_hf_client.h>
 
 #include "bt_target.h"
 #include "log/log.h"
@@ -73,6 +73,11 @@ namespace hf_client_proto = headsetClient::synergy::SynergyProto;
 #endif
 
 #define BTIF_HF_CLIENT_PEER_INBAND 0x00000008    /* In-band ring tone */
+
+/**
+ * Executes HF CLIENT CALLBACKS in btif context
+ */
+void btif_hf_client_ss_callback(uint16_t event, char* payload);
 
 /*******************************************************************************
  *  Static variables
@@ -194,7 +199,7 @@ static bt_status_t init(bthf_client_callbacks_t* callbacks) {
  * Returns         bt_status_t
  *
  ******************************************************************************/
-static bt_status_t connect(RawAddress* bd_addr) {
+static bt_status_t connect(const RawAddress* bd_addr) {
   ALOGI("%s", __func__);
   if (bd_addr == NULL) return BT_STATUS_FAIL;
   std::string payload;
