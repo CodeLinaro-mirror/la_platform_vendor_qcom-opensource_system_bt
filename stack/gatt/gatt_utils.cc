@@ -539,6 +539,10 @@ tGATT_TCB* gatt_allocate_tcb_by_bdaddr(const RawAddress& bda,
     p_tcb->tcb_idx = i;
     p_tcb->transport = transport;
     p_tcb->peer_bda = bda;
+    p_tcb->pending_user_mtu_exchange_value = 0;
+    p_tcb->conn_ids_waiting_for_mtu_exchange = std::list<uint16_t>();
+    p_tcb->max_user_mtu = 0;
+
     if (stack_config_get_interface()->get_pts_configure_svc_chg_indication())
       p_tcb->svc_chg_cccd = btif_storage_get_svc_chg_cccd(bda);
     gatt_sr_init_cl_status(*p_tcb);
@@ -547,6 +551,29 @@ tGATT_TCB* gatt_allocate_tcb_by_bdaddr(const RawAddress& bda,
   }
 
   return NULL;
+}
+
+uint16_t gatt_get_mtu(const RawAddress& bda, tBT_TRANSPORT transport) {
+  tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bda, transport);
+  if (!p_tcb) return 0;
+
+  return p_tcb->payload_size;
+}
+
+bool gatt_is_pending_mtu_exchange(tGATT_TCB* p_tcb) {
+  return p_tcb->pending_user_mtu_exchange_value != 0;
+}
+
+void gatt_set_conn_id_waiting_for_mtu_exchange(tGATT_TCB* p_tcb,
+                                               uint16_t conn_id) {
+  auto it = std::find(p_tcb->conn_ids_waiting_for_mtu_exchange.begin(),
+                      p_tcb->conn_ids_waiting_for_mtu_exchange.end(), conn_id);
+  if (it == p_tcb->conn_ids_waiting_for_mtu_exchange.end()) {
+    p_tcb->conn_ids_waiting_for_mtu_exchange.push_back(conn_id);
+    VLOG(1) << __func__ << " Put conn_id=" << +conn_id << " on wait list:";
+  } else {
+    VLOG(1) << __func__ << " Conn_id=" << +conn_id << " already on wait list:";
+  }
 }
 
 /** gatt_build_uuid_to_stream will convert 32bit UUIDs to 128bit. This function

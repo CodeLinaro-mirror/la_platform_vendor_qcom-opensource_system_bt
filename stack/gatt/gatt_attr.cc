@@ -71,6 +71,7 @@
 #include "stack/gatt/eatt_int.h"
 #include "stack/btm/btm_int.h"
 #include "stack_config.h"
+#include "bta/gatt/bta_gattc_int.h"
 
 using base::StringPrintf;
 using bluetooth::Uuid;
@@ -881,6 +882,26 @@ static void gatt_cl_op_cmpl_cback(uint16_t conn_id,
 
     if (btm_cb.enc_adv_data_enabled) {
       GAP_BleGetEncKeyMaterialInfo(p_clcb->bda, p_clcb->transport);
+    }
+  }
+
+  if (op == GATTC_OPTYPE_CONFIG) {
+    VLOG(1) << __func__ << " Received GATTC_OPTYPE_CONFIG cb, check for other queued MTU requests:";
+
+    /* If there are more clients waiting for the MTU results on the same device,
+     * lets trigger them now.
+     */
+
+    auto outstanding_conn_ids =
+        GATTC_GetAndRemoveListOfConnIdsWaitingForMtuRequest(p_clcb->bda);
+    for (auto conn_id : outstanding_conn_ids) {
+      tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
+      VLOG(1) << __func__ << " Continue MTU request clcb " << p_clcb;
+      if (p_clcb) {
+        VLOG(1) << __func__ << "Continue MTU request for client conn_id:"
+                << +conn_id;
+        bta_gattc_continue(p_clcb);
+      }
     }
   }
 }

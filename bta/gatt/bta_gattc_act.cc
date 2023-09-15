@@ -112,9 +112,6 @@ static void bta_gattc_conn_cback(tGATT_IF gattc_if, const RawAddress& bda,
 static void bta_gattc_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op,
                                  tGATT_STATUS status,
                                  tGATT_CL_COMPLETE* p_data, uint32_t trans_id);
-static void bta_gattc_cmpl_sendmsg(uint16_t conn_id, tGATTC_OPTYPE op,
-                                   tGATT_STATUS status,
-                                   tGATT_CL_COMPLETE* p_data);
 
 static void bta_gattc_deregister_cmpl(tBTA_GATTC_RCB* p_clreg);
 static void bta_gattc_enc_cmpl_cback(tGATT_IF gattc_if, const RawAddress& bda);
@@ -853,6 +850,40 @@ void bta_gattc_restart_discover(tBTA_GATTC_CLCB* p_clcb,
 
 /** Configure MTU size on the GATT connection */
 void bta_gattc_cfg_mtu(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
+  uint16_t current_mtu = 0;
+  auto result = GATTC_TryMtuRequest(p_clcb->bda, p_clcb->transport,
+                                    p_clcb->bta_conn_id, &current_mtu);
+  switch (result) {
+    case MTU_EXCHANGE_DEVICE_DISCONNECTED:
+      VLOG(1) << __func__ << " Device " << p_clcb->bda << " disconnected";
+      bta_gattc_cmpl_sendmsg(p_clcb->bta_conn_id, GATTC_OPTYPE_CONFIG,
+                             GATT_NO_RESOURCES, NULL);
+      bta_gattc_continue(p_clcb);
+      return;
+    case MTU_EXCHANGE_NOT_ALLOWED:
+      VLOG(1) << __func__ << " Not allowed for BR/EDR devices " << p_clcb->bda;
+      bta_gattc_cmpl_sendmsg(p_clcb->bta_conn_id, GATTC_OPTYPE_CONFIG,
+                             GATT_ERR_UNLIKELY, NULL);
+      bta_gattc_continue(p_clcb);
+      return;
+    case MTU_EXCHANGE_ALREADY_DONE:
+      /* Check if MTU is not already set, if so, just report it back to the user
+       * and continue with other requests.
+       */
+      GATTC_UpdateUserAttMtuIfNeeded(p_clcb->bda, p_clcb->transport,
+                                     p_data->api_mtu.mtu);
+      bta_gattc_send_mtu_response(p_clcb, p_data, current_mtu);
+      return;
+    case MTU_EXCHANGE_IN_PROGRESS:
+      VLOG(1) << __func__ << " Enqueue MTU Request  - waiting for response on p_clcb: " << p_clcb;
+      p_clcb->p_q_cmd_queue.push_back(p_data);
+      return;
+
+    case MTU_EXCHANGE_NOT_DONE_YET:
+      /* OK to proceed */
+      break;
+  }
+
   if (bta_gattc_enqueue(p_clcb, p_data) == ENQUEUED_FOR_LATER) return;
 
   tGATT_STATUS status =
@@ -1362,17 +1393,31 @@ void bta_gattc_op_cmpl(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
   }
 
   /* service handle change void the response, discard it */
-  if (op == GATTC_OPTYPE_READ)
+  if (op == GATTC_OPTYPE_READ) {
     bta_gattc_read_cmpl(p_clcb, &p_data->op_cmpl);
-
-  else if (op == GATTC_OPTYPE_WRITE)
+  } else if (op == GATTC_OPTYPE_WRITE) {
     bta_gattc_write_cmpl(p_clcb, &p_data->op_cmpl);
-
-  else if (op == GATTC_OPTYPE_EXE_WRITE)
+  } else if (op == GATTC_OPTYPE_EXE_WRITE) {
     bta_gattc_exec_cmpl(p_clcb, &p_data->op_cmpl);
-
-  else if (op == GATTC_OPTYPE_CONFIG)
+  } else if (op == GATTC_OPTYPE_CONFIG) {
     bta_gattc_cfg_mtu_cmpl(p_clcb, &p_data->op_cmpl);
+
+    /* If there are more clients waiting for the MTU results on the same device,
+     * lets trigger them now.
+     */
+
+    auto outstanding_conn_ids =
+        GATTC_GetAndRemoveListOfConnIdsWaitingForMtuRequest(p_clcb->bda);
+    for (auto conn_id : outstanding_conn_ids) {
+      tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
+      VLOG(1) << __func__ << " Continue MTU request clcb " << p_clcb;
+      if (p_clcb) {
+        VLOG(1) << __func__ << "Continue MTU request for client conn_id:"
+                << +conn_id;
+        bta_gattc_continue(p_clcb);
+      }
+    }
+  }
 
   // If receive DATABASE_OUT_OF_SYNC error code, bta_gattc should start service
   // discovery immediately
@@ -1915,9 +1960,8 @@ static void bta_gattc_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op,
 }
 
 /** client operation complete send message */
-static void bta_gattc_cmpl_sendmsg(uint16_t conn_id, tGATTC_OPTYPE op,
-                                   tGATT_STATUS status,
-                                   tGATT_CL_COMPLETE* p_data) {
+void bta_gattc_cmpl_sendmsg(uint16_t conn_id, tGATTC_OPTYPE op,
+                            tGATT_STATUS status, tGATT_CL_COMPLETE* p_data) {
   const size_t len = sizeof(tBTA_GATTC_OP_CMPL) + sizeof(tGATT_CL_COMPLETE);
   tBTA_GATTC_OP_CMPL* p_buf = (tBTA_GATTC_OP_CMPL*)osi_calloc(len);
 

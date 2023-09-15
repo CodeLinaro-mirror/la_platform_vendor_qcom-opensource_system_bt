@@ -1435,9 +1435,6 @@ void btm_configure_datapath_cmd_cmpl(uint8_t *param, uint16_t param_len) {
   if (btm_cb.devcb.cfg_datapath_cmpl_cb) {
     (*btm_cb.devcb.cfg_datapath_cmpl_cb) (status);
   }
-
-  // clear callback
-  btm_cb.devcb.cfg_datapath_cmpl_cb = NULL;
 }
 
 void btm_set_ecosystem_base_interval_cmd_cmpl(uint8_t *param, uint16_t param_len) {

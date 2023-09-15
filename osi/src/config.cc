@@ -177,9 +177,9 @@ int config_get_int(const config_t& config, const std::string& section,
 
   if (!entry) return def_value;
 
-  size_t endptr;
-  int ret = stoi(entry->value, &endptr);
-  return (endptr == entry->value.size()) ? ret : def_value;
+  char* endptr;
+  int ret = strtol(entry->value.c_str(), &endptr, 0);
+  return (*endptr == '\0') ? ret : def_value;
 }
 
 unsigned short int config_get_uint16(const config_t& config, const std::string& section, const std::string& key,

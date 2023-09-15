@@ -87,6 +87,7 @@ cc_library_static {
         "vendor/qcom/opensource/commonsys/system/bt/udrv/include",
         "vendor/qcom/opensource/commonsys/system/bt/bta/include",
         "vendor/qcom/opensource/commonsys/system/bt/bta/sys",
+        "vendor/qcom/opensource/commonsys/system/bt/bta/",
         "vendor/qcom/opensource/commonsys/system/bt/utils/include",
         "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext",
         "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/stack/include",

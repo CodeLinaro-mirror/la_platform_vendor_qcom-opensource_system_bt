@@ -40,6 +40,7 @@
 #define SYSTEM_APP_GATT_IF 3
 
 using bluetooth::Uuid;
+using base::StringPrintf;
 
 extern bool BTM_GetLeDisconnectStatus(const RawAddress& address);
 extern bool BTM_BackgroundConnectAddressKnown(const RawAddress& address);
@@ -896,18 +897,152 @@ tGATT_STATUS GATTC_ConfigureMTU(uint16_t conn_id, uint16_t mtu) {
   tGATT_CLCB* p_clcb = gatt_clcb_alloc(conn_id);
   if (!p_clcb) return GATT_NO_RESOURCES;
 
-  if (p_clcb->p_tcb)
-    p_clcb->p_tcb->payload_size = mtu;
+  VLOG(1) << __func__ << " Not assigning ptcb payload size here: conn_id=" << loghex(conn_id) << ", mtu=" << +mtu;
+  /*if (p_clcb->p_tcb)
+    p_clcb->p_tcb->payload_size = GATT_MAX_MTU_SIZE;*/
   p_clcb->operation = GATTC_OPTYPE_CONFIG;
 
   lcid = p_tcb->att_lcid;
 
   tGATT_CL_MSG gatt_cl_msg;
-  gatt_cl_msg.mtu = mtu;
-  if (p_clcb->p_tcb)
-    return attp_send_cl_msg(*p_clcb->p_tcb, p_clcb, lcid, GATT_REQ_MTU, &gatt_cl_msg);
 
+  /* Since GATT MTU Exchange can be done only once, and it is impossible to
+   * predict what MTU will be requested by other applications, let's use
+   * default MTU in the request. */
+  gatt_cl_msg.mtu = GATT_MAX_MTU_SIZE;
+
+  LOG(INFO) << __func__ << StringPrintf("Configuring ATT mtu size conn_id:%hu mtu:%hu user mtu %hu",
+            conn_id, gatt_cl_msg.mtu, mtu);
+
+  if (p_clcb->p_tcb) {
+    auto result = attp_send_cl_msg(*p_clcb->p_tcb, p_clcb, lcid, GATT_REQ_MTU, &gatt_cl_msg);
+    if (result == GATT_SUCCESS) {
+      p_clcb->p_tcb->pending_user_mtu_exchange_value = mtu;
+    }
+    return result;
+  }
   return GATT_ERROR;
+}
+
+/******************************************************************************
+ *
+ * Function         GATTC_TryMtuRequest
+ *
+ * Description      This function shall be called before calling
+ *                  GATTC_ConfgureMTU in order to check if operation is
+ *                  available to do.
+ *
+ * Parameters        remote_bda : peer device address. (input)
+ *                   transport  : physical transport of the GATT connection
+ *                                 (BR/EDR or LE) (input)
+ *                   conn_id    : connection id  (input)
+ *                   current_mtu: current mtu on the link (output)
+ *
+ * Returns          tGATTC_TryMtuRequestResult:
+ *                  - MTU_EXCHANGE_NOT_DONE_YET: There was no MTU Exchange
+ *                      procedure on the link. User can call GATTC_ConfigureMTU
+ *                      now.
+ *                  - MTU_EXCHANGE_NOT_ALLOWED : Not allowed for BR/EDR or if
+ *                      link does not exist
+ *                  - MTU_EXCHANGE_ALREADY_DONE: MTU Exchange is done. MTU
+ *                      should be taken from current_mtu
+ *                  - MTU_EXCHANGE_IN_PROGRESS : Other use is doing MTU
+ *                      Exchange. Conn_id is stored for result.
+ *
+ ******************************************************************************/
+tGATTC_TryMtuRequestResult GATTC_TryMtuRequest(const RawAddress& remote_bda,
+                                               tBT_TRANSPORT transport,
+                                               uint16_t conn_id,
+                                               uint16_t* current_mtu) {
+  LOG(INFO) << __func__ << StringPrintf("%s conn_id=0x%04x",
+                                         remote_bda.ToString().c_str(), conn_id);
+  *current_mtu = GATT_DEF_BLE_MTU_SIZE;
+
+  if (transport == BT_TRANSPORT_BR_EDR) {
+    LOG(ERROR)<< StringPrintf("Device %s connected over BR/EDR",
+                 remote_bda.ToString().c_str());
+    return MTU_EXCHANGE_NOT_ALLOWED;
+  }
+
+  tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(remote_bda, transport);
+  if (!p_tcb) {
+    LOG(ERROR)<< __func__ << StringPrintf("Device %s is not connected ",
+                     remote_bda.ToString().c_str());
+    return MTU_EXCHANGE_DEVICE_DISCONNECTED;
+  }
+
+  if (gatt_is_pending_mtu_exchange(p_tcb)) {
+    LOG(INFO) << __func__ << StringPrintf("Continue MTU pending for other client.");
+    /* MTU Exchange is in progress, started by other GATT Client.
+     * Wait until it is completed.
+     */
+    gatt_set_conn_id_waiting_for_mtu_exchange(p_tcb, conn_id);
+    return MTU_EXCHANGE_IN_PROGRESS;
+  }
+
+  uint16_t mtu = gatt_get_mtu(remote_bda, transport);
+  if (mtu == GATT_DEF_BLE_MTU_SIZE || mtu == 0) {
+    LOG(INFO) << __func__ << StringPrintf("MTU not yet updated for %s",
+                  remote_bda.ToString().c_str());
+    return MTU_EXCHANGE_NOT_DONE_YET;
+  }
+
+  *current_mtu = mtu;
+  return MTU_EXCHANGE_ALREADY_DONE;
+}
+
+/*******************************************************************************
+ * Function         GATTC_UpdateUserAttMtuIfNeeded
+ *
+ * Description      This function to be called when user requested MTU after
+ *                  MTU Exchange has been already done. This will update data
+ *                  length in the controller.
+ *
+ * Parameters        remote_bda : peer device address. (input)
+ *                   transport  : physical transport of the GATT connection
+ *                                 (BR/EDR or LE) (input)
+ *                   user_mtu: user request mtu
+ *
+ ******************************************************************************/
+void GATTC_UpdateUserAttMtuIfNeeded(const RawAddress& remote_bda,
+                                    tBT_TRANSPORT transport,
+                                    uint16_t user_mtu) {
+  LOG(INFO) << __func__ << StringPrintf("%s, mtu=%hu",
+            remote_bda.ToString().c_str(), user_mtu);
+  tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(remote_bda, transport);
+  if (!p_tcb) {
+    LOG(ERROR) << __func__ << "Transport control block not found";
+    return;
+  }
+
+  LOG(INFO) << __func__ << StringPrintf("%s, current mtu: %d, max_user_mtu:%d, user_mtu: %d",
+               remote_bda.ToString().c_str(), p_tcb->payload_size,
+               p_tcb->max_user_mtu, user_mtu);
+
+  if (p_tcb->payload_size < user_mtu) {
+    LOG(INFO) << __func__ << "User requested more than what GATT can handle. Trim it.";
+    user_mtu = p_tcb->payload_size;
+  }
+
+  if (p_tcb->max_user_mtu >= user_mtu) {
+    return;
+  }
+
+  p_tcb->max_user_mtu = user_mtu;
+  BTM_SetBleDataLength(remote_bda, user_mtu);
+}
+
+std::list<uint16_t> GATTC_GetAndRemoveListOfConnIdsWaitingForMtuRequest(
+    const RawAddress& remote_bda) {
+  std::list result = std::list<uint16_t>();
+
+  tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(remote_bda, BT_TRANSPORT_LE);
+  if (!p_tcb || p_tcb->conn_ids_waiting_for_mtu_exchange.empty()) {
+    return result;
+  }
+
+  result.swap(p_tcb->conn_ids_waiting_for_mtu_exchange);
+  return result;
 }
 
 /*******************************************************************************
