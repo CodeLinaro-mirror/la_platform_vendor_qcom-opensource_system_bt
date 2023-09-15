@@ -28,6 +28,51 @@ enum ss_bt_status {
 	SS_BT_STATUS_WAKELOCK_ERROR =14;
 }
 
+/** SDP Record Service types **/
+enum ss_bt_sdp_type {
+	SS_BT_SDP_TYPE_RAW = 1;
+	SS_BT_SDP_TYPE_PBAP_PSE = 2;
+	SS_BT_SDP_TYPE_PBAP_PCE = 3;
+}
+
+/** SDP Record Service name **/
+message ss_bt_service_name {
+	required bytes name = 1;
+}
+
+/** SDP Record header overlay **/
+message ss_bt_sdp_hdr_overlay {
+	required ss_bt_sdp_type type = 1;
+	optional bytes uuid = 2;
+	required int32 service_name_length = 3;
+	required ss_bt_service_name service_name = 4;
+	required int32 rfcomm_channel_number = 5;
+	required int32 l2cap_psm = 6;
+	required int32 profile_version = 7;
+	optional int32 record_length = 8;
+	optional bytes record_data = 9;
+
+}
+
+/** SDP PBAP Server Record structure **/
+message ss_bt_sdp_pse_record {
+	required ss_bt_sdp_hdr_overlay hdr = 1;
+	required int32 supported_features = 2;
+	required int32 supported_repositories = 3;
+}
+
+/** SDP PBAP Client Record structure **/
+message ss_bt_sdp_pce_record {
+	required ss_bt_sdp_hdr_overlay hdr = 1;
+}
+
+/** SDP Record structure **/
+message ss_bt_sdp_record {
+	optional ss_bt_sdp_hdr_overlay hdr = 1;
+	optional ss_bt_sdp_pse_record pse = 2;
+	optional ss_bt_sdp_pce_record pce = 3;
+}
+
 /** SDP Record record event **/
 message ss_bt_sdp_search {
      required bytes remote_addr = 1;
@@ -39,6 +84,19 @@ message ss_sdp_search_complete_callback {
     required ss_bt_status status = 1;
     required bytes remote_bd_addr = 2;
     required bytes uuid = 3;
-    required int32 record_length = 4;
-    required bytes record_data = 5;
+	optional int32 record_count = 4;
+	optional ss_bt_sdp_record record = 5;
+	optional int32 record_length = 6;
+	optional bytes record_data = 7;
+}
+
+/** SDP CreateRecord Event **/
+message ss_bt_create_sdp_record {
+	required ss_bt_sdp_record record = 1;
+	required int32 handle = 2;
+}
+
+/** SDP RemoveRecord Event**/
+message ss_bt_remove_sdp_record {
+	required int32 handle = 1;
 }
