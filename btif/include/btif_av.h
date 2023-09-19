@@ -87,6 +87,20 @@ typedef enum {
   BTIF_AV_REPORT_AUDIO_STATE_EVT,
 } btif_av_sm_event_t;
 
+typedef  struct {
+    int peer_mtu ;
+    bool is_peer_edr ;
+    int min_bitpool ;
+    int max_bitpool ;
+    int num_subbands ;
+    int alloc_method ;
+    int block_length ;
+}tA2DP_PEER_PARAMS;
+
+btav_a2dp_codec_config_t* btif_av_get_a2dp_current_codec(void);
+void btif_av_handle_hidl_req(tA2DP_CTRL_CMD cmd);
+void btif_av_co_get_peer_params(tA2DP_PEER_PARAMS*);
+
 /*******************************************************************************
  *  BTIF AV API
  ******************************************************************************/
