@@ -480,11 +480,9 @@ bool AdvertiserSingleStackProto::BleSetPeriodicAdvertisingEnable(
       pair<uint32_t, BleAdvertiserInterface::StatusCallback>(advertiser_id,
                                                              Cb));
   setPeriodicAdvEn.set_advertiserid(advertiser_id);
-  if (enable == true) {
-    setPeriodicAdvEn.set_enable(0x3); // Set bit0 (enable) and bit1 (ADI)
-  } else {
-     setPeriodicAdvEn.set_enable(enable);
-  }
+  setPeriodicAdvEn.set_includeadi(enable); //As per spec, if per-adv is enable, ADI enable otherwise ignore include adi feild
+  setPeriodicAdvEn.set_enable(enable);
+
   setPeriodicAdvEn.SerializeToString(&encoded_bytes);
   // adding length
   uint16_t encoded_len = encoded_bytes.length();
