@@ -71,8 +71,8 @@ using ::bluetooth::audio::a2dp::SessionType;
 #include "btif_bat.h"
 #include "btif_hf.h"
 #include "btif_av.h"
+//#include "internal_include/extra_include.h"
 #include "bta_sys.h"
-#include "btif_acm.h"
 #if 0
 using system_bt_osi::BluetoothMetricsLogger;
 using system_bt_osi::A2dpSessionMetrics;
@@ -181,9 +181,6 @@ extern bool btif_av_is_idx_tws_device(int index);
 extern int btif_av_get_tws_pair_idx(int index);
 extern void btif_av_clear_pending_start_flag();
 extern bool btif_av_is_tws_suspend_triggered(int index);
-
-extern bool btif_acm_check_in_call_tracker_timer_exist();
-extern void stop_stream_acm_initiator_now();
 
 static char a2dp_hal_imp[PROPERTY_VALUE_MAX] = "false";
 UNUSED_ATTR static const char* dump_media_event(uint16_t event) {
@@ -1842,12 +1839,6 @@ void btif_a2dp_source_process_request(tA2DP_CTRL_CMD cmd) {
         break;
       }
       if (!bluetooth::headset::btif_hf_is_call_vr_idle()) {
-        status = A2DP_CTRL_ACK_INCALL_FAILURE;
-        break;
-      }
-      if (btif_ahim_is_aosp_aidl_hal_enabled() &&
-          btif_acm_check_in_call_tracker_timer_exist()) {
-        stop_stream_acm_initiator_now();
         status = A2DP_CTRL_ACK_INCALL_FAILURE;
         break;
       }

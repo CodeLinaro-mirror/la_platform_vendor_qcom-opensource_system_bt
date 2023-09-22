@@ -99,7 +99,7 @@ using DataMQDesc = MQDescriptor<MqDataType, MqDataMode>;
 class BluetoothAudioClientInterface {
  public:
   BluetoothAudioClientInterface(IBluetoothTransportInstance* instance);
-  virtual ~BluetoothAudioClientInterface();
+  virtual ~BluetoothAudioClientInterface() = default;
 
   bool IsValid() const { return provider_ != nullptr; }
 
@@ -179,8 +179,8 @@ class BluetoothAudioSinkClientInterface : public BluetoothAudioClientInterface {
    * |message_loop| is the thread where callbacks are invoked.
    ***/
   BluetoothAudioSinkClientInterface(
-      IBluetoothSinkTransportInstance* sink,
-     thread_t* message_loop);
+      IBluetoothSinkTransportInstance* sink /*,
+     thread_t* message_loop*/);
   virtual ~BluetoothAudioSinkClientInterface();
 
   IBluetoothSinkTransportInstance* GetTransportInstance() const {

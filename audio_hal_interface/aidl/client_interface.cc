@@ -94,10 +94,6 @@ BluetoothAudioClientInterface::BluetoothAudioClientInterface(
   objs_address_.insert(this);
 }
 
-BluetoothAudioClientInterface::~BluetoothAudioClientInterface() {
-  objs_address_.erase(this);
-}
-
 bool BluetoothAudioClientInterface::is_aidl_available() {
   LOG(WARNING) << __func__ << ": aidl_available: " << aidl_available;
   if (!aidl_available) return false;
@@ -221,10 +217,10 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
 }
 
 BluetoothAudioSinkClientInterface::BluetoothAudioSinkClientInterface(
-    IBluetoothSinkTransportInstance* sink,
-    thread_t* message_loop)
+    IBluetoothSinkTransportInstance* sink /*,
+    thread_t* message_loop*/)
     : BluetoothAudioClientInterface{sink}, sink_(sink) {
-  LOG(INFO) << __func__ << ": AIDL";
+    LOG(INFO) << __func__ << ": AIDL";
   FetchAudioProvider();
 }
 
