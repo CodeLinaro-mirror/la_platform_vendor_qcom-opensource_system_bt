@@ -193,6 +193,9 @@ A2dpCodecConfig* A2dpCodecConfig::createCodec(
     case BTAV_A2DP_CODEC_INDEX_SOURCE_AAC:
       codec_config = new A2dpCodecConfigAac(codec_priority);
       break;
+    case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
+      codec_config = new A2dpCodecConfigAacSink(codec_priority);
+      break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX:
       codec_config = new A2dpCodecConfigAptx(codec_priority);
       break;
@@ -207,9 +210,6 @@ A2dpCodecConfig* A2dpCodecConfig::createCodec(
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_TWS:
       codec_config = new A2dpCodecConfigAptxTWS(codec_priority);
-      break;
-    case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
-      codec_config = new A2dpCodecConfigAacSink(codec_priority);
       break;
     // Add a switch statement for each vendor-specific codec
     case BTAV_A2DP_CODEC_INDEX_MAX:
@@ -1460,30 +1460,6 @@ int A2DP_GetSinkTrackChannelType(const uint8_t* p_codec_info) {
   return -1;
 }
 
-int A2DP_GetSinkFramesCountToProcess(uint64_t time_interval_ms,
-                                     const uint8_t* p_codec_info) {
-  tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
-
-  LOG_VERBOSE(LOG_TAG, "%s: codec_type = 0x%x", __func__, codec_type);
-
-  switch (codec_type) {
-    case A2DP_MEDIA_CT_SBC:
-      return A2DP_GetSinkFramesCountToProcessSbc(time_interval_ms,
-                                                 p_codec_info);
-    case A2DP_MEDIA_CT_AAC:
-      return A2DP_GetSinkFramesCountToProcessAac(time_interval_ms,
-                                                 p_codec_info);
-    case A2DP_MEDIA_CT_NON_A2DP:
-      return A2DP_VendorGetSinkFramesCountToProcess(time_interval_ms,
-                                                    p_codec_info);
-    default:
-      break;
-  }
-
-  LOG_ERROR(LOG_TAG, "%s: unsupported codec type 0x%x", __func__, codec_type);
-  return -1;
-}
-
 bool A2DP_GetPacketTimestamp(const uint8_t* p_codec_info, const uint8_t* p_data,
                              uint32_t* p_timestamp) {
   tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
@@ -1536,6 +1512,27 @@ const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterface(
       return A2DP_GetEncoderInterfaceAac(p_codec_info);
     case A2DP_MEDIA_CT_NON_A2DP:
       return A2DP_VendorGetEncoderInterface(p_codec_info);
+    default:
+      break;
+  }
+
+  LOG_ERROR(LOG_TAG, "%s: unsupported codec type 0x%x", __func__, codec_type);
+  return NULL;
+}
+
+const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterface(
+    const uint8_t* p_codec_info) {
+  tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
+
+  LOG_ERROR(LOG_TAG, "%s: codec_type = 0x%x", __func__, codec_type);
+
+  switch (codec_type) {
+    case A2DP_MEDIA_CT_SBC:
+      return A2DP_GetDecoderInterfaceSbc(p_codec_info);
+    case A2DP_MEDIA_CT_AAC:
+      return A2DP_GetDecoderInterfaceAac(p_codec_info);
+    case A2DP_MEDIA_CT_NON_A2DP:
+      return A2DP_VendorGetDecoderInterface(p_codec_info);
     default:
       break;
   }
@@ -1603,12 +1600,12 @@ const char* A2DP_CodecIndexStr(btav_a2dp_codec_index_t codec_index) {
   switch (codec_index) {
     case BTAV_A2DP_CODEC_INDEX_SOURCE_SBC:
       return A2DP_CodecIndexStrSbc();
-    case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
-      return A2DP_CodecIndexStrAacSink();
     case BTAV_A2DP_CODEC_INDEX_SINK_SBC:
       return A2DP_CodecIndexStrSbcSink();
     case BTAV_A2DP_CODEC_INDEX_SOURCE_AAC:
       return A2DP_CodecIndexStrAac();
+    case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
+      return A2DP_CodecIndexStrAacSink();
     default:
       break;
   }
@@ -1631,12 +1628,12 @@ bool A2DP_InitCodecConfig(btav_a2dp_codec_index_t codec_index,
   switch (codec_index) {
     case BTAV_A2DP_CODEC_INDEX_SOURCE_SBC:
       return A2DP_InitCodecConfigSbc(p_cfg);
-    case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
-      return A2DP_InitCodecConfigAacSink(p_cfg);
     case BTAV_A2DP_CODEC_INDEX_SINK_SBC:
       return A2DP_InitCodecConfigSbcSink(p_cfg);
     case BTAV_A2DP_CODEC_INDEX_SOURCE_AAC:
       return A2DP_InitCodecConfigAac(p_cfg);
+    case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
+      return A2DP_InitCodecConfigAacSink(p_cfg);
     default:
       break;
   }
