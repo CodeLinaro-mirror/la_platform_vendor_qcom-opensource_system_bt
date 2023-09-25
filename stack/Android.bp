@@ -12,14 +12,6 @@ bredr_vs_btadva_cc_defaults {
     soong_config_variables: {
         bredr_or_btadva: {
            btadva: {
-              include_dirs: [
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/vhal/include",
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/system/bt/bta/bap",
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/system/bt/bta/include",
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/system/bt/btif/include",
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/system/bt",
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/system/bt/common",
-              ],
               cflags: [
                  "-DADV_AUDIO_FEATURE=1",
               ],
