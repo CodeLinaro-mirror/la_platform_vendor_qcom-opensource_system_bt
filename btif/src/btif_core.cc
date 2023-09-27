@@ -1500,3 +1500,22 @@ std::string ToRawString(const RawAddress* bt_addr) {
                             bt_addr->address[1], bt_addr->address[2], bt_addr->address[3], bt_addr->address[4],
                             bt_addr->address[5]);
 }
+
+/*****************************************************************************
+ *
+ * Function         is_valid_bd_addr
+ *
+ * Description      Checks the bd address is valid or not
+ *
+ * Returns          Returns TRUE if address is valid
+ *                  FALSE if address is not valid
+ *
+ *****************************************************************************/
+bool is_valid_bd_addr(const RawAddress *bd_addr) {
+  if (bd_addr == NULL || *bd_addr == RawAddress::kEmpty) {
+      BTIF_TRACE_ERROR("%s : Invalid bd address",__func__);
+      return false;
+  } else {
+      return true;
+  }
+}

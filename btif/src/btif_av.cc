@@ -508,6 +508,8 @@ void btif_av_ss_callback(uint16_t event, char* p_param) {
       connStateCb.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)connStateCb.address().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       btav_connection_state_t state = (btav_connection_state_t) connStateCb.state();
       ALOGI("address:%s, state:%d ", bd_addr->ToString().c_str(), state);
       HAL_CBACK(bt_av_src_callbacks, connection_state_cb, *bd_addr, state,
@@ -541,6 +543,8 @@ void btif_av_ss_callback(uint16_t event, char* p_param) {
       audioStateCb.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)audioStateCb.address().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       btav_audio_state_t state = (btav_audio_state_t) audioStateCb.state();
       ALOGI("address:%s, state:%d ", bd_addr->ToString().c_str(), state);
       HAL_CBACK(bt_av_src_callbacks, audio_state_cb, *bd_addr, state);
@@ -576,6 +580,8 @@ void btif_av_ss_callback(uint16_t event, char* p_param) {
       std::vector<btav_a2dp_codec_config_t> codecs_selectable_capabilities;
       uint8_t* addr = (uint8_t*)codecConfigCb.address().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       ALOGI("address = %s", bd_addr->ToString().c_str());
       for(int i = 0; i< codecConfigCb.codecs_local_capabilities_size(); i++){
         a2dp_proto::ss_btav_a2dp_codec_config_t* codec_cap =

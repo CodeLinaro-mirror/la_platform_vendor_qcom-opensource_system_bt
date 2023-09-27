@@ -609,6 +609,8 @@ void btif_rc_ctrl_ss_callback(uint16_t event, char* p_param) {
         passThruRspCb.ParseFromString(resBufferString);
         uint8_t* addr = (uint8_t*)passThruRspCb.bd_addr().c_str();
         RawAddress *bd_addr = (RawAddress*)addr;
+        if (!is_valid_bd_addr(bd_addr)) return;
+
         HAL_CTRL_CBACK(bt_rc_ctrl_callbacks, passthrough_rsp_cb, bd_addr,
                       passThruRspCb.id(), passThruRspCb.key_state());
 
@@ -630,6 +632,8 @@ void btif_rc_ctrl_ss_callback(uint16_t event, char* p_param) {
         uint8_t* addr = (uint8_t*)connStateCb.bd_addr().c_str();
         RawAddress *bd_addr = (RawAddress*)addr;
         ALOGI("[%s] address: %s",__func__, bd_addr->ToString().c_str());
+        if (!is_valid_bd_addr(bd_addr)) return;
+
         HAL_CTRL_CBACK(bt_rc_ctrl_callbacks, connection_state_cb,
                   connStateCb.rc_connect(), connStateCb.bt_connect(),
                         bd_addr);
@@ -641,6 +645,8 @@ void btif_rc_ctrl_ss_callback(uint16_t event, char* p_param) {
         getRcFeatCb.ParseFromString(resBufferString);
         uint8_t* addr = (uint8_t*)getRcFeatCb.bd_addr().c_str();
         RawAddress *bd_addr = (RawAddress*)addr;
+        if (!is_valid_bd_addr(bd_addr)) return;
+
         HAL_CTRL_CBACK(bt_rc_ctrl_callbacks, getrcfeatures_cb, bd_addr,
                        getRcFeatCb.features());
         break;
@@ -650,6 +656,8 @@ void btif_rc_ctrl_ss_callback(uint16_t event, char* p_param) {
        setPlayerAppSettingRspCb.ParseFromString(resBufferString);
        uint8_t* addr = (uint8_t*)setPlayerAppSettingRspCb.bd_addr().c_str();
        RawAddress *bd_addr = (RawAddress*)addr;
+       if (!is_valid_bd_addr(bd_addr)) return;
+
        HAL_CTRL_CBACK(bt_rc_ctrl_callbacks, setplayerappsetting_rsp_cb, bd_addr,
                        setPlayerAppSettingRspCb.accepted());
         break;
@@ -659,6 +667,8 @@ void btif_rc_ctrl_ss_callback(uint16_t event, char* p_param) {
        playerAppSettingCb.ParseFromString(resBufferString);
        uint8_t* addr = (uint8_t*)playerAppSettingCb.bd_addr().c_str();
        RawAddress *bd_addr = (RawAddress*)addr;
+       if (!is_valid_bd_addr(bd_addr)) return;
+
        int attr_len = playerAppSettingCb.app_attrs_size();
        btrc_player_app_attr_t app_attrs[attr_len];
        //btrc_player_app_ext_attr_t ext_attrs;
@@ -687,6 +697,8 @@ void btif_rc_ctrl_ss_callback(uint16_t event, char* p_param) {
        playerAppSettingChangedCb.ParseFromString(resBufferString);
        uint8_t* addr = (uint8_t*)playerAppSettingChangedCb.bd_addr().c_str();
        RawAddress *bd_addr = (RawAddress*)addr;
+       if (!is_valid_bd_addr(bd_addr)) return;
+
        ss_btrc_player_settings_t settings = playerAppSettingChangedCb.p_vals(0);
        player_settings.num_attr = (uint8_t)settings.num_attr();
 
@@ -706,6 +718,8 @@ void btif_rc_ctrl_ss_callback(uint16_t event, char* p_param) {
        setAbsVolCmdCb.ParseFromString(resBufferString);
        uint8_t* addr = (uint8_t*)setAbsVolCmdCb.bd_addr().c_str();
        RawAddress *bd_addr = (RawAddress*)addr;
+       if (!is_valid_bd_addr(bd_addr)) return;
+
        HAL_CTRL_CBACK(bt_rc_ctrl_callbacks, setabsvol_cmd_cb, bd_addr,
                       setAbsVolCmdCb.abs_vol(), setAbsVolCmdCb.label());
         break;
@@ -716,6 +730,8 @@ void btif_rc_ctrl_ss_callback(uint16_t event, char* p_param) {
        regNotifAbsVolCb.ParseFromString(resBufferString);
        uint8_t* addr = (uint8_t*)regNotifAbsVolCb.bd_addr().c_str();
        RawAddress *bd_addr = (RawAddress*)addr;
+       if (!is_valid_bd_addr(bd_addr)) return;
+
        HAL_CTRL_CBACK(bt_rc_ctrl_callbacks, registernotification_absvol_cb,
                       bd_addr, regNotifAbsVolCb.label());
         break;
@@ -725,6 +741,8 @@ void btif_rc_ctrl_ss_callback(uint16_t event, char* p_param) {
        trackChangedCb.ParseFromString(resBufferString);
        uint8_t* addr = (uint8_t*)trackChangedCb.bd_addr().c_str();
        RawAddress *bd_addr = (RawAddress*)addr;
+       if (!is_valid_bd_addr(bd_addr)) return;
+
        int attr_len = trackChangedCb.p_attrs_size();
        btrc_element_attr_val_t elem_attr[attr_len];
       //TODO:
@@ -745,6 +763,8 @@ void btif_rc_ctrl_ss_callback(uint16_t event, char* p_param) {
        playPosChangedCb.ParseFromString(resBufferString);
        uint8_t* addr = (uint8_t*)playPosChangedCb.bd_addr().c_str();
        RawAddress *bd_addr = (RawAddress*)addr;
+       if (!is_valid_bd_addr(bd_addr)) return;
+
        HAL_CTRL_CBACK(bt_rc_ctrl_callbacks, play_position_changed_cb, bd_addr,
                       playPosChangedCb.song_len(), playPosChangedCb.song_pos());
         break;
@@ -754,6 +774,8 @@ void btif_rc_ctrl_ss_callback(uint16_t event, char* p_param) {
        playStatusChangedCb.ParseFromString(resBufferString);
        uint8_t* addr = (uint8_t*)playStatusChangedCb.bd_addr().c_str();
        RawAddress *bd_addr = (RawAddress*)addr;
+       if (!is_valid_bd_addr(bd_addr)) return;
+
        HAL_CTRL_CBACK(bt_rc_ctrl_callbacks, play_status_changed_cb, bd_addr,
                       (btrc_play_status_t) playStatusChangedCb.play_status());
         break;
@@ -763,6 +785,8 @@ void btif_rc_ctrl_ss_callback(uint16_t event, char* p_param) {
        getFolderItemsCb.ParseFromString(resBufferString);
        uint8_t* addr = (uint8_t*)getFolderItemsCb.bd_addr().c_str();
        RawAddress *bd_addr = (RawAddress*)addr;
+       if (!is_valid_bd_addr(bd_addr)) return;
+
        int items_size = getFolderItemsCb.folder_items_size();
        btrc_folder_items_t folder_items[items_size];
        //TODO:
@@ -840,6 +864,8 @@ void btif_rc_ctrl_ss_callback(uint16_t event, char* p_param) {
        changePathCb.ParseFromString(resBufferString);
        uint8_t* addr = (uint8_t*)changePathCb.bd_addr().c_str();
        RawAddress *bd_addr = (RawAddress*)addr;
+       if (!is_valid_bd_addr(bd_addr)) return;
+
        HAL_CTRL_CBACK(bt_rc_ctrl_callbacks, change_folder_path_cb, bd_addr,
                       changePathCb.count());
         break;
@@ -849,6 +875,8 @@ void btif_rc_ctrl_ss_callback(uint16_t event, char* p_param) {
        setBrowPlayerCb.ParseFromString(resBufferString);
        uint8_t* addr = (uint8_t*)setBrowPlayerCb.bd_addr().c_str();
        RawAddress *bd_addr = (RawAddress*)addr;
+       if (!is_valid_bd_addr(bd_addr)) return;
+
        HAL_CTRL_CBACK(bt_rc_ctrl_callbacks, set_browsed_player_cb, bd_addr,
                       setBrowPlayerCb.num_items(), setBrowPlayerCb.depth());
         break;
@@ -858,6 +886,8 @@ void btif_rc_ctrl_ss_callback(uint16_t event, char* p_param) {
        setAddrPlayerCb.ParseFromString(resBufferString);
        uint8_t* addr = (uint8_t*)setAddrPlayerCb.bd_addr().c_str();
        RawAddress *bd_addr = (RawAddress*)addr;
+       if (!is_valid_bd_addr(bd_addr)) return;
+
        HAL_CTRL_CBACK(bt_rc_ctrl_callbacks, set_addressed_player_cb, bd_addr,
                       setAddrPlayerCb.status());
         break;
@@ -867,6 +897,8 @@ void btif_rc_ctrl_ss_callback(uint16_t event, char* p_param) {
        availablePlayerChangedCb.ParseFromString(resBufferString);
        uint8_t* addr = (uint8_t*)availablePlayerChangedCb.bd_addr().c_str();
        RawAddress *bd_addr = (RawAddress*)addr;
+       if (!is_valid_bd_addr(bd_addr)) return;
+
        HAL_CTRL_CBACK(bt_rc_ctrl_callbacks, available_player_changed_cb, bd_addr);
         break;
      }

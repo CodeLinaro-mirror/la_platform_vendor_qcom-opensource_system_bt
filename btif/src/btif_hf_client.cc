@@ -655,6 +655,7 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       connectionStateCB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)connectionStateCB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
 
       HAL_CL_CBACK(bt_hf_client_callbacks, connection_state_cb, bd_addr,
                       (bthf_client_connection_state_t)connectionStateCB.state(),
@@ -673,6 +674,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       callCB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)callCB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, call_cb, bd_addr,
                 (bthf_client_call_t)callCB.call());
       break;
@@ -684,6 +687,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       callSetupCB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)callSetupCB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, callsetup_cb, bd_addr,
                 (bthf_client_callsetup_t)callSetupCB.callsetup());
       break;
@@ -695,6 +700,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       callHeldCB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)callHeldCB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, callheld_cb, bd_addr,
                 (bthf_client_callheld_t)callHeldCB.callheld());
       break;
@@ -706,6 +713,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       networkStateCB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)networkStateCB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, network_state_cb, bd_addr,
                 (bthf_client_network_state_t)networkStateCB.state());
       break;
@@ -717,6 +726,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       networkSignalCB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)networkSignalCB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, network_signal_cb, bd_addr,
                       networkSignalCB.signal_strength());
       break;
@@ -728,6 +739,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       networkRoamCB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)networkRoamCB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, network_roaming_cb, bd_addr,
                 (bthf_client_service_type_t)networkRoamCB.type());
       break;
@@ -739,6 +752,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       batteryLevelCB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)batteryLevelCB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, battery_level_cb, bd_addr,
                       batteryLevelCB.battery_level());
       break;
@@ -750,6 +765,7 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       volumeChangeCB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)volumeChangeCB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
 
       HAL_CL_CBACK(bt_hf_client_callbacks, volume_change_cb, bd_addr,
                       (bthf_client_volume_type_t)volumeChangeCB.type(),
@@ -763,6 +779,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       vrCB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)vrCB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, vr_cmd_cb, bd_addr,
                 (bthf_client_vr_state_t)vrCB.state());
       break;
@@ -774,6 +792,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       curOperatorCB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)curOperatorCB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, current_operator_cb, bd_addr,
                 curOperatorCB.name().c_str());
       break;
@@ -785,6 +805,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       clipCB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)clipCB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, clip_cb, bd_addr,
                 clipCB.number().c_str());
       break;
@@ -796,6 +818,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       lvtnCB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)lvtnCB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, last_voice_tag_number_callback,
                 bd_addr, lvtnCB.number().c_str());
       break;
@@ -807,6 +831,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       cwCB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)cwCB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, call_waiting_cb, bd_addr,
                 cwCB.number().c_str());
       break;
@@ -818,6 +844,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       ccCB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)ccCB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, cmd_complete_cb, bd_addr,
                 (bthf_client_cmd_complete_t)ccCB.type(),
                 ccCB.cme());
@@ -830,6 +858,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       clcc_CB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)clcc_CB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, current_calls_cb, bd_addr,
                 clcc_CB.index(),
                 clcc_CB.dir() ? BTHF_CLIENT_CALL_DIRECTION_INCOMING
@@ -847,6 +877,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       subInfo_CB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)subInfo_CB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, subscriber_info_cb, bd_addr,
                    subInfo_CB.name().c_str(),(bthf_client_subscriber_service_type_t)subInfo_CB.type());
       break;
@@ -858,6 +890,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       respHold_CB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)respHold_CB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       if ((bthf_client_resp_and_hold_t)respHold_CB.resp_and_hold() <=
                       BTRH_CLIENT_RESP_AND_HOLD_REJECT) {
         HAL_CL_CBACK(bt_hf_client_callbacks, resp_and_hold_cb, bd_addr,
@@ -872,6 +906,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       inbandRing_CB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)inbandRing_CB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       if ((bthf_client_in_band_ring_state_t )inbandRing_CB.state() != 0) {
         HAL_CL_CBACK(bt_hf_client_callbacks, in_band_ring_tone_cb, bd_addr,
                   BTHF_CLIENT_IN_BAND_RINGTONE_PROVIDED);
@@ -888,6 +924,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       audioState_CB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)audioState_CB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, audio_state_cb, bd_addr,
                 (bthf_client_audio_state_t)audioState_CB.state());
       break;
@@ -899,6 +937,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       ring_CB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)ring_CB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, ring_indication_cb, bd_addr);
       break;
     }
@@ -909,6 +949,8 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       unknown_CB.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)unknown_CB.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_CL_CBACK(bt_hf_client_callbacks, unknown_event_cb, bd_addr,
                 unknown_CB.unknow_event().c_str());
       break;
