@@ -249,6 +249,7 @@ void bte_main_hci_close(void);
 void bte_main_cleanup(void);
 void bte_main_postload_cfg(void);
 std::string ToRawString(const RawAddress* bt_addr);
+bool is_valid_bd_addr(const RawAddress *bd_addr);
 
 bt_status_t btif_transfer_context(tBTIF_CBACK* p_cback, uint16_t event,
                                   char* p_params, int param_len,

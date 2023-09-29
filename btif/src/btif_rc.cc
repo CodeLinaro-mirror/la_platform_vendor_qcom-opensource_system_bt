@@ -890,6 +890,8 @@ void btif_avrc_ss_callback(uint16_t event, char* p_param) {
         RawAddress *bd_addr = (RawAddress*)addr;
         ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
         ALOGI("%s: features: %d %d", __func__, _ss_btrc_remote_features_callback.has_features(), _ss_btrc_remote_features_callback.features());
+        if (!is_valid_bd_addr(bd_addr)) return;
+
         btrc_remote_features_t holder = (btrc_remote_features_t) BTRC_FEAT_NONE;
         ALOGI("BTRC_FEAT_NONE SUPPORTED");
         int remote_features = _ss_btrc_remote_features_callback.features();
@@ -921,6 +923,8 @@ void btif_avrc_ss_callback(uint16_t event, char* p_param) {
       uint8_t* addr = (uint8_t*)_ss_btrc_get_play_status_callback.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
       ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_AVRC_CBACK(bt_rc_callbacks, get_play_status_cb, bd_addr);
       break;
     }
@@ -955,6 +959,8 @@ void btif_avrc_ss_callback(uint16_t event, char* p_param) {
       uint8_t* addr = (uint8_t*)_ss_btrc_get_element_attr_callback.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
       ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       int num_attr = _ss_btrc_get_element_attr_callback.num_attr();
       ALOGI("%s: num_attr: %d", __func__, num_attr);
       btrc_media_attr_t data_holder[num_attr];
@@ -982,6 +988,8 @@ void btif_avrc_ss_callback(uint16_t event, char* p_param) {
       RawAddress *bd_addr = (RawAddress*)addr;
       ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
       ALOGI("%d EVENT ID", (btrc_event_id_t)_ss_btrc_register_notification_callback.event_id());
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_AVRC_CBACK(bt_rc_callbacks, register_notification_cb,
                 (btrc_event_id_t)_ss_btrc_register_notification_callback.event_id(),
                 _ss_btrc_register_notification_callback.param(), bd_addr);
@@ -996,6 +1004,8 @@ void btif_avrc_ss_callback(uint16_t event, char* p_param) {
       ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
       ALOGI("%s: volume: %d", __func__, _ss_btrc_volume_change_callback.volume());
       ALOGI("%s: ctype: %d", __func__, _ss_btrc_volume_change_callback.ctype());
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       if(_ss_btrc_volume_change_callback.ctype() == BTRC_NOTIFICATION_TYPE_CHANGED) {
         ALOGI("REGISTER NOTIFICATION BTRC_EVT_VOL_CHANGED BTRC_NOTIFICATION_TYPE_CHANGED");
         if (absolute_volume_informed_to_app == 0) {
@@ -1025,6 +1035,8 @@ void btif_avrc_ss_callback(uint16_t event, char* p_param) {
       ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
       ALOGI("%s: id: %d", __func__, _ss_btrc_passthrough_cmd_callback.id());
       ALOGI("%s: key_state: %d", __func__, _ss_btrc_passthrough_cmd_callback.key_state());
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_AVRC_CBACK(bt_rc_callbacks, passthrough_cmd_cb, _ss_btrc_passthrough_cmd_callback.id(),
                 _ss_btrc_passthrough_cmd_callback.key_state(), bd_addr);
       break;
@@ -1036,6 +1048,8 @@ void btif_avrc_ss_callback(uint16_t event, char* p_param) {
       uint8_t* addr = (uint8_t*)_ss_btrc_set_addressed_player_callback.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
       ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_AVRC_CBACK(bt_rc_callbacks, set_addressed_player_cb, _ss_btrc_set_addressed_player_callback.player_id(),
                       bd_addr);
       break;
@@ -1047,6 +1061,8 @@ void btif_avrc_ss_callback(uint16_t event, char* p_param) {
       uint8_t* addr = (uint8_t*)_ss_btrc_set_browsed_player_callback.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
       ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_AVRC_CBACK(bt_rc_callbacks, set_browsed_player_cb, _ss_btrc_set_browsed_player_callback.player_id(),
                       bd_addr);
       break;
@@ -1058,6 +1074,8 @@ void btif_avrc_ss_callback(uint16_t event, char* p_param) {
       uint8_t* addr = (uint8_t*)_ss_btrc_get_folder_items_callback.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
       ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       int num_attr = _ss_btrc_get_folder_items_callback.num_attr();
       unsigned int *data_holder = (unsigned int*) malloc(num_attr * sizeof(unsigned int));
       google::protobuf::RepeatedField<::google::protobuf::uint32> proto_holder = _ss_btrc_get_folder_items_callback.p_attr_ids();
@@ -1077,6 +1095,8 @@ void btif_avrc_ss_callback(uint16_t event, char* p_param) {
       uint8_t* addr = (uint8_t*)_ss_btrc_change_path_callback.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
       ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       std::string proto_holder = _ss_btrc_change_path_callback.folder_uid();
       unsigned char *data_holder = (unsigned char*)malloc(AVRC_UID_SIZE * sizeof(unsigned char));
       for(int i = 0; i < AVRC_UID_SIZE; i++)  {
@@ -1093,6 +1113,8 @@ void btif_avrc_ss_callback(uint16_t event, char* p_param) {
       uint8_t* addr = (uint8_t*)_ss_btrc_get_item_attr_callback.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
       ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       int num_attr = _ss_btrc_get_item_attr_callback.num_attr();
       btrc_media_attr_t *data_holder = (btrc_media_attr_t*) malloc(num_attr * sizeof(btrc_media_attr_t));
       ::google::protobuf::RepeatedField<int> proto_holder = _ss_btrc_get_item_attr_callback.p_attrs();
@@ -1117,6 +1139,8 @@ void btif_avrc_ss_callback(uint16_t event, char* p_param) {
       uint8_t* addr = (uint8_t*)_ss_btrc_play_item_callback.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
       ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       std::string proto_holder = _ss_btrc_play_item_callback.uid();
       unsigned char *data_holder = (unsigned char*)malloc(_ss_btrc_play_item_callback.uid_counter() * sizeof(unsigned char));
       for(unsigned int i = 0; i < _ss_btrc_play_item_callback.uid_counter(); i++)  {
@@ -1133,6 +1157,8 @@ void btif_avrc_ss_callback(uint16_t event, char* p_param) {
       uint8_t* addr = (uint8_t*)_ss_btrc_get_total_num_of_items_callback.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
       ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       HAL_AVRC_CBACK(bt_rc_callbacks, get_total_num_of_items_cb, _ss_btrc_get_total_num_of_items_callback.scope(),
                       bd_addr);
       break;
@@ -1144,6 +1170,8 @@ void btif_avrc_ss_callback(uint16_t event, char* p_param) {
       uint8_t* addr = (uint8_t*)_ss_btrc_search_callback.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
       ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       std::string proto_holder = _ss_btrc_search_callback.p_str();
       unsigned char *data_holder = (unsigned char*)malloc(_ss_btrc_search_callback.str_len() * sizeof(unsigned char));
       for(unsigned int i = 0; i < _ss_btrc_search_callback.str_len(); i++)  {
@@ -1160,6 +1188,8 @@ void btif_avrc_ss_callback(uint16_t event, char* p_param) {
       uint8_t* addr = (uint8_t*)_ss_btrc_add_to_now_playing_callback.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
       ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       std::string proto_holder = _ss_btrc_add_to_now_playing_callback.uid();
       unsigned char *data_holder = (unsigned char*)malloc(_ss_btrc_add_to_now_playing_callback.uid_counter() * sizeof(unsigned char));
       for(unsigned int i = 0; i < _ss_btrc_add_to_now_playing_callback.uid_counter(); i++)  {
@@ -1177,6 +1207,8 @@ void btif_avrc_ss_callback(uint16_t event, char* p_param) {
       uint8_t* addr = (uint8_t*)_ss_btrc_connection_state_callback.bd_addr().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
       ALOGI("%s: bd_addr: %s", __func__, bd_addr->ToString().c_str());
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       if(*bd_addr == RawAddress::kEmpty) {
         ALOGI("bd_addr NULL");
         break;

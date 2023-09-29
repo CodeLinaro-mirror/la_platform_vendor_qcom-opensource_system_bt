@@ -93,7 +93,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 #include <string.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_av.h>
-#include "a2dp_codec_api.h"
+#include "bt_common.h"
 #include "btif_a2dp_audio_interface.h"
 #include "audio_hal_interface/aidl/a2dp_encoding.h"
 #include "a2dp_codec_api.h"
@@ -126,7 +126,6 @@ namespace a2dp_proto = a2dp::synergy::SynergyProto;
 #define MAX_CONNS 2
 const uint8_t INVALID_INDEX = -1;
 uint8_t index;
-
 btif_a2dp_codec_config_callback_t codec_config[MAX_CONNS];
 void btif_av_ss_callback(uint16_t event, char* p_param);
 std::string ToRawString(const RawAddress& bt_addr);
@@ -196,12 +195,17 @@ static bt_status_t init_src(
   a2dp_proto::ss_init msg_init;
   int codec_cnt = 0;
 
+  int aac_offload_set = 0;
   bt_av_src_callbacks = callbacks;
   for(uint8_t i=0; i < codec_priorities.size(); i++) {
     if(codec_priorities[i].codec_priority != BTAV_A2DP_CODEC_PRIORITY_DISABLED) {
       ALOGI("%s: %s",__func__,codec_priorities[i].ToString().c_str());
       a2dp_proto::ss_btav_a2dp_codec_config_t* a =
                                           msg_init.add_defaultcodecconfig();
+      if((a2dp_proto::ss_btav_a2dp_codec_index_t) codec_priorities[i].codec_type == a2dp_proto::SS_BTAV_A2DP_CODEC_INDEX_SOURCE_AAC) {
+        aac_offload_set = 1;
+        ALOGI("%s: %s aac_offload_set %d", LOG_TAG, __func__, aac_offload_set);
+      }
       a->set_codec_type((a2dp_proto::ss_btav_a2dp_codec_index_t) codec_priorities[i].codec_type);
       a->set_codec_priority((a2dp_proto::ss_btav_a2dp_codec_priority_t) codec_priorities[i].codec_priority);
       a->set_sample_rate((a2dp_proto::ss_btav_a2dp_codec_sample_rate_t) codec_priorities[i].sample_rate);
@@ -222,7 +226,6 @@ static bt_status_t init_src(
   a2dp_proto::ss_btav_a2dp_supported_codec_config_t* supported_config = new a2dp_proto::ss_btav_a2dp_supported_codec_config_t();
 
   a2dp_proto::ss_btav_a2dp_supported_sbc_config *msg_sbc_config = new a2dp_proto::ss_btav_a2dp_supported_sbc_config();
-  a2dp_proto::ss_btav_a2dp_supported_aac_config *msg_aac_config = new a2dp_proto::ss_btav_a2dp_supported_aac_config();
 
   msg_sbc_config->set_sample_rate(a2dp_proto::samp_freq_44);
   msg_sbc_config->set_bits_per_sample(a2dp_proto::SS_BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16);
@@ -237,7 +240,9 @@ static bt_status_t init_src(
 
   supported_config->set_allocated_offloadsbccapability(msg_sbc_config);
 
-  msg_aac_config->set_object_type(a2dp_proto::object_type_mpeg2_lc);
+  if(aac_offload_set) {
+    a2dp_proto::ss_btav_a2dp_supported_aac_config *msg_aac_config = new a2dp_proto::ss_btav_a2dp_supported_aac_config();
+   msg_aac_config->set_object_type(a2dp_proto::object_type_mpeg2_lc);
   msg_aac_config->set_sample_rate(a2dp_proto::samp_freq_44);
   msg_aac_config->set_channel_mode(a2dp_proto::ch_md_stereo);
   bool vbr_enabled = false;
@@ -251,15 +256,14 @@ static bt_status_t init_src(
   msg_aac_config->set_bit_rate(A2DP_AAC_DEFAULT_OFFLOAD_BITRATE);
   msg_aac_config->set_bits_per_sample(a2dp_proto::SS_BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16);
   supported_config->set_allocated_offloadaaccapability(msg_aac_config);
-  ALOGI("%d, %d, %d", msg_init.has_allsupportedoffloadcap(), supported_config->has_offloadaaccapability(),
-    supported_config->has_offloadsbccapability());
-
+  }
   msg_init.set_maxdevice(max_connected_audio_devices);
   msg_init.set_config_count(codec_cnt);
   msg_init.set_allocated_allsupportedoffloadcap(supported_config);
   msg_init.SerializeToString(&str_msg);
-  ALOGI("%d, %d, %d", msg_init.has_allsupportedoffloadcap(), supported_config->has_offloadaaccapability(),
-    supported_config->has_offloadsbccapability());
+  ALOGI("has_allsupportedoffloadcap %d, has_offloadaaccapability %d, has_offloadsbccapability %d",
+                  msg_init.has_allsupportedoffloadcap(), supported_config->has_offloadaaccapability(),
+                  supported_config->has_offloadsbccapability());
   // register callback with stack
   btSSInterface = BluetoothSSInterface::getInstance();
   if(btSSInterface != NULL){
@@ -281,7 +285,7 @@ static bt_status_t init_src(
 
   btav_bld_and_snd_message(BT_AV_INIT, str_msg.length(),
     PROTO_ENC_DEC, str_msg);
-	
+
   memset(codec_config, 0, (sizeof(codec_config[0]) * MAX_CONNS));
 
   return BT_STATUS_SUCCESS;
@@ -443,7 +447,6 @@ static void cleanup_src(void) {
   active_device_ = RawAddress::kEmpty;// 00:00:00:00:00:00
   play_state = BTAV_AUDIO_STATE_STOPPED;
 
-
   a2dp_proto::ss_cleanup msg_cleanup;
   msg_cleanup.SerializeToString(&str_msg);
   btav_bld_and_snd_message(BT_AV_CLEANUP, str_msg.length(), PROTO_NONE, str_msg);
@@ -505,6 +508,8 @@ void btif_av_ss_callback(uint16_t event, char* p_param) {
       connStateCb.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)connStateCb.address().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       btav_connection_state_t state = (btav_connection_state_t) connStateCb.state();
       ALOGI("address:%s, state:%d ", bd_addr->ToString().c_str(), state);
       HAL_CBACK(bt_av_src_callbacks, connection_state_cb, *bd_addr, state,
@@ -538,6 +543,8 @@ void btif_av_ss_callback(uint16_t event, char* p_param) {
       audioStateCb.ParseFromString(resBufferString);
       uint8_t* addr = (uint8_t*)audioStateCb.address().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       btav_audio_state_t state = (btav_audio_state_t) audioStateCb.state();
       ALOGI("address:%s, state:%d ", bd_addr->ToString().c_str(), state);
       HAL_CBACK(bt_av_src_callbacks, audio_state_cb, *bd_addr, state);
@@ -573,6 +580,8 @@ void btif_av_ss_callback(uint16_t event, char* p_param) {
       std::vector<btav_a2dp_codec_config_t> codecs_selectable_capabilities;
       uint8_t* addr = (uint8_t*)codecConfigCb.address().c_str();
       RawAddress *bd_addr = (RawAddress*)addr;
+      if (!is_valid_bd_addr(bd_addr)) return;
+
       ALOGI("address = %s", bd_addr->ToString().c_str());
       for(int i = 0; i< codecConfigCb.codecs_local_capabilities_size(); i++){
         a2dp_proto::ss_btav_a2dp_codec_config_t* codec_cap =
@@ -639,6 +648,7 @@ void btif_av_ss_callback(uint16_t event, char* p_param) {
       codec_config[index].num_subbands = codec_cap->num_subbands();
       codec_config[index].block_length = codec_cap->block_length();
       ALOGI("%s: %s",__func__,codec_config[index].codec_config_.ToString().c_str());
+
       // to-do: should call is_restart_session_needed() in case codec gets changed
       // for active device
       // for SBC update ch_mode joint stereo as stereo to framework

@@ -57,21 +57,10 @@ cc_library_static{
         "protobuf/proto/hf_client.proto",
         "protobuf/proto/gatt_client.proto",
         "protobuf/proto/gatt_server.proto",
+        "protobuf/proto/advertiser.proto",
         "protobuf/proto/a2dp.proto",
         "protobuf/proto/avrcp_tg.proto",
         "protobuf/proto/scan.proto",
-    ]
-}
-cc_library_static{
-    name: "advertiser-protos-singlestack",
-    host_supported: true,
-    proto: {
-         export_proto_headers: true,
-         type: "lite",
-         include_dirs: ["external/protobuf/src"],
-    },
-    srcs: [
-        "protobuf/proto/advertiser.proto",
     ]
 }
 // libbtif static library for target
@@ -162,6 +151,7 @@ cc_library_shared {
         "android.hardware.bluetooth.audio@2.1",
         "android.hardware.bluetooth.audio-V3-ndk",
         "android.hardware.audio.common-V2-ndk",
+        "vendor.qti.hardware.bluetooth.audio-V1-ndk",
         "libhidlbase",
         "libutils",
 //      "libdl",
@@ -179,7 +169,6 @@ cc_library_shared {
         "libbt-protos_qti",
         "libudrv-uipc_qti",
         "bluetooth-protos-singlestack",
-        "advertiser-protos-singlestack",
     ],
     header_libs: [
         "libmedia_headers",
