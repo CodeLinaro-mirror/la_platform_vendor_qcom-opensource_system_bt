@@ -226,7 +226,7 @@ static list_node_t* list_free_node_(list_t* list, list_node_t* node) {
   return next;
 }
 
-list_node_t* list_begin(std::list<section_t> section) {
+/*list_node_t* list_begin(std::list<section_t> section) {
   return (list_node_t *)&section.front();
 }
 
@@ -306,4 +306,4 @@ bool list_append(std::list<section_t> section, void* data){
 bool list_append(std::list<entry_t> entry, void* data){
     list_t* list = (list_t*)&entry.front();
     return list_append(list, data);
-}
+}*/

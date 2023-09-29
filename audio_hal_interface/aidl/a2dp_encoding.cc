@@ -146,7 +146,7 @@ using ::bluetooth::audio::aidl::codec::A2dpAptxAdaptiveToHalConfig;
 tA2DP_CTRL_CMD A2dpTransport::a2dp_pending_cmd_ = A2DP_CTRL_CMD_NONE;
 uint16_t A2dpTransport::remote_delay_report_ = 0;
 CodecConfiguration codec_config_global;
-PcmConfiguration pcm_config_global;
+//PcmConfiguration pcm_config_global;
 static bool is_aidl_checked = false;
 static bool is_aidl_available = false;
 
@@ -233,7 +233,7 @@ void A2dpTransport::SinkMetadataChanged(
   const sink_metadata_t& sink_metadata) {
 
   auto track_count = sink_metadata.track_count;
-  auto tracks = sink_metadata.tracks;
+  //auto tracks = sink_metadata.tracks;
 
   LOG(INFO) << __func__ << "AIDL: " << track_count << " track(s) received";
   if (track_count == 0) {

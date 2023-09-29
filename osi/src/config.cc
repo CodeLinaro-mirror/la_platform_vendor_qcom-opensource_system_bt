@@ -47,8 +47,8 @@
 #include "bt_target.h"
 #include <inttypes.h>
 
-static section_t* section_new(const char* name);
-static void entry_free(void* ptr);
+//static section_t* section_new(const char* name);
+//static void entry_free(void* ptr);
 
 
 // Empty definition; this type is aliased to list_node_t.
@@ -431,22 +431,22 @@ bool config_save(const config_t& config, const char* filename) {
   char* temp_dirname = osi_strdup(filename);
   const char* directoryname = dirname(temp_dirname);
   if (!directoryname) {
-    LOG_ERROR(LOG_TAG, "%s error extracting directory from '%s': %s", __func__,
-              filename, strerror(errno));
+    LOG(ERROR) << __func__ << ": error extracting directory from '" << filename
+               << "': " << strerror(errno);
     goto error;
   }
 
   dir_fd = open(directoryname, O_RDONLY);
   if (dir_fd < 0) {
-    LOG_ERROR(LOG_TAG, "%s unable to open dir '%s': %s", __func__,
-              directoryname, strerror(errno));
+    LOG(ERROR) << __func__ << ": unable to open dir '" << directoryname
+               << "': " << strerror(errno);
     goto error;
   }
 
   fp = fopen(temp_filename, "wt");
   if (!fp) {
-    LOG_ERROR(LOG_TAG, "%s unable to write file '%s': %s", __func__,
-              temp_filename, strerror(errno));
+    LOG(ERROR) << __func__ << ": unable to write file '" << temp_filename
+               << "': " << strerror(errno);
     goto error;
   }
 
@@ -480,45 +480,45 @@ bool config_save(const config_t& config, const char* filename) {
   // Sync written temp file out to disk. fsync() is blocking until data makes it
   // to disk.
   if (fsync(fileno(fp)) < 0) {
-    LOG_WARN(LOG_TAG, "%s unable to fsync file '%s': %s", __func__,
-             temp_filename, strerror(errno));
+    LOG(WARNING) << __func__ << ": unable to fsync file '" << temp_filename
+                 << "': " << strerror(errno);
   }
 
   if (fclose(fp) == EOF) {
-    LOG_ERROR(LOG_TAG, "%s unable to close file '%s': %s", __func__,
-              temp_filename, strerror(errno));
+    LOG(ERROR) << __func__ << ": unable to close file '" << temp_filename
+                 << "': " << strerror(errno);
     goto error;
   }
   fp = NULL;
 
   // Change the file's permissions to Read/Write by User and Group
   if (chmod(temp_filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP) == -1) {
-    LOG_ERROR(LOG_TAG, "%s unable to change file permissions '%s': %s",
-              __func__, filename, strerror(errno));
+    LOG(ERROR) << __func__ << ": unable to change file permissions '" << filename
+                 << "': " << strerror(errno);
     goto error;
   }
 
   // Rename written temp file to the actual config file.
   if (rename(temp_filename, filename) == -1) {
-    LOG_ERROR(LOG_TAG, "%s unable to commit file '%s': %s", __func__, filename,
-              strerror(errno));
+    LOG(ERROR) << __func__ << ": unable to commit file '" << filename
+                 << "': " << strerror(errno);
     goto error;
   }
 
   // This should ensure the directory is updated as well.
   if (fsync(dir_fd) < 0) {
-    LOG_WARN(LOG_TAG, "%s unable to fsync dir '%s': %s", __func__,
-             directoryname, strerror(errno));
+    LOG(WARNING) << __func__ << ": unable to fsync dir '" << directoryname
+                 << "': " << strerror(errno);
   }
 
   if (syncfs(dir_fd) < 0) {
-    LOG_WARN(LOG_TAG, "%s unable to syncfs dir '%s': %s", __func__,
-             directoryname, strerror(errno));
+    LOG(WARNING) << __func__ << ": unable to syncfs dir '" << directoryname
+                 << "': " << strerror(errno);
   }
 
   if (close(dir_fd) < 0) {
-    LOG_ERROR(LOG_TAG, "%s unable to close dir '%s': %s", __func__,
-              directoryname, strerror(errno));
+    LOG(ERROR) << __func__ << ": unable to close dir '" << directoryname
+                 << "': " << strerror(errno);
     goto error;
   }
   osi_free(temp_filename);
@@ -658,7 +658,7 @@ static bool config_parse(FILE* fp, config_t* config) {
   std::string line_new;
   uint16_t MAX_BUF = 1023;
   char section[1024] = { '\0' };
-  char comment[1024] = { '\0' };
+  //char comment[1024] = { '\0' };
   bool skip_entries = false;
   strcpy(section, CONFIG_DEFAULT_SECTION);
 
@@ -707,7 +707,7 @@ static bool config_parse(FILE* fp, config_t* config) {
     } else if (*line_ptr == '[') {
       size_t len = strlen(line_ptr);
       if (line_ptr[len - 1] != ']') {
-        LOG_DEBUG(LOG_TAG, "%s unterminated section name on line %d.", __func__, line_num);
+        LOG(WARNING) << __func__ << ": unterminated section name on line '" << line_num;
         skip_entries = true;
         continue;
       }
@@ -717,11 +717,11 @@ static bool config_parse(FILE* fp, config_t* config) {
     } else {
       char *split = strchr(line_ptr, '=');
       if(skip_entries) {
-        LOG_DEBUG(LOG_TAG, "%s skip entries due invalid section line %d.", __func__, line_num);
+        LOG(WARNING) << __func__ << ": skip entries due invalid section line '" << line_num;
         continue;
       }
       if (!split) {
-        LOG_DEBUG(LOG_TAG, "%s no key/value separator found on line %d.", __func__, line_num);
+        LOG(WARNING) << __func__ << ": no key/value separator found on line '" << line_num;
         continue;
       }
 
