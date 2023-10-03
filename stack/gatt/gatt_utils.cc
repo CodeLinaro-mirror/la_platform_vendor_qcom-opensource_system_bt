@@ -75,6 +75,9 @@
 #include "stack/gatt/eatt_int.h"
 #include "btif_storage.h"
 #include "stack_config.h"
+#ifdef ADV_AUDIO_FEATURE
+#include "ucast_client_int.h"
+#endif
 
 #include <vector>
 #include <algorithm>
@@ -83,6 +86,11 @@
 
 using base::StringPrintf;
 using bluetooth::Uuid;
+
+#ifdef ADV_AUDIO_FEATURE
+using bluetooth::bap::ucast::IsRemoteMatchForBapTimeoutDevices;
+using bluetooth::bap::ucast::RemoveRemoteFromBapTimeoutDevices;
+#endif
 
 /* check if [x, y] and [a, b] have overlapping range */
 #define GATT_VALIDATE_HANDLE_RANGE(x, y, a, b) ((y) >= (a) && (x) <= (b))
@@ -1553,7 +1561,7 @@ void gatt_end_operation(tGATT_CLCB* p_clcb, tGATT_STATUS status, void* p_data) {
       //Add for read multi rsp
       if ((p_clcb->op_subtype == GATT_READ_MULTIPLE ||
           p_clcb->op_subtype == GATT_READ_MULTIPLE_VARIABLE)) {
-        if (status == GATT_NOT_FOUND) {
+        if ((status == GATT_NOT_FOUND) || (status == GATT_REQ_NOT_SUPPORTED)) {
           cb_data.att_value.handle = p_clcb->err_handle;
         }
         cb_data.att_value.read_sub_type = p_clcb->op_subtype;
@@ -1647,6 +1655,18 @@ void gatt_cleanup_upon_disc(const RawAddress& bda, uint16_t reason,
   p_tcb->conf_timer = NULL;
   fixed_queue_free(p_tcb->sr_cmd.multi_rsp_q, NULL);
   p_tcb->sr_cmd.multi_rsp_q = NULL;
+
+  VLOG(1) << __func__ << "Disconnection Reason is " << reason;
+#ifdef ADV_AUDIO_FEATURE
+  if ((reason == 0x16) || (reason == 0x100)) {
+    if (IsRemoteMatchForBapTimeoutDevices(bda)) {
+      VLOG(1) << __func__ << " Disconnect due to bad timeout " <<bda;
+      RemoveRemoteFromBapTimeoutDevices(bda);
+      reason = 0x08;
+      VLOG(1) << __func__ << "Reason changed to " << reason;
+    }
+  }
+#endif
 
   for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
     tGATT_REG* p_reg = &gatt_cb.cl_rcb[i];

@@ -530,42 +530,55 @@ void LeAudioClientInterface::Sink::Cleanup() {
   LOG(INFO) << __func__ << " sink";
   StopSession();
 
-  if (aidl::le_audio::LeAudioSinkTransport::interface_unicast_) {
-    delete aidl::le_audio::LeAudioSinkTransport::interface_unicast_;
-    aidl::le_audio::LeAudioSinkTransport::interface_unicast_ = nullptr;
-  }
-  if (aidl::le_audio::LeAudioSinkTransport::interface_broadcast_) {
-    delete aidl::le_audio::LeAudioSinkTransport::interface_broadcast_;
-    aidl::le_audio::LeAudioSinkTransport::interface_broadcast_ = nullptr;
-  }
-  if (aidl::le_audio::LeAudioSinkTransport::instance_unicast_) {
-    delete aidl::le_audio::LeAudioSinkTransport::instance_unicast_;
-    aidl::le_audio::LeAudioSinkTransport::instance_unicast_ = nullptr;
-  }
-  if (aidl::le_audio::LeAudioSinkTransport::instance_broadcast_) {
-    delete aidl::le_audio::LeAudioSinkTransport::instance_broadcast_;
-    aidl::le_audio::LeAudioSinkTransport::instance_broadcast_ = nullptr;
+  if (is_broadcaster_) {
+    if (aidl::le_audio::LeAudioSinkTransport::interface_broadcast_) {
+      delete aidl::le_audio::LeAudioSinkTransport::interface_broadcast_;
+      aidl::le_audio::LeAudioSinkTransport::interface_broadcast_ = nullptr;
+    }
+    if (aidl::le_audio::LeAudioSinkTransport::instance_broadcast_) {
+      delete aidl::le_audio::LeAudioSinkTransport::instance_broadcast_;
+      aidl::le_audio::LeAudioSinkTransport::instance_broadcast_ = nullptr;
+    }
+  } else {
+    if (aidl::le_audio::LeAudioSinkTransport::interface_unicast_) {
+      delete aidl::le_audio::LeAudioSinkTransport::interface_unicast_;
+      aidl::le_audio::LeAudioSinkTransport::interface_unicast_ = nullptr;
+    }
+    if (aidl::le_audio::LeAudioSinkTransport::instance_unicast_) {
+      delete aidl::le_audio::LeAudioSinkTransport::instance_unicast_;
+      aidl::le_audio::LeAudioSinkTransport::instance_unicast_ = nullptr;
+    }
   }
 }
 
 void LeAudioClientInterface::Sink::SetPcmParameters(
     const PcmParameters& params) {
-  return get_aidl_transport_instance(is_broadcaster_)
-      ->LeAudioSetSelectedHalPcmConfig(
-          params.sample_rate, params.bits_per_sample, params.channels_count,
-          params.data_interval_us);
+  aidl::le_audio::LeAudioSinkTransport* tinterface =
+      get_aidl_transport_instance(is_broadcaster_);
+  if (tinterface) {
+    tinterface->LeAudioSetSelectedHalPcmConfig(
+        params.sample_rate, params.bits_per_sample, params.channels_count,
+        params.data_interval_us);
+  }
 }
 
 // Update Le Audio delay report to BluetoothAudio HAL
 void LeAudioClientInterface::Sink::SetRemoteDelay(uint16_t delay_report_ms) {
   LOG(INFO) << __func__ << ": delay_report_ms=" << delay_report_ms << " ms";
-
-  get_aidl_transport_instance(is_broadcaster_)->SetRemoteDelay(
-      delay_report_ms);
+  aidl::le_audio::LeAudioSinkTransport* tinterface =
+      get_aidl_transport_instance(is_broadcaster_);
+  if (tinterface) {
+    tinterface->SetRemoteDelay(delay_report_ms);
+  }
 }
 
 uint16_t LeAudioClientInterface::Sink::GetRemoteDelay() {
-  return get_aidl_transport_instance(is_broadcaster_)->GetRemoteDelay();
+  aidl::le_audio::LeAudioSinkTransport* tinterface =
+      get_aidl_transport_instance(is_broadcaster_);
+  if (tinterface) {
+    return tinterface->GetRemoteDelay();
+  }
+  return 0;
 }
 
 void LeAudioClientInterface::Sink::StartSession() {
@@ -582,21 +595,39 @@ void LeAudioClientInterface::Sink::StartSession() {
           le_audio_config);
     }
   } else {
-    audio_config.set<AudioConfigurationAIDL::pcmConfig>(
-        get_aidl_transport_instance(is_broadcaster_)
-            ->LeAudioGetSelectedHalPcmConfig());
+    aidl::le_audio::LeAudioSinkTransport* tinterface =
+        get_aidl_transport_instance(is_broadcaster_);
+    if (tinterface) {
+      audio_config.set<AudioConfigurationAIDL::pcmConfig>(
+          tinterface->LeAudioGetSelectedHalPcmConfig());
+    }
   }
-  get_aidl_client_interface(is_broadcaster_)->StartSession();
+  aidl::BluetoothAudioSinkClientInterface *cinterface =
+    get_aidl_client_interface(is_broadcaster_);
+  if (!cinterface) {
+    LOG(ERROR) << "AIDL client interface is null";
+    return;
+  }
+  cinterface->StartSession();
 }
 
 tA2DP_CTRL_CMD LeAudioClientInterface::Sink::GetPendingCmd() {
   LOG(INFO) << __func__;
-  return get_aidl_transport_instance(is_broadcaster_)->GetPendingCmd();
+  aidl::le_audio::LeAudioSinkTransport* tinterface =
+      get_aidl_transport_instance(is_broadcaster_);
+  if (tinterface) {
+    return tinterface->GetPendingCmd();
+  }
+  return A2DP_CTRL_CMD_NONE;
 }
 
 void LeAudioClientInterface::Sink::ResetPendingCmd() {
   LOG(INFO) << __func__;
-  return get_aidl_transport_instance(is_broadcaster_)->ResetPendingCmd();
+  aidl::le_audio::LeAudioSinkTransport* tinterface =
+      get_aidl_transport_instance(is_broadcaster_);
+  if (tinterface) {
+    tinterface->ResetPendingCmd();
+  }
 }
 
 void LeAudioClientInterface::Sink::ConfirmSuspendRequest() {
@@ -607,8 +638,13 @@ void LeAudioClientInterface::Sink::ConfirmSuspendRequest() {
     LOG(WARNING) << ", no pending start stream request";
     return;
   } */
-  get_aidl_client_interface(is_broadcaster_)->StreamSuspended(
-      aidl::BluetoothAudioCtrlAck::SUCCESS_FINISHED);
+  aidl::BluetoothAudioSinkClientInterface *cinterface =
+    get_aidl_client_interface(is_broadcaster_);
+  if (!cinterface) {
+    LOG(ERROR) << "AIDL client interface is null";
+    return;
+  }
+  cinterface->StreamSuspended(aidl::BluetoothAudioCtrlAck::SUCCESS_FINISHED);
 }
 
 void LeAudioClientInterface::Sink::CancelSuspendRequest() {
@@ -619,8 +655,13 @@ void LeAudioClientInterface::Sink::CancelSuspendRequest() {
     LOG(WARNING) << ", no pending start stream request";
     return;
   } */
-  get_aidl_client_interface(is_broadcaster_)->StreamSuspended(
-      aidl::BluetoothAudioCtrlAck::FAILURE);
+  aidl::BluetoothAudioSinkClientInterface *cinterface =
+    get_aidl_client_interface(is_broadcaster_);
+  if (!cinterface) {
+    LOG(ERROR) << "AIDL client interface is null";
+    return;
+  }
+  cinterface->StreamSuspended(aidl::BluetoothAudioCtrlAck::FAILURE);
 }
 
 void LeAudioClientInterface::Sink::CancelSuspendRequestWithReconfig() {
@@ -631,8 +672,13 @@ void LeAudioClientInterface::Sink::CancelSuspendRequestWithReconfig() {
     LOG(WARNING) << ", no pending start stream request";
     return;
   } */
-  get_aidl_client_interface(is_broadcaster_)->StreamStarted(
-      aidl::BluetoothAudioCtrlAck::SUCCESS_RECONFIGURATION);
+  aidl::BluetoothAudioSinkClientInterface *cinterface =
+    get_aidl_client_interface(is_broadcaster_);
+  if (!cinterface) {
+    LOG(ERROR) << "AIDL client interface is null";
+    return;
+  }
+  cinterface->StreamStarted(aidl::BluetoothAudioCtrlAck::SUCCESS_RECONFIGURATION);
 }
 
 void LeAudioClientInterface::Sink::ConfirmStreamingRequest() {
@@ -641,26 +687,54 @@ void LeAudioClientInterface::Sink::ConfirmStreamingRequest() {
     LOG(WARNING) << ", no pending start stream request";
     return;
   } */
-  get_aidl_transport_instance(is_broadcaster_)->ClearPendingStartStream();
-  get_aidl_client_interface(is_broadcaster_)->StreamStarted(
-      aidl::BluetoothAudioCtrlAck::SUCCESS_FINISHED);
+  aidl::le_audio::LeAudioSinkTransport* tinterface =
+    get_aidl_transport_instance(is_broadcaster_);
+  if (tinterface) {
+    tinterface->ClearPendingStartStream();
+  }
+  aidl::BluetoothAudioSinkClientInterface *cinterface =
+    get_aidl_client_interface(is_broadcaster_);
+  if (!cinterface) {
+    LOG(ERROR) << "AIDL client interface is null";
+    return;
+  }
+  cinterface->StreamStarted(aidl::BluetoothAudioCtrlAck::SUCCESS_FINISHED);
 }
 
 void LeAudioClientInterface::Sink::CancelStreamingRequest() {
   LOG(INFO) << __func__;
-  if (!get_aidl_transport_instance(is_broadcaster_)->IsPendingStartStream()) {
+  aidl::le_audio::LeAudioSinkTransport* tinterface =
+    get_aidl_transport_instance(is_broadcaster_);
+  if (tinterface && !tinterface->IsPendingStartStream()) {
     LOG(WARNING) << ", no pending start stream request";
     return;
   }
-  get_aidl_transport_instance(is_broadcaster_)->ClearPendingStartStream();
-  get_aidl_client_interface(is_broadcaster_)->StreamStarted(
-      aidl::BluetoothAudioCtrlAck::FAILURE);
+  if (tinterface) {
+    tinterface->ClearPendingStartStream();
+  }
+  aidl::BluetoothAudioSinkClientInterface *cinterface =
+    get_aidl_client_interface(is_broadcaster_);
+  if (!cinterface) {
+    LOG(ERROR) << "AIDL client interface is null";
+    return;
+  }
+  cinterface->StreamStarted(aidl::BluetoothAudioCtrlAck::FAILURE);
 }
 
 void LeAudioClientInterface::Sink::StopSession() {
   LOG(INFO) << __func__ << " sink";
-  get_aidl_transport_instance(is_broadcaster_)->ClearPendingStartStream();
-  get_aidl_client_interface(is_broadcaster_)->EndSession();
+  aidl::le_audio::LeAudioSinkTransport* tinterface =
+    get_aidl_transport_instance(is_broadcaster_);
+  if (tinterface) {
+    tinterface->ClearPendingStartStream();
+  }
+  aidl::BluetoothAudioSinkClientInterface *cinterface =
+    get_aidl_client_interface(is_broadcaster_);
+  if (!cinterface) {
+    LOG(ERROR) << "AIDL client interface is null";
+    return;
+  }
+  cinterface->EndSession();
 }
 
 void LeAudioClientInterface::Sink::UpdateAudioConfigToHal(
@@ -670,13 +744,23 @@ void LeAudioClientInterface::Sink::UpdateAudioConfigToHal(
     LOG(INFO) << __func__ << "seesion is not le audio hardware encoding, return";
     return;
   }
-  get_aidl_client_interface(is_broadcaster_)->
-                                  UpdateAudioConfig(offload_config);
+  aidl::BluetoothAudioSinkClientInterface *cinterface =
+    get_aidl_client_interface(is_broadcaster_);
+  if (!cinterface) {
+    LOG(ERROR) << "AIDL client interface is null";
+    return;
+  }
+  cinterface->UpdateAudioConfig(offload_config);
 }
 
 size_t LeAudioClientInterface::Sink::Read(uint8_t* p_buf, uint32_t len) {
-  return get_aidl_client_interface(is_broadcaster_)->ReadAudioData(p_buf,
-                                                                        len);
+  aidl::BluetoothAudioSinkClientInterface *cinterface =
+    get_aidl_client_interface(is_broadcaster_);
+  if (!cinterface) {
+    LOG(ERROR) << "AIDL client interface is null";
+    return 0;
+  }
+  return cinterface->ReadAudioData(p_buf, len);
 }
 
 void LeAudioClientInterface::Source::Cleanup() {

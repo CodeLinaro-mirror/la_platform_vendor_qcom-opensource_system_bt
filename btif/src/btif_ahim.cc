@@ -243,7 +243,7 @@ void btif_ahim_update_src_metadata (const source_metadata_t& source_metadata) {
   // pass on the callbacks to ACM only for new vendor
   if (btif_ahim_is_aosp_aidl_hal_enabled()) {
     if(cur_active_profile == A2DP) {
-      btif_report_a2dp_src_metadata_update(source_metadata);
+      btif_report_a2dp_src_metadata_update((source_metadata_t *)&source_metadata);
     } else if(cur_active_profile == AUDIO_GROUP_MGR ||
         cur_active_profile == BROADCAST) {
       BTIF_TRACE_IMP("%s: sending AIDL request to Audio Group Manager", __func__);
@@ -598,10 +598,6 @@ LeAudioConfiguration fetch_offload_audio_config(int profile, int direction) {
           le_vendor_config.codecSpecificData.push_back((pclient_cbs[profile - 1]->get_mode_cb() &
           (0xff <<((3 - i)*8))) >> ((3 - i)*8));
         }
-        for (int i = 4; i < 6; i++) {
-          le_vendor_config.codecSpecificData.push_back((unicastSinkClientInterface->GetRemoteDelay() &
-          (0xff <<((5 - i)*8))) >> ((5 - i)*8));
-        }
       } else {
         le_vendor_config.vendorCodecType = VendorCodecType::APTX_ADAPTIVE_R3;
           LOG(ERROR) << __func__ << ": AptX LE metadata params are updated";
@@ -619,10 +615,16 @@ LeAudioConfiguration fetch_offload_audio_config(int profile, int direction) {
 
     vendor_config.extension.setParcelable(le_vendor_config);
 
+    int32_t latency = 0;
+    if (direction == RX_ONLY_CONFIG) {
+      latency = unicastSourceClientInterface->GetRemoteDelay();
+    } else {
+      latency = unicastSinkClientInterface->GetRemoteDelay();
+    }
     // TODO to fill the right PD
     LeAudioConfiguration ucast_config = {
        .codecType = CodecType::VENDOR,
-       .peerDelayUs = 0,
+       .peerDelayUs = latency,
        .leAudioCodecConfig = LeAudioCodecConfiguration(vendor_config)
     };
 
@@ -677,10 +679,16 @@ LeAudioConfiguration fetch_offload_audio_config(int profile, int direction) {
                   .blocksPerSdu = 1
                 };
 
+    int32_t latency = 0;
+    if (direction == RX_ONLY_CONFIG) {
+      latency = unicastSourceClientInterface->GetRemoteDelay();
+    } else {
+      latency = unicastSinkClientInterface->GetRemoteDelay();
+    }
     // TODO to fill the right PD
     LeAudioConfiguration ucast_config = {
        .codecType = CodecType::LC3,
-       .peerDelayUs = 0,
+       .peerDelayUs = latency,
        .leAudioCodecConfig = LeAudioCodecConfiguration(lc3_config)
     };
 
@@ -1213,9 +1221,39 @@ size_t btif_ahim_read(uint8_t* p_buf, uint32_t len) {
 
 void btif_ahim_update_audio_config() {
   AudioConfigurationAIDL lea_tx_config, lea_rx_config;
-  CodecIndex codec_type =
-    (CodecIndex) pclient_cbs[AUDIO_GROUP_MGR - 1]->get_codec_type(TX_ONLY_CONFIG);
-  if (codec_type == CodecIndex::CODEC_INDEX_SOURCE_APTX_ADAPTIVE_R4) {
+  uint16_t profile_type = btif_ahim_get_lea_active_profile(AUDIO_GROUP_MGR);
+  BTIF_TRACE_IMP("%s: AIDL, profile_type: %d", __func__, profile_type);
+  if(profile_type == BAP || profile_type == GCP) {  // ToAIr only
+    CodecIndex codec_type = (CodecIndex) pclient_cbs[AUDIO_GROUP_MGR - 1]->get_codec_type(TX_ONLY_CONFIG);
+    if (codec_type == CodecIndex::CODEC_INDEX_SOURCE_APTX_ADAPTIVE_R4) {
+      if (!leAudio_get_selected_hal_codec_config(&lea_tx_config, AUDIO_GROUP_MGR,
+                                                  TX_ONLY_CONFIG)) {
+        LOG(ERROR) << __func__ << ": Failed to get CodecConfiguration";
+        return;
+      }
+      if(unicastSinkClientInterface)
+        unicastSinkClientInterface->UpdateAudioConfigToHal(lea_tx_config);
+
+      if (!leAudio_get_selected_hal_codec_config(&lea_rx_config, AUDIO_GROUP_MGR,
+                                                  TX_RX_BOTH_CONFIG)) {
+        LOG(ERROR) << __func__ << ": Failed to get CodecConfiguration";
+        return;
+      }
+      if(unicastSourceClientInterface)
+        unicastSourceClientInterface->UpdateAudioConfigToHal(lea_rx_config);
+    } else {
+        if (!leAudio_get_selected_hal_codec_config(&lea_tx_config, AUDIO_GROUP_MGR,
+                                                    TX_ONLY_CONFIG)) {
+          LOG(ERROR) << __func__ << ": Failed to get CodecConfiguration";
+          return;
+        }
+
+        if(unicastSinkClientInterface)
+          unicastSinkClientInterface->UpdateAudioConfigToHal(lea_tx_config);
+    }
+  } else if(profile_type == BAP_CALL ||
+            profile_type == GCP_RX ||
+            profile_type == WMCP_TX) { // Toair and FromAir
     if (!leAudio_get_selected_hal_codec_config(&lea_tx_config, AUDIO_GROUP_MGR,
                                                 TX_ONLY_CONFIG)) {
       LOG(ERROR) << __func__ << ": Failed to get CodecConfiguration";
@@ -1223,6 +1261,23 @@ void btif_ahim_update_audio_config() {
     }
     if(unicastSinkClientInterface)
       unicastSinkClientInterface->UpdateAudioConfigToHal(lea_tx_config);
+
+    if (!leAudio_get_selected_hal_codec_config(&lea_rx_config, AUDIO_GROUP_MGR,
+                                                TX_RX_BOTH_CONFIG)) {
+      LOG(ERROR) << __func__ << ": Failed to get CodecConfiguration";
+      return;
+    }
+    if(unicastSourceClientInterface)
+      unicastSourceClientInterface->UpdateAudioConfigToHal(lea_rx_config);
+
+  } else if(profile_type == WMCP) { // FromAir only
+    if (!leAudio_get_selected_hal_codec_config(&lea_rx_config, AUDIO_GROUP_MGR,
+                                                RX_ONLY_CONFIG)) {
+      LOG(ERROR) << __func__ << ": Failed to get CodecConfiguration";
+      return;
+    }
+    if(unicastSourceClientInterface)
+      unicastSourceClientInterface->UpdateAudioConfigToHal(lea_rx_config);
   }
 }
 

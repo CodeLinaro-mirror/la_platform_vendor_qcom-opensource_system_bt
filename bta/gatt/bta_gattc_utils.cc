@@ -443,7 +443,6 @@ void bta_gattc_continue(tBTA_GATTC_CLCB* p_clcb) {
         return;
       case MTU_EXCHANGE_NOT_DONE_YET:
         p_clcb->p_q_cmd_queue.pop_front();
-        bta_gattc_enqueue(p_clcb, p_q_cmd);
         bta_gattc_sm_execute(p_clcb, p_q_cmd->hdr.event, p_q_cmd);
         return;
     }

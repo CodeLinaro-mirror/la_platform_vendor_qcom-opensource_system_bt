@@ -141,7 +141,7 @@ std::mutex session_wait_mutex_;
 std::condition_variable session_wait_cv;
 bool session_wait;
 RawAddress ba_addr({0xCE, 0xFA, 0xCE, 0xFA, 0xCE, 0xFA});
-
+static char dual_mode_enable[PROPERTY_VALUE_MAX] = "false";
 extern std::mutex isDevUiReq_mutex_;
 
 #define BTIF_AV_ENABLE_MCAST_RESTRICTIONS FALSE
@@ -1702,6 +1702,17 @@ static bool btif_av_state_opening_handler(btif_sm_event_t event, void* p_data,
 
     case BTIF_AV_DISCONNECT_REQ_EVT: {
        uint8_t peer_handle = BTRC_HANDLE_NONE;
+       if (property_get("persist.bluetooth.enable_dual_mode_audio", dual_mode_enable, "false") &&
+          !strcmp(dual_mode_enable, "true")) {
+         bt_addr = (RawAddress *)p_data;
+         int streaming_index =  btif_av_get_latest_device_idx_to_start();
+         if (streaming_index == index) {
+           BTIF_TRACE_DEBUG("%s : Disconnection came for Active device", __func__);
+           if (!btif_a2dp_source_end_session(btif_av_get_addr_by_index(index))) {
+              BTIF_TRACE_IMP("Ending the session during Disconnection");
+           }
+         }
+       }
        btif_av_disconnect_queue_advance_by_uuid(&(btif_av_cb[index].peer_bda));
        btif_report_connection_state(BTAV_CONNECTION_STATE_DISCONNECTED,
            &(btif_av_cb[index].peer_bda));
@@ -2239,6 +2250,17 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
     } break;
 
     case BTIF_AV_DISCONNECT_REQ_EVT: {
+      if (property_get("persist.bluetooth.enable_dual_mode_audio", dual_mode_enable, "false") &&
+         !strcmp(dual_mode_enable, "true")) {
+        bt_addr = (RawAddress *)p_data;
+        int streaming_index =  btif_av_get_latest_device_idx_to_start();
+        if (streaming_index == index) {
+          BTIF_TRACE_DEBUG("%s : Disconnection came for Active device", __func__);
+          if (!btif_a2dp_source_end_session(btif_av_get_addr_by_index(index))) {
+            BTIF_TRACE_IMP("unable to End the session during Disconnection");
+          }
+        }
+	  }
       BTA_AvClose(btif_av_cb[index].bta_handle);
       if (btif_av_cb[index].peer_sep == AVDT_TSEP_SRC) {
         BTA_AvCloseRc(btif_av_cb[index].bta_handle);
@@ -2760,9 +2782,19 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
       BTA_AvStop(true, btif_av_cb[index].bta_handle);
       break;
 
-    case BTIF_AV_DISCONNECT_REQ_EVT:
+    case BTIF_AV_DISCONNECT_REQ_EVT: {
       // Now it is not the current playing
       // request avdtp to close
+      if (property_get("persist.bluetooth.enable_dual_mode_audio", dual_mode_enable, "false") &&
+          !strcmp(dual_mode_enable, "true")) {
+        int streaming_index =  btif_av_get_latest_stream_device_idx();
+        if (streaming_index == index) {
+          BTIF_TRACE_DEBUG("%s : Disconnection came for Active device", __func__);
+          if (!btif_a2dp_source_end_session(btif_av_get_addr_by_index(index))) {
+             BTIF_TRACE_IMP("cannot End the session during Disconnection");
+          }
+        }
+	  }
       BTA_AvClose(btif_av_cb[index].bta_handle);
       if (btif_av_cb[index].peer_sep == AVDT_TSEP_SRC)
           BTA_AvCloseRc(btif_av_cb[index].bta_handle);
@@ -2792,6 +2824,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
       // wait in closing state until fully closed
       btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_CLOSING);
       break;
+    }
 
     case BTA_AV_SUSPEND_EVT:
       if (btif_a2dp_source_is_hal_v2_supported()) {
@@ -3293,9 +3326,14 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
         }
         BTIF_TRACE_IMP("Reset all Current Playing for Device -> Null");
         if (btif_a2dp_source_is_hal_v2_supported()) {
-          if (!btif_a2dp_source_end_session(
-            btif_av_get_addr_by_index(previous_active_index))) {
-            BTIF_TRACE_IMP("Device -> Null, btif_a2dp_source_end_session failed");
+          if (property_get("persist.bluetooth.enable_dual_mode_audio", dual_mode_enable, "false") &&
+             !strcmp(dual_mode_enable, "true")) {
+              BTIF_TRACE_IMP("Not ending the session during Handoff");
+            } else {
+            if (!btif_a2dp_source_end_session(
+              btif_av_get_addr_by_index(previous_active_index))) {
+              BTIF_TRACE_IMP("Device -> Null, btif_a2dp_source_end_session failed");
+            }
           }
           streaming_index =  btif_av_get_latest_stream_device_idx();
           if (previous_active_index < btif_max_av_clients) {
