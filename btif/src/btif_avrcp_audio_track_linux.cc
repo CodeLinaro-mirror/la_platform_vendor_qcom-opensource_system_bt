@@ -17,7 +17,8 @@
 #include "btif_avrcp_audio_track.h"
 
 void* BtifAvrcpAudioTrackCreate(int trackFreq, int bits_per_sample,
-                                int channelCount, int channelType) {
+                                int channelCount, int channelType,
+                                audio_output_flags_t audio_flag) {
   return nullptr;
 }
 
