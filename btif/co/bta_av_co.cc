@@ -1679,9 +1679,12 @@ const tA2DP_ENCODER_INTERFACE* bta_av_co_get_encoder_interface(void) {
   return encoder_interface;
 }
 
-const tA2DP_DECODER_INTERFACE* bta_av_co_get_decoder_interface(void) {
+const tA2DP_DECODER_INTERFACE* bta_av_co_get_decoder_interface(const uint8_t* p_codec_info) {
   /* Protect access to bta_av_co_cb.codec_config */
   mutex_global_lock();
+
+  memcpy(bta_av_co_cb.codec_config, p_codec_info,
+         sizeof(bta_av_co_cb.codec_config));
 
   const tA2DP_DECODER_INTERFACE* decoder_interface =
       A2DP_GetDecoderInterface(bta_av_co_cb.codec_config);

@@ -45,7 +45,7 @@ const tA2DP_ENCODER_INTERFACE* bta_av_co_get_encoder_interface(void);
 // A2DP packets - see |tA2DP_DECODER_INTERFACE|.
 // Returns the A2DP decoder interface if the current codec is setup, otherwise
 // NULL.
-const tA2DP_DECODER_INTERFACE* bta_av_co_get_decoder_interface();
+const tA2DP_DECODER_INTERFACE* bta_av_co_get_decoder_interface(const uint8_t* p_codec_info);
 
 // Sets the user preferred codec configuration.
 // |codec_user_config| contains the preferred codec configuration.
