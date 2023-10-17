@@ -36,6 +36,7 @@
 #include <string.h>
 
 #include <base/logging.h>
+#include "a2dp_aac_decoder.h"
 #include "a2dp_aac_encoder.h"
 #include "bt_utils.h"
 #include "osi/include/log.h"
@@ -213,11 +214,16 @@ static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_aac = {
     nullptr  // set_transmit_queue_length
 };
 
+static const tA2DP_DECODER_INTERFACE a2dp_decoder_interface_aac = {
+    a2dp_aac_decoder_init, a2dp_aac_decoder_cleanup,
+    a2dp_aac_decoder_decode_packet,
+};
+
 tA2DP_AAC_CIE a2dp_aac_caps, a2dp_aac_default_config;
 
 UNUSED_ATTR static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityAac(
     const tA2DP_AAC_CIE* p_cap, const uint8_t* p_codec_info,
-    bool is_peer_codec_info);
+    bool is_capability);
 
 // Builds the AAC Media Codec Capabilities byte sequence beginning from the
 // LOSC octet. |media_type| is the media type |AVDT_MEDIA_TYPE_*|.
@@ -385,13 +391,12 @@ bool A2DP_GetAacCIE(const uint8_t* p_codec_info,
           A2DP_SUCCESS);
 }
 
-bool A2DP_IsSinkCodecSupportedAac(UNUSED_ATTR const uint8_t* p_codec_info) {
+bool A2DP_IsSinkCodecSupportedAac(const uint8_t* p_codec_info) {
   return A2DP_CodecInfoMatchesCapabilityAac(&a2dp_aac_sink_caps, p_codec_info,
                                             false) == A2DP_SUCCESS;
 }
 
-bool A2DP_IsPeerSourceCodecSupportedAac(
-    UNUSED_ATTR const uint8_t* p_codec_info) {
+bool A2DP_IsPeerSourceCodecSupportedAac(const uint8_t* p_codec_info) {
   return A2DP_CodecInfoMatchesCapabilityAac(&a2dp_aac_sink_caps, p_codec_info,
                                             true) == A2DP_SUCCESS;
 }
@@ -430,11 +435,8 @@ tA2DP_STATUS A2DP_BuildSrc2SinkConfigAac(UNUSED_ATTR const uint8_t* p_src_cap,
 
 // Checks whether A2DP AAC codec configuration matches with a device's codec
 // capabilities. |p_cap| is the AAC codec configuration. |p_codec_info| is
-// the device's codec capabilities.
-// If |is_capability| is true, the byte sequence is codec capabilities,
-// otherwise is codec configuration.
-// |p_codec_info| contains the codec capabilities for a peer device that
-// is acting as an A2DP source.
+// the device's codec capabilities.  |is_capability| is true if
+// |p_codec_info| contains A2DP codec capability.
 // Returns A2DP_SUCCESS if the codec configuration matches with capabilities,
 // otherwise the corresponding A2DP error status code.
 static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityAac(
@@ -598,7 +600,7 @@ int A2DP_GetTrackChannelCountAac(const uint8_t* p_codec_info) {
   return -1;
 }
 
-int A2DP_GetSinkTrackChannelTypeAac(UNUSED_ATTR const uint8_t* p_codec_info) {
+int A2DP_GetSinkTrackChannelTypeAac(const uint8_t* p_codec_info) {
   tA2DP_AAC_CIE aac_cie;
 
   // Check whether the codec info contains valid data
@@ -851,6 +853,13 @@ const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceAac(
   return &a2dp_encoder_interface_aac;
 }
 
+const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceAac(
+    const uint8_t* p_codec_info) {
+  if (!A2DP_IsSinkCodecValidAac(p_codec_info)) return NULL;
+
+  return &a2dp_decoder_interface_aac;
+}
+
 bool A2DP_AdjustCodecAac(uint8_t* p_codec_info) {
   tA2DP_AAC_CIE cfg_cie;
 
@@ -924,7 +933,8 @@ UNUSED_ATTR static void build_codec_config(const tA2DP_AAC_CIE& config_cie,
 
 A2dpCodecConfigAac::A2dpCodecConfigAac(
     btav_a2dp_codec_priority_t codec_priority)
-    : A2dpCodecConfig(BTAV_A2DP_CODEC_INDEX_SOURCE_AAC, "AAC", codec_priority) {
+    : A2dpCodecConfig(BTAV_A2DP_CODEC_INDEX_SOURCE_AAC, A2DP_CodecIndexStrAac(),
+                      codec_priority) {
   char value[PROPERTY_VALUE_MAX] = {'\0'};
   bool vbr_enabled = false;
   property_get("persist.vendor.qcom.bluetooth.aac_vbr_ctl.enabled", value, "false");
@@ -1587,6 +1597,11 @@ bool A2dpCodecConfigAacSink::init() {
   if (!isValid()) return false;
 
   if (A2DP_IsCodecEnabledInSink(BTAV_A2DP_CODEC_INDEX_SINK_AAC)){
+    // Load the decoder
+    if (!A2DP_LoadDecoderAac()) {
+      LOG_ERROR(LOG_TAG, "%s: cannot load the decoder", __func__);
+      return false;
+    }
     LOG_DEBUG(LOG_TAG, "%s: AAC is enabled in Sink", __func__);
     return true;
   } else {

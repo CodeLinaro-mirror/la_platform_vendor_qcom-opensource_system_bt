@@ -175,14 +175,6 @@ int A2DP_GetTrackChannelCountAac(const uint8_t* p_codec_info);
 // contains invalid codec information.
 int A2DP_GetSinkTrackChannelTypeAac(const uint8_t* p_codec_info);
 
-// Computes the number of frames to process in a time window for the A2DP
-// AAC sink codec. |time_interval_ms| is the time interval (in milliseconds).
-// |p_codec_info| is a pointer to the codec_info to decode.
-// Returns the number of frames to process on success, or -1 if |p_codec_info|
-// contains invalid codec information.
-int A2DP_GetSinkFramesCountToProcessAac(uint64_t time_interval_ms,
-                                        const uint8_t* p_codec_info);
-
 // Gets the object type code for the A2DP AAC codec.
 // The actual value is codec-specific - see |A2DP_AAC_OBJECT_TYPE_*|.
 // |p_codec_info| is a pointer to the AAC codec_info to decode.
@@ -248,6 +240,13 @@ bool A2DP_DumpCodecInfoAac(const uint8_t* p_codec_info);
 const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceAac(
     const uint8_t* p_codec_info);
 
+// Gets the current A2DP AAC decoder interface that can be used to decode
+// received A2DP packets - see |tA2DP_DECODER_INTERFACE|.
+// |p_codec_info| contains the codec information.
+// Returns the A2DP AAC decoder interface if the |p_codec_info| is valid and
+// supported, otherwise NULL.
+const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceAac(
+    const uint8_t* p_codec_info);
 // Adjusts the A2DP AAC codec, based on local support and Bluetooth
 // specification.
 // |p_codec_info| contains the codec information to adjust.
