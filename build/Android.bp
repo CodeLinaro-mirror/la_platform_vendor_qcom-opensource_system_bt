@@ -55,7 +55,7 @@ fluoride_defaults_qti {
 fluoride_defaults_qti {
     name: "fluoride_defaults_qti",
     defaults: ["fluoride_types_defaults_qti"],
-    header_libs: ["libbluetooth_headers"],
+    header_libs: ["libbluetooth_headers_qti"],
     static_libs: [
         "libbluetooth-types",
     ],

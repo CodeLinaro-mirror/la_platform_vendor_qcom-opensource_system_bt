@@ -133,8 +133,8 @@ static bool gatt_sr_is_robust_caching_enabled();
 
 static tGATT_STATUS gatt_sr_read_db_hash(uint16_t conn_id,
                                          tGATT_VALUE* p_value);
-static tGATT_STATUS gatt_sr_read_cl_supp_feat(uint16_t conn_id,
-                                              tGATT_VALUE* p_value);
+//static tGATT_STATUS gatt_sr_read_cl_supp_feat(uint16_t conn_id,
+  //                                            tGATT_VALUE* p_value);
 static tGATT_STATUS gatt_sr_write_cl_supp_feat(uint16_t conn_id,
                                                tGATT_WRITE_REQ* p_data);
 
@@ -420,8 +420,8 @@ tGATT_STATUS proc_read(uint16_t conn_id, tGATT_READ_REQ* p_data,
  *
  ******************************************************************************/
 tGATT_STATUS proc_write_req(uint16_t conn_id, tGATT_WRITE_REQ* p_data) {
-  tGATT_PROFILE_CLCB* p_clcb = NULL;
-  uint8_t cl_supp_feat;
+  //tGATT_PROFILE_CLCB* p_clcb = NULL;
+  //uint8_t cl_supp_feat;
   VLOG(1) << __func__ << " conn_id:" << +conn_id;
 
   for (tGATT_ATTR_INFO& db_attr : gatt_attr_db) {
@@ -1322,7 +1322,7 @@ static tGATT_STATUS gatt_sr_read_db_hash(uint16_t conn_id,
 }
 
 /* handle request for reading client supported features */
-static tGATT_STATUS gatt_sr_read_cl_supp_feat(uint16_t conn_id,
+/*static tGATT_STATUS gatt_sr_read_cl_supp_feat(uint16_t conn_id,
                                               tGATT_VALUE* p_value) {
   // Get tcb info
   uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
@@ -1333,7 +1333,7 @@ static tGATT_STATUS gatt_sr_read_cl_supp_feat(uint16_t conn_id,
   p_value->len = 1;
 
   return GATT_SUCCESS;
-}
+}*/
 
 /* handle request for writing client supported features */
 static tGATT_STATUS gatt_sr_write_cl_supp_feat(uint16_t conn_id,

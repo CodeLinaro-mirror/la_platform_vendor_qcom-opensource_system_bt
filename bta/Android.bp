@@ -1,40 +1,23 @@
 soong_config_module_type_import {
-    from: "device/qcom/qssi/Android.bp",
+    from: "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/Android.bp",
     module_types: [
-         "bredr_vs_btadva_cc_defaults",
-         "aosp_vs_qva_cc_defaults",
+         "bluetooth_ext_bredr_vs_btadva_cc_defaults",
     ],
 }
 
-bredr_vs_btadva_cc_defaults {
+bluetooth_ext_bredr_vs_btadva_cc_defaults {
     name: "btadva_bta_cc-default",
 
     soong_config_variables: {
         bredr_or_btadva: {
            btadva: {
-              include_dirs: [
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/system/bt/bta/include",
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/vhal/include",
-              ],
+              header_libs: ["bt_adv_auido_bta_inc", "bt_adv_audio_vhal_inc",],
               cflags: [
                  "-DADV_AUDIO_FEATURE=1",
               ],
            }
        }
    }
-}
-
-aosp_vs_qva_cc_defaults {
-     name: "qva_bta_defaults",
-     soong_config_variables: {
-         aosp_or_qva: {
-           qva: {
-             static_libs: [
-                "crypto_toolbox_for_tests",
-             ],
-           }
-        }
-    }
 }
 
 cc_defaults {
@@ -46,31 +29,12 @@ cc_defaults {
         "dm",
         "hd",
         "hh",
-    ],
-    include_dirs: [
-        "vendor/qcom/opensource/commonsys/system/bt",
-        "vendor/qcom/opensource/commonsys/system/bt/bta/include",
-        "vendor/qcom/opensource/commonsys/system/bt/bta/direction_finder",
-        "vendor/qcom/opensource/commonsys/system/bt/bta/ag",
-        "vendor/qcom/opensource/commonsys/system/bt/btcore/include",
-        "vendor/qcom/opensource/commonsys/system/bt/hci/include",
-        "vendor/qcom/opensource/commonsys/system/bt/internal_include",
-        "vendor/qcom/opensource/commonsys/system/bt/stack/include",
-        "vendor/qcom/opensource/commonsys/system/bt/stack/btm",
-        "vendor/qcom/opensource/commonsys/system/bt/udrv/include",
-        "vendor/qcom/opensource/commonsys/system/bt/vnd/include",
-        "vendor/qcom/opensource/commonsys/system/bt/utils/include",
-        "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext",
-        "vendor/qcom/opensource/commonsys/bluetooth_ext/vhal/include",
-        "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/bta/include",
-        "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/btif/include",
-        "vendor/qcom/opensource/commonsys-intf/bluetooth/include",
-        "vendor/qcom/opensource/commonsys/system/bt/device/include",
+		"ag",
     ],
     shared_libs: [
         "libcutils",
     ],
-    header_libs: ["libbluetooth_headers"],
+    header_libs: ["libbluetooth_headers_qti", "opensource_commonsys_intf_bluetooth_inc", "opensource_commonsys_system_bt_all_inc", "opensource_btext_vhal_inc", "opensource_commonsys_bt_ext_all_inc",],
     cflags: [
         "-DBUILDCFG",
     ],
@@ -195,6 +159,7 @@ cc_test {
     static_libs: [
         "libbtcore_qti",
         "libbt-bta_qti",
+       // "crypto_toolbox_for_tests",
         "libbluetooth-types",
         "libosi_qti",
         "libbt-protos_qti",

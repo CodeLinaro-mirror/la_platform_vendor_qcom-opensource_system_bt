@@ -106,13 +106,16 @@ bool AdvertiserSingleStackProto::BleStartAdvertingSet(
     BleAdvertiserInterface::IdTxPowerStatusCallback Cb,
     const AdvertiseParameters& adv_param,
     const std::vector<uint8_t>& advertise_data,
+    const std::vector<uint8_t>& advertise_data_enc,
     const std::vector<uint8_t>& scan_response_data,
+    const std::vector<uint8_t>& scan_response_data_enc,
     const PeriodicAdvertisingParameters& periodic_params,
     const std::vector<uint8_t>& periodic_data,
-    int duration, int max_ext_adv_events, int reg_id,
+    const std::vector<uint8_t>& periodic_data_enc,
+    int duration, int max_ext_adv_events,
+    const std::vector<uint8_t>& enc_key_value, int reg_id,
     BleAdvertiserInterface::IdStatusCallback TimeoutCb) {
   ALOGD("\n BLE Start Advertising Set ");
-#ifdef ADV_MODULE_SS_LOGS_ENABLED
   ALOGD("\n Advertising Event Properties : %d",
         adv_param.advertising_event_properties);
   ALOGD("\n Min interval : %d", adv_param.min_interval);
@@ -146,7 +149,6 @@ bool AdvertiserSingleStackProto::BleStartAdvertingSet(
   ALOGD("\n duration : %d", duration);
   ALOGD("\n max_ext_adv_events : %d", max_ext_adv_events);
   ALOGD("\n reg_id : %d", reg_id);
-#endif
   std::string encoded_bytes;
   ss_ble_start_advertising_set startAdvSet;
   ss_advertising_parameters* params = startAdvSet.mutable_parameters();
@@ -173,24 +175,27 @@ bool AdvertiserSingleStackProto::BleStartAdvertingSet(
     startAdvSet.add_advertisedata(advertise_data[a]);
   }
   
-   /* for (uint16_t a = 0; a < advertise_data_enc.size(); a++) {
+   for (uint16_t a = 0; a < advertise_data_enc.size(); a++) {
     startAdvSet.add_advertisedataenc(advertise_data_enc[a]);
-  } */
+  }
 
   /*Populating Scan Response data*/
   for (uint16_t a = 0; a < scan_response_data.size(); a++) {
     startAdvSet.add_scanresponse(scan_response_data[a]);
   }
 
-  /* for (uint16_t a = 0; a < scan_response_data_enc.size(); a++) {
+  for (uint16_t a = 0; a < scan_response_data_enc.size(); a++) {
     startAdvSet.add_scanresponseenc(scan_response_data_enc[a]);
-  } */
+  }
 
   /*Populating Periodic Advertising Parameters*/
-  perodic_params->set_enable(periodic_params.enable);
+  if (periodic_params.enable == true) {
+    perodic_params->set_enable(0x3); // Set bit0 (enable) and bit1 (ADI)
+  } else {
+      perodic_params->set_enable(periodic_params.enable);
+  }
   perodic_params->set_mininterval(periodic_params.min_interval);
   perodic_params->set_maxinterval(periodic_params.max_interval);
-  //perodic_params->set_includeadi(periodic_params.include_adi);
   perodic_params->set_periodicadvertisingproperties(
       periodic_params.periodic_advertising_properties);
 
@@ -199,17 +204,17 @@ bool AdvertiserSingleStackProto::BleStartAdvertingSet(
     startAdvSet.add_periodicdata(periodic_data[a]);
   }
 
-  /* for (uint16_t a = 0; a < periodic_data_enc.size(); a++) {
+  for (uint16_t a = 0; a < periodic_data_enc.size(); a++) {
     startAdvSet.add_periodicdataenc(periodic_data_enc[a]);
-  } */
+  }
 
   startAdvSet.set_duration(duration);
   startAdvSet.set_maxextadvevents(max_ext_adv_events);
   startAdvSet.set_regid(reg_id);
 
-  /* for (uint16_t a = 0; a < enc_key_value.size(); a++) {
+  for (uint16_t a = 0; a < enc_key_value.size(); a++) {
     startAdvSet.add_enckeyvalue(enc_key_value[a]);
-  } */
+  }
 
   startAdvSet.SerializeToString(&encoded_bytes);
   uint16_t encoded_len = encoded_bytes.length();
@@ -225,9 +230,7 @@ bool AdvertiserSingleStackProto::BleStartAdvertingSet(
 bool AdvertiserSingleStackProto::BleGetOwnAddress(
     BleAdvertiserInterface::GetAddressCallback Cb, int advertiser_id) {
   ALOGD("\n Get Own address ");
-#ifdef ADV_MODULE_SS_LOGS_ENABLED
   ALOGD("\n advertiser_id : %d", advertiser_id);
-#endif
   std::string encoded_bytes;
   ss_ble_get_own_address getOwnAdd;
   GetAddressCbMap.insert(
@@ -247,9 +250,7 @@ bool AdvertiserSingleStackProto::BleGetOwnAddress(
 
 bool AdvertiserSingleStackProto::BleStopAdvertisingSet(int advertiser_id) {
   ALOGD("\n Stop Advertising set ");
-#ifdef ADV_MODULE_SS_LOGS_ENABLED
   ALOGD("\n advertiser_id : %d", advertiser_id);
-#endif
   std::string encoded_bytes;
   ss_ble_stop_advertising_set stopAdvSet;
   stopAdvSet.set_advertiserid(advertiser_id);
@@ -269,12 +270,10 @@ bool AdvertiserSingleStackProto::BleEnableAdvertisingSet(
     int duration, int max_ext_adv_events,
     BleAdvertiserInterface::StatusCallback TimeoutCb) {
   ALOGD("\n Enable Advertising Set ");
-#ifdef ADV_MODULE_SS_LOGS_ENABLED
   ALOGD("\n advertiser_id : %d", advertiser_id);
   ALOGD("\n Advertising enable : %d", enable);
   ALOGD("\n duration : %d", duration);
   ALOGD("\n max_ext_adv_events : %d", max_ext_adv_events);
-#endif
   std::string encoded_bytes;
   ss_ble_enable_advertising_set enableAdvSet;
   EnableCbMap.insert(pair<uint32_t, BleAdvertiserInterface::StatusCallback>(
@@ -298,15 +297,13 @@ bool AdvertiserSingleStackProto::BleEnableAdvertisingSet(
 
 bool AdvertiserSingleStackProto::BleSetData(
     BleAdvertiserInterface::StatusCallback Cb, int advertiser_id,
-    bool scan_resp_data, const std::vector<uint8_t>& data) {
+    bool scan_resp_data, const std::vector<uint8_t>& data, const std::vector<uint8_t>& data_enc) {
   ALOGD("\n BLE Set Adv or Scan Resp Data ");
-#ifdef ADV_MODULE_SS_LOGS_ENABLED
   ALOGD("\n advertiser_id : %d", advertiser_id);
   ALOGD("\n scan_resp_data enable : %d", scan_resp_data);
   for (uint16_t i = 0; i < data.size(); i++) {
     ALOGD("\n data[%d] : %d", i, data[i]);
   }
-#endif
 
   std::string encoded_bytes;
   ss_ble_set_data setData;
@@ -323,6 +320,11 @@ bool AdvertiserSingleStackProto::BleSetData(
   /*Populating adv data*/
   for (uint16_t a = 0; a < data.size(); a++) {
     setData.add_advdata(data[a]);
+  }
+
+  /*Populating adv data encry*/
+   for (uint16_t a = 0; a < data_enc.size(); a++) {
+    setData.add_advdataenc(data_enc[a]);
   }
 
   setData.SerializeToString(&encoded_bytes);
@@ -342,7 +344,6 @@ bool AdvertiserSingleStackProto::BleSetAdvertisingParameters(
     const AdvertiseParameters& adv_param) {
   ALOGD("\n BLE Set Advertising Parameters");
 
-#ifdef ADV_MODULE_SS_LOGS_ENABLED
   ALOGD("\n advertiser_id : %d", advertiser_id);
   ALOGD("\n Advertising Event Properties : %d",
         adv_param.advertising_event_properties);
@@ -355,7 +356,6 @@ bool AdvertiserSingleStackProto::BleSetAdvertisingParameters(
         adv_param.secondary_advertising_phy);
   ALOGD("\n scan_request_notification_enable : %d",
         adv_param.scan_request_notification_enable);
-#endif
   std::string encoded_bytes;
   ss_ble_set_advertising_parameters advSet;
   ss_advertising_parameters* params = advSet.mutable_parameters();
@@ -396,7 +396,6 @@ bool AdvertiserSingleStackProto::BleSetPeriodicAdvertisingParameters(
   ss_periodic_advertising_parameters* perodic_params =
       setPeriodicAdvParam.mutable_parameters();
 
-#ifdef ADV_MODULE_SS_LOGS_ENABLED
   ALOGD("\n advertiser_id : %d", advertiser_id);
   ALOGD("\n Periodic advertising enable : %d", periodic_params.enable);
   ALOGD("\n Periodic advertising Min interval : %d",
@@ -405,17 +404,19 @@ bool AdvertiserSingleStackProto::BleSetPeriodicAdvertisingParameters(
         periodic_params.max_interval);
   ALOGD("\n Periodic advertising Event Properties: %d",
         periodic_params.periodic_advertising_properties);
-#endif
 
   setPeriodicAdvParam.set_advertiserid(advertiser_id);
   PeriodicAdvParamCbMap.insert(
       pair<uint32_t, BleAdvertiserInterface::StatusCallback>(advertiser_id,
                                                              Cb));
   /*Populating Periodic Advertising Parameters*/
-  perodic_params->set_enable(periodic_params.enable);
+  if (periodic_params.enable == true) {
+    perodic_params->set_enable(0x3); // Set bit0 (enable) and bit1 (ADI)
+  } else {
+      perodic_params->set_enable(periodic_params.enable);
+  }
   perodic_params->set_mininterval(periodic_params.min_interval);
   perodic_params->set_maxinterval(periodic_params.max_interval);
-  //perodic_params->set_includeadi(periodic_params.include_adi);
   perodic_params->set_periodicadvertisingproperties(
       periodic_params.periodic_advertising_properties);
 
@@ -433,14 +434,12 @@ bool AdvertiserSingleStackProto::BleSetPeriodicAdvertisingParameters(
 
 bool AdvertiserSingleStackProto::BlesetPeriodicAdvertisingData(
     BleAdvertiserInterface::StatusCallback Cb, int advertiser_id,
-    const std::vector<uint8_t>& data) {
+    const std::vector<uint8_t>& data, const std::vector<uint8_t>& data_enc) {
   ALOGD("\n BLE Set Periodic Advertising Data ");
-#ifdef ADV_MODULE_SS_LOGS_ENABLED
   ALOGD("\n advertiser_id : %d", advertiser_id);
   for (uint16_t i = 0; i < data.size(); i++) {
     ALOGD("\n data[%d] : %d", i, data[i]);
   }
-#endif
   std::string encoded_bytes;
   ss_ble_set_periodic_advertising_data setPeriodicAdvData;
   PeriodicAdvDataCbMap.insert(
@@ -451,6 +450,11 @@ bool AdvertiserSingleStackProto::BlesetPeriodicAdvertisingData(
   /*Populating adv data*/
   for (uint16_t a = 0; a < data.size(); a++) {
     setPeriodicAdvData.add_data(data[a]);
+  }
+
+  /*Populating periodic adv data encry*/
+   for (uint16_t a = 0; a < data_enc.size(); a++) {
+    setPeriodicAdvData.add_perioadvdataenc(data_enc[a]);
   }
 
   setPeriodicAdvData.SerializeToString(&encoded_bytes);
@@ -468,18 +472,17 @@ bool AdvertiserSingleStackProto::BlesetPeriodicAdvertisingData(
 bool AdvertiserSingleStackProto::BleSetPeriodicAdvertisingEnable(
     BleAdvertiserInterface::StatusCallback Cb, int advertiser_id, bool enable) {
   ALOGD("\n BLE Set Periodic Advertising Enable");
-#ifdef ADV_MODULE_SS_LOGS_ENABLED
   ALOGD("\n advertiser_id : %d", advertiser_id);
   ALOGD("\n Periodic Advertising enable : %d", enable);
-#endif
   std::string encoded_bytes;
   ss_ble_set_periodic_advertising_enable setPeriodicAdvEn;
   PeriodicAdvEnCbMap.insert(
       pair<uint32_t, BleAdvertiserInterface::StatusCallback>(advertiser_id,
                                                              Cb));
   setPeriodicAdvEn.set_advertiserid(advertiser_id);
+  setPeriodicAdvEn.set_includeadi(enable); //As per spec, if per-adv is enable, ADI enable otherwise ignore include adi feild
   setPeriodicAdvEn.set_enable(enable);
-  //setPeriodicAdvEn.set_includeadi(include_adi);
+
   setPeriodicAdvEn.SerializeToString(&encoded_bytes);
   // adding length
   uint16_t encoded_len = encoded_bytes.length();

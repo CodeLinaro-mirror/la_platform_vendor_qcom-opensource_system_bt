@@ -6,19 +6,7 @@ cc_library_static {
     local_include_dirs: [
         "include",
     ],
-    include_dirs: [
-        "vendor/qcom/opensource/commonsys/system/bt",
-        "vendor/qcom/opensource/commonsys/system/bt/bta/ag",
-        "vendor/qcom/opensource/commonsys/system/bt/bta/sys",
-        "vendor/qcom/opensource/commonsys/system/bt/bta/include",
-        "vendor/qcom/opensource/commonsys/system/bt/btcore/include",
-        "vendor/qcom/opensource/commonsys/system/bt/hci/include",
-        "vendor/qcom/opensource/commonsys/system/bt/internal_include",
-        "vendor/qcom/opensource/commonsys/system/bt/stack/include",
-        "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext",
-        "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/btconfigstore",
-        "vendor/qcom/opensource/commonsys-intf/bluetooth/include",
-    ],
+	header_libs: ["commonsys_system_bt_device_inc"],
     srcs: [
         "src/controller.cc",
         "src/esco_parameters.cc",
@@ -43,7 +31,7 @@ cc_test {
     name: "net_test_device_qti",
     test_suites: ["device-tests"],
     defaults: ["fluoride_defaults_qti"],
-    include_dirs: ["vendor/qcom/opensource/commonsys/system/bt"],
+	header_libs: ["commonsys_system_bt_device_inc"],
     srcs: [
         "test/interop_test.cc",
     ],
@@ -60,4 +48,19 @@ cc_test {
         "libcutils",
         "libbluetooth-types",
     ],
+}
+
+cc_library_headers {
+   name: "commonsys_system_bt_device_inc",
+   vendor_available: true,
+   header_libs: [
+		"opensource_commonsys_bt_ext_all_inc",
+		"opensource_commonsys_intf_bluetooth_inc",
+		"opensource_commonsys_system_bt_all_inc",
+    ],
+	export_header_lib_headers: [
+	    "opensource_commonsys_bt_ext_all_inc",
+		"opensource_commonsys_intf_bluetooth_inc",
+		"opensource_commonsys_system_bt_all_inc",
+	],
 }

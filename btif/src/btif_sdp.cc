@@ -54,6 +54,13 @@
 using bluetooth::Uuid;
 using bluetooth::synergy::SynergyProto::ss_bt_sdp_search;
 using bluetooth::synergy::SynergyProto::ss_sdp_search_complete_callback;
+using bluetooth::synergy::SynergyProto::ss_bt_sdp_record;
+using bluetooth::synergy::SynergyProto::ss_bt_sdp_hdr_overlay;
+using bluetooth::synergy::SynergyProto::ss_bt_sdp_type;
+using bluetooth::synergy::SynergyProto::ss_bt_service_name;
+using bluetooth::synergy::SynergyProto::ss_bt_sdp_pse_record;
+using bluetooth::synergy::SynergyProto::SS_BT_SDP_TYPE_PBAP_PSE;
+using bluetooth::synergy::SynergyProto::SS_BT_SDP_TYPE_RAW;
 
 /*****************************************************************************
  *  Functions implemented in sdp_server.c
@@ -216,6 +223,9 @@ void btif_sdp_ss_callback(uint16_t event, char* p_param) {
    bluetooth_sdp_record records[1];
    std::string name = "BluetoothRfcommSdpRecord";
    const char* srv_name = name.c_str();
+   int ser_name_len = 0;
+   std::string serv_name;
+   std::string data;
 
    tBTIF_SS_Cback* cb_data = (tBTIF_SS_Cback*)p_param;
    uint16_t MSG_ID = cb_data->payload[0] + (((int)(cb_data->payload[1]))<<8);
@@ -256,6 +266,11 @@ void btif_sdp_ss_callback(uint16_t event, char* p_param) {
        uuid_sdp = Uuid::FromString(sdp_cb.uuid());
       }
 
+      if (sdp_cb.has_record_count()) {
+       record_count = sdp_cb.record_count();
+       ALOGI("Record has record count : %d", record_count);
+      }
+
       if (sdp_cb.has_record_length()) {
        record_length = sdp_cb.record_length();
       }
@@ -266,16 +281,97 @@ void btif_sdp_ss_callback(uint16_t event, char* p_param) {
       }
       rec_data = reinterpret_cast<uint8_t*>((char*)(data.c_str()));
 
-      records[0].hdr.type = SDP_TYPE_RAW;
-      records[0].hdr.rfcomm_channel_number = -1;
-      records[0].hdr.l2cap_psm = -1;
-      records[0].hdr.profile_version = -1;
-      records[0].hdr.service_name_length = strlen(srv_name);
-      records[0].hdr.service_name = (char*)srv_name;
-      records[0].hdr.user1_ptr_len = record_length;
-      records[0].hdr.user1_ptr = rec_data;
+      if (sdp_cb.has_record()) {
+        int record_length = 0;
+        uint8_t* rec_data = NULL;
+        std::string data;
+        ss_bt_sdp_type record_type;
+        ss_bt_service_name s_name;
+        int serv_name_len;
+        int rfcomm_chnl_no;
+        int l2cap_psm;
+        int profile_version;
+        int supported_features;
+        int supported_repositories;
+        ALOGI("has sdp record");
+        ss_bt_sdp_record rec = sdp_cb.record();
+        ss_bt_sdp_pse_record pse_rec = rec.pse();
+        ss_bt_sdp_hdr_overlay pse_hdr = pse_rec.hdr();
 
-      ALOGI("%s: Send SDP Search complete callback status: %d, remote address : %s, uuid : %s, record length : %d, record data : %s "           , __func__,status, bd_addr.ToString().c_str(), uuid_sdp.ToString().c_str(), record_count, data.c_str());
+        if(pse_hdr.has_uuid()) {
+          Uuid temp =  Uuid::FromString(pse_hdr.uuid());
+          ALOGI("Record has sdp uuid : %s", temp.ToString().c_str());
+        }
+        if(pse_hdr.has_service_name_length()) {
+          serv_name_len = pse_hdr.service_name_length();
+          ALOGI("Record has sdp service name length : %d", ser_name_len);
+        }
+        if(pse_hdr.has_service_name()) {
+          s_name = pse_hdr.service_name();
+          serv_name = s_name.name();
+          ALOGI("Record has sdp serive name : %s", serv_name.c_str() );
+        }
+        if(pse_hdr.has_rfcomm_channel_number()) {
+          rfcomm_chnl_no = pse_hdr.rfcomm_channel_number();
+          ALOGI("Record has sdp rfcomm_channel_number : %d", rfcomm_chnl_no);
+        }
+        if(pse_hdr.has_l2cap_psm()) {
+          l2cap_psm = pse_hdr.l2cap_psm();
+          ALOGI("Record has sdp l2cap_psm : %d", l2cap_psm);
+        }
+        if(pse_hdr.has_profile_version()) {
+          profile_version = pse_hdr.profile_version();
+          ALOGI("Record has sdp profile_version : %d", profile_version);
+        }
+        if(pse_rec.has_supported_features()) {
+          supported_features = pse_rec.supported_features();
+          ALOGI("Record has sdp has_supported_features : %d", supported_features);
+        }
+        if(pse_rec.has_supported_repositories()) {
+          supported_repositories = pse_rec.supported_repositories();
+          ALOGI("Record has sdp supported_repositories : %d", supported_repositories);
+        }
+        if(pse_hdr.has_record_length()) {
+          record_length = pse_hdr.record_length();
+          ALOGI("Record has sdp pointer record_length : %d", record_length);
+        }
+        if (pse_hdr.has_record_data()) {
+          data = pse_hdr.record_data();
+          rec_data = reinterpret_cast<uint8_t*>((char*)(data.c_str()));
+          ALOGI("Record has sdp pointer record_data : %s", data.c_str());
+        }
+
+        if(pse_hdr.has_type() && pse_hdr.type() == SS_BT_SDP_TYPE_PBAP_PSE){
+          record_type = pse_hdr.type();
+          ALOGI("Record has sdp type : %d", record_type);
+
+          records[0].pse.hdr.type = SDP_TYPE_PBAP_PSE;
+          records[0].pse.hdr.rfcomm_channel_number = rfcomm_chnl_no;
+          records[0].pse.hdr.l2cap_psm = l2cap_psm;
+          records[0].pse.hdr.profile_version = profile_version;
+          records[0].pse.hdr.service_name_length = serv_name_len;
+          records[0].pse.hdr.service_name = (char*)serv_name.c_str();
+          records[0].pse.supported_features = supported_features;
+          records[0].pse.supported_repositories = supported_repositories;
+          records[0].pse.hdr.user1_ptr_len = record_length;
+          records[0].pse.hdr.user1_ptr = rec_data;
+        }
+      }
+
+      else {
+
+        records[0].hdr.type = SDP_TYPE_RAW;
+        records[0].hdr.rfcomm_channel_number = -1;
+        records[0].hdr.l2cap_psm = -1;
+        records[0].hdr.profile_version = -1;
+        records[0].hdr.service_name_length = strlen(srv_name);
+        records[0].hdr.service_name = (char*)srv_name;
+        records[0].hdr.user1_ptr_len = record_length;
+        records[0].hdr.user1_ptr = rec_data;
+
+      }
+
+      ALOGI("%s: Send SDP Search complete callback status: %d, remote address : %s, uuid : %s, record count : %d, record data : %s ", __func__,status, bd_addr.ToString().c_str(), uuid_sdp.ToString().c_str(), record_count, data.c_str());
 
       HAL_CBACK(bt_sdp_callbacks, sdp_search_cb, status,
              bd_addr, uuid_sdp, record_count, records);

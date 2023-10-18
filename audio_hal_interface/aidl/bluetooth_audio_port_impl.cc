@@ -50,7 +50,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 #include "bluetooth_audio_port_impl.h"
 
-#include "common/stop_watch_legacy.h"
+#include "stop_watch_legacy.h"
 
 namespace bluetooth {
 namespace audio {
@@ -172,8 +172,7 @@ ndk::ScopedAStatus BluetoothAudioPortImpl::updateSinkMetadata(
 
 ndk::ScopedAStatus BluetoothAudioPortImpl::setLatencyMode(
     LatencyMode latency_mode) {
-  bool is_low_latency = latency_mode == LatencyMode::LOW_LATENCY ? true : false;
-  transport_instance_->SetLatencyMode(is_low_latency);
+  //bool is_low_latency = latency_mode == LatencyMode::LOW_LATENCY ? true : false;
   return ndk::ScopedAStatus::ok();
 }
 

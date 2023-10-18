@@ -1,12 +1,12 @@
 soong_config_module_type_import {
-    from: "device/qcom/qssi/Android.bp",
+    from: "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/Android.bp",
     module_types: [
-         "bredr_vs_btadva_cc_defaults",
-         "aosp_vs_qva_cc_defaults",
+         "bluetooth_ext_bredr_vs_btadva_cc_defaults",
+         "bluetooth_ext_aosp_vs_qva_cc_defaults",
     ],
 }
 
-aosp_vs_qva_cc_defaults {
+bluetooth_ext_aosp_vs_qva_cc_defaults {
      name: "qva_btif_cc_defaults",
      soong_config_variables: {
          aosp_or_qva: {
@@ -19,18 +19,13 @@ aosp_vs_qva_cc_defaults {
     }
 }
 
-bredr_vs_btadva_cc_defaults {
+bluetooth_ext_bredr_vs_btadva_cc_defaults {
     name: "btadva_btif_cc-default",
 
     soong_config_variables: {
         bredr_or_btadva: {
            btadva: {
-              include_dirs: [
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/system/bt/btif/include",
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/system/bt",
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/system/bt/bta/include",
-                 "vendor/qcom/proprietary/commonsys/bt/bt_adv_audio/vhal/include",
-              ],
+              header_libs: ["bt_adv_audio_all_inc", "bt_adv_audio_vhal_inc",],
               cflags: [
                  "-DADV_AUDIO_FEATURE=1",
               ],
@@ -42,35 +37,8 @@ bredr_vs_btadva_cc_defaults {
 // Common variables
 // ========================================================
 btifCommonIncludes = [
-    "vendor/qcom/opensource/commonsys/system/bt",
-    "vendor/qcom/opensource/commonsys/system/bt/bta/include",
-    "vendor/qcom/opensource/commonsys/system/bt/bta/ag",
-    "vendor/qcom/opensource/commonsys/system/bt/bta/sys",
-    "vendor/qcom/opensource/commonsys/system/bt/bta/ag",
-    "vendor/qcom/opensource/commonsys/system/bt/bta/dm",
-    "vendor/qcom/opensource/commonsys/system/bt/btcore/include",
-    "vendor/qcom/opensource/commonsys/system/bt/device/include",
-    "vendor/qcom/opensource/commonsys/system/bt/internal_include",
-    "vendor/qcom/opensource/commonsys/system/bt/stack/include",
-    "vendor/qcom/opensource/commonsys/system/bt/stack/l2cap",
-    "vendor/qcom/opensource/commonsys/system/bt/stack/a2dp",
-    "vendor/qcom/opensource/commonsys/system/bt/stack/btm",
-    "vendor/qcom/opensource/commonsys/system/bt/stack/avdt",
-    "vendor/qcom/opensource/commonsys/system/bt/udrv/include",
-    "vendor/qcom/opensource/commonsys/system/bt/btif/include",
-    "vendor/qcom/opensource/commonsys/system/bt/btif/co",
-    "vendor/qcom/opensource/commonsys/system/bt/hci/include",
-    "vendor/qcom/opensource/commonsys/system/bt/vnd/include",
-    "vendor/qcom/opensource/commonsys/system/bt/bta/direction_finder",
     "packages/modules/Bluetooth/system/embdrv/sbc/encoder/include",
     "packages/modules/Bluetooth/system/embdrv/sbc/decoder/include",
-    "vendor/qcom/opensource/commonsys/system/bt/utils/include",
-    "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/btif/include",
-    "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext",
-    "vendor/qcom/opensource/commonsys/bluetooth_ext/system_bt_ext/bta/include",
-    "vendor/qcom/opensource/commonsys/bluetooth_ext/vhal/include",
-    "vendor/qcom/opensource/commonsys-intf/bluetooth/include",
-    "packages/modules/Bluetooth/system/include",
 ]
 
 cc_library_static{
@@ -167,6 +135,8 @@ cc_library_shared {
         "src/btif_ss_stub_interface.cc",
         "src/btif_ss_logger.cc",
     ],
+    //header_libs: [],
+
     shared_libs: [
         "libaaudio",
         "libcutils",
@@ -186,11 +156,12 @@ cc_library_shared {
         "libutils",
 //        "libdl",
         "libcrypto",
-		"libprotobuf-cpp-lite",
-
+        "libprotobuf-cpp-lite",
+        "libbinder_ndk",
     ],
     whole_static_libs: [
         "libbtif_ext",
+        "libbt-audio-hal-interface-qti",
         "libc++fs",
         "libosi_qti",
         "libbtdevice_ext",
@@ -201,13 +172,15 @@ cc_library_shared {
     header_libs: [
         "libmedia_headers",
         "libmediametrics_headers",
+		"opensource_btext_vhal_inc",
+		"opensource_commonsys_system_bt_all_inc",
+		"opensource_commonsys_intf_bluetooth_inc",
+		"opensource_commonsys_bt_ext_all_inc",
     ],
     cflags: [
         "-Wno-unused-function",
         "-DBUILDCFG",
         //"-DSS_STUB_ENABLED",
-        // "-DADV_MODULE_SS_LOGS_ENABLED",
-        //"-DSCAN_MODULE_SS_LOGS_ENABLED",
         "-Wno-unused-parameter",
         "-Wno-unused-variable",
         "-Wno-unused-function",

@@ -177,7 +177,7 @@ using namespace bluetooth::synergy::SynergyProto;
 /* handsfree profile - client */
 extern bthf_client_interface_t* btif_hf_client_get_interface();
 /* advanced audio profile */
-//extern btav_source_interface_t* btif_av_get_src_interface();
+extern btav_source_interface_t* btif_av_get_src_interface();
 //extern btav_sink_interface_t* btif_av_get_sink_interface();
 /*rfc l2cap*/
 extern btsock_interface_t* btif_sock_get_interface();
@@ -469,15 +469,6 @@ static int enable () {
     _bt_enable.set_bd_addr(ToRawString(bd_addr).c_str());
     _bt_enable.SerializeToString(&protoMsg);
     proto_encode = PROTO_ENC_DEC;
-    std::string prop;
-    prop.append("false ");
-    letobd(addr);
-    bytes_to_string(addr, bdstr);
-    prop.append(bdstr);
-    if (property_set(PERSIST_BDADDR_PROPERTY, prop.c_str()) < 0) {
-      ALOGE("%s: Failed to set random BDA in prop %s", __func__,
-        PERSIST_BDADDR_PROPERTY);
-    }
   }
   ALOGI("%s: protoMsg length is %d", __func__, protoMsg.length());
   //adding length
@@ -1222,7 +1213,7 @@ static const void* get_profile_interface(const char* profile_id) {
     return NULL;//btif_pan_get_interface();
 
   if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_ID))
-    return NULL;//btif_av_get_src_interface();
+    return btif_av_get_src_interface();
 
   if (is_profile(profile_id, BT_PROFILE_ADVANCED_AUDIO_SINK_ID))
     return NULL;//btif_av_get_sink_interface();
@@ -1752,6 +1743,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
         ss_adapter_state_changed_callback adapterStateChangedCb;
         adapterStateChangedCb.ParseFromString(resBufferString);
         char property[PROPERTY_VALUE_MAX];
+        char addr_property[PROPERTY_VALUE_MAX];
         bt_property_t prop;
         bt_bdname_t bd_name;
         if(adapterStateChangedCb.has_state()) {
@@ -1761,6 +1753,22 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
             ALOGI("parseRxData btStateSingleStack is :: %d",btStateSingleStack);
             switch((int)btStateSingleStack) {
                 case BT_ENABLE_STATUS_SUCCESS:
+                    if (property_get(PERSIST_BDADDR_PROPERTY, addr_property, NULL)) {
+                      ALOGD(" %s : Got addr_property %s ", __func__, addr_property);
+                      char addr_prop[kStringLength + 1];
+                      bool isWrite;
+                      split_address(addr_property, &isWrite, addr_prop);
+                      if (isWrite) {
+                        ALOGD(" %s :Adapter State received for first boot", __func__);
+                        std::string prop;
+                        prop.append("false ");
+                        prop.append(addr_prop);
+                        if (property_set(PERSIST_BDADDR_PROPERTY, prop.c_str()) < 0) {
+                          ALOGE("%s: Failed to set random BDA in prop %s", __func__,
+                              PERSIST_BDADDR_PROPERTY);
+                        }
+                      }
+                    }
                     property_get(PERSIST_BDNAME_PROPERTY, property, NULL);
                     property[strlen(property)] = '\0';
                     return_status = BT_STATE_ON;
@@ -2238,10 +2246,26 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       }
       uint32_t hci_reason;
       if(aclStateChangedCb.has_hci_reason()) {
-        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_hci_reason");
+        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_hci_reason")uint32_t;
         hci_reason = aclStateChangedCb.hci_reason();
         ALOGI("BT_DM_ACL_STATE_CHANGE_CB: hci_reason : %d", hci_reason);
       }
+      uint32_t link_type;
+      if(aclStateChangedCb.has_transport_link_type()) {
+        link_type = aclStateChangedCb.transport_link_type();
+        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: transport_link_type : %d", link_type);
+      }
+      bt_conn_direction_t direction;
+      if(aclStateChangedCb.has_direction()) {
+        direction = (bt_conn_direction_t)aclStateChangedCb.direction();
+        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: direction : %d", direction);
+      }
+      uint16_t acl_handle;
+      if(aclStateChangedCb.has_acl_handle()) {
+        acl_handle = aclStateChangedCb.acl_handle();
+        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: acl_handle : %d", acl_handle);
+      }
+
       if(aclStateChangedCb.has_state()) {
             ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_state");
             bt_acl_state_t acl_state;
@@ -2249,9 +2273,8 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
             ALOGI("BT_DM_ACL_STATE_CHANGE_CB: state : %d", acl_state);
             uint32_t hci_reason;
             hci_reason = aclStateChangedCb.hci_reason();
-            ALOGI("BT_DM_ACL_STATE_CHANGE_CB: Pairing: status: %d bdaddr: %s, acl_state: %d, hci_reason: %d", status, bd_addr->ToString().c_str(), acl_state, hci_reason);
-    	    ALOGI("BT_DM_ACL_STATE_CHANGE_CB: Pairing: status: %d bdaddr: %s, acl_state: %d, hci_reason: %d", status, bd_addr->ToString().c_str(), acl_state, hci_reason);
-            HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS, bd_addr, acl_state, BT_TRANSPORT_BR_EDR, uint8_t(hci_reason), bt_conn_direction_t::BT_CONN_DIRECTION_UNKNOWN, 0);
+            ALOGI("BT_DM_ACL_STATE_CHANGE_CB: Pairing: status: %d bdaddr: %s, acl_state: %d, hci_reason: %d, link_type: %d, direction: %d, acl_handle: %d ", status, bd_addr->ToString().c_str(), acl_state, hci_reason, link_type, direction, acl_handle);
+            HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS, bd_addr, acl_state, link_type, uint8_t(hci_reason), direction, acl_handle);
         }
 
         else {

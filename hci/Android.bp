@@ -28,16 +28,7 @@ cc_library_static {
     local_include_dirs: [
         "include",
     ],
-    include_dirs: [
-        "vendor/qcom/opensource/commonsys/system/bt",
-        "vendor/qcom/opensource/commonsys/system/bt/internal_include",
-        "vendor/qcom/opensource/commonsys/system/bt/btcore/include",
-        "vendor/qcom/opensource/commonsys/system/bt/stack/include",
-        "vendor/qcom/opensource/commonsys/system/bt/utils/include",
-        "vendor/qcom/opensource/commonsys/system/bt/bta/include",
-        "vendor/qcom/opensource/commonsys/system/bt/device/include",
-        "vendor/qcom/opensource/commonsys-intf/bluetooth/include",
-    ],
+    header_libs: ["vendor_system_bt_hci_headers"],
 }
 
 // HCI unit tests for target
@@ -49,16 +40,7 @@ cc_test {
     local_include_dirs: [
         "include",
     ],
-    include_dirs: [
-        "vendor/qcom/opensource/commonsys/system/bt",
-        "vendor/qcom/opensource/commonsys/system/bt/internal_include",
-        "vendor/qcom/opensource/commonsys/system/bt/btcore/include",
-        "vendor/qcom/opensource/commonsys/system/bt/osi/test",
-        "vendor/qcom/opensource/commonsys/system/bt/stack/include",
-        "vendor/qcom/opensource/commonsys/system/bt/utils/include",
-        "vendor/qcom/opensource/commonsys/system/bt/device/include",
-        "vendor/qcom/opensource/commonsys-intf/bluetooth/include",
-    ],
+    header_libs: ["vendor_system_bt_hci_headers"],
     srcs: [
         "test/packet_fragmenter_test.cc",
     ],
@@ -76,4 +58,17 @@ cc_test {
         "libbtcore_qti",
         "libbt-protos_qti",
     ],
+}
+
+cc_library_headers {
+    name: "vendor_system_bt_hci_headers",
+    vendor_available: true,
+    header_libs: [
+		"opensource_commonsys_intf_bluetooth_inc",
+		"opensource_commonsys_system_bt_all_inc",
+    ],
+	export_header_lib_headers: [
+		"opensource_commonsys_intf_bluetooth_inc",
+		"opensource_commonsys_system_bt_all_inc",
+	],
 }

@@ -221,8 +221,7 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
 }
 
 BluetoothAudioSinkClientInterface::BluetoothAudioSinkClientInterface(
-    IBluetoothSinkTransportInstance* sink,
-    thread_t* message_loop)
+    IBluetoothSinkTransportInstance* sink)
     : BluetoothAudioClientInterface{sink}, sink_(sink) {
   LOG(INFO) << __func__ << ": AIDL";
   FetchAudioProvider();
@@ -325,10 +324,10 @@ bool BluetoothAudioClientInterface::UpdateAudioConfig(
     return false;
   }
 
-  if (is_leaudio_offload_audio_config) {
-    const LeAudioConfiguration *leAudioConfig =
-	     (&audio_config.get<AudioConfiguration::leAudioConfig>());
-  }
+//  if (is_leaudio_offload_audio_config) {
+//    const LeAudioConfiguration *leAudioConfig =
+//	     (&audio_config.get<AudioConfiguration::leAudioConfig>());
+//  }
 
   if (is_leaudio_offload_broadcast_audio_config) {
     const LeAudioBroadcastConfiguration *leBroadcastAudioConfig = &audio_config.get<AudioConfiguration::leAudioBroadcastConfig>();

@@ -39,6 +39,8 @@
 #include "btif_util.h"
 #include "osi/include/thread.h"
 
+#define BTSOCK_FLAG_L2CAP (1 << 6)
+
 using bluetooth::Uuid;
 
 static bt_status_t btsock_listen(btsock_type_t type, const char* service_name,
@@ -212,6 +214,7 @@ static bt_status_t btsock_connect(const RawAddress* bd_addr, btsock_type_t type,
       break;
 
     case BTSOCK_L2CAP:
+      flags = BTSOCK_FLAG_L2CAP;
       status = btsock_rfc_connect(bd_addr, uuid, channel, sock_fd, flags, app_uid, BTSOCK_L2CAP);
       break;
 
