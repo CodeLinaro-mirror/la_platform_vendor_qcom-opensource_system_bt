@@ -18,7 +18,7 @@
 /******************************************************************************
 *  Changes from Qualcomm Innovation Center are provided under the following license:
 *
-* Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted (subject to the limitations in the
@@ -1525,7 +1525,11 @@ bool BtifAvStateMachine::StateIdle::ProcessEvent(uint32_t event, void* p_data) {
       if (peer_.BtaHandle() != kBtaHandleUnknown) {
         BTA_AvClose(peer_.BtaHandle());
         if (peer_.IsSource()) {
-          BTA_AvCloseRc(peer_.BtaHandle());
+          uint8_t peer_handle =
+              btif_rc_get_connected_peer_handle(peer_.PeerAddress());
+          if (peer_handle != BTRC_HANDLE_NONE) {
+            BTA_AvCloseRc(peer_handle);
+          }
         }
       }
       // Re-enter Idle so the peer can be deleted
@@ -1898,6 +1902,16 @@ bool BtifAvStateMachine::StateOpening::ProcessEvent(uint32_t event,
 
     case BTIF_AV_DISCONNECT_REQ_EVT:
       BTA_AvClose(peer_.BtaHandle());
+      // In case, only incoming AVRCP connection is established, and A2DP
+      // connection is forbidden in upper layer, close AVRCP connection
+      // as well.
+      if (peer_.IsSource()) {
+        uint8_t peer_handle =
+            btif_rc_get_connected_peer_handle(peer_.PeerAddress());
+        if (peer_handle != BTRC_HANDLE_NONE) {
+          BTA_AvCloseRc(peer_handle);
+        }
+      }
       btif_report_connection_state(peer_.PeerAddress(),
                                    BTAV_CONNECTION_STATE_DISCONNECTED);
       peer_.StateMachine().TransitionTo(BtifAvStateMachine::kStateIdle);
@@ -2039,7 +2053,11 @@ bool BtifAvStateMachine::StateOpened::ProcessEvent(uint32_t event,
     case BTIF_AV_DISCONNECT_REQ_EVT:
       BTA_AvClose(peer_.BtaHandle());
       if (peer_.IsSource()) {
-        BTA_AvCloseRc(peer_.BtaHandle());
+        uint8_t peer_handle =
+            btif_rc_get_connected_peer_handle(peer_.PeerAddress());
+        if (peer_handle != BTRC_HANDLE_NONE) {
+          BTA_AvCloseRc(peer_handle);
+        }
       }
 
       // Inform the application that we are disconnecting
@@ -2226,7 +2244,11 @@ bool BtifAvStateMachine::StateStarted::ProcessEvent(uint32_t event,
       // Request AVDTP to close
       BTA_AvClose(peer_.BtaHandle());
       if (peer_.IsSource()) {
-        BTA_AvCloseRc(peer_.BtaHandle());
+        uint8_t peer_handle =
+            btif_rc_get_connected_peer_handle(peer_.PeerAddress());
+        if (peer_handle != BTRC_HANDLE_NONE) {
+          BTA_AvCloseRc(peer_handle);
+        }
       }
 
       // Inform the application that we are disconnecting
