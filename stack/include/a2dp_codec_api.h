@@ -20,7 +20,7 @@
 
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -727,6 +727,15 @@ bool A2DP_Get_Aptx_AdaptiveR2_1_Supported();
 bool A2DP_Get_Aptx_AdaptiveR2_2_Supported();
 
 bool A2DP_IsCodecEnabledInOffload(btav_a2dp_codec_index_t codec_index);
+
+// Check if given codec is supported or not.
+// Retruns true on supported, otherwise false.
+bool A2DP_GetCodecSupported(btav_a2dp_codec_index_t codec_index);
+
+// Get the location of codec.
+// Retruns location of codec.
+btav_a2dp_codec_location_t A2DP_GetCodecLocation(btav_a2dp_codec_index_t codec_index);
+
 // Decodes and displays A2DP codec info when using |LOG_DEBUG|.
 // |p_codec_info| is a pointer to the codec_info to decode and display.
 // Returns true if the codec information is valid, otherwise false.

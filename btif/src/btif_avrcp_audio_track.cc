@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 //#define LOG_NDEBUG 0
 #define LOG_TAG "bt_btif_avrcp_audio_track"
 
@@ -25,6 +31,7 @@
 
 #include "bt_target.h"
 #include "osi/include/log.h"
+#include "stack/include/a2dp_constants.h"
 
 using namespace android;
 
@@ -70,6 +77,9 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
 
 #if (DUMP_PCM_DATA == TRUE)
   outputPcmSampleFile = fopen(outputFilename, "ab");
+  if (!outputPcmSampleFile) {
+    LOG_ERROR("%s: Create file %s failed:%s", __func__, outputFilename, strerror(errno));
+  }
 #endif
   return (void*)trackHolder;
 }

@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /**
  * Implements an API to be used by A2DP to do streaming of music over a media
  * stream. This API provides mechanism to create and control playback of the
@@ -25,6 +31,8 @@
  * TODO: Once the AudioManager provides support for patching audio sources with
  * volume control we should deprecate this file.
  */
+
+#include "btif_av.h"
 
 /**
  * Creates an audio track object and returns a void handle. Use this handle to

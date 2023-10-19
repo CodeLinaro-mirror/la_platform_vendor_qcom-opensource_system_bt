@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 //
 // Vendor Specific A2DP Codecs Support
 //
@@ -75,6 +81,12 @@ bool A2DP_IsVendorSinkCodecSupported(const uint8_t* p_codec_info);
 // Returns true if the vendor-specific A2DP Source codec for a peer Source
 // device is supported, otherwise false.
 bool A2DP_IsVendorPeerSourceCodecSupported(const uint8_t* p_codec_info);
+
+// Gets index of vendor-specific A2DP Source codec
+// |p_codec_info| contains information about the codec capabilities of the
+// peer device.
+// Returns index of vendor-specific A2DP Source codec for a peer Source device
+btav_a2dp_codec_index_t A2DP_VendorGetSourceCodecIndex(const uint8_t* p_codec_info);
 
 // Builds a vendor-specific A2DP preferred Sink capability from a vendor
 // Source capability.
@@ -188,6 +200,11 @@ bool A2DP_VendorAdjustCodec(uint8_t* p_codec_info);
 // otherwise |BTAV_A2DP_CODEC_INDEX_MAX|.
 btav_a2dp_codec_index_t A2DP_VendorSourceCodecIndex(
     const uint8_t* p_codec_info);
+
+// Gets the A2DP vendor Sink codec index for a given |p_codec_info|.
+// Returns the corresponding |btav_a2dp_codec_index_t| on success,
+// otherwise |BTAV_A2DP_CODEC_INDEX_MAX|.
+btav_a2dp_codec_index_t A2DP_VendorSinkCodecIndex(const uint8_t* p_codec_info);
 
 // Gets the A2DP vendor codec name for a given |codec_index|.
 const char* A2DP_VendorCodecIndexStr(btav_a2dp_codec_index_t codec_index);
