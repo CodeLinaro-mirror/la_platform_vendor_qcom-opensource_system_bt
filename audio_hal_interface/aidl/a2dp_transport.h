@@ -51,7 +51,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 #pragma once
 
 #include "client_interface.h"
-#include "../audio_a2dp_hw/include/audio_a2dp_hw.h"
+#include "audio_a2dp_hw/include/audio_a2dp_hw.h"
 #include "btif_ahim.h"
 #include "btif_av.h"
 
