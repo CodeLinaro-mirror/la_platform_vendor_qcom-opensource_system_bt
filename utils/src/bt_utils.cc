@@ -63,7 +63,7 @@ static std::mutex gIdxLock;
 static int g_TaskIdx;
 static int g_TaskIDs[TASK_HIGH_MAX];
 
-#if A2DP_SINK_PTS_TEST
+#if A2DP_PTS_TEST
 static tA2DP_STATUS errr_code;
 #endif
 
@@ -163,20 +163,21 @@ void raise_priority_a2dp(tHIGH_PRIORITY_TASK high_task) {
   }
 }
 
-#if A2DP_SINK_PTS_TEST
+#if A2DP_PTS_TEST
 void set_a2dp_error_code(tA2DP_STATUS err) {
   errr_code = err;
 }
 
 tA2DP_STATUS get_a2dp_error_code() {
-  return errr_code;
+  // PTS tool limitation. PTS sends an ambiguous configuration in one test case.
+  // so introduce an property to send a specific value to PTS as it required.
+  int err = osi_property_get_int32(PROPERTY_A2DP_AVP_ERROR_CODE, 0);
+  return (err) ? err : errr_code;
 }
 
-bool is_pts_a2dpsink() {
-    // PTS: A2DP/SNK/AVP: Set property "bluetooth.pts.a2dpsinkavp" to "true"
-    char pts_mode[PROPERTY_VALUE_MAX];
-    osi_property_get("bluetooth.pts.a2dpsinkavp", pts_mode, "false");
-    return strncmp(pts_mode, "true", PROPERTY_VALUE_MAX) == 0;
+bool is_pts_a2dpavp() {
+  // return true if "bluetooth.pts.a2dpavp" is true
+  return osi_property_get_bool(PROPERTY_A2DP_AVP, false);
 }
 #endif
 

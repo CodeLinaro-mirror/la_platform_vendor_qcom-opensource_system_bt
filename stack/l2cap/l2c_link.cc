@@ -16,6 +16,14 @@
  *
  ******************************************************************************/
 
+/***********************************************************************************
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ **********************************************************************************/
+
 /******************************************************************************
  *
  *  this file contains the functions relating to link management. A "link"
@@ -428,6 +436,15 @@ bool l2c_link_hci_disc_comp(uint16_t handle, tHCI_REASON reason) {
         if (l2cu_create_conn_le(p_lcb))
           lcb_is_free = false; /* still using this lcb */
       } else {
+        /* If the reason of HCI disconnection completion is caused by remote
+           user, do not initiate restarting ACL request even there is pending
+           ccb in the queue */
+        if (reason == HCI_ERR_PEER_USER ||
+            reason == HCI_ERR_CONN_CAUSE_LOCAL_HOST) {
+          l2cu_release_lcb(p_lcb);
+          p_lcb->p_pending_ccb = NULL;
+          return status;
+        }
         l2cu_create_conn_br_edr(p_lcb);
         lcb_is_free = false; /* still using this lcb */
       }

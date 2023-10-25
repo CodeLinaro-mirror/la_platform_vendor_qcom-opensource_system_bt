@@ -18,6 +18,15 @@
 
 /******************************************************************************
  *
+ *  Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ ******************************************************************************/
+
+/******************************************************************************
+ *
  *  This is the private interface file for the BTA device manager.
  *
  ******************************************************************************/
@@ -353,7 +362,11 @@ typedef struct {
 #endif
 
 #endif
-
+  /* Core spec v5.0, 7.3.61
+     Power level used to transmit the FHS and EIR data packets
+     Size: 1 Octet (signed integer). Range: -70 ≤ N ≤ 20
+   */
+  int8_t inq_tx_power;
   tBTA_DM_ENCRYPT_CBACK* p_encrypt_cback;
   alarm_t* switch_delay_timer;
 

@@ -56,7 +56,7 @@ typedef struct {
 
 /* SBC Source codec capabilities */
 static const tA2DP_SBC_CIE a2dp_sbc_source_caps = {
-    (A2DP_SBC_IE_SAMP_FREQ_44),                         /* samp_freq */
+    (A2DP_SBC_IE_SAMP_FREQ_48),                         /* samp_freq */
     (A2DP_SBC_IE_CH_MD_MONO | A2DP_SBC_IE_CH_MD_JOINT), /* ch_mode */
     (A2DP_SBC_IE_BLOCKS_16 | A2DP_SBC_IE_BLOCKS_12 | A2DP_SBC_IE_BLOCKS_8 |
      A2DP_SBC_IE_BLOCKS_4),            /* block_len */
@@ -322,7 +322,7 @@ bool A2DP_IsPeerSinkCodecValidSbc(const uint8_t* p_codec_info) {
 bool A2DP_IsSinkCodecSupportedSbc(const uint8_t* p_codec_info) {
   tA2DP_STATUS err_code = A2DP_CodecInfoMatchesCapabilitySbc(&a2dp_sbc_sink_caps,
                                                              p_codec_info, false);
-#if A2DP_SINK_PTS_TEST
+#if A2DP_PTS_TEST
   set_a2dp_error_code(err_code);
 #endif
   return (err_code == A2DP_SUCCESS);
@@ -1208,16 +1208,16 @@ bool A2dpCodecConfigSbcBase::setCodecConfig(const uint8_t* p_peer_codec_info,
       break;
     }
 
+    // No user preference - use the best match
+    if (select_best_sample_rate(samp_freq, &result_config_cie,
+                                &codec_config_)) {
+      break;
+    }
+
     // No user preference - try the default config
     if (select_best_sample_rate(
             a2dp_sbc_default_config.samp_freq & peer_info_cie.samp_freq,
             &result_config_cie, &codec_config_)) {
-      break;
-    }
-
-    // No user preference - use the best match
-    if (select_best_sample_rate(samp_freq, &result_config_cie,
-                                &codec_config_)) {
       break;
     }
   } while (false);

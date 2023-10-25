@@ -62,7 +62,7 @@ static const bool delayReportSupported = isDelayReportSupported();
 
 #if (A2DP_SINK_DELAY_REPORT == TRUE)
 void* BtifAvrcpLegacyAudioTrackCreate(int trackFreq, int bits_per_sample,
-                                int channelType) {
+                                int channelType, audio_output_flags_t audio_flag) {
   audio_format_t format;
   switch (bits_per_sample) {
     default:
@@ -76,12 +76,12 @@ void* BtifAvrcpLegacyAudioTrackCreate(int trackFreq, int bits_per_sample,
       format = AUDIO_FORMAT_PCM_32_BIT;
       break;
   }
-  LOG_VERBOSE("%s Track.cpp: btCreateTrack freq %d format 0x%x channel %d ",
-              __func__, trackFreq, format, channelType);
 
+  LOG_DEBUG("%s Track.cpp: btCreateTrack freq %d format 0x%x channel %d audio_flag %d",
+            __func__, trackFreq, format, channelType, audio_flag);
   sp<android::AudioTrack> track = new android::AudioTrack(
       AUDIO_STREAM_MUSIC, trackFreq, format, (audio_channel_mask_t)channelType,
-      (size_t)0 /*frameCount*/, (audio_output_flags_t)AUDIO_OUTPUT_FLAG_DEEP_BUFFER,
+      (size_t)0 /*frameCount*/, (audio_output_flags_t)audio_flag,
       NULL /*callback_t*/, NULL /*void* user*/, 0 /*notificationFrames*/,
       AUDIO_SESSION_ALLOCATE, android::AudioTrack::TRANSFER_SYNC);
   CHECK(track != NULL);
@@ -106,10 +106,11 @@ void* BtifAvrcpLegacyAudioTrackCreate(int trackFreq, int bits_per_sample,
 #endif
 
 void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
-                                int channelCount, int channelType) {
+                                int channelCount, int channelType,
+                                audio_output_flags_t audio_flag) {
 #if (A2DP_SINK_DELAY_REPORT == TRUE)
   if (delayReportSupported == true) {
-    return BtifAvrcpLegacyAudioTrackCreate(trackFreq, bitsPerSample, channelType);
+    return BtifAvrcpLegacyAudioTrackCreate(trackFreq, bitsPerSample, channelType, audio_flag);
   }
 #endif
 

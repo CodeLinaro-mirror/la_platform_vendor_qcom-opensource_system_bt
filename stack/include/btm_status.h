@@ -13,6 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
+ */
 
 #pragma once
 
@@ -44,7 +51,8 @@ enum : uint8_t {
   BTM_MODE4_LEVEL4_NOT_SUPPORTED, /* 20 Secure Connections Only Mode can't be
                                      supported */
   BTM_DEV_RESTRICT_LISTED,        /* 21 The device is restrict listed */
-  BTM_MAX_STATUS_VALUE = BTM_DEV_RESTRICT_LISTED,
+  BTM_COLLISION_ACTION,           /* 22 operation is conflicted with peer device */
+  BTM_MAX_STATUS_VALUE = BTM_COLLISION_ACTION,
   BTM_UNDEFINED = 0xFF,
 };
 typedef uint8_t tBTM_STATUS;
@@ -86,6 +94,7 @@ inline std::string btm_status_text(const tBTM_STATUS& status) {
     CASE_RETURN_TEXT(BTM_REPEATED_ATTEMPTS);
     CASE_RETURN_TEXT(BTM_MODE4_LEVEL4_NOT_SUPPORTED);
     CASE_RETURN_TEXT(BTM_DEV_RESTRICT_LISTED);
+    CASE_RETURN_TEXT(BTM_COLLISION_ACTION);
     default:
       return std::string("UNKNOWN[%hhu]", status);
   }
