@@ -20,7 +20,7 @@
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  *
  ******************************************************************************/
@@ -3066,7 +3066,8 @@ static void bta_dm_set_eir(char* local_name) {
     for (custom_uuid_idx = 0; custom_uuid_idx < BTA_EIR_SERVER_NUM_CUSTOM_UUID;
          custom_uuid_idx++) {
       const Uuid& curr = bta_dm_cb.bta_custom_uuid[custom_uuid_idx].custom_uuid;
-      if (curr.GetShortestRepresentationSize() == Uuid::kNumBytes32) {
+      if ((curr.GetShortestRepresentationSize() == Uuid::kNumBytes32) &&
+          (curr != Uuid::kEmpty)) {
         if (num_uuid < max_num_uuid) {
           UINT32_TO_STREAM(p, curr.As32Bit());
           num_uuid++;
@@ -3095,7 +3096,8 @@ static void bta_dm_set_eir(char* local_name) {
     for (custom_uuid_idx = 0; custom_uuid_idx < BTA_EIR_SERVER_NUM_CUSTOM_UUID;
          custom_uuid_idx++) {
       const Uuid& curr = bta_dm_cb.bta_custom_uuid[custom_uuid_idx].custom_uuid;
-      if (curr.GetShortestRepresentationSize() == Uuid::kNumBytes128) {
+      if ((curr.GetShortestRepresentationSize() == Uuid::kNumBytes128) &&
+          (curr != Uuid::kEmpty)) {
         if (num_uuid < max_num_uuid) {
           ARRAY16_TO_STREAM(p, curr.To128BitBE().data());
           num_uuid++;
