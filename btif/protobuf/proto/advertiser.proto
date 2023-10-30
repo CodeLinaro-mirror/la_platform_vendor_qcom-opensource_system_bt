@@ -28,17 +28,17 @@ message ss_periodic_advertising_parameters {
 
 message ss_ble_start_advertising_set {
   required ss_advertising_parameters parameters = 1;
-  repeated uint32 advertiseData = 2;
-  repeated uint32 scanResponse = 3;
+  optional bytes advertiseData = 2;
+  optional bytes scanResponse = 3;
   required ss_periodic_advertising_parameters periodicparameters = 4;
-  repeated uint32 periodicData = 5;
+  optional bytes periodicData = 5;
   required uint32 duration = 6;
   required uint32 maxextadvevents = 7;
   required sint32 regId = 8;
-  repeated uint32 advertiseDataEnc = 9;
-  repeated uint32 scanResponseEnc = 10;
-  repeated uint32 periodicDataEnc = 11;
-  repeated uint32 enckeyvalue = 12;
+  optional bytes advertiseDataEnc = 9;
+  optional bytes scanResponseEnc = 10;
+  optional bytes periodicDataEnc = 11;
+  optional bytes enckeyvalue = 12;
 }
 
 message ss_ble_get_own_address {
@@ -59,8 +59,8 @@ message ss_ble_enable_advertising_set {
 message ss_ble_set_data {
   required uint32 advertiserId = 1;
   required bool scanrespdata = 2;
-  repeated uint32 advdata = 3;
-  repeated uint32 advdataenc = 4;
+  optional bytes advdata = 3;
+  optional bytes advdataenc = 4;
 }
 
 message ss_ble_set_advertising_parameters {
@@ -75,8 +75,8 @@ message ss_ble_set_periodic_advertising_parameters {
 
 message ss_ble_set_periodic_advertising_data {
   required uint32 advertiserId = 1;
-  repeated uint32 data = 2;
-  repeated uint32 perioadvdataenc = 3;
+  optional bytes data = 2;
+  optional bytes perioadvdataenc = 3;
 }
 
 message ss_ble_set_periodic_advertising_enable {
