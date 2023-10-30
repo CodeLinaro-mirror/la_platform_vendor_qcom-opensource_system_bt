@@ -679,7 +679,7 @@ static void bta_av_proc_stream_evt(uint8_t handle, const RawAddress* bd_addr,
       p_msg->hdr.event = bta_av_stream_evt_fail[event];
     }
 
-    if (event == AVDT_CLOSE_IND_EVT) {
+    if (event == AVDT_CLOSE_IND_EVT && p_scb->state == BTA_AV_OPEN_SST) {
       p_scb->strm_close_in_progress = true;
     }
 

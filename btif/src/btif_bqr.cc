@@ -85,7 +85,7 @@ bool BqrVseSubEvt::ParseBqrEvt(uint8_t length, uint8_t* p_param_buf) {
     STREAM_TO_UINT8(packet_types_, p_param_buf);
     STREAM_TO_UINT16(connection_handle_, p_param_buf);
     STREAM_TO_UINT8(connection_role_, p_param_buf);
-    STREAM_TO_UINT8(tx_power_level_, p_param_buf);
+    STREAM_TO_INT8(tx_power_level_, p_param_buf);
     STREAM_TO_INT8(rssi_, p_param_buf);
     STREAM_TO_UINT8(snr_, p_param_buf);
     STREAM_TO_UINT8(unused_afh_channel_count_, p_param_buf);
@@ -114,7 +114,7 @@ std::string BqrVseSubEvt::ToString() const {
                    << "Transport: " << loghex(BTM_GetTransport(connection_handle_)) << " ,"
                    << PacketTypeToString(packet_types_) << ", "
                    << ((connection_role_ == 0) ? "Master" : "Slave ")
-                   << ", PwLv: " << loghex(tx_power_level_)
+                   << ", PwLv: " << std::to_string(tx_power_level_)
                    << ", RSSI: " << std::to_string(rssi_)
                    << ", SNR: " << std::to_string(snr_) << ", UnusedCh: "
                    << std::to_string(unused_afh_channel_count_)
