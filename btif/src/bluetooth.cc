@@ -116,6 +116,7 @@ using bluetooth::atp_locator::AtpLocatorInterface;
 #include "protobuf/proto/dm.pb.h"
 #include "btif/protobuf/include/proto_message_ids.h"
 #include <fcntl.h>
+#include<ctime>
 
 
 #define UEVENT_MSG_LEN 1024
@@ -123,6 +124,7 @@ using bluetooth::atp_locator::AtpLocatorInterface;
 #define BTSS_EVENT_STRING_LEN 11
 #define MAX_BUFF_SIZE (64)
 #define BTSS_INIT_TIMEOUT  (6000)
+#define BT_SSR_DUMP_TIMEOUT  (20000)
 
 /*******************************************************************************
  *  Static variables
@@ -141,6 +143,7 @@ BluetoothSSInterface *btSSInterface;
 BluetoothSSStubInterface *btSSStubInterface;
 #endif
 static uid_set_t* uid_set = NULL;
+alarm_t *ssr_dump_timeout;
 
 
 // Check for a legacy address stored as a property.
@@ -380,7 +383,6 @@ exit:
   return valid_bda;
 }
 
-
 static int init(bt_callbacks_t* callbacks, bool start_restricted,
                 bool is_common_criteria_mode, int config_compare_result,
                 const char** init_flags, bool is_atv,
@@ -419,6 +421,7 @@ static int init(bt_callbacks_t* callbacks, bool start_restricted,
 
   read_btss_state();
   init_btss_event_handler();
+  ssr_dump_timeout = alarm_new("ssr_dump_alarm");
   pthread_mutex_init(&btssEventLock, NULL);
   pthread_cond_init(&btssEventCond, NULL);
   pthread_mutex_init(&BluetoothSSInterface :: ss_cback_mutex, NULL);
@@ -551,6 +554,54 @@ static void cleanup(void) {
     btSSInterface->deregisterCallbacks(BT_PROFILE_DM_ID);
   }
   btif_ss_interface_cleanup();
+}
+
+static void ssrDumpTimeout(void* data) {
+  ALOGI("%s()", __func__);
+  if (btSSInterface != NULL) {
+    btSSInterface->deregisterCallbacks(BT_PROFILE_DM_ID);
+  }
+  btif_ss_interface_cleanup();
+  ALOGE(" %s : Triggering SSR ", __func__);
+  do_in_jni_thread(
+    FROM_HERE, Bind(
+      []() {
+        HAL_CBACK(bt_vendor_callbacks, ssr_vendor_cb);
+      }));
+}
+
+static void ss_ssr_event_received () {
+  ALOGE("%s()", __func__);
+  static char path[SS_SOC_DUMP_PATH_BUF_SIZE + 1] = {'\0'};
+  char property[PROPERTY_VALUE_MAX] = { 0 };
+  time_t cur_t = time(NULL);
+  struct tm *cur_tm = localtime(&cur_t);
+  if (cur_tm) {
+    snprintf(path, SS_SOC_DUMP_PATH_BUF_SIZE, SS_SSR_DUMP_PATH, cur_tm->tm_year + 1900, cur_tm->tm_mon+ 1, cur_tm->tm_mday, cur_tm->tm_hour, cur_tm->tm_min, cur_tm->tm_sec);
+  } else {
+	ALOGE("cur_time is NULL");
+	snprintf(path, SS_SOC_DUMP_PATH_BUF_SIZE, SS_SSR_DUMP_PATH_WITHOUT_TIME);
+  }
+  ssr_fptr = fopen(path,"w+");
+  alarm_set_on_mloop(ssr_dump_timeout, BT_SSR_DUMP_TIMEOUT, ssrDumpTimeout, NULL);
+  if (ssr_fptr == NULL) {
+    ALOGE("SSR Dump file create failed. Path :: %s", path);
+  } else {
+    ALOGD("SSR Dump file created in Path :: %s", path);
+  }
+  if (property_get(PERSIST_BDADDR_PROPERTY, property, NULL)) {
+    ALOGD(" %s : Got property %s ", __func__, property);
+    char addr_prop[kStringLength + 1];
+    bool isWrite;
+    split_address(property, &isWrite, addr_prop);
+    std::string prop;
+    prop.append("true ");
+    prop.append(addr_prop);
+    if (property_set(PERSIST_BDADDR_PROPERTY, prop.c_str()) < 0) {
+      ALOGE("%s: Failed to set random BDA in prop %s", __func__,
+        PERSIST_BDADDR_PROPERTY);
+    }
+  }
 }
 
 bool is_restricted_mode() { return restricted_mode; }
@@ -1603,30 +1654,10 @@ void btss_uevent_handler() {
               break;
             case SS_SLATE_BEFORE_POWER_DOWN:
               {
-                char property[PROPERTY_VALUE_MAX] = { 0 };
                 ALOGE(" %s : event received -SLATE_BEFORE_POWER_DOWN", __func__);
                 btssPrevousState = btssCurrentState;
                 btssCurrentState = SS_SLATE_DOWN;
-                if (property_get(PERSIST_BDADDR_PROPERTY, property, NULL)) {
-                  ALOGD(" %s : Got property %s ", __func__, property);
-                  char addr_prop[kStringLength + 1];
-                  bool isWrite;
-                  split_address(property, &isWrite, addr_prop);
-                  std::string prop;
-                  prop.append("true ");
-                  prop.append(addr_prop);
-                  if (property_set(PERSIST_BDADDR_PROPERTY, prop.c_str()) < 0) {
-                    ALOGE("%s: Failed to set random BDA in prop %s", __func__,
-                      PERSIST_BDADDR_PROPERTY);
-                  }
-                }
-                btif_ss_interface_cleanup();
-                ALOGE(" %s : Triggering SSR ", __func__);
-                do_in_jni_thread(
-                  FROM_HERE, Bind(
-                    []() {
-                      HAL_CBACK(bt_vendor_callbacks, ssr_vendor_cb);
-                    }));
+                ALOGD("Waiting for BT SSR Dump to be completed to trigger SSR..!!!");
               }
               break;
             case SS_SLATE_AFTER_POWER_DOWN:
@@ -1729,6 +1760,13 @@ void btif_ss_interface_cleanup(){
     btSSInterface->cleanup();
     btSSInterface = NULL;
   }
+  if (alarm_is_scheduled(ssr_dump_timeout)) {
+    ALOGI("%s(): ssr_dump_timeout() scheduled", __func__);
+    alarm_cancel(ssr_dump_timeout);
+    alarm_free(ssr_dump_timeout);
+  } else {
+    ALOGI("%s(): ssr_dump_timeout() is not scheduled", __func__);
+  }
 #ifdef SS_STUB_ENABLED
   if(btSSStubInterface == NULL){
     ALOGI("single stack stub interface is already null");
@@ -1742,6 +1780,40 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
   ALOGI("btif_dm_ss_callback :: event is :: %X",event);
   std::string resBufferString;
   tBTIF_SS_Cback* cb_data = (tBTIF_SS_Cback*)p_param;
+  if (event == BT_DM_SSR_CB) {
+    if (total_dump_size == 0) {
+      total_dump_size = cb_data->payload[3] + (cb_data->payload[2]<<8) + (cb_data->payload[1]<<16) + (cb_data->payload[0]<<24);
+      ALOGE("TOTAL SSR DUMP SIZE :: %d",total_dump_size);
+      ss_ssr_event_received();
+    } else {
+      int payload_length = cb_data->num_bytes;
+      ALOGD("Payload length received %d", payload_length);
+      if (ssr_fptr == NULL) {
+        ALOGE("ssr_fptr is NULL");
+      } else {
+        fprintf(ssr_fptr, "%s", (char*)(cb_data->payload));
+      }
+      total_dump_size = total_dump_size - payload_length;
+      if (total_dump_size <= 0) {
+        ALOGE("SSR DUMP COMPLETED. Triggering Unlock");
+        if (alarm_is_scheduled(ssr_dump_timeout)) {
+          ALOGD("%s(): ssr_dump_timeout() scheduled", __func__);
+          alarm_cancel(ssr_dump_timeout);
+        }
+        fclose(ssr_fptr);
+        if (btSSInterface != NULL) {
+          btSSInterface->deregisterCallbacks(BT_PROFILE_DM_ID);
+        }
+        btif_ss_interface_cleanup();
+        ALOGE(" %s : Triggering SSR ", __func__);
+        HAL_CBACK(bt_vendor_callbacks, ssr_vendor_cb);
+      } else {
+        ALOGE("REMAINING SSR DUMP SIZE :: %d",total_dump_size);
+      }
+    }
+    free (cb_data->payload);
+    return;
+  }
   uint16_t MSG_ID = cb_data->payload[0] + (((int)(cb_data->payload[1]))<<8);
   uint16_t length = cb_data->payload[2] + (((int)(cb_data->payload[3]))<<8);
   uint16_t proto_ec = 0;
@@ -2403,12 +2475,6 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       properties[0].val = &le_features;
       properties[0].type = BT_PROPERTY_LOCAL_LE_FEATURES;
       HAL_CBACK(bt_hal_cbacks, adapter_properties_cb, status, 1, properties);
-      break;
-    }
-    case BT_DM_SSR_CB: {
-      ALOGI("Has BT_DM_SSR_CB");
-      btif_ss_interface_cleanup();
-      HAL_CBACK(bt_vendor_callbacks, ssr_vendor_cb);
       break;
     }
     default : {
