@@ -744,6 +744,10 @@ void BluetoothSSInterface::processRx() {
             ALOGE("Slate response is too short ::  %d",num);
         }else {
             uint16_t MSG_ID = readBuffer[0] + (((int)(readBuffer[1]))<<8);
+            if (MSG_ID == BT_DM_BATCH_MSG) {
+              processBatchMsg(readBuffer);
+              continue;
+            }
             tBTIF_SS_Cback ss_cback;
             memset(&ss_cback, 0, sizeof(tBTIF_SS_Cback));
             ss_cback.payload = (uint8_t *)malloc(num*sizeof(uint8_t)); //This memory should be released from each profile after done with the processing
@@ -1038,4 +1042,32 @@ void BluetoothSSInterface::parseRxData(int msg_id, tBTIF_SS_Cback ss_cback) {
             }
         break;
     }
+}
+void BluetoothSSInterface::processBatchMsg(uint8_t buffer[]) {
+  ALOGD("processBatchMsg");
+  int total_length_processed = MAX_LENGTH_WITH_PROTO_NONE;
+  uint16_t msg_count = buffer[2] + (((int)(buffer[3]))<<8);
+  uint16_t length = buffer[4] + (((int)(buffer[5]))<<8);
+  if (msg_count <= 0) {
+    ALOGD("No messages to process. Count is 0");
+    return;
+  }
+  while (msg_count > 0 && length > 0) {
+    vector<uint8_t> batch_msgs(buffer + total_length_processed, buffer + length + total_length_processed);
+    uint16_t MSG_ID = batch_msgs[0] + (((int)(batch_msgs[1]))<<8);
+    uint16_t payload_length = batch_msgs[2] + (((int)(batch_msgs[3]))<<8);
+    uint16_t msg_length = payload_length + MAX_LENGTH_WITH_PROTO_NONE;
+    tBTIF_SS_Cback ss_cback;
+    memset(&ss_cback, 0, sizeof(tBTIF_SS_Cback));
+    ss_cback.payload = (uint8_t *)malloc(msg_length * sizeof(uint8_t)); //This memory should be released from each profile after done with the processing
+    if (ss_cback.payload == NULL) {
+      ALOGE("%s: payload malloc failed",__func__);
+      continue;
+    }
+    memcpy(ss_cback.payload, batch_msgs.data(), (msg_length * sizeof(uint8_t)) );
+    parseRxData(MSG_ID, ss_cback);
+    msg_count--;
+    length = length - msg_length;
+    total_length_processed = total_length_processed + msg_length;
+  }
 }

@@ -32,6 +32,7 @@
 #define BT_HFAG_EVT_MAX 0x5FFF
 #define BT_AVRCP_CTRL_START 0x6000
 #define BT_AVRCP_CTRL_MAX 0x6FFF
+#define BT_DM_BATCH_MSG 0x7000
 
 enum decode_type {
    PROTO_ENC_DEC,

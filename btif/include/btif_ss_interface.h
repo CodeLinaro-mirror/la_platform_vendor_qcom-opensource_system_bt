@@ -74,6 +74,7 @@ public:
 private:
     BluetoothSSInterface();
     void parseRxData(int msg_id, tBTIF_SS_Cback ssCback);
+    void processBatchMsg(uint8_t buffer[]);
 
     //for ctrl channel
     std::unique_ptr<std::thread> rx_thread;
