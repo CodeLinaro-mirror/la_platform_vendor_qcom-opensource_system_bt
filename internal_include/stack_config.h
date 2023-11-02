@@ -38,6 +38,10 @@ typedef struct {
   bool (*get_pts_le_sec_request_disabled)(void);
   bool (*get_pts_le_fresh_pairing_enabled)(void);
   bool (*get_pts_bredr_secureconnection_host_support_disabled)(void);
+  bool (*get_pts_le_enc_disable)(void);
+  bool (*get_pts_smp_disable_h7_support)(void);
+  int (*get_pts_l2cap_le_insuff_enc_result)(void);
+  int (*get_pts_bredr_invalid_encryption_keysize)(void);
   config_t* (*get_all)(void);
 } stack_config_t;
 
