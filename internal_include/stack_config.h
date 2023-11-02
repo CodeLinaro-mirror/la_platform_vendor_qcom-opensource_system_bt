@@ -37,6 +37,7 @@ typedef struct {
   bool (*get_pts_le_conn_nondisc_adv_enabled)(void);
   bool (*get_pts_le_sec_request_disabled)(void);
   bool (*get_pts_le_fresh_pairing_enabled)(void);
+  int (*get_pts_bredr_auth_req)(void);
   bool (*get_pts_bredr_secureconnection_host_support_disabled)(void);
   bool (*get_pts_le_enc_disable)(void);
   bool (*get_pts_smp_disable_h7_support)(void);
