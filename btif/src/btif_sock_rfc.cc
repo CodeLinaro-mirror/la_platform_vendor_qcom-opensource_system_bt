@@ -46,6 +46,7 @@
 #include "btif_sock_sdp.h"
 #include "btif_sock_thread.h"
 #include "btif_sock_util.h"
+#include "btif_sock_rfc.h"
 #include "btif_uid.h"
 #include "btif_util.h"
 #include "btm_api.h"
@@ -107,40 +108,6 @@ int ss_rfc_data_outgoing_size(int fd, int* size);
 int ss_rfc_data_outgoing(int fd, uint8_t* buf, int size);
 void ss_rfc_data_write_done(int fd, uint64_t length);
 
-typedef struct {
-  int outgoing_congest : 1;
-  int pending_sdp_request : 1;
-  int doing_sdp_request : 1;
-  int server : 1;
-  int connected : 1;
-  int closing : 1;
-} flags_t;
-
-typedef struct {
-  flags_t f;
-  uint32_t id;  // Non-zero indicates a valid (in-use) slot.
-  int security;
-  int scn;  // Server channel number
-  int scn_notified;
-  RawAddress addr;
-  int is_service_uuid_valid;
-  Uuid service_uuid;
-  char service_name[256];
-  int fd;
-  int app_fd;   // Temporary storage for the half of the socketpair that's sent
-                // back to upper layers.
-  int app_uid;  // UID of the app for which this socket was created.
-  int mtu;
-  uint8_t* packet;
-  int sdp_handle;
-  int rfc_handle;
-  int rfc_port_handle;
-  int role;
-  list_t* incoming_queue;
-  int new_srv_fd;
-  bool is_server;
-  int type;
-} rfc_slot_t;
 static list_t* slots_list;
 
 struct PendingData
@@ -162,8 +129,6 @@ static uid_set_t* uid_set = NULL;
 
 static rfc_slot_t* rfcomm_alloc_slot();
 static rfc_slot_t* find_free_slot(void);
-static rfc_slot_t* find_rfc_slot_by_fd(int fd);
-static rfc_slot_t* find_rfc_slot_by_scn(int scn);
 static void cleanup_rfc_slot(rfc_slot_t* rs);
 //static void jv_dm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t id);
 //static uint32_t rfcomm_cback(tBTA_JV_EVT event, tBTA_JV* p_data,
@@ -534,7 +499,7 @@ static rfc_slot_t* find_rfc_slot_by_id(uint32_t id) {
   return NULL;
 }
 
-static rfc_slot_t* find_rfc_slot_by_fd(int fd){
+rfc_slot_t* find_rfc_slot_by_fd(int fd){
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   CHECK(fd != 0);
   if (slots_list == NULL || list_length(slots_list) == 0){
@@ -775,7 +740,7 @@ bt_status_t btsock_rfc_listen(const char* service_name,
       int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
       ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
   } else {
-      gBTSSInterface->postDataChTxMsg(msgStr);
+      gBTSSInterface->postDataChTxMsg(msgStr, slot->fd);
   }
 #else
   gBTSSStubInterface->postTxMsg(msgStr);
@@ -874,7 +839,7 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
       int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
       ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
   } else {
-      gBTSSInterface->postDataChTxMsg(msgStr);
+      gBTSSInterface->postDataChTxMsg(msgStr, slot->fd);
   }
 #else
   gBTSSStubInterface->postTxMsg(msgStr);
@@ -930,7 +895,7 @@ static void free_rfc_slot_scn(rfc_slot_t* slot) {
             int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
             ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
         } else {
-            gBTSSInterface->postDataChTxMsg(msgStr);
+            gBTSSInterface->postDataChTxMsg(msgStr, slot->fd);
         }
       #else
         gBTSSStubInterface->postTxMsg(msgStr);
@@ -1021,7 +986,7 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
             int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
             ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
         } else {
-            gBTSSInterface->postDataChTxMsg(msgStr);
+            gBTSSInterface->postDataChTxMsg(msgStr,slot->fd);
         }
       #else
         gBTSSStubInterface->postTxMsg(msgStr);
@@ -1550,7 +1515,7 @@ void btsock_rfc_signaled(int fd, int type, int flags, uint32_t user_id) {
               int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
               ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
             } else {
-              int result = gBTSSInterface->postDataChTxMsg(msgStr);
+              int result = gBTSSInterface->postDataChTxMsg(msgStr,fd);
               ALOGI("%s: result is :: %d",__func__,result);
             }
           #else
@@ -1734,7 +1699,7 @@ int bta_co_rfc_data_outgoing(uint32_t id, uint8_t* buf, uint16_t size) {
   return true;
 }
 
-static rfc_slot_t* find_rfc_slot_by_scn(int scn)
+rfc_slot_t* find_rfc_slot_by_scn(int scn)
 {
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* scn_match_slot = NULL;
