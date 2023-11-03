@@ -64,7 +64,7 @@ public:
     void encodeStartDiscoveryMsg(std::string& msgStr);
     void encodeCancelDiscoveryMsg(std::string& msgStr);
     void postTxMsg(std::string msgStr);
-    int postDataChTxMsg(std::string msgStr);
+    int postDataChTxMsg(std::string msgStr, int fd);
     int postLeDataChTxMsg(std::string msgStr);
     void registerCallbacks(const char* profile_id, ss_profile_callback profile_cb);
     void deregisterCallbacks(const char* profile_id);
