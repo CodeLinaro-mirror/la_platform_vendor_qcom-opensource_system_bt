@@ -71,6 +71,14 @@ public:
     //api to acquire or release glink wakelock
     static void ssGlinkWakeLockAcquireOrRelease(bool isScanOrInquiry, bool lockRequest);
     void cleanup();
+
+    // Declaration of thread condition variable
+    static pthread_cond_t ss_cback_cond_var;
+    // declaring mutex
+    static pthread_mutex_t ss_cback_mutex;
+
+    void setIsSignalSent(bool signalSent);
+
 private:
     BluetoothSSInterface();
     void parseRxData(int msg_id, tBTIF_SS_Cback ssCback);
@@ -95,6 +103,10 @@ private:
     std::unique_ptr<std::thread> ssr_data_ch_rx_thread;
     void processSsrDataChRx();
     bool running_ssr_data_ch_;
+
+    bool findIfCallbackRegistered(uint16_t msg_id);
+    std::atomic_bool is_signal_sent{false};
+    bool getIsSignalSent();
 protected:
     ~BluetoothSSInterface();
 };
