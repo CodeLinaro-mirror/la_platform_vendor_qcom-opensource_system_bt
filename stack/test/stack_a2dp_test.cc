@@ -16,6 +16,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #include <dlfcn.h>
 
 #include <set>
@@ -28,6 +34,20 @@
 #include "stack/include/a2dp_codec_api.h"
 #include "stack/include/a2dp_sbc.h"
 #include "stack/include/a2dp_vendor.h"
+#include "stack_config.h"
+
+void LogMsg(uint32_t trace_set_mask, const char* fmt_str, ...) {}
+
+const stack_config_t interface = {};
+
+const stack_config_t* stack_config_get_interface(void) { return &interface; }
+
+bool btif_bap_broadcast_is_active() { return false; }
+
+void vnd_LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {}
+
+void bte_main_hci_send(BT_HDR* p_msg, uint16_t event) {}
+
 namespace {
 const uint8_t codec_info_sbc[AVDT_CODEC_SIZE] = {
     6,                   // Length (A2DP_SBC_INFO_LEN)
@@ -175,6 +195,7 @@ static const char* LDAC_ENCODER_LIB_NAME = "libldacBT_enc.so";
 //#if (TWS_ENABLED == TRUE)
 static const char* APTX_TWS_ENCODER_LIB_NAME = "libaptXTWS_encoder.so";
 //#endif
+static const char* APTX_DECODER_LIB_NAME = "libaptX_decoder.so";
 static bool has_shared_library(const char* name) {
   void* lib_handle = dlopen(name, RTLD_NOW);
   if (lib_handle != nullptr) {
@@ -228,6 +249,9 @@ class StackA2dpTest : public ::testing::Test {
           break;
         case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
           supported = true;
+          break;
+        case BTAV_A2DP_CODEC_INDEX_SINK_APTX:
+          supported = has_shared_library(APTX_DECODER_LIB_NAME);
           break;
         case BTAV_A2DP_CODEC_INDEX_MAX:
           // Needed to avoid using "default:" case so we can capture when

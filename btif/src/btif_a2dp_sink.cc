@@ -23,7 +23,7 @@
 
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -32,6 +32,8 @@
 #include <string.h>
 
 #include "bt_common.h"
+#include "a2dp_vendor.h"
+#include "a2dp_vendor_aptx.h"
 #include "btif_a2dp.h"
 #include "btif_ahim.h"
 #include "btif_a2dp_sink.h"
@@ -106,6 +108,8 @@ typedef struct {
   btif_a2dp_sink_focus_state_t rx_focus_state; /* audio focus state */
   void* audio_track;
   const tA2DP_DECODER_INTERFACE* decoder_interface;
+  uint8_t codec_type;
+  btav_a2dp_codec_location_t codec_location;
   uint32_t latency; /* latency of rendering Audio samples at MMAudio */
 } tBTIF_A2DP_SINK_CB;
 
@@ -384,6 +388,11 @@ static void btif_a2dp_sink_audio_handle_start_decoding(void) {
   BtifAvrcpAudioTrackStart(btif_a2dp_sink_cb.audio_track);
 #endif
 
+  if (btif_a2dp_sink_cb.codec_location != BTAV_A2DP_CODEC_LOCATION_SOFTWARE) {
+    APPL_TRACE_EVENT("%s: non-software decoder, return", __func__);
+    return;
+  }
+
   btif_a2dp_sink_cb.decode_alarm = alarm_new_periodic("btif.a2dp_sink_decode");
   if (btif_a2dp_sink_cb.decode_alarm == NULL) {
     LOG_ERROR(LOG_TAG, "%s: unable to allocate decode alarm", __func__);
@@ -501,6 +510,9 @@ static void btif_a2dp_sink_decoder_update_event(
   btif_a2dp_sink_cb.decode_alarm = NULL;
   btif_a2dp_sink_audio_rx_flush_event();
 
+  APPL_TRACE_DEBUG("%s: codec type name: %s", __func__, A2DP_CodecName(p_buf->codec_info));
+  uint8_t codec_type = A2DP_GetCodecType(p_buf->codec_info);
+
   int sample_rate = A2DP_GetTrackSampleRate(p_buf->codec_info);
   if (sample_rate == -1) {
     APPL_TRACE_ERROR("%s: cannot get the track frequency", __func__);
@@ -524,24 +536,29 @@ static void btif_a2dp_sink_decoder_update_event(
     APPL_TRACE_ERROR("%s: cannot get the Sink channel type", __func__);
     return;
   }
+  btif_a2dp_sink_cb.codec_type = codec_type;
   btif_a2dp_sink_cb.sample_rate = sample_rate;
   btif_a2dp_sink_cb.channel_count = channel_count;
   btif_a2dp_sink_cb.bits_per_sample = bits_per_sample;
 
+  btav_a2dp_codec_index_t codec_index = A2DP_SourceCodecIndex(p_buf->codec_info);
+  btif_a2dp_sink_cb.codec_location = A2DP_GetCodecLocation(codec_index);
   btif_a2dp_sink_cb.rx_flush = false;
   APPL_TRACE_DEBUG("%s: Reset to Sink role", __func__);
 
-  btif_a2dp_sink_cb.decoder_interface = bta_av_co_get_decoder_interface(p_buf->codec_info);
-  if (btif_a2dp_sink_cb.decoder_interface == NULL) {
-    APPL_TRACE_ERROR("%s: Cannot stream audio: no source decoder interface",
-                     __func__);
-    return;
-  }
+  if (btif_a2dp_sink_cb.codec_location == BTAV_A2DP_CODEC_LOCATION_SOFTWARE ) {
+    btif_a2dp_sink_cb.decoder_interface = bta_av_co_get_decoder_interface(p_buf->codec_info);
+    if (btif_a2dp_sink_cb.decoder_interface == NULL) {
+      APPL_TRACE_ERROR("%s: Cannot stream audio: no source decoder interface",
+                       __func__);
+      return;
+    }
 
-  if (!btif_a2dp_sink_cb.decoder_interface->decoder_init(
-          btif_a2dp_sink_on_decode_complete)) {
-    APPL_TRACE_ERROR("%s: A2dpSink: Failed to initialize decoder", __func__);
-    return;
+    if (!btif_a2dp_sink_cb.decoder_interface->decoder_init(
+            btif_a2dp_sink_on_decode_complete)) {
+      APPL_TRACE_ERROR("%s: A2dpSink: Failed to initialize decoder", __func__);
+      return;
+    }
   }
   APPL_TRACE_DEBUG("%s: A2dpSink: create audio track", __func__);
   btif_a2dp_sink_cb.audio_track =
@@ -562,6 +579,21 @@ static void btif_a2dp_sink_decoder_update_event(
 uint32_t get_audiotrack_latency() {
   APPL_TRACE_DEBUG("%s: latency = %d", __func__,btif_a2dp_sink_cb.latency);
   return btif_a2dp_sink_cb.latency;
+}
+
+void btif_handle_incoming_encoded_data() {
+  BTIF_TRACE_DEBUG("%s", __func__);
+  uint8_t *start_frame_addr;
+  BT_HDR *p_msg = NULL;
+
+  p_msg = (BT_HDR *)fixed_queue_dequeue(btif_a2dp_sink_cb.rx_audio_queue);
+  // Write encoded media packet to AudioTrack
+  if (p_msg != NULL && btif_a2dp_sink_cb.audio_track != NULL) {
+    start_frame_addr = (p_msg->data + p_msg->offset);
+    BtifAvrcpAudioTrackWriteData(
+        btif_a2dp_sink_cb.audio_track, (void*)start_frame_addr,
+        p_msg->len);
+  }
 }
 
 uint8_t btif_a2dp_sink_enqueue_buf(BT_HDR* p_pkt) {
@@ -596,6 +628,11 @@ uint8_t btif_a2dp_sink_enqueue_buf(BT_HDR* p_pkt) {
       MAX_A2DP_DELAYED_START_FRAME_COUNT) {
     BTIF_TRACE_DEBUG("%s: Initiate decoding", __func__);
     btif_a2dp_sink_audio_handle_start_decoding();
+
+    // Playing encoded data directly for non-software decoders
+    if (btif_a2dp_sink_cb.codec_location == BTAV_A2DP_CODEC_LOCATION_ADSP) {
+      btif_handle_incoming_encoded_data();
+    }
   }
 
   return fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue);
