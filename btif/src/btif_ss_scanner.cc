@@ -607,6 +607,11 @@ bool ScannerSingleStackProto::BatchscanReadReports(int client_if,
 void btif_scanner_ss_callback(uint16_t event, char* p_param) {
   std::string resBufferString;
   resBufferString = Rxdatapacket(event, p_param);
+  ALOGI("Sending signal on Conditional variable from SS Scanner");
+  mScanSSInterface->setIsSignalSent(true);
+  pthread_mutex_lock(&BluetoothSSInterface::ss_cback_mutex);
+  pthread_cond_signal(&BluetoothSSInterface::ss_cback_cond_var);
+  pthread_mutex_unlock(&BluetoothSSInterface::ss_cback_mutex);
   switch (event) {
     case BT_LE_SCAN_REGISTER_SCANNER_EVENT: {
       ALOGD("BT_LE_SCAN_REGISTER_SCANNER_EVENT");
