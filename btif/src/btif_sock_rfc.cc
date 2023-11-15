@@ -771,7 +771,12 @@ bt_status_t btsock_rfc_listen(const char* service_name,
   msgStr.append(protoMsg);
   ALOGI("%s: BT_RFCOMM_CREATE_SOCKET length: %d",__func__, msgStr.length());
 #ifndef SS_STUB_ENABLED
-  gBTSSInterface->postTxMsg(msgStr);
+  if (type == BTSOCK_L2CAP || type ==  BTSOCK_L2CAP_LE) {
+      int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
+      ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
+  } else {
+      gBTSSInterface->postDataChTxMsg(msgStr);
+  }
 #else
   gBTSSStubInterface->postTxMsg(msgStr);
 #endif
@@ -865,7 +870,12 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
   msgStr.append(protoMsg);
   ALOGI("%s: BT_RFCOMM_CONNECT_SOCKET length: %d",__func__, msgStr.length());
 #ifndef SS_STUB_ENABLED
-  gBTSSInterface->postTxMsg(msgStr);
+  if (type == BTSOCK_L2CAP || type ==  BTSOCK_L2CAP_LE) {
+      int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
+      ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
+  } else {
+      gBTSSInterface->postDataChTxMsg(msgStr);
+  }
 #else
   gBTSSStubInterface->postTxMsg(msgStr);
 #endif
@@ -916,7 +926,12 @@ static void free_rfc_slot_scn(rfc_slot_t* slot) {
         msgStr.append(protoMsg);
         ALOGI("%s: BT_RFCOMM_CLOSE_SERVER length: %d and data: %s",__func__, msgStr.length(),msgStr.c_str());
       #ifndef SS_STUB_ENABLED
-        gBTSSInterface->postTxMsg(msgStr);
+        if (slot->type == BTSOCK_L2CAP || slot->type ==  BTSOCK_L2CAP_LE) {
+            int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
+            ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
+        } else {
+            gBTSSInterface->postDataChTxMsg(msgStr);
+        }
       #else
         gBTSSStubInterface->postTxMsg(msgStr);
       #endif
@@ -1002,7 +1017,12 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
         msgStr.append(protoMsg);
         ALOGI("%s: BT_RFCOMM_DISCONNECT_SOCKET length: %d and data: %s",__func__, msgStr.length(),msgStr.c_str());
       #ifndef SS_STUB_ENABLED
-        gBTSSInterface->postTxMsg(msgStr);
+        if (slot->type == BTSOCK_L2CAP || slot->type ==  BTSOCK_L2CAP_LE) {
+            int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
+            ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
+        } else {
+            gBTSSInterface->postDataChTxMsg(msgStr);
+        }
       #else
         gBTSSStubInterface->postTxMsg(msgStr);
       #endif
@@ -1043,7 +1063,7 @@ static bool send_app_connect_signal(int fd, const RawAddress* addr, int channel,
   cs.channel = channel;
   cs.status = status;
   cs.max_rx_packet_size = tx_mtu;
-  cs.max_tx_packet_size = 0;  // not used for RFCOMM
+  cs.max_tx_packet_size = tx_mtu;  // used for LE COC
   if (send_fd == INVALID_FD)
     return sock_send_all(fd, (const uint8_t*)&cs, sizeof(cs)) == sizeof(cs);
 
@@ -1087,6 +1107,7 @@ static void ss_cli_rfc_connect (int fd, const RawAddress* addr, int channel,
   rfc_slot_t* client_rs = find_rfc_slot_by_scn(channel);
   if (!client_rs) return;
   client_rs->mtu = mtu;
+  client_rs->rfc_handle = channel;
   /*if (status != PORT_OPEN_SUCCUESS) {
     LOG_ERROR(LOG_TAG, "%s slate returned failure Status : %d",__func__, status);
     return;

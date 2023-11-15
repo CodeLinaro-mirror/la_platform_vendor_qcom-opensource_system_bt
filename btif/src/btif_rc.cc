@@ -101,8 +101,6 @@ BluetoothSSInterface *avrcBTSSInterface = NULL;
 
 static btrc_callbacks_t* bt_rc_callbacks = NULL;
 
-static int btif_max_rc_clients = 1;
-
 int absolute_volume_informed_to_app = 0;
 
 /*****************************************************************************
@@ -162,7 +160,7 @@ static bt_status_t init(btrc_callbacks_t* callbacks, int max_connections) {
   std::string str_msg;
   bt_rc_callbacks = callbacks;
   ss_avrcp_tg_init _ss_avrcp_tg_init;
-  _ss_avrcp_tg_init.set_max_connections(btif_max_rc_clients);
+  _ss_avrcp_tg_init.set_max_connections(max_connections);
   _ss_avrcp_tg_init.set_supported_features(BTRC_FEAT_METADATA | BTRC_FEAT_ABSOLUTE_VOLUME);
   _ss_avrcp_tg_init.set_supported_events(BTRC_EVT_PLAY_STATUS_CHANGED |
                                          BTRC_EVT_TRACK_CHANGE | BTRC_EVT_AVAL_PLAYER_CHANGE |
