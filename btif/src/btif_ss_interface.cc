@@ -5,6 +5,7 @@
 
 #define LOG_TAG "btif_ss_interface"
 #include "btif_ss_interface.h"
+#include "btif_sock_rfc.h"
 #include "protobuf/proto/dm.pb.h"
 #include "protobuf/include/proto_message_ids.h"
 #include "osi/include/log.h"
@@ -504,7 +505,7 @@ void processTx(std::string msgStr) {
   ALOGD("%s: CTRL_CH: write payload bytes_written=%d", __func__, (int)bytes_written);
 }
 
-int processDataTx(std::string msgStr) {
+int processDataTx(std::string msgStr, int fd) {
   uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
   uint16_t MSG_ID = tmpBuf [0] + (((int)(tmpBuf [1]))<<8);
   ALOGD("%s: msg id : %d and length %d", __func__, MSG_ID, msgStr.length());
@@ -521,6 +522,11 @@ int processDataTx(std::string msgStr) {
         alarm_set_on_mloop(tx_thread_timeout, GLINK_IDLE_TIMEOUT, txThreadTimeout, NULL);
         pthread_mutex_unlock(&tx_threads_mutex);
         BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false, true);
+        rfc_slot_t* slot = find_rfc_slot_by_fd(fd);
+        if(!slot){
+          ALOGI("%s slot already cleaned up", __func__);
+          return result;
+        }
         result = gSSTransportData->write(tmpBuf,msgStr.length(),&bytes_written);
         if(result == 0){
           ALOGI("%s: Glink write success",__func__);
@@ -607,12 +613,12 @@ void BluetoothSSInterface::postTxMsg(std::string msgStr) {
   do_in_ctrl_tx_thread(base::Bind(processTx, msgStr));
 }
 
-int BluetoothSSInterface::postDataChTxMsg(std::string msgStr) {
+int BluetoothSSInterface::postDataChTxMsg(std::string msgStr, int fd) {
   uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
   uint16_t MSG_ID = tmpBuf [0] + (((int)(tmpBuf [1]))<<8);
   ALOGI("postDataChTxMsg with msg id : %d and length %d", MSG_ID, msgStr.length());
   //do_in_data_tx_thread(base::Bind(processDataTx, msgStr));
-  return processDataTx(msgStr);
+  return processDataTx(msgStr,fd);
 }
 
 int BluetoothSSInterface::postLeDataChTxMsg(std::string msgStr) {
