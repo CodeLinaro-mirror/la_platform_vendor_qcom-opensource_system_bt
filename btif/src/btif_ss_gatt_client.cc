@@ -556,7 +556,9 @@ void process_gatt_client_connected_event(std::string resBufferString) {
     }
 
     if (bd_address != nullptr) {
-        connectedDevices.insert(std::pair<RawAddress, uint32_t>(*bd_address, client_if));
+        if(status == 0) {
+            connectedDevices.insert(std::pair<RawAddress, uint32_t>(*bd_address, client_if));
+        }
         HAL_CBACK(bt_gatt_callbacks, client->open_cb, conn_id, status,
                 client_if, *bd_address);
     } else {
