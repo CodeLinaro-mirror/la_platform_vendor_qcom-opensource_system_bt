@@ -171,6 +171,18 @@ int btss_event;
 
 using namespace bluetooth::synergy::SynergyProto;
 
+typedef struct {
+  RawAddress bd_addr;
+  bt_device_type_t dev_type;
+  bt_bdname_t bd_name;
+  int8_t rssi;
+  uint32_t cod;
+  bool in_use;
+  uint32_t time_of_resp;
+} tInqDB_Addr;
+
+tInqDB_Addr btif_inq_db[40];
+
 /*******************************************************************************
  *  Externs
  ******************************************************************************/
@@ -242,6 +254,10 @@ void LogMsg(uint32_t trace_set_mask, const char* fmt_str, ...) {
   vprintf(fmt_str, args);
   va_end(args);
 }
+
+tInqDB_Addr* find_inq_db(const RawAddress& p_bda);
+tInqDB_Addr* inq_db_new(const RawAddress& p_bda, bt_bdname_t name, bt_device_type_t devtype, int8_t rssi, uint32_t cod );
+void inq_db_clear();
 
 
 /*****************************************************************************
@@ -1751,7 +1767,11 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
     case BT_DM_ADAPTER_STATE_CHANGE_CB: {
         ALOGI("Has BT_DM_ADAPTER_STATE_CHANGE_CB");
         ss_adapter_state_changed_callback adapterStateChangedCb;
-        adapterStateChangedCb.ParseFromString(resBufferString);
+        bool ret = adapterStateChangedCb.ParseFromString(resBufferString);
+        if(!ret) {
+          ALOGE("Unable to parse string");
+          break;
+        }
         char property[PROPERTY_VALUE_MAX];
         char addr_property[PROPERTY_VALUE_MAX];
         bt_property_t prop;
@@ -1797,10 +1817,12 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
 
                 case BT_ENABLE_STATUS_FAILURE:
                     return_status = BT_STATE_OFF;
+                    inq_db_clear();
                 break;
 
                 default:
                     return_status = BT_STATE_OFF;
+                    inq_db_clear();
                 break;
             }
             HAL_CBACK(bt_hal_cbacks, adapter_state_changed_cb, return_status);
@@ -1810,7 +1832,11 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
     case BT_DM_ADAPTER_PROPERTIES_CB: {
       ALOGI("Has BT_DM_ADAPTER_PROPERTIES_CB");
       ss_adapter_properties_callback adapterPropCb;
-      adapterPropCb.ParseFromString(resBufferString);
+      bool ret = adapterPropCb.ParseFromString(resBufferString);
+      if(!ret) {
+          ALOGE("Unable to parse string");
+          break;
+      }
       bt_status_t status = BT_STATUS_FAIL;
       if (adapterPropCb.has_status()) {
         ALOGI("Has BT_DM_ADAPTER_PROPERTIES_CB: has_status");
@@ -1925,7 +1951,11 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
     case BT_DM_REMOTE_DEVICE_PROPERTIES_CB: {
       ALOGI(" BT_DM_REMOTE_DEVICE_PROPERTIES_CB");
       ss_remote_device_properties_callback remotePropCb;
-      remotePropCb.ParseFromString(resBufferString);
+      bool ret = remotePropCb.ParseFromString(resBufferString);
+      if(!ret) {
+          ALOGE("Unable to parse string");
+          break;
+      }
       bt_status_t status = BT_STATUS_FAIL;
       bt_bdname_t bd_name;
       uint32_t cod;
@@ -2028,6 +2058,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       bool ret = discoveryStateChanged.ParseFromString(resBufferString);
       if(!ret) {
         ALOGE("Unable to parse string");
+        break;
       }
       if(discoveryStateChanged.has_state()) {
         bt_discovery_state_t discovery_state;
@@ -2058,79 +2089,108 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       bt_bdname_t bd_name;
       int8_t rssi;
       uint32_t cod;
+      bool is_new = false;
+      bool update = false;
       bool ret = deviceFoundCb.ParseFromString(resBufferString);
       if(!ret) {
         ALOGE("Unable to parse string");
+        break;
       }
       if(deviceFoundCb.has_num_properties()) {
-        int numProp = deviceFoundCb.num_properties();
-        ALOGI("BT_DM_DEVICE_FOUND_CB: has_num_properties");
-        ALOGI("numProp is :: %d",numProp);
-        bt_property_t properties[numProp];
-        memset(properties, 0, sizeof(properties));
-        for(int i=0; i<numProp; i++) {
-          ss_bt_property_t prop = deviceFoundCb.properties(i);
-          ss_bt_property_type_t prop_type = prop.type();
-          ALOGI("prop_type is :: %d",prop_type);
-          if(prop_type == BT_PROPERTY_BDADDR) {
-            uint8_t* addr = (uint8_t*)prop.val().c_str();
-            std::string bt_address = ((RawAddress*)addr)->ToString();
-            ALOGI("address is :: %s",bt_address.c_str());
-            RawAddress::FromString(bt_address.c_str(), bd_addr);
-            properties[i].len = RawAddress::kLength;
-            properties[i].val = (void*)bd_addr.address;
-            properties[i].type = BT_PROPERTY_BDADDR;
-          } else if(prop_type == BT_PROPERTY_BDNAME) {
-            std::string bt_name = prop.val();
-            std::string bt_name_substr = bt_name.substr(0, prop.len());
-            ALOGI("Name is : %s",bt_name_substr.c_str());
-             strlcpy((char*)bd_name.name, (char*)bt_name.c_str(), sizeof(bt_bdname_t));
-            properties[i].len = prop.len();
-            properties[i].val = &bd_name;
-            properties[i].type = BT_PROPERTY_BDNAME;
-          } else if(prop_type == BT_PROPERTY_UUIDS) {
-            properties[i].len = prop.len();
-            properties[i].type = BT_PROPERTY_UUIDS;
-          } else if(prop_type == SS_BT_PROPERTY_ADAPTER_SCAN_MODE) {
-            properties[i].len = prop.len();
-            properties[i].type = BT_PROPERTY_ADAPTER_SCAN_MODE;
-          } else if(prop_type == SS_BT_PROPERTY_ADAPTER_BONDED_DEVICES) {
-            properties[i].len = prop.len();
-            properties[i].type = BT_PROPERTY_ADAPTER_BONDED_DEVICES;
-          } else if(prop_type == SS_BT_PROPERTY_ADAPTER_DISCOVERY_TIMEOUT) {
-            properties[i].len = prop.len();
-            properties[i].type = BT_PROPERTY_ADAPTER_DISCOVERABLE_TIMEOUT;
-          } else if(prop_type == BT_PROPERTY_TYPE_OF_DEVICE) {
-            std::string dev_val = prop.val();
-            dev_type = (bt_device_type_t)(std::stoi(dev_val));
-            ALOGI("Dev Type : %d", dev_type);
-            properties[i].len = sizeof(bt_device_type_t);
-            properties[i].val = (void*)&dev_type;
-            properties[i].type = BT_PROPERTY_TYPE_OF_DEVICE;
-          } else if(prop_type == BT_PROPERTY_REMOTE_RSSI) {
-            std::string rssi_val = prop.val();
-            rssi = (int8_t)(std::stoi(rssi_val));
-            ALOGI("RSSI value : %d", rssi);
-            properties[i].len = sizeof(int8_t);
-            properties[i].val = (void*)&rssi;
-            properties[i].type = BT_PROPERTY_REMOTE_RSSI;
-          } else if(prop_type == BT_PROPERTY_CLASS_OF_DEVICE) {
-            std::string cod_val = prop.val();
-            cod  = (uint32_t)(std::stoi(cod_val));
-            ALOGI("COD value : 0x%06x", cod);
-            properties[i].len = sizeof(uint32_t);
-            properties[i].val = (void*)&cod;
-            properties[i].type = BT_PROPERTY_CLASS_OF_DEVICE;
-          }
+      int numProp = deviceFoundCb.num_properties();
+      ALOGI("BT_DM_DEVICE_FOUND_CB: has_num_properties");
+      ALOGI("numProp is :: %d",numProp);
+      bt_property_t properties[numProp];
+      memset(properties, 0, sizeof(properties));
+      for(int i=0; i<numProp; i++) {
+        ss_bt_property_t prop = deviceFoundCb.properties(i);
+        ss_bt_property_type_t prop_type = prop.type();
+        ALOGI("prop_type is :: %d",prop_type);
+        if(prop_type == BT_PROPERTY_BDADDR) {
+          uint8_t* addr = (uint8_t*)prop.val().c_str();
+          std::string bt_address = ((RawAddress*)addr)->ToString();
+          ALOGI("address is :: %s",bt_address.c_str());
+          RawAddress::FromString(bt_address.c_str(), bd_addr);
+          properties[i].len = RawAddress::kLength;
+          properties[i].val = (void*)bd_addr.address;
+          properties[i].type = BT_PROPERTY_BDADDR;
+        } else if(prop_type == BT_PROPERTY_BDNAME) {
+          std::string bt_name = prop.val();
+          std::string bt_name_substr = bt_name.substr(0, prop.len());
+          ALOGI("Name is : %s",bt_name_substr.c_str());
+          strlcpy((char*)bd_name.name, (char*)bt_name.c_str(), sizeof(bt_bdname_t));
+          properties[i].len = prop.len();
+          properties[i].val = &bd_name;
+          properties[i].type = BT_PROPERTY_BDNAME;
+        } else if(prop_type == BT_PROPERTY_UUIDS) {
+          properties[i].len = prop.len();
+          properties[i].type = BT_PROPERTY_UUIDS;
+        } else if(prop_type == SS_BT_PROPERTY_ADAPTER_SCAN_MODE) {
+          properties[i].len = prop.len();
+          properties[i].type = BT_PROPERTY_ADAPTER_SCAN_MODE;
+        } else if(prop_type == SS_BT_PROPERTY_ADAPTER_BONDED_DEVICES) {
+          properties[i].len = prop.len();
+          properties[i].type = BT_PROPERTY_ADAPTER_BONDED_DEVICES;
+        } else if(prop_type == SS_BT_PROPERTY_ADAPTER_DISCOVERY_TIMEOUT) {
+          properties[i].len = prop.len();
+          properties[i].type = BT_PROPERTY_ADAPTER_DISCOVERABLE_TIMEOUT;
+        } else if(prop_type == BT_PROPERTY_TYPE_OF_DEVICE) {
+          std::string dev_val = prop.val();
+          dev_type = (bt_device_type_t)(std::stoi(dev_val));
+          ALOGI("Dev Type : %d", dev_type);
+          properties[i].len = sizeof(bt_device_type_t);
+          properties[i].val = (void*)&dev_type;
+          properties[i].type = BT_PROPERTY_TYPE_OF_DEVICE;
+        } else if(prop_type == BT_PROPERTY_REMOTE_RSSI) {
+          std::string rssi_val = prop.val();
+          rssi = (int8_t)(std::stoi(rssi_val));
+          ALOGI("RSSI value : %d", rssi);
+          properties[i].len = sizeof(int8_t);
+          properties[i].val = (void*)&rssi;
+          properties[i].type = BT_PROPERTY_REMOTE_RSSI;
+        } else if(prop_type == BT_PROPERTY_CLASS_OF_DEVICE) {
+          std::string cod_val = prop.val();
+          cod  = (uint32_t)(std::stoi(cod_val));
+          ALOGI("COD value : 0x%06x", cod);
+          properties[i].len = sizeof(uint32_t);
+          properties[i].val = (void*)&cod;
+          properties[i].type = BT_PROPERTY_CLASS_OF_DEVICE;
         }
-        HAL_CBACK(bt_hal_cbacks, device_found_cb, numProp, properties);
       }
-      break;
+      tInqDB_Addr* inq_dev_found = find_inq_db(bd_addr);
+      if (inq_dev_found == NULL) {
+        if(strlen((char*)bd_name.name) == 0){
+          ALOGI("bdname is empty. Do not create record");
+          break;
+        }
+        ALOGI("inq_dev is not found. Create new device entry");
+        tInqDB_Addr* new_inq_dev = inq_db_new(bd_addr,bd_name,dev_type,rssi,cod);
+        if(new_inq_dev != NULL){
+          is_new = true;
+        }
+      }else{
+        ALOGI("inq_dev is found, check if rssi parameter update :: rssi %d inq_dev_found->rssi %d",rssi,inq_dev_found->rssi);
+        if(rssi != inq_dev_found->rssi){
+          update = true;
+        }
+      }
+      if(is_new || update){
+          if(strlen((char*)bd_name.name) != 0){
+            ALOGI("send HAL CBACK ::: %s and %s",bd_addr.ToString().c_str(),bd_name.name);
+            HAL_CBACK(bt_hal_cbacks, device_found_cb, numProp, properties);
+          }
+      }
+      }
+    break;
     }
     case BT_DM_PIN_REQUEST_CB: {
       ALOGI("Has BT_DM_PIN_REQUEST_CB");
       ss_pin_request_callback pinRequestCb;
-      pinRequestCb.ParseFromString(resBufferString);
+      bool ret = pinRequestCb.ParseFromString(resBufferString);
+      if(!ret) {
+          ALOGE("Unable to parse string");
+          break;
+      }
       RawAddress *bd_addr;
       if (pinRequestCb.has_remote_bd_addr()) {
         uint8_t* addr = (uint8_t*)pinRequestCb.remote_bd_addr().c_str();
@@ -2165,7 +2225,11 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
     case BT_DM_SSP_REQUEST_CB: {
       ALOGI(" Pairing: BT_DM_SSP_REQUEST_CB");
       ss_ssp_request_callback sspRequestCb;
-      sspRequestCb.ParseFromString(resBufferString);
+      bool ret = sspRequestCb.ParseFromString(resBufferString);
+      if(!ret) {
+          ALOGE("Unable to parse string");
+          break;
+      }
       uint32_t cod, passkey;
       RawAddress *bd_addr;
       if(sspRequestCb.has_remote_bd_addr()){
@@ -2205,7 +2269,11 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       ALOGI("BT_DM_BOND_STATE_CHANGE_CB");
       ss_bond_state_changed_callback bondStateChangedCb;
       ALOGI("BT_DM_BOND_STATE_CHANGE_CB : message str : %s ", resBufferString.c_str());
-      bondStateChangedCb.ParseFromString(resBufferString);
+      bool ret = bondStateChangedCb.ParseFromString(resBufferString);
+      if(!ret) {
+          ALOGE("Unable to parse string");
+          break;
+      }
       bt_status_t status = BT_STATUS_FAIL;
       if (bondStateChangedCb.has_status()) {
         ALOGI("BT_DM_BOND_STATE_CHANGE_CB: parseRxData has_status");
@@ -2240,7 +2308,11 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
     case BT_DM_ACL_STATE_CHANGE_CB: {
       ALOGI("BT_DM_ACL_STATE_CHANGE_CB");
       ss_acl_state_changed_callback aclStateChangedCb;
-      aclStateChangedCb.ParseFromString(resBufferString);
+      bool ret = aclStateChangedCb.ParseFromString(resBufferString);
+      if(!ret) {
+          ALOGE("Unable to parse string");
+          break;
+      }
       bt_status_t status = BT_STATUS_FAIL;
       if (aclStateChangedCb.has_status()) {
         ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_status");
@@ -2296,7 +2368,11 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
     case BT_DM_LE_ADAPTER_PROPERTIES_CB: {
       ALOGI("Has BT_DM_LE_ADAPTER_PROPERTIES_CB");
       ss_bt_local_le_features_callback leAdapterPropCb;
-      leAdapterPropCb.ParseFromString(resBufferString);
+      bool ret = leAdapterPropCb.ParseFromString(resBufferString);
+      if(!ret) {
+          ALOGE("Unable to parse string");
+          break;
+      }
       bt_status_t status = BT_STATUS_SUCCESS;
       bt_local_le_features_t le_features;
       bt_property_t properties[1];
@@ -2338,6 +2414,63 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
     default : {
         ALOGI("btif_dm_ss_callback :: msg id %X :: unknow", MSG_ID);
         break;
+    }
+  }
+}
+
+tInqDB_Addr* find_inq_db(const RawAddress& p_bda) {
+  tInqDB_Addr* p_ent = btif_inq_db;
+  for (int i = 0; i < BTM_INQ_DB_SIZE; i++,p_ent++) {
+    if (p_ent->bd_addr == p_bda){
+      ALOGI("Inq Device Found :: %s",p_bda.ToString().c_str());
+      return p_ent;
+    }
+  }
+  ALOGI("Inq Device Not Found :: %s",p_bda.ToString().c_str());
+  return (NULL);
+}
+
+tInqDB_Addr* inq_db_new(const RawAddress& p_bda, bt_bdname_t name, bt_device_type_t devtype, int8_t rssi, uint32_t cod ) {
+  tInqDB_Addr* p_ent = btif_inq_db;
+  tInqDB_Addr* p_old = btif_inq_db;
+  uint32_t ot = 0xFFFFFFFF;
+  for (int i = 0; i < BTM_INQ_DB_SIZE; i++, p_ent++) {
+    if (!p_ent->in_use) {
+      memset(p_ent, 0, sizeof(tInqDB_Addr));
+      p_ent->bd_addr = p_bda;
+      p_ent->bd_name = name;
+      p_ent->dev_type = devtype;
+      p_ent->rssi = rssi;
+      p_ent->cod = cod;
+      p_ent->in_use = true;
+      p_ent->time_of_resp = time_get_os_boottime_ms();
+      ALOGI("New entry created in Inq DB :: %s at location :: %d",p_bda.ToString().c_str(),i);
+      return p_ent;
+    }
+    if (p_ent->time_of_resp < ot) {
+      p_old = p_ent;
+      ot = p_ent->time_of_resp;
+    }
+  }
+  /* If here, no free entry found. Return the oldest. */
+  memset(p_old, 0, sizeof(tInqDB_Addr));
+  p_old->bd_addr = p_bda;
+  p_old->bd_name = name;
+  p_old->dev_type = devtype;
+  p_old->rssi = rssi;
+  p_old->cod = cod;
+  p_old->in_use = true;
+  p_old->time_of_resp = time_get_os_boottime_ms();
+  ALOGI("updating oldest entry %s",p_bda.ToString().c_str());
+  return p_old;
+}
+
+void inq_db_clear(){
+  ALOGI("inq_db_clear");
+  tInqDB_Addr* p_ent = btif_inq_db;
+  for (int i = 0; i < BTM_INQ_DB_SIZE; i++, p_ent++) {
+    if (p_ent->in_use) {
+      p_ent->in_use = false;
     }
   }
 }
