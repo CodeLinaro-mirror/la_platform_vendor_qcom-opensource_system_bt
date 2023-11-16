@@ -309,7 +309,7 @@ void btif_sdp_ss_callback(uint16_t event, char* p_param) {
         }
         if(pse_hdr.has_service_name_length()) {
           serv_name_len = pse_hdr.service_name_length();
-          ALOGI("Record has sdp service name length : %d", ser_name_len);
+          ALOGI("Record has sdp service name length : %d", serv_name_len);
         }
         if(pse_hdr.has_service_name()) {
           s_name = pse_hdr.service_name();
