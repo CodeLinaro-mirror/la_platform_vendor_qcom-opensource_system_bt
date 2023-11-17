@@ -81,6 +81,8 @@ cc_library_shared {
         "vendor.qti.hardware.bluetooth_audio@2.1",
         "libaaudio",
         "libcutils",
+        "libaudioclient",
+        "framework-permission-aidl-cpp",
         "libdl",
         "libfmq",
         "libhidlbase",

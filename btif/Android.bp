@@ -125,6 +125,9 @@ cc_library_static {
     ],
     shared_libs: [
         "libaaudio",
+        "framework-permission-aidl-cpp",
+        "libaudioclient",
+        "libbinder",
         "libcutils",
         "libfmq",
         "liblog",
@@ -165,6 +168,8 @@ cc_test {
     ],
     header_libs: ["libbluetooth_headers"],
     shared_libs: [
+        "framework-permission-aidl-cpp",
+        "libaudioclient",
         "liblog",
         "libcutils",
         "libutils",
