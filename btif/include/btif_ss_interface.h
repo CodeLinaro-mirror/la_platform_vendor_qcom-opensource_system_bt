@@ -66,6 +66,7 @@ public:
     void postTxMsg(std::string msgStr);
     int postDataChTxMsg(std::string msgStr, int fd);
     int postLeDataChTxMsg(std::string msgStr);
+    int postObexDataChTxMsg(std::string msgStr);
     void registerCallbacks(const char* profile_id, ss_profile_callback profile_cb);
     void deregisterCallbacks(const char* profile_id);
     //api to acquire or release glink wakelock
@@ -98,6 +99,11 @@ private:
     std::unique_ptr<std::thread> le_data_ch_rx_thread;
     void processLeDataChRx();
     bool running_le_data_ch_;
+
+    //for obex data channel
+    std::unique_ptr<std::thread> obex_data_ch_rx_thread;
+    void processObexDataChRx();
+    bool running_obex_data_ch_;
 
     //for ssr data channel
     std::unique_ptr<std::thread> ssr_data_ch_rx_thread;
