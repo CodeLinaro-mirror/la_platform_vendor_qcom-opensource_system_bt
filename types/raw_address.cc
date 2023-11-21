@@ -45,6 +45,7 @@ bool RawAddress::FromString(const std::string& from, RawAddress& to) {
   RawAddress new_addr;
   std::string delimiter = ":";
   std::vector<std::string> byte_tokens;
+  byte_tokens.reserve(6);
   size_t pos = 0;
   if (from.length() != 17) return false;
 
