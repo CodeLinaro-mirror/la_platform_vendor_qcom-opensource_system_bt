@@ -948,6 +948,11 @@ static void btif_av_collission_timer_timeout(void *data) {
       collision_detect[collision_index].conn_retry_count++;
       btif_queue_connect(UUID_SERVCLASS_AUDIO_SOURCE, target_bda, connect_int,
                     btif_max_av_clients);
+    } else if(bt_av_sink_callbacks != NULL) {
+      BTIF_TRACE_DEBUG("%s Starting A2dp connection for sink", __FUNCTION__);
+      collision_detect[collision_index].conn_retry_count++;
+      btif_queue_connect(UUID_SERVCLASS_AUDIO_SINK, target_bda, connect_int,
+                    btif_max_av_clients);
     } else {
       BTIF_TRACE_DEBUG("%s Aborting A2dp connection retry", __FUNCTION__);
     }
@@ -4025,13 +4030,19 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
       break;
 
     case BTA_AV_COLL_DETECTED_EVT: {
+        char a2dp_sink_role[255] = "false";
+        osi_property_get("persist.vendor.service.bt.a2dp.sink", a2dp_sink_role, "false");
         BTIF_TRACE_WARNING("Collission evt received in btif");
         RawAddress bt_addr = p_bta_data->av_col_detected.peer_addr;
         uint16_t version = 0;
         bool a2dp_supported = btif_config_get_uint16(bt_addr.ToString().c_str(),
                               AVDTP_VERSION_CONFIG_KEY, (uint16_t*)&version);
+        BTIF_TRACE_WARNING("Collission evt received in btif %d", a2dp_supported);
         if (!a2dp_supported) {
           BTIF_TRACE_WARNING("Peer not have A2DP support, don't try Collision recovery, drop off");
+          if(strncmp("true", a2dp_sink_role, 4) == 0) {
+            btif_queue_advance_by_uuid(UUID_SERVCLASS_AUDIO_SINK, &bt_addr);
+          }
           return;
         }
         index = btif_av_idx_by_bdaddr(&bt_addr);
@@ -4040,7 +4051,12 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
           BTIF_TRACE_WARNING("Advnance collision queue, update disconnection to App and retry");
           btif_av_check_and_start_collission_timer(bt_addr);
           btif_report_connection_state(BTAV_CONNECTION_STATE_DISCONNECTED, &bt_addr);
-          btif_queue_advance_by_uuid(UUID_SERVCLASS_AUDIO_SOURCE, &bt_addr);
+          if (strncmp("true", a2dp_sink_role, 4) == 0){
+            BTIF_TRACE_WARNING("Remove Sink connection entry from queue");
+            btif_queue_advance_by_uuid(UUID_SERVCLASS_AUDIO_SINK, &bt_addr);
+          } else {
+            btif_queue_advance_by_uuid(UUID_SERVCLASS_AUDIO_SOURCE, &bt_addr);
+          }
         }
       }
       break;
