@@ -269,9 +269,9 @@ static void reset_wakelock_stats(void) {
 // This function is thread-safe.
 //
 static void update_wakelock_acquired_stats(bt_status_t acquired_status) {
-  const period_ms_t now_ms = now();
-
   std::lock_guard<std::mutex> lock(stats_mutex);
+
+  const period_ms_t now_ms = now();
 
   if (acquired_status != BT_STATUS_SUCCESS) {
     wakelock_stats.acquired_errors++;
@@ -299,9 +299,9 @@ static void update_wakelock_acquired_stats(bt_status_t acquired_status) {
 // This function is thread-safe.
 //
 static void update_wakelock_released_stats(bt_status_t released_status) {
-  const period_ms_t now_ms = now();
-
   std::lock_guard<std::mutex> lock(stats_mutex);
+
+  const period_ms_t now_ms = now();
 
   if (released_status != BT_STATUS_SUCCESS) {
     wakelock_stats.released_errors++;
@@ -333,9 +333,9 @@ static void update_wakelock_released_stats(bt_status_t released_status) {
 }
 
 void wakelock_debug_dump(int fd) {
-  const period_ms_t now_ms = now();
-
   std::lock_guard<std::mutex> lock(stats_mutex);
+
+  const period_ms_t now_ms = now();
 
   // Compute the last acquired interval if the wakelock is still acquired
   period_ms_t delta_ms = 0;

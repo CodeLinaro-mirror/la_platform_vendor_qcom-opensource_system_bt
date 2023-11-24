@@ -892,6 +892,14 @@ class HearingAidImpl : public HearingAid {
   void ConnectSocket(HearingDevice* hearingDevice, uint16_t psm) {
     tL2CAP_CFG_INFO cfg_info = tL2CAP_CFG_INFO{.mtu = 512};
 
+    if(!hearingDevice){
+      LOG(ERROR) << "ConnectSocket: hearingDevice is null";
+      return;
+    }
+    if (hearingDevice->gap_handle) {
+       LOG(ERROR) << "ConnectSocket: gap handle is already available:"<< hearingDevice->gap_handle;
+       return;
+    }
     SendEnableServiceChangedInd(hearingDevice);
 
     uint8_t service_id = hearingDevice->isLeft()
@@ -908,7 +916,7 @@ class HearingAidImpl : public HearingAid {
     }
 
     hearingDevice->gap_handle = gap_handle;
-    LOG(INFO) << "Successfully sent GAP connect request";
+    LOG(INFO) << "Successfully sent GAP connect request, gap_handle: "<<gap_handle;
   }
 
   static void OnReadOnlyPropertiesReadStatic(uint16_t conn_id,
