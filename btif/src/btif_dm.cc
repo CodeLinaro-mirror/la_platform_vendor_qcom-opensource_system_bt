@@ -783,41 +783,41 @@ static void btif_update_remote_properties(const RawAddress& bdaddr,
             num_properties, properties);
 }
 
-static void btif_dm_update_cod(const RawAddress& bd_addr, DEV_CLASS dev_class) {	
-    bt_property_t prop_cod;	
-    bt_status_t status;	
-    uint32_t cod = devclass2uint(dev_class);	
-    if (check_cod(&bd_addr, cod))	
-    {	
-        BTIF_TRACE_DEBUG("%s: dev class not changed", __func__);	
-        return;	
-    }	
-    else	
-    {	
-        if (cod == 0)	
-        {	
-            /* Try to retrieve cod from storage */	
-            BTIF_TRACE_DEBUG("%s cod is 0, checking cod from storage", __func__);	
-            BTIF_STORAGE_FILL_PROPERTY(&prop_cod,	
-                               BT_PROPERTY_CLASS_OF_DEVICE, sizeof(cod), &cod);	
-            status = btif_storage_get_remote_device_property(	
-                            &bd_addr, &prop_cod);	
-            BTIF_TRACE_DEBUG("%s cod retrieved from storage is 0x%06x", __func__, cod);	
-            if (cod == 0) {	
-                BTIF_TRACE_DEBUG("%s cod is again 0, set as unclassified", __func__);	
-                cod = COD_UNCLASSIFIED;	
-            }	
-        }	
+static void btif_dm_update_cod(const RawAddress& bd_addr, DEV_CLASS dev_class) {
+    bt_property_t prop_cod;
+    bt_status_t status;
+    uint32_t cod = devclass2uint(dev_class);
+    if (check_cod(&bd_addr, cod))
+    {
+        BTIF_TRACE_DEBUG("%s: dev class not changed", __func__);
+        return;
+    }
+    else
+    {
+        if (cod == 0)
+        {
+            /* Try to retrieve cod from storage */
+            BTIF_TRACE_DEBUG("%s cod is 0, checking cod from storage", __func__);
+            BTIF_STORAGE_FILL_PROPERTY(&prop_cod,
+                               BT_PROPERTY_CLASS_OF_DEVICE, sizeof(cod), &cod);
+            status = btif_storage_get_remote_device_property(
+                            &bd_addr, &prop_cod);
+            BTIF_TRACE_DEBUG("%s cod retrieved from storage is 0x%06x", __func__, cod);
+            if (cod == 0) {
+                BTIF_TRACE_DEBUG("%s cod is again 0, set as unclassified", __func__);
+                cod = COD_UNCLASSIFIED;
+            }
+        }
 
-        BTIF_STORAGE_FILL_PROPERTY(&prop_cod,	
-                             BT_PROPERTY_CLASS_OF_DEVICE, sizeof(cod), &cod);	
-        status = btif_storage_set_remote_device_property(&bd_addr, &prop_cod);	
-        ASSERTC(status == BT_STATUS_SUCCESS, "failed to save remote device class",	
-                           status);	
+        BTIF_STORAGE_FILL_PROPERTY(&prop_cod,
+                             BT_PROPERTY_CLASS_OF_DEVICE, sizeof(cod), &cod);
+        status = btif_storage_set_remote_device_property(&bd_addr, &prop_cod);
+        ASSERTC(status == BT_STATUS_SUCCESS, "failed to save remote device class",
+                           status);
 
-        HAL_CBACK(bt_hal_cbacks, remote_device_properties_cb,	
-                     status, &bd_addr, 1, &prop_cod);	
-    }	
+        HAL_CBACK(bt_hal_cbacks, remote_device_properties_cb,
+                     status, &bd_addr, 1, &prop_cod);
+    }
 }
 
 /*******************************************************************************
@@ -1356,10 +1356,12 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
         BTIF_TRACE_DEBUG("%s: Only one key is expected, return bond_state", __func__);
       }
 
-      ret = btif_storage_add_bonded_device(&bd_addr, p_auth_cmpl->key,
-                                           p_auth_cmpl->key_type,
-                                           pairing_cb.pin_code_len);
-      ASSERTC(ret == BT_STATUS_SUCCESS, "storing link key failed", ret);
+      if (pairing_cb.bond_type == BOND_TYPE_PERSISTENT) {
+        ret = btif_storage_add_bonded_device(&bd_addr, p_auth_cmpl->key,
+                                             p_auth_cmpl->key_type,
+                                             pairing_cb.pin_code_len);
+        ASSERTC(ret == BT_STATUS_SUCCESS, "storing link key failed", ret);
+      }
     } else {
       BTIF_TRACE_DEBUG(
           "%s: Temporary key. Not storing. key_type=0x%x, bond_type=%d",
