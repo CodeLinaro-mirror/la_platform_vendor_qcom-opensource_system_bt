@@ -407,7 +407,7 @@ bt_status_t remove_sdp_record(int record_id) {
 #endif
 
   uint8_t remove_sdp_record_msg[MAX_LENGTH_WITH_PROTO_NONE];
-  uint16_t msg_id = BT_SDP_CREATE_RECORD;
+  uint16_t msg_id = BT_SDP_REMOVE_RECORD;
   remove_sdp_record_msg[0] = msg_id & 0xff;
   remove_sdp_record_msg[1] = (msg_id >> 8);
 
