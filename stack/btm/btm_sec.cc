@@ -3919,17 +3919,25 @@ void btm_sec_encrypt_change(uint16_t handle, uint8_t status,
            (!(p_dev_rec->sec_flags & BTM_SEC_LE_LINK_KEY_AUTHED) &&
             (p_dev_rec->sec_flags & BTM_SEC_LINK_KEY_AUTHED))) &&
           derive_ltk) {
-        /* BR/EDR is encrypted with LK that can be used to derive LE LTK */
-        p_dev_rec->new_encryption_key_is_p256 = false;
-
-        if (p_dev_rec->no_smp_on_br) {
-          BTM_TRACE_DEBUG("%s NO SM over BR/EDR", __func__);
+        /* Another device is on pairing */
+        if ((btm_cb.pairing_state != BTM_PAIR_STATE_IDLE) &&
+            (btm_cb.pairing_bda != p_dev_rec->bd_addr)) {
+          BTM_TRACE_DEBUG(
+                "%s Another device is on pairing, skip derivation of LE LTK",
+                __func__);
         } else {
-          BTM_TRACE_DEBUG("%s start SM over BR/EDR", __func__);
-          uint16_t link_policy = btm_cb.btm_def_link_policy & (~HCI_ENABLE_MASTER_SLAVE_SWITCH);
-          BTM_TRACE_DEBUG("%s, disable role switch", __func__);
-          BTM_SetLinkPolicy(p_dev_rec->bd_addr, &link_policy);
-          SMP_BR_PairWith(p_dev_rec->bd_addr);
+          /* BR/EDR is encrypted with LK that can be used to derive LE LTK */
+          p_dev_rec->new_encryption_key_is_p256 = false;
+
+          if (p_dev_rec->no_smp_on_br) {
+            BTM_TRACE_DEBUG("%s NO SM over BR/EDR", __func__);
+          } else {
+            BTM_TRACE_DEBUG("%s start SM over BR/EDR", __func__);
+            uint16_t link_policy = btm_cb.btm_def_link_policy & (~HCI_ENABLE_MASTER_SLAVE_SWITCH);
+            BTM_TRACE_DEBUG("%s, disable role switch", __func__);
+            BTM_SetLinkPolicy(p_dev_rec->bd_addr, &link_policy);
+            SMP_BR_PairWith(p_dev_rec->bd_addr);
+          }
         }
       }
     }
