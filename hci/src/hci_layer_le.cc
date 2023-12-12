@@ -62,7 +62,7 @@ extern void sco_data_received(BT_HDR* packet);
 void vnd_interface_open(void);
 static std::mutex bthci_mutex;
 bt_vnd_interface_t* btHci;
-BluetoothHciCallbacks* callbacks;
+BluetoothHciCallbacks* callbacks = NULL;
 
 static void init_cb(android::hardware::bluetooth::V1_0::implementation::Status status) {
     callbacks = new BluetoothHciCallbacks();
@@ -144,6 +144,7 @@ void hci_close() {
     btHci = nullptr;
   }
   delete callbacks;
+  callbacks = NULL;
 }
 
 bool hci_transmit(BT_HDR* packet) {
