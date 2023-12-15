@@ -31,7 +31,7 @@
 #define SSR_CH_MAX_SIZE 8192
 #define SSR_CH_MIN_SIZE 4
 #define MSG_PROTO_OFFSET 6
-#define GLINK_IDLE_TIMEOUT 1000
+#define GLINK_IDLE_TIMEOUT 1100
 #define GLINK_SSR_DUMP_RX_ALARM_TIMEOUT 1000
 
 #define WAKE_LOCK_FILE    "/sys/power/wake_lock"
