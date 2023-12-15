@@ -380,7 +380,11 @@ void BluetoothSSInterface::cleanup() {
     BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false, false);
 
     // Stop Alarms
-    if (alarm_is_scheduled(rx_thread_timeout)) {
+    ALOGI("BluetoothSSInterface free alarms");
+    alarm_free(rx_thread_timeout);
+    alarm_free(tx_thread_timeout);
+    alarm_free(rx_ssr_dump_thread_timeout);
+    /*if (alarm_is_scheduled(rx_thread_timeout)) {
       ALOGI("%s(): rx_thread_timeout() scheduled", __func__);
       alarm_cancel(rx_thread_timeout);
       alarm_free(rx_thread_timeout);
@@ -403,7 +407,7 @@ void BluetoothSSInterface::cleanup() {
       alarm_free(tx_thread_timeout);
     } else {
       ALOGI("%s(): tx_thread_timeout() is not scheduled", __func__);
-    }
+    }*/
 
     //Cleanup Ctrl Ch
     if (run_loop_ctrl_tx_ && message_loop_ctrl_tx_) {
