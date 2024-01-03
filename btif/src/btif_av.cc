@@ -1362,6 +1362,7 @@ bool BtifAvSink::AllowedToConnect(const RawAddress& peer_address) const {
       case BtifAvStateMachine::kStateOpening:
       case BtifAvStateMachine::kStateOpened:
       case BtifAvStateMachine::kStateStarted:
+      case BtifAvStateMachine::kStateClosing:
         if (peer->PeerAddress() == peer_address) {
           return true;  // Already connected or accounted for
         }
@@ -1454,7 +1455,13 @@ void BtifAvStateMachine::StateIdle::OnEnter() {
 
   // Stop A2DP if this is the active peer
   if (peer_.IsActivePeer() || peer_.ActivePeerAddress().IsEmpty()) {
-    btif_a2dp_on_idle();
+    if (peer_.StateMachine().PreviousStateId() != BtifAvStateMachine::kStateIdle) {
+      btif_a2dp_on_idle();
+    } else {
+      BTIF_TRACE_WARNING(
+          "%s: Ignore due to handled btif_a2dp_on_idle previously",
+          __PRETTY_FUNCTION__);
+    }
   }
 
   // Reset the active peer if this was the active peer and
@@ -3448,7 +3455,11 @@ void btif_av_acl_disconnected(const RawAddress& peer_address) {
   if (btif_av_source.Enabled()) {
     btif_av_source_dispatch_sm_event(peer_address, BTIF_AV_ACL_DISCONNECTED);
   } else if (btif_av_sink.Enabled()) {
-    btif_av_sink_dispatch_sm_event(peer_address, BTIF_AV_ACL_DISCONNECTED);
+    if (btif_av_sink_find_peer(peer_address)) {
+      btif_av_sink_dispatch_sm_event(peer_address, BTIF_AV_ACL_DISCONNECTED);
+    } else {
+      LOG_INFO(LOG_TAG, "ignore ACL disconnection since peer device is deleted");
+    }
   }
 }
 
