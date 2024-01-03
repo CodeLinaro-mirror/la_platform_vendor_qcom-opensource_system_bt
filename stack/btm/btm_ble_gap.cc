@@ -1444,7 +1444,7 @@ void btm_ble_biginfo_adv_report_rcvd(uint8_t *p, uint16_t param_len) {
   // for sdu_interval, 2 bytes for max_sdu, 1 byte each for phy, framing,
   // encryption
   if (param_len < 19) {
-    LOG_ERROR("Insufficient data");
+    LOG(ERROR) << "Insufficient data";
     return;
   }
 

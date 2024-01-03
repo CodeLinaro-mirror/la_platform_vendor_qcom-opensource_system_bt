@@ -2004,7 +2004,7 @@ static void btu_ble_data_length_change_evt(uint8_t* p, uint16_t evt_len) {
 
   // 2 bytes each for handle, tx_data_len, TxTimer, rx_data_len
   if (evt_len < 8) {
-    LOG_ERROR("Event packet too short");
+    LOG(ERROR) << __func__ << "Event packet too short";
     return;
   }
 
