@@ -15,7 +15,9 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-
+/* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear */
 /******************************************************************************
  *
  *  This file contains functions for BLE GAP.
@@ -1444,7 +1446,7 @@ void btm_ble_biginfo_adv_report_rcvd(uint8_t *p, uint16_t param_len) {
   // for sdu_interval, 2 bytes for max_sdu, 1 byte each for phy, framing,
   // encryption
   if (param_len < 19) {
-    LOG_ERROR("Insufficient data");
+    LOG(ERROR) << "Insufficient data";
     return;
   }
 
