@@ -143,6 +143,7 @@ void bta_scan_results_cb_impl(RawAddress bd_addr, tBT_DEVICE_TYPE device_type,
                               vector<uint8_t> value, RawAddress original_bda) {
   uint8_t remote_name_len;
   bt_device_type_t dev_type;
+  bt_bdname_t bdname;
   bt_property_t properties;
 
   ALOGD("\naddress: %s ", bd_addr.ToString().c_str());
@@ -154,16 +155,18 @@ void bta_scan_results_cb_impl(RawAddress bd_addr, tBT_DEVICE_TYPE device_type,
   }
   const uint8_t* p_eir_remote_name = AdvertiseDataParser::GetFieldByType(
       value, BTM_EIR_COMPLETE_LOCAL_NAME_TYPE, &remote_name_len);
-    ALOGD("\n p_eir_remote_name: %s", p_eir_remote_name);
-    ALOGD("\n remote_name_len: %d ", remote_name_len);
 
   if (p_eir_remote_name == NULL) {
     p_eir_remote_name = AdvertiseDataParser::GetFieldByType(
         value, BT_EIR_SHORTENED_LOCAL_NAME_TYPE, &remote_name_len);
     ALOGD("\n EIR Shortened local name");
-    ALOGD("\n p_eir_remote_name: %s ", p_eir_remote_name);
-    ALOGD("\n remote_name_len: %d ", remote_name_len);
   }
+
+  memcpy(bdname.name, p_eir_remote_name, remote_name_len);
+  if (remote_name_len < BD_NAME_LEN + 1)
+          bdname.name[remote_name_len] = '\0';
+    ALOGD("\n p_eir_remote_name: %s", bdname.name);
+    ALOGD("\n remote_name_len: %d ", remote_name_len);
 
   if ((addr_type != BLE_ADDR_RANDOM) || (p_eir_remote_name)) {
     ALOGD("\n addr_type is public or has eir_remote_name ");
@@ -182,7 +185,6 @@ void bta_scan_results_cb_impl(RawAddress bd_addr, tBT_DEVICE_TYPE device_type,
           return;
         }
 
-        bt_bdname_t bdname;
         memcpy(bdname.name, p_eir_remote_name, remote_name_len);
         if (remote_name_len < BD_NAME_LEN + 1)
           bdname.name[remote_name_len] = '\0';
