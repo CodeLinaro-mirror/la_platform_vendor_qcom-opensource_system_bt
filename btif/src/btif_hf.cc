@@ -771,6 +771,16 @@ void HeadsetInterface::Cleanup(void) {
 
 bt_status_t HeadsetInterface::SetActiveDevice(RawAddress* active_device_addr) {
   ALOGI("%s", __func__);
+  active_device_ = *active_device_addr;
+
+  std::string str_msg;
+  ss_SetActiveDevice _ss_SetActiveDevice;
+  _ss_SetActiveDevice.set_active_device_addr(ToRawString(active_device_addr));
+  _ss_SetActiveDevice.SerializeToString(&str_msg);
+
+  bthf_bld_and_snd_message(BT_HF_SET_ACTIVE_DEVICE, str_msg.length(),
+                  PROTO_ENC_DEC, str_msg);
+
   return BT_STATUS_SUCCESS;
 }
 
