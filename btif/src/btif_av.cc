@@ -364,6 +364,9 @@ static bt_status_t set_active_device(const RawAddress& bd_addr) {
       return BT_STATUS_SUCCESS;
   }
 
+  std::string str_msg;
+  a2dp_proto::ss_set_active_device msg_active_device;
+
   if (bd_addr == RawAddress::kEmpty) {
       /* 1. SetActive Device -> Null */
       bluetooth::audio::aidl::a2dp::end_session();
@@ -383,6 +386,11 @@ static bt_status_t set_active_device(const RawAddress& bd_addr) {
   if (status == BT_STATUS_FAIL) {
       active_device_ = RawAddress::kEmpty;
   }
+
+  msg_active_device.set_address(ToRawString(active_device_));
+  msg_active_device.SerializeToString(&str_msg);
+  btav_bld_and_snd_message(BT_AV_ACTIVE, str_msg.length(),
+                  PROTO_ENC_DEC, str_msg);
   return status;
 }
 
