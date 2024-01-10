@@ -260,9 +260,6 @@ static bt_status_t connect_audio(const RawAddress* bd_addr) {
   bthf_client_Build_Post_Msg(BT_HF_CLIENT_CONNECT_AUDIO, payload.length(),
                   PROTO_ENC_DEC, payload);
 
-  HAL_CL_CBACK(bt_hf_client_callbacks, audio_state_cb, bd_addr,
-                (bthf_client_audio_state_t)BTHF_CLIENT_AUDIO_STATE_CONNECTING);
-
   return BT_STATUS_SUCCESS;
 }
 
