@@ -321,6 +321,37 @@ const char* A2DP_VendorCodecNameAptx(UNUSED_ATTR const uint8_t* p_codec_info) {
   return "aptX";
 }
 
+tA2DP_STATUS A2DP_BuildSrc2SinkConfigAptx(UNUSED_ATTR const uint8_t* p_src_cap,
+                                         UNUSED_ATTR uint8_t* p_pref_cfg) {
+  tA2DP_APTX_CIE src_cap;
+  tA2DP_APTX_CIE pref_cap = a2dp_aptx_sink_default_config;
+
+  /* initialize it to default APTX configuration */
+  A2DP_BuildInfoAptx(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aptx_sink_default_config,
+                    p_pref_cfg);
+
+  /* now try to build a preferred one. parse configuration */
+  tA2DP_STATUS status = A2DP_ParseInfoAptx(&src_cap, p_src_cap, true);
+  if (status != A2DP_SUCCESS) {
+    LOG_ERROR(LOG_TAG, "%s: can't parse src cap ret = %d", __func__, status);
+    return A2DP_FAIL;
+  }
+
+  if (src_cap.sampleRate & A2DP_APTX_SAMPLERATE_48000)
+    pref_cap.sampleRate = A2DP_APTX_SAMPLERATE_48000;
+  else if (src_cap.sampleRate & A2DP_APTX_SAMPLERATE_44100)
+    pref_cap.sampleRate = A2DP_APTX_SAMPLERATE_44100;
+
+  if (src_cap.channelMode & A2DP_APTX_CHANNELS_STEREO)
+    pref_cap.channelMode = A2DP_APTX_CHANNELS_STEREO;
+  else if (src_cap.channelMode & A2DP_APTX_CHANNELS_MONO)
+    pref_cap.channelMode = A2DP_APTX_CHANNELS_MONO;
+
+  A2DP_BuildInfoAptx(AVDT_MEDIA_TYPE_AUDIO, &pref_cap, p_pref_cfg);
+
+  return A2DP_SUCCESS;
+}
+
 bool A2DP_VendorCodecTypeEqualsAptx(const uint8_t* p_codec_info_a,
                                     const uint8_t* p_codec_info_b) {
   tA2DP_APTX_CIE aptx_cie_a;

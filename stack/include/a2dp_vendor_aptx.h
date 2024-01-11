@@ -235,4 +235,13 @@ bool A2DP_VendorInitCodecConfigAptxSink(tAVDT_CFG* p_cfg);
 // Checks peer initiated setconfig with DUT supported config
 // and returns proper status.
 tA2DP_STATUS A2DP_VendorIsCodecConfigMatchAptx(const uint8_t* p_codec_info);
+
+// Builds A2DP APTX Sink capability from APTX Source capability.
+// |p_src_cap| is the Source capability to use.
+// |p_pref_cfg| is the result Sink capability to store.
+// Returns |A2DP_SUCCESS| on success, otherwise the corresponding A2DP error
+// status code.
+tA2DP_STATUS A2DP_BuildSrc2SinkConfigAptx(const uint8_t* p_src_cap,
+    uint8_t* p_pref_cfg);
+
 #endif  // A2DP_VENDOR_APTX_H

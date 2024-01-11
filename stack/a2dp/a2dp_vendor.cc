@@ -235,11 +235,14 @@ btav_a2dp_codec_index_t A2DP_VendorGetSourceCodecIndex(
 
 tA2DP_STATUS A2DP_VendorBuildSrc2SinkConfig(
     UNUSED_ATTR const uint8_t* p_src_cap, UNUSED_ATTR uint8_t* p_pref_cfg) {
-  // uint32_t vendor_id = A2DP_VendorCodecGetVendorId(p_codec_info);
-  // uint16_t codec_id = A2DP_VendorCodecGetCodecId(p_codec_info);
+  uint32_t vendor_id = A2DP_VendorCodecGetVendorId(p_src_cap);
+  uint16_t codec_id = A2DP_VendorCodecGetCodecId(p_src_cap);
 
-  // Add checks based on <vendor_id, codec_id>
-  // NOTE: Should be done only for local Sink codecs.
+  // Check for aptX
+  if (vendor_id == A2DP_APTX_VENDOR_ID &&
+      codec_id == A2DP_APTX_CODEC_ID_BLUETOOTH) {
+    return A2DP_BuildSrc2SinkConfigAptx(p_src_cap, p_pref_cfg);
+  }
 
   return A2DP_NS_CODEC_TYPE;
 }
