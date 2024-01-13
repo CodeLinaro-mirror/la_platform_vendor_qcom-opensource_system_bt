@@ -46,6 +46,7 @@
 #include "btif_sock_sdp.h"
 #include "btif_sock_thread.h"
 #include "btif_sock_util.h"
+#include "btif_sock_rfc.h"
 #include "btif_uid.h"
 #include "btif_util.h"
 #include "btm_api.h"
@@ -79,6 +80,7 @@
 #define INVALID_SCN -1
 
 using bluetooth::Uuid;
+bool pbapClient = false;
 
 // Maximum number of RFCOMM channels (1-30 inclusive).
 #define MAX_RFC_CHANNEL 30
@@ -107,40 +109,6 @@ int ss_rfc_data_outgoing_size(int fd, int* size);
 int ss_rfc_data_outgoing(int fd, uint8_t* buf, int size);
 void ss_rfc_data_write_done(int fd, uint64_t length);
 
-typedef struct {
-  int outgoing_congest : 1;
-  int pending_sdp_request : 1;
-  int doing_sdp_request : 1;
-  int server : 1;
-  int connected : 1;
-  int closing : 1;
-} flags_t;
-
-typedef struct {
-  flags_t f;
-  uint32_t id;  // Non-zero indicates a valid (in-use) slot.
-  int security;
-  int scn;  // Server channel number
-  int scn_notified;
-  RawAddress addr;
-  int is_service_uuid_valid;
-  Uuid service_uuid;
-  char service_name[256];
-  int fd;
-  int app_fd;   // Temporary storage for the half of the socketpair that's sent
-                // back to upper layers.
-  int app_uid;  // UID of the app for which this socket was created.
-  int mtu;
-  uint8_t* packet;
-  int sdp_handle;
-  int rfc_handle;
-  int rfc_port_handle;
-  int role;
-  list_t* incoming_queue;
-  int new_srv_fd;
-  bool is_server;
-  int type;
-} rfc_slot_t;
 static list_t* slots_list;
 
 struct PendingData
@@ -162,8 +130,6 @@ static uid_set_t* uid_set = NULL;
 
 static rfc_slot_t* rfcomm_alloc_slot();
 static rfc_slot_t* find_free_slot(void);
-static rfc_slot_t* find_rfc_slot_by_fd(int fd);
-static rfc_slot_t* find_rfc_slot_by_scn(int scn);
 static void cleanup_rfc_slot(rfc_slot_t* rs);
 //static void jv_dm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t id);
 //static uint32_t rfcomm_cback(tBTA_JV_EVT event, tBTA_JV* p_data,
@@ -539,7 +505,7 @@ static rfc_slot_t* find_rfc_slot_by_id(uint32_t id) {
   return NULL;
 }
 
-static rfc_slot_t* find_rfc_slot_by_fd(int fd){
+rfc_slot_t* find_rfc_slot_by_fd(int fd){
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   CHECK(fd != 0);
   if (slots_list == NULL || list_length(slots_list) == 0){
@@ -776,11 +742,28 @@ bt_status_t btsock_rfc_listen(const char* service_name,
   msgStr.append(protoMsg);
   ALOGI("%s: BT_RFCOMM_CREATE_SOCKET length: %d",__func__, msgStr.length());
 #ifndef SS_STUB_ENABLED
-  if (type == BTSOCK_L2CAP || type ==  BTSOCK_L2CAP_LE) {
+  //pbap UUID
+  Uuid uuid_PBAP_PSE = Uuid::FromString("0000112f-0000-1000-8000-00805f9b34fb");
+  ALOGI("uuid PBAP : %s", uuid_PBAP_PSE.ToString().c_str());
+  if (type ==  BTSOCK_L2CAP_LE) {
       int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
       ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
+  }
+  else if (type == BTSOCK_L2CAP) {
+      int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+      ALOGI("%s: L2CAP Data Write, result is :: %d",__func__,result);
+  }
+  else if (service_uuid->ToString() == uuid_PBAP_PSE.ToString()) {
+      pbapClient = true;
+      int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+      ALOGI("%s: Obex Data Write for uuid connection, result is :: %d",__func__,result);
+  }
+  else if (channel == 19) {
+      pbapClient = true;
+      int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+      ALOGI("%s: Obex Data Write for rfcomm channel connection, result is :: %d",__func__,result);
   } else {
-      gBTSSInterface->postDataChTxMsg(msgStr);
+      gBTSSInterface->postDataChTxMsg(msgStr, slot->fd);
   }
 #else
   gBTSSStubInterface->postTxMsg(msgStr);
@@ -875,11 +858,28 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
   msgStr.append(protoMsg);
   ALOGI("%s: BT_RFCOMM_CONNECT_SOCKET length: %d",__func__, msgStr.length());
 #ifndef SS_STUB_ENABLED
-  if (type == BTSOCK_L2CAP || type ==  BTSOCK_L2CAP_LE) {
+  //pbap UUID
+  Uuid uuid_PBAP_PSE = Uuid::FromString("0000112f-0000-1000-8000-00805f9b34fb");
+  ALOGI("uuid PBAP : %s", uuid_PBAP_PSE.ToString().c_str());
+  if (type ==  BTSOCK_L2CAP_LE) {
       int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
       ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
+  }
+  else if (type == BTSOCK_L2CAP) {
+      int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+      ALOGI("%s: L2CAP Data Write, result is :: %d",__func__,result);
+  }
+  else if (service_uuid->ToString() == uuid_PBAP_PSE.ToString()) {
+      pbapClient = true;
+      int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+      ALOGI("%s: Obex Data Write for uuid connection, result is :: %d",__func__,result);
+  }
+  else if (channel == 19) {
+      pbapClient = true;
+      int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+      ALOGI("%s: Obex Data Write for rfcomm channel connection, result is :: %d",__func__,result);
   } else {
-      gBTSSInterface->postDataChTxMsg(msgStr);
+      gBTSSInterface->postDataChTxMsg(msgStr, slot->fd);
   }
 #else
   gBTSSStubInterface->postTxMsg(msgStr);
@@ -931,11 +931,19 @@ static void free_rfc_slot_scn(rfc_slot_t* slot) {
         msgStr.append(protoMsg);
         ALOGI("%s: BT_RFCOMM_CLOSE_SERVER length: %d and data: %s",__func__, msgStr.length(),msgStr.c_str());
       #ifndef SS_STUB_ENABLED
-        if (slot->type == BTSOCK_L2CAP || slot->type ==  BTSOCK_L2CAP_LE) {
+        if (slot->type ==  BTSOCK_L2CAP_LE) {
             int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
             ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
+        }
+        else if (slot->type == BTSOCK_L2CAP) {
+          int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+          ALOGI("%s: L2CAP Data Write, result is :: %d",__func__,result);
+        }
+        else if (pbapClient == true) {
+          int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+          ALOGI("%s: Obex Data Write for rfcomm channel connection, result is :: %d",__func__,result);
         } else {
-            gBTSSInterface->postDataChTxMsg(msgStr);
+            gBTSSInterface->postDataChTxMsg(msgStr, slot->fd);
         }
       #else
         gBTSSStubInterface->postTxMsg(msgStr);
@@ -1022,11 +1030,19 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
         msgStr.append(protoMsg);
         ALOGI("%s: BT_RFCOMM_DISCONNECT_SOCKET length: %d and data: %s",__func__, msgStr.length(),msgStr.c_str());
       #ifndef SS_STUB_ENABLED
-        if (slot->type == BTSOCK_L2CAP || slot->type ==  BTSOCK_L2CAP_LE) {
+        if (slot->type ==  BTSOCK_L2CAP_LE) {
             int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
             ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
+        }
+        else if (slot->type == BTSOCK_L2CAP) {
+          int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+          ALOGI("%s: L2CAP Data Write, result is :: %d",__func__,result);
+        }
+        else if (pbapClient == true) {
+          int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+          ALOGI("%s: Obex Data Write for rfcomm channel connection, result is :: %d",__func__,result);
         } else {
-            gBTSSInterface->postDataChTxMsg(msgStr);
+            gBTSSInterface->postDataChTxMsg(msgStr,slot->fd);
         }
       #else
         gBTSSStubInterface->postTxMsg(msgStr);
@@ -1551,11 +1567,19 @@ void btsock_rfc_signaled(int fd, int type, int flags, uint32_t user_id) {
             msgStr.append(protoMsg);
             ALOGI("%s: BT_RFCOMM_WRITE_SOCKET_DATA proto length: %d and payload length: %d",__func__, msgStr.size(), data_string_sub.size());
           #ifndef SS_STUB_ENABLED
-            if (type == BTSOCK_L2CAP || type ==  BTSOCK_L2CAP_LE) {
+            if (type ==  BTSOCK_L2CAP_LE) {
               int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
               ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
+            }
+            else if (type == BTSOCK_L2CAP) {
+            int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+            ALOGI("%s: L2CAP Data Write, result is :: %d",__func__,result);
+            }
+            else if (pbapClient == true) {
+              int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+              ALOGI("%s: Obex Data Write for rfcomm channel connection, result is :: %d",__func__,result);
             } else {
-              int result = gBTSSInterface->postDataChTxMsg(msgStr);
+              int result = gBTSSInterface->postDataChTxMsg(msgStr,fd);
               ALOGI("%s: result is :: %d",__func__,result);
             }
           #else
@@ -1739,7 +1763,7 @@ int bta_co_rfc_data_outgoing(uint32_t id, uint8_t* buf, uint16_t size) {
   return true;
 }
 
-static rfc_slot_t* find_rfc_slot_by_scn(int scn)
+rfc_slot_t* find_rfc_slot_by_scn(int scn)
 {
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* scn_match_slot = NULL;

@@ -342,20 +342,22 @@ bt_status_t create_sdp_record(bluetooth_sdp_record* record, int* record_handle) 
     case SDP_TYPE_PBAP_PCE:
     {
 
+      ALOGI("%s: creating PCE record", __func__);
       handle = 3;
-      ss_bt_service_name s_name;
+
       ss_bt_sdp_pce_record* pce_record = record_->mutable_pce();
-      ss_bt_sdp_hdr_overlay pce_hdr = pce_record->hdr();
-      pce_hdr.set_type(SS_BT_SDP_TYPE_PBAP_PCE);
-      std::string name = (char*)pce_hdr.mutable_service_name();
-      s_name.set_name(name);
+      ss_bt_sdp_hdr_overlay* pce_hdr = pce_record->mutable_hdr();
+      ss_bt_service_name* s_name = pce_hdr->mutable_service_name();
+      pce_hdr->set_type(SS_BT_SDP_TYPE_PBAP_PCE);
+      std::string name = (char*)record->hdr.service_name;
+      s_name->set_name(name);
       ALOGI("%s: Record has sdp service name : %s", __func__, name.c_str());
-      pce_hdr.set_service_name_length(pce_hdr.service_name_length());
-      ALOGI("%s: Record has sdp service name length : %d", __func__, pce_hdr.service_name_length());
-      pce_hdr.set_rfcomm_channel_number(-1);
-      pce_hdr.set_l2cap_psm(-1);
-      pce_hdr.set_profile_version(pce_hdr.profile_version());
-      ALOGI("%s: Record has sdp service profile_version : %d", __func__, pce_hdr.profile_version());
+      pce_hdr->set_service_name_length(record->hdr.service_name_length);
+      ALOGI("%s: Record has sdp service name length : %d", __func__, record->hdr.service_name_length);
+      pce_hdr->set_rfcomm_channel_number(-1);
+      pce_hdr->set_l2cap_psm(-1);
+      pce_hdr->set_profile_version(record->hdr.profile_version);
+      ALOGI("%s: Record has sdp service profile_version : %d", __func__, record->hdr.profile_version);
 
     }
     break;
@@ -405,7 +407,7 @@ bt_status_t remove_sdp_record(int record_id) {
 #endif
 
   uint8_t remove_sdp_record_msg[MAX_LENGTH_WITH_PROTO_NONE];
-  uint16_t msg_id = BT_SDP_CREATE_RECORD;
+  uint16_t msg_id = BT_SDP_REMOVE_RECORD;
   remove_sdp_record_msg[0] = msg_id & 0xff;
   remove_sdp_record_msg[1] = (msg_id >> 8);
 

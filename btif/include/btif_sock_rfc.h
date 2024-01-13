@@ -33,9 +33,47 @@
 
 #include "btif_uid.h"
 #include <hardware/vendor_socket.h>
+#include "osi/include/list.h"
+
+using bluetooth::Uuid;
+
+typedef struct {
+  int outgoing_congest : 1;
+  int pending_sdp_request : 1;
+  int doing_sdp_request : 1;
+  int server : 1;
+  int connected : 1;
+  int closing : 1;
+} flags_t;
+
+typedef struct {
+  flags_t f;
+  uint32_t id;  // Non-zero indicates a valid (in-use) slot.
+  int security;
+  int scn;  // Server channel number
+  int scn_notified;
+  RawAddress addr;
+  int is_service_uuid_valid;
+  Uuid service_uuid;
+  char service_name[256];
+  int fd;
+  int app_fd;   // Temporary storage for the half of the socketpair that's sent
+                // back to upper layers.
+  int app_uid;  // UID of the app for which this socket was created.
+  int mtu;
+  uint8_t* packet;
+  int sdp_handle;
+  int rfc_handle;
+  int rfc_port_handle;
+  int role;
+  list_t* incoming_queue;
+  int new_srv_fd;
+  bool is_server;
+  int type;
+} rfc_slot_t;
 
 bt_status_t btsock_rfc_init(int handle, uid_set_t* set);
-bt_status_t btsock_rfc_cleanup();
+void btsock_rfc_cleanup();
 bt_status_t btsock_rfc_listen(const char* name, const bluetooth::Uuid* uuid,
                               int channel, int* sock_fd, int flags,
                               int app_uid, int type);
@@ -50,4 +88,7 @@ bt_status_t btsock_rfc_set_sockopt(int channel, btsock_option_type_t option_name
                                             void *option_value, int option_len);
 
 void btif_rfcomm_ss_callback(uint16_t event, char* p_param);
+
+rfc_slot_t* find_rfc_slot_by_fd(int fd);
+rfc_slot_t* find_rfc_slot_by_scn(int scn);
 #endif

@@ -5,6 +5,7 @@
 
 #define LOG_TAG "btif_ss_interface"
 #include "btif_ss_interface.h"
+#include "btif_sock_rfc.h"
 #include "protobuf/proto/dm.pb.h"
 #include "protobuf/include/proto_message_ids.h"
 #include "osi/include/log.h"
@@ -30,6 +31,7 @@ BluetoothSSTransport* gSSTransportCtrl = NULL;
 BluetoothSSTransport* gSSTransportData = NULL;
 BluetoothSSTransport* gSSTransportLeData = NULL;
 BluetoothSSTransport* gSSTransportSsrData = NULL;
+BluetoothSSTransport* gSSTransportObexData = NULL;
 
 thread_t* ctrl_tx_thread;
 static base::MessageLoop* message_loop_ctrl_tx_ = NULL;
@@ -283,21 +285,28 @@ BluetoothSSInterface::BluetoothSSInterface() {
     } else {
         running_le_data_ch_ = true;
     }
+    gSSTransportObexData = new BluetoothSSTransport();
+    ALOGI("BluetoothSSInterface calling open for obex data channel");
+    rsltfd = gSSTransportObexData->open(BT_SS_OBEX_DATA_CH);
+    ALOGI("BluetoothSSInterface finish open for obex data rstlfd is :: %d",rsltfd);
+    if (rsltfd <= 0) {
+      ALOGE("open failed");
+      running_obex_data_ch_ = false;
+    } else {
+      running_obex_data_ch_ = true;
+    }
 
-#if 0
     gSSTransportSsrData = new BluetoothSSTransport();
     ALOGI("BluetoothSSInterface calling open for ssr data channel");
-    //TBD: Need to enable once slate changes are ready
     rsltfd = gSSTransportSsrData->open(BT_SS_SSR_DATA_CH);
     ALOGI("BluetoothSSInterface finish open for ssr data rstlfd is :: %d",rsltfd);
     if (rsltfd <= 0) {
-      ALOGI("open failed");
+      ALOGE("open failed");
       running_ssr_data_ch_ = false;
     }
     else {
       running_ssr_data_ch_ = true;
     }
-#endif
 
     isTxTimeout = false;
     isRxTimeout = false;
@@ -333,6 +342,12 @@ BluetoothSSInterface::BluetoothSSInterface() {
         data_ch_rx_thread->detach();
     }
 
+    //thread for obex data
+    if(!obex_data_ch_rx_thread){
+      obex_data_ch_rx_thread = std::unique_ptr<std::thread>(new std::thread(&BluetoothSSInterface::processObexDataChRx, this));
+      obex_data_ch_rx_thread->detach();
+    }
+
     //thread for ssr dump
     if(!ssr_data_ch_rx_thread){
         ssr_data_ch_rx_thread = std::unique_ptr<std::thread>(new std::thread(&BluetoothSSInterface::processSsrDataChRx, this));
@@ -365,7 +380,11 @@ void BluetoothSSInterface::cleanup() {
     BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false, false);
 
     // Stop Alarms
-    if (alarm_is_scheduled(rx_thread_timeout)) {
+    ALOGI("BluetoothSSInterface free alarms");
+    alarm_free(rx_thread_timeout);
+    alarm_free(tx_thread_timeout);
+    alarm_free(rx_ssr_dump_thread_timeout);
+    /*if (alarm_is_scheduled(rx_thread_timeout)) {
       ALOGI("%s(): rx_thread_timeout() scheduled", __func__);
       alarm_cancel(rx_thread_timeout);
       alarm_free(rx_thread_timeout);
@@ -388,7 +407,7 @@ void BluetoothSSInterface::cleanup() {
       alarm_free(tx_thread_timeout);
     } else {
       ALOGI("%s(): tx_thread_timeout() is not scheduled", __func__);
-    }
+    }*/
 
     //Cleanup Ctrl Ch
     if (run_loop_ctrl_tx_ && message_loop_ctrl_tx_) {
@@ -435,6 +454,14 @@ void BluetoothSSInterface::cleanup() {
       running_le_data_ch_ = false;
       delete gSSTransportLeData;
       gSSTransportLeData = NULL;
+    }
+
+    //Cleanup OBEX Data Ch
+    if (gSSTransportObexData != NULL) {
+      gSSTransportObexData->close();
+      running_obex_data_ch_ = false;
+      delete gSSTransportObexData;
+      gSSTransportObexData = NULL;
     }
 
     //Cleanup SSR Data Ch
@@ -504,7 +531,7 @@ void processTx(std::string msgStr) {
   ALOGD("%s: CTRL_CH: write payload bytes_written=%d", __func__, (int)bytes_written);
 }
 
-int processDataTx(std::string msgStr) {
+int processDataTx(std::string msgStr, int fd) {
   uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
   uint16_t MSG_ID = tmpBuf [0] + (((int)(tmpBuf [1]))<<8);
   ALOGD("%s: msg id : %d and length %d", __func__, MSG_ID, msgStr.length());
@@ -521,6 +548,11 @@ int processDataTx(std::string msgStr) {
         alarm_set_on_mloop(tx_thread_timeout, GLINK_IDLE_TIMEOUT, txThreadTimeout, NULL);
         pthread_mutex_unlock(&tx_threads_mutex);
         BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false, true);
+        rfc_slot_t* slot = find_rfc_slot_by_fd(fd);
+        if(!slot){
+          ALOGI("%s slot already cleaned up", __func__);
+          return result;
+        }
         result = gSSTransportData->write(tmpBuf,msgStr.length(),&bytes_written);
         if(result == 0){
           ALOGI("%s: Glink write success",__func__);
@@ -596,6 +628,48 @@ int processLeDataTx(std::string msgStr) {
   return bytes_written;
 }
 
+int processObexDataTx(std::string msgStr) {
+  const  char *msgType="Tx";
+  uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
+  uint16_t MSG_ID = tmpBuf [0] + (((int)(tmpBuf [1]))<<8);
+  ALOGD("%s: msg id : %d and length %d", __func__, MSG_ID, msgStr.length());
+
+  size_t bytes_written = 0;
+  if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
+    do_in_data_logging_thread(base::Bind(processDataLogging, tmpBuf,msgStr.length(),msgType));
+  }
+  int result = -1;
+  int retry_count = 0;
+  do {
+        pthread_mutex_lock(&tx_threads_mutex);
+        if (alarm_is_scheduled(tx_thread_timeout)) {
+          ALOGI("%s(): tx_thread_timeout() scheduled", __func__);
+          alarm_cancel(tx_thread_timeout);
+        }
+        isTxTimeout = false;
+        alarm_set_on_mloop(tx_thread_timeout, GLINK_IDLE_TIMEOUT, txThreadTimeout, NULL);
+        pthread_mutex_unlock(&tx_threads_mutex);
+        BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false, true);
+        result = gSSTransportObexData->write(tmpBuf,msgStr.length(),&bytes_written);
+        if(result == 0){
+          ALOGI("%s: Glink write success",__func__);
+          break;
+        }else if(result == -1){
+          retry_count++;
+          ALOGE("%s: Glink write failure...retrying...retry count is :: %d",__func__,retry_count);
+          if(retry_count > 3){
+            usleep(50000);
+          }
+          continue;
+        }else{
+          ALOGE("%s: Glink write failure status unknown",__func__);
+          break;
+        }
+  }while(true);
+  ALOGI("%s: OBEX_DATA_CH: write payload bytes_written=%d", __func__, (int)bytes_written);
+  return bytes_written;
+}
+
 void BluetoothSSInterface::postTxMsg(std::string msgStr) {
   uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
   uint16_t MSG_ID = tmpBuf [0] + (((int)(tmpBuf [1]))<<8);
@@ -607,12 +681,12 @@ void BluetoothSSInterface::postTxMsg(std::string msgStr) {
   do_in_ctrl_tx_thread(base::Bind(processTx, msgStr));
 }
 
-int BluetoothSSInterface::postDataChTxMsg(std::string msgStr) {
+int BluetoothSSInterface::postDataChTxMsg(std::string msgStr, int fd) {
   uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
   uint16_t MSG_ID = tmpBuf [0] + (((int)(tmpBuf [1]))<<8);
   ALOGI("postDataChTxMsg with msg id : %d and length %d", MSG_ID, msgStr.length());
   //do_in_data_tx_thread(base::Bind(processDataTx, msgStr));
-  return processDataTx(msgStr);
+  return processDataTx(msgStr,fd);
 }
 
 int BluetoothSSInterface::postLeDataChTxMsg(std::string msgStr) {
@@ -621,6 +695,13 @@ int BluetoothSSInterface::postLeDataChTxMsg(std::string msgStr) {
   ALOGI("postLeDataChTxMsg with msg id : %d and length %d", MSG_ID, msgStr.length());
   //do_in_data_tx_thread(base::Bind(processLeDataTx, msgStr));
   return processLeDataTx(msgStr);
+}
+
+int BluetoothSSInterface::postObexDataChTxMsg(std::string msgStr) {
+  uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
+  uint16_t MSG_ID = tmpBuf [0] + (((int)(tmpBuf [1]))<<8);
+  ALOGI("postObexDataChTxMsg with msg id : %d and length %d", MSG_ID, msgStr.length());
+  return processObexDataTx(msgStr);
 }
 
 void BluetoothSSInterface::registerCallbacks(const char* profile_id, ss_profile_callback profile_cb) {
@@ -909,16 +990,65 @@ void BluetoothSSInterface::processLeDataChRx() {
     free(readBuffer);
 }
 
-void BluetoothSSInterface::processSsrDataChRx() {
-    ALOGE("BluetoothSSInterface processRx :: running_ssr_data_ch_ is :: %d",running_ssr_data_ch_);
+void BluetoothSSInterface::processObexDataChRx() {
+ALOGE("BluetoothSSInterface processRx :: running_obex_data_ch_ is :: %d",running_obex_data_ch_);
     //btif_ss_logger btif_ss_logger;
     uint8_t *readBuffer = (uint8_t *)malloc(MSG_SIZE_MAX*sizeof(uint8_t));
     if (readBuffer == NULL) {
       ALOGE("%s: readBuffer malloc failed",__func__);
       return;
     }
+    while (running_obex_data_ch_) {
+        int rcPoll = gSSTransportObexData->poll(-1);
+        if (-1 == rcPoll) {
+            ALOGI("Poll Failure");
+            break;
+        }
+        pthread_mutex_lock(&rx_threads_mutex);
+        if (alarm_is_scheduled(rx_thread_timeout)) {
+          ALOGI("%s(): rx_thread_timeout() scheduled", __func__);
+          alarm_cancel(rx_thread_timeout);
+        }
+        isRxTimeout = false;
+        alarm_set_on_mloop(rx_thread_timeout, GLINK_IDLE_TIMEOUT,
+            rxThreadTimeout, NULL);
+        pthread_mutex_unlock(&rx_threads_mutex);
+        ssGlinkWakeLockAcquireOrRelease(false, true);
+        int num = gSSTransportObexData->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
+        ALOGI("num of bytes read from stream is :: %d",num);
+        if(num < MSG_SIZE_MIN) {
+            ALOGE("Slate response is too short ::  %d",num);
+        } else {
+            uint16_t MSG_ID = readBuffer[0] + (((int)(readBuffer[1]))<<8);
+            uint16_t length = readBuffer[2] + (((int)(readBuffer[3]))<<8);
+            if (length > (num - MSG_PROTO_OFFSET)) {
+              ALOGE("Length is greater than the buffer received. Buffer Size: %d and length: %d",num, length);
+              continue;
+            }
+            tBTIF_SS_Cback ss_cback;
+            memset(&ss_cback, 0, sizeof(tBTIF_SS_Cback));
+            ss_cback.payload = (uint8_t *)malloc(num*sizeof(uint8_t)); //This memory should be released from each profile after done with the processing
+            if (ss_cback.payload == NULL) {
+              ALOGE("%s: payload malloc failed",__func__);
+              continue;
+            }
+            memcpy(ss_cback.payload, readBuffer, (num * sizeof(uint8_t)) );
+            parseRxData(MSG_ID, ss_cback);
+        }
+    }
+    free(readBuffer);
+}
+
+void BluetoothSSInterface::processSsrDataChRx() {
+    ALOGE("BluetoothSSInterface processRx :: running_ssr_data_ch_ is :: %d",running_ssr_data_ch_);
+    //btif_ss_logger btif_ss_logger;
+    uint8_t *readBuffer = (uint8_t *)malloc(SSR_CH_MAX_SIZE*sizeof(uint8_t));
+    if (readBuffer == NULL) {
+      ALOGE("%s: readBuffer malloc failed",__func__);
+      return;
+    }
     while (running_ssr_data_ch_) {
-        int rcPoll = gSSTransportLeData->poll(-1);
+        int rcPoll = gSSTransportSsrData->poll(-1);
         if (-1 == rcPoll) {
             ALOGI("Poll Failure");
             break;
@@ -932,41 +1062,22 @@ void BluetoothSSInterface::processSsrDataChRx() {
         alarm_set_on_mloop(rx_thread_timeout, GLINK_IDLE_TIMEOUT, rxThreadTimeout, NULL);
         pthread_mutex_unlock(&rx_threads_mutex);
         ssGlinkWakeLockAcquireOrRelease(false, true);
-        int num = gSSTransportSsrData->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
+        int num = gSSTransportSsrData->read(readBuffer, SSR_CH_MAX_SIZE*sizeof(uint8_t));
         ALOGI("num of bytes read from stream is :: %d",num);
-        if(num < MSG_SIZE_MIN) {
+        if(num < SSR_CH_MIN_SIZE) {
             ALOGE("Slate response is too short ::  %d",num);
         }
         else {
-            uint16_t MSG_ID = readBuffer[0] + (((int)(readBuffer[1])) << 8);
-            uint16_t length = readBuffer[2] + (((int)(readBuffer[3])) << 8);
-            PrimaryReasonCode reason = (PrimaryReasonCode)readBuffer[4];// + ((readBuffer[5]) << 8);
-
-            if (length > (num - MSG_PROTO_OFFSET)) {
-              ALOGE("Length is greater than the buffer received. Buffer Size: %d and length: %d",num, length);
-              continue;
-            }
-            switch(MSG_ID) {
-              case BT_SSR_EVT_SEQ_START: {
-                 alarm_set_on_mloop(rx_ssr_dump_thread_timeout, GLINK_IDLE_TIMEOUT,rxThreadTimeout, NULL);
-                break;
-              }
-              case BT_SSR_EVT_SEQ_STOP: {
-                if (alarm_is_scheduled(rx_ssr_dump_thread_timeout)) {
-                  ALOGI("%s(): rx_ssr_dump_thread_timeout() scheduled", __func__);
-                  alarm_cancel(rx_ssr_dump_thread_timeout);
-                }
-                break;
-              }
-              case BT_SSR_EVT_SEQ_START_NEXT ... BT_SSR_EVT_SEQ_BEFORE_STOP: {
-                //btif_ss_logger.SS_SaveSlateMemDump(&readBuffer[5],length, reason)
-                break;
-              }
-
-              default:
-                ALOGI("msg_id : %d Not matching with ssr dump message ID",MSG_ID);
-                break;
-            }
+          tBTIF_SS_Cback ss_cback;
+          memset(&ss_cback, 0, sizeof(tBTIF_SS_Cback));
+          ss_cback.num_bytes = num;
+          ss_cback.payload = (uint8_t *)malloc(num*sizeof(uint8_t)); //This memory should be released from each profile after done with the processing
+          if (ss_cback.payload == NULL) {
+            ALOGE("%s: payload malloc failed",__func__);
+            continue;
+          }
+          memcpy(ss_cback.payload, readBuffer, (num * sizeof(uint8_t)) );
+          parseRxData(BT_DM_SSR_CB, ss_cback);
         }
     }
     free(readBuffer);
