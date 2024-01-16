@@ -411,12 +411,13 @@ static bt_status_t start_aidl_a2dp_session(const RawAddress& bd_addr) {
 
 uint8_t get_available_index(void) {
   uint8_t idx = 0;
-  while(idx++ < MAX_CONNS) {
-    if (codec_config[idx].bd_address == RawAddress::kEmpty)
-            return idx;
+  while(idx < MAX_CONNS) {
+    if (codec_config[idx].bd_address == RawAddress::kEmpty) {
+        return idx;
+    }
+    idx++;
   }
-  idx = INVALID_INDEX;
-  return idx;
+  return INVALID_INDEX;
 }
 
 static bt_status_t codec_config_src(const RawAddress& bd_addr,
