@@ -2304,12 +2304,16 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       }
       uint32_t cod, passkey;
       RawAddress *bd_addr;
+      bt_ssp_variant_t ssp_variant;
+      RawAddress inq_db_bdaddr;
       if(sspRequestCb.has_remote_bd_addr()){
         ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_remote_bd_addr");
         uint8_t* addr = (uint8_t*)sspRequestCb.remote_bd_addr().c_str();
         bd_addr = (RawAddress*)addr;
         ALOGI("BT_DM_SSP_REQUEST_CB: addr : %s", bd_addr->ToString().c_str());
         ALOGI("BT_DM_SSP_REQUEST_CB: length: %d ", bd_addr->ToString().length());
+        std::string bt_address = bd_addr->ToString().c_str();
+        RawAddress::FromString(bt_address.c_str(), inq_db_bdaddr);
       }
       bt_bdname_t bdname;
       if (sspRequestCb.has_bdname()) {
@@ -2330,11 +2334,22 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       }
       if(sspRequestCb.has_pairing_variant()) {
         ALOGI("BT_DM_SSP_REQUEST_CB: parseRxData has_pairing_ssp_variant");
-        bt_ssp_variant_t ssp_variant;
         ssp_variant = (bt_ssp_variant_t)sspRequestCb.pairing_variant();
-        ALOGI("BT_DM_SSP_REQUEST_CB: Pairing: cod: 0x%06x bd_addr: %s bdname: %s, ssp_variant: %d, passkey: %d", cod, bd_addr->ToString().c_str(), (char*)bdname.name, ssp_variant, passkey);
-        HAL_CBACK(bt_hal_cbacks, ssp_request_cb, bd_addr, &bdname, cod, ssp_variant, passkey);
+        ALOGI("BT_DM_SSP_REQUEST_CB: ssp_variant : %d", ssp_variant);
       }
+
+      tInqDB_Addr* inq_dev_found = find_inq_db(inq_db_bdaddr);
+      if (inq_dev_found == NULL) {
+        ALOGI("inq_dev is not found");
+      }else{
+        ALOGI("inq_dev is found, check if cod parameter update :: cod %d inq_dev_found->cod %d",cod,inq_dev_found->cod);
+        if(cod != inq_dev_found->cod){
+          cod = inq_dev_found->cod;
+        }
+      }
+      ALOGI("BT_DM_SSP_REQUEST_CB: Pairing: cod: 0x%06x bd_addr: %s bdname: %s, ssp_variant: %d, passkey: %d", cod, bd_addr->ToString().c_str(), (char*)bdname.name, ssp_variant, passkey);
+      HAL_CBACK(bt_hal_cbacks, ssp_request_cb, bd_addr, &bdname, cod, ssp_variant, passkey);
+
       break;
     }
     case BT_DM_BOND_STATE_CHANGE_CB: {
