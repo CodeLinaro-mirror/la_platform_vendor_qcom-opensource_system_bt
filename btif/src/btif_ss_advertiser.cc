@@ -130,11 +130,18 @@ bool AdvertiserSingleStackProto::BleStartAdvertingSet(
   for (uint16_t i = 0; i < advertise_data.size(); i++) {
     ALOGD("\n advertise_data[%d] : %d", i, advertise_data[i]);
   }
+  for (uint16_t i = 0; i < advertise_data_enc.size(); i++) {
+    ALOGD("\n advertise_data_enc[%d] : %d", i, advertise_data_enc[i]);
+  }
   for (uint16_t i = 0; i < scan_response_data.size(); i++) {
     ALOGD("\n scan_response_data[%d] : %d", i, scan_response_data[i]);
   }
+  for (uint16_t i = 0; i < scan_response_data_enc.size(); i++) {
+    ALOGD("\n scan_response_data_enc[%d] : %d", i, scan_response_data_enc[i]);
+  }
 
   ALOGD("\n Periodic advertising enable : %d", periodic_params.enable);
+  ALOGD("\n Include ADI : %d", periodic_params.enable);
   ALOGD("\n Periodic advertising Min interval : %d",
         periodic_params.min_interval);
   ALOGD("\n Periodic advertising Max interval : %d",
@@ -145,9 +152,15 @@ bool AdvertiserSingleStackProto::BleStartAdvertingSet(
   for (uint16_t i = 0; i < periodic_data.size(); i++) {
     ALOGD("\n periodic_data[%d] : %d", i, periodic_data[i]);
   }
+  for (uint16_t i = 0; i < periodic_data_enc.size(); i++) {
+    ALOGD("\n periodic_data_enc[%d] : %d", i, periodic_data_enc[i]);
+  }
 
   ALOGD("\n duration : %d", duration);
   ALOGD("\n max_ext_adv_events : %d", max_ext_adv_events);
+  for (uint16_t i = 0; i < enc_key_value.size(); i++) {
+    ALOGD("\n enc_key_value[%d] : %d", i, enc_key_value[i]);
+  }
   ALOGD("\n reg_id : %d", reg_id);
   std::string encoded_bytes;
   ss_ble_start_advertising_set startAdvSet;
@@ -171,22 +184,18 @@ bool AdvertiserSingleStackProto::BleStartAdvertingSet(
       adv_param.scan_request_notification_enable);
 
   /*Populating Advertising data*/
-  for (uint16_t a = 0; a < advertise_data.size(); a++) {
-    startAdvSet.add_advertisedata(advertise_data[a]);
-  }
+  std::string stradvdata(advertise_data.begin(), advertise_data.end());
+  startAdvSet.set_advertisedata(stradvdata);
   
-   for (uint16_t a = 0; a < advertise_data_enc.size(); a++) {
-    startAdvSet.add_advertisedataenc(advertise_data_enc[a]);
-  }
+  std::string stradvdataenc(advertise_data_enc.begin(), advertise_data_enc.end());
+  startAdvSet.set_advertisedataenc(stradvdataenc);
 
   /*Populating Scan Response data*/
-  for (uint16_t a = 0; a < scan_response_data.size(); a++) {
-    startAdvSet.add_scanresponse(scan_response_data[a]);
-  }
+  std::string strscanrespdata(scan_response_data.begin(), scan_response_data.end());
+  startAdvSet.set_scanresponse(strscanrespdata);
 
-  for (uint16_t a = 0; a < scan_response_data_enc.size(); a++) {
-    startAdvSet.add_scanresponseenc(scan_response_data_enc[a]);
-  }
+  std::string strscanrespdataenc(scan_response_data_enc.begin(), scan_response_data_enc.end());
+  startAdvSet.set_scanresponseenc(strscanrespdataenc);
 
   /*Populating Periodic Advertising Parameters*/
   if (periodic_params.enable == true) {
@@ -199,22 +208,19 @@ bool AdvertiserSingleStackProto::BleStartAdvertingSet(
   perodic_params->set_periodicadvertisingproperties(
       periodic_params.periodic_advertising_properties);
 
-  /*Populating Scan Response data*/
-  for (uint16_t a = 0; a < periodic_data.size(); a++) {
-    startAdvSet.add_periodicdata(periodic_data[a]);
-  }
+  /*Populating Periodic Adv data*/
+  std::string strperiodicdata(periodic_data.begin(), periodic_data.end());
+  startAdvSet.set_periodicdata(strperiodicdata);
 
-  for (uint16_t a = 0; a < periodic_data_enc.size(); a++) {
-    startAdvSet.add_periodicdataenc(periodic_data_enc[a]);
-  }
+  std::string strperiodicdataenc(periodic_data_enc.begin(), periodic_data_enc.end());
+  startAdvSet.set_periodicdataenc(strperiodicdataenc);
 
   startAdvSet.set_duration(duration);
   startAdvSet.set_maxextadvevents(max_ext_adv_events);
   startAdvSet.set_regid(reg_id);
 
-  for (uint16_t a = 0; a < enc_key_value.size(); a++) {
-    startAdvSet.add_enckeyvalue(enc_key_value[a]);
-  }
+  std::string strenckeyvalue(enc_key_value.begin(), enc_key_value.end());
+  startAdvSet.set_enckeyvalue(strenckeyvalue);
 
   startAdvSet.SerializeToString(&encoded_bytes);
   uint16_t encoded_len = encoded_bytes.length();
@@ -304,6 +310,9 @@ bool AdvertiserSingleStackProto::BleSetData(
   for (uint16_t i = 0; i < data.size(); i++) {
     ALOGD("\n data[%d] : %d", i, data[i]);
   }
+  for (uint16_t i = 0; i < data_enc.size(); i++) {
+    ALOGD("\n data_enc[%d] : %d", i, data_enc[i]);
+  }
 
   std::string encoded_bytes;
   ss_ble_set_data setData;
@@ -318,14 +327,12 @@ bool AdvertiserSingleStackProto::BleSetData(
   setData.set_scanrespdata(scan_resp_data);
 
   /*Populating adv data*/
-  for (uint16_t a = 0; a < data.size(); a++) {
-    setData.add_advdata(data[a]);
-  }
+  std::string stradvdata(data.begin(), data.end());
+  setData.set_advdata(stradvdata);
 
   /*Populating adv data encry*/
-   for (uint16_t a = 0; a < data_enc.size(); a++) {
-    setData.add_advdataenc(data_enc[a]);
-  }
+  std::string stradvdataenc(data_enc.begin(), data_enc.end());
+  setData.set_advdataenc(stradvdataenc);
 
   setData.SerializeToString(&encoded_bytes);
   // adding length
@@ -398,6 +405,7 @@ bool AdvertiserSingleStackProto::BleSetPeriodicAdvertisingParameters(
 
   ALOGD("\n advertiser_id : %d", advertiser_id);
   ALOGD("\n Periodic advertising enable : %d", periodic_params.enable);
+  ALOGD("\n Include ADI : %d", periodic_params.enable);
   ALOGD("\n Periodic advertising Min interval : %d",
         periodic_params.min_interval);
   ALOGD("\n Periodic advertising Max interval : %d",
@@ -440,6 +448,9 @@ bool AdvertiserSingleStackProto::BlesetPeriodicAdvertisingData(
   for (uint16_t i = 0; i < data.size(); i++) {
     ALOGD("\n data[%d] : %d", i, data[i]);
   }
+  for (uint16_t i = 0; i < data_enc.size(); i++) {
+    ALOGD("\n data_enc[%d] : %d", i, data_enc[i]);
+  }
   std::string encoded_bytes;
   ss_ble_set_periodic_advertising_data setPeriodicAdvData;
   PeriodicAdvDataCbMap.insert(
@@ -447,15 +458,13 @@ bool AdvertiserSingleStackProto::BlesetPeriodicAdvertisingData(
                                                              Cb));
   setPeriodicAdvData.set_advertiserid(advertiser_id);
 
-  /*Populating adv data*/
-  for (uint16_t a = 0; a < data.size(); a++) {
-    setPeriodicAdvData.add_data(data[a]);
-  }
+  /*Populating perioidc adv data*/
+  std::string strperiodicdata(data.begin(), data.end());
+  setPeriodicAdvData.set_data(strperiodicdata);
 
   /*Populating periodic adv data encry*/
-   for (uint16_t a = 0; a < data_enc.size(); a++) {
-    setPeriodicAdvData.add_perioadvdataenc(data_enc[a]);
-  }
+  std::string strperiodicdataenc(data_enc.begin(), data_enc.end());
+  setPeriodicAdvData.set_perioadvdataenc(strperiodicdataenc);
 
   setPeriodicAdvData.SerializeToString(&encoded_bytes);
   // adding length
@@ -474,6 +483,7 @@ bool AdvertiserSingleStackProto::BleSetPeriodicAdvertisingEnable(
   ALOGD("\n BLE Set Periodic Advertising Enable");
   ALOGD("\n advertiser_id : %d", advertiser_id);
   ALOGD("\n Periodic Advertising enable : %d", enable);
+  ALOGD("\n Include ADI : %d", enable);
   std::string encoded_bytes;
   ss_ble_set_periodic_advertising_enable setPeriodicAdvEn;
   PeriodicAdvEnCbMap.insert(
