@@ -14,8 +14,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  Changes from Qualcomm Innovation Center are provided under the following license:
- *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ *  Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *  SPDX-License-Identifier: BSD-3-Clause-Clear
  ******************************************************************************/
 
@@ -125,6 +125,7 @@ using bluetooth::atp_locator::AtpLocatorInterface;
 #define MAX_BUFF_SIZE (64)
 #define BTSS_INIT_TIMEOUT  (6000)
 #define BT_SSR_DUMP_TIMEOUT  (20000)
+#define BT_SSR_TIMEOUT  (7000)
 
 /*******************************************************************************
  *  Static variables
@@ -583,6 +584,10 @@ static void ss_ssr_event_received () {
 	snprintf(path, SS_SOC_DUMP_PATH_BUF_SIZE, SS_SSR_DUMP_PATH_WITHOUT_TIME);
   }
   ssr_fptr = fopen(path,"w+");
+  if (alarm_is_scheduled(ssr_dump_timeout)) {
+    ALOGD("%s(): ssr_dump_timeout() scheduled, so cancel it", __func__);
+    alarm_cancel(ssr_dump_timeout);
+  }
   alarm_set_on_mloop(ssr_dump_timeout, BT_SSR_DUMP_TIMEOUT, ssrDumpTimeout, NULL);
   if (ssr_fptr == NULL) {
     ALOGE("SSR Dump file create failed. Path :: %s", path);
@@ -1657,7 +1662,12 @@ void btss_uevent_handler() {
                 ALOGE(" %s : event received -SLATE_BEFORE_POWER_DOWN", __func__);
                 btssPrevousState = btssCurrentState;
                 btssCurrentState = SS_SLATE_DOWN;
-                ALOGD("Waiting for BT SSR Dump to be completed to trigger SSR..!!!");
+                if (alarm_is_scheduled(ssr_dump_timeout)) {
+                    ALOGD("%s(): ssr_dump_timeout() scheduled", __func__);
+                    alarm_cancel(ssr_dump_timeout);
+                }
+                ALOGD("%s(): starting alarm timer ssr time out", __func__);
+                alarm_set_on_mloop(ssr_dump_timeout, BT_SSR_TIMEOUT, ssrDumpTimeout, NULL);
               }
               break;
             case SS_SLATE_AFTER_POWER_DOWN:
@@ -1680,6 +1690,7 @@ void btss_uevent_handler() {
                 ALOGE(" %s : event received - SLATE_BT_ERROR", __func__);
                 btssPrevousState = btssCurrentState;
                 btssCurrentState = SS_BTSS_DOWN;
+                ALOGD("Waiting for BT SSR Dump to be completed to trigger SSR..!!!");
               }
               break;
             default:
