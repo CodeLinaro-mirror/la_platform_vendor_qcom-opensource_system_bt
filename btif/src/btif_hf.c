@@ -1846,7 +1846,7 @@ static bt_status_t bind_string_response_vendor(const char* res,
         memset (&ag_res, 0, sizeof (ag_res));
 
         /* Format the response */
-        xx = snprintf (ag_res.str, sizeof(ag_res.str), res);
+        xx = snprintf (ag_res.str, sizeof(ag_res.str), "%s", res);
 
         BTA_AgResult (btif_hf_cb[idx].handle, BTA_AG_BIND_RES, &ag_res);
 

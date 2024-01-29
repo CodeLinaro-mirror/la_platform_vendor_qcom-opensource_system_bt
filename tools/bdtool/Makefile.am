@@ -30,4 +30,4 @@ bdt_SOURCES = $(c_sources)
 bdt_CFLAGS = $(common_CFLAGS)
 bdt_LDFLAGS = $(Z_LIB)
 bdt_LDADD = -ldl -lrt -lresolv ../../btcore/libbtcore.la \
-    ../../osi/libbtosi.la $(SYS_LIB)/libbtvendorhal.la
+    ../../osi/libbtosi.la -lbtvendorhal
