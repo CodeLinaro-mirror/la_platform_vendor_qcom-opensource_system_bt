@@ -2411,7 +2411,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       }
       uint32_t hci_reason;
       if(aclStateChangedCb.has_hci_reason()) {
-        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_hci_reason")uint32_t;
+        ALOGI("BT_DM_ACL_STATE_CHANGE_CB: parseRxData has_hci_reason");
         hci_reason = aclStateChangedCb.hci_reason();
         ALOGI("BT_DM_ACL_STATE_CHANGE_CB: hci_reason : %d", hci_reason);
       }
