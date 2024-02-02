@@ -111,7 +111,7 @@ static tBTM_STATUS btm_sec_send_hci_disconnect(tBTM_SEC_DEV_REC* p_dev_rec,
                                                uint16_t conn_handle);
 tBTM_SEC_DEV_REC* btm_sec_find_dev_by_sec_state(uint8_t state);
 
-static bool btm_dev_authenticated(tBTM_SEC_DEV_REC* p_dev_rec);
+static bool btm_dev_authenticated(const tBTM_SEC_DEV_REC* p_dev_rec);
 static bool btm_dev_encrypted(tBTM_SEC_DEV_REC* p_dev_rec);
 static uint16_t btm_sec_set_serv_level4_flags(uint16_t cur_security,
                                               bool is_originator);
@@ -163,7 +163,7 @@ void NotifyBondingCanceled(tBTM_STATUS btm_status) {
  * Returns          bool    true or false
  *
  ******************************************************************************/
-static bool btm_dev_authenticated(tBTM_SEC_DEV_REC* p_dev_rec) {
+static bool btm_dev_authenticated(const tBTM_SEC_DEV_REC* p_dev_rec) {
   if (p_dev_rec->sec_flags & BTM_SEC_AUTHENTICATED) {
     return (true);
   }
@@ -201,6 +201,25 @@ static bool btm_dev_16_digit_authenticated(tBTM_SEC_DEV_REC* p_dev_rec) {
     return (true);
   }
   return (false);
+}
+
+/*******************************************************************************
+ *
+ * Function         access_secure_service_from_temp_bond
+ *
+ * Description      a utility function to test whether an access to
+ *                  secure service from temp bonding is happening
+ *
+ * Returns          true if the aforementioned condition holds,
+ *                  false otherwise
+ *
+ ******************************************************************************/
+static bool access_secure_service_from_temp_bond(const tBTM_SEC_DEV_REC* p_dev_rec,
+                                                 bool locally_initiated,
+                                                 uint16_t security_req) {
+  return !locally_initiated && (security_req & BTM_SEC_IN_AUTHENTICATE) &&
+    btm_dev_authenticated(p_dev_rec) &&
+    p_dev_rec->is_bond_type_temporary();
 }
 
 /*******************************************************************************
@@ -1619,9 +1638,13 @@ tBTM_STATUS btm_sec_l2cap_access_req_by_requirement(
       }
 
       if (rc == BTM_SUCCESS) {
+        if (access_secure_service_from_temp_bond(p_dev_rec, is_originator, security_required)) {
+          LOG_ERROR("Trying to access a secure service from a temp bonding, rejecting");
+          rc = BTM_FAILED_ON_SECURITY;
+        }
         if (p_callback)
-          (*p_callback)(&bd_addr, transport, (void*)p_ref_data, BTM_SUCCESS);
-        return (BTM_SUCCESS);
+          (*p_callback)(&bd_addr, transport, (void*)p_ref_data, rc);
+        return (rc);
       }
     }
 
@@ -1638,14 +1661,14 @@ tBTM_STATUS btm_sec_l2cap_access_req_by_requirement(
     if (BTM_SEC_IS_SM4(p_dev_rec->sm4)) {
       if (is_originator) {
         /* SM4 to SM4 -> always authenticate & encrypt */
-        security_required |= (BTM_SEC_OUT_AUTHENTICATE | BTM_SEC_OUT_ENCRYPT);
+        security_required |= BTM_SEC_OUT_ENCRYPT;
       } else /* acceptor */
       {
         /* SM4 to SM4: the acceptor needs to make sure the authentication is
          * already done */
         chk_acp_auth_done = true;
         /* SM4 to SM4 -> always authenticate & encrypt */
-        security_required |= (BTM_SEC_IN_AUTHENTICATE | BTM_SEC_IN_ENCRYPT);
+        security_required |= BTM_SEC_IN_ENCRYPT;
       }
     } else if (!(BTM_SM4_KNOWN & p_dev_rec->sm4)) {
       /* the remote features are not known yet */
@@ -1883,6 +1906,11 @@ tBTM_STATUS btm_sec_mx_access_request(const RawAddress& bd_addr,
                                p_callback, p_ref_data);
     } else /* rc == BTM_SUCCESS */
     {
+      if (access_secure_service_from_temp_bond(p_dev_rec,
+          is_originator, security_required)) {
+        LOG_ERROR("Trying to access a secure rfcomm service from a temp bonding, reject");
+        rc = BTM_FAILED_ON_SECURITY;
+      }
       if (p_callback) {
         LOG_DEBUG("Notifying client that security access has been granted");
         (*p_callback)(&bd_addr, transport, p_ref_data, rc);
@@ -3240,6 +3268,13 @@ void btm_sec_auth_complete(uint16_t handle, tHCI_STATUS status) {
           // indicate that this is encryption after authentication
           BTM_SetEncryption(p_dev_rec->bd_addr, BT_TRANSPORT_BR_EDR, NULL, NULL,
                             BTM_BLE_SEC_NONE);
+        } else if (p_dev_rec->is_originator) {
+          // Encryption will be set in role_changed callback
+          BTM_TRACE_DEBUG(
+              "%s auth completed in role=slave, try to switch role and "
+              "encrypt",
+              __func__);
+          BTM_SwitchRoleToCentral(p_dev_rec->bd_addr);
         }
       }
       l2cu_start_post_bond_timer(p_dev_rec->hci_handle);
@@ -3376,23 +3411,9 @@ void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status,
         p_dev_rec->new_encryption_key_is_p256 = false;
 
         BTM_TRACE_DEBUG("%s start SM over BR/EDR", __func__);
+        BTM_TRACE_DEBUG("%s, disable role switch", __func__);
+        BTM_block_role_switch_for(p_dev_rec->bd_addr);
         SMP_BR_PairWith(p_dev_rec->bd_addr);
-      }
-    } else {
-      // BR/EDR is successfully encrypted. Correct LK type if needed
-      // (BR/EDR LK derived from LE LTK was used for encryption)
-      if ((encr_enable == 1) && /* encryption is ON for SSP */
-          /* LK type is for BR/EDR SC */
-          (p_dev_rec->link_key_type == BTM_LKEY_TYPE_UNAUTH_COMB_P_256 ||
-           p_dev_rec->link_key_type == BTM_LKEY_TYPE_AUTH_COMB_P_256)) {
-        if (p_dev_rec->link_key_type == BTM_LKEY_TYPE_UNAUTH_COMB_P_256)
-          p_dev_rec->link_key_type = BTM_LKEY_TYPE_UNAUTH_COMB;
-        else /* BTM_LKEY_TYPE_AUTH_COMB_P_256 */
-          p_dev_rec->link_key_type = BTM_LKEY_TYPE_AUTH_COMB;
-
-        BTM_TRACE_DEBUG("updated link key type to %d",
-                        p_dev_rec->link_key_type);
-        btm_send_link_key_notif(p_dev_rec);
       }
     }
   }
@@ -3883,6 +3904,32 @@ void btm_sec_disconnected(uint16_t handle, tHCI_REASON reason) {
   }
 }
 
+/*******************************************************************************
+ *
+ * Function         btm_sec_role_changed
+ *
+ * Description      This function is called when receiving an HCI role change
+ *                  event
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btm_sec_role_changed(uint8_t hci_status, const RawAddress& bd_addr,
+                          uint8_t new_role) {
+  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
+
+  if (p_dev_rec == nullptr || hci_status != HCI_SUCCESS) {
+    return;
+  }
+  if (new_role == HCI_ROLE_CENTRAL && btm_dev_authenticated(p_dev_rec) &&
+      !btm_dev_encrypted(p_dev_rec)) {
+    BTM_TRACE_DEBUG("%s: start encryption after role switched to master",
+                  __func__);
+    BTM_SetEncryption(p_dev_rec->bd_addr, BT_TRANSPORT_BR_EDR, NULL, NULL,
+                      BTM_BLE_SEC_NONE);
+  }
+}
+
 /** This function is called when a new connection link key is generated */
 void btm_sec_link_key_notification(const RawAddress& p_bda,
                                    const Octet16& link_key, uint8_t key_type) {
@@ -4362,48 +4409,67 @@ tBTM_STATUS btm_sec_execute_procedure(tBTM_SEC_DEV_REC* p_dev_rec) {
 
   /* If connection is not authenticated and authentication is required */
   /* start authentication and return PENDING to the caller */
-  if ((((!(p_dev_rec->sec_flags & BTM_SEC_AUTHENTICATED)) &&
-        ((p_dev_rec->IsLocallyInitiated() &&
-          (p_dev_rec->security_required & BTM_SEC_OUT_AUTHENTICATE)) ||
-         (!p_dev_rec->IsLocallyInitiated() &&
-          (p_dev_rec->security_required & BTM_SEC_IN_AUTHENTICATE)))) ||
-       (!(p_dev_rec->sec_flags & BTM_SEC_16_DIGIT_PIN_AUTHED) &&
-        (!p_dev_rec->IsLocallyInitiated() &&
-         (p_dev_rec->security_required & BTM_SEC_IN_MIN_16_DIGIT_PIN)))) &&
-      (p_dev_rec->hci_handle != HCI_INVALID_HANDLE)) {
-    /*
-     * We rely on BTM_SEC_16_DIGIT_PIN_AUTHED being set if MITM is in use,
-     * as 16 DIGIT is only needed if MITM is not used. Unfortunately, the
-     * BTM_SEC_AUTHENTICATED is used for both MITM and non-MITM
-     * authenticated connections, hence we cannot distinguish here.
-     */
+  if (p_dev_rec->hci_handle != HCI_INVALID_HANDLE) {
+    bool start_auth = false;
 
-    LOG_DEBUG("Security Manager: Start authentication");
-
-    /*
-     * If we do have a link-key, but we end up here because we need an
-     * upgrade, then clear the link-key known and authenticated flag before
-     * restarting authentication.
-     * WARNING: If the controller has link-key, it is optional and
-     * recommended for the controller to send a Link_Key_Request.
-     * In case we need an upgrade, the only alternative would be to delete
-     * the existing link-key. That could lead to very bad user experience
-     * or even IOP issues, if a reconnect causes a new connection that
-     * requires an upgrade.
-     */
-    if ((p_dev_rec->sec_flags & BTM_SEC_LINK_KEY_KNOWN) &&
-        (!(p_dev_rec->sec_flags & BTM_SEC_16_DIGIT_PIN_AUTHED) &&
-         (!p_dev_rec->IsLocallyInitiated() &&
-          (p_dev_rec->security_required & BTM_SEC_IN_MIN_16_DIGIT_PIN)))) {
-      p_dev_rec->sec_flags &=
-          ~(BTM_SEC_LINK_KEY_KNOWN | BTM_SEC_LINK_KEY_AUTHED |
-            BTM_SEC_AUTHENTICATED);
+    // Check link status of BR/EDR
+    if (!(p_dev_rec->sec_flags & BTM_SEC_AUTHENTICATED)) {
+      if (p_dev_rec->IsLocallyInitiated()) {
+        if (p_dev_rec->security_required &
+            (BTM_SEC_OUT_AUTHENTICATE | BTM_SEC_OUT_ENCRYPT)) {
+          LOG_DEBUG("Outgoing authentication/encryption Required");
+          start_auth = true;
+        }
+      } else {
+        if (p_dev_rec->security_required &
+            (BTM_SEC_IN_AUTHENTICATE | BTM_SEC_IN_ENCRYPT)) {
+          LOG_DEBUG("Incoming authentication/encryption Required");
+          start_auth = true;
+        }
+      }
     }
 
-    btm_sec_start_authentication(p_dev_rec);
-    return (BTM_CMD_STARTED);
-  } else {
-    LOG_DEBUG("Authentication not required");
+    if (!(p_dev_rec->sec_flags & BTM_SEC_16_DIGIT_PIN_AUTHED)) {
+      /*
+       * We rely on BTM_SEC_16_DIGIT_PIN_AUTHED being set if MITM is in use,
+       * as 16 DIGIT is only needed if MITM is not used. Unfortunately, the
+       * BTM_SEC_AUTHENTICATED is used for both MITM and non-MITM
+       * authenticated connections, hence we cannot distinguish here.
+       */
+      if (!p_dev_rec->IsLocallyInitiated()) {
+        if (p_dev_rec->security_required & BTM_SEC_IN_MIN_16_DIGIT_PIN) {
+          LOG_DEBUG("BTM_SEC_IN_MIN_16_DIGIT_PIN Required");
+          start_auth = true;
+        }
+      }
+    }
+
+    if (start_auth) {
+      LOG_DEBUG("Security Manager: Start authentication");
+
+      /*
+       * If we do have a link-key, but we end up here because we need an
+       * upgrade, then clear the link-key known and authenticated flag before
+       * restarting authentication.
+       * WARNING: If the controller has link-key, it is optional and
+       * recommended for the controller to send a Link_Key_Request.
+       * In case we need an upgrade, the only alternative would be to delete
+       * the existing link-key. That could lead to very bad user experience
+       * or even IOP issues, if a reconnect causes a new connection that
+       * requires an upgrade.
+       */
+      if ((p_dev_rec->sec_flags & BTM_SEC_LINK_KEY_KNOWN) &&
+          (!(p_dev_rec->sec_flags & BTM_SEC_16_DIGIT_PIN_AUTHED) &&
+          (!p_dev_rec->IsLocallyInitiated() &&
+            (p_dev_rec->security_required & BTM_SEC_IN_MIN_16_DIGIT_PIN)))) {
+        p_dev_rec->sec_flags &=
+            ~(BTM_SEC_LINK_KEY_KNOWN | BTM_SEC_LINK_KEY_AUTHED |
+              BTM_SEC_AUTHENTICATED);
+      }
+
+      btm_sec_start_authentication(p_dev_rec);
+      return (BTM_CMD_STARTED);
+    }
   }
 
   /* If connection is not encrypted and encryption is required */
@@ -4428,6 +4494,14 @@ tBTM_STATUS btm_sec_execute_procedure(tBTM_SEC_DEV_REC* p_dev_rec) {
     BTM_TRACE_EVENT(
         "%s: Security Manager: SC only service, but link key type is 0x%02x -",
         "security failure", __func__, p_dev_rec->link_key_type);
+    return (BTM_FAILED_ON_SECURITY);
+  }
+
+
+  if (access_secure_service_from_temp_bond(p_dev_rec,
+                                           p_dev_rec->is_originator,
+                                           p_dev_rec->security_required)) {
+    LOG_ERROR("Trying to access a secure service from a temp bonding, rejecting");
     return (BTM_FAILED_ON_SECURITY);
   }
 

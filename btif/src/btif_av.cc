@@ -15,6 +15,42 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+/******************************************************************************
+*  Changes from Qualcomm Innovation Center are provided under the following license:
+*
+* Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted (subject to the limitations in the
+* disclaimer below) provided that the following conditions are met:
+*
+*      * Redistributions of source code must retain the above copyright
+*        notice, this list of conditions and the following disclaimer.
+*
+*      * Redistributions in binary form must reproduce the above
+*        copyright notice, this list of conditions and the following
+*        disclaimer in the documentation and/or other materials provided
+*        with the distribution.
+*
+*      * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+*        contributors may be used to endorse or promote products derived
+*        from this software without specific prior written permission.
+*
+* NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+* GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+* HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+* IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+* GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+* IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+* OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+* IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+*
+*****************************************************************************/
 
 #define LOG_TAG "btif_av"
 
@@ -626,8 +662,14 @@ class BtifAvSink {
     LOG(INFO) << __PRETTY_FUNCTION__ << ": peer: " << peer_address;
 
     if (active_peer_ == peer_address) {
-      peer_ready_promise.set_value();
-      return true;  // Nothing has changed
+      // Fix switch codec issue
+      // When the phone switches A2DP CODEC (e.g. from AAC to SBC), the codec config
+      // of active peer may be cleared and led to update decoder failure. So update
+      // decoder here if cannot find BtaAvCo active peer
+      if (peer_address.IsEmpty() || !bta_av_co_is_current_codec_config_empty()) {
+        peer_ready_promise.set_value();
+        return true;  // Nothing has changed
+      }
     }
     if (peer_address.IsEmpty()) {
       if (btif_av_is_connected()) {
@@ -666,6 +708,10 @@ class BtifAvSink {
       return false;
     }
     active_peer_ = peer_address;
+    uint8_t* config = bta_av_co_get_codec_config(peer_address);
+    if (config != nullptr) {
+      btif_a2dp_sink_update_decoder(config);
+    }
     return true;
   }
 
@@ -1318,6 +1364,10 @@ BtifAvPeer* BtifAvSink::FindOrCreatePeer(const RawAddress& peer_address,
   peer->Init();
   if (active_peer_.IsEmpty()) {
     active_peer_ = peer_address;
+    uint8_t* config = bta_av_co_get_codec_config(peer_address);
+    if (config != nullptr) {
+      btif_a2dp_sink_update_decoder(config);
+    }
   }
   return peer;
 }
@@ -1332,6 +1382,7 @@ bool BtifAvSink::AllowedToConnect(const RawAddress& peer_address) const {
       case BtifAvStateMachine::kStateOpening:
       case BtifAvStateMachine::kStateOpened:
       case BtifAvStateMachine::kStateStarted:
+      case BtifAvStateMachine::kStateClosing:
         if (peer->PeerAddress() == peer_address) {
           return true;  // Already connected or accounted for
         }
@@ -1422,7 +1473,13 @@ void BtifAvStateMachine::StateIdle::OnEnter() {
 
   // Stop A2DP if this is the active peer
   if (peer_.IsActivePeer() || peer_.ActivePeerAddress().IsEmpty()) {
-    btif_a2dp_on_idle();
+    if (peer_.StateMachine().PreviousStateId() != BtifAvStateMachine::kStateIdle) {
+      btif_a2dp_on_idle();
+    } else {
+      BTIF_TRACE_WARNING(
+          "%s: Ignore due to handled btif_a2dp_on_idle previously",
+          __PRETTY_FUNCTION__);
+    }
   }
 
   // Reset the active peer if this was the active peer and
@@ -1475,7 +1532,11 @@ bool BtifAvStateMachine::StateIdle::ProcessEvent(uint32_t event, void* p_data) {
       if (peer_.BtaHandle() != kBtaHandleUnknown) {
         BTA_AvClose(peer_.BtaHandle());
         if (peer_.IsSource()) {
-          BTA_AvCloseRc(peer_.BtaHandle());
+          uint8_t peer_handle =
+              btif_rc_get_connected_peer_handle(peer_.PeerAddress());
+          if (peer_handle != BTRC_HANDLE_NONE) {
+            BTA_AvCloseRc(peer_handle);
+          }
         }
       }
       // Re-enter Idle so the peer can be deleted
@@ -1527,13 +1588,17 @@ bool BtifAvStateMachine::StateIdle::ProcessEvent(uint32_t event, void* p_data) {
 
       bool can_connect = true;
       char pts_disable_a2dp_conn[PROPERTY_VALUE_MAX] = {0};
+      tBTA_AV* p_av = (tBTA_AV*)p_data;
       // Check whether connection is allowed
       if (peer_.IsSink()) {
         can_connect = btif_av_source.AllowedToConnect(peer_.PeerAddress());
         if (!can_connect) src_disconnect_sink(peer_.PeerAddress());
       } else if (peer_.IsSource()) {
         can_connect = btif_av_sink.AllowedToConnect(peer_.PeerAddress());
-        if (!can_connect) sink_disconnect_src(peer_.PeerAddress());
+        if (!can_connect) {
+            BTA_AvCloseRc(p_av->rc_open.rc_handle);
+            sink_disconnect_src(peer_.PeerAddress());
+        }
       }
       if (!can_connect) {
         BTIF_TRACE_ERROR(
@@ -1844,6 +1909,16 @@ bool BtifAvStateMachine::StateOpening::ProcessEvent(uint32_t event,
 
     case BTIF_AV_DISCONNECT_REQ_EVT:
       BTA_AvClose(peer_.BtaHandle());
+      // In case, only incoming AVRCP connection is established, and A2DP
+      // connection is forbidden in upper layer, close AVRCP connection
+      // as well.
+      if (peer_.IsSource()) {
+        uint8_t peer_handle =
+            btif_rc_get_connected_peer_handle(peer_.PeerAddress());
+        if (peer_handle != BTRC_HANDLE_NONE) {
+          BTA_AvCloseRc(peer_handle);
+        }
+      }
       btif_report_connection_state(peer_.PeerAddress(),
                                    BTAV_CONNECTION_STATE_DISCONNECTED);
       peer_.StateMachine().TransitionTo(BtifAvStateMachine::kStateIdle);
@@ -1985,7 +2060,11 @@ bool BtifAvStateMachine::StateOpened::ProcessEvent(uint32_t event,
     case BTIF_AV_DISCONNECT_REQ_EVT:
       BTA_AvClose(peer_.BtaHandle());
       if (peer_.IsSource()) {
-        BTA_AvCloseRc(peer_.BtaHandle());
+        uint8_t peer_handle =
+            btif_rc_get_connected_peer_handle(peer_.PeerAddress());
+        if (peer_handle != BTRC_HANDLE_NONE) {
+          BTA_AvCloseRc(peer_handle);
+        }
       }
 
       // Inform the application that we are disconnecting
@@ -2172,7 +2251,11 @@ bool BtifAvStateMachine::StateStarted::ProcessEvent(uint32_t event,
       // Request AVDTP to close
       BTA_AvClose(peer_.BtaHandle());
       if (peer_.IsSource()) {
-        BTA_AvCloseRc(peer_.BtaHandle());
+        uint8_t peer_handle =
+            btif_rc_get_connected_peer_handle(peer_.PeerAddress());
+        if (peer_handle != BTRC_HANDLE_NONE) {
+          BTA_AvCloseRc(peer_handle);
+        }
       }
 
       // Inform the application that we are disconnecting
@@ -3432,7 +3515,11 @@ void btif_av_acl_disconnected(const RawAddress& peer_address) {
   if (btif_av_source.Enabled()) {
     btif_av_source_dispatch_sm_event(peer_address, BTIF_AV_ACL_DISCONNECTED);
   } else if (btif_av_sink.Enabled()) {
-    btif_av_sink_dispatch_sm_event(peer_address, BTIF_AV_ACL_DISCONNECTED);
+    if (btif_av_sink_find_peer(peer_address)) {
+      btif_av_sink_dispatch_sm_event(peer_address, BTIF_AV_ACL_DISCONNECTED);
+    } else {
+      LOG_INFO("ignore ACL disconnection since peer device is deleted");
+    }
   }
 }
 
