@@ -786,6 +786,11 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
   // be an assert.
   // if (!is_init_done()) return BT_STATUS_NOT_READY;
 
+  if (!service_uuid->IsEmpty() && channel == 0) {
+      ALOGD("Service UUID Specified with Channel 0.So changing it to -1");
+      channel = -1;
+  }
+
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
 
   rfc_slot_t* slot =
