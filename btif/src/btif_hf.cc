@@ -888,7 +888,7 @@ void btif_hf_ss_callback(uint16_t event, char* p_param) {
        RawAddress *bd_addr = (RawAddress*)addr;
        ALOGI("[%s] audioStateCb address: %s",__func__, bd_addr->ToString().c_str());
        ALOGI("[%s] audioStateCb state:%d",__func__, audioStateCb.state());
-       if (!is_valid_bd_addr(bd_addr) || !is_active_device(bd_addr)) return;
+       if (!is_valid_bd_addr(bd_addr)) return;
 
        HAL_HF_CBACK(bt_hf_callbacks, AudioStateCallback,
             (bthf_audio_state_t) audioStateCb.state(),
