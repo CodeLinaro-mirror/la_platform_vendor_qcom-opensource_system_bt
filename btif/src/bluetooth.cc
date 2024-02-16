@@ -583,7 +583,7 @@ static void ss_ssr_event_received () {
 	ALOGE("cur_time is NULL");
 	snprintf(path, SS_SOC_DUMP_PATH_BUF_SIZE, SS_SSR_DUMP_PATH_WITHOUT_TIME);
   }
-  ssr_fptr = fopen(path,"w+");
+  ssr_fptr = fopen(path,"a+");
   if (alarm_is_scheduled(ssr_dump_timeout)) {
     ALOGD("%s(): ssr_dump_timeout() scheduled, so cancel it", __func__);
     alarm_cancel(ssr_dump_timeout);
