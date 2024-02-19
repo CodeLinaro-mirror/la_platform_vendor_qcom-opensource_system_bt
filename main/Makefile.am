@@ -176,7 +176,7 @@ common_LDFLAGS = -ldl -lrt -lresolv ../hci/libbt-hci.la \
         ../stack/libbtstack.la ../bta/libbtbta.la ../btcore/libbtcore.la \
         ../profile/libbtprofile.la ../device/libbtdevice.la
 
-common_CFLAGS =  $(AM_CFLAGS) -fPIC -DUSE_AUDIO_TRACK -D_GNU_SOURCE $(Z_LIB)
+common_CFLAGS =  $(AM_CFLAGS) -fPIC -DUSE_AUDIO_TRACK -D_GNU_SOURCE $(Z_LIB) -fcommon -DUSE_LIBHW_AOSP
 
 library_includedir = $(pkgincludedir)
 lib_LTLIBRARIES = libbluetoothdefault.la

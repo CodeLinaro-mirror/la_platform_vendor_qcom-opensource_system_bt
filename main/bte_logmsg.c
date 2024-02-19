@@ -79,10 +79,10 @@
 #define LOGE0 ALOGE
 #else
 #include <syslog.h>
-#define LOGI0(x) { syslog (LOG_NOTICE, x);}
-#define LOGD0(x) { syslog (LOG_NOTICE, x);}
-#define LOGW0(x) { syslog (LOG_WARNING, x);}
-#define LOGE0(x) { syslog (LOG_ERR, x);}
+#define LOGI0(x) { syslog (LOG_NOTICE, "%s", x);}
+#define LOGD0(x) { syslog (LOG_NOTICE, "%s", x);}
+#define LOGW0(x) { syslog (LOG_WARNING, "%s", x);}
+#define LOGE0(x) { syslog (LOG_ERR, "%s", x);}
 #endif
 #endif
 
