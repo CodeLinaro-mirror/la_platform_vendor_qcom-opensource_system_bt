@@ -863,6 +863,7 @@ void BluetoothSSInterface::processRx() {
 void BluetoothSSInterface::processDataChRx() {
     ALOGE("BluetoothSSInterface processRx :: running_data_ch_ is :: %d",running_data_ch_);
     uint8_t *readBuffer = (uint8_t *)malloc(MSG_SIZE_MAX*sizeof(uint8_t));
+    const char *msgType="Rx";
     if (readBuffer == NULL) {
       ALOGE("%s: readBuffer malloc failed",__func__);
       return;
@@ -884,6 +885,9 @@ void BluetoothSSInterface::processDataChRx() {
         pthread_mutex_unlock(&rx_threads_mutex);
         ssGlinkWakeLockAcquireOrRelease(false, true);
         int num = gSSTransportData->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
+        if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
+          do_in_data_logging_thread(base::Bind(processDataLogging, readBuffer, num, msgType));
+        }
         ALOGI("num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
             ALOGE("Slate response is too short ::  %d",num);
@@ -928,6 +932,7 @@ void BluetoothSSInterface::processDataChRx() {
 void BluetoothSSInterface::processLeDataChRx() {
     ALOGE("BluetoothSSInterface processRx :: running_le_data_ch_ is :: %d",running_data_ch_);
     uint8_t *readBuffer = (uint8_t *)malloc(MSG_SIZE_MAX*sizeof(uint8_t));
+    const char *msgType="Rx";
     if (readBuffer == NULL) {
       ALOGE("%s: readBuffer malloc failed",__func__);
       return;
@@ -949,6 +954,9 @@ void BluetoothSSInterface::processLeDataChRx() {
         pthread_mutex_unlock(&rx_threads_mutex);
         ssGlinkWakeLockAcquireOrRelease(false, true);
         int num = gSSTransportLeData->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
+        if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
+          do_in_data_logging_thread(base::Bind(processDataLogging, readBuffer, num, msgType));
+        }
         ALOGI("num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
             ALOGE("Slate response is too short ::  %d",num);
