@@ -34,6 +34,7 @@
 #include "l2c_api.h"
 #include "l2c_int.h"
 #include "stack/gatt/eatt_int.h"
+#include "device/include/interop.h"
 #define GATT_MTU_REQ_MIN_LEN 2
 
 using base::StringPrintf;
@@ -931,7 +932,11 @@ static void gatts_process_mtu_req(tGATT_TCB& tcb, uint16_t lcid, uint16_t len,
                                           tcb.payload_size);
 
   tGATT_SR_MSG gatt_sr_msg;
-  gatt_sr_msg.mtu = GATT_MAX_MTU_SIZE;
+  if (interop_match_addr_or_name(INTEROP_CHANGE_GATT_MTU, &tcb.peer_bda)) {
+    gatt_sr_msg.mtu = tcb.payload_size;
+  } else {
+    gatt_sr_msg.mtu = GATT_MAX_MTU_SIZE;
+  }
 
   LOG(INFO) << StringPrintf("MTU %d request from remote (%s), resulted MTU %d", mtu,
                tcb.peer_bda.ToString().c_str(), tcb.payload_size);

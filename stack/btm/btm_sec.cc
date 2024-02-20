@@ -51,6 +51,8 @@
 #include "bta/dm/bta_dm_int.h"
 #include "stack_config.h"
 
+#include "device/include/interop.h"
+
 #define BTM_SEC_MAX_COLLISION_DELAY (5000)
 
 #ifdef APPL_AUTH_WRITE_EXCEPTION
@@ -4341,7 +4343,7 @@ void btm_sec_encrypt_change(uint16_t handle, uint8_t status,
 
         if (p_dev_rec->no_smp_on_br) {
           BTM_TRACE_DEBUG("%s NO SM over BR/EDR", __func__);
-        } else {
+        } else if(!interop_match_addr_or_name(INTEROP_DISABLE_OUTGOING_BR_SMP, &p_dev_rec->bd_addr)) {
           BTM_TRACE_DEBUG("%s start SM over BR/EDR", __func__);
           SMP_BR_PairWith(p_dev_rec->bd_addr);
         }

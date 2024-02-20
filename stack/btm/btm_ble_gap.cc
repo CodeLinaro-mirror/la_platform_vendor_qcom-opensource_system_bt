@@ -1598,11 +1598,13 @@ void BTM_BleStartPeriodicSync(uint8_t adv_sid, RawAddress address, uint16_t skip
              BigInfoReportCb biginfo_reportCb) {
   BTM_TRACE_DEBUG("[PSync]%s",__func__);
   int index = btm_ble_get_free_psync_index();
-  tBTM_BLE_PERIODIC_SYNC *p = &btm_ble_pa_sync_cb.p_sync[index];
+
   if (index == MAX_SYNC_TRANSACTION) {
     syncCb.Run(BTM_NO_RESOURCES, 0, adv_sid, BLE_ADDR_RANDOM, address, 0, 0);
     return;
   }
+  tBTM_BLE_PERIODIC_SYNC *p = &btm_ble_pa_sync_cb.p_sync[index];
+
   p->in_use = true;
   p->remote_bda = address;
   p->sid = adv_sid;
@@ -3355,6 +3357,9 @@ static void btm_ble_process_adv_pkt_cont(
       update = true;
     } else if (BTM_BLE_IS_OBS_ACTIVE(btm_cb.ble_ctr_cb.scan_activity)) {
       update = false;
+    } if (p_i == NULL) {
+      /* updating the entry in INQ database */
+      update = true;
     } else {
       VLOG(1)<< __func__ << " skipped BDA " << bda;
       /* if yes, skip it */
