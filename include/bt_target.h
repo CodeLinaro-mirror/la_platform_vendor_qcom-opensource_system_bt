@@ -202,7 +202,7 @@
 #endif
 
 #ifndef BT_TRACE_VERBOSE
-#define BT_TRACE_VERBOSE  FALSE
+#define BT_TRACE_VERBOSE  TRUE
 #endif
 
 #ifndef BTA_DM_SDP_DB_SIZE
