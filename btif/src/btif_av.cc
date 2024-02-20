@@ -369,6 +369,9 @@ static bt_status_t set_active_device(const RawAddress& bd_addr) {
 
   if (bd_addr == RawAddress::kEmpty) {
       /* 1. SetActive Device -> Null */
+      if (isA2dpPlaying()) {
+          btif_av_handle_hidl_req(A2DP_CTRL_CMD_SUSPEND);
+      }
       bluetooth::audio::aidl::a2dp::end_session();
       active_device_ = bd_addr;
       status =  BT_STATUS_SUCCESS;
@@ -379,7 +382,7 @@ static bt_status_t set_active_device(const RawAddress& bd_addr) {
   } else {
       /* 3. SetActive Device -> Device */
       // End the currently active session
-      if (play_state == BTAV_AUDIO_STATE_STARTED) {
+      if (isA2dpPlaying()) {
           btif_av_handle_hidl_req(A2DP_CTRL_CMD_SUSPEND);
       }
       bluetooth::audio::aidl::a2dp::end_session();
@@ -757,7 +760,7 @@ bool btif_av_is_split_a2dp_enabled(){
   return true;
 }
 
-bool isA2dpPlaying() {
+inline bool isA2dpPlaying() {
   ALOGI("%s: play_state is %d", __func__, play_state);
   return play_state == BTAV_AUDIO_STATE_STARTED;
 }
