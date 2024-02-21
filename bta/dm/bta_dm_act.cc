@@ -1524,6 +1524,8 @@ void bta_dm_search_start(tBTA_DM_MSG* p_data) {
   bta_dm_search_cb.p_search_cback = p_data->search.p_cback;
   bta_dm_search_cb.services = p_data->search.services;
 
+  bta_dm_search_cb.wait_disc = false;
+
   osi_free_and_reset((void**)&bta_dm_search_cb.p_srvc_uuid);
 
   if ((bta_dm_search_cb.num_uuid = p_data->search.num_uuid) != 0 &&
