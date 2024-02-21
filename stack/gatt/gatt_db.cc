@@ -27,6 +27,7 @@
 #include "bt_trace.h"
 #include "bt_utils.h"
 
+#include <log/log.h>
 #include <stdio.h>
 #include <string.h>
 #include "btm_int.h"
@@ -232,6 +233,12 @@ static tGATT_STATUS read_attr_value(tGATT_ATTR& attr16, uint16_t offset,
   if (uuid16 == GATT_UUID_CHAR_EXT_PROP) {
     uint16_t char_ext_prop = attr16.p_value->char_ext_prop;
     *p_len = 2;
+
+    if (mtu < *p_len) {
+      android_errorWriteWithInfoLog(0x534e4554, "228078096", -1, NULL, 0);
+      return GATT_NO_RESOURCES;
+    }
+
     UINT16_TO_STREAM(p, char_ext_prop);
     *p_data = p;
     return GATT_SUCCESS;
