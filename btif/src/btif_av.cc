@@ -131,7 +131,7 @@ void btif_av_ss_callback(uint16_t event, char* p_param);
 std::string ToRawString(const RawAddress& bt_addr);
 bool btif_av_is_split_a2dp_enabled();
 bool isA2dpPlaying();
-uint8_t get_available_index(void);
+uint8_t get_available_index(const RawAddress& bd_addr);
 a2dp_proto::ss_btav_a2dp_codec_channel_mode_t getProtoChMode(
   btav_a2dp_codec_index_t, btav_a2dp_codec_channel_mode_t);
 
@@ -415,14 +415,25 @@ static bt_status_t start_aidl_a2dp_session(const RawAddress& bd_addr) {
   return BT_STATUS_SUCCESS;
 }
 
-uint8_t get_available_index(void) {
+uint8_t get_available_index(const RawAddress& bd_addr) {
   uint8_t idx = 0;
   while(idx < MAX_CONNS) {
-    if (codec_config[idx].bd_address == RawAddress::kEmpty) {
+    if (codec_config[idx].bd_address == bd_addr) {
+        ALOGI("%s: index %d is already assigned to %s", __func__, idx, bd_addr.ToString().c_str());
         return idx;
     }
     idx++;
   }
+
+  idx = 0;
+  while(idx < MAX_CONNS) {
+    if (codec_config[idx].bd_address == RawAddress::kEmpty) {
+        ALOGI("%s: index %d is available for %s", __func__, idx, bd_addr.ToString().c_str());
+        return idx;
+    }
+    idx++;
+  }
+  ALOGE("%s: No index available returning invalid index", __func__);
   return INVALID_INDEX;
 }
 
@@ -537,8 +548,13 @@ void btif_av_ss_callback(uint16_t event, char* p_param) {
 
       if (state == BTAV_CONNECTION_STATE_DISCONNECTED ) {
           for (uint8_t i = 0; i < MAX_CONNS; i++) {
+              ALOGI("%s: %s disconnected finding index: idx: %d, bd_addr: %s", __func__,
+                              bd_addr->ToString().c_str(), i,
+                              codec_config[i].bd_address.ToString().c_str());
               if (*bd_addr == codec_config[i].bd_address) {
                   memset(&codec_config[i], 0, sizeof(codec_config[i]));
+                  ALOGI("%s: idx: %d got reset to %s", __func__, i,
+                                  codec_config[i].bd_address.ToString().c_str());
                   return;
               }
           }
@@ -639,7 +655,7 @@ void btif_av_ss_callback(uint16_t event, char* p_param) {
 
       a2dp_proto::ss_btav_a2dp_codec_config_callback_t* codec_cap =
                                           codecConfigCb.mutable_codec_config();
-      index = get_available_index();
+      index = get_available_index(*bd_addr);
       if (index == INVALID_INDEX){
           ALOGE("Reached the maximum connections for a2dp");
           src_disconnect_sink(*bd_addr);
