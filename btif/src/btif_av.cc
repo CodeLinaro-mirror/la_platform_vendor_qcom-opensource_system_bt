@@ -124,6 +124,7 @@ namespace a2dp_proto = a2dp::synergy::SynergyProto;
  *  Local type definitions
  *****************************************************************************/
 #define MAX_CONNS 2
+#define SUSPEND_TIME_OUT 2
 const uint8_t INVALID_INDEX = -1;
 uint8_t index;
 btif_a2dp_codec_config_callback_t codec_config[MAX_CONNS];
@@ -146,7 +147,8 @@ static std::vector<btav_a2dp_codec_config_t> codec_priorities_;
 static RawAddress active_device_ = RawAddress::kEmpty;
 static tA2DP_CTRL_CMD pending_cmd = A2DP_CTRL_CMD_NONE;
 static btav_audio_state_t play_state = BTAV_AUDIO_STATE_STOPPED;
-
+std::condition_variable cv;
+std::mutex cv_m;
 
 /*******************************************************************************
  * Function        btav_bld_and_snd_message
@@ -387,7 +389,11 @@ static bt_status_t set_active_device(const RawAddress& bd_addr) {
       /* 3. SetActive Device -> Device */
       // End the currently active session
       if (isA2dpPlaying()) {
+          auto now = std::chrono::system_clock::now();
+          std::unique_lock<std::mutex> lk(cv_m);
           btif_av_handle_hidl_req(A2DP_CTRL_CMD_SUSPEND);
+          ALOGE("Acquired the lock and waiting for a2dp suspend");
+          cv.wait_until(lk, now + std::chrono::seconds(SUSPEND_TIME_OUT));
       }
       bluetooth::audio::aidl::a2dp::end_session();
       active_device_ = bd_addr;
@@ -574,15 +580,14 @@ void btif_av_ss_callback(uint16_t event, char* p_param) {
       if(state == BTAV_AUDIO_STATE_STARTED ) {
         if(pending_cmd == A2DP_CTRL_CMD_START) {
             bluetooth::audio::aidl::a2dp::ack_stream_started(A2DP_CTRL_ACK_SUCCESS);
-        } else {
-            bluetooth::audio::aidl::a2dp::ack_stream_started(A2DP_CTRL_ACK_FAILURE);
         }
       } else if (state == BTAV_AUDIO_STATE_STOPPED) {
+        std::lock_guard<std::mutex> lk(cv_m);
         if(pending_cmd == A2DP_CTRL_CMD_SUSPEND) {
             bluetooth::audio::aidl::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS);
-        } else {
-            bluetooth::audio::aidl::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_FAILURE);
         }
+        ALOGI("Notify the suspend to release conditional wait");
+        cv.notify_all();
       } else if(state == BTAV_AUDIO_STATE_REMOTE_SUSPEND) {
           // need to handle this
       }
