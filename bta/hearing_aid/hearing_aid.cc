@@ -350,7 +350,11 @@ class HearingAidImpl : public HearingAid {
         VLOG(1) << __func__ << " Link Level Disconnection is progress, delay BG connection "
                 << dev_info.address;
         HearingDevice* hearingDevice = hearingDevices.FindByAddress(dev_info.address);
-        hearingDevice->delay_background_connect = true;
+        if (hearingDevice) {
+          hearingDevice->delay_background_connect = true;
+        } else {
+          VLOG(1) << __func__ << dev_info.address <<" hearingDevice is not in hearingDevices list";
+        }
       } else {
         VLOG(1) << __func__ << " Do background connecting "
                 << dev_info.address;
@@ -1512,6 +1516,7 @@ class HearingAidImpl : public HearingAid {
         {CONTROL_POINT_OP_STATE_CHANGE, STATE_CHANGE_OTHER_SIDE_DISCONNECTED});
     send_state_change_to_other_side(hearingDevice, inform_disconn_state);
 
+    hearingDevice->dev_disconnected_by_user = true;
     DoDisconnectCleanUp(hearingDevice);
 
     if (connected)
@@ -1543,7 +1548,12 @@ class HearingAidImpl : public HearingAid {
                    false);
 
     callbacks->OnConnectionState(ConnectionState::DISCONNECTED, remote_bda);
-    hearingDevices.Remove(remote_bda);
+
+    if (hearingDevice->dev_disconnected_by_user) {
+      LOG(INFO) << __func__ << " Device is disconnected by user, removing it from list" << hearingDevice->address;
+      hearingDevice->dev_disconnected_by_user = false;
+      hearingDevices.Remove(remote_bda);
+    }
   }
 
   void DoDisconnectCleanUp(HearingDevice* hearingDevice) {

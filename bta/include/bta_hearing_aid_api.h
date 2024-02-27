@@ -134,6 +134,7 @@ struct HearingDevice {
      reads is tracked by num_intervals_since_last_rssi_read. */
   int read_rssi_count;
   int num_intervals_since_last_rssi_read;
+  bool dev_disconnected_by_user;
 
   /* This is true while background connect is delayed if previous LE ACL link is
      in disconnecting */
@@ -167,7 +168,8 @@ struct HearingDevice {
         playback_started(false),
         command_acked(false),
         read_rssi_count(0),
-        delay_background_connect(false) {}
+        delay_background_connect(false),
+        dev_disconnected_by_user(false) {}
 
   HearingDevice(const RawAddress& address, bool first_connection)
       : address(address),
@@ -190,7 +192,8 @@ struct HearingDevice {
         playback_started(false),
         command_acked(false),
         read_rssi_count(0),
-        delay_background_connect(false) {}
+        delay_background_connect(false),
+        dev_disconnected_by_user(false) {}
 
   HearingDevice() : HearingDevice(RawAddress::kEmpty, false) {}
 
