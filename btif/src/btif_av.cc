@@ -379,6 +379,9 @@ static bt_status_t set_active_device(const RawAddress& bd_addr) {
   } else {
       /* 3. SetActive Device -> Device */
       // End the currently active session
+      if (play_state == BTAV_AUDIO_STATE_STARTED) {
+          btif_av_handle_hidl_req(A2DP_CTRL_CMD_SUSPEND);
+      }
       bluetooth::audio::aidl::a2dp::end_session();
       active_device_ = bd_addr;
       status = start_aidl_a2dp_session(bd_addr);
@@ -411,12 +414,13 @@ static bt_status_t start_aidl_a2dp_session(const RawAddress& bd_addr) {
 
 uint8_t get_available_index(void) {
   uint8_t idx = 0;
-  while(idx++ < MAX_CONNS) {
-    if (codec_config[idx].bd_address == RawAddress::kEmpty)
-            return idx;
+  while(idx < MAX_CONNS) {
+    if (codec_config[idx].bd_address == RawAddress::kEmpty) {
+        return idx;
+    }
+    idx++;
   }
-  idx = INVALID_INDEX;
-  return idx;
+  return INVALID_INDEX;
 }
 
 static bt_status_t codec_config_src(const RawAddress& bd_addr,
