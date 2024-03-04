@@ -127,16 +127,16 @@ bool AdvertiserSingleStackProto::BleStartAdvertingSet(
         adv_param.secondary_advertising_phy);
   ALOGD("\n scan_request_notification_enable : %d",
         adv_param.scan_request_notification_enable);
-  for (uint16_t i = 0; i < advertise_data.size(); i++) {
+  for (size_t i = 0; i < advertise_data.size(); i++) {
     ALOGD("\n advertise_data[%d] : %d", i, advertise_data[i]);
   }
-  for (uint16_t i = 0; i < advertise_data_enc.size(); i++) {
+  for (size_t i = 0; i < advertise_data_enc.size(); i++) {
     ALOGD("\n advertise_data_enc[%d] : %d", i, advertise_data_enc[i]);
   }
-  for (uint16_t i = 0; i < scan_response_data.size(); i++) {
+  for (size_t i = 0; i < scan_response_data.size(); i++) {
     ALOGD("\n scan_response_data[%d] : %d", i, scan_response_data[i]);
   }
-  for (uint16_t i = 0; i < scan_response_data_enc.size(); i++) {
+  for (size_t i = 0; i < scan_response_data_enc.size(); i++) {
     ALOGD("\n scan_response_data_enc[%d] : %d", i, scan_response_data_enc[i]);
   }
 
@@ -149,16 +149,16 @@ bool AdvertiserSingleStackProto::BleStartAdvertingSet(
   ALOGD("\n Periodic advertising Event Properties: %d",
         periodic_params.periodic_advertising_properties);
 
-  for (uint16_t i = 0; i < periodic_data.size(); i++) {
+  for (size_t i = 0; i < periodic_data.size(); i++) {
     ALOGD("\n periodic_data[%d] : %d", i, periodic_data[i]);
   }
-  for (uint16_t i = 0; i < periodic_data_enc.size(); i++) {
+  for (size_t i = 0; i < periodic_data_enc.size(); i++) {
     ALOGD("\n periodic_data_enc[%d] : %d", i, periodic_data_enc[i]);
   }
 
   ALOGD("\n duration : %d", duration);
   ALOGD("\n max_ext_adv_events : %d", max_ext_adv_events);
-  for (uint16_t i = 0; i < enc_key_value.size(); i++) {
+  for (size_t i = 0; i < enc_key_value.size(); i++) {
     ALOGD("\n enc_key_value[%d] : %d", i, enc_key_value[i]);
   }
   ALOGD("\n reg_id : %d", reg_id);
@@ -307,10 +307,10 @@ bool AdvertiserSingleStackProto::BleSetData(
   ALOGD("\n BLE Set Adv or Scan Resp Data ");
   ALOGD("\n advertiser_id : %d", advertiser_id);
   ALOGD("\n scan_resp_data enable : %d", scan_resp_data);
-  for (uint16_t i = 0; i < data.size(); i++) {
+  for (size_t i = 0; i < data.size(); i++) {
     ALOGD("\n data[%d] : %d", i, data[i]);
   }
-  for (uint16_t i = 0; i < data_enc.size(); i++) {
+  for (size_t i = 0; i < data_enc.size(); i++) {
     ALOGD("\n data_enc[%d] : %d", i, data_enc[i]);
   }
 
@@ -445,10 +445,10 @@ bool AdvertiserSingleStackProto::BlesetPeriodicAdvertisingData(
     const std::vector<uint8_t>& data, const std::vector<uint8_t>& data_enc) {
   ALOGD("\n BLE Set Periodic Advertising Data ");
   ALOGD("\n advertiser_id : %d", advertiser_id);
-  for (uint16_t i = 0; i < data.size(); i++) {
+  for (size_t i = 0; i < data.size(); i++) {
     ALOGD("\n data[%d] : %d", i, data[i]);
   }
-  for (uint16_t i = 0; i < data_enc.size(); i++) {
+  for (size_t i = 0; i < data_enc.size(); i++) {
     ALOGD("\n data_enc[%d] : %d", i, data_enc[i]);
   }
   std::string encoded_bytes;
