@@ -149,7 +149,7 @@ void bta_scan_results_cb_impl(RawAddress bd_addr, tBT_DEVICE_TYPE device_type,
   ALOGD("\noriginal_bda: %s ", original_bda.ToString().c_str());
   ALOGD("\naddr_type: %d ", addr_type);
   ALOGD("\n size of value: %d ", value.size());
-  for (uint8_t i = 0; i < value.size(); i++) {
+  for (size_t i = 0; i < value.size(); i++) {
     ALOGD("\n value[%d]: %d ", i, value[i]);
   }
   const uint8_t* p_eir_remote_name = AdvertiseDataParser::GetFieldByType(
@@ -450,10 +450,10 @@ bool ScannerSingleStackProto::SetScanParameters(
   ALOGD("\n BLE Set Scan Parameters");
   ALOGD("\n client_if : %d", client_if);
   ALOGD("\n scan_phy : %d", scan_phy);
-  for (uint8_t i = 0; i < scan_interval.size(); i++) {
+  for (size_t i = 0; i < scan_interval.size(); i++) {
     ALOGD("\n scan_interval[%d] : %d", i, scan_interval[i]);
   }
-  for (uint8_t i = 0; i < scan_window.size(); i++) {
+  for (size_t i = 0; i < scan_window.size(); i++) {
     ALOGD("\n scan_window[%d] : %d", i, scan_window[i]);
   }
   std::string encoded_bytes;
@@ -462,10 +462,10 @@ bool ScannerSingleStackProto::SetScanParameters(
       pair<uint32_t, BleScannerInterface::Callback>(client_if, Cb));
   setScanParam.set_clientif(client_if);
   setScanParam.set_scanphy(scan_phy);
-  for (uint8_t a = 0; a < scan_interval.size(); a++) {
+  for (size_t a = 0; a < scan_interval.size(); a++) {
     setScanParam.add_scaninterval(scan_interval[a]);
   }
-  for (uint8_t a = 0; a < scan_window.size(); a++) {
+  for (size_t a = 0; a < scan_window.size(); a++) {
     setScanParam.add_scanwindow(scan_window[a]);
   }
   setScanParam.SerializeToString(&encoded_bytes);
@@ -980,7 +980,7 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
       if (onBatchScanReport.has_data()) {
         std::string s = onBatchScanReport.data();
         std::vector<uint8_t> batch_scan_data1(s.begin(), s.end());
-        for (uint16_t i = 0; i < batch_scan_data1.size(); i++) {
+        for (size_t i = 0; i < batch_scan_data1.size(); i++) {
           ALOGD(" batch_scan_data1[%d]:%d ", i, batch_scan_data1[i]);
         }
         batch_scan_data = std::move(batch_scan_data1);
@@ -1031,7 +1031,7 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
         ALOGD("\n adv_pkt_len: %d ", p_track_adv_data->adv_pkt_len);
         std::string s = track_adv_info.p_adv_pkt_data();
         std::vector<uint8_t> adv_pkt_data(s.begin(), s.end());
-        for (uint16_t i = 0; i < adv_pkt_data.size(); i++)
+        for (size_t i = 0; i < adv_pkt_data.size(); i++)
           ALOGD(" adv_pkt_data[%d]:%d ", i, adv_pkt_data[i]);
         if (p_track_adv_data->adv_pkt_len > 0) {
           p_track_adv_data->p_adv_pkt_data = &adv_pkt_data[0];
@@ -1041,7 +1041,7 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
         ALOGD("\n scan_rsp_len: %d ", p_track_adv_data->scan_rsp_len);
         std::string s1 = track_adv_info.p_scan_rsp_data();
         std::vector<uint8_t> scan_rsp_data(s1.begin(), s1.end());
-        for (uint16_t i = 0; i < scan_rsp_data.size(); i++)
+        for (size_t i = 0; i < scan_rsp_data.size(); i++)
           ALOGD(" scan_rsp_data[%d]:%d ", i, scan_rsp_data[i]);
 
         if (p_track_adv_data->scan_rsp_len > 0) {
