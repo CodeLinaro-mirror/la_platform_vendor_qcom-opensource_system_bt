@@ -820,7 +820,7 @@ void BluetoothSSInterface::processRx() {
         if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
           do_in_data_logging_thread(base::Bind(processDataLogging, readBuffer, num, msgType));
         }
-        ALOGI("num of bytes read from stream is :: %d",num);
+        ALOGI("ss_bt_ctrl num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
             ALOGE("Slate response is too short ::  %d",num);
         }else {
@@ -888,7 +888,7 @@ void BluetoothSSInterface::processDataChRx() {
         if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
           do_in_data_logging_thread(base::Bind(processDataLogging, readBuffer, num, msgType));
         }
-        ALOGI("num of bytes read from stream is :: %d",num);
+        ALOGI("ss_bt_data num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
             ALOGE("Slate response is too short ::  %d",num);
         } else {
@@ -957,7 +957,7 @@ void BluetoothSSInterface::processLeDataChRx() {
         if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
           do_in_data_logging_thread(base::Bind(processDataLogging, readBuffer, num, msgType));
         }
-        ALOGI("num of bytes read from stream is :: %d",num);
+        ALOGI("ss_bt_le_data num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
             ALOGE("Slate response is too short ::  %d",num);
         } else {
@@ -1023,7 +1023,7 @@ ALOGE("BluetoothSSInterface processRx :: running_obex_data_ch_ is :: %d",running
         pthread_mutex_unlock(&rx_threads_mutex);
         ssGlinkWakeLockAcquireOrRelease(false, true);
         int num = gSSTransportObexData->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
-        ALOGI("num of bytes read from stream is :: %d",num);
+        ALOGI("ss_bt_obex_data num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
             ALOGE("Slate response is too short ::  %d",num);
         } else {
@@ -1071,7 +1071,7 @@ void BluetoothSSInterface::processSsrDataChRx() {
         pthread_mutex_unlock(&rx_threads_mutex);
         ssGlinkWakeLockAcquireOrRelease(false, true);
         int num = gSSTransportSsrData->read(readBuffer, SSR_CH_MAX_SIZE*sizeof(uint8_t));
-        ALOGI("num of bytes read from stream is :: %d",num);
+        ALOGI("ss_bt_ssr_data num of bytes read from stream is :: %d",num);
         if(num < SSR_CH_MIN_SIZE) {
             ALOGE("Slate response is too short ::  %d",num);
         }
