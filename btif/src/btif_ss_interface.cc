@@ -60,6 +60,7 @@ alarm_t *rx_ssr_dump_thread_timeout;
 pthread_mutex_t tx_threads_mutex;
 pthread_mutex_t rx_threads_mutex;
 pthread_mutex_t wakelock_mutex;
+pthread_mutex_t data_logging_threads_mutex;
 
 BluetoothSSInterface* BluetoothSSInterface::getInstance() {
     static BluetoothSSInterface instance;
@@ -315,6 +316,7 @@ BluetoothSSInterface::BluetoothSSInterface() {
     pthread_mutex_init(&tx_threads_mutex, NULL);
     pthread_mutex_init(&rx_threads_mutex, NULL);
     pthread_mutex_init(&wakelock_mutex, NULL);
+    pthread_mutex_init(&data_logging_threads_mutex, NULL);
 
     //message loop for alarm
     alarm_thread = thread_new_sized("alarm_thread", 1024);
@@ -501,12 +503,15 @@ void BluetoothSSInterface::cleanup() {
     pthread_mutex_destroy(&tx_threads_mutex);
     pthread_mutex_destroy(&rx_threads_mutex);
     pthread_mutex_destroy(&wakelock_mutex);
+    pthread_mutex_destroy(&data_logging_threads_mutex);
 
     ALOGI("BluetoothSSInterface cleanup end");
 }
 
 void processDataLogging(uint8_t *msgStr, size_t buflen, const char *msgtyp) {
+    pthread_mutex_lock(&data_logging_threads_mutex);
     gSSTransportCtrl->file_write(msgStr,buflen,msgtyp);
+    pthread_mutex_unlock(&data_logging_threads_mutex);
 }
 void processTx(std::string msgStr) {
   const  char *msgType="Tx";
