@@ -153,6 +153,16 @@ static void bta_hf_client_at_resp_timer_cback(void* data) {
     tBTA_HF_CLIENT_DATA msg;
     msg.hdr.layer_specific = client_cb->handle;
     bta_hf_client_sm_execute(BTA_HF_CLIENT_API_CLOSE_EVT, &msg);
+
+    /* if SCO is open close SCO and wait on RFCOMM close */
+    if (client_cb->sco_state == BTA_HF_CLIENT_SCO_OPEN_ST) {
+      client_cb->sco_close_rfc = true;
+    } else {
+      bta_hf_client_rfc_do_close(&msg);
+    }
+
+    /* always do SCO shutdown to handle all SCO corner cases */
+    bta_hf_client_sco_shutdown(client_cb);
   }
 }
 
