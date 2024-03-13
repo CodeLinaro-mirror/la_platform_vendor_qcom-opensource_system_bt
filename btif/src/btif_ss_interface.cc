@@ -757,23 +757,6 @@ void BluetoothSSInterface::processRx() {
             }
             memcpy(ss_cback.payload, readBuffer, (num * sizeof(uint8_t)) );
             parseRxData(MSG_ID, ss_cback);
-            if(findIfCallbackRegistered(MSG_ID)){
-                int ret = pthread_mutex_lock(&ss_cback_mutex);
-                while(!getIsSignalSent()){
-                    ALOGI("Waiting for Memory Free from Profile Owner!!!");
-                    ret = pthread_cond_wait(&ss_cback_cond_var,
-                                            &ss_cback_mutex);
-                }
-                if(ret == 0){
-                    ALOGI("ss_cback_cond_var passed");
-                }else {
-                    ALOGE("ss_cback_cond_var failed");
-                }
-                setIsSignalSent(false);
-                pthread_mutex_unlock(&ss_cback_mutex);
-            }else{
-                ALOGE("msg_id :: %d is not registered for Any Profile",MSG_ID);
-            }
         }
     }
     free(readBuffer);
@@ -822,23 +805,6 @@ void BluetoothSSInterface::processDataChRx() {
             }
             memcpy(ss_cback.payload, readBuffer, (num * sizeof(uint8_t)) );
             parseRxData(MSG_ID, ss_cback);
-            if(findIfCallbackRegistered(MSG_ID)){
-                int ret = pthread_mutex_lock(&ss_cback_mutex);
-                while(!getIsSignalSent()){
-                    ALOGI("Waiting for Memory Free from Profile Owner!!!");
-                    ret = pthread_cond_wait(&ss_cback_cond_var,
-                                            &ss_cback_mutex);
-                }
-                if(ret == 0){
-                    ALOGI("ss_cback_cond_var passed");
-                }else {
-                    ALOGE("ss_cback_cond_var failed");
-                }
-                setIsSignalSent(false);
-                pthread_mutex_unlock(&ss_cback_mutex);
-            }else{
-                ALOGE("msg_id :: %d is not registered for Any Profile",MSG_ID);
-            }
         }
     }
     free(readBuffer);
@@ -887,23 +853,6 @@ void BluetoothSSInterface::processLeDataChRx() {
             }
             memcpy(ss_cback.payload, readBuffer, (num * sizeof(uint8_t)) );
             parseRxData(MSG_ID, ss_cback);
-            if(findIfCallbackRegistered(MSG_ID)){
-                int ret = pthread_mutex_lock(&ss_cback_mutex);
-                while(!getIsSignalSent()){
-                    ALOGI("Waiting for Memory Free from Profile Owner!!!");
-                    ret = pthread_cond_wait(&ss_cback_cond_var,
-                                            &ss_cback_mutex);
-                }
-                if(ret == 0){
-                    ALOGI("ss_cback_cond_var passed");
-                }else {
-                    ALOGE("ss_cback_cond_var failed");
-                }
-                setIsSignalSent(false);
-                pthread_mutex_unlock(&ss_cback_mutex);
-            }else{
-                ALOGE("msg_id :: %d is not registered for Any Profile",MSG_ID);
-            }
         }
     }
     free(readBuffer);
@@ -1121,121 +1070,4 @@ void BluetoothSSInterface::processBatchMsg(uint8_t buffer[]) {
     length = length - msg_length;
     total_length_processed = total_length_processed + msg_length;
   }
-}
-
-void BluetoothSSInterface::setIsSignalSent(bool signalSent){
-  std::atomic_exchange(&is_signal_sent, signalSent);
-}
-
-bool BluetoothSSInterface::getIsSignalSent(){
-  return is_signal_sent;
-}
-
-bool BluetoothSSInterface::findIfCallbackRegistered(uint16_t msg_id){
-  bool result = false;
-      switch (msg_id) {
-        case BT_DM_EVT_START ... BT_DM_EVT_MAX: {
-          auto it = gProfileCallbackMap.find(BT_PROFILE_DM_ID);
-          if (it != gProfileCallbackMap.end()) {
-            result = true;
-          } else {
-            ALOGE("%s: callback not registered for DM", __func__);
-          }
-          break;
-        }
-        case BT_SDP_EVT_START ... BT_SDP_EVT_MAX: {
-          auto it = gProfileCallbackMap.find(BT_PROFILE_SDP_CLIENT_ID);
-          if (it != gProfileCallbackMap.end()) {
-            result = true;
-          } else {
-            ALOGE("%s: callback not registered for SDP", __func__);
-          }
-          break;
-        }
-        case BT_RFCOMM_EVT_START ... BT_RFCOMM_EVT_MAX: {
-          auto it = gProfileCallbackMap.find(BT_PROFILE_SOCKETS_ID);
-          if (it != gProfileCallbackMap.end()) {
-            result = true;
-          } else {
-            ALOGE("%s: callback not registered for RFCOMM", __func__);
-          }
-          break;
-        }
-        case BT_LE_ADV_API_START ... BT_ADV_EVT_MAX: {
-          auto it = gProfileCallbackMap.find(BT_PROFILE_ID_ADV);
-          if (it != gProfileCallbackMap.end()) {
-                result = true;
-          } else {
-                ALOGE("%s: callback not registered for Adv", __func__);
-          }
-          break;
-	      }
-        case BT_LE_SCAN_API_START ... BT_LE_SCAN_EVT_MAX: {
-          auto it = gProfileCallbackMap.find(BT_PROFILE_ID_SCAN);
-          if (it != gProfileCallbackMap.end()) {
-            result = true;
-          } else {
-            ALOGE("%s: callback not registered for BLE SCAN", __func__);
-          }
-          break;
-        }
-        case BT_LE_GATT_CLIENT_EVT_START ... BT_LE_GATT_CLIENT_EVT_MAX: {
-          auto it = gProfileCallbackMap.find(BT_PROFILE_ID_GATTC);
-          if (it != gProfileCallbackMap.end()) {
-            result = true;
-          } else {
-            ALOGE("%s: callback not registered for GATT", __func__);
-          }
-          break;
-        }
-        case BT_LE_GATT_SERVER_EVT_START ... BT_LE_GATT_SERVER_EVT_MAX: {
-          auto it = gProfileCallbackMap.find(BT_PROFILE_ID_GATTS);
-          if (it != gProfileCallbackMap.end()) {
-            result = true;
-          } else {
-            ALOGE("%s: callback not registered for GATT", __func__);
-          }
-          break;
-        }
-        case BT_AV_EVT_START ... BT_AV_EVT_MAX: {
-          auto it = gProfileCallbackMap.find(BT_PROFILE_ADVANCED_AUDIO_ID);
-          if (it != gProfileCallbackMap.end()) {
-            result = true;
-          } else {
-            ALOGE("%s: callback not registered for AV", __func__);
-          }
-          break;
-        }
-        case BT_AVRCP_EVT_START ... BT_AVRCP_EVT_MAX: {
-          auto it = gProfileCallbackMap.find(BT_PROFILE_AV_RC_ID);
-          if (it != gProfileCallbackMap.end()) {
-            result = true;
-          } else {
-            ALOGE("%s: callback not registered for AVRCP", __func__);
-          }
-          break;
-        }
-        case BT_HFP_EVT_START ... BT_HFP_EVT_MAX: {
-          auto it = gProfileCallbackMap.find(BT_PROFILE_HANDSFREE_CLIENT_ID);
-          if (it != gProfileCallbackMap.end()) {
-            result = true;
-          } else {
-            ALOGE("%s: callback not registered for BT_PROFILE_HANDSFREE_CLIENT_ID", __func__);
-          }
-          break;
-        }
-        case BT_HFAG_EVT_START ... BT_HFAG_EVT_MAX: {
-          auto it = gProfileCallbackMap.find(BT_PROFILE_HANDSFREE_ID);
-          if (it != gProfileCallbackMap.end()) {
-            result = true;
-          } else {
-            ALOGE("%s: callback not registered for BT_PROFILE_HANDSFREE_ID", __func__);
-          }
-          break;
-        }
-        default:
-            ALOGE("msg_id : %d Not matching with any group",msg_id);
-        break;
-    }
-    return result;
 }
