@@ -47,6 +47,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ *  Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
  ******************************************************************************/
 
 /*
@@ -636,7 +639,8 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
           profile_version = AVRC_REV_1_6;
         } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
           // Initialize AVRCP1.4 to provide Absolute Volume control.
-          profile_version = AVRC_REV_1_4;
+          // Moved to latest versiob of AVRCP for Qualification
+          profile_version = AVRC_REV_1_6;
         }
 
         bta_ar_reg_avrc(
