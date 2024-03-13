@@ -647,11 +647,7 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
     resBufferString.assign(resBuffer, length);
   }
   free(cb_data->payload);
-  ALOGI("Sending signal on Conditional variable from HF Client");
-  hfBTSSInterface->setIsSignalSent(true);
-  pthread_mutex_lock(&BluetoothSSInterface::ss_cback_mutex);
-  pthread_cond_signal(&BluetoothSSInterface::ss_cback_cond_var);
-  pthread_mutex_unlock(&BluetoothSSInterface::ss_cback_mutex);
+
   switch (event) {
     case BT_HF_CLIENT_CONN_STATE_CB: {
       ALOGI("%s BT_HF_CLIENT_CONN_STATE_CB ", __func__);

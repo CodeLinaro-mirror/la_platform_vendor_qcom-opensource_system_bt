@@ -160,9 +160,6 @@ static pthread_cond_t btssEventCond;
 // declaring mutex
 static pthread_mutex_t btssEventLock;
 
-pthread_mutex_t  BluetoothSSInterface :: ss_cback_mutex;
-pthread_cond_t BluetoothSSInterface :: ss_cback_cond_var;
-
 static constexpr size_t kStringLength = sizeof("XX:XX:XX:XX:XX:XX") - 1;
 static constexpr size_t kBytes = (kStringLength + 1) / 3;
 
@@ -405,8 +402,6 @@ static int init(bt_callbacks_t* callbacks, bool start_restricted,
   init_btss_event_handler();
   pthread_mutex_init(&btssEventLock, NULL);
   pthread_cond_init(&btssEventCond, NULL);
-  pthread_mutex_init(&BluetoothSSInterface :: ss_cback_mutex, NULL);
-  pthread_cond_init(&BluetoothSSInterface :: ss_cback_cond_var, NULL);
 
 restart:
   if(btssCurrentState != SS_BTSS_UP) {
@@ -1741,11 +1736,6 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       resBufferString.assign(resBuffer, length);
       free (cb_data->payload);
   }
-  ALOGI("Sending signal on Conditional variable from DM");
-  btSSInterface->setIsSignalSent(true);
-  pthread_mutex_lock(&BluetoothSSInterface::ss_cback_mutex);
-  pthread_cond_signal(&BluetoothSSInterface::ss_cback_cond_var);
-  pthread_mutex_unlock(&BluetoothSSInterface::ss_cback_mutex);
   ALOGI("MSG_ID is :: %X , Proto length: %d and Proto Encoded Value %d",MSG_ID, length, proto_ec);
   switch (MSG_ID) {
     case BT_DM_ADAPTER_STATE_CHANGE_CB: {

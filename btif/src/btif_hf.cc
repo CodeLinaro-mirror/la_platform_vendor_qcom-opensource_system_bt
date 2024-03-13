@@ -845,11 +845,6 @@ void btif_hf_ss_callback(uint16_t event, char* p_param) {
     resBufferString.assign((char *)((cb_data->payload)+ MSG_PROTO_OFFSET), length);
     free (cb_data->payload);
   }
-  ALOGI("Sending signal on Conditional variable from HF");
-  agBTSSInterface->setIsSignalSent(true);
-  pthread_mutex_lock(&BluetoothSSInterface::ss_cback_mutex);
-  pthread_cond_signal(&BluetoothSSInterface::ss_cback_cond_var);
-  pthread_mutex_unlock(&BluetoothSSInterface::ss_cback_mutex);
   ALOGI("[%s]::msg_id is :: %X , Proto length: %d and Proto Encoded Value %d",__func__,
          msg_id, length, proto_enc);
   switch (event) {
