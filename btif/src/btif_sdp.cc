@@ -242,11 +242,6 @@ void btif_sdp_ss_callback(uint16_t event, char* p_param) {
       resBufferString.assign(resBuffer, length);
       free (cb_data->payload);
    }
-  ALOGI("Sending signal on Conditional variable from SDP");
-  btSSInterface_t->setIsSignalSent(true);
-  pthread_mutex_lock(&BluetoothSSInterface::ss_cback_mutex);
-  pthread_cond_signal(&BluetoothSSInterface::ss_cback_cond_var);
-  pthread_mutex_unlock(&BluetoothSSInterface::ss_cback_mutex);
    ALOGI("MSG_ID is :: %X , Proto length: %d and Proto Encoded Value %d",MSG_ID, length, proto_ec);
 
    if(MSG_ID == BT_SDP_SEARCH_COMPLETE_CB) {
