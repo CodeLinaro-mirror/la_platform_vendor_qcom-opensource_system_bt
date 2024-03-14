@@ -550,6 +550,7 @@ static void l2c_csm_orig_w4_sec_comp(tL2C_CCB* p_ccb, uint16_t event,
         L2CAP_TRACE_API(
             "L2CAP - Calling Disconnect_Ind_Cb(), CID: 0x%04x  No Conf Needed",
             p_ccb->local_cid);
+        l2cu_release_ccb(p_ccb);
         if (disconnect_ind) {
           (*disconnect_ind)(local_cid, false);
         }
@@ -1510,6 +1511,9 @@ static void l2c_csm_config(tL2C_CCB* p_ccb, uint16_t event, void* p_data) {
                p_ccb->p_rcb?p_ccb->p_rcb->psm:0,p_ccb->peer_cfg.mtu_present,p_ccb->peer_cfg.mtu);
       if (p_ccb->p_rcb && p_ccb->p_rcb->api.pL2CA_ConfigCfm_Cb) {
         (*p_ccb->p_rcb->api.pL2CA_ConfigCfm_Cb)(p_ccb->local_cid, p_cfg);
+      } else {
+        L2CAP_TRACE_DEBUG("Disconnect L2cap Channel as no client available");
+        l2cu_send_peer_disc_req(p_ccb);
       }
       break;
 

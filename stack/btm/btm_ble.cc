@@ -41,6 +41,7 @@
 #include "hcimsgs.h"
 #include "log/log.h"
 #include "l2c_int.h"
+#include "openssl/mem.h"
 #include "osi/include/log.h"
 #include "osi/include/osi.h"
 #include "stack/crypto_toolbox/crypto_toolbox.h"
@@ -51,7 +52,6 @@
 
 extern void gatt_notify_phy_updated(uint8_t status, uint16_t handle,
                                     uint8_t tx_phy, uint8_t rx_phy);
-extern void btm_send_link_key_notif(tBTM_SEC_DEV_REC* p_dev_rec);
 
 //HCI Command or Event callbacks
 tBTM_BLE_HCI_CMD_CB hci_cmd_cmpl;
@@ -2115,19 +2115,6 @@ uint8_t btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr,
 
           res = (p_data->cmplt.reason == SMP_SUCCESS) ? BTM_SUCCESS
                                                       : BTM_ERR_PROCESSING;
-            if (p_dev_rec->sec_smp_pair_pending & BTM_SEC_SMP_PAIR_PENDING) {
-              BTM_TRACE_DEBUG("btm_proc_smp_cback - Resetting "
-                "Sec_smp_pair_pending = %d", p_dev_rec->sec_smp_pair_pending);
-              if (p_dev_rec->sec_smp_pair_pending > BTM_SEC_SMP_PAIR_PENDING) {
-                p_dev_rec->link_key_type = (p_dev_rec->sec_smp_pair_pending
-                  & BTM_SEC_LINK_KEY_TYPE_UNAUTH) ? BTM_LKEY_TYPE_UNAUTH_COMB
-                  : BTM_LKEY_TYPE_AUTH_COMB;
-                BTM_TRACE_DEBUG("updated link key type to %d",
-                        p_dev_rec->link_key_type);
-                btm_send_link_key_notif(p_dev_rec);
-              }
-              p_dev_rec->sec_smp_pair_pending = BTM_SEC_SMP_NO_PAIR_PENDING;
-            }
 
           BTM_TRACE_DEBUG(
               "after update result=%d sec_level=0x%x sec_flags=0x%x", res,
@@ -2290,7 +2277,7 @@ bool BTM_BleVerifySignature(const RawAddress& bd_addr, uint8_t* p_orig,
 
     crypto_toolbox::aes_cmac(p_rec->ble.keys.pcsrk, p_orig, len,
                              BTM_CMAC_TLEN_SIZE, p_mac);
-    if (memcmp(p_mac, p_comp, BTM_CMAC_TLEN_SIZE) == 0) {
+    if (CRYPTO_memcmp(p_mac, p_comp, BTM_CMAC_TLEN_SIZE) == 0) {
       btm_ble_increment_sign_ctr(bd_addr, false);
       verified = true;
     }
