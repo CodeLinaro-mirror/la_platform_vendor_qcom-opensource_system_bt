@@ -200,9 +200,11 @@ void alarm_free(alarm_t* alarm) {
 
   alarm_cancel(alarm);
   delete alarm->callback_mutex;
+  alarm->callback_mutex = NULL;
   osi_free((void*)alarm->stats.name);
   alarm->closure.~CancelableClosureInStruct();
   osi_free(alarm);
+  alarm = NULL;
 }
 
 period_ms_t alarm_get_remaining_ms(const alarm_t* alarm) {
@@ -579,7 +581,10 @@ static void alarm_ready_generic(alarm_t* alarm,
     alarm->queue = NULL;
   }
 
-  std::lock_guard<std::recursive_mutex> cb_lock(*alarm->callback_mutex);
+  if (alarm->callback_mutex)  {
+    std::lock_guard<std::recursive_mutex> cb_lock(*alarm->callback_mutex);
+  }
+
   lock.unlock();
 
   callback(data);
