@@ -14,6 +14,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ *  Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
  ******************************************************************************/
 
 /******************************************************************************
@@ -291,6 +294,9 @@ int RFCOMM_RemoveServer(uint16_t handle) {
 
   /* Do not report any events to the client any more. */
   p_port->p_mgmt_callback = NULL;
+  // Port Handle is retained if port state is already closed/closing. This is resulting in HF Reconnection issues.
+  // So, making sure port handle is not retained if port state is already closed/closing.
+  p_port->keep_port_handle = false;
 
   if (!p_port->in_use ||
       (p_port->state == PORT_STATE_CLOSED) ||
@@ -300,7 +306,6 @@ int RFCOMM_RemoveServer(uint16_t handle) {
   }
 
   /* this port will be deallocated after closing */
-  p_port->keep_port_handle = false;
   p_port->state = PORT_STATE_CLOSING;
 
   port_start_close(p_port);
