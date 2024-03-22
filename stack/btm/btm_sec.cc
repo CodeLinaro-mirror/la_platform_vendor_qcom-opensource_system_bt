@@ -4020,6 +4020,7 @@ static bool btm_sec_auth_retry(uint16_t handle, uint8_t status) {
        Legacy device do not need this. the controller will drive the retry
        automatically
        set the retry bit */
+    btif_storage_remove_bonded_device(&p_dev_rec->bd_addr);
     btm_cb.collision_start_time = 0;
     btm_restore_mode();
     p_dev_rec->sm4 |= BTM_SM4_RETRY;
