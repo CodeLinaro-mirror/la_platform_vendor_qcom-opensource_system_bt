@@ -60,6 +60,7 @@ alarm_t *rx_ssr_dump_thread_timeout;
 pthread_mutex_t tx_threads_mutex;
 pthread_mutex_t rx_threads_mutex;
 pthread_mutex_t wakelock_mutex;
+pthread_mutex_t data_logging_threads_mutex;
 
 BluetoothSSInterface* BluetoothSSInterface::getInstance() {
     static BluetoothSSInterface instance;
@@ -315,6 +316,7 @@ BluetoothSSInterface::BluetoothSSInterface() {
     pthread_mutex_init(&tx_threads_mutex, NULL);
     pthread_mutex_init(&rx_threads_mutex, NULL);
     pthread_mutex_init(&wakelock_mutex, NULL);
+    pthread_mutex_init(&data_logging_threads_mutex, NULL);
 
     //message loop for alarm
     alarm_thread = thread_new_sized("alarm_thread", 1024);
@@ -501,12 +503,15 @@ void BluetoothSSInterface::cleanup() {
     pthread_mutex_destroy(&tx_threads_mutex);
     pthread_mutex_destroy(&rx_threads_mutex);
     pthread_mutex_destroy(&wakelock_mutex);
+    pthread_mutex_destroy(&data_logging_threads_mutex);
 
     ALOGI("BluetoothSSInterface cleanup end");
 }
 
 void processDataLogging(uint8_t *msgStr, size_t buflen, const char *msgtyp) {
+    pthread_mutex_lock(&data_logging_threads_mutex);
     gSSTransportCtrl->file_write(msgStr,buflen,msgtyp);
+    pthread_mutex_unlock(&data_logging_threads_mutex);
 }
 void processTx(std::string msgStr) {
   const  char *msgType="Tx";
@@ -820,7 +825,7 @@ void BluetoothSSInterface::processRx() {
         if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
           do_in_data_logging_thread(base::Bind(processDataLogging, readBuffer, num, msgType));
         }
-        ALOGI("num of bytes read from stream is :: %d",num);
+        ALOGI("ss_bt_ctrl num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
             ALOGE("Slate response is too short ::  %d",num);
         }else {
@@ -888,7 +893,7 @@ void BluetoothSSInterface::processDataChRx() {
         if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
           do_in_data_logging_thread(base::Bind(processDataLogging, readBuffer, num, msgType));
         }
-        ALOGI("num of bytes read from stream is :: %d",num);
+        ALOGI("ss_bt_data num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
             ALOGE("Slate response is too short ::  %d",num);
         } else {
@@ -957,7 +962,7 @@ void BluetoothSSInterface::processLeDataChRx() {
         if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
           do_in_data_logging_thread(base::Bind(processDataLogging, readBuffer, num, msgType));
         }
-        ALOGI("num of bytes read from stream is :: %d",num);
+        ALOGI("ss_bt_le_data num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
             ALOGE("Slate response is too short ::  %d",num);
         } else {
@@ -1023,7 +1028,7 @@ ALOGE("BluetoothSSInterface processRx :: running_obex_data_ch_ is :: %d",running
         pthread_mutex_unlock(&rx_threads_mutex);
         ssGlinkWakeLockAcquireOrRelease(false, true);
         int num = gSSTransportObexData->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
-        ALOGI("num of bytes read from stream is :: %d",num);
+        ALOGI("ss_bt_obex_data num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
             ALOGE("Slate response is too short ::  %d",num);
         } else {
@@ -1071,7 +1076,7 @@ void BluetoothSSInterface::processSsrDataChRx() {
         pthread_mutex_unlock(&rx_threads_mutex);
         ssGlinkWakeLockAcquireOrRelease(false, true);
         int num = gSSTransportSsrData->read(readBuffer, SSR_CH_MAX_SIZE*sizeof(uint8_t));
-        ALOGI("num of bytes read from stream is :: %d",num);
+        ALOGI("ss_bt_ssr_data num of bytes read from stream is :: %d",num);
         if(num < SSR_CH_MIN_SIZE) {
             ALOGE("Slate response is too short ::  %d",num);
         }
