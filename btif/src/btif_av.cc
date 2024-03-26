@@ -372,7 +372,11 @@ static bt_status_t set_active_device(const RawAddress& bd_addr) {
   if (bd_addr == RawAddress::kEmpty) {
       /* 1. SetActive Device -> Null */
       if (isA2dpPlaying()) {
+          auto now = std::chrono::system_clock::now();
+          std::unique_lock<std::mutex> lk(cv_m);
           btif_av_handle_hidl_req(A2DP_CTRL_CMD_SUSPEND);
+          ALOGE("Acquired the lock and waiting for a2dp suspend");
+          cv.wait_until(lk, now + std::chrono::seconds(SUSPEND_TIME_OUT));
       }
       bluetooth::audio::aidl::a2dp::end_session();
       active_device_ = bd_addr;
