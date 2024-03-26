@@ -285,7 +285,6 @@ BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code,
                              uint16_t handle, uint16_t offset, uint16_t len,
                              uint8_t* p_data) {
   uint8_t *p, *pp, pair_len, *p_pair_len;
-  int32_t data_len;
   BT_HDR* p_buf =
       (BT_HDR*)osi_malloc(sizeof(BT_HDR) + payload_size + L2CAP_MIN_OFFSET);
 
@@ -311,10 +310,9 @@ BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code,
   }
 
   if (len > 0 && p_data != NULL) {
-    data_len = payload_size - p_buf->len;
     /* ensure data not exceed MTU size */
-    if ((data_len > 0) && (data_len < len)) {
-      len = data_len;
+    if (payload_size - p_buf->len < len) {
+      len = payload_size - p_buf->len;
       /* update handle value pair length */
       if (op_code == GATT_RSP_READ_BY_TYPE) *p_pair_len = (len + 2);
 
