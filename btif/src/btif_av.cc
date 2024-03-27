@@ -366,6 +366,11 @@ static bt_status_t set_active_device(const RawAddress& bd_addr) {
       return BT_STATUS_SUCCESS;
   }
 
+  if (pending_cmd != A2DP_CTRL_CMD_NONE) {
+    ALOGE("%s: Pending Start/Suspend Response on current device, Return Fail",__func__);
+    return BT_STATUS_NOT_READY;
+  }
+
   std::string str_msg;
   a2dp_proto::ss_set_active_device msg_active_device;
 
@@ -781,8 +786,13 @@ bool btif_av_is_split_a2dp_enabled(){
 }
 
 inline bool isA2dpPlaying() {
-  ALOGI("%s: play_state is %d", __func__, play_state);
-  return play_state == BTAV_AUDIO_STATE_STARTED;
+  if (play_state == BTAV_AUDIO_STATE_STARTED) {
+    ALOGI("%s: true", __func__);
+    return true;
+  } else {
+    ALOGI("%s: false", __func__);
+    return false;
+  }
 }
 
 a2dp_proto::ss_btav_a2dp_codec_channel_mode_t getProtoChMode(
