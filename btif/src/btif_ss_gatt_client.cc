@@ -144,6 +144,25 @@ bt_status_t gatt_client_single_stack_proto::disconnect(uint32_t client_if, const
 bt_status_t gatt_client_single_stack_proto::deregisterClient(uint32_t client_if) {
     std::string msgStr;
     ALOGD(" %s ", __func__);
+
+    bool client_if_found = false;
+    /* get address from client_if */
+    for (auto conn : connectedDevices) {
+        if (client_if == conn.second) {
+            RawAddress address = conn.first;
+            connectedDevices.erase(address);
+            client_if_found = true;
+            break;
+        }
+    }
+
+    if(client_if_found == false) {
+        /* If the client if is not found in the entire map,
+        it is already deregistered */
+        ALOGD("%s, already deregistered", __func__);
+        return BT_STATUS_SUCCESS;
+    }
+
     ss_gatt_client_deregister ss_gatt_client_deregister_;
     ss_gatt_client_deregister_.set_clientif(client_if);
 
@@ -569,7 +588,7 @@ void process_gatt_client_connected_event(std::string resBufferString) {
 void process_gatt_client_disconnected_event(std::string resBufferString) {
     int status;
     uint32_t conn_id;
-    uint32_t client_if;
+    uint32_t client_if = 0;
     RawAddress* address = nullptr;
 
     ss_gatt_client_conn_state_change_event on_ss_gatt_client_conn_state_change;
@@ -592,7 +611,8 @@ void process_gatt_client_disconnected_event(std::string resBufferString) {
        address = (RawAddress*)addr;
        ALOGD("\n address: %s ", address->ToString().c_str());
     }
-    connectedDevices.erase(*address);
+    /* deregister app */
+    gatt_client_single_stack_proto().deregisterClient(client_if);
     HAL_CBACK(bt_gatt_callbacks, client->close_cb, conn_id, status,
                 client_if, *address);
 }
