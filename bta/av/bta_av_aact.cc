@@ -1770,7 +1770,7 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 #endif
   AVDT_ConfigRsp(p_scb->avdt_handle, p_scb->avdt_label, error_code, 0);
 
-  reject.bd_addr = p_data->str_msg.bd_addr;
+  reject.bd_addr = p_scb->PeerAddress();
   reject.hndl = p_scb->hndl;
 
   tBTA_AV bta_av_data;
