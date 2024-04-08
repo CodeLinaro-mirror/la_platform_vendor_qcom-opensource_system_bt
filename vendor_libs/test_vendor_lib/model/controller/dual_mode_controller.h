@@ -313,6 +313,9 @@ class DualModeController : public Device {
   // 7.3.59
   void WriteSimplePairingMode(CommandPacketView args);
 
+  // 7.3.60
+  void ReadLocalOobData(CommandPacketView args);
+
   // 7.3.61
   void ReadInquiryResponseTransmitPowerLevel(CommandPacketView args);
 

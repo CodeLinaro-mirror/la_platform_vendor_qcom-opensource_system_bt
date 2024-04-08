@@ -122,6 +122,7 @@ DualModeController::DualModeController(const std::string& properties_filename, u
   SET_HANDLER(OpCode::READ_INQUIRY_RESPONSE_TRANSMIT_POWER_LEVEL,
               ReadInquiryResponseTransmitPowerLevel);
   SET_HANDLER(OpCode::WRITE_SIMPLE_PAIRING_MODE, WriteSimplePairingMode);
+  SET_HANDLER(OpCode::READ_LOCAL_OOB_DATA, ReadLocalOobData);
   SET_HANDLER(OpCode::WRITE_LE_HOST_SUPPORT, WriteLeHostSupport);
   SET_HANDLER(OpCode::WRITE_SECURE_CONNECTIONS_HOST_SUPPORT,
               WriteSecureConnectionsHostSupport);
@@ -730,6 +731,17 @@ void DualModeController::WriteSimplePairingMode(CommandPacketView command) {
   auto packet = bluetooth::hci::WriteSimplePairingModeCompleteBuilder::Create(
       kNumCommandPackets, ErrorCode::SUCCESS);
   send_event_(std::move(packet));
+}
+
+void DualModeController::ReadLocalOobData(CommandPacketView command) {
+  std::array<uint8_t, 16> c_array(
+      {'c', ' ', 'a', 'r', 'r', 'a', 'y', ' ', '0', '0', '0', '0', '0', '0', '0', '0'});
+
+  std::array<uint8_t, 16> r_array(
+      {'r', ' ', 'a', 'r', 'r', 'a', 'y', ' ', '0', '0', '0', '0', '0', '0', '0', '0'});
+
+  send_event_(bluetooth::hci::ReadLocalOobDataCompleteBuilder::Create(
+      kNumCommandPackets, ErrorCode::SUCCESS, c_array, r_array));
 }
 
 void DualModeController::ChangeConnectionPacketType(CommandPacketView command) {
