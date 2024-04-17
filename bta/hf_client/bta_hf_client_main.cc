@@ -759,9 +759,6 @@ void bta_hf_client_sm_execute(uint16_t event, tBTA_HF_CLIENT_DATA* p_data) {
     evt.bd_addr = client_cb->peer_addr;
     if (client_cb->state == BTA_HF_CLIENT_INIT_ST) {
       bta_hf_client_app_callback(BTA_HF_CLIENT_CLOSE_EVT, &evt);
-      APPL_TRACE_DEBUG("start hfp client server");
-      bta_hf_client_cb_arr.serv_handle = 0;
-      bta_hf_client_start_server();
     } else if (client_cb->state == BTA_HF_CLIENT_OPEN_ST) {
       evt.open.handle = client_cb->handle;
       bta_hf_client_app_callback(BTA_HF_CLIENT_OPEN_EVT, &evt);
