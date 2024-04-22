@@ -510,9 +510,25 @@ void BluetoothSSInterface::cleanup() {
 
 void processDataLogging(uint8_t *msgStr, size_t buflen, const char *msgtyp) {
     pthread_mutex_lock(&data_logging_threads_mutex);
-    gSSTransportCtrl->file_write(msgStr,buflen,msgtyp);
+    size_t ret = gSSTransportCtrl->file_write(msgStr,buflen,msgtyp);
+    ALOGD("%s File Write :: total written %d ", __func__, ret);
     pthread_mutex_unlock(&data_logging_threads_mutex);
+    free(msgStr);
 }
+
+void dataLoggingMsg(uint8_t *buf, size_t buflen, const char *msgtyp)
+{
+    ALOGD("%s", __func__);
+    uint8_t *fileWrite = (uint8_t *)malloc(buflen*sizeof(uint8_t));
+    if(fileWrite != NULL)
+    {
+        memcpy(fileWrite, buf, buflen);
+        do_in_data_logging_thread(base::Bind(processDataLogging, fileWrite,buflen,msgtyp));
+    }
+    else
+        ALOGD("%s malloc failed ", __func__);
+}
+
 void processTx(std::string msgStr) {
   const  char *msgType="Tx";
   uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
@@ -530,7 +546,7 @@ void processTx(std::string msgStr) {
   pthread_mutex_unlock(&tx_threads_mutex);
   BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false, true);
   if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
-    do_in_data_logging_thread(base::Bind(processDataLogging, tmpBuf,msgStr.length(),msgType));
+    dataLoggingMsg(tmpBuf,msgStr.length(),msgType);
   }
   gSSTransportCtrl->write(tmpBuf,msgStr.length(),&bytes_written);
   ALOGD("%s: CTRL_CH: write payload bytes_written=%d", __func__, (int)bytes_written);
@@ -599,7 +615,7 @@ int processLeDataTx(std::string msgStr) {
 
   size_t bytes_written = 0;
   if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
-    do_in_data_logging_thread(base::Bind(processDataLogging, tmpBuf,msgStr.length(),msgType));
+    dataLoggingMsg(tmpBuf,msgStr.length(),msgType);
   }
   int result = -1;
   int retry_count = 0;
@@ -641,7 +657,7 @@ int processObexDataTx(std::string msgStr) {
 
   size_t bytes_written = 0;
   if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
-    do_in_data_logging_thread(base::Bind(processDataLogging, tmpBuf,msgStr.length(),msgType));
+    dataLoggingMsg(tmpBuf,msgStr.length(),msgType);
   }
   int result = -1;
   int retry_count = 0;
@@ -823,7 +839,7 @@ void BluetoothSSInterface::processRx() {
         ssGlinkWakeLockAcquireOrRelease(false, true);
         int num = gSSTransportCtrl->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
         if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
-          do_in_data_logging_thread(base::Bind(processDataLogging, readBuffer, num, msgType));
+          dataLoggingMsg(readBuffer,num,msgType);
         }
         ALOGI("ss_bt_ctrl num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
@@ -874,7 +890,7 @@ void BluetoothSSInterface::processDataChRx() {
         ssGlinkWakeLockAcquireOrRelease(false, true);
         int num = gSSTransportData->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
         if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
-          do_in_data_logging_thread(base::Bind(processDataLogging, readBuffer, num, msgType));
+          dataLoggingMsg(readBuffer,num,msgType);
         }
         ALOGI("ss_bt_data num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
@@ -926,7 +942,7 @@ void BluetoothSSInterface::processLeDataChRx() {
         ssGlinkWakeLockAcquireOrRelease(false, true);
         int num = gSSTransportLeData->read(readBuffer, MSG_SIZE_MAX*sizeof(uint8_t));
         if (log_level >= SS_BT_TRACE_LEVEL_GLINK) {
-          do_in_data_logging_thread(base::Bind(processDataLogging, readBuffer, num, msgType));
+          dataLoggingMsg(readBuffer,num,msgType);
         }
         ALOGI("ss_bt_le_data num of bytes read from stream is :: %d",num);
         if(num < MSG_SIZE_MIN) {
