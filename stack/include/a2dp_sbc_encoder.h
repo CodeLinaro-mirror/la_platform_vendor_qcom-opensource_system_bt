@@ -17,6 +17,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 //
 // Interface to the A2DP SBC Encoder
 //
@@ -65,5 +71,5 @@ void a2dp_sbc_send_frames(uint64_t timestamp_us);
 // |peer_edr| flag for peer supports edr
 // Returns |uint16_t| calculated bitrare
 uint16_t a2dp_sbc_calulate_offload_bitrate(A2dpCodecConfig* a2dp_codec_config,
-                                           bool peer_edr, const uint8_t* p_codec_info);
+                                           bool peer_edr, const uint8_t* src_codec_info);
 #endif  // A2DP_SBC_ENCODER_H

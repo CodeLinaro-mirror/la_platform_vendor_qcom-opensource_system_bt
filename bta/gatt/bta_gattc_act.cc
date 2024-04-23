@@ -637,13 +637,27 @@ void bta_gattc_conn(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
       p_clcb->p_srcb->state != BTA_GATTC_SERV_IDLE) {
     if (p_clcb->p_srcb->state == BTA_GATTC_SERV_IDLE) {
       p_clcb->p_srcb->state = BTA_GATTC_SERV_LOAD;
-      // For bonded devices, read cache directly, and back to connected state.
-      gatt::Database db = bta_gattc_cache_load(p_clcb->p_srcb->server_bda);
-      if (!db.IsEmpty() && btm_sec_is_a_bonded_dev(p_clcb->p_srcb->server_bda)) {
-        p_clcb->p_srcb->gatt_database = db;
-        p_clcb->p_srcb->state = BTA_GATTC_SERV_IDLE;
-        bta_gattc_reset_discover_st(p_clcb->p_srcb, GATT_SUCCESS);
-      } else {
+
+      // Consider the case that if GATT Server is changed, but no service
+      // changed indication is received, the database might be out of date. So
+      // if robust caching is known to be supported, always check the db hash
+      // first, before loading the stored database.
+
+      // Only load the database if we are bonded, since the device cache is
+      // meaningless otherwise (as we need to do rediscovery regardless)
+      gatt::Database db = btm_sec_is_a_bonded_dev(p_clcb->bda)
+                              ? bta_gattc_cache_load(p_clcb->p_srcb->server_bda)
+                              : gatt::Database();
+      auto robust_caching_support = GetRobustCachingSupport(p_clcb, db);
+      LOG_INFO(LOG_TAG, "Connected to %s, robust caching support is %d",
+               p_clcb->bda.ToRedactedStringForLogging().c_str(),
+               robust_caching_support);
+      if (db.IsEmpty() ||
+          robust_caching_support == RobustCachingSupport::SUPPORTED) {
+        // If the peer device is expected to support robust caching, or if we
+        // don't know its services yet, then we should do discovery (which may
+        // short-circuit through a hash match, but might also do the full
+        // discovery).
         p_clcb->p_srcb->state = BTA_GATTC_SERV_DISC;
 
         /* set true to read database hash before service discovery */
@@ -653,6 +667,10 @@ void bta_gattc_conn(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
 
         /* cache load failure, start discovery */
         bta_gattc_start_discover(p_clcb, NULL);
+      } else {
+        p_clcb->p_srcb->gatt_database = db;
+        p_clcb->p_srcb->state = BTA_GATTC_SERV_IDLE;
+        bta_gattc_reset_discover_st(p_clcb->p_srcb, GATT_SUCCESS);
       }
     } else /* cache is building */
       p_clcb->state = BTA_GATTC_DISCOVER_ST;
@@ -949,33 +967,16 @@ void bta_gattc_start_discover(tBTA_GATTC_CLCB* p_clcb,
       p_clcb->p_srcb->update_count = 0;
       p_clcb->p_srcb->state = BTA_GATTC_SERV_DISC_ACT;
 
-      uint16_t manufacturer = 0;
-      uint16_t lmp_sub_version = 0;
-      uint8_t lmp_version = 0;
-
-      BTM_ReadRemoteVersionByTransport(p_clcb->bda, &lmp_version,
-          &manufacturer, &lmp_sub_version, BTA_TRANSPORT_LE);
-      VLOG(1) << __func__ << ": lmp_version" << +lmp_version
-              << ": lmp_sub_version" << +lmp_sub_version;
-
-      // Some LMP 5.2 devices also don't support robust caching. This workaround
-      // conditionally disables the feature based on a combination of LMP
-      // version and OUI prefix.
-      if (bta_gattc_is_robust_caching_enabled() &&
-          (((lmp_version > HCI_PROTO_VERSION_5_1) &&
-          interop_match_addr(INTEROP_DISABLE_ROBUST_CACHING, &p_clcb->bda)) ||
-          (lmp_version < HCI_PROTO_VERSION_5_1))) {
-        LOG(INFO) << __func__
-            << "Device LMP version > Bluetooth 5.1 and MAC addr on "
-            "interop list OR LMP version less than BT 5.1,"
-            "skipping robust caching" << +lmp_version;
+      if (GetRobustCachingSupport(p_clcb, p_clcb->p_srcb->gatt_database) ==
+          RobustCachingSupport::UNSUPPORTED) {
+        // Skip initial DB hash read if we have strong reason (due to interop,
+        // or a prior discovery) to believe that it is unsupported.
         p_clcb->p_srcb->srvc_hdl_db_hash = false;
       }
 
       /* read db hash if db hash characteristic exists */
       if (bta_gattc_is_robust_caching_enabled() &&
           p_clcb->p_srcb->srvc_hdl_db_hash &&
-          (lmp_version >= HCI_PROTO_VERSION_5_1) &&
           bta_gattc_read_db_hash(p_clcb, is_svc_chg)) {
         LOG(INFO) << __func__
                   << ": pending service discovery, read db hash first";

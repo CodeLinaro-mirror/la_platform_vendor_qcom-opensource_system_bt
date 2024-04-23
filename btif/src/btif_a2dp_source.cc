@@ -21,6 +21,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #define LOG_TAG "bt_btif_a2dp_source"
 #define ATRACE_TAG ATRACE_TAG_AUDIO
 
@@ -177,6 +183,10 @@ extern bool btif_av_is_tws_suspend_triggered(int index);
 
 extern bool btif_acm_check_in_call_tracker_timer_exist();
 extern void stop_stream_acm_initiator_now();
+
+
+extern bool bt_split_a2dp_sink_enabled;
+extern thread_t* get_sink_worker_thread();
 
 static char a2dp_hal_imp[PROPERTY_VALUE_MAX] = "false";
 UNUSED_ATTR static const char* dump_media_event(uint16_t event) {
@@ -2139,6 +2149,10 @@ void btif_a2dp_source_process_request(tA2DP_CTRL_CMD cmd) {
 }
 
 thread_t* get_worker_thread() {
-  return btif_a2dp_source_cb.worker_thread;
+  if(bt_split_a2dp_sink_enabled) {
+    return get_sink_worker_thread();
+  } else {
+    return btif_a2dp_source_cb.worker_thread;
+  }
 }
 

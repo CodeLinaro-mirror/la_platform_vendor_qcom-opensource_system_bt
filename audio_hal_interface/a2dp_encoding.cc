@@ -51,6 +51,11 @@ OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 */
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 #include "a2dp_encoding.h"
 #include "client_interface.h"
 
@@ -75,7 +80,9 @@ extern void btif_av_reset_reconfig_flag();
 extern bool btif_av_current_device_is_tws();
 extern void btif_a2dp_source_encoder_init(void);
 
+extern uint8_t active_codec_info[AVDT_CODEC_SIZE];
 #define AAC_SAMPLE_SIZE  1024
+#define MAX_MTU_SIZE 990
 #define AAC_LATM_HEADER  12
 
 namespace {
@@ -287,6 +294,14 @@ class A2dpTransport_2_1 : public ::bluetooth::audio::IBluetoothTransportInstance
     ProcessRequest(A2DP_CTRL_CMD_STOP);
   }
 
+  void NotifyHalRestart() override {
+    if(!IsActvie()) {
+      LOG(WARNING) << __func__ << ": Not active";
+      return;
+    }
+    ProcessRequest(A2DP_CTRL_NOTIFY_HAL_RESTART);
+  }
+
   bool GetPresentationPosition(uint64_t* remote_delay_report,
                                uint64_t* total_bytes_read,
                                timespec* data_position) override {
@@ -310,6 +325,8 @@ class A2dpTransport_2_1 : public ::bluetooth::audio::IBluetoothTransportInstance
 
   tA2DP_CTRL_CMD GetPendingCmd() const { return a2dp_pending_cmd_; }
 
+  uint16_t GetSinkLatency() const { return sink_latency_; }
+
   void ResetPendingCmd() {
     LOG(WARNING) << "ResetPendingCmd  " << a2dp_pending_cmd_;
     a2dp_pending_cmd_ = A2DP_CTRL_CMD_NONE;
@@ -326,6 +343,15 @@ class A2dpTransport_2_1 : public ::bluetooth::audio::IBluetoothTransportInstance
       total_bytes_read_ += bytes_read;
       clock_gettime(CLOCK_MONOTONIC, &data_position_);
     }
+  }
+
+  void UpdateSinkLatency(uint16_t sink_latency) override {
+    if(!IsActvie()) {
+      LOG(WARNING) << __func__ << ": Not active";
+      return;
+    }
+    sink_latency_ = sink_latency;
+    ProcessRequest(A2DP_CTRL_UPDATE_SINK_LATENCY);
   }
 
   // delay reports from AVDTP is based on 1/10 ms (100us)
@@ -364,6 +390,7 @@ class A2dpTransport_2_1 : public ::bluetooth::audio::IBluetoothTransportInstance
   }
   tA2DP_CTRL_CMD a2dp_pending_cmd_;
   uint16_t remote_delay_report_;
+  uint16_t sink_latency_;
   uint64_t total_bytes_read_;
   timespec data_position_;
 
@@ -1485,6 +1512,8 @@ bool a2dp_get_selected_hal_codec_config(CodecConfiguration* codec_config) {
   LOG(INFO) << __func__ << ": CodecConfiguration=" << toString(*codec_config);
   return true;
 }
+
+
 bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config, int profile) {
   LOG(INFO) << __func__ << ": profile_type: " << profile;
   A2dpCodecConfig* a2dp_codec_configs = bta_av_get_a2dp_current_codec();
@@ -1800,6 +1829,235 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
 
     LOG(INFO) << __func__ << ": LC3 codec, CodecConfiguration="
                           << toString(*codec_config);
+    return true;
+  }
+
+  if(profile == A2DP_SINK) {
+    codec_config->isScramblingEnabled = btif_av_is_scrambling_enabled();
+    bta_av_co_get_peer_params(&peer_param);
+    peer_param.peer_mtu = MAX_MTU_SIZE;
+    codec_type = A2DP_GetCodecType((const uint8_t*)active_codec_info);
+    LOG(INFO) << __func__ << ": codec_type" << loghex(codec_type);
+    // Obtain the MTU
+    codec_config->peerMtu = peer_param.peer_mtu - A2DP_HEADER_SIZE;
+    if (A2DP_MEDIA_CT_SBC == codec_type) {
+      LOG(INFO) << __func__ << ": SBC codec " ;
+      codec_config->codecType = CodecType_2_1::SBC;
+      codec_config->config.sbcConfig = {};
+      auto sbc_config = codec_config->config.sbcConfig;
+      tA2DP_SBC_CIE sbc_cie;
+
+      tA2DP_STATUS a2dp_status = A2DP_ParseInfoSbc(&sbc_cie, active_codec_info, false);
+
+      if (a2dp_status != A2DP_SUCCESS) {
+        LOG(ERROR) << __func__ << ": cannot decode codec information " << a2dp_status;
+        return false;
+      }
+
+      switch (sbc_cie.samp_freq) {
+        case A2DP_SBC_IE_SAMP_FREQ_16:
+          sbc_config.sampleRate = SampleRate::RATE_16000;
+          break;
+        case A2DP_SBC_IE_SAMP_FREQ_44:
+          sbc_config.sampleRate = SampleRate::RATE_44100;
+          break;
+        case A2DP_SBC_IE_SAMP_FREQ_48:
+          sbc_config.sampleRate = SampleRate::RATE_48000;
+          break;
+        default:
+          LOG(ERROR) << __func__
+                     << ": Unknown SBC freq=" << sbc_cie.samp_freq;
+          sbc_config.sampleRate = SampleRate::RATE_UNKNOWN;
+          return false;
+      }
+
+      switch (sbc_cie.ch_mode) {
+        case A2DP_SBC_IE_CH_MD_JOINT:
+          sbc_config.channelMode = SbcChannelMode::JOINT_STEREO;
+          break;
+        case A2DP_SBC_IE_CH_MD_STEREO:
+          sbc_config.channelMode = SbcChannelMode::STEREO;
+          break;
+        case A2DP_SBC_IE_CH_MD_DUAL:
+          sbc_config.channelMode = SbcChannelMode::DUAL;
+          break;
+        case A2DP_SBC_IE_CH_MD_MONO:
+          sbc_config.channelMode = SbcChannelMode::MONO;
+          break;
+        default:
+          LOG(ERROR) << __func__
+                     << ": Unknown SBC channel_mode=" << sbc_cie.ch_mode;
+          sbc_config.channelMode = SbcChannelMode::UNKNOWN;
+          return false;
+      }
+
+      switch (sbc_cie.block_len) {
+        case A2DP_SBC_IE_BLOCKS_4:
+          sbc_config.blockLength = SbcBlockLength::BLOCKS_4;
+          break;
+        case A2DP_SBC_IE_BLOCKS_8:
+          sbc_config.blockLength = SbcBlockLength::BLOCKS_8;
+          break;
+        case A2DP_SBC_IE_BLOCKS_12:
+          sbc_config.blockLength = SbcBlockLength::BLOCKS_12;
+          break;
+        case A2DP_SBC_IE_BLOCKS_16:
+          sbc_config.blockLength = SbcBlockLength::BLOCKS_16;
+          break;
+        default:
+          LOG(ERROR) << __func__
+                     << ": Unknown SBC block_length=" << sbc_cie.block_len;
+          return false;
+      }
+
+      switch (sbc_cie.num_subbands) {
+        case A2DP_SBC_IE_SUBBAND_4:
+          sbc_config.numSubbands = SbcNumSubbands::SUBBAND_4;
+          break;
+        case A2DP_SBC_IE_SUBBAND_8:
+          sbc_config.numSubbands = SbcNumSubbands::SUBBAND_8;
+          break;
+        default:
+          LOG(ERROR) << __func__ << ": Unknown SBC Subbands=" << sbc_cie.num_subbands;
+          return false;
+      }
+
+      switch (sbc_cie.alloc_method) {
+        case A2DP_SBC_IE_ALLOC_MD_S:
+          sbc_config.allocMethod = SbcAllocMethod::ALLOC_MD_S;
+          break;
+        case A2DP_SBC_IE_ALLOC_MD_L:
+          sbc_config.allocMethod = SbcAllocMethod::ALLOC_MD_L;
+          break;
+        default:
+          LOG(ERROR) << __func__
+                     << ": Unknown SBC alloc_method=" << sbc_cie.alloc_method;
+          return false;
+      }
+
+      sbc_config.minBitpool = sbc_cie.min_bitpool;
+      sbc_config.maxBitpool = sbc_cie.max_bitpool;
+
+      sbc_config.bitsPerSample = BitsPerSample::BITS_16;
+      codec_config->encodedAudioBitrate =
+                    1000 * A2DP_GetOffloadBitrateSbcUsingCodecInfo(
+                    active_codec_info, true);
+      LOG(INFO) << __func__ << "SBC bitrate" << codec_config->encodedAudioBitrate;
+
+      codec_config->config.sbcConfig = sbc_config;
+
+    } else if (A2DP_MEDIA_CT_AAC == codec_type) {
+      codec_config->codecType = CodecType_2_1::AAC;
+      codec_config->config.aacConfig = {};
+      auto aac_config = codec_config->config.aacConfig;
+      aac_config.objectType = AacObjectType::MPEG2_LC;
+      bool is_AAC_frame_ctrl_stack_enable =
+                      controller_get_interface()->supports_aac_frame_ctl();
+      uint32_t codec_based_bit_rate = 0;
+      uint32_t mtu_based_bit_rate = 0;
+      LOG(INFO) << __func__ << "Stack AAC frame control enabled"
+                            << is_AAC_frame_ctrl_stack_enable;
+      tA2DP_AAC_CIE aac_cie;
+      if(!A2DP_GetAacCIE(active_codec_info, &aac_cie)) {
+        LOG(ERROR) << __func__ << ": Unable to get AAC CIE";
+        return false;
+      }
+      codec_based_bit_rate = aac_cie.bitRate;
+
+      switch (aac_cie.sampleRate) {
+        case A2DP_AAC_SAMPLING_FREQ_16000:
+          aac_config.sampleRate = SampleRate::RATE_16000;
+          break;
+        case A2DP_AAC_SAMPLING_FREQ_24000:
+          aac_config.sampleRate = SampleRate::RATE_24000;
+          break;
+        case A2DP_AAC_SAMPLING_FREQ_44100:
+          aac_config.sampleRate = SampleRate::RATE_44100;
+          break;
+        case A2DP_AAC_SAMPLING_FREQ_48000:
+          aac_config.sampleRate = SampleRate::RATE_48000;
+          break;
+        case A2DP_AAC_SAMPLING_FREQ_96000:
+          aac_config.sampleRate = SampleRate::RATE_96000;
+          break;
+        default:
+          LOG(ERROR) << __func__
+                     << ": Unknown SBC freq=" << aac_cie.sampleRate;
+          aac_config.sampleRate = SampleRate::RATE_UNKNOWN;
+          return false;
+      }
+
+      switch (aac_cie.channelMode) {
+        case A2DP_AAC_CHANNEL_MODE_MONO:
+          aac_config.channelMode = ChannelMode::MONO;
+          break;
+        case A2DP_AAC_CHANNEL_MODE_STEREO:
+          aac_config.channelMode = ChannelMode::STEREO;
+          break;
+        default:
+          LOG(ERROR) << __func__
+                     << ": Unknown AAC channel_mode=" << aac_cie.channelMode;
+          aac_config.channelMode = ChannelMode::UNKNOWN;
+          break;
+      }
+
+      switch (aac_cie.bits_per_sample) {
+        case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16:
+          aac_config.bitsPerSample = BitsPerSample::BITS_16;
+          break;
+        case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24:
+          aac_config.bitsPerSample = BitsPerSample::BITS_24;
+          break;
+        case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32:
+          aac_config.bitsPerSample = BitsPerSample::BITS_32;
+          break;
+        default:
+          LOG(ERROR) << __func__
+                     << ": Unknown AAC bits per sample =" << aac_cie.bits_per_sample;
+          aac_config.bitsPerSample = BitsPerSample::BITS_16;
+          break;
+      }
+
+      uint8_t vbr_enabled = aac_cie.variableBitRateSupport;
+      switch (vbr_enabled) {
+        case A2DP_AAC_VARIABLE_BIT_RATE_ENABLED:
+          LOG(INFO) << __func__ << " Enabled AAC VBR =" << +vbr_enabled;
+          aac_config.variableBitRateEnabled = AacVariableBitRate::ENABLED;
+          break;
+        case A2DP_AAC_VARIABLE_BIT_RATE_DISABLED:
+          LOG(INFO) << __func__ << " Disabled AAC VBR =" << +vbr_enabled;
+          aac_config.variableBitRateEnabled = AacVariableBitRate::DISABLED;
+          break;
+        default:
+          LOG(ERROR) << __func__ << ": Unknown AAC VBR=" << +vbr_enabled;
+          return false;
+      }
+
+      if (is_AAC_frame_ctrl_stack_enable) {
+        if (btif_av_is_peer_edr() && (btif_av_peer_supports_3mbps() == FALSE)) {
+          // This condition would be satisfied only if the remote device is
+          // EDR and supports only 2 Mbps, but the effective AVDTP MTU size
+          // exceeds the 2DH5 packet size.
+          if (peer_param.peer_mtu > MAX_2MBPS_AVDTP_MTU) {
+            peer_param.peer_mtu = MAX_2MBPS_AVDTP_MTU;
+            codec_config->peerMtu = peer_param.peer_mtu - A2DP_HEADER_SIZE;
+            APPL_TRACE_WARNING("%s Restricting MTU size to %d", __func__, peer_param.peer_mtu);
+          }
+        }
+        int sample_rate = A2DP_GetTrackSampleRate(active_codec_info);
+        mtu_based_bit_rate = (peer_param.peer_mtu - AAC_LATM_HEADER)
+                                            * (8 * sample_rate / AAC_SAMPLE_SIZE);
+        LOG(INFO) << __func__ << "sample_rate " << sample_rate;
+        LOG(INFO) << __func__ << " peer_mtu " << peer_param.peer_mtu;
+        LOG(INFO) << __func__ << " codec_bit_rate " << codec_based_bit_rate
+                  << " MTU bitrate " << mtu_based_bit_rate;
+        codec_config->encodedAudioBitrate = (codec_based_bit_rate < mtu_based_bit_rate) ?
+                                             codec_based_bit_rate:mtu_based_bit_rate;
+      } else {
+        codec_config->encodedAudioBitrate = codec_based_bit_rate;
+      }
+      codec_config->config.aacConfig = aac_config;
+    }
     return true;
   }
 
@@ -2326,7 +2584,8 @@ bool init( thread_t* message_loop) {
         session_type = SessionType::A2DP_SOFTWARE_ENCODING_DATAPATH;
       }
 #if AHIM_ENABLED
-    } else if(profile == AUDIO_GROUP_MGR || profile == BROADCAST) {
+    } else if(profile == AUDIO_GROUP_MGR || profile == BROADCAST ||
+              profile == A2DP_SINK) {
         CodecConfiguration_2_1 codec_config{};
         if (!a2dp_get_selected_hal_codec_config_2_1(&codec_config, profile)) {
           LOG(ERROR) << __func__ << ": Failed to get CodecConfiguration";
@@ -2361,7 +2620,7 @@ bool init( thread_t* message_loop) {
         a2dp_sink_2_1->SetRemoteDelay(remote_delay);
         remote_delay = 0;
       }
-    }else {
+    } else {
        AudioConfiguration audio_config{};
        if (btif_av_is_split_a2dp_enabled()) {
          CodecConfiguration codec_config{};
@@ -2542,7 +2801,8 @@ bool setup_codec() {
      AudioConfiguration_2_1 audio_config{};
 
 #if AHIM_ENABLED
-     if (profile == A2DP || profile == AUDIO_GROUP_MGR) {
+     if (profile == A2DP || profile == AUDIO_GROUP_MGR ||
+         profile == A2DP_SINK) {
 #endif
        if (session_type == SessionType::A2DP_HARDWARE_OFFLOAD_DATAPATH) {
          CodecConfiguration_2_1 codec_config{};
@@ -2673,6 +2933,19 @@ tA2DP_CTRL_CMD get_pending_command() {
       pending_cmd = a2dp_sink->GetPendingCmd();
   }
   return pending_cmd;
+}
+
+uint16_t get_sink_latency() {
+  std::unique_lock<std::mutex> guard(internal_mutex_);
+  uint16_t sink_latency = 0;
+  if (!is_hal_2_0_enabled()) {
+    LOG(ERROR) << __func__ << ": BluetoothAudio HAL is not enabled";
+  } else {
+    if (a2dp_sink_2_1) {
+      sink_latency = a2dp_sink_2_1->GetSinkLatency();
+    }
+  }
+  return sink_latency;
 }
 
 void reset_pending_command() {

@@ -30,5 +30,6 @@
 // Brings connection to active mode
 void bta_dm_pm_active(const RawAddress& peer_addr);
 void bta_dm_gatt_le_services(RawAddress bd_addr);
+bool bta_dm_is_hogp_supported(RawAddress bd_addr);
 
 #endif /* BTA_DM_API_H */

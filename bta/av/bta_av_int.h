@@ -49,6 +49,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /******************************************************************************
  *
  *  This is the private interface file for the BTA advanced audio/video.
@@ -121,6 +127,13 @@ enum {
   BTA_AV_API_OFFLOAD_START_RSP_EVT,
   BTA_AV_RECONFIG_FAIL_EVT,
   BTA_AV_COLLISION_EVT,
+  BTA_AV_SINK_API_OFFLOAD_START_EVT,
+  BTA_AV_SINK_API_OFFLOAD_STOP_EVT,
+  BTA_AV_SINK_API_PENDING_START_CNF_EVT,
+  BTA_AV_SINK_API_PENDING_START_REJECT_EVT,
+  BTA_AV_SINK_API_PENDING_SUSPEND_CNF_EVT,
+  BTA_AV_SINK_API_PENDING_SUSPEND_REJECT_EVT,
+  BTA_AV_SINK_API_UPDATE_DELAY_REPORT_EVT,
 
   /* these events are handled outside of the state machine */
   BTA_AV_API_ENABLE_EVT,
@@ -468,6 +481,7 @@ typedef struct {
   tAVDT_CTRL msg;  /* AVDTP callback message parameters */
   RawAddress bd_addr; /* bd address */
   uint8_t handle;
+  uint8_t scb_index;
   uint8_t avdt_event;
   bool initiator; /* true, if local device initiates the SUSPEND */
 } tBTA_AV_STR_MSG;
@@ -550,6 +564,11 @@ typedef struct {
       p_app_sink_data_cback; /* Sink application callback for media packets */
 } tBTA_AV_SEP;
 
+typedef struct {
+  BT_HDR hdr;
+  uint16_t sink_latency;
+} tBTA_AV_API_SINK_LATENCY;
+
 /* initiator/acceptor role for adaption */
 #define BTA_AV_ROLE_AD_INT 0x00 /* initiator */
 #define BTA_AV_ROLE_AD_ACP 0x01 /* acceptor */
@@ -595,6 +614,7 @@ union tBTA_AV_DATA {
   tBTA_AV_TWS_SET_EARBUD_ROLE tws_set_earbud_role;
   tBTA_AV_SET_TWS_DEVICE tws_set_device;
 #endif
+  tBTA_AV_API_SINK_LATENCY api_sink_latency;
 };
 
 typedef union {
@@ -700,10 +720,14 @@ struct tBTA_AV_SCB {
   uint8_t channel_mode; //L:0 R:1 S:2 M:3
   uint8_t start_pending;
   bool offload_started;
+  bool sink_offload_started;
 //#endif
   bool vendor_start;
   tBTA_AV_CI_SETCONFIG *cache_setconfig;
   int rc_ccb_alloc_handle;
+  bool strm_close_in_progress;
+  bool sink_split_vsc_rsp_waiting; /* TRUE if we have sent VSC command and waiting for
+ response*/
 };
 
 #define BTA_AV_RC_ROLE_MASK 0x10
@@ -725,6 +749,7 @@ typedef struct {
   bool browse_open;
   bool rc_opened;
   RawAddress peer_addr;
+  alarm_t* delay_rc_disc_timer;
 } tBTA_AV_RCB;
 #define BTA_AV_NUM_RCB (BTA_AV_NUM_STRS + 2)
 
@@ -988,4 +1013,10 @@ extern void bta_av_handle_collision(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 #if (TWS_ENABLED == TRUE)
 extern void bta_av_set_tws_chn_mode(tBTA_AV_SCB* p_scb, bool adjust);
 #endif
+extern void bta_av_sink_offload_start_req(tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data);
+extern void bta_av_sink_offload_stop_req(tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data);
+extern void bta_av_sink_send_pending_start_cnf(tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data);
+extern void bta_av_sink_send_pending_start_rej(tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data);
+extern void bta_av_sink_send_pending_suspend_cnf(tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data);
+extern void bta_av_sink_send_pending_suspend_rej(tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data);
 #endif /* BTA_AV_INT_H */

@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /******************************************************************************
  *
  *  Utility functions to help build and parse the AAC Codec Information
@@ -51,6 +57,21 @@ static const tA2DP_AAC_CIE a2dp_aac_src_caps = {
     A2DP_AAC_CHANNEL_MODE_STEREO,
     // variableBitRateSupport
     A2DP_AAC_VARIABLE_BIT_RATE_DISABLED,
+    // bitRate
+    A2DP_AAC_DEFAULT_BITRATE,
+    // bits_per_sample
+    BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16};
+
+/* AAC Sink codec capabilities */
+static const tA2DP_AAC_CIE a2dp_aac_sink_caps = {
+    // objectType
+    A2DP_AAC_OBJECT_TYPE_MPEG2_LC,
+    // sampleRate
+    A2DP_AAC_SAMPLING_FREQ_44100 | A2DP_AAC_SAMPLING_FREQ_48000,
+    // channelMode
+    A2DP_AAC_CHANNEL_MODE_MONO | A2DP_AAC_CHANNEL_MODE_STEREO,
+    // variableBitRateSupport
+    A2DP_AAC_VARIABLE_BIT_RATE_ENABLED,
     // bitRate
     A2DP_AAC_DEFAULT_BITRATE,
     // bits_per_sample
@@ -335,11 +356,19 @@ bool A2DP_IsSourceCodecValidAac(const uint8_t* p_codec_info) {
 }
 
 bool A2DP_IsSinkCodecValidAac(UNUSED_ATTR const uint8_t* p_codec_info) {
-  return false;
+    tA2DP_AAC_CIE cfg_cie;
+
+    /* Use a liberal check when parsing the codec info */
+    return (A2DP_ParseInfoAac(&cfg_cie, p_codec_info, false) == A2DP_SUCCESS) ||
+           (A2DP_ParseInfoAac(&cfg_cie, p_codec_info, true) == A2DP_SUCCESS);
 }
 
 bool A2DP_IsPeerSourceCodecValidAac(UNUSED_ATTR const uint8_t* p_codec_info) {
-  return false;
+	  tA2DP_AAC_CIE cfg_cie;
+
+  /* Use a liberal check when parsing the codec info */
+  return (A2DP_ParseInfoAac(&cfg_cie, p_codec_info, false) == A2DP_SUCCESS) ||
+         (A2DP_ParseInfoAac(&cfg_cie, p_codec_info, true) == A2DP_SUCCESS);
 }
 
 bool A2DP_IsPeerSinkCodecValidAac(const uint8_t* p_codec_info) {
@@ -357,17 +386,46 @@ bool A2DP_GetAacCIE(const uint8_t* p_codec_info,
 }
 
 bool A2DP_IsSinkCodecSupportedAac(UNUSED_ATTR const uint8_t* p_codec_info) {
-  return false;
+  return A2DP_CodecInfoMatchesCapabilityAac(&a2dp_aac_sink_caps, p_codec_info,
+                                            false) == A2DP_SUCCESS;
 }
 
 bool A2DP_IsPeerSourceCodecSupportedAac(
     UNUSED_ATTR const uint8_t* p_codec_info) {
-  return false;
+  return A2DP_CodecInfoMatchesCapabilityAac(&a2dp_aac_sink_caps, p_codec_info,
+                                            true) == A2DP_SUCCESS;
 }
 
 tA2DP_STATUS A2DP_BuildSrc2SinkConfigAac(UNUSED_ATTR const uint8_t* p_src_cap,
                                          UNUSED_ATTR uint8_t* p_pref_cfg) {
-  return A2DP_NS_CODEC_TYPE;
+  tA2DP_AAC_CIE src_cap;
+  tA2DP_AAC_CIE pref_cap;
+
+  /* initialize it to default AAC configuration */
+  A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aac_default_config,
+                    p_pref_cfg);
+
+  /* now try to build a preferred one */
+  /* parse configuration */
+  tA2DP_STATUS status = A2DP_ParseInfoAac(&src_cap, p_src_cap, true);
+  if (status != A2DP_SUCCESS) {
+    LOG_ERROR(LOG_TAG, "%s: can't parse src cap ret = %d", __func__, status);
+    return A2DP_FAIL;
+  }
+
+  if (src_cap.sampleRate & A2DP_AAC_SAMPLING_FREQ_48000)
+    pref_cap.sampleRate = A2DP_AAC_SAMPLING_FREQ_48000;
+  else if (src_cap.sampleRate & A2DP_AAC_SAMPLING_FREQ_44100)
+    pref_cap.sampleRate = A2DP_AAC_SAMPLING_FREQ_44100;
+
+  if (src_cap.channelMode & A2DP_AAC_CHANNEL_MODE_STEREO)
+    pref_cap.channelMode = A2DP_AAC_CHANNEL_MODE_STEREO;
+  else if (src_cap.channelMode & A2DP_AAC_CHANNEL_MODE_MONO)
+    pref_cap.channelMode = A2DP_AAC_CHANNEL_MODE_MONO;
+
+  A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &pref_cap, p_pref_cfg);
+
+  return A2DP_SUCCESS;
 }
 
 // Checks whether A2DP AAC codec configuration matches with a device's codec
@@ -541,6 +599,22 @@ int A2DP_GetTrackChannelCountAac(const uint8_t* p_codec_info) {
 }
 
 int A2DP_GetSinkTrackChannelTypeAac(UNUSED_ATTR const uint8_t* p_codec_info) {
+  tA2DP_AAC_CIE aac_cie;
+
+  // Check whether the codec info contains valid data
+  tA2DP_STATUS a2dp_status = A2DP_ParseInfoAac(&aac_cie, p_codec_info, false);
+  if (a2dp_status != A2DP_SUCCESS) {
+    LOG_ERROR(LOG_TAG, "%s: cannot decode codec information: %d", __func__,
+              a2dp_status);
+    return -1;
+  }
+
+  switch (aac_cie.channelMode) {
+    case A2DP_AAC_CHANNEL_MODE_MONO:
+      return 1;
+    case A2DP_AAC_CHANNEL_MODE_STEREO:
+      return 3;
+  }
   return -1;
 }
 
@@ -792,7 +866,14 @@ btav_a2dp_codec_index_t A2DP_SourceCodecIndexAac(
   return BTAV_A2DP_CODEC_INDEX_SOURCE_AAC;
 }
 
+btav_a2dp_codec_index_t A2DP_SinkCodecIndexAac(
+    UNUSED_ATTR const uint8_t* p_codec_info) {
+  return BTAV_A2DP_CODEC_INDEX_SINK_AAC;
+}
+
 const char* A2DP_CodecIndexStrAac(void) { return "AAC"; }
+
+const char* A2DP_CodecIndexStrAacSink(void) { return "AAC SINK"; }
 
 bool A2DP_InitCodecConfigAac(tAVDT_CFG* p_cfg) {
   if (!A2DP_IsCodecEnabled(BTAV_A2DP_CODEC_INDEX_SOURCE_AAC)){
@@ -814,6 +895,11 @@ bool A2DP_InitCodecConfigAac(tAVDT_CFG* p_cfg) {
 #endif
 
   return true;
+}
+
+bool A2DP_InitCodecConfigAacSink(tAVDT_CFG* p_cfg) {
+  return A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &a2dp_aac_sink_caps,
+                           p_cfg->codec_info) == A2DP_SUCCESS;
 }
 
 UNUSED_ATTR static void build_codec_config(const tA2DP_AAC_CIE& config_cie,
@@ -1487,5 +1573,50 @@ fail:
          sizeof(ota_codec_peer_capability_));
   memcpy(ota_codec_peer_config_, saved_ota_codec_peer_config,
          sizeof(ota_codec_peer_config_));
+  return false;
+}
+
+A2dpCodecConfigAacSink::A2dpCodecConfigAacSink(
+    btav_a2dp_codec_priority_t codec_priority)
+    : A2dpCodecConfig(BTAV_A2DP_CODEC_INDEX_SINK_AAC,
+                      A2DP_CodecIndexStrAacSink(), codec_priority) {}
+
+A2dpCodecConfigAacSink::~A2dpCodecConfigAacSink() {}
+
+bool A2dpCodecConfigAacSink::init() {
+  if (!isValid()) return false;
+
+  if (A2DP_IsCodecEnabledInSink(BTAV_A2DP_CODEC_INDEX_SINK_AAC)){
+    LOG_DEBUG(LOG_TAG, "%s: AAC is enabled in Sink", __func__);
+    return true;
+  } else {
+    LOG_DEBUG(LOG_TAG, "%s: AAC is disabled in Sink", __func__);
+    return false;
+  }
+}
+
+period_ms_t A2dpCodecConfigAacSink::encoderIntervalMs() const {
+  // TODO: This method applies only to Source codecs
+  return 0;
+}
+
+bool A2dpCodecConfigAacSink::setCodecConfig(
+    UNUSED_ATTR const uint8_t* p_peer_codec_info,
+    UNUSED_ATTR bool is_capability,
+    UNUSED_ATTR uint8_t* p_result_codec_config) {
+  // TODO: This method applies only to Source codecs
+  return false;
+}
+
+bool A2dpCodecConfigAacSink::useRtpHeaderMarkerBit() const {
+  // TODO: This method applies only to Source codecs
+  return false;
+}
+
+bool A2dpCodecConfigAacSink::updateEncoderUserConfig(
+    UNUSED_ATTR const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
+    UNUSED_ATTR bool* p_restart_input, UNUSED_ATTR bool* p_restart_output,
+    UNUSED_ATTR bool* p_config_updated) {
+  // TODO: This method applies only to Source codecs
   return false;
 }

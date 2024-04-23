@@ -47,6 +47,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /**
  * Vendor Specific A2DP Codecs Support
  */
@@ -718,6 +724,7 @@ const char* A2DP_VendorCodecIndexStr(btav_a2dp_codec_index_t codec_index) {
     case BTAV_A2DP_CODEC_INDEX_SOURCE_SBC:
     case BTAV_A2DP_CODEC_INDEX_SINK_SBC:
     case BTAV_A2DP_CODEC_INDEX_SOURCE_AAC:
+	case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
       break;  // These are not vendor-specific codecs
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX:
       return A2DP_VendorCodecIndexStrAptx();
@@ -745,6 +752,7 @@ bool A2DP_VendorInitCodecConfig(btav_a2dp_codec_index_t codec_index,
     case BTAV_A2DP_CODEC_INDEX_SOURCE_SBC:
     case BTAV_A2DP_CODEC_INDEX_SINK_SBC:
     case BTAV_A2DP_CODEC_INDEX_SOURCE_AAC:
+	case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
       break;  // These are not vendor-specific codecs
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX:
       return A2DP_VendorInitCodecConfigAptx(p_cfg);

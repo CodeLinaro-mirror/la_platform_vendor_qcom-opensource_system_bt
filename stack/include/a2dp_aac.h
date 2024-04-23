@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 //
 // A2DP Codec API for AAC
 //
@@ -59,6 +65,25 @@ class A2dpCodecConfigAac : public A2dpCodecConfig {
 // to Codec Information Element and returns same CIE.
 bool A2DP_GetAacCIE(const uint8_t* p_codec_info,
                         tA2DP_AAC_CIE *cfg_cie);
+
+class A2dpCodecConfigAacSink : public A2dpCodecConfig {
+ public:
+  A2dpCodecConfigAacSink(btav_a2dp_codec_priority_t codec_priority);
+  virtual ~A2dpCodecConfigAacSink();
+
+			  bool init() override;
+  period_ms_t encoderIntervalMs() const override;
+  bool setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
+                      uint8_t* p_result_codec_config) override;
+
+ private:
+  bool useRtpHeaderMarkerBit() const override;
+  bool updateEncoderUserConfig(
+      const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
+      bool* p_restart_input, bool* p_restart_output,
+      bool* p_config_updated) override;
+};
+
 // Checks whether the codec capabilities contain a valid A2DP AAC Source
 // codec.
 // NOTE: only codecs that are implemented are considered valid.
@@ -234,8 +259,16 @@ bool A2DP_AdjustCodecAac(uint8_t* p_codec_info);
 // otherwise |BTAV_A2DP_CODEC_INDEX_MAX|.
 btav_a2dp_codec_index_t A2DP_SourceCodecIndexAac(const uint8_t* p_codec_info);
 
+// Gets the A2DP AAC Source codec index for a given |p_codec_info|.
+// Returns the corresponding |btav_a2dp_codec_index_t| on success,
+// otherwise |BTAV_A2DP_CODEC_INDEX_MAX|.
+btav_a2dp_codec_index_t A2DP_SinkCodecIndexAac(const uint8_t* p_codec_info);
+
 // Gets the A2DP AAC Source codec name.
 const char* A2DP_CodecIndexStrAac(void);
+
+// Gets the A2DP AAC Sink codec name.
+const char* A2DP_CodecIndexStrAacSink(void);
 
 // Initializes A2DP AAC Source codec information into |tAVDT_CFG|
 // configuration entry pointed by |p_cfg|.
@@ -244,5 +277,9 @@ bool A2DP_InitCodecConfigAac(tAVDT_CFG* p_cfg);
 // Checks peer initiated setconfig with DUT supported config
 // and returns proper status.
 tA2DP_STATUS A2DP_IsCodecConfigMatchAac(const uint8_t* p_codec_info);
+
+// Initializes A2DP AAC Sink codec information into |tAVDT_CFG|
+// configuration entry pointed by |p_cfg|.
+bool A2DP_InitCodecConfigAacSink(tAVDT_CFG* p_cfg);
 
 #endif  // A2DP_AAC_H
