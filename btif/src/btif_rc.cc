@@ -5657,6 +5657,9 @@ void get_folder_item_type_media(const tAVRC_ITEM* avrc_item,
       case AVRC_MEDIA_ATTR_ID_PLAYING_TIME:
         btrc_attr_pair->attr_id = BTRC_MEDIA_ATTR_ID_PLAYING_TIME;
         break;
+      case AVRC_MEDIA_ATTR_ID_COVER_ART:
+        btrc_attr_pair->attr_id = BTRC_MEDIA_ATTR_ID_COVER_ARTWORK_HANDLE;
+        break;
       default:
         BTIF_TRACE_ERROR("%s invalid media attr id: 0x%x", __func__,
                          avrc_attr_pair->attr_id);
