@@ -3442,8 +3442,9 @@ uint8_t btif_av_get_peer_sep(void) {
   }
 
   uint8_t peer_sep = peer->PeerSep();
-  LOG_INFO("Peer %s SEP is %s (%d)", peer->PeerAddress().ToString().c_str(),
-           (peer_sep == AVDT_TSEP_SRC) ? "Source" : "Sink", peer_sep);
+  BTIF_TRACE_DEBUG("%s: Peer %s SEP is %s (%d)", __func__,
+                   peer->PeerAddress().ToString().c_str(),
+                   (peer_sep == AVDT_TSEP_SRC) ? "Source" : "Sink", peer_sep);
   return peer_sep;
 }
 
