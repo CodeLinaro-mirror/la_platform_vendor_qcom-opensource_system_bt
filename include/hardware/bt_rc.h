@@ -575,6 +575,8 @@ typedef void (* btrc_ctrl_change_path_callback)(RawAddress *bd_addr, uint8_t cou
 typedef void (* btrc_ctrl_set_browsed_player_callback )(
     RawAddress *bd_addr, uint8_t num_items, uint8_t depth);
 typedef void (* btrc_ctrl_set_addressed_player_callback)(RawAddress *bd_addr, uint8_t status);
+typedef void (*btrc_ctrl_addressed_player_changed_callback)(const RawAddress& bd_addr, uint16_t id);
+typedef void (*btrc_ctrl_now_playing_contents_changed_callback)(const RawAddress& bd_addr);
 typedef void (*btrc_ctrl_available_player_changed_callback)(RawAddress* bd_addr);
 typedef void (*btrc_ctrl_search_rsp_callback)(RawAddress *bd_addr, uint8_t status,
                                               uint16_t uid_counter, uint32_t num_items);
@@ -604,6 +606,8 @@ typedef struct {
     btrc_ctrl_change_path_callback                              change_folder_path_cb;
     btrc_ctrl_set_browsed_player_callback                       set_browsed_player_cb;
     btrc_ctrl_set_addressed_player_callback                     set_addressed_player_cb;
+    btrc_ctrl_addressed_player_changed_callback                 addressed_player_changed_cb;
+    btrc_ctrl_now_playing_contents_changed_callback             now_playing_contents_changed_cb;
     btrc_ctrl_available_player_changed_callback                 available_player_changed_cb;
     btrc_ctrl_search_rsp_callback                               search_rsp_cb;
     btrc_ctrl_uids_changed_callback                             uids_changed_cb;

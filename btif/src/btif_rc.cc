@@ -4573,7 +4573,9 @@ static void handle_get_capability_response(tBTA_AV_META_MSG* pmeta_msg,
             (p_rsp->param.event_id[xx] == AVRC_EVT_TRACK_CHANGE) ||
             (p_rsp->param.event_id[xx] == AVRC_EVT_APP_SETTING_CHANGE) ||
             (p_rsp->param.event_id[xx] == AVRC_EVT_UIDS_CHANGE) ||
-            (p_rsp->param.event_id[xx] == AVRC_EVT_AVAL_PLAYERS_CHANGE)) {
+            (p_rsp->param.event_id[xx] == AVRC_EVT_AVAL_PLAYERS_CHANGE) ||
+            (p_rsp->param.event_id[xx] == AVRC_EVT_ADDR_PLAYER_CHANGE) ||
+            (p_rsp->param.event_id[xx] == AVRC_EVT_NOW_PLAYING_CHANGE)) {
           p_event = (btif_rc_supported_event_t*)osi_malloc(
               sizeof(btif_rc_supported_event_t));
           p_event->event_id = p_rsp->param.event_id[xx];
@@ -4685,6 +4687,7 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
         break;
 
       case AVRC_EVT_NOW_PLAYING_CHANGE:
+	    HAL_CBACK(bt_rc_ctrl_callbacks, now_playing_contents_changed_cb, &rc_addr);
         break;
 
       case AVRC_EVT_AVAL_PLAYERS_CHANGE:
@@ -4693,6 +4696,7 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
         break;
 
       case AVRC_EVT_ADDR_PLAYER_CHANGE:
+	    HAL_CBACK(bt_rc_ctrl_callbacks, addressed_player_changed_cb, &rc_addr, p_rsp->param.addr_player.player_id);
         break;
 
       case AVRC_EVT_UIDS_CHANGE:
