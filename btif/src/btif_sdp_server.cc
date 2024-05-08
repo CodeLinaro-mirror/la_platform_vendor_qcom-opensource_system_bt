@@ -321,14 +321,25 @@ bt_status_t create_sdp_record(bluetooth_sdp_record* record, int* record_handle) 
   std::string protoMsg;
   ss_bt_create_sdp_record create_sdp_record;
   ss_bt_sdp_record* record_ = create_sdp_record.mutable_record();
-  ss_bt_sdp_hdr_overlay* record_hdr = record_->mutable_hdr();
   uint32_t record_type = record->hdr.type;
 
-  record_hdr->set_type(SS_BT_SDP_TYPE_RAW);
   //ALOGI("%s: Record type received : %d", __func__, record_type);
   //Uuid uuid_sdp;
   //uint16_t service_uuid;
   switch(record_type){
+    case SDP_TYPE_RAW:
+    {
+      handle = 1;
+      ss_bt_sdp_hdr_overlay* record_hdr = record_->mutable_hdr();
+      record_hdr->set_type(SS_BT_SDP_TYPE_RAW);
+      ss_bt_service_name* s_name = record_hdr->mutable_service_name();
+      std::string name = (char*)record->hdr.service_name;
+      s_name->set_name(name);
+      record_hdr->set_service_name_length(record->hdr.service_name_length);
+      record_hdr->set_rfcomm_channel_number(-1);
+      record_hdr->set_l2cap_psm(-1);
+      record_hdr->set_profile_version(record->hdr.profile_version);
+    }
     case SDP_TYPE_PBAP_PSE:
     {
       handle = 2;
