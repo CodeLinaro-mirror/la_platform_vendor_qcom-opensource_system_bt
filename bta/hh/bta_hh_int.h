@@ -121,6 +121,16 @@ typedef struct {
   tBTA_HH_PROTO_MODE mode;
 } tBTA_HH_API_CONN;
 
+typedef struct {
+  BT_HDR hdr;
+  RawAddress bd_addr;
+} tBTA_HH_API_DISC;
+
+typedef struct {
+  BT_HDR hdr;
+  RawAddress bd_addr;
+} tBTA_HH_API_GET_DSCP;
+
 /* internal event data from BTE HID callback */
 typedef struct {
   BT_HDR hdr;
@@ -159,6 +169,8 @@ typedef union {
   BT_HDR hdr;
   tBTA_HH_API_ENABLE api_enable;
   tBTA_HH_API_CONN api_conn;
+  tBTA_HH_API_DISC api_disc;
+  tBTA_HH_API_GET_DSCP api_get_dscp;
   tBTA_HH_CMD_DATA api_sndcmd;
   tBTA_HH_CBACK_DATA hid_cback;
   tBTA_HH_STATUS status;
@@ -220,7 +232,7 @@ typedef struct {
 #define BTA_HH_GET_LE_DEV_HDL(x) (uint8_t)(((x) + 1) << 4)
 /* check to see if th edevice handle is a LE device handle */
 #define BTA_HH_IS_LE_DEV_HDL(x) ((x)&0xf0)
-#define BTA_HH_IS_LE_DEV_HDL_VALID(x) (((x) >> 4) <= BTA_HH_MAX_DEVICE)
+#define BTA_HH_IS_LE_DEV_HDL_VALID(x) (((x) >> 4) <= BTA_HH_LE_MAX_KNOWN)
 #endif
 
 /* device control block */
@@ -390,6 +402,7 @@ extern void bta_hh_le_update_scpp(tBTA_HH_DEV_CB *p_cb, tBTA_HH_DATA *p_buf);
 extern void bta_hh_le_notify_enc_cmpl(tBTA_HH_DEV_CB* p_cb,
                                       tBTA_HH_DATA* p_data);
 extern void bta_hh_ci_load_rpt(tBTA_HH_DEV_CB* p_cb, tBTA_HH_DATA* p_buf);
+extern bool bta_hh_is_hogp_service_present(const RawAddress& remote_bda);
 
 #if (BTA_HH_DEBUG == TRUE)
 extern void bta_hh_trace_dev_db(void);

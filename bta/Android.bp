@@ -49,6 +49,7 @@ cc_defaults {
     ],
     include_dirs: [
         "vendor/qcom/opensource/commonsys/system/bt",
+        "vendor/qcom/opensource/commonsys/system/bt/btif/include",
         "vendor/qcom/opensource/commonsys/system/bt/bta/include",
         "vendor/qcom/opensource/commonsys/system/bt/bta/direction_finder",
         "vendor/qcom/opensource/commonsys/system/bt/bta/ag",

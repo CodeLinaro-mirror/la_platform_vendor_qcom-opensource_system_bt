@@ -16,6 +16,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /******************************************************************************
  *
  *  Utility functions to help build and parse SBC Codec Information Element
@@ -39,17 +45,7 @@
 #include "osi/include/osi.h"
 
 #define A2DP_SBC_MAX_BITPOOL 53
-/* data type for the SBC Codec Information Element */
-typedef struct {
-  uint8_t samp_freq;    /* Sampling frequency */
-  uint8_t ch_mode;      /* Channel mode */
-  uint8_t block_len;    /* Block length */
-  uint8_t num_subbands; /* Number of subbands */
-  uint8_t alloc_method; /* Allocation method */
-  uint8_t min_bitpool;  /* Minimum bitpool */
-  uint8_t max_bitpool;  /* Maximum bitpool */
-  btav_a2dp_codec_bits_per_sample_t bits_per_sample;
-} tA2DP_SBC_CIE;
+
 
 /* SBC SRC codec capablilities */
 static const tA2DP_SBC_CIE a2dp_sbc_src_caps = {
@@ -172,12 +168,13 @@ static tA2DP_STATUS A2DP_BuildInfoSbc(uint8_t media_type,
 // codec capability.
 // Returns A2DP_SUCCESS on success, otherwise the corresponding A2DP error
 // status code.
-static tA2DP_STATUS A2DP_ParseInfoSbc(tA2DP_SBC_CIE* p_ie,
-                                      const uint8_t* p_codec_info,
-                                      bool is_capability) {
+tA2DP_STATUS A2DP_ParseInfoSbc(tA2DP_SBC_CIE* p_ie,
+                               const uint8_t* p_codec_info,
+                               bool is_capability) {
   uint8_t losc;
   uint8_t media_type;
   tA2DP_CODEC_TYPE codec_type;
+  char is_a2dp_pts_enable[PROPERTY_VALUE_MAX] = "false";
   LOG_DEBUG(LOG_TAG, "%s: is_capability: %d", __func__, is_capability);
 
   if (p_ie == NULL || p_codec_info == NULL)  {
@@ -233,6 +230,14 @@ static tA2DP_STATUS A2DP_ParseInfoSbc(tA2DP_SBC_CIE* p_ie,
     return A2DP_BAD_MAX_BITPOOL;
   }
 
+  property_get("persist.vendor.bt.a2dp.pts_enable", is_a2dp_pts_enable, "false");
+  if(strncmp("false", is_a2dp_pts_enable, 4)) {
+    if((p_ie->samp_freq & A2DP_SBC_IE_SAMP_FREQ_44) == 0 &&
+        (p_ie->samp_freq & A2DP_SBC_IE_SAMP_FREQ_48) == 0) {
+      LOG_DEBUG(LOG_TAG, "%s: Unsupported Sampling frequency  :%x", __func__, p_ie->samp_freq);
+      return A2DP_NS_SAMP_FREQ;
+    }
+  }
   if (is_capability) return A2DP_SUCCESS;
 
   if (A2DP_BitsSet(p_ie->samp_freq) != A2DP_SET_ONE_BIT) {
@@ -720,6 +725,29 @@ int A2DP_GetSamplingFrequencyCodeSbc(const uint8_t* p_codec_info) {
   return -1;
 }
 
+int A2DP_GetBitsPerSampleSbc(const uint8_t* p_codec_info) {
+  tA2DP_SBC_CIE sbc_cie;
+
+  tA2DP_STATUS a2dp_status = A2DP_ParseInfoSbc(&sbc_cie, p_codec_info, true);
+  if (a2dp_status != A2DP_SUCCESS) {
+    LOG_ERROR(LOG_TAG, "%s: cannot decode codec information: %d", __func__,
+              a2dp_status);
+    return -1;
+  }
+
+  switch (sbc_cie.bits_per_sample) {
+    case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16:
+      return 16;
+    case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24:
+      return 24;
+    case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32:
+      return 32;
+    case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE:
+      break;
+  }
+  return -1;
+}
+
 int A2DP_GetMinBitpoolSbc(const uint8_t* p_codec_info) {
   tA2DP_SBC_CIE sbc_cie;
 
@@ -746,10 +774,16 @@ int A2DP_GetMaxBitpoolSbc(const uint8_t* p_codec_info) {
   return sbc_cie.max_bitpool;
 }
 
+
 uint16_t A2DP_GetOffloadBitrateSbc(A2dpCodecConfig* a2dp_codec_config, bool peer_edr,
                                    const uint8_t* p_codec_info) {
   return a2dp_sbc_calulate_offload_bitrate(a2dp_codec_config, peer_edr, p_codec_info);
 }
+
+uint16_t A2DP_GetOffloadBitrateSbcUsingCodecInfo(const uint8_t *codec_info, bool peer_edr) {
+  return a2dp_sbc_calulate_offload_bitrate(nullptr, peer_edr, codec_info);
+}
+
 int A2DP_GetSinkTrackChannelTypeSbc(const uint8_t* p_codec_info) {
   tA2DP_SBC_CIE sbc_cie;
 
@@ -1055,6 +1089,11 @@ bool A2DP_AdjustCodecSbc(uint8_t* p_codec_info) {
 btav_a2dp_codec_index_t A2DP_SourceCodecIndexSbc(
     UNUSED_ATTR const uint8_t* p_codec_info) {
   return BTAV_A2DP_CODEC_INDEX_SOURCE_SBC;
+}
+
+btav_a2dp_codec_index_t A2DP_SinkCodecIndexSbc(
+    UNUSED_ATTR const uint8_t* p_codec_info) {
+  return BTAV_A2DP_CODEC_INDEX_SINK_SBC;
 }
 
 const char* A2DP_CodecIndexStrSbc(void) { return "SBC"; }
@@ -1840,7 +1879,13 @@ A2dpCodecConfigSbcSink::~A2dpCodecConfigSbcSink() {}
 bool A2dpCodecConfigSbcSink::init() {
   if (!isValid()) return false;
 
-  return true;
+  if (A2DP_IsCodecEnabledInSink(BTAV_A2DP_CODEC_INDEX_SINK_SBC)){
+    LOG_DEBUG(LOG_TAG, "%s: SBC is enabled in Sink", __func__);
+    return true;
+  } else {
+    LOG_DEBUG(LOG_TAG, "%s: SBC is disabled in Sink", __func__);
+    return false;
+  }
 }
 
 bool A2dpCodecConfigSbcSink::useRtpHeaderMarkerBit() const {

@@ -42,11 +42,7 @@ const uint32_t bta_av_meta_caps_co_ids[] = {AVRC_CO_METADATA, AVRC_CO_BROADCOM};
 
 /* AVRCP supported categories */
 #define BTA_AV_RC_SUPF_CT (AVRC_SUPF_CT_CAT2)
-#define BTA_AVK_RC_SUPF_CT       (AVRC_SUPF_CT_CAT1 |                       \
-                                  AVRC_SUPF_CT_BROWSE |                     \
-                                  AVRC_SUPF_CT_COVER_ART_GET_IMAGE_PROP |   \
-                                  AVRC_SUPF_CT_COVER_ART_GET_IMAGE |        \
-                                  AVRC_SUPF_CT_COVER_ART_GET_THUMBNAIL)
+#define BTA_AVK_RC_SUPF_CT (AVRC_SUPF_CT_CAT1)
 #define BTA_AVK_RC_SUPF_TG (AVRC_SUPF_TG_CAT2)
 
 /* AVRCP Controller and Targer default name */
@@ -175,7 +171,7 @@ const tBTA_AV_CFG bta_avk_cfg = {
     BTA_AVK_RC_SUPF_CT,    /* AVRCP controller categories */
     BTA_AVK_RC_SUPF_TG,    /* AVRCP target categories */
     672,                   /* AVDTP signaling channel MTU at L2CAP */
-    BTA_AV_MAX_A2DP_MTU,   /* AVDTP audio transport channel MTU at L2CAP
+    BTA_AVK_MAX_A2DP_MTU,   /* AVDTP audio transport channel MTU at L2CAP
                               */
     bta_av_audio_flush_to, /* AVDTP audio transport channel flush
                               timeout */

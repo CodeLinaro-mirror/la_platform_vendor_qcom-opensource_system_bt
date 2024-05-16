@@ -49,6 +49,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /******************************************************************************
  *
  *  This is the main implementation file for the BTA advanced audio/video.
@@ -59,6 +65,7 @@
 
 #include <base/logging.h>
 #include <string.h>
+#include <cutils/properties.h>
 
 #include "bt_target.h"
 #include "osi/include/log.h"
@@ -98,6 +105,7 @@
 #define BTA_AV_RS_TIME_VAL 1000
 #endif
 
+char board_prop[PROPERTY_VALUE_MAX];
 extern bool tws_state_supported;
 /* state machine states */
 enum { BTA_AV_INIT_ST, BTA_AV_OPEN_ST };
@@ -209,6 +217,8 @@ static void bta_av_api_set_tws_earbud_role(tBTA_AV_DATA * p_data);
 static void bta_av_api_set_is_tws_device(tBTA_AV_DATA * p_data);
 #endif
 
+bool is_split_enabled();
+
 /* action functions */
 const tBTA_AV_NSM_ACT bta_av_nsm_act[] = {
     bta_av_api_enable,       /* BTA_AV_API_ENABLE_EVT */
@@ -271,8 +281,11 @@ static void bta_av_api_enable(tBTA_AV_DATA* p_data) {
   /* initialize control block */
   memset(&bta_av_cb, 0, sizeof(tBTA_AV_CB));
 
-  for (int i = 0; i < BTA_AV_NUM_RCB; i++)
+  for (int i = 0; i < BTA_AV_NUM_RCB; i++) {
     bta_av_cb.rcb[i].handle = BTA_AV_RC_HANDLE_NONE;
+    bta_av_cb.rcb[i].delay_rc_disc_timer =
+      alarm_new("bta_av.delay_rc_disc_timer");
+  }
 
   bta_av_cb.rc_acp_handle = BTA_AV_RC_HANDLE_NONE;
 
@@ -311,6 +324,21 @@ static void bta_av_api_enable(tBTA_AV_DATA* p_data) {
 }
 
 /*******************************************************************************
+**
+** Function         is_split_enabled
+**
+** Description      api to check if split is enabled or not
+**
+** Returns          boolean
+**
+*******************************************************************************/
+bool is_split_enabled() {
+    APPL_TRACE_DEBUG("%s split_enabled = %d ",__func__,
+                  (bta_av_cb.features & BTA_AV_FEAT_SPLIT_ENABLED));
+    return (bta_av_cb.features & BTA_AV_FEAT_SPLIT_ENABLED);
+}
+
+/*******************************************************************************
  *
  * Function         bta_av_addr_to_scb
  *
@@ -332,6 +360,31 @@ tBTA_AV_SCB* bta_av_addr_to_scb(const RawAddress& bd_addr) {
     }
   }
   return p_scb;
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_av_is_any_stream_started
+ *
+ * Description      check if any a2dp sink offload stream is started
+ *
+ * Returns          bool
+ *
+ ******************************************************************************/
+
+bool bta_av_is_any_sink_stream_started() {
+  int xx;
+  bool is_streaming = false;
+
+  for (xx = 0; xx < BTA_AV_NUM_STRS; xx++) {
+    if ((bta_av_cb.p_scb[xx] != NULL) &&
+         bta_av_cb.p_scb[xx]->sink_offload_started == true) {
+      is_streaming = true;
+      break;
+    }
+  }
+  APPL_TRACE_DEBUG("bta_av_is_any_sink_stream_started %d",is_streaming);
+  return is_streaming;
 }
 
 /*******************************************************************************
@@ -510,6 +563,7 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
   tBTA_UTL_COD cod;
 
   memset(&cs, 0, sizeof(tAVDT_CS));
+  property_get("ro.board.platform", board_prop, " ");
 
   registr.status = BTA_AV_FAIL_RESOURCES;
   registr.app_id = p_data->api_reg.app_id;
@@ -577,6 +631,9 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
 
         if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
           profile_version = AVRC_REV_1_6;
+        } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK &&
+              strcmp(board_prop, "neo") == 0) {
+          profile_version = AVRC_REV_1_6;
         } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
           // Initialize AVRCP1.4 to provide Absolute Volume control.
           profile_version = AVRC_REV_1_4;
@@ -611,6 +668,7 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
     }
 
     p_scb->suspend_sup = true;
+    p_scb->strm_close_in_progress = false;
     p_scb->recfg_sup = true;
     p_scb->skip_sdp = false;
 
@@ -651,6 +709,10 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
         cs.p_sink_data_cback = bta_av_sink_data_cback;
         codec_index_min = BTAV_A2DP_CODEC_INDEX_SINK_MIN;
         codec_index_max = BTAV_A2DP_CODEC_INDEX_SINK_MAX;
+      }
+
+      if (is_split_enabled()) {
+          cs.is_split_enabled = TRUE;
       }
 
       /* Initialize handles to zero */
@@ -1774,6 +1836,18 @@ const char* bta_av_evt_code(uint16_t evt_code) {
       return "AVDT_DELAY_RPT";
     case BTA_AV_ACP_CONNECT_EVT:
       return "ACP_CONNECT";
+    case BTA_AV_SINK_API_OFFLOAD_START_EVT:
+      return "API_SINK_OFFLOAD_START_REQ";
+    case BTA_AV_SINK_API_OFFLOAD_STOP_EVT:
+      return " API_SINK_OFFLOAD_STOP_REQ";
+    case BTA_AV_SINK_API_PENDING_START_CNF_EVT:
+      return "API_SINK_PENDING_START_CNF";
+    case BTA_AV_SINK_API_PENDING_START_REJECT_EVT:
+      return " API_SINK_PENDING_START_REJ";
+    case BTA_AV_SINK_API_PENDING_SUSPEND_CNF_EVT:
+      return " API_SINK_PENDING_SUSPEND_CNF";
+    case BTA_AV_SINK_API_PENDING_SUSPEND_REJECT_EVT:
+      return " API_PENDING_SUSPEND_REJECT ";
 
     case BTA_AV_API_ENABLE_EVT:
       return "API_ENABLE";
