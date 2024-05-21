@@ -2069,6 +2069,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       }
       bt_status_t status = BT_STATUS_FAIL;
       bt_bdname_t bd_name;
+      bt_bdname_t remote_friendly_name;
       uint32_t cod;
       RawAddress *bd_addr;
       if (remotePropCb.has_status()) {
@@ -2157,6 +2158,14 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
             properties[i].len = sizeof(bt_device_type_t);
             properties[i].val = (void*)&dev_type;
             properties[i].type = BT_PROPERTY_TYPE_OF_DEVICE;
+          }
+          else if(prop_type == BT_PROPERTY_REMOTE_FRIENDLY_NAME) {
+            std::string remote_alias = prop.val();
+            ALOGI("Remote friendly Name is :: %s",remote_alias.c_str());
+            strlcpy((char*)remote_friendly_name.name, (char*)remote_alias.c_str(), sizeof(bt_bdname_t));
+            properties[i].len = prop.len();
+            properties[i].val = &remote_friendly_name;
+            properties[i].type = BT_PROPERTY_REMOTE_FRIENDLY_NAME;
           }
         }
         HAL_CBACK(bt_hal_cbacks, remote_device_properties_cb, status, bd_addr, numProp, properties);
