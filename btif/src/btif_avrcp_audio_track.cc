@@ -12,12 +12,17 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 //#define LOG_NDEBUG 0
 #define LOG_TAG "bt_btif_avrcp_audio_track"
 
 #include "btif_avrcp_audio_track.h"
+#include <thread>
 
 #include <aaudio/AAudio.h>
 #include <base/logging.h>
@@ -36,10 +41,55 @@ typedef struct {
   size_t bufferLength;
 } BtifAvrcpAudioTrack;
 
+struct AudioEngine {
+  int trackFreq = 0;
+  int channelCount = 0;
+  std::thread *thread = nullptr;
+  void* trackHandle = nullptr;
+} s_AudioEngine;
+
 #if (DUMP_PCM_DATA == TRUE)
 FILE* outputPcmSampleFile;
 char outputFilename[50] = "/data/misc/bluedroid/output_sample.pcm";
 #endif
+
+void ErrorCallback(AAudioStream* stream, void* userdata, aaudio_result_t error);
+
+void BtifAvrcpAudioErrorHandle() {
+  AAudioStreamBuilder* builder;
+  AAudioStream* stream;
+
+  aaudio_result_t result = AAudio_createStreamBuilder(&builder);
+  AAudioStreamBuilder_setSampleRate(builder, s_AudioEngine.trackFreq);
+  AAudioStreamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_FLOAT);
+  AAudioStreamBuilder_setChannelCount(builder, s_AudioEngine.channelCount);
+  AAudioStreamBuilder_setSessionId(builder, AAUDIO_SESSION_ID_ALLOCATE);
+  AAudioStreamBuilder_setPerformanceMode(builder,
+                                         AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
+  AAudioStreamBuilder_setErrorCallback(builder, ErrorCallback, nullptr);
+  result = AAudioStreamBuilder_openStream(builder, &stream);
+  CHECK(result == AAUDIO_OK);
+  AAudioStreamBuilder_delete(builder);
+
+  BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(s_AudioEngine.trackHandle);
+
+  trackHolder->stream = stream;
+
+  if (trackHolder != NULL && trackHolder->stream != NULL) {
+    LOG_DEBUG(LOG_TAG, "%s: AAudio Error handle: restart A2dp Sink AudioTrack",__func__);
+    AAudioStream_requestStart(trackHolder->stream);
+  }
+  s_AudioEngine.thread = nullptr;
+}
+
+void ErrorCallback(AAudioStream* stream,
+                      void* userdata,
+                      aaudio_result_t error) {
+  LOG_DEBUG(LOG_TAG, "%s: AAudio Error Callback Received with error %d",__func__, error);
+  if (error == AAUDIO_ERROR_DISCONNECTED)
+    if (s_AudioEngine.thread == nullptr)
+      s_AudioEngine.thread = new std::thread(BtifAvrcpAudioErrorHandle);
+}
 
 void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
                                 int channelCount) {
@@ -55,6 +105,7 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
   AAudioStreamBuilder_setSessionId(builder, AAUDIO_SESSION_ID_ALLOCATE);
   AAudioStreamBuilder_setPerformanceMode(builder,
                                          AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
+  AAudioStreamBuilder_setErrorCallback(builder, ErrorCallback, nullptr);
   result = AAudioStreamBuilder_openStream(builder, &stream);
   CHECK(result == AAUDIO_OK);
   AAudioStreamBuilder_delete(builder);
@@ -67,6 +118,10 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
   trackHolder->bufferLength =
       trackHolder->channelCount * AAudioStream_getBufferSizeInFrames(stream);
   trackHolder->buffer = new float[trackHolder->bufferLength]();
+
+  s_AudioEngine.trackFreq = trackFreq;
+  s_AudioEngine.channelCount = channelCount;
+  s_AudioEngine.trackHandle = (void*)trackHolder;
 
 #if (DUMP_PCM_DATA == TRUE)
   outputPcmSampleFile = fopen(outputFilename, "ab");
