@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ *  Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 
 #pragma once
@@ -31,6 +35,8 @@ typedef enum {
 
 typedef enum {
   ESCO_CODEC_CVSD = 0,
+  ESCO_CODEC_CVSD_S3,
+  ESCO_CODEC_CVSD_S4,
   ESCO_CODEC_MSBC_T1,
   ESCO_CODEC_MSBC_T2,
 #if (SWB_ENABLED == TRUE)
@@ -41,7 +47,7 @@ typedef enum {
 #endif
 } esco_codec_t;
 
-#define ESCO_NUM_CODECS 3
+#define ESCO_NUM_CODECS 5
 
 // Coding Formats (BT 4.1 or later Assigned numbers)
 #define ESCO_CODING_FORMAT_ULAW ((uint8_t)0x00)     /* u-Law log    */
