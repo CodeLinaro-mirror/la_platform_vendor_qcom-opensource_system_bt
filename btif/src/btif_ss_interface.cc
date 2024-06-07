@@ -607,7 +607,7 @@ int processDataTx(std::string msgStr, int fd) {
   return bytes_written;
 }
 
-int processLeDataTx(std::string msgStr) {
+int processLeDataTx(std::string msgStr, int fd) {
   const  char *msgType="Tx";
   uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
   uint16_t MSG_ID = tmpBuf [0] + (((int)(tmpBuf [1]))<<8);
@@ -629,6 +629,11 @@ int processLeDataTx(std::string msgStr) {
         alarm_set_on_mloop(tx_thread_timeout, GLINK_IDLE_TIMEOUT, txThreadTimeout, NULL);
         pthread_mutex_unlock(&tx_threads_mutex);
         BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false, true);
+        rfc_slot_t* slot = find_rfc_slot_by_fd(fd);
+        if(!slot){
+          ALOGI("%s slot already cleaned up", __func__);
+          return result;
+        }
         result = gSSTransportLeData->write(tmpBuf,msgStr.length(),&bytes_written);
         if(result == 0){
           ALOGI("%s: Glink write success",__func__);
@@ -636,10 +641,24 @@ int processLeDataTx(std::string msgStr) {
         }else if(result == -1){
           retry_count++;
           ALOGE("%s: Glink write failure...retrying...retry count is :: %d",__func__,retry_count);
-          if(retry_count > 3){
-            usleep(50000);
-          }
-          continue;
+          switch (retry_count) {
+            case 1 ... 4: {
+              break;
+            }
+            case 5 ... 7: {
+              usleep(10000);
+              break;
+            }
+            case 8 ... 500:{
+              usleep(25000);
+              break;
+            }
+            case 501 ... INT_MAX:{
+              ALOGI("%s: retried 500 times, unblocking the tx loop",__func__);
+              return result;
+            }
+         }
+         continue;
         }else{
           ALOGE("%s: Glink write failure status unknown",__func__);
           break;
@@ -649,7 +668,7 @@ int processLeDataTx(std::string msgStr) {
   return bytes_written;
 }
 
-int processObexDataTx(std::string msgStr) {
+int processObexDataTx(std::string msgStr, int fd) {
   const  char *msgType="Tx";
   uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
   uint16_t MSG_ID = tmpBuf [0] + (((int)(tmpBuf [1]))<<8);
@@ -671,6 +690,11 @@ int processObexDataTx(std::string msgStr) {
         alarm_set_on_mloop(tx_thread_timeout, GLINK_IDLE_TIMEOUT, txThreadTimeout, NULL);
         pthread_mutex_unlock(&tx_threads_mutex);
         BluetoothSSInterface::ssGlinkWakeLockAcquireOrRelease(false, true);
+        rfc_slot_t* slot = find_rfc_slot_by_fd(fd);
+        if(!slot){
+          ALOGI("%s slot already cleaned up", __func__);
+          return result;
+        }
         result = gSSTransportObexData->write(tmpBuf,msgStr.length(),&bytes_written);
         if(result == 0){
           ALOGI("%s: Glink write success",__func__);
@@ -678,10 +702,24 @@ int processObexDataTx(std::string msgStr) {
         }else if(result == -1){
           retry_count++;
           ALOGE("%s: Glink write failure...retrying...retry count is :: %d",__func__,retry_count);
-          if(retry_count > 3){
-            usleep(50000);
-          }
-          continue;
+          switch (retry_count) {
+            case 1 ... 4: {
+              break;
+            }
+            case 5 ... 7: {
+              usleep(10000);
+              break;
+            }
+            case 8 ... 500:{
+              usleep(25000);
+              break;
+            }
+            case 501 ... INT_MAX:{
+              ALOGI("%s: retried 500 times, unblocking the tx loop",__func__);
+              return result;
+            }
+         }
+         continue;
         }else{
           ALOGE("%s: Glink write failure status unknown",__func__);
           break;
@@ -710,19 +748,19 @@ int BluetoothSSInterface::postDataChTxMsg(std::string msgStr, int fd) {
   return processDataTx(msgStr,fd);
 }
 
-int BluetoothSSInterface::postLeDataChTxMsg(std::string msgStr) {
+int BluetoothSSInterface::postLeDataChTxMsg(std::string msgStr, int fd) {
   uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
   uint16_t MSG_ID = tmpBuf [0] + (((int)(tmpBuf [1]))<<8);
   ALOGI("postLeDataChTxMsg with msg id : %d and length %d", MSG_ID, msgStr.length());
   //do_in_data_tx_thread(base::Bind(processLeDataTx, msgStr));
-  return processLeDataTx(msgStr);
+  return processLeDataTx(msgStr,fd);
 }
 
-int BluetoothSSInterface::postObexDataChTxMsg(std::string msgStr) {
+int BluetoothSSInterface::postObexDataChTxMsg(std::string msgStr, int fd) {
   uint8_t *tmpBuf = (uint8_t*)msgStr.c_str();
   uint16_t MSG_ID = tmpBuf [0] + (((int)(tmpBuf [1]))<<8);
   ALOGI("postObexDataChTxMsg with msg id : %d and length %d", MSG_ID, msgStr.length());
-  return processObexDataTx(msgStr);
+  return processObexDataTx(msgStr,fd);
 }
 
 void BluetoothSSInterface::registerCallbacks(const char* profile_id, ss_profile_callback profile_cb) {
