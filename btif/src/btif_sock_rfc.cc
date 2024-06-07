@@ -741,21 +741,21 @@ bt_status_t btsock_rfc_listen(const char* service_name,
   Uuid uuid_PBAP_PSE = Uuid::FromString("0000112f-0000-1000-8000-00805f9b34fb");
   ALOGI("uuid PBAP : %s", uuid_PBAP_PSE.ToString().c_str());
   if (type ==  BTSOCK_L2CAP_LE) {
-      int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
+      int result = gBTSSInterface->postLeDataChTxMsg(msgStr, slot->fd);
       ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
   }
   else if (type == BTSOCK_L2CAP) {
-      int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+      int result = gBTSSInterface->postObexDataChTxMsg(msgStr, slot->fd);
       ALOGI("%s: L2CAP Data Write, result is :: %d",__func__,result);
   }
   else if (service_uuid->ToString() == uuid_PBAP_PSE.ToString()) {
       pbapClient = true;
-      int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+      int result = gBTSSInterface->postObexDataChTxMsg(msgStr, slot->fd);
       ALOGI("%s: Obex Data Write for uuid connection, result is :: %d",__func__,result);
   }
   else if (channel == 19) {
       pbapClient = true;
-      int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+      int result = gBTSSInterface->postObexDataChTxMsg(msgStr, slot->fd);
       ALOGI("%s: Obex Data Write for rfcomm channel connection, result is :: %d",__func__,result);
   } else {
       gBTSSInterface->postDataChTxMsg(msgStr, slot->fd);
@@ -862,21 +862,21 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
   Uuid uuid_PBAP_PSE = Uuid::FromString("0000112f-0000-1000-8000-00805f9b34fb");
   ALOGI("uuid PBAP : %s", uuid_PBAP_PSE.ToString().c_str());
   if (type ==  BTSOCK_L2CAP_LE) {
-      int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
+      int result = gBTSSInterface->postLeDataChTxMsg(msgStr, slot->fd);
       ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
   }
   else if (type == BTSOCK_L2CAP) {
-      int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+      int result = gBTSSInterface->postObexDataChTxMsg(msgStr, slot->fd);
       ALOGI("%s: L2CAP Data Write, result is :: %d",__func__,result);
   }
   else if (service_uuid->ToString() == uuid_PBAP_PSE.ToString()) {
       pbapClient = true;
-      int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+      int result = gBTSSInterface->postObexDataChTxMsg(msgStr, slot->fd);
       ALOGI("%s: Obex Data Write for uuid connection, result is :: %d",__func__,result);
   }
   else if (channel == 19) {
       pbapClient = true;
-      int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+      int result = gBTSSInterface->postObexDataChTxMsg(msgStr, slot->fd);
       ALOGI("%s: Obex Data Write for rfcomm channel connection, result is :: %d",__func__,result);
   } else {
       gBTSSInterface->postDataChTxMsg(msgStr, slot->fd);
@@ -932,15 +932,15 @@ static void free_rfc_slot_scn(rfc_slot_t* slot) {
         ALOGI("%s: BT_RFCOMM_CLOSE_SERVER length: %d and data: %s",__func__, msgStr.length(),msgStr.c_str());
       #ifndef SS_STUB_ENABLED
         if (slot->type ==  BTSOCK_L2CAP_LE) {
-            int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
+            int result = gBTSSInterface->postLeDataChTxMsg(msgStr, slot->fd);
             ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
         }
         else if (slot->type == BTSOCK_L2CAP) {
-          int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+          int result = gBTSSInterface->postObexDataChTxMsg(msgStr, slot->fd);
           ALOGI("%s: L2CAP Data Write, result is :: %d",__func__,result);
         }
         else if (pbapClient == true) {
-          int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+          int result = gBTSSInterface->postObexDataChTxMsg(msgStr, slot->fd);
           ALOGI("%s: Obex Data Write for rfcomm channel connection, result is :: %d",__func__,result);
         } else {
             gBTSSInterface->postDataChTxMsg(msgStr, slot->fd);
@@ -1031,15 +1031,15 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
         ALOGI("%s: BT_RFCOMM_DISCONNECT_SOCKET length: %d and data: %s",__func__, msgStr.length(),msgStr.c_str());
       #ifndef SS_STUB_ENABLED
         if (slot->type ==  BTSOCK_L2CAP_LE) {
-            int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
+            int result = gBTSSInterface->postLeDataChTxMsg(msgStr, slot->fd);
             ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
         }
         else if (slot->type == BTSOCK_L2CAP) {
-          int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+          int result = gBTSSInterface->postObexDataChTxMsg(msgStr, slot->fd);
           ALOGI("%s: L2CAP Data Write, result is :: %d",__func__,result);
         }
         else if (pbapClient == true) {
-          int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+          int result = gBTSSInterface->postObexDataChTxMsg(msgStr, slot->fd);
           ALOGI("%s: Obex Data Write for rfcomm channel connection, result is :: %d",__func__,result);
         } else {
             gBTSSInterface->postDataChTxMsg(msgStr,slot->fd);
@@ -1568,15 +1568,15 @@ void btsock_rfc_signaled(int fd, int type, int flags, uint32_t user_id) {
             ALOGI("%s: BT_RFCOMM_WRITE_SOCKET_DATA proto length: %d and payload length: %d",__func__, msgStr.size(), data_string_sub.size());
           #ifndef SS_STUB_ENABLED
             if (type ==  BTSOCK_L2CAP_LE) {
-              int result = gBTSSInterface->postLeDataChTxMsg(msgStr);
+              int result = gBTSSInterface->postLeDataChTxMsg(msgStr, slot->fd);
               ALOGI("%s: LE Data Write, result is :: %d",__func__,result);
             }
             else if (type == BTSOCK_L2CAP) {
-            int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+            int result = gBTSSInterface->postObexDataChTxMsg(msgStr, slot->fd);
             ALOGI("%s: L2CAP Data Write, result is :: %d",__func__,result);
             }
             else if (pbapClient == true) {
-              int result = gBTSSInterface->postObexDataChTxMsg(msgStr);
+              int result = gBTSSInterface->postObexDataChTxMsg(msgStr, slot->fd);
               ALOGI("%s: Obex Data Write for rfcomm channel connection, result is :: %d",__func__,result);
             } else {
               int result = gBTSSInterface->postDataChTxMsg(msgStr,fd);
