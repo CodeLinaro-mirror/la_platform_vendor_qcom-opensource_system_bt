@@ -26,7 +26,6 @@
  *  control block state machine.
  *
  ******************************************************************************/
-
 #include <cutils/log.h>
 #include <string.h>
 #include "a2dp_codec_api.h"
@@ -41,6 +40,7 @@
 #include "btif/include/btif_avk.h"
 #include "osi/include/osi.h"
 #include "stack/include/a2dp_sbc_constants.h"
+#include "osi/include/properties.h"
 
 #define PUMP_ENCODED_DATA 0x4000
 
@@ -294,15 +294,21 @@ void avdt_scb_hdl_pkt_no_frag(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
     p += ex_len * 4;
   }
 
+  if ((p - p_start) > len) {
+    android_errorWriteLog(0x534e4554, "142546355");
+    osi_free_and_reset((void**)&p_data->p_pkt);
+    return;
+  }
+  offset = p - p_start;
+
   /* adjust length for any padding at end of packet */
   if (o_p) {
     /* padding length in last byte of packet */
-    pad_len = *(p_start + p_data->p_pkt->len);
+    pad_len = *(p_start + len);
   }
 
   /* do sanity check */
-  if ((offset > p_data->p_pkt->len) ||
-      ((pad_len + offset) > p_data->p_pkt->len)) {
+  if (pad_len > (len - offset)) {
     AVDT_TRACE_WARNING("Got bad media packet");
     osi_free_and_reset((void**)&p_data->p_pkt);
   }
@@ -678,6 +684,7 @@ void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
   tAVDT_CFG* p_cfg;
   tA2DP_CODEC_TYPE codec_type;
   tAVDT_CTRL avdt_ctrl;
+
   AVDT_TRACE_WARNING("avdt_scb_hdl_setconfig_cmd: SCB in use: %d, Conn in progress: %d, avdt_check_sep_state: %d, SCB is required: %d ",
        p_scb->in_use, avdt_cb.conn_in_progress, avdt_check_sep_state(p_scb), p_scb->is_required);
 
@@ -699,19 +706,23 @@ void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
       avdt_set_scbs_busy(p_scb);
       p_scb->peer_seid = p_data->msg.config_cmd.int_seid;
       if (codec_type == A2DP_MEDIA_CT_SBC) {
+        uint8_t err_code = 0;
         if (((p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]) < A2DP_SBC_IE_MIN_BITPOOL) ||
             ((p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]) > A2DP_SBC_IE_MAX_BITPOOL) ||
-            ((p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET]) > A2DP_SBC_IE_MAX_BITPOOL) ||
             ((p_cfg->codec_info[A2DP_SBC_IE_MIN_BITPOOL_OFFSET]) >
-               (p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET]))) {
-
-           p_data->msg.hdr.err_code = AVDT_ERR_UNSUP_CFG;
-           p_data->msg.hdr.err_param = 0;
-           AVDT_TRACE_DEBUG("%s: avdt_msg_send_rej()", __func__);
-           avdt_msg_send_rej(avdt_ccb_by_idx(p_data->msg.hdr.ccb_idx),
-                             p_data->msg.hdr.sig_id, &p_data->msg);
-
-           return;
+                  (p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET]))) {
+          err_code = A2DP_BAD_MIN_BITPOOL;
+        } else if (((p_cfg->codec_info[A2DP_SBC_IE_MAX_BITPOOL_OFFSET]) >
+                             A2DP_SBC_IE_MAX_BITPOOL)) {
+          err_code = A2DP_BAD_MAX_BITPOOL;
+        }
+        if (err_code !=0) {
+          p_data->msg.hdr.err_code = err_code;
+          p_data->msg.hdr.err_param = 0;
+          AVDT_TRACE_DEBUG("%s: avdt_msg_send_rej()", __func__);
+          avdt_msg_send_rej(avdt_ccb_by_idx(p_data->msg.hdr.ccb_idx),
+          p_data->msg.hdr.sig_id, &p_data->msg);
+          return;
         }
       }
       memcpy(&p_scb->req_cfg, p_cfg, sizeof(tAVDT_CFG));
@@ -726,7 +737,18 @@ void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
       if (avdt_cb.p_conn_cback != NULL)
         avdt_cb.p_conn_cback(0, &(p_scb->p_ccb->peer_addr), AVDT_SETCONFIG_CMD_EVT, &avdt_ctrl);
     } else {
-      p_data->msg.hdr.err_code = AVDT_ERR_UNSUP_CFG;
+      char value[PROPERTY_VALUE_MAX] = {'\0'};
+      property_get("vendor.bt.pts.certification", value, "false");
+      if (!(strcmp(value,"true"))) {
+        property_get("vendor.bt.pts.certification_ns_codec", value, "false");
+        if (!(strcmp(value,"true"))) {
+          p_data->msg.hdr.err_code = A2DP_NS_CODEC_TYPE;
+        } else {
+          p_data->msg.hdr.err_code = A2DP_BAD_CODEC_TYPE;
+        }
+      } else {
+        p_data->msg.hdr.err_code = AVDT_ERR_UNSUP_CFG;
+      }
       p_data->msg.hdr.err_param = 0;
       AVDT_TRACE_DEBUG("%s: called avdt_msg_send_rej()", __func__);
       avdt_msg_send_rej(avdt_ccb_by_idx(p_data->msg.hdr.ccb_idx),

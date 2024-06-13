@@ -198,7 +198,7 @@ static void delete_btsnoop_files() {
 
 static bool is_btsnoop_enabled() {
   char btsnoop_enabled[PROPERTY_VALUE_MAX] = {0};
-  osi_property_get(BTSNOOP_ENABLE_PROPERTY, btsnoop_enabled, "true");
+  osi_property_get(BTSNOOP_ENABLE_PROPERTY, btsnoop_enabled, "false");
   bool ret = strncmp(btsnoop_enabled, "true", 4) == 0;
   return ret;
 }

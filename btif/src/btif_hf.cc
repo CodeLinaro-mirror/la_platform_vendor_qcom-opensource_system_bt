@@ -112,7 +112,7 @@ namespace headset {
 
 #ifndef BTIF_HF_FEATURES
 #define BTIF_HF_FEATURES                                       \
-  (BTA_AG_FEAT_3WAY | BTA_AG_FEAT_ECNR | BTA_AG_FEAT_REJECT |  \
+  (  BTA_AG_FEAT_3WAY |BTA_AG_FEAT_ECNR | BTA_AG_FEAT_REJECT |\ 
    BTA_AG_FEAT_ECS | BTA_AG_FEAT_EXTERR | BTA_AG_FEAT_VREC |   \
    BTA_AG_FEAT_HF_IND | BTA_AG_FEAT_ESCO | BTA_AG_FEAT_UNAT)
 #endif
@@ -2074,7 +2074,7 @@ void HeadsetInterface::Cleanup(void) {
  * Returns          bt_status_t
  *
  ******************************************************************************/
-/*static bt_status_t configure_wbs(RawAddress* bd_addr,
+static bt_status_t configure_wbs(RawAddress* bd_addr,
                                  bthf_wbs_config_t config) {
   CHECK_BTHF_INIT();
 
@@ -2094,7 +2094,7 @@ void HeadsetInterface::Cleanup(void) {
     BTA_AgSetCodec(btif_hf_cb[idx].handle, BTA_AG_CODEC_NONE);
 
   return BT_STATUS_SUCCESS;
-} */ // commenting temp because of HAL change
+}
 
 #ifdef BT_HF_VOIP_FEATURE //gghai
 static void set_voip_network_type_wifi_hci_cmd_complete(tBTM_VSC_CMPL* p_data)
@@ -2591,6 +2591,7 @@ static const bthf_interface_t bthfInterface = {
     set_sco_allowed,
     send_bsir,
     set_active_device,
+    configure_wbs,
 };
 
 /*******************************************************************************
