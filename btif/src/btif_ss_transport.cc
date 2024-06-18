@@ -326,6 +326,9 @@ int BluetoothSSTransport::poll(int timeout) {
 
 int BluetoothSSTransport::file_write(uint8_t *buf, size_t buflen, const char *msgtyp){
 
+    unsigned int itr=0;
+    unsigned int writtenLen=0;
+    ALOGE("%s file_write: buflen %d, msgtyp %s",__func__, buflen, msgtyp);
     uint16_t MSG_ID = buf[0] + (((int)(buf[1]))<<8);
     const char *tmpBuf =NULL;
 
@@ -358,13 +361,14 @@ int BluetoothSSTransport::file_write(uint8_t *buf, size_t buflen, const char *ms
         gettimeofday(&now, NULL);
         localTime = localtime(&now.tv_sec);
         fprintf(fptr,"%.4d-%.2d-%.2d %.2d:%.2d:%.2d.%.3ld %s %44s ",1900 + localTime->tm_year,1 + localTime->tm_mon,localTime->tm_mday,localTime->tm_hour, localTime->tm_min, localTime->tm_sec,now.tv_usec / 1000, msgtyp , tmpBuf );
-        for (int i=0; i< (int)buflen; ++i){
-            int ret1=fprintf(fptr,"%.2x",(int)buf[i]);
+        for (itr=0; itr< (unsigned int)buflen; ++itr){
+            int ret1=fprintf(fptr,"%.2x",buf[itr]);
+            writtenLen += (ret1/2);
         }
         fprintf(fptr,"\n");
         fclose(fptr);
     }
-    return buflen;
+    return writtenLen;
 }
 int BluetoothSSTransport::read(uint8_t *data, size_t size) {
   ssize_t rc = 0;

@@ -1030,8 +1030,11 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
         std::vector<uint8_t> adv_pkt_data(s.begin(), s.end());
         for (size_t i = 0; i < adv_pkt_data.size(); i++)
           ALOGD(" adv_pkt_data[%d]:%d ", i, adv_pkt_data[i]);
-        if (p_track_adv_data->adv_pkt_len > 0) {
-          p_track_adv_data->p_adv_pkt_data = &adv_pkt_data[0];
+
+        if (p_track_adv_data->adv_pkt_len > 0){
+            p_track_adv_data->p_adv_pkt_data =
+                static_cast<uint8_t*>(osi_malloc(p_track_adv_data->adv_pkt_len));
+            memcpy(p_track_adv_data->p_adv_pkt_data, adv_pkt_data.data(), p_track_adv_data->adv_pkt_len);
         }
 
         p_track_adv_data->scan_rsp_len = track_adv_info.scan_rsp_len();
@@ -1042,8 +1045,11 @@ void btif_scanner_ss_callback(uint16_t event, char* p_param) {
           ALOGD(" scan_rsp_data[%d]:%d ", i, scan_rsp_data[i]);
 
         if (p_track_adv_data->scan_rsp_len > 0) {
-          p_track_adv_data->p_scan_rsp_data = &scan_rsp_data[0];
+            p_track_adv_data->p_scan_rsp_data =
+                static_cast<uint8_t*>(osi_malloc(p_track_adv_data->scan_rsp_len));
+            memcpy(p_track_adv_data->p_scan_rsp_data, scan_rsp_data.data(), p_track_adv_data->scan_rsp_len);
         }
+
       }
       bta_track_adv_event_cb(p_track_adv_data);
       break;

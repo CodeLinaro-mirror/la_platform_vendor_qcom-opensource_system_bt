@@ -127,6 +127,12 @@ using bluetooth::atp_locator::AtpLocatorInterface;
 #define BT_SSR_DUMP_TIMEOUT  (20000)
 #define BT_SSR_TIMEOUT  (7000)
 
+// For Dummy Dynamic Audio Buffer Callback
+#define CODEC_TYPE_NUMBER 32
+#define DEFAULT_BUFFER_TIME (MAX_PCM_FRAME_NUM_PER_TICK * 2)
+#define MAXIMUM_BUFFER_TIME (MAX_PCM_FRAME_NUM_PER_TICK * 2)
+#define MINIMUM_BUFFER_TIME MAX_PCM_FRAME_NUM_PER_TICK
+
 /*******************************************************************************
  *  Static variables
  ******************************************************************************/
@@ -643,8 +649,40 @@ static int get_adapter_properties(void) {
   return BT_STATUS_SUCCESS;
 }
 
+void sendDummyAdapterPropertyCallback(uint16_t event, char* p_param) {
+  bt_property_t* prop = (bt_property_t*)p_param;
+  switch (event) {
+    case BT_PROPERTY_DYNAMIC_AUDIO_BUFFER:
+      ALOGI("BT_PROPERTY_DYNAMIC_AUDIO_BUFFER");
+      HAL_CBACK(bt_hal_cbacks, adapter_properties_cb, BT_STATUS_SUCCESS, 1, prop);
+    break;
+
+    default:
+      ALOGI("Unhandled Event");
+    break;
+  }
+}
+
 static int get_adapter_property(bt_property_type_t type) {
   ALOGI("%s", __func__);
+  if(type == BT_PROPERTY_DYNAMIC_AUDIO_BUFFER){
+      // Send Dummy BT_PROPERTY_DYNAMIC_AUDIO_BUFFER adapter property callback
+      char buf[512];
+      bt_dynamic_audio_buffer_item_t dynamic_audio_buffer_item;
+      bt_property_t prop;
+      prop.val = (void*)buf;
+      prop.type =   BT_PROPERTY_DYNAMIC_AUDIO_BUFFER;
+      prop.len = sizeof(bt_dynamic_audio_buffer_item_t);
+      for (int i = 0; i < CODEC_TYPE_NUMBER; i++) {
+          dynamic_audio_buffer_item.dab_item[i] = {
+          .default_buffer_time = DEFAULT_BUFFER_TIME,
+          .maximum_buffer_time = MAXIMUM_BUFFER_TIME,
+          .minimum_buffer_time = MINIMUM_BUFFER_TIME};
+      }
+      memcpy(prop.val, &dynamic_audio_buffer_item, prop.len);
+      btif_transfer_context(sendDummyAdapterPropertyCallback, BT_PROPERTY_DYNAMIC_AUDIO_BUFFER, (char*)&prop, sizeof(prop), NULL);
+      return BT_STATUS_SUCCESS;
+  }
   uint8_t get_adaprop_msg[MAX_LENGTH_WITH_PROTO_NONE];
   //adding msg_id
   uint16_t msg_id = BT_DM_GET_ADAPTER_PROPERTY;
@@ -2031,6 +2069,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       }
       bt_status_t status = BT_STATUS_FAIL;
       bt_bdname_t bd_name;
+      bt_bdname_t remote_friendly_name;
       uint32_t cod;
       RawAddress *bd_addr;
       if (remotePropCb.has_status()) {
@@ -2119,6 +2158,14 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
             properties[i].len = sizeof(bt_device_type_t);
             properties[i].val = (void*)&dev_type;
             properties[i].type = BT_PROPERTY_TYPE_OF_DEVICE;
+          }
+          else if(prop_type == BT_PROPERTY_REMOTE_FRIENDLY_NAME) {
+            std::string remote_alias = prop.val();
+            ALOGI("Remote friendly Name is :: %s",remote_alias.c_str());
+            strlcpy((char*)remote_friendly_name.name, (char*)remote_alias.c_str(), sizeof(bt_bdname_t));
+            properties[i].len = prop.len();
+            properties[i].val = &remote_friendly_name;
+            properties[i].type = BT_PROPERTY_REMOTE_FRIENDLY_NAME;
           }
         }
         HAL_CBACK(bt_hal_cbacks, remote_device_properties_cb, status, bd_addr, numProp, properties);
