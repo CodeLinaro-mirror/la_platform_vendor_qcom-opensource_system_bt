@@ -101,7 +101,7 @@ struct btif_a2dp_codec_config_callback_t {
 
 btif_a2dp_codec_config_callback_t* btif_av_get_a2dp_current_codec(void);
 void btif_av_handle_hidl_req(tA2DP_CTRL_CMD cmd);
-
+void process_audio_request(tA2DP_CTRL_CMD cmd);
 /*******************************************************************************
  *  BTIF AV API
  ******************************************************************************/
