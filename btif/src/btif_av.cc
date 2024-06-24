@@ -124,7 +124,7 @@ namespace a2dp_proto = a2dp::synergy::SynergyProto;
  *  Local type definitions
  *****************************************************************************/
 #define MAX_CONNS 2
-#define SUSPEND_TIME_OUT 2
+#define SUSPEND_TIME_OUT 3
 const uint8_t INVALID_INDEX = -1;
 uint8_t index;
 btif_a2dp_codec_config_callback_t codec_config[MAX_CONNS];
@@ -149,7 +149,7 @@ static tA2DP_CTRL_CMD pending_cmd = A2DP_CTRL_CMD_NONE;
 static btav_audio_state_t play_state = BTAV_AUDIO_STATE_STOPPED;
 std::condition_variable cv;
 std::mutex cv_m;
-
+std::mutex mutex_av;
 /*******************************************************************************
  * Function        btav_bld_and_snd_message
  *
@@ -366,22 +366,18 @@ static bt_status_t set_active_device(const RawAddress& bd_addr) {
       return BT_STATUS_SUCCESS;
   }
 
-  if (pending_cmd != A2DP_CTRL_CMD_NONE) {
-    ALOGE("%s: Pending Start/Suspend Response on current device, Return Fail",__func__);
+  if (!mutex_av.try_lock()) {
+    ALOGE("%s: Start/Suspend In progress, Return Fail",__func__);
     return BT_STATUS_NOT_READY;
   }
-
+  ALOGI("%s : mutex_av lock acquired", __func__);
   std::string str_msg;
   a2dp_proto::ss_set_active_device msg_active_device;
 
   if (bd_addr == RawAddress::kEmpty) {
       /* 1. SetActive Device -> Null */
       if (isA2dpPlaying()) {
-          auto now = std::chrono::system_clock::now();
-          std::unique_lock<std::mutex> lk(cv_m);
-          btif_av_handle_hidl_req(A2DP_CTRL_CMD_SUSPEND);
-          ALOGE("Acquired the lock and waiting for a2dp suspend");
-          cv.wait_until(lk, now + std::chrono::seconds(SUSPEND_TIME_OUT));
+          process_audio_request(A2DP_CTRL_CMD_SUSPEND);
       }
       bluetooth::audio::aidl::a2dp::end_session();
       active_device_ = bd_addr;
@@ -394,11 +390,7 @@ static bt_status_t set_active_device(const RawAddress& bd_addr) {
       /* 3. SetActive Device -> Device */
       // End the currently active session
       if (isA2dpPlaying()) {
-          auto now = std::chrono::system_clock::now();
-          std::unique_lock<std::mutex> lk(cv_m);
-          btif_av_handle_hidl_req(A2DP_CTRL_CMD_SUSPEND);
-          ALOGE("Acquired the lock and waiting for a2dp suspend");
-          cv.wait_until(lk, now + std::chrono::seconds(SUSPEND_TIME_OUT));
+          process_audio_request(A2DP_CTRL_CMD_SUSPEND);
       }
       bluetooth::audio::aidl::a2dp::end_session();
       active_device_ = bd_addr;
@@ -412,6 +404,8 @@ static bt_status_t set_active_device(const RawAddress& bd_addr) {
   msg_active_device.SerializeToString(&str_msg);
   btav_bld_and_snd_message(BT_AV_ACTIVE, str_msg.length(),
                   PROTO_ENC_DEC, str_msg);
+  ALOGI("%s: Active_device %s Change Completed", __func__, active_device_.ToString().c_str());
+  mutex_av.unlock();
   return status;
 }
 
@@ -598,20 +592,20 @@ void btif_av_ss_callback(uint16_t event, char* p_param) {
       * a2dp cmd (START/SUSPEND)
       */
       play_state = state;
+      std::lock_guard<std::mutex> lk(cv_m);
       if(state == BTAV_AUDIO_STATE_STARTED ) {
         if(pending_cmd == A2DP_CTRL_CMD_START) {
             bluetooth::audio::aidl::a2dp::ack_stream_started(A2DP_CTRL_ACK_SUCCESS);
         }
       } else if (state == BTAV_AUDIO_STATE_STOPPED) {
-        std::lock_guard<std::mutex> lk(cv_m);
         if(pending_cmd == A2DP_CTRL_CMD_SUSPEND) {
             bluetooth::audio::aidl::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS);
         }
-        ALOGI("Notify the suspend to release conditional wait");
-        cv.notify_all();
       } else if(state == BTAV_AUDIO_STATE_REMOTE_SUSPEND) {
           // need to handle this
       }
+      ALOGI("Notify the start to release conditional wait");
+      cv.notify_all();
       //clear pending command here, Do retry ??
       pending_cmd =  A2DP_CTRL_CMD_NONE;
     }
@@ -734,9 +728,45 @@ btif_a2dp_codec_config_callback_t* btif_av_get_a2dp_current_codec(void) {
   return NULL;
 }
 
-void btif_av_handle_hidl_req(tA2DP_CTRL_CMD cmd){
+/*******************************************************************************
+ *
+ * Function         btif_av_handle_hidl_req
+ *
+ * Description      proceess the hidl request coming from hidl
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btif_av_handle_hidl_req(tA2DP_CTRL_CMD cmd) {
+  if (!mutex_av.try_lock()) {
+    ALOGE("%s: Start/Suspend In progress, Return Fail",__func__);
+    if (cmd == A2DP_CTRL_CMD_START) {
+      bluetooth::audio::aidl::a2dp::ack_stream_started(A2DP_CTRL_ACK_FAILURE);
+    } else {
+      bluetooth::audio::aidl::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_FAILURE);
+    }
+  } else {
+    ALOGI("%s : mutex_av lock acquired", __func__);
+    process_audio_request(cmd);
+    mutex_av.unlock();
+    ALOGI("%s: mutex_av unlocked", __func__);
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         process_audio_request
+ *
+ * Description      Process the audio requests
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void process_audio_request(tA2DP_CTRL_CMD cmd){
   ALOGI("%s, cmd: %d", __func__, cmd);
   //save cmd received from BT-Audio HAL until we get ackowledge from peer
+  auto now = std::chrono::system_clock::now();
+  std::unique_lock<std::mutex> lk(cv_m);
   pending_cmd = cmd;
   switch(cmd){
     case A2DP_CTRL_CMD_START:
@@ -747,6 +777,7 @@ void btif_av_handle_hidl_req(tA2DP_CTRL_CMD cmd){
       msg_start_stream.SerializeToString(&str_msg);
       btav_bld_and_snd_message(BT_AV_START_STREAM, str_msg.length(),
                             PROTO_ENC_DEC, str_msg);
+      ALOGE("Acquired the lock and waiting for a2dp start");
     }
     break;
     case A2DP_CTRL_CMD_STOP:
@@ -759,18 +790,24 @@ void btif_av_handle_hidl_req(tA2DP_CTRL_CMD cmd){
         pending_cmd = A2DP_CTRL_CMD_NONE;
         break;
       }
+
       a2dp_proto::ss_stopStream msg_stop_stream ;
       std::string str_msg = "";
       msg_stop_stream.SerializeToString(&str_msg);
       btav_bld_and_snd_message(BT_AV_STOP_STREAM, str_msg.length(),
                             PROTO_NONE, str_msg);
+      ALOGE("Acquired the lock and waiting for a2dp suspend");
     }
-   break;
-   default:
-    ALOGE("Unknown HIDL cmd");
-   break;
-   }
- }
+    break;
+    default:
+      ALOGE("Unknown HIDL cmd");
+    break;
+  }
+  if (cv.wait_until(lk, now + std::chrono::seconds(SUSPEND_TIME_OUT)) == std::cv_status::timeout) {
+      ALOGE("Mutex time out resetting pending command");
+      pending_cmd = A2DP_CTRL_CMD_NONE;
+  }
+}
 
 std::string ToRawString(const RawAddress& bt_addr) {
   std::string res;
