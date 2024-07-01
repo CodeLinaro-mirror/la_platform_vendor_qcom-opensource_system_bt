@@ -38,6 +38,7 @@
 #define BT_PROFILE_ID_GATTC "gattc"
 #define BT_PROFILE_ID_GATTS "gatts"
 #define BTGATT_MAX_ATTR_LEN 600
+#define BTGATT_MAX_MTU_SIZE 517
 
 extern const btgatt_client_interface_t btgattClientInterface;
 extern const btgatt_server_interface_t btgattServerInterface;
