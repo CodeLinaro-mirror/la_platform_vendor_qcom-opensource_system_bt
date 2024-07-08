@@ -124,7 +124,7 @@ namespace a2dp_proto = a2dp::synergy::SynergyProto;
  *  Local type definitions
  *****************************************************************************/
 #define MAX_CONNS 2
-#define SUSPEND_TIME_OUT 3
+#define SUSPEND_TIME_OUT 5
 const uint8_t INVALID_INDEX = -1;
 uint8_t index;
 btif_a2dp_codec_config_callback_t codec_config[MAX_CONNS];
@@ -771,6 +771,13 @@ void process_audio_request(tA2DP_CTRL_CMD cmd){
   switch(cmd){
     case A2DP_CTRL_CMD_START:
     {
+      if(isA2dpPlaying()) {
+        ALOGI("Already in a2dp started state, Send Success anyway");
+        bluetooth::audio::aidl::a2dp::ack_stream_started(A2DP_CTRL_ACK_SUCCESS);
+        pending_cmd = A2DP_CTRL_CMD_NONE;
+        return;
+      }
+
       a2dp_proto::ss_startStream msg_start_stream ;
       std::string str_msg;
       msg_start_stream.set_address(ToRawString(active_device_));
@@ -783,12 +790,12 @@ void process_audio_request(tA2DP_CTRL_CMD cmd){
     case A2DP_CTRL_CMD_STOP:
     case A2DP_CTRL_CMD_SUSPEND:
     {
-      if(false == isA2dpPlaying()) {
+      if(!isA2dpPlaying()) {
         // case when there is ongoing call and BT called a2dpSuspend=true on MM-Audio
-        ALOGI("Already in stop play state. Send Success anyway");
+        ALOGI("Already in a2dp stopped state. Send Success anyway");
         bluetooth::audio::aidl::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS);
         pending_cmd = A2DP_CTRL_CMD_NONE;
-        break;
+        return;
       }
 
       a2dp_proto::ss_stopStream msg_stop_stream ;
