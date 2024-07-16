@@ -21,6 +21,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #define LOG_TAG "bt_btif_a2dp"
 
 #include <stdbool.h>
@@ -56,7 +62,7 @@ extern tBTIF_A2DP_SOURCE_CB btif_a2dp_source_cb;
 extern void btif_av_reset_reconfig_flag();
 static char a2dp_hal_imp[PROPERTY_VALUE_MAX] = "false";
 extern bool btif_av_current_device_is_tws();
-
+extern bool bt_split_a2dp_sink_enabled;
 void btif_a2dp_on_idle() {
   APPL_TRACE_EVENT("## ON A2DP IDLE ## peer_sep = %d", btif_av_get_peer_sep());
   if (btif_av_get_peer_sep() == AVDT_TSEP_SNK) {
@@ -70,6 +76,11 @@ bool btif_a2dp_on_started(tBTA_AV_START* p_av_start, bool pending_start,
                           tBTA_AV_HNDL hdl) {
   bool ack = false;
   tA2DP_CTRL_CMD pending_cmd = A2DP_CTRL_CMD_NONE;
+
+  if (btif_av_get_peer_sep() == AVDT_TSEP_SRC) {
+    btif_a2dp_sink_on_started(p_av_start);
+    return true;
+  }
   if (btif_a2dp_source_is_hal_v2_enabled()) {
 #if AHIM_ENABLED
     pending_cmd = btif_ahim_get_pending_command(A2DP);
@@ -309,12 +320,13 @@ void btif_a2dp_on_stopped(tBTA_AV_SUSPEND* p_av_suspend) {
 
 void btif_a2dp_on_suspended(tBTA_AV_SUSPEND* p_av_suspend) {
   APPL_TRACE_EVENT("## ON A2DP SUSPENDED ##");
+
+  if (btif_av_get_peer_sep() == AVDT_TSEP_SRC) {
+    btif_a2dp_sink_on_suspended(p_av_suspend);
+    return;
+  }
   if (!btif_av_is_split_a2dp_enabled()) {
-    if (btif_av_get_peer_sep() == AVDT_TSEP_SRC) {
-      btif_a2dp_sink_on_suspended(p_av_suspend);
-    } else {
-      btif_a2dp_source_on_suspended(p_av_suspend);
-    }
+    btif_a2dp_source_on_suspended(p_av_suspend);
   } else {
     if (p_av_suspend != NULL) {
       if (btif_a2dp_source_is_hal_v2_enabled()) {

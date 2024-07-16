@@ -21,12 +21,19 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #define LOG_TAG "bt_btif_a2dp_sink"
 
 #include <string.h>
 
 #include "bt_common.h"
 #include "btif_a2dp.h"
+#include "btif_ahim.h"
 #include "btif_a2dp_sink.h"
 #include "btif_av.h"
 #include "btif_av_co.h"
@@ -57,6 +64,8 @@
 #define MAX_A2DP_DELAYED_START_FRAME_COUNT 5
 
 #define MAX_SINK_MEDIA_WORKQUEUE_COUNT 1024
+
+extern bool bt_split_a2dp_sink_enabled;
 
 enum {
   BTIF_A2DP_SINK_STATE_OFF,
@@ -273,6 +282,8 @@ static void btif_a2dp_sink_command_ready(fixed_queue_t* queue,
 }
 
 void btif_a2dp_sink_update_decoder(const uint8_t* p_codec_info) {
+  if(bt_split_a2dp_sink_enabled) return;
+
   tBTIF_MEDIA_SINK_DECODER_UPDATE* p_buf =
       reinterpret_cast<tBTIF_MEDIA_SINK_DECODER_UPDATE*>(
           osi_malloc(sizeof(tBTIF_MEDIA_SINK_DECODER_UPDATE)));
@@ -298,13 +309,38 @@ void btif_a2dp_sink_on_idle(void) {
   APPL_TRACE_DEBUG("%s: Stopped BT track", __func__);
 }
 
+
+void btif_a2dp_sink_on_started(UNUSED_ATTR tBTA_AV_START* p_av_start) {
+  APPL_TRACE_DEBUG("%s: btif_a2dp_sink_state: %d",
+                                 __func__, btif_a2dp_sink_state);
+
+  if (btif_a2dp_sink_state == BTIF_A2DP_SINK_STATE_OFF) return;
+  if(bt_split_a2dp_sink_enabled) {
+    APPL_TRACE_WARNING("## ON A2DP STARTED ##");
+#if AHIM_ENABLED
+    btif_ahim_ack_stream_started(A2DP_CTRL_ACK_SUCCESS, A2DP);
+#else
+    bluetooth::audio::a2dp::ack_stream_started(A2DP_CTRL_ACK_SUCCESS);
+#endif
+  }
+}
+
 void btif_a2dp_sink_on_stopped(UNUSED_ATTR tBTA_AV_SUSPEND* p_av_suspend) {
   APPL_TRACE_DEBUG("%s: btif_a2dp_sink_state: %d",
                                  __func__, btif_a2dp_sink_state);
 
   if (btif_a2dp_sink_state == BTIF_A2DP_SINK_STATE_OFF) return;
 
-  btif_a2dp_sink_audio_handle_stop_decoding();
+  if(bt_split_a2dp_sink_enabled) {
+    APPL_TRACE_WARNING("## ON A2DP STARTED ##");
+#if AHIM_ENABLED
+    btif_ahim_ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS, A2DP);
+#else
+    bluetooth::audio::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS);
+#endif
+  } else {
+    btif_a2dp_sink_audio_handle_stop_decoding();
+  }
 }
 
 void btif_a2dp_sink_on_suspended(UNUSED_ATTR tBTA_AV_SUSPEND* p_av_suspend) {
@@ -313,7 +349,16 @@ void btif_a2dp_sink_on_suspended(UNUSED_ATTR tBTA_AV_SUSPEND* p_av_suspend) {
 
   if (btif_a2dp_sink_state == BTIF_A2DP_SINK_STATE_OFF) return;
 
-  btif_a2dp_sink_audio_handle_stop_decoding();
+  if(bt_split_a2dp_sink_enabled) {
+    APPL_TRACE_WARNING("## ON A2DP STARTED ##");
+#if AHIM_ENABLED
+    btif_ahim_ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS, A2DP);
+#else
+    bluetooth::audio::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS);
+#endif
+  } else {
+    btif_a2dp_sink_audio_handle_stop_decoding();
+  }
 }
 
 static void btif_a2dp_sink_audio_handle_stop_decoding(void) {
@@ -624,6 +669,7 @@ uint8_t btif_a2dp_sink_enqueue_buf(BT_HDR* p_pkt) {
 }
 
 void btif_a2dp_sink_audio_rx_flush_req(void) {
+  if(bt_split_a2dp_sink_enabled) return;
   if (fixed_queue_is_empty(btif_a2dp_sink_cb.rx_audio_queue)) {
     /* Queue is already empty */
     return;
@@ -639,6 +685,7 @@ void btif_a2dp_sink_debug_dump(UNUSED_ATTR int fd) {
 }
 
 void btif_a2dp_sink_set_focus_state_req(btif_a2dp_sink_focus_state_t state) {
+  if(bt_split_a2dp_sink_enabled) return;
   tBTIF_MEDIA_SINK_FOCUS_UPDATE* p_buf =
       reinterpret_cast<tBTIF_MEDIA_SINK_FOCUS_UPDATE*>(
           osi_malloc(sizeof(tBTIF_MEDIA_SINK_FOCUS_UPDATE)));
@@ -673,6 +720,7 @@ void btif_a2dp_sink_set_audio_track_gain(float gain) {
 }
 
 static void btif_a2dp_sink_clear_track_event_req(void) {
+  if(bt_split_a2dp_sink_enabled) return;
   BT_HDR* p_buf = reinterpret_cast<BT_HDR*>(osi_malloc(sizeof(BT_HDR)));
 
   p_buf->event = BTIF_MEDIA_SINK_CLEAR_TRACK;
@@ -696,4 +744,164 @@ void btif_a2dp_sink_on_init(void) {
   APPL_TRACE_DEBUG("%s: call UIPC init ", __func__);
   btif_a2dp_control_init();
 #endif
+}
+
+static std::mutex session_wait_mutex_;
+
+// New functions to support offload path for sink
+bool btif_a2dp_sink_is_hal_v2_enabled(void) {
+  return btif_ahim_is_hal_2_0_enabled();
+}
+
+bool btif_a2dp_sink_is_hal_v2_supported(void) {
+  return btif_ahim_is_hal_2_0_supported();
+}
+
+bt_status_t btif_a2dp_sink_setup_codec(tBTA_AV_HNDL hndl) {
+  APPL_TRACE_EVENT("## A2DP SINK SETUP CODEC ##");
+  bt_status_t status = BT_STATUS_FAIL;
+  std::unique_lock<std::mutex> guard(session_wait_mutex_);
+  if (btif_a2dp_sink_is_hal_v2_supported()) {
+    APPL_TRACE_EVENT("%s ## setup_codec ##", __func__);
+    btif_ahim_setup_codec(A2DP_SINK);
+  }
+  return status;
+}
+
+
+bool btif_a2dp_sink_start_session(const RawAddress& peer_address) {
+  LOG_ERROR(LOG_TAG, "%s: peer_address=%s state=%d", __func__,
+            peer_address.ToString().c_str(), btif_a2dp_sink_state);
+  tBTA_AV_HNDL hndl = btif_av_get_hndl_by_addr(peer_address);
+  if (btif_a2dp_sink_state != BTIF_A2DP_SINK_STATE_RUNNING) {
+    LOG_ERROR(LOG_TAG, "%s: A2DP Sink media task is not running", __func__);
+    return false;
+  }
+  if (btif_a2dp_sink_is_hal_v2_supported()) {
+    APPL_TRACE_EVENT("%s calling ## init ##", __func__);
+    btif_ahim_init_hal(btif_a2dp_sink_cb.worker_thread, A2DP_SINK);
+  }
+  btif_a2dp_sink_setup_codec(hndl);
+  if (btif_a2dp_sink_is_hal_v2_enabled()) {
+    btif_ahim_start_session(A2DP_SINK);
+    if (btif_ahim_get_session_type(A2DP_SINK) ==
+       SessionType::A2DP_SOFTWARE_ENCODING_DATAPATH) {
+      APPL_TRACE_EVENT("%s Freeing queue from previous session", __func__);
+      fixed_queue_flush(btif_a2dp_sink_cb.rx_audio_queue, osi_free);
+    }
+  }
+  return true;
+}
+
+bool btif_a2dp_sink_is_restart_session_needed() {
+  bool restart_session = false;
+  if (btif_a2dp_sink_is_hal_v2_supported()) {
+     APPL_TRACE_EVENT("%s :: calling ahim restart_session %d", __func__);
+    restart_session = btif_ahim_is_restart_session_needed(A2DP_SINK);
+  }
+  APPL_TRACE_EVENT("%s :: restart_session %d", __func__, restart_session);
+  return restart_session;
+}
+
+bool btif_a2dp_sink_end_session(const RawAddress& peer_address) {
+  LOG_ERROR(LOG_TAG, "%s: peer_address=%s state=%d", __func__,
+        peer_address.ToString().c_str(), btif_a2dp_sink_state);
+  if (btif_a2dp_sink_is_hal_v2_enabled()) {
+    btif_ahim_end_session(A2DP_SINK);
+  }
+  return true;
+}
+
+bool btif_a2dp_sink_restart_session(const RawAddress& old_peer_address,
+                                      const RawAddress& new_peer_address) {
+  bool is_streaming = btif_ahim_is_streaming();
+  SessionType session_type = btif_ahim_get_session_type(A2DP_SINK);
+  LOG_ERROR(LOG_TAG,
+    "%s: old_peer_address=%s new_peer_address=%s is_streaming=%d "
+    "state=%d", __func__, old_peer_address.ToString().c_str(),
+    new_peer_address.ToString().c_str(), is_streaming, btif_a2dp_sink_state);
+  CHECK(!new_peer_address.IsEmpty());
+  // If the old active peer was valid or if session is not
+  // unknown, end the old session.
+  // Otherwise, time to startup the A2DP Source processing.
+  if (!old_peer_address.IsEmpty() ||
+    session_type != SessionType::UNKNOWN) {
+    btif_a2dp_sink_end_session(old_peer_address);
+  }
+  // Start the session.
+  btif_a2dp_sink_start_session(new_peer_address);
+  // No need to start the audio here as on remote start ack
+  // it will start the audio
+  return true;
+}
+
+void btif_a2dp_sink_process_request(tA2DP_CTRL_CMD cmd) {
+  tA2DP_CTRL_ACK status = A2DP_CTRL_ACK_FAILURE;
+  APPL_TRACE_EVENT("%s :: ", __func__);
+  // update the pending command
+#if AHIM_ENABLED
+  btif_ahim_update_pending_command(cmd, A2DP);
+#else
+  bluetooth::audio::a2dp::update_pending_command(cmd);
+#endif
+  switch (cmd) {
+    case A2DP_CTRL_CMD_START: {
+      /*if(is_streaming_bda_empty()) {
+          //if streaming_bda is empty send failure ack
+          APPL_TRACE_ERROR("%s streaming_bda is empty",__func__);
+          status = A2DP_CTRL_ACK_FAILURE;
+          break;
+      } */
+      status = A2DP_CTRL_ACK_SUCCESS;
+      btif_dispatch_sm_event(BTIF_AV_SINK_OFFLOAD_START_CFM_EVT, NULL, 0);
+      break;
+    }
+    case A2DP_CTRL_CMD_SUSPEND:
+    case A2DP_CTRL_CMD_STOP: {
+      // stop capture should be linked to device which has VSC_STATE = STARTED.
+      /*if (!btif_avk_split_get_started_device_idx(&index)) {
+          // there is no device matching started/suspending/HDL_VSC state.
+          // ack from here itself
+          BTIF_TRACE_DEBUG("%s no device in started/suspending/HDL_VSC",__func__);
+          status = A2DP_CTRL_ACK_SUCCESS;
+          break;
+      }
+      BTIF_TRACE_DEBUG("%s found device @ index %d",__func__,index); */
+      btif_dispatch_sm_event(BTIF_AV_SINK_OFFLOAD_STOP_CFM_EVT, NULL, 0);
+      status = A2DP_CTRL_ACK_SUCCESS;
+      break;
+    }
+    case A2DP_CTRL_UPDATE_SINK_LATENCY: {
+      btif_dispatch_sm_event(BTIF_AV_SINK_OFFLOAD_SINK_LATENCY_EVT, NULL, 0);
+      status = A2DP_CTRL_ACK_SUCCESS;
+      break;
+    }
+
+    case A2DP_CTRL_NOTIFY_HAL_RESTART: {
+      btif_dispatch_sm_event(BTIF_AV_SINK_OFFLOAD_HAL_RESTART_EVT, NULL, 0);
+      status = A2DP_CTRL_ACK_SUCCESS;
+      break;
+    }
+    default:
+      APPL_TRACE_ERROR("UNSUPPORTED CMD (%d)", cmd);
+      status = A2DP_CTRL_ACK_FAILURE;
+      break;
+  }
+  // send the response now based on status
+  if(status != A2DP_CTRL_ACK_SUCCESS) {
+    switch (cmd) {
+      case A2DP_CTRL_CMD_START:
+        btif_ahim_ack_stream_started(status, A2DP);
+        break;
+      case A2DP_CTRL_CMD_SUSPEND:
+      case A2DP_CTRL_CMD_STOP:
+        btif_ahim_ack_stream_suspended(status, A2DP);
+        break;
+      default:
+        break;
+    }
+  }
+}
+thread_t* get_sink_worker_thread() {
+  return btif_a2dp_sink_cb.worker_thread;
 }

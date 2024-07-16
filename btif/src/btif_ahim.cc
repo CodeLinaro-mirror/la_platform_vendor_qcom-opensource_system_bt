@@ -62,6 +62,12 @@ OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 */
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #include <mutex>
 
 #include "audio_hal_interface/a2dp_encoding.h"
@@ -1027,6 +1033,10 @@ tA2DP_CTRL_CMD btif_ahim_get_pending_command(uint8_t profile,
   return A2DP_CTRL_CMD_NONE;
 }
 
+uint16_t btif_ahim_get_sink_latency() {
+  return bluetooth::audio::a2dp::get_sink_latency();
+}
+
 void btif_ahim_reset_pending_command(uint8_t profile) {
   BTIF_TRACE_IMP("%s: AIDL, profile: %d", __func__, profile);
   if (btif_ahim_is_aosp_aidl_hal_enabled()) {
@@ -1102,7 +1112,19 @@ void btif_ahim_update_pending_command(tA2DP_CTRL_CMD cmd, uint8_t profile) {
       bluetooth::audio::a2dp::update_pending_command(cmd);
     } else {
       BTIF_TRACE_WARNING("%s, update pending cmd ignored from "
-                              "inactive profile", __func__);
+                              "inactive profile, rsp failed ack", __func__);
+      tA2DP_CTRL_ACK status = A2DP_CTRL_ACK_FAILURE;
+      switch (cmd) {
+        case A2DP_CTRL_CMD_START:
+          btif_ahim_ack_stream_started(status, profile);
+          break;
+        case A2DP_CTRL_CMD_SUSPEND:
+        case A2DP_CTRL_CMD_STOP:
+          btif_ahim_ack_stream_suspended(status, profile);
+          break;
+        default:
+          break;
+      }
     }
   }
 }

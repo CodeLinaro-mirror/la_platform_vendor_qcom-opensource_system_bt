@@ -47,6 +47,12 @@ OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 */
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #pragma once
 
 #include "audio_a2dp_hw/include/audio_a2dp_hw.h"
@@ -113,6 +119,7 @@ void set_remote_delay(uint16_t delay_report);
 bool is_streaming();
 SessionType get_session_type();
 void update_session_params(SessionParamType param_type);
+uint16_t get_sink_latency();
 
 }  // namespace a2dp
 }  // namespace audio

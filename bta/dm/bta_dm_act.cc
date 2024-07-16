@@ -352,6 +352,7 @@ uint8_t g_disc_raw_data_buf[MAX_DISC_RAW_DATA_BUF];
 
 extern DEV_CLASS local_device_default_class;
 
+
 // Stores the local Input/Output Capabilities of the Bluetooth device.
 static uint8_t btm_local_io_caps;
 
@@ -1134,6 +1135,7 @@ void bta_dm_remove_device(tBTA_DM_MSG* p_data) {
     LOG(INFO) << "Last paired device removed, resetting IRK";
     btm_ble_reset_id();
   }
+
 }
 
 /*******************************************************************************
@@ -1628,7 +1630,14 @@ void bta_dm_discover(tBTA_DM_MSG* p_data) {
   bta_dm_search_cb.p_btm_inq_info = BTM_InqDbRead(p_data->discover.bd_addr);
   bta_dm_search_cb.transport = p_data->discover.transport;
 
-  bta_dm_search_cb.name_discover_done = false;
+  char* p_name = BTM_SecReadDevName(p_data->discover.bd_addr);
+  if ((p_name != NULL) && (p_data->discover.transport == BT_TRANSPORT_BR_EDR)) {
+    strlcpy((char*)bta_dm_search_cb.peer_name, p_name, BD_NAME_LEN + 1);
+    bta_dm_search_cb.name_discover_done = true;
+  } else {
+    bta_dm_search_cb.name_discover_done = false;
+  }
+
   bta_dm_search_cb.uuid = p_data->discover.uuid;
   bta_dm_discover_device(p_data->discover.bd_addr);
 }
@@ -1888,6 +1897,7 @@ static void bta_dm_store_profiles_version() {
   int i;
 
   const UINT16 servclass_uuids[] = {
+    UUID_SERVCLASS_AUDIO_SOURCE,
     UUID_SERVCLASS_AUDIO_SINK,
     UUID_SERVCLASS_HF_HANDSFREE,
     UUID_SERVCLASS_AV_REMOTE_CONTROL,
@@ -1897,6 +1907,7 @@ static void bta_dm_store_profiles_version() {
 
   const UINT16 btprofile_uuids[] = {
     UUID_SERVCLASS_ADV_AUDIO_DISTRIBUTION,
+    UUID_SERVCLASS_ADV_AUDIO_DISTRIBUTION,
     UUID_SERVCLASS_HF_HANDSFREE,
     UUID_SERVCLASS_AV_REMOTE_CONTROL,
     UUID_SERVCLASS_AV_REMOTE_CONTROL,
@@ -1904,6 +1915,7 @@ static void bta_dm_store_profiles_version() {
   };
 
   const char* profile_keys[] = {
+    A2DP_VERSION_CONFIG_KEY,
     A2DP_VERSION_CONFIG_KEY,
     HFP_VERSION_CONFIG_KEY,
     AV_REM_CTRL_VERSION_CONFIG_KEY,
@@ -1955,8 +1967,9 @@ static void bta_dm_store_profiles_version() {
           iot_profile_keys[i], profile_version, IOT_CONF_BYTE_NUM_2);
 #endif
     }
+    if (servclass_uuids[i] == UUID_SERVCLASS_AUDIO_SINK
+            || servclass_uuids[i] == UUID_SERVCLASS_AUDIO_SOURCE) {
 
-    if (servclass_uuids[i] == UUID_SERVCLASS_AUDIO_SINK) {
       /* get peer AVDTP version */
       if (SDP_FindProtocolListElemInRec(sdp_rec, UUID_PROTOCOL_AVDTP, &elem)) {
         avdtp_version = elem.params[0];
@@ -1964,6 +1977,7 @@ static void bta_dm_store_profiles_version() {
           if (btif_config_set_uint16(sdp_rec->remote_bd_addr.ToString().c_str(),
                               AVDTP_VERSION_CONFIG_KEY,
                               avdtp_version)) {
+            APPL_TRACE_DEBUG("Store avdtp_version");
             btif_config_save();
           } else {
             APPL_TRACE_WARNING("%s: Failed to store avdtp_version version for %s",
@@ -2244,7 +2258,10 @@ void bta_dm_sdp_result(tBTA_DM_MSG* p_data) {
 
     p_msg = (tBTA_DM_MSG*)osi_malloc(sizeof(tBTA_DM_MSG));
     p_msg->hdr.event = BTA_DM_DISCOVERY_RESULT_EVT;
-    p_msg->disc_result.result.disc_res.result = BTA_FAILURE;
+    if (p_data->sdp_event.sdp_result == SDP_CONN_BUSY)
+        p_msg->disc_result.result.disc_res.result = BTA_BUSY;
+    else
+        p_msg->disc_result.result.disc_res.result = BTA_FAILURE;
     p_msg->disc_result.result.disc_res.services =
         bta_dm_search_cb.services_found;
     p_msg->disc_result.result.disc_res.bd_addr = bta_dm_search_cb.peer_bdaddr;
@@ -3365,6 +3382,16 @@ static uint8_t bta_dm_sp_cback(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data) {
             return BTM_CMD_STARTED;
           APPL_TRACE_WARNING(
               " bta_dm_sp_cback() -> Failed to start Remote Name Request  ");
+          sec_event.key_notif.bd_addr = p_data->cfm_req.bd_addr;
+          BTA_COPY_DEVICE_CLASS(sec_event.key_notif.dev_class,
+                                p_data->cfm_req.dev_class);
+          BD_NAME bd_name;
+          if (BTM_GetRemoteDeviceName(p_data->cfm_req.bd_addr, bd_name)){
+            APPL_TRACE_WARNING(
+               " bta_dm_sp_cback() -> Failed to start Remote Name Request, use cached name  ");
+            strlcpy((char*)sec_event.key_notif.bd_name,
+              (char*)bd_name, BD_NAME_LEN + 1);
+          }
         } else {
           /* Due to the switch case falling through below to
              BTM_SP_KEY_NOTIF_EVT,
@@ -3395,6 +3422,16 @@ static uint8_t bta_dm_sp_cback(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data) {
             return BTM_CMD_STARTED;
           APPL_TRACE_WARNING(
               " bta_dm_sp_cback() -> Failed to start Remote Name Request  ");
+          sec_event.key_notif.bd_addr = p_data->key_notif.bd_addr;
+          BTA_COPY_DEVICE_CLASS(sec_event.key_notif.dev_class,
+                                p_data->key_notif.dev_class);
+          BD_NAME bd_name;
+          if (BTM_GetRemoteDeviceName(p_data->key_notif.bd_addr, bd_name)){
+            APPL_TRACE_WARNING(
+               " bta_dm_sp_cback() -> Failed to start Remote Name Request, use cached name  ");
+               strlcpy((char*)sec_event.key_notif.bd_name,
+                 (char*)bd_name, BD_NAME_LEN + 1);
+          }
         } else {
           sec_event.key_notif.bd_addr = p_data->key_notif.bd_addr;
           BTA_COPY_DEVICE_CLASS(sec_event.key_notif.dev_class,
@@ -5818,22 +5855,62 @@ void bta_dm_proc_open_evt(tBTA_GATTC_OPEN* p_data) {
  ******************************************************************************/
 static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
   APPL_TRACE_DEBUG("bta_dm_gattc_callback event = %d", event);
-
+  bool proc_open_evt = true;
   switch (event) {
     case BTA_GATTC_OPEN_EVT:
 #ifdef ADV_AUDIO_FEATURE
+      bta_dm_search_cb.adv_le_bdaddr = bta_dm_search_cb.peer_bdaddr;
+      bta_dm_le_gatt_cb.is_lea_device = false;
+      bta_dm_le_gatt_cb.disc_progress = false;
       if (is_remote_support_adv_audio(bta_dm_search_cb.peer_bdaddr)) {
         bta_dm_set_adv_audio_dev_info(&p_data->open);
+        uint8_t sec_flag = 0;
+        BTM_GetSecurityFlagsByTransport(p_data->open.remote_bda, &sec_flag, BT_TRANSPORT_LE);
+        APPL_TRACE_DEBUG(" sec_flag = 0x%x ", sec_flag);
+        if (sec_flag & BTM_SEC_FLAG_ENCRYPTED) {
+          /* if link has been encrypted */
+         APPL_TRACE_DEBUG(" bta_dm_gattc_callback link has been encrypted for device: %s ",
+         p_data->open.remote_bda.ToString().c_str());
+         proc_open_evt = false;
+        }
+        bta_dm_le_gatt_cb.disc_progress = true;
+        bta_dm_le_gatt_cb.is_lea_device = true;
+      } else {
+        bta_dm_le_gatt_cb.is_lea_device = false;
       }
 #endif
+      APPL_TRACE_ERROR(" %s  is_lea_device %d disc_progress %d", __func__, bta_dm_le_gatt_cb.is_lea_device,
+                      bta_dm_le_gatt_cb.disc_progress);
       //TODO reset the discovery parameters before triggering it open evt
-      bta_dm_proc_open_evt(&p_data->open);
+      if (proc_open_evt)
+        bta_dm_proc_open_evt(&p_data->open);
       break;
 
     case BTA_GATTC_SEARCH_RES_EVT:
+      APPL_TRACE_ERROR(" bta_dm_gattc_callback is_lea_device %d", bta_dm_le_gatt_cb.is_lea_device);
+      if (!bta_dm_le_gatt_cb.is_lea_device) {
+        if (is_le_audio_service(p_data->srvc_res.service_uuid.uuid)) {
+          APPL_TRACE_ERROR(" bta_dm_gattc_callback LE AUDIO UUID");
+          bta_dm_le_gatt_cb.is_lea_device = true;
+          bta_dm_le_gatt_cb.disc_progress = false;
+          //This remote supports LE AUDIO. So reuse LE AUDIO API's to derive role
+          btif_store_adv_audio_pair_info(bta_dm_search_cb.peer_bdaddr);
+          bta_dm_update_adv_audio_db(bta_dm_search_cb.peer_bdaddr);
+          RawAddress id_addr =
+            btif_get_map_address(bta_dm_search_cb.peer_bdaddr);
+          if ((id_addr != RawAddress::kEmpty) && (id_addr !=
+                bta_dm_search_cb.peer_bdaddr)) {
+            APPL_TRACE_DEBUG(" bta_dm_gattc_callback Storing ID_ADDR %s",
+                            id_addr.ToString().c_str());
+            btif_store_adv_audio_pair_info(id_addr);
+            bta_dm_update_adv_audio_db(id_addr);
+            bta_dm_ble_adv_audio_idaddr_map(bta_dm_search_cb.peer_bdaddr, id_addr);
+          }
+        }
+      }
 #ifdef ADV_AUDIO_FEATURE
-      if (is_remote_support_adv_audio(bta_dm_search_cb.peer_bdaddr)) {
-        bta_add_adv_audio_uuid(bta_dm_search_cb.peer_bdaddr,
+      if (is_remote_support_adv_audio(bta_dm_search_cb.adv_le_bdaddr)) {
+        bta_add_adv_audio_uuid(bta_dm_search_cb.adv_le_bdaddr,
                            p_data->srvc_res.service_uuid);
       }
 #endif
@@ -5846,22 +5923,38 @@ static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
                                   p_data->search_cmpl.status);
 #ifdef ADV_AUDIO_FEATURE
         if (p_data->search_cmpl.status == 0) {
-          if (is_remote_support_adv_audio(bta_dm_search_cb.peer_bdaddr)) {
-            bta_dm_reset_adv_audio_gatt_disc_prog(bta_dm_search_cb.peer_bdaddr);
-            bta_get_adv_audio_role(bta_dm_search_cb.peer_bdaddr,
-                p_data->search_cmpl.conn_id,
-                p_data->search_cmpl.status);
+          if (is_remote_support_adv_audio(bta_dm_search_cb.adv_le_bdaddr)) {
+            if (!bta_dm_le_gatt_cb.disc_progress) {
+              APPL_TRACE_DEBUG(" bta_dm_le_gattc_callback LE AUDIO ROLE DISC");
+              //This remote supports LE AUDIO. So reuse LE AUDIO API's to derive role
+              tBTA_GATTC_OPEN p_tmp_data;
+              p_tmp_data.remote_bda = bta_dm_search_cb.adv_le_bdaddr;
+              p_tmp_data.conn_id = p_data->search_cmpl.conn_id;
+              p_tmp_data.transport = BT_TRANSPORT_LE;
+              bta_dm_le_gatt_cb.disc_progress = true;
+              bta_dm_set_adv_audio_dev_info(&p_tmp_data);
+              bta_adv_audio_update_bond_db(bta_dm_search_cb.adv_le_bdaddr, GATT_TRANSPORT_LE);
+
+            }
+            bta_dm_reset_adv_audio_gatt_disc_prog(bta_dm_search_cb.adv_le_bdaddr);
+            if(!is_gatt_encryption_pending(bta_dm_search_cb.adv_le_bdaddr)) {
+              APPL_TRACE_DEBUG("continue with LEA search as encr completed");
+              bta_get_adv_audio_role(bta_dm_search_cb.adv_le_bdaddr,
+                  p_data->search_cmpl.conn_id,
+                  p_data->search_cmpl.status);
+            }
           }
-          if (is_adv_audio_group_supported(bta_dm_search_cb.peer_bdaddr,
-               p_data->search_cmpl.conn_id)) {
+          if (is_adv_audio_group_supported(bta_dm_search_cb.adv_le_bdaddr,
+                p_data->search_cmpl.conn_id)) {
             bta_find_adv_audio_group_instance(p_data->search_cmpl.conn_id,
-                p_data->search_cmpl.status, bta_dm_search_cb.peer_bdaddr);
+                p_data->search_cmpl.status, bta_dm_search_cb.adv_le_bdaddr);
           }
         } else {
           APPL_TRACE_DEBUG("%s Discovery Failure ", __func__);
-          if (is_remote_support_adv_audio(bta_dm_search_cb.peer_bdaddr))
-            bta_dm_reset_adv_audio_gatt_disc_prog(bta_dm_search_cb.peer_bdaddr);
-            bta_le_audio_service_search_failed(&bta_dm_search_cb.peer_bdaddr);
+          if (is_remote_support_adv_audio(bta_dm_search_cb.adv_le_bdaddr))
+            bta_dm_reset_adv_audio_gatt_disc_prog(bta_dm_search_cb.adv_le_bdaddr);
+            bta_dm_le_gatt_cb = {};
+            bta_le_audio_service_search_failed(&bta_dm_search_cb.adv_le_bdaddr);
         }
 #endif
       }
@@ -5871,17 +5964,19 @@ static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
       APPL_TRACE_DEBUG("BTA_GATTC_CLOSE_EVT reason = %d,"
         "p_data conn_id %d, search conn_id %d", p_data->close.reason,
         p_data->close.conn_id,bta_dm_search_cb.conn_id);
+      bta_dm_search_cb.adv_le_bdaddr = RawAddress::kEmpty;
 
       if(p_data->close.conn_id == bta_dm_search_cb.conn_id)
           bta_dm_search_cb.conn_id = GATT_INVALID_CONN_ID;
 #ifdef ADV_AUDIO_FEATURE
       if (is_remote_support_adv_audio(p_data->close.remote_bda)) {
+        bta_dm_le_gatt_cb = {};
         if (is_gatt_srvc_disc_pending(p_data->close.remote_bda)) {
           bta_le_audio_service_search_failed(&p_data->close.remote_bda);
         } else if (bta_adv_audio_role_disc_progress(p_data->close.remote_bda)) {
           APPL_TRACE_ERROR("BTA_GATTC_CLOSE_EVT called during discovery under progress");
           bta_le_audio_service_search_failed(&p_data->close.remote_bda);
-        }else {
+        } else {
           bta_dm_reset_adv_audio_dev_info(p_data->close.remote_bda);
         }
       }
@@ -6030,9 +6125,12 @@ static void bta_dm_le_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
         bta_adv_audio_update_bond_db(bta_dm_le_gatt_cb.peer_address, GATT_TRANSPORT_LE);
 
         if (p_data->search_cmpl.status == 0) {
-          bta_get_adv_audio_role(bta_dm_le_gatt_cb.peer_address,
-              p_data->search_cmpl.conn_id,
-              p_data->search_cmpl.status);
+          if(!is_gatt_encryption_pending(bta_dm_le_gatt_cb.peer_address)) {
+            APPL_TRACE_DEBUG("continue with LEA search as encr completed");
+            bta_get_adv_audio_role(bta_dm_le_gatt_cb.peer_address,
+                p_data->search_cmpl.conn_id,
+                p_data->search_cmpl.status);
+          }
           if (is_adv_audio_group_supported(bta_dm_le_gatt_cb.peer_address,
                 p_data->search_cmpl.conn_id)) {
             bta_find_adv_audio_group_instance(p_data->search_cmpl.conn_id,
@@ -6065,6 +6163,29 @@ static void bta_dm_le_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
     default:
       break;
   }
+}
+
+bool bta_dm_is_hogp_supported(RawAddress bd_addr) {
+  Uuid remote_uuids[BT_MAX_NUM_UUIDS];
+  bt_property_t prop;
+
+  prop.type = BT_PROPERTY_UUIDS;
+  prop.val = &remote_uuids[0];
+  prop.len = sizeof(remote_uuids);
+  btif_storage_get_remote_device_property(&bd_addr, &prop);
+
+  int i, valid_uuids = 0;
+  for (i = 0; i < BT_MAX_NUM_UUIDS; i++) {
+    if (remote_uuids[i].As16Bit() == UUID_SERVCLASS_LE_HID) {
+      APPL_TRACE_DEBUG("%s: HOGP Service found with device %s",
+                       __func__, bd_addr.ToString().c_str());
+      return true;
+    }
+  }
+
+  APPL_TRACE_DEBUG("%s: HOGP Service not found with device %s",
+                   __func__, bd_addr.ToString().c_str());
+  return false;
 }
 
 void bta_dm_gatt_le_services(RawAddress bd_addr) {

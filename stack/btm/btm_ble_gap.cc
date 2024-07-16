@@ -501,6 +501,7 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration,
                            tBTM_INQ_RESULTS_CB* p_results_cb,
                            tBTM_CMPL_CB* p_cmpl_cb) {
   tBTM_BLE_INQ_CB* p_inq = &btm_cb.ble_ctr_cb.inq_var;
+  tBTM_LE_RANDOM_CB* p_cb = &btm_cb.ble_ctr_cb.addr_mgnt_cb;
   tBTM_STATUS status = BTM_WRONG_MODE;
   uint8_t i=0;
   std::vector<uint16_t> scan_interval = {BTM_BLE_GAP_DISC_SCAN_WIN, BTM_BLE_GAP_DISC_SCAN_WIN};
@@ -564,6 +565,15 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration,
         period_ms_t duration_ms = duration * 1000;
         alarm_set_on_mloop(btm_cb.ble_ctr_cb.observer_timer, duration_ms,
                            btm_ble_observer_timer_timeout, NULL);
+      }
+      if(BTM_BLE_IS_SCAN_ACTIVE(btm_cb.ble_ctr_cb.scan_activity) && !alarm_is_scheduled(p_cb->refresh_raddr_timer)) {
+        /* start a periodical timer to refresh random addr */
+        uint64_t interval_ms = btm_get_next_private_addrress_interval_ms();
+#if (BTM_BLE_CONFORMANCE_TESTING == TRUE)
+        interval_ms = btm_cb.ble_ctr_cb.rpa_tout * 1000;
+#endif
+        alarm_set_on_mloop(p_cb->refresh_raddr_timer, interval_ms,
+                     btm_ble_refresh_raddr_timer_timeout, NULL);
       }
     }
   } else if (BTM_BLE_IS_OBS_ACTIVE(btm_cb.ble_ctr_cb.scan_activity)) {
@@ -1438,6 +1448,14 @@ void btm_ble_periodic_adv_sync_established(uint8_t *param, uint16_t param_len) {
   ps->sync_state = PERIODIC_SYNC_ESTABLISHED;
   ps->sync_start_cb.Run(status, sync_handle, adv_sid,
                                    address_type, addr, phy, interval);
+  if (status != BTM_SUCCESS) {
+    BTM_TRACE_WARNING("[PSync]%s: PA sync fails, erase psync slot, index=%d", __func__, index);
+    ps->sync_state =  PERIODIC_SYNC_IDLE;
+    ps->in_use = false;
+    ps->remote_bda =  RawAddress::kEmpty;
+    ps->sid = 0;
+    ps->sync_handle = 0;
+  }
   btm_sync_queue_advance();
 }
 
@@ -1802,6 +1820,16 @@ void btm_ble_biginfo_adv_report_rcvd(uint8_t *p, uint16_t param_len) {
   uint16_t sync_handle, iso_interval, max_pdu, max_sdu;
   uint8_t num_bises, nse, bn, pto, irc, phy, framing, encryption;
   uint32_t sdu_interval;
+
+  // 2 bytes for sync handle, 1 byte for num_bises, 1 byte for nse, 2 bytes for
+  // iso_interval, 1 byte each for bn, pto, irc, 2 bytes for max_pdu, 3 bytes
+  // for sdu_interval, 2 bytes for max_sdu, 1 byte each for phy, framing,
+  // encryption
+  if (param_len < 19) {
+    LOG(ERROR) << "Insufficient data";
+    return;
+  }
+
   STREAM_TO_UINT16(sync_handle, p);
   STREAM_TO_UINT8(num_bises, p);
   STREAM_TO_UINT8(nse, p);
@@ -2807,6 +2835,15 @@ static void btm_ble_appearance_to_cod(uint16_t appearance, uint8_t* dev_class) {
       dev_class[1] = BTM_COD_MAJOR_AUDIO;
       dev_class[2] = BTM_COD_MINOR_UNCLASSIFIED;
       break;
+    case BTM_BLE_APPEARANCE_GENERIC_WEARABLE_AUDIO_DEVICE:
+    case BTM_BLE_APPEARANCE_WEARABLE_AUDIO_DEVICE_EARBUD:
+    case BTM_BLE_APPEARANCE_WEARABLE_AUDIO_DEVICE_HEADSET:
+    case BTM_BLE_APPEARANCE_WEARABLE_AUDIO_DEVICE_HEADPHONES:
+    case BTM_BLE_APPEARANCE_WEARABLE_AUDIO_DEVICE_NECK_BAND:
+      dev_class[0] = (BTM_COD_SERVICE_AUDIO | BTM_COD_SERVICE_RENDERING) >> 8;
+      dev_class[1] = (BTM_COD_MAJOR_AUDIO | BTM_COD_SERVICE_LE_AUDIO);
+      dev_class[2] = BTM_COD_MINOR_WEARABLE_HEADSET;
+      break;
     case BTM_BLE_APPEARANCE_GENERIC_BARCODE_SCANNER:
     case BTM_BLE_APPEARANCE_HID_BARCODE_SCANNER:
     case BTM_BLE_APPEARANCE_GENERIC_HID:
@@ -2978,11 +3015,13 @@ void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
           if (controller_get_interface()->is_adv_audio_supported()) {
             if (((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_ADV_AUDIO_CONN)
                 || ((p_uuid16[i] | (p_uuid16[i + 1] << 8)) == UUID_SERVCLASS_ADV_AUDIO_CONN_LESS)) {
-              VLOG(1) << __func__ << " updated to ADV AUDIO COD PROP";
-              p_cur->dev_class[0] = 0;
-              p_cur->dev_class[1] = BTM_COD_MAJOR_ADV_AUDIO;
-              p_cur->dev_class[2] = 0;
-              break;
+              if ((p_cur->dev_class[1] & BTM_COD_MAJOR_ADV_AUDIO) != BTM_COD_MAJOR_ADV_AUDIO){
+                  VLOG(1) << __func__ << " updated to ADV AUDIO COD PROP";
+                  p_cur->dev_class[0] = 0;
+                  p_cur->dev_class[1] = BTM_COD_MAJOR_ADV_AUDIO;
+                  p_cur->dev_class[2] = 0;
+                 break;
+              }
             }
           }
 #endif
@@ -2995,7 +3034,7 @@ void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
     if (controller_get_interface()->is_adv_audio_supported()) {
       /* if this BLE device support ADV AUDIO over LE, set ADV AUDIO Major
        * in class of device */
-      if (is_adv_audio_support) {
+      if (is_adv_audio_support && ((p_cur->dev_class[1] & BTM_COD_MAJOR_ADV_AUDIO) != BTM_COD_MAJOR_ADV_AUDIO)) {
         VLOG(1) << __func__ << " updated to ADV AUDIO COD PROP";
         p_cur->dev_class[0] = 0;
         p_cur->dev_class[1] = BTM_COD_MAJOR_ADV_AUDIO;
@@ -3082,20 +3121,27 @@ void btm_ble_process_ext_adv_pkt(uint8_t data_len, uint8_t* data) {
       advertising_sid;
   int8_t rssi, tx_power;
   uint16_t event_type, periodic_adv_int, direct_address_type;
+  size_t bytes_to_process;
 
   /* Only process the results if the inquiry is still active */
   if (!BTM_BLE_IS_SCAN_ACTIVE(btm_cb.ble_ctr_cb.scan_activity)) return;
 
+  bytes_to_process = 1;
+
+  if (data_len < bytes_to_process) {
+    LOG(ERROR) << "Malformed LE extended advertising packet: not enough room "
+                  "for num reports";
+    return;
+  }
+
   /* Extract the number of reports in this event. */
   STREAM_TO_UINT8(num_reports, p);
 
-  constexpr int extended_report_header_size = 24;
   while (num_reports--) {
-    if (p + extended_report_header_size > data + data_len) {
-      // TODO(jpawlowski): we should crash the stack here
-      BTM_TRACE_ERROR(
-          "Malformed LE Extended Advertising Report Event from controller - "
-          "can't loop the data");
+    bytes_to_process += 24;
+    if (data_len < bytes_to_process) {
+      LOG(ERROR) << "Malformed LE extended advertising packet: not enough room "
+                    "for metadata";
       return;
     }
 
@@ -3115,8 +3161,11 @@ void btm_ble_process_ext_adv_pkt(uint8_t data_len, uint8_t* data) {
 
     uint8_t* pkt_data = p;
     p += pkt_data_len; /* Advance to the the next packet*/
-    if (p > data + data_len) {
-      LOG(ERROR) << "Invalid pkt_data_len: " << +pkt_data_len;
+
+    bytes_to_process += pkt_data_len;
+    if (data_len < bytes_to_process) {
+      LOG(ERROR) << "Malformed LE extended advertising packet: not enough room "
+                    "for packet data";
       return;
     }
 
@@ -3152,18 +3201,28 @@ void btm_ble_process_adv_pkt(uint8_t data_len, uint8_t* data) {
   uint8_t* p = data;
   uint8_t legacy_evt_type, addr_type, num_reports, pkt_data_len;
   int8_t rssi;
+  size_t bytes_to_process;
 
   /* Only process the results if the inquiry is still active */
   if (!BTM_BLE_IS_SCAN_ACTIVE(btm_cb.ble_ctr_cb.scan_activity)) return;
 
+  bytes_to_process = 1;
+
+  if (data_len < bytes_to_process) {
+    LOG(ERROR)
+        << "Malformed LE advertising packet: not enough room for num reports";
+    return;
+  }
+
   /* Extract the number of reports in this event. */
   STREAM_TO_UINT8(num_reports, p);
 
-  constexpr int report_header_size = 10;
   while (num_reports--) {
-    if (p + report_header_size > data + data_len) {
-      // TODO(jpawlowski): we should crash the stack here
-      BTM_TRACE_ERROR("Malformed LE Advertising Report Event from controller");
+    bytes_to_process += 9;
+
+    if (data_len < bytes_to_process) {
+      LOG(ERROR)
+          << "Malformed LE advertising packet: not enough room for metadata";
       return;
     }
 
@@ -3175,8 +3234,12 @@ void btm_ble_process_adv_pkt(uint8_t data_len, uint8_t* data) {
 
     uint8_t* pkt_data = p;
     p += pkt_data_len; /* Advance to the the rssi byte */
-    if (p > data + data_len - sizeof(rssi)) {
-      LOG(ERROR) << "Invalid pkt_data_len: " << +pkt_data_len;
+
+    // include rssi for this check
+    bytes_to_process += pkt_data_len + 1;
+    if (data_len < bytes_to_process) {
+      LOG(ERROR) << "Malformed LE advertising packet: not enough room for "
+                    "packet data and/or RSSI";
       return;
     }
 
@@ -3357,7 +3420,7 @@ static void btm_ble_process_adv_pkt_cont(
       update = true;
     } else if (BTM_BLE_IS_OBS_ACTIVE(btm_cb.ble_ctr_cb.scan_activity)) {
       update = false;
-    } if (p_i == NULL) {
+    } else if (p_i == NULL) {
       /* updating the entry in INQ database */
       update = true;
     } else {

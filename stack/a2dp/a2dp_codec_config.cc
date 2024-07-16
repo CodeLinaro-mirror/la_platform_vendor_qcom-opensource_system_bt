@@ -51,6 +51,12 @@
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /**
  * A2DP Codecs Configuration
  */
@@ -79,6 +85,7 @@
 #include "device/include/device_iot_config.h"
 #include "bta/av/bta_av_int.h"
 #include "btif_av.h"
+#include <hardware/bt_av.h>
 
 /* The Media Type offset within the codec info byte array */
 #define A2DP_MEDIA_TYPE_OFFSET 1
@@ -110,6 +117,9 @@ bool aptxadaptiver2_1_supported = false;
 bool aptxadaptiver2_2_supported = false;
 bool a2dp_aptxadaptive_src_split_tx_supported = false;
 std::string offload_caps = "";
+bool sbc_sw_sink = false;
+bool aac_sw_sink = false;
+
 static void init_btav_a2dp_codec_config(
     btav_a2dp_codec_config_t* codec_config, btav_a2dp_codec_index_t codec_index,
     btav_a2dp_codec_priority_t codec_priority) {
@@ -202,6 +212,9 @@ A2dpCodecConfig* A2dpCodecConfig::createCodec(
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_TWS:
       codec_config = new A2dpCodecConfigAptxTWS(codec_priority);
+      break;
+	case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
+      codec_config = new A2dpCodecConfigAacSink(codec_priority);
       break;
     // Add a switch statement for each vendor-specific codec
     case BTAV_A2DP_CODEC_INDEX_MAX:
@@ -476,7 +489,7 @@ bool A2dpCodecConfig::setCodecUserConfig(
 
 bool A2dpCodecConfig::codecConfigIsValid(
     const btav_a2dp_codec_config_t& codec_config) {
-  return 
+  return
         (codec_config.codec_type < BTAV_A2DP_CODEC_INDEX_MAX) &&
          (codec_config.sample_rate != BTAV_A2DP_CODEC_SAMPLE_RATE_NONE) &&
          (codec_config.bits_per_sample !=
@@ -1574,10 +1587,29 @@ btav_a2dp_codec_index_t A2DP_SourceCodecIndex(const uint8_t* p_codec_info) {
   return BTAV_A2DP_CODEC_INDEX_MAX;
 }
 
+btav_a2dp_codec_index_t A2DP_SinkCodecIndex(const uint8_t* p_codec_info) {
+  tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
+
+  LOG_VERBOSE(LOG_TAG, "%s: codec_type = 0x%x", __func__, codec_type);
+
+  switch (codec_type) {
+    case A2DP_MEDIA_CT_SBC:
+      return A2DP_SinkCodecIndexSbc(p_codec_info);
+    case A2DP_MEDIA_CT_AAC:
+      return A2DP_SinkCodecIndexAac(p_codec_info);
+    default:
+      break;
+  }
+   LOG_ERROR(LOG_TAG, "%s: unsupported codec type 0x%x", __func__, codec_type);
+  return BTAV_A2DP_CODEC_INDEX_MAX;
+}
+
 const char* A2DP_CodecIndexStr(btav_a2dp_codec_index_t codec_index) {
   switch (codec_index) {
     case BTAV_A2DP_CODEC_INDEX_SOURCE_SBC:
       return A2DP_CodecIndexStrSbc();
+	case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
+      return A2DP_CodecIndexStrAacSink();
     case BTAV_A2DP_CODEC_INDEX_SINK_SBC:
       return A2DP_CodecIndexStrSbcSink();
     case BTAV_A2DP_CODEC_INDEX_SOURCE_AAC:
@@ -1604,6 +1636,8 @@ bool A2DP_InitCodecConfig(btav_a2dp_codec_index_t codec_index,
   switch (codec_index) {
     case BTAV_A2DP_CODEC_INDEX_SOURCE_SBC:
       return A2DP_InitCodecConfigSbc(p_cfg);
+	case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
+      return A2DP_InitCodecConfigAacSink(p_cfg);
     case BTAV_A2DP_CODEC_INDEX_SINK_SBC:
       return A2DP_InitCodecConfigSbcSink(p_cfg);
     case BTAV_A2DP_CODEC_INDEX_SOURCE_AAC:
@@ -1857,6 +1891,40 @@ bool A2DP_Get_AAC_VBR_Status(const RawAddress *remote_bdaddr) {
    return vbr_supported;
 }
 
+void A2DP_SetSinkCodec(const char *sink_cap){
+  char *tok = NULL;
+  char *tmp_token = NULL;
+
+  tok = strtok_r((char*)sink_cap, "-", &tmp_token);
+  while (tok != NULL)
+  {
+    if (strcmp(tok,"sbc") == 0){
+      LOG_INFO(LOG_TAG,"%s: SBC for Sink is supported",__func__);
+      sbc_sw_sink = true;
+    } else if (strcmp(tok,"aac") == 0) {
+      LOG_INFO(LOG_TAG,"%s: AAC for Sink is supported",__func__);
+      aac_sw_sink = true;
+    }
+    tok = strtok_r(NULL, "-", &tmp_token);
+  }
+}
+
+bool A2DP_IsCodecEnabledInSink(btav_a2dp_codec_index_t codec_index) {
+  bool codec_status = false;
+  switch ((int)codec_index) {
+  case BTAV_A2DP_CODEC_INDEX_SINK_SBC:
+    codec_status = sbc_sw_sink;
+    break;
+  case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
+    codec_status = aac_sw_sink;
+    break;
+  case BTAV_A2DP_CODEC_INDEX_SINK_MAX:
+  default:
+    break;
+  }
+  return codec_status;
+}
+
 bool A2DP_GetOffloadStatus() {
   return mA2dp_offload_status;
 }
@@ -1933,6 +2001,7 @@ bool A2DP_IsCodecEnabledInOffload(btav_a2dp_codec_index_t codec_index) {
     case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_TWS:
       codec_status = aptxtws_offload;
       break;
+    case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
     case BTAV_A2DP_QVA_CODEC_INDEX_SOURCE_MAX:
     case BTAV_A2DP_CODEC_INDEX_SINK_MAX:
     default:

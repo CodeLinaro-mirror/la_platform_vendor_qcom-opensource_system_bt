@@ -62,6 +62,12 @@ OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 */
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #pragma once
 
 #include "audio_a2dp_hw/include/audio_a2dp_hw.h"
@@ -86,6 +92,7 @@ enum
   A2DP = 0x1,
   AUDIO_GROUP_MGR = 0x2,
   BROADCAST = 0x3,
+  A2DP_SINK = 0x4,
   MAX_CLIENT
 };
 
@@ -245,9 +252,12 @@ void btif_ahim_set_remote_delay(uint16_t delay_report, uint8_t profile);
 
 bool btif_ahim_is_streaming();
 
+
 void btif_ahim_signal_src_metadata_complete();
 
 void btif_ahim_signal_snk_metadata_complete();
+
+uint16_t btif_ahim_get_sink_latency();
 
 SessionType btif_ahim_get_session_type(uint8_t profile);
 

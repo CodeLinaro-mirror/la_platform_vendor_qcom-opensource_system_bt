@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #pragma once
 
 #include <time.h>
@@ -176,6 +182,8 @@ class IBluetoothTransportInstance_2_1 {
 
   virtual void StopRequest() = 0;
 
+  virtual void NotifyHalRestart() = 0;
+
   virtual bool GetPresentationPosition(uint64_t* remote_delay_report_ns,
                                        uint64_t* total_bytes_readed,
                                        timespec* data_position) = 0;
@@ -185,6 +193,8 @@ class IBluetoothTransportInstance_2_1 {
 
   // Invoked when the transport is requested to log bytes read
   virtual void LogBytesRead(size_t bytes_readed) = 0;
+
+  virtual void UpdateSinkLatency(uint16_t sink_latency) = 0;
 
  private:
   SessionType session_type_;

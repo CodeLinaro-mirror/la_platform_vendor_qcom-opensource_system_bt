@@ -36,6 +36,7 @@
 #include "l2c_api.h"
 #include "osi/include/osi.h"
 #include "utl.h"
+#include "bta_dm_api.h"
 #define COUNTRY_CODE_RANGE_MAX 35
 /*****************************************************************************
  *  Constants
@@ -320,7 +321,8 @@ void bta_hh_start_sdp(tBTA_HH_DEV_CB* p_cb, tBTA_HH_DATA* p_data) {
   bta_hh_cb.p_cur = p_cb;
 
 #if (BTA_HH_LE_INCLUDED == TRUE)
-  if (bta_hh_is_le_device(p_cb, p_data->api_conn.bd_addr)) {
+  if (bta_hh_is_le_device(p_cb, p_data->api_conn.bd_addr) &&
+      bta_dm_is_hogp_supported(p_cb->addr)) {
     bta_hh_le_open_conn(p_cb, p_data->api_conn.bd_addr);
     return;
   }
@@ -493,14 +495,15 @@ void bta_hh_api_disc_act(tBTA_HH_DEV_CB* p_cb, tBTA_HH_DATA* p_data) {
   tHID_STATUS status;
 
 #if (BTA_HH_LE_INCLUDED == TRUE)
-  if (p_cb->is_le_device)
+  if ((p_data != NULL && BTM_UseLeLink(p_data->api_disc.bd_addr))) {
+    APPL_TRACE_WARNING("%s: LE HH link is connected ", __func__);
     bta_hh_le_api_disc_act(p_cb);
-  else
+  } else
 #endif
   {
     /* found an active connection */
-    disc_dat.handle =
-        p_data ? (uint8_t)p_data->hdr.layer_specific : p_cb->hid_handle;
+    disc_dat.handle = p_data ? (uint8_t)p_data->api_disc.hdr.layer_specific
+                             : p_cb->hid_handle;
     disc_dat.status = BTA_HH_ERR;
 
     status = HID_HostCloseDev(disc_dat.handle);
@@ -819,10 +822,9 @@ void bta_hh_open_failure(tBTA_HH_DEV_CB* p_cb, tBTA_HH_DATA* p_data) {
   (*bta_hh_cb.p_cback)(BTA_HH_OPEN_EVT, (tBTA_HH*)&conn_dat);
 
   /* if virtually unplug, remove device */
-  if (p_cb->vp ) {
+  if (p_cb->vp )
     HID_HostRemoveDev( p_cb->hid_handle);
-    bta_hh_clean_up_kdev(p_cb);
-  }
+  bta_hh_clean_up_kdev(p_cb);
 #if (BTA_HH_DEBUG == TRUE)
   bta_hh_trace_dev_db();
 #endif
@@ -903,10 +905,9 @@ void bta_hh_close_act(tBTA_HH_DEV_CB* p_cb, tBTA_HH_DATA* p_data) {
     (*bta_hh_cb.p_cback)(event, (tBTA_HH*)&disc_dat);
 
     /* if virtually unplug, remove device */
-    if (p_cb->vp) {
+    if (p_cb->vp)
       HID_HostRemoveDev(p_cb->hid_handle);
-      bta_hh_clean_up_kdev(p_cb);
-    }
+    bta_hh_clean_up_kdev(p_cb);
 
 #if (BTA_HH_DEBUG == TRUE)
     bta_hh_trace_dev_db();
@@ -935,10 +936,10 @@ void bta_hh_close_act(tBTA_HH_DEV_CB* p_cb, tBTA_HH_DATA* p_data) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_hh_get_dscp_act(tBTA_HH_DEV_CB* p_cb,
-                         UNUSED_ATTR tBTA_HH_DATA* p_data) {
+void bta_hh_get_dscp_act(tBTA_HH_DEV_CB* p_cb, tBTA_HH_DATA* p_data) {
 #if (BTA_HH_LE_INCLUDED == TRUE)
-  if (p_cb->is_le_device) {
+  if ((p_data != NULL && BTM_UseLeLink(p_data->api_get_dscp.bd_addr))) {
+    APPL_TRACE_WARNING("%s: LE HH link is connected ", __func__);
     bta_hh_le_get_dscp_act(p_cb);
   } else
 #endif

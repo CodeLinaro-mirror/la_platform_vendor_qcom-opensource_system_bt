@@ -49,6 +49,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /******************************************************************************
  *
  *  This file contains action functions for advanced audio/video stream
@@ -78,6 +84,7 @@
 #include "btm_int.h"
 #include "device/include/controller.h"
 #include "a2dp_sbc.h"
+#include "a2dp_aac.h"
 #include "btif/include/btif_a2dp_source.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_hf.h"
@@ -122,6 +129,7 @@ extern tBTIF_A2DP_SOURCE_VSC btif_a2dp_src_vsc;
 extern void btif_media_send_reset_vendor_state();
 extern bool btif_device_in_sink_role();
 
+static void bta_av_proc_deferred_config_ind_evt(tBTA_AV_STR_MSG *p_msg);
 static void bta_av_st_rc_timer(tBTA_AV_SCB* p_scb,
                                UNUSED_ATTR tBTA_AV_DATA* p_data);
 
@@ -134,6 +142,25 @@ void update_sub_band_info(uint8_t **param, int *param_len, uint8_t id, uint16_t 
 void update_sub_band_info(uint8_t **param, int *param_len, uint8_t id, uint8_t *data, uint8_t size);
 void enc_mode_change_callback(tBTM_VSC_CMPL *param);
 tBTA_AV_HNDL offload_pending_handle = BTA_AV_HNDL_MSK;
+void bta_avk_update_delay_report (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data);
+// for split a2dp sink
+
+#define VS_QCHCI_A2DP_SINK_START              0x20
+#define AVDT_HEADER_SBC                       0x0D
+#define AVDT_HEADER_NON_SBC                   0x0C
+#define VS_QCHCI_A2DP_SINK_STOP               0x21
+
+  typedef struct {
+    uint8_t stream_handle;
+    uint16_t connection_handle;
+    uint16_t lcid;
+    uint8_t codec_id;
+    uint32_t peak_bit_rate;// 3 octets
+    uint16_t l2cap_mtu;
+    uint8_t packet_header_size;
+    uint8_t cp_enable;//content protection enable
+}A2DP_SINK_OFFLOAD_PARAM;
+A2DP_SINK_OFFLOAD_PARAM offload_sink_start;
 
 /* state machine states */
 enum {
@@ -209,6 +236,13 @@ const tBTA_AV_SACT bta_av_a2dp_action[] = {
     bta_av_offload_rsp,     /* BTA_AV_OFFLOAD_RSP */
     bta_av_disc_fail_as_acp,/* BTA_AV_DISC_FAIL */
     bta_av_handle_collision,/* BTA_AV_HANDLE_COLLISION */
+    bta_av_sink_offload_start_req, /* BTA_AV_SINK_OFFLOAD_START_REQ*/
+    bta_av_sink_offload_stop_req,  /* BTA_AV_SINK_OFFLOAD_STOP_REQ*/
+    bta_av_sink_send_pending_start_cnf,   /* BTA_AV_SINK_SEND_PENDING_START_CNF */
+    bta_av_sink_send_pending_start_rej,   /* BTA_AV_SINK_SEND_PENDING_START_REJ */
+    bta_av_sink_send_pending_suspend_cnf, /* BTA_AV_SINK_SEND_PENDING_SUSPEND_CNF */
+    bta_av_sink_send_pending_suspend_rej, /* BTA_AV_SINK_SEND_PENDING_SUSPEND_REJ */
+    bta_avk_update_delay_report, /*BTA_AVK_UPDATE_DELAY_REPORT*/
     NULL};
 
 /* these tables translate AVDT events to SSM events */
@@ -265,6 +299,11 @@ static const uint16_t bta_av_stream_evt_fail[] = {
     BTA_AV_AVDT_DELAY_RPT_EVT, /* AVDT_DELAY_REPORT_EVT */
     0                          /* AVDT_DELAY_REPORT_CFM_EVT */
 };
+
+void offload_vendor_callback(tBTM_VSC_CMPL *param);
+void sink_offload_vendor_callback(tBTM_VSC_CMPL *param);
+extern bool is_split_enabled();
+
 void bta_av_vendor_offload_start(tBTA_AV_SCB *p_scb);
 static void bta_av_stream0_cback(uint8_t handle, const RawAddress* bd_addr,
                                  uint8_t event, tAVDT_CTRL* p_data);
@@ -562,6 +601,18 @@ static void bta_av_proc_stream_evt(uint8_t handle, const RawAddress* bd_addr,
            * SST is at INIT state, change it to INCOMING state to handle the
            * signalling
            * from the 2nd SEP. */
+          if (p_scb->strm_close_in_progress && is_split_enabled()) {
+            APPL_TRACE_VERBOSE("%s():strm_close_in_progress ", __func__);
+            // defer processing the config indication if stream close
+            // is progress , process it after stream close
+            memcpy(&p_msg->cfg, p_data->config_ind.p_cfg, sizeof(tAVDT_CFG));
+            p_msg->handle = handle;
+            p_msg->avdt_event = event;
+            p_msg->scb_index  = index;
+            do_in_bta_thread(FROM_HERE, base::Bind(&bta_av_proc_deferred_config_ind_evt, p_msg));
+            return;
+          }
+
           if ((bd_addr != NULL) &&
               (bta_av_find_lcb(*bd_addr, BTA_AV_LCB_FIND) != NULL) &&
               (bta_av_is_scb_init(p_scb))) {
@@ -628,6 +679,10 @@ static void bta_av_proc_stream_evt(uint8_t handle, const RawAddress* bd_addr,
       p_msg->hdr.event = bta_av_stream_evt_fail[event];
     }
 
+    if (event == AVDT_CLOSE_IND_EVT && p_scb->state == BTA_AV_OPEN_SST) {
+      p_scb->strm_close_in_progress = true;
+    }
+
     p_msg->initiator = false;
     if (event == AVDT_SUSPEND_CFM_EVT) p_msg->initiator = true;
 
@@ -644,6 +699,14 @@ static void bta_av_proc_stream_evt(uint8_t handle, const RawAddress* bd_addr,
   } else if (!p_data) {
     APPL_TRACE_ERROR("%s: p_data is null", __func__);
   }
+}
+
+static void bta_av_proc_deferred_config_ind_evt(tBTA_AV_STR_MSG *p_msg) {
+  APPL_TRACE_VERBOSE("%s: ", __func__);
+  p_msg->msg.config_ind.p_cfg = &p_msg->cfg;
+  bta_av_proc_stream_evt(p_msg->handle, & p_msg->bd_addr,
+                         p_msg->avdt_event, &p_msg->msg, p_msg->scb_index);
+  osi_free(p_msg);
 }
 
 /*******************************************************************************
@@ -677,9 +740,11 @@ void bta_av_sink_data_cback(uint8_t handle, BT_HDR* p_pkt, uint32_t time_stamp,
     osi_free(p_pkt);
     return;
   }
-  p_pkt->event = BTA_AV_SINK_MEDIA_DATA_EVT;
-  p_scb->seps[p_scb->sep_idx].p_app_sink_data_cback(BTA_AV_SINK_MEDIA_DATA_EVT,
-                                                    (tBTA_AV_MEDIA*)p_pkt, p_scb->peer_addr);
+  if (!is_split_enabled()) {
+    p_pkt->event = BTA_AV_SINK_MEDIA_DATA_EVT;
+    p_scb->seps[p_scb->sep_idx].p_app_sink_data_cback(BTA_AV_SINK_MEDIA_DATA_EVT,
+                                                      (tBTA_AV_MEDIA*)p_pkt, p_scb->peer_addr);
+  }
   /* Free the buffer: a copy of the packet has been delivered */
   osi_free(p_pkt);
 }
@@ -1067,6 +1132,8 @@ void bta_av_do_disc_a2dp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   APPL_TRACE_DEBUG("%s: is_pts_enable: %s", __func__, is_pts_enable);
   if (!strncmp("true", is_pts_enable, 4)) {
     APPL_TRACE_DEBUG("%s: Don't do a2dp discovery for PTS, return", __func__);
+    /* store peer addr to scb */
+    bta_av_save_addr(p_scb, p_data->api_open.bd_addr);
     return;
   }
 
@@ -1275,6 +1342,7 @@ void bta_av_cleanup(tBTA_AV_SCB* p_scb, UNUSED_ATTR tBTA_AV_DATA* p_data) {
   p_scb->num_disc_snks = 0;
   p_scb->offload_supported = false;
   p_scb->offload_started = false;
+  p_scb->sink_offload_started = false;
   p_scb->vendor_start = false;
   alarm_cancel(p_scb->avrc_ct_timer);
 
@@ -2430,6 +2498,7 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   APPL_TRACE_DEBUG("%s: is_pts_enable: %s", __func__, is_pts_enable);
   if (!strncmp("true", is_pts_enable, 4)) {
     error_code = p_data->ci_setconfig.err_code;
+    APPL_TRACE_DEBUG("%s set config rejected error : 0x%x",__func__,error_code);
   } else {
     error_code = AVDT_ERR_UNSUP_CFG;
   }
@@ -2648,6 +2717,165 @@ void bta_av_str_stopped(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       (*bta_av_cb.p_cback)(BTA_AV_STOP_EVT, &bta_av_data);
     }
   }
+}
+
+
+/*******************************************************************************
+**
+** Function         bta_av_sink_offload_start_req
+**
+** Description      Send VSC start offload cmd.
+**
+** Returns          void
+**
+*******************************************************************************/
+void bta_av_sink_offload_start_req(tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
+{
+    uint16_t mtu;
+    uint8_t param[20];
+    uint16_t acl_hdl;
+    uint8_t param_len;
+    uint32_t bitrate = 0;
+    tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_scb->cfg.codec_info);
+
+    //A2dpCodecConfig* a2dp_codec_configs = bta_av_get_a2dp_current_codec();
+    APPL_TRACE_DEBUG("%s", __func__);
+    /* Check if stream has already been started. */
+    /* Support offload if only one audio source stream is open. */
+    acl_hdl = BTM_GetHCIConnHandle(p_scb->peer_addr, BT_TRANSPORT_BR_EDR);
+    param_len = 14;
+    mtu = bta_av_chk_mtu(p_scb, p_scb->stream_mtu);
+    offload_sink_start.stream_handle = 0;//stream handle is 0 always
+    offload_sink_start.connection_handle = acl_hdl;
+    //offload_sink_start.l2cap_mtu = (mtu < p_scb->stream_mtu) ? mtu : p_scb->stream_mtu;
+    offload_sink_start.l2cap_mtu = BTA_AVK_MAX_A2DP_MTU;
+    offload_sink_start.lcid = p_scb->l2c_cid;
+    offload_sink_start.codec_id = codec_type;
+    offload_sink_start.cp_enable = 0x0;
+    APPL_TRACE_DEBUG("%s codec_type = %04x",__func__,codec_type);
+    switch(codec_type) {
+      case A2DP_MEDIA_CT_SBC:
+        // TODO to properly get the edr
+        bitrate = A2DP_GetOffloadBitrateSbcUsingCodecInfo(p_scb->cfg.codec_info, true);
+        LOG(INFO) << __func__ << "SBC bitrate" << bitrate;
+        offload_sink_start.peak_bit_rate = bitrate * 1000;
+        offload_sink_start.packet_header_size = AVDT_HEADER_SBC;
+        break;
+      case A2DP_MEDIA_CT_AAC:
+        offload_sink_start.peak_bit_rate = A2DP_GetBitRateAac(p_scb->cfg.codec_info);
+        offload_sink_start.packet_header_size = AVDT_HEADER_NON_SBC;
+        break;
+      default:
+        APPL_TRACE_ERROR("Unsupported Codec_type");
+        return;
+        break;
+    }
+    uint8_t *p_param = param;
+    *p_param++ = VS_QCHCI_A2DP_SINK_START;
+    UINT8_TO_STREAM(p_param,offload_sink_start.stream_handle);
+    UINT16_TO_STREAM(p_param,offload_sink_start.connection_handle);
+    UINT16_TO_STREAM(p_param,offload_sink_start.lcid);
+    UINT8_TO_STREAM(p_param,offload_sink_start.codec_id);
+    UINT24_TO_STREAM(p_param,offload_sink_start.peak_bit_rate);
+    UINT16_TO_STREAM(p_param,offload_sink_start.l2cap_mtu);
+    UINT8_TO_STREAM(p_param,offload_sink_start.packet_header_size);
+    UINT8_TO_STREAM(p_param,offload_sink_start.cp_enable);
+    p_scb->sink_split_vsc_rsp_waiting = TRUE;
+    p_scb->sink_offload_started = false;
+    BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE,param_len,
+                               param, sink_offload_vendor_callback);
+    APPL_TRACE_DEBUG("%s Stream Handle = %d",__func__,offload_sink_start.stream_handle);
+    APPL_TRACE_DEBUG("%s Connection Handle = %d",__func__,offload_sink_start.connection_handle);
+    APPL_TRACE_DEBUG("%s LCID = %d",__func__,offload_sink_start.lcid);
+    APPL_TRACE_DEBUG("%s Codec_ID = %d",__func__,offload_sink_start.codec_id);
+    APPL_TRACE_DEBUG("%s Peak Bit Rate = %d",__func__,offload_sink_start.peak_bit_rate);
+    APPL_TRACE_DEBUG("%s L2CAP Mtu = %d",__func__,offload_sink_start.l2cap_mtu);
+    APPL_TRACE_DEBUG("%s Packet Header Size = %d",__func__,offload_sink_start.packet_header_size);
+    APPL_TRACE_DEBUG("%s CP enable = %d",__func__,offload_sink_start.cp_enable);
+}
+/*******************************************************************************
+**
+** Function         bta_av_sink_offload_stop_req
+**
+** Description      send VSC stop(split) req
+**
+** Returns          void
+**
+*******************************************************************************/
+void bta_av_sink_offload_stop_req (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
+{
+    uint8_t param[2];
+    uint8_t param_len = 2;
+    uint8_t *p_param = param;
+    *p_param++ = VS_QCHCI_A2DP_SINK_STOP;
+    UINT8_TO_STREAM(p_param,0);//stream handle is 0
+    BTM_VendorSpecificCommand(HCI_VSQC_CONTROLLER_A2DP_OPCODE,param_len,
+                               param, sink_offload_vendor_callback);
+    p_scb->sink_split_vsc_rsp_waiting = TRUE;
+    APPL_TRACE_DEBUG("%s , vsc command sent",__func__);
+}
+/*******************************************************************************
+**
+** Function         bta_av_sink_send_pending_start_cnf
+**
+** Description      send start cnf for pending request
+**
+** Returns          void
+**
+*******************************************************************************/
+void bta_av_sink_send_pending_start_cnf (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
+{
+    APPL_TRACE_DEBUG(" %s handle %d",__func__,p_scb->avdt_handle);
+    AVDT_SndPendingSigStart_Rsp(p_scb->avdt_handle, TRUE);
+}
+/*******************************************************************************
+**
+** Function         bta_av_sink_send_pending_start_rej
+**
+** Description      send start cnf for pending request
+**
+** Returns          void
+**
+*******************************************************************************/
+void bta_av_sink_send_pending_start_rej (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
+{
+    APPL_TRACE_DEBUG(" %s ",__func__);
+    AVDT_SndPendingSigStart_Rsp(p_scb->avdt_handle, FALSE);
+}
+/*******************************************************************************
+**
+** Function         bta_av_sink_send_pending_suspend_cnf
+**
+** Description      send start cnf for pending request
+**
+** Returns          void
+**
+*******************************************************************************/
+void bta_av_sink_send_pending_suspend_cnf (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
+{
+    APPL_TRACE_DEBUG(" %s ",__func__);
+    AVDT_SndPendingSigSuspend_Rsp(p_scb->avdt_handle, TRUE);
+}
+/*******************************************************************************
+**
+** Function         bta_av_sink_send_pending_suspend_rej
+**
+** Description      send start cnf for pending request
+**
+** Returns          void
+**
+*******************************************************************************/
+void bta_av_sink_send_pending_suspend_rej (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
+{
+    APPL_TRACE_DEBUG(" %s ",__func__);
+    AVDT_SndPendingSigSuspend_Rsp(p_scb->avdt_handle, FALSE);
+}
+
+void bta_avk_update_delay_report (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
+{
+    tBTA_AV_API_SINK_LATENCY* p_latency = &p_data->api_sink_latency;
+    APPL_TRACE_DEBUG(" %s ",__func__);
+    AVDT_UpdateDelayReport(p_scb->avdt_handle, p_latency->sink_latency);
 }
 
 /*******************************************************************************
@@ -3238,6 +3466,8 @@ void bta_av_str_closed(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   tBTA_AV data;
   tBTA_AV_EVT event;
   uint8_t policy = HCI_ENABLE_SNIFF_MODE;
+
+  p_scb->strm_close_in_progress = false;
 
   APPL_TRACE_WARNING(
       "%s: peer_addr=%s open_status=%d chnl=%d hndl=%d co_started=%d", __func__,
@@ -4749,4 +4979,48 @@ void bta_av_handle_collision(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   bta_av_str_closed(p_scb, p_data);
 
   /* connection is retried from upper layers, no need for connection attempt again */
+}
+
+void sink_offload_vendor_callback(tBTM_VSC_CMPL *param)
+{
+    unsigned char sub_opcode = 0;
+    uint8_t index = 0;
+    tBTA_AV_SINK_OFFLOAD_RSP offload_rsp;
+    tBTA_AV_STATUS status = BTA_AV_FAIL_STREAM;
+    APPL_TRACE_DEBUG("offload_vendor_callback: param_len = %d subopcode = %d status = %d",
+                       param->param_len, param->p_param_buf[1], param->p_param_buf[0]);
+    for (index = 0; index < BTA_AV_NUM_STRS; index++) {
+        APPL_TRACE_DEBUG(" %s VSC Resposnse pending", __func__,
+                         bta_av_cb.p_scb[index]->sink_split_vsc_rsp_waiting);
+        if (bta_av_cb.p_scb[index]->sink_split_vsc_rsp_waiting) {
+            break;
+        }
+    }
+    if (index == BTA_AV_NUM_STRS) {
+        APPL_TRACE_DEBUG(" %s no matching scb found",__func__);
+        return;
+    }
+    // we have received response, now we make this variable as false.
+    bta_av_cb.p_scb[index]->sink_split_vsc_rsp_waiting = FALSE;
+    if (param->param_len) {
+        status = param->p_param_buf[0];
+    }
+    sub_opcode =  param->p_param_buf[1];
+    APPL_TRACE_DEBUG(" %s: sub_opcode %d  status = %d",__func__, sub_opcode, status);
+    offload_rsp.status = status;
+    offload_rsp.hndl = bta_av_cb.p_scb[index]->hndl;
+    if(sub_opcode == VS_QCHCI_A2DP_SINK_START) {
+        if(status == HCI_SUCCESS) {
+           bta_av_cb.p_scb[index]->sink_offload_started = true;
+        }
+        (*bta_av_cb.p_cback)(BTA_AV_SINK_OFFLOAD_START_RSP_EVT, (tBTA_AV *)&offload_rsp);
+    }else if(sub_opcode == VS_QCHCI_A2DP_SINK_STOP) {
+        if(status == HCI_SUCCESS) {
+           bta_av_cb.p_scb[index]->sink_offload_started = false;
+        }
+        (*bta_av_cb.p_cback)(BTA_AV_SINK_OFFLOAD_STOP_RSP_EVT, (tBTA_AV *)&offload_rsp);
+
+    }else {
+        APPL_TRACE_ERROR(" %s subopcode doesn't match", __func__);
+    }
 }

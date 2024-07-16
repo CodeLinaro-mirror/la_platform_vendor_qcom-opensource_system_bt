@@ -17,6 +17,12 @@
  *
  ******************************************************************************/
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #define LOG_TAG "a2dp_sbc_encoder"
 
 #include "a2dp_sbc_encoder.h"
@@ -956,7 +962,8 @@ static uint32_t a2dp_sbc_frame_length(void) {
 }
 
 uint16_t a2dp_sbc_calulate_offload_bitrate(A2dpCodecConfig* a2dp_codec_config, bool is_peer_edr,
-                                           const uint8_t *p_codec_info) {
+                                           const uint8_t *src_codec_info) {
+  uint8_t codec_info[AVDT_CODEC_SIZE];
   uint16_t s16SamplingFreq,sample_rate;
   int16_t s16BitPool = 0;
   int16_t s16BitRate;
@@ -964,18 +971,32 @@ uint16_t a2dp_sbc_calulate_offload_bitrate(A2dpCodecConfig* a2dp_codec_config, b
   uint8_t protect = 0;
   int min_bitpool;
   int max_bitpool;
-  uint8_t bits_per_sample,channel_count;
+  uint8_t bits_per_sample = 0,channel_count;
   uint16_t s16ChannelMode, s16NumOfSubBands, s16NumOfBlocks;
   uint16_t s16AllocationMethod, s16NumOfChannels;
   uint16_t offload_bitrate;
+  const uint8_t* p_codec_info = nullptr;
   LOG_ERROR(LOG_TAG,"%s is peer edr = %d",__func__, is_peer_edr);
+  if(src_codec_info) {
+    p_codec_info = src_codec_info;
+    bits_per_sample = A2DP_GetBitsPerSampleSbc(p_codec_info);
+  } else if (a2dp_codec_config &&
+      !a2dp_codec_config->copyOutOtaCodecConfig(codec_info)) {
+    LOG_ERROR(LOG_TAG,
+              "%s: Cannot update the codec encoder for %s: "
+              "invalid codec config",
+              __func__, a2dp_codec_config->name().c_str());
+    return 0;
+  } else if(a2dp_codec_config) {
+    p_codec_info = codec_info;
+    bits_per_sample = a2dp_codec_config->getAudioBitsPerSample();
+  }
 
   min_bitpool = A2DP_GetMinBitpoolSbc(p_codec_info);
   max_bitpool = A2DP_GetMaxBitpoolSbc(p_codec_info);
   // The feeding parameters
   sample_rate = A2DP_GetTrackSampleRateSbc(p_codec_info);
-  bits_per_sample =  a2dp_codec_config->getAudioBitsPerSample();
-     //A2DP_GetTrackBitsPerSampleSbc(p_codec_info); TODO
+  //A2DP_GetTrackBitsPerSampleSbc(p_codec_info); TODO
   channel_count = A2DP_GetTrackChannelCountSbc(p_codec_info);
   LOG_DEBUG(LOG_TAG, "%s: sample_rate=%u bits_per_sample=%u channel_count=%u min_bitpool=%x max_bitpool=%x",
            __func__, sample_rate, bits_per_sample, channel_count, min_bitpool, max_bitpool);

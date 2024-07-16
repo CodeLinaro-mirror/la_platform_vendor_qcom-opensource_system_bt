@@ -149,6 +149,17 @@ tACL_CONN* btm_bda_to_acl(const RawAddress& bda, tBT_TRANSPORT transport) {
   return ((tACL_CONN*)NULL);
 }
 
+tBT_TRANSPORT BTM_GetTransport(uint16_t hci_handle) {
+  tACL_CONN* p = &btm_cb.acl_db[0];
+  uint16_t xx;
+  for (xx = 0; xx < MAX_L2CAP_LINKS; xx++, p++) {
+    if ((p->in_use) && p->hci_handle == hci_handle) {
+      return (p->transport);
+    }
+  }
+  return 0;
+}
+
 /*******************************************************************************
  *
  * Function         btm_handle_to_acl_index
@@ -1056,7 +1067,7 @@ void btm_read_remote_version_complete(uint8_t* p) {
           bool skip_caching_enable = false;
           BD_NAME bd_name;
           if (BTM_GetRemoteDeviceName(p_acl_cb->remote_addr, bd_name)) {
-            if (interop_database_match_name(INTEROP_SKIP_ROBUST_CACHING_READ, (char*) bd_name)) {
+            if ((interop_database_match_name(INTEROP_SKIP_ROBUST_CACHING_READ, (char*) bd_name)) || (interop_database_match_addr(INTEROP_SKIP_ROBUST_CACHING_READ, &(p_acl_cb->remote_addr)))) {
               skip_caching_enable = true;
             }
           }
@@ -2935,9 +2946,20 @@ tBTM_STATUS btm_remove_acl(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
   } else /* otherwise can disconnect right away */
 #endif
   {
+    if (p_dev_rec) {
+      BTM_TRACE_DEBUG("btm_remove_acl: transport = %d, sec_state= %d", transport,p_dev_rec->sec_state );
+    }
     if (hci_handle != 0xFFFF && p_dev_rec &&
-        p_dev_rec->sec_state != BTM_SEC_STATE_DISCONNECTING) {
-      btsnd_hcic_disconnect(hci_handle, HCI_ERR_PEER_USER);
+       (p_dev_rec->sec_state != BTM_SEC_STATE_DISCONNECTING_BOTH)) {
+      if ((transport == BT_TRANSPORT_LE) &&
+         (p_dev_rec->sec_state != BTM_SEC_STATE_DISCONNECTING_BLE)) {
+        btsnd_hcic_disconnect(hci_handle, HCI_ERR_PEER_USER);
+      } else if((transport == BT_TRANSPORT_BR_EDR) &&
+                (p_dev_rec->sec_state != BTM_SEC_STATE_DISCONNECTING)) {
+        btsnd_hcic_disconnect(hci_handle, HCI_ERR_PEER_USER);
+      } else {
+        status = BTM_UNKNOWN_ADDR;
+      }
     } else {
       status = BTM_UNKNOWN_ADDR;
     }

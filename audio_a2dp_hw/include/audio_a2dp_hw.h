@@ -53,6 +53,12 @@ OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 */
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 /*****************************************************************************
  *
  *  Filename:      audio_a2dp_hw.h
@@ -127,6 +133,8 @@ typedef enum {
   A2DP_CTRL_GET_PRESENTATION_POSITION,
   A2DP_CTRL_CMD_STREAM_OPEN,
   A2DP_CTRL_GET_SINK_LATENCY,
+  A2DP_CTRL_UPDATE_SINK_LATENCY,
+  A2DP_CTRL_NOTIFY_HAL_RESTART,
 } tA2DP_CTRL_CMD;
 
 typedef enum {

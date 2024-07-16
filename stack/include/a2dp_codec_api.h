@@ -18,6 +18,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 //
 // A2DP Codecs API
 //
@@ -671,6 +677,11 @@ bool A2DP_AdjustCodec(uint8_t* p_codec_info);
 // otherwise |BTAV_A2DP_CODEC_INDEX_MAX|.
 btav_a2dp_codec_index_t A2DP_SourceCodecIndex(const uint8_t* p_codec_info);
 
+// Gets the A2DP Source codec index for a given |p_codec_info|.
+// Returns the corresponding |btav_a2dp_codec_index_t| on success,
+// otherwise |BTAV_A2DP_CODEC_INDEX_MAX|.
+btav_a2dp_codec_index_t A2DP_SinkCodecIndex(const uint8_t* p_codec_info);
+
 // Gets the A2DP codec name for a given |codec_index|.
 const char* A2DP_CodecIndexStr(btav_a2dp_codec_index_t codec_index);
 
@@ -689,6 +700,8 @@ bool A2DP_IsScramblingSupported();
 bool A2DP_Is44p1kFreqSupported();
 bool A2DP_IsCodecEnabled(btav_a2dp_codec_index_t codec_index);
 bool A2DP_IsCodecEnabledInSoftware(btav_a2dp_codec_index_t codec_index);
+void A2DP_SetSinkCodec(const char *sink_cap);
+bool A2DP_IsCodecEnabledInSink(btav_a2dp_codec_index_t codec_index);
 bool A2DP_Get_AAC_VBR_Status(const RawAddress *remote_bdaddr);
 bool A2DP_Get_Aptx_AdaptiveR2_1_Supported();
 bool A2DP_Get_Aptx_AdaptiveR2_2_Supported();

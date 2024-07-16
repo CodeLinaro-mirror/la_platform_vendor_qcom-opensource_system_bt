@@ -1543,6 +1543,9 @@ static void bta_jv_port_event_cl_cback(uint32_t code, uint16_t port_handle) {
   }
 
   if (code & PORT_EV_TXEMPTY) {
+    if (NULL != p_pcb->p_pm_cb) {
+       p_pcb->p_pm_cb->cong = false;
+    }
     bta_jv_pm_conn_idle(p_pcb->p_pm_cb);
   }
 }
@@ -1792,6 +1795,9 @@ static void bta_jv_port_event_sr_cback(uint32_t code, uint16_t port_handle) {
   }
 
   if (code & PORT_EV_TXEMPTY) {
+    if (NULL != p_pcb->p_pm_cb) {
+       p_pcb->p_pm_cb->cong = false;
+    }
     bta_jv_pm_conn_idle(p_pcb->p_pm_cb);
   }
 }
@@ -2218,6 +2224,9 @@ static void bta_jv_pm_state_change(tBTA_JV_PM_CB* p_cb,
   switch (state) {
     case BTA_JV_CONN_OPEN:
       bta_sys_conn_open(BTA_ID_JV, p_cb->app_id, p_cb->peer_bd_addr);
+      // update as idle to enter into sniff mode if the link
+      // is idle for some time
+      bta_sys_idle(BTA_ID_JV, p_cb->app_id, p_cb->peer_bd_addr);
       break;
 
     case BTA_JV_CONN_CLOSE:
