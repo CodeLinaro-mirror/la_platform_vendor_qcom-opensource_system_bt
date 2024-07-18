@@ -306,16 +306,30 @@ void letobd(uint8_t localAddr[6]) {
 
 void  split_address (const char* property, bool* need_write, char* address) {
   std::string prop = property;
+  std::string bool_val;
+  std::string address_val;
+  std::size_t delimeter = prop.find("true:");
   ALOGI("%s: property %s",__func__, prop.c_str());
-  std::size_t delimeter = prop.find(" ");
-  if (delimeter == std::string::npos) {
-    ALOGI("%s: delimeter not found returning",__func__);
-    return;
+  if (delimeter == std::string::npos ) {
+    delimeter = prop.find("false:");
+    if (delimeter == std::string::npos ) {
+        ALOGI("%s: delimeter not found returning",__func__);
+        return;
+    }
+    else{
+        bool_val = prop.substr(0, delimeter + strlen("false:"));
+        address_val = prop.substr(delimeter + strlen("false:"));
+    }
   }
-  std::string bool_val = prop.substr(0, delimeter);
-  std::string address_val = prop.substr(delimeter + 1);
+  else{
+    bool_val = prop.substr(0, delimeter + strlen("true:"));
+    address_val = prop.substr(delimeter + strlen("true:"));
+  }
+  ALOGI("%d: delimeter size",__func__, delimeter);
+  ALOGI("%s: bool_val", bool_val.c_str());
+  ALOGI("%s: address_val", bool_val.c_str());
   std::copy(address_val.begin(), address_val.end(), address);
-  if (bool_val.compare("true") == 0) {
+  if (bool_val.compare("true:") == 0) {
     *need_write = true;
   } else {
     *need_write = false;
@@ -370,7 +384,7 @@ generate_address:
     /* Convert to ascii, and store as a persistent property */
     bytes_to_string(local_addr, bdstr);
     std::string prop;
-    prop.append("true ");
+    prop.append("true:");
     prop.append(bdstr);
     ALOGD("%s: No preset BDA! Generating BDA: %s for prop %s:%s", __func__,
           (char*)bdstr, PERSIST_BDADDR_PROPERTY, prop.c_str());
@@ -601,7 +615,7 @@ static void ss_ssr_event_received () {
     bool isWrite;
     split_address(property, &isWrite, addr_prop);
     std::string prop;
-    prop.append("true ");
+    prop.append("true:");
     prop.append(addr_prop);
     if (property_set(PERSIST_BDADDR_PROPERTY, prop.c_str()) < 0) {
       ALOGE("%s: Failed to set random BDA in prop %s", __func__,
@@ -1902,7 +1916,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
                       if (isWrite) {
                         ALOGD(" %s :Adapter State received for first boot", __func__);
                         std::string prop;
-                        prop.append("false ");
+                        prop.append("false:");
                         prop.append(addr_prop);
                         if (property_set(PERSIST_BDADDR_PROPERTY, prop.c_str()) < 0) {
                           ALOGE("%s: Failed to set random BDA in prop %s", __func__,
