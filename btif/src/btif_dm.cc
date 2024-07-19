@@ -442,6 +442,7 @@ static void btif_dm_sdp_delay_timer_cback(void* data) {
 
   BTIF_TRACE_DEBUG("%s: initiating SDP after delay ", __func__);
   // Ensure inquiry is stopped before attempting service discovery
+  if (btif_dm_inquiry_in_progress == true)
   btif_dm_cancel_discovery();
 
   /* Trigger SDP on the device */
@@ -926,6 +927,7 @@ static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
                                    tBTA_TRANSPORT transport) {
   bool is_hid = check_cod(&bd_addr, COD_HID_POINTING);
 
+  BTIF_TRACE_ERROR("%s transport : %d ", __func__, transport);
   if (btm_cb.pairing_state != BTM_PAIR_STATE_IDLE ) {
     BTIF_TRACE_DEBUG("%s: btm_cb.pairing_state = %d, one pairing in progress ",
                       __func__, btm_cb.pairing_state);
@@ -956,6 +958,21 @@ static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
       BTM_ReadDevInfo(bd_addr, &tmp_dev_type, &tmp_addr_type);
       addr_type = tmp_addr_type;
 
+      BTIF_TRACE_ERROR("%s BD Addr %s addr_type: %d", __func__, bd_addr.ToString().c_str(),
+          addr_type);
+      if (addr_type == BLE_ADDR_PUBLIC) {
+        if (BTM_BLE_IS_RANDOM_STATIC_BDA(bd_addr)) {
+          addr_type = BLE_ADDR_RANDOM;
+          BTIF_TRACE_ERROR("%s Is Random static and addr_type: %d", __func__,
+              addr_type);
+        }
+
+        if (BTM_BLE_IS_RESOLVE_BDA(bd_addr)) {
+          addr_type = BLE_ADDR_RANDOM;
+          BTIF_TRACE_ERROR("%s Is Resolvable and addr_type: %d", __func__,
+              addr_type);
+        }
+      }
       btif_storage_set_remote_addr_type(&bd_addr, addr_type);
     }
   }
@@ -964,6 +981,8 @@ static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
         BT_STATUS_SUCCESS) &&
        (device_type & BT_DEVICE_TYPE_BLE) == BT_DEVICE_TYPE_BLE) ||
       (transport == BT_TRANSPORT_LE)) {
+    BTIF_TRACE_ERROR("%s Adding to BLE DEVICE BD Addr %s addr_type: %d",
+        __func__, bd_addr.ToString().c_str(), addr_type);
     BTA_DmAddBleDevice(bd_addr, addr_type, device_type);
   }
 
@@ -979,6 +998,7 @@ static void btif_dm_cb_create_bond(const RawAddress& bd_addr,
       bta_adv_audio_update_bond_db(bd_addr, transport);
       BTIF_TRACE_DEBUG("%s make sure inquiry was stopped before create LEA bond",
      __func__);
+     if (btif_dm_inquiry_in_progress == true)
       btif_dm_cancel_discovery();
       pairing_cb.is_adv_audio = 1;
       pairing_cb.lea_bd_addr = bd_addr;
@@ -1465,6 +1485,7 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
       if (!is_crosskey ||
           !(stack_config_get_interface()->get_pts_crosskey_sdp_disable())) {
         // Ensure inquiry is stopped before attempting service discovery
+        if (btif_dm_inquiry_in_progress == true)
         btif_dm_cancel_discovery();
 
         /* Trigger SDP on the device */
@@ -1494,9 +1515,12 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
           bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDING);
 
           if (bd_addr != pairing_cb.bd_addr) {
+          LOG_INFO(LOG_TAG,
+              "%s: Updating config for bd_addr %s private (pairing_cb) %s ",
+              __func__, bd_addr.ToString().c_str(), pairing_cb.bd_addr.ToString().c_str());
             BTIF_STORAGE_FILL_PROPERTY(&prop,
                 (bt_property_type_t)BT_PROPERTY_REM_DEV_IDENT_BD_ADDR,
-                sizeof(RawAddress), &pairing_cb.bd_addr);
+                sizeof(RawAddress), &bd_addr);
 
             int ret =
               btif_storage_set_remote_device_property(&bd_addr,
@@ -1822,6 +1846,8 @@ static void btif_dm_search_devices_evt(uint16_t event, char* p_param) {
     case BTA_DM_DISC_CMPL_EVT: {
       HAL_CBACK(bt_hal_cbacks, discovery_state_changed_cb,
                 BT_DISCOVERY_STOPPED);
+
+     btif_dm_inquiry_in_progress = false;
     } break;
     case BTA_DM_SEARCH_CANCEL_CMPL_EVT: {
       /* if inquiry is not in progress and we get a cancel event, then
@@ -2078,6 +2104,7 @@ static void btif_dm_search_services_evt(uint16_t event, char* p_param) {
       BTIF_TRACE_DEBUG("%s: discovery is stopped", __func__);
       HAL_CBACK(bt_hal_cbacks, discovery_state_changed_cb,
                 BT_DISCOVERY_STOPPED);
+      btif_dm_inquiry_in_progress = false;
       break;
 
     case BTA_DM_DISC_BLE_RES_EVT: {
@@ -2325,6 +2352,7 @@ static void btif_dm_upstreams_evt(uint16_t event, char* p_param) {
                        btif_dm_SDP_interrupt_transport == p_data->link_up.link_type) {
       /* Trigger SDP*/
         BTIF_TRACE_DEBUG("SDP for %s was interrupted previously, continue SDP", bd_addr.ToString().c_str());
+        if (btif_dm_inquiry_in_progress == true)
         btif_dm_cancel_discovery();
 
         pairing_cb.bd_addr = bd_addr;
@@ -2774,6 +2802,7 @@ static void btif_dm_generic_evt(uint16_t event, char* p_param) {
     case BTIF_DM_CB_DISCOVERY_STARTED: {
       HAL_CBACK(bt_hal_cbacks, discovery_state_changed_cb,
                 BT_DISCOVERY_STARTED);
+      btif_dm_inquiry_in_progress = true;
     } break;
 
     case BTIF_DM_CB_CREATE_BOND: {
