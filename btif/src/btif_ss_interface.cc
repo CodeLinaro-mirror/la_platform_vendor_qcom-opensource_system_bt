@@ -53,6 +53,8 @@ thread_t* data_logging_thread;
 static base::MessageLoop* message_loop_data_logging_ = NULL;
 static base::RunLoop* run_loop_data_logging_ = NULL;
 
+bool running_data_logging = false;
+
 alarm_t *tx_thread_timeout;
 alarm_t *rx_thread_timeout;
 alarm_t *rx_ssr_dump_thread_timeout;
@@ -219,7 +221,7 @@ static void run_message_loop_for_alarm(UNUSED_ATTR void* context) {
 
 static void run_message_loop_for_data_logging(UNUSED_ATTR void* context) {
   ALOGI("run_message_loop_for_data_logging started");
-
+  running_data_logging = true;
   message_loop_data_logging_ = new base::MessageLoop(base::MessageLoop::Type::TYPE_DEFAULT);
   run_loop_data_logging_ = new base::RunLoop();
 
@@ -411,6 +413,8 @@ void BluetoothSSInterface::cleanup() {
       ALOGI("%s(): tx_thread_timeout() is not scheduled", __func__);
     }*/
 
+    running_data_logging = false;
+
     //Cleanup Ctrl Ch
     if (run_loop_ctrl_tx_ && message_loop_ctrl_tx_) {
       message_loop_ctrl_tx_->task_runner()->PostTask(FROM_HERE,
@@ -510,8 +514,12 @@ void BluetoothSSInterface::cleanup() {
 
 void processDataLogging(uint8_t *msgStr, size_t buflen, const char *msgtyp) {
     pthread_mutex_lock(&data_logging_threads_mutex);
-    size_t ret = gSSTransportCtrl->file_write(msgStr,buflen,msgtyp);
-    ALOGD("%s File Write :: total written %d ", __func__, ret);
+    if (gSSTransportCtrl != NULL && running_data_logging){
+      size_t ret = gSSTransportCtrl->file_write(msgStr,buflen,msgtyp);
+      ALOGD("%s File Write :: total written %d ", __func__, ret);
+    }else {
+        ALOGE("%s File Write Failed:: gSSTransportCtrl: %d, running_data_logging: %d ", __func__, gSSTransportCtrl,running_data_logging);
+    }
     pthread_mutex_unlock(&data_logging_threads_mutex);
     free(msgStr);
 }
