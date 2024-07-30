@@ -737,9 +737,12 @@ static int set_adapter_property(const bt_property_t* property) {
       char name[PROPERTY_VALUE_MAX];
       name_len = (property->len > PROPERTY_VALUE_MAX) ? PROPERTY_VALUE_MAX : property->len;
       memcpy(name, property->val, name_len);
-      name[name_len] = '\0';
+      if(name_len ==  PROPERTY_VALUE_MAX )
+        name[name_len-1] = '\0';
+      else
+        name[name_len] = '\0';
       property_set(PERSIST_BDNAME_PROPERTY, (char*)name);
-      ALOGI("set property name : %s", (char*)property->val);
+      ALOGI("set property name : %s", (char*)name);
     } break;
     case BT_PROPERTY_ADAPTER_SCAN_MODE: {
       bt_scan_mode_t mode = *(bt_scan_mode_t*)property->val;
