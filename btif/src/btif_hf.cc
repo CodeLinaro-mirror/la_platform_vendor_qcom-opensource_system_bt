@@ -70,6 +70,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <hardware/bluetooth_headset_interface.h>
 #include <hardware/bt_hf.h>
 #include <log/log.h>
+#include "osi/include/properties.h"
 #include "btif_ss_interface.h"
 #include <map>
 
@@ -950,7 +951,11 @@ void btif_hf_ss_callback(uint16_t event, char* p_param) {
        RawAddress *bd_addr = (RawAddress*)addr;
        ALOGI("[%s] dialCallCb address: %s",__func__, bd_addr->ToString().c_str());
        ALOGI("[%s] dialCallCb number:%s",__func__, number);
-       if (!is_valid_bd_addr(bd_addr) || !is_active_device(bd_addr)) return;
+       /* skipping the active device check for pts
+          PTS sends ATD soon after connection by this active device is not set. */
+       char check_pts_support[PROPERTY_VALUE_MAX] = {0};
+       osi_property_get("vendor.bt.pts.certification",check_pts_support,"false");
+       if(strcmp(check_pts_support,"true") && (!is_valid_bd_addr(bd_addr) || !is_active_device(bd_addr))) return;
 
        HAL_HF_CBACK(bt_hf_callbacks, DialCallCallback, number,
                     bd_addr);
