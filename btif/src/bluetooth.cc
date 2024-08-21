@@ -144,6 +144,7 @@ const int CONFIG_COMPARE_ALL_PASS = 0b11;
 int common_criteria_config_compare_result = CONFIG_COMPARE_ALL_PASS;
 bool is_local_device_atv = false;
 bt_bond_state_t bond_state = BT_BOND_STATE_NONE;
+bool isPairingAccepted = false;
 //btif_trace_level = BT_TRACE_LEVEL_DEBUG;
 BluetoothSSInterface *btSSInterface;
 #ifdef SS_STUB_ENABLED
@@ -1099,41 +1100,50 @@ static int generate_local_oob_data(tBT_TRANSPORT transport) {
 }
 
 static int cancel_bond(const RawAddress* bd_addr) {
+
+  /*Check for Pairing pop-up is already accepted or not*/
+  if(!isPairingAccepted)
+  {
 #if 0
-  /* sanity check */
-  if (interface_ready() == false) return BT_STATUS_NOT_READY;
+    /* sanity check */
+    if (interface_ready() == false) return BT_STATUS_NOT_READY;
 
-  return btif_dm_cancel_bond(bd_addr);
+    return btif_dm_cancel_bond(bd_addr);
 #endif
 
-  ALOGI("%s", __func__);
-  uint8_t cancel_bond_msg[MAX_LENGTH_WITH_PROTO_NONE];
+    ALOGI("%s", __func__);
+    uint8_t cancel_bond_msg[MAX_LENGTH_WITH_PROTO_NONE];
 
-  uint16_t msg_id = BT_DM_CANCEL_BOND;
-  cancel_bond_msg[0] = msg_id & 0xFF;
-  cancel_bond_msg[1] = msg_id >> 8;
+    uint16_t msg_id = BT_DM_CANCEL_BOND;
+    cancel_bond_msg[0] = msg_id & 0xFF;
+    cancel_bond_msg[1] = msg_id >> 8;
 
-  std::string protoMsg;
-  ss_cancel_bond _cancel_bond;
-  _cancel_bond.set_bd_addr(ToRawString(bd_addr).c_str());
-  _cancel_bond.SerializeToString(&protoMsg);
-  ALOGI("%s : protomsg length : %d", __func__,  protoMsg.length());
+    std::string protoMsg;
+    ss_cancel_bond _cancel_bond;
+    _cancel_bond.set_bd_addr(ToRawString(bd_addr).c_str());
+    _cancel_bond.SerializeToString(&protoMsg);
+    ALOGI("%s : protomsg length : %d", __func__,  protoMsg.length());
 
-  uint16_t length = protoMsg.length();
-  cancel_bond_msg[2] = length & 0xFF;
-  cancel_bond_msg[3] = length >> 8;
+    uint16_t length = protoMsg.length();
+    cancel_bond_msg[2] = length & 0xFF;
+    cancel_bond_msg[3] = length >> 8;
 
-  uint16_t proto_encode = PROTO_ENC_DEC;
-  cancel_bond_msg[4] = proto_encode & 0xFF;
-  cancel_bond_msg[5] = proto_encode >> 8;
+    uint16_t proto_encode = PROTO_ENC_DEC;
+    cancel_bond_msg[4] = proto_encode & 0xFF;
+    cancel_bond_msg[5] = proto_encode >> 8;
 
-  std::string msgStr((char *)cancel_bond_msg, MAX_LENGTH_WITH_PROTO_NONE);
-  msgStr.append(protoMsg);
+    std::string msgStr((char *)cancel_bond_msg, MAX_LENGTH_WITH_PROTO_NONE);
+    msgStr.append(protoMsg);
 #ifndef SS_STUB_ENABLED
-  btSSInterface->postTxMsg(msgStr);
+    btSSInterface->postTxMsg(msgStr);
 #else
-  btSSStubInterface->postTxMsg(msgStr);
+    btSSStubInterface->postTxMsg(msgStr);
 #endif
+  }
+  else{
+    isPairingAccepted = false;
+    ALOGI("%s: bd_addr=%s is already bonded ", __func__,bd_addr->ToString().c_str())
+  }
   return BT_STATUS_SUCCESS;
 }
 
@@ -1239,7 +1249,7 @@ static int ssp_reply(const RawAddress* bd_addr, bt_ssp_variant_t variant,
 
   return btif_dm_ssp_reply(bd_addr, variant, accept, passkey);
 #endif
-
+  isPairingAccepted = true;
   ALOGI("%s accept = %d", __func__, accept);
   uint8_t ssp_reply_msg[MAX_LENGTH_WITH_PROTO_NONE];
 
