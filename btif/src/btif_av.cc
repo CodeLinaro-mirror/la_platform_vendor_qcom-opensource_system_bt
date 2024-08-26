@@ -604,14 +604,18 @@ void btif_av_ss_callback(uint16_t event, char* p_param) {
       */
       play_state = state;
       std::lock_guard<std::mutex> lk(cv_m);
-      if(state == BTAV_AUDIO_STATE_STARTED ) {
-        if(pending_cmd == A2DP_CTRL_CMD_START) {
-            bluetooth::audio::aidl::a2dp::ack_stream_started(A2DP_CTRL_ACK_SUCCESS);
-        }
-      } else if (state == BTAV_AUDIO_STATE_STOPPED) {
-        if(pending_cmd == A2DP_CTRL_CMD_SUSPEND) {
-            bluetooth::audio::aidl::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS);
-        }
+      if (pending_cmd == A2DP_CTRL_CMD_START) {
+          if (state == BTAV_AUDIO_STATE_STARTED) {
+               bluetooth::audio::aidl::a2dp::ack_stream_started(A2DP_CTRL_ACK_SUCCESS);
+          } else {
+               bluetooth::audio::aidl::a2dp::ack_stream_started(A2DP_CTRL_ACK_FAILURE);
+          }
+      } else if(pending_cmd == A2DP_CTRL_CMD_SUSPEND) {
+          if (state == BTAV_AUDIO_STATE_STOPPED) {
+               bluetooth::audio::aidl::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS);
+          } else {
+               bluetooth::audio::aidl::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_FAILURE);
+          }
       } else if(state == BTAV_AUDIO_STATE_REMOTE_SUSPEND) {
           // need to handle this
       }
