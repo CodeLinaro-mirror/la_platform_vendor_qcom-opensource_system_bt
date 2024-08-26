@@ -1538,6 +1538,9 @@ void bta_hf_client_at_parse(char *buf, unsigned int len)
 {
     APPL_TRACE_DEBUG("%s offset: %u len: %u", __FUNCTION__, bta_hf_client_cb.scb.at_cb.offset, len);
 
+    if (bta_hf_client_cb.scb.at_cb.offset >= BTA_HF_CLIENT_AT_PARSER_MAX_LEN)
+	    return;
+
     if (len + bta_hf_client_cb.scb.at_cb.offset > BTA_HF_CLIENT_AT_PARSER_MAX_LEN)
     {
         char tmp_buff[BTA_HF_CLIENT_AT_PARSER_MAX_LEN];
