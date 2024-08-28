@@ -805,7 +805,10 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
       if (!is_valid_bd_addr(bd_addr)) return;
 
       HAL_CL_CBACK(bt_hf_client_callbacks, clip_cb, bd_addr,
-                clipCB.number().c_str());
+                clipCB.number().c_str(),
+                clipCB.type(),
+                clipCB.has_alpha() ? (clipCB.alpha().c_str() ?
+                                       clipCB.alpha().c_str() : NULL) : NULL);
       break;
     }
 
@@ -864,7 +867,10 @@ void btif_hf_client_ss_callback(uint16_t event, char* payload) {
                 (bthf_client_call_state_t)clcc_CB.state(),
                 clcc_CB.mpty() ? BTHF_CLIENT_CALL_MPTY_TYPE_MULTI
                                   : BTHF_CLIENT_CALL_MPTY_TYPE_SINGLE,
-                clcc_CB.number().c_str() ? clcc_CB.number().c_str() : NULL);
+                clcc_CB.number().c_str() ? clcc_CB.number().c_str() : NULL,
+                clcc_CB.type(),
+                clcc_CB.has_alpha() ? (clcc_CB.alpha().c_str() ?
+                                   clcc_CB.alpha().c_str() : NULL) : NULL);
       break;
     }
 
