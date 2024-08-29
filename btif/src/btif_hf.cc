@@ -118,6 +118,8 @@ RawAddress active_device_ = RawAddress::kEmpty;
 
 #define BTIF_HF_INVALID_IDX (-1)
 
+#define AT_RESPONSE_ERROR 0
+
 #define EMPTY_PEER_FEAT 0
 /* keep track if SCO allowed for AG */
 bool btif_is_sco_allowed = true;
@@ -180,7 +182,7 @@ static Callbacks* bt_hf_callbacks = NULL;
 #define BTIF_HF_WBS_PREFERRED true
 #endif
 
-class HeadsetInterface : Interface {
+class HeadsetInterface : public Interface {
  public:
   static Interface* GetInstance() {
     static Interface* instance = new HeadsetInterface();
@@ -857,6 +859,8 @@ void btif_hf_ss_callback(uint16_t event, char* p_param) {
   }
   ALOGI("[%s]::msg_id is :: %X , Proto length: %d and Proto Encoded Value %d",__func__,
          msg_id, length, proto_enc);
+  HeadsetInterface* headsetInterface = static_cast<HeadsetInterface*>
+          (HeadsetInterface::GetInstance());
   switch (event) {
     case BT_HF_CONN_STATE_CB : {
        ss_ConnectionStateCallback connectionStateCb;
@@ -898,7 +902,7 @@ void btif_hf_ss_callback(uint16_t event, char* p_param) {
        RawAddress *bd_addr = (RawAddress*)addr;
        ALOGI("[%s] voiceRecogCb address: %s",__func__, bd_addr->ToString().c_str());
        ALOGI("[%s] voiceRecogCb state:%d",__func__, voiceRecogCb.state());
-       if (!is_valid_bd_addr(bd_addr) || !is_active_device(bd_addr)) return;
+       if (!is_valid_bd_addr(bd_addr)) return;
 
        HAL_HF_CBACK(bt_hf_callbacks, VoiceRecognitionCallback,
             (bthf_vr_state_t) voiceRecogCb.state(),
@@ -911,7 +915,11 @@ void btif_hf_ss_callback(uint16_t event, char* p_param) {
        uint8_t* addr = (uint8_t*)ansCallCb.bd_addr().c_str();
        RawAddress *bd_addr = (RawAddress*)addr;
        ALOGI("[%s] ansCallCb address: %s",__func__, bd_addr->ToString().c_str());
-       if (!is_valid_bd_addr(bd_addr) || !is_active_device(bd_addr)) return;
+       if (!is_valid_bd_addr(bd_addr)) return;
+       if (!is_active_device(bd_addr) && headsetInterface) {
+           headsetInterface->AtResponse(BTHF_AT_RESPONSE_ERROR, AT_RESPONSE_ERROR, bd_addr);
+           return;
+       }
 
        HAL_HF_CBACK(bt_hf_callbacks, AnswerCallCallback, bd_addr);
        break;
@@ -922,7 +930,11 @@ void btif_hf_ss_callback(uint16_t event, char* p_param) {
        uint8_t* addr = (uint8_t*)hangupCallCb.bd_addr().c_str();
        RawAddress *bd_addr = (RawAddress*)addr;
        ALOGI("[%s] hangupCallCb address: %s",__func__, bd_addr->ToString().c_str());
-       if (!is_valid_bd_addr(bd_addr) || !is_active_device(bd_addr)) return;
+       if (!is_valid_bd_addr(bd_addr)) return;
+       if (!is_active_device(bd_addr) && headsetInterface) {
+           headsetInterface->AtResponse(BTHF_AT_RESPONSE_ERROR, AT_RESPONSE_ERROR, bd_addr);
+           return;
+       }
 
        HAL_HF_CBACK(bt_hf_callbacks, HangupCallCallback, bd_addr);
        break;
@@ -935,7 +947,7 @@ void btif_hf_ss_callback(uint16_t event, char* p_param) {
        ALOGI("[%s] volControlCb address: %s",__func__, bd_addr->ToString().c_str());
        ALOGI("[%s] volControlCb type:%d volume:%d",__func__, volControlCb.type(),
                volControlCb.volume() );
-       if (!is_valid_bd_addr(bd_addr) || !is_active_device(bd_addr)) return;
+       if (!is_valid_bd_addr(bd_addr)) return;
 
        HAL_HF_CBACK(bt_hf_callbacks, VolumeControlCallback,
             (bthf_volume_type_t) volControlCb.type(),
@@ -968,7 +980,7 @@ void btif_hf_ss_callback(uint16_t event, char* p_param) {
        RawAddress *bd_addr = (RawAddress*)addr;
        ALOGI("[%s] dtmfCmdCb address: %s",__func__, bd_addr->ToString().c_str());
        ALOGI("[%s] dtmfCmdCb tone:%d",__func__, dtmfCmdCb.tone());
-       if (!is_valid_bd_addr(bd_addr) || !is_active_device(bd_addr)) return;
+       if (!is_valid_bd_addr(bd_addr)) return;
 
        HAL_HF_CBACK(bt_hf_callbacks, DtmfCmdCallback,
             (int) dtmfCmdCb.tone(),
@@ -982,7 +994,7 @@ void btif_hf_ss_callback(uint16_t event, char* p_param) {
        RawAddress *bd_addr = (RawAddress*)addr;
        ALOGI("[%s] noiceReductionCb address: %s",__func__, bd_addr->ToString().c_str());
        ALOGI("[%s] noiceReductionCb nrec:%d",__func__, noiceReductionCb.nrec());
-       if (!is_valid_bd_addr(bd_addr) || !is_active_device(bd_addr)) return;
+       if (!is_valid_bd_addr(bd_addr)) return;
 
        HAL_HF_CBACK(bt_hf_callbacks, NoiseReductionCallback,
             (bthf_nrec_t) noiceReductionCb.nrec(),
@@ -997,7 +1009,7 @@ void btif_hf_ss_callback(uint16_t event, char* p_param) {
        RawAddress *bd_addr = (RawAddress*)addr;
        ALOGI("[%s] wbsCb address: %s",__func__, bd_addr->ToString().c_str());
        ALOGI("[%s] wbsCb wbs:%d",__func__, wbsCb.wbs());
-       if (!is_valid_bd_addr(bd_addr) || !is_active_device(bd_addr)) return;
+       if (!is_valid_bd_addr(bd_addr)) return;
 
        HAL_HF_CBACK(bt_hf_callbacks, WbsCallback,
             (bthf_wbs_config_t) wbsCb.wbs(),
@@ -1011,7 +1023,11 @@ void btif_hf_ss_callback(uint16_t event, char* p_param) {
        RawAddress *bd_addr = (RawAddress*)addr;
        ALOGI("[%s] atChldCb address: %s",__func__, bd_addr->ToString().c_str());
        ALOGI("[%s] atChldCb chld:%d",__func__, atChldCb.chld());
-       if (!is_valid_bd_addr(bd_addr) || !is_active_device(bd_addr)) return;
+       if (!is_valid_bd_addr(bd_addr)) return;
+       if (!is_active_device(bd_addr) && headsetInterface) {
+           headsetInterface->AtResponse(BTHF_AT_RESPONSE_ERROR, AT_RESPONSE_ERROR, bd_addr);
+           return;
+       }
 
        HAL_HF_CBACK(bt_hf_callbacks, AtChldCallback,
             (bthf_chld_type_t) atChldCb.chld(),
@@ -1024,7 +1040,7 @@ void btif_hf_ss_callback(uint16_t event, char* p_param) {
        uint8_t* addr = (uint8_t*)atCnumCb.bd_addr().c_str();
        RawAddress *bd_addr = (RawAddress*)addr;
        ALOGI("[%s] atCnumCb address: %s",__func__, bd_addr->ToString().c_str());
-       if (!is_valid_bd_addr(bd_addr) || !is_active_device(bd_addr)) return;
+       if (!is_valid_bd_addr(bd_addr)) return;
 
        HAL_HF_CBACK(bt_hf_callbacks, AtCnumCallback, bd_addr);
        break;
@@ -1070,7 +1086,7 @@ void btif_hf_ss_callback(uint16_t event, char* p_param) {
        RawAddress *bd_addr = (RawAddress*)addr;
        ALOGI("[%s] unknownAtCb address: %s",__func__, bd_addr->ToString().c_str());
        ALOGI("[%s] unknownAtCb at_string:%s",__func__, at_string);
-       if (!is_valid_bd_addr(bd_addr) || !is_active_device(bd_addr)) return;
+       if (!is_valid_bd_addr(bd_addr)) return;
 
        HAL_HF_CBACK(bt_hf_callbacks, UnknownAtCallback, at_string,
                     bd_addr);
@@ -1083,7 +1099,11 @@ void btif_hf_ss_callback(uint16_t event, char* p_param) {
        uint8_t* addr = (uint8_t*)keyPressedCb.bd_addr().c_str();
        RawAddress *bd_addr = (RawAddress*)addr;
        ALOGI("[%s] keyPressedCb address: %s",__func__, bd_addr->ToString().c_str());
-       if (!is_valid_bd_addr(bd_addr) || !is_active_device(bd_addr)) return;
+       if (!is_valid_bd_addr(bd_addr)) return;
+       if (!is_active_device(bd_addr) && headsetInterface) {
+           headsetInterface->AtResponse(BTHF_AT_RESPONSE_ERROR, AT_RESPONSE_ERROR, bd_addr);
+           return;
+       }
 
        HAL_HF_CBACK(bt_hf_callbacks, KeyPressedCallback, bd_addr);
        break;
@@ -1096,7 +1116,7 @@ void btif_hf_ss_callback(uint16_t event, char* p_param) {
        RawAddress *bd_addr = (RawAddress*)addr;
        ALOGI("[%s] atBindCb address: %s",__func__, bd_addr->ToString().c_str());
        ALOGI("[%s] atBindCb at_string:%s",__func__, at_string);
-       if (!is_valid_bd_addr(bd_addr) || !is_active_device(bd_addr)) return;
+       if (!is_valid_bd_addr(bd_addr)) return;
 
        HAL_HF_CBACK(bt_hf_callbacks, AtBindCallback, at_string,
                     bd_addr);
