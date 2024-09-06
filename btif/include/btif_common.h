@@ -277,4 +277,6 @@ typedef void (*ss_profile_callback)(uint16_t event, char* p_param);
 void read_btss_state();
 void init_btss_event_handler();
 
+static int cancel_bond(const RawAddress* bd_addr);
+
 #endif /* BTIF_COMMON_H */
