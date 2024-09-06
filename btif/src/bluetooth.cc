@@ -145,6 +145,8 @@ int common_criteria_config_compare_result = CONFIG_COMPARE_ALL_PASS;
 bool is_local_device_atv = false;
 bt_bond_state_t bond_state = BT_BOND_STATE_NONE;
 bool isPairingAccepted = false;
+bool isBtTurningOFF = false;
+uint8_t *remoteBdAddr;
 //btif_trace_level = BT_TRACE_LEVEL_DEBUG;
 BluetoothSSInterface *btSSInterface;
 #ifdef SS_STUB_ENABLED
@@ -489,6 +491,8 @@ restart:
 static int enable () {
   ALOGI("%s", __func__);
   ALOGD("QTI single stack: %s", __func__);
+  //Allocating memory for a remote BD address.
+  remoteBdAddr = (uint8_t *)malloc(6*sizeof(uint8_t));
   // Do Encoding of Enable Proto
   uint8_t enable_msg[MAX_LENGTH_WITH_PROTO_NONE];
   uint8_t addr[6];
@@ -533,6 +537,14 @@ static int enable () {
 
 static int disable(void) {
   ALOGI("%s", __func__);
+  if(bond_state != BT_BOND_STATE_NONE)
+  {
+    isBtTurningOFF = true;
+    RawAddress *bd_addr;
+    bd_addr = (RawAddress*)remoteBdAddr;
+    cancel_bond(bd_addr);
+    ALOGI("%s:Pairing::Remote BD Address:: %s is in progress", __func__, bd_addr->ToString().c_str());
+  }
   btif_sock_cleanup();
   uint8_t disable_msg[MAX_LENGTH_WITH_PROTO_NONE];
   //adding msg_id
@@ -571,6 +583,10 @@ static void cleanup(void) {
     btSSInterface->deregisterCallbacks(BT_PROFILE_DM_ID);
   }
   btif_ss_interface_cleanup();
+  if(bond_state ==  BT_BOND_STATE_NONE && isBtTurningOFF == true)
+    isBtTurningOFF = false;
+  free(remoteBdAddr);
+  remoteBdAddr=NULL;
 }
 
 static void ssrDumpTimeout(void* data) {
@@ -2445,8 +2461,8 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       RawAddress *bd_addr;
       if(bondStateChangedCb.has_remote_bd_addr()){
         ALOGI("BT_DM_BOND_STATE_CHANGE_CB: parseRxData has_remote_bd_addr");
-        uint8_t* addr = (uint8_t*)bondStateChangedCb.remote_bd_addr().c_str();
-        bd_addr = (RawAddress*)addr;
+        memcpy(remoteBdAddr, bondStateChangedCb.remote_bd_addr().c_str(), 6);
+        bd_addr = (RawAddress*)remoteBdAddr;
         ALOGI("BT_DM_BOND_STATE_CHANGE_CB : length: %d ", bd_addr->ToString().length());
         ALOGI("BT_DM_Bond_STATE_CHANGE_CB : address : %s", bd_addr->ToString().c_str());
       }
@@ -2519,6 +2535,11 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
             hci_reason = aclStateChangedCb.hci_reason();
             ALOGI("BT_DM_ACL_STATE_CHANGE_CB: Pairing: status: %d bdaddr: %s, acl_state: %d, hci_reason: %d, link_type: %d, direction: %d, acl_handle: %d ", status, bd_addr->ToString().c_str(), acl_state, hci_reason, link_type, direction, acl_handle);
             HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS, bd_addr, acl_state, link_type, uint8_t(hci_reason), direction, acl_handle);
+            if(bond_state != BT_BOND_STATE_NONE && acl_state == SS_BT_ACL_STATE_DISCONNECTED )
+            {
+              ALOGI("calling bond_state_changed_cb: status: %d bdaddr: %s, Current bond_state: %d, ", status, bd_addr->ToString().c_str(),bond_state);
+              HAL_CBACK(bt_hal_cbacks, bond_state_changed_cb, BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_NONE, 0);
+            }
         }
 
         else {
