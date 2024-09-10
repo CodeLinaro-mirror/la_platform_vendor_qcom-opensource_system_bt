@@ -1158,7 +1158,7 @@ static int cancel_bond(const RawAddress* bd_addr) {
   }
   else{
     isPairingAccepted = false;
-    ALOGI("%s: bd_addr=%s is already bonded ", __func__,bd_addr->ToString().c_str())
+    ALOGI("%s: bd_addr=%s is already Pairing Accepted ", __func__,bd_addr->ToString().c_str());
   }
   return BT_STATUS_SUCCESS;
 }
@@ -2389,6 +2389,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
       ALOGI(" Pairing: BT_DM_SSP_REQUEST_CB");
       ss_ssp_request_callback sspRequestCb;
       bool ret = sspRequestCb.ParseFromString(resBufferString);
+      isPairingAccepted = false;
       if(!ret) {
           ALOGE("Unable to parse string");
           break;
