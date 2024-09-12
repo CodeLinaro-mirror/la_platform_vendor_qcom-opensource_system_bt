@@ -144,6 +144,7 @@ const int CONFIG_COMPARE_ALL_PASS = 0b11;
 int common_criteria_config_compare_result = CONFIG_COMPARE_ALL_PASS;
 bool is_local_device_atv = false;
 bt_bond_state_t bond_state = BT_BOND_STATE_NONE;
+bool isPairingAccepted = false;
 //btif_trace_level = BT_TRACE_LEVEL_DEBUG;
 BluetoothSSInterface *btSSInterface;
 #ifdef SS_STUB_ENABLED
@@ -306,16 +307,30 @@ void letobd(uint8_t localAddr[6]) {
 
 void  split_address (const char* property, bool* need_write, char* address) {
   std::string prop = property;
+  std::string bool_val;
+  std::string address_val;
+  std::size_t delimeter = prop.find("true:");
   ALOGI("%s: property %s",__func__, prop.c_str());
-  std::size_t delimeter = prop.find(" ");
-  if (delimeter == std::string::npos) {
-    ALOGI("%s: delimeter not found returning",__func__);
-    return;
+  if (delimeter == std::string::npos ) {
+    delimeter = prop.find("false:");
+    if (delimeter == std::string::npos ) {
+        ALOGI("%s: delimeter not found returning",__func__);
+        return;
+    }
+    else{
+        bool_val = prop.substr(0, delimeter + strlen("false:"));
+        address_val = prop.substr(delimeter + strlen("false:"));
+    }
   }
-  std::string bool_val = prop.substr(0, delimeter);
-  std::string address_val = prop.substr(delimeter + 1);
+  else{
+    bool_val = prop.substr(0, delimeter + strlen("true:"));
+    address_val = prop.substr(delimeter + strlen("true:"));
+  }
+  ALOGI("%d: delimeter size",__func__, delimeter);
+  ALOGI("%s: bool_val", bool_val.c_str());
+  ALOGI("%s: address_val", bool_val.c_str());
   std::copy(address_val.begin(), address_val.end(), address);
-  if (bool_val.compare("true") == 0) {
+  if (bool_val.compare("true:") == 0) {
     *need_write = true;
   } else {
     *need_write = false;
@@ -370,7 +385,7 @@ generate_address:
     /* Convert to ascii, and store as a persistent property */
     bytes_to_string(local_addr, bdstr);
     std::string prop;
-    prop.append("true ");
+    prop.append("true:");
     prop.append(bdstr);
     ALOGD("%s: No preset BDA! Generating BDA: %s for prop %s:%s", __func__,
           (char*)bdstr, PERSIST_BDADDR_PROPERTY, prop.c_str());
@@ -601,7 +616,7 @@ static void ss_ssr_event_received () {
     bool isWrite;
     split_address(property, &isWrite, addr_prop);
     std::string prop;
-    prop.append("true ");
+    prop.append("true:");
     prop.append(addr_prop);
     if (property_set(PERSIST_BDADDR_PROPERTY, prop.c_str()) < 0) {
       ALOGE("%s: Failed to set random BDA in prop %s", __func__,
@@ -723,9 +738,12 @@ static int set_adapter_property(const bt_property_t* property) {
       char name[PROPERTY_VALUE_MAX];
       name_len = (property->len > PROPERTY_VALUE_MAX) ? PROPERTY_VALUE_MAX : property->len;
       memcpy(name, property->val, name_len);
-      name[name_len] = '\0';
+      if(name_len ==  PROPERTY_VALUE_MAX )
+        name[name_len-1] = '\0';
+      else
+        name[name_len] = '\0';
       property_set(PERSIST_BDNAME_PROPERTY, (char*)name);
-      ALOGI("set property name : %s", (char*)property->val);
+      ALOGI("set property name : %s", (char*)name);
     } break;
     case BT_PROPERTY_ADAPTER_SCAN_MODE: {
       bt_scan_mode_t mode = *(bt_scan_mode_t*)property->val;
@@ -1082,41 +1100,50 @@ static int generate_local_oob_data(tBT_TRANSPORT transport) {
 }
 
 static int cancel_bond(const RawAddress* bd_addr) {
+
+  /*Check for Pairing pop-up is already accepted or not*/
+  if(!isPairingAccepted)
+  {
 #if 0
-  /* sanity check */
-  if (interface_ready() == false) return BT_STATUS_NOT_READY;
+    /* sanity check */
+    if (interface_ready() == false) return BT_STATUS_NOT_READY;
 
-  return btif_dm_cancel_bond(bd_addr);
+    return btif_dm_cancel_bond(bd_addr);
 #endif
 
-  ALOGI("%s", __func__);
-  uint8_t cancel_bond_msg[MAX_LENGTH_WITH_PROTO_NONE];
+    ALOGI("%s", __func__);
+    uint8_t cancel_bond_msg[MAX_LENGTH_WITH_PROTO_NONE];
 
-  uint16_t msg_id = BT_DM_CANCEL_BOND;
-  cancel_bond_msg[0] = msg_id & 0xFF;
-  cancel_bond_msg[1] = msg_id >> 8;
+    uint16_t msg_id = BT_DM_CANCEL_BOND;
+    cancel_bond_msg[0] = msg_id & 0xFF;
+    cancel_bond_msg[1] = msg_id >> 8;
 
-  std::string protoMsg;
-  ss_cancel_bond _cancel_bond;
-  _cancel_bond.set_bd_addr(ToRawString(bd_addr).c_str());
-  _cancel_bond.SerializeToString(&protoMsg);
-  ALOGI("%s : protomsg length : %d", __func__,  protoMsg.length());
+    std::string protoMsg;
+    ss_cancel_bond _cancel_bond;
+    _cancel_bond.set_bd_addr(ToRawString(bd_addr).c_str());
+    _cancel_bond.SerializeToString(&protoMsg);
+    ALOGI("%s : protomsg length : %d", __func__,  protoMsg.length());
 
-  uint16_t length = protoMsg.length();
-  cancel_bond_msg[2] = length & 0xFF;
-  cancel_bond_msg[3] = length >> 8;
+    uint16_t length = protoMsg.length();
+    cancel_bond_msg[2] = length & 0xFF;
+    cancel_bond_msg[3] = length >> 8;
 
-  uint16_t proto_encode = PROTO_ENC_DEC;
-  cancel_bond_msg[4] = proto_encode & 0xFF;
-  cancel_bond_msg[5] = proto_encode >> 8;
+    uint16_t proto_encode = PROTO_ENC_DEC;
+    cancel_bond_msg[4] = proto_encode & 0xFF;
+    cancel_bond_msg[5] = proto_encode >> 8;
 
-  std::string msgStr((char *)cancel_bond_msg, MAX_LENGTH_WITH_PROTO_NONE);
-  msgStr.append(protoMsg);
+    std::string msgStr((char *)cancel_bond_msg, MAX_LENGTH_WITH_PROTO_NONE);
+    msgStr.append(protoMsg);
 #ifndef SS_STUB_ENABLED
-  btSSInterface->postTxMsg(msgStr);
+    btSSInterface->postTxMsg(msgStr);
 #else
-  btSSStubInterface->postTxMsg(msgStr);
+    btSSStubInterface->postTxMsg(msgStr);
 #endif
+  }
+  else{
+    isPairingAccepted = false;
+    ALOGI("%s: bd_addr=%s is already bonded ", __func__,bd_addr->ToString().c_str())
+  }
   return BT_STATUS_SUCCESS;
 }
 
@@ -1222,7 +1249,7 @@ static int ssp_reply(const RawAddress* bd_addr, bt_ssp_variant_t variant,
 
   return btif_dm_ssp_reply(bd_addr, variant, accept, passkey);
 #endif
-
+  isPairingAccepted = true;
   ALOGI("%s accept = %d", __func__, accept);
   uint8_t ssp_reply_msg[MAX_LENGTH_WITH_PROTO_NONE];
 
@@ -1902,7 +1929,7 @@ void btif_dm_ss_callback(uint16_t event, char* p_param) {
                       if (isWrite) {
                         ALOGD(" %s :Adapter State received for first boot", __func__);
                         std::string prop;
-                        prop.append("false ");
+                        prop.append("false:");
                         prop.append(addr_prop);
                         if (property_set(PERSIST_BDADDR_PROPERTY, prop.c_str()) < 0) {
                           ALOGE("%s: Failed to set random BDA in prop %s", __func__,

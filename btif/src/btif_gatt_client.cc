@@ -244,6 +244,10 @@ bt_status_t btif_gattc_read_remote_rssi(int client_if,
 bt_status_t btif_gattc_configure_mtu(int conn_id, int mtu) {
   ALOGD("%s ", __func__);
   bt_status_t status;
+  /* Since GATT MTU Exchange can be done only once, and it is impossible to
+   * predict what MTU will be requested by other applications, let's use
+   * max possible MTU in the request. */
+  mtu = BTGATT_MAX_MTU_SIZE;
   status = gattClientSingleStackProto.configureMtu(conn_id, mtu);
   return status;
 }

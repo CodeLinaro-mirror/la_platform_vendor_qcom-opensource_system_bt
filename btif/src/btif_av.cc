@@ -124,7 +124,7 @@ namespace a2dp_proto = a2dp::synergy::SynergyProto;
  *  Local type definitions
  *****************************************************************************/
 #define MAX_CONNS 2
-#define SUSPEND_TIME_OUT 3
+#define AUDIO_RSP_TIMEOUT 4
 const uint8_t INVALID_INDEX = -1;
 uint8_t index;
 btif_a2dp_codec_config_callback_t codec_config[MAX_CONNS];
@@ -551,6 +551,17 @@ void btif_av_ss_callback(uint16_t event, char* p_param) {
            btav_error_t{.status = bt_status_t::BT_STATUS_SUCCESS, .error_code = BTA_AV_SUCCESS});
 
       if (state == BTAV_CONNECTION_STATE_DISCONNECTED ) {
+            if(active_device_ == *bd_addr && pending_cmd != A2DP_CTRL_CMD_NONE) {
+              std::lock_guard<std::mutex> lk(cv_m);
+              if(pending_cmd == A2DP_CTRL_CMD_START) {
+                bluetooth::audio::aidl::a2dp::ack_stream_started(A2DP_CTRL_ACK_FAILURE);
+              } else if(pending_cmd == A2DP_CTRL_CMD_SUSPEND) {
+                bluetooth::audio::aidl::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_FAILURE);
+              }
+              ALOGI("Notify the start to release conditional wait");
+              pending_cmd = A2DP_CTRL_CMD_NONE;
+              cv.notify_all();
+            }
           for (uint8_t i = 0; i < MAX_CONNS; i++) {
               ALOGI("%s: %s disconnected finding index: idx: %d, bd_addr: %s", __func__,
                               bd_addr->ToString().c_str(), i,
@@ -593,14 +604,18 @@ void btif_av_ss_callback(uint16_t event, char* p_param) {
       */
       play_state = state;
       std::lock_guard<std::mutex> lk(cv_m);
-      if(state == BTAV_AUDIO_STATE_STARTED ) {
-        if(pending_cmd == A2DP_CTRL_CMD_START) {
-            bluetooth::audio::aidl::a2dp::ack_stream_started(A2DP_CTRL_ACK_SUCCESS);
-        }
-      } else if (state == BTAV_AUDIO_STATE_STOPPED) {
-        if(pending_cmd == A2DP_CTRL_CMD_SUSPEND) {
-            bluetooth::audio::aidl::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS);
-        }
+      if (pending_cmd == A2DP_CTRL_CMD_START) {
+          if (state == BTAV_AUDIO_STATE_STARTED) {
+               bluetooth::audio::aidl::a2dp::ack_stream_started(A2DP_CTRL_ACK_SUCCESS);
+          } else {
+               bluetooth::audio::aidl::a2dp::ack_stream_started(A2DP_CTRL_ACK_FAILURE);
+          }
+      } else if(pending_cmd == A2DP_CTRL_CMD_SUSPEND) {
+          if (state == BTAV_AUDIO_STATE_STOPPED) {
+               bluetooth::audio::aidl::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS);
+          } else {
+               bluetooth::audio::aidl::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_FAILURE);
+          }
       } else if(state == BTAV_AUDIO_STATE_REMOTE_SUSPEND) {
           // need to handle this
       }
@@ -771,6 +786,13 @@ void process_audio_request(tA2DP_CTRL_CMD cmd){
   switch(cmd){
     case A2DP_CTRL_CMD_START:
     {
+      if(isA2dpPlaying()) {
+        ALOGI("Already in a2dp started state, Send Success anyway");
+        bluetooth::audio::aidl::a2dp::ack_stream_started(A2DP_CTRL_ACK_SUCCESS);
+        pending_cmd = A2DP_CTRL_CMD_NONE;
+        return;
+      }
+
       a2dp_proto::ss_startStream msg_start_stream ;
       std::string str_msg;
       msg_start_stream.set_address(ToRawString(active_device_));
@@ -783,12 +805,12 @@ void process_audio_request(tA2DP_CTRL_CMD cmd){
     case A2DP_CTRL_CMD_STOP:
     case A2DP_CTRL_CMD_SUSPEND:
     {
-      if(false == isA2dpPlaying()) {
+      if(!isA2dpPlaying()) {
         // case when there is ongoing call and BT called a2dpSuspend=true on MM-Audio
-        ALOGI("Already in stop play state. Send Success anyway");
+        ALOGI("Already in a2dp stopped state. Send Success anyway");
         bluetooth::audio::aidl::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_SUCCESS);
         pending_cmd = A2DP_CTRL_CMD_NONE;
-        break;
+        return;
       }
 
       a2dp_proto::ss_stopStream msg_stop_stream ;
@@ -803,8 +825,13 @@ void process_audio_request(tA2DP_CTRL_CMD cmd){
       ALOGE("Unknown HIDL cmd");
     break;
   }
-  if (cv.wait_until(lk, now + std::chrono::seconds(SUSPEND_TIME_OUT)) == std::cv_status::timeout) {
+  if (cv.wait_until(lk, now + std::chrono::seconds(AUDIO_RSP_TIMEOUT)) == std::cv_status::timeout) {
       ALOGE("Mutex time out resetting pending command");
+      if (pending_cmd == A2DP_CTRL_CMD_START) {
+       bluetooth::audio::aidl::a2dp::ack_stream_started(A2DP_CTRL_ACK_FAILURE);
+      } else {
+       bluetooth::audio::aidl::a2dp::ack_stream_suspended(A2DP_CTRL_ACK_FAILURE);
+      }
       pending_cmd = A2DP_CTRL_CMD_NONE;
   }
 }

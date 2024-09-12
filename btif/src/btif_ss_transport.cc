@@ -309,7 +309,10 @@ int BluetoothSSTransport::poll(int timeout) {
   poll_fd.fd = mFd;
   poll_fd.events = POLLIN | POLLHUP;
 
-  rc = ::poll(&poll_fd, 1, timeout * 1000);
+  do {
+      rc = ::poll(&poll_fd, 1, timeout * 1000);
+      ALOGE("%s returns %d, errno: %d ",__func__,(int)rc, errno);
+  } while (rc == -1 && errno == EINTR);
 
   if(rc > 0) {
     if (poll_fd.revents & POLLIN) {

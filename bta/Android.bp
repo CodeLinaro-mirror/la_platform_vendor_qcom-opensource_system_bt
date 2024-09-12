@@ -142,7 +142,7 @@ cc_library_static {
 // ========================================================
 cc_test {
     name: "net_test_bta_qti",
-    defaults: ["fluoride_bta_defaults_qti","qva_bta_defaults"],
+    defaults: ["fluoride_bta_defaults_qti"],
     srcs: [
         "test/bta_hf_client_test.cc",
         "test/bta_dip_test.cc",
