@@ -76,8 +76,8 @@ public:
     void encodeCancelDiscoveryMsg(std::string& msgStr);
     void postTxMsg(std::string msgStr);
     int postDataChTxMsg(std::string msgStr, int fd);
-    int postLeDataChTxMsg(std::string msgStr);
-    int postObexDataChTxMsg(std::string msgStr);
+    int postLeDataChTxMsg(std::string msgStr, int fd);
+    int postObexDataChTxMsg(std::string msgStr, int fd);
     void registerCallbacks(const char* profile_id, ss_profile_callback profile_cb);
     void deregisterCallbacks(const char* profile_id);
     //api to acquire or release glink wakelock
