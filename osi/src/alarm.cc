@@ -585,6 +585,10 @@ static void alarm_ready_generic(alarm_t* alarm,
   // some of its internal state. This is useful to distinguish between expired
   // alarms and active ones.
   //
+  if (alarm->callback == NULL || alarm->callback_mutex == NULL) {
+    LOG_ERROR(LOG_TAG,"%s alarm->callback is %d::alarm->callback_mutex is %d",__func__,(alarm->callback != NULL),(alarm->callback_mutex != NULL));
+    return;
+  }
   alarm_callback_t callback = alarm->callback;
   void* data = alarm->data;
   period_ms_t deadline = alarm->deadline;
