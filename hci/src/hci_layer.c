@@ -639,6 +639,7 @@ static void command_timed_out(UNUSED_ATTR void *context) {
   pthread_mutex_lock(&commands_pending_response_lock);
 
   if (list_is_empty(commands_pending_response)) {
+    pthread_mutex_unlock(&commands_pending_response_lock);
     LOG_ERROR(LOG_TAG, "%s with no commands pending response", __func__);
   } else {
     waiting_command_t *wait_entry = list_front(commands_pending_response);

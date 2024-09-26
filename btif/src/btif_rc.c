@@ -5575,10 +5575,11 @@ static void handle_app_attr_val_txt_response (tBTA_AV_META_MSG *pmeta_msg, tAVRC
         attr_index = p_app_settings->ext_val_index;
         /* Klockwork Fix for below issue 4883
          * Array 'vals' of size 16 may use index value(s) 16..254*/
-        for (xx = 0; xx < p_app_settings->ext_attrs[attr_index].num_val && xx < AVRC_MAX_APP_ATTR_SIZE; xx++)
-        {
-            vals[xx] = p_app_settings->ext_attrs[attr_index].ext_attr_val[xx].val;
-        }
+	if (attr_index < AVRC_MAX_APP_ATTR_SIZE)
+	   for (xx = 0; xx < p_app_settings->ext_attrs[attr_index].num_val && xx < AVRC_MAX_APP_ATTR_SIZE; xx++)
+	   {
+	       vals[xx] = p_app_settings->ext_attrs[attr_index].ext_attr_val[xx].val;
+	   }
         get_player_app_setting_value_text_cmd(vals, xx);
     }
     else
