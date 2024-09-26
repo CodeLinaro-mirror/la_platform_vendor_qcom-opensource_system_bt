@@ -50,8 +50,8 @@
  ******************************************************************************/
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ * Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -1128,7 +1128,7 @@ void bta_av_do_disc_a2dp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
    * due to IUT will start discover and set config to PTS.*/
 
   char is_pts_enable[PROPERTY_VALUE_MAX] = "false";
-  property_get("persist.vendor.bt.a2dp.pts_enable", is_pts_enable, "false");
+  property_get("vendor.bluetooth.a2dp.pts_enable", is_pts_enable, "false");
   APPL_TRACE_DEBUG("%s: is_pts_enable: %s", __func__, is_pts_enable);
   if (!strncmp("true", is_pts_enable, 4)) {
     APPL_TRACE_DEBUG("%s: Don't do a2dp discovery for PTS, return", __func__);
@@ -2494,7 +2494,7 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   uint8_t error_code = p_data->ci_setconfig.err_code;
   char is_pts_enable[PROPERTY_VALUE_MAX] = "false";
 
-  property_get("persist.vendor.bt.a2dp.pts_enable", is_pts_enable, "false");
+  property_get("vendor.bluetooth.a2dp.pts_enable", is_pts_enable, "false");
   APPL_TRACE_DEBUG("%s: is_pts_enable: %s", __func__, is_pts_enable);
   if (!strncmp("true", is_pts_enable, 4)) {
     error_code = p_data->ci_setconfig.err_code;

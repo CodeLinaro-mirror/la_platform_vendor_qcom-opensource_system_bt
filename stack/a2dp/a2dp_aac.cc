@@ -15,8 +15,8 @@
  */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ * Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -334,7 +334,7 @@ static tA2DP_STATUS A2DP_ParseInfoAac(tA2DP_AAC_CIE* p_ie,
     return A2DP_BAD_SAMP_FREQ;
   }
   if (A2DP_BitsSet(p_ie->channelMode) != A2DP_SET_ONE_BIT) {
-    property_get("persist.vendor.bt.a2dp.pts_enable", is_a2dp_pts, "false");
+    property_get("vendor.bluetooth.a2dp.pts_enable", is_a2dp_pts, "false");
     LOG_DEBUG(LOG_TAG, "%s: is_a2dp_pts: %s", __func__, is_a2dp_pts);
     if (!strncmp("true", is_a2dp_pts, 4)) {
       LOG_DEBUG(LOG_TAG, "%s: bad channel", __func__);
