@@ -221,6 +221,8 @@ enum ss_bthf_client_in_band_ring_state_t{
  message ss_bthf_client_clip_callback {
    required bytes bd_addr = 1;
    required bytes number = 2;
+   required int32 type = 3;
+   optional bytes alpha = 4;
  }
 
  /**
@@ -242,6 +244,8 @@ enum ss_bthf_client_in_band_ring_state_t{
    required ss_bthf_client_call_state_t state = 4;
    required ss_bthf_client_call_mpty_type_t mpty = 5;
    required bytes number = 6;
+   required int32 type = 7;
+   optional bytes alpha = 8;
  }
 
  /** Callback for audio volume change
