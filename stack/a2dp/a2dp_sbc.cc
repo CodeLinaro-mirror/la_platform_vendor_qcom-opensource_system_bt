@@ -17,8 +17,8 @@
  ******************************************************************************/
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ * Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -230,7 +230,7 @@ tA2DP_STATUS A2DP_ParseInfoSbc(tA2DP_SBC_CIE* p_ie,
     return A2DP_BAD_MAX_BITPOOL;
   }
 
-  property_get("persist.vendor.bt.a2dp.pts_enable", is_a2dp_pts_enable, "false");
+  property_get("vendor.bluetooth.a2dp.pts_enable", is_a2dp_pts_enable, "false");
   if(strncmp("false", is_a2dp_pts_enable, 4)) {
     if((p_ie->samp_freq & A2DP_SBC_IE_SAMP_FREQ_44) == 0 &&
         (p_ie->samp_freq & A2DP_SBC_IE_SAMP_FREQ_48) == 0) {
@@ -1586,7 +1586,7 @@ bool A2dpCodecConfigSbc::setCodecConfig(const uint8_t* p_peer_codec_info,
       } break;
 
     case BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO:
-      property_get("persist.vendor.bt.a2dp.pts_enable", pts_enable, "false");
+      property_get("vendor.bluetooth.a2dp.pts_enable", pts_enable, "false");
       property_get("persist.vendor.bt.a2dp.sbc_reconfig_mono_to_stereo",
                                         sbc_reconfig_mono_to_stereo, "false");
       LOG_DEBUG(LOG_TAG, "%s: is_a2dp_pts_enable: %s,"

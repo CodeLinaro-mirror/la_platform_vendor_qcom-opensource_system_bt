@@ -1262,7 +1262,7 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
       } break;
 
     case BTA_AV_PENDING_EVT:
-    case BTA_AV_RC_OPEN_EVT:
+    case BTA_AV_RC_OPEN_EVT: {
       /* IOP_FIX: Jabra 620 only does RC open without AV open whenever it
        * connects. So
        * as per the AV WP, an AVRC connection cannot exist without an AV
@@ -1282,6 +1282,7 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
        * for device priority for first device and we cannot queue
        * incoming connections requests.
        */
+      char pts_disable_a2dp_conn[PROPERTY_VALUE_MAX] = {0};
       if (idle_rc_event != 0) {
         BTIF_TRACE_DEBUG("Processing another RC Event ");
         return false;
@@ -1322,12 +1323,16 @@ static bool btif_av_state_idle_handler(btif_sm_event_t event, void* p_data, int 
             BTA_AvOpen(btif_av_cb[index].peer_bda, btif_av_cb[index].bta_handle,
                true, BTA_SEC_AUTHENTICATE, UUID_SERVCLASS_AUDIO_SINK);
         else if (event == BTA_AV_RC_OPEN_EVT) {
-          alarm_set_on_mloop(av_open_on_rc_timer,
-          BTIF_TIMEOUT_AV_OPEN_ON_RC_MS,
-          btif_initiate_av_open_timer_timeout, NULL);
-          btif_rc_handler(event, (tBTA_AV *)p_data);
+          osi_property_get("vendor.bt.pts.disable_a2dp_conn", pts_disable_a2dp_conn, "false");
+          if (strcmp(pts_disable_a2dp_conn, "false") == 0) {
+            alarm_set_on_mloop(av_open_on_rc_timer,
+                BTIF_TIMEOUT_AV_OPEN_ON_RC_MS,
+                btif_initiate_av_open_timer_timeout, NULL);
+            btif_rc_handler(event, (tBTA_AV *)p_data);
+          }
         }
       }
+                             }
       break;
 
     case BTA_AV_RC_BROWSE_OPEN_EVT:

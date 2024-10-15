@@ -117,24 +117,15 @@ static void bta_hf_client_sco_conn_rsp(tBTA_HF_CLIENT_CB* client_cb,
   if (client_cb->sco_state == BTA_HF_CLIENT_SCO_LISTEN_ST) {
     if (p_data->link_type == BTM_LINK_TYPE_SCO) {
       resp = esco_parameters_for_codec(ESCO_CODEC_CVSD);
+    } else if (client_cb->negotiated_codec == BTM_SCO_CODEC_MSBC) {
+      // eSCO mSBC
+      resp = esco_parameters_for_codec(ESCO_CODEC_MSBC_T2);
+    } else if (bta_hf_client_cb_arr.features & BTA_HF_CLIENT_FEAT_S4) {
+      // eSCO CVSD, HFP 1.7 requires S4
+      resp = esco_parameters_for_codec(ESCO_CODEC_CVSD_S4);
     } else {
-      /* [HF_AUDIO] client_cb->negotiated_codec is initialized with value BTM_SCO_CODEC_NONE.
-         If supports WBS, this value may be updated in bta_hf_client_handle_bcs(). If not, the
-         value remains to be BTM_SCO_CODEC_NONE, so set client_cb->negotiated_codec to
-         BTA_AG_CODEC_CVSD for esco while WBS is not supported. */
-      if (client_cb->negotiated_codec == BTM_SCO_CODEC_NONE) {
-        client_cb->negotiated_codec = BTA_AG_CODEC_CVSD;
-      }
-
-      if (client_cb->negotiated_codec == BTA_AG_CODEC_CVSD)
-        resp = esco_parameters_for_codec(ESCO_CODEC_CVSD);
-      if (client_cb->negotiated_codec == BTA_AG_CODEC_MSBC) {
-        /* HFP spec recommends to use T2 for mSBC. */
-        resp = esco_parameters_for_codec(ESCO_CODEC_MSBC_T2);
-      } else {
-        // default codec
-        resp = esco_parameters_for_codec(ESCO_CODEC_CVSD);
-      }
+      // eSCO CVSD, S3 is preferred by default(before HFP 1.7)
+      resp = esco_parameters_for_codec(ESCO_CODEC_CVSD_S3);
     }
 
     /* tell sys to stop av if any */
@@ -260,13 +251,16 @@ static void bta_hf_client_sco_create(tBTA_HF_CLIENT_CB* client_cb,
     return;
   }
 
-  if (client_cb->peer_features & BTA_HF_CLIENT_PEER_CODEC) {
-    APPL_TRACE_DEBUG("%s: ESCO_CODEC_MSBC_T2", __func__);
-    /* HFP spec recommends to use T2 for mSBC. */
-    params = esco_parameters_for_codec(ESCO_CODEC_MSBC_T2);
+  // Since HF device is not expected to receive AT+BAC send +BCS command,
+  // codec support of the connected AG device will be unknown,
+  // so HF device will always establish only CVSD connection.
+  if ((bta_hf_client_cb_arr.features & BTA_HF_CLIENT_FEAT_S4) &&
+      (client_cb->peer_features & BTA_HF_CLIENT_PEER_S4)) {
+    // eSCO CVSD, HFP 1.7 requires S4
+    params = esco_parameters_for_codec(ESCO_CODEC_CVSD_S4);
   } else {
-    APPL_TRACE_DEBUG("%s: ESCO_CODEC_CVSD", __func__);
-    params = esco_parameters_for_codec(ESCO_CODEC_CVSD);
+    // eSCO CVSD, S3 is preferred by default(before HFP 1.7)
+    params = esco_parameters_for_codec(ESCO_CODEC_CVSD_S3);
   }
 
   /* if initiating set current scb and peer bd addr */

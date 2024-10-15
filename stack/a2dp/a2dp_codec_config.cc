@@ -52,8 +52,8 @@
  */
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ * Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -2062,10 +2062,10 @@ uint8_t A2dp_SendSetConfigRspErrorCodeForPTS() {
   char value[PROPERTY_VALUE_MAX] = {'\0'};
   uint8_t error_code = 0;
 
-  property_get("persist.vendor.bt.a2dp.pts_enable", is_a2dp_pts_enable, "false");
+  property_get("vendor.bluetooth.a2dp.pts_enable", is_a2dp_pts_enable, "false");
   APPL_TRACE_DEBUG("%s: is_a2dp_pts_enable: %s", __func__, is_a2dp_pts_enable);
 
-  property_get("persist.vendor.bt.a2dp.set_config_error_code", value, "0");
+  property_get("vendor.bluetooth.a2dp.set_config_error_code", value, "0");
 
   int res = sscanf(value, "%hhu", &error_code);
 

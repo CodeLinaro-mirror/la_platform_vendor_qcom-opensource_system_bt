@@ -21,8 +21,8 @@
  ******************************************************************************/
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ * Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -703,7 +703,7 @@ void avdt_scb_hdl_setconfig_cmd(tAVDT_SCB* p_scb, tAVDT_SCB_EVT* p_data) {
       p_scb->p_ccb = avdt_ccb_by_idx(p_data->msg.config_cmd.hdr.ccb_idx);
       avdt_set_scbs_busy(p_scb);
       p_scb->peer_seid = p_data->msg.config_cmd.int_seid;
-      property_get("persist.vendor.bt.a2dp.pts_enable", is_a2dp_pts_enable, "false");
+      property_get("vendor.bluetooth.a2dp.pts_enable", is_a2dp_pts_enable, "false");
       if(strncmp("true", is_a2dp_pts_enable, 4)) {
         AVDT_TRACE_DEBUG("%s Adjust Bit pool only if PTS flag disabled",__func__);
         if (codec_type == A2DP_MEDIA_CT_SBC) {
