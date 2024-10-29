@@ -5080,7 +5080,7 @@ static bt_status_t init_sink(btav_sink_callbacks_t* callbacks,
                              int /*max_connected_audio_devices*/) {
   BTIF_TRACE_EVENT("%s", __func__);
   property_set("persist.vendor.service.bt.a2dp.sink", "true");
-  char split_a2dp_sink[6] = "false";
+  char split_a2dp_sink[PROPERTY_VALUE_MAX] = "false";
   osi_property_get("persist.vendor.bluetooth.split_a2dp_sink", split_a2dp_sink, "false");
   if (strncmp("true", split_a2dp_sink, 4) == 0){
       BTIF_TRACE_EVENT("%s: split a2dp is enabled ",__func__);
