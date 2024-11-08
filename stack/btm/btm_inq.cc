@@ -1879,7 +1879,13 @@ tBTM_STATUS btm_initiate_rem_name(const RawAddress& remote_bda, uint8_t origin,
      progress */
   else if (origin == BTM_RMT_NAME_EXT) {
     if (p_inq->remname_active) {
-      return (BTM_BUSY);
+      /* Reture STARTED  when remote_bda is the active device,
+       * otherwise return BUSY */
+      if (p_inq->remname_bda != remote_bda) {
+        return (BTM_BUSY);
+      } else {
+        return BTM_CMD_STARTED;
+      }
     } else {
       /* If there is no remote name request running,call the callback function
        * and start timer */

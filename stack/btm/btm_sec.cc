@@ -856,9 +856,15 @@ tBTM_STATUS btm_sec_bond_by_transport(const RawAddress& bd_addr,
 
   /* Other security process is in progress */
   if (btm_cb.pairing_state != BTM_PAIR_STATE_IDLE) {
-    BTM_TRACE_ERROR("BTM_SecBond: already busy in state: %s",
-                    btm_pair_state_descr(btm_cb.pairing_state));
-    return (BTM_WRONG_MODE);
+    if (btm_cb.pairing_bda == bd_addr) {
+      BTM_TRACE_ERROR("BTM_SecBond: bonding with the same bd_addr=%s is ongoing",
+                      bd_addr.ToString().c_str());
+      return (BTM_COLLISION_ACTION);
+    } else {
+      BTM_TRACE_ERROR("BTM_SecBond: already busy in state: %s",
+                      btm_pair_state_descr(btm_cb.pairing_state));
+      return (BTM_WRONG_MODE);
+    }
   }
 
   p_dev_rec = btm_find_or_alloc_dev(bd_addr);
@@ -2846,17 +2852,24 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr,
       }
       return;
     } else {
-      BTM_TRACE_WARNING("%s: wrong BDA, retry with pairing BDA", __func__);
-      if (BTM_ReadRemoteDeviceName(btm_cb.pairing_bda, NULL,
+      /* Add a scenario that 2 devices are getting remote name.
+       * Device A initiates bonding, Device B initiates HF (not authenticated).
+       * It leads to read remote name conflict.
+       * Add a statement to check if there is device on connecting.
+       * If not, retry with pairing BDA */
+      if (old_sec_state != BTM_SEC_STATE_GETTING_NAME) {
+        BTM_TRACE_WARNING("%s: wrong BDA, retry with pairing BDA", __func__);
+        if (BTM_ReadRemoteDeviceName(btm_cb.pairing_bda, NULL,
                                    BT_TRANSPORT_BR_EDR) != BTM_CMD_STARTED) {
-        BTM_TRACE_ERROR("%s: failed to start remote name request", __func__);
-        if (btm_cb.api.p_auth_complete_callback) {
-          (*btm_cb.api.p_auth_complete_callback)(
-              p_dev_rec->bd_addr, p_dev_rec->dev_class, p_dev_rec->sec_bd_name,
-              HCI_ERR_MEMORY_FULL);
-        }
-      };
-      return;
+          BTM_TRACE_ERROR("%s: failed to start remote name request", __func__);
+          if (btm_cb.api.p_auth_complete_callback) {
+            (*btm_cb.api.p_auth_complete_callback)(
+                p_dev_rec->bd_addr, p_dev_rec->dev_class, p_dev_rec->sec_bd_name,
+                HCI_ERR_MEMORY_FULL);
+          }
+        };
+        return;
+      }
     }
   }
 
@@ -3766,6 +3779,13 @@ void btm_sec_auth_complete(uint16_t handle, uint8_t status) {
           // indicate that this is encryption after authentication
           BTM_SetEncryption(p_dev_rec->bd_addr, BT_TRANSPORT_BR_EDR, NULL, NULL,
                             0);
+        } else if (p_dev_rec->is_originator) {
+          // Encryption will be set in role_changed callback
+          BTM_TRACE_DEBUG(
+              "%s auth completed in role=slave, try to switch role and "
+              "encrypt",
+              __func__);
+          BTM_SwitchRole(p_dev_rec->bd_addr, BTM_ROLE_MASTER, NULL);
         }
       }
       l2cu_start_post_bond_timer(p_dev_rec->hci_handle);
@@ -3899,17 +3919,25 @@ void btm_sec_encrypt_change(uint16_t handle, uint8_t status,
            (!(p_dev_rec->sec_flags & BTM_SEC_LE_LINK_KEY_AUTHED) &&
             (p_dev_rec->sec_flags & BTM_SEC_LINK_KEY_AUTHED))) &&
           derive_ltk) {
-        /* BR/EDR is encrypted with LK that can be used to derive LE LTK */
-        p_dev_rec->new_encryption_key_is_p256 = false;
-
-        if (p_dev_rec->no_smp_on_br) {
-          BTM_TRACE_DEBUG("%s NO SM over BR/EDR", __func__);
+        /* Another device is on pairing */
+        if ((btm_cb.pairing_state != BTM_PAIR_STATE_IDLE) &&
+            (btm_cb.pairing_bda != p_dev_rec->bd_addr)) {
+          BTM_TRACE_DEBUG(
+                "%s Another device is on pairing, skip derivation of LE LTK",
+                __func__);
         } else {
-          BTM_TRACE_DEBUG("%s start SM over BR/EDR", __func__);
-          uint16_t link_policy = btm_cb.btm_def_link_policy & (~HCI_ENABLE_MASTER_SLAVE_SWITCH);
-          BTM_TRACE_DEBUG("%s, disable role switch", __func__);
-          BTM_SetLinkPolicy(p_dev_rec->bd_addr, &link_policy);
-          SMP_BR_PairWith(p_dev_rec->bd_addr);
+          /* BR/EDR is encrypted with LK that can be used to derive LE LTK */
+          p_dev_rec->new_encryption_key_is_p256 = false;
+
+          if (p_dev_rec->no_smp_on_br) {
+            BTM_TRACE_DEBUG("%s NO SM over BR/EDR", __func__);
+          } else {
+            BTM_TRACE_DEBUG("%s start SM over BR/EDR", __func__);
+            uint16_t link_policy = btm_cb.btm_def_link_policy & (~HCI_ENABLE_MASTER_SLAVE_SWITCH);
+            BTM_TRACE_DEBUG("%s, disable role switch", __func__);
+            BTM_SetLinkPolicy(p_dev_rec->bd_addr, &link_policy);
+            SMP_BR_PairWith(p_dev_rec->bd_addr);
+          }
         }
       }
     }
@@ -4456,6 +4484,32 @@ void btm_sec_disconnected(uint16_t handle, uint8_t reason) {
                  we do, this call back must be reset here */
     (*p_callback)(&p_dev_rec->bd_addr, transport, p_dev_rec->p_ref_data,
                   BTM_ERR_PROCESSING);
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         btm_sec_role_changed
+ *
+ * Description      This function is called when receiving an HCI role change
+ *                  event
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btm_sec_role_changed(uint8_t hci_status, const RawAddress& bd_addr,
+                          uint8_t new_role) {
+  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
+
+  if (p_dev_rec == nullptr || hci_status != HCI_SUCCESS) {
+    return;
+  }
+  if (new_role == BTM_ROLE_MASTER && btm_dev_authenticated(p_dev_rec) &&
+      !btm_dev_encrypted(p_dev_rec)) {
+    BTM_TRACE_DEBUG("%s: start encryption after role switched to master",
+                  __func__);
+    BTM_SetEncryption(p_dev_rec->bd_addr, BT_TRANSPORT_BR_EDR, NULL, NULL,
+                      BTM_BLE_SEC_NONE);
   }
 }
 
