@@ -4693,7 +4693,10 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
                          p_rsp->event_id);
         return;
     }
-
+    if (p_dev->rc_supported_event_list == NULL) {
+      BTIF_TRACE_ERROR("%s: p_dev->rc_supported_event_list NULL", __func__);
+      return;
+    }
     list_foreach(p_dev->rc_supported_event_list,
                  iterate_supported_event_list_for_interim_rsp,
                  &p_rsp->event_id);
@@ -4729,7 +4732,10 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
 
     BTIF_TRACE_DEBUG("%s: Notification completed: 0x%2X ", __func__,
                      p_rsp->event_id);
-
+    if (p_dev->rc_supported_event_list == NULL) {
+      BTIF_TRACE_ERROR("%s: p_dev->rc_supported_event_list NULL", __func__);
+      return;
+    }
     node = list_begin(p_dev->rc_supported_event_list);
 #if (OFF_TARGET_TEST_ENABLED == TRUE)
     p_event = (btif_rc_supported_event_t*)malloc(sizeof(btif_rc_supported_event_t));
