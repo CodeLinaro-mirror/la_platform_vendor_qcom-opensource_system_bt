@@ -1529,9 +1529,9 @@ void btsock_rfc_signaled(int fd, int type, int flags, uint32_t user_id) {
           int iterations = 0;
           for(unsigned i=0; i<data_string.size(); i+=max_data_size_glink){
             // Safe Check to Stop Pumping Data if Disconnected is received during Tx retry
-            rfc_slot_t* slot = find_rfc_slot_by_scn(channel);
+            rfc_slot_t* slot = find_rfc_slot_by_fd(fd);
             if (!slot) {
-              ALOGI("Slot disconnected. Stop Sending Data");
+              ALOGI("Slot disconnected. Stop Sending Data on FD :: %d",fd);
               return;
             }
             iterations++;
