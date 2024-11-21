@@ -121,6 +121,11 @@ bool BqrVseSubEvt::ParseBqrEvt(uint8_t length, uint8_t* p_param_buf) {
     STREAM_TO_UINT32(last_flow_on_timestamp_, p_param_buf);
     STREAM_TO_UINT32(buffer_overflow_bytes_, p_param_buf);
     STREAM_TO_UINT32(buffer_underflow_bytes_, p_param_buf);
+    // In A12, remote address and TX DC failed count are at VSC parameter
+    // In A14, they are defined in standard portition
+    STREAM_TO_BDADDR(bdaddr_, p_param_buf);
+    STREAM_TO_UINT8(cal_failed_item_count_, p_param_buf);
+
   }
   const auto now = system_clock::to_time_t(system_clock::now());
   localtime_r(&now, &tm_timestamp_);
