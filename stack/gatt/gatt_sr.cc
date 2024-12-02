@@ -200,7 +200,7 @@ static bool process_read_multi_rsp(tGATT_SR_CMD* p_cmd, tGATT_STATUS status,
       if (mtu == 0) {
         LOG(ERROR) << "Invalid MTU";
         p_cmd->status = GATT_ILLEGAL_PARAMETER;
-        return;
+        return (true);
       }
 
       len = sizeof(BT_HDR) + L2CAP_MIN_OFFSET + mtu;
