@@ -184,11 +184,12 @@ RobustCachingSupport GetRobustCachingSupport(const tBTA_GATTC_CLCB* p_clcb,
   // GATT_UUID_DATABASE_HASH. With this workaround, Android will assume that
   // embedded device having LMP version lower than 5.1 (0x0a), it does not
   // support GATT Caching.
+  uint16_t manufacturer = 0;
+  uint16_t lmp_sub_version = 0;
   uint8_t lmp_version = 0;
-  if (!BTM_ReadRemoteVersion(p_clcb->bda, &lmp_version, nullptr, nullptr)) {
-    LOG_WARN(LOG_TAG,"Could not read remote version for %s",
-             p_clcb->bda.ToRedactedStringForLogging().c_str());
-  }
+
+  BTM_ReadRemoteVersionByTransport(p_clcb->bda, &lmp_version,
+      &manufacturer, &lmp_sub_version, BTA_TRANSPORT_LE);
 
   if (lmp_version < HCI_PROTO_VERSION_5_1) {
     LOG_WARN(
