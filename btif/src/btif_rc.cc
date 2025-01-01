@@ -3532,10 +3532,6 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
         break;
 
       case AVRC_EVT_TRACK_CHANGE:
-        if (rc_is_track_id_valid(p_rsp->param.track) != true) {
-          break;
-        }
-        get_metadata_attribute_cmd(p_dev->rc_addr, attr_list_size, attr_list);
         break;
 
       case AVRC_EVT_APP_SETTING_CHANGE: {
