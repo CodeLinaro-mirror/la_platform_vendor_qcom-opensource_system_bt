@@ -3519,7 +3519,6 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg,
              */
             rc_start_play_status_timer(p_dev);
           }
-          get_metadata_attribute_cmd(p_dev->rc_addr, attr_list_size, attr_list);
         } else {
           rc_stop_play_status_timer(p_dev);
         }
