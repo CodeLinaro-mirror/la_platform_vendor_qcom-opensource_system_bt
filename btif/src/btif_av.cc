@@ -3186,13 +3186,8 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
         BTIF_TRACE_DEBUG("%s: Suspend failed or HAL pending ack, ack the suspend",__func__);
         btif_a2dp_on_suspended(&p_av->suspend);
       } else if (!btif_av_is_local_started_on_other_idx(index)) {
-        BTIF_TRACE_DEBUG("%s: Other device not locally started",__func__);
-        if (btif_av_check_flag_remote_suspend(index)){
-          BTIF_TRACE_DEBUG("%s: Remote suspended on index = %d, don't ack the suspend ", __func__, index);
-        } else{
-          BTIF_TRACE_DEBUG("%s: ack the suspend ", __func__);
-          btif_a2dp_on_suspended(&p_av->suspend);
-        }
+        BTIF_TRACE_DEBUG("%s: ack the suspend ", __func__);
+        btif_a2dp_on_suspended(&p_av->suspend);
       } else {
         BTIF_TRACE_DEBUG("%s: Other device locally started, don't ack the suspend", __func__);
       }
