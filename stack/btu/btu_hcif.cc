@@ -858,11 +858,11 @@ static void read_encryption_key_size_complete_after_encryption_change(
   }
 
   if (btm_sec_is_session_key_size_downgrade(handle, key_size)) {
-    LOG_ERROR(
+    HCI_TRACE_ERROR(
         "encryption key size lower than cached value, disconnecting. "
         "handle: 0x%x attempted key size: %d",
         handle, key_size);
-    acl_disconnect_from_handle(handle, HCI_ERR_HOST_REJECT_SECURITY);
+    btsnd_hcic_disconnect(handle, HCI_ERR_HOST_REJECT_SECURITY);
     return;
   }
 
