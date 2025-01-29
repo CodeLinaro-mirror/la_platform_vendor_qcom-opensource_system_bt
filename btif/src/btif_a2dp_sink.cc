@@ -597,15 +597,19 @@ static void btif_a2dp_sink_decoder_update_event(
   }
 
   APPL_TRACE_DEBUG("%s: A2dpSink: SBC create track", __func__);
-  btif_a2dp_sink_cb.audio_track =
+  if (btif_a2dp_sink_cb.audio_track == NULL) {
+    btif_a2dp_sink_cb.audio_track =
 #ifndef OS_GENERIC
       BtifAvrcpAudioTrackCreate(sample_rate, bits_per_sample, channel_count);
 #else
       NULL;
 #endif
-  if (btif_a2dp_sink_cb.audio_track == NULL) {
-    APPL_TRACE_ERROR("%s: A2dpSink: Track creation failed", __func__);
-    return;
+    if (btif_a2dp_sink_cb.audio_track == NULL) {
+      APPL_TRACE_ERROR("%s: A2dpSink: Track creation failed", __func__);
+      return;
+    }
+  } else {
+    APPL_TRACE_DEBUG("%s: A2dpSink: Track already created", __func__);
   }
   if (btif_is_sink_delay_report_supported()) {
     btif_a2dp_sink_cb.latency = BtifAvrcpAudioTrackLatency(btif_a2dp_sink_cb.audio_track);

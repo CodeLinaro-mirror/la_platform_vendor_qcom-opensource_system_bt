@@ -58,7 +58,14 @@ void ErrorCallback(AAudioStream* stream, void* userdata, aaudio_result_t error);
 void BtifAvrcpAudioErrorHandle() {
   AAudioStreamBuilder* builder;
   AAudioStream* stream;
-
+  BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(s_AudioEngine.trackHandle);
+  if (trackHolder != NULL && trackHolder->stream != NULL) {
+    LOG_DEBUG(LOG_TAG, "%s Clearing previous track", __func__);
+    AAudioStream_requestPause(trackHolder->stream);
+    AAudioStream_requestFlush(trackHolder->stream);
+    AAudioStream_requestStop(trackHolder->stream);
+    AAudioStream_close(trackHolder->stream);
+  }
   aaudio_result_t result = AAudio_createStreamBuilder(&builder);
   AAudioStreamBuilder_setSampleRate(builder, s_AudioEngine.trackFreq);
   AAudioStreamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_FLOAT);
@@ -71,13 +78,12 @@ void BtifAvrcpAudioErrorHandle() {
   CHECK(result == AAUDIO_OK);
   AAudioStreamBuilder_delete(builder);
 
-  BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(s_AudioEngine.trackHandle);
-
-  trackHolder->stream = stream;
-
-  if (trackHolder != NULL && trackHolder->stream != NULL) {
-    LOG_DEBUG(LOG_TAG, "%s: AAudio Error handle: restart A2dp Sink AudioTrack",__func__);
-    AAudioStream_requestStart(trackHolder->stream);
+  if (trackHolder != NULL) {
+    trackHolder->stream = stream;
+    if (trackHolder->stream != NULL) {
+      LOG_DEBUG(LOG_TAG, "%s: AAudio Error handle: restart A2dp Sink AudioTrack",__func__);
+      AAudioStream_requestStart(trackHolder->stream);
+    }
   }
   s_AudioEngine.thread = nullptr;
 }
