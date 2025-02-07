@@ -656,8 +656,11 @@ void bta_gattc_conn(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
       LOG_INFO(LOG_TAG, "Connected to %s, robust caching support is %d",
                p_clcb->bda.ToRedactedStringForLogging().c_str(),
                robust_caching_support);
+
+      if (!db.IsEmpty()) p_clcb->p_srcb->gatt_database = db;
+
       if (db.IsEmpty() ||
-          robust_caching_support == RobustCachingSupport::SUPPORTED) {
+          robust_caching_support != RobustCachingSupport::UNSUPPORTED) {
         // If the peer device is expected to support robust caching, or if we
         // don't know its services yet, then we should do discovery (which may
         // short-circuit through a hash match, but might also do the full
@@ -672,7 +675,6 @@ void bta_gattc_conn(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_DATA* p_data) {
         /* cache load failure, start discovery */
         bta_gattc_start_discover(p_clcb, NULL);
       } else {
-        p_clcb->p_srcb->gatt_database = db;
         p_clcb->p_srcb->state = BTA_GATTC_SERV_IDLE;
         bta_gattc_reset_discover_st(p_clcb->p_srcb, GATT_SUCCESS);
       }

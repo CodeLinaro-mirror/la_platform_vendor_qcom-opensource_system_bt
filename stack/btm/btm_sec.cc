@@ -5451,10 +5451,17 @@ extern tBTM_STATUS btm_sec_execute_procedure(tBTM_SEC_DEV_REC* p_dev_rec) {
   tBTM_INQUIRY_VAR_ST *p_inq = &btm_cb.btm_inq_vars;
 
   /* There is a chance that we are getting name.  Wait until done. */
-  if ((p_dev_rec->sec_state != BTM_SEC_STATE_IDLE) &&
-      (p_dev_rec->sec_state != BTM_SEC_STATE_DISCONNECTING_BLE)) {
-    LOG_DEBUG(LOG_TAG,
-        "Security state is not idle indicating RNR or security is in progress");
+  if (p_dev_rec->sec_state != BTM_SEC_STATE_IDLE) {
+    if (p_dev_rec->sec_state == BTM_SEC_STATE_DISCONNECTING_BLE) {
+      LOG_DEBUG(LOG_TAG,
+          "BLE DISCONNECTING, start btm_sec_collision_timer");
+      btm_cb.p_collided_dev_rec = p_dev_rec;
+      alarm_set_on_mloop(btm_cb.sec_collision_timer, BT_1SEC_TIMEOUT_MS,
+                         btm_sec_collision_timeout, NULL);
+    } else {
+      LOG_DEBUG(LOG_TAG,
+          "Security state is not idle indicating RNR or security is in progress");
+    }
     return (BTM_CMD_STARTED);
   }
 
