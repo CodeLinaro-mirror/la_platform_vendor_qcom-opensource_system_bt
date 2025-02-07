@@ -1667,7 +1667,7 @@ typedef struct {
 #define HCI_HOST_LEA_UNICAST_SUPPORTED(x) ((x)[0] & 0x01)
 #define HCI_HOST_QHS_SUPPORTED(x) ((x)[0] & 0x20)
 
-#define HCI_VENDOR_BQR5_SUPPORTED(x) ((x)[4] & 0x20)
+#define HCI_VENDOR_BQR5_SUPPORTED(x) ((x)[5] & 0x01)
 
 /* Simple Pairing Options */
 #define HCI_REMOTE_PUBLIC_KEY_VALIDATION_SUPPORTED(x) ((x) & 0x01)
