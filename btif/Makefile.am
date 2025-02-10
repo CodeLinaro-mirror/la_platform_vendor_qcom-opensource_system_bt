@@ -141,6 +141,7 @@ cpp_sources = \
         src/btif_util.cc \
         src/stack_manager.cc \
         co/bta_ag_co.cc \
+        co/bta_ag_ui.cc \
         co/bta_dm_co.cc \
         co/bta_av_co.cc \
         co/bta_hh_co.cc \
