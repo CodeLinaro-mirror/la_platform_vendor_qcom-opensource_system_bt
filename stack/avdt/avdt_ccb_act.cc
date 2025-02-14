@@ -170,14 +170,13 @@ int avdt_ccb_get_num_allocated_seps() {
   return num_seps;
 }
 
-bool avdt_ccb_check_peer_eligible_for_aac_codec(tAVDT_CCB* p_ccb) {
+bool avdt_ccb_check_peer_eligible_for_aac_codec(tAVDT_CCB* p_ccb, tAVDT_SCB* p_scb) {
   char remote_name[BTM_MAX_REM_BD_NAME_LEN] = "";
   uint16_t vendor = 0;
   uint16_t product = 0;
   uint16_t version = 0;
   bool vndr_prdt_ver_present = false;
   bool aac_support = false;
-  tAVDT_SCB* p_scb = avdt_scb_by_peer_addr(p_ccb->peer_addr);
 
   if (btif_config_get_uint16(p_ccb->peer_addr.ToString().c_str(), PNP_VENDOR_ID_CONFIG_KEY,
       (uint16_t*)&vendor) && btif_config_get_uint16(p_ccb->peer_addr.ToString().c_str(),
@@ -370,7 +369,7 @@ void avdt_ccb_hdl_discover_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
         if (p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == A2DP_MEDIA_CT_AAC) {
           if (A2DP_Get_AAC_VBR_Status(&p_ccb->peer_addr)) {
             APPL_TRACE_DEBUG("%s: AAC VBR is enabled, show AAC SEP for this peer device", __func__);
-          } else if (avdt_ccb_check_peer_eligible_for_aac_codec(p_ccb)) {
+          } else if (avdt_ccb_check_peer_eligible_for_aac_codec(p_ccb, p_scb)) {
             APPL_TRACE_DEBUG("%s: Show AAC SEP for this peer device", __func__);
           } else {
             APPL_TRACE_DEBUG("%s: Do not show AAC SEP for this peer device", __func__);
@@ -385,7 +384,7 @@ void avdt_ccb_hdl_discover_cmd(tAVDT_CCB* p_ccb, tAVDT_CCB_EVT* p_data) {
           if (p_scb->cs.cfg.codec_info[AVDT_CODEC_TYPE_INDEX] == A2DP_MEDIA_CT_AAC) {
             if (A2DP_Get_AAC_VBR_Status(&p_ccb->peer_addr)) {
               APPL_TRACE_DEBUG("%s: AAC VBR is enabled, show AAC SEP for this peer device", __func__);
-            } else if (avdt_ccb_check_peer_eligible_for_aac_codec(p_ccb)) {
+            } else if (avdt_ccb_check_peer_eligible_for_aac_codec(p_ccb, p_scb)) {
               APPL_TRACE_DEBUG("%s: Show AAC SEP for this peer device", __func__);
             } else {
               APPL_TRACE_DEBUG("%s: Do not show AAC SEP for this peer device", __func__);
