@@ -155,12 +155,12 @@ cc_test {
         "libprotobuf-cpp-lite",
         "android.hardware.bluetooth.audio-V2-ndk",
         "android.hardware.audio.common-V1-ndk",
-        "libbluetooth-types",
     ],
     static_libs: [
         "libbtcore_qti",
         "libbt-bta_qti",
        // "crypto_toolbox_for_tests",
+        "libbluetooth-types",
         "libosi_qti",
         "libbt-protos_qti",
         "libbtdevice_ext",

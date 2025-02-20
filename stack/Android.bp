@@ -299,9 +299,9 @@ cc_test {
     shared_libs: [
         "libcutils",
         "libcrypto",
-        "libbluetooth-types",
     ],
     static_libs: [
+        "libbluetooth-types",
         "liblog",
         "libgmock",
     ],
@@ -319,11 +319,9 @@ cc_test {
         "test/ad_parser_unittest.cc",
     ],
     static_libs: [
+        "libbluetooth-types",
         "liblog",
         "libgmock",
-    ],
-    shared_libs: [
-        "libbluetooth-types",
     ],
 }
 
@@ -345,9 +343,9 @@ cc_test {
         "liblog",
         "libcutils",
         "libprotobuf-cpp-lite",
-        "libbluetooth-types",
     ],
     static_libs: [
+        "libbluetooth-types",
         "libgmock",
         "libosi_qti",
         "libbt-protos_qti",

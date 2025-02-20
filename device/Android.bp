@@ -38,7 +38,6 @@ cc_test {
     shared_libs: [
         "liblog",
         "libdl",
-        "libbluetooth-types",
     ],
     static_libs: [
         "libbtdevice_qti",
@@ -47,6 +46,7 @@ cc_test {
         "libosi_qti",
         "libosi-AllocationTestHarness_qti",
         "libcutils",
+        "libbluetooth-types",
     ],
 }
 
