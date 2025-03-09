@@ -99,6 +99,8 @@
 
 static btrc_ctrl_callbacks_t* bt_rc_ctrl_callbacks = NULL;
 
+void btif_rc_ctrl_ss_callback(uint16_t event, char* p_param);
+
 #ifdef SS_STUB_ENABLED
 static BluetoothSSStubInterface* btRcSsInterface = NULL;
 #else
@@ -166,6 +168,11 @@ static bt_status_t init_ctrl(btrc_ctrl_callbacks_t* callbacks) {
   ss_ctrl_init _ss_ctrl_init;
   _ss_ctrl_init.SerializeToString(&str_msg);
   bt_rc_ctrl_callbacks = callbacks;
+
+  if(btRcSsInterface != NULL) {
+    ALOGI("%s: Registering AVRC CT callback with ss_interface", __func__);
+    btRcSsInterface->registerCallbacks(BT_PROFILE_AV_RC_CTRL_ID, btif_rc_ctrl_ss_callback);
+  }
   btrc_ctrl_bld_and_snd_msg(BT_RC_CTRL_INIT, str_msg.length(), PROTO_NONE, str_msg);
 
   return BT_STATUS_SUCCESS;
