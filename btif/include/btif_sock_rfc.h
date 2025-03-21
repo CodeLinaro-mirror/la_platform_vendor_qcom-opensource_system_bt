@@ -67,8 +67,6 @@ typedef struct {
   int rfc_port_handle;
   int role;
   list_t* incoming_queue;
-  int new_srv_fd;
-  bool is_server;
   int type;
 } rfc_slot_t;
 
