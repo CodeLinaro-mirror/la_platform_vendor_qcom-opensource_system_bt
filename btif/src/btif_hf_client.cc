@@ -729,10 +729,11 @@ static bt_status_t request_last_voice_tag_number(const RawAddress* bd_addr) {
  ******************************************************************************/
 static void cleanup(void) {
   BTIF_TRACE_EVENT("%s", __func__);
-
-
   btif_queue_cleanup(UUID_SERVCLASS_HF_HANDSFREE);
   btif_disable_service(BTA_HFP_HS_SERVICE_ID);
+  if (bt_hf_client_callbacks) {
+    do_in_jni_thread(FROM_HERE, base::Bind([]() { bt_hf_client_callbacks = nullptr; }));
+  }
 }
 
 /*******************************************************************************
