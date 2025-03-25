@@ -1702,12 +1702,11 @@ tBTM_STATUS btm_ble_set_encryption(const RawAddress& bd_addr,
         if (sec_req_act == BTM_BLE_SEC_REQ_ACT_ENCRYPT) {
           cmd = btm_ble_start_encrypt(bd_addr, false, NULL);
           break;
-        }
-      }
-      if(!stack_config_get_interface()->get_pts_le_sec_request_disabled()) {
-        if (SMP_Pair(bd_addr) == SMP_STARTED) {
-          cmd = BTM_CMD_STARTED;
-          p_rec->sec_state = BTM_SEC_STATE_AUTHENTICATING;
+        } else if(!stack_config_get_interface()->get_pts_le_sec_request_disabled()) {
+          if (SMP_Pair(bd_addr) == SMP_STARTED) {
+            cmd = BTM_CMD_STARTED;
+            p_rec->sec_state = BTM_SEC_STATE_AUTHENTICATING;
+          }
         }
       }
       break;
