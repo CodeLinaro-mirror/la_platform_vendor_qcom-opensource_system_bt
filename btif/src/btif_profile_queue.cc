@@ -91,16 +91,20 @@ static void queue_int_add(connect_node_t* p_param) {
   for (const list_node_t* node = list_begin(connect_queue);
        node != list_end(connect_queue); node = list_next(node)) {
     if (((connect_node_t*)list_node(node))->uuid == p_param->uuid) {
+      if(((connect_node_t*)list_node(node))->bda == p_param->bda) {
+          LOG_INFO(LOG_TAG, "%s returning as bd address is same %s", __func__,
+            p_param->bda.ToString().c_str());
+          return;
+      }
       if (p_param->uuid == UUID_SERVCLASS_AUDIO_SOURCE ||
-          p_param->uuid == UUID_SERVCLASS_AG_HANDSFREE ||
-          p_param->uuid == UUID_SERVCLASS_AUDIO_SINK) {
+          p_param->uuid == UUID_SERVCLASS_AG_HANDSFREE) {
           counter++;
           LOG_INFO(LOG_TAG, "%s add  connect request for uuid: %04x",
                __func__, counter);
           continue;
       }
-      LOG_INFO(LOG_TAG, "%s dropping duplicate connect request for uuid: %04x",
-               __func__, p_param->uuid);
+      LOG_INFO(LOG_TAG, "%s dropping duplicate connect request for uuid and bda: %04x %s",
+               __func__, p_param->uuid, p_param->bda.ToString().c_str());
       return;
     }
   }

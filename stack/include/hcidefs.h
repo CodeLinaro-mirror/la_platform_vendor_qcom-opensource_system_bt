@@ -1585,7 +1585,7 @@ typedef struct {
 #define HCI_BROADCAST_AUDIO_RX_WITH_EC_2_5(x) ((x)[4] & 0x04)
 #define HCI_BROADCAST_AUDIO_RX_WITH_EC_3_9(x) ((x)[4] & 0x08)
 
-#define HCI_VENDOR_BQR5_SUPPORTED(x) ((x)[4] & 0x20)
+#define HCI_VENDOR_BQR5_SUPPORTED(x) ((x)[5] & 0x01)
 
 /* Simple Pairing Options */
 #define HCI_REMOTE_PUBLIC_KEY_VALIDATION_SUPPORTED(x) ((x) & 0x01)
