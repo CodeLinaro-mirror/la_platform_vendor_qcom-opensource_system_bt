@@ -104,7 +104,9 @@ static constexpr uint32_t kVendorQualityEventMaskAll =
 static constexpr uint16_t kMinReportIntervalNoLimit = 0;
 static constexpr uint16_t kMinReportIntervalMaxMs = 0xFFFF;
 // Total length of all BQR parameters except Vendor Specific Parameters.
-static constexpr uint8_t kBqrParamTotalLen = 55;
+// WAR: Set BQR parameters total length to 48 bytes to align with QC HH_BT_Telemetry_v2 document
+// due to BT FW for BQR feature is identical between A12 and A14
+static constexpr uint8_t kBqrParamTotalLen = 48;
 /* Total length of all parameters of the ROOT_INFLAMMATION event except Vendor
  * Specific Parameters.
  */

@@ -293,8 +293,7 @@ int RFCOMM_RemoveServer(uint16_t handle) {
   p_port->p_mgmt_callback = NULL;
 
   if (!p_port->in_use ||
-      (p_port->state == PORT_STATE_CLOSED) ||
-      (p_port->state == PORT_STATE_CLOSING)) {
+      (p_port->state == PORT_STATE_CLOSED)) {
     RFCOMM_TRACE_ERROR("RFCOMM_RemoveServer() handle:%d, port state %d", handle,p_port->state);
     return (PORT_SUCCESS);
   }

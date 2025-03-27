@@ -4842,7 +4842,7 @@ static void handle_app_attr_response(tBTA_AV_META_MSG* pmeta_msg,
   btif_rc_device_cb_t* p_dev =
       btif_rc_get_device_by_handle(pmeta_msg->rc_handle);
 
-  if (p_dev == NULL || p_rsp->status != AVRC_STS_NO_ERROR) {
+  if (p_dev == NULL || p_rsp == NULL || p_rsp->status != AVRC_STS_NO_ERROR) {
     BTIF_TRACE_ERROR("%s: Error getting Player application settings: 0x%2X",
                      __func__, p_rsp->status);
     rc_ctrl_procedure_complete(p_dev);
@@ -4853,10 +4853,18 @@ static void handle_app_attr_response(tBTA_AV_META_MSG* pmeta_msg,
     uint8_t st_index;
 
     if (p_rsp->attrs[xx] > AVRC_PLAYER_SETTING_LOW_MENU_EXT) {
+      if(p_dev->rc_app_settings.num_ext_attrs >= AVRC_MAX_APP_ATTR_SIZE) {
+         BTIF_TRACE_ERROR("%s: Exceeded max extended attrs",__func__);
+         break;
+      }
       st_index = p_dev->rc_app_settings.num_ext_attrs;
       p_dev->rc_app_settings.ext_attrs[st_index].attr_id = p_rsp->attrs[xx];
       p_dev->rc_app_settings.num_ext_attrs++;
     } else {
+      if(p_dev->rc_app_settings.num_attrs >= AVRC_MAX_APP_ATTR_SIZE) {
+        BTIF_TRACE_ERROR("%s: Exceeded max attrs ",__func__);
+        break;
+      }
       st_index = p_dev->rc_app_settings.num_attrs;
       p_dev->rc_app_settings.attrs[st_index].attr_id = p_rsp->attrs[xx];
       p_dev->rc_app_settings.num_attrs++;
