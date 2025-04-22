@@ -42,6 +42,7 @@ using bluetooth::Uuid;
 #define BTM_BLE_ADV_FILT_META_HDR_LENGTH 3
 #define BTM_BLE_ADV_FILT_FEAT_SELN_LEN 13
 #define BTM_BLE_ADV_FILT_TRACK_NUM 2
+#define BTM_BLE_ADV_FILT_AD_TYPE_LENGTH 5
 
 #define BTM_BLE_PF_SELECT_NONE 0
 
@@ -667,16 +668,23 @@ void BTM_LE_PF_group_filter(tBTM_BLE_SCAN_COND_OP action,
                         tBTM_BLE_PF_FILT_INDEX filt_index,
                         tBTM_BLE_PF_CFG_CBACK cb) {
   uint8_t len = BTM_BLE_ADV_FILT_META_HDR_LENGTH;
+  if (cmn_ble_vsc_cb.version_supported == BTM_VSC_CHIP_CAPABILITY_103_VERSION) {
+   len = BTM_BLE_ADV_FILT_AD_TYPE_LENGTH;
+  }
   uint8_t len_max = len + BTM_BLE_PF_STR_LEN_MAX;
 
   uint8_t param[len_max];
   memset(param, 0, len_max);
-
   BTM_TRACE_ERROR("%s: action = %d filt_index = %d", __func__, action, filt_index);
   uint8_t* p = param;
   UINT8_TO_STREAM(p, BTM_BLE_META_PF_GROUP);
   UINT8_TO_STREAM(p, action);
   UINT8_TO_STREAM(p, filt_index);
+
+  if (cmn_ble_vsc_cb.version_supported == BTM_VSC_CHIP_CAPABILITY_103_VERSION) {
+    UINT16_TO_STREAM(p, BTM_BLE_META_PF_GROUP);
+    len += 1;
+  }
 
   btu_hcif_send_cmd_with_cb(
       FROM_HERE, HCI_BLE_ADV_FILTER_OCF, param, len,
@@ -823,6 +831,11 @@ void BTM_LE_PF_set(tBTM_BLE_PF_FILT_INDEX filt_index,
       case BTM_BLE_PF_TDS_DATA: {
         BTM_LE_PF_tds_data(action, filt_index, cmd.org_id, cmd.tds_flags,
                            cmd.tds_flags_mask, cmd.data, base::DoNothing());
+        break;
+      }
+
+      case BTM_BLE_PF_GROUP_FILTER: {
+        BTM_LE_PF_group_filter(action, filt_index, base::DoNothing());
         break;
       }
 
