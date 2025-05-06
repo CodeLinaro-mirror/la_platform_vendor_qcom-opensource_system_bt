@@ -37,6 +37,10 @@ static tSDP_DISC_ATTR g_attr_vendor_product_version;
 static tSDP_DISC_ATTR g_attr_vendor_product_primary_record;
 static tSDP_DISC_REC g_rec;
 
+tCONN_CB* sdpu_find_ccb_by_db(tSDP_DISCOVERY_DB* /*p_db*/) { return NULL; }
+
+void sdp_disconnect(tCONN_CB* /*p_ccb*/, tSDP_STATUS /*reason*/) { return; }
+
 bool sdpu_compare_uuid_with_attr(const Uuid& uuid, tSDP_DISC_ATTR* p_attr) {
   return true;
 }
