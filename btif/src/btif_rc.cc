@@ -47,7 +47,7 @@
  * limitations under the License.
  *
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -5759,6 +5759,8 @@ void get_folder_item_type_player(const tAVRC_ITEM* avrc_item,
   btrc_item_player->major_type = avrc_item_player->major_type;
   /* Sub type */
   btrc_item_player->sub_type = avrc_item_player->sub_type;
+  /* Play Status */
+  btrc_item_player->play_status = avrc_item_player->play_status;
   /* Features */
   memcpy(btrc_item_player->features, avrc_item_player->features,
          BTRC_FEATURE_BIT_MASK_SIZE);
