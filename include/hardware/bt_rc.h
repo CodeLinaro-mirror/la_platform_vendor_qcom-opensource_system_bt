@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -570,7 +570,7 @@ typedef void (* btrc_ctrl_get_folder_items_callback )(RawAddress *bd_addr,
                                                             const btrc_folder_items_t *folder_items,
                                                             uint8_t count);
 
-typedef void (* btrc_ctrl_change_path_callback)(RawAddress *bd_addr, uint8_t count);
+typedef void (* btrc_ctrl_change_path_callback)(RawAddress *bd_addr, uint32_t count);
 
 typedef void (* btrc_ctrl_set_browsed_player_callback )(
     RawAddress *bd_addr, uint8_t num_items, uint8_t depth);
