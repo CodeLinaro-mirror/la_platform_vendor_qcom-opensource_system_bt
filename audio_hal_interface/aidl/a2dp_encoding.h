@@ -102,7 +102,7 @@ void cleanup();
 /***
  * Set up the codec into BluetoothAudio HAL
  ***/
-bool setup_codec();
+bool setup_codec(uint8_t profile);
 
 /***
  * Send command to the BluetoothAudio HAL: StartSession, EndSession,
@@ -131,6 +131,8 @@ bool is_restart_session_needed();
 tA2DP_CTRL_CMD GetPendingCmd();
 
 void ResetPendingCmd();
+
+uint16_t GetSinkLatency();
 
 }  // namespace a2dp
 }  // namespace aidl

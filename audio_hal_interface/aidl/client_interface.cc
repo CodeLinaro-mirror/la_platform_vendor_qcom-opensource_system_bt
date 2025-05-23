@@ -279,7 +279,9 @@ bool BluetoothAudioClientInterface::UpdateAudioConfig(
            SessionType::LE_AUDIO_BROADCAST_SOFTWARE_ENCODING_DATAPATH);
   bool is_a2dp_offload_session =
       (transport_->GetSessionType() ==
-       SessionType::A2DP_HARDWARE_OFFLOAD_ENCODING_DATAPATH);
+           SessionType::A2DP_HARDWARE_OFFLOAD_ENCODING_DATAPATH ||
+       transport_->GetSessionType() ==
+           SessionType::A2DP_HARDWARE_OFFLOAD_DECODING_DATAPATH);
   bool is_leaudio_offload_session =
       (transport_->GetSessionType() ==
            SessionType::LE_AUDIO_HARDWARE_OFFLOAD_ENCODING_DATAPATH ||
