@@ -115,7 +115,7 @@ bool session_wait;
 RawAddress ba_addr({0xCE, 0xFA, 0xCE, 0xFA, 0xCE, 0xFA});
 
 extern std::mutex isDevUiReq_mutex_;
-
+static void bte_av_callback(tBTA_AV_EVT event, tBTA_AV* p_data);
 #define BTIF_AV_ENABLE_MCAST_RESTRICTIONS FALSE
 /*****************************************************************************
  *  Constants & Macros
@@ -124,6 +124,7 @@ extern std::mutex isDevUiReq_mutex_;
 #define BTIF_AVK_SERVICE_NAME "Advanced Audio Sink"
 
 #define BTIF_TIMEOUT_AV_OPEN_ON_RC_MS (2 * 1000)
+#define BTIF_TIMEOUT_AV_DELAYED_START 200
 #define BTIF_SUSPEND_RSP_FROM_REMOTE_TOUT (2 * 1000)
 #if (TWS_ENABLED == TRUE)
 #define BTIF_TWS_OFFLOAD_STARTED_SYNC_TOUT (1 * 1000)
@@ -272,7 +273,9 @@ extern btav_sink_vendor_callbacks_t *bt_vendor_av_sink_callbacks;
 static btif_av_cb_t btif_av_cb[BTIF_AV_NUM_CB];
 btif_av_collision_detect_t collision_detect[BTIF_AV_NUM_CB];
 
+static tBTA_AV p_av_data;
 static alarm_t* av_open_on_rc_timer = NULL;
+static alarm_t* av_delayed_start_timer = NULL;
 static btif_sm_event_t idle_rc_event;
 static tBTA_AV idle_rc_data;
 int btif_max_av_clients = 1;
@@ -578,6 +581,12 @@ static void btif_initiate_av_open_timer_timeout(void* data) {
   }
 }
 
+static void btif_delayed_start_timer_timeout(void* data) {
+  BTIF_TRACE_ERROR("%s: Delayed start timer expired", __func__);
+  tBTA_AV* p_av = (tBTA_AV*)data;
+  tBTA_AV_EVT event = BTA_AV_START_EVT;
+  bte_av_callback(event, p_av);
+}
 /*****************************************************************************
  *  Static functions
  *****************************************************************************/
@@ -2267,10 +2276,15 @@ static bool btif_av_state_opened_handler(btif_sm_event_t event, void* p_data,
             // check if we already processing the start ind for one
             // device , then reject the 2nd start ind
             int start_index = btif_av_get_latest_start_pending_idx();
+            BTIF_TRACE_DEBUG("%s start_index :%d  index :%d",__func__, start_index, index);
             if(start_index != btif_max_av_clients && start_index != index) {
               BTIF_TRACE_DEBUG("%s:Reject the start request as there is pending \
                                   one ",__func__);
-              BTA_AvkSendPedingStartRej(btif_av_cb[index].bta_handle);
+              BTIF_TRACE_DEBUG("start timer Delayed start");
+              memcpy(&p_av_data, ((tBTA_AV*)p_av), sizeof(tBTA_AV));
+              alarm_set_on_mloop(av_delayed_start_timer,
+                                 BTIF_TIMEOUT_AV_DELAYED_START,
+                                 btif_delayed_start_timer_timeout, &p_av_data);
               break;
             }
             uint8_t* a2dp_codec_config =
@@ -4820,6 +4834,9 @@ bt_status_t btif_av_init(int service_id) {
     alarm_free(av_open_on_rc_timer);
     av_open_on_rc_timer = alarm_new("btif_av.av_open_on_rc_timer");
 
+    alarm_free(av_delayed_start_timer);
+    av_delayed_start_timer = alarm_new("btif_av.av_delayed_start_timer");
+
     BTIF_TRACE_DEBUG("%s; service Id: %d", __func__, service_id);
 
     btif_av_cb[0].service = service_id;
@@ -5450,6 +5467,9 @@ static void cleanup(int service_uuid) {
 
   alarm_free(av_open_on_rc_timer);
   av_open_on_rc_timer = NULL;
+
+  alarm_free(av_delayed_start_timer);
+  av_delayed_start_timer = NULL;
 }
 
 static void cleanup_src(void) {
