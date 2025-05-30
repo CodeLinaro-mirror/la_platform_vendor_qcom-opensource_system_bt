@@ -32,14 +32,19 @@
 void bte_load_did_conf(const char *p_path) {
     assert(p_path != NULL);
 
+    int cfg_okay = 1;
+
     config_t *config = config_new(p_path);
     if (!config) {
-        LOG_ERROR(LOG_TAG, "%s unable to load DID config '%s'.", __func__, p_path);
-        return;
+        LOG_ERROR(LOG_TAG, "%s unable to load DID config '%s' and use default.", __func__, p_path);
+        cfg_okay = 0;
     }
 
     for (int i = 1; i <= BTA_DI_NUM_MAX; ++i) {
         char section_name[16] = { 0 };
+        tBTA_DI_RECORD record;
+
+if (cfg_okay) {
         snprintf(section_name, sizeof(section_name), "DID%d", i);
 
         if (!config_has_section(config, section_name)) {
@@ -47,7 +52,6 @@ void bte_load_did_conf(const char *p_path) {
             break;
         }
 
-        tBTA_DI_RECORD record;
         record.vendor = config_get_int(config, section_name, "vendorId", LMP_COMPID_BROADCOM);
         record.vendor_id_source = config_get_int(config, section_name, "vendorIdSource", DI_VENDOR_ID_SOURCE_BTSIG);
         record.product = config_get_int(config, section_name, "productId", 0);
@@ -56,7 +60,20 @@ void bte_load_did_conf(const char *p_path) {
         strlcpy(record.client_executable_url, config_get_string(config, section_name, "clientExecutableURL", ""), sizeof(record.client_executable_url));
         strlcpy(record.service_description, config_get_string(config, section_name, "serviceDescription", ""), sizeof(record.service_description));
         strlcpy(record.documentation_url, config_get_string(config, section_name, "documentationURL", ""), sizeof(record.documentation_url));
+} else {
+		memset(&record, 0x00, sizeof(record));
 
+		if(i == 1) {
+			record.vendor = 0x001D;
+			record.vendor_id_source = DI_VENDOR_ID_SOURCE_BTSIG;
+			record.product = 0x1200;
+			record.version = 0x1436;
+			record.primary_record = true;
+		} else {
+			record.vendor = LMP_COMPID_BROADCOM;
+			record.vendor_id_source = DI_VENDOR_ID_SOURCE_BTSIG;
+		}
+}
         if (record.vendor_id_source != DI_VENDOR_ID_SOURCE_BTSIG &&
             record.vendor_id_source != DI_VENDOR_ID_SOURCE_USBIF) {
             LOG_ERROR(LOG_TAG, "%s invalid vendor id source %d; ignoring DID record %d.", __func__, record.vendor_id_source, i);
@@ -79,6 +96,6 @@ void bte_load_did_conf(const char *p_path) {
         }
     }
 
-    bt_config_free(config);
+    if (cfg_okay) bt_config_free(config);
 }
 
