@@ -185,6 +185,10 @@ void btif_ahim_update_current_profile(uint8_t profile)
        FALLTHROUGH;
      case AUDIO_GROUP_MGR:
        FALLTHROUGH;
+     case ACHAT_OWNER:
+       FALLTHROUGH;
+     case ACHAT_PERIPHERAL:
+       FALLTHROUGH;
      case BROADCAST:
        cur_active_profile = profile;
        break;
@@ -225,6 +229,10 @@ void btif_ahim_process_request(tA2DP_CTRL_CMD cmd, uint8_t profile,
         BTIF_TRACE_ERROR("%s, Audio Group Manager is not registered with AHIM",
                           __func__);
       break;
+    case ACHAT_OWNER:
+      FALLTHROUGH;
+    case ACHAT_PERIPHERAL:
+      FALLTHROUGH;
     case BROADCAST:
       BTIF_TRACE_IMP("%s: sending AIDL request to BROADCAST", __func__);
       if (pclient_cbs[cur_active_profile - 1] &&

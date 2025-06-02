@@ -993,6 +993,61 @@ void btsnd_hcic_ble_set_iso_data_path(uint16_t connection_handle,
                             param_len, std::move(cb));
 }
 
+void btsnd_hcic_ble_create_dbig(uint8_t dbig_handle,
+                                uint8_t bis_audio_timeout,
+                                uint8_t bis_absent_timeout,
+                                uint8_t bis_id,
+                                base::Callback<void(uint8_t*, uint16_t)> cb) {
+  uint16_t param_len = HCI_PARAM_SIZE_CREATE_DBIG;
+  uint8_t *param = (uint8_t *)osi_malloc(param_len);
+  uint8_t *p = param;
+
+  UINT8_TO_STREAM(p, 0x04);
+  UINT8_TO_STREAM(p, dbig_handle);
+  UINT8_TO_STREAM(p, bis_audio_timeout);
+  UINT8_TO_STREAM(p, bis_absent_timeout);
+  UINT8_TO_STREAM(p, bis_id);
+
+  btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_VS_LE_SET_DBIG_PARAMETERS, param,
+                            param_len, std::move(cb));
+}
+
+void btsnd_hcic_ble_create_big_sync(uint8_t big_handle,
+                                    uint16_t sync_handle,
+                                    uint8_t encryption,
+                                    uint8_t* broadcast_code,
+                                    uint8_t mse,
+                                    uint16_t bis_sync_timeout,
+                                    uint8_t num_bis,
+                                    uint8_t* bis,
+                                   base::Callback<void(uint8_t*, uint16_t)> cb) {
+  uint16_t param_len = HCI_PARAM_SIZE_CREATE_BIG_SYNC + (num_bis * sizeof(uint8_t));
+  uint8_t *param = (uint8_t *)osi_malloc(param_len);
+  uint8_t *p = param;
+  UINT8_TO_STREAM(p, big_handle);
+  UINT16_TO_STREAM(p, sync_handle);
+  UINT8_TO_STREAM(p, encryption);
+  ARRAY_TO_STREAM(p, broadcast_code, 16);
+  UINT8_TO_STREAM(p, mse);
+  UINT16_TO_STREAM(p, bis_sync_timeout);
+  UINT8_TO_STREAM(p, num_bis);
+  ARRAY_TO_STREAM(p, bis, num_bis);
+
+  btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_LE_BIG_CREATE_SYNC, param,
+                            param_len, std::move(cb));
+}
+
+void btsnd_hcic_ble_terminate_big_sync(uint8_t big_handle,
+                                  base::Callback<void(uint8_t*, uint16_t)> cb) {
+  uint16_t param_len = HCI_PARAM_SIZE_TERMINATE_BIG_SYNC;
+  uint8_t *param = (uint8_t *)osi_malloc(param_len);
+  uint8_t *p = param;
+
+  UINT8_TO_STREAM(p, big_handle);
+  btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_LE_TERMINATE_BIG_SYNC, param,
+                            param_len, std::move(cb));
+}
+
 void btsnd_hcic_ble_remove_iso_data_path(uint16_t connection_handle,
                                     uint8_t data_path_direction,
                                     base::Callback<void(uint8_t*, uint16_t)> cb) {

@@ -232,6 +232,7 @@ typedef uint8_t BLE_SIGNATURE[BTM_BLE_AUTH_SIGN_LEN]; /* Device address */
 #define BTM_BLE_SIMULTANEOUS_HOST 0x00
 #endif
 
+#define MAX_BIS_COUNT 6
 /* Appearance Values Reported with BTM_BLE_AD_TYPE_APPEARANCE */
 #define BTM_BLE_APPEARANCE_UKNOWN 0x0000
 #define BTM_BLE_APPEARANCE_GENERIC_PHONE 0x0040
@@ -758,6 +759,19 @@ typedef void (tBTM_BLE_SETUP_ISO_DATA_PATH_CMPL_CB) (uint8_t status, uint16_t co
 /* HCI_LE_Remove_ISO_Data_Path command complete callback*/
 typedef void (tBTM_BLE_REMOVE_ISO_DATA_PATH_CMPL_CB) (uint8_t status, uint16_t conn_handle);
 
+/* HCI_LE_Create_DBIG command complete callback*/
+typedef void (tBTM_BLE_CREATE_DBIG_CB) (uint8_t status, uint8_t sub_opcode);
+
+typedef void (tBTM_BLE_DBIG_UPDATE_CB) (uint8_t status, uint8_t big_handle, uint8_t bis_state, uint8_t timing_source, uint8_t local_bis_id);
+
+/*HCI_LE_BIG_SYNC_ESTABLISHED command established callback*/
+
+typedef void (tBTM_BLE_BIG_SYNC_ESTABLISHED_CB) (uint8_t status, uint8_t big_handle, uint32_t transport_latency_big, uint8_t nse,
+                                                 uint8_t bn, uint8_t pto, uint8_t irc, uint16_t max_pdu,
+                                                 uint16_t iso_interval, uint8_t num_bis, uint16_t bis_handles[MAX_BIS_COUNT]);
+/*terminate big sync cb*/
+typedef void (tBTM_BLE_TERMINATE_BIG_SYNC_CB) (uint8_t status, uint8_t big_handle);
+
 /* HCI_LE_Request_Peer_SCA_Complete event callback*/
 typedef void (tBTM_BLE_REQUEST_PEER_SCA_COMPLETE_CB) (tBTM_BLE_PEER_SCA_PARAM* peer_sca_param);
 
@@ -805,13 +819,15 @@ typedef void (tBTM_BLE_ISO_TEST_END_CB) (tBTM_BLE_ISO_TEST_END_RET* ret_param);
 typedef void (tBTM_BLE_ISO_READ_TEST_COUNTERS_CB) (tBTM_BLE_ISO_TEST_COUNTERS_RET* ret_param);
 
 /* HCI_LE_ISO_Receive_Test command complete callback*/
-typedef void (tBTM_BLE_ISO_RECEIVE_TEST_CB) (uint8_t status,	uint16_t conn_handle);
+typedef void (tBTM_BLE_ISO_RECEIVE_TEST_CB) (uint8_t status, uint16_t conn_handle);
 
 /* HCI_LE_ISO_Transmit_Test command complete callback*/
 typedef void (tBTM_BLE_ISO_TRANSMIT_TEST_CB) (uint8_t status, uint16_t conn_handle);
 
 /* HCI_LE_Transmitter_Test_v4 command complete callback*/
 typedef void (tBTM_BLE_TRANSMITTER_TEST_V4_CB) (uint8_t status);
+
+typedef void (tBTM_BLE_BIG_SYNC_LOST_CB)(uint8_t big_handle, uint8_t reason);
 
 // Callabck function pointers of HCI Commands after receiving Command Complete or HCI Event
 typedef struct {
@@ -824,6 +840,8 @@ typedef struct {
   tBTM_BLE_CIS_DISCONNECTED_CB* cis_disconnected_cb = NULL;
   tBTM_BLE_SETUP_ISO_DATA_PATH_CMPL_CB* setup_iso_datapath = NULL;
   tBTM_BLE_REMOVE_ISO_DATA_PATH_CMPL_CB* remove_iso_datapath = NULL;
+  tBTM_BLE_CREATE_DBIG_CB* create_dbig_cmpl_cb = NULL;
+  tBTM_BLE_TERMINATE_BIG_SYNC_CB* terminate_big_sync_cmpl_cb = NULL;
   tBTM_BLE_REQUEST_PEER_SCA_COMPLETE_CB* peer_sca_cmpl = NULL;
   tBTM_BLE_REJECT_CIS_CB* reject_cis_cb = NULL;
   tBTM_BLE_READ_ISO_LINK_QLT_CB* iso_link_qly_cb = NULL;
@@ -841,6 +859,7 @@ typedef struct {
   tBTM_BLE_ISO_RECEIVE_TEST_CB* iso_rcv_test_cmpl = NULL;
   tBTM_BLE_ISO_TRANSMIT_TEST_CB* iso_tx_test_cmpl = NULL;
   tBTM_BLE_TRANSMITTER_TEST_V4_CB* tx_test_v4_cmpl = NULL;
+  tBTM_BLE_BIG_SYNC_LOST_CB* big_sync_lost_cb = NULL;
 } tBTM_BLE_HCI_CMD_CB;
 
 /* CIS configuration params used in HCI_LE_Set_CIG_Parameters*/
@@ -916,6 +935,56 @@ typedef struct {
   uint8_t *codec_config;
   tBTM_BLE_SETUP_ISO_DATA_PATH_CMPL_CB* p_cb;
 } tBTM_BLE_SET_ISO_DATA_PATH_PARAM;
+
+/* command parameters of HCI_LE_CREATE_DBIG*/
+
+typedef struct {
+  uint8_t dbig_handle;
+  uint8_t bis_audio_timeout;
+  uint8_t bis_absent_timeout;
+  uint8_t bis_id;
+  tBTM_BLE_CREATE_DBIG_CB* p_cb;
+} tBTM_BLE_CREATE_DBIG_PARAM;
+
+/*command params for tBTM_BLE_BIG_CREATE_SYNC*/
+
+typedef struct {
+  uint8_t big_handle;
+  uint16_t sync_handle;
+  uint8_t encryption;
+  uint8_t* broadcast_code;
+  uint8_t mse;
+  uint16_t bis_sync_timeout;
+  uint8_t num_bis;
+  uint8_t* bis;
+  tBTM_BLE_BIG_SYNC_ESTABLISHED_CB* p_cb;
+} tBTM_BLE_BIG_CREATE_SYNC_PARAM;
+
+typedef struct {
+  uint8_t dbig_handle;
+  uint8_t bis_state;
+  uint8_t timing_source;
+  uint8_t local_bis_id;
+} tBTM_DBIG_UPDATE_EVT;
+
+typedef struct {
+  uint8_t big_handle;
+  uint8_t reason;
+} tBTM_BIG_SYNC_LOST_EVT;
+
+typedef struct {
+  uint8_t status;
+  uint8_t big_handle;
+  uint32_t transport_latency_big;
+  uint8_t nse;
+  uint8_t bn;
+  uint8_t pto;
+  uint8_t irc;
+  uint16_t max_pdu;
+  uint16_t iso_interval;
+  uint8_t num_bis;
+  uint16_t bis_handles[MAX_BIS_COUNT];
+} tBTM_BLE_BIG_SYNC_ESTABLISHED_EVT;
 
 /* command parameters of HCI_LE_Set_Path_Loss_Reporting_Parameters*/
 typedef struct {

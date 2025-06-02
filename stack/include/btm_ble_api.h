@@ -1007,6 +1007,14 @@ extern uint8_t BTM_BleRemoveIsoDataPath(uint16_t conn_handle, uint8_t direction,
  * Returns          void
  *
  **************************************************************************************/
+extern uint8_t BTM_BleCreateDbig(tBTM_BLE_CREATE_DBIG_PARAM* p_data);
+
+extern uint8_t BTM_BleBigCreateSync(tBTM_BLE_BIG_CREATE_SYNC_PARAM* p_data,
+                                        tBTM_BLE_BIG_SYNC_LOST_CB* p_sync_lost_cb);
+
+extern uint8_t BTM_BleTerminateBigSync(uint8_t big_handle,
+                                         tBTM_BLE_TERMINATE_BIG_SYNC_CB* p_cb);
+
 extern void BTM_BleRequestPeerSca(uint16_t conn_handle,
                                   tBTM_BLE_REQUEST_PEER_SCA_COMPLETE_CB* p_cback);
 
@@ -1360,6 +1368,9 @@ extern void btm_ble_periodic_adv_sync_lost(uint8_t *param, uint16_t param_len);
 
 extern void btm_ble_biginfo_adv_report_rcvd(uint8_t *param, uint16_t param_len);
 extern void btm_ble_periodic_adv_sync_tx_rcvd(uint8_t *param, uint16_t param_len);
+extern void btm_ble_big_sync_update_evt(uint8_t *param, uint16_t param_len);
+extern void btm_ble_big_sync_established_evt(uint8_t *param, uint16_t param_len);
+extern void btm_ble_big_sync_lost_evt(uint8_t *param, uint16_t param_len);
 /*******************************************************************************
  *
  * Function         BTM_BleStartPeriodicSync

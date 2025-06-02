@@ -974,6 +974,9 @@ extern void btsnd_hcic_set_reserved_lt_addr(uint8_t lt_addr);
 #define HCI_PARAM_SIZE_SET_ISO_DATA_PATH 13
 #define HCI_PARAM_SIZE_REMOVE_ISO_DATA_PATH 3
 #define HCI_PARAM_SIZE_SET_BLE_HOST_FEATURE 2
+#define HCI_PARAM_SIZE_CREATE_DBIG 5
+#define HCI_PARAM_SIZE_CREATE_BIG_SYNC 24
+#define HCI_PARAM_SIZE_TERMINATE_BIG_SYNC 1
 
 /*Command API*/
 extern void btsnd_hcic_ble_set_cig_param(uint8_t cig_id,
@@ -1020,6 +1023,25 @@ extern void btsnd_hcic_ble_set_iso_data_path(uint16_t connection_handle,
                                    uint8_t codec_configuration_length,
                                    uint8_t* codec_configuration,
                                    base::Callback<void(uint8_t*, uint16_t)> cb);
+
+extern void btsnd_hcic_ble_create_dbig(uint8_t dbig_handle,
+                                   uint8_t bis_audio_timeout,
+                                   uint8_t bis_absent_timeout,
+                                   uint8_t bis_id,
+                                   base::Callback<void(uint8_t*, uint16_t)> cb);
+
+extern void btsnd_hcic_ble_create_big_sync(uint8_t big_handle,
+                                    uint16_t sync_handle,
+                                    uint8_t encryption,
+                                    uint8_t* broadcast_code,
+                                    uint8_t mse,
+                                    uint16_t bis_sync_timeout,
+                                    uint8_t num_bis,
+                                    uint8_t* bis,
+                                   base::Callback<void(uint8_t*, uint16_t)> cb);
+
+extern void btsnd_hcic_ble_terminate_big_sync(uint8_t big_handle,
+                                     base::Callback<void(uint8_t*, uint16_t)> cb);
 
 extern void btsnd_hcic_ble_remove_iso_data_path(uint16_t connection_handle,
                                    uint8_t data_path_direction,

@@ -73,6 +73,12 @@ std::map<uint16_t, uint8_t> cis_map;
 // pending CIS connection
 std::map<uint16_t, tBTM_BLE_PENDING_CIS_CONN> pending_cis_map;
 uint16_t last_pending_cis_handle = 0;
+
+static struct {
+  tBTM_BLE_BIG_SYNC_ESTABLISHED_CB* cb;
+  tBTM_BLE_DBIG_UPDATE_CB* dbig_update_cb;
+  bool waiting_for_update_evt;
+} big_sync_state = {nullptr, nullptr, false};
 /******************************************************************************/
 /* External Function to be called by other modules                            */
 /******************************************************************************/
@@ -3015,6 +3021,171 @@ void btm_ble_setup_iso_datapath_cmd_cmpl(uint8_t *param, uint16_t param_len) {
 
 }
 
+void btm_ble_terminate_big_sync_cmd_cmpl(uint8_t *param, uint16_t param_len) {
+  uint8_t status;
+  uint8_t big_handle = 0;
+  BTM_TRACE_API("%s: param_len = %d", __func__, param_len);
+
+  if (param_len <= 0) {
+    BTM_TRACE_WARNING("%s Insufficient return parameters.", __func__);
+    return;
+  }
+
+  STREAM_TO_UINT8(status, param);
+  STREAM_TO_UINT8(big_handle, param);
+
+  if (hci_cmd_cmpl.terminate_big_sync_cmpl_cb) {
+    (*hci_cmd_cmpl.terminate_big_sync_cmpl_cb) (status, big_handle);
+  }
+}
+
+void btm_ble_create_dbig_cmd_cmpl(uint8_t *param, uint16_t param_len) {
+  uint8_t status;
+  uint8_t sub_opcode = 0;
+  BTM_TRACE_API("%s: param_len = %d", __func__, param_len);
+
+  if (param_len <= 0) {
+    BTM_TRACE_WARNING("%s Insufficient return parameters.", __func__);
+    return;
+  }
+
+  STREAM_TO_UINT8(status, param);
+  STREAM_TO_UINT8(sub_opcode, param);
+
+  if (hci_cmd_cmpl.create_dbig_cmpl_cb) {
+    (*hci_cmd_cmpl.create_dbig_cmpl_cb) (status, sub_opcode);
+  }
+
+}
+
+void btm_ble_create_sync_cmd_update_cb(uint8_t *param, uint16_t param_len) {
+  uint8_t status;
+  BTM_TRACE_API("%s: param_len = %d", __func__, param_len);
+
+  if (param_len <= 0) {
+    BTM_TRACE_WARNING("%s Insufficient return parameters.", __func__);
+    return;
+  }
+
+  STREAM_TO_UINT8(status, param);
+  if(status != HCI_SUCCESS) {
+      if(big_sync_state.cb) {
+          big_sync_state.cb = nullptr;
+      }
+      big_sync_state.waiting_for_update_evt = false;
+      return;
+  }
+}
+
+void btm_ble_big_sync_update_evt(uint8_t *param, uint16_t param_len) {
+
+  if (param_len < 4) {
+    LOG(ERROR) << __func__ << ": Invalid DBIG update event length: " << param_len;
+    return;
+  }
+
+  tBTM_DBIG_UPDATE_EVT* evt = new tBTM_DBIG_UPDATE_EVT;
+
+  STREAM_TO_UINT8(evt->dbig_handle, param);
+  STREAM_TO_UINT8(evt->bis_state, param);
+  STREAM_TO_UINT8(evt->timing_source, param);
+  STREAM_TO_UINT8(evt->local_bis_id, param);
+
+  LOG(INFO) << __func__
+  << ": DBIG Handle=" << loghex(evt->dbig_handle)
+  << ", BIS State=" << loghex(evt->bis_state)
+  << ", Timing Source=" << loghex(evt->timing_source)
+  << ", Local BIS ID=" << (int)evt->local_bis_id;
+
+  // Notify the caller
+  /*if (big_sync_state.cb) {
+    big_sync_state.cb(HCI_SUCCESS,evt->dbig_handle,
+                        evt->bis_state, evt->timing_source,
+                        evt->local_bis_id);
+  }*/
+
+  delete evt;
+}
+
+void btm_ble_big_sync_lost_evt(uint8_t *param, uint16_t param_len) {
+
+  if (param_len < 2) {
+    LOG(ERROR) << __func__ << ": Invalid BIG sync lost evt length " << param_len;
+    return;
+  }
+
+  tBTM_BIG_SYNC_LOST_EVT* evt = new tBTM_BIG_SYNC_LOST_EVT;
+
+  STREAM_TO_UINT8(evt->big_handle, param);
+  STREAM_TO_UINT8(evt->reason, param);
+
+  if(hci_cmd_cmpl.big_sync_lost_cb) {
+    hci_cmd_cmpl.big_sync_lost_cb(evt->big_handle, evt->reason);
+  }
+
+  LOG(INFO) << __func__
+  << ": BIG Handle=" << loghex(evt->big_handle)
+  << ",Reason=" << loghex(evt->reason);
+
+  delete evt;
+}
+
+
+void btm_ble_big_sync_established_evt(uint8_t* param, uint16_t param_len) {
+  if (param_len < 23) {
+    LOG(ERROR) << __func__ << ": Invalid BIG Sync Established event length: " << param_len;
+  }
+  tBTM_BLE_BIG_SYNC_ESTABLISHED_EVT* evt = new tBTM_BLE_BIG_SYNC_ESTABLISHED_EVT;
+  memset(evt, 0, sizeof(tBTM_BLE_BIG_SYNC_ESTABLISHED_EVT));
+  uint8_t status;
+  STREAM_TO_UINT8(status, param);
+
+  if (status != HCI_SUCCESS) {
+    LOG(ERROR) << __func__ << ": BIG Sync establishment failed, status: " << loghex(status);
+  } else {
+  evt->status = status;
+  STREAM_TO_UINT8(evt->big_handle, param);
+  STREAM_TO_UINT24(evt->transport_latency_big, param);
+  STREAM_TO_UINT8(evt->nse, param);
+  STREAM_TO_UINT8(evt->bn, param);
+  STREAM_TO_UINT8(evt->pto, param);
+  STREAM_TO_UINT8(evt->irc, param);
+  STREAM_TO_UINT16(evt->max_pdu, param);
+  STREAM_TO_UINT16(evt->iso_interval, param);
+  STREAM_TO_UINT8(evt->num_bis, param);
+
+  for (int i = 0; i < evt->num_bis && i < MAX_BIS_COUNT; ++i) {
+    STREAM_TO_UINT16(evt->bis_handles[i], param);
+  }
+
+  LOG(INFO) << __func__ << ": BIG Sync established, params info=" << loghex(evt->big_handle)
+          << ", transport latency BIG=" << loghex(evt->transport_latency_big)
+          << ", NSE=" << static_cast<int>(evt->nse)
+          << ", BN=" << static_cast<int>(evt->bn)
+          << ", PTO=" << static_cast<int>(evt->pto)
+          << ", IRC=" << static_cast<int>(evt->irc)
+          << ", max PDU=" << loghex(evt->max_pdu)
+          << ", ISO interval=" << loghex(evt->iso_interval)
+          << ", num BIS=" << static_cast<int>(evt->num_bis);
+
+  for (int i = 0; i < evt->num_bis && i < MAX_BIS_COUNT; ++i) {
+    LOG(INFO) << "BIS handle[" << i << "]=" << loghex(evt->bis_handles[i]);
+  }
+  LOG(INFO) << __func__ << ": BIG Sync established, handle=" << loghex(evt->big_handle)
+            << ", num BIS=" << static_cast<int>(evt->num_bis);
+  }
+
+  if (big_sync_state.cb) {
+    big_sync_state.cb(evt->status,evt->big_handle, evt->transport_latency_big,
+                      evt->nse, evt->bn, evt->pto, evt->irc,
+                      evt->max_pdu, evt->iso_interval, evt->num_bis, evt->bis_handles);
+  }
+
+  delete evt;
+  big_sync_state.cb = nullptr;
+  big_sync_state.waiting_for_update_evt = false;
+}
+
 void btm_ble_remove_iso_datapath_cmd_cmpl(uint8_t *param, uint16_t param_len) {
   uint8_t status;
   uint16_t conn_handle = 0;
@@ -3779,6 +3950,49 @@ uint8_t BTM_BleRemoveIsoDataPath(uint16_t conn_handle, uint8_t direction,
   hci_cmd_cmpl.remove_iso_datapath = p_cb;
   btsnd_hcic_ble_remove_iso_data_path(conn_handle, direction,
                                       base::Bind(&btm_ble_remove_iso_datapath_cmd_cmpl));
+  return HCI_SUCCESS;
+}
+
+uint8_t BTM_BleTerminateBigSync(uint8_t big_handle, tBTM_BLE_TERMINATE_BIG_SYNC_CB* p_cb) {
+  BTM_TRACE_API("%s", __func__);
+  hci_cmd_cmpl.terminate_big_sync_cmpl_cb = p_cb;
+  btsnd_hcic_ble_terminate_big_sync(big_handle,
+                                    base::Bind(&btm_ble_terminate_big_sync_cmd_cmpl));
+  return HCI_SUCCESS;
+}
+
+uint8_t BTM_BleCreateDbig(tBTM_BLE_CREATE_DBIG_PARAM* p_data) {
+  BTM_TRACE_API("%s", __func__);
+
+  hci_cmd_cmpl.create_dbig_cmpl_cb = p_data->p_cb;
+  btsnd_hcic_ble_create_dbig(p_data->dbig_handle,
+                             p_data->bis_audio_timeout,
+                             p_data->bis_absent_timeout,
+                             p_data->bis_id,
+                             base::Bind(&btm_ble_create_dbig_cmd_cmpl));
+  return HCI_SUCCESS;
+}
+
+uint8_t BTM_BleBigCreateSync(tBTM_BLE_BIG_CREATE_SYNC_PARAM* p_data,
+                               tBTM_BLE_BIG_SYNC_LOST_CB* p_sync_lost_cb) {
+  BTM_TRACE_API("%s", __func__);
+
+  big_sync_state.cb = p_data->p_cb;
+  big_sync_state.waiting_for_update_evt = true;
+
+  hci_cmd_cmpl.big_sync_lost_cb = p_sync_lost_cb;
+
+  BTM_TRACE_API("%s sending createSync", __func__);
+
+  btsnd_hcic_ble_create_big_sync(p_data->big_handle,
+                                 p_data->sync_handle,
+                                 p_data->encryption,
+                                 p_data->broadcast_code,
+                                 p_data->mse,
+                                 p_data->bis_sync_timeout,
+                                 p_data->num_bis,
+                                 p_data->bis,
+      base::Bind(&btm_ble_create_sync_cmd_update_cb));
   return HCI_SUCCESS;
 }
 

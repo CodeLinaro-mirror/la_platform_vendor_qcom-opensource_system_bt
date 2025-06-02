@@ -584,6 +584,8 @@ ExtSampleRate btif_lc3_sample_rate(uint16_t rate) {
 }
 
 LC3ChannelMode btif_lc3_channel_mode(uint8_t mode) {
+    LOG(ERROR) << __func__
+               << " a2dp_encoding : mode: " << mode;
   switch (mode) {
     case BTAV_A2DP_CODEC_CHANNEL_MODE_MONO:
       return LC3ChannelMode::MONO;
@@ -1554,13 +1556,35 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
   }
 
 /********LC3 Codec */
-  if (profile == BROADCAST) {
+  if (profile == BROADCAST || profile == ACHAT_OWNER ||
+      profile == ACHAT_PERIPHERAL) {
     //Populate LC3 codec info
     codec_config->codecType = CodecType_2_1::LC3;
     codec_config->config.lc3Config = {};
     auto lc3Config = codec_config->config.lc3Config;
 
-    lc3Config.rxConfigSet |= TX_ONLY_CONFIG;
+    if(profile == BROADCAST) {
+      lc3Config.rxConfigSet |= TX_ONLY_CONFIG;
+    } else {
+
+      lc3Config.rxConfigSet |= TX_RX_BOTH_CONFIG;
+      cis_count = 4;
+      lc3Config.rxConfig.sampleRate = btif_lc3_sample_rate(
+          pclient_cbs[profile - 1]->get_sample_rate_cb(lc3Config.rxConfigSet));
+      lc3Config.rxConfig.channelMode = btif_lc3_channel_mode(
+          pclient_cbs[profile - 1]->get_channel_mode_cb(lc3Config.rxConfigSet));
+      lc3Config.rxConfig.bitrate =
+          pclient_cbs[profile - 1]->get_bitrate_cb(lc3Config.rxConfigSet);
+      lc3Config.rxConfig.octetsPerFrame =
+          pclient_cbs[profile - 1]->get_mtu_cb(lc3Config.rxConfig.bitrate,
+                                               lc3Config.rxConfigSet);
+      lc3Config.rxConfig.frameDuration =
+          pclient_cbs[profile - 1]->get_frame_length_cb(lc3Config.rxConfigSet);
+      lc3Config.rxConfig.bitsPerSample = BitsPerSample::BITS_16;
+      lc3Config.rxConfig.numBlocks = 1;
+    }
+
+    // Fill the TX config
     lc3Config.txConfig.sampleRate = btif_lc3_sample_rate(
           pclient_cbs[profile - 1]->get_sample_rate_cb(lc3Config.rxConfigSet));
     lc3Config.txConfig.channelMode = btif_lc3_channel_mode(
@@ -1572,7 +1596,11 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
                                                lc3Config.rxConfigSet);
     lc3Config.txConfig.frameDuration =
           pclient_cbs[profile - 1]->get_frame_length_cb(lc3Config.rxConfigSet);
-    lc3Config.txConfig.bitsPerSample = BitsPerSample::BITS_24;
+    if(profile == ACHAT_OWNER || profile == ACHAT_PERIPHERAL) {
+      lc3Config.txConfig.bitsPerSample = BitsPerSample::BITS_16;
+    } else {
+      lc3Config.txConfig.bitsPerSample = BitsPerSample::BITS_24;
+    }
     lc3Config.txConfig.numBlocks = 1;
 
     uint8_t cs[16] = {0};
@@ -1584,7 +1612,15 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
     lc3Config.decoderOuputChannels = 0;
 
     int numBises = pclient_cbs[profile - 1]->get_ch_count_cb();
-    bool simulcast = pclient_cbs[profile -1]->get_simulcast_status_cb();
+    bool simulcast = false;
+
+    if (pclient_cbs[profile -1]->get_simulcast_status_cb != nullptr) {
+      LOG(INFO) << __func__ << "get_simulcast_status_cb is non null";
+      simulcast = pclient_cbs[profile -1]->get_simulcast_status_cb();
+    }
+    else
+      LOG(INFO) << __func__ << "get_simulcast_status_cb is null";
+
     if (simulcast) {
       //Reset Tx flag and set only Rx flag.
       if (lc3Config.rxConfigSet & TX_ONLY_CONFIG) {
@@ -1601,6 +1637,8 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
       lc3Config.mode = BA_SIMULCAST;
     }
 
+    LOG(INFO) << __func__ << " Filling ToAir stream map ";
+    // To Air
     lc3Config.NumStreamIDGroup = numBises;
     for (int i = 0; i < numBises; i++) {
       if (lc3Config.txConfig.channelMode == LC3ChannelMode::STEREO) {
@@ -1611,9 +1649,19 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
         lc3Config.streamMap[(i*3)] = CHANNEL_MONO;
       }
       lc3Config.streamMap[(i*3)+1] = i;
-      lc3Config.streamMap[(i*3)+2] = 0;
+      lc3Config.streamMap[(i*3)+2] = TO_AIR;
     }
 
+    // From Air
+    if (lc3Config.rxConfigSet == TX_RX_BOTH_CONFIG) {
+      lc3Config.decoderOuputChannels = cis_count;
+      for (int i = numBises, j = 0; i < numBises + cis_count; i++, j++) {
+        lc3Config.streamMap[(i*3)] = CHANNEL_MONO;
+        lc3Config.streamMap[(i*3)+1] = j; // stream ID
+        lc3Config.streamMap[(i*3)+2] = FROM_AIR;  // direction
+      }
+      lc3Config.NumStreamIDGroup += cis_count;
+    }
     // To make sure QSSI builds with VBC changes won't
     // break existing features on older Vendor AUs.
     // Ensured this, with below flag by making rxConfigSet to 0
@@ -2585,7 +2633,8 @@ bool init( thread_t* message_loop) {
       }
 #if AHIM_ENABLED
     } else if(profile == AUDIO_GROUP_MGR || profile == BROADCAST ||
-              profile == A2DP_SINK) {
+              profile == A2DP_SINK || profile == ACHAT_OWNER ||
+              profile == ACHAT_PERIPHERAL) {
         CodecConfiguration_2_1 codec_config{};
         if (!a2dp_get_selected_hal_codec_config_2_1(&codec_config, profile)) {
           LOG(ERROR) << __func__ << ": Failed to get CodecConfiguration";
