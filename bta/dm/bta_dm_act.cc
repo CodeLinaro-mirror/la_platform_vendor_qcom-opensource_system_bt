@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 
 /******************************************************************************
@@ -195,6 +199,8 @@ static void bta_dm_ctrl_features_rd_cmpl_cback(tBTM_STATUS result);
 #endif
 
 #define BT_DEFAULT_POWER (0x80)
+
+#define BT_PBAP_CLIENT_PROPERTY "persist.vendor.service.bt.pbap.client"
 
 #ifdef ADV_AUDIO_FEATURE
 #define BT_ADV_AUDIO_PROPERTY "persist.vendor.service.bt.adv_audio_mask"
@@ -2534,7 +2540,9 @@ static void bta_dm_find_services(const RawAddress& bd_addr) {
 
       } else {
         if (uuid == Uuid::From16Bit(UUID_PROTOCOL_L2CAP)) {
-          if (sdpu_is_pbap_0102_enabled() && !is_sdp_pbap_pce_disabled(bd_addr)) {
+          char pce_value[PROPERTY_VALUE_MAX];
+          osi_property_get(BT_PBAP_CLIENT_PROPERTY, pce_value, "false");
+          if (strncmp("true", pce_value, 4) && sdpu_is_pbap_0102_enabled() && !is_sdp_pbap_pce_disabled(bd_addr)) {
             LOG_DEBUG(LOG_TAG, "%s SDP search for PBAP Client ", __func__);
             BTA_SdpSearch(bd_addr, Uuid::From16Bit(UUID_SERVCLASS_PBAP_PCE));
           }
