@@ -200,6 +200,12 @@ void avrc_send_next_vendor_cmd(uint8_t handle) {
  *
  *****************************************************************************/
 void avrc_start_cmd_timer(uint8_t handle, uint8_t label, uint8_t msg_mask) {
+
+  if (!avrc_cb.ccb_int[handle].tle) {
+    AVRC_TRACE_ERROR("Unable to start response timer handle=0x%02x label=0x%02x msg_mask=0x%02x",
+                     handle, label, msg_mask);
+    return;
+  }
   tAVRC_PARAM* param =
       static_cast<tAVRC_PARAM*>(osi_malloc(sizeof(tAVRC_PARAM)));
   param->handle = handle;
