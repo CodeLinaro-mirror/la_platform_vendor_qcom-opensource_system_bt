@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -39,6 +39,7 @@ typedef struct {
   int channelCount;
   float* buffer;
   size_t bufferLength;
+  float gain;
 } BtifAvrcpAudioTrack;
 
 struct AudioEngine {
@@ -52,6 +53,11 @@ struct AudioEngine {
 FILE* outputPcmSampleFile;
 char outputFilename[50] = "/data/misc/bluedroid/output_sample.pcm";
 #endif
+
+// Maximum track gain that can be set.
+constexpr float kMaxTrackGain = 1.0f;
+// Minimum track gain that can be set.
+constexpr float kMinTrackGain = 0.0f;
 
 void ErrorCallback(AAudioStream* stream, void* userdata, aaudio_result_t error);
 
@@ -123,6 +129,7 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
   trackHolder->channelCount = channelCount;
   trackHolder->bufferLength =
       trackHolder->channelCount * AAudioStream_getBufferSizeInFrames(stream);
+  trackHolder->gain = kMaxTrackGain;
   trackHolder->buffer = new float[trackHolder->bufferLength]();
 
   s_AudioEngine.trackFreq = trackFreq;
@@ -214,7 +221,16 @@ void BtifAvrcpSetAudioTrackGain(void* handle, float gain) {
     LOG_DEBUG(LOG_TAG, "%s handle is null.", __func__);
     return;
   }
-  // Does nothing right now
+  BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(handle);
+  if (trackHolder != NULL) {
+    const float clampedGain = std::clamp(gain, kMinTrackGain, kMaxTrackGain);
+    if (clampedGain != gain) {
+      LOG_DEBUG(LOG_TAG, "Out of bounds gain set. Clamping the gain from :%f to %f", gain,
+        clampedGain);
+    }
+    trackHolder->gain = clampedGain;
+    LOG_DEBUG(LOG_TAG, "Avrcp audio track gain is set to %f", trackHolder->gain);
+  }
 }
 
 constexpr float kScaleQ15ToFloat = 1.0f / 32768.0f;
@@ -229,8 +245,9 @@ static size_t transcodeQ15ToFloat(uint8_t* buffer, size_t length,
                                   BtifAvrcpAudioTrack* trackHolder) {
   size_t sampleSize = sampleSizeFor(trackHolder);
   size_t i = 0;
+  const float scaledGain = trackHolder->gain * kScaleQ15ToFloat;
   for (; i < std::min(trackHolder->bufferLength, length / sampleSize); i++) {
-    trackHolder->buffer[i] = ((int16_t*)buffer)[i] * kScaleQ15ToFloat;
+    trackHolder->buffer[i] = ((int16_t*)buffer)[i] * scaledGain;
   }
   return i * sampleSize;
 }
@@ -239,10 +256,11 @@ static size_t transcodeQ23ToFloat(uint8_t* buffer, size_t length,
                                   BtifAvrcpAudioTrack* trackHolder) {
   size_t sampleSize = sampleSizeFor(trackHolder);
   size_t i = 0;
+  const float scaledGain = trackHolder->gain * kScaleQ23ToFloat;
   for (; i < std::min(trackHolder->bufferLength, length / sampleSize); i++) {
     size_t offset = i * sampleSize;
     int32_t sample = *((int32_t*)(buffer + offset - 1)) & 0x00FFFFFF;
-    trackHolder->buffer[i] = sample * kScaleQ23ToFloat;
+    trackHolder->buffer[i] = sample * scaledGain;
   }
   return i * sampleSize;
 }
@@ -251,8 +269,9 @@ static size_t transcodeQ31ToFloat(uint8_t* buffer, size_t length,
                                   BtifAvrcpAudioTrack* trackHolder) {
   size_t sampleSize = sampleSizeFor(trackHolder);
   size_t i = 0;
+  const float scaledGain = trackHolder->gain * kScaleQ31ToFloat;
   for (; i < std::min(trackHolder->bufferLength, length / sampleSize); i++) {
-    trackHolder->buffer[i] = ((int32_t*)buffer)[i] * kScaleQ31ToFloat;
+    trackHolder->buffer[i] = ((int32_t*)buffer)[i] * scaledGain;
   }
   return i * sampleSize;
 }
