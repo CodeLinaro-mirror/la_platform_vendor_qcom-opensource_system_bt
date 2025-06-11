@@ -302,15 +302,15 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
           if(slot->scn != (int)channel){
             ALOGI("Received Connect Cb on a different SCN. Ignore Connection CB");
             break;
+          } else if (!slot->f.server) {
+            ALOGI("Received Connect Cb on a different slot. Ignore Connection CB");
+            break;
           }
+        } else {
+            ALOGE("%s Not able to find the slot for sock FD %d", __func__, sock_fd);
+            return;
         }
-        else
-        {
-          ALOGE("%s Not able to find the slot for sock FD %d", __func__, sock_fd);
-          return;
-        }
-      }
-
+	  }
       if (rfcommSrvOpenCb.has_addr()) {
         uint8_t* addr = (uint8_t*)rfcommSrvOpenCb.addr().c_str();
         std::string bt_address = ((RawAddress*)addr)->ToString();
@@ -327,6 +327,7 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
       }
       ss_srv_rfc_connect(sock_fd, &bd_addr, channel, status, mtu);
       ss_flush_incoming_que_on_wr_signal(slot);
+
       break;
     }
     case BT_RFCOMM_CLIENT_CONNECT_CB: {
@@ -387,9 +388,9 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
       uint8_t *data;
       ss_rfcomm_data_callback rfcommDataCb;
       rfcommDataCb.ParseFromString(resBufferString);
-      if (rfcommDataCb.has_channel()) {
+      if (rfcommDataCb.has_sock_fd()) {
         ALOGI("%s: Recieved channel: %d",__func__, (int)rfcommDataCb.channel());
-        rfc_slot_t* slot = find_rfc_slot_by_scn((int)rfcommDataCb.channel());
+        rfc_slot_t* slot = find_rfc_slot_by_fd((int)rfcommDataCb.sock_fd());
         if (!slot){
           ALOGI("%s: RFC Slot is unavailable/closed",__func__);
           return;
@@ -455,7 +456,7 @@ void btif_rfcomm_ss_callback(uint16_t event, char* p_param) {
         sock_fd = rfcommDisconnectCb.sock_fd();
         ALOGI("%s: Recieved sock FD: %d",__func__, sock_fd);
       }
-      rfc_slot_t* slot = find_rfc_slot_by_scn((int)channel);
+      rfc_slot_t* slot = find_rfc_slot_by_fd((int)sock_fd);
       if(slot){
         // Don't trigger DISCONNECT_SOCKET API if we get DISCONNECT_SOCKET_CB
         slot->scn = 0;
@@ -608,6 +609,7 @@ static rfc_slot_t* alloc_rfc_slot(const RawAddress* addr, const char* name,
   slot->f.server = server;
   slot->type = type;
 
+  ALOGI("slot->f.server = %d\n", slot->f.server);
   return slot;
 }
 
@@ -630,8 +632,6 @@ static rfc_slot_t* create_srv_accept_rfc_slot(rfc_slot_t* srv_rs,
   accept_rs->rfc_handle = open_handle;
   accept_rs->rfc_port_handle = -1;//BTA_JvRfcommGetPortHdl(open_handle);
   accept_rs->app_uid = srv_rs->app_uid;
-  accept_rs->new_srv_fd = srv_rs->fd;
-  accept_rs->is_server = true;
 
   srv_rs->rfc_handle = new_listen_handle;
   srv_rs->rfc_port_handle = -1;//BTA_JvRfcommGetPortHdl(new_listen_handle);
@@ -961,23 +961,14 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
     return;
   }
   if(slot){
-    ALOGI("%s: slot->fd is :: %d , slot->scn is :: %d , slot->new_srv_fd is :: %d , slot->is_server is :: %d, slot->id is :: %d slot->f.server is :: %d",__func__,
-    slot->fd, slot->scn,slot->new_srv_fd,slot->is_server,slot->id,slot->f.server);
+    ALOGI("%s: slot->fd is :: %d , slot->scn is :: %d , slot->id is :: %d, slot->f.server is :: %d,",__func__,
+    slot->fd, slot->scn,slot->id,slot->f.server);
   }
 
-  if(slot->f.server){
-    if (slot->new_srv_fd != 0) {
-      shutdown(slot->new_srv_fd, SHUT_RDWR);
-      close(slot->new_srv_fd);
-      slot->new_srv_fd = 0;
-      slot->is_server = false;
-    }
-  }else{
-    if (slot->fd != INVALID_FD) {
+  if (slot->fd != INVALID_FD) {
       shutdown(slot->fd, SHUT_RDWR);
       close(slot->fd);
-    }
-  }
+   }
 
   if (slot->app_fd != INVALID_FD) {
     close(slot->app_fd);
@@ -994,7 +985,7 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
     ALOGI("can close rfcomm connection");
     if(slot->scn != 0){
         /*Sending disconnect request*/
-        ALOGI("%s: sending disconnect for channel : %d and fd : %d",__func__,slot->scn, slot->is_server?slot->new_srv_fd : slot->fd);
+        ALOGI("%s: sending disconnect for channel : %d and fd : %d",__func__,slot->scn, slot->fd);
         uint8_t disconnect_socket[MAX_LENGTH_WITH_PROTO_NONE];
         //adding msg_id
         uint16_t msg_id = BT_RFCOMM_DISCONNECT_SOCKET;
@@ -1004,11 +995,7 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
         std::string protoMsg;
         ss_disconnect_socket disconnSocketCh;
         disconnSocketCh.set_channel(slot->scn);
-        if(slot->is_server){
-            disconnSocketCh.set_sock_fd(slot->new_srv_fd);
-        }else{
-            disconnSocketCh.set_sock_fd(slot->fd);
-        }
+        disconnSocketCh.set_sock_fd(slot->fd);
         disconnSocketCh.SerializeToString(&protoMsg);
 
         //adding length
@@ -1055,6 +1042,7 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
   slot->rfc_port_handle = 0;
   memset(&slot->f, 0, sizeof(slot->f));
   slot->id = 0;
+  slot->fd = INVALID_FD;
   slot->scn_notified = false;
 
   list_free(slot->incoming_queue);
@@ -1092,8 +1080,11 @@ static void ss_srv_rfc_connect (int fd, const RawAddress* addr, int channel,
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* accept_rs;
   rfc_slot_t* srv_rs = find_rfc_slot_by_fd(fd);
+  bool accept_status = true;
+
   if (!srv_rs) return;
 
+  ALOGI("\nss_srv_rfc_connect srv_rs->fd : %d", srv_rs->fd);
   srv_rs->mtu = mtu;
   if (channel >= 0x80 && channel <= 0xff) {
     srv_rs->type = BTSOCK_L2CAP_LE;
@@ -1102,9 +1093,78 @@ static void ss_srv_rfc_connect (int fd, const RawAddress* addr, int channel,
   }
   accept_rs = create_srv_accept_rfc_slot(
     srv_rs, addr, channel, -1);
-  if (!accept_rs) return;
 
-  // Start monitoring the socket.
+  if (!accept_rs) {
+    accept_status = false;
+  }
+
+   /* send proto msg to slate */
+   uint8_t accept_socket_done_msg[MAX_LENGTH_WITH_PROTO_NONE];
+   //adding msg_id
+   uint16_t msg_id = BT_RFCOMM_SRV_ACCEPT_DONE;
+   accept_socket_done_msg[0] = msg_id & 0xff;
+   accept_socket_done_msg[1] = (msg_id >> 8);
+   std::string protoMsg;
+   ss_rfcomm_srv_accept_done ss_rfcomm_srv_accept_done_;
+     /* fill the proto msg */
+   ss_rfcomm_srv_accept_done_.set_sock_fd(fd);
+   ss_rfcomm_srv_accept_done_.set_addr(ToRawString(addr).c_str());
+   ss_rfcomm_srv_accept_done_.set_channel(channel);
+   ss_rfcomm_srv_accept_done_.set_status(accept_status);
+   if(accept_status) {
+     ss_rfcomm_srv_accept_done_.set_accept_fd(accept_rs->fd);
+   } else {
+     ss_rfcomm_srv_accept_done_.set_accept_fd(INVALID_FD);
+   }
+   ss_rfcomm_srv_accept_done_.SerializeToString(&protoMsg);
+   //adding length
+   uint16_t length = protoMsg.length();
+   accept_socket_done_msg[2] = length & 0xff;
+   accept_socket_done_msg[3] = (length >> 8);
+   //adding proto_encode
+   uint16_t proto_encode = PROTO_ENC_DEC;
+   accept_socket_done_msg[4] = proto_encode & 0xff;
+   accept_socket_done_msg[5] = (proto_encode >> 8);
+   char resBuffer[MAX_LENGTH_WITH_PROTO_NONE];
+   memcpy(resBuffer, (char *) accept_socket_done_msg, MAX_LENGTH_WITH_PROTO_NONE);
+   std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
+   msgStr.append(protoMsg);
+   ALOGI("%s: BT_RFCOMM_SRV_ACCEPT_DONE length: %d",__func__, msgStr.length());
+   ALOGI("%s: BT_RFCOMM_SRV_ACCEPT_DONE fd: %d, accept_fd: %d, addr: %s, channel: %d, status: %d",__func__, fd, accept_rs->fd, ((addr)->ToString().c_str()), channel, status);
+  #ifndef SS_STUB_ENABLED
+   //pbap UUID
+   Uuid uuid_PBAP_PSE = Uuid::FromString("0000112f-0000-1000-8000-00805f9b34fb");
+   ALOGI("uuid PBAP : %s", uuid_PBAP_PSE.ToString().c_str());
+   if (srv_rs->type ==  BTSOCK_L2CAP_LE) {
+       int result = gBTSSInterface->postLeDataChTxMsg(msgStr, accept_rs->fd);
+       ALOGI("%s: LE Srv Accept done, result is :: ",__func__/*,result*/);
+   }
+   else if (srv_rs->type == BTSOCK_L2CAP) {
+       int result = gBTSSInterface->postObexDataChTxMsg(msgStr, accept_rs->fd);
+       ALOGI("%s: L2CAP Srv Accept done, result is :: ",__func__/*,result*/);
+   }
+    else if (srv_rs->service_uuid.ToString() == uuid_PBAP_PSE.ToString()) {
+       pbapClient = true;
+       int result = gBTSSInterface->postObexDataChTxMsg(msgStr, accept_rs->fd);
+       ALOGI("%s: Obex Data Write for uuid connection, result is :: %d",__func__,result);
+   }
+   else if (channel == 19) {
+       pbapClient = true;
+       int result = gBTSSInterface->postObexDataChTxMsg(msgStr, accept_rs->fd);
+       ALOGI("%s: Obex Data Write for rfcomm channel connection, result is :: %d",__func__,result);
+   }  else {
+       gBTSSInterface->postDataChTxMsg(msgStr, accept_rs->fd);
+   }
+ #else
+   gBTSSStubInterface->postTxMsg(msgStr);
+ #endif
+ 
+   if(!accept_status) {
+	   /* failed to create accept socket pair */
+	   return;
+   }
+
+ // Start monitoring the socket.
   btsock_thread_add_fd(pth, srv_rs->fd, srv_rs->type, SOCK_THREAD_FD_EXCEPTION,
                        srv_rs->id);
   btsock_thread_add_fd(pth, accept_rs->fd, accept_rs->type, SOCK_THREAD_FD_RD,
@@ -1509,11 +1569,9 @@ void btsock_rfc_signaled(int fd, int type, int flags, uint32_t user_id) {
   rfc_slot_t* slot = find_rfc_slot_by_fd(fd);
   if (!slot) return;
   channel = slot->scn;
-  int new_srv_fd = slot->new_srv_fd;
-  ALOGI("new_srv_fd is :: %d",new_srv_fd);
   if (flags & SOCK_THREAD_FD_RD && !slot->f.server){
     if(slot->f.connected){
-    ALOGI("Data available from App on FD :: %d and channel :: %d and new_srv_fd is %d and slot->mtu is %d",fd,channel,new_srv_fd,slot->mtu);
+    ALOGI("Data available from App on FD :: %d and channel :: %d and and slot->mtu is %d",fd,channel,slot->mtu);
     if (ss_rfc_data_outgoing_size(fd, &size)) {
         ALOGI("%s fd is :: %d size is :: %d",__func__,fd,size);
         uint8_t data[size];
@@ -1539,11 +1597,7 @@ void btsock_rfc_signaled(int fd, int type, int flags, uint32_t user_id) {
             set_remprop_msg[1] = (msg_id >> 8);
             std::string protoMsg;
             ss_write_rfcomm_data rfcommData;
-            if(slot->is_server){
-              rfcommData.set_sock_fd(new_srv_fd);
-            }else{
-              rfcommData.set_sock_fd(fd);
-            }
+            rfcommData.set_sock_fd(fd);
             rfcommData.set_channel(channel);
             rfcommData.set_data_len(data_string_sub.size());
             rfcommData.set_data(data_string_sub);
@@ -1560,7 +1614,7 @@ void btsock_rfc_signaled(int fd, int type, int flags, uint32_t user_id) {
             memcpy(resBuffer, (char *) set_remprop_msg, MAX_LENGTH_WITH_PROTO_NONE);
             std::string msgStr(resBuffer, MAX_LENGTH_WITH_PROTO_NONE);
             msgStr.append(protoMsg);
-            ALOGI("%s: BT_RFCOMM_WRITE_SOCKET_DATA proto length: %d and payload length: %d",__func__, msgStr.size(), data_string_sub.size());
+            ALOGI("%s: BT_RFCOMM_WRITE_SOCKET_DATA proto length: %d and payload length: %d, fd :  %d, channel : %d",__func__, msgStr.size(), data_string_sub.size(), fd, channel);
           #ifndef SS_STUB_ENABLED
             if (type ==  BTSOCK_L2CAP_LE) {
               int result = gBTSSInterface->postLeDataChTxMsg(msgStr, slot->fd);
@@ -1590,7 +1644,7 @@ void btsock_rfc_signaled(int fd, int type, int flags, uint32_t user_id) {
         ALOGE("%s: ss_rfc_data_outgoing_size returned fail",__func__);
       }
     }else{
-      ALOGI("socket signaled for read while disconnected fd %d",new_srv_fd);
+      ALOGI("socket signaled for read while disconnected fd %d",fd);
       need_close = true;
     }
   }
@@ -1600,7 +1654,7 @@ void btsock_rfc_signaled(int fd, int type, int flags, uint32_t user_id) {
       ALOGI("App is ready to receive more data");
       ss_flush_incoming_que_on_wr_signal(slot);
     }else{
-      ALOGI("socket signaled for write while disconnected fd %d",new_srv_fd);
+      ALOGI("socket signaled for write while disconnected fd %d",fd);
       need_close = true;
     }
   }

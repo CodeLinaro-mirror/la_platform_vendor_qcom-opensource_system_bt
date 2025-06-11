@@ -37,6 +37,15 @@ message ss_connect_socket {
 	required uint32 sock_fd = 5;
 }
 
+/** Socket Accept done */
+message ss_rfcomm_srv_accept_done {
+	required uint32 sock_fd = 1;
+	required uint32 accept_fd = 2;
+	required bytes addr = 3;
+	required uint32 channel = 4;
+	required bool status = 5;
+}
+
 /** Disconnect */
 message ss_disconnect_socket {
     required uint32 sock_fd = 1;
