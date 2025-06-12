@@ -167,7 +167,7 @@ static void bta_create_pse_sdp_record(bluetooth_sdp_record* record,
   record->pse.hdr.rfcomm_channel_number = 0;
   record->pse.hdr.l2cap_psm = -1;
   record->pse.hdr.profile_version = 0;
-  record->pse.supported_features = 0x00000003;
+  record->pse.supported_features = 0;
   record->pse.supported_repositories = 0;
 
   p_attr = SDP_FindAttributeInRec(p_rec, ATTR_ID_SUPPORTED_REPOSITORIES);
