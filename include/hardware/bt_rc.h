@@ -646,13 +646,13 @@ typedef struct {
     bt_status_t (*get_playback_state_cmd) (RawAddress *bd_addr);
 
     /** get the now playing list */
-    bt_status_t (*get_now_playing_list_cmd) (RawAddress *bd_addr, uint8_t start, uint8_t items);
+    bt_status_t (*get_now_playing_list_cmd) (RawAddress *bd_addr, uint32_t start, uint32_t items);
 
     /** get the folder list */
-    bt_status_t (*get_folder_list_cmd) (RawAddress *bd_addr, uint8_t start, uint8_t items);
+    bt_status_t (*get_folder_list_cmd) (RawAddress *bd_addr, uint32_t start, uint32_t items);
 
     /** get the folder list */
-    bt_status_t (*get_player_list_cmd) (RawAddress *bd_addr, uint8_t start, uint8_t items);
+    bt_status_t (*get_player_list_cmd) (RawAddress *bd_addr, uint32_t start, uint32_t items);
 
     /** get the folder list */
     bt_status_t (*change_folder_path_cmd) (RawAddress *bd_addr, uint16_t uid_counter,
@@ -697,7 +697,7 @@ typedef struct {
     bt_status_t (*get_element_attribute_cmd)(RawAddress *bd_addr, uint8_t numAttr, uint32_t *attr);
 
     /** Get folder items */
-    bt_status_t (*get_folder_items_vendor_cmd)(RawAddress *bd_addr, uint8_t scope, uint8_t start, uint8_t end,
+    bt_status_t (*get_folder_items_vendor_cmd)(RawAddress *bd_addr, uint8_t scope, uint32_t start, uint32_t end,
                                              uint8_t numAttr, uint32_t *attr);
      /** Get total number of items */
     bt_status_t (*get_num_of_items_cmd)(RawAddress *bd_addr, uint8_t scope);
