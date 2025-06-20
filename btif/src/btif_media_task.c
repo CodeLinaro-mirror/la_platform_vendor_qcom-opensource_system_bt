@@ -52,7 +52,7 @@
 #ifdef ANDROID
 #include <audio_utils/primitives.h>
 #endif
-#include <audio_utils/format.h>
+#include <audio_utils/include/format.h>
 
 #include <hardware/bluetooth.h>
 

@@ -46,7 +46,7 @@
 
 // TODO(zachoverflow): remove this hack extern
 #include <hardware/bluetooth.h>
-bt_bdaddr_t btif_local_bd_addr;
+extern bt_bdaddr_t btif_local_bd_addr;
 
 #define INBOUND_PACKET_TYPE_COUNT 3
 #define PACKET_TYPE_TO_INBOUND_INDEX(type) ((type) - 2)

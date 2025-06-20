@@ -59,12 +59,25 @@
 #include "smp_api.h"
 #endif
 
+#ifdef ANDROID
+#define LOGI0(t,s) __android_log_write(ANDROID_LOG_INFO, t, s)
+#define LOGD0(t,s) __android_log_write(ANDROID_LOG_DEBUG, t, s)
+#define LOGW0(t,s) __android_log_write(ANDROID_LOG_WARN, t, s)
+#define LOGE0(t,s) __android_log_write(ANDROID_LOG_ERROR, t, s)
+#else
 #ifdef USE_ANDROID_LOGGING
 #include <utils/Log.h>
 #define LOGI0 ALOGI
 #define LOGD0 ALOGD
 #define LOGW0 ALOGW
 #define LOGE0 ALOGE
+#else
+#include <syslog.h>
+#define LOGI0(x) { syslog (LOG_NOTICE, "%s", x);}
+#define LOGD0(x) { syslog (LOG_NOTICE, "%s", x);}
+#define LOGW0(x) { syslog (LOG_WARNING, "%s", x);}
+#define LOGE0(x) { syslog (LOG_ERR, "%s", x);}
+#endif
 #endif
 
 #ifndef DEFAULT_CONF_TRACE_LEVEL
@@ -206,20 +219,20 @@ void LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
 
   switch ( TRACE_GET_TYPE(trace_set_mask) ) {
     case TRACE_TYPE_ERROR:
-      LOGE0(buffer);
+      LOGE0("%s",buffer);
       break;
     case TRACE_TYPE_WARNING:
-      LOGW0(buffer);
+      LOGW0("%s",buffer);
       break;
     case TRACE_TYPE_API:
     case TRACE_TYPE_EVENT:
-      LOGI0(buffer);
+      LOGI0("%s",buffer);
       break;
     case TRACE_TYPE_DEBUG:
-      LOGD0(buffer);
+      LOGD0("%s",buffer);
       break;
     default:
-      LOGE0(buffer);
+      LOGE0("%s",buffer);      /* we should never get this */
       break;
     }
 }
@@ -237,20 +250,20 @@ void LogMsg(uint32_t trace_set_mask, const char *fmt_str, ...) {
 
   switch ( TRACE_GET_TYPE(trace_set_mask) ) {
     case TRACE_TYPE_ERROR:
-      LOG_ERROR(bt_layer_tags[trace_layer], "%s", buffer);
+      LOGE0(bt_layer_tags[trace_layer], buffer);
       break;
     case TRACE_TYPE_WARNING:
-      LOG_WARN(bt_layer_tags[trace_layer], "%s", buffer);
+      LOGW0(bt_layer_tags[trace_layer], buffer);
       break;
     case TRACE_TYPE_API:
     case TRACE_TYPE_EVENT:
-      LOG_INFO(bt_layer_tags[trace_layer], "%s", buffer);
+      LOGI0(bt_layer_tags[trace_layer], buffer);
       break;
     case TRACE_TYPE_DEBUG:
-      LOG_DEBUG(bt_layer_tags[trace_layer], "%s", buffer);
+      LOGD0(bt_layer_tags[trace_layer], buffer);
       break;
     default:
-      LOG_ERROR(bt_layer_tags[trace_layer], "%s", buffer);      /* we should never get this */
+      LOGE0(bt_layer_tags[trace_layer], buffer);      /* we should never get this */
       break;
   }
 }

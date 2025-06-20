@@ -22,5 +22,5 @@ bdt_CC = @CC@
 bdt_SOURCES = $(c_sources)
 bdt_CFLAGS = $(common_CFLAGS)
 bdt_LDFLAGS = $(Z_LIB)
-bdt_LDADD = -lcutils -lhardware -lpthread -lm -ldl -lrt
+bdt_LDADD = -lcutils -lbtvendorhal -lpthread -lm -ldl -lrt
 

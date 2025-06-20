@@ -54,7 +54,6 @@ static bool vendor_open(
     const hci_t *hci_interface) {
   assert(lib_handle == NULL);
   hci = hci_interface;
-
   lib_handle = dlopen(VENDOR_LIBRARY_NAME, RTLD_NOW);
   if (!lib_handle) {
     LOG_ERROR(LOG_TAG, "%s unable to open %s: %s", __func__, VENDOR_LIBRARY_NAME, dlerror());

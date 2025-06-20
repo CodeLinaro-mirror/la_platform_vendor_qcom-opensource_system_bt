@@ -42,7 +42,10 @@ AM_CPPFLAGS = \
         -I${WORKSPACE}/external/tinyxml2 \
         -I${WORKSPACE}/external/zlib \
         -I${external_bt_path}/vhal/include \
+	-I$(WORKSPACE)/frameworks \
         -I$(WORKSPACE)/frameworks/av/include \
+        -I$(WORKSPACE)/frameworks/audio_utils/include \
+        -I$(WORKSPACE)/frameworks/include/media \
         -I$(WORKSPACE)/system/media/audio/include \
         -I$(WORKSPACE)/system/media/audio_utils/include \
         -I$(WORKSPACE)/system/core/include
