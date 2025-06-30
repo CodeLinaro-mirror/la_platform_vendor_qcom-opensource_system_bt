@@ -20,7 +20,7 @@
 
 #include <iostream>
 #include <cstring>
-#include <stdint.h>
+//#include <stdint.h>
 #include <algorithm>
 #include <vector>
 
