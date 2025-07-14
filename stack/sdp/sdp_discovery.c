@@ -101,7 +101,9 @@ static UINT8 *sdpu_build_uuid_seq (UINT8 *p_out, UINT16 num_uuids, tSDP_UUID *p_
         }
         else
         {
-            SDP_TRACE_ERROR("SDP: Passed Uuid is of Invalid length: %x",p_uuid_list->len);
+            SDP_TRACE_ERROR("SDP: Passed Uuid is of Invalid length: %x, RETURN",p_uuid_list->len);
+            p_out = NULL;
+            return (p_out);
         }
     }
 
@@ -146,6 +148,12 @@ static void sdp_snd_service_search_req(tCONN_CB *p_ccb, UINT8 cont_len, UINT8 * 
 #else
     p = sdpu_build_uuid_seq (p, p_ccb->p_db->num_uuid_filters, p_ccb->p_db->uuid_filters);
 #endif
+
+    if(p == NULL)
+    {
+       SDP_TRACE_ERROR ("SDP - sdpu_build_uuid_seq failed!");
+       return;
+    }
 
     /* Set max service record count */
     UINT16_TO_BE_STREAM (p, sdp_cb.max_recs_per_search);
@@ -637,6 +645,12 @@ static void process_service_search_attr_rsp (tCONN_CB *p_ccb, UINT8 *p_reply)
 #else
         p = sdpu_build_uuid_seq (p, p_ccb->p_db->num_uuid_filters, p_ccb->p_db->uuid_filters);
 #endif
+
+        if(p == NULL)
+        {
+            SDP_TRACE_ERROR ("SDP - sdpu_build_uuid_seq failed!!");
+            return;
+        }
 
         /* Max attribute byte count */
         UINT16_TO_BE_STREAM (p, sdp_cb.max_attr_list_size);
