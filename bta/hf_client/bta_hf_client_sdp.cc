@@ -15,8 +15,8 @@
 *  See the License for the specific language governing permissions and
 *  limitations under the License.
 *
-*  Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-*  Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+*  Changes from Qualcomm Technologies, Inc. are provided under the following license:
+*  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 *  SPDX-License-Identifier: BSD-3-Clause-Clear
 ******************************************************************************/
 
@@ -122,7 +122,7 @@ bool bta_hf_client_add_record(const char* p_service_name, uint8_t scn,
 
   /* add profile descriptor list */
   profile_uuid = UUID_SERVCLASS_HF_HANDSFREE;
-  version = HFP_VERSION_1_7;
+  version = HFP_VERSION_1_8;
 
   result &= SDP_AddProfileDescriptorList(sdp_handle, profile_uuid, version);
 
