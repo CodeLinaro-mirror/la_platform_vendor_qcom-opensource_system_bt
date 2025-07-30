@@ -471,6 +471,7 @@ static void bta_dm_sys_hw_cback(tBTA_SYS_HW_EVT status) {
   uint8_t key_mask = 0;
   tBTA_BLE_LOCAL_ID_KEYS id_key;
   tBTA_DM_MSG* p_data;
+  char board_name[PROPERTY_VALUE_MAX];
 #ifdef ADV_AUDIO_FEATURE
   char adv_audio_support_prop_value[PROPERTY_VALUE_MAX];
 #endif
@@ -570,6 +571,13 @@ static void bta_dm_sys_hw_cback(tBTA_SYS_HW_EVT status) {
     }
 #endif
 
+    osi_property_get("ro.board.platform", board_name, "");
+    if (!strncmp("neo", board_name, 3)) {
+      APPL_TRACE_DEBUG("%s changing class name for neo", __func__);
+      dev_class[0] = 0x14; // minor dev class as Glass
+      dev_class[1] = 0x07; // major dev class as Wearable
+      dev_class[2] = 0x20; // Service class as Audio
+    }
     BTM_SetDeviceClass(dev_class);
 
     /* load BLE local information: ID keys, ER if available */
