@@ -78,6 +78,8 @@ bool update_codec_offloading_capabilities(
  ***/
 bool is_hal_enabled();
 
+void NotifyHalRestart();
+
 /***
  * Check if new bluetooth_audio aidl is available
  ***/

@@ -52,6 +52,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 #include "client_interface.h"
 
 #include <android/binder_manager.h>
+#include "a2dp_encoding.h"
 
 namespace bluetooth {
 namespace audio {
@@ -617,6 +618,8 @@ void BluetoothAudioClientInterface::RenewAudioProviderAndSession() {
 
     StartSession();
   }
+  LOG(INFO) << __func__ << ": BluetoothAudioHal notify HAL restart to stack";
+  a2dp::NotifyHalRestart();
 }
 
 size_t BluetoothAudioSourceClientInterface::WriteAudioData(const uint8_t* p_buf,
