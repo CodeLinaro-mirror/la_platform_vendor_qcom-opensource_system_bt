@@ -15,14 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
-
 #ifndef BTM_INT_TYPES_H
 #define BTM_INT_TYPES_H
 
@@ -374,7 +366,6 @@ typedef struct {
   tBTM_ESCO_INFO esco; /* Current settings             */
 #if (BTM_SCO_HCI_INCLUDED == TRUE)
   fixed_queue_t* xmit_data_q; /* SCO data transmitting queue  */
-  uint32_t sent_not_acked;
 #endif
   tBTM_SCO_CB* p_conn_cb; /* Callback for when connected  */
   tBTM_SCO_CB* p_disc_cb; /* Callback for when disconnect */
@@ -390,8 +381,6 @@ typedef struct {
   tBTM_SCO_IND_CBACK* app_sco_ind_cb;
 #if (BTM_SCO_HCI_INCLUDED == TRUE)
   tBTM_SCO_DATA_CB* p_data_cb; /* Callback for SCO data over HCI */
-  uint16_t num_lm_sco_bufs;
-  uint32_t xmit_window_size;
 #endif
   tSCO_CONN sco_db[BTM_MAX_SCO_LINKS];
   enh_esco_params_t def_esco_parms;

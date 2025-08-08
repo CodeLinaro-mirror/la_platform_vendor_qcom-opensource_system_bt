@@ -15,13 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
 
 /******************************************************************************
  *
@@ -155,10 +148,6 @@ extern tBTM_STATUS btm_read_power_mode_state(const RawAddress& remote_bda,
                                              tBTM_PM_STATE* pmState);
 #if (BTM_SCO_INCLUDED == TRUE)
 extern void btm_sco_chk_pend_unpark(uint8_t hci_status, uint16_t hci_handle);
-#if (BTM_SCO_HCI_INCLUDED == TRUE )
-void btm_sco_process_num_bufs(uint16_t num_lm_sco_bufs);
-void btm_sco_process_num_completed_pkts(uint8_t *p, uint8_t evt_len);
-#endif
 #else
 #define btm_sco_chk_pend_unpark(hci_status, hci_handle)
 #endif /* BTM_SCO_INCLUDED */

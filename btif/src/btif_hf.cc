@@ -44,13 +44,6 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *  limitations under the License.
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
 
 /*******************************************************************************
  *
@@ -89,7 +82,6 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "btif_tws_plus.h"
 #include "btif_twsp_hf.h"
 #endif
-#include "bta_ag_ui.h"
 
 namespace bluetooth {
 namespace headset {
@@ -2359,21 +2351,6 @@ static bt_status_t bind_string_response_vendor(const char* res,
 
 /*******************************************************************************
 **
-** Function         register_sco_callback
-**
-** Description      register sco data callback for sco over hci mode
-**
-** Returns          bt_status_t
-**
-*******************************************************************************/
-bt_status_t register_sco_callback(sco_data_rx recv, sco_data_tx send)
-{
-  btui_register_sco_data_path(recv, send);
-  return BT_STATUS_SUCCESS;
-}
-
-/*******************************************************************************
-**
 ** Function        cleanup_vendor
 **
 ** Description     cleans the hf vendor interface
@@ -2407,7 +2384,6 @@ static const bthf_vendor_interface_t bthfVendorInterface = {
     init_vendor,
     bind_response_vendor,
     bind_string_response_vendor,
-    register_sco_callback,
     cleanup_vendor,
 };
 

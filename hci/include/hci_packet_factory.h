@@ -15,13 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
 
 #pragma once
 
@@ -56,8 +49,6 @@ typedef struct {
   BT_HDR* (*make_read_scrambling_supported_freqs)(void);
   BT_HDR* (*make_set_min_encryption_key_size)(uint8_t size);
   BT_HDR* (*make_ble_set_host_feature_cmd) (uint8_t bit_num, uint8_t bit_val);
-  BT_HDR *(*make_write_sync_flow_control_enable)(uint8_t enable);
-  BT_HDR *(*make_write_default_erroneous_data_report)(uint8_t enable);
 } hci_packet_factory_t;
 
 const hci_packet_factory_t* hci_packet_factory_get_interface();

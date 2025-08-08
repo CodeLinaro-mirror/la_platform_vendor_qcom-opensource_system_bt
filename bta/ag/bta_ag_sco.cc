@@ -50,14 +50,6 @@
 
 /******************************************************************************
  *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
-
-/******************************************************************************
- *
  *  This file contains functions for managing the SCO connection used in AG.
  *
  ******************************************************************************/
@@ -890,15 +882,12 @@ void bta_ag_sco_event(tBTA_AG_SCB* p_scb, uint8_t event) {
     while (true) {
       bta_dm_sco_co_out_data(&p_buf);
       if (p_buf) {
-        if (p_sco->state == BTA_AG_SCO_OPEN_ST) {
+        if (p_sco->state == BTA_AG_SCO_OPEN_ST)
           BTM_WriteScoData(p_sco->p_curr_scb->sco_idx, p_buf);
-        }
         else
           osi_free(p_buf);
-      } else {
-          APPL_TRACE_DEBUG("p_buff is null");
-          break;
-        }
+      } else
+        break;
     }
 
     return;
@@ -2061,7 +2050,7 @@ void bta_ag_sco_conn_rsp(tBTA_AG_SCB* p_scb,
     /* When HS initiated SCO, it cannot be WBS. */
 #if (BTM_SCO_HCI_INCLUDED == TRUE)
     /* Configure the transport being used */
-    BTM_ConfigScoPath(ESCO_DATA_PATH_HCI, bta_ag_sco_read_cback, NULL, TRUE);
+    BTM_ConfigScoPath(resp.input_data_path, bta_ag_sco_read_cback, NULL, TRUE);
 #endif
   }
 

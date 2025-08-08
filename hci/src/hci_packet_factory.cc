@@ -15,13 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
 
 #include <base/logging.h>
 
@@ -135,26 +128,6 @@ static BT_HDR* make_ble_set_host_feature_cmd(uint8_t bit_num,
 
   UINT8_TO_STREAM(stream, bit_num);
   UINT8_TO_STREAM(stream, bit_val);
-  return packet;
-}
-
-static BT_HDR *make_write_sync_flow_control_enable(uint8_t enable) {
-  uint8_t* stream;
-  const uint8_t parameter_size = 1;
-  BT_HDR* packet =
-      make_command(HCI_WRITE_SCO_FLOW_CTRL_ENABLE, parameter_size, &stream);
-
-  UINT8_TO_STREAM(stream, enable);
-  return packet;
-}
-
-static BT_HDR *make_write_default_erroneous_data_report(uint8_t enable) {
-  uint8_t* stream;
-  const uint8_t parameter_size = 1;
-  BT_HDR *packet =
-      make_command(HCI_WRITE_ERRONEOUS_DATA_RPT, parameter_size, &stream);
-
-  UINT8_TO_STREAM(stream, enable);
   return packet;
 }
 
@@ -285,8 +258,6 @@ static const hci_packet_factory_t interface = {
     make_read_scrambling_supported_freqs,
     make_set_min_encryption_key_size,
     make_ble_set_host_feature_cmd,
-    make_write_sync_flow_control_enable,
-    make_write_default_erroneous_data_report,
 };
 
 const hci_packet_factory_t* hci_packet_factory_get_interface() {

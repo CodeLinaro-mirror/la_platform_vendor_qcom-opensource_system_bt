@@ -15,14 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
-
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -34,7 +26,6 @@
 #include "bte_appl.h"
 #include "btif_dm.h"
 #include "osi/include/osi.h"
-#include "bta_ag_ui.h"
 
 #if (defined BTM_NO_MITM_NO_BONDING_INCLUDED && BTM_NO_MITM_NO_BONDING_INCLUDED == TRUE)
 tBTE_APPL_CFG bte_appl_cfg = { 0x0, 0x4, 0x0, 0x0, 0x10 };
@@ -238,6 +229,8 @@ void bta_dm_sco_co_close(void) {
     BTIF_TRACE_DEBUG("bta_dm_sco_co_close close codec");
     /* close sco codec */
     btui_sco_codec_close();
+
+    btui_cb.sco_hci = false;
   }
 }
 
@@ -251,8 +244,8 @@ void bta_dm_sco_co_close(void) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_dm_sco_co_in_data(BT_HDR* p_buf, tBTM_SCO_DATA_FLAG status) {
-  if (btui_cfg.sco_use_mic && status == BTM_SCO_DATA_CORRECT)
+void bta_dm_sco_co_in_data(BT_HDR* p_buf) {
+  if (btui_cfg.sco_use_mic)
     btui_sco_codec_inqdata(p_buf);
   else
     osi_free(p_buf);

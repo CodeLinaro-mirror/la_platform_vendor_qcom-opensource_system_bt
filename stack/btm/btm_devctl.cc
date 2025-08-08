@@ -15,13 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
 
 /******************************************************************************
  *
@@ -190,10 +183,6 @@ static void reset_complete(void* result) {
   btm_pm_reset();
 
   l2c_link_processs_num_bufs(controller->get_acl_buffer_count_classic());
-
-#if (BTM_SCO_HCI_INCLUDED == TRUE)
-  btm_sco_process_num_bufs(controller->get_sco_buffer_count());
-#endif
 
 #if (BLE_PRIVACY_SPT == TRUE)
   /* Set up the BLE privacy settings */

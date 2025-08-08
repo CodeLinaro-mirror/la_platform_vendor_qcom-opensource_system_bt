@@ -15,13 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
 
 #pragma once
 
@@ -34,7 +27,6 @@
 #include "hci_packet_parser.h"
 #include "osi/include/log.h"
 #include "utils/include/bt_utils.h"
-#include "bt_target.h"
 
 #define MIN_ENCRYPTION_KEY_SIZE 8
 static const char CONTROLLER_MODULE[] = "controller_module";
@@ -103,10 +95,6 @@ typedef struct controller_t {
 
   bool (*is_conn_subrating_supported)(void);
   bool (*is_conn_subrating_host_supported)(void);
-#if (BTM_SCO_HCI_INCLUDED == TRUE)
-  uint8_t (*get_sco_data_size)(void);
-  uint16_t (*get_sco_buffer_count)(void);
-#endif
 } controller_t;
 
 const controller_t* controller_get_interface();

@@ -15,13 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
 
 #define LOG_TAG "bt_hci"
 
@@ -51,17 +44,14 @@ static void parse_generic_command_complete(BT_HDR* response) {
 }
 
 static void parse_read_buffer_size_response(BT_HDR* response,
-                                            uint16_t* acl_data_size_ptr,
-                                            uint16_t* acl_buffer_count_ptr,
-                                            uint8_t *sco_data_size_ptr,
-                                            uint16_t *sco_buffer_count_ptr) {
+                                            uint16_t* data_size_ptr,
+                                            uint16_t* acl_buffer_count_ptr) {
   uint8_t* stream = read_command_complete_header(response, HCI_READ_BUFFER_SIZE,
                                                  5 /* bytes after */);
   CHECK(stream != NULL);
-  STREAM_TO_UINT16(*acl_data_size_ptr, stream);
-  STREAM_TO_UINT8(*sco_data_size_ptr, stream);
+  STREAM_TO_UINT16(*data_size_ptr, stream);
+  STREAM_SKIP_UINT8(stream);  // skip the sco packet length
   STREAM_TO_UINT16(*acl_buffer_count_ptr, stream);
-  STREAM_TO_UINT16(*sco_buffer_count_ptr, stream);
 
   buffer_allocator->free(response);
 }

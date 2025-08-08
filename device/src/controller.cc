@@ -15,13 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
 
 #define LOG_TAG "bt_controller"
 
@@ -40,7 +33,6 @@
 #include "osi/include/log.h"
 #include "utils/include/bt_utils.h"
 #include <hardware/bt_av.h>
-#include "bt_target.h"
 
 #define BTSNOOP_ENABLE_PROPERTY "persist.bluetooth.btsnoopenable"
 
@@ -77,8 +69,6 @@ static uint16_t acl_data_size_classic;
 static uint16_t acl_data_size_ble;
 static uint16_t acl_buffer_count_classic;
 static uint8_t acl_buffer_count_ble;
-static uint8_t sco_data_size;
-static uint16_t sco_buffer_count;
 
 static uint8_t ble_white_list_size;
 static uint8_t ble_resolving_list_max_size;
@@ -147,8 +137,7 @@ static future_t* start_up(void) {
   // Request the classic buffer size next
   response = AWAIT_COMMAND(packet_factory->make_read_buffer_size());
   packet_parser->parse_read_buffer_size_response(
-      response, &acl_data_size_classic, &acl_buffer_count_classic,
-      &sco_data_size, &sco_buffer_count);
+      response, &acl_data_size_classic, &acl_buffer_count_classic);
 
   // Tell the controller about our buffer sizes and buffer counts next
   // TODO(zachoverflow): factor this out. eww l2cap contamination. And why just
@@ -357,15 +346,6 @@ static future_t* start_up(void) {
                       number_of_scrambling_supported_freqs);
     }
   }
-
-#if (BTM_SCO_HCI_INCLUDED == TRUE)
-  response =
-      AWAIT_COMMAND(packet_factory->make_write_sync_flow_control_enable(1));
-  packet_parser->parse_generic_command_complete(response);
-  response =
-      AWAIT_COMMAND(packet_factory->make_write_default_erroneous_data_report(1));
-  packet_parser->parse_generic_command_complete(response);
-#endif
 
   readable = true;
   return future_new_immediate(FUTURE_SUCCESS);
@@ -586,18 +566,6 @@ static uint16_t get_acl_packet_size_ble(void) {
   return acl_data_size_ble + HCI_DATA_PREAMBLE_SIZE;
 }
 
-#if (BTM_SCO_HCI_INCLUDED == true)
-static uint8_t get_sco_data_size(void) {
-  CHECK(readable);
-  return sco_data_size;
-}
-
-static uint16_t get_sco_buffer_count(void) {
-  CHECK(readable);
-  return sco_buffer_count;
-}
-#endif
-
 static uint16_t get_ble_suggested_default_data_length(void) {
   CHECK(readable);
   CHECK(ble_supported);
@@ -729,10 +697,6 @@ static const controller_t interface = {
     get_scrambling_supported_freqs,
     is_conn_subrating_supported,
     is_conn_subrating_host_supported,
-#if (BTM_SCO_HCI_INCLUDED == true)
-    get_sco_data_size,
-    get_sco_buffer_count,
-#endif
 };
 
 const controller_t* controller_get_interface() {

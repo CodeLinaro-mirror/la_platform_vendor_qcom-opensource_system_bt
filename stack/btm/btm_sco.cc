@@ -15,13 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
 
 /******************************************************************************
  *
@@ -91,6 +84,7 @@ void btm_sco_flush_sco_data(uint16_t sco_inx) {
     while ((p_buf = (BT_HDR*)fixed_queue_try_dequeue(p->xmit_data_q)) != NULL)
       osi_free(p_buf);
   }
+}
 }
 #else
 void btm_sco_flush_sco_data(UNUSED_ATTR uint16_t sco_inx) {}
@@ -191,9 +185,8 @@ static void btm_esco_conn_rsp(uint16_t sco_inx, uint8_t hci_status,
     /* Use Enhanced Synchronous commands if supported */
     if (controller_get_interface()
             ->supports_enhanced_setup_synchronous_connection() &&
-        ((osi_property_get("qcom.bluetooth.soc", value, NULL) ||
-         osi_property_get("vendor.bluetooth.soc", value, NULL) ||
-         osi_property_get("persist.vendor.qcom.bluetooth.soc", value, NULL)) &&
+        ((osi_property_get("qcom.bluetooth.soc", value, "qcombtsoc") ||
+         osi_property_get("vendor.bluetooth.soc", value, "qcombtsoc"))&&
          (strcmp(value, "cherokee") == 0 || strcmp(value, "hastings") == 0
                                          || strcmp(value, "moselle") == 0
                                          || strcmp(value, "hamilton") == 0))) {
@@ -223,25 +216,6 @@ static void btm_esco_conn_rsp(uint16_t sco_inx, uint8_t hci_status,
 }
 
 #if (BTM_SCO_HCI_INCLUDED == TRUE)
-
-tBTM_STATUS BTM_ConfigScoPath(esco_data_path_t path,
-                              tBTM_SCO_DATA_CB* p_sco_data_cb,
-                              tBTM_SCO_PCM_PARAM* p_pcm_param,
-                              bool err_data_rpt) {
-  (void)(p_pcm_param);
-  (void)(err_data_rpt);
-  btm_cb.sco_cb.sco_route = path;
-  if (path == ESCO_DATA_PATH_HCI && p_sco_data_cb != NULL) {
-    btm_cb.sco_cb.p_data_cb = p_sco_data_cb;
-  }
-  return BTM_SUCCESS;
-}
-
-void HCI_SCO_DATA_TO_LOWER(BT_HDR *p_buf) {
-  p_buf->event = BT_EVT_TO_LM_HCI_SCO;
-  bte_main_hci_send(p_buf, (uint16_t) (BT_EVT_TO_LM_HCI_SCO | LOCAL_BR_EDR_CONTROLLER_ID));
-}
-
 /*******************************************************************************
  *
  * Function         btm_sco_check_send_pkts
@@ -258,56 +232,14 @@ void btm_sco_check_send_pkts(uint16_t sco_inx) {
 
   /* If there is data to send, send it now */
   BT_HDR* p_buf;
-  while (p_cb->xmit_window_size > 0 &&
-      (p_buf = (BT_HDR*)fixed_queue_try_dequeue(p_ccb->xmit_data_q)) !=
+  while ((p_buf = (BT_HDR*)fixed_queue_try_dequeue(p_ccb->xmit_data_q)) !=
          NULL) {
 #if (BTM_SCO_HCI_DEBUG == TRUE)
     BTM_TRACE_DEBUG("btm: [%d] buf in xmit_data_q",
                     fixed_queue_length(p_ccb->xmit_data_q) + 1);
 #endif
-    p_cb->xmit_window_size -= 1;
-    p_ccb->sent_not_acked += 1;
 
     HCI_SCO_DATA_TO_LOWER(p_buf);
-  }
-}
-
-void btm_sco_process_num_bufs(uint16_t num_lm_sco_bufs) {
-  BTM_TRACE_DEBUG("%s: sco_buffer_count = %d", __func__, num_lm_sco_bufs);
-  btm_cb.sco_cb.num_lm_sco_bufs =
-      btm_cb.sco_cb.xmit_window_size = num_lm_sco_bufs;
-}
-
-void btm_sco_process_num_completed_pkts(uint8_t *p, uint8_t evt_len) {
-  uint8_t num_handles, xx;
-  uint16_t handle, num_sent, sco_inx;
-  tSCO_CB* p_cb = &btm_cb.sco_cb;
-  tSCO_CONN* p_ccb;
-
-  if (evt_len > 0) {
-    STREAM_TO_UINT8(num_handles, p);
-  } else {
-    num_handles = 0;
-  }
-  if (num_handles > evt_len / (2 * sizeof(uint16_t))) {
-    android_errorWriteLog(0x534e4554, "141617601");
-    num_handles = evt_len / (2 * sizeof(uint16_t));
-  }
-  for (xx = 0; xx < num_handles; xx++) {
-    STREAM_TO_UINT16(handle, p);
-    STREAM_TO_UINT16(num_sent, p);
-    sco_inx = btm_find_scb_by_handle(handle);
-    if (sco_inx != BTM_MAX_SCO_LINKS) {
-      p_ccb = &p_cb->sco_db[sco_inx];
-      BTM_TRACE_DEBUG("%s: sent_not_acked=%d, xmit_window_size=%d, num_lm_sco_bufs=%d, num_sent=%d",
-          __func__, p_ccb->sent_not_acked, p_cb->xmit_window_size, p_cb->num_lm_sco_bufs, num_sent);
-      p_ccb->sent_not_acked -= num_sent;
-      p_cb->xmit_window_size += num_sent;
-      if(p_cb->xmit_window_size > p_cb->num_lm_sco_bufs) {
-        p_cb->xmit_window_size = p_cb->num_lm_sco_bufs;
-      }
-      btm_sco_check_send_pkts(sco_inx);
-    }
   }
 }
 #endif /* BTM_SCO_HCI_INCLUDED == TRUE */
@@ -391,7 +323,6 @@ tBTM_STATUS BTM_WriteScoData(uint16_t sco_inx, BT_HDR* p_buf) {
       status = BTM_ILLEGAL_VALUE;
     } else /* write HCI header */
     {
-      BTM_TRACE_DEBUG("%s: offset=%d, len=%d", __func__, p_buf->offset, p_buf->len);
       /* Step back 3 bytes to add the headers */
       p_buf->offset -= HCI_SCO_PREAMBLE_SIZE;
       /* Set the pointer to the beginning of the data */
@@ -509,10 +440,9 @@ static tBTM_STATUS btm_send_connect_request(uint16_t acl_handle,
 
     /* Use Enhanced Synchronous commands if supported */
     if (controller_get_interface()
-             ->supports_enhanced_setup_synchronous_connection() &&
-         ((osi_property_get("qcom.bluetooth.soc", value, NULL) ||
-         osi_property_get("vendor.bluetooth.soc", value, NULL) ||
-         osi_property_get("persist.vendor.qcom.bluetooth.soc", value, NULL)) &&
+            ->supports_enhanced_setup_synchronous_connection() &&
+         ((osi_property_get("qcom.bluetooth.soc", value, "qcombtsoc") ||
+         osi_property_get("vendor.bluetooth.soc", value, "qcombtsoc"))&&
          (strcmp(value, "cherokee") == 0 || strcmp(value, "hastings") == 0
                                          || strcmp(value, "moselle") == 0
                                          || strcmp(value, "hamilton") == 0))) {
@@ -1058,9 +988,6 @@ void btm_sco_connected(uint8_t hci_status, const RawAddress* bda,
 
       p->state = SCO_ST_CONNECTED;
       p->hci_handle = hci_handle;
-#if BTM_SCO_HCI_INCLUDED == TRUE
-      p->sent_not_acked = 0;
-#endif
 
       if (!btm_cb.sco_cb.esco_supported) {
         p->esco.data.link_type = BTM_LINK_TYPE_SCO;
@@ -1213,13 +1140,6 @@ void btm_sco_removed(uint16_t hci_handle, uint8_t reason) {
       p->hci_handle = BTM_INVALID_HCI_HANDLE;
       p->rem_bd_known = false;
       p->esco.p_esco_cback = NULL; /* Deregister eSCO callback */
-#if BTM_SCO_HCI_INCLUDED == TRUE
-      btm_cb.sco_cb.xmit_window_size += p->sent_not_acked;
-      if (btm_cb.sco_cb.xmit_window_size > btm_cb.sco_cb.num_lm_sco_bufs) {
-        btm_cb.sco_cb.xmit_window_size = btm_cb.sco_cb.num_lm_sco_bufs;
-      }
-      p->sent_not_acked = 0;
-#endif
       (*p->p_disc_cb)(xx);
 
       return;
@@ -1623,12 +1543,10 @@ tBTM_STATUS BTM_ChangeEScoLinkParms(uint16_t sco_inx,
     /* Use Enhanced Synchronous commands if supported */
     if (controller_get_interface()
             ->supports_enhanced_setup_synchronous_connection() &&
-         ((osi_property_get("qcom.bluetooth.soc", value, NULL) ||
-         osi_property_get("vendor.bluetooth.soc", value, NULL) ||
-         osi_property_get("persist.vendor.qcom.bluetooth.soc", value, NULL)) &&
+         ((osi_property_get("qcom.bluetooth.soc", value, "qcombtsoc") ||
+         osi_property_get("vendor.bluetooth.soc", value, "qcombtsoc")) &&
          (strcmp(value, "cherokee") == 0 || strcmp(value, "hastings") == 0
-	                                 || strcmp(value, "moselle") == 0
-                                         || strcmp(value, "hamilton") == 0))) {
+	                                 || strcmp(value, "moselle") == 0))) {
       /* Use the saved SCO routing */
       p_setup->input_data_path = p_setup->output_data_path =
           btm_cb.sco_cb.sco_route;

@@ -15,13 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
 
 /******************************************************************************
  *
@@ -657,7 +650,7 @@ int32_t BTA_DmPcmResample(void* p_src, uint32_t in_bytes, void* p_dst) {
 #endif
   if (bta_dm_pcm_cb.can_be_filtered) {
     out_sample = (*bta_dm_pcm_cb.filter)(
-        (uint8_t*)p_src, p_dst, (in_bytes / bta_dm_pcm_cb.divisor), bta_dm_pcm_cb.src_sps,
+        p_src, p_dst, (in_bytes / bta_dm_pcm_cb.divisor), bta_dm_pcm_cb.src_sps,
         (int32_t*)&bta_dm_pcm_cb.cur_pos, bta_dm_pcm_cb.overlap_area);
   } else {
     out_sample = (*bta_dm_pcm_cb.nofilter)(p_src, p_dst,

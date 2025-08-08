@@ -54,13 +54,6 @@
  *  SPDX-License-Identifier: BSD-3-Clause-Clear
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
 
 #ifndef BT_TARGET_H
 #define BT_TARGET_H
@@ -375,7 +368,7 @@
 
 /* Includes SCO if TRUE */
 #ifndef BTM_SCO_HCI_INCLUDED
-#define BTM_SCO_HCI_INCLUDED TRUE /* TRUE includes SCO over HCI code */
+#define BTM_SCO_HCI_INCLUDED FALSE /* TRUE includes SCO over HCI code */
 #endif
 
 /*  This is used to work around a controller bug that doesn't like Disconnect

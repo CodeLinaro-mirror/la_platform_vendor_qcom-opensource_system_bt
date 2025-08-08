@@ -15,13 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
 
 #pragma once
 
@@ -37,10 +30,8 @@ typedef struct {
   void (*parse_generic_command_complete)(BT_HDR* response);
 
   void (*parse_read_buffer_size_response)(BT_HDR* response,
-                                          uint16_t* acl_data_size_ptr,
-                                          uint16_t* acl_buffer_count_ptr,
-                                          uint8_t *sco_data_size_ptr,
-                                          uint16_t *sco_buffer_count_ptr);
+                                          uint16_t* data_size_ptr,
+                                          uint16_t* acl_buffer_count_ptr);
 
   void (*parse_read_local_version_info_response)(BT_HDR* response,
                                                  bt_version_t* bt_version_ptr);

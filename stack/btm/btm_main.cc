@@ -15,13 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
 
 /******************************************************************************
  *
@@ -114,7 +107,7 @@ void btm_free (void)
     int i;
     for (i = 0; i < BTM_MAX_SCO_LINKS; i++) {
       if (btm_cb.sco_cb.sco_db[i].xmit_data_q) {
-        fixed_queue_free(btm_cb.sco_cb.sco_db[i].xmit_data_q, osi_free);
+        fixed_queue_free(btm_cb.sco_cb.sco_db[i].xmit_data_q);
         btm_cb.sco_cb.sco_db[i].xmit_data_q = NULL;
       }
     }

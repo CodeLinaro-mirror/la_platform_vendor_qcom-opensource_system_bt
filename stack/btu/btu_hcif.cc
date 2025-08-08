@@ -15,13 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
 
 /******************************************************************************
  *
@@ -1464,10 +1457,8 @@ static void btu_hcif_num_compl_data_pkts_evt(uint8_t* p, uint8_t evt_len) {
   /* Process for L2CAP and SCO */
   l2c_link_process_num_completed_pkts(p, evt_len);
 
-#if (BTM_SCO_HCI_INCLUDED == TRUE) && (BTM_SCO_INCLUDED == TRUE)
   /* Send on to SCO */
-  btm_sco_process_num_completed_pkts(p, evt_len);
-#endif
+  /*?? No SCO for now */
 }
 
 /*******************************************************************************

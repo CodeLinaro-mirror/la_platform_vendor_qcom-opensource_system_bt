@@ -15,13 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
 
 #define LOG_TAG "bt_hci_packet_fragmenter"
 
@@ -69,8 +62,7 @@ static void fragment_and_dispatch(BT_HDR* packet) {
   uint8_t* stream = packet->data + packet->offset;
 
   // We only fragment ACL packets
-  if (event != MSG_STACK_TO_HC_HCI_ACL ||
-      event != MSG_STACK_TO_HC_HCI_SCO) {
+  if (event != MSG_STACK_TO_HC_HCI_ACL) {
     callbacks->fragmented(packet, true);
     return;
   }

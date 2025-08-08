@@ -15,18 +15,10 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-/******************************************************************************
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
- *
- *****************************************************************************/
 
 #include "base/logging.h"
 
 #include "device/include/esco_parameters.h"
-#include "osi/include/properties.h"
 
 static const enh_esco_params_t default_esco_parameters[ESCO_NUM_CODECS] = {
     // CVSD
@@ -148,17 +140,8 @@ static const enh_esco_params_t default_esco_parameters[ESCO_NUM_CODECS] = {
      .retransmission_effort = ESCO_RETRANSMISSION_QUALITY}};
 
 enh_esco_params_t esco_parameters_for_codec(esco_codec_t codec) {
-  char prop_value[PROPERTY_VALUE_MAX];
   CHECK(codec >= 0) << "codec index " << (int)codec << "< 0";
   CHECK(codec < ESCO_NUM_CODECS) << "codec index " << (int)codec << " > "
                                  << ESCO_NUM_CODECS;
-#if (BTM_SCO_HCI_INCLUDED == TRUE)
-  if (osi_property_get("persist.vendor.qcom.bluetooth.sco_hci", prop_value, "true") > 0
-      && strcmp(prop_value, "true") == 0) {
-    enh_esco_params_t param = default_esco_parameters[codec];
-    param.input_data_path = param.output_data_path = ESCO_DATA_PATH_HCI;
-    return param;
-  }
-#endif
   return default_esco_parameters[codec];
 }

@@ -67,7 +67,6 @@ static_library("btif") {
   # BTIF callouts
   sources += [
     "co/bta_ag_co.cc",
-    "co/bta_ag_ui.cc",
     "co/bta_dm_co.cc",
     "co/bta_av_co.cc",
     "co/bta_hh_co.cc",
