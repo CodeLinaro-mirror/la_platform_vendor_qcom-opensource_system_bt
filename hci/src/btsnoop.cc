@@ -1110,6 +1110,12 @@ static void btsnoop_write_packet(packet_type_t type, uint8_t* packet,
 void update_snoop_fd(int snoop_fd) {
   std::lock_guard<std::mutex> lock(btSnoopFd_mutex);
   LOG_INFO(LOG_TAG, "%s Now writing to server socket", __func__);
+
+  // Close existing file descriptor if it's valid
+  if (logfile_fd != INVALID_FD) {
+    close(logfile_fd);
+  }
+
   sock_snoop_active = true;
   logfile_fd = snoop_fd;
 }

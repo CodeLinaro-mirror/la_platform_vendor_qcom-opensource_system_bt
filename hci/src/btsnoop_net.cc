@@ -64,6 +64,12 @@ void btsnoop_net_open() {
   return;  // Disable using network sockets for security reasons
 #endif
 
+  // If thread is already valid, don't create another one
+  if (listen_thread_valid_) {
+    LOG_WARN(LOG_TAG, "%s thread already running, not creating another", __func__);
+    return;
+  }
+
   listen_thread_valid_ =
       (pthread_create(&listen_thread_, NULL, listen_fn_, NULL) == 0);
   if (!listen_thread_valid_)
@@ -91,18 +97,29 @@ void btsnoop_net_close() {
 #endif
 
   if (listen_thread_valid_) {
-    notify_listen_thread();
+    // Try to notify the thread to exit
+    if (notify_listen_thread() != 0) {
+      LOG_ERROR(LOG_TAG, "%s failed to notify thread, it may not exit cleanly", __func__);
+      // Continue with cleanup anyway
+    }
+
     pthread_join(listen_thread_, NULL);
+    listen_thread_valid_ = false;
+    LOG_WARN(LOG_TAG, "%s stopped the btsnoop listen thread", __func__);
+  }
+
+  // Always clean up file descriptors, even if thread wasn't valid
+  // This handles cases where resources were allocated but thread creation failed
+  if (listen_socket_ != -1 || listen_socket_local_ != -1) {
     shutdown(listen_socket_, SHUT_RDWR);
     shutdown(listen_socket_local_, SHUT_RDWR);
-    safe_close_(&listen_socket_);
-    safe_close_(&listen_socket_local_);
-    safe_close_(&client_socket_);
-    safe_close_(&notification_listen_fd);
-    safe_close_(&notification_write_fd);
-    LOG_WARN(LOG_TAG, "%s stopped the btsnoop listen thread", __func__);
-    listen_thread_valid_ = false;
   }
+
+  safe_close_(&listen_socket_);
+  safe_close_(&listen_socket_local_);
+  safe_close_(&client_socket_);
+  safe_close_(&notification_listen_fd);
+  safe_close_(&notification_write_fd);
 }
 
 void btsnoop_net_write(const void* data, size_t length) {
@@ -146,6 +163,15 @@ static void* listen_fn_(UNUSED_ATTR void* context) {
   notification_listen_fd = self_pipe_fds[0];
   notification_write_fd = self_pipe_fds[1];
 
+  // Check if file descriptor is within valid range
+  if (notification_listen_fd >= FD_SETSIZE) {
+    LOG_ERROR(LOG_TAG, "%s file descriptor %d >= FD_SETSIZE %d", __func__,
+              notification_listen_fd, FD_SETSIZE);
+    safe_close_(&notification_listen_fd);
+    safe_close_(&notification_write_fd);
+    return NULL;
+  }
+
   FD_SET(notification_listen_fd, &save_sock_fds);
   fd_max = notification_listen_fd;
 
@@ -188,10 +214,17 @@ static void* listen_fn_(UNUSED_ATTR void* context) {
   if (is_vndbtsnoop_enabled) {
     listen_socket_local_ = local_snoop_socket_create();
     if (listen_socket_local_ != -1) {
-      if(listen_socket_local_ > fd_max) {
-        fd_max = listen_socket_local_;
+      // Check if file descriptor is within valid range
+      if (listen_socket_local_ >= FD_SETSIZE) {
+        LOG_ERROR(LOG_TAG, "%s file descriptor %d >= FD_SETSIZE %d", __func__,
+                  listen_socket_local_, FD_SETSIZE);
+        safe_close_(&listen_socket_local_);
+      } else {
+        if(listen_socket_local_ > fd_max) {
+          fd_max = listen_socket_local_;
+        }
+        FD_SET(listen_socket_local_, &save_sock_fds);
       }
-      FD_SET(listen_socket_local_, &save_sock_fds);
     }
   }
   for (;;) {
@@ -219,6 +252,14 @@ static void* listen_fn_(UNUSED_ATTR void* context) {
         LOG_WARN(LOG_TAG, "%s error accepting LOCAL socket: %s", __func__, strerror(errno));
         continue;
       }
+
+      // Check if file descriptor is within valid range
+      if (client_socket >= FD_SETSIZE) {
+        LOG_ERROR(LOG_TAG, "%s client socket fd %d >= FD_SETSIZE %d, closing", __func__,
+                  client_socket, FD_SETSIZE);
+        close(client_socket);
+        continue;
+      }
       OSI_NO_INTR(write(client_socket, "btsnoop\0\0\0\0\1\0\0\x3\xea", 16));
       update_snoop_fd(client_socket);
       continue;
@@ -230,6 +271,14 @@ static void* listen_fn_(UNUSED_ATTR void* context) {
         }
         LOG_WARN(LOG_TAG, "%s error accepting socket: %s", __func__,
                  strerror(errno));
+        continue;
+      }
+
+      // Check if file descriptor is within valid range
+      if (client_socket >= FD_SETSIZE) {
+        LOG_ERROR(LOG_TAG, "%s client socket fd %d >= FD_SETSIZE %d, closing", __func__,
+                  client_socket, FD_SETSIZE);
+        close(client_socket);
         continue;
       }
     } else if((notification_listen_fd != -1) && FD_ISSET(notification_listen_fd, &sock_fds)) {
@@ -257,6 +306,9 @@ static void* listen_fn_(UNUSED_ATTR void* context) {
 
 cleanup:
   safe_close_(&listen_socket_);
+  safe_close_(&listen_socket_local_);
+  safe_close_(&notification_listen_fd);
+  safe_close_(&notification_write_fd);
   return NULL;
 }
 
