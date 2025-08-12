@@ -1473,7 +1473,7 @@ class BleAdvertisingManagerImpl
       if (p_big_inst->in_use) continue;
 
       p_big_inst->in_use = true;
-      p_big_inst->big_handle = i;
+      p_big_inst->big_handle = inst_id;
       p_big_inst->adv_inst_id = inst_id;
       p_big_inst->create_big_cb = cb;
       VLOG(1) << __func__ << "BIG handle allocated:" << +i;

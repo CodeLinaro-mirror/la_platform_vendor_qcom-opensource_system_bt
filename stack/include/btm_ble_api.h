@@ -1007,13 +1007,38 @@ extern uint8_t BTM_BleRemoveIsoDataPath(uint16_t conn_handle, uint8_t direction,
  * Returns          void
  *
  **************************************************************************************/
-extern uint8_t BTM_BleCreateDbig(tBTM_BLE_CREATE_DBIG_PARAM* p_data);
+extern uint8_t BTM_BleSetDbigParameters(tBTM_BLE_SET_DBIG_PARAMETERS_PARAM* p_data);
 
 extern uint8_t BTM_BleBigCreateSync(tBTM_BLE_BIG_CREATE_SYNC_PARAM* p_data,
                                         tBTM_BLE_BIG_SYNC_LOST_CB* p_sync_lost_cb);
 
 extern uint8_t BTM_BleTerminateBigSync(uint8_t big_handle,
                                          tBTM_BLE_TERMINATE_BIG_SYNC_CB* p_cb);
+
+extern uint8_t BTM_BleExitDbIg(tBTM_BLE_EXIT_DBIG_PARAM* p_data);
+
+extern void BTM_BleSetVsLeExitDbIgEvtCb(tBTM_BLE_VS_LE_EXIT_EVT_CB* p_cb);
+
+extern uint8_t BTM_BleAssociatePaDbig(tBTM_BLE_ASSOCIATE_PA_DBIG_PARAM* p_data);
+
+/**************************************************************************************
+ *
+ * Function         BTM_BleDbigSyncOnly
+ *
+ * Description      This function is called to invoke HCI Command
+ *                  HCI_VS_LE_DBIG_Sync_Only (0xFD90, 0x07) to enable/disable
+ *                  DBIG Sync Only mode for a DBIG.
+ *
+ * Parameters       p_data: tBTM_BLE_DBIG_SYNC_ONLY_PARAM includes
+ *                          DBIG_Handle, Enable, and a callback.
+ *
+ * Returns          0x00 : HCI_SUCCESS if command/feature is supported in host
+ *                        and controller.
+ *                  0x11 : Unsupported Feature (HCI Error)
+ *
+ **************************************************************************************/
+extern uint8_t BTM_BleDbigSyncOnly(tBTM_BLE_DBIG_SYNC_ONLY_PARAM* p_data);
+
 
 extern void BTM_BleRequestPeerSca(uint16_t conn_handle,
                                   tBTM_BLE_REQUEST_PEER_SCA_COMPLETE_CB* p_cback);
@@ -1371,6 +1396,9 @@ extern void btm_ble_periodic_adv_sync_tx_rcvd(uint8_t *param, uint16_t param_len
 extern void btm_ble_big_sync_update_evt(uint8_t *param, uint16_t param_len);
 extern void btm_ble_big_sync_established_evt(uint8_t *param, uint16_t param_len);
 extern void btm_ble_big_sync_lost_evt(uint8_t *param, uint16_t param_len);
+extern void btm_ble_vs_le_exit_dbig_event_handler(uint8_t *param, uint16_t param_len);
+extern tBTM_STATUS BTM_BleRegisterForDbigStatusEvt(tBTM_BLE_DBIG_STATUS_CB* p_cb, bool is_register);
+extern void btm_ble_vs_dbig_status_event_internal_handler(uint8_t length, uint8_t* p_stream);
 /*******************************************************************************
  *
  * Function         BTM_BleStartPeriodicSync

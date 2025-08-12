@@ -1577,7 +1577,10 @@ bool a2dp_get_selected_hal_codec_config_2_1(CodecConfiguration_2_1* codec_config
     } else {
 
       lc3Config.rxConfigSet |= TX_RX_BOTH_CONFIG;
-      cis_count = 4;
+
+      LOG(INFO) << __func__ << ": cis_count = " << cis_count;
+      cis_count = pclient_cbs[profile - 1]->get_num_bis_count();
+      LOG(INFO) << __func__ << ": cis_count = " << cis_count;
       lc3Config.rxConfig.sampleRate = btif_lc3_sample_rate(
           pclient_cbs[profile - 1]->get_sample_rate_cb(lc3Config.rxConfigSet));
       lc3Config.rxConfig.channelMode = btif_lc3_channel_mode(

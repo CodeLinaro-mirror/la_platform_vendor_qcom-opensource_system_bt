@@ -38,6 +38,7 @@
 #include "bt_utils.h"
 #include "btm_ble_api.h"
 #include "btm_int.h"
+#include "btm_ble_int.h"
 #include "btu.h"
 #include "device/include/controller.h"
 #include "gap_api.h"
@@ -76,9 +77,14 @@ uint16_t last_pending_cis_handle = 0;
 
 static struct {
   tBTM_BLE_BIG_SYNC_ESTABLISHED_CB* cb;
-  tBTM_BLE_DBIG_UPDATE_CB* dbig_update_cb;
   bool waiting_for_update_evt;
-} big_sync_state = {nullptr, nullptr, false};
+} big_sync_state = {nullptr, false};
+
+static struct {
+  tBTM_BLE_VS_LE_EXIT_EVT_CB* vs_exit_evt_cb;
+  bool waiting_for_exit_evt;
+} dbig_exit_state = {nullptr, false};
+
 /******************************************************************************/
 /* External Function to be called by other modules                            */
 /******************************************************************************/
@@ -3039,23 +3045,129 @@ void btm_ble_terminate_big_sync_cmd_cmpl(uint8_t *param, uint16_t param_len) {
   }
 }
 
-void btm_ble_create_dbig_cmd_cmpl(uint8_t *param, uint16_t param_len) {
+void btm_ble_exit_dbig_cmd_cmpl(uint8_t *param, uint16_t param_len) {
   uint8_t status;
   uint8_t sub_opcode = 0;
   BTM_TRACE_API("%s: param_len = %d", __func__, param_len);
 
   if (param_len <= 0) {
     BTM_TRACE_WARNING("%s Insufficient return parameters.", __func__);
+    // Notify the command complete callback about the error
+    if (hci_cmd_cmpl.exit_dbig_cmpl_cb) {
+      (*hci_cmd_cmpl.exit_dbig_cmpl_cb)(HCI_ERR_UNSPECIFIED, HCI_VS_LE_EXIT_DBIG_SUB_OPCODE);
+      hci_cmd_cmpl.exit_dbig_cmpl_cb = nullptr;
+    }
+
+    if (dbig_exit_state.waiting_for_exit_evt) {
+        if (dbig_exit_state.vs_exit_evt_cb) {
+            (*dbig_exit_state.vs_exit_evt_cb)(0, HCI_ERR_UNSPECIFIED);
+        }
+        dbig_exit_state.vs_exit_evt_cb = nullptr;
+        dbig_exit_state.waiting_for_exit_evt = false;
+    }
     return;
   }
 
   STREAM_TO_UINT8(status, param);
   STREAM_TO_UINT8(sub_opcode, param);
+  BTM_TRACE_API("%s: HCI_VS_LE_Exit_DBIG command complete status=0x%02x, sub_opcode=0x%02x",
+                __func__, status, sub_opcode);
 
-  if (hci_cmd_cmpl.create_dbig_cmpl_cb) {
-    (*hci_cmd_cmpl.create_dbig_cmpl_cb) (status, sub_opcode);
+  if (hci_cmd_cmpl.exit_dbig_cmpl_cb) {
+    (*hci_cmd_cmpl.exit_dbig_cmpl_cb)(status, sub_opcode);
+    hci_cmd_cmpl.exit_dbig_cmpl_cb = nullptr;
   }
 
+  if (status != HCI_SUCCESS && dbig_exit_state.waiting_for_exit_evt) {
+      if (dbig_exit_state.vs_exit_evt_cb) {
+          (*dbig_exit_state.vs_exit_evt_cb)(0, HCI_ERR_UNSPECIFIED);
+      }
+      dbig_exit_state.vs_exit_evt_cb = nullptr;
+      dbig_exit_state.waiting_for_exit_evt = false;
+  }
+}
+
+void btm_ble_associate_pa_dbig_cmd_cmpl(uint8_t *param, uint16_t param_len) {
+  tBTM_BLE_ASSOCIATE_PA_DBIG_RET_PARAM ret_param = {};
+  BTM_TRACE_API("%s: param_len = %d", __func__, param_len);
+
+  if (param_len < 4) {
+    BTM_TRACE_WARNING("%s Insufficient return parameters.", __func__);
+    if (hci_cmd_cmpl.associate_pa_dbig_cmpl_cb) {
+      ret_param.status = HCI_ERR_UNSPECIFIED;
+      ret_param.sub_opcode = HCI_VS_LE_ASSOCIATE_PA_DBIG_SUB_OPCODE;
+      ret_param.dbig_handle = 0;
+      ret_param.advertising_handle = 0;
+      (*hci_cmd_cmpl.associate_pa_dbig_cmpl_cb) (&ret_param);
+      hci_cmd_cmpl.associate_pa_dbig_cmpl_cb = nullptr;
+    }
+    return;
+  }
+
+  STREAM_TO_UINT8(ret_param.status, param);
+  STREAM_TO_UINT8(ret_param.sub_opcode, param);
+  STREAM_TO_UINT8(ret_param.dbig_handle, param);
+  STREAM_TO_UINT8(ret_param.advertising_handle, param);
+
+  if (hci_cmd_cmpl.associate_pa_dbig_cmpl_cb) {
+    (*hci_cmd_cmpl.associate_pa_dbig_cmpl_cb) (&ret_param);
+    hci_cmd_cmpl.associate_pa_dbig_cmpl_cb = nullptr;
+  }
+}
+
+void btm_ble_dbig_sync_only_cmd_cmpl(uint8_t *param, uint16_t param_len) {
+  tBTM_BLE_DBIG_SYNC_ONLY_RET_PARAM ret_param = {};
+  BTM_TRACE_API("%s: param_len = %d", __func__, param_len);
+
+  if (param_len < 3) {
+    BTM_TRACE_WARNING("%s Insufficient return parameters.", __func__);
+    if (hci_cmd_cmpl.dbig_sync_only_cmpl_cb) {
+      ret_param.status = HCI_ERR_UNSPECIFIED;
+      ret_param.sub_opcode = HCI_VS_LE_DBIG_SYNC_ONLY_SUB_OPCODE;
+      ret_param.dbig_handle = 0;
+      (*hci_cmd_cmpl.dbig_sync_only_cmpl_cb) (&ret_param);
+      hci_cmd_cmpl.dbig_sync_only_cmpl_cb = nullptr;
+    }
+    return;
+  }
+
+  STREAM_TO_UINT8(ret_param.status, param);
+  STREAM_TO_UINT8(ret_param.sub_opcode, param);
+  STREAM_TO_UINT8(ret_param.dbig_handle, param);
+
+  if (hci_cmd_cmpl.dbig_sync_only_cmpl_cb) {
+    (*hci_cmd_cmpl.dbig_sync_only_cmpl_cb) (&ret_param);
+    hci_cmd_cmpl.dbig_sync_only_cmpl_cb = nullptr;
+  }
+}
+
+void btm_ble_set_dbig_parameters_cmd_cmpl(uint8_t *param, uint16_t param_len) {
+  BTM_TRACE_WARNING("%s: param_len = %d", __func__, param_len);
+  uint8_t status = 0;
+  uint8_t sub_opcode = 0;
+  uint8_t dbig_handle = 0;
+  if (param_len < 3) {
+    BTM_TRACE_WARNING("%s Insufficient return parameters. %d status: %d dbig_handle", __func__, status, dbig_handle);
+    if (hci_cmd_cmpl.set_dbig_parameters_cmpl_cb) {
+      status = HCI_ERR_UNSPECIFIED;
+      sub_opcode = HCI_VS_LE_SET_DBIG_PARAMETERS_SUB_OPCODE;
+      dbig_handle = 0; 
+      (*hci_cmd_cmpl.set_dbig_parameters_cmpl_cb) (status, sub_opcode, dbig_handle);
+      hci_cmd_cmpl.set_dbig_parameters_cmpl_cb = nullptr;
+    }
+    return;
+  }
+
+  STREAM_TO_UINT8(status, param);
+  STREAM_TO_UINT8(sub_opcode, param);
+  STREAM_TO_UINT8(dbig_handle, param);
+
+  BTM_TRACE_ERROR("%s return parameters. %d status: %d SUB-Opcode %d dbig_handle", __func__, status,sub_opcode, dbig_handle);
+
+  if (hci_cmd_cmpl.set_dbig_parameters_cmpl_cb) {
+    (*hci_cmd_cmpl.set_dbig_parameters_cmpl_cb) (status, sub_opcode, dbig_handle);
+    hci_cmd_cmpl.set_dbig_parameters_cmpl_cb = nullptr; // Clear the callback after use
+  }
 }
 
 void btm_ble_create_sync_cmd_update_cb(uint8_t *param, uint16_t param_len) {
@@ -3077,34 +3189,31 @@ void btm_ble_create_sync_cmd_update_cb(uint8_t *param, uint16_t param_len) {
   }
 }
 
-void btm_ble_big_sync_update_evt(uint8_t *param, uint16_t param_len) {
-
-  if (param_len < 4) {
-    LOG(ERROR) << __func__ << ": Invalid DBIG update event length: " << param_len;
+void btm_ble_vs_dbig_status_event_internal_handler(uint8_t length, uint8_t* p_stream) {
+  if (length < 8) {
+    LOG(ERROR) << __func__ << ": Invalid DBIG status event length: " << length << " (expected >= 8)";
     return;
   }
 
-  tBTM_DBIG_UPDATE_EVT* evt = new tBTM_DBIG_UPDATE_EVT;
+  tBTM_DBIG_UPDATE_EVT evt_data;
 
-  STREAM_TO_UINT8(evt->dbig_handle, param);
-  STREAM_TO_UINT8(evt->bis_state, param);
-  STREAM_TO_UINT8(evt->timing_source, param);
-  STREAM_TO_UINT8(evt->local_bis_id, param);
+  STREAM_TO_UINT8(evt_data.dbig_handle, p_stream);
+  STREAM_TO_UINT16(evt_data.dbig_status, p_stream);
+  STREAM_TO_ARRAY(evt_data.big_event_counter, p_stream, 5);
 
   LOG(INFO) << __func__
-  << ": DBIG Handle=" << loghex(evt->dbig_handle)
-  << ", BIS State=" << loghex(evt->bis_state)
-  << ", Timing Source=" << loghex(evt->timing_source)
-  << ", Local BIS ID=" << (int)evt->local_bis_id;
+            << ": DBIG Handle=" << loghex(evt_data.dbig_handle)
+            << ", DBIG Status=" << loghex(evt_data.dbig_status);
 
-  // Notify the caller
-  /*if (big_sync_state.cb) {
-    big_sync_state.cb(HCI_SUCCESS,evt->dbig_handle,
-                        evt->bis_state, evt->timing_source,
-                        evt->local_bis_id);
-  }*/
-
-  delete evt;
+  if (btm_cb.ble_ctr_cb.p_dbig_status_cb) {
+    (*btm_cb.ble_ctr_cb.p_dbig_status_cb)(
+        evt_data.dbig_handle,
+        evt_data.dbig_status,
+        evt_data.big_event_counter
+    );
+  } else {
+    BTM_TRACE_WARNING("%s: No DBIG status callback registered by application.", __func__);
+  }
 }
 
 void btm_ble_big_sync_lost_evt(uint8_t *param, uint16_t param_len) {
@@ -3185,6 +3294,36 @@ void btm_ble_big_sync_established_evt(uint8_t* param, uint16_t param_len) {
   big_sync_state.cb = nullptr;
   big_sync_state.waiting_for_update_evt = false;
 }
+
+void btm_ble_vs_le_exit_dbig_event_handler(uint8_t *param, uint16_t param_len) {
+  uint8_t dbig_handle;
+  uint8_t reason;
+  BTM_TRACE_API("%s: param_len = %d", __func__, param_len);
+
+  if (param_len < 2) {
+    BTM_TRACE_WARNING("%s Insufficient event parameters.", __func__);
+    if (dbig_exit_state.vs_exit_evt_cb) {
+        (*dbig_exit_state.vs_exit_evt_cb)(0, HCI_ERR_UNSPECIFIED);
+    }
+    dbig_exit_state.vs_exit_evt_cb = nullptr;
+    dbig_exit_state.waiting_for_exit_evt = false;
+    return;
+  }
+
+  STREAM_TO_UINT8(dbig_handle, param);
+  STREAM_TO_UINT8(reason, param);
+
+  BTM_TRACE_API("%s: Received HCI_VS_LE_Exit_DBIG_Complete event for DBIG_Handle=0x%02x, Reason=0x%02x",
+                __func__, dbig_handle, reason);
+
+  if (dbig_exit_state.vs_exit_evt_cb) {
+    (*dbig_exit_state.vs_exit_evt_cb)(dbig_handle, reason);
+  }
+  dbig_exit_state.vs_exit_evt_cb = nullptr;
+  dbig_exit_state.waiting_for_exit_evt = false;
+}
+
+
 
 void btm_ble_remove_iso_datapath_cmd_cmpl(uint8_t *param, uint16_t param_len) {
   uint8_t status;
@@ -3961,15 +4100,28 @@ uint8_t BTM_BleTerminateBigSync(uint8_t big_handle, tBTM_BLE_TERMINATE_BIG_SYNC_
   return HCI_SUCCESS;
 }
 
-uint8_t BTM_BleCreateDbig(tBTM_BLE_CREATE_DBIG_PARAM* p_data) {
+uint8_t BTM_BleSetDbigParameters(tBTM_BLE_SET_DBIG_PARAMETERS_PARAM* p_data) {
   BTM_TRACE_API("%s", __func__);
 
-  hci_cmd_cmpl.create_dbig_cmpl_cb = p_data->p_cb;
-  btsnd_hcic_ble_create_dbig(p_data->dbig_handle,
-                             p_data->bis_audio_timeout,
-                             p_data->bis_absent_timeout,
-                             p_data->bis_id,
-                             base::Bind(&btm_ble_create_dbig_cmd_cmpl));
+  if (!p_data) {
+    BTM_TRACE_ERROR("%s: p_data is null.", __func__);
+    return HCI_ERR_ILLEGAL_PARAMETER_FMT;
+  }
+  hci_cmd_cmpl.set_dbig_parameters_cmpl_cb = p_data->p_cb;
+
+  btsnd_hcic_ble_set_dbig_parameters(
+      p_data->dbig_handle,
+      p_data->dbig_feature_set,
+      p_data->bis_detection_attempts,
+      p_data->max_payload_dbig_control,
+      p_data->bis_control_event_interval,
+      p_data->send_exit,
+      p_data->pgp_timeout,
+      p_data->pgo_timeout,
+      p_data->sgo_timeout,
+      p_data->tx_power,
+      base::Bind(&btm_ble_set_dbig_parameters_cmd_cmpl));
+
   return HCI_SUCCESS;
 }
 
@@ -3993,6 +4145,67 @@ uint8_t BTM_BleBigCreateSync(tBTM_BLE_BIG_CREATE_SYNC_PARAM* p_data,
                                  p_data->num_bis,
                                  p_data->bis,
       base::Bind(&btm_ble_create_sync_cmd_update_cb));
+  return HCI_SUCCESS;
+}
+
+uint8_t BTM_BleExitDbIg(tBTM_BLE_EXIT_DBIG_PARAM* p_data) {
+  BTM_TRACE_API("%s", __func__);
+
+  hci_cmd_cmpl.exit_dbig_cmpl_cb = p_data->p_cb;
+  dbig_exit_state.waiting_for_exit_evt = true;
+
+  btsnd_hcic_ble_exit_dbig(p_data->dbig_handle, p_data->reason,
+                           base::Bind(&btm_ble_exit_dbig_cmd_cmpl));
+
+  return HCI_SUCCESS;
+}
+
+uint8_t BTM_BleAssociatePaDbig(tBTM_BLE_ASSOCIATE_PA_DBIG_PARAM* p_data) {
+  BTM_TRACE_API("%s", __func__);
+
+  if (!p_data) {
+    BTM_TRACE_ERROR("%s: p_data is null.", __func__);
+    return HCI_ERR_ILLEGAL_PARAMETER_FMT;
+  }
+
+  hci_cmd_cmpl.associate_pa_dbig_cmpl_cb = p_data->p_cb;
+
+  btsnd_hcic_ble_associate_pa_dbig(
+      p_data->dbig_handle,
+      p_data->advertising_handle,
+      base::Bind(&btm_ble_associate_pa_dbig_cmd_cmpl));
+
+  return HCI_SUCCESS;
+}
+
+uint8_t BTM_BleDbigSyncOnly(tBTM_BLE_DBIG_SYNC_ONLY_PARAM* p_data) {
+  BTM_TRACE_API("%s", __func__);
+
+  if (!p_data) {
+    BTM_TRACE_ERROR("%s: p_data is null.", __func__);
+    return HCI_ERR_ILLEGAL_PARAMETER_FMT;
+  }
+
+  hci_cmd_cmpl.dbig_sync_only_cmpl_cb = p_data->p_cb;
+
+  btsnd_hcic_ble_dbig_sync_only(
+      p_data->dbig_handle,
+      p_data->enable,
+      base::Bind(&btm_ble_dbig_sync_only_cmd_cmpl));
+
+  return HCI_SUCCESS;
+}
+
+tBTM_STATUS BTM_BleRegisterForDbigStatusEvt(tBTM_BLE_DBIG_STATUS_CB* p_cb, bool is_register) {
+  BTM_TRACE_API("%s: is_register=%d", __func__, is_register);
+
+  if (is_register) {
+    btm_cb.ble_ctr_cb.p_dbig_status_cb = p_cb;
+  } else {
+    btm_cb.ble_ctr_cb.p_dbig_status_cb = nullptr;
+  }
+
+  LOG(INFO) << __func__ << ": Successfully (un)registered application callback for DBIG Status events.";
   return HCI_SUCCESS;
 }
 

@@ -993,21 +993,39 @@ void btsnd_hcic_ble_set_iso_data_path(uint16_t connection_handle,
                             param_len, std::move(cb));
 }
 
-void btsnd_hcic_ble_create_dbig(uint8_t dbig_handle,
-                                uint8_t bis_audio_timeout,
-                                uint8_t bis_absent_timeout,
-                                uint8_t bis_id,
-                                base::Callback<void(uint8_t*, uint16_t)> cb) {
-  uint16_t param_len = HCI_PARAM_SIZE_CREATE_DBIG;
+void btsnd_hcic_ble_set_dbig_parameters(uint8_t dbig_handle,
+                                        uint8_t dbig_feature_set,
+                                        uint8_t bis_detection_attempts,
+                                        uint8_t max_payload_dbig_control,
+                                        uint8_t bis_control_event_interval,
+                                        uint8_t send_exit,
+                                        uint8_t pgp_timeout,
+                                        uint8_t pgo_timeout,
+                                        uint8_t sgo_timeout,
+                                        uint8_t tx_power,
+                                        base::Callback<void(uint8_t*, uint16_t)> cb) {
+
+  // Total HCI payload length (including sub-opcode): 13 bytes
+  uint16_t param_len = HCI_PARAM_SIZE_SET_DBIG_PARAMS;
   uint8_t *param = (uint8_t *)osi_malloc(param_len);
   uint8_t *p = param;
 
-  UINT8_TO_STREAM(p, 0x04);
-  UINT8_TO_STREAM(p, dbig_handle);
-  UINT8_TO_STREAM(p, bis_audio_timeout);
-  UINT8_TO_STREAM(p, bis_absent_timeout);
-  UINT8_TO_STREAM(p, bis_id);
+  // Stream the sub-opcode (0x04)
+  UINT8_TO_STREAM(p, HCI_VS_LE_SET_DBIG_PARAMETERS_SUB_OPCODE);
 
+  // Stream command-specific parameters
+  UINT8_TO_STREAM(p, dbig_handle);
+  UINT8_TO_STREAM(p, dbig_feature_set);
+  UINT8_TO_STREAM(p, bis_detection_attempts);
+  UINT8_TO_STREAM(p, max_payload_dbig_control);
+  UINT8_TO_STREAM(p, bis_control_event_interval);
+  UINT8_TO_STREAM(p, send_exit);
+  UINT8_TO_STREAM(p, pgp_timeout);
+  UINT8_TO_STREAM(p, pgo_timeout);
+  UINT8_TO_STREAM(p, sgo_timeout);
+  UINT8_TO_STREAM(p, tx_power);
+
+  // Send the command using the main vendor-specific opcode (0xFD90)
   btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_VS_LE_SET_DBIG_PARAMETERS, param,
                             param_len, std::move(cb));
 }
@@ -1045,6 +1063,54 @@ void btsnd_hcic_ble_terminate_big_sync(uint8_t big_handle,
 
   UINT8_TO_STREAM(p, big_handle);
   btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_LE_TERMINATE_BIG_SYNC, param,
+                            param_len, std::move(cb));
+}
+
+void btsnd_hcic_ble_exit_dbig(uint8_t dbig_handle,
+                              uint8_t reason,
+                              base::Callback<void(uint8_t*, uint16_t)> cb) {
+  uint8_t sub_opcode = HCI_VS_LE_EXIT_DBIG_SUB_OPCODE;
+  uint16_t param_len = HCI_PARAM_SIZE_EXIT_DBIG;
+  uint8_t *param = (uint8_t *)osi_malloc(param_len);
+  uint8_t *p = param;
+
+  UINT8_TO_STREAM(p, dbig_handle);
+  UINT8_TO_STREAM(p, reason);
+  btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_VS_LE_SET_DBIG_PARAMETERS, param,
+                            param_len, std::move(cb));
+}
+
+void btsnd_hcic_ble_associate_pa_dbig(
+    uint8_t dbig_handle,
+    uint8_t advertising_handle,
+    base::Callback<void(uint8_t*, uint16_t)> cb) {
+
+  const uint16_t param_len = 3;
+  uint8_t *param = (uint8_t *)osi_malloc(param_len);
+  uint8_t *p = param;
+
+  UINT8_TO_STREAM(p, HCI_VS_LE_ASSOCIATE_PA_DBIG_SUB_OPCODE);
+  UINT8_TO_STREAM(p, dbig_handle);
+  UINT8_TO_STREAM(p, advertising_handle);
+
+  btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_VS_LE_SET_DBIG_PARAMETERS, param,
+                            param_len, std::move(cb));
+}
+
+void btsnd_hcic_ble_dbig_sync_only(
+    uint8_t dbig_handle,
+    uint8_t enable,
+    base::Callback<void(uint8_t*, uint16_t)> cb) {
+
+  const uint16_t param_len = 3;
+  uint8_t *param = (uint8_t *)osi_malloc(param_len);
+  uint8_t *p = param;
+  UINT8_TO_STREAM(p, HCI_VS_LE_DBIG_SYNC_ONLY_SUB_OPCODE);
+
+  UINT8_TO_STREAM(p, dbig_handle);
+  UINT8_TO_STREAM(p, enable);
+
+  btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_VS_LE_SET_DBIG_PARAMETERS, param,
                             param_len, std::move(cb));
 }
 

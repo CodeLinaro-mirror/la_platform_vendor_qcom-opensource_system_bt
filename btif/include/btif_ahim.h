@@ -156,6 +156,7 @@ typedef uint32_t (* ahim_get_mode_callback)();
 typedef uint16_t (* ahim_get_frame_duration)(uint8_t direction);
 typedef void (* ahim_update_params)(uint16_t delay, uint8_t mode);
 typedef uint8_t (* ahim_get_codec_version_aptx)(uint8_t direction);
+typedef uint8_t (* ahim_get_num_bis)();
 
 typedef struct {
     uint8_t mode;
@@ -182,6 +183,7 @@ typedef struct {
     ahim_get_frame_duration get_frame_duration;
     ahim_update_params params_update;
     ahim_get_codec_version_aptx get_codec_version_aptx;
+    ahim_get_num_bis get_num_bis_count;
 }btif_ahim_client_callbacks_t;
 
 extern btif_ahim_client_callbacks_t* pclient_cbs[MAX_CLIENT];

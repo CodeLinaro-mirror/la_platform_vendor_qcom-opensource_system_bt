@@ -937,12 +937,14 @@ void btm_vendor_specific_evt(uint8_t* p, uint8_t evt_len) {
     } else if (HCI_VS_META == vse_subcode) {
         uint8_t vse_msg_type;
         STREAM_TO_UINT8(vse_msg_type, pp);
-        BTM_TRACE_DEBUG("%s: VSE META event msg_type = 0x%02x", __func__, vse_msg_type);
+        BTM_TRACE_ERROR("%s: VSE META event msg_type = 0x%02x", __func__, vse_msg_type);
         switch(vse_msg_type) {
-            case HCI_VS_LE_DBIG_UPDATE_EVT:
-              btm_ble_big_sync_update_evt(pp, evt_len - 2);
-              break;
-
+            case HCI_VS_LE_DBIG_STATUS_EVT:
+              btm_ble_vs_dbig_status_event_internal_handler(evt_len - 2, pp);
+              return;
+             case HCI_VS_LE_EXIT_DBIG_COMPLETE_EVT:
+              btm_ble_vs_le_exit_dbig_event_handler(pp, evt_len - 2);
+              return;
             default:
             LOG(INFO) << __func__ <<"Unknown VSE META type";
             break;
