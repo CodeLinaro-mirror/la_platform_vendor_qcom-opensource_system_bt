@@ -188,7 +188,8 @@ extern btif_ahim_client_callbacks_t* pclient_cbs[MAX_CLIENT];
 
 void reg_cb_with_ahim(uint8_t client_id, btif_ahim_client_callbacks_t* pclient_cb);
 
-void btif_ahim_process_request(tA2DP_CTRL_CMD cmd, uint8_t profile, uint8_t direction);
+void btif_ahim_process_request(tA2DP_CTRL_CMD cmd, uint8_t profile,
+                               uint8_t direction , bool is_achat_session);
 void btif_ahim_process_request_DM(tA2DP_CTRL_CMD cmd, uint8_t profile, uint8_t direction);
 void btif_ahim_update_current_profile(uint8_t profile);
 

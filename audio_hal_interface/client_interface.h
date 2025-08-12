@@ -172,6 +172,10 @@ class IBluetoothTransportInstance_2_1 {
     session_type_ = sessionType;
   }
 
+  SessionType GetSessionType() {
+    return session_type_;
+  }
+
   bool IsActvie() {
     return session_type_ != SessionType::UNKNOWN;
   }
