@@ -3316,6 +3316,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
     case BTIF_AV_SINK_OFFLOAD_HAL_RESTART_EVT:
         if(bt_split_a2dp_sink_enabled) {
            btif_av_cb[index].flags |= BTIF_AV_FLAG_HAL_RESTART_RECOVERY;
+           HAL_CBACK(bt_vendor_av_sink_callbacks, audioserver_cb, &btif_av_cb[index].peer_bda);
         }
         FALLTHROUGH;
         // Fall through
