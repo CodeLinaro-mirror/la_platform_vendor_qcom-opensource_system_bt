@@ -48,6 +48,7 @@
 #include "osi/include/osi.h"
 #include "sdp_api.h"
 #include "bta_sdp_api.h"
+#include "stack/btm/btm_ble_int.h"
 #include "stack/gatt/connection_manager.h"
 #include "stack/include/gatt_api.h"
 #include "utl.h"
@@ -924,6 +925,7 @@ void bta_dm_remove_device(tBTA_DM_MSG* p_data) {
   if (p_dev == NULL) return;
 
   RawAddress other_address = p_dev->bd_addr;
+  RawAddress peer_id_addr = p_dev->bd_addr;
 
   /* If ACL exists for the device in the remove_bond message*/
   bool continue_delete_dev = false;
@@ -975,6 +977,13 @@ void bta_dm_remove_device(tBTA_DM_MSG* p_data) {
     for (int i = 0; i < bta_dm_cb.device_list.count; i++) {
       auto& peer_device = bta_dm_cb.device_list.peer_device[i];
       if (peer_device.peer_bdaddr == other_address) {
+        /* If the same remote address having two different transport links, then
+         * need to disconnect the other link with same address. so need to fetch
+         * correct control block of that address */
+        if ((peer_device.transport != other_transport) &&
+            (peer_device.peer_bdaddr == peer_id_addr)) {
+          continue;
+        }
         peer_device.conn_state = BTA_DM_UNPAIRING;
 
         /* Make sure device is not in white list before we disconnect */
@@ -994,6 +1003,12 @@ void bta_dm_remove_device(tBTA_DM_MSG* p_data) {
   /* Delete the other paired device too */
   if (continue_delete_other_dev && !other_address.IsEmpty())
     bta_dm_process_remove_device(other_address);
+
+  /* Check the length of the paired devices, and if 0 then reset IRK */
+  if (btif_storage_get_num_bonded_devices() < 1) {
+    LOG(INFO) << "Last paired device removed, resetting IRK";
+    btm_ble_reset_id();
+  }
 }
 
 /*******************************************************************************
