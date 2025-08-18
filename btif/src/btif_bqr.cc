@@ -101,7 +101,7 @@ bool BqrVseSubEvt::ParseBqrEvt(uint8_t length, uint8_t* p_param_buf) {
                  << " is abnormal. It shall be not shorter than: "
                  << std::to_string(kBqrParamTotalLen);
       return false;
-    } 
+    }
 
     STREAM_TO_UINT8(packet_types_, p_param_buf);
     STREAM_TO_UINT16(connection_handle_, p_param_buf);
@@ -498,29 +498,41 @@ void ConfigureBqr(const BqrConfiguration& bqr_config) {
                << ", Vendor Mask: " << loghex(bqr_config.vendor_quality_event_mask);
     return;
   }
-
-  if(bqr_config.is_qc_bqr5_supported == false || vendor_cap_supported_version
-        < kBqrConnectFailVersion) {
-    uint8_t param[sizeof(BqrConfiguration)];
-    uint8_t* p_param = param;
-    UINT8_TO_STREAM(p_param, bqr_config.report_action);
-    UINT32_TO_STREAM(p_param, bqr_config.quality_event_mask);
-    UINT16_TO_STREAM(p_param, bqr_config.minimum_report_interval_ms);
-    BTM_VendorSpecificCommand(HCI_CONTROLLER_BQR_OPCODE_OCF, p_param - param,
+  if(bqr_config.is_qc_bqr5_supported == true) {
+      uint8_t param[sizeof(BqrConfiguration)];
+      uint8_t* p_param = param;
+      UINT8_TO_STREAM(p_param, bqr_config.report_action);
+      UINT32_TO_STREAM(p_param, bqr_config.quality_event_mask);
+      UINT16_TO_STREAM(p_param, bqr_config.minimum_report_interval_ms);
+      if(bqr_config.quality_event_mask & kQualityEventMaskVendorSpecific) {
+        UINT32_TO_STREAM(p_param, bqr_config.vendor_quality_event_mask);
+      } else {
+        UINT32_TO_STREAM(p_param, 0x00000000);
+      }
+      UINT32_TO_STREAM(p_param, 0x00000000);
+      BTM_VendorSpecificCommand(HCI_CONTROLLER_BQR_OPCODE_OCF, p_param - param,
+                              param, BqrVscCompleteCallback);
+   } else if( vendor_cap_supported_version < kBqrConnectFailVersion) {
+      uint8_t param[sizeof(BqrConfiguration)];
+      uint8_t* p_param = param;
+      UINT8_TO_STREAM(p_param, bqr_config.report_action);
+      UINT32_TO_STREAM(p_param, bqr_config.quality_event_mask);
+      UINT16_TO_STREAM(p_param, bqr_config.minimum_report_interval_ms);
+      BTM_VendorSpecificCommand(HCI_CONTROLLER_BQR_OPCODE_OCF, p_param - param,
                               param, BqrVscCompleteCallback);
   } else {
-    uint8_t param[sizeof(BqrConfiguration)];
-    uint8_t* p_param = param;
-    UINT8_TO_STREAM(p_param, bqr_config.report_action);
-    UINT32_TO_STREAM(p_param, bqr_config.quality_event_mask);
-    UINT16_TO_STREAM(p_param, bqr_config.minimum_report_interval_ms);
-    if(bqr_config.quality_event_mask & kQualityEventMaskVendorSpecific) {
-      UINT32_TO_STREAM(p_param, bqr_config.vendor_quality_event_mask);
-    } else {
+      uint8_t param[sizeof(BqrConfiguration)];
+      uint8_t* p_param = param;
+      UINT8_TO_STREAM(p_param, bqr_config.report_action);
+      UINT32_TO_STREAM(p_param, bqr_config.quality_event_mask);
+      UINT16_TO_STREAM(p_param, bqr_config.minimum_report_interval_ms);
+      if(bqr_config.quality_event_mask & kQualityEventMaskVendorSpecific) {
+        UINT32_TO_STREAM(p_param, bqr_config.vendor_quality_event_mask);
+      } else {
+        UINT32_TO_STREAM(p_param, 0x00000000);
+      }
       UINT32_TO_STREAM(p_param, 0x00000000);
-    }
-    UINT32_TO_STREAM(p_param, 0x00000000);
-    BTM_VendorSpecificCommand(HCI_CONTROLLER_BQR_OPCODE_OCF, p_param - param,
+      BTM_VendorSpecificCommand(HCI_CONTROLLER_BQR_OPCODE_OCF, p_param - param,
                               param, BqrVscCompleteCallback);
   }
 }

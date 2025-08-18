@@ -1654,6 +1654,12 @@ bool bta_gattc_process_srvc_chg_ind(uint16_t conn_id, tBTA_GATTC_RCB* p_clrcb,
     /* send confirmation here if this is an indication, it should always be */
     GATTC_SendHandleValueConfirm(conn_id, att_value->handle, p_notify->trans_id);
 
+    LOG(INFO) << __func__ << ": update_count: " << p_srcb->update_count
+                           << " no_of_app_reg: " << bta_gattc_num_reg_app();
+
+    /*reset update count after sending service indication confirmation*/
+    p_srcb->update_count = 0;
+
     /* if connection available, refresh cache by doing discovery now */
     if (p_clcb) {
       /* request read db hash first */
