@@ -1907,6 +1907,12 @@ void A2DP_SetSinkCodec(const char *sink_cap){
     }
     tok = strtok_r(NULL, "-", &tmp_token);
   }
+  char vbr_value[PROPERTY_VALUE_MAX] = {'\0'};
+  property_get("persist.vendor.qcom.bluetooth.aac_vbr_ctl.enabled", vbr_value, "false");
+  if (!(strcmp(vbr_value,"true"))) {
+    BTIF_TRACE_DEBUG("%s: AAC VBR is enabled", __func__);
+    vbr_supported = true;
+  }
 }
 
 bool A2DP_IsCodecEnabledInSink(btav_a2dp_codec_index_t codec_index) {

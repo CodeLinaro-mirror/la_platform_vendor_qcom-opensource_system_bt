@@ -450,11 +450,12 @@ bool is_address_equal(void* data, void* context) {
   const RawAddress* bd_addr = ((RawAddress*)context);
 
   if (*bd_addr == RawAddress::kEmpty) return true;
-  if (p_dev_rec) {
-    if (p_dev_rec->bd_addr == *bd_addr) return false;
-    // If a LE random address is looking for device record
-    if (p_dev_rec->ble.pseudo_addr == *bd_addr) return false;
-  }
+
+  if (p_dev_rec == NULL) return true;
+
+  if (p_dev_rec->bd_addr == *bd_addr) return false;
+  // If a LE random address is looking for device record
+  if (p_dev_rec->ble.pseudo_addr == *bd_addr) return false;
 
   if (btm_ble_addr_resolvable(*bd_addr, p_dev_rec)) return false;
   return true;
