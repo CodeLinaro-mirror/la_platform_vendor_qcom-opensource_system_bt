@@ -2067,7 +2067,11 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
         APPL_TRACE_ERROR("%s: incorrect index of LCB 0x%x", __func__, lcb_index);
         return;
       }
-      rc_feat.peer_addr = p_cb->lcb[lcb_index].addr;
+      if (p_cb->rcb[rc_handle].lidx > 0) {
+        rc_feat.peer_addr = p_cb->lcb[p_cb->rcb[rc_handle].lidx - 1].addr;
+      } else {
+        rc_feat.peer_addr = p_cb->lcb[p_cb->rcb[rc_handle].lidx].addr;
+      }
     } else {
       rc_feat.peer_addr = p_scb->PeerAddress();
     }
@@ -2083,7 +2087,11 @@ void bta_av_rc_disc_done(UNUSED_ATTR tBTA_AV_DATA* p_data) {
     rc_psm.rc_handle = rc_handle;
     rc_psm.cover_art_psm = cover_art_psm;
     if (p_scb == NULL) {
-      rc_psm.peer_addr = p_cb->lcb[p_cb->rcb[rc_handle].lidx - 1].addr;
+      if (p_cb->rcb[rc_handle].lidx > 0) {
+        rc_psm.peer_addr = p_cb->lcb[p_cb->rcb[rc_handle].lidx - 1].addr;
+      } else {
+        rc_psm.peer_addr = p_cb->lcb[p_cb->rcb[rc_handle].lidx].addr;
+      }
     } else {
       rc_psm.peer_addr = p_scb->PeerAddress();
     }
