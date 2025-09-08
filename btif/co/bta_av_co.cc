@@ -816,7 +816,7 @@ void bta_av_co_audio_setconfig(tBTA_AV_HNDL hndl, const uint8_t* p_codec_info,
                          A2DP_CodecName(p_codec_info));
     }
   }
-
+  status = A2dp_IsCodecConfigMatch(p_codec_info);
   error_code = A2dp_SendSetConfigRspErrorCodeForPTS();
 
   APPL_TRACE_DEBUG("%s: status : %d, error_code: %d",

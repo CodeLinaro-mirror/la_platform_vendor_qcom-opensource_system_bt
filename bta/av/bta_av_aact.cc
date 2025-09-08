@@ -945,15 +945,20 @@ static void bta_av_a2dp_sdp_cback2(bool found, tA2DP_Service* p_service, tBTA_AV
  *
  ******************************************************************************/
 static void bta_av_adjust_seps_idx(tBTA_AV_SCB* p_scb, uint8_t avdt_handle) {
-  APPL_TRACE_DEBUG("%s: codec: %s and codec_index = %d", __func__,
-          A2DP_CodecName(p_scb->cfg.codec_info), A2DP_SourceCodecIndex(p_scb->cfg.codec_info));
+  bool pts_flag = false;
+  char is_a2dp_pts_enable[PROPERTY_VALUE_MAX] = "false";
+  property_get("persist.vendor.bt.a2dp.pts_enable", is_a2dp_pts_enable, "false");
+  if (!strncmp("true", is_a2dp_pts_enable, 4))
+    pts_flag = true;
+  APPL_TRACE_DEBUG("%s: codec: %s and codec_index = %d pts_flag =%d", __func__,
+          A2DP_CodecName(p_scb->cfg.codec_info), A2DP_SourceCodecIndex(p_scb->cfg.codec_info) ,pts_flag);
   for (int i = 0; i < BTAV_A2DP_CODEC_INDEX_MAX; i++) {
     APPL_TRACE_DEBUG("%s: av_handle: %d codec: %s", __func__,
                      p_scb->seps[i].av_handle,
                      A2DP_CodecName(p_scb->seps[i].codec_info));
     if (p_scb->seps[i].av_handle && (p_scb->seps[i].av_handle == avdt_handle) &&
-        A2DP_CodecTypeEquals(p_scb->seps[i].codec_info,
-                             p_scb->cfg.codec_info)) {
+        (A2DP_CodecTypeEquals(p_scb->seps[i].codec_info,
+                             p_scb->cfg.codec_info) || pts_flag)) {
       p_scb->sep_idx = i;
       p_scb->avdt_handle = p_scb->seps[i].av_handle;
       break;
