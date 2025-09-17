@@ -36,7 +36,7 @@ static const char* bta_hf_client_evt_str(uint16_t event);
 static const char* bta_hf_client_state_str(uint8_t state);
 void bta_hf_client_cb_init(tBTA_HF_CLIENT_CB* client_cb, uint16_t handle);
 int hf_client_max_device;
-char values[PROPERTY_VALUE_MAX];
+static char value[PROPERTY_VALUE_MAX];
 /* state machine states */
 enum {
   BTA_HF_CLIENT_INIT_ST,
@@ -412,8 +412,10 @@ tBTA_STATUS bta_hf_client_api_enable(tBTA_HF_CLIENT_CBACK* p_cback,
                                      tBTA_SEC sec_mask,
                                      tBTA_HF_CLIENT_FEAT features,
                                      const char* p_service_name) {
-  if (property_get("ro.board.platform", values, " ") &&
-         strcmp(values, "neo") == 0) {
+  if (property_get("ro.board.platform", value, " ") &&
+         (strcmp(value, "neo") == 0 ||
+           strcmp(value, "neo61") == 0 ||
+             strcmp(value, "seraph") == 0)) {
     hf_client_max_device = HF_CLIENT_MAX_DEVICES_NEO;
     APPL_TRACE_WARNING("%s: maximum number of connectable devices for\
        neo target is %d", __func__,hf_client_max_device);

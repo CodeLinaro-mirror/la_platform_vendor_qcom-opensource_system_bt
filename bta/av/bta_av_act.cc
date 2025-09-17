@@ -320,8 +320,11 @@ static void bta_av_rc_ctrl_cback(uint8_t handle, uint8_t event,
   uint16_t msg_event = 0;
   tBTA_AV_CB* p_cb = &bta_av_cb;
   uint8_t rc_handle = BTA_AV_RC_HANDLE_NONE;
-  if(handle < AVCT_NUM_LINKS)
-    rc_handle = p_cb->rcb[handle].handle;
+  if (handle >= AVCT_NUM_LINKS) {
+    APPL_TRACE_ERROR("%s: Invalid handle value: %d", __func__, handle);
+    return;
+  }
+  rc_handle = p_cb->rcb[handle].handle;
 
   APPL_TRACE_IMP("%s handle: %d, result %d, event=0x%x", __func__, handle, result, event);
   if (event == AVRC_OPEN_IND_EVT) {

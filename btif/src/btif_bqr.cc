@@ -43,6 +43,7 @@ static std::unique_ptr<LeakyBondedQueue<BqrVseSubEvt>> kpBqrEventQueue(
     new LeakyBondedQueue<BqrVseSubEvt>(kBqrEventQueueSize));
 
 static uint16_t vendor_cap_supported_version;
+bool is_bqr_above_vendor_cap;
 
 static uint32_t GetVsQualityEventMask(uint32_t event_mask) {
   if (vendor_cap_supported_version < kBqrConnectFailVersion &&
@@ -93,8 +94,9 @@ bool BqrVseSubEvt::ParseBqrEvt(uint8_t length, uint8_t* p_param_buf) {
   if (quality_report_id_ == QUALITY_REPORT_ID_ROOT_INFLAMMATION) {
     return true;
   }
-  if(!(btif_vendor_is_qc_bqr5_supported() &&
-         quality_report_id_ == QUALITY_REPORT_ID_VENDOR_SPECIFIC)){
+  LOG(WARNING) << "is_bqr_above_vendor_cap" << is_bqr_above_vendor_cap;
+  if(!((is_bqr_above_vendor_cap || btif_vendor_is_qc_bqr5_supported())
+                &&  quality_report_id_ == QUALITY_REPORT_ID_VENDOR_SPECIFIC)){
     if (length < kBqrParamTotalLen) {
       LOG(FATAL) << __func__
                  << ": Parameter total length: " << std::to_string(length)
@@ -382,6 +384,10 @@ void EnableBtQualityReport(bool is_enable) {
     bqr_config.vendor_quality_event_mask =
         static_cast<uint32_t>(atoi(bqr_vendor_prop_evtmask));
     bqr_config.is_qc_bqr5_supported = btif_vendor_is_qc_bqr5_supported();
+    if(bqr_config.is_qc_bqr5_supported == false && (vendor_cap_supported_version >= kBqrConnectFailVersion)){
+        bqr_config.is_qc_bqr5_supported = true;
+        is_bqr_above_vendor_cap = true;
+    }
 
     if(bqr_config.is_qc_bqr5_supported) {
       bqr_config.quality_event_mask &= kBqr5QualityEventMaskAll;
@@ -409,6 +415,11 @@ void EnableBtQualityReport(bool is_enable) {
   } else {
     bqr_config.report_action = REPORT_ACTION_DELETE;
     bqr_config.is_qc_bqr5_supported = btif_vendor_is_qc_bqr5_supported();
+    if(bqr_config.is_qc_bqr5_supported == false && vendor_cap_supported_version >= kBqrConnectFailVersion){
+      bqr_config.is_qc_bqr5_supported = true;
+      is_bqr_above_vendor_cap = true;
+    }
+    LOG(WARNING) << "is_qc_bqr5_supported" << bqr_config.is_qc_bqr5_supported;
     if(bqr_config.is_qc_bqr5_supported) {
       bqr_config.quality_event_mask = kBqr5QualityEventMaskAll;
     } else {
@@ -445,7 +456,6 @@ void BqrVscCompleteCallback(tBTM_VSC_CMPL* p_vsc_cmpl_params) {
     LOG(ERROR) << __func__ << ": Fail to configure BQR. status: " << loghex(status);
     return;
   }
-
   if (p_vsc_cmpl_params->param_len != 5 &&
          (btif_vendor_is_qc_bqr5_supported() && p_vsc_cmpl_params->param_len != 13)){
     LOG(FATAL) << __func__
