@@ -2069,6 +2069,8 @@ bool BtifAvStateMachine::StateOpened::ProcessEvent(uint32_t event,
                          __PRETTY_FUNCTION__,
                          peer_.PeerAddress().ToString().c_str(),
                          BtifAvEvent::EventName(event).c_str());
+      btif_report_connection_state(peer_.PeerAddress(),
+                                   BTAV_CONNECTION_STATE_CONNECTED);
       btif_queue_advance();
     } break;
 
