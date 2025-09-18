@@ -18,10 +18,10 @@
 
 /******************************************************************************
  *
- * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear.
  *
  ******************************************************************************/
 
@@ -1108,7 +1108,14 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
         break;
 
       case HCI_ERR_PAIRING_NOT_ALLOWED:
-        is_bonded_device_removed = false;
+        if (!bluetooth::shim::is_gd_security_enabled()) {
+          BTIF_TRACE_WARNING("%s() HCI_ERR_PAIRING_NOT_ALLOWED, remove paired device",
+                           __func__);
+          is_bonded_device_removed = (btif_storage_remove_bonded_device(
+                                          &bd_addr) == BT_STATUS_SUCCESS);
+        } else {
+          is_bonded_device_removed = true;
+        }
         status = BT_STATUS_AUTH_REJECTED;
         break;
 

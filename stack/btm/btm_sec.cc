@@ -14,10 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ *  Changes from Qualcomm Technologies, Inc. are provided under the following license:
  *
- *  Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
- *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear.
  *
  *****************************************************************************************/
 
@@ -3250,8 +3250,14 @@ void btm_sec_auth_complete(uint16_t handle, tHCI_STATUS status) {
   }
 
   if (was_authenticating == false) {
-    if (status != HCI_SUCCESS && old_state != BTM_PAIR_STATE_IDLE) {
-      NotifyBondingChange(*p_dev_rec, status);
+    if (status != HCI_SUCCESS) {
+        if (old_state != BTM_PAIR_STATE_IDLE) {
+          NotifyBondingChange(*p_dev_rec, status);
+        } else if (btm_cb.pairing_disabled) {
+          // If pairing mode is disabled, the pairing state remains in IDLE
+          // In this case, the bond state should still be reported.
+          NotifyBondingChange(*p_dev_rec, HCI_ERR_PAIRING_NOT_ALLOWED);
+        }
     }
     return;
   }
