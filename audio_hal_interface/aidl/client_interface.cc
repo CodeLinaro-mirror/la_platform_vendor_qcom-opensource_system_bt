@@ -52,6 +52,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 #include "client_interface.h"
 
 #include <android/binder_manager.h>
+#include "a2dp_encoding.h"
 
 namespace bluetooth {
 namespace audio {
@@ -279,7 +280,9 @@ bool BluetoothAudioClientInterface::UpdateAudioConfig(
            SessionType::LE_AUDIO_BROADCAST_SOFTWARE_ENCODING_DATAPATH);
   bool is_a2dp_offload_session =
       (transport_->GetSessionType() ==
-       SessionType::A2DP_HARDWARE_OFFLOAD_ENCODING_DATAPATH);
+           SessionType::A2DP_HARDWARE_OFFLOAD_ENCODING_DATAPATH ||
+       transport_->GetSessionType() ==
+           SessionType::A2DP_HARDWARE_OFFLOAD_DECODING_DATAPATH);
   bool is_leaudio_offload_session =
       (transport_->GetSessionType() ==
            SessionType::LE_AUDIO_HARDWARE_OFFLOAD_ENCODING_DATAPATH ||
@@ -615,6 +618,8 @@ void BluetoothAudioClientInterface::RenewAudioProviderAndSession() {
 
     StartSession();
   }
+  LOG(INFO) << __func__ << ": BluetoothAudioHal notify HAL restart to stack";
+  a2dp::NotifyHalRestart();
 }
 
 size_t BluetoothAudioSourceClientInterface::WriteAudioData(const uint8_t* p_buf,

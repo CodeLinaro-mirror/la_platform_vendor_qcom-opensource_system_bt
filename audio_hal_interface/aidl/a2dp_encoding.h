@@ -78,6 +78,8 @@ bool update_codec_offloading_capabilities(
  ***/
 bool is_hal_enabled();
 
+void NotifyHalRestart();
+
 /***
  * Check if new bluetooth_audio aidl is available
  ***/
@@ -102,7 +104,7 @@ void cleanup();
 /***
  * Set up the codec into BluetoothAudio HAL
  ***/
-bool setup_codec();
+bool setup_codec(uint8_t profile);
 
 /***
  * Send command to the BluetoothAudio HAL: StartSession, EndSession,
@@ -131,6 +133,8 @@ bool is_restart_session_needed();
 tA2DP_CTRL_CMD GetPendingCmd();
 
 void ResetPendingCmd();
+
+uint16_t GetSinkLatency();
 
 }  // namespace a2dp
 }  // namespace aidl

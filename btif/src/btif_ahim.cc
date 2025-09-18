@@ -118,6 +118,7 @@ std::condition_variable snk_metadata_wait_cv;
 bool snk_metadata_wait;
 bool is_split_sink_enabled;
 bool is_split_sink_hidl_checked;
+bool aidl_enabled = false;
 
 #if AHIM_ENABLED
 
@@ -383,6 +384,9 @@ bool btif_ahim_init_hal(thread_t *t, uint8_t profile) {
         }
       }
       return bluetooth::audio::aidl::a2dp::init(t);
+    } else if (profile == A2DP_SINK) {
+        BTIF_TRACE_IMP("%s: Init AIDL Hal for A2dp Sink", __func__);
+        return bluetooth::audio::aidl::a2dp::init(t);
     } else {
       if(leAudioClientInterface == nullptr) {
         leAudioClientInterface = LeAudioClientInterface::Get();
@@ -457,9 +461,16 @@ bool btif_ahim_is_aosp_aidl_hal_enabled() {
     if (!strncmp("true", a2dp_role, 4)) {
       is_split_sink_enabled = true;
     }
+    char aidl_value[PROPERTY_VALUE_MAX] = {'\0'};
+    osi_property_get("persist.vendor.qcom.bluetooth.aidl_hal", aidl_value, "false");
+    if (!(strcmp(aidl_value,"true"))) {
+      BTIF_TRACE_DEBUG("%s: AIDL is enabled for split sink", __func__);
+      aidl_enabled = true;
+    }
     is_split_sink_hidl_checked = true;
   }
-  if(is_split_sink_enabled) {
+
+  if(is_split_sink_enabled && !aidl_enabled) {
     BTIF_TRACE_ERROR("Disabling aidl as splitsink is enabled");
     return false;
   } else {
@@ -819,8 +830,8 @@ bool btif_ahim_setup_codec(uint8_t profile) {
   BTIF_TRACE_IMP("%s: setup", __func__);
   if (btif_ahim_is_aosp_aidl_hal_enabled()) {
     BTIF_TRACE_IMP("%s: AIDL, profile: %d", __func__, profile);
-    if (profile == A2DP) {
-      return bluetooth::audio::aidl::a2dp::setup_codec();
+    if (profile == A2DP || profile == A2DP_SINK) {
+      return bluetooth::audio::aidl::a2dp::setup_codec(profile);
     } else if (profile == AUDIO_GROUP_MGR) {
       AudioConfigurationAIDL lea_tx_config;
       AudioConfigurationAIDL lea_rx_config;
@@ -908,6 +919,8 @@ void btif_ahim_start_session(uint8_t profile) {
     BTIF_TRACE_IMP("%s: AIDL, cur_active_profile: %d",
                              __func__, cur_active_profile);
     if (profile == A2DP) {
+      return bluetooth::audio::aidl::a2dp::start_session();
+    } else if (profile == A2DP_SINK) {
       return bluetooth::audio::aidl::a2dp::start_session();
     } else if (profile == AUDIO_GROUP_MGR) {
       uint16_t profile_type =
@@ -1048,7 +1061,11 @@ tA2DP_CTRL_CMD btif_ahim_get_pending_command(uint8_t profile,
 }
 
 uint16_t btif_ahim_get_sink_latency() {
-  return bluetooth::audio::a2dp::get_sink_latency();
+  if (btif_ahim_is_aosp_aidl_hal_enabled()) {
+    return bluetooth::audio::aidl::a2dp::GetSinkLatency();
+  } else {
+    return bluetooth::audio::a2dp::get_sink_latency();
+  }
 }
 
 void btif_ahim_reset_pending_command(uint8_t profile) {
