@@ -12,6 +12,11 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ *
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear.
  */
 
 #pragma once
@@ -59,6 +64,7 @@ typedef enum : uint8_t {
   HCI_ERR_HOST_BUSY_PAIRING = 0x38,          // stack/btm/btm_sec
   HCI_ERR_UNACCEPT_CONN_INTERVAL = 0x3B,     // stack/l2cap/l2c_ble
   HCI_ERR_ADVERTISING_TIMEOUT = 0x3C,        // stack/btm/btm_ble
+  HCI_ERR_MIC_FAILURE = 0x3D,                // stack/btm/btm_sec
   HCI_ERR_CONN_FAILED_ESTABLISHMENT = 0x3E,  // GATT_CONN_FAIL_ESTABLISH
   HCI_ERR_LIMIT_REACHED = 0x43,              // stack/btm/btm_ble_multi_adv.cc
 
@@ -140,6 +146,8 @@ inline std::string hci_error_code_text(const tHCI_ERROR_CODE& error_code) {
       return std::string("Unacceptable Connection Interval");
     case HCI_ERR_ADVERTISING_TIMEOUT:
       return std::string("Advertising Timeout");
+    case HCI_ERR_MIC_FAILURE:
+      return std::string("Message Integrity Check Failure");
     case HCI_ERR_CONN_FAILED_ESTABLISHMENT:
       return std::string("Connection Failed Establishment");
     case HCI_ERR_LIMIT_REACHED:
