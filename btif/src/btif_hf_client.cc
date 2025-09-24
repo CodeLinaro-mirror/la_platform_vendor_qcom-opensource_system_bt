@@ -15,9 +15,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- *  Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
- *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  *
  ******************************************************************************/
 
@@ -886,7 +886,7 @@ static void btif_hf_client_upstreams_evt(uint16_t event, char* p_param) {
         cb->peer_bda = RawAddress::kAny;
 
       if (p_data->open.status != BTA_HF_CLIENT_SUCCESS)
-        btif_queue_advance_by_uuid(UUID_SERVCLASS_HF_HANDSFREE, &cb->peer_bda);
+        btif_queue_advance();
       break;
 
     case BTA_HF_CLIENT_CONN_EVT:
@@ -903,7 +903,7 @@ static void btif_hf_client_upstreams_evt(uint16_t event, char* p_param) {
                   BTHF_CLIENT_IN_BAND_RINGTONE_PROVIDED);
       }
 
-      btif_queue_advance_by_uuid(UUID_SERVCLASS_HF_HANDSFREE, &cb->peer_bda);
+      btif_queue_advance();
       break;
 
     case BTA_HF_CLIENT_CLOSE_EVT:
@@ -913,7 +913,7 @@ static void btif_hf_client_upstreams_evt(uint16_t event, char* p_param) {
       cb->peer_bda = RawAddress::kAny;
       cb->peer_feat = 0;
       cb->chld_feat = 0;
-      btif_queue_advance_by_uuid(UUID_SERVCLASS_HF_HANDSFREE, &cb->peer_bda);
+      btif_queue_advance();
       break;
 
     case BTA_HF_CLIENT_IND_EVT:

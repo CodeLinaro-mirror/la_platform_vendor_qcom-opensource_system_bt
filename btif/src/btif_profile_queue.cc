@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 
 /*******************************************************************************
@@ -78,39 +82,24 @@ extern thread_t *bt_jni_workqueue_thread;
  ******************************************************************************/
 
 static void queue_int_add(connect_node_t* p_param) {
-  uint16_t counter = 0;
   if (!connect_queue) {
     LOG_INFO(LOG_TAG, "%s: allocating profile queue", __func__);
     connect_queue = list_new(osi_free);
     CHECK(connect_queue != NULL);
   }
-
+  LOG_INFO(LOG_TAG, "%s: uuid: %04x  and address %s", __func__, p_param->uuid, p_param->bda.ToString().c_str());
   // Sanity check to make sure we're not leaking connection requests
   CHECK(list_length(connect_queue) < MAX_REASONABLE_REQUESTS);
 
   for (const list_node_t* node = list_begin(connect_queue);
        node != list_end(connect_queue); node = list_next(node)) {
-    if (((connect_node_t*)list_node(node))->uuid == p_param->uuid) {
-      if (p_param->uuid == UUID_SERVCLASS_AUDIO_SOURCE ||
-          p_param->uuid == UUID_SERVCLASS_AG_HANDSFREE ||
-          p_param->uuid == UUID_SERVCLASS_AUDIO_SINK) {
-          counter++;
-          LOG_INFO(LOG_TAG, "%s add  connect request for uuid: %04x",
-               __func__, counter);
-          continue;
-      }
+    if (((connect_node_t*)list_node(node))->uuid == p_param->uuid && ((connect_node_t*)list_node(node))->bda == p_param->bda) {
       LOG_INFO(LOG_TAG, "%s dropping duplicate connect request for uuid: %04x",
                __func__, p_param->uuid);
       return;
     }
   }
-  uint16_t max_conn = p_param->max_connections;
-  if ((counter >= max_conn && p_param->uuid == UUID_SERVCLASS_AUDIO_SOURCE) ||
-      (counter >= max_conn && p_param->uuid == UUID_SERVCLASS_AG_HANDSFREE)) {
-          LOG_INFO(LOG_TAG, "%s connect request exceeded max supported connection: %04x",
-               __func__, p_param->uuid);
-          return;
-  }
+
   connect_node_t* p_node = (connect_node_t*)osi_malloc(sizeof(connect_node_t));
   memcpy(p_node, p_param, sizeof(connect_node_t));
   list_append(connect_queue, p_node);
