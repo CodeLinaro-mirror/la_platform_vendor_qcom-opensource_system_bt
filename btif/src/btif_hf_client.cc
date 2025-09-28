@@ -81,7 +81,7 @@
 #endif
 
 int hf_client_max_devices;
-char value[PROPERTY_VALUE_MAX];
+static char value[PROPERTY_VALUE_MAX];
 static const char* dump_hf_client_conn_state(uint16_t event) {
   switch (event) {
     CASE_RETURN_STR(BTHF_CLIENT_CONNECTION_STATE_DISCONNECTED)
@@ -284,7 +284,9 @@ btif_hf_client_cb_t* btif_hf_client_allocate_cb() {
  ******************************************************************************/
 static bt_status_t init(bthf_client_callbacks_t* callbacks) {
   if (property_get("ro.board.platform", value, " ") &&
-       strcmp(value, "neo") == 0) {
+       (strcmp(value, "neo") == 0 ||
+           strcmp(value, "neo61") == 0 ||
+            strcmp(value, "seraph") == 0)) {
     hf_client_max_devices = HF_CLIENT_MAX_DEVICES_NEO;
     BTIF_TRACE_WARNING("%s: maximum number of connectable devices for\
     neo target is %d", __func__,hf_client_max_devices);
@@ -905,11 +907,11 @@ static void btif_hf_client_upstreams_evt(uint16_t event, char* p_param) {
 
     case BTA_HF_CLIENT_CLOSE_EVT:
       cb->state = BTHF_CLIENT_CONNECTION_STATE_DISCONNECTED;
-      HAL_CBACK(bt_hf_client_callbacks, connection_state_cb, &cb->peer_bda,
-                cb->state, 0, 0);
       cb->peer_feat = 0;
       cb->chld_feat = 0;
       btif_queue_advance_by_uuid(UUID_SERVCLASS_HF_HANDSFREE, &cb->peer_bda);
+      HAL_CBACK(bt_hf_client_callbacks, connection_state_cb, &cb->peer_bda,
+                cb->state, 0, 0);
       cb->peer_bda = RawAddress::kAny;
       break;
 
