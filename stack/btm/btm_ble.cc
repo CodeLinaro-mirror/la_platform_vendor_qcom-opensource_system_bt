@@ -633,7 +633,7 @@ void BTM_ReadDevInfo(const RawAddress& remote_bda, tBT_DEVICE_TYPE* p_dev_type,
       *p_dev_type = BT_DEVICE_TYPE_BLE;
       *p_addr_type = p_dev_rec->ble.ble_addr_type;
     } else /* matching static adddress only */
-    { 
+    {
       if (p_dev_rec->device_type) {
         *p_dev_type = p_dev_rec->device_type;
       }else {
@@ -1852,7 +1852,8 @@ void btm_ble_link_encrypted(const RawAddress& bd_addr, uint8_t encr_enable) {
 
   smp_link_encrypted(bd_addr, encr_enable);
 
-  BTM_TRACE_DEBUG(" p_dev_rec->sec_flags=0x%x", p_dev_rec->sec_flags);
+  BTM_TRACE_DEBUG(" p_dev_rec->sec_flags=0x%x, sec_state=%d",
+                  p_dev_rec->sec_flags, p_dev_rec->sec_state);
 
   if (encr_enable && p_dev_rec->enc_key_size == 0)
     p_dev_rec->enc_key_size = p_dev_rec->ble.keys.key_size;
