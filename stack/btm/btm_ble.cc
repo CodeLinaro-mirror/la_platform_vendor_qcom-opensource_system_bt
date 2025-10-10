@@ -3181,12 +3181,17 @@ void btm_ble_create_sync_cmd_update_cb(uint8_t *param, uint16_t param_len) {
 
   STREAM_TO_UINT8(status, param);
   if(status != HCI_SUCCESS) {
+      BTM_TRACE_ERROR("%s: BIG Create Sync command failed with status: 0x%02x", __func__, status);
       if(big_sync_state.cb) {
+          // Call the callback with the failure status to notify upper layers
+          big_sync_state.cb(status, 0, 0, 0, 0, 0, 0, 0, 0, 0, nullptr);
           big_sync_state.cb = nullptr;
       }
       big_sync_state.waiting_for_update_evt = false;
       return;
   }
+
+  BTM_TRACE_DEBUG("%s: BIG Create Sync command completed successfully", __func__);
 }
 
 void btm_ble_vs_dbig_status_event_internal_handler(uint8_t length, uint8_t* p_stream) {
@@ -3248,11 +3253,11 @@ void btm_ble_big_sync_established_evt(uint8_t* param, uint16_t param_len) {
   memset(evt, 0, sizeof(tBTM_BLE_BIG_SYNC_ESTABLISHED_EVT));
   uint8_t status;
   STREAM_TO_UINT8(status, param);
+  evt->status = status;
 
   if (status != HCI_SUCCESS) {
     LOG(ERROR) << __func__ << ": BIG Sync establishment failed, status: " << loghex(status);
   } else {
-  evt->status = status;
   STREAM_TO_UINT8(evt->big_handle, param);
   STREAM_TO_UINT24(evt->transport_latency_big, param);
   STREAM_TO_UINT8(evt->nse, param);
@@ -4520,4 +4525,3 @@ void btm_ble_qle_cis_updated_event(const uint8_t *p) {
   BTM_TRACE_DEBUG("%s: cis_handle=%d, config_id=%d",
       __func__, cis_handle, config_id);
 }
-
