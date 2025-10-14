@@ -25,6 +25,7 @@
  *
  ******************************************************************************/
 
+#include <log/log.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -1846,7 +1847,7 @@ static void btm_initiate_inquiry (tBTM_INQUIRY_VAR_ST *p_inq)
 ** Returns          void
 **
 *******************************************************************************/
-void btm_process_inq_results (UINT8 *p, UINT8 inq_res_mode)
+void btm_process_inq_results (UINT8 *p, uint8_t hci_evt_len, UINT8 inq_res_mode)
 {
     UINT8            num_resp, xx;
     BD_ADDR          bda;
@@ -1874,6 +1875,31 @@ void btm_process_inq_results (UINT8 *p, UINT8 inq_res_mode)
         return;
 
     STREAM_TO_UINT8 (num_resp, p);
+
+    if (inq_res_mode == BTM_INQ_RESULT_EXTENDED) {
+      if (num_resp > 1) {
+        BTM_TRACE_ERROR("btm_process_inq_results() extended results (%d) > 1",
+                        num_resp);
+        return;
+      }
+
+      const uint16_t extended_inquiry_result_size = 254;
+      if (hci_evt_len - 1 != extended_inquiry_result_size) {
+        android_errorWriteLog(0x534e4554, "141620271");
+        BTM_TRACE_ERROR("%s: can't fit %d results in %d bytes", __func__,
+                      num_resp, hci_evt_len);
+        return;
+      }
+    } else if (inq_res_mode == BTM_INQ_RESULT_STANDARD ||
+               inq_res_mode == BTM_INQ_RESULT_WITH_RSSI) {
+      const uint16_t inquiry_result_size = 14;
+    if (hci_evt_len < num_resp * inquiry_result_size) {
+        android_errorWriteLog(0x534e4554, "141620271");
+        BTM_TRACE_ERROR("%s: can't fit %d results in %d bytes", __func__,
+                        num_resp, hci_evt_len);
+        return;
+      }
+    }
 
     for (xx = 0; xx < num_resp; xx++)
     {
