@@ -372,6 +372,19 @@ void BTA_HfClientAudioClose(uint16_t handle);
 void BTA_HfClientSendAT(uint16_t handle, tBTA_HF_CLIENT_AT_CMD_TYPE at,
                         uint32_t val1, uint32_t val2, const char* str);
 
+
+/*******************************************************************************
+ *
+ * Function         BTA_HfClientProcessPendingSco
+ *
+ * Description      Sends an event to the BTA state machine to process a
+ *                  parked SCO request.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_HfClientDupBroadcastStateChanged(uint8_t state);
+
 /*******************************************************************************
  *
  * Function         BTA_HfClientDumpStatistics
