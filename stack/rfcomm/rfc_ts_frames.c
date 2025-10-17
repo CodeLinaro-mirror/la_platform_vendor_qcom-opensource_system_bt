@@ -734,7 +734,6 @@ void rfc_process_mx_message (tRFC_MCB *p_mcb, BT_HDR *p_buf)
     {
 	RFCOMM_TRACE_ERROR("%s: Illegal MX Frame len when reading EA, C/R. len:%d < 2", 
 									__func__,length);
-	android_errorWriteLog(0x534e4554, "111937065");
 	osi_free(p_buf);
 	return;
     }
@@ -765,7 +764,6 @@ void rfc_process_mx_message (tRFC_MCB *p_mcb, BT_HDR *p_buf)
 	{
 		RFCOMM_TRACE_ERROR("%s: Illegal MX Frame when EA = 0. len:%d < 1",
 								__func__, length);
-		android_errorWriteLog(0x534e4554, "111937065");
 		osi_free(p_buf);
 		return;
 	}
@@ -849,7 +847,6 @@ void rfc_process_mx_message (tRFC_MCB *p_mcb, BT_HDR *p_buf)
           length != RFCOMM_MX_MSC_LEN_NO_BREAK)
 	{
 		RFCOMM_TRACE_ERROR("%s: Illegal MX MSC Frame len:%d", __func__, length);
-		android_errorWriteLog(0x534e4554, "111937065");
 		osi_free(p_buf);
 		return;
 	}

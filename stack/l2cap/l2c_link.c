@@ -1626,7 +1626,6 @@ void l2c_link_process_num_completed_pkts (UINT8 *p, UINT8 evt_len)
     }
 
     if (num_handles > evt_len / (2 * sizeof(uint16_t))) {
-      android_errorWriteLog(0x534e4554, "141617601");
       num_handles = evt_len / (2 * sizeof(uint16_t));
     }
 

@@ -236,7 +236,6 @@ static tAVRC_STS avrc_pars_vendor_cmd(tAVRC_MSG_VENDOR *p_msg, tAVRC_COMMAND *p_
                 else
                 {
                     if (p_result->get_app_val_txt.num_val > AVRC_MAX_APP_ATTR_SIZE) {
-                        android_errorWriteLog(0x534e4554, "63146237");
                         p_result->get_app_val_txt.num_val = AVRC_MAX_APP_ATTR_SIZE;
                     }
 

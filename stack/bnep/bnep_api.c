@@ -416,7 +416,6 @@ tBNEP_RESULT BNEP_WriteBuf (UINT16 handle,
             {
                 new_len += 4;
 		if (new_len > org_len) {
-			android_errorWriteLog(0x534e4554, "74947856");
 			return BNEP_IGNORE_CMD;
 		}
                 p_data[2] = 0;
@@ -528,7 +527,6 @@ tBNEP_RESULT  BNEP_Write (UINT16 handle,
             {
                 new_len += 4;
 		if (new_len > org_len) {
-			android_errorWriteLog(0x534e4554, "74947856");
 			return BNEP_IGNORE_CMD;
 		}
                 p_data[2] = 0;

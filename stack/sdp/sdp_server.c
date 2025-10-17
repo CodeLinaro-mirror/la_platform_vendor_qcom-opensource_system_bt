@@ -457,7 +457,6 @@ static void process_service_search (tCONN_CB *p_ccb, UINT16 trans_num,
 
     /* Get the max replies we can send. Cap it at our max anyways. */
     if (p_req + sizeof(max_replies) + sizeof(uint8_t) > p_req_end) {
-        android_errorWriteLog(0x534e4554, "69384124");
         sdpu_build_n_send_error (p_ccb, trans_num, SDP_INVALID_REQ_SYNTAX, SDP_TEXT_BAD_MAX_RECORDS_LIST);
         return;
     }
@@ -614,7 +613,6 @@ static void process_service_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
 
     if (p_req + sizeof(rec_handle) + sizeof(max_list_len) > p_req_end) 
     {
-        android_errorWriteLog(0x534e4554, "69384124");
         sdpu_build_n_send_error (p_ccb, trans_num, SDP_INVALID_SERV_REC_HDL, SDP_TEXT_BAD_HANDLE);
         return;
     }
@@ -766,7 +764,6 @@ static void process_service_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
             {
 		if (attr_len < p_ccb->cont_info.attr_offset)
 		{
-			android_errorWriteLog(0x534e4554, "79217770");
 			SDP_TRACE_ERROR("offset is bigger than attribute length");
 			sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE,
 						SDP_TEXT_BAD_CONT_LEN);
@@ -1164,7 +1161,6 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
                 {
 		    if (attr_len < p_ccb->cont_info.attr_offset)
 			{
-				android_errorWriteLog(0x534e4554, "79217770");
 				SDP_TRACE_ERROR("offset is bigger than attribute length");
 				sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE,
 								SDP_TEXT_BAD_CONT_LEN);

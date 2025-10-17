@@ -674,7 +674,6 @@ static UINT8 avdt_msg_prs_cfg(tAVDT_CFG *p_cfg, UINT8 *p, UINT16 len, UINT8* p_e
                 p_cfg->psc_mask &= ~AVDT_PSC_PROTECT;
                 if (p + elem_len > p_end) {
                     err = AVDT_ERR_LENGTH;
-                    android_errorWriteLog(0x534e4554, "78288378");
                     break;
                     }
                 if ((elem_len + protect_offset) < AVDT_PROTECT_SIZE)
@@ -753,7 +752,6 @@ static UINT8 avdt_msg_prs_cfg(tAVDT_CFG *p_cfg, UINT8 *p, UINT16 len, UINT8* p_e
                 }
                 if (p + tmp > p_end) {
                     err = AVDT_ERR_LENGTH;
-                    android_errorWriteLog(0x534e4554, "78288378");
                     break;
                 }
                 p_cfg->num_codec++;

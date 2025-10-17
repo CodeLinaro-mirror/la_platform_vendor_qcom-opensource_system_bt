@@ -334,7 +334,6 @@ static void process_service_search_rsp (tCONN_CB *p_ccb, UINT8 *p_reply,
             return;
         }
         if (p_reply + cont_len > p_reply_end) {
-          android_errorWriteLog(0x534e4554, "68161546");
           sdp_disconnect(p_ccb, SDP_INVALID_CONT_STATE);
           return;
         }
@@ -557,8 +556,6 @@ static void process_service_attr_rsp (tCONN_CB *p_ccb, UINT8 *p_reply,
               memcpy(p, p_reply, *p_reply + 1);
               p += *p_reply + 1;
           }
-          else
-              android_errorWriteLog(0x534e4554, "68161546");
         }
         else
             UINT8_TO_BE_STREAM (p, 0);
@@ -714,8 +711,6 @@ static void process_service_search_attr_rsp (tCONN_CB *p_ccb, UINT8 *p_reply,
                memcpy(p, p_reply, *p_reply + 1);
                p += *p_reply + 1;
            }
-           else
-               android_errorWriteLog(0x534e4554, "68161546");
         }
         else
             UINT8_TO_BE_STREAM (p, 0);
@@ -942,7 +937,6 @@ static UINT8 *add_attr (UINT8 *p, UINT8 *p_end, tSDP_DISCOVERY_DB *p_db, tSDP_DI
     p_attr_end = p + attr_len;
     if (p_attr_end > p_end)
     {
-        android_errorWriteLog(0x534e4554, "115900043");
         SDP_TRACE_WARNING("%s: SDP - Attribute length beyond p_end", __func__);
         return NULL;
     }

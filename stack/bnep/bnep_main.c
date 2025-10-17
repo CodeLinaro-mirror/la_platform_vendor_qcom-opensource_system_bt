@@ -528,7 +528,6 @@ static void bnep_data_ind (UINT16 l2cap_cid, BT_HDR *p_buf)
 
                 org_len -= new_len;
             } while (ext & 0x80);
-            android_errorWriteLog(0x534e4554, "67863755");
         }
 
         GKI_freebuf (p_buf);
@@ -582,7 +581,6 @@ static void bnep_data_ind (UINT16 l2cap_cid, BT_HDR *p_buf)
             {
                 ext_type = *p++;
                 rem_len--;
-                android_errorWriteLog(0x534e4554, "69271284");
                 extension_present = ext_type >> 7;
                 ext_type &= 0x7F;
 

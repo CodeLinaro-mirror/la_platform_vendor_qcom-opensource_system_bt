@@ -864,7 +864,6 @@ tBTA_AV_EVT bta_av_proc_meta_cmd(tAVRC_RESPONSE  *p_rc_rsp, tBTA_AV_RC_MSG *p_ms
             evt = 0;
             if (p_vendor->vendor_len != 5)
             {
-                android_errorWriteLog(0x534e4554, "111893951");
                 p_rc_rsp->get_caps.status = AVRC_STS_INTERNAL_ERR;
                 break;
             }

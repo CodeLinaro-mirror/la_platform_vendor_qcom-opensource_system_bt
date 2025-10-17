@@ -352,7 +352,6 @@ void avdt_scb_hdl_pkt_no_frag(tAVDT_SCB *p_scb, tAVDT_SCB_EVT *p_data)
     }
   return;
 length_error:
-  android_errorWriteLog(0x534e4554, "111450156");
   AVDT_TRACE_WARNING("%s: hdl packet length %d too short: must be at least %d",
                      __func__, len, offset);
   GKI_freebuf(p_data->p_pkt);
@@ -385,7 +384,6 @@ UINT8 * avdt_scb_hdl_report(tAVDT_SCB *p_scb, UINT8 *p, UINT16 len)
         /* parse report packet header */
         min_len += 8;
         if (min_len > len) {
-          android_errorWriteLog(0x534e4554, "111450156");
           AVDT_TRACE_WARNING(
               "%s: hdl packet length %d too short: must be at least %d", __func__,
               len, min_len);
@@ -404,7 +402,6 @@ UINT8 * avdt_scb_hdl_report(tAVDT_SCB *p_scb, UINT8 *p, UINT16 len)
         case AVDT_RTCP_PT_SR:   /* the packet type - SR (Sender Report) */
           min_len += 20;
           if (min_len > len) {
-            android_errorWriteLog(0x534e4554, "111450156");
             AVDT_TRACE_WARNING(
                 "%s: hdl packet length %d too short: must be at least %d",
                 __func__, len, min_len);
@@ -420,7 +417,6 @@ UINT8 * avdt_scb_hdl_report(tAVDT_SCB *p_scb, UINT8 *p, UINT16 len)
         case AVDT_RTCP_PT_RR:   /* the packet type - RR (Receiver Report) */
             min_len += 20;
             if (min_len > len) {
-              android_errorWriteLog(0x534e4554, "111450156");
               AVDT_TRACE_WARNING(
                   "%s: hdl packet length %d too short: must be at least %d",
                   __func__, len, min_len);
@@ -438,7 +434,6 @@ UINT8 * avdt_scb_hdl_report(tAVDT_SCB *p_scb, UINT8 *p, UINT16 len)
         case AVDT_RTCP_PT_SDES: /* the packet type - SDES (Source Description) */
             min_len += 1;
             if (min_len > len) {
-              android_errorWriteLog(0x534e4554, "111450156");
               AVDT_TRACE_WARNING(
                  "%s: hdl packet length %d too short: must be at least %d",
                   __func__, len, min_len);
@@ -448,7 +443,6 @@ UINT8 * avdt_scb_hdl_report(tAVDT_SCB *p_scb, UINT8 *p, UINT16 len)
             {
               min_len += 1;
               if (min_len > len) {
-                android_errorWriteLog(0x534e4554, "111450156");
                 AVDT_TRACE_WARNING(
                     "%s: hdl packet length %d too short: must be at least %d",
                     __func__, len, min_len);
@@ -459,7 +453,6 @@ UINT8 * avdt_scb_hdl_report(tAVDT_SCB *p_scb, UINT8 *p, UINT16 len)
             else
             {
               if (min_len + 1 > len) {
-                android_errorWriteLog(0x534e4554, "111450156");
                 AVDT_TRACE_WARNING(
                     "%s: hdl packet length %d too short: must be at least %d",
                     __func__, len, min_len);

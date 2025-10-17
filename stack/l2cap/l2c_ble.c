@@ -988,7 +988,6 @@ void l2cble_process_sig_cmd (tL2C_LCB *p_lcb, UINT8 *p, UINT16 pkt_len)
 
     if (p + 4 > p_pkt_end)
     {
-       android_errorWriteLog(0x534e4554, "80261585");
        L2CAP_TRACE_WARNING("Invalid read");
        return;
     }
@@ -1019,7 +1018,6 @@ void l2cble_process_sig_cmd (tL2C_LCB *p_lcb, UINT8 *p, UINT16 pkt_len)
         case L2CAP_CMD_BLE_UPDATE_REQ:
             if (p + 8 > p_pkt_end)
             {
-                android_errorWriteLog(0x534e4554, "80261585");
                 L2CAP_TRACE_WARNING("invalid read");
                 return;
             }
@@ -1234,7 +1232,6 @@ void l2cble_process_sig_cmd (tL2C_LCB *p_lcb, UINT8 *p, UINT16 pkt_len)
             break;
         case L2CAP_CMD_DISC_RSP:
             if (p + 4 > p_pkt_end) {
-                android_errorWriteLog(0x534e4554, "80261585");
                 L2CAP_TRACE_WARNING("invalid read");
                 return;
             }

@@ -514,7 +514,6 @@ static void btu_hcif_connection_comp_evt (UINT8 *p, UINT8 evt_len)
 
     if (evt_len < 11) 
     {
-	android_errorWriteLog(0x534e4554, "141619686");
 	HCI_TRACE_WARNING("%s: malformed event of size %hhd", __func__, evt_len);
 	return;
     }
