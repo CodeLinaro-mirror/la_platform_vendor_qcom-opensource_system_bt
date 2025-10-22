@@ -1518,7 +1518,7 @@ class BleAdvertisingManagerImpl
       }
       return;
     }
-    IsoBIGInstance* p_big_inst = &iso_big_inst[big_handle];
+    IsoBIGInstance* p_big_inst = &iso_big_inst[0];
 
     std::lock_guard<std::mutex> lock(lock_);
     if (!BleAdvertisingManager::IsInitialized()) {
@@ -1562,7 +1562,7 @@ class BleAdvertisingManagerImpl
     if (controller_get_interface()->supports_ble_iso_broadcaster()) {
       //Terminate BIG
       if (p_inst->big_handle != INVALID_BIG_HANDLE) {
-        IsoBIGInstance* p_big_inst = &iso_big_inst[p_inst->big_handle];
+        IsoBIGInstance* p_big_inst = &iso_big_inst[0];
         GetHciInterface()->TerminateBIG(p_inst->big_handle,
                                         HCI_ERR_CONN_CAUSE_LOCAL_HOST);
 
@@ -1720,12 +1720,11 @@ class BleAdvertisingManagerImpl
       uint16_t iso_int, uint8_t num_bis,
       std::vector<uint16_t> conn_handle_list) override {
     VLOG(1) << __func__ << " big_handle: " << +big_handle << "status:" << +status;
-
     if (big_handle >= inst_count) {
       LOG(ERROR) << " Invalid BIG handle";
       return;
     }
-    IsoBIGInstance* p_big_inst = &iso_big_inst[big_handle];
+    IsoBIGInstance* p_big_inst = &iso_big_inst[0];
 
     if (status == HCI_SUCCESS) {
       p_big_inst->bis_handles = conn_handle_list;
@@ -1755,7 +1754,7 @@ class BleAdvertisingManagerImpl
       LOG(ERROR) << " Invalid BIG handle";
       return;
     }
-    IsoBIGInstance* p_big_inst = &iso_big_inst[big_handle];
+    IsoBIGInstance* p_big_inst = &iso_big_inst[0];
 
     if (!cmd_status) {
       p_big_inst->in_use = false;
