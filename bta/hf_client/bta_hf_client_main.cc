@@ -301,6 +301,13 @@ void bta_hf_client_cb_arr_init() {
 void bta_hf_client_cb_init(tBTA_HF_CLIENT_CB* client_cb, uint16_t handle) {
   APPL_TRACE_DEBUG("%s", __func__);
 
+  if (client_cb->p_disc_db) {
+    if (!SDP_CancelServiceSearch(client_cb->p_disc_db)) {
+      APPL_TRACE_WARNING("Unable to cancel SDP service discovery peer: %s",
+                         client_cb->peer_addr.ToString().c_str());
+    }
+    osi_free_and_reset((void**)&client_cb->p_disc_db);
+  }
   // Free any memory we need to explicity release
   alarm_free(client_cb->collision_timer);
 
