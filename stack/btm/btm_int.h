@@ -944,7 +944,7 @@ extern void         btm_inq_rmt_name_failed(void);
 /* Inquiry related functions */
 extern void         btm_clr_inq_db (BD_ADDR p_bda);
 extern void         btm_inq_db_init (void);
-extern void         btm_process_inq_results (UINT8 *p, UINT8 inq_res_mode);
+extern void         btm_process_inq_results (UINT8 *p, uint8_t hci_evt_len, UINT8 inq_res_mode);
 extern void         btm_process_inq_complete (UINT8 status, UINT8 mode);
 extern void         btm_process_cancel_complete(UINT8 status, UINT8 mode);
 extern void         btm_event_filter_complete (UINT8 *p);
@@ -983,7 +983,7 @@ extern void         btm_acl_encrypt_change (UINT16 handle, UINT8 status, UINT8 e
 extern UINT16       btm_get_acl_disc_reason_code (void);
 extern tBTM_STATUS  btm_remove_acl (BD_ADDR bd_addr, tBT_TRANSPORT transport);
 extern void         btm_read_remote_features_complete (UINT8 *p);
-extern void         btm_read_remote_ext_features_complete (UINT8 *p);
+extern void         btm_read_remote_ext_features_complete (UINT8 *p, UINT8 evt_len);
 extern void         btm_read_remote_ext_features_failed (UINT8 status, UINT16 handle);
 extern void         btm_read_remote_version_complete (UINT8 *p);
 extern void         btm_establish_continue (tACL_CONN *p_acl_cb);

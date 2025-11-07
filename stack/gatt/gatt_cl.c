@@ -821,6 +821,12 @@ void gatt_process_read_by_type_rsp (tGATT_TCB *p_tcb, tGATT_CLCB *p_clcb, UINT8 
         /* discover included service */
         else if (p_clcb->operation == GATTC_OPTYPE_DISCOVERY && p_clcb->op_subtype == GATT_DISC_INC_SRVC)
         {
+            if (value_len < 4) {
+                GATT_TRACE_ERROR("%s Illegal Response length, must be at least 4.", __func__);
+                gatt_end_operation(p_clcb, GATT_INVALID_PDU, NULL);
+                return;
+            }
+
             STREAM_TO_UINT16(record_value.incl_service.s_handle, p);
             STREAM_TO_UINT16(record_value.incl_service.e_handle, p);
 
@@ -873,6 +879,12 @@ void gatt_process_read_by_type_rsp (tGATT_TCB *p_tcb, tGATT_CLCB *p_clcb, UINT8 
         }
         else /* discover characterisitic */
         {
+		if (value_len < 3)
+		{
+			GATT_TRACE_ERROR("%s Illegal Response length, must be at least 3.", __func__);
+			gatt_end_operation(p_clcb, GATT_INVALID_PDU, NULL);
+			return;
+		}
             STREAM_TO_UINT8 (record_value.dclr_value.char_prop, p);
             STREAM_TO_UINT16(record_value.dclr_value.val_handle, p);
             if (!GATT_HANDLE_IS_VALID(record_value.dclr_value.val_handle))

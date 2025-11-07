@@ -80,6 +80,8 @@ static tAVRC_STS avrc_ctrl_pars_vendor_cmd(tAVRC_MSG_VENDOR *p_msg, tAVRC_COMMAN
         break;
     }
     case AVRC_PDU_REGISTER_NOTIFICATION:    /* 0x31 */
+        if (len < 5) return AVRC_STS_INTERNAL_ERR;
+
         BE_STREAM_TO_UINT8 (p_result->reg_notif.event_id, p);
         BE_STREAM_TO_UINT32 (p_result->reg_notif.param, p);
         break;
@@ -233,6 +235,10 @@ static tAVRC_STS avrc_pars_vendor_cmd(tAVRC_MSG_VENDOR *p_msg, tAVRC_COMMAND *p_
                     status = AVRC_STS_INTERNAL_ERR;
                 else
                 {
+                    if (p_result->get_app_val_txt.num_val > AVRC_MAX_APP_ATTR_SIZE) {
+                        p_result->get_app_val_txt.num_val = AVRC_MAX_APP_ATTR_SIZE;
+                    }
+
                     p_u8 = p_result->get_app_val_txt.vals;
                     for (xx=0; xx< p_result->get_app_val_txt.num_val; xx++)
                     {
@@ -322,6 +328,12 @@ static tAVRC_STS avrc_pars_vendor_cmd(tAVRC_MSG_VENDOR *p_msg, tAVRC_COMMAND *p_
         {
             BE_STREAM_TO_UINT8 (p_result->reg_notif.event_id, p);
             BE_STREAM_TO_UINT32 (p_result->reg_notif.param, p);
+
+
+            if (p_result->reg_notif.event_id == 0 ||
+                p_result->reg_notif.event_id > AVRC_NUM_NOTIF_EVENTS) {
+                status = AVRC_STS_BAD_PARAM;
+            }
         }
         break;
 

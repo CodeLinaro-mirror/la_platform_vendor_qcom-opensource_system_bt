@@ -35,6 +35,7 @@
 
 #include "l2c_api.h"
 #include "l2cdefs.h"
+#include "log/log.h"
 
 #include "btu.h"
 #include "btm_api.h"
@@ -514,19 +515,18 @@ static void bnep_data_ind (UINT16 l2cap_cid, BT_HDR *p_buf)
             org_len = rem_len;
             new_len = 0;
             do {
-
+                if (org_len < 2) break;
                 ext     = *p++;
                 length  = *p++;
                 p += length;
 
+                new_len = (length + 2);
+                if (new_len > org_len) break;
+
                 if ((!(ext & 0x7F)) && (*p > BNEP_FILTER_MULTI_ADDR_RESPONSE_MSG))
                     bnep_send_command_not_understood (p_bcb, *p);
 
-                new_len += (length + 2);
-
-                if (new_len > org_len)
-                    break;
-
+                org_len -= new_len;
             } while (ext & 0x80);
         }
 
@@ -580,6 +580,7 @@ static void bnep_data_ind (UINT16 l2cap_cid, BT_HDR *p_buf)
             while (extension_present && p && rem_len)
             {
                 ext_type = *p++;
+                rem_len--;
                 extension_present = ext_type >> 7;
                 ext_type &= 0x7F;
 

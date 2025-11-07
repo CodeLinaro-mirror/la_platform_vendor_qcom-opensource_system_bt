@@ -40,6 +40,7 @@
 #include "btu.h"
 #include "btm_api.h"
 #include "btm_int.h"
+#include "log/log.h"
 
 #if (defined(LE_L2CAP_CFC_INCLUDED) && (LE_L2CAP_CFC_INCLUDED == TRUE))
 BOOLEAN l2c_link_send_to_lower (tL2C_LCB *p_lcb, BT_HDR *p_buf);
@@ -1611,14 +1612,22 @@ static BOOLEAN l2c_link_send_to_lower (tL2C_LCB *p_lcb, BT_HDR *p_buf)
 ** Returns          void
 **
 *******************************************************************************/
-void l2c_link_process_num_completed_pkts (UINT8 *p)
+void l2c_link_process_num_completed_pkts (UINT8 *p, UINT8 evt_len)
 {
     UINT8       num_handles, xx;
     UINT16      handle;
     UINT16      num_sent;
     tL2C_LCB    *p_lcb;
 
-    STREAM_TO_UINT8 (num_handles, p);
+    if (evt_len > 0) {
+      STREAM_TO_UINT8(num_handles, p);
+    } else {
+      num_handles = 0;
+    }
+
+    if (num_handles > evt_len / (2 * sizeof(uint16_t))) {
+      num_handles = evt_len / (2 * sizeof(uint16_t));
+    }
 
     for (xx = 0; xx < num_handles; xx++)
     {

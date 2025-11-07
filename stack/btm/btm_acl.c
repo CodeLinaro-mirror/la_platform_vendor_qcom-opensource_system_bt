@@ -47,6 +47,7 @@
 #include "l2c_int.h"
 #include "hcidefs.h"
 #include "bt_utils.h"
+#include "log/log.h"
 
 static void btm_read_remote_features (UINT16 handle);
 static void btm_read_remote_ext_features (UINT16 handle, UINT8 page_number);
@@ -1227,7 +1228,7 @@ void btm_read_remote_features_complete (UINT8 *p)
 ** Returns          void
 **
 *******************************************************************************/
-void btm_read_remote_ext_features_complete (UINT8 *p)
+void btm_read_remote_ext_features_complete (UINT8 *p, UINT8 evt_len)
 {
     tACL_CONN   *p_acl_cb;
     UINT8       page_num, max_page;
@@ -1235,6 +1236,13 @@ void btm_read_remote_ext_features_complete (UINT8 *p)
     UINT8       acl_idx;
 
     BTM_TRACE_DEBUG ("btm_read_remote_ext_features_complete");
+
+    if (evt_len < HCI_EXT_FEATURES_SUCCESS_EVT_LEN) {
+        BTM_TRACE_ERROR(
+            "btm_read_remote_ext_features_complete evt length too short. length=%d",
+            evt_len);
+        return;
+    }
 
     ++p;
     STREAM_TO_UINT16 (handle, p);
@@ -1252,6 +1260,17 @@ void btm_read_remote_ext_features_complete (UINT8 *p)
     {
         BTM_TRACE_ERROR("btm_read_remote_ext_features_complete page=%d unknown", max_page);
         return;
+    }
+
+    if (page_num > HCI_EXT_FEATURES_PAGE_MAX) {
+        BTM_TRACE_ERROR("btm_read_remote_ext_features_complete num_page=%d invalid",
+                        page_num);
+        return;
+    }
+    if (page_num > max_page) {
+        BTM_TRACE_WARNING(
+            "btm_read_remote_ext_features_complete num_page=%d, max_page=%d "
+            "invalid", page_num, max_page);
     }
 
     p_acl_cb = &btm_cb.acl_db[acl_idx];
