@@ -704,7 +704,7 @@ bool is_hal_enabled() { return active_hal_interface != nullptr; }
 
 void NotifyHalRestart() {
   LOG(INFO) << __func__ << "NotifyHalRestart";
-  btif_ahim_process_request(A2DP_CTRL_NOTIFY_HAL_RESTART, A2DP, TO_AIR);
+  btif_ahim_process_request(A2DP_CTRL_NOTIFY_HAL_RESTART, A2DP, TO_AIR, false);
 }
 
 // Checking if new bluetooth_audio is enabled
