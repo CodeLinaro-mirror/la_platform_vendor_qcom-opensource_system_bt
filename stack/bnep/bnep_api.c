@@ -374,14 +374,14 @@ tBNEP_RESULT BNEP_WriteBuf (UINT16 handle,
     /* Check MTU size */
     if (p_buf->len > BNEP_MTU_SIZE)
     {
-        BNEP_TRACE_ERROR ("BNEP_Write() length %d exceeded MTU %d", p_buf->len, BNEP_MTU_SIZE);
+        BNEP_TRACE_ERROR("%s length %d exceeded MTU %d", __func__, p_buf->len, BNEP_MTU_SIZE);
         GKI_freebuf (p_buf);
         return (BNEP_MTU_EXCEDED);
     }
 
     /* Check if the packet should be filtered out */
     p_data = (UINT8 *)(p_buf + 1) + p_buf->offset;
-    if (bnep_is_packet_allowed (p_bcb, p_dest_addr, protocol, fw_ext_present, p_data) != BNEP_SUCCESS)
+    if (bnep_is_packet_allowed (p_bcb, p_dest_addr, protocol, fw_ext_present, p_data, p_buf->len) != BNEP_SUCCESS)
     {
         /*
         ** If packet is filtered and ext headers are present
@@ -395,6 +395,10 @@ tBNEP_RESULT BNEP_WriteBuf (UINT16 handle,
             org_len = p_buf->len;
             new_len = 0;
             do {
+                if ((new_len + 2) > org_len) {
+                  osi_free(p_buf);
+                  return BNEP_IGNORE_CMD;
+                }
 
                 ext     = *p_data++;
                 length  = *p_data++;
@@ -484,7 +488,7 @@ tBNEP_RESULT  BNEP_Write (UINT16 handle,
     /* Check MTU size. Consider the possibility of having extension headers */
     if (len > BNEP_MTU_SIZE)
     {
-        BNEP_TRACE_ERROR ("BNEP_Write() length %d exceeded MTU %d", len, BNEP_MTU_SIZE);
+        BNEP_TRACE_ERROR("%s length %d exceeded MTU %d", __func__, len, BNEP_MTU_SIZE);
         return (BNEP_MTU_EXCEDED);
     }
 
@@ -494,7 +498,7 @@ tBNEP_RESULT  BNEP_Write (UINT16 handle,
     p_bcb = &(bnep_cb.bcb[handle - 1]);
 
     /* Check if the packet should be filtered out */
-    if (bnep_is_packet_allowed (p_bcb, p_dest_addr, protocol, fw_ext_present, p_data) != BNEP_SUCCESS)
+    if (bnep_is_packet_allowed (p_bcb, p_dest_addr, protocol, fw_ext_present, p_data, len) != BNEP_SUCCESS)
     {
         /*
         ** If packet is filtered and ext headers are present
@@ -509,6 +513,9 @@ tBNEP_RESULT  BNEP_Write (UINT16 handle,
             new_len = 0;
             p       = p_data;
             do {
+                if ((new_len + 2) > org_len) {
+                  return BNEP_IGNORE_CMD;
+                }
 
                 ext     = *p_data++;
                 length  = *p_data++;
