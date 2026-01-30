@@ -292,15 +292,18 @@ int RFCOMM_RemoveServer(uint16_t handle) {
   /* Do not report any events to the client any more. */
   p_port->p_mgmt_callback = NULL;
 
+  // Port Handle is retained if port state is already closed/closing. This is resulting in HF Reconnection issues.
+  // So, making sure port handle is not retained if port state is already closed/closing.
+  p_port->keep_port_handle = false;
   if (!p_port->in_use ||
       (p_port->state == PORT_STATE_CLOSED) ||
       (p_port->state == PORT_STATE_CLOSING)) {
-    RFCOMM_TRACE_ERROR("RFCOMM_RemoveServer() handle:%d, port state %d", handle,p_port->state);
+    RFCOMM_TRACE_ERROR("RFCOMM_RemoveServer() handle:%d, port state:%d, keep_port_handle:%d",handle, p_port->state, p_port->keep_port_handle);
     return (PORT_SUCCESS);
   }
 
   /* this port will be deallocated after closing */
-  p_port->keep_port_handle = false;
+
   p_port->state = PORT_STATE_CLOSING;
 
   port_start_close(p_port);
