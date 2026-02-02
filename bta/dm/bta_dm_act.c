@@ -1676,7 +1676,7 @@ void bta_dm_sdp_result (tBTA_DM_MSG *p_data)
                         bta_dm_search_cb.services != BTA_ALL_SERVICE_MASK) ||
                         (p_sdp_rec != NULL))
                 {
-                    if (service != UUID_SERVCLASS_PNP_INFORMATION)
+                    if (service != UUID_SERVCLASS_PNP_INFORMATION && num_uuids < 32)
                     {
                         UINT16 tmp_svc = 0xFFFF;
                         bta_dm_search_cb.services_found |=
@@ -1724,7 +1724,7 @@ void bta_dm_sdp_result (tBTA_DM_MSG *p_data)
                 p_sdp_rec = SDP_FindServiceInDb_128bit(bta_dm_search_cb.p_sdp_db, p_sdp_rec);
                 if (p_sdp_rec)
                 {
-                    if (SDP_FindServiceUUIDInRec_128bit(p_sdp_rec, &temp_uuid))
+                    if (SDP_FindServiceUUIDInRec_128bit(p_sdp_rec, &temp_uuid) && num_uuids < 32)
                     {
                         memcpy(uuid_list[num_uuids], temp_uuid.uu.uuid128, MAX_UUID_SIZE);
                         num_uuids++;
