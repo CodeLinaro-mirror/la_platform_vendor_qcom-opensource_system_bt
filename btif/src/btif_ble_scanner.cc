@@ -385,17 +385,46 @@ class BleScannerInterfaceImpl : public BleScannerInterface {
       uint8_t status_no_resource = 2;
       start_cb.Run(status_no_resource, -1, sid, 1, address, 0, 0);
     }
-    do_in_bta_thread(FROM_HERE,
-                     base::Bind(&BTM_BleStartPeriodicSync, sid, address, skip,
-                     timeout, jni_thread_wrapper(FROM_HERE, std::move(start_cb)),
-                     jni_thread_wrapper(FROM_HERE, std::move(report_cb)),
-                     jni_thread_wrapper(FROM_HERE, std::move(lost_cb)),
-                     jni_thread_wrapper(FROM_HERE, std::move(biginfo_report_cb))));
+    do_in_bta_thread(
+        FROM_HERE,
+        base::Bind(
+            static_cast<void (*)(uint8_t, RawAddress, uint16_t, uint16_t,
+                                 StartSyncCb, SyncReportCb, SyncLostCb,
+                                 BigInfoReportCb)>(&BTM_BleStartPeriodicSync),
+            sid, address, skip, timeout,
+            jni_thread_wrapper(FROM_HERE, std::move(start_cb)),
+            jni_thread_wrapper(FROM_HERE, std::move(report_cb)),
+            jni_thread_wrapper(FROM_HERE, std::move(lost_cb)),
+            jni_thread_wrapper(FROM_HERE, std::move(biginfo_report_cb))));
   }
 
   void StartSync(uint8_t sid, RawAddress address, uint16_t skip,
                  uint16_t timeout, int reg_id) override {
     BTIF_TRACE_DEBUG("%s:", __func__);
+  }
+
+  void StartSync(uint8_t sid, RawAddress address, uint16_t skip,
+                 uint16_t timeout, StartSyncCb start_cb, SyncReportCb report_cb,
+                 SyncLostCb lost_cb, BigInfoReportCb biginfo_report_cb,
+                 EnhancedBigInfoReportCb enhanced_biginfo_report_cb) override {
+    const controller_t* controller = controller_get_interface();
+    if (!controller->supports_ble_periodic_sync_transfer()) {
+      uint8_t status_no_resource = 2;
+      start_cb.Run(status_no_resource, -1, sid, 1, address, 0, 0);
+    }
+    do_in_bta_thread(
+        FROM_HERE,
+        base::Bind(
+            static_cast<void (*)(uint8_t, RawAddress, uint16_t, uint16_t,
+                                 StartSyncCb, SyncReportCb, SyncLostCb,
+                                 BigInfoReportCb, EnhancedBigInfoReportCb)>(
+                &BTM_BleStartPeriodicSync),
+            sid, address, skip, timeout,
+            jni_thread_wrapper(FROM_HERE, std::move(start_cb)),
+            jni_thread_wrapper(FROM_HERE, std::move(report_cb)),
+            jni_thread_wrapper(FROM_HERE, std::move(lost_cb)),
+            jni_thread_wrapper(FROM_HERE, std::move(biginfo_report_cb)),
+            jni_thread_wrapper(FROM_HERE, std::move(enhanced_biginfo_report_cb))));
   }
 
   void StopSync(uint16_t handle) override {
