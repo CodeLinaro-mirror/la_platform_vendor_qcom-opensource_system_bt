@@ -35,6 +35,7 @@
 #include "bt_common.h"
 #include "btm_api.h"
 #include "btm_ble_api_types.h"
+#include "btcore/include/event_mask.h"
 #include "osi/include/alarm.h"
 #include "stack/btm/btm_ble_bgconn.h"
 
@@ -1574,5 +1575,31 @@ bool BTM_BleIsCisParamUpdateLocalHostSupported();
  *
  ******************************************************************************/
 bool BTM_BleIsCisParamUpdateSupported(const RawAddress& bda);
+
+/*******************************************************************************
+ *
+ * Function         BTM_BleGetLeEventMask
+ *
+ * Description      This function is called to get the current LE event mask
+ *                  from the controller features.
+ *
+ * Returns          A pointer to the 8-byte event mask.
+ *
+ ******************************************************************************/
+extern const bt_event_mask_t* BTM_BleGetLeEventMask(void);
+
+/*******************************************************************************
+ *
+ * Function         BTM_BleSetLeEventMask
+ *
+ * Description      This function is called to set the LE event mask in the
+ *                  controller.
+ *
+ * Parameters:      p_mask: A pointer to the 8-byte event mask to set.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+extern void BTM_BleSetLeEventMask(const bt_event_mask_t* p_mask);
 
 #endif
