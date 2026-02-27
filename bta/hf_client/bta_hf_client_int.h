@@ -196,7 +196,7 @@ typedef struct {
   bool is_allocated; /* if the control block is already allocated */
   alarm_t* collision_timer;             /* Collision timer */
   bool is_vr_active;
-  tBTA_HF_CLIENT_ESCO_DATA* pending_vr_sco_data; /* To hold a pending SCO request for VR */
+  tBTA_HF_CLIENT_ESCO_DATA* pending_sco_data; /* To hold a pending SCO request for VR */
   uint8_t dup_broadcast_state; /* DUP_BROADCAST broadcast state for HFP */
 } tBTA_HF_CLIENT_CB;
 
