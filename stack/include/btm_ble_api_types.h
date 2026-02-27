@@ -797,7 +797,7 @@ typedef void (*tBTM_BLE_VS_LE_EXIT_EVT_CB)(uint8_t dbig_handle, uint8_t reason);
 typedef void (tBTM_BLE_ASSOCIATE_PA_DBIG_CMPL_CB) (tBTM_BLE_ASSOCIATE_PA_DBIG_RET_PARAM* param);
 
 /*HCI_LE_DBIG_SYNC_ONLY command complete callback*/
-typedef void (tBTM_BLE_DBIG_SYNC_ONLY_CMPL_CB) (tBTM_BLE_DBIG_SYNC_ONLY_RET_PARAM* param);
+typedef void (tBTM_BLE_DBIG_SYNC_ONLY_CMPL_CB) (uint8_t status, uint8_t sub_opcode, uint8_t dbig_handle);
 
 /* HCI_LE_Request_Peer_SCA_Complete event callback*/
 typedef void (tBTM_BLE_REQUEST_PEER_SCA_COMPLETE_CB) (tBTM_BLE_PEER_SCA_PARAM* peer_sca_param);

@@ -3116,27 +3116,29 @@ void btm_ble_associate_pa_dbig_cmd_cmpl(uint8_t *param, uint16_t param_len) {
 }
 
 void btm_ble_dbig_sync_only_cmd_cmpl(uint8_t *param, uint16_t param_len) {
-  tBTM_BLE_DBIG_SYNC_ONLY_RET_PARAM ret_param = {};
+  uint8_t status = 0;
+  uint8_t sub_opcode = 0;
+  uint8_t dbig_handle = 0;
   BTM_TRACE_API("%s: param_len = %d", __func__, param_len);
 
   if (param_len < 3) {
     BTM_TRACE_WARNING("%s Insufficient return parameters.", __func__);
     if (hci_cmd_cmpl.dbig_sync_only_cmpl_cb) {
-      ret_param.status = HCI_ERR_UNSPECIFIED;
-      ret_param.sub_opcode = HCI_VS_LE_DBIG_SYNC_ONLY_SUB_OPCODE;
-      ret_param.dbig_handle = 0;
-      (*hci_cmd_cmpl.dbig_sync_only_cmpl_cb) (&ret_param);
+      status = HCI_ERR_UNSPECIFIED;
+      sub_opcode = HCI_VS_LE_DBIG_SYNC_ONLY_SUB_OPCODE;
+      dbig_handle = 0;
+      (*hci_cmd_cmpl.dbig_sync_only_cmpl_cb) (status, sub_opcode, dbig_handle);
       hci_cmd_cmpl.dbig_sync_only_cmpl_cb = nullptr;
     }
     return;
   }
 
-  STREAM_TO_UINT8(ret_param.status, param);
-  STREAM_TO_UINT8(ret_param.sub_opcode, param);
-  STREAM_TO_UINT8(ret_param.dbig_handle, param);
+  STREAM_TO_UINT8(status, param);
+  STREAM_TO_UINT8(sub_opcode, param);
+  STREAM_TO_UINT8(dbig_handle, param);
 
   if (hci_cmd_cmpl.dbig_sync_only_cmpl_cb) {
-    (*hci_cmd_cmpl.dbig_sync_only_cmpl_cb) (&ret_param);
+    (*hci_cmd_cmpl.dbig_sync_only_cmpl_cb) (status, sub_opcode, dbig_handle);
     hci_cmd_cmpl.dbig_sync_only_cmpl_cb = nullptr;
   }
 }
@@ -3151,7 +3153,7 @@ void btm_ble_set_dbig_parameters_cmd_cmpl(uint8_t *param, uint16_t param_len) {
     if (hci_cmd_cmpl.set_dbig_parameters_cmpl_cb) {
       status = HCI_ERR_UNSPECIFIED;
       sub_opcode = HCI_VS_LE_SET_DBIG_PARAMETERS_SUB_OPCODE;
-      dbig_handle = 0; 
+      dbig_handle = 0;
       (*hci_cmd_cmpl.set_dbig_parameters_cmpl_cb) (status, sub_opcode, dbig_handle);
       hci_cmd_cmpl.set_dbig_parameters_cmpl_cb = nullptr;
     }
