@@ -63,6 +63,8 @@
 #include "utils/include/bt_utils.h"
 #include <btcommon_interface_defs.h>
 
+#include "btcore/include/event_mask.h"
+
 static const char CONTROLLER_MODULE[] = "controller_module";
 
 typedef struct controller_t {
@@ -161,6 +163,9 @@ typedef struct controller_t {
   const bt_device_qll_local_supported_features_t* (*get_qll_features)(void);
   bool (*is_conn_subrating_supported)(void);
   bool (*is_conn_subrating_host_supported)(void);
+
+  const bt_event_mask_t* (*get_ble_event_mask)(void);
+  void (*set_ble_event_mask)(const bt_event_mask_t* p_le_event_mask);
 } controller_t;
 
 const controller_t* controller_get_interface();

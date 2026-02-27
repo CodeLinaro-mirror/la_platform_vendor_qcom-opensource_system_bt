@@ -781,6 +781,11 @@ constexpr uint8_t HCI_LE_STATES_INIT_MASTER_SLAVE_BIT = 41;
 
 #define HCI_LE_SUBRATE_CHANGE_EVT 0x23
 
+/* LE BIGInfo Advertising Report Event bit */
+#define HCI_LE_BIGINFO_ADVERTISING_REPORT_EVENT_BIT   (1ULL << 33)
+/* LE Periodic Advertising Report V2 Event bit */
+#define HCI_LE_PERIODIC_ADVERTISING_REPORT_V2_EVENT_BIT (1ULL << 36)
+
 #define HCI_CIS_CONNECTION_TIMEOUT (30 * 1000)
 
 /* Definitions for LE Channel Map */
