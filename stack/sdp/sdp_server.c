@@ -1026,13 +1026,22 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
 
     memcpy(&attr_seq_sav, &attr_seq, sizeof(tSDP_ATTR_SEQ)) ;
 
+    if (max_list_len < 4) {
+        sdpu_build_n_send_error (p_ccb, trans_num, SDP_ILLEGAL_PARAMETER, NULL);
+        return;
+    }
+
     /* Check if this is a continuation request */
-    if (*p_req)
-    {
+    if (p_req + 1 > p_req_end) {
+        sdpu_build_n_send_error(p_ccb, trans_num, SDP_INVALID_CONT_STATE, SDP_TEXT_BAD_CONT_LEN);
+        return;
+    }
+    if (*p_req) {
         /* Free and reallocate buffer */
         if (p_ccb->rsp_list)
         {
             GKI_freebuf (p_ccb->rsp_list);
+            p_ccb->rsp_list = NULL;
         }
 
         p_ccb->rsp_list = (UINT8 *)GKI_getbuf (max_list_len);
@@ -1085,6 +1094,7 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
             if (p_ccb->rsp_list)
             {
                 GKI_freebuf (p_ccb->rsp_list);
+                p_ccb->rsp_list = NULL;
             }
 
             p_ccb->rsp_list = (UINT8 *)GKI_getbuf (max_list_len);

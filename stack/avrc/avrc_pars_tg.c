@@ -124,7 +124,7 @@ static tAVRC_STS avrc_pars_vendor_cmd(tAVRC_MSG_VENDOR *p_msg, tAVRC_COMMAND *p_
     /* Check the vendor data */
     if (p_msg->vendor_len == 0)
         return AVRC_STS_NO_ERROR;
-    if (p_msg->p_vendor_data == NULL)
+    if ((p_msg->p_vendor_data == NULL) || (p_msg->vendor_len < 4))
         return AVRC_STS_INTERNAL_ERR;
 
     p = p_msg->p_vendor_data;
