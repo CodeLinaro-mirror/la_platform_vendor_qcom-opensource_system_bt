@@ -478,6 +478,14 @@ void btu_hcif_process_event(UNUSED_ATTR uint8_t controller_id, BT_HDR* p_msg) {
           btm_le_terminate_big_complete(p, hci_evt_len);
           break;
 
+        case HCI_LE_BIG_SYNC_ESTABLISHED_EVT:
+          btm_ble_big_sync_established_evt(p, hci_evt_len);
+          break;
+
+       case HCI_LE_BIG_SYNC_LOST:
+          btm_ble_big_sync_lost_evt(p, hci_evt_len);
+          break;
+
         case HCI_LE_SUBRATE_CHANGE_EVT:
           btu_ble_subrate_change_evt(p, hci_evt_len);
           break;

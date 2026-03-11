@@ -55,6 +55,7 @@
 #include "device/include/controller.h"
 
 #include <base/logging.h>
+#include <base/strings/stringprintf.h>
 
 #include "bt_types.h"
 #include "btcore/include/event_mask.h"
@@ -79,7 +80,7 @@
 #define BTSNOOP_SOCLOG_PROPERTY "persist.vendor.service.bdroid.soclog"
 
 const bt_event_mask_t BLE_EVENT_MASK = {
-    {0x00, 0x00, 0x00, 0x06, 0x4F, 0x6B, 0xFE, 0x7f}};
+    {0x00, 0x00, 0x00, 0x06, 0x7F, 0x6B, 0xFE, 0x7f}};
 
 const bt_event_mask_t CLASSIC_EVENT_MASK = {HCI_DUMO_EVENT_MASK_EXT};
 
@@ -610,6 +611,8 @@ static future_t* start_up(void) {
           response, &antenna_info_ble);
     }
 #endif
+
+  LOG_ERROR(LOG_TAG,"%s: BLE event mask %llx", __func__,BLE_EVENT_MASK);
 
     // Set the ble event mask next
     response =
@@ -1359,6 +1362,25 @@ static const bt_device_qll_local_supported_features_t* get_qll_features(void) {
   return &qll_features;
 }
 
+static const bt_event_mask_t* get_ble_event_mask(void) {
+  return &BLE_EVENT_MASK;
+}
+
+static void set_ble_event_mask(const bt_event_mask_t* p_le_event_mask) {
+  BT_HDR* response;
+  CHECK(readable);
+  LOG(WARNING) << base::StringPrintf(
+      "%s: Setting LE Event Mask in Controller: 0x%02x %02x %02x %02x %02x "
+      "%02x %02x %02x",
+      __func__, p_le_event_mask->as_array[7], p_le_event_mask->as_array[6],
+      p_le_event_mask->as_array[5], p_le_event_mask->as_array[4],
+      p_le_event_mask->as_array[3], p_le_event_mask->as_array[2],
+      p_le_event_mask->as_array[1], p_le_event_mask->as_array[0]);
+  response =
+      AWAIT_COMMAND(packet_factory->make_ble_set_event_mask(p_le_event_mask));
+  packet_parser->parse_generic_command_complete(response);
+}
+
 static const controller_t interface = {
     get_is_ready,
 
@@ -1448,6 +1470,9 @@ static const controller_t interface = {
     get_qll_features,
     is_conn_subrating_supported,
     is_conn_subrating_host_supported,
+
+    get_ble_event_mask,
+    set_ble_event_mask,
 };
 
 const controller_t* controller_get_interface() {

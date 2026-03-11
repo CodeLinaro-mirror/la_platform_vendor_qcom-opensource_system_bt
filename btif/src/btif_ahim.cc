@@ -123,6 +123,7 @@ bool aidl_enabled = false;
 #if AHIM_ENABLED
 
 uint8_t cur_active_profile = A2DP;
+uint8_t cur_achat_active_profile = MAX_CLIENT;
 std::mutex active_profile_mtx;
 std::mutex session_mtx;
 
@@ -188,16 +189,19 @@ void btif_ahim_update_current_profile(uint8_t profile)
      case BROADCAST:
        cur_active_profile = profile;
        break;
+     case ACHAT_OWNER:
+       FALLTHROUGH;
+     case ACHAT_PERIPHERAL:
+       cur_achat_active_profile = profile;
      default:
        LOG(INFO) << __func__ << ": Unsupported active profile, resetting to A2DP";
        cur_active_profile = A2DP;
        break;
   }
-
   LOG(INFO) << __func__ << ": Current active profile: "<< cur_active_profile;
 }
-void btif_ahim_process_request(tA2DP_CTRL_CMD cmd, uint8_t profile, 
-                               uint8_t direction) {
+void btif_ahim_process_request(tA2DP_CTRL_CMD cmd, uint8_t profile,
+                               uint8_t direction, bool is_achat_session) {
   if (btif_check_dual_mode()) {
     btif_ahim_process_request_DM(cmd, profile, direction);
     return;
@@ -206,35 +210,50 @@ void btif_ahim_process_request(tA2DP_CTRL_CMD cmd, uint8_t profile,
   if (btif_ahim_is_aosp_aidl_hal_enabled()) {
     cur_active_profile = profile;
   }
-  switch(cur_active_profile)  {
-    case A2DP:
-      BTIF_TRACE_IMP("%s: sending AIDL request to AV", __func__);
-      btif_dispatch_sm_event(BTIF_AV_PROCESS_HIDL_REQ_EVT,
-                             (char*)&cmd, sizeof(cmd));
-      break;
-    case AUDIO_GROUP_MGR:
-      BTIF_TRACE_IMP("%s: sending AIDL request to Audio Group Manager",
-                     __func__);
-      if (pclient_cbs[cur_active_profile - 1] &&
-          pclient_cbs[cur_active_profile - 1]->client_cb) {
-        BTIF_TRACE_IMP("%s: calling call back for Audio Group Manager",
+  if(!is_achat_session) {
+    switch(cur_active_profile)  {
+      case A2DP:
+        BTIF_TRACE_IMP("%s: sending AIDL request to AV", __func__);
+        btif_dispatch_sm_event(BTIF_AV_PROCESS_HIDL_REQ_EVT,
+                               (char*)&cmd, sizeof(cmd));
+        break;
+      case AUDIO_GROUP_MGR:
+        BTIF_TRACE_IMP("%s: sending AIDL request to Audio Group Manager",
                        __func__);
-        pclient_cbs[cur_active_profile - 1]->client_cb(cmd, direction);
-      }
-      else
-        BTIF_TRACE_ERROR("%s, Audio Group Manager is not registered with AHIM",
-                          __func__);
-      break;
-    case BROADCAST:
-      BTIF_TRACE_IMP("%s: sending AIDL request to BROADCAST", __func__);
-      if (pclient_cbs[cur_active_profile - 1] &&
-          pclient_cbs[cur_active_profile - 1]->client_cb) {
-        BTIF_TRACE_IMP("%s: calling call back for BROADCAST", __func__);
-        pclient_cbs[cur_active_profile - 1]->client_cb(cmd, direction);
-      }
-      else
-        BTIF_TRACE_ERROR("%s, BROADCAST is not registered with AHIM", __func__);
-      break;
+        if (pclient_cbs[cur_active_profile - 1] &&
+            pclient_cbs[cur_active_profile - 1]->client_cb) {
+          BTIF_TRACE_IMP("%s: calling call back for Audio Group Manager",
+                         __func__);
+          pclient_cbs[cur_active_profile - 1]->client_cb(cmd, direction);
+        }
+        else
+          BTIF_TRACE_ERROR("%s, Audio Group Manager is not registered with AHIM",
+                            __func__);
+        break;
+      case BROADCAST:
+        BTIF_TRACE_IMP("%s: sending AIDL request to BROADCAST", __func__);
+        if (pclient_cbs[cur_active_profile - 1] &&
+            pclient_cbs[cur_active_profile - 1]->client_cb) {
+          BTIF_TRACE_IMP("%s: calling call back for BROADCAST", __func__);
+          pclient_cbs[cur_active_profile - 1]->client_cb(cmd, direction);
+        }
+        else
+          BTIF_TRACE_ERROR("%s, BROADCAST is not registered with AHIM", __func__);
+        break;
+    }
+  } else {
+    switch(cur_achat_active_profile)  {
+      case ACHAT_OWNER:
+        FALLTHROUGH;
+      case ACHAT_PERIPHERAL:
+        BTIF_TRACE_IMP("%s: sending AIDL request to ACHAT ", __func__);
+        if (pclient_cbs[cur_achat_active_profile - 1] &&
+            pclient_cbs[cur_achat_active_profile - 1]->client_cb) {
+          BTIF_TRACE_IMP("%s: calling call back for BROADCAST ", __func__);
+          pclient_cbs[cur_achat_active_profile - 1]->client_cb(cmd, direction);
+        }
+        break;
+    }
   }
 }
 
@@ -435,7 +454,7 @@ void btif_ahim_cleanup_hal(uint8_t profile) {
       }
     }
   } else if (btif_ahim_is_qc_hal_enabled()) {
-    bluetooth::audio::a2dp::cleanup();
+    bluetooth::audio::a2dp::cleanup(profile);
   }
 }
 
@@ -509,7 +528,7 @@ bool btif_ahim_is_restart_session_needed(uint8_t profile) {
       return true;
     }
   } else if (btif_ahim_is_qc_hal_enabled()) { //hal 2_2 or aidl
-    return bluetooth::audio::a2dp::is_restart_session_needed();
+    return bluetooth::audio::a2dp::is_restart_session_needed(profile);
   }
   return false;
 }
@@ -954,7 +973,7 @@ void btif_ahim_start_session(uint8_t profile) {
     }
   } else if (btif_ahim_is_qc_hal_enabled()) {
     BTIF_TRACE_IMP("%s: QC Hal", __func__);
-    bluetooth::audio::a2dp::start_session();
+    bluetooth::audio::a2dp::start_session(profile);
   }
 }
 
@@ -988,7 +1007,7 @@ void btif_ahim_end_session(uint8_t profile) {
     }
   } else if (btif_ahim_is_qc_hal_enabled()) {
     BTIF_TRACE_IMP("%s: QC", __func__);
-    bluetooth::audio::a2dp::end_session();
+    bluetooth::audio::a2dp::end_session(profile);
   }
 }
 
@@ -1030,7 +1049,7 @@ tA2DP_CTRL_CMD btif_ahim_get_pending_command(uint8_t profile) {
           return broadcastSinkClientInterface->GetPendingCmd();
     }
   } else if (btif_ahim_is_qc_hal_enabled()) {
-    return bluetooth::audio::a2dp::get_pending_command();
+    return bluetooth::audio::a2dp::get_pending_command(profile);
   }
   return A2DP_CTRL_CMD_NONE;
 }
@@ -1055,7 +1074,7 @@ tA2DP_CTRL_CMD btif_ahim_get_pending_command(uint8_t profile,
           return broadcastSinkClientInterface->GetPendingCmd();
     }
   } else if (btif_ahim_is_qc_hal_enabled()) {
-    return bluetooth::audio::a2dp::get_pending_command();
+    return bluetooth::audio::a2dp::get_pending_command(profile);
   }
   return A2DP_CTRL_CMD_NONE;
 }
@@ -1097,8 +1116,9 @@ void btif_ahim_reset_pending_command(uint8_t profile) {
         broadcastSinkClientInterface->ResetPendingCmd();
     }
   } else if (btif_ahim_is_qc_hal_enabled()) {
-    if (cur_active_profile == profile) {
-      bluetooth::audio::a2dp::reset_pending_command();
+    if (cur_active_profile == profile ||
+      cur_achat_active_profile == profile) {
+      bluetooth::audio::a2dp::reset_pending_command(profile);
     } else {
       BTIF_TRACE_WARNING("%s, reset pending cmd ignored from #\
                           inactive profile", __func__);
@@ -1126,7 +1146,7 @@ void btif_ahim_reset_pending_command(uint8_t profile, uint8_t direction) {
     }
   } else if (btif_ahim_is_qc_hal_enabled()) {
     if (cur_active_profile == profile) {
-      bluetooth::audio::a2dp::reset_pending_command();
+      bluetooth::audio::a2dp::reset_pending_command(profile);
     } else {
       BTIF_TRACE_WARNING("%s, reset pending cmd ignored from #\
                           inactive profile", __func__);
@@ -1139,8 +1159,9 @@ void btif_ahim_update_pending_command(tA2DP_CTRL_CMD cmd, uint8_t profile) {
                                        __func__, profile, cmd);
   if (btif_ahim_is_qc_hal_enabled()) {
     BTIF_TRACE_IMP("%s: QC, cur_active_profile: %d", __func__, cur_active_profile);
-    if (cur_active_profile == profile) {
-      bluetooth::audio::a2dp::update_pending_command(cmd);
+    if (cur_active_profile == profile ||
+        cur_achat_active_profile == profile) {
+      bluetooth::audio::a2dp::update_pending_command(cmd , profile);
     } else {
       BTIF_TRACE_WARNING("%s, update pending cmd ignored from "
                               "inactive profile, rsp failed ack", __func__);
@@ -1219,8 +1240,9 @@ void btif_ahim_ack_stream_started(const tA2DP_CTRL_ACK& ack, uint8_t profile) {
     }
   } else if (btif_ahim_is_qc_hal_enabled()) {
     BTIF_TRACE_IMP("%s: QC", __func__);
-    if (cur_active_profile == profile) {
-      bluetooth::audio::a2dp::ack_stream_started(ack);
+    if (cur_active_profile == profile ||
+        cur_achat_active_profile == profile) {
+      bluetooth::audio::a2dp::ack_stream_started(ack , profile);
     } else {
       BTIF_TRACE_WARNING("%s, ACK ignored from inactive profile", __func__);
     }
@@ -1326,8 +1348,9 @@ void btif_ahim_ack_stream_profile_suspended(const tA2DP_CTRL_ACK& ack, uint8_t p
     }
   } else if (btif_ahim_is_qc_hal_enabled()) {
     BTIF_TRACE_IMP("%s: QC", __func__);
-    if (cur_active_profile == profile) {
-      bluetooth::audio::a2dp::ack_stream_suspended(ack);
+    if (cur_active_profile == profile ||
+        cur_achat_active_profile == profile) {
+      bluetooth::audio::a2dp::ack_stream_suspended(ack , profile);
     } else {
       BTIF_TRACE_WARNING("%s, ACK ignored from inactive profile", __func__);
     }
@@ -1446,8 +1469,9 @@ void btif_ahim_set_remote_delay(uint16_t delay_report, uint8_t profile) {
     }
   } else if (btif_ahim_is_qc_hal_enabled()) {
     BTIF_TRACE_IMP("%s: QC", __func__);
-    if (cur_active_profile == profile) {
-      bluetooth::audio::a2dp::set_remote_delay(delay_report);
+    if (cur_active_profile == profile ||
+        cur_achat_active_profile == profile) {
+      bluetooth::audio::a2dp::set_remote_delay(delay_report , profile);
     } else {
       BTIF_TRACE_WARNING("%s, ACK ignored from inactive profile", __func__);
     }

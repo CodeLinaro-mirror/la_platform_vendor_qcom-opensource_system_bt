@@ -98,24 +98,24 @@ bool setup_codec();
 #endif
 
 // Clean up BluetoothAudio HAL
-void cleanup();
+void cleanup(uint8_t profile);
 
 // Send command to the BluetoothAudio HAL: StartSession, EndSession,
 // StreamStarted, StreamSuspended
-void start_session();
-void end_session();
-tA2DP_CTRL_CMD get_pending_command();
-bool is_restart_session_needed();
-void reset_pending_command();
-void update_pending_command(tA2DP_CTRL_CMD cmd);
-void ack_stream_started(const tA2DP_CTRL_ACK& status);
-void ack_stream_suspended(const tA2DP_CTRL_ACK& status);
+void start_session(uint8_t profile);
+void end_session(uint8_t profile);
+tA2DP_CTRL_CMD get_pending_command(uint8_t profile);
+bool is_restart_session_needed(uint8_t profile);
+void reset_pending_command(uint8_t profile);
+void update_pending_command(tA2DP_CTRL_CMD cmd , uint8_t profile);
+void ack_stream_started(const tA2DP_CTRL_ACK& status , uint8_t profile);
+void ack_stream_suspended(const tA2DP_CTRL_ACK& status , uint8_t profile);
 
 // Read from the FMQ of BluetoothAudio HAL
 size_t read(uint8_t* p_buf, uint32_t len);
 
 // Update A2DP delay report to BluetoothAudio HAL
-void set_remote_delay(uint16_t delay_report);
+void set_remote_delay(uint16_t delay_report , uint8_t profile);
 bool is_streaming();
 SessionType get_session_type();
 void update_session_params(SessionParamType param_type);
