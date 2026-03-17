@@ -70,14 +70,24 @@ void fixed_queue_free(fixed_queue_t* queue, fixed_queue_free_cb free_cb) {
 
   fixed_queue_unregister_dequeue(queue);
 
-  if (free_cb)
-    for (const list_node_t* node = list_begin(queue->list);
-         node != list_end(queue->list); node = list_next(node))
-      free_cb(list_node(node));
+  /*
+   * Acquire the queue mutex during the entire cleanup operation
+   * to ensure thread safety and prevent race conditions or use-after-free access.
+   * This is critical in multi-threaded scenarios where another thread might still be
+   * accessing the queue while it is being freed.
+   */
+  {
+    std::lock_guard<std::mutex> lock(*queue->mutex);
 
-  list_free(queue->list);
-  semaphore_free(queue->enqueue_sem);
-  semaphore_free(queue->dequeue_sem);
+    if (free_cb)
+      for (const list_node_t* node = list_begin(queue->list);
+           node != list_end(queue->list); node = list_next(node))
+        free_cb(list_node(node));
+
+    list_free(queue->list);
+    semaphore_free(queue->enqueue_sem);
+    semaphore_free(queue->dequeue_sem);
+  }
   delete queue->mutex;
   osi_free(queue);
 }
