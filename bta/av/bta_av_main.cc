@@ -50,9 +50,9 @@
  ******************************************************************************/
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *  Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ *  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 /******************************************************************************
@@ -636,7 +636,8 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
           profile_version = AVRC_REV_1_6;
         } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
           // Initialize AVRCP1.4 to provide Absolute Volume control.
-          profile_version = AVRC_REV_1_4;
+          // Moved to latest version of AVRCP for Qualification
+          profile_version = AVRC_REV_1_6;
         }
 
         bta_ar_reg_avrc(
