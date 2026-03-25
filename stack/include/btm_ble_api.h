@@ -35,6 +35,7 @@
 #include "bt_common.h"
 #include "btm_api.h"
 #include "btm_ble_api_types.h"
+#include "btcore/include/event_mask.h"
 #include "osi/include/alarm.h"
 #include "stack/btm/btm_ble_bgconn.h"
 
@@ -1007,6 +1008,39 @@ extern uint8_t BTM_BleRemoveIsoDataPath(uint16_t conn_handle, uint8_t direction,
  * Returns          void
  *
  **************************************************************************************/
+extern uint8_t BTM_BleSetDbigParameters(tBTM_BLE_SET_DBIG_PARAMETERS_PARAM* p_data);
+
+extern uint8_t BTM_BleBigCreateSync(tBTM_BLE_BIG_CREATE_SYNC_PARAM* p_data,
+                                        tBTM_BLE_BIG_SYNC_LOST_CB* p_sync_lost_cb);
+
+extern uint8_t BTM_BleTerminateBigSync(uint8_t big_handle,
+                                         tBTM_BLE_TERMINATE_BIG_SYNC_CB* p_cb);
+
+extern uint8_t BTM_BleExitDbIg(tBTM_BLE_EXIT_DBIG_PARAM* p_data);
+
+extern void BTM_BleSetVsLeExitDbIgEvtCb(tBTM_BLE_VS_LE_EXIT_EVT_CB* p_cb);
+
+extern uint8_t BTM_BleAssociatePaDbig(tBTM_BLE_ASSOCIATE_PA_DBIG_PARAM* p_data);
+
+/**************************************************************************************
+ *
+ * Function         BTM_BleDbigSyncOnly
+ *
+ * Description      This function is called to invoke HCI Command
+ *                  HCI_VS_LE_DBIG_Sync_Only (0xFD90, 0x07) to enable/disable
+ *                  DBIG Sync Only mode for a DBIG.
+ *
+ * Parameters       p_data: tBTM_BLE_DBIG_SYNC_ONLY_PARAM includes
+ *                          DBIG_Handle, Enable, and a callback.
+ *
+ * Returns          0x00 : HCI_SUCCESS if command/feature is supported in host
+ *                        and controller.
+ *                  0x11 : Unsupported Feature (HCI Error)
+ *
+ **************************************************************************************/
+extern uint8_t BTM_BleDbigSyncOnly(tBTM_BLE_DBIG_SYNC_ONLY_PARAM* p_data);
+
+
 extern void BTM_BleRequestPeerSca(uint16_t conn_handle,
                                   tBTM_BLE_REQUEST_PEER_SCA_COMPLETE_CB* p_cback);
 
@@ -1360,6 +1394,12 @@ extern void btm_ble_periodic_adv_sync_lost(uint8_t *param, uint16_t param_len);
 
 extern void btm_ble_biginfo_adv_report_rcvd(uint8_t *param, uint16_t param_len);
 extern void btm_ble_periodic_adv_sync_tx_rcvd(uint8_t *param, uint16_t param_len);
+extern void btm_ble_big_sync_update_evt(uint8_t *param, uint16_t param_len);
+extern void btm_ble_big_sync_established_evt(uint8_t *param, uint16_t param_len);
+extern void btm_ble_big_sync_lost_evt(uint8_t *param, uint16_t param_len);
+extern void btm_ble_vs_le_exit_dbig_event_handler(uint8_t *param, uint16_t param_len);
+extern tBTM_STATUS BTM_BleRegisterForDbigStatusEvt(tBTM_BLE_DBIG_STATUS_CB* p_cb, bool is_register);
+extern void btm_ble_vs_dbig_status_event_internal_handler(uint8_t length, uint8_t* p_stream);
 /*******************************************************************************
  *
  * Function         BTM_BleStartPeriodicSync
@@ -1535,5 +1575,31 @@ bool BTM_BleIsCisParamUpdateLocalHostSupported();
  *
  ******************************************************************************/
 bool BTM_BleIsCisParamUpdateSupported(const RawAddress& bda);
+
+/*******************************************************************************
+ *
+ * Function         BTM_BleGetLeEventMask
+ *
+ * Description      This function is called to get the current LE event mask
+ *                  from the controller features.
+ *
+ * Returns          A pointer to the 8-byte event mask.
+ *
+ ******************************************************************************/
+extern const bt_event_mask_t* BTM_BleGetLeEventMask(void);
+
+/*******************************************************************************
+ *
+ * Function         BTM_BleSetLeEventMask
+ *
+ * Description      This function is called to set the LE event mask in the
+ *                  controller.
+ *
+ * Parameters:      p_mask: A pointer to the 8-byte event mask to set.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+extern void BTM_BleSetLeEventMask(const bt_event_mask_t* p_mask);
 
 #endif

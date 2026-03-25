@@ -118,7 +118,7 @@ BluetoothAudioCtrlAck LeAudioTransport::StartRequest(bool is_low_latency,
                         << ", direction: " << loghex(direction)
                         << ", profile: " << loghex(profile);
   is_pending_start_request_ = true;
-  btif_ahim_process_request(A2DP_CTRL_CMD_START, profile, direction);
+  btif_ahim_process_request(A2DP_CTRL_CMD_START, profile, direction ,false);
   lea_pending_cmd_ = A2DP_CTRL_CMD_START;
   return status;
 }
@@ -129,7 +129,7 @@ BluetoothAudioCtrlAck LeAudioTransport::SuspendRequest(uint8_t direction) {
 
   LOG(INFO) << __func__ << ": direction: " << loghex(direction)
                         << ", profile: " << loghex(profile);
-  btif_ahim_process_request(A2DP_CTRL_CMD_SUSPEND, profile, direction);
+  btif_ahim_process_request(A2DP_CTRL_CMD_SUSPEND, profile, direction ,false);
   lea_pending_cmd_ = A2DP_CTRL_CMD_SUSPEND;
   return status;
 }
@@ -139,7 +139,7 @@ void LeAudioTransport::StopRequest(uint8_t direction) {
 
   LOG(INFO) << __func__ << ": direction: " << loghex(direction)
                         << ", profile: " << loghex(profile);
-  btif_ahim_process_request(A2DP_CTRL_CMD_STOP, profile, direction);
+  btif_ahim_process_request(A2DP_CTRL_CMD_STOP, profile, direction , false);
 }
 
 bool LeAudioTransport::GetPresentationPosition(uint64_t* remote_delay_report_ns,

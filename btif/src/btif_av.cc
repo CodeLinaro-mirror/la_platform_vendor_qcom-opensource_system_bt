@@ -3087,7 +3087,7 @@ static bool btif_av_state_started_handler(btif_sm_event_t event, void* p_data,
 
     case BTA_AV_SUSPEND_EVT:
       if (btif_a2dp_source_is_hal_v2_supported()) {
-        pending_cmd =  bluetooth::audio::a2dp::get_pending_command();
+        pending_cmd =  bluetooth::audio::a2dp::get_pending_command(A2DP);
       }
       BTIF_TRACE_EVENT("%s: BTA_AV_SUSPEND_EVT: index: %d, status %d, init %d, flag %d,"
           "pending_cmd: %d, dual_handoff: %d,  fake_suspend_rsp: %d", __func__, index,
@@ -3902,7 +3902,7 @@ static void btif_av_handle_event(uint16_t event, char* p_param) {
           BTIF_TRACE_DEBUG(" BA enabled and we received START_REQ ");
           tA2DP_CTRL_CMD pend_cmd = A2DP_CTRL_CMD_NONE;
           if (btif_a2dp_source_is_hal_v2_supported()) {
-            pend_cmd =  bluetooth::audio::a2dp::get_pending_command();
+            pend_cmd =  bluetooth::audio::a2dp::get_pending_command(A2DP);
           } else {
             pend_cmd = btif_a2dp_audio_interface_get_pending_cmd();
           }
@@ -6037,7 +6037,7 @@ bt_status_t btif_av_execute_service(bool b_enable) {
             btif_a2dp_audio_if_init = false;
           } else {
             if (btif_a2dp_source_is_hal_v2_supported()) {
-              pending_cmd =  bluetooth::audio::a2dp::get_pending_command();
+              pending_cmd =  bluetooth::audio::a2dp::get_pending_command(A2DP);
             } else {
               pending_cmd = btif_a2dp_control_get_pending_command();
             }

@@ -24,6 +24,7 @@
 #include "bta_hf_client_int.h"
 #include "device/include/esco_parameters.h"
 #include "osi/include/osi.h"
+#include "osi/include/properties.h"
 
 #define BTA_HF_CLIENT_NO_EDR_ESCO                                \
   (ESCO_PKT_TYPES_MASK_NO_2_EV3 | ESCO_PKT_TYPES_MASK_NO_3_EV3 | \
@@ -142,6 +143,48 @@ static void bta_hf_client_sco_conn_rsp(tBTA_HF_CLIENT_CB* client_cb,
   BTM_EScoConnRsp(p_data->sco_inx, hci_status, &resp);
 }
 
+
+void bta_hf_client_dup_broadcast_state_changed(tBTA_HF_CLIENT_DATA* p_data) {
+  uint8_t state = p_data->hdr.layer_specific;
+  APPL_TRACE_IMP("%s: New DUP_BROADCAST HFP state: %d", __func__, state);
+  int hf_client_max_device = bta_hf_client_get_max_devices();
+  for (int i = 1; i <= hf_client_max_device; i++) {
+    tBTA_HF_CLIENT_CB* cb = bta_hf_client_find_cb_by_handle(i);
+    if (cb != NULL) {
+      cb->dup_broadcast_state = state;
+    }
+  }
+
+  if (state == BTA_HF_CLIENT_DUP_BROADCAST_STATE_INACTIVE) {
+    for (int i = 1; i <= hf_client_max_device; i++) {
+      tBTA_HF_CLIENT_CB* client_cb = bta_hf_client_find_cb_by_handle(i);
+      if (client_cb != NULL && client_cb->pending_sco_data != NULL) {
+        APPL_TRACE_IMP("%s: DUP_BROADCAST is inactive, processing pending SCO on handle %d",
+                         __func__, client_cb->handle);
+        bta_hf_client_process_pending_sco_for_cb(client_cb);
+        break;
+      } else {
+        APPL_TRACE_ERROR("No cb found");
+      }
+    }
+  }
+}
+
+void bta_hf_client_process_pending_sco_for_cb(tBTA_HF_CLIENT_CB* client_cb) {
+  if (client_cb == NULL || client_cb->pending_sco_data == NULL) {
+    APPL_TRACE_WARNING("%s: No pending SCO data or invalid CB!", __func__);
+    return;
+  }
+
+  APPL_TRACE_IMP("%s: DUP_BROADCAST inactive. Processing parked SCO request for VR.", __func__);
+
+  bta_hf_client_sco_conn_rsp(client_cb, &client_cb->pending_sco_data->conn_evt);
+  client_cb->sco_state = BTA_HF_CLIENT_SCO_OPENING_ST;
+
+  osi_free(client_cb->pending_sco_data);
+  client_cb->pending_sco_data = NULL;
+}
+
 /*******************************************************************************
  *
  * Function         bta_hf_client_sco_connreq_cback
@@ -168,8 +211,37 @@ static void bta_hf_client_esco_connreq_cback(tBTM_ESCO_EVT event,
   if (event != BTM_ESCO_CONN_REQ_EVT) {
     return;
   }
+  bool sco_parking_enabled = false;
+  char value[PROPERTY_VALUE_MAX] = {'\0'};
+  osi_property_get("persist.vendor.btstack.sco_parking_enabled", value, "true");
+  if (strcmp(value, "true") == 0)
+  sco_parking_enabled = true;
 
-  if(bta_av_is_any_sink_stream_started() &&  is_split_enabled()) {
+  if (client_cb->dup_broadcast_state == BTA_HF_CLIENT_DUP_BROADCAST_STATE_ACTIVE) {
+    bool should_park = client_cb->is_vr_active || sco_parking_enabled;
+    if (should_park) {
+      APPL_TRACE_WARNING("%s: Broadcast active. Parking SCO request. VR=%d, parking_prop=%d",
+                       __func__, client_cb->is_vr_active, sco_parking_enabled);
+
+      if (client_cb->pending_sco_data) {
+        osi_free(client_cb->pending_sco_data);
+      }
+
+      client_cb->pending_sco_data =
+          (tBTA_HF_CLIENT_ESCO_DATA*)osi_malloc(sizeof(tBTA_HF_CLIENT_ESCO_DATA));
+      memcpy(&client_cb->pending_sco_data->conn_evt, &p_data->conn_evt,
+             sizeof(tBTM_ESCO_CONN_REQ_EVT_DATA));
+      client_cb->pending_sco_data->cb_handle = client_cb->handle;
+
+      return;
+    } else {
+      APPL_TRACE_ERROR("%s: Reject SCO as broadcast is active and parking is disabled", __func__);
+      BTM_EScoConnRsp(p_data->conn_evt.sco_inx, HCI_ERR_HOST_REJECT_DEVICE,
+                      &resp);
+      return;
+    }
+  }
+  if (bta_av_is_any_sink_stream_started() && is_split_enabled()) {
     APPL_TRACE_DEBUG("Reject SCO as A2dp sink stream is active");
     BTM_EScoConnRsp(p_data->conn_evt.sco_inx, HCI_ERR_HOST_REJECT_DEVICE,
                     &resp);

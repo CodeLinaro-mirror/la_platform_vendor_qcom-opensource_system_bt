@@ -318,6 +318,8 @@ typedef struct {
   /* current BLE link state */
   tBTM_BLE_STATE_MASK cur_states; /* bit mask of tBTM_BLE_STATE */
   uint8_t link_count[2];          /* total link count master and slave*/
+  tBTM_BLE_DBIG_STATUS_CB* p_dbig_status_cb;
+
 } tBTM_BLE_CB;
 
 #endif  // BTM_BLE_INT_TYPES_H

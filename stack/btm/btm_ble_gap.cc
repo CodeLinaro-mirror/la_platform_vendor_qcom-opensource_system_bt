@@ -257,6 +257,8 @@ static void btm_ble_inquiry_timer_gap_limited_discovery_timeout(void* data);
 static void btm_ble_inquiry_timer_timeout(void* data);
 static void btm_ble_observer_timer_timeout(void* data);
 
+static uint8_t btm_le_event_mask_cache[8] = {0};
+
 #define BTM_BLE_INQ_RESULT 0x01
 #define BTM_BLE_OBS_RESULT 0x02
 
@@ -3556,6 +3558,44 @@ tBTM_STATUS btm_ble_start_scan(void) {
 
 /*******************************************************************************
  *
+ * Function         BTM_BleGetLeEventMask
+ *
+ * Description      This function is called to get the current LE event mask
+ *                  from the controller features.
+ *
+ * Returns          A pointer to the 8-byte event mask.
+ *
+ ******************************************************************************/
+const bt_event_mask_t* BTM_BleGetLeEventMask(void) {
+  return (const bt_event_mask_t*)btm_le_event_mask_cache;
+}
+
+/*******************************************************************************
+ *
+ * Function         BTM_BleSetLeEventMask
+ *
+ * Description      This function is called to set the LE event mask in the
+ *                  controller.
+ *
+ * Parameters:      p_mask: A pointer to the 8-byte event mask to set.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTM_BleSetLeEventMask(const bt_event_mask_t* p_mask) {
+  BTM_TRACE_DEBUG(
+      "%s: Setting LE Event Mask: 0x%02x %02x %02x %02x %02x %02x %02x %02x",
+      __func__, p_mask->as_array[7], p_mask->as_array[6], p_mask->as_array[5],
+      p_mask->as_array[4], p_mask->as_array[3], p_mask->as_array[2],
+      p_mask->as_array[1], p_mask->as_array[0]);
+  const controller_t* controller = controller_get_interface();
+  if (controller) {
+    controller->set_ble_event_mask(p_mask);
+  }
+}
+
+/*******************************************************************************
+ *
  * Function         btm_ble_stop_scan
  *
  * Description      Stop the BLE scan.
@@ -4096,6 +4136,18 @@ void btm_ble_update_mode_operation(uint8_t link_role, const RawAddress* bd_addr,
  *
  ******************************************************************************/
 void btm_ble_init(void) {
+  const controller_t* controller = controller_get_interface();
+  if (controller) {
+      const bt_event_mask_t* p_le_mask = controller->get_ble_event_mask();
+      memcpy(btm_le_event_mask_cache, p_le_mask->as_array, sizeof(btm_le_event_mask_cache));
+      BTM_TRACE_DEBUG(
+          "%s: Initial LE Event Mask: 0x%02x %02x %02x %02x %02x %02x %02x %02x",
+          __func__, btm_le_event_mask_cache[7], btm_le_event_mask_cache[6],
+          btm_le_event_mask_cache[5], btm_le_event_mask_cache[4],
+          btm_le_event_mask_cache[3], btm_le_event_mask_cache[2],
+          btm_le_event_mask_cache[1], btm_le_event_mask_cache[0]);
+  }
+
   tBTM_BLE_CB* p_cb = &btm_cb.ble_ctr_cb;
   char enc_adv_data_enabled_prop[PROPERTY_VALUE_MAX] = "false";
   char enc_adv_data_log_enabled_prop[PROPERTY_VALUE_MAX] = "false";
