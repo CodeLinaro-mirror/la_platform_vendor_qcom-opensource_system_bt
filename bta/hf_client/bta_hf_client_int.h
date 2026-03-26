@@ -47,6 +47,10 @@
 #define HF_CLIENT_MAX_DEVICES 10
 #define HF_CLIENT_MAX_DEVICES_NEO 2
 
+/* DUP_BROADCAST state for HFP SCO preemption */
+#define BTA_HF_CLIENT_DUP_BROADCAST_STATE_INACTIVE 0
+#define BTA_HF_CLIENT_DUP_BROADCAST_STATE_ACTIVE 1
+
 enum {
   /* these events are handled by the state machine */
   BTA_HF_CLIENT_API_OPEN_EVT = BTA_SYS_EVT_START(BTA_ID_HS),
@@ -161,6 +165,12 @@ enum {
   BTA_HF_CLIENT_SCO_SHUTTING_ST  /* sco shutting down */
 };
 
+/* Structure to pass data to the delayed SCO callback */
+typedef struct {
+  tBTM_ESCO_CONN_REQ_EVT_DATA conn_evt;
+  uint8_t cb_handle;
+} tBTA_HF_CLIENT_ESCO_DATA;
+
 /* type for HF control block */
 typedef struct {
   // Fields useful for particular control block.
@@ -185,7 +195,11 @@ typedef struct {
   uint8_t state;                        /* state machine state */
   bool is_allocated; /* if the control block is already allocated */
   alarm_t* collision_timer;             /* Collision timer */
+  bool is_vr_active;
+  tBTA_HF_CLIENT_ESCO_DATA* pending_sco_data; /* To hold a pending SCO request for VR */
+  uint8_t dup_broadcast_state; /* DUP_BROADCAST broadcast state for HFP */
 } tBTA_HF_CLIENT_CB;
+
 
 typedef struct {
   // Common fields, should be taken out.
@@ -232,6 +246,7 @@ extern tBTA_STATUS bta_hf_client_api_enable(tBTA_HF_CLIENT_CBACK* p_cback,
 extern void bta_hf_client_api_disable(void);
 extern void bta_hf_client_dump_statistics(int fd);
 extern void bta_hf_client_cb_arr_init(void);
+extern int bta_hf_client_get_max_devices(void);
 
 /* SDP functions */
 extern bool bta_hf_client_add_record(char* p_service_name, uint8_t scn,
@@ -339,7 +354,8 @@ extern void bta_hf_client_disc_acp_res(tBTA_HF_CLIENT_DATA* p_data);
 extern void bta_hf_client_rfc_data(tBTA_HF_CLIENT_DATA* p_data);
 extern void bta_hf_client_disc_int_res(tBTA_HF_CLIENT_DATA* p_data);
 extern void bta_hf_client_svc_conn_open(tBTA_HF_CLIENT_DATA* p_data);
-
+void bta_hf_client_process_pending_sco_for_cb(tBTA_HF_CLIENT_CB* client_cb);
+void bta_hf_client_dup_broadcast_state_changed(tBTA_HF_CLIENT_DATA* p_data);
 /* Commands handling functions */
 extern void bta_hf_client_dial(tBTA_HF_CLIENT_DATA* p_data);
 extern void bta_hf_client_send_at_cmd(tBTA_HF_CLIENT_DATA* p_data);

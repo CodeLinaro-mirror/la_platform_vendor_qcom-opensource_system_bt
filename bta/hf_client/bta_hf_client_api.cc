@@ -187,6 +187,16 @@ void BTA_HfClientSendAT(uint16_t handle, tBTA_HF_CLIENT_AT_CMD_TYPE at,
   bta_sys_sendmsg(p_buf);
 }
 
+void BTA_HfClientDupBroadcastStateChanged(uint8_t state) {
+  APPL_TRACE_ERROR("BTA_HfClientDupBroadcastStateChanged");
+
+  tBTA_HF_CLIENT_DATA data;
+  memset(&data, 0, sizeof(data));
+  data.hdr.layer_specific = state;
+
+  bta_hf_client_dup_broadcast_state_changed(&data);
+}
+
 /*******************************************************************************
  *
  * Function         BTA_HfClientDumpStatistics

@@ -57,8 +57,10 @@
 #include "btif_common.h"
 #include "btif_profile_queue.h"
 #include "btif_util.h"
+#include "btif_bap_common.h"
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
+#include "hardware/bt_bap_ba.h"
 
 /*******************************************************************************
  *  Constants & Macros
@@ -720,6 +722,12 @@ static bt_status_t request_last_voice_tag_number(const RawAddress* bd_addr) {
   return BT_STATUS_UNSUPPORTED;
 }
 
+bt_status_t btif_hf_bap_broadcast_state_changed(bt_duplex_broadcast_state state) {
+  BTIF_TRACE_IMP("%s: BAP broadcast HFP state is now %d", __func__, state);
+  BTA_HfClientDupBroadcastStateChanged((uint8_t)state);
+  return BT_STATUS_SUCCESS;
+}
+
 /*******************************************************************************
  *
  * Function         cleanup
@@ -892,6 +900,14 @@ static void btif_hf_client_upstreams_evt(uint16_t event, char* p_param) {
       cb->peer_feat = p_data->conn.peer_feat;
       cb->chld_feat = p_data->conn.chld_feat;
       cb->state = BTHF_CLIENT_CONNECTION_STATE_SLC_CONNECTED;
+
+      BTIF_TRACE_DEBUG("%s: SLC connected, syncing BAP state", __func__);
+      if (btif_bap_broadcast_source_get_state() == BTBAP_HFP_STATE_ACTIVE ||
+              btif_bap_broadcast_sink_get_state() == BTBAP_HFP_STATE_ACTIVE) {
+        btif_hf_bap_broadcast_state_changed(BTBAP_HFP_STATE_ACTIVE);
+      } else {
+        btif_hf_bap_broadcast_state_changed(BTBAP_HFP_STATE_INACTIVE);
+      }
 
       HAL_CBACK(bt_hf_client_callbacks, connection_state_cb, &cb->peer_bda,
                 cb->state, cb->peer_feat, cb->chld_feat);

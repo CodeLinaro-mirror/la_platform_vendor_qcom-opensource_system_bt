@@ -482,9 +482,13 @@ static void bta_hf_client_handle_vgs(tBTA_HF_CLIENT_CB* client_cb,
 static void bta_hf_client_handle_bvra(tBTA_HF_CLIENT_CB* client_cb,
                                       uint32_t value) {
   APPL_TRACE_DEBUG("%s: %lu", __func__, value);
-
   if (value > 1) {
     return;
+  }
+  if (value != 0) {
+    client_cb->is_vr_active = true;
+  } else {
+    client_cb->is_vr_active = false;
   }
 
   bta_hf_client_evt_val(client_cb, BTA_HF_CLIENT_VOICE_REC_EVT, value);
