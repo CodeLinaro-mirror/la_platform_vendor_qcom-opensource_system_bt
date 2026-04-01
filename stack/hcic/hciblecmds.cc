@@ -1002,6 +1002,10 @@ void btsnd_hcic_ble_set_dbig_parameters(uint8_t dbig_handle,
                                         uint8_t pgp_timeout,
                                         uint8_t pgo_timeout,
                                         uint8_t sgo_timeout,
+                                        uint8_t join_timeout,
+                                        uint8_t exit_timeout,
+                                        uint8_t remove_timeout,
+                                        uint8_t terminate_timeout,
                                         uint8_t tx_power,
                                         base::Callback<void(uint8_t*, uint16_t)> cb) {
 
@@ -1023,6 +1027,10 @@ void btsnd_hcic_ble_set_dbig_parameters(uint8_t dbig_handle,
   UINT8_TO_STREAM(p, pgp_timeout);
   UINT8_TO_STREAM(p, pgo_timeout);
   UINT8_TO_STREAM(p, sgo_timeout);
+  UINT8_TO_STREAM(p, join_timeout);
+  UINT8_TO_STREAM(p, exit_timeout);
+  UINT8_TO_STREAM(p, remove_timeout);
+  UINT8_TO_STREAM(p, terminate_timeout);
   UINT8_TO_STREAM(p, tx_power);
 
   // Send the command using the main vendor-specific opcode (0xFD90)
@@ -1066,6 +1074,36 @@ void btsnd_hcic_ble_terminate_big_sync(uint8_t big_handle,
                             param_len, std::move(cb));
 }
 
+void btsnd_hcic_ble_join_control(uint8_t dbig_handle,
+                                 uint8_t mode,
+                                 base::Callback<void(uint8_t*, uint16_t)> cb) {
+  // sub_opcode (1) + dbig_handle (1) + mode (1)
+  const uint16_t param_len = 3;
+  uint8_t *param = (uint8_t *)osi_malloc(param_len);
+  uint8_t *p = param;
+
+  UINT8_TO_STREAM(p, HCI_VS_LE_JOIN_CONTROL_SUB_OPCODE);
+  UINT8_TO_STREAM(p, dbig_handle);
+  UINT8_TO_STREAM(p, mode);
+
+  btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_VS_LE_JOIN_CONTROL, param,
+                            param_len, std::move(cb));
+}
+
+void btsnd_hcic_ble_set_devid(uint16_t dev_id,
+                               uint8_t* name,
+                               base::Callback<void(uint8_t*, uint16_t)> cb) {
+  uint16_t param_len = HCI_PARAM_SIZE_SET_DEVID;
+  uint8_t *param = (uint8_t *)osi_malloc(param_len);
+  uint8_t *p = param;
+  UINT8_TO_STREAM(p, HCI_VS_LE_SET_DEVID_SUB_OPCODE);  // Subopcode 0x09
+  UINT16_TO_STREAM(p, dev_id);
+  ARRAY_TO_STREAM(p, name, 10);
+
+  btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_VS_LE_SET_DEVID, param,
+                            param_len, std::move(cb));
+}
+
 void btsnd_hcic_ble_exit_dbig(uint8_t dbig_handle,
                               uint8_t reason,
                               base::Callback<void(uint8_t*, uint16_t)> cb) {
@@ -1077,6 +1115,22 @@ void btsnd_hcic_ble_exit_dbig(uint8_t dbig_handle,
   UINT8_TO_STREAM(p, dbig_handle);
   UINT8_TO_STREAM(p, reason);
   btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_VS_LE_SET_DBIG_PARAMETERS, param,
+                            param_len, std::move(cb));
+}
+
+void btsnd_hcic_ble_texit_dbig(uint8_t dbig_handle,
+                               uint8_t texit_mode,
+                               uint8_t reason,
+                               base::Callback<void(uint8_t*, uint16_t)> cb) {
+  uint16_t param_len = HCI_PARAM_SIZE_TEXIT_DBIG;
+  uint8_t *param = (uint8_t *)osi_malloc(param_len);
+  uint8_t *p = param;
+  UINT8_TO_STREAM(p, HCI_VS_LE_TEXIT_DBIG_SUB_OPCODE);
+  UINT8_TO_STREAM(p, dbig_handle);
+  UINT8_TO_STREAM(p, texit_mode);
+  UINT8_TO_STREAM(p, reason);
+
+  btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_VS_LE_TEXIT_DBIG, param,
                             param_len, std::move(cb));
 }
 

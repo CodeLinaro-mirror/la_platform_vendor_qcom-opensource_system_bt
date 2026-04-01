@@ -974,7 +974,7 @@ extern void btsnd_hcic_set_reserved_lt_addr(uint8_t lt_addr);
 #define HCI_PARAM_SIZE_SET_ISO_DATA_PATH 13
 #define HCI_PARAM_SIZE_REMOVE_ISO_DATA_PATH 3
 #define HCI_PARAM_SIZE_SET_BLE_HOST_FEATURE 2
-#define HCI_PARAM_SIZE_SET_DBIG_PARAMS 11
+#define HCI_PARAM_SIZE_SET_DBIG_PARAMS 15
 #define HCI_PARAM_SIZE_CREATE_BIG_SYNC 24
 #define HCI_PARAM_SIZE_TERMINATE_BIG_SYNC 1
 #define HCI_PARAM_SIZE_EXIT_DBIG 3
@@ -1034,6 +1034,10 @@ extern void btsnd_hcic_ble_set_dbig_parameters(uint8_t dbig_handle,
                                     uint8_t pgp_timeout,
                                     uint8_t pgo_timeout,
                                     uint8_t sgo_timeout,
+                                    uint8_t join_timeout,
+                                    uint8_t exit_timeout,
+                                    uint8_t remove_timeout,
+                                    uint8_t terminate_timeout,
                                     uint8_t tx_power,
                                     base::Callback<void(uint8_t*, uint16_t)> cb);
 
@@ -1051,8 +1055,21 @@ extern void btsnd_hcic_ble_create_big_sync(uint8_t big_handle,
 extern void btsnd_hcic_ble_terminate_big_sync(uint8_t big_handle,
                                      base::Callback<void(uint8_t*, uint16_t)> cb);
 
+extern void btsnd_hcic_ble_join_control(uint8_t dbig_handle,
+                                        uint8_t mode,
+                                        base::Callback<void(uint8_t*, uint16_t)> cb);
+
+extern void btsnd_hcic_ble_set_devid(uint16_t dev_id,
+                                     uint8_t* name,
+                                     base::Callback<void(uint8_t*, uint16_t)> cb);
+
 extern void btsnd_hcic_ble_exit_dbig(uint8_t dbig_handle, uint8_t reason,
                                      base::Callback<void(uint8_t*, uint16_t)> cb);
+
+extern void btsnd_hcic_ble_texit_dbig(uint8_t dbig_handle,
+                                      uint8_t texit_mode,
+                                      uint8_t reason,
+                                      base::Callback<void(uint8_t*, uint16_t)> cb);
 
 extern void btsnd_hcic_ble_associate_pa_dbig(uint8_t dbig_handle,
                                              uint8_t advertising_handle,
