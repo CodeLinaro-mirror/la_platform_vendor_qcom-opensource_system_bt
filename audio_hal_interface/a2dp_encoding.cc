@@ -3088,7 +3088,7 @@ tA2DP_CTRL_CMD get_pending_command(uint8_t profile) {
   } else {
     if (a2dp_sink_2_1) {
       pending_cmd = a2dp_sink_2_1->GetPendingCmd();
-    } else {
+    } else if (a2dp_sink) {
       pending_cmd = a2dp_sink->GetPendingCmd();
     }
   }
