@@ -113,6 +113,26 @@ const tBTA_AG_ATCMD_CBACK bta_ag_at_cback_tbl[BTA_AG_NUM_IDX] = {
 
 /*******************************************************************************
  *
+ * Function         bta_ag_open_fail_cback
+ *
+ * Description      Alarm callback for bta_ag_cback_open_fail_deferred: fires
+ *                  BTA_AG_OPEN_FAIL_RFCOMM_DELAY_MS after an RFCOMM failure.
+ *                  Delivering FAIL after a brief delay lets an in-flight
+ *                  incoming connection deliver SUCCESS first, so the upper
+ *                  layer sees SUCCESS then FAIL rather than FAIL then SUCCESS.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+static void bta_ag_open_fail_cback(void* data) {
+  tBTA_AG_SCB* p_scb = static_cast<tBTA_AG_SCB*>(data);
+  if (!bta_ag_cb.p_cback) return;
+  (*bta_ag_cb.p_cback)(BTA_AG_OPEN_EVT,
+                       (tBTA_AG*)&p_scb->pending_open_fail_data);
+}
+
+/*******************************************************************************
+ *
  * Function         bta_ag_cback_open
  *
  * Description      Send open callback event to application.
@@ -139,7 +159,65 @@ static void bta_ag_cback_open(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data,
     open.bd_addr = p_scb->peer_addr;
   }
     VLOG(1) << __func__ << "open.bd_addr:" << open.bd_addr;
+
   (*bta_ag_cb.p_cback)(BTA_AG_OPEN_EVT, (tBTA_AG*)&open);
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_ag_cback_open_fail_deferred
+ *
+ * Description      Delay a BTA_AG_FAIL_RFCOMM notification by
+ *                  BTA_AG_OPEN_FAIL_RFCOMM_DELAY_MS.  If an incoming RFCOMM
+ *                  connection completes on this SCB within that window,
+ *                  bta_ag_rfc_open delivers SUCCESS immediately and the timer
+ *                  fires afterward, so the upper layer sees SUCCESS then FAIL.
+ *
+ *                  If the timer is already armed (same device retried), the new
+ *                  notification is dropped to avoid duplicate DISCONNECTED events.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+static void bta_ag_cback_open_fail_deferred(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
+  if (alarm_is_scheduled(p_scb->open_fail_timer)) {
+    APPL_TRACE_DEBUG("%s: Dropping redundant BTA_AG_FAIL_RFCOMM for %s",
+                     __func__, p_scb->peer_addr.ToString().c_str());
+    return;
+  }
+
+  p_scb->pending_open_fail_data.hdr.handle = bta_ag_scb_to_idx(p_scb);
+  p_scb->pending_open_fail_data.hdr.app_id = p_scb->app_id;
+  p_scb->pending_open_fail_data.status = BTA_AG_FAIL_RFCOMM;
+  p_scb->pending_open_fail_data.service_id = bta_ag_svc_id[p_scb->conn_service];
+  p_scb->pending_open_fail_data.bd_addr =
+      p_data ? p_data->api_open.bd_addr : p_scb->peer_addr;
+  VLOG(1) << __func__ << " bd_addr:" << p_scb->pending_open_fail_data.bd_addr;
+
+  alarm_set_on_mloop(p_scb->open_fail_timer,
+                     BTA_AG_OPEN_FAIL_RFCOMM_DELAY_MS,
+                     bta_ag_open_fail_cback, p_scb);
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_ag_flush_open_fail_deferred
+ *
+ * Description      If a deferred FAIL_RFCOMM notification is pending on this
+ *                  SCB, cancel the timer and deliver it immediately.  Called
+ *                  whenever the SCB is about to be claimed by a new connection
+ *                  so that the previous device's upper-layer state machine is
+ *                  not left hanging in CONNECTING.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void bta_ag_flush_open_fail_deferred(tBTA_AG_SCB* p_scb) {
+  if (alarm_is_scheduled(p_scb->open_fail_timer)) {
+    alarm_cancel(p_scb->open_fail_timer);
+    (*bta_ag_cb.p_cback)(BTA_AG_OPEN_EVT,
+                         (tBTA_AG*)&p_scb->pending_open_fail_data);
+  }
 }
 
 /*******************************************************************************
@@ -235,6 +313,8 @@ void bta_ag_start_open(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
 
   /* store parameters */
   if (p_data) {
+    if (p_scb->pending_open_fail_data.bd_addr != p_data->api_open.bd_addr)
+      bta_ag_flush_open_fail_deferred(p_scb);
     p_scb->peer_addr = p_data->api_open.bd_addr;
     p_scb->open_services = p_data->api_open.services;
     p_scb->cli_sec_mask = p_data->api_open.sec_mask;
@@ -266,7 +346,8 @@ void bta_ag_start_open(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
              " an incoming conn from dev %s, moving to BTA_AG_INIT_ST state",
               __func__, p_scb, p_scb->peer_addr.ToString().c_str());
         // send ourselves close event for clean up
-        bta_ag_cback_open(p_scb, NULL, BTA_AG_FAIL_RFCOMM);
+        alarm_cancel(p_scb->open_fail_timer);
+        bta_ag_cback_open_fail_deferred(p_scb, NULL);
         p_scb->state = 0;
         p_scb->peer_addr = RawAddress::kEmpty;
         return;
@@ -452,7 +533,7 @@ void bta_ag_rfc_fail(tBTA_AG_SCB* p_scb, UNUSED_ATTR tBTA_AG_DATA* p_data) {
 
   data.api_open.bd_addr = peer_addr;
   /* call open cback w. failure */
-  bta_ag_cback_open(p_scb, &data, BTA_AG_FAIL_RFCOMM);
+  bta_ag_cback_open_fail_deferred(p_scb, &data);
 }
 
 /*******************************************************************************
@@ -656,6 +737,9 @@ void bta_ag_rfc_acp_open(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data) {
         "bta_ag_rfc_acp_open error PORT_CheckConnection returned status %d",
         status);
   }
+
+  if (p_scb->pending_open_fail_data.bd_addr != dev_addr)
+    bta_ag_flush_open_fail_deferred(p_scb);
 
   /* Collision Handling */
   for (i = 0, ag_scb = &bta_ag_cb.scb[0]; i < BTA_AG_MAX_NUM_CLIENTS;
@@ -1176,7 +1260,7 @@ void bta_ag_handle_collision(tBTA_AG_SCB* p_scb,
 
   APPL_TRACE_IMP("%s: sending RFCOMM fail event to btif for dev %s",
                   __func__, p_scb->peer_addr.ToString().c_str())
-  bta_ag_cback_open(p_scb, NULL, BTA_AG_FAIL_RFCOMM);
+  bta_ag_cback_open_fail_deferred(p_scb, NULL);
   APPL_TRACE_DEBUG("%s: clear peer_addr so that instance can be reused", __func__);
   p_scb->peer_addr = RawAddress::kEmpty;
 

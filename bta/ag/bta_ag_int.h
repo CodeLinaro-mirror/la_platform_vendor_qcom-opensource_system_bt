@@ -70,6 +70,17 @@
 #define BTA_AG_COLLISION_TIMEOUT_MS (2 * 1000) /* 2 seconds */
 #endif
 
+/* Delay before delivering a BTA_AG_FAIL_RFCOMM open-callback to the upper
+ * layer.  If an incoming connection on the same SCB completes within this
+ * window (e.g. acceptor side of an RFCOMM collision), SUCCESS is delivered
+ * immediately and this timer still fires so the upper layer sees SUCCESS then
+ * FAIL (in that order) rather than FAIL then SUCCESS.
+ * The timer is not re-armed if already scheduled: a second FAIL for the same
+ * device would only cause a duplicate DISCONNECTED event at the upper layer. */
+#ifndef BTA_AG_OPEN_FAIL_RFCOMM_DELAY_MS
+#define BTA_AG_OPEN_FAIL_RFCOMM_DELAY_MS (1000) /* 1000 ms */
+#endif
+
 /* RFCOMM MTU SIZE */
 #define BTA_AG_MTU 256
 
@@ -329,6 +340,8 @@ struct tBTA_AG_SCB {
   alarm_t* ring_timer;
   alarm_t* codec_negotiation_timer;
   alarm_t* xsco_conn_collision_timer; /* try xSCO again if failed due to collision */
+  alarm_t* open_fail_timer;           /* delays BTA_AG_FAIL_RFCOMM callback (100 ms) */
+  tBTA_AG_OPEN pending_open_fail_data; /* payload saved for open_fail_timer */
   tBTA_AG_PEER_CODEC peer_codecs; /* codecs for eSCO supported by the peer */
   tBTA_AG_PEER_CODEC sco_codec;   /* codec to be used for eSCO connection */
   tBTA_AG_PEER_CODEC
@@ -466,6 +479,7 @@ extern void bta_ag_disc_int_res(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
 extern void bta_ag_disc_acp_res(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
 extern void bta_ag_disc_fail(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
 extern void bta_ag_open_fail(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
+extern void bta_ag_flush_open_fail_deferred(tBTA_AG_SCB* p_scb);
 extern void bta_ag_rfc_fail(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
 extern void bta_ag_rfc_close(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
 extern void bta_ag_rfc_open(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);

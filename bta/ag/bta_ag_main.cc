@@ -267,6 +267,7 @@ static tBTA_AG_SCB* bta_ag_scb_alloc(void) {
           alarm_new("bta_ag.scb_codec_negotiation_timer");
       p_scb->xsco_conn_collision_timer =
           alarm_new("bta_ag.scb_xsco_conn_collision_timer");
+      p_scb->open_fail_timer = alarm_new("bta_ag.scb_open_fail_timer");
       /* set eSCO mSBC setting to T2 as the preferred */
       p_scb->codec_msbc_settings = BTA_AG_SCO_MSBC_SETTINGS_T2;
 #if (SWB_ENABLED == TRUE)
@@ -314,6 +315,8 @@ void bta_ag_scb_dealloc(tBTA_AG_SCB* p_scb) {
   alarm_free(p_scb->codec_negotiation_timer);
   alarm_free(p_scb->collision_timer);
   alarm_free(p_scb->xsco_conn_collision_timer);
+  bta_ag_flush_open_fail_deferred(p_scb);
+  alarm_free(p_scb->open_fail_timer);
 
   /* initialize control block */
   memset(p_scb, 0, sizeof(tBTA_AG_SCB));
@@ -574,6 +577,7 @@ static void bta_ag_api_enable(tBTA_AG_DATA* p_data) {
     alarm_free(bta_ag_cb.scb[i].codec_negotiation_timer);
     alarm_free(bta_ag_cb.scb[i].collision_timer);
     alarm_free(bta_ag_cb.scb[i].xsco_conn_collision_timer);
+    alarm_free(bta_ag_cb.scb[i].open_fail_timer);
   }
   memset(&bta_ag_cb, 0, sizeof(tBTA_AG_CB));
 
