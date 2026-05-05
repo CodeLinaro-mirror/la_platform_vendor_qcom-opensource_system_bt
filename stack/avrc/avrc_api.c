@@ -632,231 +632,8 @@ static void avrc_msg_cback(UINT8 handle, UINT8 label, UINT8 cr,
      * channel
     */
     AVRC_TRACE_DEBUG("layer_specific %x",p_pkt->layer_specific);
-    if (p_pkt->layer_specific != AVCT_DATA_BROWSE)
-    {
-        {
-            msg.hdr.ctype           = p_data[0] & AVRC_CTYPE_MASK;
-            AVRC_TRACE_DEBUG("avrc_msg_cback handle:%d, ctype:%d, offset:%d, len: %d",
-                    handle, msg.hdr.ctype, p_pkt->offset, p_pkt->len);
-            msg.hdr.subunit_type    = (p_data[1] & AVRC_SUBTYPE_MASK) >> AVRC_SUBTYPE_SHIFT;
-            msg.hdr.subunit_id      = p_data[1] & AVRC_SUBID_MASK;
-            opcode                  = p_data[2];
-        }
-        AVRC_TRACE_DEBUG("opcode %d",opcode);
-        if ( ((avrc_cb.ccb[handle].control & AVRC_CT_TARGET) && (cr == AVCT_CMD)) ||
-           ((avrc_cb.ccb[handle].control & AVRC_CT_CONTROL) && (cr == AVCT_RSP)) )
-        {
-            switch(opcode)
-            {
-            case AVRC_OP_UNIT_INFO:
-                if (cr == AVCT_CMD)
-                {
-                    /* send the response to the peer */
-                    p_rsp = avrc_copy_packet(p_pkt, AVRC_OP_UNIT_INFO_RSP_LEN);
-                    p_rsp_data = avrc_get_data_ptr(p_rsp);
-                    *p_rsp_data = AVRC_RSP_IMPL_STBL;
-                    /* check & set the offset. set response code, set subunit_type & subunit_id,
-                       set AVRC_OP_UNIT_INFO */
-                    /* 3 bytes: ctype, subunit*, opcode */
-                    p_rsp_data      += AVRC_AVC_HDR_SIZE;
-                    *p_rsp_data++   = 7;
-                    /* Panel subunit & id=0 */
-                    *p_rsp_data++   = (AVRC_SUB_PANEL << AVRC_SUBTYPE_SHIFT);
-                    AVRC_CO_ID_TO_BE_STREAM(p_rsp_data, avrc_cb.ccb[handle].company_id);
-                    p_rsp->len      = (UINT16) (p_rsp_data - (UINT8 *)(p_rsp + 1) - p_rsp->offset);
-                    cr = AVCT_RSP;
-#if (BT_USE_TRACES == TRUE)
-                    p_drop_msg = "auto respond";
-#endif
-                }
-                else
-                {
-                    /* parse response */
-                    p_data += 4; /* 3 bytes: ctype, subunit*, opcode + octet 3 (is 7)*/
-                    msg.unit.unit_type  = (*p_data & AVRC_SUBTYPE_MASK) >> AVRC_SUBTYPE_SHIFT;
-                    msg.unit.unit       = *p_data & AVRC_SUBID_MASK;
-                    p_data++;
-                    AVRC_BE_STREAM_TO_CO_ID(msg.unit.company_id, p_data);
-                }
-                break;
+    if (p_pkt->layer_specific == AVCT_DATA_BROWSE) {
 
-            case AVRC_OP_SUB_INFO:
-                if (cr == AVCT_CMD)
-                {
-                    /* send the response to the peer */
-                    p_rsp = avrc_copy_packet(p_pkt, AVRC_OP_SUB_UNIT_INFO_RSP_LEN);
-                    p_rsp_data = avrc_get_data_ptr(p_rsp);
-                    *p_rsp_data = AVRC_RSP_IMPL_STBL;
-                    /* check & set the offset. set response code, set (subunit_type & subunit_id),
-                       set AVRC_OP_SUB_INFO, set (page & extention code) */
-                    p_rsp_data      += 4;
-                    /* Panel subunit & id=0 */
-                    *p_rsp_data++   = (AVRC_SUB_PANEL << AVRC_SUBTYPE_SHIFT);
-                    memset(p_rsp_data, AVRC_CMD_OPRND_PAD, AVRC_SUBRSP_OPRND_BYTES);
-                    p_rsp_data      += AVRC_SUBRSP_OPRND_BYTES;
-                    p_rsp->len      = (UINT16) (p_rsp_data - (UINT8 *)(p_rsp + 1) - p_rsp->offset);
-                    cr = AVCT_RSP;
-#if (BT_USE_TRACES == TRUE)
-                    p_drop_msg = "auto responded";
-#endif
-                }
-                else
-                {
-                    /* parse response */
-                    p_data += AVRC_AVC_HDR_SIZE; /* 3 bytes: ctype, subunit*, opcode */
-                    msg.sub.page    = (*p_data++ >> AVRC_SUB_PAGE_SHIFT) & AVRC_SUB_PAGE_MASK;
-                    xx      = 0;
-                    while (*p_data != AVRC_CMD_OPRND_PAD && xx<AVRC_SUB_TYPE_LEN)
-                    {
-                        msg.sub.subunit_type[xx] = *p_data++ >> AVRC_SUBTYPE_SHIFT;
-                        if (msg.sub.subunit_type[xx] == AVRC_SUB_PANEL)
-                            msg.sub.panel   = TRUE;
-                        xx++;
-                    }
-                }
-                break;
-
-            case AVRC_OP_VENDOR:
-                p_data  = (UINT8 *)(p_pkt+1) + p_pkt->offset;
-                p_begin = p_data;
-                if (p_pkt->len < AVRC_VENDOR_HDR_SIZE) /* 6 = ctype, subunit*, opcode & CO_ID */
-                {
-                    if (cr == AVCT_CMD)
-                        reject = TRUE;
-                    else
-                        drop = TRUE;
-                    break;
-                }
-                p_data += AVRC_AVC_HDR_SIZE; /* skip the first 3 bytes: ctype, subunit*, opcode */
-                AVRC_BE_STREAM_TO_CO_ID(p_msg->company_id, p_data);
-                p_msg->p_vendor_data   = p_data;
-                p_msg->vendor_len      = p_pkt->len - (p_data - p_begin);
-
-#if (AVRC_METADATA_INCLUDED == TRUE)
-                UINT8 drop_code = 0;
-                if (p_msg->vendor_len > AVRC_META_CMD_POOL_SIZE )
-                {
-                    int packet_type = avrc_get_packet_type(p_pkt);
-                    AVRC_TRACE_DEBUG("packet_type %d", packet_type);
-                    //single packet size is greater then MTU size, reject it
-                    if (packet_type == AVRC_PKT_SINGLE)
-                    {
-                        AVRC_TRACE_ERROR("Incorrect lenght for single packet");
-                        reject = TRUE;
-                        break;
-                    }
-                }
-                drop_code = avrc_proc_far_msg(handle, label, cr, &p_pkt, p_msg);
-                if (drop_code > 0)
-                    drop = TRUE;
-                if (drop_code > 0)
-                {
-                    if (drop_code != 4)
-                        do_free = FALSE;
-#if (BT_USE_TRACES == TRUE)
-                    switch (drop_code)
-                    {
-                    case 1:
-                        p_drop_msg = "sent_frag";
-                        break;
-                    case 2:
-                        p_drop_msg = "req_cont";
-                        break;
-                    case 3:
-                        p_drop_msg = "sent_frag3";
-                        break;
-                    case 4:
-                        p_drop_msg = "sent_frag_free";
-                        break;
-                    default:
-                        p_drop_msg = "sent_fragd";
-                    }
-#endif
-                }
-#endif /* (AVRC_METADATA_INCLUDED == TRUE) */
-                break;
-
-            case AVRC_OP_PASS_THRU:
-                if (p_pkt->len < 5) /* 3 bytes: ctype, subunit*, opcode & op_id & len */
-                {
-                    if (cr == AVCT_CMD)
-                        reject = TRUE;
-                    else
-                        drop = TRUE;
-                break;
-                }
-                p_data += AVRC_AVC_HDR_SIZE; /* skip the first 3 bytes: ctype, subunit*, opcode */
-                msg.pass.op_id  = (AVRC_PASS_OP_ID_MASK & *p_data);
-                if (AVRC_PASS_STATE_MASK & *p_data)
-                    msg.pass.state  = TRUE;
-                else
-                    msg.pass.state  = FALSE;
-                p_data++;
-                msg.pass.pass_len    = *p_data++;
-                if (msg.pass.pass_len != p_pkt->len - 5)
-                    msg.pass.pass_len = p_pkt->len - 5;
-                if (msg.pass.pass_len)
-                    msg.pass.p_pass_data = p_data;
-                else
-                    msg.pass.p_pass_data = NULL;
-                break;
-
-
-            default:
-                if ((avrc_cb.ccb[handle].control & AVRC_CT_TARGET) && (cr == AVCT_CMD))
-                {
-                    /* reject unsupported opcode */
-                    reject = TRUE;
-                }
-                drop    = TRUE;
-                break;
-            }
-        }
-        else /* drop the event */
-        {
-            drop    = TRUE;
-        }
-
-        if (reject)
-        {
-            /* reject unsupported opcode */
-            p_rsp = avrc_copy_packet(p_pkt, AVRC_OP_REJ_MSG_LEN);
-            p_rsp_data      = avrc_get_data_ptr(p_rsp);
-            *p_rsp_data     = AVRC_RSP_REJ;
-#if (BT_USE_TRACES == TRUE)
-            p_drop_msg = "rejected";
-#endif
-            cr      = AVCT_RSP;
-            drop    = TRUE;
-        }
-
-        if (p_rsp)
-        {
-            /* set to send response right away */
-            AVCT_MsgReq( handle, label, cr, p_rsp);
-            drop = TRUE;
-        }
-
-        if (drop == FALSE)
-        {
-            msg.hdr.opcode = opcode;
-            (*avrc_cb.ccb[handle].p_msg_cback)(handle, label, opcode, &msg);
-        }
-#if (BT_USE_TRACES == TRUE)
-        else
-        {
-            AVRC_TRACE_WARNING("avrc_msg_cback %s msg handle:%d, control:%d, cr:%d, opcode:x%x",
-                    p_drop_msg,
-                    handle, avrc_cb.ccb[handle].control, cr, opcode);
-        }
-#endif
-
-
-        if (do_free)
-            GKI_freebuf(p_pkt);
-    }
-    else
-    {
         opcode = p_data[0];
         AVRC_TRACE_DEBUG("opcode:%x, length:%x",opcode, p_pkt->len);
         /*Do sanity Check here*/
@@ -875,8 +652,236 @@ static void avrc_msg_cback(UINT8 handle, UINT8 label, UINT8 cr,
         }
         /*Free the packet as the same already got copied in BTA*/
         GKI_freebuf(p_pkt);
+        return;
+    } else {
+        if (p_pkt->len < AVRC_AVC_HDR_SIZE) {
+            AVRC_TRACE_WARNING("Bad message length:%d (< %d)", p_pkt->len, AVRC_AVC_HDR_SIZE);
+            osi_free(p_pkt);
+            return;
+        }
+        msg.hdr.ctype           = p_data[0] & AVRC_CTYPE_MASK;
+        AVRC_TRACE_DEBUG("avrc_msg_cback handle:%d, ctype:%d, offset:%d, len: %d",
+                handle, msg.hdr.ctype, p_pkt->offset, p_pkt->len);
+        msg.hdr.subunit_type    = (p_data[1] & AVRC_SUBTYPE_MASK) >> AVRC_SUBTYPE_SHIFT;
+        msg.hdr.subunit_id      = p_data[1] & AVRC_SUBID_MASK;
+        opcode                  = p_data[2];
     }
 
+    AVRC_TRACE_DEBUG("opcode %d",opcode);
+    if (((avrc_cb.ccb[handle].control & AVRC_CT_TARGET) && (cr == AVCT_CMD)) || ((avrc_cb.ccb[handle].control & AVRC_CT_CONTROL) && (cr == AVCT_RSP))) {
+        switch (opcode) {
+        case AVRC_OP_UNIT_INFO:
+            if (cr == AVCT_CMD) {
+                /* send the response to the peer */
+                p_rsp = avrc_copy_packet(p_pkt, AVRC_OP_UNIT_INFO_RSP_LEN);
+                p_rsp_data = avrc_get_data_ptr(p_rsp);
+                *p_rsp_data = AVRC_RSP_IMPL_STBL;
+                /* check & set the offset. set response code, set subunit_type & subunit_id,
+                   set AVRC_OP_UNIT_INFO */
+                /* 3 bytes: ctype, subunit*, opcode */
+                p_rsp_data      += AVRC_AVC_HDR_SIZE;
+                *p_rsp_data++   = 7;
+                /* Panel subunit & id=0 */
+                *p_rsp_data++   = (AVRC_SUB_PANEL << AVRC_SUBTYPE_SHIFT);
+                AVRC_CO_ID_TO_BE_STREAM(p_rsp_data, avrc_cb.ccb[handle].company_id);
+                p_rsp->len      = (UINT16) (p_rsp_data - (UINT8 *)(p_rsp + 1) - p_rsp->offset);
+                cr = AVCT_RSP;
+#if (BT_USE_TRACES == TRUE)
+                p_drop_msg = "auto respond";
+#endif
+            } else {
+                if (p_pkt->len < AVRC_OP_UNIT_INFO_RSP_LEN) {
+                    AVRC_TRACE_WARNING("Bad message length:%d (< %d)", p_pkt->len, AVRC_OP_UNIT_INFO_RSP_LEN);
+                    drop = TRUE;
+#if (BT_USE_TRACES == TRUE)
+                    p_drop_msg = "UNIT_INFO_RSP too short";
+#endif
+                    break;
+                }
+                /* parse response */
+                p_data += 4; /* 3 bytes: ctype, subunit*, opcode + octet 3 (is 7)*/
+                msg.unit.unit_type  = (*p_data & AVRC_SUBTYPE_MASK) >> AVRC_SUBTYPE_SHIFT;
+                msg.unit.unit       = *p_data & AVRC_SUBID_MASK;
+                p_data++;
+                AVRC_BE_STREAM_TO_CO_ID(msg.unit.company_id, p_data);
+            }
+            break;
+
+        case AVRC_OP_SUB_INFO:
+            if (cr == AVCT_CMD) {
+                /* send the response to the peer */
+                p_rsp = avrc_copy_packet(p_pkt, AVRC_OP_SUB_UNIT_INFO_RSP_LEN);
+                p_rsp_data = avrc_get_data_ptr(p_rsp);
+                *p_rsp_data = AVRC_RSP_IMPL_STBL;
+                /* check & set the offset. set response code, set (subunit_type & subunit_id),
+                   set AVRC_OP_SUB_INFO, set (page & extension code) */
+                p_rsp_data      += 4;
+                /* Panel subunit & id=0 */
+                *p_rsp_data++   = (AVRC_SUB_PANEL << AVRC_SUBTYPE_SHIFT);
+                memset(p_rsp_data, AVRC_CMD_OPRND_PAD, AVRC_SUBRSP_OPRND_BYTES);
+                p_rsp_data      += AVRC_SUBRSP_OPRND_BYTES;
+                p_rsp->len      = (UINT16) (p_rsp_data - (UINT8 *)(p_rsp + 1) - p_rsp->offset);
+                cr = AVCT_RSP;
+#if (BT_USE_TRACES == TRUE)
+                p_drop_msg = "auto responded";
+#endif
+            } else {
+                if (p_pkt->len < AVRC_OP_SUB_UNIT_INFO_RSP_LEN) {
+                    AVRC_TRACE_WARNING("Bad message length:%d (< %d)", p_pkt->len, AVRC_OP_SUB_UNIT_INFO_RSP_LEN);
+                    drop = TRUE;
+#if (BT_USE_TRACES == TRUE)
+                    p_drop_msg = "UNIT_INFO_RSP too short";
+#endif
+                    break;
+                }
+                /* parse response */
+                p_data += AVRC_AVC_HDR_SIZE; /* 3 bytes: ctype, subunit*, opcode */
+                msg.sub.page    = (*p_data++ >> AVRC_SUB_PAGE_SHIFT) & AVRC_SUB_PAGE_MASK;
+                xx      = 0;
+                while (*p_data != AVRC_CMD_OPRND_PAD && xx < AVRC_SUB_TYPE_LEN) {
+                    msg.sub.subunit_type[xx] = *p_data++ >> AVRC_SUBTYPE_SHIFT;
+                    if (msg.sub.subunit_type[xx] == AVRC_SUB_PANEL) {
+                        msg.sub.panel = TRUE;
+                    }
+                    xx++;
+                }
+            }
+            break;
+
+        case AVRC_OP_VENDOR:
+            p_data  = (UINT8 *)(p_pkt+1) + p_pkt->offset;
+            p_begin = p_data;
+            /* 6 = ctype, subunit*, opcode & CO_ID */
+            if (p_pkt->len < AVRC_VENDOR_HDR_SIZE) {
+                if (cr == AVCT_CMD)
+                    reject = TRUE;
+                else
+                    drop = TRUE;
+                break;
+            }
+            p_data += AVRC_AVC_HDR_SIZE; /* skip the first 3 bytes: ctype, subunit*, opcode */
+            AVRC_BE_STREAM_TO_CO_ID(p_msg->company_id, p_data);
+            p_msg->p_vendor_data   = p_data;
+            p_msg->vendor_len      = p_pkt->len - (p_data - p_begin);
+
+#if (AVRC_METADATA_INCLUDED == TRUE)
+            UINT8 drop_code = 0;
+            if (p_msg->vendor_len > AVRC_META_CMD_POOL_SIZE ) {
+                int packet_type = avrc_get_packet_type(p_pkt);
+                AVRC_TRACE_DEBUG("packet_type %d", packet_type);
+                /* Validate length for metadata message */
+                if (p_pkt->len < (AVRC_VENDOR_HDR_SIZE + AVRC_MIN_META_HDR_SIZE)) {
+                    //single packet size is greater then MTU size, reject it
+                    if (packet_type == AVRC_PKT_SINGLE)
+                    {
+                        AVRC_TRACE_ERROR("Incorrect lenght for single packet");
+                        reject = TRUE;
+                    }
+                    else {
+                        drop = TRUE;
+                    }
+                    break;
+                }
+                drop_code = avrc_proc_far_msg(handle, label, cr, &p_pkt, p_msg);
+                if (drop_code > 0)
+                    drop = TRUE;
+            }
+            if (drop_code > 0) {
+                if (drop_code != 4)
+                    do_free = FALSE;
+#if (BT_USE_TRACES == TRUE)
+                switch (drop_code) {
+                    case 1:
+                        p_drop_msg = "sent_frag";
+                        break;
+                    case 2:
+                        p_drop_msg = "req_cont";
+                        break;
+                    case 3:
+                        p_drop_msg = "sent_frag3";
+                        break;
+                    case 4:
+                        p_drop_msg = "sent_frag_free";
+                        break;
+                    default:
+                        p_drop_msg = "sent_fragd";
+                }
+#endif
+            }
+#endif /* (AVRC_METADATA_INCLUDED == TRUE) */
+        break;
+
+        case AVRC_OP_PASS_THRU:
+            /* 3 bytes: ctype, subunit*, opcode & op_id & len */
+            if (p_pkt->len < 5) {
+                if (cr == AVCT_CMD)
+                    reject = TRUE;
+                else
+                    drop = TRUE;
+                break;
+            }
+            p_data += AVRC_AVC_HDR_SIZE; /* skip the first 3 bytes: ctype, subunit*, opcode */
+            msg.pass.op_id  = (AVRC_PASS_OP_ID_MASK & *p_data);
+            if (AVRC_PASS_STATE_MASK & *p_data)
+                msg.pass.state  = TRUE;
+            else
+                msg.pass.state  = FALSE;
+            p_data++;
+            msg.pass.pass_len    = *p_data++;
+            if (msg.pass.pass_len != p_pkt->len - 5)
+                msg.pass.pass_len = p_pkt->len - 5;
+            if (msg.pass.pass_len)
+                msg.pass.p_pass_data = p_data;
+            else
+                msg.pass.p_pass_data = NULL;
+            break;
+
+
+        default:
+            if ((avrc_cb.ccb[handle].control & AVRC_CT_TARGET) && (cr == AVCT_CMD)) {
+                /* reject unsupported opcode */
+                reject = TRUE;
+            }
+            drop    = TRUE;
+            break;
+        }
+    } else {
+        /* drop the event */
+        drop    = TRUE;
+    }
+
+    if (reject) {
+        /* reject unsupported opcode */
+        p_rsp = avrc_copy_packet(p_pkt, AVRC_OP_REJ_MSG_LEN);
+        p_rsp_data      = avrc_get_data_ptr(p_rsp);
+        *p_rsp_data     = AVRC_RSP_REJ;
+#if (BT_USE_TRACES == TRUE)
+        p_drop_msg = "rejected";
+#endif
+        cr      = AVCT_RSP;
+        drop    = TRUE;
+    }
+
+    if (p_rsp) {
+        /* set to send response right away */
+        AVCT_MsgReq( handle, label, cr, p_rsp);
+        drop = TRUE;
+    }
+
+    if (drop == FALSE) {
+        msg.hdr.opcode = opcode;
+        (*avrc_cb.ccb[handle].p_msg_cback)(handle, label, opcode, &msg);
+    }
+#if (BT_USE_TRACES == TRUE)
+    else {
+        AVRC_TRACE_WARNING("avrc_msg_cback %s msg handle:%d, control:%d, cr:%d, opcode:x%x",
+            p_drop_msg, handle, avrc_cb.ccb[handle].control, cr, opcode);
+    }
+#endif
+
+
+    if (do_free)
+        GKI_freebuf(p_pkt);
 }
 
 

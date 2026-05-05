@@ -780,12 +780,18 @@ static tAVRC_STS bta_av_chk_notif_evt_id(tAVRC_MSG_VENDOR *p_vendor)
     tAVRC_STS   status = BTA_AV_STS_NO_RSP;
     UINT8       xx;
     UINT16      u16;
-    UINT8       *p = p_vendor->p_vendor_data + 2;
+    UINT8       *p = NULL;
+
+    if (!p_vendor || !p_vendor->p_vendor_data ||
+        (p_vendor->vendor_len != 9)) {
+        return AVRC_STS_INTERNAL_ERR;
+    }
+
+    p = p_vendor->p_vendor_data + 2;
 
     BE_STREAM_TO_UINT16 (u16, p);
     /* double check the fixed length */
-    if ((u16 != 5) || (p_vendor->vendor_len != 9))
-    {
+    if (u16 != 5) {
         status = AVRC_STS_INTERNAL_ERR;
     }
     else
@@ -826,6 +832,12 @@ tBTA_AV_EVT bta_av_proc_meta_cmd(tAVRC_RESPONSE  *p_rc_rsp, tBTA_AV_RC_MSG *p_ms
     BOOLEAN is_dev_avrcpv_blacklisted = FALSE;
 
 #if (AVRC_METADATA_INCLUDED == TRUE)
+
+    if (!p_vendor || !p_vendor->p_vendor_data || (p_vendor->vendor_len == 0)) {
+        evt = 0;
+        p_rc_rsp->rsp.status = AVRC_STS_BAD_CMD;
+        return evt;
+    }
 
     pdu = *(p_vendor->p_vendor_data);
     p_rc_rsp->pdu = pdu;
