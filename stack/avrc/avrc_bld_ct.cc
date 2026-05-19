@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ *  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 #include <string.h>
 
@@ -391,15 +395,22 @@ static tAVRC_STS avrc_bld_get_folder_items_cmd(BT_HDR* p_pkt,
   /* This is where the PDU specific for AVRC starts
    * AVRCP Spec 1.4 section 22.19 */
   uint8_t* p_data = p_start + 1; /* pdu */
+  uint16_t length;
 
   /* To get the list of all media players we simply need to use the predefined
    * PDU mentioned in above spec. */
-  /* scope (1) + st item (4) + end item (4) + attr (1) */
-  UINT16_TO_BE_STREAM(p_data, 10);
+  /* scope (1) + st item (4) + end item (4) +  attr_count (1) */
+  length = 10 + cmd->attr_count * sizeof(uint32_t);
+  UINT16_TO_BE_STREAM(p_data, length);
   UINT8_TO_BE_STREAM(p_data, cmd->scope);       /* scope (1bytes) */
   UINT32_TO_BE_STREAM(p_data, cmd->start_item); /* start item (4bytes) */
   UINT32_TO_BE_STREAM(p_data, cmd->end_item);   /* end item (4bytes) */
-  UINT8_TO_BE_STREAM(p_data, 0); /* attribute count = 0 (1bytes) */
+  UINT8_TO_BE_STREAM(p_data, cmd->attr_count);
+  for (uint8_t index = 0; index < cmd->attr_count; index++) {
+    uint32_t attr_id = cmd->p_attr_list[index];
+    UINT32_TO_BE_STREAM(p_data, attr_id);
+  }
+
   p_pkt->len = (p_data - p_start);
   return AVRC_STS_NO_ERROR;
 }
@@ -485,6 +496,130 @@ static tAVRC_STS avrc_bld_set_addressed_player_cmd(
   p_pkt->len = (p_data - p_start);
   return AVRC_STS_NO_ERROR;
 }
+
+/*******************************************************************************
+**
+** Function         avrc_bld_search_cmd
+**
+** Description      This function builds the search command.
+**
+** Returns          AVRC_STS_NO_ERROR, if the command is built successfully
+**                  Otherwise, the error code.
+**
+*******************************************************************************/
+static tAVRC_STS avrc_bld_search_cmd(BT_HDR* p_pkt, tAVRC_SEARCH_CMD* cmd) {
+  uint8_t* p_data;
+  uint8_t* p_start;
+  uint16_t length;
+
+  AVRC_TRACE_API("%s ", __FUNCTION__);
+
+  p_start = (uint8_t *)(p_pkt + 1) + p_pkt->offset;
+  p_data = p_start + 1; /* PDU ID */
+
+  /* SEARCH_PDU_PARAM_SIZE: 4 = charset (2) + length (2) */
+  length = 4 + cmd->string.str_len;
+  UINT16_TO_BE_STREAM(p_data, length);
+  UINT16_TO_BE_STREAM(p_data, cmd->string.charset_id);
+  UINT16_TO_BE_STREAM(p_data, cmd->string.str_len);
+  ARRAY_TO_BE_STREAM(p_data, cmd->string.p_str, cmd->string.str_len);
+
+  p_pkt->len = (p_data - p_start);
+  return AVRC_STS_NO_ERROR;
+}
+
+/*******************************************************************************
+ *
+ * Function         avrc_bld_add_to_now_playing_cmd
+ *
+ * Description      This function builds the add to now playing cmd
+ *
+ * Returns          AVRC_STS_NO_ERROR, if the command is built successfully
+ *                  Otherwise, the error code.
+ *
+ ******************************************************************************/
+static tAVRC_STS avrc_bld_add_to_now_playing_cmd(BT_HDR* p_pkt, uint8_t scope,
+                                                 uint8_t* uid, uint16_t uid_counter) {
+  AVRC_TRACE_API("avrc_bld_add_to_now_playing_cmd");
+  uint8_t* p_start = (uint8_t*)(p_pkt + 1) + p_pkt->offset;
+  uint8_t* p_data = p_start + 2; /* pdu + rsvd */
+  /* add fixed length 11 */
+  UINT16_TO_BE_STREAM(p_data, 0xb);
+  /* Add scope */
+  UINT8_TO_BE_STREAM(p_data, scope);
+  /* Add UID */
+  ARRAY_TO_BE_STREAM(p_data, uid, AVRC_UID_SIZE);
+  /* Add UID Counter */
+  UINT16_TO_BE_STREAM(p_data, uid_counter);
+  p_pkt->len = (p_data - p_start);
+  return AVRC_STS_NO_ERROR;
+}
+
+/*******************************************************************************
+**
+** Function         avrc_bld_get_item_attr_cmd
+**
+** Description      This function builds the get item attr command.
+**
+** Returns          AVRC_STS_NO_ERROR, if the command is built successfully
+**                  Otherwise, the error code.
+**
+*******************************************************************************/
+static tAVRC_STS avrc_bld_get_item_attr_cmd(BT_HDR* p_pkt, tAVRC_GET_ATTRS_CMD* cmd) {
+  uint8_t* p_data;
+  uint8_t* p_start;
+  uint16_t length;
+
+  AVRC_TRACE_API("%s ", __FUNCTION__);
+
+  p_start = (uint8_t *)(p_pkt + 1) + p_pkt->offset;
+  p_data = p_start + 1; /* PDU ID */
+
+  /* 12 = 1 (scope) + 8 (uid) + 2 (uid_counter) + 1 (attr_count)  */
+  length = 12 + cmd->attr_count * sizeof(uint32_t);
+  UINT16_TO_BE_STREAM(p_data, length);
+  UINT8_TO_BE_STREAM(p_data, cmd->scope);
+  ARRAY_TO_BE_STREAM(p_data, cmd->uid, AVRC_UID_SIZE);
+  UINT16_TO_BE_STREAM(p_data, cmd->uid_counter);
+  UINT8_TO_BE_STREAM(p_data, cmd->attr_count);
+  for (uint8_t index = 0; index < cmd->attr_count; index++) {
+    uint32_t attr_id = cmd->p_attr_list[index];
+    UINT32_TO_BE_STREAM(p_data, attr_id);
+  }
+
+  p_pkt->len = (p_data - p_start);
+  return AVRC_STS_NO_ERROR;
+}
+
+/*******************************************************************************
+**
+** Function         avrc_bld_get_num_of_items_cmd
+**
+** Description      This function builds the get total number of items command.
+**
+** Returns          AVRC_STS_NO_ERROR, if the command is built successfully
+**                  Otherwise, the error code.
+**
+*******************************************************************************/
+static tAVRC_STS avrc_bld_get_num_of_items_cmd(BT_HDR* p_pkt, tAVRC_GET_NUM_OF_ITEMS_CMD* cmd)
+{
+  uint8_t* p_data;
+  uint8_t* p_start;
+  uint16_t length;
+
+  AVRC_TRACE_API("%s ", __FUNCTION__);
+
+  p_start = (uint8_t *)(p_pkt + 1) + p_pkt->offset;
+  p_data = p_start + 1; /* PDU ID */
+
+  length = 1; /* scope */
+  UINT16_TO_BE_STREAM(p_data, length);
+  UINT8_TO_BE_STREAM(p_data, cmd->scope);
+
+  p_pkt->len = (p_data - p_start);
+  return AVRC_STS_NO_ERROR;
+}
+
 
 /*******************************************************************************
  *
@@ -651,6 +786,23 @@ tAVRC_STS AVRC_BldCommand(tAVRC_COMMAND* p_cmd, BT_HDR** pp_pkt) {
       break;
     case AVRC_PDU_SET_ADDRESSED_PLAYER:
       status = avrc_bld_set_addressed_player_cmd(p_pkt, &(p_cmd->addr_player));
+      break;
+    case AVRC_PDU_SEARCH:
+      status = avrc_bld_search_cmd(p_pkt, &(p_cmd->search));
+      break;
+    case AVRC_PDU_ADD_TO_NOW_PLAYING:
+      status = avrc_bld_add_to_now_playing_cmd(p_pkt, p_cmd->add_to_play.scope,
+                                               p_cmd->add_to_play.uid,
+                                               p_cmd->add_to_play.uid_counter);
+      break;
+    case AVRC_PDU_GET_ITEM_ATTRIBUTES:
+      status = avrc_bld_get_item_attr_cmd(p_pkt, &(p_cmd->get_attrs));
+      break;
+    case AVRC_PDU_GET_TOTAL_NUM_OF_ITEMS:
+      status = avrc_bld_get_num_of_items_cmd(p_pkt, &(p_cmd->get_num_of_items));
+      break;
+    default:
+      /* warn! un-handled pdu */
       break;
   }
 

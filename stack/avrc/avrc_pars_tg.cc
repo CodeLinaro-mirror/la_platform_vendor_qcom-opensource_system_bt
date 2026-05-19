@@ -14,6 +14,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ *  Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ *  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
+ *
  ******************************************************************************/
 #include <string.h>
 
@@ -62,7 +66,7 @@ static tAVRC_STS avrc_ctrl_pars_vendor_cmd(tAVRC_MSG_VENDOR* p_msg,
   uint16_t len;
   BE_STREAM_TO_UINT16(len, p);
   if ((len + 4) != (p_msg->vendor_len)) {
-    status = AVRC_STS_INTERNAL_ERR;
+    status = AVRC_STS_NOT_FOUND;
   }
 
   if (status != AVRC_STS_NO_ERROR) return status;
@@ -70,7 +74,7 @@ static tAVRC_STS avrc_ctrl_pars_vendor_cmd(tAVRC_MSG_VENDOR* p_msg,
   switch (p_result->pdu) {
     case AVRC_PDU_SET_ABSOLUTE_VOLUME: {
       if (len != 1)
-        status = AVRC_STS_INTERNAL_ERR;
+        status = AVRC_STS_BAD_PARAM;
       else {
         BE_STREAM_TO_UINT8(p_result->volume.volume, p);
         p_result->volume.volume = AVRC_MAX_VOLUME & p_result->volume.volume;

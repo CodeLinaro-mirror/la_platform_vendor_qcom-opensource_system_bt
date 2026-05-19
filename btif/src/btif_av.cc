@@ -49,9 +49,9 @@
  ******************************************************************************/
 
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
+ *  Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ *  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *  SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #define LOG_TAG "btif_av"
@@ -5927,6 +5927,7 @@ bt_status_t btif_av_sink_execute_service(bool b_enable) {
     BTA_AvEnable(BTA_SEC_AUTHENTICATE, BTA_AV_FEAT_NO_SCO_SSPD|BTA_AV_FEAT_RCCT|
                                         BTA_AV_FEAT_METADATA|BTA_AV_FEAT_VENDOR|
                                         BTA_AV_FEAT_ADV_CTRL|BTA_AV_FEAT_RCTG|
+                                        BTA_AV_FEAT_BROWSE | BTA_AV_FEAT_CA |
                                         feat_delay_rpt | split_sink_enabled,
                                         bte_av_callback);
 
