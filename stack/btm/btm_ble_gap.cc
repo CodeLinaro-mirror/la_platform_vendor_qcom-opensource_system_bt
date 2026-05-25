@@ -173,6 +173,7 @@ using SyncReportCb =
 using SyncLostCb = base::Callback<void(uint16_t /*sync_handle*/)>;
 using SyncTransferCb = base::Callback<void(uint8_t /*status*/, RawAddress)>;
 using BigInfoReportCb = base::Callback<void(uint16_t /*sync_handle*/, bool /*encrypted*/)>;
+using EnhancedBigInfoReportCb = base::Callback<void(uint16_t /*sync_handle*/, bool /*encrypted*/, uint16_t /*iso_interval*/)>;
 
 #define MAX_SYNC_TRANSACTION 16
 #define SYNC_TIMEOUT (30 * 1000)
@@ -197,6 +198,7 @@ typedef struct {
   SyncReportCb sync_report_cb;
   SyncLostCb sync_lost_cb;
   BigInfoReportCb biginfo_report_cb;
+  EnhancedBigInfoReportCb enhanced_biginfo_report_cb;
 } tBTM_BLE_PERIODIC_SYNC;
 
 typedef struct {
@@ -1614,8 +1616,16 @@ void btm_ble_periodic_adv_sync_lost(uint8_t *param, uint16_t param_len) {
  ******************************************************************************/
 
 void BTM_BleStartPeriodicSync(uint8_t adv_sid, RawAddress address, uint16_t skip,
+                              uint16_t timeout, StartSyncCb syncCb,
+                              SyncReportCb reportCb, SyncLostCb lostCb,
+                              BigInfoReportCb biginfo_reportCb) {
+  BTM_BleStartPeriodicSync(adv_sid, address, skip, timeout, syncCb, reportCb,
+                           lostCb, biginfo_reportCb, EnhancedBigInfoReportCb());
+}
+
+void BTM_BleStartPeriodicSync(uint8_t adv_sid, RawAddress address, uint16_t skip,
              uint16_t timeout, StartSyncCb syncCb, SyncReportCb reportCb, SyncLostCb lostCb,
-             BigInfoReportCb biginfo_reportCb) {
+             BigInfoReportCb biginfo_reportCb, EnhancedBigInfoReportCb enhanced_biginfo_reportCb) {
   BTM_TRACE_DEBUG("[PSync]%s",__func__);
   int index = btm_ble_get_free_psync_index();
 
@@ -1632,6 +1642,7 @@ void BTM_BleStartPeriodicSync(uint8_t adv_sid, RawAddress address, uint16_t skip
   p->sync_report_cb = reportCb;
   p->sync_lost_cb = lostCb;
   p->biginfo_report_cb = biginfo_reportCb;
+  p->enhanced_biginfo_report_cb = enhanced_biginfo_reportCb;
   btm_queue_start_sync_req(adv_sid, address, skip, timeout);
 }
 
@@ -1857,7 +1868,10 @@ void btm_ble_biginfo_adv_report_rcvd(uint8_t *p, uint16_t param_len) {
   }
   tBTM_BLE_PERIODIC_SYNC *ps = &btm_ble_pa_sync_cb.p_sync[index];
   BTM_TRACE_DEBUG("[PSync]%s: invoking callback", __func__);
-  ps->biginfo_report_cb.Run(sync_handle, encryption ? true: false);
+  if (ps->biginfo_report_cb)
+    ps->biginfo_report_cb.Run(sync_handle, encryption ? true: false);
+  if (ps->enhanced_biginfo_report_cb)
+    ps->enhanced_biginfo_report_cb.Run(sync_handle, encryption ? true: false, iso_interval);
 }
 
 /*******************************************************************************

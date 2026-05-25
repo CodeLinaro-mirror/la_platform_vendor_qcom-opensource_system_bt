@@ -3081,14 +3081,13 @@ tA2DP_CTRL_CMD get_pending_command(uint8_t profile) {
     LOG(ERROR) << __func__ << ": BluetoothAudio HAL is not enabled";
   }
   if (profile == ACHAT_OWNER || profile == ACHAT_PERIPHERAL) {
-    LOG(WARNING) <<__func__<< " aurachat-- hemanth--111:";
     if (achat_sink_2_1) {
       pending_cmd = achat_sink_2_1->GetPendingCmd();
     }
   } else {
     if (a2dp_sink_2_1) {
       pending_cmd = a2dp_sink_2_1->GetPendingCmd();
-    } else {
+    } else if (a2dp_sink) {
       pending_cmd = a2dp_sink->GetPendingCmd();
     }
   }
