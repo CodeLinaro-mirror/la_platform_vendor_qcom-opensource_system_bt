@@ -127,11 +127,19 @@ class BleScannerInterface {
   using SyncLostCb = base::Callback<void(uint16_t sync_handle)>;
 
   using BigInfoReportCb = base::Callback<void(uint16_t sync_handle, bool encrypted)>;
+  using EnhancedBigInfoReportCb = base::Callback<void(uint16_t sync_handle, bool encrypted, uint16_t iso_interval)>;
 
   virtual void StartSync(uint8_t sid, RawAddress address, uint16_t skip,
                          uint16_t timeout, StartSyncCb start_cb,
                          SyncReportCb report_cb, SyncLostCb lost_cb,
                          BigInfoReportCb biginfo_report_cb) = 0;
+
+  virtual void StartSync(uint8_t sid, RawAddress address, uint16_t skip,
+                         uint16_t timeout, StartSyncCb start_cb,
+                         SyncReportCb report_cb, SyncLostCb lost_cb,
+                         BigInfoReportCb biginfo_report_cb,
+                         EnhancedBigInfoReportCb enhanced_biginfo_report_cb) = 0;
+
   virtual void StopSync(uint16_t handle) = 0;
 #if (BLE_PS_PAST_IF_SUPPORTED == TRUE)
   virtual void CancelCreateSync(uint8_t sid, RawAddress address) = 0;
