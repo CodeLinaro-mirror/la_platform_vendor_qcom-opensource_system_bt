@@ -182,21 +182,36 @@ void btm_ble_conn_complete(uint8_t* p, UNUSED_ATTR uint16_t evt_len,
     /* possiblly receive connection complete with resolvable random while
        the device has been paired */
     if (!match && addr_is_rpa) {
-      tBTM_SEC_DEV_REC* match_rec = btm_ble_resolve_random_addr(bda);
-      if (match_rec) {
-        LOG(INFO) << __func__ << ": matched and resolved random address";
-        match = true;
-        match_rec->ble.active_addr_type = BTM_BLE_ADDR_RRA;
-        match_rec->ble.cur_rand_addr = bda;
-        if (!btm_ble_init_pseudo_addr(match_rec, bda)) {
-          /* assign the original address to be the current report address */
-          bda = match_rec->ble.pseudo_addr;
-          bda_type = match_rec->ble.ble_addr_type;
-        } else {
-          bda = match_rec->bd_addr;
-        }
+      /* FR (Two BLE connections to same phone BD address):
+       * If this connection arrived on our static advertising instance, the local
+       * address used (local_rpa) will be our static random address (MSB=11).
+       * In that case do NOT resolve the peer's RPA — keeping the raw RPA as bda
+       * ensures a distinct address at ACL/L2CAP/GATT layers so a separate record
+       * is allocated for each connection and the 1st connection is NOT dropped.
+       * All other connections (local addr is an RPA, or non-enhanced path) take
+       * the normal resolution path — no regression for single-connection flows. */
+      if (btm_ble_dual_conn_enabled() &&
+          enhanced && BTM_BLE_IS_RANDOM_STATIC_BDA(local_rpa)) {
+        LOG(INFO) << __func__
+                  << ": static local addr detected, skipping RPA resolution"
+                     " to preserve dual connection";
       } else {
-        LOG(INFO) << __func__ << ": unable to match and resolve random address";
+        tBTM_SEC_DEV_REC* match_rec = btm_ble_resolve_random_addr(bda);
+        if (match_rec) {
+          LOG(INFO) << __func__ << ": matched and resolved random address";
+          match = true;
+          match_rec->ble.active_addr_type = BTM_BLE_ADDR_RRA;
+          match_rec->ble.cur_rand_addr = bda;
+          if (!btm_ble_init_pseudo_addr(match_rec, bda)) {
+            /* assign the original address to be the current report address */
+            bda = match_rec->ble.pseudo_addr;
+            bda_type = match_rec->ble.ble_addr_type;
+          } else {
+            bda = match_rec->bd_addr;
+          }
+        } else {
+          LOG(INFO) << __func__ << ": unable to match and resolve random address";
+        }
       }
     } else {
       LOG(INFO) << __func__ << " BD addr " << bda << " Not resolved ";
