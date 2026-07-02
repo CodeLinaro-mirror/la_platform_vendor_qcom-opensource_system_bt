@@ -3969,6 +3969,12 @@ void btm_simple_pair_complete(uint8_t* p) {
       /* The test spec wants the peer device to get this failure code. */
       btm_sec_change_pairing_state(BTM_PAIR_STATE_WAIT_DISCONNECT);
 
+      /* Bond is invalid; clear all stale key state so the next pairing starts clean. */
+      p_dev_rec->sec_flags &= ~(BTM_SEC_LINK_KEY_KNOWN | BTM_SEC_LINK_KEY_AUTHED);
+      p_dev_rec->sec_flags &=
+          ~(BTM_SEC_LE_LINK_KEY_KNOWN | BTM_SEC_LE_LINK_KEY_AUTHED);
+      btm_sec_clear_ble_keys(p_dev_rec);
+
       /* Change the timer to 1 second */
       alarm_set_on_mloop(btm_cb.pairing_timer, BT_1SEC_TIMEOUT_MS,
                          btm_sec_pairing_timeout, NULL);
