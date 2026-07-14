@@ -934,14 +934,36 @@ void btm_vendor_specific_evt(uint8_t* p, uint8_t evt_len) {
           break;
       }
       return;
+    } else if (HCI_VS_META == vse_subcode) {
+        uint8_t vse_msg_type;
+        STREAM_TO_UINT8(vse_msg_type, pp);
+        BTM_TRACE_ERROR("%s: VSE META event msg_type = 0x%02x", __func__, vse_msg_type);
+        switch(vse_msg_type) {
+            case HCI_VS_LE_DBIG_STATUS_EVT:
+              btm_ble_vs_dbig_status_event_internal_handler(evt_len - 2, pp);
+              return;
+             case HCI_VS_LE_EXIT_DBIG_COMPLETE_EVT:
+              btm_ble_vs_le_exit_dbig_event_handler(pp, evt_len - 2);
+              return;
+            case HCI_VS_LE_TEXIT_DBIG_COMPLETE_EVT:
+              btm_ble_vs_le_texit_dbig_event_handler(pp, evt_len - 2);
+              return;
+            case HCI_VS_LE_JOIN_CONTROL_COMPLETE_EVT:
+              btm_ble_join_control_event_handler(pp, evt_len - 2);
+              return;
+            default:
+            LOG(INFO) << __func__ <<"Unknown VSE META type";
+            break;
+        }
+
     } else if (HCI_VSE_SUBCODE_PARAMS_REPORT == vse_subcode){
-      BTM_TRACE_DEBUG ("BTM Event: Vendor Specific params report evt");
-      uint16_t delay;
-      uint8_t mode;
-      STREAM_TO_UINT16(delay, pp);
-      STREAM_TO_UINT8(mode, pp);
-      BTM_TRACE_DEBUG ("%s: Delay value = %x, Mode value = %x", __func__, delay, mode);
-      btif_update_params(delay, mode);
+        BTM_TRACE_DEBUG ("BTM Event: Vendor Specific params report evt");
+        uint16_t delay;
+        uint8_t mode;
+        STREAM_TO_UINT16(delay, pp);
+        STREAM_TO_UINT8(mode, pp);
+        BTM_TRACE_DEBUG ("%s: Delay value = %x, Mode value = %x", __func__, delay, mode);
+        btif_update_params(delay, mode);
     }
   }
 

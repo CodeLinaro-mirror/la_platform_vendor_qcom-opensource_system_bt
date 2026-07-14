@@ -173,6 +173,7 @@ using SyncReportCb =
 using SyncLostCb = base::Callback<void(uint16_t /*sync_handle*/)>;
 using SyncTransferCb = base::Callback<void(uint8_t /*status*/, RawAddress)>;
 using BigInfoReportCb = base::Callback<void(uint16_t /*sync_handle*/, bool /*encrypted*/)>;
+using EnhancedBigInfoReportCb = base::Callback<void(uint16_t /*sync_handle*/, bool /*encrypted*/, uint16_t /*iso_interval*/)>;
 
 #define MAX_SYNC_TRANSACTION 16
 #define SYNC_TIMEOUT (30 * 1000)
@@ -197,6 +198,7 @@ typedef struct {
   SyncReportCb sync_report_cb;
   SyncLostCb sync_lost_cb;
   BigInfoReportCb biginfo_report_cb;
+  EnhancedBigInfoReportCb enhanced_biginfo_report_cb;
 } tBTM_BLE_PERIODIC_SYNC;
 
 typedef struct {
@@ -256,6 +258,8 @@ static void btm_ble_start_slow_adv(void);
 static void btm_ble_inquiry_timer_gap_limited_discovery_timeout(void* data);
 static void btm_ble_inquiry_timer_timeout(void* data);
 static void btm_ble_observer_timer_timeout(void* data);
+
+static uint8_t btm_le_event_mask_cache[8] = {0};
 
 #define BTM_BLE_INQ_RESULT 0x01
 #define BTM_BLE_OBS_RESULT 0x02
@@ -1612,8 +1616,16 @@ void btm_ble_periodic_adv_sync_lost(uint8_t *param, uint16_t param_len) {
  ******************************************************************************/
 
 void BTM_BleStartPeriodicSync(uint8_t adv_sid, RawAddress address, uint16_t skip,
+                              uint16_t timeout, StartSyncCb syncCb,
+                              SyncReportCb reportCb, SyncLostCb lostCb,
+                              BigInfoReportCb biginfo_reportCb) {
+  BTM_BleStartPeriodicSync(adv_sid, address, skip, timeout, syncCb, reportCb,
+                           lostCb, biginfo_reportCb, EnhancedBigInfoReportCb());
+}
+
+void BTM_BleStartPeriodicSync(uint8_t adv_sid, RawAddress address, uint16_t skip,
              uint16_t timeout, StartSyncCb syncCb, SyncReportCb reportCb, SyncLostCb lostCb,
-             BigInfoReportCb biginfo_reportCb) {
+             BigInfoReportCb biginfo_reportCb, EnhancedBigInfoReportCb enhanced_biginfo_reportCb) {
   BTM_TRACE_DEBUG("[PSync]%s",__func__);
   int index = btm_ble_get_free_psync_index();
 
@@ -1630,6 +1642,7 @@ void BTM_BleStartPeriodicSync(uint8_t adv_sid, RawAddress address, uint16_t skip
   p->sync_report_cb = reportCb;
   p->sync_lost_cb = lostCb;
   p->biginfo_report_cb = biginfo_reportCb;
+  p->enhanced_biginfo_report_cb = enhanced_biginfo_reportCb;
   btm_queue_start_sync_req(adv_sid, address, skip, timeout);
 }
 
@@ -1855,7 +1868,10 @@ void btm_ble_biginfo_adv_report_rcvd(uint8_t *p, uint16_t param_len) {
   }
   tBTM_BLE_PERIODIC_SYNC *ps = &btm_ble_pa_sync_cb.p_sync[index];
   BTM_TRACE_DEBUG("[PSync]%s: invoking callback", __func__);
-  ps->biginfo_report_cb.Run(sync_handle, encryption ? true: false);
+  if (ps->biginfo_report_cb)
+    ps->biginfo_report_cb.Run(sync_handle, encryption ? true: false);
+  if (ps->enhanced_biginfo_report_cb)
+    ps->enhanced_biginfo_report_cb.Run(sync_handle, encryption ? true: false, iso_interval);
 }
 
 /*******************************************************************************
@@ -3556,6 +3572,44 @@ tBTM_STATUS btm_ble_start_scan(void) {
 
 /*******************************************************************************
  *
+ * Function         BTM_BleGetLeEventMask
+ *
+ * Description      This function is called to get the current LE event mask
+ *                  from the controller features.
+ *
+ * Returns          A pointer to the 8-byte event mask.
+ *
+ ******************************************************************************/
+const bt_event_mask_t* BTM_BleGetLeEventMask(void) {
+  return (const bt_event_mask_t*)btm_le_event_mask_cache;
+}
+
+/*******************************************************************************
+ *
+ * Function         BTM_BleSetLeEventMask
+ *
+ * Description      This function is called to set the LE event mask in the
+ *                  controller.
+ *
+ * Parameters:      p_mask: A pointer to the 8-byte event mask to set.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTM_BleSetLeEventMask(const bt_event_mask_t* p_mask) {
+  BTM_TRACE_DEBUG(
+      "%s: Setting LE Event Mask: 0x%02x %02x %02x %02x %02x %02x %02x %02x",
+      __func__, p_mask->as_array[7], p_mask->as_array[6], p_mask->as_array[5],
+      p_mask->as_array[4], p_mask->as_array[3], p_mask->as_array[2],
+      p_mask->as_array[1], p_mask->as_array[0]);
+  const controller_t* controller = controller_get_interface();
+  if (controller) {
+    controller->set_ble_event_mask(p_mask);
+  }
+}
+
+/*******************************************************************************
+ *
  * Function         btm_ble_stop_scan
  *
  * Description      Stop the BLE scan.
@@ -4096,6 +4150,18 @@ void btm_ble_update_mode_operation(uint8_t link_role, const RawAddress* bd_addr,
  *
  ******************************************************************************/
 void btm_ble_init(void) {
+  const controller_t* controller = controller_get_interface();
+  if (controller) {
+      const bt_event_mask_t* p_le_mask = controller->get_ble_event_mask();
+      memcpy(btm_le_event_mask_cache, p_le_mask->as_array, sizeof(btm_le_event_mask_cache));
+      BTM_TRACE_DEBUG(
+          "%s: Initial LE Event Mask: 0x%02x %02x %02x %02x %02x %02x %02x %02x",
+          __func__, btm_le_event_mask_cache[7], btm_le_event_mask_cache[6],
+          btm_le_event_mask_cache[5], btm_le_event_mask_cache[4],
+          btm_le_event_mask_cache[3], btm_le_event_mask_cache[2],
+          btm_le_event_mask_cache[1], btm_le_event_mask_cache[0]);
+  }
+
   tBTM_BLE_CB* p_cb = &btm_cb.ble_ctr_cb;
   char enc_adv_data_enabled_prop[PROPERTY_VALUE_MAX] = "false";
   char enc_adv_data_log_enabled_prop[PROPERTY_VALUE_MAX] = "false";

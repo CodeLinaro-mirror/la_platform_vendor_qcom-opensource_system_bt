@@ -94,10 +94,11 @@ static constexpr uint32_t kBqr5QualityEventMaskAll =
 static constexpr uint32_t kVendorQualityEventMaskDiscMonitorMode = 0x00000001;
 static constexpr uint32_t kVendorQualityEventMaskMiscMonitorMode = 0x00000002;
 static constexpr uint32_t kVendorQualityEventMaskPowerLevelChange = 0x00000004;
+static constexpr uint32_t kVendorQualityEventMaskDbigReport = 0x00000100; // Bit 8: DBIG report
 
 static constexpr uint32_t kVendorQualityEventMaskAll =
     kVendorQualityEventMaskDiscMonitorMode | kVendorQualityEventMaskMiscMonitorMode |
-    kVendorQualityEventMaskPowerLevelChange;
+    kVendorQualityEventMaskPowerLevelChange | kVendorQualityEventMaskDbigReport;
 // Define the minimum time interval (in ms) of quality event reporting for the
 // selected quality event(s). Controller Firmware should not report the next
 // event within the defined time interval.

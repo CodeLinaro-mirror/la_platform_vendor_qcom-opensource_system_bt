@@ -267,6 +267,18 @@ static const tBTA_SYS_REG bta_hf_client_reg = {bta_hf_client_hdl_event,
 
 /*******************************************************************************
  *
+ * Function         bta_hf_client_get_max_devices
+ *
+ * Description      Returns the max number of HF clients allowed
+ *
+ *
+ * Returns          int
+ *
+ ******************************************************************************/
+int bta_hf_client_get_max_devices(void) { return hf_client_max_device; }
+
+/*******************************************************************************
+ *
  * Function         bta_hf_client_cb_arr_init
  *
  * Description      Initialize entire control block array set
@@ -318,6 +330,7 @@ void bta_hf_client_cb_init(tBTA_HF_CLIENT_CB* client_cb, uint16_t handle) {
   client_cb->collision_timer = alarm_new("bta_hf_client.scb_collision_timer");
   client_cb->handle = handle;
   client_cb->sco_idx = BTM_INVALID_SCO_INDEX;
+  client_cb->dup_broadcast_state = BTA_HF_CLIENT_DUP_BROADCAST_STATE_INACTIVE;
 }
 
 /*******************************************************************************
