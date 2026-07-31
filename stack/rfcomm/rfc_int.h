@@ -242,7 +242,7 @@ extern tRFC_CB rfc_cb;
 #define RFC_MCB_INIT_PORT_INACT_TIMER 20 /* in seconds */
 
 /* Timer running on the multiplexor channel after last DLCI is released */
-#define RFC_MCB_RELEASE_INACT_TIMER 2 /* in seconds */
+#define RFC_MCB_RELEASE_INACT_TIMER 20 /* in seconds */
 
 /*
  * Define RFCOMM frame processing errors

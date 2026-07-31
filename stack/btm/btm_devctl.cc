@@ -945,6 +945,12 @@ void btm_vendor_specific_evt(uint8_t* p, uint8_t evt_len) {
              case HCI_VS_LE_EXIT_DBIG_COMPLETE_EVT:
               btm_ble_vs_le_exit_dbig_event_handler(pp, evt_len - 2);
               return;
+            case HCI_VS_LE_TEXIT_DBIG_COMPLETE_EVT:
+              btm_ble_vs_le_texit_dbig_event_handler(pp, evt_len - 2);
+              return;
+            case HCI_VS_LE_JOIN_CONTROL_COMPLETE_EVT:
+              btm_ble_join_control_event_handler(pp, evt_len - 2);
+              return;
             default:
             LOG(INFO) << __func__ <<"Unknown VSE META type";
             break;
