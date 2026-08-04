@@ -247,6 +247,31 @@ void SMP_SecurityGrant(BD_ADDR bd_addr, UINT8 res)
 {
     SMP_TRACE_EVENT ("SMP_SecurityGrant ");
 
+    if (memcmp(smp_cb.pairing_bda, bd_addr, BD_ADDR_LEN) == 0 &&
+        (smp_cb.selected_association_model == SMP_MODEL_SEC_CONN_PASSKEY_DISP ||
+         smp_cb.selected_association_model == SMP_MODEL_KEY_NOTIF))
+    {
+        if (res == SMP_SUCCESS)
+        {
+            smp_cb.passkey_display_state.approved = TRUE;
+            if (smp_cb.passkey_display_state.confirmed)
+            {
+                tSMP_KEY key;
+                tSMP_INT_DATA smp_int_data;
+                key.key_type = SMP_KEY_TYPE_STK;
+                key.p_data   = smp_cb.tk;
+                smp_int_data.key = key;
+                smp_sm_event(&smp_cb, SMP_KEY_READY_EVT, &smp_int_data);
+            }
+        }
+        else
+        {
+            UINT8 failure = SMP_PAIR_AUTH_FAIL;
+            smp_sm_event(&smp_cb, SMP_AUTH_CMPL_EVT, &failure);
+        }
+        return;
+    }
+
     if (smp_cb.smp_over_br)
     {
         if (smp_cb.br_state != SMP_BR_STATE_WAIT_APP_RSP ||

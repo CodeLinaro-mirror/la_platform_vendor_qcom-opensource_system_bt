@@ -339,6 +339,11 @@ typedef struct
     UINT8           rcvd_cmd_len;
     UINT16          total_tx_unacked;
     BOOLEAN         wait_for_authorization_complete;
+
+    struct {
+        BOOLEAN approved;   /* User has approved the pairing */
+        BOOLEAN confirmed;  /* Remote device has confirmed the passkey */
+    } passkey_display_state;
 }tSMP_CB;
 
 /* Server Action functions are of this type */

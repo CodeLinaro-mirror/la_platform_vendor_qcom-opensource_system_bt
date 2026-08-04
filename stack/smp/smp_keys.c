@@ -810,7 +810,21 @@ static void smp_process_stk(tSMP_CB *p_cb, tSMP_ENC *p)
     key.key_type = SMP_KEY_TYPE_STK;
     key.p_data   = p->param_buf;
 
-    smp_sm_event(p_cb, SMP_KEY_READY_EVT, &key);
+    if (p_cb->selected_association_model == SMP_MODEL_SEC_CONN_PASSKEY_DISP ||
+       p_cb->selected_association_model == SMP_MODEL_KEY_NOTIF)
+    {
+        p_cb->passkey_display_state.confirmed = true;
+        memcpy(p_cb->tk, p->param_buf, BT_OCTET16_LEN);
+        if (!p_cb->passkey_display_state.approved) 
+        {
+            return;
+        }
+    }
+
+    tSMP_INT_DATA smp_int_data;
+    smp_int_data.key = key;
+
+    smp_sm_event(p_cb, SMP_KEY_READY_EVT, &smp_int_data);
 }
 
 /*******************************************************************************

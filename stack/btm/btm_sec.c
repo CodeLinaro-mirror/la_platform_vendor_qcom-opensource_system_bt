@@ -5566,6 +5566,11 @@ static void btm_sec_pairing_timeout (TIMER_LIST_ENT *p_tle)
             break;
 
         case BTM_PAIR_STATE_WAIT_AUTH_COMPLETE:
+            if (btm_cb.pairing_flags & BTM_PAIR_FLAGS_LE_ACTIVE)
+            {
+                SMP_PairCancel(p_cb->pairing_bda);
+            }
+            /* fallthrough */
         case BTM_PAIR_STATE_GET_REM_NAME:
             /* We need to notify the UI that timeout has happened while waiting for authentication*/
             btm_sec_change_pairing_state (BTM_PAIR_STATE_IDLE);
