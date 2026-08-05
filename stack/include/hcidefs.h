@@ -524,6 +524,16 @@
 /* Tracking OCF */
 #define HCI_BLE_TRACK_ADV_OCF (0x0158 | HCI_GRP_VENDOR_SPECIFIC)
 
+/* Allow Duplicate Connection (two BLE connections to same peer addr) VSC.
+ * Opcode 0xFC10; param: SubOpcode(0x01) Action AdvIdx RemoteBDAddr(6) RemoteAddrType.
+ * NOTE: opcode/sub-opcode pending final confirmation with FW/vendor team. */
+#define HCI_BLE_ALLOW_DUP_CONN_OCF (0x010 | HCI_GRP_VENDOR_SPECIFIC)
+#define HCI_BLE_ALLOW_DUP_CONN_SUB_OPCODE 0x01
+#define HCI_BLE_ALLOW_DUP_CONN_PARAM_LEN 0x0A
+#define HCI_BLE_ALLOW_DUP_CONN_ACTION_ADD 0x00
+#define HCI_BLE_ALLOW_DUP_CONN_ACTION_DELETE 0x01
+#define HCI_BLE_ALLOW_DUP_CONN_ACTION_CLEAR 0x02
+
 /* Energy info OCF */
 #define HCI_BLE_ENERGY_INFO_OCF (0x0159 | HCI_GRP_VENDOR_SPECIFIC)
 

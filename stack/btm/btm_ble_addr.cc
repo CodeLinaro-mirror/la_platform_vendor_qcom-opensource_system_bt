@@ -101,6 +101,34 @@ void btm_gen_resolvable_private_addr(
       std::move(cb)));
 }
 
+/** This function generates a Random Static address (two MSB bits = 11). The
+ * value is generated once by the host and is NOT rotated; the caller (multi-adv
+ * manager) caches it for the advertising-instance lifetime. Mirrors the random
+ * generation of btm_gen_resolvable_private_addr but forces the static MSB bits
+ * instead of deriving a resolvable hash. */
+void btm_gen_static_address(base::Callback<void(const RawAddress&)> cb) {
+  BTM_TRACE_EVENT("%s", __func__);
+  btsnd_hcic_ble_rand(base::Bind(
+      [](base::Callback<void(const RawAddress&)> cb, BT_OCTET8 random) {
+        RawAddress static_random;
+        uint8_t* pp = random;
+        STREAM_TO_BDADDR(static_random, pp);
+        /* force the two most-significant bits to 11 -> Random Static address */
+        static_random.address[0] |= BLE_RESOLVE_ADDR_MASK;  // 0xC0
+        /* avoid the degenerate all-zero / all-one random parts */
+        if ((static_random.address[0] == 0xC0 && static_random.address[1] == 0x00 &&
+             static_random.address[2] == 0x00 && static_random.address[3] == 0x00 &&
+             static_random.address[4] == 0x00 && static_random.address[5] == 0x00) ||
+            (static_random.address[0] == 0xFF && static_random.address[1] == 0xFF &&
+             static_random.address[2] == 0xFF && static_random.address[3] == 0xFF &&
+             static_random.address[4] == 0xFF && static_random.address[5] == 0xFF)) {
+          static_random.address[5] = (uint8_t)(std::rand() % 0xFE + 1);
+        }
+        cb.Run(static_random);
+      },
+      std::move(cb)));
+}
+
 uint64_t btm_get_next_private_addrress_interval_ms() {
   /* 7 minutes minimum, 15 minutes maximum for random address refreshing */
   const uint64_t interval_min_ms = (7 * 60 * 1000);
