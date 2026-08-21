@@ -55,6 +55,11 @@ static future_t *init() {
 
   config = config_new(path);
   if (!config) {
+    LOG_INFO(LOG_TAG, "%s file >%s< not found, use empty config", __func__, path);
+    config = config_new_empty();
+  }
+
+  if (!config) {
     LOG_INFO(LOG_TAG, "%s file >%s< not found", __func__, path);
     return future_new_immediate(FUTURE_FAIL);
   }
