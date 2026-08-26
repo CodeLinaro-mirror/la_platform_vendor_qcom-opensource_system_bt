@@ -1010,6 +1010,7 @@ typedef struct {
   uint8_t exit_timeout;
   uint8_t remove_timeout;
   uint8_t terminate_timeout;
+  uint8_t bis_timeout;
   uint8_t tx_power;
   tBTM_BLE_SET_DBIG_PARAMETERS_CMPL_CB* p_cb;
 } tBTM_BLE_SET_DBIG_PARAMETERS_PARAM;
