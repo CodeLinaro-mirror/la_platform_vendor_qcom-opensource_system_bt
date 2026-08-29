@@ -4070,7 +4070,23 @@ static void btif_dm_ble_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
         break;
 
       case BTA_DM_AUTH_SMP_CONN_TOUT: {
-        if (btif_storage_is_device_bonded(&bd_addr)) {
+        /* Check whether this timeout is for the device currently being bonded.
+         * Aligned with upstream v16 logic. */
+        bool during_bonding =
+            (bd_addr == pairing_cb.bd_addr || bd_addr == pairing_cb.static_bdaddr);
+
+        if (during_bonding || !btm_sec_is_a_bonded_dev(bd_addr)) {
+          /* Either an active new-pairing attempt timed out, or the device is
+           * not bonded at all - remove keys and report failure. */
+          btif_dm_remove_ble_bonding_keys();
+          status = BT_STATUS_AUTH_FAILURE;
+        } else {
+          /* Device is already bonded and this is NOT an active bonding attempt
+           * (e.g. re-encryption of a previously bonded BLE-only device such as
+           * iPhone for ANCS). btm_sec_is_a_bonded_dev() checks the in-memory
+           * BTM security database and covers both BR/EDR and BLE bonding,
+           * unlike btif_storage_is_device_bonded() which only checks BR/EDR
+           * link keys. */
           uint8_t dev_type;
           uint8_t addr_type;
           BTM_ReadDevInfo(bd_addr, &dev_type, &addr_type);
@@ -4078,12 +4094,12 @@ static void btif_dm_ble_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
           if ((pairing_cb.state == BT_BOND_STATE_BONDING) &&
             (dev_type == BT_DEVICE_TYPE_DUMO) &&
             (addr_type == BLE_ADDR_PUBLIC) &&
-            !btif_config_exist(bd_addr.ToString().c_str(), "LE_KEY_PENC")) {
+            !btm_sec_is_a_bonded_dev_by_transport(bd_addr, BT_TRANSPORT_LE)) {
             btif_storage_remove_bonded_device(&bd_addr);
             status = BT_STATUS_AUTH_FAILURE;
             break;
           } else if ((pairing_cb.state == BT_BOND_STATE_BONDING) &&
-            btif_config_exist(bd_addr.ToString().c_str(), "LE_KEY_PENC")) {
+            btm_sec_is_a_bonded_dev_by_transport(bd_addr, BT_TRANSPORT_LE)) {
             btif_storage_remove_bonded_device(&bd_addr);
             status = BT_STATUS_AUTH_FAILURE;
             break;
@@ -4095,9 +4111,6 @@ static void btif_dm_ble_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
             return;
           }
         }
-
-        btif_dm_remove_ble_bonding_keys();
-        status = BT_STATUS_AUTH_FAILURE;
         break;
       }
       case BTA_DM_AUTH_SMP_PAIR_NOT_SUPPORT:
