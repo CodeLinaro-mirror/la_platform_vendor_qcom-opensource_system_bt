@@ -1094,6 +1094,9 @@ extern uint8_t BTM_BleDbigSyncOnly(tBTM_BLE_DBIG_SYNC_ONLY_PARAM* p_data);
  **************************************************************************************/
 extern uint8_t BTM_BleSetDevId(tBTM_BLE_SET_DEVID_PARAM* p_data);
 
+extern uint8_t BTM_BleReadSupportedStates(
+    tBTM_BLE_READ_SUPPORTED_STATES_PARAM* p_data);
+
 extern void BTM_BleRequestPeerSca(uint16_t conn_handle,
                                   tBTM_BLE_REQUEST_PEER_SCA_COMPLETE_CB* p_cback);
 

@@ -743,6 +743,13 @@ typedef struct {
   uint8_t dbig_handle;
 } tBTM_BLE_DBIG_SYNC_ONLY_RET_PARAM;
 
+typedef struct {
+  uint8_t status;
+  uint8_t sub_opcode;
+  uint8_t le_states[8];
+  uint16_t broadcast_states;
+} tBTM_BLE_READ_SUPPORTED_STATES_RET_PARAM;
+
 
 // Bluetooth Spec 5.2 HCI Command Callbacks
 /* HCI_LE_Set_CIG_Parameters command complete callback*/
@@ -869,6 +876,10 @@ typedef void (tBTM_BLE_BIG_SYNC_LOST_CB)(uint8_t big_handle, uint8_t reason);
 /* HCI_VS_LE_SET_DevID command complete callback*/
 typedef void (tBTM_BLE_SET_DEVID_CB) (uint8_t status, uint8_t sub_opcode, uint16_t dev_id);
 
+/* HCI_VS_LE_READ_SUPPORTED_STATES command complete callback*/
+typedef void (tBTM_BLE_READ_SUPPORTED_STATES_CB)(
+    tBTM_BLE_READ_SUPPORTED_STATES_RET_PARAM* ret_param);
+
 // Callabck function pointers of HCI Commands after receiving Command Complete or HCI Event
 typedef struct {
   tBTM_BLE_SET_CIG_PARAM_CMPL_CB* set_cig_param = NULL;
@@ -907,6 +918,7 @@ typedef struct {
   tBTM_BLE_ASSOCIATE_PA_DBIG_CMPL_CB* associate_pa_dbig_cmpl_cb = NULL;
   tBTM_BLE_DBIG_SYNC_ONLY_CMPL_CB* dbig_sync_only_cmpl_cb = NULL;
   tBTM_BLE_SET_DEVID_CB* set_devid_cmpl_cb = NULL;
+  tBTM_BLE_READ_SUPPORTED_STATES_CB* read_supported_states_cmpl_cb = NULL;
 } tBTM_BLE_HCI_CMD_CB;
 
 /* CIS configuration params used in HCI_LE_Set_CIG_Parameters*/
@@ -1083,6 +1095,11 @@ typedef struct {
   uint8_t name[10];
   tBTM_BLE_SET_DEVID_CB* p_cb;
 } tBTM_BLE_SET_DEVID_PARAM;
+
+/* command parameters of HCI_VS_LE_READ_SUPPORTED_STATES */
+typedef struct {
+  tBTM_BLE_READ_SUPPORTED_STATES_CB* p_cb;
+} tBTM_BLE_READ_SUPPORTED_STATES_PARAM;
 
 /* command parameters of HCI_LE_Set_Path_Loss_Reporting_Parameters*/
 typedef struct {
