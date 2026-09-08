@@ -70,6 +70,13 @@ using TerminateBIGCb =
 using SetEnableData = BleAdvertiserHciInterface::SetEnableData;
 extern void btm_gen_resolvable_private_addr(
     base::Callback<void(const RawAddress& rpa)> cb);
+extern void btm_gen_static_address(
+    base::Callback<void(const RawAddress& static_addr)> cb);
+
+// App-facing request value for a fixed Random Static address, matching
+// android.bluetooth.le.AdvertisingSetParameters.ADDRESS_TYPE_RANDOM_STATIC.
+// Consumed and translated to BLE_ADDR_RANDOM here; never sent on the wire as-is.
+#define BTM_BLE_ADDR_TYPE_RANDOM_STATIC 3
 std::mutex lock_;
 constexpr int EXT_ADV_DATA_LEN_MAX = 251;
 constexpr int PERIODIC_ADV_DATA_LEN_MAX = 252;
@@ -114,6 +121,8 @@ struct AdvertisingInstance {
   alarm_t* timeout_timer;
   uint8_t own_address_type;
   RawAddress own_address;
+  bool is_static_addr;  // true -> fixed Random Static address (MSB=11), never rotated
+  bool vsc_allowed;     // FR: framework authorized this set for dual-connection VSC
   MultiAdvCb timeout_cb;
   bool address_update_required;
   bool periodic_enabled;
@@ -155,6 +164,8 @@ struct AdvertisingInstance {
         timeout_timer(nullptr),
         own_address_type(0),
         own_address(RawAddress::kEmpty),
+        is_static_addr(false),
+        vsc_allowed(false),
         address_update_required(false),
         periodic_enabled(false),
         skip_rpa_count(0),
@@ -376,6 +387,13 @@ class BleAdvertisingManagerImpl
   }
 
   void ConfigureRpa(AdvertisingInstance* p_inst, MultiAdvCb configuredCb) {
+    /* A Random Static address instance must never rotate (fixed identity). */
+    if (btm_ble_dual_conn_enabled() && p_inst->is_static_addr) {
+      VLOG(1) << __func__ << ": skip RPA rotation for static-address instance "
+              << +p_inst->inst_id;
+      configuredCb.Run(0x00);
+      return;
+    }
     /* Connectable advertising set must be disabled when updating RPA */
     bool restart = p_inst->IsEnabled() && p_inst->IsConnectable();
 
@@ -558,6 +576,30 @@ class BleAdvertisingManagerImpl
 
       p_inst->in_use = true;
       p_inst->own_address_type = own_address_type;
+
+      // Random Static address request (app value ADDRESS_TYPE_RANDOM_STATIC == 3).
+      // Generate a fixed static-format address (two MSB bits = 11) ONCE and do NOT
+      // arm the rotation timer. Runs independent of rpa_gen_offload_enabled: the SoC
+      // offload only generates rotating RPAs, so the host must own a fixed static
+      // address in both offload modes. The on-air Own_Address_Type is Random (1).
+      if (btm_ble_dual_conn_enabled() &&
+          own_address_type == BTM_BLE_ADDR_TYPE_RANDOM_STATIC) {
+        p_inst->is_static_addr = true;
+        p_inst->own_address_type = BLE_ADDR_RANDOM;
+        btm_gen_static_address(Bind(
+          [](AdvertisingInstance* p_inst,
+             base::Callback<void(uint8_t, uint8_t)> cb,
+             const RawAddress& bda) {
+            if (!p_inst->in_use) {
+              LOG(ERROR) << "Not active instance";
+              return;
+            }
+            p_inst->own_address = bda;
+            // Deliberately NO alarm_set_on_mloop(adv_raddr_timer) -> never rotates.
+            cb.Run(p_inst->inst_id, BTM_BLE_MULTI_ADV_SUCCESS);
+          }, p_inst, cb));
+        return;
+      }
 
       // set up periodic timer to update address.
       if (own_address_type != BLE_ADDR_PUBLIC) {
@@ -779,6 +821,13 @@ class BleAdvertisingManagerImpl
 
         c->inst_id = advertiser_id;
         c->self->adv_inst[c->inst_id].enc_key_value = c->enc_key_value;
+        // FR: stamp framework authorization onto the instance — only when FR enabled.
+        if (btm_ble_dual_conn_enabled()) {
+          // c->params.vsc_allowed was set by GattService based on calling package;
+          // params pointer is gone by the time the lambda runs so read from
+          // the captured CreatorParams struct.
+          c->self->adv_inst[c->inst_id].vsc_allowed = c->params.vsc_allowed;
+        }
         c->self->SetParameters(c->inst_id, &c->params, Bind(
           [](c_type c, uint8_t status, int8_t tx_power) {
             if (!c->self) {
@@ -800,7 +849,12 @@ class BleAdvertisingManagerImpl
               return;
             }
 
-            if(!BleAdvertisingManager::Get()->IsRpaGenOffloadEnabled()) {
+            // Program the random address when the host owns it: always for the
+            // non-offload RPA case, and always for a Random Static instance (the
+            // host-generated static address must reach the controller even when
+            // RPA-generation offload is enabled).
+            if(!BleAdvertisingManager::Get()->IsRpaGenOffloadEnabled()
+                || c->self->adv_inst[c->inst_id].is_static_addr) {
               //own_address_type == BLE_ADDR_RANDOM
               const RawAddress& rpa = c->self->adv_inst[c->inst_id].own_address;
               c->self->GetHciInterface()->SetRandomAddress(c->inst_id, rpa, Bind(
@@ -1664,6 +1718,99 @@ class BleAdvertisingManagerImpl
     if (!sets.empty()) GetHciInterface()->Enable(true, sets, base::DoNothing());
   }
 
+  /* Completion callback for the Allow-Duplicate-Connection VSC. The controller
+   * returns the command status in the first byte of the VSC complete params.
+   * We only log it here; the gating of the 2nd connection is implicit — the
+   * controller will not accept the duplicate CONNECT_IND until this VSC has
+   * been processed successfully. */
+  static void AllowDupConnVscCmplCback(tBTM_VSC_CMPL* p_data) {
+    uint8_t status = 0xFF;
+    if (p_data && p_data->p_param_buf && p_data->param_len >= 1) {
+      status = p_data->p_param_buf[0];
+    }
+    if (status == HCI_SUCCESS) {
+      LOG(INFO) << "Allow-Dup-Conn VSC success";
+    } else {
+      LOG(ERROR) << "Allow-Dup-Conn VSC failed, status: " << loghex(status);
+    }
+  }
+
+  /* Send the CLEAR action of the Allow-Duplicate-Connection VSC.
+   * Wipes all entries from the controller's duplicate-connection table in one
+   * shot. Called at BT off (CancelAdvAlarms) to ensure no stale entries remain.
+   * Uses the same 10-byte param structure as ADD/DELETE (controller requires it):
+   * SubOpcode(1) + Action(1) + AdvIdx(1) + BDAddr(6) + AddrType(1) = 10 bytes.
+   * adv_idx and peer fields are unused for CLEAR — sent as zero placeholders. */
+  void SendAllowDupConnClear() {
+    uint8_t param[HCI_BLE_ALLOW_DUP_CONN_PARAM_LEN];
+    uint8_t* p = param;
+    UINT8_TO_STREAM(p, HCI_BLE_ALLOW_DUP_CONN_SUB_OPCODE);   // 0x01
+    UINT8_TO_STREAM(p, HCI_BLE_ALLOW_DUP_CONN_ACTION_CLEAR); // 0x02
+    UINT8_TO_STREAM(p, 0x00);                                 // adv_idx (unused)
+    /* BD address and addr type — zero placeholders for CLEAR */
+    UINT8_TO_STREAM(p, 0x00); UINT8_TO_STREAM(p, 0x00);
+    UINT8_TO_STREAM(p, 0x00); UINT8_TO_STREAM(p, 0x00);
+    UINT8_TO_STREAM(p, 0x00); UINT8_TO_STREAM(p, 0x00);
+    UINT8_TO_STREAM(p, 0x00);                                 // addr_type (unused)
+    LOG(INFO) << __func__ << ": clearing all Allow-Dup-Conn VSC entries";
+    BTM_VendorSpecificCommand(HCI_BLE_ALLOW_DUP_CONN_OCF,
+                              HCI_BLE_ALLOW_DUP_CONN_PARAM_LEN,
+                              param, AllowDupConnVscCmplCback);
+  }
+
+  /* Build and send the Allow-Duplicate-Connection VSC for a given advertising
+   * handle + peer, so the controller permits a 2nd connection from the same
+   * peer BD address on that remaining advertising handle. */
+  void SendAllowDupConnVsc(uint8_t action, uint8_t adv_idx,
+                           const RawAddress& peer_addr, uint8_t peer_addr_type) {
+    uint8_t param[HCI_BLE_ALLOW_DUP_CONN_PARAM_LEN];
+    uint8_t* p = param;
+
+    UINT8_TO_STREAM(p, HCI_BLE_ALLOW_DUP_CONN_SUB_OPCODE);  // 0x01
+    UINT8_TO_STREAM(p, action);                             // 0x00 Add
+    UINT8_TO_STREAM(p, adv_idx);                             // remaining adv handle
+    /* BD address goes LSB-first on the wire (little-endian) */
+    REVERSE_ARRAY_TO_STREAM(p, peer_addr.address, (int)RawAddress::kLength);
+    UINT8_TO_STREAM(p, peer_addr_type);                      // 0x00 pub / 0x01 rand
+
+    LOG(INFO) << __func__ << " adv_idx=" << +adv_idx
+              << " peer=" << peer_addr
+              << " peer_type=" << +peer_addr_type;
+
+    BTM_VendorSpecificCommand(HCI_BLE_ALLOW_DUP_CONN_OCF,
+                              HCI_BLE_ALLOW_DUP_CONN_PARAM_LEN, param,
+                              AllowDupConnVscCmplCback);
+  }
+
+  /* On the FIRST connection (one adv set just terminated due to a connection),
+   * authorize a duplicate connection on the OTHER, still-active advertising
+   * instance for the same peer. Symmetric: works whichever set connects first. */
+  void SendAllowDupConnForRemaining(uint8_t connected_adv_handle,
+                                    uint16_t connection_handle) {
+    RawAddress peer_addr;
+    uint8_t peer_addr_type = 0;
+    if (!btm_acl_get_peer_addr_by_handle(connection_handle, &peer_addr,
+                                         &peer_addr_type)) {
+      LOG(ERROR) << __func__ << " no ACL for handle "
+                 << loghex(connection_handle) << "; VSC not sent";
+      return;
+    }
+
+    /* Find the other in-use advertising instance — that is the remaining
+     * (still-advertising) handle that needs duplicate-connection permission. */
+    for (uint8_t i = 0; i < inst_count; i++) {
+      if (i == connected_adv_handle) continue;
+      if (!adv_inst[i].in_use) continue;
+      /* FR: only send the VSC when at least one side of the pair is authorized
+       * (OR: the set that just connected, OR the remaining candidate set).
+       * If neither side is authorized, skip — other apps are not affected. */
+      if (!adv_inst[connected_adv_handle].vsc_allowed &&
+          !adv_inst[i].vsc_allowed) continue;
+      SendAllowDupConnVsc(HCI_BLE_ALLOW_DUP_CONN_ACTION_ADD, i, peer_addr,
+                          peer_addr_type);
+    }
+  }
+
   void OnAdvertisingSetTerminated(
       uint8_t status, uint8_t advertising_handle, uint16_t connection_handle,
       uint8_t num_completed_extended_adv_events) override {
@@ -1691,6 +1838,14 @@ class BleAdvertisingManagerImpl
           advertising_handle <= BTM_BLE_MULTI_ADV_MAX) {
         btm_acl_update_conn_addr(connection_handle, p_inst->own_address);
       }
+    }
+
+    /* This adv set terminated because it got a connection. When the FR is
+     * enabled, authorize a duplicate connection from the same peer on the
+     * OTHER (still-active) advertising instance, so the controller will accept
+     * the 2nd CONNECT_IND. (FR: two BLE connections to same phone BD address.) */
+    if (btm_ble_dual_conn_enabled()) {
+      SendAllowDupConnForRemaining(advertising_handle, connection_handle);
     }
 
     VLOG(1) << "reneabling advertising";
@@ -1784,6 +1939,12 @@ class BleAdvertisingManagerImpl
       if (p_inst->adv_raddr_timer) {
         alarm_cancel(p_inst->adv_raddr_timer);
       }
+    }
+    /* FR: BT is turning off — clear all Allow-Dup-Conn VSC entries from the
+     * controller so no stale duplicate-connection permissions survive a BT
+     * restart or power cycle. One CLEAR wipes the entire table. */
+    if (btm_ble_dual_conn_enabled()) {
+      SendAllowDupConnClear();
     }
   }
 

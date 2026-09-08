@@ -257,13 +257,26 @@ void btm_acl_created(const RawAddress& bda, DEV_CLASS dc, BD_NAME bdn,
   /* Ensure we don't have duplicates */
   p = btm_bda_to_acl(bda, transport);
   if (p != (tACL_CONN*)NULL) {
-    p->hci_handle = hci_handle;
-    p->link_role = link_role;
-    p->transport = transport;
-    VLOG(1) << "Duplicate btm_acl_created: RemBdAddr: " << bda;
-    uint16_t btm_def_link_policy_local = btm_cb.btm_def_link_policy;
-    BTM_SetLinkPolicy(p->remote_addr, &btm_def_link_policy_local);
-    return;
+    /* FR (two BLE connections to same phone): only when the feature is enabled
+     * AND this is a SECOND connection from the same peer on a DIFFERENT HCI
+     * handle do we fall through to allocate a new ACL entry so both links
+     * coexist. In every other case (feature off, or a genuine duplicate event
+     * for the same handle) behave EXACTLY as stock: update fields and return. */
+    if (btm_ble_dual_conn_enabled() && p->hci_handle != hci_handle) {
+      BTM_TRACE_WARNING(
+          "%s: 2nd connection to same peer bda, existing hdl=0x%x new hdl=0x%x"
+          " -> allocating separate ACL entry",
+          __func__, p->hci_handle, hci_handle);
+      /* fall through: allocate a new acl_db entry for the new handle */
+    } else {
+      p->hci_handle = hci_handle;
+      p->link_role = link_role;
+      p->transport = transport;
+      VLOG(1) << "Duplicate btm_acl_created: RemBdAddr: " << bda;
+      uint16_t btm_def_link_policy_local = btm_cb.btm_def_link_policy;
+      BTM_SetLinkPolicy(p->remote_addr, &btm_def_link_policy_local);
+      return;
+    }
   }
 
   /* Allocate acl_db entry */
@@ -378,6 +391,29 @@ void btm_acl_update_conn_addr(uint16_t conn_handle, const RawAddress& address) {
   if (idx != MAX_L2CAP_LINKS) {
     btm_cb.acl_db[idx].conn_addr = address;
   }
+}
+
+/*******************************************************************************
+ *
+ * Function         btm_acl_get_peer_addr_by_handle
+ *
+ * Description      Retrieve the remote (peer) BD address and its address type
+ *                  for an active ACL identified by HCI connection handle.
+ *
+ * Returns          true if a matching active ACL was found (out params set);
+ *                  false otherwise.
+ *
+ ******************************************************************************/
+bool btm_acl_get_peer_addr_by_handle(uint16_t conn_handle, RawAddress* p_addr,
+                                     uint8_t* p_addr_type) {
+  uint8_t idx = btm_handle_to_acl_index(conn_handle);
+  if (idx >= MAX_L2CAP_LINKS || !btm_cb.acl_db[idx].in_use) {
+    return false;
+  }
+  if (p_addr != NULL) *p_addr = btm_cb.acl_db[idx].remote_addr;
+  if (p_addr_type != NULL)
+    *p_addr_type = btm_cb.acl_db[idx].active_remote_addr_type;
+  return true;
 }
 
 /*******************************************************************************

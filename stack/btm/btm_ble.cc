@@ -4677,6 +4677,26 @@ void btm_ble_set_devid_cmd_cmpl(uint8_t *param, uint16_t param_len) {
   }
 }
 
+void btm_ble_read_supported_states_cmd_cmpl(uint8_t* param, uint16_t param_len) {
+  tBTM_BLE_READ_SUPPORTED_STATES_RET_PARAM ret_param = {};
+  BTM_TRACE_API("%s: param_len = %d", __func__, param_len);
+
+  if (param_len < 12) {
+    BTM_TRACE_WARNING("%s Insufficient return parameters.", __func__);
+    return;
+  }
+
+  STREAM_TO_UINT8(ret_param.status, param);
+  STREAM_TO_UINT8(ret_param.sub_opcode, param);
+  STREAM_TO_ARRAY(ret_param.le_states, param, 8);
+  STREAM_TO_UINT16(ret_param.broadcast_states, param);
+
+  if (hci_cmd_cmpl.read_supported_states_cmpl_cb) {
+    (*hci_cmd_cmpl.read_supported_states_cmpl_cb)(&ret_param);
+    hci_cmd_cmpl.read_supported_states_cmpl_cb = nullptr;
+  }
+}
+
 uint8_t BTM_BleSetDevId(tBTM_BLE_SET_DEVID_PARAM* p_data) {
   BTM_TRACE_API("%s", __func__);
 
@@ -4690,6 +4710,22 @@ uint8_t BTM_BleSetDevId(tBTM_BLE_SET_DEVID_PARAM* p_data) {
   btsnd_hcic_ble_set_devid(p_data->dev_id,
                             p_data->name,
                             base::Bind(&btm_ble_set_devid_cmd_cmpl));
+
+  return HCI_SUCCESS;
+}
+
+uint8_t BTM_BleReadSupportedStates(
+    tBTM_BLE_READ_SUPPORTED_STATES_PARAM* p_data) {
+  BTM_TRACE_API("%s", __func__);
+
+  if (!p_data) {
+    BTM_TRACE_ERROR("%s: p_data is null.", __func__);
+    return HCI_ERR_ILLEGAL_PARAMETER_FMT;
+  }
+
+  hci_cmd_cmpl.read_supported_states_cmpl_cb = p_data->p_cb;
+  btsnd_hcic_ble_read_supported_states(
+      base::Bind(&btm_ble_read_supported_states_cmd_cmpl));
 
   return HCI_SUCCESS;
 }

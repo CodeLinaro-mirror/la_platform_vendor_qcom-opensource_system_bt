@@ -1079,6 +1079,9 @@ extern void btsnd_hcic_ble_dbig_sync_only(uint8_t dbig_handle,
                                           uint8_t enable,
                                           base::Callback<void(uint8_t*, uint16_t)> cb);
 
+extern void btsnd_hcic_ble_read_supported_states(
+    base::Callback<void(uint8_t*, uint16_t)> cb);
+
 extern void btsnd_hcic_ble_remove_iso_data_path(uint16_t connection_handle,
                                    uint8_t data_path_direction,
                                    base::Callback<void(uint8_t*, uint16_t)> cb);

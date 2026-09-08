@@ -1168,6 +1168,18 @@ void btsnd_hcic_ble_dbig_sync_only(
                             param_len, std::move(cb));
 }
 
+void btsnd_hcic_ble_read_supported_states(
+    base::Callback<void(uint8_t*, uint16_t)> cb) {
+  uint16_t param_len = HCI_PARAM_SIZE_READ_SUPPORTED_STATES;
+  uint8_t* param = (uint8_t*)osi_malloc(param_len);
+  uint8_t* p = param;
+
+  UINT8_TO_STREAM(p, HCI_VS_LE_READ_SUPPORTED_STATES_SUB_OPCODE);
+
+  btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_VS_LE_READ_SUPPORTED_STATES, param,
+                            param_len, std::move(cb));
+}
+
 void btsnd_hcic_ble_remove_iso_data_path(uint16_t connection_handle,
                                     uint8_t data_path_direction,
                                     base::Callback<void(uint8_t*, uint16_t)> cb) {
