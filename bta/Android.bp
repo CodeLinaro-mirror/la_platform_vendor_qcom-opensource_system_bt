@@ -129,6 +129,7 @@ cc_test {
     defaults: ["fluoride_bta_defaults"],
     test_suites: ["device-tests"],
     srcs: [
+        ":TestMockStackSdp",
         "test/bta_hf_client_test.cc",
         "test/bta_dm_cust_uuid_test.cc",
         "test/bta_dip_test.cc",
