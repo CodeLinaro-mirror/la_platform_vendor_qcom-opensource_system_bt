@@ -18,7 +18,6 @@
 
 #include <gtest/gtest.h>
 #include "bta/sdp/bta_sdp_act.cc"
-#include "stack/sdp/sdp_api.cc"
 
 namespace {
 const RawAddress bdaddr({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});

@@ -62,8 +62,7 @@ void btif_to_bta_response(tGATTS_RSP* p_dest, btgatt_response_t* p_src) {
  ******************************************************************************/
 
 static bool btif_gatt_is_link_encrypted(const RawAddress& bd_addr) {
-  return BTM_IsEncrypted(bd_addr, BT_TRANSPORT_BR_EDR) ||
-         BTM_IsEncrypted(bd_addr, BT_TRANSPORT_LE);
+  return BTM_IsEncrypted(bd_addr, BT_TRANSPORT_LE);
 }
 
 static void btif_gatt_set_encryption_cb(UNUSED_ATTR const RawAddress& bd_addr,
