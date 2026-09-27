@@ -36,6 +36,7 @@
 
 #include "btm_api.h"
 #include "device/include/esco_parameters.h"
+#include "osi/include/properties.h"
 
 #include "btm_ble_int.h"
 #include "btm_int_types.h"
@@ -43,6 +44,15 @@
 #include "smp_api.h"
 
 extern tBTM_CB btm_cb;
+
+/* FR (Two BLE connections to same phone): master kill-switch.
+ * Read once at first call (static const) — BT restart required after setprop.
+ * Default false = FR fully disabled, zero regression. */
+inline bool btm_ble_dual_conn_enabled() {
+  static const bool enabled =
+      osi_property_get_bool("persist.vendor.btstack.enable.dual_ble_conn", false);
+  return enabled;
+}
 
 /* Internal functions provided by btm_main.cc
  *******************************************
@@ -140,6 +150,10 @@ extern tBT_TRANSPORT BTM_GetTransport(uint16_t hci_handle);
 extern bool btm_acl_notif_conn_collision(const RawAddress& bda);
 extern void btm_acl_update_conn_addr(uint16_t conn_handle,
                                      const RawAddress& address);
+
+extern bool btm_acl_get_peer_addr_by_handle(uint16_t conn_handle,
+                                            RawAddress* p_addr,
+                                            uint8_t* p_addr_type);
 
 extern void btm_pm_reset(void);
 extern void btm_pm_sm_alloc(uint8_t ind);

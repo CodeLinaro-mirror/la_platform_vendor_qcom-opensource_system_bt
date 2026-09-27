@@ -315,6 +315,23 @@ void l2cble_conn_comp(uint16_t handle, uint8_t role, const RawAddress& bda,
   /* See if we have a link control block for the remote device */
   tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(bda, BT_TRANSPORT_LE);
 
+  /* FR: two BLE connections to the same peer BD address.
+   * If an LE LCB to this peer already exists but its handle is VALID and
+   * DIFFERENT from the incoming handle, this is a second connection on a
+   * different advertising handle. Allocate a new LCB for it so both links
+   * have independent channel state (data, conn-params, CCBs, etc.).
+   * Guard: only active when FR property is enabled — stock behaviour otherwise. */
+  if (btm_ble_dual_conn_enabled() &&
+      p_lcb && p_lcb->in_use &&
+      p_lcb->handle != HCI_INVALID_HANDLE &&
+      p_lcb->handle != handle) {
+    L2CAP_TRACE_WARNING(
+        "%s: 2nd LE conn to same peer, existing lcb handle=0x%x "
+        "new handle=0x%x -> allocating new LCB",
+        __func__, p_lcb->handle, handle);
+    p_lcb = nullptr;  /* force the allocate-new path below */
+  }
+
   /* If we don't have one, create one. this is auto connection complete. */
   if (!p_lcb) {
     p_lcb = l2cu_allocate_lcb(bda, false, BT_TRANSPORT_LE);
