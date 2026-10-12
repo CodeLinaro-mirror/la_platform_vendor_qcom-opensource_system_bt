@@ -246,7 +246,7 @@ tBTM_BLE_PF_COUNT* btm_ble_find_addr_filter_counter(tBLE_BD_ADDR* p_le_bda) {
 
   if (p_le_bda == NULL) return &btm_ble_adv_filt_cb.p_addr_filter_count[0];
 
-  for (i = 0; i < cmn_ble_vsc_cb.max_filter; i++, p_addr_filter++) {
+  for (i = 0; i < cmn_ble_vsc_cb.max_filter - 1; i++, p_addr_filter++) {
     if (p_addr_filter->in_use && p_le_bda->bda == p_addr_filter->bd_addr) {
       return p_addr_filter;
     }
@@ -270,7 +270,7 @@ tBTM_BLE_PF_COUNT* btm_ble_alloc_addr_filter_counter(
   tBTM_BLE_PF_COUNT* p_addr_filter =
       &btm_ble_adv_filt_cb.p_addr_filter_count[1];
 
-  for (i = 0; i < cmn_ble_vsc_cb.max_filter; i++, p_addr_filter++) {
+  for (i = 0; i < cmn_ble_vsc_cb.max_filter - 1; i++, p_addr_filter++) {
     if (p_addr_filter->bd_addr.IsEmpty()) {
       p_addr_filter->bd_addr = bd_addr;
       p_addr_filter->in_use = true;
@@ -295,11 +295,13 @@ bool btm_ble_dealloc_addr_filter_counter(tBLE_BD_ADDR* p_bd_addr,
       &btm_ble_adv_filt_cb.p_addr_filter_count[1];
   bool found = false;
 
+  LOG(INFO) << __func__ << " running, max_filter=" << +cmn_ble_vsc_cb.max_filter;
+
   if (BTM_BLE_PF_TYPE_ALL == filter_type && NULL == p_bd_addr)
     memset(&btm_ble_adv_filt_cb.p_addr_filter_count[0], 0,
            sizeof(tBTM_BLE_PF_COUNT));
 
-  for (i = 0; i < cmn_ble_vsc_cb.max_filter; i++, p_addr_filter++) {
+  for (i = 0; i < cmn_ble_vsc_cb.max_filter - 1; i++, p_addr_filter++) {
     if (p_addr_filter->in_use &&
         (!p_bd_addr || p_bd_addr->bda == p_addr_filter->bd_addr)) {
       found = true;
