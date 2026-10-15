@@ -347,9 +347,9 @@ static void bta_dm_pm_cback(tBTA_SYS_CONN_STATUS status, uint8_t id,
   APPL_TRACE_DEBUG("bta_dm_pm_cback: st(%d), id(%d), app(%d)", status, id,
                    app_id);
 
-  p_dev = bta_dm_find_peer_device(peer_addr);
+  p_dev = bta_dm_find_peer_device(peer_addr, BT_TRANSPORT_BR_EDR);
 
-  if ((p_dev == NULL) || (p_dev->transport != BT_TRANSPORT_BR_EDR)) {
+  if (p_dev == NULL) {
     APPL_TRACE_DEBUG("bta_dm_pm_cback: No peer device found");
     return;
   }
@@ -1136,6 +1136,16 @@ tBTA_DM_PEER_DEVICE* bta_dm_find_peer_device(const RawAddress& peer_addr) {
     }
   }
   return p_dev;
+}
+
+tBTA_DM_PEER_DEVICE* bta_dm_find_peer_device(const RawAddress& peer_addr,
+                                              tBT_TRANSPORT transport) {
+  for (int i = 0; i < bta_dm_cb.device_list.count; i++) {
+    if (bta_dm_cb.device_list.peer_device[i].peer_bdaddr == peer_addr &&
+        bta_dm_cb.device_list.peer_device[i].transport == transport)
+      return &bta_dm_cb.device_list.peer_device[i];
+  }
+  return nullptr;
 }
 
 /*******************************************************************************
