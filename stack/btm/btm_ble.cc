@@ -1859,7 +1859,7 @@ void btm_ble_link_encrypted(const RawAddress& bd_addr, uint8_t encr_enable) {
 
   p_dev_rec->sec_state = BTM_SEC_STATE_IDLE;
   p_dev_rec->is_le_enc_in_progress = false;
-  if (p_dev_rec->p_callback && enc_cback) {
+  if (p_dev_rec->p_ble_callback && enc_cback) {
     if (encr_enable)
       btm_sec_dev_rec_cback_event(p_dev_rec, BTM_SUCCESS, true);
     else if (p_dev_rec->sec_flags & ~BTM_SEC_LE_LINK_KEY_KNOWN) {
@@ -1867,6 +1867,9 @@ void btm_ble_link_encrypted(const RawAddress& bd_addr, uint8_t encr_enable) {
     } else if (p_dev_rec->role_master)
       btm_sec_dev_rec_cback_event(p_dev_rec, BTM_ERR_PROCESSING, true);
   }
+  /* resubmit requests queued while LE encryption held sec_state */
+  btm_sec_check_pending_reqs();
+
   /* to notify GATT to send data if any request is pending */
   gatt_notify_enc_cmpl(p_dev_rec->ble.pseudo_addr);
 
