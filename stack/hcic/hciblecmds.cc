@@ -1006,10 +1006,11 @@ void btsnd_hcic_ble_set_dbig_parameters(uint8_t dbig_handle,
                                         uint8_t exit_timeout,
                                         uint8_t remove_timeout,
                                         uint8_t terminate_timeout,
+                                        uint8_t bis_timeout,
                                         uint8_t tx_power,
                                         base::Callback<void(uint8_t*, uint16_t)> cb) {
 
-  // Total HCI payload length (including sub-opcode): 13 bytes
+  // Total HCI payload length (including sub-opcode): 16 bytes
   uint16_t param_len = HCI_PARAM_SIZE_SET_DBIG_PARAMS;
   uint8_t *param = (uint8_t *)osi_malloc(param_len);
   uint8_t *p = param;
@@ -1031,6 +1032,7 @@ void btsnd_hcic_ble_set_dbig_parameters(uint8_t dbig_handle,
   UINT8_TO_STREAM(p, exit_timeout);
   UINT8_TO_STREAM(p, remove_timeout);
   UINT8_TO_STREAM(p, terminate_timeout);
+  UINT8_TO_STREAM(p, bis_timeout);
   UINT8_TO_STREAM(p, tx_power);
 
   // Send the command using the main vendor-specific opcode (0xFD90)

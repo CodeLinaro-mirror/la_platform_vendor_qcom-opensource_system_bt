@@ -34,6 +34,7 @@
 #include <string.h>
 
 #include <mutex>
+#include <vector>
 
 #include <hardware/bluetooth.h>
 #include <hardware/bt_sdp.h>
@@ -49,14 +50,12 @@
 #include "stack/sdp/sdpint.h"
 // Protects the sdp_slots array from concurrent access.
 static std::recursive_mutex sdp_lock;
+static std::vector<int> sdp_record_creation_pending_ids;
 
-/**
- * The need for a state variable have been reduced to two states.
- * The remaining state control is handled by program flow
- */
 typedef enum {
   SDP_RECORD_FREE = 0,
   SDP_RECORD_ALLOCED,
+  SDP_RECORD_CREATE_INITIATED,
 } sdp_state_t;
 
 typedef struct {
@@ -254,14 +253,15 @@ static const sdp_slot_t* start_create_sdp(int id) {
     return NULL;
   }
 
-  if (sdp_slots[id].state != SDP_RECORD_ALLOCED) {
+  if (sdp_slots[id].state == SDP_RECORD_FREE) {
     /* The record have been removed before this event occurred - e.g. deinit */
     APPL_TRACE_ERROR(
-        "%s() failed - state for id %d is "
-        "sdp_slots[id].state = %d expected %d",
-        __func__, id, sdp_slots[id].state, SDP_RECORD_ALLOCED);
+        "%s() failed - state for id %d is sdp_slots[id].state = %d expected %d",
+        __func__, id, sdp_slots[id].state, SDP_RECORD_CREATE_INITIATED);
     return NULL;
   }
+
+  sdp_slots[id].state = SDP_RECORD_CREATE_INITIATED;
 
   return &(sdp_slots[id]);
 }
@@ -297,6 +297,30 @@ bt_status_t remove_sdp_record(int record_id) {
     return BT_STATUS_FAIL;
   }
 
+  if (record_id < 0 || record_id >= MAX_SDP_SLOTS) {
+    APPL_TRACE_ERROR("%s() failed - record_id %d is invalid", __func__,
+                     record_id);
+    return BT_STATUS_FAIL;
+  }
+
+  {
+    std::unique_lock<std::recursive_mutex> lock(sdp_lock);
+
+    /* If the record is still being created, queue the removal so that it is
+     * handled once on_create_record_event completes. */
+    if (sdp_slots[record_id].state == SDP_RECORD_CREATE_INITIATED) {
+      sdp_record_creation_pending_ids.push_back(record_id);
+      return BT_STATUS_SUCCESS;
+    }
+    if (sdp_slots[record_id].state == SDP_RECORD_FREE) {
+      BTIF_TRACE_WARNING(
+          "Sdp Server %s attempted to remove record already removed or never "
+          "created",
+          __func__);
+      return BT_STATUS_FAIL;
+    }
+  }
+
   /* Get the Record handle, and free the slot */
   handle = free_sdp_slot(record_id);
   BTIF_TRACE_DEBUG("Sdp Server %s id=%d to handle=0x%08x", __func__, record_id,
@@ -307,9 +331,20 @@ bt_status_t remove_sdp_record(int record_id) {
     BTA_SdpRemoveRecordByUser(INT_TO_PTR(handle));
     return BT_STATUS_SUCCESS;
   }
-  BTIF_TRACE_DEBUG("Sdp Server %s - record already removed - or never created",
-                   __func__);
   return BT_STATUS_FAIL;
+}
+
+static void sdp_check_pending_records() {
+  std::vector<int> pending_ids;
+  {
+    std::unique_lock<std::recursive_mutex> lock(sdp_lock);
+    pending_ids = sdp_record_creation_pending_ids;
+    sdp_record_creation_pending_ids.clear();
+  }
+
+  for (int id : pending_ids) {
+    remove_sdp_record(id);
+  }
 }
 
 /******************************************************************************
@@ -356,6 +391,19 @@ void on_create_record_event(int id) {
     }
     if (handle != -1) {
       set_sdp_handle(id, handle);
+    }
+
+    bool has_pending = false;
+
+    {
+      std::unique_lock<std::recursive_mutex> lock(sdp_lock);
+      sdp_slots[id].state = SDP_RECORD_ALLOCED;
+      has_pending = !sdp_record_creation_pending_ids.empty();
+    }
+
+    /* Check if any records were pending removal */
+    if (has_pending) {
+      sdp_check_pending_records();
     }
   }
 }
