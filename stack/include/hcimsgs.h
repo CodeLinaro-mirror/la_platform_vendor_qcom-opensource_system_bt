@@ -974,7 +974,7 @@ extern void btsnd_hcic_set_reserved_lt_addr(uint8_t lt_addr);
 #define HCI_PARAM_SIZE_SET_ISO_DATA_PATH 13
 #define HCI_PARAM_SIZE_REMOVE_ISO_DATA_PATH 3
 #define HCI_PARAM_SIZE_SET_BLE_HOST_FEATURE 2
-#define HCI_PARAM_SIZE_SET_DBIG_PARAMS 15
+#define HCI_PARAM_SIZE_SET_DBIG_PARAMS 16
 #define HCI_PARAM_SIZE_CREATE_BIG_SYNC 24
 #define HCI_PARAM_SIZE_TERMINATE_BIG_SYNC 1
 #define HCI_PARAM_SIZE_EXIT_DBIG 3
@@ -1038,6 +1038,7 @@ extern void btsnd_hcic_ble_set_dbig_parameters(uint8_t dbig_handle,
                                     uint8_t exit_timeout,
                                     uint8_t remove_timeout,
                                     uint8_t terminate_timeout,
+                                    uint8_t bis_timeout,
                                     uint8_t tx_power,
                                     base::Callback<void(uint8_t*, uint16_t)> cb);
 
