@@ -4172,6 +4172,7 @@ uint8_t BTM_BleSetDbigParameters(tBTM_BLE_SET_DBIG_PARAMETERS_PARAM* p_data) {
       p_data->exit_timeout,
       p_data->remove_timeout,
       p_data->terminate_timeout,
+      p_data->bis_timeout,
       p_data->tx_power,
       base::Bind(&btm_ble_set_dbig_parameters_cmd_cmpl));
 
