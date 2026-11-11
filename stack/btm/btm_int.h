@@ -245,6 +245,7 @@ extern tBTM_STATUS btm_sec_mx_access_request(const RawAddress& bd_addr,
                                              void* p_ref_data);
 extern void btm_sec_conn_req(const RawAddress& bda, uint8_t* dc);
 extern  tBTM_STATUS btm_sec_execute_procedure (tBTM_SEC_DEV_REC *p_dev_rec);
+extern void btm_sec_check_pending_reqs(void);
 extern void btm_create_conn_cancel_complete(uint8_t* p, uint16_t evt_len);
 
 extern void btm_read_inq_tx_power_timeout(void* data);
